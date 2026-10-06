@@ -8273,7 +8273,7 @@
         },
           "v2_6_1": {
             "title": "v2.6.1 — Une voix continue, un avatar maîtrisé et une interface à portée de main",
-            "date": "5 octobre 2026 · 17:00 CEST",
+            "date": "6 octobre 2026 · 13:00 CEST",
             "count": "4",
             "items": {
               "i1": "<b>🎭 Un arrêt visible pour l’avatar</b> — La fenêtre garde son bouton d’arrêt, même si le chat rencontre une erreur. Elle indique si la fermeture est confirmée ou encore en attente ; une session ouverte peut consommer ton forfait Simli, silences compris.",
@@ -9739,7 +9739,7 @@
           },
           "q11": {
             "question": "Que garde LIA d'une session Live ?",
-            "answer": "<strong>🎧 En session Live :</strong><br>chaque demande que tu as déléguée est un tour de chat, gardé comme n'importe quel autre, et les échanges restés purement vocaux — une parenthèse, un aparté — sont archivés en deux lignes visibles à la fin de chaque tour, pour que la conversation se lise comme elle s'est passée ; les mémoires et les centres d'intérêt en apprennent comme d'un message tapé. La session se clôt sur une carte : comment elle a fini, la durée, les demandes, les échanges vocaux, le coût propre de LIA.<br><br><strong>🎯 En session directe :</strong><br>rien n'est archivé pendant que tu parles — les sous-titres vivent dans le bandeau. À la fin, ce que tu as dit est rédigé et relayé dans la conversation comme un message de toi ; la carte dit « en cours de relais », puis est réécrite une fois que LIA a répondu, avec son coût relu. Ce qu'était l'audio appartient au fournisseur et à toi : la plateforme ne le reçoit jamais.<br><br><strong>🧾 Dans tous les cas :</strong><br>les registres notent qu'une session a eu lieu et quelle capacité LIA a lue pour toi — jamais un mot de ce qui s'est dit."
+            "answer": "<strong>🎧 En session Live :</strong><br>chaque demande que tu as déléguée est un tour de chat, gardé comme n'importe quel autre, et les échanges restés purement vocaux — une parenthèse, un aparté — sont archivés en deux lignes visibles à la fin de chaque tour, pour que la conversation se lise comme elle s'est passée ; les mémoires et les centres d'intérêt en apprennent comme d'un message tapé. La session se clôt sur une carte : comment elle a fini, la durée, les demandes, les échanges vocaux, le coût propre de LIA.<br><br><strong>🎯 En session directe :</strong><br>rien n'est archivé pendant que tu parles — les sous-titres vivent dans le bandeau. À la fin, ce que tu as dit est rédigé et relayé dans la conversation comme un message de toi ; la carte dit « en cours de relais », puis est réécrite une fois que LIA a répondu, avec son coût relu. En session directe, le micro va au fournisseur depuis ton navigateur. Sans avatar, la réponse audio revient par ce même parcours. Avec l’avatar, cette réponse transite aussi par l’API puis Simli, sans être enregistrée par LIA.<br><br><strong>🧾 Dans tous les cas :</strong><br>les registres notent qu'une session a eu lieu et quelle capacité LIA a lue pour toi — jamais un mot de ce qui s'est dit."
           },
           "q12": {
             "question": "Que se passe-t-il quand une session Live se met en veille ?",

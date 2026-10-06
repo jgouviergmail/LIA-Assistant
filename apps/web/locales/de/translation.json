@@ -8252,7 +8252,7 @@
         },
           "v2_6_1": {
             "title": "v2.6.1 — Durchgehende Sprache, ein steuerbarer Avatar und eine erreichbare Oberfläche",
-            "date": "5. Oktober 2026 · 17:00 CEST",
+            "date": "6. Oktober 2026 · 13:00 CEST",
             "count": "4",
             "items": {
               "i1": "<b>🎭 Ein sichtbarer Stopp für den Avatar</b> — Die Schaltfläche zum Stoppen bleibt im Fenster erreichbar, auch bei einem Chatfehler. Es zeigt eine bestätigte oder noch ausstehende Schließung an; eine offene Sitzung kann dein Simli-Kontingent auch während der Stille verbrauchen.",
@@ -9718,7 +9718,7 @@
           },
           "q11": {
             "question": "Was behält LIA von einer Live-Sitzung?",
-            "answer": "<strong>🎧 In einer Live-Sitzung:</strong><br>jede Bitte, die du delegiert hast, ist ein Chat-Zug, aufbewahrt wie jeder andere, und die Wortwechsel, die rein stimmlich blieben – Smalltalk, eine Nebenbemerkung – werden am Ende jedes Zuges als zwei sichtbare Zeilen archiviert, damit sich das Gespräch so liest, wie es war; Erinnerungen und Interessen lernen daraus wie aus einer getippten Nachricht. Die Sitzung schließt mit einer Karte: wie sie endete, Dauer, Bitten, Sprachwechsel, LIAs eigene Kosten.<br><br><strong>🎯 In einer direkten Sitzung:</strong><br>nichts wird archiviert, während du sprichst – die Untertitel leben im Band. Am Ende wird, was du gesagt hast, aufgeschrieben und als Nachricht von dir ins Gespräch weitergegeben; die Karte sagt « wird weitergegeben » und wird neu geschrieben, sobald LIA geantwortet hat, mit neu gelesenen Kosten. Der Ton selbst gehört dem Anbieter und dir: die Plattform erhält ihn nie.<br><br><strong>🧾 In jedem Fall:</strong><br>die Register halten fest, dass eine Sitzung stattfand und welche Fähigkeit LIA für dich gelesen hat – nie ein Wort dessen, was gesagt wurde."
+            "answer": "<strong>🎧 In einer Live-Sitzung:</strong><br>jede Bitte, die du delegiert hast, ist ein Chat-Zug, aufbewahrt wie jeder andere, und die Wortwechsel, die rein stimmlich blieben – Smalltalk, eine Nebenbemerkung – werden am Ende jedes Zuges als zwei sichtbare Zeilen archiviert, damit sich das Gespräch so liest, wie es war; Erinnerungen und Interessen lernen daraus wie aus einer getippten Nachricht. Die Sitzung schließt mit einer Karte: wie sie endete, Dauer, Bitten, Sprachwechsel, LIAs eigene Kosten.<br><br><strong>🎯 In einer direkten Sitzung:</strong><br>nichts wird archiviert, während du sprichst – die Untertitel leben im Band. Am Ende wird, was du gesagt hast, aufgeschrieben und als Nachricht von dir ins Gespräch weitergegeben; die Karte sagt « wird weitergegeben » und wird neu geschrieben, sobald LIA geantwortet hat, mit neu gelesenen Kosten. In einer direkten Sitzung gelangt das Mikrofon-Audio von deinem Browser zum Anbieter. Ohne Avatar kommt die Audioantwort über dieselbe Verbindung zurück. Mit Avatar läuft diese Antwort auch über die API und anschließend zu Simli, ohne von LIA aufgezeichnet zu werden.<br><br><strong>🧾 In jedem Fall:</strong><br>die Register halten fest, dass eine Sitzung stattfand und welche Fähigkeit LIA für dich gelesen hat – nie ein Wort dessen, was gesagt wurde."
           },
           "q12": {
             "question": "Was passiert, wenn eine Live-Sitzung in den Standby geht?",

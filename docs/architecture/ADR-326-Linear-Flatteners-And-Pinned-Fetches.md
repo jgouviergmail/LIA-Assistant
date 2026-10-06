@@ -20,12 +20,12 @@ push body, a TTS line, a ticket comment, a radio excerpt, an e-mail card — run
 **synchronously on the event loop**, over text a third party may have written.
 Measured:
 
-| Input | Cost before |
-|---|---|
-| A chat message of **51 characters** (empty table cells, spaces only), through the radio's excerpt | **4.5 s**, ×4 for every two cells added (exponential) |
+| Input                                                                                                                                                | Cost before                                                                                 |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| A chat message of **51 characters** (empty table cells, spaces only), through the radio's excerpt                                                    | **4.5 s**, ×4 for every two cells added (exponential)                                       |
 | A plain-text e-mail body of **32 KB** (`<a` followed by blanks), through the normaliser, the detail level and the e-mail card, on the committed code | **3.3 s** of card rendering, the loop frozen for **3.0 s** (a ticker task measured the gap) |
-| 40 KB of newlines through the voice projection | 14 s |
-| 120 KB of `[a](http://x` through the Markdown link rule | 9 s |
+| 40 KB of newlines through the voice projection                                                                                                       | 14 s                                                                                        |
+| 120 KB of `[a](http://x` through the Markdown link rule                                                                                              | 9 s                                                                                         |
 
 A systematic sweep of 17 flatteners against 48 hostile shapes found **34 super-linear
 combinations on 9 functions** on the API side and 11 on the browser side; CodeQL saw
@@ -81,12 +81,15 @@ atomic form JavaScript can also write).
 
 Two tests hold it, both in `tests/unit/domains/agents/display/`:
 
-- `test_flatteners_are_linear.py` measures **growth**, never a wall-clock budget alone:
-  11 flatteners × 26 witnesses, each at n and 4n characters, and a flattener may not take
-  more than eight times longer on four times the text (linear ×4, quadratic ×16). A floor
-  absorbs a loaded runner, a ceiling catches the absurdly slow, and a self-check applies
-  the criterion to the former anchor pattern and expects it to fail — a guard that cannot
-  fail proves nothing.
+- `test_flatteners_are_linear.py` measures **CPU growth** and independently keeps an
+  elapsed-time ceiling. Every declared flattener faces every hostile witness at n and 4n
+  characters, and may not use more than eight times the CPU time on four times the text
+  (linear ×4, quadratic ×16). Batched thread CPU measurements exclude scheduling pauses
+  under parallel tests and resolve coarse host CPU clocks. Short and long batches
+  alternate, and the median paired ratio limits changes in host load between sizes.
+  The noise floor and the elapsed-time ceiling remain separate. A self-check still applies the growth criterion
+  to the former anchor pattern and expects it to fail — a guard that cannot fail proves
+  nothing.
 - `test_flatteners_differential.py` compares every rewritten pattern with its former
   form, frozen as it shipped, over **every short string of the pattern's alphabet**
   (137 000 to 2 000 000 strings each), so the language accepted is proved equal where the

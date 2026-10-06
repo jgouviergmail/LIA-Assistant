@@ -70,7 +70,7 @@ each request you delegated is a chat turn, kept like any other, and the exchange
 
 **🎯 In a direct session:**
 
-nothing is archived while you speak — the captions live in the band. At the end, what you said is written up and relayed to the conversation as a message from you; the card says « relaying », then is rewritten once LIA answered, with its cost re-read. What the audio was is the provider's and yours: the platform never receives it.
+nothing is archived while you speak — the captions live in the band. At the end, what you said is written up and relayed to the conversation as a message from you; the card says « relaying », then is rewritten once LIA answered, with its cost re-read. In a direct session, microphone audio goes from your browser to the provider. Without an avatar, the audio response returns through that same connection. With the avatar, that response also passes through the API and then Simli, without being recorded by LIA.
 
 **🧾 In every case:**
 

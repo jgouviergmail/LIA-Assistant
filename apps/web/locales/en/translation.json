@@ -8262,7 +8262,7 @@
         },
           "v2_6_1": {
             "title": "v2.6.1 — Continuous speech, a controllable avatar and an interface within reach",
-            "date": "5 October 2026 · 17:00 CEST",
+            "date": "6 October 2026 · 13:00 CEST",
             "count": "4",
             "items": {
               "i1": "<b>🎭 A visible stop control for the avatar</b> — The window keeps its stop button even when the chat encounters an error. It shows whether closure is confirmed or still pending; an open session can consume your Simli plan, including during silence.",
@@ -9728,7 +9728,7 @@
           },
           "q11": {
             "question": "What does LIA keep of a Live session?",
-            "answer": "<strong>🎧 In a Live session:</strong><br>each request you delegated is a chat turn, kept like any other, and the exchanges that stayed voice-only — small talk, an aside — are archived as two visible lines at the end of each turn, so the conversation reads as it happened; memories and interests learn from them as they would from a typed message. The session closes on one card: how it ended, the duration, the requests, the voice exchanges, LIA's own cost.<br><br><strong>🎯 In a direct session:</strong><br>nothing is archived while you speak — the captions live in the band. At the end, what you said is written up and relayed to the conversation as a message from you; the card says « relaying », then is rewritten once LIA answered, with its cost re-read. What the audio was is the provider's and yours: the platform never receives it.<br><br><strong>🧾 In every case:</strong><br>the registers record that a session took place and which capability LIA read for you — never a word of what was said."
+            "answer": "<strong>🎧 In a Live session:</strong><br>each request you delegated is a chat turn, kept like any other, and the exchanges that stayed voice-only — small talk, an aside — are archived as two visible lines at the end of each turn, so the conversation reads as it happened; memories and interests learn from them as they would from a typed message. The session closes on one card: how it ended, the duration, the requests, the voice exchanges, LIA's own cost.<br><br><strong>🎯 In a direct session:</strong><br>nothing is archived while you speak — the captions live in the band. At the end, what you said is written up and relayed to the conversation as a message from you; the card says « relaying », then is rewritten once LIA answered, with its cost re-read. In a direct session, microphone audio goes from your browser to the provider. Without an avatar, the audio response returns through that same connection. With the avatar, that response also passes through the API and then Simli, without being recorded by LIA.<br><br><strong>🧾 In every case:</strong><br>the registers record that a session took place and which capability LIA read for you — never a word of what was said."
           },
           "q12": {
             "question": "What happens when a Live session goes on standby?",

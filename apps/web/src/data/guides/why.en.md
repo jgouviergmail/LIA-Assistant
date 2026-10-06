@@ -201,7 +201,7 @@ Raw measurements are stored in your LIA instance and shown in a dedicated Settin
 
 Ingestion is authenticated by a **dedicated token** that you generate from the application and can revoke at any time. The token only grants health-data ingestion — never access to the rest of your account. You can generate several, one per device, and manage them separately.
 
-An **"Assistant" toggle** (off by default, *opt-in*) lets you, if you wish, authorize the assistant to read these measurements and answer factual questions ("How many steps this week?", "My average heart rate today?", "Am I walking less than usual?"), enrich proactive notifications that combine health + weather + calendar, and attach a non-raw biometric context (deltas, trends) to its memories and internal journals. A single switch governs these four integrations. Never diagnostic — only factual figures, with a baseline that qualifies itself honestly ("based on only N days" while history is under 7 days).
+An **"Assistant" toggle** (off by default, _opt-in_) lets you, if you wish, authorize the assistant to read these measurements and answer factual questions ("How many steps this week?", "My average heart rate today?", "Am I walking less than usual?"), enrich proactive notifications that combine health + weather + calendar, and attach a non-raw biometric context (deltas, trends) to its memories and internal journals. A single switch governs these four integrations. Never diagnostic — only factual figures, with a baseline that qualifies itself honestly ("based on only N days" while history is under 7 days).
 
 Three management actions let you delete heart-rate samples, step samples or both. Raw physiological values are kept out of server logs — a concrete privacy safeguard, not a claim that every deployment is automatically GDPR-compliant.
 
@@ -213,7 +213,7 @@ You are always in the loop: before dialing, LIA tells you exactly **who** it wil
 
 And it stays private by construction. During a call LIA can only tell whether you're free or busy at a given time — never the titles, guests or places on your calendar. Nothing is recorded, the conversation is never stored, and only a short summary is kept before it expires. Phone calls run through your own ElevenLabs connector, billed on your account, and the feature is there only if your administrator turned it on.
 
-And LIA can call *you*. Declare your number under *Telephony · My identity*, let LIA call it and read a code you type back, and from then on "call me at eight to go over my day" — or a routine that says so — rings your phone with no confirmation card: the person who would confirm is the one who picks up. How the call goes is your choice, in the same settings, and it is the same choice as the browser's live sessions. In **Live**, the default, each thing you ask on the line is handled by LIA while you speak, as a chat turn of yours — the voice announces it, keeps talking, reads the answer when it lands; a confirmation LIA needs is asked on the line, a question it asks is the answer, and everything sits in the thread with a phone badge. In **Live direct**, the voice reads for you — your agenda, an e-mail, a contact, a place nearby, the weather, what it retains — and acts on nothing; each domain has a switch that is yours, and what you said comes back afterwards as your own message. Live exists only where the phone provider can reach your instance back; elsewhere the setting says so and the call runs direct. Either way the assistant speaks with the personality you gave it, and what runs on your ElevenLabs key is billed there, never counted here.
+And LIA can call _you_. Declare your number under _Telephony · My identity_, let LIA call it and read a code you type back, and from then on "call me at eight to go over my day" — or a routine that says so — rings your phone with no confirmation card: the person who would confirm is the one who picks up. How the call goes is your choice, in the same settings, and it is the same choice as the browser's live sessions. In **Live**, the default, each thing you ask on the line is handled by LIA while you speak, as a chat turn of yours — the voice announces it, keeps talking, reads the answer when it lands; a confirmation LIA needs is asked on the line, a question it asks is the answer, and everything sits in the thread with a phone badge. In **Live direct**, the voice reads for you — your agenda, an e-mail, a contact, a place nearby, the weather, what it retains — and acts on nothing; each domain has a switch that is yours, and what you said comes back afterwards as your own message. Live exists only where the phone provider can reach your instance back; elsewhere the setting says so and the call runs direct. Either way the assistant speaks with the personality you gave it, and what runs on your ElevenLabs key is billed there, never counted here.
 
 ### 3.11. Talking to your people, assistant to assistant
 
@@ -310,7 +310,7 @@ Combined, these optimizations account for the factor of 4 to 8 between Pipeline 
 
 ### 5.4. The app is a window onto YOUR server
 
-The native Android and iOS apps do not change where anything lives. One published app per store, and it is a client for *your* server: you type its address once, and the app shows your LIA — same interface, same releases, no store update when your server evolves. Sovereignty extends to notifications, where it is usually lost first: on Android they come from your server's **own** Firebase project, initialised at runtime, so they never transit the publisher's; on iOS, where Apple only lets the app's publisher push, a minimal relay wakes the phone with one fixed sentence — it stores nothing, and never learns who was woken or why. Your data has exactly as many homes as before: one.
+The native Android and iOS apps do not change where anything lives. One published app per store, and it is a client for _your_ server: you type its address once, and the app shows your LIA — same interface, same releases, no store update when your server evolves. Sovereignty extends to notifications, where it is usually lost first: on Android they come from your server's **own** Firebase project, initialised at runtime, so they never transit the publisher's; on iOS, where Apple only lets the app's publisher push, a minimal relay wakes the phone with one fixed sentence — it stores nothing, and never learns who was woken or why. Your data has exactly as many homes as before: one.
 
 ## 6. Radical transparency
 
@@ -386,13 +386,13 @@ The same requirement governs what LIA retains of your instructions: every lastin
 
 ### 6.8. A surface that describes the product is held to it
 
-Transparency has a failure mode nobody notices: a screen that quietly stops telling the truth. Nothing breaks, no test goes red, and the page that existed to be current becomes the least current in the application. So the capability map — the page answering *what can my assistant do for me?* — is no longer maintained by hand: every capability the platform can switch on or off must have its declared place on it, and a capability that ships without that decision stops the application from starting. The same conviction, one notch further: what a screen says about your data must be **exact or absent**. A tally is the number the database returns, never a length that happens to be at hand; and while an answer is still on its way, or when it failed, the card says nothing rather than guessing. "Nothing set up yet" is a claim about your account — one worth being sure of before making it.
+Transparency has a failure mode nobody notices: a screen that quietly stops telling the truth. Nothing breaks, no test goes red, and the page that existed to be current becomes the least current in the application. So the capability map — the page answering _what can my assistant do for me?_ — is no longer maintained by hand: every capability the platform can switch on or off must have its declared place on it, and a capability that ships without that decision stops the application from starting. The same conviction, one notch further: what a screen says about your data must be **exact or absent**. A tally is the number the database returns, never a length that happens to be at hand; and while an answer is still on its way, or when it failed, the card says nothing rather than guessing. "Nothing set up yet" is a claim about your account — one worth being sure of before making it.
 
 Transparency also applies to the assistant's internal rules. A constraint the system enforces must be published to whoever it affects: when habit learning detects nothing, Settings display the threshold actually required — stricter on weekends, where observed days are fewer — instead of an unexplained silence. And when a setting tunes itself, like the threshold deciding that a journal note enters a reply, it does so inside strict bounds, one small step per day, with a kill switch and every adjustment counted: a learning system is only acceptable if it stays observable and stoppable.
 
 ### 6.9. Three registers: what LIA did, what it looked at, what it undertook alone
 
-Transparency about *reasoning* is one thing; transparency about *acts* is another, and it is the one that counts when an assistant can send, create and delete on your behalf. LIA therefore keeps three registers, automatically, and never mixes them.
+Transparency about _reasoning_ is one thing; transparency about _acts_ is another, and it is the one that counts when an assistant can send, create and delete on your behalf. LIA therefore keeps three registers, automatically, and never mixes them.
 
 **Actions** take one row per thing done for you — an email sent, an event created, a file deleted — with its outcome and the confirmation you gave. **Consultations** take one row per capability used to answer you, named as a domain: "your calendar", "your emails". A consultation never records what was searched for: writing it down would copy the very data the register exists to make accountable. And **turns** take one row per exchange, the spine the other two hang off.
 
@@ -484,14 +484,14 @@ The costliest failures are the ones that do not shout. An intermittent defect, c
 
 LIA ships with production-grade observability:
 
-| Tool | Role |
-| --- | --- |
-| **Prometheus** | System and business metrics |
-| **Grafana** | Real-time monitoring dashboards |
-| **Tempo** | End-to-end distributed tracing |
-| **Loki** | Structured log aggregation, collected by Grafana Alloy |
-| **Langfuse** | Specialized LLM call tracing |
-| **Alertmanager** | Email alerts on vital signals, linked runbooks |
+| Tool             | Role                                                   |
+| ---------------- | ------------------------------------------------------ |
+| **Prometheus**   | System and business metrics                            |
+| **Grafana**      | Real-time monitoring dashboards                        |
+| **Tempo**        | End-to-end distributed tracing                         |
+| **Loki**         | Structured log aggregation, collected by Grafana Alloy |
+| **Langfuse**     | Specialized LLM call tracing                           |
+| **Alertmanager** | Email alerts on vital signals, linked runbooks         |
 
 Every request is traced end-to-end, every LLM call is measured, every error is contextualized. This isn't monitoring bolted on as an afterthought — it's a **foundational architectural decision** documented across the project's Architecture Decision Records. HTTP metrics and route attributes in HTTP traces use the route pattern, excluding names or search terms embedded in an address. Optional LLM traces can retain conversation context and need their own access and retention controls. The whole monitoring stack runs on supported versions, pinned by digest.
 
@@ -517,7 +517,7 @@ Send a question, close the tab, walk away. Generation continues on the server, a
 
 ### 8.6. Nothing runs behind your back
 
-An assistant that can act is an assistant that can act *wrongly*. Two rules make that acceptable.
+An assistant that can act is an assistant that can act _wrongly_. Two rules make that acceptable.
 
 First, **nothing touches your server without you saying yes** — and the confirmation shows everything that will be sent, including the instructions LIA wrote for itself. A summary you cannot fully read is not a confirmation, it is a formality. The permission is checked again the moment the action starts, not only when you asked for it.
 
@@ -543,21 +543,21 @@ LIA does not ask to be trusted on its word. The frameworks it follows are writte
 
 ### 9.2. The open standards LIA speaks
 
-| Standard | What LIA does with it |
-| --- | --- |
-| **MCP** (Model Context Protocol) | Plug in external tools, yours as much as a vendor's, without writing a line of code |
-| **Agent Plugins** (agent-plugins.org) | Install a portable package in one step — skills and MCP servers together — and uninstall it just as cleanly |
-| **agentskills.io** | Add expert competencies written in plain language |
-| **OAuth 2.1 + PKCE** | Connect your Google or Microsoft accounts without sharing your account password with LIA |
-| **WebAuthn / FIDO2** | Sign in with a passkey, with no password at all |
-| **OWASP Top 10** | The reference grid of web vulnerabilities, walked endpoint by endpoint |
-| **OpenTelemetry** | Observability any tool on the market can read back |
-| **Prometheus / OpenMetrics** | Metrics exposed in an open format, not locked inside a dashboard |
-| **WCAG 2.2 AA** | The accessibility level targeted, and checked automatically |
-| **SemVer 2.0** and **Keep a Changelog** | Version numbers that mean something, and a changelog you can read |
-| **CycloneDX** (SBOM) | The exact inventory of what every version contains, published with it |
-| **Conventional Commits** | A change history readable by a person as well as a machine |
-| **AGPL-3.0** | The complete source, auditable, modifiable — and required to stay that way |
+| Standard                                | What LIA does with it                                                                                       |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| **MCP** (Model Context Protocol)        | Plug in external tools, yours as much as a vendor's, without writing a line of code                         |
+| **Agent Plugins** (agent-plugins.org)   | Install a portable package in one step — skills and MCP servers together — and uninstall it just as cleanly |
+| **agentskills.io**                      | Add expert competencies written in plain language                                                           |
+| **OAuth 2.1 + PKCE**                    | Connect your Google or Microsoft accounts without sharing your account password with LIA                    |
+| **WebAuthn / FIDO2**                    | Sign in with a passkey, with no password at all                                                             |
+| **OWASP Top 10**                        | The reference grid of web vulnerabilities, walked endpoint by endpoint                                      |
+| **OpenTelemetry**                       | Observability any tool on the market can read back                                                          |
+| **Prometheus / OpenMetrics**            | Metrics exposed in an open format, not locked inside a dashboard                                            |
+| **WCAG 2.2 AA**                         | WCAG 2.2 AA target; targeted automated checks, manual review required                                       |
+| **SemVer 2.0** and **Keep a Changelog** | Version numbers that mean something, and a changelog you can read                                           |
+| **CycloneDX** (SBOM)                    | The exact inventory of what every version contains, published with it                                       |
+| **Conventional Commits**                | A change history readable by a person as well as a machine                                                  |
+| **AGPL-3.0**                            | The complete source, auditable, modifiable — and required to stay that way                                  |
 
 Open standards rather than a house protocol: what LIA speaks, another tool can speak — and what it promises can be checked against a text somebody else wrote.
 

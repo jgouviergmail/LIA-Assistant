@@ -7,12 +7,14 @@ mark is a denial of service: measured before the rewrite, 51 characters of
 empty table cells cost 4.5 s, a 32 KB body 3.3 s of frozen loop, 40 KB of
 newlines 14 s in the voice projection.
 
-The guard measures GROWTH, never a wall-clock budget alone: each witness runs at
+The guard measures CPU GROWTH, never a wall-clock budget alone: each witness runs at
 n and at 4n, and a flattener may not take more than eight times longer on four
 times the text (linear grows ×4, quadratic ×16, the exponential one did not
-finish). A floor absorbs the jitter of a loaded CI runner, since a ratio of two
-sub-millisecond timings means nothing; an absolute ceiling catches a pattern
-that is linear but absurdly slow. The witnesses are the ones that were slow —
+finish). Batched thread CPU timings exclude xdist scheduling pauses and absorb
+coarse CPU clocks. Sizes alternate, and the median paired growth keeps changing
+host load from becoming a growth curve. A floor keeps sub-millisecond ratios from
+judging noise; a separate elapsed-time ceiling still catches the absurdly slow.
+The witnesses are the ones that were slow —
 every one of them, so a rewrite that trades one for another is caught.
 """
 
@@ -46,6 +48,8 @@ SMALL_FLOOR_SECONDS = FLOOR_SECONDS / 4
 MAX_GROWTH = 8.0
 #: Whatever the growth, the large size must stay under this (linear and fast).
 CEILING_SECONDS = 1.5
+#: Resolve per-call CPU time even when the host's CPU clock has coarse ticks.
+CPU_BATCH_CALLS = 16
 
 Flattener = Callable[[str], object]
 
@@ -109,14 +113,33 @@ WITNESSES: dict[str, Callable[[int], str]] = {
 }
 
 
-def _seconds(flatten: Flattener, text: str) -> float:
-    """The best of three runs: a scheduler hiccup on one run is not the code."""
-    best = float("inf")
-    for _ in range(3):
-        started = time.perf_counter()
+def _seconds(flatten: Flattener, text: str) -> tuple[float, float]:
+    """Per-call thread CPU time and single-call elapsed time."""
+    started_cpu = time.thread_time()
+    started_elapsed = time.perf_counter()
+    flatten(text)
+    elapsed = time.perf_counter() - started_elapsed
+    for _ in range(CPU_BATCH_CALLS - 1):
         flatten(text)
-        best = min(best, time.perf_counter() - started)
-    return best
+    return (time.thread_time() - started_cpu) / CPU_BATCH_CALLS, elapsed
+
+
+def _growth_seconds(
+    flatten: Flattener, small_text: str, large_text: str
+) -> tuple[float, float, float]:
+    """Median paired CPU growth and best large single-call elapsed time.
+
+    Interleave sizes: host load and CPU frequency must not differ between
+    three small batches at the start and three large batches much later.
+    """
+    samples = []
+    for _ in range(3):
+        small, _ = _seconds(flatten, small_text)
+        large, elapsed = _seconds(flatten, large_text)
+        samples.append((small, large, elapsed))
+    ordered = sorted(samples, key=lambda pair: pair[1] / max(pair[0], SMALL_FLOOR_SECONDS))
+    small, large, _ = ordered[1]
+    return small, large, min(pair[2] for pair in samples)
 
 
 @pytest.mark.parametrize("witness", list(WITNESSES), ids=list(WITNESSES))
@@ -124,15 +147,14 @@ def _seconds(flatten: Flattener, text: str) -> float:
 def test_a_flattener_grows_linearly_on_a_hostile_text(name: str, witness: str) -> None:
     flatten = FLATTENERS[name]
     make = WITNESSES[witness]
-    small = _seconds(flatten, make(SMALL))
-    large = _seconds(flatten, make(4 * SMALL))
+    small, large, elapsed = _growth_seconds(flatten, make(SMALL), make(4 * SMALL))
 
-    assert large < CEILING_SECONDS, f"{name} on {witness!r}: {large:.2f} s at {4 * SMALL} chars"
+    assert elapsed < CEILING_SECONDS, f"{name} on {witness!r}: {elapsed:.2f} s at {4 * SMALL} chars"
     if large < FLOOR_SECONDS:
         return
     assert large <= MAX_GROWTH * max(small, SMALL_FLOOR_SECONDS), (
-        f"{name} on {witness!r} grows ×{large / small:.1f} for ×4 the text "
-        f"({small * 1000:.1f} ms → {large * 1000:.1f} ms): super-linear"
+        f"{name} on {witness!r} grows ×{large / max(small, SMALL_FLOOR_SECONDS):.1f} for ×4 the text "
+        f"({small * 1000:.1f} ms → {large * 1000:.1f} ms CPU): super-linear"
     )
 
 
@@ -153,10 +175,9 @@ def test_the_criterion_catches_the_former_link_pattern() -> None:
 
     former = re.compile(r"<a\s+([^<>]*)>((?:(?!<a\b)[\s\S])*?)</a>", re.IGNORECASE)
     make = WITNESSES["unclosed <a then blanks"]
-    small = _seconds(lambda s: former.sub("", s), make(2_000))
-    large = _seconds(lambda s: former.sub("", s), make(8_000))
+    small, large, _ = _growth_seconds(lambda s: former.sub("", s), make(2_000), make(8_000))
 
     assert large >= FLOOR_SECONDS, "the former pattern is too fast here to judge its growth"
     assert large > MAX_GROWTH * max(
         small, SMALL_FLOOR_SECONDS
-    ), f"the criterion would have let the former pattern pass ({large / small:.1f})"
+    ), f"the criterion would have let the former pattern pass ({large / max(small, SMALL_FLOOR_SECONDS):.1f})"

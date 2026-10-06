@@ -57,14 +57,6 @@
   },
   {
     "kind": "advisory",
-    "subject": "npm:postcss-selector-parser@6.0.10",
-    "ref": "GHSA-rj75-hqrm-r3gf",
-    "reason": "A build-time CSS tool reading the repository's own stylesheets, never a request. @tailwindcss/typography pins 6.0.10 exactly, its latest release (0.5.20) included, and the fix is 7.1.6, a major it never declared: the npm catch-up (dependency programme, lot 8) could not move it. Lifted by a typography release that moves to 7.x.",
-    "owner": "maintainer",
-    "review_by": "2026-11-30"
-  },
-  {
-    "kind": "advisory",
     "subject": "pip:fsspec@2025.3.0",
     "ref": "GHSA-27vj-qcqg-25rc",
     "reason": "The wake-word GPU synthesis toolbox only (scripts/wake-word/requirements-gpu.lock.txt): voxcpm pins datasets 3.6.0, which caps fsspec at 2025.3.0. It runs on the developer's machine, reads local audio and Hugging Face files, and never opens a ReferenceFileSystem; never in production. Lifted when voxcpm accepts a datasets that allows fsspec >= 2026.6.0.",

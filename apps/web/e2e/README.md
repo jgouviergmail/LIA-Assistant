@@ -19,6 +19,12 @@ Every spec intercepts `**/api/v1/**` and serves fixed payloads (`fixtures/`), so
 a single lowest-priority catch-all that fails any un-mocked API call with `501`,
 so a leaking request is a loud, visible failure — never a silent real hit.
 
+The application's exact Material Symbols stylesheet request is served locally
+with the real variable font, pinned to a reviewed upstream commit. Its
+[provenance, SHA-256 and Apache 2.0 license](fixtures/fonts/README.md) travel with
+the fixture. Geometry and contrast scans therefore render actual icon glyphs
+without a runtime CDN download or an opaque HTTPS tunnel.
+
 Each browser context also uses a loopback transport guard. It forwards the
 page's assets and rejects HTTP API requests that escape interception with the
 same explicit `501`. Opaque CONNECT tunnels and unmocked WebSocket upgrades
@@ -37,6 +43,7 @@ including teardown, while an unexpected request still receives the explicit 501.
 
 - `fixtures/api-mock.ts` — catch-all + `registerRoutes` (LIFO ordering explained inline).
 - `fixtures/api-network-guard.ts` — context-owned transport boundary and teardown quarantine.
+- `fixtures/offline-fonts.ts` — exact stylesheet and font routes for the vendored icon face.
 - `fixtures/test-user.ts` — deterministic `User` factory mirroring `src/lib/auth.tsx`.
 - `fixtures/dashboard-shell.ts` — type-correct mocks for the endpoints the
   authenticated shell fires on every page (config, personalities, connector
@@ -95,6 +102,16 @@ versioned at `docs/a11y/AT_CAMPAIGN.md`; the token-level contrast contract at
 fails when the manifest and the lock diverge, which is the drift guard. After
 changing a dependency, regenerate the lock inside the official image
 (`npm install --package-lock-only`) and commit both files together.
+
+`npm ci` also applies the version- and SHA-256-checked
+[axe transport patch](scripts/patch-axe-transfer.cjs) to both module formats.
+Large partial results travel in chunks of at most 1,048,576 UTF-16 code units;
+each chunk carries its length and an FNV-1a hash, checked in the browser before
+appending.
+A changed character fails explicitly even when the JSON remains valid, and the
+consolidation page closes on failure. All rules, frames and results are retained.
+The [regression tests](scripts/patch-axe-transfer.node.cjs) run before E2E scans.
+An axe upgrade or unfamiliar package source requires review of this exact patch.
 
 ## Running locally
 
@@ -269,8 +286,8 @@ as `Dockerfile.prod`), then `PORT=3000 HOSTNAME=0.0.0.0 node
 
 ## Environment variables
 
-| Var                  | Default                  | Purpose                                         |
-| -------------------- | ------------------------ | ----------------------------------------------- |
-| `E2E_BASE_URL`       | `http://127.0.0.1:3000` | HTTP production server under test.               |
-| `E2E_MANAGED_SERVER` | unset                    | `1` → Playwright builds + serves the app (CI).  |
-| `CI`                 | unset                    | Enables retries, GitHub reporter, `forbidOnly`. |
+| Var                  | Default                 | Purpose                                         |
+| -------------------- | ----------------------- | ----------------------------------------------- |
+| `E2E_BASE_URL`       | `http://127.0.0.1:3000` | HTTP production server under test.              |
+| `E2E_MANAGED_SERVER` | unset                   | `1` → Playwright builds + serves the app (CI).  |
+| `CI`                 | unset                   | Enables retries, GitHub reporter, `forbidOnly`. |

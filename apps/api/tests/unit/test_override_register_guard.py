@@ -33,7 +33,7 @@ _REGISTER_HEADING = "**Current overrides**"
 _ADVISORY_HEADING = "**Accepted advisories**"
 # A register runs from its bold heading to the next rule, section or register.
 _SECTION_ENDS = ("\n---", "\n### ", "\n**")
-_ROW = re.compile(r"^\| `([^`]+)` \|", re.MULTILINE)
+_ROW = re.compile(r"^\|[ \t]+`([^`]+)`[ \t]+\|", re.MULTILINE)
 _ADVISORY_ROW = re.compile(r"^\| `(GHSA-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4})`", re.MULTILINE)
 
 

@@ -8254,7 +8254,7 @@
         },
           "v2_6_1": {
             "title": "v2.6.1 — Voce continua, un avatar controllabile e un’interfaccia a portata di mano",
-            "date": "5 ottobre 2026 · 17:00 CEST",
+            "date": "6 ottobre 2026 · 13:00 CEST",
             "count": "4",
             "items": {
               "i1": "<b>🎭 Un arresto visibile per l’avatar</b> — La finestra mantiene il pulsante di arresto anche se la chat incontra un errore. Indica se la chiusura è confermata o ancora in attesa; una sessione aperta può consumare il tuo piano Simli, anche nel silenzio.",
@@ -9720,7 +9720,7 @@
           },
           "q11": {
             "question": "Cosa conserva LIA di una sessione Live?",
-            "answer": "<strong>🎧 In una sessione Live:</strong><br>ogni richiesta che hai delegato è un turno di chat, conservato come qualsiasi altro, e gli scambi rimasti solo vocali — due chiacchiere, un inciso — sono archiviati come due righe visibili alla fine di ogni turno, perché la conversazione si legga com'è avvenuta; memorie e interessi ne imparano come da un messaggio scritto. La sessione si chiude su una scheda: com'è finita, la durata, le richieste, gli scambi vocali, il costo proprio di LIA.<br><br><strong>🎯 In una sessione diretta:</strong><br>nulla è archiviato mentre parli — i sottotitoli vivono nella fascia. Alla fine, ciò che hai detto è redatto e riportato nella conversazione come un tuo messaggio; la scheda dice « in corso di inoltro », poi è riscritta quando LIA ha risposto, con il costo riletto. Ciò che era l'audio appartiene al fornitore e a te: la piattaforma non lo riceve mai.<br><br><strong>🧾 In ogni caso:</strong><br>i registri annotano che una sessione ha avuto luogo e quale capacità LIA ha letto per te — mai una parola di ciò che è stato detto."
+            "answer": "<strong>🎧 In una sessione Live:</strong><br>ogni richiesta che hai delegato è un turno di chat, conservato come qualsiasi altro, e gli scambi rimasti solo vocali — due chiacchiere, un inciso — sono archiviati come due righe visibili alla fine di ogni turno, perché la conversazione si legga com'è avvenuta; memorie e interessi ne imparano come da un messaggio scritto. La sessione si chiude su una scheda: com'è finita, la durata, le richieste, gli scambi vocali, il costo proprio di LIA.<br><br><strong>🎯 In una sessione diretta:</strong><br>nulla è archiviato mentre parli — i sottotitoli vivono nella fascia. Alla fine, ciò che hai detto è redatto e riportato nella conversazione come un tuo messaggio; la scheda dice « in corso di inoltro », poi è riscritta quando LIA ha risposto, con il costo riletto. In una sessione diretta, l’audio del microfono passa dal tuo browser al fornitore. Senza avatar, la risposta audio torna tramite la stessa connessione. Con l’avatar, questa risposta passa anche dall’API e poi da Simli, senza essere registrata da LIA.<br><br><strong>🧾 In ogni caso:</strong><br>i registri annotano che una sessione ha avuto luogo e quale capacità LIA ha letto per te — mai una parola di ciò che è stato detto."
           },
           "q12": {
             "question": "Cosa succede quando una sessione Live va in standby?",

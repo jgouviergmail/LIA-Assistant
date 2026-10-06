@@ -201,7 +201,7 @@ Les mesures brutes sont stockées dans ton instance LIA et affichées dans une s
 
 L'envoi est authentifié par un **jeton dédié** que tu génères depuis l'application et que tu peux révoquer à tout moment. Le jeton ne donne accès qu'à l'envoi de données santé — jamais au reste de ton compte. Tu peux en générer plusieurs, un par appareil, et les gérer séparément.
 
-Un **interrupteur « Assistant »** (désactivé par défaut, *opt-in*) permet, si tu le souhaites, d'autoriser l'assistant à lire ces mesures pour répondre factuellement à tes questions (« Combien de pas cette semaine ? », « Ma fréquence cardiaque moyenne aujourd'hui ? », « Ai-je marché moins que d'habitude ? »), enrichir les notifications proactives qui croisent santé + météo + agenda, et ajouter un contexte biométrique non-brut (deltas, tendances) à ses mémoires et journaux internes. Un seul interrupteur gouverne ces quatre intégrations. Jamais de diagnostic — uniquement des chiffres factuels, avec la baseline qualifiée honnêtement (« basée sur seulement N jours » tant qu'on a moins de 7 jours d'historique).
+Un **interrupteur « Assistant »** (désactivé par défaut, _opt-in_) permet, si tu le souhaites, d'autoriser l'assistant à lire ces mesures pour répondre factuellement à tes questions (« Combien de pas cette semaine ? », « Ma fréquence cardiaque moyenne aujourd'hui ? », « Ai-je marché moins que d'habitude ? »), enrichir les notifications proactives qui croisent santé + météo + agenda, et ajouter un contexte biométrique non-brut (deltas, tendances) à ses mémoires et journaux internes. Un seul interrupteur gouverne ces quatre intégrations. Jamais de diagnostic — uniquement des chiffres factuels, avec la baseline qualifiée honnêtement (« basée sur seulement N jours » tant qu'on a moins de 7 jours d'historique).
 
 Trois actions te permettent de supprimer les mesures de fréquence cardiaque, les pas ou l'ensemble. Les valeurs physiologiques brutes sont tenues à l'écart des journaux du serveur — une protection concrète, pas une promesse de conformité automatique de toute installation au RGPD.
 
@@ -213,7 +213,7 @@ Tu gardes toujours la main : avant de composer, LIA t’indique précisément **
 
 Et cela reste confidentiel par construction. Pendant un appel, LIA peut seulement indiquer si tu es libre ou occupé à un moment donné — jamais les titres, invités ou lieux de ton agenda. Rien n'est enregistré, la conversation n'est jamais conservée, et seul un résumé court est gardé avant d'expirer. Les appels passent par ton propre connecteur ElevenLabs, facturés sur ton compte, et la fonctionnalité n'est là que si ton administrateur l'a activée.
 
-Et LIA peut *t'*appeler. Déclare ton numéro dans *Téléphonie · Mon identité*, laisse LIA l'appeler et lire un code que tu retapes, et dès lors « appelle-moi à huit heures pour faire le point sur ma journée » — ou une routine qui le dit — fait sonner ton téléphone sans carte de confirmation : la personne qui confirmerait est celle qui décroche. La façon dont l'appel se passe est un choix qui t'appartient, dans les mêmes réglages, et c'est le même choix que pour les sessions live du navigateur. En **Live**, le défaut, chaque chose que tu demandes en ligne est traitée par LIA pendant que tu parles, comme un tour de chat de toi — la voix l'annonce, continue de parler, lit la réponse quand elle arrive ; une confirmation dont LIA a besoin est demandée sur la ligne, une question qu'elle pose est la réponse, et tout est dans le fil avec un badge téléphone. En **Live direct**, la voix lit pour toi — ton agenda, un e-mail, un contact, un lieu à proximité, la météo, ce qu'elle retient — et n'agit sur rien ; chaque domaine a un interrupteur qui est à toi, et ce que tu as dit revient ensuite comme ton propre message. Live n'existe que là où le fournisseur téléphonique peut rappeler ton instance ; ailleurs le réglage le dit et l'appel part en direct. Dans les deux cas l'assistante parle avec la personnalité que tu lui as donnée, et ce qui tourne sur ta clé ElevenLabs y est facturé, jamais compté ici.
+Et LIA peut *t'*appeler. Déclare ton numéro dans _Téléphonie · Mon identité_, laisse LIA l'appeler et lire un code que tu retapes, et dès lors « appelle-moi à huit heures pour faire le point sur ma journée » — ou une routine qui le dit — fait sonner ton téléphone sans carte de confirmation : la personne qui confirmerait est celle qui décroche. La façon dont l'appel se passe est un choix qui t'appartient, dans les mêmes réglages, et c'est le même choix que pour les sessions live du navigateur. En **Live**, le défaut, chaque chose que tu demandes en ligne est traitée par LIA pendant que tu parles, comme un tour de chat de toi — la voix l'annonce, continue de parler, lit la réponse quand elle arrive ; une confirmation dont LIA a besoin est demandée sur la ligne, une question qu'elle pose est la réponse, et tout est dans le fil avec un badge téléphone. En **Live direct**, la voix lit pour toi — ton agenda, un e-mail, un contact, un lieu à proximité, la météo, ce qu'elle retient — et n'agit sur rien ; chaque domaine a un interrupteur qui est à toi, et ce que tu as dit revient ensuite comme ton propre message. Live n'existe que là où le fournisseur téléphonique peut rappeler ton instance ; ailleurs le réglage le dit et l'appel part en direct. Dans les deux cas l'assistante parle avec la personnalité que tu lui as donnée, et ce qui tourne sur ta clé ElevenLabs y est facturé, jamais compté ici.
 
 ### 3.11. Parler à tes proches, d’assistant à assistant
 
@@ -310,7 +310,7 @@ Combinées, ces optimisations expliquent l'écart de 4 à 8 entre le mode Pipeli
 
 ### 5.4. L'app est une fenêtre sur TON serveur
 
-Les apps natives Android et iOS ne changent rien à l'endroit où vivent les choses. Une seule app publiée par store, et c'est un client de *ton* serveur : tu saisis son adresse une fois, et l'app affiche ton LIA — même interface, mêmes évolutions, aucune mise à jour de store quand ton serveur avance. La souveraineté s'étend aux notifications, là où elle se perd d'habitude en premier : sur Android elles viennent du **propre** projet Firebase de ton serveur, initialisé à l'exécution, elles ne transitent donc jamais par celui de l'éditeur ; sur iOS, où Apple ne laisse pousser que l'éditeur de l'app, un relais minimal réveille le téléphone d'une phrase fixe — il ne stocke rien, et ne sait jamais qui a été réveillé ni pourquoi. Tes données ont exactement autant de maisons qu'avant : une.
+Les apps natives Android et iOS ne changent rien à l'endroit où vivent les choses. Une seule app publiée par store, et c'est un client de _ton_ serveur : tu saisis son adresse une fois, et l'app affiche ton LIA — même interface, mêmes évolutions, aucune mise à jour de store quand ton serveur avance. La souveraineté s'étend aux notifications, là où elle se perd d'habitude en premier : sur Android elles viennent du **propre** projet Firebase de ton serveur, initialisé à l'exécution, elles ne transitent donc jamais par celui de l'éditeur ; sur iOS, où Apple ne laisse pousser que l'éditeur de l'app, un relais minimal réveille le téléphone d'une phrase fixe — il ne stocke rien, et ne sait jamais qui a été réveillé ni pourquoi. Tes données ont exactement autant de maisons qu'avant : une.
 
 ## 6. Transparence radicale
 
@@ -386,13 +386,13 @@ La même exigence gouverne ce que LIA retient de tes consignes : chaque règle d
 
 ### 6.8. Une surface qui décrit le produit y est tenue
 
-La transparence a un mode de défaillance que personne ne remarque : un écran qui cesse discrètement de dire vrai. Rien ne casse, aucun test ne vire au rouge, et la page qui existait pour être à jour devient la moins à jour de l'application. La carte des capacités — celle qui répond *qu'est-ce que mon assistant sait faire pour moi ?* — ne se maintient donc plus à la main : chaque capacité que la plateforme sait activer ou couper doit y avoir sa place déclarée, et une capacité livrée sans cette décision empêche l'application de démarrer. La même conviction, d'un cran plus loin : ce qu'un écran affirme de tes données doit être **exact ou absent**. Un décompte est le nombre que rend la base, jamais une longueur qui traînait à portée de main ; et tant que la réponse est en route, ou quand elle a échoué, la carte ne dit rien plutôt que de deviner. « Rien de configuré » est une affirmation sur ton compte — de celles dont il vaut mieux être sûr avant de les prononcer.
+La transparence a un mode de défaillance que personne ne remarque : un écran qui cesse discrètement de dire vrai. Rien ne casse, aucun test ne vire au rouge, et la page qui existait pour être à jour devient la moins à jour de l'application. La carte des capacités — celle qui répond _qu'est-ce que mon assistant sait faire pour moi ?_ — ne se maintient donc plus à la main : chaque capacité que la plateforme sait activer ou couper doit y avoir sa place déclarée, et une capacité livrée sans cette décision empêche l'application de démarrer. La même conviction, d'un cran plus loin : ce qu'un écran affirme de tes données doit être **exact ou absent**. Un décompte est le nombre que rend la base, jamais une longueur qui traînait à portée de main ; et tant que la réponse est en route, ou quand elle a échoué, la carte ne dit rien plutôt que de deviner. « Rien de configuré » est une affirmation sur ton compte — de celles dont il vaut mieux être sûr avant de les prononcer.
 
 La transparence vaut aussi pour les règles internes de l'assistant. Une contrainte que le système applique doit être publiée à qui la subit : quand l'apprentissage des habitudes ne détecte rien, les Réglages affichent le seuil réellement exigé — plus strict le week-end, où les jours observés sont moins nombreux — au lieu d'un silence inexpliqué. Et quand un réglage s'ajuste tout seul, comme le seuil qui décide qu'une note du journal entre dans une réponse, il le fait dans des bornes strictes, un petit pas par jour, avec un interrupteur d'arrêt et chaque ajustement compté : un système qui apprend n'est acceptable que s'il reste observable et débrayable.
 
 ### 6.9. Trois registres : ce que LIA a fait, ce qu'elle a regardé, ce qu'elle a entrepris seule
 
-La transparence sur le *raisonnement* est une chose ; celle sur les *actes* en est une autre, et c'est elle qui compte quand un assistant peut envoyer, créer et supprimer à ta place. LIA tient donc trois registres, automatiquement, et ne les mélange jamais.
+La transparence sur le _raisonnement_ est une chose ; celle sur les _actes_ en est une autre, et c'est elle qui compte quand un assistant peut envoyer, créer et supprimer à ta place. LIA tient donc trois registres, automatiquement, et ne les mélange jamais.
 
 Les **actions** portent une ligne par chose faite pour toi — un e-mail envoyé, un événement créé, un fichier supprimé — avec son résultat et la confirmation que tu as donnée. Les **consultations** portent une ligne par capacité utilisée pour te répondre, nommée sous la forme d'un domaine : « ton agenda », « tes e-mails ». Une consultation n'enregistre jamais ce qui a été cherché : l'écrire reviendrait à recopier la donnée même que le registre existe pour rendre redevable. Et les **tours** portent une ligne par échange, la colonne vertébrale à laquelle les deux autres se rattachent.
 
@@ -484,14 +484,14 @@ Les pannes les plus coûteuses sont celles qui ne crient pas. Un défaut intermi
 
 LIA embarque une observabilité de grade production :
 
-| Outil | Rôle |
-| --- | --- |
-| **Prometheus** | Métriques système et métier |
-| **Grafana** | Dashboards de monitoring temps réel |
-| **Tempo** | Traces distribuées de bout en bout |
-| **Loki** | Agrégation de logs structurés, collectés par Grafana Alloy |
-| **Langfuse** | Tracing spécialisé des appels LLM |
-| **Alertmanager** | Alertes e-mail sur les signaux vitaux, runbooks liés |
+| Outil            | Rôle                                                       |
+| ---------------- | ---------------------------------------------------------- |
+| **Prometheus**   | Métriques système et métier                                |
+| **Grafana**      | Dashboards de monitoring temps réel                        |
+| **Tempo**        | Traces distribuées de bout en bout                         |
+| **Loki**         | Agrégation de logs structurés, collectés par Grafana Alloy |
+| **Langfuse**     | Tracing spécialisé des appels LLM                          |
+| **Alertmanager** | Alertes e-mail sur les signaux vitaux, runbooks liés       |
 
 Chaque requête est tracée de bout en bout, chaque appel LLM est mesuré, chaque erreur est contextualisée. Ce n'est pas du monitoring ajouté après coup — c'est une **décision architecturale fondamentale** documentée dans les Architecture Decision Records du projet. Les métriques HTTP et les attributs de route des traces HTTP utilisent le modèle de la route, sans les noms ou recherches contenus dans une adresse. Les traces LLM facultatives peuvent conserver du contexte conversationnel et demandent leurs propres contrôles d'accès et de conservation. Toute la pile de supervision tourne sur des versions maintenues, épinglées par empreinte.
 
@@ -543,21 +543,21 @@ LIA ne demande pas qu'on lui fasse confiance sur parole. Les cadres qu'elle suit
 
 ### 9.2. Les standards ouverts que LIA parle
 
-| Standard | Ce que LIA en fait |
-| --- | --- |
-| **MCP** (Model Context Protocol) | Brancher des outils externes, les tiens comme ceux d'un éditeur, sans écrire une ligne de code |
-| **Agent Plugins** (agent-plugins.org) | Installer en une étape un paquet portable — compétences et serveurs MCP réunis — et le désinstaller aussi proprement |
-| **agentskills.io** | Ajouter des compétences expertes rédigées en langage naturel |
-| **OAuth 2.1 + PKCE** | Connecter tes comptes Google ou Microsoft sans communiquer leur mot de passe à LIA |
-| **WebAuthn / FIDO2** | Se connecter par clé d'accès, sans mot de passe du tout |
-| **OWASP Top 10** | La grille de référence des vulnérabilités web, passée point d'accès par point d'accès |
-| **OpenTelemetry** | Une observabilité que n'importe quel outil du marché sait relire |
-| **Prometheus / OpenMetrics** | Des métriques exposées dans un format ouvert, pas enfermées dans un tableau de bord |
-| **WCAG 2.2 AA** | Le niveau d'accessibilité visé, et vérifié automatiquement |
-| **SemVer 2.0** et **Keep a Changelog** | Des numéros de version qui veulent dire quelque chose, et un journal des changements lisible |
-| **CycloneDX** (SBOM) | L'inventaire exact de ce que contient chaque version, publié avec elle |
-| **Conventional Commits** | Un historique des changements lisible par un humain comme par une machine |
-| **AGPL-3.0** | Le code source complet, auditable, modifiable — et qui doit le rester |
+| Standard                               | Ce que LIA en fait                                                                                                   |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| **MCP** (Model Context Protocol)       | Brancher des outils externes, les tiens comme ceux d'un éditeur, sans écrire une ligne de code                       |
+| **Agent Plugins** (agent-plugins.org)  | Installer en une étape un paquet portable — compétences et serveurs MCP réunis — et le désinstaller aussi proprement |
+| **agentskills.io**                     | Ajouter des compétences expertes rédigées en langage naturel                                                         |
+| **OAuth 2.1 + PKCE**                   | Connecter tes comptes Google ou Microsoft sans communiquer leur mot de passe à LIA                                   |
+| **WebAuthn / FIDO2**                   | Se connecter par clé d'accès, sans mot de passe du tout                                                              |
+| **OWASP Top 10**                       | La grille de référence des vulnérabilités web, passée point d'accès par point d'accès                                |
+| **OpenTelemetry**                      | Une observabilité que n'importe quel outil du marché sait relire                                                     |
+| **Prometheus / OpenMetrics**           | Des métriques exposées dans un format ouvert, pas enfermées dans un tableau de bord                                  |
+| **WCAG 2.2 AA**                        | Objectif WCAG 2.2 AA ; contrôles automatisés ciblés, revue manuelle requise                                          |
+| **SemVer 2.0** et **Keep a Changelog** | Des numéros de version qui veulent dire quelque chose, et un journal des changements lisible                         |
+| **CycloneDX** (SBOM)                   | L'inventaire exact de ce que contient chaque version, publié avec elle                                               |
+| **Conventional Commits**               | Un historique des changements lisible par un humain comme par une machine                                            |
+| **AGPL-3.0**                           | Le code source complet, auditable, modifiable — et qui doit le rester                                                |
 
 Des standards ouverts plutôt qu'un protocole maison : ce que LIA parle, un autre outil peut le parler — et ce qu'elle promet se vérifie contre un texte écrit par d'autres.
 

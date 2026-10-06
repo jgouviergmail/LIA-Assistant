@@ -91,9 +91,9 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
- *   Re-measured 2026-10-05 (v2.6.1): backend 40,039 collected
- *   (pytest --collect-only -q, 2,315 files) + frontend 11,062 collected
- *   (892 files) = 51,101 -> 51000. Coverage and runtime gates qualify the snapshot.
+ *   Re-measured 2026-10-06 (v2.6.1): backend 40,039 collected
+ *   (pytest --collect-only -q --no-cov, 2,315 files) + frontend 11,062 collected
+ *   (892 files, collected 2026-10-06) = 51,101 -> 51000. Coverage and runtime gates qualify the snapshot.
  *   Re-measured 2026-10-05 (v2.6.0): backend 40,019 collected
  *   (pytest --collect-only -q) + frontend 11,038 collected
  *   (vitest list --json) = 51,057 -> 51000.

@@ -9,6 +9,7 @@
 import { test as base, expect } from '@playwright/test';
 import { installApiCatchAll, registerRoutes, stopApiRequests, type MockRoute } from './api-mock';
 import { createApiNetworkGuard, type ApiNetworkGuard } from './api-network-guard';
+import { installOfflineFonts } from './offline-fonts';
 import { dashboardShellMocks } from './dashboard-shell';
 import { makeTestUser, type TestUser } from './test-user';
 
@@ -39,6 +40,7 @@ export const test = base.extend<Fixtures>({
   },
   _apiIsolation: [
     async ({ page, apiNetworkGuard }, provide) => {
+      await installOfflineFonts(page);
       await installApiCatchAll(page);
       await provide();
       apiNetworkGuard.quarantine();

@@ -4,6 +4,8 @@
   "private": true,
   "description": "Hermetic end-to-end + accessibility smoke suite for the LIA web app (audit F031). Isolated from the app's workspace on purpose: Playwright ships glibc browser binaries that do not run in the Alpine dev container, so this package installs and runs inside the official Playwright image (CI + local proof), never in the app node_modules.",
   "scripts": {
+    "postinstall": "node scripts/patch-axe-transfer.cjs",
+    "test:transport": "node --test scripts/patch-axe-transfer.node.cjs",
     "test": "playwright test",
     "test:smoke": "playwright test smoke",
     "test:a11y": "playwright test a11y",

@@ -761,6 +761,7 @@ tasks:
       NODE_ENV: ""
       E2E_ALL_BROWSERS: "{{.E2E_ALL_BROWSERS}}"
     cmds:
+      - npm run test:transport
       - npm run typecheck
       - npx playwright test
 

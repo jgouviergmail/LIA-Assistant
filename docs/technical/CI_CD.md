@@ -3,6 +3,7 @@
 > Continuous Integration et automatisation qualite pour le projet LIA.
 
 **Fichiers sources** :
+
 - `.github/workflows/ci.yml` — Pipeline CI principale
 - `Taskfile.yml` — **l'implementation reelle de tous les gates** (voir ci-dessous)
 - `.github/workflows/security.yml` — Scans de securite (CodeQL, Trivy, SBOM)
@@ -31,11 +32,11 @@ frontend, aux seuils de couverture par fichier et a tout le bloc code-hygiene.
 Trois exceptions seulement, chacune motivee par ecrit dans le dictionnaire
 `CI_ONLY` de `scripts/audit/check_ci_parity.py` :
 
-| Etape CI-only | Raison | Equivalent local |
-|---|---|---|
-| `promtool` (binaire natif) | promtool n'est pas installe sur une machine de dev | `task test:alerts` — **meme version v3.0.0**, via conteneur |
-| Replay des migrations (bash, dans le conteneur) | le wrapper bash ne tourne pas sur l'hote Windows | `task db:migrate:replay-check` (portage Python, F048) |
-| Gate 3.10 de l'installateur (`tests_py310.py`, ADR-215) | doit tourner sous l'interpreteur 3.10 nu de setup-python, hors venv du repo | n'importe quel python >= 3.10 execute le meme fichier |
+| Etape CI-only                                           | Raison                                                                      | Equivalent local                                            |
+| ------------------------------------------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `promtool` (binaire natif)                              | promtool n'est pas installe sur une machine de dev                          | `task test:alerts` — **meme version v3.0.0**, via conteneur |
+| Replay des migrations (bash, dans le conteneur)         | le wrapper bash ne tourne pas sur l'hote Windows                            | `task db:migrate:replay-check` (portage Python, F048)       |
+| Gate 3.10 de l'installateur (`tests_py310.py`, ADR-215) | doit tourner sous l'interpreteur 3.10 nu de setup-python, hors venv du repo | n'importe quel python >= 3.10 execute le meme fichier       |
 
 Le reste des `run:` est du provisionnement de runner (checkout, venv, `pnpm
 install`). `task lint:ci-parity` echoue sur toute etape qui n'est ni un appel de
@@ -88,21 +89,21 @@ Installe via `task setup:hooks` (configure `git config core.hooksPath .github/ho
 
 Le hook ne s'execute que sur les fichiers stages et s'adapte au type de fichier modifie :
 
-| # | Check | Declencheur | Bloquant |
-|---|-------|------------|----------|
-| 0 | `.bak` files | Toujours | Oui |
-| 1 | Secrets (grep) | Toujours | Oui |
-| 1.5 | Infos d'infrastructure/personnelles reelles (denylist locale git-ignoree) | Toujours | Oui |
-| 2.1 | Ruff (`src/ tests/`) | `.py` stages | Oui |
-| 2.2 | Black (`src/ tests/`) | `.py` stages | Oui |
-| 2.3 | MyPy (`src/`) | `.py` stages | Oui |
-| 2.4 | Fast unit tests | `.py` stages | Oui |
-| 2.5 | Critical patterns (sync Store, Redis setex) | `.py` stages | Oui |
-| 3 | i18n keys sync (EN vs fr/de/es/it/zh) | `locales/` stages | Oui |
-| 4 | Alembic migration conflicts (date prefix) | `alembic/versions/` stages | Oui |
-| 5 | `.env.example` completeness | `.py` stages | Oui |
-| 6.1 | ESLint | `.ts/.tsx` stages | Oui |
-| 6.2 | TypeScript check | `.ts/.tsx` stages | Oui |
+| #   | Check                                                                     | Declencheur                | Bloquant |
+| --- | ------------------------------------------------------------------------- | -------------------------- | -------- |
+| 0   | `.bak` files                                                              | Toujours                   | Oui      |
+| 1   | Secrets (grep)                                                            | Toujours                   | Oui      |
+| 1.5 | Infos d'infrastructure/personnelles reelles (denylist locale git-ignoree) | Toujours                   | Oui      |
+| 2.1 | Ruff (`src/ tests/`)                                                      | `.py` stages               | Oui      |
+| 2.2 | Black (`src/ tests/`)                                                     | `.py` stages               | Oui      |
+| 2.3 | MyPy (`src/`)                                                             | `.py` stages               | Oui      |
+| 2.4 | Fast unit tests                                                           | `.py` stages               | Oui      |
+| 2.5 | Critical patterns (sync Store, Redis setex)                               | `.py` stages               | Oui      |
+| 3   | i18n keys sync (EN vs fr/de/es/it/zh)                                     | `locales/` stages          | Oui      |
+| 4   | Alembic migration conflicts (date prefix)                                 | `alembic/versions/` stages | Oui      |
+| 5   | `.env.example` completeness                                               | `.py` stages               | Oui      |
+| 6.1 | ESLint                                                                    | `.ts/.tsx` stages          | Oui      |
+| 6.2 | TypeScript check                                                          | `.ts/.tsx` stages          | Oui      |
 
 ### Pre-push Hook
 
@@ -122,6 +123,7 @@ parcours ne voyait que le commit de fusion (`test_secret_scan_merge_lineage.py`)
 ### Cross-platform
 
 Le hook detecte Windows (Git Bash) et adapte les chemins des binaires :
+
 - Windows : `.venv/Scripts/python.exe`, `python -m ruff`, etc.
 - Linux/Mac : `.venv/bin/ruff`, etc.
 
@@ -181,8 +183,8 @@ Pour savoir ce que fait un gate, lire la tache dans `Taskfile.yml`.
 
 #### Lint Backend
 
-| Step | Commande |
-|------|----------|
+| Step         | Commande                           |
+| ------------ | ---------------------------------- |
 | Lint backend | `task lint:backend lint:mypy-debt` |
 
 `lint:backend` = Ruff + Black + MyPy sur `src/` et `tests/`. `lint:mypy-debt`
@@ -192,8 +194,8 @@ est le ratchet F020 : il fige la surface `disable_error_code` en paires
 
 #### Lint Frontend
 
-| Step | Commande |
-|------|----------|
+| Step          | Commande             |
+| ------------- | -------------------- |
 | Lint frontend | `task lint:frontend` |
 
 ESLint, puis trois ratchets shrink-only, puis `tsc --noEmit --incremental
@@ -209,11 +211,11 @@ la ou le runner, a froid, echoue.
 
 Services containers : PostgreSQL (pgvector) + Redis, sur les images exactes de la production (une reference par image, tenue par `test_self_host_compose_contract.py`).
 
-| Step | Commande |
-|------|----------|
-| Tests unitaires + couverture | `task test:backend:unit:coverage` |
-| Suite agents | `task test:backend:agents` |
-| Gate de couverture par markers (F006) | `task test:markers` |
+| Step                                  | Commande                          |
+| ------------------------------------- | --------------------------------- |
+| Tests unitaires + couverture          | `task test:backend:unit:coverage` |
+| Suite agents                          | `task test:backend:agents`        |
+| Gate de couverture par markers (F006) | `task test:markers`               |
 
 Le seuil de couverture est **78 %** (`--cov-fail-under`), et il a **une seule
 source de verite** : `apps/api/pyproject.toml`, dont le `Taskfile.yml` reprend
@@ -246,8 +248,8 @@ tests exigeant une vraie base portent le marker `integration`.
 
 #### Test Backend Integration
 
-| Step | Commande |
-|------|----------|
+| Step                | Commande                        |
+| ------------------- | ------------------------------- |
 | Tests d'integration | `task test:backend:integration` |
 
 Memes services PostgreSQL + Redis, mais la base est consommee directement. La
@@ -266,7 +268,7 @@ service reproduisent volontairement `.env.test` pour que les tests lisant
 meme base. `--no-cov` : le gate de couverture appartient au job unit.
 
 **`LIA_REQUIRE_DB=1`** (pose par la tache et par le job, F019) : ce job
-*promet* une base, donc une base injoignable doit faire **echouer** le job, pas
+_promet_ une base, donc une base injoignable doit faire **echouer** le job, pas
 skipper silencieusement des groupes entiers de tests. Un vert obtenu par skips
 massifs est le pire des resultats.
 
@@ -276,8 +278,8 @@ fallback Testcontainers sans variable.
 
 #### E2E + a11y smoke (Playwright)
 
-| Step | Commande |
-|------|----------|
+| Step            | Commande        |
+| --------------- | --------------- |
 | Suite E2E + axe | `task test:e2e` |
 
 F031. Tourne dans l'image Playwright officielle (glibc) : le conteneur de dev
@@ -299,14 +301,24 @@ qui survivent aux routes de page et au mode hors ligne de Chromium. Le document
 reste disponible pour les captures et traces d'échec ; les callbacks différés
 finissent dans leur test et les attentes externes sont annulables.
 
+La police Material Symbols est servie par la
+[fixture locale](../../apps/web/e2e/fixtures/fonts/README.md), épinglée avec sa
+provenance et sa licence. Les scans mesurent les vrais glyphes sans appeler le
+CDN. Le `postinstall` E2E applique un
+[patch axe contrôlé](../../apps/web/e2e/scripts/patch-axe-transfer.cjs) aux exports
+CJS et ESM : blocs d’au plus 1 048 576 unités de code UTF-16, longueur et empreinte vérifiées avant
+assemblage, fermeture de la page même en cas d’échec. Une version ou source
+inconnue est refusée avant toute écriture. Toutes les règles et données axe sont
+conservées ; `task test:e2e` vérifie aussi les contrats de ce patch.
+
 L'environnement (serveur gere, IPv4, URLs d'API relatives) vit **dans la
 tache** : ce ne sont pas des reglages CI mais la facon dont la suite fonctionne,
 et les garder dans le workflow faisait diverger le run local du job.
 
 #### Test Frontend
 
-| Step | Commande |
-|------|----------|
+| Step                | Commande                      |
+| ------------------- | ----------------------------- |
 | Vitest + couverture | `task test:frontend:coverage` |
 
 La tache appelle le script dedie `pnpm test:coverage`, jamais
@@ -332,14 +344,14 @@ documentee).
 
 #### Code Hygiene
 
-| Step | Commande |
-|------|----------|
-| Hygiene de code | `task lint:hygiene -- --github` |
-| Parite des cles i18n (F027) | `task lint:i18n` |
-| Tests des chemins de deploiement (F008) | `task test:deploy` |
-| Derive doc, cycles, complexite | `task lint:docs lint:cycles lint:cc` |
-| Lockfiles Python (ADR-112) | `task lint:lockfiles` |
-| Parite CI/local (ADR-151) | `task lint:ci-parity` |
+| Step                                    | Commande                             |
+| --------------------------------------- | ------------------------------------ |
+| Hygiene de code                         | `task lint:hygiene -- --github`      |
+| Parite des cles i18n (F027)             | `task lint:i18n`                     |
+| Tests des chemins de deploiement (F008) | `task test:deploy`                   |
+| Derive doc, cycles, complexite          | `task lint:docs lint:cycles lint:cc` |
+| Lockfiles Python (ADR-112)              | `task lint:lockfiles`                |
+| Parite CI/local (ADR-151)               | `task lint:ci-parity`                |
 
 Les six controles de `task lint:hygiene` vivent dans
 `scripts/audit/check_code_hygiene.py` — en Python et non en bash parce que la
@@ -348,14 +360,14 @@ est un controle qu'un seul des deux peut jouer. `--github` (drapeau explicite,
 et non lecture de `GITHUB_ACTIONS`) bascule la sortie en annotations
 `::error::`/`::warning::`.
 
-| Check | Severite | Description |
-|-------|----------|-------------|
-| `.bak` files | Error | Detecte les fichiers backup oublies |
-| Sync Store calls | Error | `runtime.store.put()` au lieu de `store.aput()` = deadlock |
-| Alembic heads | Error | Detecte les heads multiples (parsing statique des revisions) |
-| Redis setex | Warning | `setex()` sans `json.dumps()` = crash serialisation |
-| Raw HTTPException raises | Warning | `raise HTTPException` hors de la taxonomie centralisee `src/core/exceptions.py` (regle #18, ADR-124) — 0 site tolere ; bascule en Error prevue a la release suivante |
-| `.env.example` | Warning | Variables dans `src/core/config/` absentes de `.env.example` |
+| Check                    | Severite | Description                                                                                                                                                          |
+| ------------------------ | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.bak` files             | Error    | Detecte les fichiers backup oublies                                                                                                                                  |
+| Sync Store calls         | Error    | `runtime.store.put()` au lieu de `store.aput()` = deadlock                                                                                                           |
+| Alembic heads            | Error    | Detecte les heads multiples (parsing statique des revisions)                                                                                                         |
+| Redis setex              | Warning  | `setex()` sans `json.dumps()` = crash serialisation                                                                                                                  |
+| Raw HTTPException raises | Warning  | `raise HTTPException` hors de la taxonomie centralisee `src/core/exceptions.py` (regle #18, ADR-124) — 0 site tolere ; bascule en Error prevue a la release suivante |
+| `.env.example`           | Warning  | Variables dans `src/core/config/` absentes de `.env.example`                                                                                                         |
 
 Les severites sont **inchangees par le portage** depuis le bash inline : les
 trois controles consultatifs le restent. En promouvoir un est une decision
@@ -363,10 +375,10 @@ deliberee (un booleen dans le script), pas un effet de bord.
 
 #### Observability Config
 
-| Step | Commande |
-|------|----------|
-| Validation structurelle (F025) | `task lint:observability` |
-| promtool check/test rules | binaire natif — **CI-only declare** |
+| Step                           | Commande                            |
+| ------------------------------ | ----------------------------------- |
+| Validation structurelle (F025) | `task lint:observability`           |
+| promtool check/test rules      | binaire natif — **CI-only declare** |
 
 Validation deterministe et sans serveur : JSON/YAML valides, cles de dashboard
 requises, uids uniques, requetes de panels non vides, crochets PromQL
@@ -399,18 +411,18 @@ machine d'un operateur.
 
 Build smoke test (pas de push) avec cache GitHub Actions :
 
-| Image | Context | Dockerfile |
-|-------|---------|------------|
-| API | `./apps/api` | `Dockerfile.prod` |
-| Bac a sable des skills | `./apps/api` | `Dockerfile.sandbox` |
-| Web | `.` (root) | `apps/web/Dockerfile.prod` |
+| Image                  | Context      | Dockerfile                 |
+| ---------------------- | ------------ | -------------------------- |
+| API                    | `./apps/api` | `Dockerfile.prod`          |
+| Bac a sable des skills | `./apps/api` | `Dockerfile.sandbox`       |
+| Web                    | `.` (root)   | `apps/web/Dockerfile.prod` |
 
 L'image du bac a sable (ADR-327 lot 2) est en plus **chargee** sous le tag
 `lia-skill-sandbox:local` (le tag que lisent les fichiers compose) pour que
 l'etape suivante puisse la DEMARRER :
 
-| Step | Commande |
-|------|----------|
+| Step                            | Commande                       |
+| ------------------------------- | ------------------------------ |
 | Sandbox image holds its promise | `task sandbox:libraries:check` |
 
 L'image est demarree comme une execution la demarre (sans reseau, uid 65534,
@@ -435,12 +447,12 @@ quand la ligne est deja commitee.
 
 **Permissions** : `contents: read`, `security-events: write`, `actions: read`. La derniere est requise par `codeql-action`/`upload-sarif` (lecture des metadonnees de workflow run) : sans elle, les runs echouent avec "Resource not accessible by integration" et la baseline d'alertes reste figee (incident corrige en v1.21.24 apres deux mois de baseline gelee).
 
-| Job | Description |
-|-----|-------------|
-| CodeQL | Analyse statique Python + JavaScript (queries `security-and-quality` + `security-extended`), config `.github/codeql/codeql-config.yml` |
+| Job              | Description                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CodeQL           | Analyse statique Python + JavaScript (queries `security-and-quality` + `security-extended`), config `.github/codeql/codeql-config.yml`                                                                                                                                                                                                                                                                                              |
 | Dependency Audit | `task security:scan:backend` (pip-audit a la version epinglee dans `Taskfile.yml`, lance isole par uv, sur les **trois** lockfiles runtime, dev et sandbox, transitifs inclus — ADR-112) + `pnpm install --frozen-lockfile` + `task security:scan:frontend` (`pnpm audit --audit-level=high`). **Bloquants.** La liste d'exceptions vit dans le Taskfile, plus dans le workflow : le developpeur lance exactement la meme commande. |
-| Trivy | Scan filesystem (severite CRITICAL/HIGH), resultats SARIF |
-| SBOM | `task security:sbom:backend` : CycloneDX depuis `requirements.lock.txt` (cyclonedx-bom epingle dans le Taskfile ; versions exactes embarquees, artifact conserve 90 jours) |
+| Trivy            | Scan filesystem (severite CRITICAL/HIGH), resultats SARIF                                                                                                                                                                                                                                                                                                                                                                           |
+| SBOM             | `task security:sbom:backend` : CycloneDX depuis `requirements.lock.txt` (cyclonedx-bom epingle dans le Taskfile ; versions exactes embarquees, artifact conserve 90 jours)                                                                                                                                                                                                                                                          |
 
 **`pnpm audit` a longtemps tourne avec `continue-on-error: true`** : l'etape signalait les
 advisories et le job passait quand meme. C'est ainsi qu'une advisory **critique**
@@ -453,7 +465,7 @@ restaurer le flag.
 `paths` restreint l'analyse a `apps/api/src/**` et `apps/web/src/**` ; `paths-ignore` en
 retire les tests, artefacts de build, migrations, scripts et documentation.
 
-Piege a connaitre : **`**/tests/**` ne matche pas `__tests__`**. Les 31 repertoires de tests
+Piege a connaitre : **`**/tests/**`ne matche pas`**tests**`**. Les 31 repertoires de tests
 frontend etaient donc analyses malgre l'intention affichee, ce qui produisait des alertes sur
 du code de test (cookies sans `Secure` dans un test jsdom, stubs de navigateur). Le motif
 `**/__tests__/**` est desormais liste explicitement. Cote backend l'exclusion fonctionne par
@@ -467,13 +479,13 @@ construction : les tests vivent hors de `apps/api/src`, donc `paths` les ecarte 
 publication demande ensuite deux identifiants de runs dans un déclenchement
 manuel. Le candidat ne crée ni tag d'image SemVer ni GitHub Release.
 
-| Job | Description |
-|-----|-------------|
-| **Require green CI** | **Gate (F008)** : refuse le candidat si `ci.yml` n'a pas conclu `success` pour le SHA tagué. |
-| **Build candidates** | Construit API et web pour `linux/amd64` et `linux/arm64`, puis enregistre leurs digests immuables. |
-| **Assemble candidate** | Produit le bundle auto-hébergé, son SHA-256, le manifeste candidat et les SBOM API/web. |
-| **Qualification disposable** | `installer-disposable-smoke.yml`, lancé manuellement sur le run candidat, installe depuis zéro sur les quatre parcours architecture × mode (`local`/`prebuilt`) ; chaque preuve est liée au hash du manifeste. |
-| **Promote** | Le run manuel de `release.yml` vérifie les deux identifiants, les quatre preuves et leurs hashes, passe le manifeste à `qualification: passed`, attache les tags SemVer aux **mêmes digests**, puis publie la GitHub Release et ses artefacts. |
+| Job                          | Description                                                                                                                                                                                                                                    |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Require green CI**         | **Gate (F008)** : refuse le candidat si `ci.yml` n'a pas conclu `success` pour le SHA tagué.                                                                                                                                                   |
+| **Build candidates**         | Construit API et web pour `linux/amd64` et `linux/arm64`, puis enregistre leurs digests immuables.                                                                                                                                             |
+| **Assemble candidate**       | Produit le bundle auto-hébergé, son SHA-256, le manifeste candidat et les SBOM API/web.                                                                                                                                                        |
+| **Qualification disposable** | `installer-disposable-smoke.yml`, lancé manuellement sur le run candidat, installe depuis zéro sur les quatre parcours architecture × mode (`local`/`prebuilt`) ; chaque preuve est liée au hash du manifeste.                                 |
+| **Promote**                  | Le run manuel de `release.yml` vérifie les deux identifiants, les quatre preuves et leurs hashes, passe le manifeste à `qualification: passed`, attache les tags SemVer aux **mêmes digests**, puis publie la GitHub Release et ses artefacts. |
 
 Une version `v1.2.3` ne génère les tags Docker `1.2.3`, `1.2`, `1` et
 `latest` qu'après cette promotion, sans reconstruction. Une réussite du
@@ -500,10 +512,10 @@ checks requis, force-push interdit — qui n'a jamais existe cote GitHub.
 
 Ce qui bloque reellement aujourd'hui :
 
-| Point d'application | Ce qu'il garantit |
-|---|---|
-| Hook pre-commit local | Rien pour qui clone sans `task setup:hooks` ou passe `--no-verify` |
-| `ci.yml` sur push/PR vers `main` | Signale un echec, mais **n'empeche pas** le push |
+| Point d'application                               | Ce qu'il garantit                                                                                                                      |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Hook pre-commit local                             | Rien pour qui clone sans `task setup:hooks` ou passe `--no-verify`                                                                     |
+| `ci.yml` sur push/PR vers `main`                  | Signale un echec, mais **n'empeche pas** le push                                                                                       |
 | Gate « Require green CI » de `release.yml` (F008) | **Bloque la release** si `ci.yml` n'a pas conclu `success` pour le SHA taggue — garde statique : `test_release_workflow_gate_guard.py` |
 
 Autrement dit : une CI rouge n'empeche pas un commit d'atterrir sur `main`, mais
@@ -517,14 +529,14 @@ demanderait d'exiger au minimum les 12 jobs de `ci.yml` comme status checks —
 
 Verifie par `gh api repos/{owner}/{repo}` le 2026-07-25 :
 
-| Option | Valeur |
-|--------|--------|
-| Squash merge | Oui |
-| Merge commit | Oui |
-| Rebase merge | Oui |
+| Option                 | Valeur     |
+| ---------------------- | ---------- |
+| Squash merge           | Oui        |
+| Merge commit           | Oui        |
+| Rebase merge           | Oui        |
 | Delete branch on merge | Oui (auto) |
-| Allow update branch | Oui |
-| Allow auto merge | Oui |
+| Allow update branch    | Oui        |
+| Allow auto merge       | Oui        |
 
 ---
 
@@ -532,12 +544,12 @@ Verifie par `gh api repos/{owner}/{repo}` le 2026-07-25 :
 
 **Fichier** : `.github/dependabot.yml`
 
-| Ecosystem | Directory | Frequence | Groupes |
-|-----------|-----------|-----------|---------|
-| pip | `/apps/api` | Hebdomadaire (lundi) | minor + patch groupes |
-| npm | `/` (racine du workspace) | Hebdomadaire (lundi) | minor + patch groupes |
-| Docker | `/apps/api`, `/apps/web` | Mensuelle | — |
-| GitHub Actions | `/` | Hebdomadaire | Toutes les actions groupees |
+| Ecosystem      | Directory                 | Frequence            | Groupes                     |
+| -------------- | ------------------------- | -------------------- | --------------------------- |
+| pip            | `/apps/api`               | Hebdomadaire (lundi) | minor + patch groupes       |
+| npm            | `/` (racine du workspace) | Hebdomadaire (lundi) | minor + patch groupes       |
+| Docker         | `/apps/api`, `/apps/web`  | Mensuelle            | —                           |
+| GitHub Actions | `/`                       | Hebdomadaire         | Toutes les actions groupees |
 
 Les updates mineures/patch sont groupees en une seule PR pour reduire le bruit.
 
@@ -586,6 +598,7 @@ When a transitive dependency has a known CVE but the direct dependency hasn't re
 ```
 
 **Rules:**
+
 - Prefer an **exact version**; a caret range (`^x.y.z`) is acceptable — and preferable —
   when the advisory names a minimum patched version rather than a single fixed release.
   An exact pin becomes a liability once upstream patches again: `brace-expansion` was
@@ -596,12 +609,12 @@ When a transitive dependency has a known CVE but the direct dependency hasn't re
   once no 9.x copy was left to patch). An unscoped `"minimatch"` key would force ESLint onto
   v9 and break it.
 - Never override a package that `apps/web/package.json` also declares without aligning both
-  — see *Limites connues des PR Dependabot* above (`ERR_PNPM_LOCKFILE_CONFIG_MISMATCH`).
+  — see _Limites connues des PR Dependabot_ above (`ERR_PNPM_LOCKFILE_CONFIG_MISMATCH`).
 - Run `pnpm install --lockfile-only` to regenerate the lockfile, then verify with
   `pnpm why <package>` (use `--prod` from `apps/web/` to tell a runtime dependency from a
   dev-only one — the distinction drives the real severity).
 - Weigh the blast radius: an override that removes a package and its platform binaries from
-  the graph for a *low* advisory on an unused tool is not worth it (tried and reverted for
+  the graph for a _low_ advisory on an unused tool is not worth it (tried and reverted for
   `esbuild`, which Vite 8/rolldown does not execute).
 - Document the CVE in the commit message and CHANGELOG.
 - Remove the override once the direct dependency updates its own dependency.
@@ -611,28 +624,30 @@ versions; this register records why each exists and which commit brought it, so 
 can be removed the day its reason is gone (a table that restated the versions had drifted
 from the file: rows missing, pins stale).
 
-| Package | Why | Introduced by |
-|---------|-----|---------------|
-| `eslint-config-next>typescript-eslint` | A floor for TypeScript 6: typescript-eslint accepts it from 8.58 on (its `typescript` peer range), while eslint-config-next still declares a range that admits older releases — the lockfile held 8.52.0 until v2.0.0. Remove when eslint-config-next's own range starts at 8.58 | `79a07125`, dependency lot 8 (2026-10-02) |
-| `flatted` | Pinned with `picomatch` (four Dependabot alerts) | `d6612921` |
-| `picomatch` | ReDoS through extglob | `d6612921` |
-| `brace-expansion` | Three Dependabot alerts; the patched copy is declared in `patchedDependencies` (ADR-157) | `ad61235b` |
-| `vite` | One vite for the workspace and vitest. A floor since dependency lot 4, moved with the workspace's own declaration: the exact pin collided with every Dependabot bump of the workspace (#195, #210) | `7d1c7cf4`, dependency lot 4 (2026-10-02) |
-| `protobufjs` | CVE-2026-54269 | `0868cc98` |
-| `uuid` | One copy for the advisories Dependabot reported | `89e3cc40` |
-| `dompurify` | GHSA-p98j-92pf-mc4p | `f27f9ef6` |
-| `@grpc/grpc-js` | GHSA-m9gg-hp2v-232j | `ca88a27f` |
-| `@babel/core` | CVE-2026-49356 (low) | `0868cc98` |
-| `browserslist` | Advisory on ≤ 4.28.6, through Babel (the react-hooks plugin of eslint-config-next, the styled-jsx of next) | `9c662451` |
-| `electron-to-chromium` | Exact: the `browserslist` floor made this data table float on every install | `ba98aa02` |
-| `websocket-driver` | GHSA-xv26-6w52-cph6 (critical) and GHSA-mp7j-qc5w-4988, through firebase; unreachable at runtime | `37049474` |
-| `js-yaml` | GHSA-5p4m-2wfm-xmqj, then `maxTotalMergeKeys` not bounding time | `c020ec9f`, `65c6f24b` |
-| `nanoid` | GHSA-2v37-7h3g-55p8 | `c020ec9f` |
-| `sharp` | GHSA-wq5f-xc86-pv6w (librsvg, high), found by the dependency watch; libheif vulnerabilities before it. Reached through `next` | `65c6f24b`, dependency lot 4 (2026-10-02) |
-| `undici` | Denial of service through unrequested responses (< 7.29.1); through jsdom, tests only | `1dd556e2` |
-| `@humanfs/node` | A recursive copy followed symbolic links | `2910cee2` |
-| `katex` | One KaTeX: `rehype-katex` rendered with 0.16 while the layout served the 0.18 stylesheet; exact because 0.18.11 is deprecated upstream | dependency lot 1 (2026-10-02) |
-| `@ungap/structured-clone` | 1.3.0 is deprecated upstream (« Potential CWE-502 »); production code through react-markdown and the rehype plugins | dependency lot 1 (2026-10-02) |
+| Package                                           | Why                                                                                                                                                                                                                                                                              | Introduced by                             |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| `eslint-config-next>typescript-eslint`            | A floor for TypeScript 6: typescript-eslint accepts it from 8.58 on (its `typescript` peer range), while eslint-config-next still declares a range that admits older releases — the lockfile held 8.52.0 until v2.0.0. Remove when eslint-config-next's own range starts at 8.58 | `79a07125`, dependency lot 8 (2026-10-02) |
+| `flatted`                                         | Pinned with `picomatch` (four Dependabot alerts)                                                                                                                                                                                                                                 | `d6612921`                                |
+| `picomatch`                                       | ReDoS through extglob                                                                                                                                                                                                                                                            | `d6612921`                                |
+| `brace-expansion`                                 | Three Dependabot alerts; the patched copy is declared in `patchedDependencies` (ADR-157)                                                                                                                                                                                         | `ad61235b`                                |
+| `vite`                                            | One vite for the workspace and vitest. A floor since dependency lot 4, moved with the workspace's own declaration: the exact pin collided with every Dependabot bump of the workspace (#195, #210)                                                                               | `7d1c7cf4`, dependency lot 4 (2026-10-02) |
+| `protobufjs`                                      | CVE-2026-54269                                                                                                                                                                                                                                                                   | `0868cc98`                                |
+| `uuid`                                            | One copy for the advisories Dependabot reported                                                                                                                                                                                                                                  | `89e3cc40`                                |
+| `dompurify`                                       | GHSA-p98j-92pf-mc4p                                                                                                                                                                                                                                                              | `f27f9ef6`                                |
+| `@grpc/grpc-js`                                   | GHSA-m9gg-hp2v-232j                                                                                                                                                                                                                                                              | `ca88a27f`                                |
+| `@babel/core`                                     | CVE-2026-49356 (low)                                                                                                                                                                                                                                                             | `0868cc98`                                |
+| `browserslist`                                    | Advisory on ≤ 4.28.6, through Babel (the react-hooks plugin of eslint-config-next, the styled-jsx of next)                                                                                                                                                                       | `9c662451`                                |
+| `electron-to-chromium`                            | Exact: the `browserslist` floor made this data table float on every install                                                                                                                                                                                                      | `ba98aa02`                                |
+| `websocket-driver`                                | GHSA-xv26-6w52-cph6 (critical) and GHSA-mp7j-qc5w-4988, through firebase; unreachable at runtime                                                                                                                                                                                 | `37049474`                                |
+| `js-yaml`                                         | GHSA-5p4m-2wfm-xmqj, then `maxTotalMergeKeys` not bounding time                                                                                                                                                                                                                  | `c020ec9f`, `65c6f24b`                    |
+| `nanoid`                                          | GHSA-2v37-7h3g-55p8                                                                                                                                                                                                                                                              | `c020ec9f`                                |
+| `sharp`                                           | GHSA-wq5f-xc86-pv6w (librsvg, high), found by the dependency watch; libheif vulnerabilities before it. Reached through `next`                                                                                                                                                    | `65c6f24b`, dependency lot 4 (2026-10-02) |
+| `undici`                                          | Denial of service through unrequested responses (< 7.29.1); through jsdom, tests only                                                                                                                                                                                            | `1dd556e2`                                |
+| `@humanfs/node`                                   | A recursive copy followed symbolic links                                                                                                                                                                                                                                         | `2910cee2`                                |
+| `katex`                                           | One KaTeX: `rehype-katex` rendered with 0.16 while the layout served the 0.18 stylesheet; exact because 0.18.11 is deprecated upstream                                                                                                                                           | dependency lot 1 (2026-10-02)             |
+| `@ungap/structured-clone`                         | 1.3.0 is deprecated upstream (« Potential CWE-502 »); production code through react-markdown and the rehype plugins                                                                                                                                                              | dependency lot 1 (2026-10-02)             |
+| `source-map-js`                                   | GHSA-68fv-2mgg-jv7q: indexed source-map offsets can block the event loop. The fixed patch applies to every consumer.                                                                                                                                                             | release v2.6.1                            |
+| `@tailwindcss/typography>postcss-selector-parser` | GHSA-rj75-hqrm-r3gf: flat selectors can exhaust CPU. The override is limited to typography; its parser API and compiled project styles are qualified before release.                                                                                                             | release v2.6.1                            |
 
 **Accepted advisories** — when an advisory has NO published fix, no override can remove it:
 it is accepted by its GHSA in `pnpm.auditConfig.ignoreGhsas` (root `package.json`), never by
@@ -640,8 +655,8 @@ a softer `--audit-level`. `pnpm audit` still prints it (« 1 ignored »), and th
 why it is harmless here and when it goes; `test_override_register_guard.py` holds it, like the
 overrides register, to exactly what `package.json` declares.
 
-| GHSA | Package and path | Why it is accepted | Remove when | Introduced by |
-|------|------------------|--------------------|-------------|---------------|
+| GHSA                                         | Package and path                                                                                                                                      | Why it is accepted                                                                                                                                                                                                                                                       | Remove when                                                                                            | Introduced by               |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ | --------------------------- |
 | `GHSA-vfj7-8cjw-p6xm` (high, CVE-2026-93687) | `braces` ≤ 3.0.3: `eslint-config-next` → `@next/eslint-plugin-next` (pins `fast-glob` 3.3.1) → `micromatch` → `braces`, a development dependency only | A stack overflow on deeply nested brace patterns. The only caller is ESLint's Next.js plugin, globbing the repository's own page directories with patterns the repository writes; nothing reaches it at run time, and no `braces` release fixes it (3.0.3 is the latest) | A `braces` release fixes it, or `@next/eslint-plugin-next` leaves `fast-glob` 3 — review by 2026-11-30 | release v2.4.0 (2026-10-03) |
 
 ### Alertes du kit vocal hors production
@@ -701,11 +716,11 @@ soutient. Chaque constat est corrige ou accepte dans
 `scripts/audit/dependency_watch_accepted.json` (motif, proprietaire, date de revision) ; une
 acceptation echue ou qui ne correspond plus a rien fait echouer, et une source muette est nommee.
 
-| Ou | Quand |
-|----|-------|
+| Ou                                       | Quand                                                                                            |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | `.github/workflows/dependency-watch.yml` | Chaque lundi : ouvre ou reecrit UNE issue `dependency-watch`, la ferme au premier passage propre |
-| `lia-release` | A chaque release : on publie sur « rien a decider » et « 0 non lu » |
-| Jamais | Dans une barriere de pull request (ADR-112 : une reponse reseau ne rougit jamais une PR) |
+| `lia-release`                            | A chaque release : on publie sur « rien a decider » et « 0 non lu »                              |
+| Jamais                                   | Dans une barriere de pull request (ADR-112 : une reponse reseau ne rougit jamais une PR)         |
 
 `task deps:refresh` (`scripts/refresh_requirements_lock.py`) deplace tout ce que les manifestes
 permettent apres son delai (correctif 5 jours, mineure 14, majeure 60 — decision D4, les memes
@@ -739,7 +754,7 @@ venv local) depuis des **lockfiles compiles** avec hashes SHA256 :
 
 Deux builds du meme commit embarquent donc exactement les memes versions, verifiees
 par empreinte. Workflow : editer le manifeste → `task deps:lock` → committer manifeste
-et lockfiles ensemble (le check *Python lockfiles sync* du job code-hygiene echoue
+et lockfiles ensemble (le check _Python lockfiles sync_ du job code-hygiene echoue
 sinon). Bumps explicites : `task deps:upgrade -- <pkg>` (un correctif, tout de suite, avec
 son plancher dans le manifeste) ou `task deps:refresh` (tout le reste, apres son delai de
 carence, jamais en arriere — ADR-331).
@@ -755,30 +770,30 @@ commits rapides ; **`task ci:fast` est le gate d'avant-push** ; la CI ajoute ce
 qui exige des services ou un environnement particulier. Si quelqu'un bypass le
 hook (`--no-verify`) ou clone sans installer les hooks, la CI rattrape.
 
-| Check | Hook | `task ci:fast` | CI | Notes |
-|-------|:----:|:--------------:|:--:|-------|
-| Ruff / Black / MyPy (`src/ tests/`) | ✓ | ✓ | ✓ | Aligne |
-| Ratchet MyPy-debt (F020) | — | ✓ | ✓ | Meme tache |
-| Tests unitaires | ✓ (rapides, xdist, sans cov) | ✓ (+ cov, plancher 60 %) | ✓ | Le hook troque la couverture contre le parallelisme |
-| Gate de markers (F006) | — | ✓ | ✓ | Meme tache |
-| ESLint | ✓ | ✓ | ✓ | Aligne |
-| TypeScript | ✓ | ✓ | ✓ | Non incremental des le script `type-check` |
-| Ratchets a11y / react-hooks / complexite | — | ✓ | ✓ | Inclus dans `lint:frontend` |
-| Couverture frontend (seuils par fichier) | — | ✓ | ✓ | Meme tache, `NEXT_PUBLIC_API_URL` vide des deux cotes |
-| `.bak`, Store sync, setex, HTTPException, heads alembic, `.env.example` | ✓ (partiel) | ✓ | ✓ | Le hook n'en fait qu'une partie, sur les fichiers stages |
-| Parite des cles i18n | ✓ (si stages) | ✓ (toujours) | ✓ | La CI couvre tout |
-| Derive doc / cycles / complexite backend | — | ✓ | ✓ | Memes taches |
-| Lockfiles Python (ADR-112) | — | ✓ | ✓ | Meme tache |
-| Parite CI/local (ADR-151) | — | ✓ | ✓ | Meme tache |
-| Tests de deploiement (F008) | — | ✓ | ✓ | Hermetiques, sans Docker ni reseau |
-| Secrets | grep + denylist infra ; gitleaks au pre-push | — | Gitleaks | Le pre-push lance le meme scanner que la CI (`task security:secrets`) |
-| Suite agents | — | — (dans `task ci`) | ✓ | Necessite ~1 min |
-| Tests d'integration | — | — (dans `task ci`) | ✓ | Necessitent PostgreSQL + Redis |
-| Replay des migrations | — | — (dans `task ci`) | ✓ | Necessite PostgreSQL |
-| E2E + a11y (Playwright) | — | — (dans `task ci`) | ✓ | Necessite un navigateur |
-| Regles Prometheus (promtool) | — | — (dans `task ci`) | ✓ | Conteneur en local, binaire natif en CI |
-| Build Docker | — | — | ✓ | CI-only (trop lent en local) |
-| Installateur 3.10 (ADR-215) | — | — | ✓ | CI-only (interpreteur 3.10 nu) |
+| Check                                                                   |                     Hook                     |      `task ci:fast`      |    CI    | Notes                                                                 |
+| ----------------------------------------------------------------------- | :------------------------------------------: | :----------------------: | :------: | --------------------------------------------------------------------- |
+| Ruff / Black / MyPy (`src/ tests/`)                                     |                      ✓                       |            ✓             |    ✓     | Aligne                                                                |
+| Ratchet MyPy-debt (F020)                                                |                      —                       |            ✓             |    ✓     | Meme tache                                                            |
+| Tests unitaires                                                         |         ✓ (rapides, xdist, sans cov)         | ✓ (+ cov, plancher 60 %) |    ✓     | Le hook troque la couverture contre le parallelisme                   |
+| Gate de markers (F006)                                                  |                      —                       |            ✓             |    ✓     | Meme tache                                                            |
+| ESLint                                                                  |                      ✓                       |            ✓             |    ✓     | Aligne                                                                |
+| TypeScript                                                              |                      ✓                       |            ✓             |    ✓     | Non incremental des le script `type-check`                            |
+| Ratchets a11y / react-hooks / complexite                                |                      —                       |            ✓             |    ✓     | Inclus dans `lint:frontend`                                           |
+| Couverture frontend (seuils par fichier)                                |                      —                       |            ✓             |    ✓     | Meme tache, `NEXT_PUBLIC_API_URL` vide des deux cotes                 |
+| `.bak`, Store sync, setex, HTTPException, heads alembic, `.env.example` |                 ✓ (partiel)                  |            ✓             |    ✓     | Le hook n'en fait qu'une partie, sur les fichiers stages              |
+| Parite des cles i18n                                                    |                ✓ (si stages)                 |       ✓ (toujours)       |    ✓     | La CI couvre tout                                                     |
+| Derive doc / cycles / complexite backend                                |                      —                       |            ✓             |    ✓     | Memes taches                                                          |
+| Lockfiles Python (ADR-112)                                              |                      —                       |            ✓             |    ✓     | Meme tache                                                            |
+| Parite CI/local (ADR-151)                                               |                      —                       |            ✓             |    ✓     | Meme tache                                                            |
+| Tests de deploiement (F008)                                             |                      —                       |            ✓             |    ✓     | Hermetiques, sans Docker ni reseau                                    |
+| Secrets                                                                 | grep + denylist infra ; gitleaks au pre-push |            —             | Gitleaks | Le pre-push lance le meme scanner que la CI (`task security:secrets`) |
+| Suite agents                                                            |                      —                       |    — (dans `task ci`)    |    ✓     | Necessite ~1 min                                                      |
+| Tests d'integration                                                     |                      —                       |    — (dans `task ci`)    |    ✓     | Necessitent PostgreSQL + Redis                                        |
+| Replay des migrations                                                   |                      —                       |    — (dans `task ci`)    |    ✓     | Necessite PostgreSQL                                                  |
+| E2E + a11y (Playwright)                                                 |                      —                       |    — (dans `task ci`)    |    ✓     | Necessite un navigateur                                               |
+| Regles Prometheus (promtool)                                            |                      —                       |    — (dans `task ci`)    |    ✓     | Conteneur en local, binaire natif en CI                               |
+| Build Docker                                                            |                      —                       |            —             |    ✓     | CI-only (trop lent en local)                                          |
+| Installateur 3.10 (ADR-215)                                             |                      —                       |            —             |    ✓     | CI-only (interpreteur 3.10 nu)                                        |
 
 **Limite assumee** : cette iso porte sur les **commandes**, pas sur
 l'**environnement**. Le hote de dev est Windows, le runner est Linux ; une
@@ -790,11 +805,11 @@ sensibles a la plateforme dans un conteneur Linux.
 
 ## Secrets GitHub
 
-| Secret | Usage |
-|--------|-------|
-| `TEST_FERNET_KEY` | Encryption key pour les tests backend |
-| `CODECOV_TOKEN` | Upload coverage vers Codecov |
-| `GITHUB_TOKEN` | Auto-genere, utilise par Gitleaks et releases |
+| Secret            | Usage                                         |
+| ----------------- | --------------------------------------------- |
+| `TEST_FERNET_KEY` | Encryption key pour les tests backend         |
+| `CODECOV_TOKEN`   | Upload coverage vers Codecov                  |
+| `GITHUB_TOKEN`    | Auto-genere, utilise par Gitleaks et releases |
 
 ---
 

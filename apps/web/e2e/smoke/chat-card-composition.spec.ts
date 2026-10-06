@@ -109,7 +109,10 @@ for (const sample of [
       await expect(input).not.toHaveValue(/email_reference|source-run/);
       expect(bodies).toHaveLength(0);
       expect((await reply.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+      // Editing starts after the card has handed focus back to the composer.
+      await expect(input).toBeFocused();
       await input.fill('My edited reply');
+      await expect(input).toHaveValue('My edited reply');
       await expect
         .poll(() =>
           page.evaluate(() =>

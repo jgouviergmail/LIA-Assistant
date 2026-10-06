@@ -201,7 +201,7 @@ Rohmesswerte werden in deiner LIA-Instanz gespeichert und in einem eigenen Einst
 
 Die Übertragung wird durch ein **dediziertes Token** authentifiziert, das du in der Anwendung erzeugst und jederzeit widerrufen kannst. Das Token erlaubt ausschließlich das Senden von Gesundheitsdaten — nie den Zugriff auf den Rest deines Kontos. Du kannst mehrere erzeugen, eines pro Gerät, und sie getrennt verwalten.
 
-Ein **„Assistent“-Schalter** (standardmäßig aus, *Opt-in*) erlaubt dir, dem Assistenten zu gestatten, diese Messungen zu lesen und sachliche Fragen zu beantworten („Wie viele Schritte diese Woche?“, „Meine durchschnittliche Herzfrequenz heute?“, „Laufe ich weniger als üblich?“), proaktive Benachrichtigungen anzureichern, die Gesundheit + Wetter + Kalender kombinieren, sowie einen nicht-rohen biometrischen Kontext (Deltas, Trends) an seine Memories und internen Journale anzuheften. Ein einziger Schalter steuert diese vier Integrationen. Nie Diagnose — nur sachliche Zahlen, wobei sich die Baseline ehrlich qualifiziert („basierend auf nur N Tagen“, solange die Historie unter 7 Tagen liegt).
+Ein **„Assistent“-Schalter** (standardmäßig aus, _Opt-in_) erlaubt dir, dem Assistenten zu gestatten, diese Messungen zu lesen und sachliche Fragen zu beantworten („Wie viele Schritte diese Woche?“, „Meine durchschnittliche Herzfrequenz heute?“, „Laufe ich weniger als üblich?“), proaktive Benachrichtigungen anzureichern, die Gesundheit + Wetter + Kalender kombinieren, sowie einen nicht-rohen biometrischen Kontext (Deltas, Trends) an seine Memories und internen Journale anzuheften. Ein einziger Schalter steuert diese vier Integrationen. Nie Diagnose — nur sachliche Zahlen, wobei sich die Baseline ehrlich qualifiziert („basierend auf nur N Tagen“, solange die Historie unter 7 Tagen liegt).
 
 Drei Verwaltungsaktionen löschen Herzfrequenzwerte, Schrittwerte oder beides. Rohe physiologische Werte bleiben aus den Serverprotokollen heraus — eine konkrete Datenschutzmaßnahme, keine Zusage automatischer DSGVO-Konformität für jede Installation.
 
@@ -213,7 +213,7 @@ Du bleibst stets eingebunden: Vor dem Wählen sagt dir LIA genau, **wen** sie an
 
 Und es bleibt konstruktionsbedingt privat. Während eines Anrufs kann LIA nur mitteilen, ob du zu einem bestimmten Zeitpunkt frei oder gebucht bist — nie die Titel, Gäste oder Orte in deinem Kalender. Nichts wird aufgezeichnet, das Gespräch wird nie gespeichert, und nur eine kurze Zusammenfassung bleibt erhalten, bevor sie abläuft. Anrufe laufen über deinen eigenen ElevenLabs-Connector, abgerechnet über dein Konto, und die Funktion ist nur vorhanden, wenn dein Administrator sie aktiviert hat.
 
-Und LIA kann *dich* anrufen. Hinterlege deine Nummer unter *Telefonie · Meine Identität*, lass LIA sie anrufen und einen Code vorlesen, den du eintippst, und von da an lässt „ruf mich um acht an, um meinen Tag durchzugehen“ — oder eine Routine, die das sagt — dein Telefon ohne Bestätigungskarte klingeln: die Person, die bestätigen würde, ist die, die abnimmt. Wie der Anruf verläuft, ist deine Wahl, in denselben Einstellungen, und es ist dieselbe Wahl wie bei den Live-Sitzungen im Browser. In **Live**, dem Standard, bearbeitet LIA alles, worum du in der Leitung bittest, während du sprichst, als Chat-Zug von dir – die Stimme kündigt es an, spricht weiter, liest die Antwort vor, sobald sie da ist; eine Bestätigung, die LIA braucht, wird in der Leitung erfragt, eine Frage, die sie stellt, ist die Antwort, und alles steht im Verlauf mit einem Telefon-Abzeichen. In **Live direkt** liest die Stimme für dich – deinen Kalender, eine E-Mail, einen Kontakt, einen Ort in der Nähe, das Wetter, was sie behält – und handelt in nichts; jeder Bereich hat einen Schalter, der dir gehört, und was du gesagt hast, kommt danach als deine eigene Nachricht zurück. Live gibt es nur dort, wo der Telefonanbieter deine Instanz zurückrufen kann; anderswo sagt es die Einstellung, und der Anruf läuft direkt. In beiden Fällen spricht die Assistentin mit der Persönlichkeit, die du ihr gegeben hast, und was auf deinem ElevenLabs-Schlüssel läuft, wird dort abgerechnet, hier nie gezählt.
+Und LIA kann _dich_ anrufen. Hinterlege deine Nummer unter _Telefonie · Meine Identität_, lass LIA sie anrufen und einen Code vorlesen, den du eintippst, und von da an lässt „ruf mich um acht an, um meinen Tag durchzugehen“ — oder eine Routine, die das sagt — dein Telefon ohne Bestätigungskarte klingeln: die Person, die bestätigen würde, ist die, die abnimmt. Wie der Anruf verläuft, ist deine Wahl, in denselben Einstellungen, und es ist dieselbe Wahl wie bei den Live-Sitzungen im Browser. In **Live**, dem Standard, bearbeitet LIA alles, worum du in der Leitung bittest, während du sprichst, als Chat-Zug von dir – die Stimme kündigt es an, spricht weiter, liest die Antwort vor, sobald sie da ist; eine Bestätigung, die LIA braucht, wird in der Leitung erfragt, eine Frage, die sie stellt, ist die Antwort, und alles steht im Verlauf mit einem Telefon-Abzeichen. In **Live direkt** liest die Stimme für dich – deinen Kalender, eine E-Mail, einen Kontakt, einen Ort in der Nähe, das Wetter, was sie behält – und handelt in nichts; jeder Bereich hat einen Schalter, der dir gehört, und was du gesagt hast, kommt danach als deine eigene Nachricht zurück. Live gibt es nur dort, wo der Telefonanbieter deine Instanz zurückrufen kann; anderswo sagt es die Einstellung, und der Anruf läuft direkt. In beiden Fällen spricht die Assistentin mit der Persönlichkeit, die du ihr gegeben hast, und was auf deinem ElevenLabs-Schlüssel läuft, wird dort abgerechnet, hier nie gezählt.
 
 ### 3.11. Mit deinen Menschen sprechen, von Assistent zu Assistent
 
@@ -310,7 +310,7 @@ Zusammengenommen erklären diese Optimierungen den Faktor 4 bis 8 zwischen dem P
 
 ### 5.4. Die App ist ein Fenster auf IHREN Server
 
-Die nativen Android- und iOS-Apps ändern nichts daran, wo die Dinge leben. Eine veröffentlichte App pro Store, und sie ist ein Client *deines* Servers: Du gibst seine Adresse einmal ein, und die App zeigt dein LIA — dieselbe Oberfläche, dieselben Weiterentwicklungen, kein Store-Update, wenn dein Server voranschreitet. Die Souveränität erstreckt sich auf Benachrichtigungen, wo sie sonst zuerst verloren geht: Auf Android kommen sie aus dem **eigenen** Firebase-Projekt deines Servers, zur Laufzeit initialisiert, und durchqueren nie das des Herausgebers; auf iOS, wo Apple nur den Herausgeber der App senden lässt, weckt ein minimales Relais das Telefon mit einem festen Satz — es speichert nichts und erfährt nie, wer geweckt wurde oder warum. Deine Daten haben genau so viele Zuhause wie zuvor: eines.
+Die nativen Android- und iOS-Apps ändern nichts daran, wo die Dinge leben. Eine veröffentlichte App pro Store, und sie ist ein Client _deines_ Servers: Du gibst seine Adresse einmal ein, und die App zeigt dein LIA — dieselbe Oberfläche, dieselben Weiterentwicklungen, kein Store-Update, wenn dein Server voranschreitet. Die Souveränität erstreckt sich auf Benachrichtigungen, wo sie sonst zuerst verloren geht: Auf Android kommen sie aus dem **eigenen** Firebase-Projekt deines Servers, zur Laufzeit initialisiert, und durchqueren nie das des Herausgebers; auf iOS, wo Apple nur den Herausgeber der App senden lässt, weckt ein minimales Relais das Telefon mit einem festen Satz — es speichert nichts und erfährt nie, wer geweckt wurde oder warum. Deine Daten haben genau so viele Zuhause wie zuvor: eines.
 
 ## 6. Radikale Transparenz
 
@@ -386,13 +386,13 @@ Dieselbe Anforderung gilt für das, was LIA aus deinen Vorgaben behält: Jede da
 
 ### 6.8. Eine Oberfläche, die das Produkt beschreibt, wird daran gemessen
 
-Transparenz hat einen Ausfallmodus, den niemand bemerkt: einen Bildschirm, der leise aufhört, die Wahrheit zu sagen. Nichts geht kaputt, kein Test wird rot, und die Seite, die es gab, um aktuell zu sein, wird zur unaktuellsten der Anwendung. Die Fähigkeitskarte — die Seite, die beantwortet, *was kann mein Assistent für mich tun?* — wird deshalb nicht mehr von Hand gepflegt: Jede Fähigkeit, die die Plattform ein- oder ausschalten kann, muss dort ihren deklarierten Platz haben, und eine Fähigkeit, die ohne diese Entscheidung ausgeliefert wird, verhindert den Start der Anwendung. Dieselbe Überzeugung, eine Stufe weiter: Was ein Bildschirm über deine Daten behauptet, muss **exakt oder abwesend** sein. Eine Zählung ist die Zahl, die die Datenbank liefert, nie eine Länge, die gerade zur Hand war; und solange eine Antwort unterwegs ist oder wenn sie fehlgeschlagen ist, sagt die Karte lieber nichts, als zu raten. „Nichts eingerichtet“ ist eine Aussage über dein Konto — eine, bei der man sich besser sicher ist, bevor man sie ausspricht.
+Transparenz hat einen Ausfallmodus, den niemand bemerkt: einen Bildschirm, der leise aufhört, die Wahrheit zu sagen. Nichts geht kaputt, kein Test wird rot, und die Seite, die es gab, um aktuell zu sein, wird zur unaktuellsten der Anwendung. Die Fähigkeitskarte — die Seite, die beantwortet, _was kann mein Assistent für mich tun?_ — wird deshalb nicht mehr von Hand gepflegt: Jede Fähigkeit, die die Plattform ein- oder ausschalten kann, muss dort ihren deklarierten Platz haben, und eine Fähigkeit, die ohne diese Entscheidung ausgeliefert wird, verhindert den Start der Anwendung. Dieselbe Überzeugung, eine Stufe weiter: Was ein Bildschirm über deine Daten behauptet, muss **exakt oder abwesend** sein. Eine Zählung ist die Zahl, die die Datenbank liefert, nie eine Länge, die gerade zur Hand war; und solange eine Antwort unterwegs ist oder wenn sie fehlgeschlagen ist, sagt die Karte lieber nichts, als zu raten. „Nichts eingerichtet“ ist eine Aussage über dein Konto — eine, bei der man sich besser sicher ist, bevor man sie ausspricht.
 
 Transparenz gilt auch für die inneren Regeln des Assistenten. Eine Grenze, die das System durchsetzt, muss dem veröffentlicht werden, den sie betrifft: Erkennt das Gewohnheitslernen nichts, zeigen die Einstellungen die tatsächlich verlangte Schwelle — strenger am Wochenende, wo weniger Tage beobachtet werden — statt eines unerklärten Schweigens. Und wenn sich eine Einstellung selbst justiert, wie die Schwelle, die entscheidet, ob eine Journalnotiz in eine Antwort einfließt, dann innerhalb strikter Grenzen, ein kleiner Schritt pro Tag, mit Notausschalter und gezählten Anpassungen: Ein lernendes System ist nur akzeptabel, wenn es beobachtbar und abschaltbar bleibt.
 
 ### 6.9. Drei Register: was LIA getan, was sie angesehen und was sie allein unternommen hat
 
-Transparenz über das *Denken* ist eine Sache; die über die *Taten* eine andere, und auf sie kommt es an, wenn ein Assistent an deiner Stelle senden, anlegen und löschen kann. LIA führt daher drei Register, automatisch, und vermischt sie nie.
+Transparenz über das _Denken_ ist eine Sache; die über die _Taten_ eine andere, und auf sie kommt es an, wenn ein Assistent an deiner Stelle senden, anlegen und löschen kann. LIA führt daher drei Register, automatisch, und vermischt sie nie.
 
 Die **Aktionen** tragen eine Zeile je für dich erledigter Sache — eine gesendete E-Mail, ein angelegter Termin, eine gelöschte Datei — mit Ergebnis und der Bestätigung, die du gegeben hast. Die **Einsichtnahmen** tragen eine Zeile je Fähigkeit, die zur Antwort genutzt wurde, benannt als Bereich: „dein Kalender“, „deine E-Mails“. Eine Einsichtnahme hält nie fest, wonach gesucht wurde: Das aufzuschreiben hieße, genau die Daten zu kopieren, für deren Rechenschaft das Register existiert. Und die **Züge** tragen eine Zeile je Austausch, das Rückgrat, an dem die beiden anderen hängen.
 
@@ -484,14 +484,14 @@ Am teuersten sind die Ausfälle, die nicht schreien. Ein sporadischer Fehler, de
 
 LIA bietet produktionsreife Observability:
 
-| Tool | Rolle |
-| --- | --- |
-| **Prometheus** | System- und Business-Metriken |
-| **Grafana** | Echtzeit-Monitoring-Dashboards |
-| **Tempo** | Verteilte End-to-End-Traces |
-| **Loki** | Aggregation strukturierter Logs, von Grafana Alloy gesammelt |
-| **Langfuse** | Spezialisiertes Tracing von LLM-Aufrufen |
-| **Alertmanager** | E-Mail-Alerts bei vitalen Signalen, verknüpfte Runbooks |
+| Tool             | Rolle                                                        |
+| ---------------- | ------------------------------------------------------------ |
+| **Prometheus**   | System- und Business-Metriken                                |
+| **Grafana**      | Echtzeit-Monitoring-Dashboards                               |
+| **Tempo**        | Verteilte End-to-End-Traces                                  |
+| **Loki**         | Aggregation strukturierter Logs, von Grafana Alloy gesammelt |
+| **Langfuse**     | Spezialisiertes Tracing von LLM-Aufrufen                     |
+| **Alertmanager** | E-Mail-Alerts bei vitalen Signalen, verknüpfte Runbooks      |
 
 Jede Anfrage wird von Anfang bis Ende nachverfolgt, jeder LLM-Aufruf gemessen, jeder Fehler kontextualisiert. Das ist kein nachträglich hinzugefügtes Monitoring — es ist eine **grundlegende Architekturentscheidung**, die in den Architecture Decision Records des Projekts dokumentiert ist. HTTP-Metriken und Routenattribute in HTTP-Traces verwenden das Routenmuster ohne Namen oder Suchbegriffe aus einer Adresse. Optionale LLM-Traces können Gesprächskontext speichern und benötigen eigene Zugriffs- und Aufbewahrungskontrollen. Der gesamte Überwachungs-Stack läuft auf gepflegten, per Digest fixierten Versionen.
 
@@ -517,7 +517,7 @@ Eine Frage senden, den Tab schließen, weggehen. Die Generierung läuft auf dem 
 
 ### 8.6. Nichts läuft hinter deinem Rücken
 
-Ein Assistent, der handeln kann, ist ein Assistent, der sich *irren* kann. Zwei Regeln machen das akzeptabel.
+Ein Assistent, der handeln kann, ist ein Assistent, der sich _irren_ kann. Zwei Regeln machen das akzeptabel.
 
 Erstens: **Nichts berührt deinen Server ohne dein Ja** — und die Bestätigung zeigt alles, was gesendet wird, einschließlich der Anweisungen, die LIA sich selbst geschrieben hat. Eine Zusammenfassung, die man nicht vollständig lesen kann, ist keine Bestätigung, sondern eine Formalität. Die Berechtigung wird erneut geprüft, wenn die Aktion startet — nicht nur, als du sie angefragt hast.
 
@@ -543,21 +543,21 @@ LIA verlangt nicht, dass man ihr aufs Wort glaubt. Die Rahmenwerke, denen sie fo
 
 ### 9.2. Die offenen Standards, die LIA spricht
 
-| Standard | Was LIA damit macht |
-| --- | --- |
-| **MCP** (Model Context Protocol) | Externe Werkzeuge anbinden, deine eigenen wie die eines Anbieters, ohne eine Zeile Code |
-| **Agent Plugins** (agent-plugins.org) | Ein portables Paket in einem Schritt installieren — Skills und MCP-Server zusammen — und ebenso sauber wieder entfernen |
-| **agentskills.io** | Expertenfähigkeiten hinzufügen, in natürlicher Sprache geschrieben |
-| **OAuth 2.1 + PKCE** | Deine Google- oder Microsoft-Konten verbinden, ohne ihr Kontopasswort an LIA weiterzugeben |
-| **WebAuthn / FIDO2** | Mit einem Passkey anmelden, ganz ohne Passwort |
-| **OWASP Top 10** | Das Referenzraster der Web-Schwachstellen, Endpunkt für Endpunkt durchgegangen |
-| **OpenTelemetry** | Eine Observability, die jedes gängige Werkzeug wieder lesen kann |
-| **Prometheus / OpenMetrics** | Metriken in einem offenen Format, nicht in einem Dashboard eingeschlossen |
-| **WCAG 2.2 AA** | Die angestrebte Stufe der Barrierefreiheit, automatisch geprüft |
-| **SemVer 2.0** und **Keep a Changelog** | Versionsnummern, die etwas bedeuten, und ein lesbares Änderungsprotokoll |
-| **CycloneDX** (SBOM) | Das genaue Verzeichnis dessen, was jede Version enthält, mit ihr veröffentlicht |
-| **Conventional Commits** | Eine Änderungshistorie, lesbar für Mensch und Maschine |
-| **AGPL-3.0** | Der vollständige Quellcode, prüfbar, veränderbar — und verpflichtet, es zu bleiben |
+| Standard                                | Was LIA damit macht                                                                                                     |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| **MCP** (Model Context Protocol)        | Externe Werkzeuge anbinden, deine eigenen wie die eines Anbieters, ohne eine Zeile Code                                 |
+| **Agent Plugins** (agent-plugins.org)   | Ein portables Paket in einem Schritt installieren — Skills und MCP-Server zusammen — und ebenso sauber wieder entfernen |
+| **agentskills.io**                      | Expertenfähigkeiten hinzufügen, in natürlicher Sprache geschrieben                                                      |
+| **OAuth 2.1 + PKCE**                    | Deine Google- oder Microsoft-Konten verbinden, ohne ihr Kontopasswort an LIA weiterzugeben                              |
+| **WebAuthn / FIDO2**                    | Mit einem Passkey anmelden, ganz ohne Passwort                                                                          |
+| **OWASP Top 10**                        | Das Referenzraster der Web-Schwachstellen, Endpunkt für Endpunkt durchgegangen                                          |
+| **OpenTelemetry**                       | Eine Observability, die jedes gängige Werkzeug wieder lesen kann                                                        |
+| **Prometheus / OpenMetrics**            | Metriken in einem offenen Format, nicht in einem Dashboard eingeschlossen                                               |
+| **WCAG 2.2 AA**                         | Ziel WCAG 2.2 AA; gezielte automatisierte Prüfungen, manuelle Prüfung erforderlich                                      |
+| **SemVer 2.0** und **Keep a Changelog** | Versionsnummern, die etwas bedeuten, und ein lesbares Änderungsprotokoll                                                |
+| **CycloneDX** (SBOM)                    | Das genaue Verzeichnis dessen, was jede Version enthält, mit ihr veröffentlicht                                         |
+| **Conventional Commits**                | Eine Änderungshistorie, lesbar für Mensch und Maschine                                                                  |
+| **AGPL-3.0**                            | Der vollständige Quellcode, prüfbar, veränderbar — und verpflichtet, es zu bleiben                                      |
 
 Offene Standards statt eines Hausprotokolls: Was LIA spricht, kann ein anderes Werkzeug auch sprechen — und was sie verspricht, lässt sich an einem Text prüfen, den andere geschrieben haben.
 
