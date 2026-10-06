@@ -8260,17 +8260,18 @@
             "i6": "<b>🔧 Also fixed</b> — the tool selection and the ReAct ranking had gone blind on an embedding cache written at the wrong dimension; the semantic validator had skipped every turn since a September change; an ambiguous answer to a confirmation was read as an edit; the phone's Live call nobody answered left no notification; an open tab held a database connection for its whole life; the dev certificate was renewed on its age rather than its expiry."
           }
         },
-          "v2_6_1": {
-            "title": "v2.6.1 — Continuous speech, a controllable avatar and an interface within reach",
-            "date": "6 October 2026 · 13:00 CEST",
-            "count": "4",
-            "items": {
-              "i1": "<b>🎭 A visible stop control for the avatar</b> — The window keeps its stop button even when the chat encounters an error. It shows whether closure is confirmed or still pending; an open session can consume your Simli plan, including during silence.",
-              "i2": "<b>🎧 Continuous Live answers</b> — Long answers keep their audio segments in order. The avatar follows playback without repeating a phrase after an interruption; if output fails, the next answer can return to local speech.",
-              "i3": "<b>📱 Floating controls within reach</b> — The avatar, animated companion and shortcuts adapt to the visible area when the keyboard opens, you rotate the screen or zoom. These temporary adjustments preserve your chosen position.",
-              "i4": "<b>🖼️ The current interface in pictures</b> — The gallery and documentation show current screens with fictional demonstration data. Updated screenshots load with their own revision to avoid displaying an old image. The expanded viewer fills the screen on desktop and mobile."
-            }
-          },
+        "v2_6_1": {
+          "title": "v2.6.1 — Continuous speech, a controllable avatar and an interface within reach",
+          "date": "6 October 2026 · 20:56 CEST",
+          "count": "5",
+          "items": {
+            "i1": "<b>🎭 A visible stop control for the avatar</b> — The window keeps its stop button even when the chat encounters an error. It shows whether closure is confirmed or still pending; an open session can consume your Simli plan, including during silence.",
+            "i2": "<b>🎧 Continuous Live answers</b> — Long answers keep their audio segments in order. The avatar follows playback without repeating a phrase after an interruption; if output fails, the next answer can return to local speech.",
+            "i3": "<b>📱 Floating controls within reach</b> — The avatar, animated companion and shortcuts adapt to the visible area when the keyboard opens, you rotate the screen or zoom. These temporary adjustments preserve your chosen position.",
+            "i4": "<b>🖼️ The current interface in pictures</b> — The gallery and documentation show current screens with fictional demonstration data. Updated screenshots load with their own revision to avoid displaying an old image. The expanded viewer fills the screen on desktop and mobile.",
+            "i5": "<b>📻 A steadier start for Radio</b> — Music playback starts more reliably. You can minimize or expand the player, resize the window while listening, and stop Radio using its usual controls."
+          }
+        },
         "v2_6_0": {
           "title": "v2.6.0 — A speaking face, faithful cards and every paid attempt accounted for",
           "date": "5 October 2026 · 06:58 CEST",

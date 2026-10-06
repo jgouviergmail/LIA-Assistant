@@ -8271,17 +8271,18 @@
             "i6": "<b>🔧 Aussi corrigé</b> — la sélection des outils et le classement ReAct étaient devenus aveugles sur un cache d’embeddings écrit à la mauvaise dimension ; le validateur sémantique sautait chaque tour depuis un changement de septembre ; une réponse ambiguë à une confirmation était lue comme une modification ; un appel Live que personne ne décrochait ne laissait aucune notification ; un onglet ouvert tenait une connexion à la base pour toute sa vie ; le certificat de dev était renouvelé sur son âge plutôt que sur son expiration."
           }
         },
-          "v2_6_1": {
-            "title": "v2.6.1 — Une voix continue, un avatar maîtrisé et une interface à portée de main",
-            "date": "6 octobre 2026 · 13:00 CEST",
-            "count": "4",
-            "items": {
-              "i1": "<b>🎭 Un arrêt visible pour l’avatar</b> — La fenêtre garde son bouton d’arrêt, même si le chat rencontre une erreur. Elle indique si la fermeture est confirmée ou encore en attente ; une session ouverte peut consommer ton forfait Simli, silences compris.",
-              "i2": "<b>🎧 Des réponses Live continues</b> — Les longues réponses gardent leurs séquences audio dans l’ordre. L’avatar suit la lecture sans recommencer la même phrase après une interruption ; si la sortie échoue, la réponse suivante peut retrouver la voix locale.",
-              "i3": "<b>📱 Des éléments flottants accessibles</b> — Avatar, compagnon animé et raccourcis s’adaptent à la zone visible quand le clavier s’ouvre, que tu tournes l’écran ou que tu zoomes. Ces déplacements temporaires préservent la position que tu as choisie.",
-              "i4": "<b>🖼️ La véritable interface en images</b> — La galerie et la documentation montrent les écrans actuels avec des données de démonstration fictives. Les captures actualisées se chargent avec leur propre révision pour éviter de montrer une ancienne image. Le lecteur agrandi occupe tout l’écran sur ordinateur et mobile."
-            }
-          },
+        "v2_6_1": {
+          "title": "v2.6.1 — Une voix continue, un avatar maîtrisé et une interface à portée de main",
+          "date": "6 octobre 2026 · 20:56 CEST",
+          "count": "5",
+          "items": {
+            "i1": "<b>🎭 Un arrêt visible pour l’avatar</b> — La fenêtre garde son bouton d’arrêt, même si le chat rencontre une erreur. Elle indique si la fermeture est confirmée ou encore en attente ; une session ouverte peut consommer ton forfait Simli, silences compris.",
+            "i2": "<b>🎧 Des réponses Live continues</b> — Les longues réponses gardent leurs séquences audio dans l’ordre. L’avatar suit la lecture sans recommencer la même phrase après une interruption ; si la sortie échoue, la réponse suivante peut retrouver la voix locale.",
+            "i3": "<b>📱 Des éléments flottants accessibles</b> — Avatar, compagnon animé et raccourcis s’adaptent à la zone visible quand le clavier s’ouvre, que tu tournes l’écran ou que tu zoomes. Ces déplacements temporaires préservent la position que tu as choisie.",
+            "i4": "<b>🖼️ La véritable interface en images</b> — La galerie et la documentation montrent les écrans actuels avec des données de démonstration fictives. Les captures actualisées se chargent avec leur propre révision pour éviter de montrer une ancienne image. Le lecteur agrandi occupe tout l’écran sur ordinateur et mobile.",
+            "i5": "<b>📻 Un démarrage Radio plus stable</b> — La mise en route de la musique est fiabilisée. Tu peux réduire le lecteur, l’agrandir ou redimensionner la fenêtre pendant la lecture, puis arrêter Radio depuis ses commandes habituelles."
+          }
+        },
         "v2_6_0": {
           "title": "v2.6.0 — Un visage qui parle, des cartes fidèles et chaque tentative payée comptée",
           "date": "5 octobre 2026 · 06:58 CEST",

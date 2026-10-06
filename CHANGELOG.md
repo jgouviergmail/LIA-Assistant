@@ -27,11 +27,17 @@ essais fournisseur et physiques Android/iOS restent à qualifier.
 
 ### Fixed
 
-- **Couverture CI** : uploads backend et frontend authentifiés par OIDC
-  GitHub, sans secret permanent absent ; un refus de publication du rapport
-  échoue explicitement au lieu d’être ignoré. Le lancement manuel de la même
-  CI permet de qualifier le commit exact d’une branche de release lorsque
-  `main` avance en parallèle.
+- **Radio** : amorçage silencieux stéréo aligné sur les morceaux de la station,
+  pour fiabiliser le démarrage natif sous WebKit. Le geste de lecture, les
+  deux pistes et la protection contre une pause tardive sont conservés.
+- **Couverture CI** : rapports backend XML et frontend JSON archivés
+  dans GitHub Actions pendant sept jours, avec erreur explicite si le rapport
+  manque. Les seuils restent imposés par les mêmes tâches locales et CI.
+  Le lancement manuel de la même CI permet de qualifier le commit exact
+  d’une branche de release lorsque `main` avance en parallèle.
+- **Scan de secrets** : faux positifs historiques examinés individuellement
+  et enregistrés par empreinte exacte de commit, fichier, règle et ligne ;
+  scan complet conservé et détection d’une nouvelle valeur synthétique vérifiée.
 - **Dépendances CSS** : correctifs de déni de service pour `source-map-js`
   ([GHSA-68fv-2mgg-jv7q](https://github.com/advisories/GHSA-68fv-2mgg-jv7q))
   et le parseur de sélecteurs utilisé par Typography
@@ -58,6 +64,9 @@ essais fournisseur et physiques Android/iOS restent à qualifier.
 
 ### Tests
 
+- **Radio** : format WAV, silence, durée, correspondance des canaux avec les
+  morceaux livrés et résolution tardive de la lecture contrôlés ; parcours
+  natifs avec lecture, redimensionnement et arrêt conservés.
 - **Garde de croissance linéaire** : temps CPU du thread mesuré sur plusieurs
   appels et tailles alternées, avec médiane des ratios, pour distinguer le
   travail du code des variations de charge sous xdist ; plafond de durée réelle,
@@ -74,6 +83,10 @@ essais fournisseur et physiques Android/iOS restent à qualifier.
   l’historique et alignement mesuré après les deux peintures différées.
   Captures de cartes dimensionnées à leur contenu après les contrôles axe,
   puis retour au viewport audité ; seuils, délais et règles conservés.
+  Le compagnon conserve chaque frame active ; les périodes de repos sont
+  avancées sous la limite du rig, avec la même durée virtuelle totale.
+  La composition attend la réponse et la réouverture effective du formulaire
+  avant de sélectionner une seconde carte archivée.
   Chromium utilise le navigateur complet épinglé en mode headless documenté,
   avec l’ensemble des règles axe, scénarios média et assertions géométriques.
 - Isolation API conservée pendant la fermeture des navigateurs : requêtes en

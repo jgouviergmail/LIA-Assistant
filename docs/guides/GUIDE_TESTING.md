@@ -2171,12 +2171,15 @@ Une cible non atteinte se discute en revue ; le plancher, lui, rougit la CI.
 
 ### Coverage en CI
 
-Le rapport XML est uploadé vers Codecov par le job `test-backend`
-(`codecov-action`, flag `backend`, non bloquant) ; le **gate bloquant** est le
-`--cov-fail-under=78` porté par `task test:backend:unit:coverage`, que ce job
-appelle (voir la doctrine ratchet ci-dessus). Pour le reproduire en local,
-lancer cette tâche — et non `test:backend:unit:fast`, qui troque la couverture
-contre le parallélisme.
+Le job `test-backend` archive le rapport XML dans l’artifact GitHub Actions
+`backend-coverage`. Le job frontend archive le rapport JSON dans
+`frontend-coverage`. Conservés sept jours, avec archivage tenté même après un échec des
+tests, ces artifacts sont téléchargeables depuis le run ; leur absence fait
+échouer l’archivage. Les seuils bloquants restent ceux de
+`task test:backend:unit:coverage` et `task test:frontend:coverage` et de leurs
+configurations (voir la doctrine ratchet ci-dessus). Pour reproduire la
+couverture backend en local, lancer la première tâche ;
+`test:backend:unit:fast` ne mesure pas la couverture.
 
 ---
 

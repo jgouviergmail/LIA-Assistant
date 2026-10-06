@@ -1,6 +1,7 @@
 /** Real companion + mocked SSE: no tool plan or prepared draft earns an action gesture. */
 import { test, expect, chatRoutes } from '../fixtures';
 import { scanPage } from '../a11y/scan';
+import { MAX_FRAME_MS } from '../../src/components/eyes/rig/scheduler';
 
 for (const outcome of ['prepared', 'succeeded', 'failed', 'unknown'] as const) {
   test(`companion distinguishes ${outcome}, then forgets it on reload`, async ({
@@ -129,9 +130,21 @@ test.describe('living smiley', () => {
       expect(box!.y + box!.height).toBeLessThanOrEqual(812);
     }
     const restingMouth = await avatar.locator('[data-rig-mouth]').getAttribute('d');
+    // Sample resting time sparsely, carrying every millisecond through the
+    // rig's frame cap. runFor executes and yields after every 16 ms rAF;
+    // under WebKit tracing, idle frames can consume the test's 90 s.
+    const advanceRestingBeat = async () => {
+      for (let remaining = 500; remaining > 0; ) {
+        // runFor may end between rAFs; leave room for that first remainder.
+        const cap = remaining === 500 ? MAX_FRAME_MS / 2 : MAX_FRAME_MS;
+        const step = Math.min(remaining, cap);
+        await page.clock.fastForward(step);
+        remaining -= step;
+      }
+    };
     let scene = '';
     for (let beat = 0; beat < 120 && !scene; beat++) {
-      await page.clock.runFor(500);
+      await advanceRestingBeat();
       scene = (await avatar.getAttribute('data-scene')) ?? '';
     }
     expect(scene).not.toBe('');
@@ -140,7 +153,15 @@ test.describe('living smiley', () => {
     const capture = testInfo.outputPath('smiley-scene.png');
     await avatar.screenshot({ path: capture });
     await testInfo.attach('smiley-scene', { path: capture, contentType: 'image/png' });
-    await page.clock.runFor(12_000);
+    // Keep every active scene frame. Only use sparse sampling after its end
+    // is observed, while still advancing the full 12 seconds before the oracle.
+    for (let remaining = 12_000; remaining > 0; remaining -= 500) {
+      if ((await avatar.getAttribute('data-scene')) === '') {
+        await advanceRestingBeat();
+      } else {
+        await page.clock.runFor(500);
+      }
+    }
     await expect(avatar).toHaveAttribute('data-scene', '');
   });
 });

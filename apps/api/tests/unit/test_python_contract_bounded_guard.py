@@ -46,7 +46,9 @@ def test_supported_python_range_is_covered_by_ci() -> None:
     supported = {f"3.{m}" for m in range(int(lower.group(1)), int(upper.group(1)))}
 
     ci_text = CI_WORKFLOW.read_text(encoding="utf-8")
-    ci_versions = set(re.findall(r'python-version:\s*"(3\.\d+)"', ci_text))
+    ci_versions = {
+        version for _, version in re.findall(r"""python-version:\s*(["'])(3\.\d+)\1""", ci_text)
+    }
     # yaml load also catches matrix lists if ever added
     missing = supported - ci_versions
     assert not missing, (

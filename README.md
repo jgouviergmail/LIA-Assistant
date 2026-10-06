@@ -42,7 +42,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 2.6.1</strong> — <strong>Continuous speech, a controllable avatar and an interface within reach.</strong> Long Live answers keep their audio in order. The experimental Simli avatar has an explicit stop control with confirmed or pending closure, and its connection is controlled by the API. Floating windows adapt to the mobile keyboard without overwriting your preferred position. Updated public screenshots use fictional demonstration data. Provider and physical Android/iOS qualification of the avatar remains pending — 6 October 2026, 13:00 CEST.
+  <strong>Version 2.6.1</strong> — <strong>Continuous speech, a controllable avatar and an interface within reach.</strong> Long Live answers keep their audio in order. The experimental Simli avatar has an explicit stop control with confirmed or pending closure, and its connection is controlled by the API. Floating windows adapt to the mobile keyboard without overwriting your preferred position. Radio music starts more reliably. Updated public screenshots use fictional demonstration data. Provider and physical Android/iOS qualification of the avatar remains pending — 6 October 2026, 20:56 CEST.
 </p>
 
 ---
@@ -115,7 +115,7 @@ The result is measured, not proclaimed:
 | **55** functional domains | **820,000+** source lines (excl. tests) | **51,000+** automated tests | **333** ADRs                                                            |
 | **278** versions shipped  | **6 languages**, parity enforced in CI  | **616** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
-Source-line figure: 824,753 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-10-06). The published technical audit does not score security.
+Source-line figure: 824,754 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-10-06). The published technical audit does not score security.
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -792,7 +792,7 @@ task test:e2e                      # Playwright + axe journeys (hermetic, mocked
 | Metric                  | Value                                                                                                                                       |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | Backend tests           | 40,039 collected over `tests/`, across 2,315 files (`pytest --collect-only -q --no-cov`, 2026-10-06)                                        |
-| Frontend tests (vitest) | 11,062 collected across 892 files (`vitest list --json`, 2026-10-06), plus hermetic Playwright journeys with axe, dark-mode and zoom checks |
+| Frontend tests (vitest) | 11,066 collected across 892 files (`vitest list --json`, 2026-10-06), plus hermetic Playwright journeys with axe, dark-mode and zoom checks |
 | Coverage floor          | 78% enforced in CI on the backend — a shrink-only ratchet, never lowered; frontend thresholds per glob                                      |
 | Technical audit         | **8.3/10** across 24 normalized areas — [full public report & protocol](docs/audit/README.md)                                               |
 

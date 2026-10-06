@@ -8250,17 +8250,18 @@
             "i6": "<b>🔧 Außerdem behoben</b> — die Werkzeugauswahl und das ReAct-Ranking waren durch einen Einbettungs-Cache in der falschen Dimension blind geworden; der semantische Validator übersprang seit einer Änderung im September jeden Zug; eine mehrdeutige Antwort auf eine Bestätigung wurde als Änderung gelesen; ein Live-Anruf, den niemand annahm, hinterließ keine Benachrichtigung; ein offener Tab hielt eine Datenbankverbindung für seine ganze Lebensdauer; das Dev-Zertifikat wurde nach seinem Alter statt nach seinem Ablauf erneuert."
           }
         },
-          "v2_6_1": {
-            "title": "v2.6.1 — Durchgehende Sprache, ein steuerbarer Avatar und eine erreichbare Oberfläche",
-            "date": "6. Oktober 2026 · 13:00 CEST",
-            "count": "4",
-            "items": {
-              "i1": "<b>🎭 Ein sichtbarer Stopp für den Avatar</b> — Die Schaltfläche zum Stoppen bleibt im Fenster erreichbar, auch bei einem Chatfehler. Es zeigt eine bestätigte oder noch ausstehende Schließung an; eine offene Sitzung kann dein Simli-Kontingent auch während der Stille verbrauchen.",
-              "i2": "<b>🎧 Durchgehende Live-Antworten</b> — Lange Antworten behalten ihre Audioabschnitte in der richtigen Reihenfolge. Der Avatar folgt der Wiedergabe, ohne nach einer Unterbrechung denselben Satz zu wiederholen; bei einem Ausgabefehler kann die nächste Antwort wieder lokal gesprochen werden.",
-              "i3": "<b>📱 Erreichbare schwebende Elemente</b> — Avatar, animierter Begleiter und Verknüpfungen passen sich beim Öffnen der Tastatur, Drehen oder Zoomen an den sichtbaren Bereich an. Diese vorübergehenden Anpassungen erhalten deine gewählte Position.",
-              "i4": "<b>🖼️ Die aktuelle Oberfläche in Bildern</b> — Galerie und Dokumentation zeigen die aktuellen Ansichten mit fiktiven Demonstrationsdaten. Neue Aufnahmen laden mit einer eigenen Revision, damit keine alte Bildversion erscheint. Der vergrößerte Betrachter füllt auf Desktop und Mobilgerät den Bildschirm."
-            }
-          },
+        "v2_6_1": {
+          "title": "v2.6.1 — Durchgehende Sprache, ein steuerbarer Avatar und eine erreichbare Oberfläche",
+          "date": "6. Oktober 2026 · 20:56 CEST",
+          "count": "5",
+          "items": {
+            "i1": "<b>🎭 Ein sichtbarer Stopp für den Avatar</b> — Die Schaltfläche zum Stoppen bleibt im Fenster erreichbar, auch bei einem Chatfehler. Es zeigt eine bestätigte oder noch ausstehende Schließung an; eine offene Sitzung kann dein Simli-Kontingent auch während der Stille verbrauchen.",
+            "i2": "<b>🎧 Durchgehende Live-Antworten</b> — Lange Antworten behalten ihre Audioabschnitte in der richtigen Reihenfolge. Der Avatar folgt der Wiedergabe, ohne nach einer Unterbrechung denselben Satz zu wiederholen; bei einem Ausgabefehler kann die nächste Antwort wieder lokal gesprochen werden.",
+            "i3": "<b>📱 Erreichbare schwebende Elemente</b> — Avatar, animierter Begleiter und Verknüpfungen passen sich beim Öffnen der Tastatur, Drehen oder Zoomen an den sichtbaren Bereich an. Diese vorübergehenden Anpassungen erhalten deine gewählte Position.",
+            "i4": "<b>🖼️ Die aktuelle Oberfläche in Bildern</b> — Galerie und Dokumentation zeigen die aktuellen Ansichten mit fiktiven Demonstrationsdaten. Neue Aufnahmen laden mit einer eigenen Revision, damit keine alte Bildversion erscheint. Der vergrößerte Betrachter füllt auf Desktop und Mobilgerät den Bildschirm.",
+            "i5": "<b>📻 Ein stabilerer Radiostart</b> — Die Musikwiedergabe startet zuverlässiger. Du kannst den Player während der Wiedergabe verkleinern oder vergrößern, die Fenstergröße ändern und Radio über die gewohnten Bedienelemente stoppen."
+          }
+        },
         "v2_6_0": {
           "title": "v2.6.0 — Ein sprechendes Gesicht, verlässliche Karten und jeder bezahlte Versuch erfasst",
           "date": "5. Oktober 2026 · 06:58 CEST",

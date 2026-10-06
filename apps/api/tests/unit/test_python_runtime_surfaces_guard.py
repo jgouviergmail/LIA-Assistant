@@ -90,7 +90,9 @@ def test_all_workflow_python_versions_match_contract() -> None:
     floor = _floor()
     for workflow in sorted((REPO_ROOT / ".github" / "workflows").glob("*.yml")):
         text = workflow.read_text(encoding="utf-8")
-        versions = re.findall(r'python-version:\s*"(3\.\d+)"', text)
+        versions = [
+            version for _, version in re.findall(r"""python-version:\s*(["'])(3\.\d+)\1""", text)
+        ]
         allowed = {floor}
         if INSTALLER_STEP_MARKER in text:
             allowed.add(INSTALLER_FLOOR)

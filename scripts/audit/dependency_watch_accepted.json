@@ -59,7 +59,7 @@
     "kind": "advisory",
     "subject": "pip:fsspec@2025.3.0",
     "ref": "GHSA-27vj-qcqg-25rc",
-    "reason": "The wake-word GPU synthesis toolbox only (scripts/wake-word/requirements-gpu.lock.txt): voxcpm pins datasets 3.6.0, which caps fsspec at 2025.3.0. It runs on the developer's machine, reads local audio and Hugging Face files, and never opens a ReferenceFileSystem; never in production. Lifted when voxcpm accepts a datasets that allows fsspec >= 2026.6.0.",
+    "reason": "The wake-word GPU synthesis toolbox only (scripts/wake-word/requirements-gpu.lock.txt): VoxCPM 2.0.3 requires datasets >=3,<4; the compatible lock selects datasets 3.6.0, which caps fsspec at 2025.3.0. It runs on the developer's machine, reads local audio and Hugging Face files, and never opens a ReferenceFileSystem; never in production. Lifted when voxcpm accepts a datasets that allows fsspec >= 2026.6.0.",
     "owner": "maintainer",
     "review_by": "2026-12-31"
   },
