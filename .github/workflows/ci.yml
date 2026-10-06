@@ -5,6 +5,8 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Qualify the exact release branch when main advances independently.
+  workflow_dispatch: {}
 
 permissions:
   contents: read

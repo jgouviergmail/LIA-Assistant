@@ -15,7 +15,7 @@
  *   2. the number of rendered messages — an unprompted prepend loop used to
  *      pull 780 messages in three seconds while the reader sat on the first.
  */
-import { test, expect, waitForHydration, type MockRoute } from '../fixtures';
+import { test, expect, waitForHydration, waitForMockGate, type MockRoute } from '../fixtures';
 
 const CONVERSATION = {
   id: '00000000-0000-4000-8000-00000000c003',
@@ -94,14 +94,15 @@ function historyPage(pageIndex: number) {
   };
 }
 
-function baseRoutes(): MockRoute[] {
+function baseRoutes(initialHistoryGate: Promise<void> = Promise.resolve()): MockRoute[] {
   return [
     { url: '**/api/v1/config', json: APP_CONFIG },
     { url: '**/api/v1/conversations/me', json: CONVERSATION },
     {
       url: '**/api/v1/conversations/me/messages*',
-      handler: async route => {
+      handler: async (route, signal) => {
         const before = new URL(route.request().url()).searchParams.get('before');
+        if (!before && !(await waitForMockGate(initialHistoryGate, signal))) return;
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -155,19 +156,33 @@ test.describe('chat initial scroll position', () => {
     authenticate,
     mockApi,
   }) => {
-    // The list is re-pinned to the bottom every frame while the layout settles.
-    // That must never fight the reader: a scroll gesture inside the window has
-    // to stop the pinning at once, or the viewport is yanked back under them.
+    // Hold history until the hydrated page's clock is paused: hydration of the
+    // composer does not mean history has arrived. A gesture on the empty list
+    // says nothing about whether its initial pin respects the reader.
+    let releaseHistory!: () => void;
+    const historyGate = new Promise<void>(resolve => {
+      releaseHistory = resolve;
+    });
+    await page.clock.install({ time: new Date('2026-07-18T10:00:00Z') });
+    // Pause on the empty page, before any application timer can start.
+    await page.clock.pauseAt(new Date('2026-07-18T10:01:00Z'));
     await authenticate();
-    await mockApi(baseRoutes());
+    await mockApi(baseRoutes(historyGate));
 
     await page.goto('/fr/dashboard/chat');
     await waitForHydration(page);
-    await page.waitForTimeout(400); // still inside the pin window
+    releaseHistory();
+    await expect(page.getByText('Message 1000', { exact: false })).toBeAttached();
+    // Run the pin's first frames, then keep time inside its 1500ms window while
+    // the real wheel gesture is delivered, however busy the browser is.
+    await page.clock.runFor(400);
+    await expect.poll(async () => (await geometry(page)).distanceToBottom).toBeLessThanOrEqual(8);
 
     await page.mouse.move(640, 400);
     await page.mouse.wheel(0, -4000);
-    await page.waitForTimeout(1500); // outlast the window
+    await expect.poll(async () => (await geometry(page)).distanceToBottom).toBeGreaterThan(500);
+    // If the gesture did not stop the pin, these remaining frames yank us back.
+    await page.clock.runFor(1500);
 
     const g = await geometry(page);
     expect(g.distanceToBottom).toBeGreaterThan(500);

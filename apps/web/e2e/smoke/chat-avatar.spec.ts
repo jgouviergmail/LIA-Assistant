@@ -110,7 +110,11 @@ test.describe('living smiley', () => {
         JSON.stringify({ state: { visible: true, style: 'smiley', size: 'md' }, version: 0 })
       )
     );
-    await page.clock.install({ time: new Date('2026-09-21T12:00:00Z') });
+    const clockStart = new Date('2026-09-21T12:00:00Z');
+    await page.clock.install({ time: clockStart });
+    // Pause before navigation so layout, snapshots and screenshots cannot move
+    // the rig's timeline between the advances we explicitly observe.
+    await page.clock.pauseAt(new Date(clockStart.getTime() + 1000));
     await page.goto('/en/dashboard/chat');
     const avatar = page.locator('.lia-eyes[data-style="smiley"]').last();
     await expect(avatar).toBeVisible();
