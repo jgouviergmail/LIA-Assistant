@@ -89,10 +89,10 @@ apps/*/pnpm-lock.yaml
 
 # Next.js build output
 .next/
-# Any per-session e2e proof dist (e.g. .next-e2e, .next-e2e-md) — parallel
+# Any per-session proof dist (e.g. .next-e2e, .next-hitl-validation) — parallel
 # sessions must build to distinct dirs to avoid clobbering each other's
 # running standalone server (measured 2026-08-18).
-.next-e2e*/
+.next-*/
 out/
 
 # TypeScript build info
