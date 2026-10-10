@@ -748,9 +748,9 @@ cycler==0.12.1 \
     --hash=sha256:85cef7cff222d8644161529808465972e51340599459b8ac3ccbac5a854e0d30 \
     --hash=sha256:88bb128f02ba341da8ef447245a9e138fae777f6a23943da4540077d3601eb1c
     # via matplotlib
-datasets==3.6.0 \
-    --hash=sha256:1b2bf43b19776e2787e181cfd329cb0ca1a358ea014780c3581e0f276375e041 \
-    --hash=sha256:25000c4a2c0873a710df127d08a202a06eab7bf42441a6bc278b499c2f72cd1b
+datasets==5.0.1 \
+    --hash=sha256:9fbf73688f8c18f7529b4fe592abd04015f81d1e58001e4bac73ffb2b39d7cc4 \
+    --hash=sha256:ce22bb851efd7494f08aad33b940803784434f6e77763d00679a0dc45fcf686a
     # via voxcpm
 decorator==5.3.1 \
     --hash=sha256:4cbcdd55a6efadb9dbea26b858f4fb3264567b52d69ca0d25b721b553f60ea82 \
