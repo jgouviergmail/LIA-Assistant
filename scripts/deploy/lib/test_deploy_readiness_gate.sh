@@ -39,6 +39,7 @@ test_ready_green_writes_manifest_no_rollback() (
     set +e  # the lib runs with set -e; disable it here to assert on return codes
     _curl_ready() { return 0; }
     _docker() { echo "sha256:deadbeef"; return 0; }
+    _api_reaches_docker() { return 0; }
     restore_rollback_point() { echo "ROLLBACK_CALLED"; return 0; }
     out="$(run_readiness_gate 2>&1)"; rc=$?
     _eq "green: gate returns 0" "$rc" 0
@@ -75,6 +76,44 @@ test_ready_red_rollback_fails_is_critical() (
     _eq "red+no-rollback: gate returns 1 (critical)" "$rc" 1
 )
 
+# --- ready green, API cannot reach the Docker socket: failed, NO rollback ---
+# Production, observed 2026-10-02 -> 10-08: group_add carried a GID that was not the
+# host's docker group. /ready stayed green while every sandboxed script died on
+# a socket EACCES. The previous image reads the same .env, so a rollback would
+# change nothing: the deploy is reported failed and names the cause.
+test_sandbox_socket_unreachable_fails_without_rollback() (
+    export MANIFEST_PATH; MANIFEST_PATH="$(mktemp)"
+    export READY_RETRIES=1 READY_SLEEP=0
+    source "$HERE/deploy_readiness_gate.sh"
+    set +e  # the lib runs with set -e; disable it here to assert on return codes
+    _curl_ready() { return 0; }
+    _docker() { echo "sha256:x"; return 0; }
+    _api_reaches_docker() { return 1; }
+    restore_rollback_point() { echo "ROLLBACK_CALLED"; return 0; }
+    out="$(run_readiness_gate 2>&1)"; rc=$?
+    _eq "socket: gate returns 1" "$rc" 1
+    printf '%s' "$out" >"$MANIFEST_PATH.log"
+    _absent "socket: rollback not called" "$MANIFEST_PATH.log" "ROLLBACK_CALLED"
+    _has "socket: the cause is named" "$MANIFEST_PATH.log" "DOCKER_GID"
+    rm -f "$MANIFEST_PATH" "$MANIFEST_PATH.previous" "$MANIFEST_PATH.log"
+)
+
+# --- without the skill-sandbox overlay, the socket is nobody's business -----
+test_no_sandbox_overlay_no_socket_probe() (
+    export MANIFEST_PATH; MANIFEST_PATH="$(mktemp)"
+    export READY_RETRIES=1 READY_SLEEP=0 COMPOSE_FILE=docker-compose.prod.yml
+    source "$HERE/deploy_readiness_gate.sh"
+    set +e  # the lib runs with set -e; disable it here to assert on return codes
+    _curl_ready() { return 0; }
+    _docker() { echo "sha256:x"; return 0; }
+    _api_reaches_docker() { echo "PROBED"; return 1; }
+    out="$(run_readiness_gate 2>&1)"; rc=$?
+    _eq "no overlay: gate returns 0" "$rc" 0
+    printf '%s' "$out" >"$MANIFEST_PATH.log"
+    _absent "no overlay: socket not probed" "$MANIFEST_PATH.log" "PROBED"
+    rm -f "$MANIFEST_PATH" "$MANIFEST_PATH.previous" "$MANIFEST_PATH.log"
+)
+
 # --- manifest rotation keeps the previous one -------------------------------
 test_manifest_rotates_previous() (
     export MANIFEST_PATH; MANIFEST_PATH="$(mktemp)"
@@ -94,6 +133,8 @@ test_no_crlf_in_deploy_shell_scripts
 test_ready_green_writes_manifest_no_rollback
 test_ready_red_then_rollback_recovers
 test_ready_red_rollback_fails_is_critical
+test_sandbox_socket_unreachable_fails_without_rollback
+test_no_sandbox_overlay_no_socket_probe
 test_manifest_rotates_previous
 
 fails="$(wc -l <"$FAILS_FILE" | tr -d ' ')"

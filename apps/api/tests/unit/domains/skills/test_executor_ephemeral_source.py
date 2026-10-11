@@ -78,6 +78,7 @@ class TestTheLegacyModeIsRefused:
 
         assert result.success is False
         assert result.execution_started is False
+        assert result.sandbox_unavailable is True
         assert "sandbox" in (result.error or "").lower()
         spawn.assert_not_called(), "nothing may be spawned when the sandbox is not the container"
 
@@ -209,17 +210,16 @@ class TestTheBoundsHold:
 
         assert result.success is False
         assert result.execution_started is False
+        # A refused INPUT is the caller's to fix, not the instance's.
+        assert result.sandbox_unavailable is False
         assert "exceeds" in (result.error or "").lower()
         spawn.assert_not_called()
 
     async def test_a_failing_script_returns_its_stderr_not_an_exception(self) -> None:
         """The model must be able to READ its own traceback to repair the script."""
-        broken = SimpleNamespace(
-            returncode=1, stdout="", stderr="Traceback...\nNameError: name 'x' is not defined"
-        )
         with (
             patch("src.core.config.get_settings", return_value=_settings()),
-            patch.object(SkillScriptExecutor, "_run_sandbox_sync", return_value=broken),
+            patch.object(SkillScriptExecutor, "_run_sandbox_sync", side_effect=_launch_test_python),
         ):
             result = await SkillScriptExecutor.execute_source(
                 source="print(x)", payload={}, label="ephemeral"
@@ -227,7 +227,40 @@ class TestTheBoundsHold:
 
         assert result.success is False
         assert result.execution_started is True
+        assert result.sandbox_unavailable is False
         assert "NameError" in (result.error or "")
+
+    @pytest.mark.parametrize("exit_code", [1, 125, 126, 127, 137])
+    async def test_a_run_the_launcher_never_acknowledged_is_a_sandbox_fault(
+        self, exit_code: int
+    ) -> None:
+        """No acknowledgement means the script never ran, whatever the exit code.
+
+        Production 2026-10-08: the Docker CLI exits 1 when it cannot reach the
+        daemon. Read as the script's failure, it charged a run, handed the
+        client's error to the model as a traceback, and the model rewrote a
+        correct script three times.
+        """
+        refused = SimpleNamespace(
+            returncode=exit_code,
+            stdout="",
+            stderr=(
+                "permission denied while trying to connect to the docker API"
+                " at unix:///var/run/docker.sock\n"
+            ),
+        )
+        with (
+            patch("src.core.config.get_settings", return_value=_settings()),
+            patch.object(SkillScriptExecutor, "_run_sandbox_sync", return_value=refused),
+        ):
+            result = await SkillScriptExecutor.execute_source(
+                source="print(1)", payload={}, label="ephemeral"
+            )
+
+        assert result.success is False
+        assert result.execution_started is False
+        assert result.sandbox_unavailable is True
+        assert result.error == "Script sandbox unavailable"
 
 
 class TestANetworkRun:

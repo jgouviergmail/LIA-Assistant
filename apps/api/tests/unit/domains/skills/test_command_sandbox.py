@@ -21,14 +21,16 @@ from typing import Any
 
 import pytest
 
-from src.core.constants import SKILL_COMMAND_WORK_ROOT
+from src.core.constants import SKILL_COMMAND_BOOTSTRAP_ERROR_CODE, SKILL_COMMAND_WORK_ROOT
 from src.domains.skills.command_bundle import InputFile, OutputLimits, pack_bundle, read_output
 from src.domains.skills.command_sandbox import (
     BOOTSTRAP,
+    BoundedRun,
     SandboxTimeout,
     SandboxUnavailable,
     build_command_argv,
     run_bounded,
+    run_command,
 )
 from src.domains.skills.executor import EgressSpec
 
@@ -221,6 +223,45 @@ class TestRunBounded:
                 timeout=5,
                 max_stdout=10,
                 remove=lambda _: None,
+            )
+
+
+class TestARunThatNeverReachedTheBootstrap:
+    """No archive and a failure: the sandbox ran nothing, whatever the code.
+
+    The bootstrap always ends on ``exec tar``, so a run that reached it hands
+    back an archive whatever the command did. The Docker CLI exits 1 — not
+    125 — when it cannot reach the daemon (production 2026-10-08), and read as
+    an unreadable archive that was blamed on the command.
+    """
+
+    @pytest.mark.parametrize("returncode", [1, 125, 126, 127, SKILL_COMMAND_BOOTSTRAP_ERROR_CODE])
+    async def test_it_is_a_sandbox_that_could_not_run(
+        self, returncode: int, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        refused = BoundedRun(
+            returncode=returncode,
+            stdout=b"",
+            stderr=(
+                b"permission denied while trying to connect to the docker API"
+                b" at unix:///var/run/docker.sock\n"
+            ),
+            overflow=False,
+        )
+        monkeypatch.setattr(
+            "src.domains.skills.command_sandbox.run_bounded", lambda *_a, **_k: refused
+        )
+        settings = _settings(
+            skill_command_timeout_seconds=60,
+            skill_command_wall_seconds=90,
+            skill_command_max_text_kb=32,
+            skill_command_max_output_files=5,
+            skill_command_max_output_mb=10,
+        )
+
+        with pytest.raises(SandboxUnavailable):
+            await run_command(
+                skill_name="pdf", command="true", bundle=b"", settings=settings, user_id="u1"
             )
 
 

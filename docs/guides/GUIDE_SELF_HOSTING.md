@@ -327,10 +327,11 @@ code — [ADR-327](../architecture/ADR-327-Skill-Library-And-Third-Party-Skills.
 a prebuilt install pulls it by the manifest's digest, a local build builds it
 (`lia-skill-sandbox:local`).
 
-> If you enable the sandbox, set your host's Docker group id in `.env`,
-> otherwise the API cannot use the socket:
+> If you enable the sandbox, set the group id of your host's Docker socket in
+> `.env`, otherwise the API cannot use the socket — replacing any value already
+> there, since it belongs to the host:
 > ```bash
-> echo "DOCKER_GID=$(getent group docker | cut -d: -f3)" >> .env
+> sed -i '/^DOCKER_GID=/d' .env && echo "DOCKER_GID=$(stat -c '%g' /var/run/docker.sock)" >> .env
 > ```
 
 **Live voice mode** (`live_mode = yes`) publishes the capability: a person then connects a live model — Gemini Live, GPT-Live or an ElevenLabs agent — with **their own key** in *Settings › Connectors* and talks with LIA in real time from the voice icon. The instance provisions nothing for it and pays only what LIA itself spends inside a session; the audio never transits the API. The models offered are those the seeded LLM pricing table declares (the seed ships them); an ElevenLabs agent is billed by the vendor on the person's key. Every bound lives under `LIVE_*` in `.env.prod.example`.

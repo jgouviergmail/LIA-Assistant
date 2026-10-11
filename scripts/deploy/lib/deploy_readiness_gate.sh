@@ -9,7 +9,9 @@
 #   3. on success  -> write a release manifest (version, commit, build date,
 #      image digests, timestamp), rotating the previous one to *.previous;
 #   4. on failure  -> restore the captured images, recreate, re-check /ready, and
-#      exit non-zero either way so the operator is never left guessing.
+#      exit non-zero either way so the operator is never left guessing;
+#   5. when the skill-sandbox overlay is deployed, prove the API reaches the
+#      Docker socket — /ready cannot see it — and fail (without rollback) if not.
 #
 # Every command is guarded so a missing previous image (first deploy) degrades
 # gracefully. All the docker/curl calls are indirected through functions so the
@@ -30,6 +32,8 @@ set -euo pipefail
 : "${READY_URL_HTTP:=http://localhost:8000/ready}"
 : "${READY_RETRIES:=30}"
 : "${READY_SLEEP:=2}"
+# The overlay that hands the API the host's Docker socket (group_add DOCKER_GID).
+: "${SANDBOX_OVERLAY:=docker-compose.skill-sandbox.yml}"
 
 # Native COMPOSE_FILE parsing (B15): the value is a colon-separated CHAIN —
 # wrapping it in one -f would be an invalid filename. Compose splits it
@@ -37,6 +41,8 @@ set -euo pipefail
 _dc() { COMPOSE_FILE="$COMPOSE_FILE" docker compose "$@"; }
 _docker() { docker "$@"; }
 _curl_ready() { curl -fsk "$READY_URL" >/dev/null 2>&1 || curl -fs "$READY_URL_HTTP" >/dev/null 2>&1; }
+# As the API's own user, the way the sandbox executor calls it.
+_api_reaches_docker() { _dc exec -T api docker version --format '{{.Server.Version}}' >/dev/null 2>&1; }
 _now_iso() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 
 # --- Rollback point ----------------------------------------------------------
@@ -77,6 +83,25 @@ poll_ready() {
     return 1
 }
 
+# --- Sandbox socket ----------------------------------------------------------
+# /ready never touches the Docker socket, so a group_add that is not the host's
+# docker group passes every health check while every sandboxed script dies on
+# a socket EACCES (production, observed 2026-10-02 -> 10-08, DOCKER_GID=999 against a
+# host group of 984). Probed only when the overlay that grants it is deployed.
+check_sandbox_socket() {
+    case ":$COMPOSE_FILE:" in
+        *":$SANDBOX_OVERLAY:"*) ;;
+        *) return 0 ;;
+    esac
+    if _api_reaches_docker; then
+        echo "  -> API -> socket Docker OK (bac a sable des scripts)"
+        return 0
+    fi
+    echo "ERREUR: l'API ne joint pas le socket Docker: tout script du bac a sable echouera." >&2
+    echo "  -> Comparer DOCKER_GID dans .env a: stat -c '%g' /var/run/docker.sock" >&2
+    return 1
+}
+
 # --- Manifest ----------------------------------------------------------------
 write_release_manifest() {
     [ -f "$MANIFEST_PATH" ] && cp -f "$MANIFEST_PATH" "${MANIFEST_PATH}.previous" 2>/dev/null || true
@@ -105,6 +130,10 @@ run_readiness_gate() {
     if poll_ready; then
         echo "  -> API prete (/ready OK)"
         write_release_manifest
+        # No rollback on a socket failure: the previous image reads the same
+        # .env and the same group, so it would fail the same way. The deploy is
+        # reported failed and the cause is named.
+        check_sandbox_socket || return 1
         return 0
     fi
 

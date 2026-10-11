@@ -927,8 +927,39 @@ Describe "deploy-prod.ps1 bundle + transfer sequence (hermetic, deploy step fail
         # WITHOUT it, so `group_add` fell back to 999, the API container lost
         # the Docker socket and every container-sandboxed skill script died
         # with EACCES (prod 2026-08-08 → 2026-08-15, skill widgets KO).
-        $shimLog | Should -Match ([regex]::Escape("DOCKER_GID ~/lia.staging/.env"))
-        $shimLog | Should -Not -Match ([regex]::Escape("DOCKER_GID ~/lia/.env"))
+        $shimLog | Should -Match ([regex]::Escape("/var/run/docker.sock >> ~/lia.staging/.env"))
+        $shimLog | Should -Not -Match ([regex]::Escape("/var/run/docker.sock >> ~/lia/.env"))
+    }
+
+    It "rewrites DOCKER_GID from the host socket even when the .env already carries one" {
+        # Production, observed 2026-10-02 → 2026-10-08: .env.prod carried DOCKER_GID=999,
+        # copied from the example; step 8 only tested the key's PRESENCE, kept
+        # the 999 (the host docker group was 984) and the API lost the Docker
+        # socket — every sandboxed script died on EACCES. The value belongs to
+        # the HOST: it is rewritten on every deploy. Runs the command the driver
+        # actually sent, against a lab .env and a lab socket.
+        $sent = [regex]::Match($shimLog, "sed -i '/\^DOCKER_GID=/d' ~/lia\.staging/\.env.*?echo DOCKER_GID set")
+        $sent.Success | Should -BeTrue
+
+        $lab = Join-Path $TestDrive "docker-gid-lab"
+        New-Item -ItemType Directory -Path $lab -Force | Out-Null
+        # A stale value to replace, keys to keep, and NO final newline.
+        [IO.File]::WriteAllText((Join-Path $lab ".env"), "A=1`nDOCKER_GID=999`nB=2")
+        [IO.File]::WriteAllText((Join-Path $lab "docker.sock"), "")
+        $labBash = ConvertTo-BashPath $lab
+        $cmd = $sent.Value.Replace("~/lia.staging/.env", "$labBash/.env").Replace("/var/run/docker.sock", "$labBash/docker.sock")
+        $hostGid = (& $script:BashExe -c "stat -c '%g' '$labBash/docker.sock'").Trim()
+
+        foreach ($pass in 1, 2) {
+            # The second pass proves a retried step leaves one value, not two.
+            & $script:BashExe -c $cmd | Out-Null
+            $LASTEXITCODE | Should -Be 0
+            $gidLines = @(Get-Content (Join-Path $lab ".env") | Where-Object { $_ -match "^DOCKER_GID=" })
+            $gidLines | Should -Be @("DOCKER_GID=$hostGid")
+        }
+        $envText = Get-Content (Join-Path $lab ".env") -Raw
+        $envText | Should -Match "(?m)^A=1$"
+        $envText | Should -Match "(?m)^B=2$"
     }
 }
 

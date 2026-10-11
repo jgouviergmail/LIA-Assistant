@@ -109,7 +109,7 @@ volumes:
   - ./infrastructure/claude-cli/CLAUDE.server.md:/opt/claude-workspace/CLAUDE.md:ro
 ```
 
-**Production Docker socket permissions**: The prod container runs as `appuser` (non-root), which needs access to the Docker socket. The `docker-compose.prod.yml` uses `group_add: "${DOCKER_GID:-999}"` to add the host's Docker group GID. The deploy scripts auto-detect this GID via `stat -c '%g' /var/run/docker.sock` and add `DOCKER_GID=<gid>` to the remote `.env`.
+**Production Docker socket permissions**: The prod container runs as `appuser` (non-root), which needs access to the Docker socket. The skill-sandbox overlay (`docker-compose.skill-sandbox.yml`) uses `group_add: "${DOCKER_GID:-999}"` to add the host's Docker group GID. The deploy driver **rewrites** `DOCKER_GID=<gid>` in the remote `.env` on every deploy, from `stat -c '%g' /var/run/docker.sock` — a value already present is replaced, never kept, because the GID is a fact of the host (a `DOCKER_GID=999` copied into `.env.prod` once cut the API off the socket while the host group was 984). The readiness gate then proves the API reaches the socket and fails the deploy if it does not.
 
 ### Step 4: Verify inside the container
 
@@ -163,7 +163,7 @@ token — whichever side refreshes second is dead.
 | `DEVOPS_RATE_LIMIT_CALLS` | `5` | Max `claude_server_task_tool` calls per user per window (anti-runaway: each call is a paid Claude CLI run + real server actions) |
 | `DEVOPS_RATE_LIMIT_WINDOW` | `600` | Rate limit window in seconds |
 | `DEVOPS_SERVERS` | `[]` | JSON array of server configurations |
-| `DOCKER_GID` | `999` | Host Docker group GID (auto-detected by deploy scripts via `stat -c '%g' /var/run/docker.sock`) |
+| `DOCKER_GID` | unset (compose falls back to `999`) | Host Docker group GID, read by the skill-sandbox overlay's `group_add`; rewritten by the deploy on every run from `stat -c '%g' /var/run/docker.sock` — never copy a value into `.env.prod` |
 
 ### Server Configuration
 
@@ -340,18 +340,20 @@ docker exec lia-api-dev bash -c "docker ps"
 docker exec lia-api-prod id
 # Should show the Docker GID (e.g. groups=1000(appuser),984)
 
-# If Docker GID is missing, check .env on the host
-grep DOCKER_GID ~/lia/.env
-# If absent, add it:
-echo "DOCKER_GID=$(stat -c '%g' /var/run/docker.sock)" >> ~/lia/.env
-# Then recreate the container:
-docker compose -f docker-compose.prod.yml up -d --force-recreate api
+# Compare the value in .env with the socket's group
+grep '^DOCKER_GID=' ~/lia/.env; stat -c '%g' /var/run/docker.sock
+# If they differ (or the line is absent), rewrite it:
+sed -i '/^DOCKER_GID=/d' ~/lia/.env && stat -c 'DOCKER_GID=%g' /var/run/docker.sock >> ~/lia/.env
+# Then recreate the API alone, with the SAME overlays as the deploy — without
+# docker-compose.skill-sandbox.yml the container loses the socket and the group:
+cd ~/lia && docker compose -f docker-compose.prod.yml -f docker-compose.skill-sandbox.yml \
+  -f docker-compose.devops.yml up -d --no-deps --no-build --wait api
 ```
 
 ### Automated deployment
 
 The deploy scripts (`deploy.sh` and `deploy-prod.ps1`) handle all DevOps setup automatically:
-1. **DOCKER_GID**: Auto-detected from host Docker socket and injected into `.env`
+1. **DOCKER_GID**: Read from the host Docker socket and rewritten in `.env` on every deploy; the readiness gate fails the deploy when the API cannot reach the socket
 2. **Claude CLI authentication**: `CLAUDE_CODE_OAUTH_TOKEN` travels in `.env.prod` (a warning when DevOps is on without it); no session file is copied
 3. **CLAUDE.server.md**: Copied to `infrastructure/claude-cli/` on remote host
 4. **Docker image**: Claude CLI + Docker CLI + Node.js baked in (Dockerfile.dev/prod)

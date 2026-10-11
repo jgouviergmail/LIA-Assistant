@@ -715,14 +715,25 @@ Write-Step "Setting up DevOps prerequisites on remote server..."
 # credentials), so they MUST respect -DryRun — otherwise a "simulation" run
 # still changes the server (audit F040/DryRun).
 if (-not $DryRun) {
-    # Ensure DOCKER_GID is set in remote .env (required for Docker socket access).
+    # Write the HOST's docker GID into the remote .env (required for Docker
+    # socket access: group_add of the skill-sandbox overlay reads it).
     #
-    # `printf` + `stat` instead of `DOCKER_GID=$(stat ...)`: this string reaches
-    # `sh -c` on a Unix host (Invoke-WithRetry), which expands the substitution
-    # LOCALLY. The remote .env would then receive the docker GID of the machine
-    # that ran the deployment — observed in CI as `DOCKER_GID=118`, the runner's.
-    # A wrong GID here means the API container cannot reach the Docker socket,
-    # which is what the skill sandbox (SEC-001) runs on.
+    # `stat -c 'DOCKER_GID=%g'` instead of `DOCKER_GID=$(stat ...)`: this string
+    # reaches `sh -c` on a Unix host (Invoke-WithRetry), which expands the
+    # substitution LOCALLY. The remote .env would then receive the docker GID of
+    # the machine that ran the deployment — observed in CI as `DOCKER_GID=118`,
+    # the runner's. ONE `%`: on Windows the string goes through `cmd /c`, where
+    # two would read as a variable reference. A wrong GID here means the API
+    # container cannot reach the Docker socket, which is what the skill sandbox
+    # (SEC-001) runs on.
+    #
+    # REWRITTEN on every deploy, never kept because the key is present: the
+    # value is a fact of the host, not a setting. Production, observed
+    # 2026-10-02 → 2026-10-08 (the oldest logs Loki keeps): .env.prod carried
+    # DOCKER_GID=999 copied from the example, the old `grep -q DOCKER_GID ||`
+    # saw the key and kept it (the host docker GID is 984), and every sandboxed
+    # script died on a Docker-socket EACCES. The `echo` first ends a last line
+    # that has no newline; the blank line it may leave is harmless.
     #
     # Target the STAGING .env, not the live one: deploy.sh atomically renames
     # ~/$StagingDir over ~/$RemoteDir (ADR-215), so a value appended to the
@@ -730,7 +741,7 @@ if (-not $DryRun) {
     # in production 2026-08-08 → 2026-08-15: group_add fell back to 999 (host
     # docker GID was 984) and every container-sandboxed skill script died on
     # a Docker-socket EACCES.
-    $gidCmd = "grep -q DOCKER_GID ~/${StagingDir}/.env 2>/dev/null || { printf 'DOCKER_GID=' >> ~/${StagingDir}/.env; stat -c '%g' /var/run/docker.sock >> ~/${StagingDir}/.env; } && echo DOCKER_GID set"
+    $gidCmd = "sed -i '/^DOCKER_GID=/d' ~/${StagingDir}/.env && echo >> ~/${StagingDir}/.env && stat -c 'DOCKER_GID=%g' /var/run/docker.sock >> ~/${StagingDir}/.env && echo DOCKER_GID set"
     Invoke-WithRetry -OperationName "Set DOCKER_GID" -Command "ssh $SshOptionsStr -p $SshPort ${SshUser}@${SshHost} `"$gidCmd`""
 
     # The DevOps Claude CLI authenticates with its OWN long-lived token
@@ -835,7 +846,7 @@ if (-not (Test-Path $demoEnv)) {
 # only reporting it.
 #
 # The remote .env holds every application/integration secret. rsync pushes it
-# with permissive bits, and Etape 8 just appended DOCKER_GID (the last write to
+# with permissive bits, and Etape 8 just rewrote DOCKER_GID (the last write to
 # it), so harden NOW — after the .env is final and BEFORE `docker compose up`.
 # Target: .env = 0600 (owner rw only) inside a 0700 directory, plus the Claude
 # CLI credentials. The Docker daemon runs as root and still reads the bind

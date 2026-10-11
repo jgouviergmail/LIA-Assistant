@@ -49,7 +49,6 @@ from pydantic import BaseModel
 from src.core.constants import (
     SKILLS_SCRIPT_ALLOWED_EXTENSIONS,
     SKILLS_SCRIPT_SANDBOX_CLEANUP_TIMEOUT_SECONDS,
-    SKILLS_SCRIPT_SANDBOX_DAEMON_ERROR_CODE,
     SKILLS_SCRIPT_SANDBOX_MAX_SOURCE_BYTES,
     SKILLS_SCRIPT_SANDBOX_NAME_PREFIX,
     SKILLS_SCRIPT_SANDBOX_STARTUP_GRACE_SECONDS,
@@ -62,9 +61,10 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-# Docker's startup exit codes overlap with valid Python sys.exit values. A
-# fixed launcher acknowledges dispatch before compiling the untrusted source;
-# the source cannot undo bytes already written to the parent's stderr pipe.
+# Docker's exit codes overlap with valid Python sys.exit values, so the code
+# alone never says who failed. A fixed launcher acknowledges dispatch before
+# compiling the untrusted source; the source cannot undo bytes already written
+# to the parent's stderr pipe, and a run without them never reached the script.
 _SCRIPT_STARTED_MARKER = "__LIA_SANDBOX_SCRIPT_STARTED__\n"
 _SCRIPT_LAUNCHER = (
     "import os, sys\n"
@@ -72,7 +72,6 @@ _SCRIPT_LAUNCHER = (
     f"os.write(2, {_SCRIPT_STARTED_MARKER.encode('ascii')!r})\n"
     "exec(compile(source, '<string>', 'exec'))\n"
 )
-_DOCKER_STARTUP_EXIT_CODES = frozenset({SKILLS_SCRIPT_SANDBOX_DAEMON_ERROR_CODE, 126, 127})
 
 
 def _build_rlimit_preexec(
@@ -177,9 +176,14 @@ class ScriptResult(BaseModel):
     error: str | None = None
     exit_code: int = 0
     execution_time_ms: int = 0
-    # Preflight and known Docker startup refusals cost no script run. Once
-    # dispatched, a timeout is charged conservatively like a running script.
+    # Preflight refusals and runs the launcher never acknowledged cost no script
+    # run. Once dispatched, a timeout is charged conservatively like a running
+    # script.
     execution_started: bool = False
+    # The sandbox itself could not run anything — no Docker client, a daemon
+    # it cannot reach, a missing image or entrypoint, a non-container mode: an
+    # instance fault, never the script's, so rewriting the script cannot help.
+    sandbox_unavailable: bool = False
 
 
 def isolation_flags(
@@ -585,6 +589,7 @@ class SkillScriptExecutor:
                 success=False,
                 output="",
                 error="Script sandbox unavailable",
+                sandbox_unavailable=True,
             )
         except Exception as exc:
             # Dispatch happened, but its output may be undecodable or otherwise
@@ -614,14 +619,20 @@ class SkillScriptExecutor:
             # neither is the script's stderr or data for the model.
             stderr = stderr.partition(_SCRIPT_STARTED_MARKER)[2]
 
-        if result.returncode in _DOCKER_STARTUP_EXIT_CODES and not execution_started:
-            # No acknowledgement: Docker or the entrypoint refused to start.
-            # A script that exits with the SAME code already acknowledged its
-            # dispatch and must consume a run like every other script failure.
+        if result.returncode != 0 and not execution_started:
+            # No acknowledgement: the script never ran, WHATEVER the exit code.
+            # The launcher writes the marker before compiling the source, so its
+            # absence means Docker, the daemon or the entrypoint refused — and
+            # the Docker CLI exits 1, not 125, when it cannot reach the daemon
+            # (production 2026-10-08: a socket EACCES read as the script's
+            # failure for a week, charged a run each time and reached the
+            # model as a traceback). A script exiting with any code has already
+            # acknowledged its dispatch and consumes a run like every failure.
             logger.error(
                 "skill_script_sandbox_unavailable",
                 skill_name=skill_name,
                 script=script_name,
+                exit_code=result.returncode,
                 stderr_length=len(stderr),
                 user_id=user_id,
             )
@@ -631,6 +642,7 @@ class SkillScriptExecutor:
                 error="Script sandbox unavailable",
                 exit_code=result.returncode,
                 execution_time_ms=elapsed_ms,
+                sandbox_unavailable=True,
             )
 
         if result.returncode != 0:
@@ -717,6 +729,7 @@ class SkillScriptExecutor:
                     "Ephemeral scripts require the container sandbox; the current "
                     "sandbox mode cannot isolate model-authored code."
                 ),
+                sandbox_unavailable=True,
             )
 
         stdin_payload = json.dumps(payload, ensure_ascii=False, default=str)

@@ -25,7 +25,7 @@ over third-party content is marked untrusted before it re-enters the context.
 from __future__ import annotations
 
 from contextvars import ContextVar
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 
 import structlog
 from langchain.tools import ToolRuntime
@@ -43,6 +43,9 @@ from src.infrastructure.observability.metrics_agents import (
     agent_tool_duration_seconds,
     agent_tool_invocations,
 )
+
+if TYPE_CHECKING:
+    from src.domains.skills.executor import ScriptResult
 
 logger = structlog.get_logger(__name__)
 
@@ -241,7 +244,7 @@ async def run_python_tool(
     return _shape_output(result, network=network, code=code, purpose=purpose)
 
 
-def _record_script(*, purpose: str, code: str, result: Any) -> None:
+def _record_script(*, purpose: str, code: str, result: ScriptResult) -> None:
     """Keep the attempt for the ADMIN debug panel — never for the answer surface."""
     recorded = list(_turn_scripts.get() or [])
     recorded.append(
@@ -257,7 +260,7 @@ def _record_script(*, purpose: str, code: str, result: Any) -> None:
 
 
 def _shape_output(
-    result: Any, *, network: dict[str, Any], code: str, purpose: str
+    result: ScriptResult, *, network: dict[str, Any], code: str, purpose: str
 ) -> UnifiedToolOutput:
     """The tool's answer to the model, from the script's result.
 
@@ -271,6 +274,21 @@ def _shape_output(
     Returns:
         The output, the stdout marked untrusted.
     """
+    if result.sandbox_unavailable:
+        # The instance could not run anything: no traceback to read, and no
+        # rewrite of the script can help. The code is the skill commands' own
+        # for the same state (`command_tool`). The executor's text names our
+        # image and daemon, so it never reaches the model.
+        return UnifiedToolOutput(
+            success=False,
+            message=(
+                "The Python sandbox is unavailable on this instance: the script did "
+                "not start. Retrying will not help; answer with what you have."
+            ),
+            error_code=ToolErrorCode.DEPENDENCY_ERROR,
+            structured_data={**network},
+            metadata={"code": code, "purpose": purpose},
+        )
     if not result.success:
         return UnifiedToolOutput(
             success=False,

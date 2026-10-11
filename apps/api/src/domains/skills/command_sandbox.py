@@ -31,7 +31,6 @@ from src.core.constants import (
     SKILL_COMMAND_BOOTSTRAP_ERROR_CODE,
     SKILL_COMMAND_KILL_AFTER_SECONDS,
     SKILL_COMMAND_WORK_ROOT,
-    SKILLS_SCRIPT_SANDBOX_DAEMON_ERROR_CODE,
     SKILLS_SCRIPT_SANDBOX_NAME_PREFIX,
 )
 from src.domains.skills.command_bundle import CommandOutput, OutputLimits, read_output
@@ -79,9 +78,6 @@ _CHUNK = 64 * 1024
 _STDERR_CEILING = 64 * 1024
 #: Tar framing around the files: headers, PAX records, padding, end blocks.
 _TAR_OVERHEAD = 256 * 1024
-#: ``docker run`` could not start the container: daemon, image, or the
-#: entrypoint missing from the image (126, 127).
-_START_FAILURES = frozenset({SKILLS_SCRIPT_SANDBOX_DAEMON_ERROR_CODE, 126, 127})
 
 
 class SandboxUnavailable(Exception):
@@ -351,9 +347,12 @@ async def run_command(
         timeout=settings.skill_command_wall_seconds,
         max_stdout=_stdout_ceiling(limits),
     )
-    if not run.stdout and (
-        run.returncode in _START_FAILURES or run.returncode == SKILL_COMMAND_BOOTSTRAP_ERROR_CODE
-    ):
+    if not run.stdout and run.returncode != 0:
+        # The bootstrap ends on `exec tar`, so a run that reached it hands back
+        # an archive whatever the command did: none, and a failure, means the
+        # sandbox ran nothing — whatever the code. The Docker CLI exits 1, not
+        # 125, when it cannot reach the daemon (production 2026-10-08), and the
+        # bootstrap's own refusals exit SKILL_COMMAND_BOOTSTRAP_ERROR_CODE.
         # The client's stderr names our image and daemon: logged by length,
         # never handed to the model.
         logger.error(

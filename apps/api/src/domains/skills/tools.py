@@ -418,8 +418,20 @@ def _script_failure_output(
         external: Whether its words reach the caller as external content (ADR-327).
 
     Returns:
-        A ``SCRIPT_ERROR`` failure.
+        A ``SCRIPT_ERROR`` failure, or ``DEPENDENCY_ERROR`` when the sandbox ran nothing.
     """
+    if result.sandbox_unavailable:
+        # The instance ran nothing: our own words, never the skill's, so not
+        # wrapped as external content nor read as an error a rewrite could fix
+        # — the skill commands' code for the same state (`command_tool`).
+        return UnifiedToolOutput.failure(
+            message=(
+                "The skill sandbox is unavailable on this instance: the script did not "
+                "start. Retrying will not help."
+            ),
+            error_code="DEPENDENCY_ERROR",
+            metadata={"skill_name": skill_name, "script": script},
+        )
     combined = result.output or ""
     if result.error:
         combined = f"{combined}\n[stderr] {result.error}" if combined else result.error
@@ -726,7 +738,8 @@ async def import_user_skill(
 
     from uuid import UUID
 
-    from src.core.exceptions import BaseAPIException
+    from src.core.exceptions import AuthorizationError, BaseAPIException
+    from src.domains.agents.application.availability import application_access_error_code
     from src.domains.skills.proposal_service import propose
     from src.infrastructure.observability.metrics_registry import skill_proposals_total
 
@@ -753,6 +766,12 @@ async def import_user_skill(
     try:
         proposal, _evicted = await propose(
             files_map, owner_id=UUID(str(config.user_id)), conversation_id=conversation_id
+        )
+    except AuthorizationError as exc:
+        skill_proposals_total.labels(operation="propose", outcome="refused").inc()
+        return UnifiedToolOutput.failure(
+            message="The current account or platform availability refuses this skill proposal.",
+            error_code=application_access_error_code(exc),
         )
     except BaseAPIException as exc:
         # Surface the validation detail so the LLM can correct and retry.

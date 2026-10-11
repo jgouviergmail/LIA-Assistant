@@ -36,7 +36,12 @@ from src.core.constants import (
     SKILLS_SCRIPT_SANDBOX_STARTUP_GRACE_SECONDS,
     SKILLS_SCRIPT_SANDBOX_UID,
 )
-from src.domains.skills.executor import EgressSpec, ScriptResult, SkillScriptExecutor
+from src.domains.skills.executor import (
+    _SCRIPT_STARTED_MARKER,
+    EgressSpec,
+    ScriptResult,
+    SkillScriptExecutor,
+)
 
 
 def _sandbox_settings(**overrides: object) -> Settings:
@@ -359,6 +364,7 @@ class TestContainerExecution:
 
         assert result.success is False
         assert result.execution_started is False
+        assert result.sandbox_unavailable is True
         assert result.error == "Script sandbox unavailable"
         # Exactly one attempt: no retry with a plain interpreter.
         assert fake.call_count == 1
@@ -449,16 +455,49 @@ class TestContainerExecution:
 
         assert result.success is False
         assert result.execution_started is False
+        assert result.sandbox_unavailable is True
         assert result.error == "Script sandbox unavailable"
         # The image name and daemon state must not reach the LLM context.
         assert "lia-api" not in (result.error or "")
 
     @pytest.mark.asyncio
+    async def test_a_daemon_the_client_cannot_reach_is_not_a_script_failure(
+        self, skill_root: Path
+    ) -> None:
+        """The Docker CLI exits 1, not 125, when it cannot reach the daemon.
+
+        Production 2026-10-08: the API lost the socket's group and every run
+        died on this exact line for a week, reported as the script's failure.
+        """
+        skill = _make_skill(skill_root, "print('ok')\n")
+        fake = MagicMock(
+            return_value=SimpleNamespace(
+                returncode=1,
+                stdout="",
+                stderr=(
+                    "permission denied while trying to connect to the docker API"
+                    " at unix:///var/run/docker.sock\n"
+                ),
+            )
+        )
+
+        with patch("src.domains.skills.executor.subprocess.run", fake):
+            result = await self._run(skill)
+
+        assert result.success is False
+        assert result.execution_started is False
+        assert result.sandbox_unavailable is True
+        assert result.error == "Script sandbox unavailable"
+
+    @pytest.mark.asyncio
     async def test_non_zero_exit_surfaces_stderr_bounded(self, skill_root: Path) -> None:
         """A failing script reports its stderr, capped so it cannot flood."""
         skill = _make_skill(skill_root, "raise SystemExit(3)\n")
+        # The launcher acknowledges the dispatch on stderr before the script runs.
         fake = MagicMock(
-            return_value=SimpleNamespace(returncode=3, stdout="", stderr="boom" * 1000)
+            return_value=SimpleNamespace(
+                returncode=3, stdout="", stderr=_SCRIPT_STARTED_MARKER + "boom" * 1000
+            )
         )
 
         with patch("src.domains.skills.executor.subprocess.run", fake):

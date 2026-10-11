@@ -20,6 +20,7 @@ from src.domains.agents.python_sandbox.egress.hosts import HostStatus
 from src.domains.agents.python_sandbox.egress.proxy_client import EgressProxyUnavailable
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import APIKeyCredentials
+from src.domains.skills.executor import ScriptResult
 
 pytestmark = [pytest.mark.unit]
 
@@ -69,8 +70,8 @@ def _runtime(gate: FakeGate) -> SimpleNamespace:
     return SimpleNamespace(context=context)
 
 
-def _ok(stdout: str = "200\n") -> SimpleNamespace:
-    return SimpleNamespace(success=True, output=stdout, error=None, execution_started=True)
+def _ok(stdout: str = "200\n") -> ScriptResult:
+    return ScriptResult(success=True, output=stdout, execution_started=True)
 
 
 @asynccontextmanager
@@ -303,7 +304,7 @@ class TestAPermittedRun:
             patch(
                 EXECUTE,
                 new_callable=AsyncMock,
-                return_value=SimpleNamespace(
+                return_value=ScriptResult(
                     success=False, output="", error="Traceback…", execution_started=True
                 ),
             ),
