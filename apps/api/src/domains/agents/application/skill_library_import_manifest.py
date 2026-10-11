@@ -3,6 +3,7 @@
 from pydantic import BaseModel
 
 from src.domains.agents.application.operation_spec import ApplicationOperationSpec
+from src.domains.agents.application.output_contracts import pending_application_output_fields
 from src.domains.agents.application.skill_library_import_schemas import (
     LibraryInstallInput,
     LibraryUpdateInput,
@@ -36,7 +37,7 @@ def _manifest(
                 schema=request.model_json_schema(),
             )
         ],
-        outputs=[],
+        outputs=pending_application_output_fields(),
         cost=CostProfile(),
         permissions=PermissionProfile(data_classification="CONFIDENTIAL"),
         binding_unit="lia_skill_library",

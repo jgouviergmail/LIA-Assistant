@@ -1,5 +1,6 @@
 """Credentials and full endpoints belong exclusively to the existing browser form."""
 
+from src.domains.agents.application.output_contracts import pending_application_output_fields
 from src.domains.agents.application.personal_mcp_configuration_schemas import (
     PersonalMCPConfigurationInput,
 )
@@ -27,7 +28,7 @@ PERSONAL_MCP_CONFIGURATION_MANIFEST = ToolManifest(
             schema=PersonalMCPConfigurationInput.model_json_schema(),
         )
     ],
-    outputs=[],
+    outputs=pending_application_output_fields(),
     cost=CostProfile(),
     permissions=PermissionProfile(data_classification="CONFIDENTIAL"),
     binding_unit="lia_personal_mcp",

@@ -1,5 +1,6 @@
 """Bounded native whole-source synchronization, never a claim that indexing finished."""
 
+from src.domains.agents.application.output_contracts import pending_application_output_fields
 from src.domains.agents.application.source_sync_schemas import SourceSyncInput
 from src.domains.agents.application.source_sync_spec import SOURCE_SYNC_OPERATION
 from src.domains.agents.registry.catalogue import (
@@ -32,7 +33,7 @@ SOURCE_SYNC_MANIFEST = ToolManifest(
             schema=SourceSyncInput.model_json_schema(),
         )
     ],
-    outputs=[],
+    outputs=pending_application_output_fields(),
     cost=CostProfile(),
     permissions=PermissionProfile(data_classification="CONFIDENTIAL"),
     binding_unit="lia_knowledge_spaces",

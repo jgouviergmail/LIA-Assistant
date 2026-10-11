@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
+from uuid import UUID
 
 import pytest
 from sqlalchemy import update
@@ -29,11 +30,13 @@ async def test_regeneration_workers_have_independent_fenced_sessions(
     async_engine: AsyncEngine,
     monkeypatch: pytest.MonkeyPatch,
     scenario: str,
+    committed_user_ids: list[UUID],
 ) -> None:
     monkeypatch.setattr(settings, "meetings_job_heartbeat_interval_seconds", 0.02)
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
     async with factory() as seed:
         actor = await _user(seed)
+        committed_user_ids.append(actor)
         row = Meeting(
             user_id=actor,
             status=MeetingStatus.READY,

@@ -24,12 +24,12 @@ const LOCALE_PATHS: ReadonlyArray<readonly [string, string]> = [
 test.describe('landing header — navigation fits at its responsive boundaries', () => {
   test.use({ viewport: { width: 880, height: 900 }, locale: 'fr-FR' });
 
-  test('every locale keeps the logo, links and account controls separate', async ({ page }) => {
-    for (const width of [880, 1024, 1280]) {
-      await page.setViewportSize({ width, height: 900 });
-      for (const [lng, path] of LOCALE_PATHS) {
-        await page.goto(path);
-        await awaitStyledPage(page, `nav row ${lng}`);
+  for (const [lng, path] of LOCALE_PATHS) {
+    test(`${lng} keeps the logo, links and account controls separate`, async ({ page }) => {
+      await page.goto(path);
+      await awaitStyledPage(page, `nav row ${lng}`);
+      for (const width of [880, 1024, 1280]) {
+        await page.setViewportSize({ width, height: 900 });
         await expectNoOverflow(page, `${lng} header row at ${width}px`);
         const overlaps = await page
           .locator('header nav > div')
@@ -65,8 +65,8 @@ test.describe('landing header — navigation fits at its responsive boundaries',
           );
         expect(spills, `${lng} header content at ${width}px`).toBe(0);
       }
-    }
-  });
+    });
+  }
 
   test('the release entry stays out of the saturated row', async ({ page }) => {
     // Measured: adding it here ran the French row 96px past the viewport. It

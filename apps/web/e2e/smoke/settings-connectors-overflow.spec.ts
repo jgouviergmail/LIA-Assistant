@@ -38,7 +38,7 @@ for (const width of [320, 360, 390]) {
   test(`connector group rows stay within ${width}px`, async ({ page, authenticate, mockApi }) => {
     await authenticate({ language: 'fr' });
     await mockApi([
-      { url: '**/api/v1/connectors', json: { connectors: CONNECTORS } },
+      { url: /\/api\/v1\/connectors(?:\?fresh=true)?$/, json: { connectors: CONNECTORS } },
       { url: '**/api/v1/scheduled-actions**', json: { actions: [], total: 0 } },
       { url: '**/api/v1/usage/**', json: {} },
     ]);

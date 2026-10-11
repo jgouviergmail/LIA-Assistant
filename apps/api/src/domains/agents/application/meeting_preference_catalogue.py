@@ -1,6 +1,7 @@
 """Future recording defaults are separate from starting, processing or emailing a meeting."""
 
 from src.domains.agents.application.meeting_preference_schemas import MeetingPreferenceInput
+from src.domains.agents.application.output_contracts import pending_application_output_fields
 from src.domains.agents.registry.catalogue import (
     CostProfile,
     DisplayMetadata,
@@ -42,7 +43,7 @@ MEETING_PREFERENCE_UPDATE_MANIFEST = ToolManifest(
             schema=MeetingPreferenceInput.model_json_schema(),
         )
     ],
-    outputs=[],
+    outputs=pending_application_output_fields(),
     cost=CostProfile(),
     permissions=PermissionProfile(data_classification="CONFIDENTIAL"),
     binding_unit="lia_meetings",

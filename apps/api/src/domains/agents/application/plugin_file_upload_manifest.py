@@ -1,5 +1,6 @@
 """The assistant can request a local package picker; only its browser may supply bytes."""
 
+from src.domains.agents.application.output_contracts import pending_application_output_fields
 from src.domains.agents.application.plugin_file_upload_schemas import PluginFileUploadInput
 from src.domains.agents.application.plugin_file_upload_spec import PLUGIN_FILE_UPLOAD_OPERATION
 from src.domains.agents.registry.catalogue import (
@@ -33,7 +34,7 @@ PLUGIN_FILE_UPLOAD_MANIFEST = ToolManifest(
             schema=PluginFileUploadInput.model_json_schema(),
         )
     ],
-    outputs=[],
+    outputs=pending_application_output_fields(),
     cost=CostProfile(),
     permissions=PermissionProfile(data_classification="CONFIDENTIAL"),
     binding_unit="lia_plugins",

@@ -1,5 +1,6 @@
 """Setting personal MCP state always presents fresh exact consent."""
 
+from src.domains.agents.application.output_contracts import pending_application_output_fields
 from src.domains.agents.application.personal_mcp_state_schemas import PersonalMCPStateInput
 from src.domains.agents.application.personal_mcp_state_spec import PERSONAL_MCP_STATE_OPERATION
 from src.domains.agents.registry.catalogue import (
@@ -23,7 +24,7 @@ PERSONAL_MCP_STATE_MANIFEST = ToolManifest(
             schema=PersonalMCPStateInput.model_json_schema(),
         )
     ],
-    outputs=[],
+    outputs=pending_application_output_fields(),
     cost=CostProfile(),
     permissions=PermissionProfile(data_classification="CONFIDENTIAL"),
     binding_unit="lia_personal_mcp",

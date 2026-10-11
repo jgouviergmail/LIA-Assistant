@@ -47,7 +47,7 @@ for (const width of [1280, 320]) {
     );
     const writes: unknown[] = [];
     await mockApi([
-      { url: '**/api/v1/connectors', json: { connectors: [] } },
+      { url: /\/api\/v1\/connectors(?:\?fresh=true)?$/, json: { connectors: [] } },
       { url: '**/api/v1/habits/presence', json: {} },
       { url: '**/api/v1/agents/runs/active', json: null },
       { url: '**/api/v1/notifications/broadcasts/unread', json: { broadcasts: [] } },

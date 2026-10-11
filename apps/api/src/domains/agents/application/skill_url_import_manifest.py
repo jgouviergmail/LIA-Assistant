@@ -1,5 +1,6 @@
 """URL package source, exact optional replacement and original security bounds are public."""
 
+from src.domains.agents.application.output_contracts import pending_application_output_fields
 from src.domains.agents.application.skill_url_import_schemas import SkillUrlImportInput
 from src.domains.agents.application.skill_url_import_spec import SKILL_URL_IMPORT_OPERATION
 from src.domains.agents.registry.catalogue import (
@@ -23,7 +24,7 @@ SKILL_URL_IMPORT_MANIFEST = ToolManifest(
             schema=SkillUrlImportInput.model_json_schema(),
         )
     ],
-    outputs=[],
+    outputs=pending_application_output_fields(),
     cost=CostProfile(),
     permissions=PermissionProfile(data_classification="CONFIDENTIAL"),
     binding_unit="lia_skills",

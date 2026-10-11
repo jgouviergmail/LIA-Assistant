@@ -2,11 +2,12 @@
 import { test, expect, chatRoutes, waitForHydration, type MockRoute } from '../fixtures';
 import en from '../../locales/en/translation.json';
 import fr from '../../locales/fr/translation.json';
+import { companionBodyAsset } from '../../src/components/spirit/companion-catalogue';
 
 const CHARACTERS = ['smiley', 'spirit', 'moss', 'lumen'] as const;
 const PREFS_KEY = 'lia_eyes_widget_prefs';
 const ROUTES: MockRoute[] = [
-  { url: '**/api/v1/connectors', json: { connectors: [] } },
+  { url: /\/api\/v1\/connectors(?:\?fresh=true)?$/, json: { connectors: [] } },
   { url: '**/api/v1/scheduled-actions**', json: { actions: [], total: 0 } },
   { url: '**/api/v1/usage/**', json: {} },
 ];
@@ -44,6 +45,13 @@ for (const [language, width] of [
       const identityAttribute =
         character === 'smiley' ? 'data-smiley-variant' : 'data-spirit-companion';
       await expect(card.locator(`[${identityAttribute}]`)).toHaveCount(2);
+      await expect(card.locator('canvas')).toHaveCount(0);
+      for (const face of await card.locator('.lia-eyes').all()) {
+        await expect(face).toHaveAttribute('data-motion', 'off');
+        await expect(face).toHaveAttribute('data-expression', 'neutral');
+      }
+      // Exercise the real focus wake-up before measuring the GPU preview.
+      await card.focus();
       for (const variant of ['female', 'male']) {
         const face =
           character === 'smiley'
@@ -51,7 +59,6 @@ for (const [language, width] of [
             : card.locator(
                 `[data-character="${character}"][data-spirit-companion="${variant}"] .lia-eyes`
               );
-        await expect(face).toHaveAttribute('data-motion', 'off');
         await expect(face).toHaveAttribute('data-expression', 'neutral');
         if (character === 'smiley')
           await expect(face.locator('.lia-avatar-body')).toHaveAttribute(
@@ -95,7 +102,7 @@ for (const [language, width] of [
           expect(geometry.kind).toBe('hybrid');
           if (geometry.kind !== 'hybrid')
             throw new Error('The original companion body is required');
-          expect(geometry.source).toBe(`/avatars/${character}/v1/${variant}/body.webp`);
+          expect(geometry.source).toBe(companionBodyAsset(character, variant as 'female' | 'male'));
           expect(geometry.bitmapWidth).toBe(192);
         }
       }
@@ -236,7 +243,7 @@ for (const character of ['moss', 'lumen'] as const) {
       const firstBody = await readBody();
       // The variant attribute commits before inherited custom properties
       // finish propagating to the pseudo-element in Chromium.
-      await expect.poll(readBody).toContain(`/avatars/${character}/v1/${variant}/body.webp`);
+      await expect.poll(readBody).toContain(companionBodyAsset(character, variant));
       await testInfo.attach(`${character}-${variant}-body-update`, {
         body: JSON.stringify({
           firstBody,

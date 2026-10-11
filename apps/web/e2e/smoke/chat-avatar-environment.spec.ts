@@ -1,6 +1,7 @@
 /** Browser geometry and passive ambience: the real widget, with no provider calls. */
-import { test, expect, chatRoutes } from '../fixtures';
+import { test, expect, chatRoutes, waitForClockedHydration } from '../fixtures';
 import { expectSmileyProjection } from '../fixtures/smiley-projection';
+import { expectVolumeProjection } from '../fixtures/volume-projection';
 
 const styles = ['cozmo', 'capsules', 'billes', 'amande', 'traits', 'anneaux', 'smiley'] as const;
 
@@ -16,29 +17,29 @@ const climates = [
     kind: 'freezing',
     temperature: -4,
     condition: 'Clear',
-    moving: '.lia-ambient-weather-breath',
-    rest: [4, 0],
+    moving: '.lia-ambient-weather--freezing',
+    rest: [0, 0],
   },
   {
     kind: 'snow',
     temperature: -1,
     condition: 'Snow',
     moving: '.lia-ambient-weather-fall',
-    rest: [0, 13],
+    rest: [0, 5.4],
   },
   {
     kind: 'rain',
     temperature: 18,
     condition: 'Rain',
-    moving: '.lia-ambient-weather-fall',
-    rest: [0, 8],
+    moving: '.lia-ambient-weather--rain',
+    rest: [0, 0],
   },
   {
     kind: 'storm',
     temperature: 18,
     condition: 'Thunderstorm',
-    moving: '.lia-ambient-weather-fall',
-    rest: [-4, 9],
+    moving: '.lia-ambient-weather--storm',
+    rest: [0, 0],
   },
   {
     kind: 'hot',
@@ -92,6 +93,15 @@ for (const climate of climates) {
     const avatar = page.locator('.lia-eyes').last();
     await expect(avatar).toBeVisible();
     await page.clock.runFor(1800);
+    const expectedProps = (
+      climate.kind === 'snow'
+        ? ['cold', 'freezing', 'snow']
+        : climate.kind === 'freezing'
+          ? ['cold', 'freezing']
+          : climate.kind === 'heat'
+            ? ['hot', 'heat']
+            : [climate.kind]
+    ).map(kind => `lia-ambient-weather--${kind}`);
     const visibleProps = () =>
       avatar
         .locator('.lia-ambient-weather')
@@ -100,58 +110,53 @@ for (const climate of climates) {
             .filter(e => Number.parseFloat(getComputedStyle(e).opacity) > 0.01)
             .map(e => e.classList[1])
         );
-    await expect.poll(visibleProps).toEqual([`lia-ambient-weather--${climate.kind}`]);
+    await expect.poll(visibleProps).toEqual(expectedProps);
     const prop = avatar.locator(`.lia-ambient-weather--${climate.kind}`);
     // A shared .lia-weather class used to paint the weather card's opaque
     // surface behind the SVG and clip the prop to a rectangular box.
     await expect(prop).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
     await expect(prop).toHaveCSS('background-image', 'none');
     await expect(prop).toHaveCSS('overflow', 'visible');
-    await expect(prop.locator('svg')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-    if (climate.kind === 'hot') {
-      // Inspect the actual inline artwork, including the inactive props. A
-      // transparent wrapper cannot rescue an opaque rectangle inside an SVG.
-      const artwork = await avatar.locator('.lia-ambient-weather svg').evaluateAll(async svgs => {
-        return Promise.all(
-          svgs.map(async element => {
-            const svg = element as SVGSVGElement;
-            const { width, height } = svg.viewBox.baseVal;
-            const source = svg.cloneNode(true) as SVGSVGElement;
-            source.setAttribute('width', String(width));
-            source.setAttribute('height', String(height));
-            source.style.color = getComputedStyle(svg).color;
-            const image = new Image();
-            image.src = `data:image/svg+xml,${encodeURIComponent(new XMLSerializer().serializeToString(source))}`;
-            await image.decode();
-            const canvas = document.createElement('canvas');
-            canvas.width = width;
-            canvas.height = height;
-            const context = canvas.getContext('2d')!;
-            context.drawImage(image, 0, 0);
-            const pixels = context.getImageData(0, 0, width, height).data;
-            let transparent = 0;
-            let painted = 0;
-            for (let i = 3; i < pixels.length; i += 4) {
-              if (pixels[i] === 0) transparent++;
-              else painted++;
-            }
-            return { kind: svg.parentElement!.classList[1], transparent, painted };
-          })
-        );
-      });
-      expect(artwork).toHaveLength(10);
-      for (const { kind, transparent, painted } of artwork) {
-        expect(transparent, `${kind} has transparent space around its silhouette`).toBeGreaterThan(
-          0
-        );
-        expect(painted, `${kind} contains visible artwork`).toBeGreaterThan(0);
-      }
+    // Read the artwork actually painted by the current local raster renderer.
+    // Transparent containers alone cannot prove that its bitmap has no rectangle.
+    const artwork = await prop.locator('.lia-ambient-prop').evaluateAll(elements =>
+      Promise.all(
+        elements.map(async element => {
+          const url =
+            getComputedStyle(element).backgroundImage.match(/url\(["']?(.*?)["']?\)/)?.[1];
+          if (!url) throw new Error('The effective weather must load its own artwork');
+          const image = new Image();
+          image.src = url;
+          await image.decode();
+          const canvas = document.createElement('canvas');
+          canvas.width = image.naturalWidth;
+          canvas.height = image.naturalHeight;
+          const context = canvas.getContext('2d')!;
+          context.drawImage(image, 0, 0);
+          const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+          let transparent = 0;
+          let painted = 0;
+          for (let i = 3; i < pixels.length; i += 4) {
+            if (pixels[i] === 0) transparent++;
+            else painted++;
+          }
+          return { transparent, painted };
+        })
+      )
+    );
+    expect(artwork.length).toBeGreaterThan(0);
+    for (const { transparent, painted } of artwork) {
+      expect(transparent).toBeGreaterThan(0);
+      expect(painted).toBeGreaterThan(0);
     }
-    const moving = climate.kind === 'cold' ? prop : prop.locator(climate.moving);
+    const moving = ['cold', 'freezing', 'rain', 'storm'].includes(climate.kind)
+      ? prop
+      : prop.locator(climate.moving);
     const transform = () => moving.evaluate(e => getComputedStyle(e).transform);
     const before = await transform();
     await page.clock.runFor(450);
-    expect(await transform()).not.toBe(before);
+    // The winter hat follows the head; it has no independent breath animation.
+    if (climate.kind !== 'freezing') expect(await transform()).not.toBe(before);
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.clock.runFor(64);
     // MediaQueryList change is a browser task, independent of the mocked clock.
@@ -183,7 +188,7 @@ for (const climate of climates) {
     const frozen = await transform();
     await page.clock.runFor(500);
     expect(await transform()).toBe(frozen);
-    expect(await visibleProps()).toEqual([`lia-ambient-weather--${climate.kind}`]);
+    expect(await visibleProps()).toEqual(expectedProps);
     if (climate.kind === 'hot') {
       const capture = test.info().outputPath('transparent-fan.png');
       await page.screenshot({ path: capture });
@@ -224,6 +229,7 @@ for (const style of styles) {
     await page.clock.pauseAt(new Date((await page.evaluate(() => Date.now())) + 100));
     await page.goto('/en/dashboard/chat');
     const avatar = page.locator(`.lia-eyes[data-style="${style}"]`).last();
+    await waitForClockedHydration(page, avatar);
     await expect(avatar).toBeVisible();
     // The actual painted mouth contour, not its empty layout anchor.
     const measure = () =>
@@ -302,6 +308,7 @@ for (const style of styles) {
           ),
           gap: (mouth.top - Math.max(...eyes.map(e => e.bottom))) / em,
           mouthHeight: mouth.height / em,
+          halfPixel: 0.5 / em,
           containment,
           yaw: Number.parseFloat((root as HTMLElement).style.getPropertyValue('--rig-head-yaw')),
           transform: getComputedStyle(root.querySelector('.lia-head')!).transform,
@@ -321,7 +328,8 @@ for (const style of styles) {
     const resting = await measureOpen();
     expect(resting.gap).toBeGreaterThan(0.12); // Visible breathing room below the painted eyes.
     expect(resting.gap).toBeLessThan(style === 'smiley' ? 0.26 : 0.4);
-    expect(resting.mouthHeight).toBeLessThan(0.22);
+    // Native depth/breathing can move the contour by a fraction of a pixel.
+    expect(resting.mouthHeight).toBeLessThan(0.22 + resting.halfPixel);
     await page.mouse.move(5, 40);
     // Pointer input is sampled in a frame, then committed by React. Advancing
     // the entire spring interval before that commit races WebKit's task queue.
@@ -333,7 +341,7 @@ for (const style of styles) {
     const looking = await measureOpen();
     expect(Math.abs(looking.yaw)).toBeGreaterThan(0.05);
     if (style === 'smiley') await expectSmileyProjection(avatar);
-    else expect(looking.transform).toMatch(/^matrix3d\(/);
+    else await expectVolumeProjection(avatar);
     expect(looking.gap, JSON.stringify(looking)).toBeLessThan(0.5);
     expect(looking.gap).toBeGreaterThan(0.02);
     if (style === 'smiley') {
@@ -369,7 +377,7 @@ for (const style of styles) {
   });
 }
 
-test('weather yields to the answer, expires, and keeps the account clock', async ({
+test('weather persists through the answer, expires, and keeps the account clock', async ({
   page,
   authenticate,
   mockApi,
@@ -410,9 +418,9 @@ test('weather yields to the answer, expires, and keeps the account clock', async
       .locator(`.lia-ambient-weather--${kind}`)
       .evaluate(e => Number.parseFloat(getComputedStyle(e).opacity));
   await page.clock.runFor(1000);
-  await expect.poll(() => opacity('rain')).toBeCloseTo(0.7, 1);
+  await expect.poll(() => opacity('rain')).toBeCloseTo(1, 1);
   expect(await opacity('night')).toBe(0);
-  expect(await opacity('cold')).toBe(0); // Rain owns the single ornament slot.
+  expect(await opacity('cold')).toBeCloseTo(1, 1); // Rain and a worn scarf compose.
   // Freeze wall time after loading so a slow renderer cannot consume the whole
   // answer hold before the test sees the completed message.
   await page.clock.pauseAt(new Date((await page.evaluate(() => Date.now())) + 100));
@@ -429,11 +437,11 @@ test('weather yields to the answer, expires, and keeps the account clock', async
       await page.clock.runFor(32);
       return opacity('rain');
     })
-    .toBe(0);
+    .toBeCloseTo(1, 1);
   await page.clock.runFor(1500);
-  expect(await opacity('rain')).toBe(0);
+  expect(await opacity('rain')).toBeCloseTo(1, 1);
   await page.clock.runFor(12_000);
-  expect(await opacity('rain')).toBeCloseTo(0.7, 1);
+  expect(await opacity('rain')).toBeCloseTo(1, 1);
   await page.clock.runFor(130_000);
   expect(await opacity('rain')).toBe(0);
   expect(await opacity('night')).toBe(0);

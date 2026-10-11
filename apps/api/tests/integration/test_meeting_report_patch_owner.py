@@ -3,6 +3,7 @@
 import asyncio
 from datetime import UTC, datetime
 from unittest.mock import patch
+from uuid import UUID
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
@@ -56,10 +57,13 @@ async def test_refused_report_patch_never_commits_its_template_first(
     assert row.template_ref == "builtin:default_minutes"
 
 
-async def test_concurrent_sparse_ui_patches_preserve_both_fields(async_engine: AsyncEngine) -> None:
+async def test_concurrent_sparse_ui_patches_preserve_both_fields(
+    async_engine: AsyncEngine, committed_user_ids: list[UUID]
+) -> None:
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
     async with factory() as seed:
         actor_id = await _user(seed)
+        committed_user_ids.append(actor_id)
         row = _meeting(
             actor_id,
             status=MeetingStatus.READY,

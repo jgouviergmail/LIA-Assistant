@@ -657,6 +657,14 @@ export default defineConfig({
           functions: 98,
           lines: 98,
         },
+        // Default companion placement, measured 2026-10-11 over both files:
+        // 98.67% statements / 88.68% branches / 100% functions.
+        'src/components/eyes/{eyes-placement,useEyesAvoidance}.ts': {
+          statements: 96,
+          branches: 86,
+          functions: 98,
+          lines: 96,
+        },
         'src/hooks/useConversation.ts': {
           statements: 98,
           branches: 91,

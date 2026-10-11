@@ -2,16 +2,25 @@
 import type { Locator, Page, TestInfo } from '@playwright/test';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { test, expect, chatRoutes, waitForHydration, type MockRoute } from '../fixtures';
+import {
+  test,
+  expect,
+  chatRoutes,
+  waitForHydration,
+  waitForClockedHydration,
+  type MockRoute,
+} from '../fixtures';
 import { expectSmileyProjection } from '../fixtures/smiley-projection';
+import { expectVolumeProjection } from '../fixtures/volume-projection';
 import type { PsycheStateSummary } from '../../src/types/psyche';
+import { companionBodyAsset } from '../../src/components/spirit/companion-catalogue';
 
 type Variant = 'female' | 'male';
 type Theme = 'light' | 'dark';
 const MONITOR_STYLES = ['cozmo', 'capsules', 'billes', 'amande', 'traits', 'anneaux'] as const;
 type MonitorStyle = (typeof MONITOR_STYLES)[number];
 const MONITOR_SCREEN = JSON.parse(
-  readFileSync(join(__dirname, '../../public/avatars/monitor/v1/manifest.json'), 'utf8')
+  readFileSync(join(__dirname, '../../public/avatars/monitor/v2/manifest.json'), 'utf8')
 ).screen as { x: number; y: number; width: number; height: number; radius: number };
 
 const CONVERSATION_ID = '00000000-0000-4000-8000-0000000000ff';
@@ -160,16 +169,23 @@ async function preparePreference(
 }
 
 function messagePortrait(page: Page, id = LATEST_ID): Locator {
-  return page.locator(`[data-message-id="${id}"] [data-spirit-avatar] img`);
+  return page.locator(`[data-message-id="${id}"] [data-companion-portrait="spirit"]`);
 }
 
 function companion(page: Page): Locator {
   return page.getByRole('group', { name: /LIA's expressive eyes/ });
 }
 
-async function expectDecoded(image: Locator, resolution = 192): Promise<void> {
-  await expect(image).toHaveJSProperty('naturalWidth', resolution);
-  await expect(image).toHaveJSProperty('naturalHeight', resolution);
+async function expectNativePortrait(portrait: Locator): Promise<void> {
+  await expect(portrait.locator('.lia-eyes')).toHaveCount(1);
+  await expect(portrait).toHaveCSS('width', '40px');
+  await expect(portrait).toHaveCSS('height', '40px');
+}
+
+/** A frozen browser clock must still let the dynamically loaded widget hydrate. */
+async function settleClockedFace(page: Page, face: Locator) {
+  await waitForClockedHydration(page, face);
+  await expect(face).toBeVisible();
 }
 
 async function capture(page: Page, testInfo: TestInfo, name: string): Promise<void> {
@@ -236,6 +252,7 @@ async function faceProjection(face: Locator) {
       Number.parseFloat((root as HTMLElement).style.getPropertyValue(`--rig-${key}`));
     return {
       sphere: root.classList.contains('lia-smiley'),
+      volume: root.getAttribute('data-volume-ready') === 'true',
       sphereReady: root.querySelector('.lia-avatar-body')?.getAttribute('data-sphere-ready'),
       gazeX: value('gaze-x'),
       gazeY: value('gaze-y'),
@@ -270,6 +287,10 @@ async function expectSharedProjection(face: Locator, raster: boolean) {
       expect(view.boundary.mask).toBe('none');
       expect(view.boundary.clip).toBe('circle(49%)');
       await expectSmileyProjection(face);
+    } else if (view.volume) {
+      expect(view.boundary.mask).toBe('none');
+      expect(view.boundary.clip).toMatch(/^polygon\(/);
+      await expectVolumeProjection(face);
     } else {
       expect(view.boundary.mask).toContain('/body.webp');
       expect(view.boundary.maskMode).toBe('alpha');
@@ -312,7 +333,7 @@ async function captureCornerGazes(
     expect(view.gazeY * directionY).toBeGreaterThan(0.05);
     expect(view.yaw * directionX).toBeGreaterThan(0.05);
     expect(view.pitch * directionY).toBeGreaterThan(0.02);
-    if (!view.sphere) expect(view.headTransform).toMatch(/^matrix3d\(/);
+    if (!view.sphere) await expectVolumeProjection(face);
     await captureDetail(page, face, testInfo, `${name}-gaze-${corner}-192`);
     await testInfo.attach(`${name}-gaze-${corner}-projection`, {
       body: JSON.stringify(view),
@@ -362,6 +383,11 @@ async function captureSmileyBlink(page: Page, face: Locator, testInfo: TestInfo,
 }
 
 async function expectSpiritTextures(face: Locator, variant: Variant) {
+  await expect
+    .poll(() =>
+      face.locator('.lia-head').evaluate(head => getComputedStyle(head, '::before').backgroundImage)
+    )
+    .toContain(companionBodyAsset('spirit', variant));
   const sources = await face.evaluate(async element => {
     const head = element.querySelector<HTMLElement>('.lia-head')!;
     const graphics = [
@@ -389,7 +415,7 @@ async function expectSpiritTextures(face: Locator, variant: Variant) {
     );
   });
   expect(sources.map(source => source.url)).toEqual([
-    `/avatars/spirit/v1/${variant}/body.webp`,
+    companionBodyAsset('spirit', variant),
     `/avatars/spirit/v1/${variant}/eye.webp`,
     `/avatars/spirit/v1/${variant}/eye-right.webp`,
     `/avatars/spirit/v1/${variant}/iris.webp`,
@@ -427,14 +453,15 @@ for (const [variant, theme] of [
     const latest = messagePortrait(page);
     const historical = messagePortrait(page, HISTORY_ID);
     const face = companion(page).locator(`[data-spirit-companion="${variant}"] .lia-spirit-rig`);
-    await expect(face).toBeVisible();
+    await settleClockedFace(page, face);
     await waitForHydration(page, '.lia-spirit-rig');
-    await expect(latest).toHaveAttribute('src', `/avatars/spirit/v1/compact/${variant}/joy.webp`);
-    await expect(historical).toHaveAttribute(
-      'src',
-      `/avatars/spirit/v1/compact/${variant}/attentive-still.webp`
-    );
-    await expectDecoded(latest, 96);
+    await expect(latest).toHaveAttribute('data-expression', 'joy');
+    await expect(historical).toHaveAttribute('data-expression', 'attentive');
+    await expect(latest).toHaveAttribute('data-portrait-variant', variant);
+    await expect(historical).toHaveAttribute('data-portrait-variant', variant);
+    await expectNativePortrait(latest);
+    await expect(latest.locator('[data-volume-canvas]')).toHaveCount(1);
+    await expect(historical.locator('canvas')).toHaveCount(0);
     await expectSpiritTextures(face, variant);
     await expect(face).toHaveAttribute('data-expression', 'neutral');
     await expectSharedProjection(face, true);
@@ -495,28 +522,19 @@ for (const [variant, theme] of [
     const messageBox = await latest.boundingBox();
     const companionBox = await face.boundingBox();
     if (!messageBox || !companionBox) throw new Error('Both real portraits must be visible');
-    expect(messageBox.width).toBeCloseTo(40, 1);
-    expect(messageBox.height).toBeCloseTo(40, 1);
+    await expectNativePortrait(latest);
     expect(companionBox.width).toBeCloseTo(114.4, 1);
     expect(companionBox.height).toBeCloseTo(114.4, 1);
-    await page.locator(`[data-message-id="${HISTORY_ID}"] [data-spirit-avatar]`).hover();
-    await expect(historical).toHaveAttribute(
-      'src',
-      `/avatars/spirit/v1/compact/${variant}/attentive.webp`
-    );
+    await historical.hover();
+    await expect(historical.locator('[data-volume-canvas]')).toHaveCount(1);
     await page.mouse.move(0, 0);
-    await expect(historical).toHaveAttribute(
-      'src',
-      `/avatars/spirit/v1/compact/${variant}/attentive-still.webp`
-    );
+    await expect(historical.locator('canvas')).toHaveCount(0);
     await page.emulateMedia({ reducedMotion: 'reduce' });
     // The real rig writes its settled pose on the next shared animation frame.
     await page.clock.runFor(32);
-    await expect(latest).toHaveAttribute(
-      'src',
-      `/avatars/spirit/v1/compact/${variant}/joy-still.webp`
-    );
-    await expectDecoded(latest, 96);
+    await expect(latest.locator('canvas')).toHaveCount(0);
+    await expect(latest.locator('.lia-eyes')).toHaveAttribute('data-motion', 'off');
+    await expectNativePortrait(latest);
     await expectSpiritTextures(face, variant);
     for (let tick = 0; tick < 15; tick++) {
       const current = await blinkState(face);
@@ -561,6 +579,9 @@ test('spirit keeps keyboard movement, size cycling, hide/restore and the message
   await page.keyboard.press('ArrowLeft');
   await expect.poll(async () => (await widget.boundingBox())?.x).toBeLessThan(before.x);
   await widget.getByRole('button', { name: 'Change the eyes size', exact: true }).click();
+  await expect(face).toHaveClass(/lia-eyes--xl/);
+  await expect(face).toHaveCSS('font-size', '64px');
+  await widget.getByRole('button', { name: 'Change the eyes size', exact: true }).click();
   await expect(face).toHaveClass(/lia-eyes--sm/);
   await expect(face).toHaveCSS('font-size', '20px');
   await expect
@@ -584,7 +605,7 @@ test('spirit keeps keyboard movement, size cycling, hide/restore and the message
   await expect(messagePortrait(page)).not.toBeVisible();
   await page.setViewportSize({ width: 880, height: 900 });
   await expect(messagePortrait(page)).toBeVisible();
-  await expectDecoded(messagePortrait(page), 96);
+  await expectNativePortrait(messagePortrait(page));
 });
 
 test('a real scroll suspends the latest clip and returning resumes it', async ({
@@ -602,19 +623,19 @@ test('a real scroll suspends the latest clip and returning resumes it', async ({
   const latest = messagePortrait(page);
   const latestMessage = page.locator(`[data-message-id="${LATEST_ID}"]`);
   await latestMessage.scrollIntoViewIfNeeded();
-  await expect(latest).toHaveAttribute('src', '/avatars/spirit/v1/compact/female/joy.webp');
-  await expectDecoded(latest, 96);
+  await expect(latest.locator('[data-volume-canvas]')).toHaveCount(1);
+  await expectNativePortrait(latest);
   // A real reader gesture cancels the initial bottom pin; a programmatic
   // scroll alone can race that pin while the history is settling.
   await page.locator(`[data-message-id="${LATEST_ID}"]`).hover();
   await page.mouse.wheel(0, -900);
   await page.locator(`[data-message-id="${HISTORY_ID}"]`).scrollIntoViewIfNeeded();
   await expect(latest).not.toBeInViewport();
-  await expect(latest).toHaveAttribute('src', '/avatars/spirit/v1/compact/female/joy-still.webp');
+  await expect(latest.locator('canvas')).toHaveCount(0);
   await latestMessage.scrollIntoViewIfNeeded();
-  await expect(latest).toHaveAttribute('src', '/avatars/spirit/v1/compact/female/joy.webp');
+  await expect(latest.locator('[data-volume-canvas]')).toHaveCount(1);
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await expect(latest).toHaveAttribute('src', '/avatars/spirit/v1/compact/female/joy-still.webp');
+  await expect(latest.locator('canvas')).toHaveCount(0);
 });
 
 for (const style of MONITOR_STYLES) {
@@ -635,7 +656,7 @@ for (const style of MONITOR_STYLES) {
     await page.clock.pauseAt(await page.evaluate(() => Date.now() + 100));
     await page.goto('/en/dashboard/chat');
     const face = companion(page).locator(`.lia-monitor[data-style="${style}"]`);
-    await expect(face).toBeVisible();
+    await settleClockedFace(page, face);
     await waitForHydration(page, '.lia-monitor');
     await expect(face).toHaveAttribute('data-expression', 'neutral');
     const geometry = await face.evaluate(async element => {
@@ -697,7 +718,7 @@ for (const style of MONITOR_STYLES) {
     expect(geometry.radius).toBeCloseTo(MONITOR_SCREEN.radius, 2);
     expect(geometry.overflow).toBe('hidden');
     expect(geometry.clip).toMatch(/^inset\(.*round/);
-    expect(geometry.asset).toContain('/avatars/monitor/v1/body.webp');
+    expect(geometry.asset).toContain('/avatars/monitor/v2/body.webp');
     expect(geometry.pixels).toEqual([192, 192]);
     expect(geometry.browsOutside).toBe(true);
     expect(geometry.eyeCount).toBe(2);
@@ -733,7 +754,7 @@ test('smiley projects its original sphere and keeps facial organs within the bod
   await page.clock.pauseAt(await page.evaluate(() => Date.now() + 100));
   await page.goto('/en/dashboard/chat');
   const face = companion(page).locator('.lia-eyes[data-style="smiley"]');
-  await expect(face).toBeVisible();
+  await settleClockedFace(page, face);
   await waitForHydration(page, '.lia-eyes[data-style="smiley"]');
   for (
     let frame = 0;

@@ -1,5 +1,6 @@
 """Local file material belongs to a confirmed original browser, never a model parameter."""
 
+from src.domains.agents.application.output_contracts import pending_application_output_fields
 from src.domains.agents.application.skill_file_upload_schemas import SkillFileUploadInput
 from src.domains.agents.application.skill_file_upload_spec import SKILL_FILE_UPLOAD_OPERATION
 from src.domains.agents.registry.catalogue import (
@@ -23,7 +24,7 @@ SKILL_FILE_UPLOAD_MANIFEST = ToolManifest(
             schema=SkillFileUploadInput.model_json_schema(),
         )
     ],
-    outputs=[],
+    outputs=pending_application_output_fields(),
     cost=CostProfile(),
     permissions=PermissionProfile(data_classification="CONFIDENTIAL"),
     binding_unit="lia_skills",

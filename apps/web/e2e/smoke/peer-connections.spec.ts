@@ -73,7 +73,7 @@ function buildState() {
 function buildRoutes(state: ReturnType<typeof buildState>): MockRoute[] {
   return [
     { url: '**/api/v1/config', json: APP_CONFIG },
-    { url: '**/api/v1/connectors', json: { connectors: [] } },
+    { url: /\/api\/v1\/connectors(?:\?fresh=true)?$/, json: { connectors: [] } },
     { url: '**/api/v1/scheduled-actions**', json: { actions: [], total: 0 } },
     {
       url: '**/api/v1/peers/me',

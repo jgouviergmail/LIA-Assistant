@@ -30,12 +30,13 @@ def counter_value(counter, **labels):
 
 
 @pytest.fixture
-async def journal_case(async_engine):
+async def journal_case(async_engine, committed_user_ids):
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
     async with factory() as db:
         user = User(email=f"journal-metrics-{uuid4().hex}@example.test", hashed_password="x")
         db.add(user)
         await db.flush()
+        committed_user_ids.append(user.id)
         entry = JournalEntry(
             user_id=user.id,
             theme="learnings",

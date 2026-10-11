@@ -7,6 +7,10 @@ from src.domains.agents.application.operation_spec import (
     OperationKind,
 )
 from src.domains.agents.application.outcomes import ApplicationExecutionOutcome
+from src.domains.agents.application.output_contracts import (
+    pending_application_output_fields,
+    projection_output_fields,
+)
 from src.domains.agents.application.recording_device_schemas import (
     RecordingDevicePatch,
     RecordingDeviceRequest,
@@ -43,7 +47,7 @@ RECORDING_DEVICE_MANIFEST = ToolManifest(
             schema=RecordingDeviceRequest.model_json_schema(),
         )
     ],
-    outputs=[],
+    outputs=pending_application_output_fields(),
     cost=CostProfile(),
     permissions=PermissionProfile(data_classification="CONFIDENTIAL"),
     binding_unit="lia_meetings",
@@ -67,7 +71,7 @@ RECORDING_DEVICE_READ_MANIFEST = ToolManifest(
     agent="setting_agent",
     description="Read this originating browser's short-lived device-reported meeting recorder phase, microphone support and meeting identifier. The observation timestamp is explicit; it is neither server proof nor current processing completion. No microphone permission request, action, spending or secrets. Unavailable without an authenticated addressed browser. Use get_lia_meetings_tool for actual server metadata and processing status.",
     parameters=[],
-    outputs=[],
+    outputs=projection_output_fields(RECORDING_DEVICE_READ_OPERATION.output_model),
     cost=CostProfile(),
     permissions=PermissionProfile(data_classification="CONFIDENTIAL"),
     binding_unit="lia_meetings",

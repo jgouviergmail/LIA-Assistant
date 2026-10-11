@@ -1,5 +1,6 @@
 """Removing one personal skill excludes system skills, plugins and other accounts."""
 
+from src.domains.agents.application.output_contracts import pending_application_output_fields
 from src.domains.agents.application.skill_delete_schemas import SkillDeleteInput
 from src.domains.agents.application.skill_delete_spec import SKILL_DELETE_OPERATION
 from src.domains.agents.registry.catalogue import (
@@ -23,7 +24,7 @@ SKILL_DELETE_MANIFEST = ToolManifest(
             schema=SkillDeleteInput.model_json_schema(),
         )
     ],
-    outputs=[],
+    outputs=pending_application_output_fields(),
     cost=CostProfile(),
     permissions=PermissionProfile(data_classification="CONFIDENTIAL"),
     binding_unit="lia_skills",

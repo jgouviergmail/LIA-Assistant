@@ -161,7 +161,7 @@ test.describe('chat composer reachability', () => {
 
     await page.locator('header').getByRole('button', { name: 'Start the radio' }).click();
     await expect(
-      page.getByRole('status').filter({ hasText: 'Between two programmes' })
+      page.getByRole('status').filter({ hasText: 'the first voice in about 12 s' })
     ).toBeVisible();
     await waitForStableBox(page, composer);
 

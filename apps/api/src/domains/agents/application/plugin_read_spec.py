@@ -1,6 +1,7 @@
 """Original personal plugin settings are reachable in both orchestration modes."""
 
 from src.domains.agents.application.operation_spec import ApplicationOperationSpec, OperationKind
+from src.domains.agents.application.output_contracts import projection_output_fields
 from src.domains.agents.application.plugin_read_schemas import PluginReadInput, PluginReadProjection
 from src.domains.agents.registry.catalogue import (
     CostProfile,
@@ -31,7 +32,7 @@ PLUGIN_READ_MANIFEST = ToolManifest(
             schema=PluginReadInput.model_json_schema(),
         )
     ],
-    outputs=[],
+    outputs=projection_output_fields(PLUGIN_READ_OPERATION.output_model),
     cost=CostProfile(),
     permissions=PermissionProfile(data_classification="CONFIDENTIAL"),
     binding_unit="lia_plugins",

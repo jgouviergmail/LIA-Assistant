@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 /**
  * Waits until React has hydrated the rendered markup.
@@ -30,4 +30,19 @@ export async function waitForHydration(page: Page, selector = 'form'): Promise<v
     selector,
     { timeout: 30_000 }
   );
+}
+
+/** Advance the mocked browser clock until a dynamically mounted tree hydrates. */
+export async function waitForClockedHydration(page: Page, element: Locator): Promise<void> {
+  await expect
+    .poll(
+      async () => {
+        await page.clock.runFor(32);
+        return element.evaluateAll(nodes =>
+          nodes.some(node => Object.keys(node).some(key => key.startsWith('__reactFiber$')))
+        );
+      },
+      { timeout: 30_000 }
+    )
+    .toBe(true);
 }

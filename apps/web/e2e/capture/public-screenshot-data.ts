@@ -425,7 +425,7 @@ export function publicScreenshotRoutes(): MockRoute[] {
       },
     },
     { url: '**/api/v1/psyche/history*', json: { snapshots: [], hours: 24 } },
-    { url: '**/api/v1/connectors', json: { connectors: [] } },
+    { url: /\/api\/v1\/connectors(?:\?fresh=true)?$/, json: { connectors: [] } },
     {
       url: '**/api/v1/journals/portrait',
       json: { full: null, brief: null, compiled_at: null, sources: null },

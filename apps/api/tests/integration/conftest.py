@@ -6,12 +6,38 @@ unit-test runs (pre-commit) with per-test Redis round trips.
 """
 
 import socket
+from collections.abc import AsyncIterator
 from typing import Any
+from uuid import UUID
 
 import pytest
 import pytest_asyncio
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncEngine
 
+from src.domains.users.models import User
 from tests import conftest as root_conftest
+from tests.helpers.committed_users import committed_user_scope
+
+
+@pytest_asyncio.fixture
+async def committed_user_ids(async_engine: AsyncEngine) -> AsyncIterator[list[UUID]]:
+    """Own accounts committed outside the standard per-test rollback transaction."""
+    async with committed_user_scope(async_engine) as identities:
+        yield identities
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _assert_committed_accounts_are_released(async_engine: AsyncEngine) -> AsyncIterator[None]:
+    """Name the producer of a committed-account leak, without deleting its evidence."""
+    async with async_engine.connect() as connection:
+        before = set((await connection.execute(select(User.id))).scalars())
+    yield
+    async with async_engine.connect() as connection:
+        after = set((await connection.execute(select(User.id))).scalars())
+    leaked = after - before
+    assert not leaked, f"Fixture left committed user accounts behind: {sorted(map(str, leaked))}"
+
 
 # Bind the genuine implementations once, at import time (same rationale as the
 # unit-suite no-network guard): restoring them must never be affected by

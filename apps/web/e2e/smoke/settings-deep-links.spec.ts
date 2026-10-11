@@ -21,7 +21,7 @@ import { test, expect, type MockRoute } from '../fixtures';
  * section is built to survive (that is what `FeatureErrorBoundary` is for).
  */
 const ROUTES: MockRoute[] = [
-  { url: '**/api/v1/connectors', json: { connectors: [] } },
+  { url: /\/api\/v1\/connectors(?:\?fresh=true)?$/, json: { connectors: [] } },
   { url: '**/api/v1/scheduled-actions**', json: { actions: [], total: 0 } },
   { url: '**/api/v1/usage/**', json: {} },
   // `OpenLoopsSection` self-gates on this flag and renders NOTHING without it,

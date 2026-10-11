@@ -15,7 +15,7 @@ test('one click starts one Google OAuth request for a verified account', async (
   await authenticate({ language: 'fr' });
   const bodies: unknown[] = [];
   const routes: MockRoute[] = [
-    { url: '**/api/v1/connectors', json: { connectors: googleConnectors } },
+    { url: /\/api\/v1\/connectors(?:\?fresh=true)?$/, json: { connectors: googleConnectors } },
     {
       url: '**/api/v1/connectors/oauth-bulk/google/authorize',
       method: 'POST',
@@ -45,7 +45,7 @@ test('different Microsoft accounts require a choice and stay within a phone view
   await authenticate({ language: 'fr' });
   const bodies: unknown[] = [];
   await mockApi([
-    { url: '**/api/v1/connectors', json: { connectors: [
+    { url: /\/api\/v1\/connectors(?:\?fresh=true)?$/, json: { connectors: [
       { id: 'mail', connector_type: 'microsoft_outlook', status: 'error', oauth_grant_id: 'first', metadata: { oauth_account_email: 'first@example.com' }, bulk_reconnect_provider: 'microsoft' },
       { id: 'calendar', connector_type: 'microsoft_calendar', status: 'error', oauth_grant_id: 'second', metadata: { oauth_account_email: 'second@example.com' }, bulk_reconnect_provider: 'microsoft' },
     ] } },
@@ -85,7 +85,7 @@ test('Tout connecter Google starts exactly one consent without a persisted queue
   await authenticate({ language: 'fr' });
   const bodies: unknown[] = [];
   await mockApi([
-    { url: '**/api/v1/connectors', json: { connectors: [] } },
+    { url: /\/api\/v1\/connectors(?:\?fresh=true)?$/, json: { connectors: [] } },
     {
       url: '**/api/v1/connectors/oauth-bulk/google/connect-all/authorize',
       method: 'POST',
@@ -115,7 +115,7 @@ test('Tout connecter Microsoft adds absent services to the selected account on m
   await authenticate({ language: 'fr' });
   const bodies: unknown[] = [];
   await mockApi([
-    { url: '**/api/v1/connectors', json: { connectors: [
+    { url: /\/api\/v1\/connectors(?:\?fresh=true)?$/, json: { connectors: [
       { id: 'mail', connector_type: 'microsoft_outlook', status: 'active', oauth_grant_id: 'existing-grant', metadata: { oauth_account_email: 'same@example.com' } },
     ] } },
     {
@@ -152,7 +152,7 @@ test('Tout connecter is disabled when every absent Google service is blocked', a
 }) => {
   await authenticate({ language: 'fr' });
   await mockApi([
-    { url: '**/api/v1/connectors', json: { connectors: [
+    { url: /\/api\/v1\/connectors(?:\?fresh=true)?$/, json: { connectors: [
       { id: 'outlook', connector_type: 'microsoft_outlook', status: 'active' },
       ...['google_calendar', 'google_contacts', 'google_drive', 'google_tasks'].map((type, index) => ({
         id: `google-${index}`, connector_type: type, status: 'active',

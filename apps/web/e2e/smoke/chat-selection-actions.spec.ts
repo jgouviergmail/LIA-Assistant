@@ -117,7 +117,18 @@ async function positionPassage(
         parent.scrollHeight > parent.clientHeight
       ) {
         const box = parent.getBoundingClientRect();
-        return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+        // The reader wheels the actual message surface, clear of floating UI.
+        // A wheel on an independent overlay cannot release the chat's bottom pin.
+        for (const x of [box.left + box.width / 2, box.left + 16, box.right - 16]) {
+          for (const y of [box.top + box.height / 2, box.top + 64, box.bottom - 64]) {
+            const target = document.elementFromPoint(x, y);
+            const message = target?.closest('[data-message-id]');
+            // The gesture listener belongs to the message list, inside the
+            // scroller. Its sticky header and empty padding do not bubble there.
+            if (message && parent.contains(message)) return { x, y };
+          }
+        }
+        throw new Error('The chat reader needs an unobstructed scroll surface');
       }
     }
     throw new Error('the assistant answer must have a nested scroll ancestor');

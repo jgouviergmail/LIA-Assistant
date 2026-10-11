@@ -34,13 +34,14 @@ pytestmark = pytest.mark.integration
 
 @pytest.mark.parametrize("stage", ["network", "description", "embedding", "dns_edit"])
 async def test_probe_external_work_has_no_actor_lock_and_late_endpoint_edits_refuse_contact(
-    async_engine, monkeypatch, stage
+    async_engine, monkeypatch, stage, committed_user_ids
 ):
     for name in ["application_tools_enabled", "mcp_enabled", "mcp_user_enabled"]:
         monkeypatch.setattr(settings, name, True)
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
     async with factory() as seed:
         owner = await _user(seed)
+        committed_user_ids.append(owner)
         row = UserMCPServer(user_id=owner, name="lifetime", url="https://example.org/mcp")
         seed.add(row)
         await seed.commit()

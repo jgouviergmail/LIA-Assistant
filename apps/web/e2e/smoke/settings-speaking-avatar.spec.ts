@@ -30,7 +30,7 @@ for (const width of [320, 1280]) {
         url: '**/api/v1/config',
         json: { ...appConfig, features: { ...appConfig.features, avatar_enabled: true } },
       },
-      { url: '**/api/v1/connectors', json: { connectors: [] } },
+      { url: /\/api\/v1\/connectors(?:\?fresh=true)?$/, json: { connectors: [] } },
       { url: '**/api/v1/avatars/config', handler: route => route.fulfill({ json: config }) },
       { url: '**/api/v1/avatars/faces', json: faces },
       {

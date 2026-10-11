@@ -1,6 +1,7 @@
 """UI and assistant preferences must share one serial, fresh write owner."""
 
 import asyncio
+from uuid import UUID
 
 import pytest
 from sqlalchemy import func, select
@@ -16,10 +17,12 @@ pytestmark = pytest.mark.integration
 
 async def test_concurrent_original_ui_first_writes_create_one_owned_preference(
     async_engine: AsyncEngine,
+    committed_user_ids: list[UUID],
 ) -> None:
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
     async with factory() as seed:
         owner = await _user(seed)
+        committed_user_ids.append(owner)
         await seed.commit()
     ready = asyncio.Barrier(2)
 

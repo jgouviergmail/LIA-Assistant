@@ -109,16 +109,21 @@ test('a display formula is laid out by the served KaTeX stylesheet', async ({
   const formula = page.locator('.message-bubble-assistant .katex-display .katex-html').first();
   await expect(formula).toBeVisible({ timeout: 15_000 });
 
-  const layout = await formula.evaluate(html => {
-    const base = html.firstElementChild as HTMLElement;
-    const strut = base.firstElementChild as HTMLElement;
-    return {
-      basePosition: getComputedStyle(base).position,
-      baseWhiteSpace: getComputedStyle(base).whiteSpace,
-      strutDisplay: getComputedStyle(strut).display,
-    };
-  });
-  expect(layout).toEqual({
+  const layout = () =>
+    formula.evaluate(html => {
+      const base = html.firstElementChild as HTMLElement;
+      const strut = base.firstElementChild as HTMLElement;
+      return {
+        basePosition: getComputedStyle(base).position,
+        baseWhiteSpace: getComputedStyle(base).whiteSpace,
+        strutDisplay: getComputedStyle(strut).display,
+      };
+    });
+  // Lazy math markup can commit before its stylesheet finishes loading.
+  // Await the actual vendor layout, preserving the styling oracle.
+  await expect.poll(layout, {
+    message: await formula.evaluate(html => html.outerHTML.slice(0, 1200)),
+  }).toEqual({
     basePosition: 'relative',
     baseWhiteSpace: 'nowrap',
     strutDisplay: 'inline-block',

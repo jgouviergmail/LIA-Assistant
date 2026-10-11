@@ -1,5 +1,6 @@
 """Destructive source removal enumerates the exact approved indexed documents."""
 
+from src.domains.agents.application.output_contracts import pending_application_output_fields
 from src.domains.agents.application.source_delete_schemas import SourceDeleteInput
 from src.domains.agents.application.source_delete_spec import SOURCE_DELETE_OPERATION
 from src.domains.agents.registry.catalogue import (
@@ -32,7 +33,7 @@ SOURCE_DELETE_MANIFEST = ToolManifest(
             schema=SourceDeleteInput.model_json_schema(),
         )
     ],
-    outputs=[],
+    outputs=pending_application_output_fields(),
     cost=CostProfile(),
     permissions=PermissionProfile(data_classification="CONFIDENTIAL"),
     binding_unit="lia_knowledge_spaces",

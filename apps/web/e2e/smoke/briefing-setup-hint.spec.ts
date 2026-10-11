@@ -96,7 +96,7 @@ test.describe('an unconfigured dashboard says so', () => {
     await authenticate({ language: 'fr' });
     await mockApi([
       ...FRESH_ACCOUNT,
-      { url: '**/api/v1/connectors', json: { connectors: [] } },
+      { url: /\/api\/v1\/connectors(?:\?fresh=true)?$/, json: { connectors: [] } },
       { url: '**/api/v1/scheduled-actions**', json: { actions: [], total: 0 } },
     ]);
     await page.goto('/fr/dashboard');

@@ -1,5 +1,6 @@
 """Only metadata enters consent; the full copied request/answer reaches its original browser."""
 
+from src.domains.agents.application.output_contracts import pending_application_output_fields
 from src.domains.agents.application.skill_download_schemas import SkillDownloadInput
 from src.domains.agents.application.skill_download_spec import SKILL_DOWNLOAD_OPERATION
 from src.domains.agents.registry.catalogue import (
@@ -23,7 +24,7 @@ SKILL_DOWNLOAD_MANIFEST = ToolManifest(
             schema=SkillDownloadInput.model_json_schema(),
         )
     ],
-    outputs=[],
+    outputs=pending_application_output_fields(),
     cost=CostProfile(),
     permissions=PermissionProfile(data_classification="CONFIDENTIAL"),
     binding_unit="lia_skills",

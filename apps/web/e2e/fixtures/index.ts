@@ -77,7 +77,7 @@ export { makeTestUser } from './test-user';
 export type { TestUser } from './test-user';
 export type { MockRoute } from './api-mock';
 export { idleNotificationStream, waitForMockGate } from './api-mock';
-export { waitForHydration } from './hydration';
+export { waitForHydration, waitForClockedHydration } from './hydration';
 export { briefingCardsMock, briefingWindowsMock } from './dashboard-shell';
 export { chatRoutes, loadedChatRoutes } from './chat';
 export type { ChatBody } from './chat';

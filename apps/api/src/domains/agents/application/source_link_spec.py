@@ -2,6 +2,7 @@
 
 from src.domains.agents.application.operation_spec import ApplicationOperationSpec, OperationKind
 from src.domains.agents.application.outcomes import ApplicationExecutionOutcome
+from src.domains.agents.application.output_contracts import pending_application_output_fields
 from src.domains.agents.application.source_link_schemas import SourceLinkInput, SourceLinkPatch
 from src.domains.agents.registry.catalogue import (
     CostProfile,
@@ -44,7 +45,7 @@ SOURCE_LINK_MANIFEST = ToolManifest(
             schema=SourceLinkInput.model_json_schema(),
         )
     ],
-    outputs=[],
+    outputs=pending_application_output_fields(),
     cost=CostProfile(),
     permissions=PermissionProfile(data_classification="CONFIDENTIAL"),
     binding_unit="lia_knowledge_spaces",

@@ -2,6 +2,7 @@
 
 from pydantic import BaseModel
 
+from src.domains.agents.application.output_contracts import projection_output_fields
 from src.domains.agents.registry.catalogue import (
     CostProfile,
     DisplayMetadata,
@@ -9,7 +10,7 @@ from src.domains.agents.registry.catalogue import (
     PermissionProfile,
     ToolManifest,
 )
-from src.infrastructure.meeting_reads import MeetingReadInput, TemplateReadInput
+from src.infrastructure.meeting_reads import MeetingReadInput, MeetingReadPage, TemplateReadInput
 
 
 def _manifest(name: str, schema: type[BaseModel], description: str) -> ToolManifest:
@@ -26,7 +27,7 @@ def _manifest(name: str, schema: type[BaseModel], description: str) -> ToolManif
                 schema=schema.model_json_schema(),
             )
         ],
-        outputs=[],
+        outputs=projection_output_fields(MeetingReadPage),
         cost=CostProfile(),
         permissions=PermissionProfile(data_classification="CONFIDENTIAL"),
         binding_unit="lia_meetings",

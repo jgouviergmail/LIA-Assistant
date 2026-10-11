@@ -5,6 +5,7 @@ from src.domains.agents.application.asset_retention_schemas import (
     AssetRetentionInput,
 )
 from src.domains.agents.application.asset_retention_spec import ASSET_RETENTION_OPERATION
+from src.domains.agents.application.output_contracts import pending_application_output_fields
 from src.domains.agents.registry.catalogue import (
     CostProfile,
     DisplayMetadata,
@@ -36,7 +37,7 @@ ASSET_RETENTION_MANIFEST = ToolManifest(
             schema=AssetRetentionInput.model_json_schema(),
         )
     ],
-    outputs=[],
+    outputs=pending_application_output_fields(),
     cost=CostProfile(),
     permissions=PermissionProfile(data_classification="CONFIDENTIAL"),
     binding_unit="lia_generated_assets",

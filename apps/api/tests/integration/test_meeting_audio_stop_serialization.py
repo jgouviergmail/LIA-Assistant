@@ -4,6 +4,7 @@ import asyncio
 from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import patch
+from uuid import UUID
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
@@ -22,11 +23,13 @@ async def test_stop_cannot_publish_while_an_accepted_segment_is_still_writing(
     async_engine: AsyncEngine,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    committed_user_ids: list[UUID],
 ) -> None:
     monkeypatch.setattr(settings, "meetings_storage_path", str(tmp_path))
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
     async with factory() as seed:
         owner = await _user(seed)
+        committed_user_ids.append(owner)
         row = Meeting(
             user_id=owner,
             status=MeetingStatus.RECORDING,

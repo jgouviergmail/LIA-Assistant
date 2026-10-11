@@ -27,13 +27,16 @@ from tests.integration.domains.skills.test_per_account_skill_names import _user
 pytestmark = pytest.mark.integration
 
 
-async def test_provider_accounting_can_commit_on_its_own_session(async_engine, monkeypatch):
+async def test_provider_accounting_can_commit_on_its_own_session(
+    async_engine, monkeypatch, committed_user_ids
+):
     monkeypatch.setattr(settings, "application_tools_enabled", True)
     monkeypatch.setattr(settings, "mcp_enabled", True)
     monkeypatch.setattr(settings, "mcp_user_enabled", True)
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
     async with factory() as seed:
         owner = await _user(seed)
+        committed_user_ids.append(owner)
         row = UserMCPServer(
             user_id=owner,
             name="billing-safe",

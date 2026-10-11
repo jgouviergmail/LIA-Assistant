@@ -7,6 +7,7 @@ from src.domains.agents.application.meeting_template_schemas import (
     TemplateDeleteInput,
     TemplateUpdateInput,
 )
+from src.domains.agents.application.output_contracts import pending_application_output_fields
 from src.domains.agents.registry.catalogue import (
     CostProfile,
     DisplayMetadata,
@@ -30,7 +31,7 @@ def _manifest(name: str, schema: type[BaseModel], description: str) -> ToolManif
                 schema=schema.model_json_schema(),
             )
         ],
-        outputs=[],
+        outputs=pending_application_output_fields(),
         cost=CostProfile(),
         permissions=PermissionProfile(data_classification="CONFIDENTIAL"),
         binding_unit="lia_meetings",

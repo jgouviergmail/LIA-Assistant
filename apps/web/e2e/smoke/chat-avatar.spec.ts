@@ -1,5 +1,5 @@
 /** Real companion + mocked SSE: no tool plan or prepared draft earns an action gesture. */
-import { test, expect, chatRoutes } from '../fixtures';
+import { test, expect, chatRoutes, waitForClockedHydration } from '../fixtures';
 import { scanPage } from '../a11y/scan';
 import { MAX_FRAME_MS } from '../../src/components/eyes/rig/scheduler';
 
@@ -118,6 +118,7 @@ test.describe('living smiley', () => {
     await page.clock.pauseAt(new Date(clockStart.getTime() + 1000));
     await page.goto('/en/dashboard/chat');
     const avatar = page.locator('.lia-eyes[data-style="smiley"]').last();
+    await waitForClockedHydration(page, avatar);
     await expect(avatar).toBeVisible();
     for (const width of [320, 375, 768, 1440]) {
       await page.setViewportSize({ width, height: 812 });

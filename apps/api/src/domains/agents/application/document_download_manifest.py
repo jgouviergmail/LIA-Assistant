@@ -2,6 +2,7 @@
 
 from src.domains.agents.application.document_download_schemas import DocumentDownloadInput
 from src.domains.agents.application.document_download_spec import DOCUMENT_DOWNLOAD_OPERATION
+from src.domains.agents.application.output_contracts import pending_application_output_fields
 from src.domains.agents.registry.catalogue import (
     CostProfile,
     DisplayMetadata,
@@ -23,7 +24,7 @@ DOCUMENT_DOWNLOAD_MANIFEST = ToolManifest(
             schema=DocumentDownloadInput.model_json_schema(),
         )
     ],
-    outputs=[],
+    outputs=pending_application_output_fields(),
     cost=CostProfile(),
     permissions=PermissionProfile(data_classification="CONFIDENTIAL"),
     binding_unit="lia_knowledge_spaces",

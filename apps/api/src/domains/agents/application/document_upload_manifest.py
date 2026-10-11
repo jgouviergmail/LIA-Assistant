@@ -2,6 +2,7 @@
 
 from src.domains.agents.application.document_upload_schemas import DocumentUploadInput
 from src.domains.agents.application.document_upload_spec import DOCUMENT_UPLOAD_OPERATION
+from src.domains.agents.application.output_contracts import pending_application_output_fields
 from src.domains.agents.registry.catalogue import (
     CostProfile,
     DisplayMetadata,
@@ -23,7 +24,7 @@ DOCUMENT_UPLOAD_MANIFEST = ToolManifest(
             schema=DocumentUploadInput.model_json_schema(),
         )
     ],
-    outputs=[],
+    outputs=pending_application_output_fields(),
     cost=CostProfile(),
     permissions=PermissionProfile(data_classification="CONFIDENTIAL"),
     binding_unit="lia_knowledge_spaces",

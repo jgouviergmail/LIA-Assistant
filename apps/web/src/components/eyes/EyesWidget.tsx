@@ -37,6 +37,7 @@ import { useEyesAnchor, type AnchorPosition } from '@/components/eyes/useEyesAnc
 import { useEyesDrag, type EyesDrag } from '@/components/eyes/useEyesDrag';
 import { useEyesParallax } from '@/components/eyes/useEyesParallax';
 import { useCompanionEnvironment } from './useCompanionEnvironment';
+import { useEyesAvoidance } from './useEyesAvoidance';
 import {
   useEyesWidgetStore,
   type EyesSurface,
@@ -105,6 +106,25 @@ function widgetStyle(
   return anchorPos ?? undefined;
 }
 
+/** Dock and fallback avoidance share the same ownership of default placement. */
+function useWidgetPlacement(
+  root: React.RefObject<HTMLDivElement | null>,
+  active: boolean,
+  surface: EyesSurface,
+  dockToChat: boolean | undefined,
+  position: EyesPosition | null,
+  drag: EyesDrag
+): { placement: React.CSSProperties | undefined; style: React.CSSProperties } {
+  const defaultPosition = active && surface === 'chat' && !position && !drag.dragPos;
+  const anchor = useEyesAnchor(root, defaultPosition && dockToChat !== false);
+  const avoidance = useEyesAvoidance(root, defaultPosition && !anchor);
+  const placement = widgetStyle(drag.displayPos, position, anchor ?? avoidance.position);
+  return {
+    placement,
+    style: { ...placement, pointerEvents: avoidance.blocked ? 'none' : undefined },
+  };
+}
+
 /** Being carried startles: wide eyes while dragging, everything else paused. */
 function eyesDisplayProps(
   dragging: boolean,
@@ -152,7 +172,7 @@ function EyesToolbar(props: {
   onHide: () => void;
 }) {
   const buttonClasses =
-    'flex h-6 w-6 items-center justify-center rounded-full bg-muted text-muted-foreground shadow ring-1 ring-border transition-colors hover:text-foreground [@media(hover:none)]:h-8 [@media(hover:none)]:w-8';
+    'flex h-6 w-6 max-sm:h-11 max-sm:w-11 items-center justify-center rounded-full bg-muted text-muted-foreground shadow ring-1 ring-border transition-colors hover:text-foreground';
   return (
     <div
       className={cn(
@@ -308,9 +328,14 @@ export const EyesWidget = memo(function EyesWidget(props: EyesWidgetProps) {
   // Default docked spot: centered between the header's left cluster and the
   // delete button. Only measured while no custom position is stored — and
   // only on the chat: the landing has no dock, its default is a corner.
-  const anchorEnabled =
-    surface === 'chat' && props.dockToChat !== false && active && !position && !drag.dragPos;
-  const anchorPos = useEyesAnchor(rootRef, anchorEnabled);
+  const { placement, style: placementStyle } = useWidgetPlacement(
+    rootRef,
+    active,
+    surface,
+    props.dockToChat,
+    position,
+    drag
+  );
 
   // Desktop cursor parallax — gated, expiring (see useEyesParallax).
   const gazeFree =
@@ -351,7 +376,6 @@ export const EyesWidget = memo(function EyesWidget(props: EyesWidgetProps) {
   const resolved = resolveGaze(behavior, gazeFree ? parallax : null);
   // The positioning resolver is also the authority on whether a fallback is
   // needed; duplicating its three cases in the JSX can disagree with it.
-  const placement = widgetStyle(drag.displayPos, position, anchorPos);
 
   return (
     <div
@@ -366,7 +390,7 @@ export const EyesWidget = memo(function EyesWidget(props: EyesWidgetProps) {
       onKeyDown={drag.onKeyDown}
       onClick={onSurfaceClick}
       onDoubleClick={onDoubleClick}
-      style={placement}
+      style={placementStyle}
       className={cn(
         'lia-eyes-widget group fixed z-30 select-none touch-none rounded-2xl p-1.5',
         'cursor-grab active:cursor-grabbing',

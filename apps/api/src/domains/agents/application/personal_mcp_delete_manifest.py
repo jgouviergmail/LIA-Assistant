@@ -1,5 +1,6 @@
 """Only an exact owned standalone MCP server can be proposed for removal."""
 
+from src.domains.agents.application.output_contracts import pending_application_output_fields
 from src.domains.agents.application.personal_mcp_delete_schemas import PersonalMCPDeleteInput
 from src.domains.agents.application.personal_mcp_delete_spec import PERSONAL_MCP_DELETE_OPERATION
 from src.domains.agents.registry.catalogue import (
@@ -23,7 +24,7 @@ PERSONAL_MCP_DELETE_MANIFEST = ToolManifest(
             schema=PersonalMCPDeleteInput.model_json_schema(),
         )
     ],
-    outputs=[],
+    outputs=pending_application_output_fields(),
     cost=CostProfile(),
     permissions=PermissionProfile(data_classification="CONFIDENTIAL"),
     binding_unit="lia_personal_mcp",

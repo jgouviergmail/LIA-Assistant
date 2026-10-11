@@ -25,7 +25,7 @@ import { test, expect, type MockRoute } from '../fixtures';
  * survives — and the sections exercised here render unconditionally.
  */
 const ROUTES: MockRoute[] = [
-  { url: '**/api/v1/connectors', json: { connectors: [] } },
+  { url: /\/api\/v1\/connectors(?:\?fresh=true)?$/, json: { connectors: [] } },
   { url: '**/api/v1/scheduled-actions**', json: { actions: [], total: 0 } },
   { url: '**/api/v1/usage/**', json: {} },
 ];

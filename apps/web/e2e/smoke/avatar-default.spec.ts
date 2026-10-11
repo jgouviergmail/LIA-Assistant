@@ -25,7 +25,7 @@ const applicationRoutes: MockRoute[] = [
     json: { greeting: { text: 'Welcome back', generated_at: null, usage: null }, synthesis: null },
   },
   { url: '**/api/v1/briefing/companion-context', json: { timezone: 'UTC', weather: null } },
-  { url: '**/api/v1/connectors', json: { connectors: [] } },
+  { url: /\/api\/v1\/connectors(?:\?fresh=true)?$/, json: { connectors: [] } },
   { url: '**/api/v1/scheduled-actions**', json: { actions: [], total: 0 } },
   { url: '**/api/v1/usage/**', json: {} },
 ];

@@ -7,6 +7,7 @@ from src.domains.agents.application.bookmark_read_schemas import (
     BookmarkReadQuery,
 )
 from src.domains.agents.application.operation_spec import ApplicationOperationSpec, OperationKind
+from src.domains.agents.application.output_contracts import projection_output_fields
 from src.domains.agents.registry.catalogue import (
     CostProfile,
     DisplayMetadata,
@@ -42,7 +43,7 @@ BOOKMARK_READ_MANIFEST = ToolManifest(
             schema=BookmarkReadQuery.model_json_schema(),
         )
     ],
-    outputs=[],
+    outputs=projection_output_fields(BOOKMARK_READ_OPERATION.output_model),
     cost=CostProfile(),
     permissions=PermissionProfile(data_classification="CONFIDENTIAL"),
     binding_unit="lia_saved_answers",

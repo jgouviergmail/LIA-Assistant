@@ -129,23 +129,19 @@ async function expectPortrait(page: Page, id: string, style: SelectedStyle, vari
   const view = portrait(page, id);
   await expect(view).toBeVisible();
   await expect(view).toHaveAttribute('data-expression', id === HISTORY_ID ? 'attentive' : 'joy');
-  if (style === 'spirit') {
-    await expect(view).toHaveAttribute('data-spirit-avatar', variant);
-    await expect(view.locator('img')).toHaveJSProperty('naturalWidth', 192);
-    await expect(view.locator('img')).toHaveAttribute('src', new RegExp(`/compact/${variant}/`));
-  } else {
+  {
     await expect(view).toHaveAttribute('data-companion-portrait', style);
     await expect(view).toHaveAttribute('data-portrait-variant', variant);
     await expect(view.locator('.lia-eyes')).toHaveCount(1);
     if (style === 'smiley')
       await expect(view.locator('.lia-eyes')).toHaveAttribute('data-smiley-variant', variant);
-    if (style === 'moss' || style === 'lumen')
+    if (style === 'moss' || style === 'lumen' || style === 'spirit')
       await expect(view.locator('[data-character]')).toHaveAttribute('data-character', style);
     if (style === 'cozmo') await expect(view.locator('.lia-monitor')).toHaveCount(1);
   }
-  const box = await view.boundingBox();
-  expect(box?.width).toBeCloseTo(40, 1);
-  expect(box?.height).toBeCloseTo(40, 1);
+  // The frame is 40 px; its parent's mood animation changes its viewport box.
+  await expect(view).toHaveCSS('width', '40px');
+  await expect(view).toHaveCSS('height', '40px');
   return view;
 }
 
@@ -208,10 +204,8 @@ test('selected settings skin and current gender reach history and latest without
       const latest = await expectPortrait(page, LATEST_ID, style, variant);
       await expect(historical.locator('canvas')).toHaveCount(0);
       await expect(latest.locator('canvas')).toHaveCount(0);
-      if (style !== 'spirit') {
-        await expect(historical.locator('.lia-eyes')).toHaveAttribute('data-motion', 'off');
-        await expect(latest.locator('.lia-eyes')).toHaveAttribute('data-motion', 'off');
-      }
+      await expect(historical.locator('.lia-eyes')).toHaveAttribute('data-motion', 'off');
+      await expect(latest.locator('.lia-eyes')).toHaveAttribute('data-motion', 'off');
     }
     if (style === 'smiley' || style === 'moss' || style === 'cozmo')
       await capturePortraits(page, testInfo, `${style}-female-history-and-latest-40px`);

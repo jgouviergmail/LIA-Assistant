@@ -1,5 +1,6 @@
 """Changing personal skill activation never changes system administration or executes a skill."""
 
+from src.domains.agents.application.output_contracts import pending_application_output_fields
 from src.domains.agents.application.skill_update_schemas import SkillUpdateInput
 from src.domains.agents.application.skill_update_spec import SKILL_UPDATE_OPERATION
 from src.domains.agents.registry.catalogue import (
@@ -23,7 +24,7 @@ SKILL_UPDATE_MANIFEST = ToolManifest(
             schema=SkillUpdateInput.model_json_schema(),
         )
     ],
-    outputs=[],
+    outputs=pending_application_output_fields(),
     cost=CostProfile(),
     permissions=PermissionProfile(data_classification="CONFIDENTIAL"),
     binding_unit="lia_skills",

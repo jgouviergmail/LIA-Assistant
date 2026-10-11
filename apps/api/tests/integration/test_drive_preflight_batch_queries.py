@@ -9,15 +9,25 @@ from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from src.domains.rag_spaces.drive_sync import RAGDriveSyncService
-from src.domains.rag_spaces.models import RAGDocument, RAGDriveSource, RAGSpace
+from src.domains.rag_spaces.models import RAGDocument, RAGDocumentStatus, RAGDriveSource, RAGSpace
 from src.domains.rag_spaces.repository import RAGDocumentRepository
 from tests.unit.domains.rag_spaces.drive_fakes import FakeDriveClient, drive_file
 
 pytestmark = pytest.mark.integration
 
 
+@pytest.mark.parametrize(
+    "status",
+    [
+        RAGDocumentStatus.READY,
+        RAGDocumentStatus.PENDING,
+        RAGDocumentStatus.PROCESSING,
+        RAGDocumentStatus.ERROR,
+        RAGDocumentStatus.REINDEXING,
+    ],
+)
 async def test_preflight_uses_two_document_queries_and_no_transaction_during_drive(
-    async_session, test_user, monkeypatch
+    async_session, test_user, monkeypatch, status
 ):
     owner = test_user.id
     space = RAGSpace(user_id=owner, name="Destination")
@@ -34,6 +44,7 @@ async def test_preflight_uses_two_document_queries_and_no_transaction_during_dri
             original_filename="f.pdf",
             file_size=1,
             content_type="application/pdf",
+            status=status,
             drive_file_id="same",
             drive_modified_time=datetime(2026, 9, 17, 10, tzinfo=UTC),
         )
@@ -76,7 +87,9 @@ async def test_preflight_uses_two_document_queries_and_no_transaction_during_dri
         result = await RAGDriveSyncService(async_session).preflight(space_id, source_id, owner)
     finally:
         event.remove(engine, "before_cursor_execute", counted)
-    assert result.unchanged == 1 and result.new == 20
+    assert result.unchanged == (1 if status == RAGDocumentStatus.READY else 0)
+    assert result.modified == (0 if status == RAGDocumentStatus.READY else 1)
+    assert result.new == 20
     assert len(statements) == 2
 
 

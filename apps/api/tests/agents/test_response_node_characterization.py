@@ -66,6 +66,7 @@ NOMINAL_STATE_UPDATE_KEYS = {
     "rag_injection_debug",
     "journal_injection_debug",
     "injected_journal_ids",
+    "injected_journal_revisions",
 }
 
 
@@ -224,7 +225,7 @@ async def test_char_vision_attachment_switches_to_vision_llm():
 
 @pytest.mark.asyncio
 async def test_char_draft_confirm_fast_path_skips_llm():
-    """A confirmed draft short-circuits: no LLM call, minimal 3-key state_update."""
+    """A confirmed draft short-circuits: no LLM call, clears prior journal evidence."""
     state = MessagesState(
         messages=[HumanMessage(content="ok")],
         agent_results={},
@@ -250,7 +251,12 @@ async def test_char_draft_confirm_fast_path_skips_llm():
         STATE_KEY_MESSAGES,
         STATE_KEY_DRAFT_ACTION_RESULT,
         "current_turn_registry",
+        "injected_journal_ids",
+        "injected_journal_revisions",
     }
+    assert result["injected_journal_ids"] == []
+    assert result["injected_journal_revisions"] == {}
+    assert set(result) <= set(MessagesState.__annotations__)
     assert result[STATE_KEY_DRAFT_ACTION_RESULT] is None
     assert result[STATE_KEY_MESSAGES][0].content == APIMessages.draft_action_completed("fr")
 

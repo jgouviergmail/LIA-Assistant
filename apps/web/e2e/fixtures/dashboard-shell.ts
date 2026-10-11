@@ -116,7 +116,13 @@ export const dashboardShellMocks: MockRoute[] = [
   },
 
   // Psyche companion presence (src/stores/psycheStore.ts).
-  { url: '**/api/v1/psyche/state', json: psycheState },
+  { url: /\/api\/v1\/psyche\/state(?:\?initialize=false)?$/, json: psycheState },
+  // ApplicationEyes also mounts outside chat; no cached weather is observed.
+  // Spec-specific weather scenarios override this exact route through LIFO.
+  {
+    url: '**/api/v1/briefing/companion-context',
+    json: { timezone: 'UTC', weather: null },
+  },
 
   // Usage limits tile (src/types/usage-limits.ts → UserUsageLimitResponse).
   {

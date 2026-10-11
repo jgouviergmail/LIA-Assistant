@@ -76,7 +76,7 @@ function routes(state: { active: 'gemini' | 'elevenlabs' }, saves: unknown[]): M
         api_version: 'v1',
       },
     },
-    { url: '**/api/v1/connectors', json: { connectors: [] } },
+    { url: /\/api\/v1\/connectors(?:\?fresh=true)?$/, json: { connectors: [] } },
     {
       url: '**/api/v1/live/connectors',
       method: 'GET',

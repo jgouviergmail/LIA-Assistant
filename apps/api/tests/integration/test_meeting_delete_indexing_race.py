@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import AsyncMock
+from uuid import UUID
 
 import pytest
 from sqlalchemy import select
@@ -25,6 +26,7 @@ async def test_reindex_and_delete_are_serialized_until_projection_reference_comm
     async_engine: AsyncEngine,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    committed_user_ids: list[UUID],
 ) -> None:
     monkeypatch.setattr(settings, "rag_spaces_enabled", True)
     monkeypatch.setattr(settings, "rag_spaces_storage_path", str(tmp_path / "rag"))
@@ -32,6 +34,7 @@ async def test_reindex_and_delete_are_serialized_until_projection_reference_comm
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
     async with factory() as seed:
         owner = await _user(seed)
+        committed_user_ids.append(owner)
         space = RAGSpace(user_id=owner, name="Controlled meetings", kind="meetings")
         row = Meeting(
             user_id=owner,

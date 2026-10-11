@@ -1,6 +1,7 @@
 """Template caps and copied names must hold on the original UI write path."""
 
 import asyncio
+from uuid import UUID
 
 import pytest
 from sqlalchemy import func, select
@@ -36,12 +37,13 @@ def _request(name: str) -> MeetingTemplateCreate:
 
 
 async def test_concurrent_original_ui_creations_do_not_exceed_the_owned_cap(
-    async_engine: AsyncEngine, monkeypatch: pytest.MonkeyPatch
+    async_engine: AsyncEngine, monkeypatch: pytest.MonkeyPatch, committed_user_ids: list[UUID]
 ) -> None:
     monkeypatch.setattr(settings, "meetings_max_user_templates", 1)
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
     async with factory() as seed:
         actor_id = await _user(seed)
+        committed_user_ids.append(actor_id)
         await seed.commit()
     ready = asyncio.Barrier(2)
 
@@ -67,10 +69,12 @@ async def test_concurrent_original_ui_creations_do_not_exceed_the_owned_cap(
 
 async def test_copy_of_max_length_name_remains_bounded_and_distinguishable(
     async_engine: AsyncEngine,
+    committed_user_ids: list[UUID],
 ) -> None:
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
     async with factory() as db:
         actor_id = await _user(db)
+        committed_user_ids.append(actor_id)
         await db.commit()
         service = MeetingTemplateService(db)
         original = await service.create(actor_id, _request("N" * 120), "fr")
@@ -83,10 +87,12 @@ async def test_copy_of_max_length_name_remains_bounded_and_distinguishable(
 
 async def test_copy_refreshes_a_previously_loaded_source_after_another_ui_update(
     async_engine: AsyncEngine,
+    committed_user_ids: list[UUID],
 ) -> None:
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
     async with factory() as seed:
         actor_id = await _user(seed)
+        committed_user_ids.append(actor_id)
         await seed.commit()
         source = await MeetingTemplateService(seed).create(actor_id, _request("Original"), "fr")
         assert source.id is not None

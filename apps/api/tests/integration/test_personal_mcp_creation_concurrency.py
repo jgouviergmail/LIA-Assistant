@@ -1,6 +1,7 @@
 """Original UI/native creations share one serial quota/name decision per owner."""
 
 import asyncio
+from uuid import UUID
 
 import pytest
 from sqlalchemy import func, select
@@ -18,12 +19,13 @@ pytestmark = pytest.mark.integration
 
 @pytest.mark.parametrize("same_name", [False, True])
 async def test_parallel_creations_refuse_excess_slots_or_duplicate_names(
-    async_engine, monkeypatch, same_name
+    async_engine, monkeypatch, same_name, committed_user_ids: list[UUID]
 ):
     monkeypatch.setattr(settings, "mcp_user_max_servers_per_user", 3 if same_name else 1)
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
     async with factory() as seed:
         owner = await _user(seed)
+        committed_user_ids.append(owner)
         await seed.commit()
     arrived = 0
     ready = asyncio.Event()

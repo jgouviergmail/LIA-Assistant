@@ -2,6 +2,7 @@
 
 from src.domains.agents.application.bookmark_keep_schemas import BookmarkKeepInput
 from src.domains.agents.application.bookmark_keep_spec import BOOKMARK_KEEP_OPERATION
+from src.domains.agents.application.output_contracts import pending_application_output_fields
 from src.domains.agents.registry.catalogue import (
     CostProfile,
     DisplayMetadata,
@@ -23,7 +24,7 @@ BOOKMARK_KEEP_MANIFEST = ToolManifest(
             schema=BookmarkKeepInput.model_json_schema(),
         )
     ],
-    outputs=[],
+    outputs=pending_application_output_fields(),
     cost=CostProfile(),
     permissions=PermissionProfile(data_classification="CONFIDENTIAL"),
     binding_unit="lia_saved_answers",

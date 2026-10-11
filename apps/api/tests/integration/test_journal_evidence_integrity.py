@@ -21,7 +21,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 RULE = "WHEN choosing -> DO compare alternatives BECAUSE explicitly requested"
 
 
-async def seed(factory, *, content=RULE):
+async def seed(factory, committed_user_ids, *, content=RULE):
     async with factory() as db:
         user = User(
             email=f"journal-evidence-{uuid4().hex}@example.test",
@@ -30,6 +30,7 @@ async def seed(factory, *, content=RULE):
         )
         db.add(user)
         await db.flush()
+        committed_user_ids.append(user.id)
         note = JournalEntry(
             user_id=user.id,
             theme="learnings",
@@ -56,9 +57,11 @@ def no_paid_embeddings(monkeypatch):
     )
 
 
-async def test_overlapping_snapshots_preserve_two_distinct_reactions(async_engine):
+async def test_overlapping_snapshots_preserve_two_distinct_reactions(
+    async_engine, committed_user_ids
+):
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
-    _, note_id = await seed(factory)
+    _, note_id = await seed(factory, committed_user_ids)
     async with factory() as left, factory() as right:
         first = await left.get(JournalEntry, note_id)
         second = await right.get(JournalEntry, note_id)
@@ -74,9 +77,11 @@ async def test_overlapping_snapshots_preserve_two_distinct_reactions(async_engin
         assert (await db.get(JournalEntry, note_id)).evidence_count == 2
 
 
-async def test_dirty_stale_counter_is_not_flushed_before_atomic_increment(async_engine):
+async def test_dirty_stale_counter_is_not_flushed_before_atomic_increment(
+    async_engine, committed_user_ids
+):
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
-    _, note_id = await seed(factory)
+    _, note_id = await seed(factory, committed_user_ids)
     async with factory() as left, factory() as right:
         first = await left.get(JournalEntry, note_id)
         second = await right.get(JournalEntry, note_id)
@@ -97,10 +102,10 @@ async def test_dirty_stale_counter_is_not_flushed_before_atomic_increment(async_
     "keys,expected_count", [(["same-turn", "same-turn"], 1), (["turn-a", "turn-b"], 2)]
 )
 async def test_simultaneous_sessions_preserve_events_and_deduplicate_replays(
-    async_engine, keys, expected_count
+    async_engine, committed_user_ids, keys, expected_count
 ):
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
-    _, note_id = await seed(factory)
+    _, note_id = await seed(factory, committed_user_ids)
     loaded = asyncio.Barrier(2)
 
     async def react(event_key):
@@ -129,9 +134,9 @@ async def test_simultaneous_sessions_preserve_events_and_deduplicate_replays(
         assert {event.event_key for event in events} == set(keys)
 
 
-async def test_replayed_reaction_counts_once(async_engine):
+async def test_replayed_reaction_counts_once(async_engine, committed_user_ids):
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
-    _, note_id = await seed(factory)
+    _, note_id = await seed(factory, committed_user_ids)
     async with factory() as db:
         note = await db.get(JournalEntry, note_id)
         service = JournalService(db)
@@ -142,9 +147,9 @@ async def test_replayed_reaction_counts_once(async_engine):
         assert note.evidence_count == 1
 
 
-async def test_replacing_the_proposition_retires_its_validation(async_engine):
+async def test_replacing_the_proposition_retires_its_validation(async_engine, committed_user_ids):
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
-    _, note_id = await seed(factory)
+    _, note_id = await seed(factory, committed_user_ids)
     async with factory() as db:
         note = await db.get(JournalEntry, note_id)
         note.evidence_count, note.confidence = 5, "high"
@@ -162,9 +167,11 @@ async def test_replacing_the_proposition_retires_its_validation(async_engine):
         assert note.revision == original_revision + 1
 
 
-async def test_title_edit_keeps_the_current_proposition_validation(async_engine):
+async def test_title_edit_keeps_the_current_proposition_validation(
+    async_engine, committed_user_ids
+):
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
-    _, note_id = await seed(factory)
+    _, note_id = await seed(factory, committed_user_ids)
     async with factory() as db:
         note = await db.get(JournalEntry, note_id)
         service = JournalService(db)
@@ -184,9 +191,11 @@ async def test_title_edit_keeps_the_current_proposition_validation(async_engine)
         )
 
 
-async def test_stale_revision_cannot_validate_or_replace_new_words(async_engine):
+async def test_stale_revision_cannot_validate_or_replace_new_words(
+    async_engine, committed_user_ids
+):
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
-    _, note_id = await seed(factory)
+    _, note_id = await seed(factory, committed_user_ids)
     async with factory() as db:
         note = await db.get(JournalEntry, note_id)
         service = JournalService(db)
@@ -198,9 +207,9 @@ async def test_stale_revision_cannot_validate_or_replace_new_words(async_engine)
         assert note.evidence_count == 0
 
 
-async def test_identical_rule_merge_unions_source_events(async_engine):
+async def test_identical_rule_merge_unions_source_events(async_engine, committed_user_ids):
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
-    user_id, winner_id = await seed(factory)
+    user_id, winner_id = await seed(factory, committed_user_ids)
     async with factory() as db:
         winner = await db.get(JournalEntry, winner_id)
         loser = JournalEntry(
@@ -233,9 +242,9 @@ async def test_identical_rule_merge_unions_source_events(async_engine):
         ).scalar_one_or_none() is None
 
 
-async def test_opposing_rules_cannot_be_merged(async_engine):
+async def test_opposing_rules_cannot_be_merged(async_engine, committed_user_ids):
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
-    user_id, winner_id = await seed(factory)
+    user_id, winner_id = await seed(factory, committed_user_ids)
     async with factory() as db:
         winner = await db.get(JournalEntry, winner_id)
         loser = JournalEntry(
@@ -267,9 +276,11 @@ async def test_opposing_rules_cannot_be_merged(async_engine):
         ).scalar_one() is loser
 
 
-async def test_legacy_positive_totals_cannot_recertify_high_confidence(async_engine):
+async def test_legacy_positive_totals_cannot_recertify_high_confidence(
+    async_engine, committed_user_ids
+):
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
-    _, note_id = await seed(factory)
+    _, note_id = await seed(factory, committed_user_ids)
     async with factory() as db:
         note = await db.get(JournalEntry, note_id)
         note.evidence_count = 20
@@ -283,10 +294,10 @@ async def test_legacy_positive_totals_cannot_recertify_high_confidence(async_eng
     [(["response:answer-1", "response:answer-2"], "medium"), (["turn-1", "turn-2"], "high")],
 )
 async def test_whole_answer_likes_are_descriptive_not_causal_validation(
-    async_engine, keys, expected_confidence
+    async_engine, committed_user_ids, keys, expected_confidence
 ):
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
-    _, note_id = await seed(factory)
+    _, note_id = await seed(factory, committed_user_ids)
     async with factory() as db:
         note = await db.get(JournalEntry, note_id)
         for event_key in keys:
@@ -297,9 +308,9 @@ async def test_whole_answer_likes_are_descriptive_not_causal_validation(
         assert note.confidence == expected_confidence
 
 
-async def test_evidence_without_a_stable_event_key_is_refused(async_engine):
+async def test_evidence_without_a_stable_event_key_is_refused(async_engine, committed_user_ids):
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
-    _, note_id = await seed(factory)
+    _, note_id = await seed(factory, committed_user_ids)
     async with factory() as db:
         note = await db.get(JournalEntry, note_id)
         with pytest.raises(ValueError, match="event key"):
@@ -312,9 +323,9 @@ async def test_evidence_without_a_stable_event_key_is_refused(async_engine):
         ).scalars().all() == []
 
 
-async def test_merge_keeps_global_likes_without_certifying_them(async_engine):
+async def test_merge_keeps_global_likes_without_certifying_them(async_engine, committed_user_ids):
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
-    user_id, winner_id = await seed(factory)
+    user_id, winner_id = await seed(factory, committed_user_ids)
     async with factory() as db:
         winner = await db.get(JournalEntry, winner_id)
         loser = JournalEntry(
@@ -347,9 +358,11 @@ async def test_merge_keeps_global_likes_without_certifying_them(async_engine):
         assert (winner.evidence_count, winner.confidence) == (2, "medium")
 
 
-async def test_contradicted_rule_is_readable_but_not_automatically_applied(async_engine):
+async def test_contradicted_rule_is_readable_but_not_automatically_applied(
+    async_engine, committed_user_ids
+):
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
-    user_id, note_id = await seed(factory)
+    user_id, note_id = await seed(factory, committed_user_ids)
     async with factory() as db:
         note = await db.get(JournalEntry, note_id)
         service = JournalService(db)
@@ -365,9 +378,11 @@ async def test_contradicted_rule_is_readable_but_not_automatically_applied(async
         assert [entry.id for entry in await repo.get_recent_for_user(user_id)] == [note_id]
 
 
-async def test_event_and_explanation_keep_owned_source_and_survive_its_deletion(async_engine):
+async def test_event_and_explanation_keep_owned_source_and_survive_its_deletion(
+    async_engine, committed_user_ids
+):
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
-    user_id, note_id = await seed(factory)
+    user_id, note_id = await seed(factory, committed_user_ids)
     async with factory() as db:
         conversation = Conversation(user_id=user_id)
         db.add(conversation)
@@ -399,10 +414,12 @@ async def test_event_and_explanation_keep_owned_source_and_survive_its_deletion(
         assert event.event_key == "reaction"
 
 
-async def test_foreign_source_is_not_preserved_as_a_persons_evidence(async_engine):
+async def test_foreign_source_is_not_preserved_as_a_persons_evidence(
+    async_engine, committed_user_ids
+):
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
-    _, note_id = await seed(factory)
-    foreign_user_id, _ = await seed(factory)
+    _, note_id = await seed(factory, committed_user_ids)
+    foreign_user_id, _ = await seed(factory, committed_user_ids)
     async with factory() as db:
         foreign_conversation = Conversation(user_id=foreign_user_id)
         db.add(foreign_conversation)
@@ -427,9 +444,9 @@ async def test_foreign_source_is_not_preserved_as_a_persons_evidence(async_engin
         ).scalars().all() == []
 
 
-async def test_merge_does_not_erase_retired_proposition_events(async_engine):
+async def test_merge_does_not_erase_retired_proposition_events(async_engine, committed_user_ids):
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
-    user_id, winner_id = await seed(factory)
+    user_id, winner_id = await seed(factory, committed_user_ids)
     async with factory() as db:
         winner = await db.get(JournalEntry, winner_id)
         loser = JournalEntry(
@@ -463,9 +480,11 @@ async def test_merge_does_not_erase_retired_proposition_events(async_engine):
         ).scalar_one().event_key == "old-proposition"
 
 
-async def test_positive_reaction_preserves_portrait_and_advances_its_work_revision(async_engine):
+async def test_positive_reaction_preserves_portrait_and_advances_its_work_revision(
+    async_engine, committed_user_ids
+):
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
-    user_id, note_id = await seed(factory)
+    user_id, note_id = await seed(factory, committed_user_ids)
     async with factory() as db:
         user = await db.get(User, user_id)
         user.journal_portrait_full = "The current grounded portrait"
@@ -483,9 +502,11 @@ async def test_positive_reaction_preserves_portrait_and_advances_its_work_revisi
         assert user.journal_portrait_full == "The current grounded portrait"
 
 
-async def test_contradiction_immediately_retires_the_derived_portrait(async_engine):
+async def test_contradiction_immediately_retires_the_derived_portrait(
+    async_engine, committed_user_ids
+):
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
-    user_id, note_id = await seed(factory)
+    user_id, note_id = await seed(factory, committed_user_ids)
     async with factory() as db:
         user = await db.get(User, user_id)
         user.journal_portrait_full, user.journal_portrait_brief = "Old view", "Old"
@@ -500,9 +521,9 @@ async def test_contradiction_immediately_retires_the_derived_portrait(async_engi
         assert user.journal_portrait_sources is None
 
 
-async def test_delete_immediately_retires_the_derived_portrait(async_engine):
+async def test_delete_immediately_retires_the_derived_portrait(async_engine, committed_user_ids):
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
-    user_id, note_id = await seed(factory)
+    user_id, note_id = await seed(factory, committed_user_ids)
     async with factory() as db:
         user = await db.get(User, user_id)
         user.journal_portrait_full, user.journal_portrait_brief = "Old view", "Old"
@@ -515,10 +536,10 @@ async def test_delete_immediately_retires_the_derived_portrait(async_engine):
 
 @pytest.mark.parametrize("change", [{"level": "L2"}, {"theme": "user_observations"}])
 async def test_changed_abstraction_retires_prior_validation_and_rejects_old_reactions(
-    async_engine, change
+    async_engine, committed_user_ids, change
 ):
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
-    _, note_id = await seed(factory)
+    _, note_id = await seed(factory, committed_user_ids)
     async with factory() as db:
         note = await db.get(JournalEntry, note_id)
         service = JournalService(db)
@@ -550,9 +571,11 @@ async def test_changed_abstraction_retires_prior_validation_and_rejects_old_reac
         )
 
 
-async def test_malformed_legacy_portrait_revision_does_not_break_a_positive_reaction(async_engine):
+async def test_malformed_legacy_portrait_revision_does_not_break_a_positive_reaction(
+    async_engine, committed_user_ids
+):
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
-    user_id, note_id = await seed(factory)
+    user_id, note_id = await seed(factory, committed_user_ids)
     async with factory() as db:
         user = await db.get(User, user_id)
         user.journal_portrait_sources = {"journal_revision": "old-unversioned"}
@@ -566,9 +589,11 @@ async def test_malformed_legacy_portrait_revision_does_not_break_a_positive_reac
         assert user.journal_portrait_sources == {"journal_revision": "old-unversioned"}
 
 
-async def test_new_consolidated_abstraction_does_not_start_as_certified_high(async_engine):
+async def test_new_consolidated_abstraction_does_not_start_as_certified_high(
+    async_engine, committed_user_ids
+):
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
-    user_id, _ = await seed(factory)
+    user_id, _ = await seed(factory, committed_user_ids)
     async with factory() as db:
         note = await JournalService(db).create_entry(
             user_id,
@@ -583,9 +608,11 @@ async def test_new_consolidated_abstraction_does_not_start_as_certified_high(asy
 
 
 @pytest.mark.parametrize("change", [{"level": "L2"}, {"theme": "user_observations"}])
-async def test_merge_does_not_transfer_validation_between_abstractions(async_engine, change):
+async def test_merge_does_not_transfer_validation_between_abstractions(
+    async_engine, committed_user_ids, change
+):
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
-    user_id, winner_id = await seed(factory)
+    user_id, winner_id = await seed(factory, committed_user_ids)
     async with factory() as db:
         winner = await db.get(JournalEntry, winner_id)
         loser = JournalEntry(
@@ -617,10 +644,10 @@ async def test_merge_does_not_transfer_validation_between_abstractions(async_eng
 
 @pytest.mark.parametrize("reference_count", [5, 6])
 async def test_merge_preserves_all_provenance_or_refuses_an_over_budget_merge(
-    async_engine, reference_count
+    async_engine, committed_user_ids, reference_count
 ):
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
-    user_id, winner_id = await seed(factory)
+    user_id, winner_id = await seed(factory, committed_user_ids)
     async with factory() as db:
         winner = await db.get(JournalEntry, winner_id)
         loser = JournalEntry(

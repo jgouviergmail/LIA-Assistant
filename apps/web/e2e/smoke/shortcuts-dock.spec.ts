@@ -107,10 +107,28 @@ test.describe('the shortcuts dock', () => {
     authenticate,
     mockApi,
   }) => {
-    await authenticate({ language: 'fr', settings_shortcuts: ['theme'] });
+    const user = await authenticate({ language: 'fr', settings_shortcuts: ['theme'] });
+    let reads = 0;
+    let writes = 0;
     await mockApi([
-      { url: ENDPOINT, method: 'GET', json: { shortcuts: ['theme'], max_count: 5 } },
-      { url: ENDPOINT, method: 'PUT', json: { shortcuts: ['theme', 'font'], max_count: 5 } },
+      {
+        url: ENDPOINT,
+        method: 'GET',
+        handler: async route => {
+          reads++;
+          await route.fulfill({ json: { shortcuts: user.settings_shortcuts, max_count: 5 } });
+        },
+      },
+      {
+        url: ENDPOINT,
+        method: 'PUT',
+        handler: async route => {
+          writes++;
+          const body = route.request().postDataJSON() as { shortcuts: string[] };
+          user.settings_shortcuts = body.shortcuts;
+          await route.fulfill({ json: { shortcuts: user.settings_shortcuts, max_count: 5 } });
+        },
+      },
     ]);
     await page.goto('/fr/dashboard/settings?section=my-shortcuts');
 
@@ -128,6 +146,12 @@ test.describe('the shortcuts dock', () => {
     await police.check();
 
     expect((await put).postDataJSON()).toEqual({ shortcuts: ['theme', 'font'] });
+    await expect.poll(() => reads).toBeGreaterThan(1);
     await expect(police).toBeChecked();
+    const links = page.getByRole('navigation', { name: DOCK_NAME }).getByRole('link');
+    await expect(links).toHaveCount(2);
+    await expect(links.first()).toHaveAccessibleName('Apparence');
+    await expect(links.nth(1)).toHaveAccessibleName('Police');
+    expect(writes).toBe(1);
   });
 });

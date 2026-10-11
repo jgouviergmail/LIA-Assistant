@@ -1,5 +1,6 @@
 """Source metadata and desired activation are offered identically in both modes."""
 
+from src.domains.agents.application.output_contracts import pending_application_output_fields
 from src.domains.agents.application.space_update_schemas import SpaceUpdateInput
 from src.domains.agents.application.space_update_spec import SPACE_UPDATE_OPERATION
 from src.domains.agents.registry.catalogue import (
@@ -23,7 +24,7 @@ SPACE_UPDATE_MANIFEST = ToolManifest(
             schema=SpaceUpdateInput.model_json_schema(),
         )
     ],
-    outputs=[],
+    outputs=pending_application_output_fields(),
     cost=CostProfile(),
     permissions=PermissionProfile(data_classification="CONFIDENTIAL"),
     binding_unit="lia_knowledge_spaces",

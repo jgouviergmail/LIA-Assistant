@@ -1,5 +1,6 @@
 """Probe consent includes the existing documentation, generation and embedding effects."""
 
+from src.domains.agents.application.output_contracts import pending_application_output_fields
 from src.domains.agents.application.personal_mcp_connection_schemas import (
     PersonalMCPConnectionInput,
 )
@@ -27,7 +28,7 @@ PERSONAL_MCP_CONNECTION_MANIFEST = ToolManifest(
             schema=PersonalMCPConnectionInput.model_json_schema(),
         )
     ],
-    outputs=[],
+    outputs=pending_application_output_fields(),
     cost=CostProfile(),
     permissions=PermissionProfile(data_classification="CONFIDENTIAL"),
     binding_unit="lia_personal_mcp",

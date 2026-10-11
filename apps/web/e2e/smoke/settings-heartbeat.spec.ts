@@ -130,10 +130,11 @@ test.describe('heartbeat settings panel', () => {
     // Unavailable: still ON (not refused), with the note attached by id.
     const health = page.getByRole('switch', { name: 'Health' });
     await expect(health).toHaveAttribute('aria-checked', 'true');
-    await expect(health).toHaveAttribute('aria-describedby', 'heartbeat-source-health_signals-note');
-    await expect(page.locator('#heartbeat-source-health_signals-note')).toHaveText(
-      'Not connected'
+    await expect(health).toHaveAttribute(
+      'aria-describedby',
+      'heartbeat-source-health_signals-note'
     );
+    await expect(page.locator('#heartbeat-source-health_signals-note')).toHaveText('Not connected');
     // Exactly one source is unavailable in the payload — exactly one note.
     await expect(page.getByText('Not connected', { exact: true })).toHaveCount(1);
 
@@ -150,19 +151,30 @@ test.describe('heartbeat settings panel', () => {
     mockApi,
   }) => {
     const writes: unknown[] = [];
+    let settings = structuredClone(SETTINGS);
+    let reads = 0;
     await authenticate({ language: 'en' });
     await mockApi([
       ...ROUTES,
+      {
+        url: '**/api/v1/heartbeat/settings',
+        method: 'GET',
+        handler: async route => {
+          reads++;
+          await route.fulfill({ json: settings });
+        },
+      },
       {
         url: '**/api/v1/heartbeat/settings',
         method: 'PATCH',
         handler: async route => {
           const body = route.request().postDataJSON() as { heartbeat_disabled_sources: string[] };
           writes.push(body);
+          settings = { ...settings, disabled_sources: body.heartbeat_disabled_sources };
           await route.fulfill({
             status: 200,
             contentType: 'application/json',
-            body: JSON.stringify({ ...SETTINGS, disabled_sources: body.heartbeat_disabled_sources }),
+            body: JSON.stringify(settings),
           });
         },
       },
@@ -174,6 +186,7 @@ test.describe('heartbeat settings panel', () => {
 
     await expect.poll(() => writes.length, { timeout: 10_000 }).toBe(1);
     expect(writes[0]).toEqual({ heartbeat_disabled_sources: ['emails', 'habits'] });
+    await expect.poll(() => reads).toBeGreaterThan(1);
     await expect(page.getByRole('switch', { name: 'Habits' })).toHaveAttribute(
       'aria-checked',
       'false'

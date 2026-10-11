@@ -2,6 +2,7 @@
 
 from src.domains.agents.application.email_share_send_schemas import EmailShareSendInput
 from src.domains.agents.application.email_share_send_spec import EMAIL_SHARE_SEND_OPERATION
+from src.domains.agents.application.output_contracts import pending_application_output_fields
 from src.domains.agents.registry.catalogue import (
     CostProfile,
     DisplayMetadata,
@@ -23,7 +24,7 @@ EMAIL_SHARE_SEND_MANIFEST = ToolManifest(
             schema=EmailShareSendInput.model_json_schema(),
         )
     ],
-    outputs=[],
+    outputs=pending_application_output_fields(),
     cost=CostProfile(),
     permissions=PermissionProfile(data_classification="CONFIDENTIAL"),
     binding_unit="lia_email_share",

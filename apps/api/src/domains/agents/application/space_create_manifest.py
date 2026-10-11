@@ -1,5 +1,6 @@
 """Both modes see the source creation schema and one mandatory native confirmation."""
 
+from src.domains.agents.application.output_contracts import pending_application_output_fields
 from src.domains.agents.application.space_create_schemas import SpaceCreateInput
 from src.domains.agents.application.space_create_spec import SPACE_CREATE_OPERATION
 from src.domains.agents.registry.catalogue import (
@@ -23,7 +24,7 @@ SPACE_CREATE_MANIFEST = ToolManifest(
             schema=SpaceCreateInput.model_json_schema(),
         )
     ],
-    outputs=[],
+    outputs=pending_application_output_fields(),
     cost=CostProfile(),
     permissions=PermissionProfile(data_classification="CONFIDENTIAL"),
     binding_unit="lia_knowledge_spaces",

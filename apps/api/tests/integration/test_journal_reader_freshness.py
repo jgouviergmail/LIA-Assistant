@@ -23,7 +23,7 @@ VECTOR = [1.0] + [0.0] * 1535
 
 @pytest.mark.parametrize("reader", ["context", "portrait", "api"])
 async def test_reader_refuses_externally_disabled_consent_with_warm_identity_map(
-    async_engine, monkeypatch, reader
+    async_engine, committed_user_ids, monkeypatch, reader
 ):
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
     provider = SimpleNamespace(aembed_query=AsyncMock(side_effect=AssertionError("paid provider")))
@@ -51,6 +51,7 @@ async def test_reader_refuses_externally_disabled_consent_with_warm_identity_map
         )
         seed.add(user)
         await seed.flush()
+        committed_user_ids.append(user.id)
         user.journal_portrait_sources = {
             "journal_revision": user.journal_revision,
             "source_state": await portrait_source_state(seed, user),

@@ -576,7 +576,7 @@ test.describe('visual review', () => {
     await authenticate({ language: 'fr' });
     await mockApi([
       ...dashboardShellMocks,
-      { url: '**/api/v1/connectors', json: { connectors: [] } },
+      { url: /\/api\/v1\/connectors(?:\?fresh=true)?$/, json: { connectors: [] } },
     ]);
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto('/fr/dashboard/settings');

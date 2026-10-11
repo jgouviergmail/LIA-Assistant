@@ -139,7 +139,7 @@ test.describe('the radio from the dashboard', () => {
     );
     await header.getByRole('button', { name: 'Start the radio' }).click();
 
-    const bar = page.getByRole('status').filter({ hasText: 'Between two programmes' });
+    const bar = page.getByRole('status').filter({ hasText: 'the first voice in about 12 s' });
     await expect(bar).toBeVisible();
     expect(starts).toEqual([{}]);
     await music;
@@ -319,7 +319,9 @@ test.describe('the radio from the dashboard', () => {
     expect(during.length).toBeGreaterThan(0);
     const cutAt = during[0].position_s;
     expect(cutAt).toBeGreaterThanOrEqual(2);
-    expect(during).toEqual(during.map(() => ({ seq: 1, position_s: cutAt, playing: true, paused: false })));
+    expect(during).toEqual(
+      during.map(() => ({ seq: 1, position_s: cutAt, playing: true, paused: false }))
+    );
     expect(reports[resumed]).toMatchObject({ seq: 1, playing: true, paused: false });
     expect(reports[resumed].position_s).toBeGreaterThanOrEqual(cutAt - 0.5);
   });

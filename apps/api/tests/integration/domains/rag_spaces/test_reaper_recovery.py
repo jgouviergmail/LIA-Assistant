@@ -2,18 +2,20 @@
 
 Proves the reaper requeues + re-drives a stuck document (expired lease) and an
 orphaned PENDING back to READY, and dead-letters a document that has exhausted
-its retry budget. Embedding is mocked and ``get_db_context`` is redirected to the
-test session (same harness as the T4 processing test).
+its retry budget. Embedding is mocked; every worker opens its own SQL session,
+matching production transaction and identity-map lifetimes.
 """
 
 from __future__ import annotations
 
 import uuid
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import pytest
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from src.core.config import settings
 from src.domains.rag_spaces import processing, reapers
@@ -34,27 +36,45 @@ class _FakeEmbeddings:
 
 
 @pytest.fixture
-def _patched(monkeypatch, async_session: AsyncSession, tmp_path):
+async def _patched(
+    monkeypatch: pytest.MonkeyPatch,
+    async_engine: AsyncEngine,
+    tmp_path: Path,
+    committed_user_ids: list[uuid.UUID],
+) -> AsyncIterator[tuple[AsyncSession, Path]]:
+    factory = async_sessionmaker(async_engine, expire_on_commit=False)
+
     @asynccontextmanager
     async def _fake_ctx():
-        yield async_session
+        async with factory() as db:
+            try:
+                yield db
+                await db.commit()
+            except BaseException:
+                await db.rollback()
+                raise
 
     # Both the reaper and process_document open get_db_context; redirect both.
     monkeypatch.setattr(reapers, "get_db_context", _fake_ctx)
     monkeypatch.setattr(processing, "get_db_context", _fake_ctx)
     monkeypatch.setattr(processing, "get_rag_embeddings", lambda: _FakeEmbeddings())
     monkeypatch.setattr(settings, "rag_spaces_storage_path", str(tmp_path))
-    return tmp_path
+    async with factory() as db:
+        yield db, tmp_path
 
 
 async def _make_doc(
-    db: AsyncSession, storage: object, *, status: str, with_file: bool = True
+    db: AsyncSession,
+    storage: Path,
+    committed_user_ids: list[uuid.UUID],
+    *,
+    status: str,
+    with_file: bool = True,
 ) -> RAGDocument:
-    from pathlib import Path
-
     user = UserFactory.create()
     db.add(user)
     await db.flush()
+    committed_user_ids.append(user.id)
     space = RAGSpace(name="reaper-test", user_id=user.id)
     db.add(space)
     await db.flush()
@@ -71,7 +91,7 @@ async def _make_doc(
     db.add(doc)
     await db.commit()
     if with_file:
-        d = Path(str(storage)) / str(user.id) / str(space.id)
+        d = storage / str(user.id) / str(space.id)
         d.mkdir(parents=True, exist_ok=True)
         (d / filename).write_text("Hello world. Reaper recovery test.", encoding="utf-8")
     return doc
@@ -85,9 +105,12 @@ async def _status(db: AsyncSession, doc_id: uuid.UUID) -> str:
 
 
 async def test_reaper_requeues_and_redrives_stuck_document(
-    _patched, async_session: AsyncSession
+    _patched, committed_user_ids: list[uuid.UUID]
 ) -> None:
-    doc = await _make_doc(async_session, _patched, status=RAGDocumentStatus.PROCESSING)
+    async_session, storage = _patched
+    doc = await _make_doc(
+        async_session, storage, committed_user_ids, status=RAGDocumentStatus.PROCESSING
+    )
     # Stuck: expired lease, one attempt already spent (< max).
     await async_session.execute(
         text(
@@ -108,8 +131,13 @@ async def test_reaper_requeues_and_redrives_stuck_document(
     assert res.scalar_one() >= 1
 
 
-async def test_reaper_recovers_orphaned_pending(_patched, async_session: AsyncSession) -> None:
-    doc = await _make_doc(async_session, _patched, status=RAGDocumentStatus.PENDING)
+async def test_reaper_recovers_orphaned_pending(
+    _patched, committed_user_ids: list[uuid.UUID]
+) -> None:
+    async_session, storage = _patched
+    doc = await _make_doc(
+        async_session, storage, committed_user_ids, status=RAGDocumentStatus.PENDING
+    )
     # Orphaned: created long ago, never claimed (heartbeat_at NULL).
     await async_session.execute(
         text("UPDATE rag_documents SET created_at = now() - interval '1 hour' WHERE id = :id"),
@@ -122,9 +150,16 @@ async def test_reaper_recovers_orphaned_pending(_patched, async_session: AsyncSe
     assert await _status(async_session, doc.id) == RAGDocumentStatus.READY
 
 
-async def test_reaper_dead_letters_at_max_attempts(_patched, async_session: AsyncSession) -> None:
+async def test_reaper_dead_letters_at_max_attempts(
+    _patched, committed_user_ids: list[uuid.UUID]
+) -> None:
+    async_session, storage = _patched
     doc = await _make_doc(
-        async_session, _patched, status=RAGDocumentStatus.PROCESSING, with_file=False
+        async_session,
+        storage,
+        committed_user_ids,
+        status=RAGDocumentStatus.PROCESSING,
+        with_file=False,
     )
     # Exhausted retry budget: attempts == max, expired lease → ERROR, not re-driven.
     await async_session.execute(

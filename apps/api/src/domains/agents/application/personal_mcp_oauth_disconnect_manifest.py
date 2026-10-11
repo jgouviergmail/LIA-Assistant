@@ -1,5 +1,6 @@
 """Withdrawal is local and preserves original OAuth client configuration."""
 
+from src.domains.agents.application.output_contracts import pending_application_output_fields
 from src.domains.agents.application.personal_mcp_oauth_disconnect_schemas import (
     PersonalMCPOAuthDisconnectInput,
 )
@@ -27,7 +28,7 @@ PERSONAL_MCP_OAUTH_DISCONNECT_MANIFEST = ToolManifest(
             schema=PersonalMCPOAuthDisconnectInput.model_json_schema(),
         )
     ],
-    outputs=[],
+    outputs=pending_application_output_fields(),
     cost=CostProfile(),
     permissions=PermissionProfile(data_classification="CONFIDENTIAL"),
     binding_unit="lia_personal_mcp",

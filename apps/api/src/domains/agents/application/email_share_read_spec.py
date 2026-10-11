@@ -5,6 +5,7 @@ from src.domains.agents.application.email_share_read_schemas import (
     EmailShareReadProjection,
 )
 from src.domains.agents.application.operation_spec import ApplicationOperationSpec, OperationKind
+from src.domains.agents.application.output_contracts import projection_output_fields
 from src.domains.agents.registry.catalogue import (
     CostProfile,
     DisplayMetadata,
@@ -36,7 +37,7 @@ EMAIL_SHARE_READ_MANIFEST = ToolManifest(
             schema=EmailShareReadInput.model_json_schema(),
         )
     ],
-    outputs=[],
+    outputs=projection_output_fields(EMAIL_SHARE_READ_OPERATION.output_model),
     cost=CostProfile(),
     permissions=PermissionProfile(data_classification="CONFIDENTIAL"),
     binding_unit="lia_email_share",
