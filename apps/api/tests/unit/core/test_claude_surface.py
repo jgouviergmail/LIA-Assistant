@@ -42,6 +42,12 @@ MEASURED: dict[str, tuple[str, bool, bool, bool]] = {
     # Anthropic credit was left for a probe: ``disabled`` refused, its lowest
     # setting is ``between_tools``, forced tool choice refused, thinking bound.
     "claude-sonnet-5-5": ("between_tools", False, False, True),
+    # Read on the vendor's overview, migration guide and thinking reference
+    # (2026-10-08), NOT measured -- no spend on the Anthropic account: thinks
+    # unasked, ``disabled`` accepted at ``high`` effort or below, sampling refused,
+    # a replayed thinking block bound to its conversation -- and yet a forced
+    # ``tool_choice`` ACCEPTED (the response then opens on the tool call).
+    "claude-haiku-5-5": ("default_on", False, True, True),
 }
 
 
@@ -101,6 +107,8 @@ def test_the_implicit_effort_is_the_one_the_api_applies_unasked() -> None:
     assert claude_surface("claude-opus-5").implicit_effort == "high"
     assert claude_surface("claude-sonnet-5").implicit_effort == "high"
     assert claude_surface("claude-sonnet-5-5").implicit_effort == "high"
+    # Haiku 5.5's default is ``medium`` too (effort reference, 2026-10-08).
+    assert claude_surface("claude-haiku-5-5").implicit_effort == "medium"
     assert claude_surface("claude-opus-4-8").implicit_effort is None
     assert claude_surface("claude-opus-4-6").implicit_effort is None
 

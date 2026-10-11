@@ -27,6 +27,7 @@ MODELS = [
     ("anthropic", "claude-fable-5-1"),
     ("anthropic", "claude-opus-5-5"),
     ("anthropic", "claude-sonnet-5-5"),
+    ("anthropic", "claude-haiku-5-5"),
     ("deepseek", "deepseek-v4-flash"),
     ("gemini", "gemini-3.5-flash"),
     ("gemini", "gemini-2.5-flash"),

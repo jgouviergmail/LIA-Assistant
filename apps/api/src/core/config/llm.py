@@ -230,6 +230,8 @@ MODEL_CONTEXT_WINDOWS: dict[str, int] = {
     "claude-sonnet-4-6": 1_000_000,
     "claude-sonnet-4-5": 200_000,
     "claude-sonnet-4": 200_000,
+    # Haiku 5.5: the model overview, 2026-10-08 (no Models API read: no spend).
+    "claude-haiku-5-5": 1_000_000,
     "claude-haiku-4-5": 200_000,
     # Anthropic Claude 3.x series
     "claude-3-5-sonnet-20241022": 200_000,

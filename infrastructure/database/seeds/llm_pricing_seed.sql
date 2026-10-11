@@ -150,6 +150,12 @@ INSERT INTO llm_models (
     -- low..max) and the vendor's migration guide: `disabled` is refused, and
     -- `none` is rendered as `between_tools`, its lowest setting.
     ('anthropic', 'claude-sonnet-5-5', 1000000, 128000, true, true, false, true, true, true, false, false, false, false, 'chat', '["none", "low", "medium", "high", "xhigh", "max"]'::jsonb, 'anthropic_between_tools', true),
+    -- Haiku 5.5 (released 2026-10-07), read 2026-10-08 on its overview, migration
+    -- guide and the effort and thinking references -- not on the Models API (no
+    -- spend on the Anthropic account): 1M in / 128K out, text and images in,
+    -- thinking on unless `disabled` (accepted at `high` effort or below), five
+    -- effort levels with `medium` unasked, non-default sampling refused.
+    ('anthropic', 'claude-haiku-5-5', 1000000, 128000, true, true, false, true, true, true, false, false, false, false, 'chat', '["none", "low", "medium", "high", "xhigh", "max"]'::jsonb, 'anthropic_5', true),
     ('anthropic', 'claude-opus-4-8', 1000000, 128000, true, true, false, true, true, true, false, false, false, false, 'chat', '["none", "low", "medium", "high", "xhigh", "max"]'::jsonb, 'anthropic_4_7', true),
     ('anthropic', 'claude-opus-4-7', 1000000, 128000, true, true, false, true, true, true, false, false, false, false, 'chat', '["none", "low", "medium", "high", "xhigh", "max"]'::jsonb, 'anthropic_4_7', true),
     ('anthropic', 'claude-sonnet-4-5', 200000, 64000, true, true, false, true, true, true, true, false, false, false, 'chat', NULL, 'anthropic_4_5', true),
@@ -316,7 +322,7 @@ INSERT INTO _lia_pricing_bundle VALUES
     ('claude-sonnet-4-6', 3.000000, 0.300000, 15.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
     -- Claude, read 2026-09-23 on platform.claude.com/docs/en/about-claude/pricing
     -- (ADR-306). `cached` is « cache hits and refreshes »: 0.1x input, except
-    -- Fable 5.1 (0.025x) and Opus 5.5 (0.05x). A cache WRITE is billed 1.25x
+    -- Fable 5.1 (0.025x), Opus 5.5 and Sonnet 5.5 (0.05x). A cache WRITE is billed 1.25x
     -- input on the 5-minute TTL (the only one LIA writes) and 2x on the 1-hour
     -- one: a multiplier of the input price for every Claude model, so it is
     -- applied by the cost computation to the written token count the API
@@ -328,8 +334,18 @@ INSERT INTO _lia_pricing_bundle VALUES
     ('claude-opus-4-8', 5.000000, 0.500000, 25.000000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
     ('claude-opus-4-7', 5.000000, 0.500000, 25.000000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
     ('claude-sonnet-5', 2.000000, 0.200000, 10.000000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
-    -- Sonnet 5.5, read 2026-09-30 on the same page: Sonnet 5's prices.
-    ('claude-sonnet-5-5', 2.000000, 0.200000, 10.000000, 'per_1m_tokens', '2026-09-30T00:00:00+00:00', true),
+    -- Sonnet 5.5, read 2026-09-30 on the same page: Sonnet 5's prices. Its cache
+    -- read fell to 0.10 (0.05x) on 2026-10-07 (release notes; migration
+    -- 36ecac9a51ea carries it), every other price unchanged.
+    ('claude-sonnet-5-5', 2.000000, 0.200000, 10.000000, 'per_1m_tokens', '2026-09-30T00:00:00+00:00', false),
+    ('claude-sonnet-5-5', 2.000000, 0.100000, 10.000000, 'per_1m_tokens', '2026-10-07T00:00:00+00:00', true),
+    -- Haiku 5.5, read 2026-10-08 on the same page. It is priced by PROMPT LENGTH
+    -- and this row is its first tier, « for prompts up to 100,000 tokens »: a
+    -- longer prompt pays 0.50 / 0.05 / 2.50 (5x) -- a rule LIA does not express,
+    -- so above that size the real bill is HIGHER than the one LIA records. The
+    -- page states neither whether cached tokens count toward the threshold nor
+    -- whether the higher tier covers the whole request.
+    ('claude-haiku-5-5', 0.100000, 0.010000, 0.500000, 'per_1m_tokens', '2026-10-07T00:00:00+00:00', true),
     ('claude-sonnet-4-5', 3.000000, 0.300000, 15.000000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
     ('computer-use-preview', 3.000000, NULL, 12.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
     ('deepseek-chat', 0.280000, 0.028000, 0.420000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', false),

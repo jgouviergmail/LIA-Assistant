@@ -1,6 +1,6 @@
 # ADR-306 — The Claude request surface is declared once; the prompt cache is shaped, and billed, the way the vendor measures it
 
-**Status**: accepted — 2026-09-23 (the OpenAI half, section 7, the same day); amended 2026-09-30 (Sonnet 5.5, GPT-6.1 Sol)
+**Status**: accepted — 2026-09-23 (the OpenAI half, section 7, the same day); amended 2026-09-30 (Sonnet 5.5, GPT-6.1 Sol) and 2026-10-08 (Haiku 5.5, Sonnet 5.5's cache read)
 **Amends**: ADR-087 (the thin `ChatOpenAICached`), ADR-244 (model capability catalogue), ADR-245 (one reasoning intent, one seam), ADR-263 lot 7 (Article-12 inference parameters), ADR-272 (every euro the platform pays is counted), ADR-284 (the `DYNAMIC CONTEXT` convention of the versioned prompts)
 
 ## Context
@@ -303,3 +303,28 @@ inherited its predecessor's rules in silence.
   written at the explicit breakpoint, the same 1,454 read back by the next call. The
   family rule (the family itself, or the family and a dash) kept it out of `gpt-6`,
   as designed. Its cached input is 5 % of the input price (0.10 USD), not 10 %.
+
+## Amendment 2026-10-08 — Claude Haiku 5.5 and Sonnet 5.5's cache read
+
+Seed and migration `36ecac9a51ea`, guard
+`test_haiku_5_5_and_sonnet_5_5_cache_read_migration_guard.py`. Everything below was read
+on the vendor's overview, migration guide, effort and thinking references, pricing page
+and release notes — **not measured** (no Anthropic spend).
+
+- **Claude Haiku 5.5 takes Opus 5's thinking shape** (`default_on`): thinking on unasked,
+  `disabled` accepted at `high` effort or below, a budget or `between_tools` a 400, five
+  effort levels with `medium` unasked; non-default sampling refused. It is the first
+  generation that **binds its thinking to the conversation AND accepts a forced
+  `tool_choice`** (the response then opens on the tool call): the two columns of
+  `ClaudeSurface` are independent facts, and the module no longer says one implies the
+  other. The static window table gained its 1M (the 128K default answered before).
+- **Haiku 5.5 is priced by prompt length**: 0.10 / 0.01 / 0.50 USD per million tokens
+  « for prompts up to 100,000 tokens », 5x above. LIA carries the first tier only, the
+  seed's convention for every tiered tariff (GPT-6 above 272K, Qwen), so above that size
+  the recorded cost is lower than the bill; the vendor states neither whether cached
+  tokens count toward the threshold nor whether the higher tier covers the whole request.
+  Its 5-minute cache write (0.125) is the 1.25x multiplier already applied to every
+  Anthropic tariff.
+- **Sonnet 5.5's cache read fell to 0.10** (0.05x the input price, release note of
+  2026-10-07; every other price unchanged). The migration retires the shipped 0.20 row
+  only where it still holds that value — an administrator's price stands.

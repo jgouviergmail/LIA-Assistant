@@ -44,7 +44,8 @@ _SEED_TARIFF = re.compile(
 #: Read 2026-09-30, USD per million tokens: (input, cached input, output) --
 #: platform.claude.com/docs/en/about-claude/pricing (« cache hits and
 #: refreshes ») and developers.openai.com/api/docs/pricing (Standard, short
-#: context).
+#: context). What THIS migration shipped: Sonnet 5.5's cache read is 0.10 since
+#: 2026-10-07, held by the guard of ``36ecac9a51ea``.
 PUBLISHED_PRICES: dict[str, tuple[float, float, float]] = {
     "claude-sonnet-5-5": (2.0, 0.2, 10.0),
     "gpt-6.1-sol": (2.0, 0.1, 10.0),
@@ -101,17 +102,21 @@ def test_every_migrated_catalogue_row_equals_its_seed_row() -> None:
         assert mismatches == {}, f"{row['model_name']}: {mismatches}"
 
 
-def test_every_migrated_tariff_equals_the_seed_bundles_active_row() -> None:
+def test_every_migrated_tariff_equals_the_seed_bundles_row_of_the_same_date() -> None:
+    """Both sources describe ONE tariff row: the bundle's row dated like the
+    migration. It may have been superseded since -- Sonnet 5.5's cache read fell
+    on 2026-10-07 (``36ecac9a51ea``) -- so its activity is not this guard's."""
     module = _load()
     seed = _SEED.read_text(encoding="utf-8")
-    active = {
-        m.group("model"): m for m in _SEED_TARIFF.finditer(seed) if m.group("active") == "true"
+    dated = {
+        m.group("model"): m
+        for m in _SEED_TARIFF.finditer(seed)
+        if m.group("effective") == module.EFFECTIVE_FROM
     }
     assert set(module.TARIFFS) == {row["model_name"] for row in module.CATALOGUE_ROWS}
     for name, (input_price, cached_price, output_price) in module.TARIFFS.items():
-        bundle = active.get(name)
-        assert bundle is not None, f"{name} has no active tariff in the seed bundle"
-        assert bundle.group("effective") == module.EFFECTIVE_FROM, name
+        bundle = dated.get(name)
+        assert bundle is not None, f"{name} has no tariff dated {module.EFFECTIVE_FROM} in the seed"
         assert bundle.group("unit") == module.PRICING_UNIT, name
         assert (
             _price(bundle.group("input")),

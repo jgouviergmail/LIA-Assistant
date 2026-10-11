@@ -7,17 +7,19 @@ requests for the rest):
 
 * **sampling** — a ``temperature`` or ``top_p`` other than its default is
   refused from Opus 4.7 on (« `temperature` is deprecated for this model »);
-* **forced tool choice** — ``tool_choice`` ``any``/``tool`` is refused by the
-  generations that bind their thinking to the conversation, and only by them;
+* **forced tool choice** — ``tool_choice`` ``any``/``tool`` is refused by
+  Fable 5.1, Opus 5.5 and Sonnet 5.5; Haiku 5.5 binds its thinking like them and
+  still accepts it (the response then opens on the tool call, no thinking);
 * **thinking** — seven shapes: none (the retired 3.5 models), a token budget
   (the 4.5 generation, where ``adaptive`` and ``effort`` are refused), adaptive
   and off unless asked (4.6, then 4.7/4.8 with a visibility control), adaptive
-  and ON unless disabled (Opus 5, Sonnet 5), ON unless ``between_tools`` is
-  asked (Sonnet 5.5 — ``disabled`` is refused, and its lowest setting only
-  turns the up-front thinking off), always on (Fable, Opus 5.5 — ``disabled``
-  and ``between_tools`` are refused). The Sonnet 5.5 facts were read on the
-  vendor's migration guide and thinking reference (2026-09-30), not measured:
-  the Anthropic account had no credit left to spend on a probe.
+  and ON unless disabled (Opus 5, Sonnet 5, Haiku 5.5 — ``disabled`` accepted
+  at ``high`` effort or below), ON unless ``between_tools`` is asked
+  (Sonnet 5.5 — ``disabled`` is refused, and its lowest setting only turns the
+  up-front thinking off), always on (Fable, Opus 5.5 — ``disabled`` and
+  ``between_tools`` are refused). The Sonnet 5.5 facts (2026-09-30) and the
+  Haiku 5.5 ones (2026-10-08) were read on the vendor's migration guides and
+  thinking reference, not measured: no spend on the Anthropic account.
 
 A fourth fact is not a 400 today but becomes one on every account created from
 2026-08-31: a generation that binds a thinking block to the conversation that
@@ -54,8 +56,9 @@ class ClaudeSurface:
         thinking: How the generation reasons, or ``None`` for a model this table
             does not declare.
         implicit_effort: The effort the API applies when a thinking-by-default
-            generation is sent no ``effort`` (``medium`` on Opus 5.5, ``high``
-            elsewhere); ``None`` when the generation does not think unasked.
+            generation is sent no ``effort`` (``medium`` on Opus 5.5 and
+            Haiku 5.5, ``high`` elsewhere); ``None`` when the generation does
+            not think unasked.
         accepts_sampling: Whether a non-default ``temperature``/``top_p`` is
             accepted.
         accepts_forced_tool_choice: Whether ``tool_choice`` may force a tool.
@@ -109,6 +112,16 @@ CLAUDE_SURFACES: tuple[ClaudeSurface, ...] = (
         implicit_effort="high",
         accepts_sampling=False,
         accepts_forced_tool_choice=False,
+        binds_thinking_to_conversation=True,
+    ),
+    # The first generation that binds its thinking to the conversation AND still
+    # accepts a forced tool: the two columns are independent facts.
+    ClaudeSurface(
+        prefixes=("claude-haiku-5-5",),
+        thinking="default_on",
+        implicit_effort="medium",
+        accepts_sampling=False,
+        accepts_forced_tool_choice=True,
         binds_thinking_to_conversation=True,
     ),
     ClaudeSurface(
