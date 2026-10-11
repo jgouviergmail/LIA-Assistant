@@ -31,6 +31,7 @@ from src.domains.agents.display.components.folded_synthesis import format_synthe
 from src.domains.agents.display.components.html_flatten import format_email_body, html_to_text
 from src.domains.connectors.clients.normalizers.reply_trimming import clean_reply_body
 from src.domains.shared.markdown_literal import read_as_markdown, untrusted_markdown
+from src.domains.voice.sentence_streamer import is_speakable
 from src.domains.voice_sessions.projection import flatten_for_voice
 
 pytestmark = pytest.mark.unit
@@ -69,6 +70,9 @@ FLATTENERS: dict[str, Flattener] = {
     "untrusted_markdown": untrusted_markdown,
     "flatten_for_voice": lambda s: flatten_for_voice(s, strip_html=plain_text.strip_html_if_markup),
     "clean_reply_body": lambda s: clean_reply_body(s, subject="x"),
+    # A sentence bound for TTS, read before every synthesis (py/polynomial-redos
+    # #956/#957: a tag or bracket pattern rescanning to the end per opening mark).
+    "is_speakable": is_speakable,
 }
 
 #: Each witness names the shape that was slow somewhere; every flattener meets

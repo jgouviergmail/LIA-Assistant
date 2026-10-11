@@ -477,6 +477,27 @@ async def test_digits_and_any_script_are_something_to_say() -> None:
 
 
 @pytest.mark.unit
+def test_tags_are_blanked_exactly_as_the_former_patterns_did() -> None:
+    """The linear scan changes the cost, never the text (ADR-326).
+
+    Exhaustive over every string of up to six marks drawn from the characters
+    that decide a span — openers, closers, a letter, a blank — compared with the
+    two patterns it replaced, nested and unclosed openers included.
+    """
+    import itertools
+    import re
+
+    former_markup, former_brackets = re.compile(r"<[^>]*>"), re.compile(r"\[[^\]]*\]")
+    alphabet = "<>[]a "
+    for length in range(7):
+        for marks in itertools.product(alphabet, repeat=length):
+            text = "".join(marks)
+            former = former_brackets.sub(" ", former_markup.sub(" ", text))
+            blank = sentence_streamer._blank_spans
+            assert blank(blank(text, "<", ">"), "[", "]") == former, repr(text)
+
+
+@pytest.mark.unit
 async def test_a_stream_with_nothing_to_say_still_closes() -> None:
     streamer = ProgressiveSentenceStreamer(
         synth=_recording_synth([]), max_sentences=5, audio_format="mp3"

@@ -56,8 +56,36 @@ from src.domains.voice.schemas import (
 
 logger = structlog.get_logger(__name__)
 
-_MARKUP_TAG_RE = re.compile(r"<[^>]*>")
-_BRACKETED_RE = re.compile(r"\[[^\]]*\]")
+
+def _blank_spans(text: str, opening: str, closing: str) -> str:
+    """Replace every ``opening…closing`` span by a blank, in linear time.
+
+    Exactly what ``re.sub(r"<[^>]*>", " ", text)`` did (each opener runs to the
+    FIRST closer after it, nested openers included, the search resuming after
+    it), without its rescan: once no closer follows an opener, none follows any
+    later one either, so the scan stops instead of reading to the end again for
+    every remaining opener (« [[[[… » was quadratic, py/polynomial-redos
+    #956/#957, ADR-326).
+
+    Args:
+        text: The text to clean.
+        opening: The one-character opening mark.
+        closing: The one-character closing mark.
+
+    Returns:
+        The text with each closed span replaced by a single blank.
+    """
+    parts: list[str] = []
+    position = 0
+    while (start := text.find(opening, position)) >= 0:
+        end = text.find(closing, start + 1)
+        if end < 0:
+            break
+        parts.append(text[position:start])
+        parts.append(" ")
+        position = end + 1
+    parts.append(text[position:])
+    return "".join(parts)
 
 
 def is_speakable(sentence: str) -> bool:
@@ -75,7 +103,7 @@ def is_speakable(sentence: str) -> bool:
     Returns:
         True when the sentence holds a letter or a digit outside tags.
     """
-    bare = _BRACKETED_RE.sub(" ", _MARKUP_TAG_RE.sub(" ", sentence))
+    bare = _blank_spans(_blank_spans(sentence, "<", ">"), "[", "]")
     return any(character.isalnum() for character in bare)
 
 
