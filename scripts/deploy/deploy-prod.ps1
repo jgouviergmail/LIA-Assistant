@@ -156,11 +156,15 @@ function Invoke-SopsEncryptDotenv {
     $env:SOPS_AGE_KEY_FILE = $AgeKeyFile
     $tmp = "$SourceEnv.sops.tmp"
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-    $cleanLines = Get-Content $SourceEnv | ForEach-Object {
-        if ($_ -match '^[A-Za-z_]') { $_ -replace '\s+#\s.*$', '' } else { $_ }
-    }
-    [IO.File]::WriteAllText($tmp, ($cleanLines -join "`n") + "`n", $utf8NoBom)
+    $previousOutputEncoding = [Console]::OutputEncoding
     try {
+        $cleanLines = Get-Content -LiteralPath $SourceEnv -Encoding UTF8 | ForEach-Object {
+            if ($_ -match '^[A-Za-z_]') { $_ -replace '\s+#\s.*$', '' } else { $_ }
+        }
+        [IO.File]::WriteAllText($tmp, ($cleanLines -join "`n") + "`n", $utf8NoBom)
+        # WinPS 5.1 decodes native stdout using the console encoding. SOPS emits
+        # UTF-8; an OEM decode corrupts Unicode comments/values and their MAC.
+        [Console]::OutputEncoding = $utf8NoBom
         # --filename-override: the comment-stripped copy is a temp file
         # (".env.prod.sops.tmp") that matches NO .sops.yaml creation rule —
         # the rules are anchored on the exact names (^\.env\.prod$). Overriding
@@ -169,12 +173,16 @@ function Invoke-SopsEncryptDotenv {
         $result = sops --encrypt --input-type dotenv --output-type dotenv `
             --filename-override $SourceEnv $tmp 2>&1
         if ($LASTEXITCODE -eq 0) {
-            $result | Out-File -FilePath $OutputEnc -Encoding utf8
+            # Out-File -Encoding utf8 adds BOM/CRLF on WinPS 5.1. SOPS dotenv
+            # treats the CR in its timestamp as data and cannot parse it.
+            $encrypted = (($result -join "`n") -replace "`r`n?", "`n") + "`n"
+            [IO.File]::WriteAllText($OutputEnc, $encrypted, $utf8NoBom)
             return $true
         }
         Write-Err "Echec du chiffrement: $result"
         return $false
     } finally {
+        [Console]::OutputEncoding = $previousOutputEncoding
         Remove-Item -Force $tmp -ErrorAction SilentlyContinue
     }
 }

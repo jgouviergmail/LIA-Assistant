@@ -268,7 +268,7 @@ its own personality, distinct from the chat's.
     container found two defects no unit test could. The antenna filed EVERY fact of a pack
     as heard, so a brief that tells one of the stories it is offered burned the others
     unheard: the production now returns the facts its voiced lines cite (`ProductionResult.
-    aired`), and only those are remembered — an analysis that aired counts as its story,
+aired`), and only those are remembered — an analysis that aired counts as its story,
     cited or not (`antenna.heard_facts`; a first version of the test passed with the rule
     removed, found by mutation). And three segments in a row told one event from three
     articles — the fingerprint is a normalised title by design, since a word match across
@@ -295,12 +295,12 @@ its own personality, distinct from the chat's.
 
 19. **A process given up leaves no pipe open.** The full fast suite found a teardown error
     no radio test had shown: the bounded ffmpeg runner killed and awaited a process it
-    gave up on (a cancellation, a timeout), but a bare ``wait`` returns as the process
+    gave up on (a cancellation, a timeout), but a bare `wait` returns as the process
     exits, before its pipes reach their end — on the Windows proactor a pipe was still
     open when the call returned in 3 runs of 10 after a cancellation, 6 of 10 after a
     timeout, and every time when the child was still writing; under load, the loop was
     gone before the callback that would have closed it, and the transport was reported
-    unclosed. The runner now drains both pipes to their end with ``communicate`` (which
+    unclosed. The runner now drains both pipes to their end with `communicate` (which
     closes their transports) under a bound; a child writing until it is killed makes the
     regression test fail every time without it.
 
@@ -482,7 +482,6 @@ its own personality, distinct from the chat's.
     mixer joined them (14.5 s); a session on the default engine aired from its opening to
     its farewell.
 
-
 28. **The station's music is continuous and the player's; a segment is the voice alone.**
     The owner found the short beds middling (2026-09-26) and asked for music that never
     stops, lowered under the voices — first from a third-party site's « royalty-free »
@@ -512,7 +511,10 @@ its own personality, distinct from the chat's.
     in 0.35 s — under the half second of silence a segment now opens with — and raised
     in 1.2 s after it; routed through Web Audio (`web-audio.ts`) from this origin's
     files; the permission to play taken inside the click for voice and music alike, the
-    music started by the first answer, which names its mood; a report never changes the
+    music started by the first answer, which names its mood. The cached silent
+    priming WAV uses the same stereo channel layout as the music library
+    (0.1 s, 8 kHz, PCM8); a late priming completion never pauses a source
+    that has already replaced it. A report never changes the
     music under a segment on air (the segment's own mood governs, the session's only in
     a gap). On the server the per-format beds, their module and their mix went: a
     segment is its lines joined with their pauses and normalised to −16 LUFS
@@ -730,7 +732,7 @@ its own personality, distinct from the chat's.
     never traded for a cent), and reordering the writer's dynamic part (it would help the
     implicit caches alone).
     Proven on dev, on the proof account only (the free voice engine forced in the proof's
-    own process, the owner's configuration untouched): a name typed « Radio   Preuve » was
+    own process, the owner's configuration untouched): a name typed « Radio Preuve » was
     saved and read back folded, a zero-width space refused; the start answer and every
     report named the station, and the opening said it; an eight-minute session published
     no estimate while 93 s of radio were produced and 0.00685 € for its 480 s once 198 s
@@ -770,13 +772,13 @@ its own personality, distinct from the chat's.
       shared cache called no model and files nothing.
     - Neither is an ACTION: nothing of the person's changed, so `agent_effects` stays
       untouched, and neither ever appears among LIA's initiatives.
-    Proven on dev, on the proof account only: a session listened to for 75 s then stopped
-    left ONE row (`radio`, `user`, `direct`, `answered`, `listener`, one segment, 76.9 s);
-    opening a story in another language translated it (0.0012 €) and left one row
-    (`radio_article`, `answered`) with its inference under the same run, and opening it
-    again, served from the cache, left none. The same audit found runs outside the radio
-    that nobody filed and a reflection billed twice; they are closed by ADR-263's
-    amendment of 2026-09-27, which makes every accounted run name who files it.
+      Proven on dev, on the proof account only: a session listened to for 75 s then stopped
+      left ONE row (`radio`, `user`, `direct`, `answered`, `listener`, one segment, 76.9 s);
+      opening a story in another language translated it (0.0012 €) and left one row
+      (`radio_article`, `answered`) with its inference under the same run, and opening it
+      again, served from the cache, left none. The same audit found runs outside the radio
+      that nobody filed and a reflection billed twice; they are closed by ADR-263's
+      amendment of 2026-09-27, which makes every accounted run name who files it.
 
 32. **A news flash when LIA writes to the listener** (2026-09-27, owner request: « LIA must
     make a transition to interrupt the programme, say and comment on the notification,
@@ -805,8 +807,8 @@ its own personality, distinct from the chat's.
       the first proof: written over the welcome and heard after it, it said « back to the
       welcome ». The programme it cuts is named only while more of it is left than the
       flash takes to produce (the loop's own estimate: `production_s` × `lookahead_safety`
-      + `lookahead_margin_s`); otherwise the next programme, once it is READY (one still in
-      production may never air); otherwise the host goes back in general words.
+      - `lookahead_margin_s`); otherwise the next programme, once it is READY (one still in
+        production may never air); otherwise the host goes back in general words.
     - **The script**: one line that breaks in, what LIA wrote in fact lines citing it, at
       most one kind or practical word asserting nothing more, and the hand-back — never
       when LIA wrote it. A notification airs ONCE, by a flash or by the corner: one key
@@ -817,18 +819,18 @@ its own personality, distinct from the chat's.
       session's run (a look that found nothing is not filed); the flash's model and voice
       spend are the session's; its seconds count as radio in the cost estimate
       (`flash_audio_s`).
-    The mutants and the cold review found three defects, fixed: the player compared the
-    waiting flash by object IDENTITY, while every answer names it as a new object — an
-    answer arriving while its audio was on the way threw the audio away and fetched it
-    again a report later; it compares numbers now. A loop taken over after a worker died
-    kept a flash whose production died with it — one flash at a time, it held every
-    later one; `reloaded` drops it. And the corner could tell a note a flash was
-    telling. Proven: in Chromium, a programme cut about 4.7 s in resumed there (the
-    element restarting at 0 fails the spec); on dev, on the proof account only,
-    a notification sent through the real dispatcher aired 15 to 20 s later (the poll, then
-    about five seconds of production), 18 to 23 s of audio, heard in three movements — « Flash
-    info, je coupe un instant. », what LIA wrote, the hand-back —, gone from the answers once
-    reported heard, one more `radio:notifications` consultation under the session's run.
+      The mutants and the cold review found three defects, fixed: the player compared the
+      waiting flash by object IDENTITY, while every answer names it as a new object — an
+      answer arriving while its audio was on the way threw the audio away and fetched it
+      again a report later; it compares numbers now. A loop taken over after a worker died
+      kept a flash whose production died with it — one flash at a time, it held every
+      later one; `reloaded` drops it. And the corner could tell a note a flash was
+      telling. Proven: in Chromium, a programme cut about 4.7 s in resumed there (the
+      element restarting at 0 fails the spec); on dev, on the proof account only,
+      a notification sent through the real dispatcher aired 15 to 20 s later (the poll, then
+      about five seconds of production), 18 to 23 s of audio, heard in three movements — « Flash
+      info, je coupe un instant. », what LIA wrote, the hand-back —, gone from the answers once
+      reported heard, one more `radio:notifications` consultation under the session's run.
 33. **The station's silence is no failure** (2026-09-27, found by the flash's proof). Three
     productions that aired nothing in a row end a session on `failures`; an analysis its
     editor refused, a corner with nothing to say and a refused column were three, and a
@@ -956,10 +958,10 @@ its own personality, distinct from the chat's.
       (« a spending limit was reached »);
     - **an article's translation**: no model is asked and nothing is filed; the original
       is shown, said so (`budget_reached` — never as a failed translation).
-    The settings say what the radio spent over the window against its bound, and, at the
-    bound, when it lifts (`GET /radio/budget`). The voices stay an administrator's choice
-    in the LLM settings (the owner kept them there): the budget is what bounds a
-    listener's spend.
+      The settings say what the radio spent over the window against its bound, and, at the
+      bound, when it lifts (`GET /radio/budget`). The voices stay an administrator's choice
+      in the LLM settings (the owner kept them there): the budget is what bounds a
+      listener's spend.
 38. **Sources are the raw material** (2026-09-27, owner decisions: « everything is
     translated », every base source ticked by default, a listener's sites « ticked,
     renamed, deleted — up to 20 »). The kinds of news and the feed languages are gone:
@@ -1136,13 +1138,13 @@ its own personality, distinct from the chat's.
       search found under TWO bounds (`news_candidates(limit=, interests_limit=)`), the
       second the most the searches can file within its horizon
       (`interests.interest_stories_max`: topics × stories per search × (horizon ÷ freshness
-      + 1), proven tight by a simulation), so no story a key paid for is cut while the
-      interests stay the same — and 0 when the session holds no interest
-      (`adapters.interest_stories_limit`): in company, with the capability off or with none
-      left, what a search found earlier used to air anyway, voicing what the listener cares
-      about. A Brave search asks for the desk's days (`interest_search.brave_freshness`,
-      its custom `YYYY-MM-DDtoYYYY-MM-DD` range) instead of the week, whose older results
-      were dropped unfiled.
+      - 1), proven tight by a simulation), so no story a key paid for is cut while the
+        interests stay the same — and 0 when the session holds no interest
+        (`adapters.interest_stories_limit`): in company, with the capability off or with none
+        left, what a search found earlier used to air anyway, voicing what the listener cares
+        about. A Brave search asks for the desk's days (`interest_search.brave_freshness`,
+        its custom `YYYY-MM-DDtoYYYY-MM-DD` range) instead of the week, whose older results
+        were dropped unfiled.
 
 41. **One journal, three editions** (2026-09-28, owner decision: « merge "for you" into the
     journal »; lot 4a of the 2026-09-27 spec). « Your day », « for you » and the evening recap

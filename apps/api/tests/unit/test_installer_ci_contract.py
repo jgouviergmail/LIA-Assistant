@@ -82,7 +82,8 @@ def test_ci_has_the_dedicated_python310_job() -> None:
     job_match = re.search(r"installer-py310:.*?(?=\n  [a-z0-9_-]+:|\Z)", ci, re.S)
     assert job_match, "missing installer-py310 job"
     job = job_match.group(0)
-    assert 'python-version: "3.10"' in job
+    # YAML quote style does not change the interpreter version being qualified.
+    assert re.search(r"""python-version:\s*(["'])3\.10\1""", job)
     assert "python -B scripts/install/tests_py310.py" in job
     assert "continue-on-error" not in job
 

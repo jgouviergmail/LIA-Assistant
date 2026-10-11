@@ -234,6 +234,12 @@ test.describe('chat scroll follow invariant', () => {
           page.getByText('Voici la suite de la reponse.', { exact: false })
         ).toBeAttached();
         await expect(page.locator('textarea')).toBeEnabled();
+        // Unlocking the input precedes the double-rAF question alignment. Wait
+        // for its paint boundary before polling geometry: a busy WebKit runner
+        // can spend the whole poll window waiting for those first two frames.
+        await page.evaluate(
+          () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+        );
         // Completion aligns the question below the sticky header. A short answer
         // can limit that alignment to the scroller's maximum scroll position.
         await expect

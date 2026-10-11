@@ -3,10 +3,14 @@
  * the click, the music lowered under each segment and raised after it, only a
  * segment's end reported, and an undecodable segment never hangs the antenna.
  */
+import { readFileSync } from 'node:fs';
+import { URL as FileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { radioAudio, type MediaElement, type RadioMusic } from '../audio-element';
 import type { MusicMood } from '../types';
+import { MUSIC_LIBRARY } from '../music-library';
+import { unlockMedia } from '../web-audio';
 
 class FakeMedia implements MediaElement {
   src = '';
@@ -154,5 +158,91 @@ describe('radioAudio', () => {
     media.currentTime = 4;
     await audio.playSegment('blob:next');
     expect(media.currentTime).toBe(4); // untouched: a new source starts at its beginning
+  });
+});
+
+class DeferredMedia extends FakeMedia {
+  readonly readiness = Promise.withResolvers<void>();
+
+  override play(): Promise<void> {
+    this.plays.push(this.src);
+    return this.readiness.promise;
+  }
+}
+
+function emittedWav(media: FakeMedia): Uint8Array {
+  expect(media.src).toMatch(/^data:audio\/wav;base64,/);
+  return Uint8Array.from(atob(media.src.slice('data:audio/wav;base64,'.length)), character =>
+    character.charCodeAt(0)
+  );
+}
+
+describe('native media priming', () => {
+  it('emits a cached tenth of a second of silent stereo PCM', async () => {
+    const media = new FakeMedia();
+    const second = new FakeMedia();
+    unlockMedia(media);
+    unlockMedia(second);
+    expect(media.plays).toEqual([media.src]);
+    expect(second.src).toBe(media.src);
+    const bytes = emittedWav(media);
+    const header = new DataView(bytes.buffer);
+    expect(String.fromCharCode(...bytes.subarray(0, 4))).toBe('RIFF');
+    expect(String.fromCharCode(...bytes.subarray(8, 12))).toBe('WAVE');
+    expect(header.getUint16(20, true)).toBe(1);
+    expect(header.getUint16(22, true)).toBe(2);
+    expect(header.getUint32(24, true)).toBe(8000);
+    expect(header.getUint16(34, true)).toBe(8);
+    expect(header.getUint16(32, true)).toBe(2);
+    expect(header.getUint32(28, true)).toBe(16000);
+    expect(header.getUint32(4, true)).toBe(bytes.byteLength - 8);
+    expect(header.getUint32(40, true)).toBe(bytes.byteLength - 44);
+    expect(header.getUint32(40, true) / header.getUint32(28, true)).toBe(0.1);
+    expect(bytes.subarray(44).every(sample => sample === 128)).toBe(true);
+    await Promise.resolve();
+  });
+
+  it('primes the same channel count as every shipped music track', async () => {
+    const media = new FakeMedia();
+    unlockMedia(media);
+    const primingChannels = new DataView(emittedWav(media).buffer).getUint16(22, true);
+    const tracks = Object.values(MUSIC_LIBRARY).flat();
+    expect(tracks.length).toBeGreaterThan(0);
+    for (const track of tracks) {
+      const bytes = readFileSync(new FileURL(`../../../../public${track.file}`, import.meta.url));
+      let offset = 0;
+      if (bytes.toString('ascii', 0, 3) === 'ID3') {
+        const size =
+          ((bytes.readUInt8(6) & 127) << 21) |
+          ((bytes.readUInt8(7) & 127) << 14) |
+          ((bytes.readUInt8(8) & 127) << 7) |
+          (bytes.readUInt8(9) & 127);
+        offset = 10 + size + (bytes.readUInt8(5) & 16 ? 10 : 0);
+      }
+      const header = bytes.readUInt32BE(offset);
+      expect(header >>> 21, track.file).toBe(2047);
+      const trackChannels = ((header >>> 6) & 3) === 3 ? 1 : 2;
+      expect(primingChannels, track.file).toBe(trackChannels);
+    }
+    await Promise.resolve();
+  });
+
+  it('pauses a completed priming play once when silence is still selected', async () => {
+    const media = new DeferredMedia();
+    unlockMedia(media);
+    expect(media.paused).toBe(0);
+    media.readiness.resolve();
+    await media.readiness.promise;
+    expect(media.paused).toBe(1);
+  });
+
+  it('never pauses a new segment when an earlier priming play resolves', async () => {
+    const media = new DeferredMedia();
+    unlockMedia(media);
+    media.src = 'blob:next-segment';
+    media.readiness.resolve();
+    await media.readiness.promise;
+    expect(media.paused).toBe(0);
+    expect(media.src).toBe('blob:next-segment');
   });
 });

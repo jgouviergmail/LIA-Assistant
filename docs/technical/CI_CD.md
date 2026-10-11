@@ -166,6 +166,11 @@ concurrency:
 ```
 
 Un nouveau push annule le run CI en cours sur la meme branche.
+Le lancement manuel accepte aussi une branche de release :
+`gh workflow run ci.yml --ref codex/release-v2-6-1`. Il execute les memes taches
+que le push, sans changer leurs seuils. Avant de taguer, verifier le `headSha`
+et la conclusion de ce run : une CI verte sur un autre commit ne qualifie pas
+la release. Cette voie conserve son perimetre quand `main` avance en parallele.
 
 ### Permissions
 
@@ -174,7 +179,9 @@ permissions:
   contents: read
 ```
 
-Principe du moindre privilege : le `GITHUB_TOKEN` n'a acces qu'en lecture.
+Principe du moindre privilege : le `GITHUB_TOKEN` n'a acces qu'en lecture
+par defaut. Les rapports de couverture sont des artifacts GitHub Actions ;
+leur archivage ne demande ni identité OIDC ni secret de service externe.
 
 ### Jobs detail
 
@@ -232,8 +239,17 @@ six valeurs fausses differentes — dont ce paragraphe, qui annoncait 60 % tout 
 certifiant l'unicite de la source.
 
 Doctrine ratchet (jamais de baisse, >= 2 points de marge avant de monter) :
-voir [GUIDE_TESTING](../guides/GUIDE_TESTING.md) et ADR-113. Rapport uploade sur
-[Codecov](https://codecov.io).
+voir [GUIDE_TESTING](../guides/GUIDE_TESTING.md) et ADR-113. Les seuils bloquants
+restent ceux des tâches et de leur configuration de couverture.
+
+Les jobs archivent les rapports avec `actions/upload-artifact`, épinglée au
+commit déclaré dans le workflow : `backend-coverage` contient
+`apps/api/coverage.xml` ; `frontend-coverage` contient
+`coverage/coverage-final.json` produit sous `apps/web`.
+Les artifacts sont téléchargeables depuis le run pendant sept jours, y compris
+après un échec des tests (`if: always()`). Une absence de rapport fait échouer
+l’archivage (`if-no-files-found: error`) ; une erreur de test reste bloquante.
+Aucun compte ni jeton de service externe n’est nécessaire.
 
 `task test:markers` (F006) ferme un angle mort du garde-fou par chemins : un
 fichier de test peut vivre sous une racine executee en CI et rester
@@ -311,6 +327,14 @@ assemblage, fermeture de la page même en cas d’échec. Une version ou source
 inconnue est refusée avant toute écriture. Toutes les règles et données axe sont
 conservées ; `task test:e2e` vérifie aussi les contrats de ce patch.
 
+Les tests d'animation suspendent l'horloge avant navigation. Le geste de
+lecture intervient apres le montage de l'historique, dans la fenetre de
+stabilisation controlee ; l'alignement final est mesure apres ses deux peintures.
+Les captures de cartes interviennent apres les controles fonctionnels et axe :
+leur viewport ne grandit que si la carte le requiert, puis revient a sa taille
+auditee. Ces synchronisations conservent les seuils geometriques et les regles
+d'accessibilite sur les trois moteurs.
+
 L'environnement (serveur gere, IPv4, URLs d'API relatives) vit **dans la
 tache** : ce ne sont pas des reglages CI mais la facon dont la suite fonctionne,
 et les garder dans le workflow faisait diverger le run local du job.
@@ -326,8 +350,9 @@ La tache appelle le script dedie `pnpm test:coverage`, jamais
 silencieusement le flag — aucun rapport n'est produit (piege corrige en
 v1.21.26, ADR-116). Elle applique les **seuils de couverture ratchet** de
 `apps/web/vitest.config.mts` (reducers/sse-handlers/stores verrouilles a 100 %,
-hooks aux valeurs mesurees, plancher global) et uploade
-`coverage/coverage-final.json` vers Codecov.
+hooks aux valeurs mesurees, plancher global) et archive
+`coverage/coverage-final.json` dans l’artifact
+GitHub Actions `frontend-coverage`.
 
 La tache **vide `NEXT_PUBLIC_API_URL`**. Ce Taskfile declare `dotenv: - .env`
 globalement, donc chaque tache herite de l'environnement du developpeur, que le
@@ -437,7 +462,12 @@ declaration aux entrees de construction ; seule l'image prouve une execution.
 Sa version est ecrite (`GITLEAKS_VERSION`) et tenue egale a celle de `task security:secrets`, son
 jumeau local que lance le hook pre-push (`test_one_value_one_owner_guard.py`). Un faux positif se
 traite par `# gitleaks:allow` en fin de ligne, ou par empreinte exacte dans `.gitleaksignore`
-quand la ligne est deja commitee.
+quand la ligne est deja commitee. Une empreinte historique comporte le commit,
+le fichier, la règle et la ligne, avec le motif de la revue : elle ne peut
+masquer une nouvelle valeur dans un autre commit. Le lancement manuel scanne
+tout l’historique ; le hook scanne les commits effectivement envoyés. Après
+une revue historique, `task security:secrets RANGE=--all` vérifie le registre
+et une valeur synthétique nouvellement commitée doit encore être refusée.
 
 ---
 
@@ -655,9 +685,17 @@ a softer `--audit-level`. `pnpm audit` still prints it (« 1 ignored »), and th
 why it is harmless here and when it goes; `test_override_register_guard.py` holds it, like the
 overrides register, to exactly what `package.json` declares.
 
-| GHSA                                         | Package and path                                                                                                                                      | Why it is accepted                                                                                                                                                                                                                                                       | Remove when                                                                                            | Introduced by               |
-| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ | --------------------------- |
-| `GHSA-vfj7-8cjw-p6xm` (high, CVE-2026-93687) | `braces` ≤ 3.0.3: `eslint-config-next` → `@next/eslint-plugin-next` (pins `fast-glob` 3.3.1) → `micromatch` → `braces`, a development dependency only | A stack overflow on deeply nested brace patterns. The only caller is ESLint's Next.js plugin, globbing the repository's own page directories with patterns the repository writes; nothing reaches it at run time, and no `braces` release fixes it (3.0.3 is the latest) | A `braces` release fixes it, or `@next/eslint-plugin-next` leaves `fast-glob` 3 — review by 2026-11-30 | release v2.4.0 (2026-10-03) |
+| GHSA                                         | Package and path                                                                                                                                                                             | Why it is accepted                                                                                                                                                                                                                                                        | Remove when                                                                                            | Introduced by               |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | --------------------------- |
+| `GHSA-vfj7-8cjw-p6xm` (high, CVE-2026-93687) | `braces` ≤ 3.0.3: `eslint-config-next` → `@next/eslint-plugin-next` (pins `fast-glob` 3.3.1) → `micromatch` → `braces`, declared as a development dependency; also packaged in the web image | A stack overflow on deeply nested brace patterns. The only caller is ESLint's Next.js plugin, globbing the repository's own page directories with patterns the repository writes; no server caller was identified, and no `braces` release fixes it (3.0.3 is the latest) | A `braces` release fixes it, or `@next/eslint-plugin-next` leaves `fast-glob` 3 — review by 2026-11-30 | release v2.4.0 (2026-10-03) |
+
+Vérification du 6 octobre 2026 : `braces` 3.0.3 reste la dernière version
+publiée, sans correctif. Son usage identifié est celui du linter, avec les
+motifs du dépôt. Le Dockerfile web copie toutefois le magasin pnpm complet
+du build : le paquet est aussi présent dans l’image de production. Aucun
+appel serveur à ce parseur n’a été identifié ; sa présence physique ne doit
+pas être présentée comme une absence de l’image. L’exception existante et
+son échéance restent inchangées.
 
 ### Alertes du kit vocal hors production
 
@@ -770,30 +808,30 @@ commits rapides ; **`task ci:fast` est le gate d'avant-push** ; la CI ajoute ce
 qui exige des services ou un environnement particulier. Si quelqu'un bypass le
 hook (`--no-verify`) ou clone sans installer les hooks, la CI rattrape.
 
-| Check                                                                   |                     Hook                     |      `task ci:fast`      |    CI    | Notes                                                                 |
-| ----------------------------------------------------------------------- | :------------------------------------------: | :----------------------: | :------: | --------------------------------------------------------------------- |
-| Ruff / Black / MyPy (`src/ tests/`)                                     |                      ✓                       |            ✓             |    ✓     | Aligne                                                                |
-| Ratchet MyPy-debt (F020)                                                |                      —                       |            ✓             |    ✓     | Meme tache                                                            |
-| Tests unitaires                                                         |         ✓ (rapides, xdist, sans cov)         | ✓ (+ cov, plancher 60 %) |    ✓     | Le hook troque la couverture contre le parallelisme                   |
-| Gate de markers (F006)                                                  |                      —                       |            ✓             |    ✓     | Meme tache                                                            |
-| ESLint                                                                  |                      ✓                       |            ✓             |    ✓     | Aligne                                                                |
-| TypeScript                                                              |                      ✓                       |            ✓             |    ✓     | Non incremental des le script `type-check`                            |
-| Ratchets a11y / react-hooks / complexite                                |                      —                       |            ✓             |    ✓     | Inclus dans `lint:frontend`                                           |
-| Couverture frontend (seuils par fichier)                                |                      —                       |            ✓             |    ✓     | Meme tache, `NEXT_PUBLIC_API_URL` vide des deux cotes                 |
-| `.bak`, Store sync, setex, HTTPException, heads alembic, `.env.example` |                 ✓ (partiel)                  |            ✓             |    ✓     | Le hook n'en fait qu'une partie, sur les fichiers stages              |
-| Parite des cles i18n                                                    |                ✓ (si stages)                 |       ✓ (toujours)       |    ✓     | La CI couvre tout                                                     |
-| Derive doc / cycles / complexite backend                                |                      —                       |            ✓             |    ✓     | Memes taches                                                          |
-| Lockfiles Python (ADR-112)                                              |                      —                       |            ✓             |    ✓     | Meme tache                                                            |
-| Parite CI/local (ADR-151)                                               |                      —                       |            ✓             |    ✓     | Meme tache                                                            |
-| Tests de deploiement (F008)                                             |                      —                       |            ✓             |    ✓     | Hermetiques, sans Docker ni reseau                                    |
-| Secrets                                                                 | grep + denylist infra ; gitleaks au pre-push |            —             | Gitleaks | Le pre-push lance le meme scanner que la CI (`task security:secrets`) |
-| Suite agents                                                            |                      —                       |    — (dans `task ci`)    |    ✓     | Necessite ~1 min                                                      |
-| Tests d'integration                                                     |                      —                       |    — (dans `task ci`)    |    ✓     | Necessitent PostgreSQL + Redis                                        |
-| Replay des migrations                                                   |                      —                       |    — (dans `task ci`)    |    ✓     | Necessite PostgreSQL                                                  |
-| E2E + a11y (Playwright)                                                 |                      —                       |    — (dans `task ci`)    |    ✓     | Necessite un navigateur                                               |
-| Regles Prometheus (promtool)                                            |                      —                       |    — (dans `task ci`)    |    ✓     | Conteneur en local, binaire natif en CI                               |
-| Build Docker                                                            |                      —                       |            —             |    ✓     | CI-only (trop lent en local)                                          |
-| Installateur 3.10 (ADR-215)                                             |                      —                       |            —             |    ✓     | CI-only (interpreteur 3.10 nu)                                        |
+| Check                                                                   |                     Hook                     |         `task ci:fast`          |    CI    | Notes                                                                 |
+| ----------------------------------------------------------------------- | :------------------------------------------: | :-----------------------------: | :------: | --------------------------------------------------------------------- |
+| Ruff / Black / MyPy (`src/ tests/`)                                     |                      ✓                       |                ✓                |    ✓     | Aligne                                                                |
+| Ratchet MyPy-debt (F020)                                                |                      —                       |                ✓                |    ✓     | Meme tache                                                            |
+| Tests unitaires                                                         |         ✓ (rapides, xdist, sans cov)         | ✓ (+ cov, plancher du Taskfile) |    ✓     | Le hook troque la couverture contre le parallelisme                   |
+| Gate de markers (F006)                                                  |                      —                       |                ✓                |    ✓     | Meme tache                                                            |
+| ESLint                                                                  |                      ✓                       |                ✓                |    ✓     | Aligne                                                                |
+| TypeScript                                                              |                      ✓                       |                ✓                |    ✓     | Non incremental des le script `type-check`                            |
+| Ratchets a11y / react-hooks / complexite                                |                      —                       |                ✓                |    ✓     | Inclus dans `lint:frontend`                                           |
+| Couverture frontend (seuils par fichier)                                |                      —                       |                ✓                |    ✓     | Meme tache, `NEXT_PUBLIC_API_URL` vide des deux cotes                 |
+| `.bak`, Store sync, setex, HTTPException, heads alembic, `.env.example` |                 ✓ (partiel)                  |                ✓                |    ✓     | Le hook n'en fait qu'une partie, sur les fichiers stages              |
+| Parite des cles i18n                                                    |                ✓ (si stages)                 |          ✓ (toujours)           |    ✓     | La CI couvre tout                                                     |
+| Derive doc / cycles / complexite backend                                |                      —                       |                ✓                |    ✓     | Memes taches                                                          |
+| Lockfiles Python (ADR-112)                                              |                      —                       |                ✓                |    ✓     | Meme tache                                                            |
+| Parite CI/local (ADR-151)                                               |                      —                       |                ✓                |    ✓     | Meme tache                                                            |
+| Tests de deploiement (F008)                                             |                      —                       |                ✓                |    ✓     | Hermetiques, sans Docker ni reseau                                    |
+| Secrets                                                                 | grep + denylist infra ; gitleaks au pre-push |                —                | Gitleaks | Le pre-push lance le meme scanner que la CI (`task security:secrets`) |
+| Suite agents                                                            |                      —                       |       — (dans `task ci`)        |    ✓     | Necessite ~1 min                                                      |
+| Tests d'integration                                                     |                      —                       |       — (dans `task ci`)        |    ✓     | Necessitent PostgreSQL + Redis                                        |
+| Replay des migrations                                                   |                      —                       |       — (dans `task ci`)        |    ✓     | Necessite PostgreSQL                                                  |
+| E2E + a11y (Playwright)                                                 |                      —                       |       — (dans `task ci`)        |    ✓     | Necessite un navigateur                                               |
+| Regles Prometheus (promtool)                                            |                      —                       |       — (dans `task ci`)        |    ✓     | Conteneur en local, binaire natif en CI                               |
+| Build Docker                                                            |                      —                       |                —                |    ✓     | CI-only (trop lent en local)                                          |
+| Installateur 3.10 (ADR-215)                                             |                      —                       |                —                |    ✓     | CI-only (interpreteur 3.10 nu)                                        |
 
 **Limite assumee** : cette iso porte sur les **commandes**, pas sur
 l'**environnement**. Le hote de dev est Windows, le runner est Linux ; une
@@ -808,7 +846,6 @@ sensibles a la plateforme dans un conteneur Linux.
 | Secret            | Usage                                         |
 | ----------------- | --------------------------------------------- |
 | `TEST_FERNET_KEY` | Encryption key pour les tests backend         |
-| `CODECOV_TOKEN`   | Upload coverage vers Codecov                  |
 | `GITHUB_TOKEN`    | Auto-genere, utilise par Gitleaks et releases |
 
 ---
@@ -841,7 +878,7 @@ task lint:ci-parity         # le workflow orchestre, il n'implemente pas
 
 # Tests seuls
 task test:backend:unit:fast     # rapide, xdist, sans couverture (perimetre du hook)
-task test:backend:unit:coverage # la commande CI a l'identique, plancher 60 % inclus
+task test:backend:unit:coverage # la commande CI et son plancher de couverture
 task test:markers               # gate F006 : aucun test ne tourne dans zero job
 task test:frontend              # Vitest
 task test:frontend:coverage     # + les seuils de couverture par fichier

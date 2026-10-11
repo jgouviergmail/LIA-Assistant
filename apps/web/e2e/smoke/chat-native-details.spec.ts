@@ -37,7 +37,8 @@ for (const sample of samples) {
       item => item.id === 'native_details' && item.language === sample.language
     );
     if (!reference) throw new Error('Missing native details reference');
-    await page.setViewportSize({ width: sample.width, height: 1400 });
+    const auditedViewport = { width: sample.width, height: 1400 };
+    await page.setViewportSize(auditedViewport);
     await authenticate({ language: sample.language, response_display_mode: 'html_cards' });
     await mockApi([
       ...loadedChatRoutes(),
@@ -104,15 +105,29 @@ for (const sample of samples) {
       .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
       .analyze();
     expect(accessibility.violations).toEqual([]);
-    // The chat scrolls inside its own viewport. A tall locator screenshot otherwise
-    // captures offscreen padding and the sticky chrome instead of the cards.
-    await page.setViewportSize({ width: sample.width, height: 4000 });
+    // A fixed 4000px WebKit backing surface exhausted the budget after axe passed.
+    // Size capture-only expansion from the card and its actual scrollport: tall
+    // mobile tickets must fit without clipping, while short cards keep the
+    // audited viewport. Locator screenshots already scroll the card into view.
     for (const domain of ['hues', 'contact', 'calendar', 'event', 'tickets']) {
       const card = page.locator(`.lia-${domain}`);
-      await card.scrollIntoViewIfNeeded();
+      const captureHeight = await card.evaluate(element => {
+        const scrollport = element.closest('.chat-scrollbar');
+        if (!scrollport) throw new Error('Missing chat scroll viewport');
+        return Math.ceil(
+          element.getBoundingClientRect().height + window.innerHeight - scrollport.clientHeight
+        );
+      });
+      const expandCapture = captureHeight > auditedViewport.height;
+      if (expandCapture) await page.setViewportSize({ ...auditedViewport, height: captureHeight });
       await card.screenshot({
         path: test.info().outputPath(`native-${domain}-${sample.theme}.png`),
+        // Isolate the card's image from sticky chrome and the floating companion.
+        // This is applied only during capture, after every functional/axe check.
+        style:
+          'body * { visibility: hidden !important; } .lia-card, .lia-card * { visibility: visible !important; }',
       });
+      if (expandCapture) await page.setViewportSize(auditedViewport);
     }
   });
 }

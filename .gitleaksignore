@@ -2,8 +2,10 @@
 #
 # An entry is an EXACT fingerprint (commit:file:rule:line): it cannot hide
 # anything but that one line of that one commit, so a real credential added
-# later still fails the scan. Every line below holds no credential, and was
-# fixed in the tree afterwards (dependency programme, 2026-10-02):
+# later still fails the scan. Each entry below holds no private credential.
+#
+# First review (dependency programme, 2026-10-02): these six matches were
+# also fixed in the current tree afterwards:
 #
 #  - a unit-test fixture, now marked `gitleaks:allow` at the end of its line;
 #  - an example command whose dummy key is now generated at run time;
@@ -16,3 +18,230 @@
 6cb221745539d85cc9d4070197fff8945fcf3fc5:apps/api/Dockerfile.dev:generic-api-key:108
 6cb221745539d85cc9d4070197fff8945fcf3fc5:apps/api/Dockerfile.prod:generic-api-key:73
 6cb221745539d85cc9d4070197fff8945fcf3fc5:apps/api/Dockerfile.prod:generic-api-key:232
+
+# Full-history review, 2026-10-06: individually inspected original sources.
+# Synthetic fixtures, noncredential identifiers/comments, incomplete examples
+# and public local-development defaults only; no rule or path is disabled.
+
+# SourceRef.story_key is a UUID-shaped story identity in the produced_segment
+# round-trip fixture. The surrounding code constructs source/transcript
+# records only; it does not use this identifier as authentication.
+79a071251e387f58ea0d0b7800ddb5a749a1bf1e:apps/api/tests/unit/domains/radio/test_codec.py:generic-api-key:186
+
+# The model migration assigns the reasoning_doc_i18n_key metadata field. Its
+# value is a translation/documentation identifier shared by model
+# declarations, not a provider credential.
+dab2abc3a78b43d5dfb6d98084f8b94d94b9e622:apps/api/alembic/versions/2026_09_23_1800-c3e7a1f5d9b2_claude_models.py:generic-api-key:114
+
+# The same migration assigns reasoning_doc_i18n_key to another model
+# declaration. This is a translation/documentation identifier, not
+# authentication material.
+dab2abc3a78b43d5dfb6d98084f8b94d94b9e622:apps/api/alembic/versions/2026_09_23_1800-c3e7a1f5d9b2_claude_models.py:generic-api-key:127
+
+# A syntactically valid Fernet key supplies settings for a documented local
+# recurrence-schema verification command with dummy application/database
+# settings. The command validates and materialises recurrence specs; it
+# performs no encryption/decryption or network operation. No current tracked
+# file contains this historical key. It is a local test input, not a deployed
+# credential.
+a9c33dfe453906e7ae77ce72ed553d0b60785021:docs/superpowers/plans/2026-09-06-generic-recurrence-lot-2a-backend.md:generic-api-key:824
+
+# The plan explicitly calls the environment fictitious. Its application
+# signing-key example is a repeated ascending hexadecimal sequence used to
+# boot a local inventory simulation; the encryption key is generated at
+# invocation time.
+f5e5c788e8135f74720c211ce5fbe9a05737aa0f:docs/superpowers/plans/2026-09-03-execution-authority-ledger-lots-0-1.md:generic-api-key:325
+
+# NamedQuery.key names an API-latency PromQL catalogue entry. The literal is
+# an internal query identifier selected by diagnostics, not an API
+# authentication key.
+9df70b2f07dd8358ff00fca3535a95c656b7f57e:apps/api/src/domains/diagnostics/query_catalogue.py:generic-api-key:95
+
+# PromCheck.query_key references the API-latency query catalogue entry. It is
+# the same internal diagnostic identifier as the NamedQuery declaration, not a
+# credential.
+9df70b2f07dd8358ff00fca3535a95c656b7f57e:apps/api/src/domains/diagnostics/checks.py:generic-api-key:93
+
+# The module-local _SECRET is used to build an authorization header and
+# monkeypatch the diagnostic webhook settings for an in-process FastAPI test
+# client. The tests check hidden/denied/accepted webhook behavior; this is a
+# test-only shared-signature fixture.
+9df70b2f07dd8358ff00fca3535a95c656b7f57e:apps/api/tests/unit/domains/diagnostics/test_webhook_router.py:generic-api-key:20
+
+# The pricing-sheet round-trip row contains reasoning_doc_i18n_key. It
+# exercises preservation of model documentation metadata through a spreadsheet
+# round trip, not credentials.
+0247490a13417e1ff6b3ccb97e0e7e2e45880109:apps/api/tests/unit/domains/llm/test_pricing_sheet_round_trip.py:generic-api-key:55
+
+# The module-local _REAL_SECRET is a format-valid hexadecimal fixture passed
+# to ChannelsSettings in test_webhook_mode_with_real_secret_boots. Its only
+# current tracked occurrence is this test module. It distinguishes accepted
+# settings from placeholder/default settings; no provider or deployed webhook
+# is contacted.
+5cd0ae2b78111d56685c9aac5746288857a49206:apps/api/tests/unit/core/config/test_channels_webhook_secret.py:generic-api-key:21
+
+# OAUTH_STATE is a constant local to the PII-filter tests, used in
+# manufactured OAuth log/callback inputs and assertions that the state is
+# removed or fingerprinted. It is not issued by an OAuth provider.
+5cd0ae2b78111d56685c9aac5746288857a49206:apps/api/tests/unit/infrastructure/observability/test_pii_filter.py:generic-api-key:1029
+
+# The earlier OAUTH_STATE fixture is constructed from ascending alphabet/digit
+# characters and tests fingerprinting/redaction at log boundaries. It is a
+# fabricated state value, not a live OAuth response.
+f896c5cefbb76c5403869358d0778cf033e0b834:apps/api/tests/unit/infrastructure/observability/test_pii_filter.py:generic-api-key:878
+
+# GOOD_KEY is a short ascending-alphabet fixture. The verifier-contract tests
+# inject mocked verifier clients and compare accepted/rejected states, rather
+# than authenticating with a provider.
+17d932e4b86cebb4a873a540c4a9c1d36791d429:apps/api/tests/unit/domains/connectors/test_api_key_contract.py:generic-api-key:30
+
+# API_KEY is explicitly test-marked input for Perplexity client
+# characterization under mocked HTTP responses. It is not a provider-issued
+# key.
+fb666ea7db673c870bf13e5360a6211079377098:apps/api/tests/unit/connectors/test_perplexity_client_characterization.py:generic-api-key:21
+
+# API_KEY is explicitly test-marked input in the Brave client factory;
+# patch/AsyncMock-based characterization controls the HTTP boundary. It is not
+# a provider-issued key.
+fb666ea7db673c870bf13e5360a6211079377098:apps/api/tests/unit/connectors/test_brave_search_client_characterization.py:generic-api-key:27
+
+# API_KEY is explicitly test-marked input in OpenWeatherMap client
+# characterization with controlled HTTP responses. It is not a provider-issued
+# key.
+fb666ea7db673c870bf13e5360a6211079377098:apps/api/tests/unit/connectors/test_openweathermap_client_characterization.py:generic-api-key:27
+
+# The registration-token argument consists of deterministic alphabet/digit
+# sample characters. Firebase messaging is patched while the test measures
+# event-loop stalls; the token is fabricated and is never sent to Firebase.
+eda9c50d554d03285a1f4f2c9f1dbe8b901e188a:apps/api/tests/unit/domains/notifications/test_service_event_loop.py:generic-api-key:50
+
+# The valid Fernet key lives under the explicit test-only security-values
+# section of .env.test, which states never to use these values in production.
+# Current tracked occurrences are .env.test and the CI test environments,
+# where it is an intentional fixture. It is not a deployment encryption
+# secret.
+046ba4d40e952ad30e0df230216e4da25e102380:apps/api/.env.test:generic-api-key:16
+
+# The match is inside TEST_CLIENT_TEMPLATE, a generated unit-test scaffold
+# containing mocked clients and a visibly test/sample API-key input. The
+# generator is describing test source, not provisioning credentials.
+046ba4d40e952ad30e0df230216e4da25e102380:apps/api/scripts/scaffold.py:generic-api-key:619
+
+# The flagged line is a prose comment in
+# test_issue60_scenario_cardinality_visibility. It describes the key
+# observation about the test case; the line declares no Python string or
+# credential value and is not executed.
+046ba4d40e952ad30e0df230216e4da25e102380:apps/api/tests/agents/orchestration/test_semantic_validator.py:generic-api-key:835
+
+# mock_credentials constructs APIKeyCredentials with an explicitly test-marked
+# literal for mocked search-tool behavior. The provider client boundary is
+# mocked.
+046ba4d40e952ad30e0df230216e4da25e102380:apps/api/tests/agents/tools/test_perplexity_tools.py:generic-api-key:72
+
+# The second mock_credentials fixture uses the same explicitly test-marked
+# APIKeyCredentials input for mocked ask-tool behavior. It is not an external-
+# provider key.
+046ba4d40e952ad30e0df230216e4da25e102380:apps/api/tests/agents/tools/test_perplexity_tools.py:generic-api-key:244
+
+# valid_credentials constructs a synthetic test key from an alphabet sequence
+# for BaseAPIKeyClient tests. It is a deterministic fixture used to assert
+# header/parameter handling.
+046ba4d40e952ad30e0df230216e4da25e102380:apps/api/tests/unit/connectors/test_base_api_key_client.py:generic-api-key:37
+
+# test_mask_api_key_preserves_prefix_suffix assigns that deterministic
+# alphabet-sequence sample and tests its masked display. It is the same
+# fabricated key origin as the credentials fixture.
+046ba4d40e952ad30e0df230216e4da25e102380:apps/api/tests/unit/connectors/test_base_api_key_client.py:generic-api-key:173
+
+# test_activate_api_key_connector_new assigns an explicitly test-marked
+# sample, while service/verifier and persistence collaborators use
+# Mock/AsyncMock/patch. It tests connector activation with no real provider
+# credential.
+046ba4d40e952ad30e0df230216e4da25e102380:apps/api/tests/unit/connectors/test_connector_service.py:generic-api-key:609
+
+# The bearer_token literal is explicitly test-marked data passed to the MCP
+# authentication schema validator. This checks a parsed data shape, without
+# authentication or external calls.
+046ba4d40e952ad30e0df230216e4da25e102380:apps/api/tests/unit/domains/user_mcp/test_schemas.py:generic-api-key:51
+
+# The Stripe-shaped token in test_sanitize_string_redacts_tokens is fabricated
+# from an ascending alphabet sequence to exercise token redaction. It is not
+# an issued Stripe credential.
+046ba4d40e952ad30e0df230216e4da25e102380:apps/api/tests/unit/infrastructure/observability/test_pii_filter.py:stripe-access-token:213
+
+# The api_key field is explicitly test-marked input to
+# test_sanitize_dict_redacts_sensitive_fields. The dictionary is fabricated to
+# assert that sensitive field values disappear.
+046ba4d40e952ad30e0df230216e4da25e102380:apps/api/tests/unit/infrastructure/observability/test_pii_filter.py:generic-api-key:245
+
+# The Stripe test-shaped token in test_dict_sanitization uses deterministic
+# ascending digits/letters. It is manufactured input for local sanitization
+# assertions, not a Stripe-issued key.
+046ba4d40e952ad30e0df230216e4da25e102380:apps/api/tests/unit/test_pii_standalone.py:stripe-access-token:89
+
+# test_real_world_example constructs a log_data sample whose API key uses an
+# ascending alphabet sequence. The label describes a realistic logging
+# example, but the credential itself is synthetic.
+046ba4d40e952ad30e0df230216e4da25e102380:apps/api/tests/unit/test_pii_standalone.py:stripe-access-token:158
+
+# test_sanitize_string_with_token manufactures a Stripe test-shaped sample
+# containing deterministic ascending digits/letters before invoking
+# sanitize_string. It is a redaction fixture.
+046ba4d40e952ad30e0df230216e4da25e102380:apps/api/tests/unit/test_pii_filter.py:stripe-access-token:137
+
+# The later line in test_sanitize_string_with_token repeats the deterministic
+# Stripe test-shaped sample for the redaction assertion. It has the same
+# synthetic origin as the preceding input.
+046ba4d40e952ad30e0df230216e4da25e102380:apps/api/tests/unit/test_pii_filter.py:stripe-access-token:140
+
+# The connector implementation guide embeds a pytest test_list_items example
+# using an explicitly test-marked API key and patched collaborators. This is
+# sample test code.
+046ba4d40e952ad30e0df230216e4da25e102380:docs/guides/GUIDE_CONNECTOR_IMPLEMENTATION.md:generic-api-key:455
+
+# The guide embeds a test_activate_api_key_connector example with an
+# explicitly test-marked sample in its request JSON. It illustrates a mocked
+# activation test, not a real credential.
+046ba4d40e952ad30e0df230216e4da25e102380:docs/guides/GUIDE_CONNECTOR_IMPLEMENTATION.md:generic-api-key:484
+
+# The API guide uses a deterministic ascending letter/digit token in the POST
+# password-reset confirmation request example. The sample is not associated
+# with an issued reset or an account.
+046ba4d40e952ad30e0df230216e4da25e102380:docs/guides/GUIDE_API.md:generic-api-key:352
+
+# The OAuth architecture documentation uses a truncated Google-client-secret-
+# shaped placeholder containing an ellipsis. It is an illustrative incomplete
+# value, not a complete Google client secret.
+046ba4d40e952ad30e0df230216e4da25e102380:docs/technical/OAUTH.md:generic-api-key:824
+
+# The .env example repeats the same truncated Google-client-secret-shaped
+# value with an ellipsis. The placeholder cannot be a complete operational
+# client secret.
+046ba4d40e952ad30e0df230216e4da25e102380:docs/technical/OAUTH.md:generic-api-key:1707
+
+# The curl command uses the publicly known vendor bootstrap username/password
+# pair against GRAFANA_URL, whose default is localhost, while validating the
+# development Grafana provisioning. It is a public local-development default,
+# not a private leaked password.
+046ba4d40e952ad30e0df230216e4da25e102380:scripts/monitoring/validate_grafana_provisioning.sh:curl-auth-user:233
+
+# The local HITL-dashboard search curl repeats the public Grafana bootstrap
+# username/password pair. The script targets the localhost development Grafana
+# default, not a protected credential.
+046ba4d40e952ad30e0df230216e4da25e102380:scripts/monitoring/validate_grafana_provisioning.sh:curl-auth-user:239
+
+# The local HITL-dashboard UID lookup repeats the public Grafana bootstrap
+# username/password pair used by this development provisioning validator. No
+# private credential is disclosed.
+046ba4d40e952ad30e0df230216e4da25e102380:scripts/monitoring/validate_grafana_provisioning.sh:curl-auth-user:245
+
+# The dashboard-panel lookup repeats the same public Grafana bootstrap pair
+# against the local development endpoint. This historical default is not a
+# private leaked password; runtime password hardening was not assessed by this
+# read-only triage.
+046ba4d40e952ad30e0df230216e4da25e102380:scripts/monitoring/validate_grafana_provisioning.sh:curl-auth-user:251
+
+# The first-parent merge diff repeats the already reviewed Firebase token
+# fixture from eda9c50. The entire test module is byte-identical; messaging
+# is mocked and the deterministic sample is never sent to Firebase.
+fdf43ae46ee1eaec0db8612e69cca137497c57fe:apps/api/tests/unit/domains/notifications/test_service_event_loop.py:generic-api-key:50
