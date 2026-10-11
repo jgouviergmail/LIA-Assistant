@@ -25,6 +25,7 @@ import { classifyImageExpiry } from '@/lib/image-expiry';
 import { copyMessageToClipboard } from '@/lib/message-clipboard';
 import { apiImageProps, apiResourceUrl, proxiedImageProps } from '@/lib/utils/api-resource-url';
 import { MarkdownContent } from './MarkdownContent';
+import { AssistantMessageBody } from './AssistantMessageBody';
 import { GeneratedDocumentPreview } from './GeneratedDocumentPreview';
 import { MessageCardActionsProvider } from './markdown-card-actions';
 import { cardSourceMessageId, retryFromCardMessage } from '@/lib/card-actions';
@@ -40,6 +41,7 @@ import { isMeetingNotificationMetadata } from '@/types/meetings';
 import { CallDebrief } from '@/components/telephony/CallDebrief';
 import { LiveSessionSummaryCard } from '@/components/live/LiveSessionSummaryCard';
 import { SkillProposalCards } from '@/components/chat/SkillProposalCards';
+import { ApplicationInteractionCards } from '@/components/chat/ApplicationInteractionCards';
 import { isLiveRow, isLiveSummary } from '@/lib/live/live-message';
 import { isPhoneCallDebrief } from '@/types/telephony';
 import {
@@ -64,7 +66,9 @@ import { API_ENDPOINTS } from '@/lib/api-config';
 import { ImageLightbox } from '@/components/ui/image-lightbox';
 import { SkillBadge } from '@/components/ui/skill-badge';
 import { downloadImage } from '@/lib/utils/download-image';
-import { AssistantAvatar, type AvatarTooltipLine } from '@/components/psyche/AssistantAvatar';
+import { AssistantAvatar } from '@/components/psyche/AssistantAvatar';
+import type { SpiritVariant } from '@/components/spirit/catalogue';
+import type { EyeStyleId } from '@/components/eyes/eye-styles';
 import { ExecutionTraceDisclosure } from '@/components/chat/ExecutionTraceDisclosure';
 import { PerformedEffects } from '@/components/chat/PerformedEffects';
 import { usePsycheStore } from '@/stores/psycheStore';
@@ -76,8 +80,11 @@ import type { StreamPhase } from '@/types/chat-state';
 export interface ChatMessageProps {
   message: Message;
   isUser: boolean;
-  /** True only for the last assistant message — gates the animated psyche emoji (spec D-5). */
+  /** True only for the last assistant message — gates continuing portrait playback. */
   isLatestAssistant?: boolean;
+  spiritVariant?: SpiritVariant;
+  avatarStyle?: EyeStyleId;
+  identityReady?: boolean;
   /** True while this message is the active stream target (steps/caret styling). */
   isActiveStream?: boolean;
   /** 'progress' (execution steps) vs 'answer' (real tokens) — picks the styling. */
@@ -1133,36 +1140,6 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
         }
       : null);
 
-  // Build structured tooltip lines with PAD colors
-  const tooltipLines: AvatarTooltipLine[] | undefined = psycheState
-    ? [
-        {
-          label: t('psyche.relationshipStage', 'Relationship'),
-          value: t(
-            `psyche.stages.${psycheState.relationship_stage}`,
-            psycheState.relationship_stage
-          ),
-        },
-        {
-          label: t('psyche.tooltip.mood', 'Mood'),
-          value: t(`psyche.moods.${psycheState.mood_label}`, psycheState.mood_label),
-          pad: {
-            p: Math.round(psycheState.mood_pleasure * 100),
-            a: Math.round(psycheState.mood_arousal * 100),
-            d: Math.round(psycheState.mood_dominance * 100),
-          },
-        },
-        ...(psycheState.active_emotion
-          ? [
-              {
-                label: t('psyche.tooltip.emotion', 'Emotion'),
-                value: `${t(`psyche.emotions.${psycheState.active_emotion}`, psycheState.active_emotion)} (${Math.round(psycheState.emotion_intensity * 100)}%)`,
-              },
-            ]
-          : []),
-      ]
-    : undefined;
-
   if (!isUser) {
     return (
       <div className="mb-4 animate-message-enter mobile:flex mobile:flex-row-reverse mobile:gap-3">
@@ -1170,7 +1147,9 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
         <div className="hidden mobile:block flex-shrink-0">
           <AssistantAvatar
             psycheState={psycheState}
-            tooltipLines={tooltipLines}
+            variant={props.spiritVariant}
+            styleId={props.avatarStyle}
+            animationReady={props.identityReady}
             animate={!metadataPsyche && !!psycheState}
             animateEmoji={isLatestAssistant}
             ring={proactiveRing}
@@ -1202,9 +1181,8 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
                 messageId={cardSourceMessageId(message)}
                 onCompose={props.onCardCompose}
               >
-                <MarkdownContent
+                <AssistantMessageBody
                   content={assistantBody(message)}
-                  isUser={false}
                   searchHighlight={props.searchHighlight}
                 />
               </MessageCardActionsProvider>
@@ -1222,6 +1200,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
             {/* ADR-327: a skill the chat wrote, installed only from its card —
                 renders nothing without proposals (hotspot CC rule). */}
             <SkillProposalCards proposals={message.skillProposals} />
+            <ApplicationInteractionCards metadata={message.metadata} />
             {/* T01: structured debrief under a post-call report (renders
                 nothing for every other message — the block owns its checks). */}
             <PhoneCallDebriefBlock metadata={message.metadata} />

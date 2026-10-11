@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 45 |
-| ADRs | 333 ADR files (ADR-334 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
+| ADRs | 337 ADR files (ADR-338 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
 | Fiches knowledge (RAG système) | 40 |
 
 ---
@@ -53,7 +53,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (333 ADR files) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (337 ADR files) |
 
 ### Pour les Product Managers
 
@@ -94,6 +94,13 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [Playbook de lancement](./marketing/PUBLIC_SHOWROOM_LAUNCH_PLAYBOOK.md) | Checklist opérationnelle de publication du showroom | ✅ |
 | [Addendum audit installateur](./superpowers/specs/2026-08-05-self-host-installer-audit-addendum.md) | 15 bloqueurs + gates G0-G6 du self-host (ADR-215 réservé) | ✅ |
 | [Plan d'activation installateur](./superpowers/plans/2026-08-05-self-host-installer-activation.md) | Exécution TDD de l'installateur (B01-B15) | ✅ |
+| [Serveurs de modèles locaux](./superpowers/plans/2026-10-06-openai-compatible-servers.md) | Analyse et plan TDD : oMLX, llama.cpp, LM Studio et Ollama natif ; coûts locaux zéro et preuves des sondes API stables | Proposition + qualification |
+| [Application tools design](./superpowers/specs/2026-10-06-lia-application-tools-design.md) | Source-backed application parity, mandatory HITL, administrative authority and device interactions | Proposed |
+| [Application tools TDD plan](./superpowers/plans/2026-10-06-lia-application-tools.md) | Sequenced implementation and qualification of the application tools | Proposed |
+| [LIA isometric world analysis](./superpowers/specs/2026-10-09-lia-isometric-world-analysis.md) | Source-backed functional/technical design, one common world, five-to-ten admission, privacy, 2.5D rendering and TDD qualification | Proposed |
+| [LIA world validation and visuals](./superpowers/specs/2026-10-09-lia-isometric-world-validation.md) | Scoped existing tests, Redis/rendering/Pi probes, hypothesis ledger and five representative visual concepts including multilingual text | Characterized; full-world qualification pending |
+| [LIA world V1 and extensible foundation](./superpowers/specs/2026-10-09-lia-isometric-world-v1-scope.md) | Accepted launch scope, typed evolution contracts, retained social/private/mobile experience and conditional assisted-work planning objectives | Scope accepted; generic design required |
+| [LIA world global architecture and game-quality review](./superpowers/specs/2026-10-09-lia-isometric-world-global-review.md) | Fresh source audit and primary research; strict translation attempts, socket security, movement/camera/input, integration lifetimes, risk oracles and measurable quality gates | Accepted V1 refined; runtime qualification pending |
 
 ---
 
@@ -182,6 +189,11 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [ROUTER.md](./technical/ROUTER.md) | Router node, binary routing | ✅ |
 | [SMART_SERVICES.md](./technical/SMART_SERVICES.md) | QueryAnalyzer, SmartPlanner, SmartCatalogue | ✅ |
 | [SEMANTIC_ROUTER.md](./technical/SEMANTIC_ROUTER.md) | Semantic Tool Router, max-pooling | ✅ |
+| [SEMANTIC_CONTRACT_REVIEW.md](./technical/SEMANTIC_CONTRACT_REVIEW.md) | Revue des types, ontologies, contrats natifs et MCP par compte ; inventaire reproductible et limites vérifiées | ✅ |
+| [SEMANTIC_SIMULATION_RESULTS.md](./technical/SEMANTIC_SIMULATION_RESULTS.md) | Scénarios métier, défauts reproduits, modèles configurés en base et limites mesurées | ✅ |
+| [SEMANTIC_EVOLUTION_QUALIFICATION.md](./technical/SEMANTIC_EVOLUTION_QUALIFICATION.md) | Contrats, dépendances, caches MCP, reprise ReAct et comparaison factuelle des modèles configurés en base | ✅ |
+| [TAXONOMY_QUALIFICATION.md](./technical/TAXONOMY_QUALIFICATION.md) | Couverture native, identités MCP, disponibilité réelle des domaines et routage qualifié avec le menu complet | ✅ |
+| [SEMANTIC_MANUAL_ACCEPTANCE.md](./technical/SEMANTIC_MANUAL_ACCEPTANCE.md) | Recette dans l'application : données contrôlées, prompts Pipeline/ReAct, critères de résultat, tests MCP et limites de preuve | ✅ |
 | [SEMANTIC_INTENT_DETECTION.md](./technical/SEMANTIC_INTENT_DETECTION.md) | Semantic Intent Detection (historique — remplacé par le QueryAnalyzer LLM) | 📦 |
 | [LOCAL_EMBEDDINGS.md](./technical/LOCAL_EMBEDDINGS.md) | Embeddings Gemini gemini-embedding-001 (ADR-069, historique E5 → OpenAI → Gemini) | ✅ |
 | [MULTI_DOMAIN_ARCHITECTURE.md](./technical/MULTI_DOMAIN_ARCHITECTURE.md) | Architecture multi-domaines | ✅ |

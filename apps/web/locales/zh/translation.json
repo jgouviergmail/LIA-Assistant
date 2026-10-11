@@ -900,8 +900,12 @@
         "skill_proposal_name_taken": "已存在同名技能，无法从聊天中替换。",
         "skill_proposal_quota_reached": "你的技能数量已达上限。请先在设置中删除一个再安装此技能。",
         "skill_proposal_invalid": "此技能已不再被接受。请让 LIA 重新生成。",
-        "skill_proposal_unavailable": "暂时无法访问此提议，请稍后重试。"
-      }
+        "skill_proposal_unavailable": "暂时无法访问此提议，请稍后重试。",
+        "skill_proposal_completion_unknown": "导入结果尚不确定。请检查你的技能；此提案无法重新安装。"
+      },
+      "unknown": "需要核实导入结果。此提案不会自动重新安装。",
+      "check_result": "核实结果",
+      "cache_pending": "技能已保存，目录刷新仍在等待中。"
     },
     "document_expiry": {
       "expired": "该文档已过期，不再可用",
@@ -962,7 +966,14 @@
       "reactivate_description": "应用关闭期间,你的设备暂停了位置共享。请重新启用,以便 LIA 继续使用你的真实位置而不是家庭地址。",
       "reactivate_button": "重新启用",
       "detection": {
-        "keywords": ["附近", "周围", "周边", "旁边", "邻近", "住处"],
+        "keywords": [
+          "附近",
+          "周围",
+          "周边",
+          "旁边",
+          "邻近",
+          "住处"
+        ],
         "patterns": [
           "(我|这)(附近|周围|周边)",
           "在我(附近|旁边)",
@@ -1245,6 +1256,9 @@
       },
       "resize": "调整调试面板宽度"
     },
+    "card_group": {
+      "summary": "查看详情"
+    },
     "card_actions": {
       "reply": "回复",
       "forward": "转发",
@@ -1295,6 +1309,93 @@
     "frame_retry": "重试"
   },
   "settings": {
+    "application_tools": {
+      "document_upload_title": "导入文档",
+      "document_upload_choose": "选择本地文档",
+      "document_upload_confirm": "导入此文档",
+      "document_upload_waiting": "请选择文件，并在发送前确认文件名、大小和目标空间。",
+      "document_upload_accepted": "文档已导入，正在等待索引。",
+      "document_upload_sending": "正在发送已确认的文档…",
+      "document_upload_destination": "目标：{{name}}",
+      "document_upload_limits": "最大大小：{{size}} · 文档：{{count}}/{{max}}",
+      "document_upload_types": "支持的格式：{{types}}",
+      "document_upload_inactive": "此空间未启用，仍不参与检索。",
+      "document_upload_cost": "索引使用平台配额并可能产生费用。实际用量可在知识空间中查看。",
+      "document_upload_too_large": "此文件超过显示的大小限制。",
+      "document_upload_progress": "上传：{{progress}}%",
+      "secure_export_partial": "导出申请已保存，但无法确认其状态。请在设置中查看。",
+      "download_title": "下载账户归档",
+      "interests_download_title": "下载兴趣",
+      "document_archive_title": "下载文档归档",
+      "asset_download_title": "下载图库文件",
+      "bookmark_download_title": "下载已保存的回答",
+      "skill_download_title": "要下载的技能",
+      "document_download_title": "下载文档",
+      "journals_download_title": "下载日志",
+      "memories_download_title": "下载当前记忆",
+      "download_waiting": "您已确认此归档。请在原浏览器中发起下载请求。",
+      "download_attempted": "请检查请求结果。LIA无法确认文件已保存到您的设备。",
+      "download_requested": "下载请求已记录。浏览器负责保存文件，LIA无法确认文件已保存。",
+      "download_start": "开始下载",
+      "secure_export_title": "完成账户导出申请",
+      "secure_export_requested": "已申请导出。文件正在后台生成，请在设置中查看状态。",
+      "secure_title": "完成其他会话的退出操作",
+      "mcp_configuration_title": "配置个人 MCP 服务器",
+      "mcp_configuration_open": "打开私密表单",
+      "mcp_configuration_private": "在此私密表单中输入端点和凭据。这些信息不会发送给助手。保存配置不会测试连接。",
+      "mcp_configuration_saved": "配置已保存。连接尚未测试。",
+      "mcp_configuration_waiting": "您已确认此操作。请填写私密表单以保存配置。",
+      "secure_waiting": "你已确认此操作。请通过安全认证继续执行。",
+      "secure_continue": "安全继续",
+      "secure_check": "查看结果",
+      "secure_running": "正在执行。请查看结果，不要重复提交操作。",
+      "secure_done": "退出操作已完成。",
+      "secure_complete_one": "已退出 {{count}} 个会话。",
+      "secure_complete_other": "已退出 {{count}} 个会话。",
+      "secure_expired": "此确认已过期。请向 LIA 请求新的提案。",
+      "secure_failed": "未能完成此操作。请求新提案前请先查看结果。",
+      "secure_unknown": "结果尚未确认。请查看结果，不要重复提交操作。",
+      "secure_read_failed": "无法读取当前结果。请重试查看。",
+      "sync_failed": "设置已保存，但无法刷新显示。请重新加载页面。",
+      "skill_file_upload_title": "导入个人技能文件",
+      "skill_file_upload_waiting": "在本地选择 .md 或 .zip 文件，然后确认导入。",
+      "skill_file_upload_sending": "正在导入技能文件…",
+      "skill_file_upload_accepted": "技能已导入。",
+      "skill_file_upload_choose": "选择技能文件",
+      "skill_file_upload_confirm": "导入此技能",
+      "skill_file_upload_too_large": "所选文件超过允许的大小。",
+      "skill_file_upload_new": "创建新的个人技能。已有名称将被拒绝。",
+      "skill_file_upload_replace": "仅替换个人技能“{{name}}”。",
+      "skill_file_upload_limits": "文件最大 {{size}}；技能包最多 {{files}} 个文件，解压后最大 {{unpacked}}。",
+      "skill_file_upload_effects": "确认后将导入完整技能包并替换所选技能的资源。导入时不会运行脚本。",
+      "skill_file_upload_cache_pending": "技能已保存，目录刷新仍在等待中。",
+      "plugin_file_upload_title": "从 ZIP 导入个人插件",
+      "plugin_file_upload_waiting": "选择本地 ZIP，然后确认导入。",
+      "plugin_file_upload_sending": "正在导入插件…",
+      "plugin_file_upload_accepted": "插件已导入。",
+      "plugin_file_upload_choose": "选择插件 ZIP",
+      "plugin_file_upload_confirm": "导入此插件",
+      "plugin_file_upload_new": "创建新的个人插件。已有名称将被拒绝。",
+      "plugin_file_upload_replace": "仅替换插件“{{name}}”及其列出的组件。",
+      "plugin_file_upload_effects": "确认将导入软件包并移除新版本中缺少的组件。不执行任何脚本。部分组件可能被跳过，并明确报告处理结果。",
+      "plugin_file_upload_cache_pending": "插件已保存，目录刷新仍在等待完成。",
+      "plugin_file_upload_cleanup_pending": "导入已保存，仍需验证旧文件的清理情况。",
+      "plugin_file_upload_partial": "部分更改已保存，但尚未确认完整导入。在准备新的导入前，请检查结果。",
+      "plugin_file_upload_too_large": "所选文件超过允许的大小。",
+      "plugin_file_upload_limits": "文件最大 {{size}}；技能包最多 {{files}} 个文件，解压后最大 {{unpacked}}。",
+      "mcp_oauth_title": "授权个人 MCP 服务器",
+      "mcp_oauth_open": "打开供应商授权",
+      "mcp_oauth_complete": "完成授权",
+      "mcp_oauth_waiting": "在供应商处确认后返回此对话完成保存。请勿在聊天中发送授权码或令牌。",
+      "mcp_oauth_returned": "从供应商返回后选择完成授权。在此步骤之前不会保存任何内容。",
+      "mcp_oauth_pending": "正在等待供应商授权。返回后可以再次检查。",
+      "mcp_oauth_saved": "授权已保存。尚未测试连接。",
+      "meeting_pdf_download_title": "待下载的会议纪要",
+      "device_recording_title": "此设备的录音器",
+      "device_recording_waiting": "已批准的操作等待此标签页执行。必要时请使用按钮允许浏览器访问麦克风。",
+      "device_recording_done": "设备已确认操作。如已启动纪要处理，仍须核实完成情况。",
+      "device_recording_execute": "在此设备执行"
+    },
     "avatar": {
       "title": "会说话的形象（Beta）",
       "description": "可选的实验性 Simli 形象可伴随语音评论和 Live。",
@@ -3018,7 +3119,8 @@
       "delete_server": "删除 {{name}}",
       "generate_description": "自动生成",
       "generate_description_success": "域描述已生成",
-      "generate_description_no_tools": "未发现工具 — 请先测试连接"
+      "generate_description_no_tools": "未发现工具 — 请先测试连接",
+      "oauth_pending": "已收到供应商授权。请返回对话完成保存。"
     },
     "sandbox_egress": {
       "title": "沙盒网络",
@@ -4009,6 +4111,7 @@
       "forget_all_description": "所有已学习的习惯和节奏档案都将被删除。LIA 将从头开始重新学习（除非你关闭学习）。",
       "forget_all_confirm": "全部忘记",
       "forget_all_done": "所有习惯均已忘记。",
+      "forget_all_partial": "习惯与节奏已删除，但尚未确认临时痕迹清理完成。可以再次尝试清除全部数据。",
       "explanation": {
         "title": "为什么有这个习惯？",
         "error": "无法加载说明。",
@@ -4163,6 +4266,7 @@
         "failed_hint": "导出失败,请重试。",
         "error_generic": "出现错误,请重试。",
         "ready_hint": "归档已就绪 — {{size}} · 有效期至 {{date}}",
+        "archive_unavailable": "此归档已无法下载。请申请新的导出。",
         "expired_hint": "导出生成于 {{created}}，已于 {{expired}} 过期。请重新请求导出以下载你的数据。"
       },
       "auth": {
@@ -4228,6 +4332,7 @@
         "number_label": "我的电话号码",
         "number_placeholder": "+86 138 0013 8000",
         "number_help": "建议使用国际格式。号码验证通过后，LIA 才会拨打。",
+        "context_changed": "账户已更改。请先重新加载设置再继续。",
         "remove": "移除号码",
         "verification_title": "验证",
         "verified": "已验证",
@@ -4406,11 +4511,12 @@
         "server_create_failed": "无法注册服务器"
       },
       "via_plugin": "来自插件",
-      "component_locked": "“{{name}}”属于已安装的插件 — 请卸载该插件以将其移除。"
+      "component_locked": "“{{name}}”属于已安装的插件 — 请卸载该插件以将其移除。",
+      "file_cleanup_pending": "插件已保存。旧版本的部分文件仍需清理。"
     },
     "eyes_style": {
-      "title": "眼睛样式",
-      "description": "选择聊天中表情眼睛的外观。"
+      "title": "头像样式",
+      "description": "选择在应用各个页面陪伴你的动画头像外观。"
     },
     "meetings": {
       "title": "会议",
@@ -4564,6 +4670,8 @@
       "thinking": "思考深度",
       "save": "保存连接器",
       "saved": "Live 连接器已更新。",
+      "settings_changed": "已保存的设置已更改。您尚未保存的修改已保留；保存前请检查。",
+      "reload_saved": "重新加载已保存的设置",
       "save_error": "无法更新连接器。",
       "preferences_title": "对话的行为方式",
       "interruptions": "我说话时 LIA 停止",
@@ -5258,7 +5366,187 @@
       "get_steps_daily_breakdown": "正在逐日读取你的步数…",
       "compare_heart_rate_to_baseline": "正在将你的心率与基线比较…",
       "compare_steps_to_baseline": "正在将你的步数与基线比较…",
-      "detect_health_changes": "正在查找你的健康数据变化…"
+      "detect_health_changes": "正在查找你的健康数据变化…",
+      "get_lia_assistant_preferences": "正在读取您的助手设置...",
+      "update_lia_assistant_preferences": "正在准备更改助手设置...",
+      "get_lia_layout_preferences": "正在读取您的简报网格和快捷指令...",
+      "update_lia_layout_preferences": "正在准备更改网格或快捷指令...",
+      "get_lia_locations": "正在读取已保存的位置...",
+      "update_lia_home_location": "正在准备更改家庭地址...",
+      "get_lia_heartbeat_preferences": "正在读取主动通知设置...",
+      "update_lia_heartbeat_preferences": "正在准备修改主动通知设置...",
+      "get_lia_channel_bindings": "正在读取已关联的消息渠道...",
+      "update_lia_channel_binding": "正在准备修改消息渠道...",
+      "unlink_lia_channel_binding": "正在准备解除消息渠道关联...",
+      "get_lia_connector_preferences": "正在读取连接器偏好设置...",
+      "update_lia_connector_preferences": "正在准备修改连接器偏好设置...",
+      "get_lia_shared_mcp_preferences": "正在读取共享 MCP 个人偏好设置...",
+      "update_lia_shared_mcp_preferences": "正在准备修改共享 MCP 个人偏好设置...",
+      "get_lia_connectors": "正在读取已保存的连接...",
+      "disconnect_lia_connector": "正在准备断开服务连接...",
+      "get_lia_notification_devices": "正在读取通知设备...",
+      "get_lia_live_preferences": "正在读取 Live 对话设置...",
+      "get_lia_live_connector_settings": "正在读取 Live 连接器及其设置...",
+      "update_lia_live_connector_settings": "正在准备您的 Live 连接器设置...",
+      "get_lia_live_options": "正在读取可用的 Live 模型和声音...",
+      "get_lia_security_settings": "正在读取您的安全设置...",
+      "set_lia_routine_state": "正在准备更改自动任务状态...",
+      "get_lia_routines": "正在读取自动任务...",
+      "get_lia_reminders": "正在读取提醒设置...",
+      "get_lia_memories": "正在读取已保存的记忆...",
+      "get_lia_interests": "正在读取兴趣及其设置...",
+      "get_lia_interest_history": "正在读取兴趣通知历史...",
+      "get_lia_interest_details": "正在读取兴趣权重说明及来源...",
+      "create_lia_interest": "正在准备创建已保存的兴趣...",
+      "reactivate_lia_interest": "正在准备重新激活兴趣...",
+      "export_lia_interests": "正在准备导出您的兴趣...",
+      "export_lia_journals": "正在准备导出日志...",
+      "export_lia_memories": "正在准备导出您的记忆...",
+      "get_lia_open_loops": "正在读取您的待办承诺...",
+      "update_lia_psyche_settings": "正在准备个人心理设置...",
+      "reset_lia_psyche": "正在准备重置心理状态...",
+      "generate_lia_psyche_summary": "正在准备LIA心理状态摘要...",
+      "get_lia_journal_portrait": "正在读取日志画像...",
+      "update_lia_journal_settings": "正在准备日志设置...",
+      "delete_lia_journal_entries": "正在准备删除日志...",
+      "create_lia_journal_entry": "正在准备日志条目...",
+      "update_lia_journal_entry": "正在准备修改日志...",
+      "get_lia_journal_provenance": "正在读取日志来源...",
+      "consolidate_lia_journals": "正在准备整合日志...",
+      "submit_lia_journal_portrait_feedback": "正在准备纠正画像...",
+      "get_lia_journals": "正在读取日志设置与条目...",
+      "get_lia_psyche": "正在读取心理设置与状态...",
+      "get_lia_health_samples": "正在读取健康测量...",
+      "delete_lia_health_samples": "正在准备删除健康测量...",
+      "revoke_lia_health_ingestion_token": "正在准备撤销健康令牌...",
+      "create_lia_health_ingestion_token": "正在准备创建健康令牌...",
+      "update_lia_relation_settings": "正在准备关系设置...",
+      "get_lia_relations": "正在读取关系卡片...",
+      "get_lia_relation_context": "正在读取关系的外部来源...",
+      "get_lia_relation_debrief": "正在读取已保存的关系简报...",
+      "generate_lia_relation_debrief": "正在准备生成关系简报...",
+      "refresh_lia_relation_context": "正在准备刷新关系资料...",
+      "set_lia_relation_favorite": "正在准备关系收藏...",
+      "manage_lia_relation_grouping": "正在准备关系分组...",
+      "get_lia_relation_settings": "正在读取关系设置...",
+      "get_lia_peer_settings": "正在读取用户连接设置...",
+      "create_lia_knowledge_space": "正在准备创建您的空间...",
+      "update_lia_knowledge_space": "正在准备修改您的空间...",
+      "move_lia_knowledge_documents": "正在准备移动文档...",
+      "delete_lia_knowledge_documents": "正在准备删除文档...",
+      "delete_lia_knowledge_space": "正在准备删除您的空间...",
+      "download_lia_knowledge_archive": "正在准备您的文档归档...",
+      "upload_lia_knowledge_document": "正在准备导入文档…",
+      "download_lia_knowledge_document": "正在准备下载您的文档...",
+      "get_lia_knowledge_spaces": "正在读取您的知识空间...",
+      "get_lia_workboard": "正在读取工作看板...",
+      "share_lia_peer_image": "正在准备共享图片...",
+      "update_lia_peer_block": "正在准备更改屏蔽状态...",
+      "remove_lia_peer_connection": "正在准备删除连接...",
+      "update_lia_peer_share": "正在准备我的数据共享...",
+      "respond_lia_peer_request": "正在准备回复连接邀请...",
+      "request_lia_peer_connection": "正在准备连接邀请...",
+      "search_lia_peer_directory": "正在精确搜索可发现的用户...",
+      "update_lia_peer_settings": "正在准备更改用户连接可见性...",
+      "get_lia_health_chart": "正在读取健康图表汇总...",
+      "get_lia_health_ingestion_tokens": "正在读取健康令牌元数据...",
+      "get_lia_personalities": "正在读取可用人格...",
+      "get_lia_habits": "正在读取已学习的习惯...",
+      "update_lia_habit_settings": "正在准备您的习惯学习设置...",
+      "set_lia_habit_status": "正在准备您的习惯状态...",
+      "delete_lia_habit": "正在准备删除此习惯...",
+      "delete_all_lia_habits": "正在准备清除所有习惯...",
+      "recompute_lia_habits": "正在准备重新计算习惯...",
+      "get_lia_habit_details": "正在读取此习惯的依据...",
+      "update_lia_open_loop": "正在准备修改您的承诺...",
+      "close_lia_open_loop": "正在准备关闭您的承诺...",
+      "submit_lia_interest_feedback": "正在准备兴趣反馈...",
+      "delete_all_lia_interests": "正在准备删除全部兴趣...",
+      "delete_lia_interest": "正在准备删除兴趣...",
+      "update_lia_interest": "正在准备修改兴趣...",
+      "update_lia_interest_settings": "正在准备兴趣通知设置...",
+      "get_lia_memory_provenance": "正在读取记忆来源...",
+      "delete_all_lia_memories": "正在准备清除已保存的记忆...",
+      "delete_lia_memory": "正在准备删除记忆...",
+      "update_lia_memory": "正在准备修改记忆...",
+      "create_lia_memory": "正在准备创建记忆...",
+      "set_lia_memory_pin": "正在准备更改记忆固定状态...",
+      "create_lia_reminder": "正在准备创建提醒...",
+      "delete_lia_reminder": "正在准备删除提醒...",
+      "update_lia_reminder": "正在准备修改提醒...",
+      "create_lia_routine": "正在准备创建自动任务...",
+      "update_lia_routine": "正在准备修改自动任务...",
+      "execute_lia_routine": "正在准备手动触发自动任务...",
+      "delete_lia_routine": "正在准备删除自动任务...",
+      "request_lia_account_export": "正在准备完整账户导出申请...",
+      "download_lia_account_export": "正在准备下载账户归档...",
+      "get_lia_account_export": "正在读取您的账户导出状态...",
+      "get_lia_device_sessions": "正在读取您的已连接设备...",
+      "revoke_lia_device_session": "正在准备退出设备会话...",
+      "revoke_lia_other_device_sessions": "正在准备安全退出其他会话...",
+      "get_lia_phone_identity": "正在读取您的电话身份信息...",
+      "update_lia_phone_number": "正在准备更改您的电话号码...",
+      "update_lia_phone_preferences": "正在准备您的通话上下文和模式设置...",
+      "get_lia_phone_calls": "正在读取您的通话记录...",
+      "update_lia_live_preferences": "正在准备 Live 设置...",
+      "remove_lia_notification_device": "正在准备移除通知设备...",
+      "get_lia_preferences": "正在读取您的 LIA 设置...",
+      "update_lia_preferences": "正在准备修改您的 LIA 设置…",
+      "get_lia_knowledge_source_options": "正在读取可用的知识来源…",
+      "unlink_lia_knowledge_source": "正在准备解除来源关联并保留文档…",
+      "link_lia_knowledge_source": "正在准备将来源关联到您的空间…",
+      "sync_lia_knowledge_source": "正在准备同步您的来源…",
+      "delete_lia_knowledge_source": "正在准备删除来源及其文档…",
+      "keep_lia_saved_answer": "准备保存回答",
+      "delete_lia_saved_answer": "准备删除已保存的回答",
+      "get_lia_saved_answers": "查看已保存的回答",
+      "download_lia_saved_answer": "准备下载已保存的回答",
+      "get_lia_email_share_options": "查看电子邮件分享选项",
+      "get_lia_skills": "查看个人技能设置",
+      "import_lia_skill_url": "准备从 URL 导入技能",
+      "import_lia_plugin_url": "准备从网址导入插件",
+      "import_lia_plugin_file": "准备导入本地插件文件",
+      "get_lia_skill_library": "查看技能库",
+      "install_lia_library_skill": "准备安装技能库技能",
+      "update_lia_library_skill": "准备更新技能库技能",
+      "update_lia_skill_settings": "修改个人技能启用状态",
+      "delete_lia_skill": "删除个人技能",
+      "download_lia_skill": "准备下载技能",
+      "send_lia_email_share": "准备通过电子邮件分享",
+      "get_lia_generated_gallery": "正在读取图库及保留配额…",
+      "update_lia_generated_asset_retention": "正在准备更改文件保留状态…",
+      "download_lia_generated_asset": "准备下载生成文件",
+      "delete_lia_generated_assets": "正在准备删除生成的文件…",
+      "import_lia_skill_file": "准备导入个人技能文件",
+      "get_lia_plugins": "查看个人插件",
+      "get_lia_personal_mcp_servers": "查看个人 MCP 服务器",
+      "regenerate_lia_personal_mcp_description": "重新生成个人 MCP 描述",
+      "test_lia_personal_mcp_connection": "测试个人 MCP 连接",
+      "disconnect_lia_personal_mcp_oauth": "断开个人 MCP OAuth",
+      "configure_lia_personal_mcp_server": "打开安全的个人 MCP 配置",
+      "delete_lia_personal_mcp_server": "删除个人 MCP 服务器",
+      "update_lia_personal_mcp_server_settings": "更改个人 MCP 设置",
+      "set_lia_personal_mcp_server_enabled": "更改个人 MCP 启用状态",
+      "delete_lia_plugin": "准备卸载插件",
+      "authorize_lia_personal_mcp_server": "授权个人 MCP 服务器",
+      "get_lia_meeting_preferences": "读取会议偏好",
+      "update_lia_meeting_preferences": "修改会议偏好",
+      "get_lia_meetings": "读取会议",
+      "get_lia_meeting_templates": "读取会议纪要模板",
+      "create_lia_meeting_template": "创建会议纪要模板",
+      "update_lia_meeting_template": "修改会议纪要模板",
+      "delete_lia_meeting_template": "删除会议纪要模板",
+      "delete_lia_meeting_transcript": "删除会议转录",
+      "restore_lia_meeting_report": "恢复生成的会议纪要",
+      "update_lia_meeting_report": "编辑会议纪要",
+      "download_lia_meeting_pdf": "待下载的会议纪要",
+      "email_lia_meeting_report": "发送会议纪要邮件",
+      "delete_lia_meeting": "删除会议",
+      "reformat_lia_meeting_report": "更改会议纪要格式",
+      "regenerate_lia_meeting_report": "重新生成会议纪要",
+      "retry_lia_meeting": "重试会议处理",
+      "get_lia_meeting_recorder": "录音器状态",
+      "control_lia_meeting_recording": "控制录音器"
     },
     "reasoning": {
       "title": "推理"
@@ -5275,6 +5563,16 @@
     "minimize": "隐藏眼睛",
     "restore": "显示眼睛",
     "cycle_size": "调整眼睛大小",
+    "sizes": {
+      "sm": "小",
+      "md": "中",
+      "lg": "大",
+      "xl": "超大"
+    },
+    "variants": {
+      "female": "女性",
+      "male": "男性"
+    },
     "styles": {
       "cozmo": {
         "name": "Cozmo",
@@ -5299,6 +5597,38 @@
       "smiley": {
         "name": "笑脸",
         "description": "一张温暖的面孔，随 LIA 的心情、注意力和情绪自然变化。"
+      },
+      "spirit": {
+        "name": "LIA 精灵",
+        "description": "一个表情随 LIA 状态变化的珠光 3D 伙伴。"
+      },
+      "moss": {
+        "name": "Mousse",
+        "description": "薄荷与翡翠色的小植物精灵，表情随 LIA 自然变化。"
+      },
+      "lumen": {
+        "name": "Lumo",
+        "description": "珊瑚珠光小精灵，点缀月形叶片，表情随 LIA 自然变化。"
+      },
+      "nimbo": {
+        "name": "Nimbo",
+        "description": "柔软可爱的小云朵伙伴，表情丰富又带点淘气。"
+      },
+      "orbit": {
+        "name": "Orbit",
+        "description": "好奇的宇宙小精灵，目光灵动而有神。"
+      },
+      "bip": {
+        "name": "Bip",
+        "description": "活泼的小机器人，拥有明亮的眼睛。"
+      },
+      "boulon": {
+        "name": "Boulon",
+        "description": "圆润温暖的小机器人，偶尔有点笨手笨脚。"
+      },
+      "oscar": {
+        "name": "Oscar",
+        "description": "优雅的迷你管家，体贴周到又充满幽默。"
       },
       "anneaux": {
         "name": "圆环",
@@ -8245,17 +8575,17 @@
             "i6": "<b>🔧 同时修复</b> — 工具选择和 ReAct 排序曾因维度写错的嵌入缓存而失明；语义验证器自九月的一次改动起跳过了每一回合；对确认的含糊回答被当作修改；无人接听的 Live 来电没有留下任何通知；一个打开的标签页在整个生命周期内占用一条数据库连接；开发证书按年龄而非到期时间续期。"
           }
         },
-          "v2_6_1": {
-            "title": "v2.6.1 — 连贯语音、可控头像和触手可及的界面",
-            "date": "2026年10月6日 · 13:00 CEST",
-            "count": "4",
-            "items": {
-              "i1": "<b>🎭 头像窗口中的停止按钮</b> — 即使聊天遇到错误，窗口仍保留停止按钮，并显示关闭已确认还是仍在等待。开启的会话可能消耗你的 Simli 套餐，静默期间也一样。",
-              "i2": "<b>🎧 连贯的 Live 回答</b> — 较长回答的音频片段保持正确顺序。头像跟随播放，中断后不会重复同一句话；若输出失败，下一次回答可以恢复本地语音。",
-              "i3": "<b>📱 易于操作的悬浮元素</b> — 打开键盘、旋转屏幕或缩放时，头像、动画伙伴和快捷入口会适应可见区域。这些临时调整保留你选定的位置。",
-              "i4": "<b>🖼️ 当前界面的真实截图</b> — 图库和文档展示当前界面，使用虚构演示数据。更新的截图带有各自的版本标识，避免继续显示旧图片。 放大的查看器在电脑和移动设备上占满屏幕。"
-            }
-          },
+        "v2_6_1": {
+          "title": "v2.6.1 — 连贯语音、可控头像和触手可及的界面",
+          "date": "2026年10月6日 · 13:00 CEST",
+          "count": "4",
+          "items": {
+            "i1": "<b>🎭 头像窗口中的停止按钮</b> — 即使聊天遇到错误，窗口仍保留停止按钮，并显示关闭已确认还是仍在等待。开启的会话可能消耗你的 Simli 套餐，静默期间也一样。",
+            "i2": "<b>🎧 连贯的 Live 回答</b> — 较长回答的音频片段保持正确顺序。头像跟随播放，中断后不会重复同一句话；若输出失败，下一次回答可以恢复本地语音。",
+            "i3": "<b>📱 易于操作的悬浮元素</b> — 打开键盘、旋转屏幕或缩放时，头像、动画伙伴和快捷入口会适应可见区域。这些临时调整保留你选定的位置。",
+            "i4": "<b>🖼️ 当前界面的真实截图</b> — 图库和文档展示当前界面，使用虚构演示数据。更新的截图带有各自的版本标识，避免继续显示旧图片。 放大的查看器在电脑和移动设备上占满屏幕。"
+          }
+        },
         "v2_6_0": {
           "title": "v2.6.0 — 会说话的形象、忠实呈现的卡片与完整的付费尝试计费",
           "date": "2026年10月5日 · 06:58 CEST",
@@ -8442,7 +8772,7 @@
           },
           "q25": {
             "question": "聊天页上的小动画眼睛是什么？",
-            "answer": "那是 LIA 的<strong>表情眼睛</strong>——一个小小的陪伴部件，映照出助手正在做什么、感受如何。你输入时它们注视输入框，LIA 思考时眯起，检索时左右扫视，并演出每条回答的<strong>语气</strong>——由 LIA 自己说明刚写下的内容是温和、笃定、平实、致歉、好奇还是关切，表情随之呈现，包含嘴部。十二种截然不同的表情，其中只有两种在微笑：技术性回答会保持专注的神情。无人打扰时，整张脸依然活着：眉毛保持隐约的弧度并跟随目光，一次呼吸带动眼睛、眉毛和嘴巴，嘴巴不慌不忙地做小表情，每隔一两分钟上演一段小戏——追一只苍蝇、打喷嚏、打哈欠、打嗝。任何表情变化都会立刻中断它。<br><br><strong>让它们属于你：</strong>把它们拖到任何位置（方向键也可以，而且它们绝不会从你放置的位置漂移），在手机上轻点它们即可显示大小与隐藏按钮，或将它们收起为一个小小的恢复圆点。在<strong>设置 › 个性化 › 眼睛样式</strong>中有六种视觉样式可选，并配有动态预览。同一张脸也会在公开首页迎接访客，以胶囊外观出现，有自己的位置，绝不会移动聊天页里的位置。若系统开启了减少动态效果，眼睛会保持静止。"
+            "answer": "那是 LIA 的<strong>表情眼睛</strong>——一个小小的陪伴部件，映照出助手正在做什么、感受如何。你输入时它们注视输入框，LIA 思考时眯起，检索时左右扫视，并演出每条回答的<strong>语气</strong>——由 LIA 自己说明刚写下的内容是温和、笃定、平实、致歉、好奇还是关切，表情随之呈现，包含嘴部。十二种截然不同的表情，其中只有两种在微笑：技术性回答会保持专注的神情。无人打扰时，整张脸依然活着：眉毛保持隐约的弧度并跟随目光，一次呼吸带动眼睛、眉毛和嘴巴，嘴巴不慌不忙地做小表情，每隔一两分钟上演一段小戏——追一只苍蝇、打喷嚏、打哈欠、打嗝。任何表情变化都会立刻中断它。<br><br><strong>让它们属于你：</strong>把它们拖到任何位置（方向键也可以，而且它们绝不会从你放置的位置漂移），在手机上轻点它们即可显示大小与隐藏按钮，或将它们收起为一个小小的恢复圆点。在<strong>设置 › 个性化 › 头像样式</strong>中有六种视觉样式可选，并配有动态预览。同一张脸也会在公开首页迎接访客，以胶囊外观出现，有自己的位置，绝不会移动聊天页里的位置。若系统开启了减少动态效果，眼睛会保持静止。"
           },
           "q26": {
             "question": "如何保存一条回答，让它在对话之外留存？",
@@ -11459,15 +11789,15 @@
     "hero": {
       "badge_beta": "BETA",
       "badge": "个人AI助手",
-      "title_line1": "你的生活。",
-      "title_line2_before": "你的",
-      "title_line2_highlight": "AI",
-      "title_line2_after": "。",
-      "title_line3": "你的规则。",
-      "subtitle_top": "一位把你在意的一切连接起来的助手。",
-      "subtitle_line1": "服务、记忆与计划，终于能够协同运作。",
-      "subtitle_line2": "上手简单，也能按你的想法自由定制。",
-      "subtitle_line3": "决定权始终在你手中。",
+      "title_line1": "你的日常。",
+      "title_line2_before": "",
+      "title_line2_highlight": "LIA",
+      "title_line2_after": " 跟上你的节奏。",
+      "title_line3": "决定权在你。",
+      "subtitle_top": "你的个人助手，响应请求，也主动提供帮助。",
+      "subtitle_line1": "准备交流，收听一天的安排，与亲友协调时间。",
+      "subtitle_line2": "信息来源、记忆与承诺相互衔接，帮助你推进事情。",
+      "subtitle_line3": "在一个网页应用中完成，敏感操作由你批准。",
       "cta_primary": "加入BETA",
       "scroll_hint": "向下滚动探索",
       "trust_agents": "AI代理",
@@ -11475,10 +11805,18 @@
       "trust_voices": "语音语言",
       "trust_gdpr": "GDPR 隐私原则",
       "badge_opensource": "开源项目",
-      "cta_github": "GitHub",
+      "cta_github": "查看代码并安装",
       "cta_demo": "引导演示",
       "intro_paragraph": "LIA是一个开源的个人AI助手，协调20+个专业代理来管理你的邮件、日历、联系人、文件、任务、提醒、网络搜索、天气、路线和智能家居。兼容Google Workspace、Apple iCloud和Microsoft 365，LIA使用自然语言工作，对每个敏感操作进行人工验证。",
-      "cta_star": "Star"
+      "cta_star": "Star",
+      "proof_origin": "设计于法国",
+      "proof_accounts": "一个服务器，多个独立账户",
+      "proof_control": "敏感操作由你批准",
+      "home_cta_primary": "创建我的账户",
+      "home_access_note": "BETA 注册受限，通过邮箱注册：先验证邮箱，再由管理员激活账户；演示实例会自动激活。",
+      "home_value": "你的交流、记忆与日程：LIA 串联上下文，准备下一步，为你提出合适的行动建议。",
+      "home_code_link": "源代码与安装指南",
+      "home_cta_demo": "看看 LIA 如何帮你"
     },
     "video": {
       "aria_label": "示意视频",
@@ -11495,20 +11833,20 @@
       "close": "关闭播放器"
     },
     "promise": {
-      "eyebrow": "为你而设的 AI",
-      "title": "让一切互相关联，掌控权仍属于你。",
-      "lead": "LIA 诞生于法国，是可免费安装的开源个人助手。无需技术背景，用自然语言就能开始；喜欢探索的用户也可以深入定制。",
+      "eyebrow": "同一份日常，多种方式帮你",
+      "title": "接上之前的事情，准备接下来的行动。",
+      "lead": "找回相关资料、跟进承诺、准备下一次交流：LIA 利用你允许访问的信息开展工作。",
       "ecosystem": {
-        "title": "一个生态，而不是一堆应用",
-        "body": "邮件、日历、文档、智能家居和计划由同一条线串联。LIA 关联你交给它的信息，记住重要的事，随着日常变化主动提供帮助，也会按你的要求行动。"
+        "title": "逐渐了解你的助手",
+        "body": "记忆、关系和知识帮你接续之前的事情，无须从头再讲一遍。"
       },
       "trust": {
-        "title": "看得见的信任",
-        "body": "源代码公开。自行托管时，数据保存在你的设备上；你选择的外部服务可能收到完成请求所需的信息。敏感操作须经你批准，操作记录和费用可查看，数据也可导出。"
+        "title": "建议与草稿，供你审阅",
+        "body": "查阅来源与草稿，批准敏感操作。记录中可查看读取、执行尝试及其结果。"
       },
       "freedom": {
-        "title": "在自己的设备上，随时使用",
-        "body": "通过 Docker 将 LIA 安装在 ARM64 树莓派、Windows 或 Linux 电脑、Mac 上。可通过 Ollama 使用本地 AI，也可选择 Claude、GPT、DeepSeek 等服务。在网页、iOS 或 Android 上使用，并为家人朋友开设独立账户。部分外部服务可能收费。"
+        "title": "把应用用成你想要的样子",
+        "body": "在法国设计，以 AGPL 协议开源。在浏览器中使用已有实例，或用 Docker 安装自己的实例。托管和外部服务可能产生费用。"
       }
     },
     "chat_mockup": {
@@ -11620,10 +11958,10 @@
       },
       "web_intelligence": {
         "title": "搜索、地点与路线",
-        "description": "多源网络搜索——Brave、Perplexity、维基百科——并把任何公开网页读成干净的文本；附近的地点和商店；驾车、步行、骑行或公共交通路线；自动定位，可选记住位置，让你在旅途中也得到本地化回答，并始终说明该位置的时效。维基百科、网页阅读、地点、路线和天气由你的实例提供：始终开启，无需任何配置。"
+        "description": "将个人上下文与公开信息联系起来：通过 Brave、Perplexity 和维基百科进行多源搜索，读取可访问且受支持的公开网页，查找附近地点，以及驾车、步行、骑行或公共交通路线。经你同意，保存的位置可以在出行时帮助生成本地信息回答，并显示位置数据的时间。搜索、地点、路线和天气是否可用，取决于实例配置、你的访问权限及服务提供的数据。"
       },
       "voice_mode": {
-        "title": "语音模式，100% 本地监听",
+        "title": "语音、转写与本地唤醒",
         "description": "通过本地或可选远程转录说话，聆听可配置的流式语音。法语唤醒词在浏览器中检测，仍处于测试阶段。明确启用后，实验性 Simli 面孔可使用你的密钥陪伴语音评论和 Live；窗口显示关闭已确认或仍在等待。静默期间 Simli 也可能消耗你的套餐。头像无法连接时，文字和语音仍可使用。"
       },
       "natural_language": {
@@ -11632,7 +11970,7 @@
       },
       "multi_agent": {
         "title": "20+ 个专业代理",
-        "description": "邮件、日程、联系人、文件、任务、天气、网络搜索、维基百科、地点、路线、提醒等等：每个领域都有自己的专家。一次请求就会唤起合适的代理，只要无需互相等待，它们就并行工作——你不必知道是哪些，也不必关心顺序。跨越多个领域的计划几秒内完成。"
+        "description": "邮件、日历、联系人、文件、任务、天气、网页搜索、地点、路线和提醒：LIA 可以协调同一请求所需的专业代理。互不依赖的步骤可以并行进行，需要前序结果的步骤则按顺序执行。准备一天的安排或整理项目资料，都可以在同一段对话中完成。可用能力取决于你的访问权限和实例配置；耗时取决于任务、模型及所用服务。"
       },
       "proactive": {
         "title": "主动智能",
@@ -11696,7 +12034,7 @@
       },
       "psyche": {
         "title": "鲜活的情感智能",
-        "description": "LIA 不是照本宣科——她有感受。14 种心情、22 种情绪，一段随着每条消息不断加深的关系。被触动时她的用词变暖，紧张时句子变短，交流轻松时幽默自然流露——她从不宣告，只是流露。连声音也随时刻呼吸：语调在严格的范围内跟随她的心情，好消息不会念得像天气预报。"
+        "description": "让交流贴合当下：LIA 根据所选个性以及情绪和心境模型，调整措辞、节奏和幽默感。这是一种表达模拟，并非人类的真实感受。根据已启用的语音能力，语调也可以在设定范围内随之变化。你获得更符合偏好的陪伴体验，而执行操作的权限保持一致。"
       },
       "mood_face": {
         "title": "一张活生生的脸",
@@ -11704,11 +12042,11 @@
       },
       "mcp": {
         "title": "可扩展（MCP）",
-        "description": "连接你自己的 MCP 服务器——业界开放标准 Model Context Protocol——无限扩展 LIA：实例级服务器或你自己的，四种认证方式包括 OAuth 2.1，工具自动发现。LIA 支持协议的两代版本并自动回退，你的服务器在 ReAct 和 Pipeline 模式下都能工作。还有迭代模式：一个专门的代理先阅读服务器文档，再用正确的参数调用工具。你添加的服务器永远无法决定 LIA 下载什么：既不会跟随其模式中的远程引用，也不会被重定向到其他网站。"
+        "description": "通过兼容的 MCP 服务器，添加适合日常需求的工具，既可使用个人服务器，也可使用实例共享的服务器。Model Context Protocol 支持发现服务器工具，并提供包括 OAuth 在内的多种认证方式。工具可根据所支持的能力用于 Pipeline 或 ReAct。迭代模式下，专门的代理依据可用文档准备调用。扩展范围受你的访问权限、服务器配置以及针对架构和网络目标的保护规则约束。"
       },
       "mcp_apps": {
         "title": "交互式 MCP Apps",
-        "description": "MCP 服务器可以自带界面：表单、可视化和小应用通过 MCP Apps 协议实时显示在对话中。每个部件都运行在隔离的框架里——来源经过验证，无法访问你的会话——让第三方工具既有用又绝不危险。用户和管理员都可使用。"
+        "description": "当兼容服务器提供界面时，它可以直接出现在对话中：通过 MCP Apps 协议，在聊天里使用表单、可视化和小应用。每个组件都在独立框架中展示，并受来源检查和访问限制约束。你可以在同一个位置查看结果、操作工具。用户和管理员均可使用，具体取决于服务器及其配置。"
       },
       "excalidraw": {
         "title": "示意图与图表",
@@ -11732,7 +12070,7 @@
       },
       "simplicity": {
         "title": "几下点击就上手",
-        "description": "无需任何技术能力：引导式配置、一键连接器，第一次使用就一切就绪。搜索框按名称找到任何设置——或者用你语言里的同义词——你常用的分区可以钉在悬浮 dock 里，跟随你在整个仪表盘移动。能力地图逐项告诉你它在这里是否已启用，以及去哪里调整。"
+        "description": "用你的语言按名称或同义词查找设置，把常用板块固定到仪表板的浮动导航栏。能力视图会显示当前实例已启用的功能及其设置入口。连接器会请求连接服务所需的权限。日常使用在界面中完成；托管和部分可选服务则需要实例运营者进行配置。"
       },
       "themes": {
         "title": "可定制",
@@ -11796,7 +12134,7 @@
       },
       "document_generation": {
         "title": "AI 文档生成",
-        "description": "索要 CSV、Excel 表格、Word 报告、PowerPoint 或 PDF。专门的写作模型用你的语言生成内容，本地引擎按各格式的规范构建文件，无需外部文件转换服务：Word 计算目录和页码，Excel 类型化列位于可筛选的表格之下，16:9 幻灯片按意图排版，PDF 页码精确。文字在落版前先经测量——绝不溢出。可在同一请求中与网络搜索串联。"
+        "description": "把项目资料转化为 CSV、Excel 表格、Word 报告、PowerPoint 演示文稿或 PDF。写作模型用你的语言准备内容，本地引擎生成文件，无需外部文件转换服务。表格、样式、页码和布局遵循所支持的格式，并通过文本测量减少溢出。你可以在对话中找到结果，检查、下载或分享。根据已启用的能力，同一次请求可以先进行研究，再生成文档。"
       },
       "devops_cli": {
         "title": "DevOps CLI（管理员）",
@@ -11820,11 +12158,11 @@
       },
       "plugins": {
         "title": "插件（Agent Plugins 标准）",
-        "description": "安装来自整个 AI 生态的可移植插件——ChatGPT、Cursor、GitHub Copilot 和 VS Code 采用的开放标准 agent-plugins.org。一个包捆绑 Skill 和 MCP 服务器，从 zip 或 https 链接一步安装，如实报告每个组件——已安装、已跳过及原因、已移除——卸载也同样干净。你为其他工具构建的东西在这里无需改写即可运行。"
+        "description": "将多种能力集中到一个包中：LIA 支持 Agent Plugins v1 标准中的技能和 MCP 服务器。通过 ZIP 文件或 HTTPS 链接安装插件，然后查看每个组件的状态：已安装、已跳过并说明原因，或已移除。之后可以在应用中卸载。插件能否复用，取决于其内容和 LIA 支持的功能。"
       },
       "environment": {
         "title": "天气、空气质量与花粉",
-        "description": "问一句天气，同时带回空气质量指数和当季花粉，采用服务方自己发布的等级——有你所在国家的指数就用它，绝不自创量表。显示在聊天卡片、五日预报、你的首页和地点详情上。无需提供任何密钥：第一天即可用，还能在计划外出前通过通知提醒你。"
+        "description": "用天气预报规划出行；当来源提供时，也可查看空气质量和季节性花粉信息。显示的类别沿用服务提供的分类，并在可用时采用本地指数。这些信息可以出现在聊天卡片、预报、简报或地点详情中，也可以通过你允许的通知提醒。可用性及所需密钥取决于实例配置和已启用的来源。"
       },
       "meetings": {
         "title": "录下会议，收到纪要",
@@ -11903,7 +12241,7 @@
       },
       "bff": {
         "title": "安全架构",
-        "description": "BFF 架构，HTTP-only Cookie 与 Redis 会话：令牌绝不暴露给前端。通行密钥与 TOTP 双因素，敏感操作前需再次验证。严格的 CSP、覆盖 OWASP Top 10，第三方代码运行于无套接字的一次性容器中，除已允许的主机外不联网。Google 登录证明的是地址，而不是权限：它既不能激活也不能解封账户。LIA 读取的每个网页都在已校验的地址上获取，重定向逐跳校验：任何网页都无法把它引向内网。"
+        "description": "采用 BFF 架构、HTTP-only Cookie 和 Redis 会话：连接器的 OAuth 令牌不会暴露给前端。支持通行密钥和 TOTP 二次验证；管理二次验证、导出等部分敏感账户操作需要重新认证。严格的 CSP、OWASP Top 10 覆盖，以及在一次性容器中运行的第三方代码：无 socket，除获授权主机外保持离线。Google 登录只能证明邮箱归属，不能授予权限，也不能激活或解锁账户。LIA 读取网页时会逐次验证地址，包括每次重定向，防止访问内部网络。"
       },
       "encryption": {
         "title": "加密",
@@ -11929,7 +12267,7 @@
     "tech": {
       "title": "技术底层",
       "subtitle": "为性能和可扩展性设计的架构",
-      "intro": "LIA 将语义路由与请求所需的工具和来源连接起来。对于需要执行的任务，Pipeline 先制定并检查计划；ReAct 则通过搜索与调整推进。模式由你选择。整个过程均有观测记录，从 token 到欧元，关键信号异常时发送邮件提醒。\n\n界面背后：贝叶斯计划学习、双向量语义记忆、面向文档的 BM25+语义嵌入混合检索、以PostgreSQL做检查点的LangGraph状态机。全部可自托管——小到一台树莓派。\n\n它所断言的，都是它读到的：每个回答都锚定在真实获取的数据上，而非对早先措辞的记忆；从未获取到的信息会被明确说明，而不是被补全。\n\n被执行的东西与执行它的东西相互隔离：技能代码运行在仅为一次调用而创建的容器中——无套接字、除已允许的主机外无网络、只读——如果这个沙箱无法建立，就什么都不会运行。",
+      "intro": "LIA 将语义路由与请求所需的工具和来源连接起来。对于需要执行的任务，Pipeline 先制定并检查计划；ReAct 则通过搜索与调整推进。模式由你选择。整个过程均有观测记录，从 token 到欧元，关键信号异常时发送邮件提醒。\n\n界面背后：贝叶斯计划学习、双向量语义记忆、面向文档的 BM25+语义嵌入混合检索、以PostgreSQL做检查点的LangGraph状态机。全部可自托管——小到一台树莓派。\n\nLIA 向模型提供工具获取的信息，并通过指令要求区分事实、来源和信息缺口。ReAct 在发现并声明缺口时，可以进行有次数限制的补充处理。记录可供你检查信息查询和操作。回答仍可能不完整或有误：你可以核对来源，并纠正结论。\n\n被执行的东西与执行它的东西相互隔离：技能代码运行在仅为一次调用而创建的容器中——无套接字、除已允许的主机外无网络、只读——如果这个沙箱无法建立，就什么都不会运行。",
       "deep_dive_link": "完整技术深度解析",
       "langgraph": {
         "title": "完成一项请求的两种方式",
@@ -12071,6 +12409,20 @@
         "settings_administration_oneclick": "管理 — 平台功能开关",
         "settings_administration_llm": "管理 — 提供商凭据与各项操作的模型选择",
         "faq": "常见问题 — 可搜索的分类帮助中心"
+      },
+      "proof": {
+        "dashboard": "你的个人中心：每日摘要、日程、邮件、任务与提醒，一处查看。",
+        "dossier": "结合邮件、文档与会议纪要准备决策",
+        "approval": "在聊天中审阅并批准操作",
+        "knowledge": "结合文档与同步来源整理知识",
+        "skill": "在对话中使用迷你应用",
+        "memory": "查看与修正记忆",
+        "administration": "设置实例及账户额度",
+        "grafana_overview": "Grafana：实例与容器资源",
+        "grafana_costs": "Grafana：token、费用与缓存",
+        "relations": "人际关系 · 再次联系前，查阅交流、相关事实与尚未完成的承诺。",
+        "meetings": "会议 · 查阅决定与分配的行动事项，再修改或导出纪要。",
+        "radio": "个人 Radio · 查看节目、文字稿与可查阅的来源。"
       }
     },
     "presentation": {
@@ -12130,16 +12482,16 @@
       "how_prefix": "幕后机制：",
       "c1": {
         "bubble": "报价变了，邮件解释了原因，会议纪要记录着当时的决定。",
-        "title": "LIA 真的会做事。",
-        "sub": "告诉她目标：她会找齐相关材料，串联信息，推进需要完成的步骤。",
-        "b1_t": "把相关材料放在一起思考。",
-        "b1_d": "邮件、文档和会议决定相互印证，形成你能用得上的结果。",
-        "b2_t": "她会替你打电话。真的。",
-        "b2_d": "预订、询问、确认：你批准打给谁、为了什么，她去打，你收到书面摘要。",
-        "b3_t": "把工作委托出去。",
-        "b3_d": "在 Workboard 中交给她一项任务：背景、进度和讨论都保留在一起。",
-        "b4_t": "成批处理，不是苦差。",
-        "b4_d": "「每个会议的前一天提醒我」：她遍历整周日程，只需一句话。",
+        "title": "交流之前、进行之中、结束之后。",
+        "sub": "会前做好准备，用语音交流，会后回顾决定与后续事项。",
+        "b1_t": "会前：整理资料，准备关键问题。",
+        "b1_d": "串联文档、近期交流与会议决定，带着需要厘清的问题赴约。",
+        "b2_t": "交流时：自然交谈，随时打断。",
+        "b2_d": "使用自己的 Gemini、OpenAI 或 ElevenLabs 密钥，进行全双工 Live 对话。声音和可委托能力因供应商而异。",
+        "b3_t": "会后：修订纪要，再分享。",
+        "b3_d": "录制会议，核对决定与行动事项，再分享 PDF。纪要完成索引后，就能在聊天中检索。",
+        "b4_t": "进行中：自然交谈，随时插话。",
+        "b4_d": "全双工 Live 使用你的 Gemini Live、OpenAI 或 ElevenLabs API 密钥。委派给 LIA 的请求使用其处理引擎、上下文与控制机制。模型、声音和委派能力因服务商而异。",
         "how": "20+ 个并行编排的智能体 · 用你自己的 Gemini、OpenAI 或 ElevenLabs 密钥进行实时语音会话 · 通过你的 ElevenLabs 连接器实现智能体电话 · 浏览器控制 · Philips Hue · 按需生成图片与图表。",
         "catalog_hint": "{{count}} 项能力详情",
         "v_query": "「每个会议的前一天提醒我」",
@@ -12151,18 +12503,18 @@
         "v_t3_sub": "创建中…",
         "v_series": "已创建 4 条提醒",
         "v_series_sub": "前一天 19:00 — 一句话搞定",
-        "mechanism": "LIA 选择与你的请求相关的信息来源，同时开展可以独立进行的查找，再串联找到的相关段落和信息。回答以这些来源为依据，并指出仍需核实的问题。"
+        "mechanism": "Pipeline 为明确的请求制定计划；ReAct 调整搜索路径，逐步探索。相关资料、建议和操作控制始终与当前工作关联。"
       },
       "c2": {
         "bubble": "你的约会、要兑现的承诺、发出的邮件，都属于同一天。",
-        "title": "LIA 了解你。",
-        "sub": "你的偏好和项目，让她找到的信息更有意义。她记住的内容，你也可以纠正。",
-        "b1_t": "少一点重复交代。",
-        "b1_d": "记住的人物、偏好和事实，会在相关时帮助她理解你之后的请求。",
-        "b2_t": "你的一天，可以看，也可以听。",
-        "b2_d": "每日简报汇集要点。电台结合你的日程、信息来源和兴趣编排节目。",
-        "b3_t": "她有情绪。你看得见。",
-        "b3_d": "她的表情随对话而变，在两次回答之间也活着；气氛轻松时幽默就会冒出来。从教授到毒舌：14 种人格。",
+        "title": "你的日常有来龙去脉。LIA 帮你找回来。",
+        "sub": "从每日简报到个人电台，日程、承诺与关注的话题融入同一个日常。",
+        "b1_t": "记忆，允许你修正。",
+        "b1_d": "偏好、人物、项目与规则：查看 LIA 记住了什么，修改它、固定重要内容，或将其删除。",
+        "b2_t": "你的日常，可以阅读，也可以收听。",
+        "b2_d": "在仪表板上阅读要点。收听根据你的日程与已授权新闻来源编排的电台节目。",
+        "b3_t": "准备好与那个人的下一次交流。",
+        "b3_d": "在“关系”这个个人迷你 CRM 中，每个人的资料汇集沟通、已记住的事实、电话与未完成的承诺。准备下一次交流时，了解与这个人相关的重要信息，超越一张简单的联系人列表。",
         "how": "双向量语义记忆 · 内省日志 · 每日简报 · Psyche 引擎（14 种心情、22 种情绪）。",
         "catalog_hint": "{{count}} 项能力详情",
         "s_chip": "早间简报",
@@ -12174,18 +12526,18 @@
         "s_day_b1": "9:00 团队同步",
         "s_day_b2": "11:30 客户",
         "s_day_b3": "18:30 运动",
-        "mechanism": "记忆帮助她理解你的请求，已连接的信息来源告诉她此刻发生了什么。每日简报和电台按你的设置整理这些内容，不读取你已关闭的信息来源。"
+        "mechanism": "记忆帮助理解你的请求，已连接的来源提供当前信息。简报与 Radio 各自按照自身设置选择来源。"
       },
       "c3": {
         "bubble": "你等的回复到了。这是它给你的项目带来的变化。",
-        "title": "LIA 比你先发现。",
-        "sub": "跟进等待中的回复，联系已有背景，在合适的时机给出有用的建议。",
-        "b1_t": "带着目标持续关注。",
-        "b1_d": "在设置中定义例行任务的条件和要完成的工作：LIA 检查规则，在条件满足时启动预定的行动。",
-        "b2_t": "她盯着你关心的话题。",
-        "b2_d": "科技、体育、财经、健康：她跟进你的兴趣，在合适的时刻推送最重要的。",
-        "b3_t": "任务的来龙去脉一直在。",
-        "b3_d": "例行任务、提醒和委托事项都能持续跟进。查看进度，就能从当前的工作状态继续。",
+        "title": "在合适的时刻，接着推进项目。",
+        "sub": "等待中的回复、临近的期限、有用的信号：例行任务与主动建议将新信息联系到你正在处理的事情。",
+        "b1_t": "条件满足，再采取下一步行动。",
+        "b1_d": "选择要监测的条件和要执行的工作。LIA 按实例预设的频率检查信号，再触发后续步骤。",
+        "b2_t": "提醒，自带背景信息。",
+        "b2_d": "已启用的来源、项目与兴趣帮助 LIA 提出有用的建议。你可以设置或关闭这项帮助。",
+        "b3_t": "两次请求之间，进展也清晰可见。",
+        "b3_d": "提醒、习惯、计划操作与任务在应用中保留状态。你可以查看哪些还在等待、哪些已经完成。",
         "how": "可配置的主动智能 · 兴趣关注 · 自然语言提醒 · 定时例行 · 健康数据。",
         "catalog_hint": "{{count}} 项能力详情",
         "v_intro": "没有人提出任何要求——",
@@ -12198,16 +12550,16 @@
       },
       "c4": {
         "bubble": "我提议。你决定。这就是约定。",
-        "title": "她能自主做事，你始终掌握方向。",
-        "sub": "看清她的提议，按需修改，再查看实际完成了什么。",
-        "b1_t": "确认的是一项具体行动。",
-        "b1_d": "给他人发消息或打电话前，她会展示对象和内容。你可以先调整提议，再确认。",
-        "b2_t": "每条回复都标明价格。",
-        "b2_d": "Token 和分币，逐条显示。预算由你设定，计数你看得见。",
-        "b3_t": "一个真正的停止按钮。",
-        "b3_d": "她能在半句话处停下，已生成的文字保留。",
-        "b4_t": "你的数据仍属于你。",
-        "b4_d": "数据可导出、账户访问受控、凭据加密；支持自行托管，甚至可运行于 Raspberry Pi。请求所需上下文会发送给配置的服务商。",
+        "title": "把行动交出去，把决定留在自己手中。",
+        "sub": "在敏感发送或电话操作前，先查看提案。之后，你可以找到结果与已记录的费用。",
+        "b1_t": "具体提案，供你审阅。",
+        "b1_d": "收件人、内容、电话目的：确认针对具体操作。草稿可以在批准前修改。",
+        "b2_t": "提出操作，不等于已经完成。",
+        "b2_d": "操作与查阅记录展示 LIA 做了什么、读了什么。失败与限制也会保留。",
+        "b3_t": "费用与预算，清楚可见。",
+        "b3_d": "回答附带 token 数与计算费用。可以为每个账户及整个实例设置额度。",
+        "b4_t": "选择自己的托管方式与模型。",
+        "b4_d": "自行托管应用，并导出自己的数据。你选择的外部模型与服务会接收使用它们的请求所需的背景信息。",
         "how": "工具层面的确认、可修改的草稿、操作与查阅记录、预算和加密。",
         "catalog_hint": "{{count}} 项能力详情 + 安全",
         "s_chip": "先经你同意",
@@ -12216,18 +12568,18 @@
         "s_quote": "「堵车决定考验一下我们婚姻的牢固程度……」",
         "s_user": "结尾改温柔一点",
         "s_reply": "柔和版本已就绪。发这一版吗？",
-        "mechanism": "你的确认对应具体行动：收件人、消息内容或通话目的。随后，系统根据实际成功的结果进行记录，清楚区分提议、尝试和已经完成的行动。"
+        "mechanism": "确认针对具体操作：接收人、消息内容或通话目标。记录会保留执行尝试及其状态，包括失败，便于回查发生过什么。"
       },
       "c5": {
         "bubble": "把分散的材料，整理成一份可以分享的决策简报。",
-        "title": "LIA 与你一起成长。",
-        "sub": "你的知识、专项研究，还有能随着需要不断扩展的工具。",
-        "b1_t": "缺一项能力？描述它。",
-        "b1_d": "她编写技能并向你提议——点一下即可安装——再在聊天中以迷你应用呈现。",
-        "b2_t": "让你的文档成为依据。",
-        "b2_d": "LIA 找出相关段落，与其他来源相互核对，并能生成比较结果或文档。",
-        "b3_t": "把她接入你的世界。",
-        "b3_d": "MCP 服务器、专职子智能体：生态开放，代码也开放。",
+        "title": "从资料来源，到可用成果。",
+        "sub": "检索自己的知识，与网络信息交叉比较，生成适合任务的分析、文档或迷你应用。",
+        "b1_t": "让已有知识参与工作。",
+        "b1_d": "文档、Drive 与邮件同步到你的知识空间：无需全部复制，即可找出有用段落及其来源。",
+        "b2_t": "为回答选择合适的形式。",
+        "b2_d": "表格、生成文件、图解，或聊天中的交互界面：让信息成为可以阅读、使用或分享的成果。",
+        "b3_t": "按需添加能力。",
+        "b3_d": "Skills、插件、MCP 服务器与只读专长助手拓展可完成的工作。代码与接口约定都有文档说明。",
         "how": "沙箱化技能与交互组件 · 知识空间（15+ 格式、混合检索）· MCP 协议 · 开源。",
         "catalog_hint": "{{count}} 项能力详情",
         "v_forge": "技能「预算追踪」组装中",
@@ -12237,14 +12589,14 @@
       },
       "c6": {
         "bubble": "两份日历，两个助手。一项尊重双方分享选择的提议。",
-        "title": "LIA 把你和亲友连在一起",
-        "sub": "在同一台服务器上，你和亲友的助手可以利用各自选择分享的信息来协调安排。",
-        "b1_t": "从传递消息到协调安排。",
-        "b1_d": "根据共享的空闲时间找到合适时段，再确认由对方助手转达的提议。",
-        "b2_t": "自选的只读共享。",
-        "b2_d": "按连接开放你的空闲时段或任务标题——默认不开放，随时可撤回。",
-        "b3_t": "由结构保证的保护。",
-        "b3_d": "发现是自愿的且需精确姓名；陌生人、拒绝与拉黑得到的回答完全一致。",
+        "title": "与家人、朋友、同事一起使用。",
+        "sub": "同一个服务器，每个人都有自己的个人助手。你们的 LIA 可以传递消息，并协调各自选择共享的空闲时间。",
+        "b1_t": "减少来回沟通，安排更方便。",
+        "b1_d": "与朋友聚餐、安排家庭日程、和同事碰面：LIA 匹配已授权的时间段，并提出下一步建议。经批准的消息可由收件人的助手转达。",
+        "b2_t": "选择自己的圈子，掌握共享权限。",
+        "b2_d": "接受连接，为每个人选择可查阅的空闲时间或其他信息，并随时撤销共享。协调仅在这个范围内进行。",
+        "b3_t": "各自的背景信息，共用的实例。",
+        "b3_d": "每个账户保留自己的连接器、记忆与偏好。管理员为家庭、团队或朋友圈管理服务器的账户、能力与预算。",
         "how": "每条连接一行规范记录、只可认领一次的状态迁移、任何转达前的 HITL 草稿、由收件人自己的助手送达，以及每次读取都重新校验的访问日志。",
         "catalog_hint": "{{count}} 项能力详情",
         "s_chip": "连接",
@@ -12258,7 +12610,7 @@
     },
     "basics": {
       "title": "其余一切，当然也有。",
-      "sub": "邮件、日历、联系人、任务、文件——Google、Apple 或 Microsoft，随你选。这些人人都承诺。LIA 也都做到，只是不拿来当卖点。",
+      "sub": "邮件、日历、联系人、任务和文件共同丰富你的个人上下文。根据可用服务连接 Google、Apple 或 Microsoft，LIA 可以将这些信息与偏好、承诺和知识联系起来，在同一段对话中帮助你。",
       "detail_label": "基础能力详情",
       "detail_hint": "{{count}} 项能力详情",
       "chip_emails": "邮件",
@@ -12277,21 +12629,21 @@
     },
     "transparency": {
       "title": "LIA 没什么可隐瞒的。",
-      "sub": "信任不是靠宣称，而是靠验证。一切公开：价格、代码、评分。",
+      "sub": "查看费用、记录与代码。选择自己的基础设施，以及接收你请求的供应商。",
       "cost_prefix": "每条消息：",
-      "cost_note": "——真实计数器，应用中每条回复下都能看到——",
-      "p1_t": "成本，精确到分",
-      "p1_d": "逐条消息显示，并按对话累计，按服务商实际收取的价格计算——闲时与缓存均已计入。你甚至可以选择让它更省的节奏。没有哪个大众助手会给你看这些。",
-      "p2_t": "8.3/10 —— 公开审计",
-      "p2_d": "24 个评估领域，协议与报告完整公开——包括仍需改进之处。",
+      "cost_note": "计费器的虚构示例：费用按已配置模型与费率计算，每次请求可能不同。",
+      "p1_t": "让费用清楚可见",
+      "p1_d": "在对话中查看 token、缓存与计算费用；为用户及实例设置预算。外部服务由相应供应商计费。",
+      "p2_t": "公开审计，也公开局限",
+      "p2_d": "方法、发现与待改进事项均已公开。你可以检查证据；该报告并非认证。",
       "p2_link": "阅读审计报告",
-      "p3_t": "100% 开源",
-      "p3_d": "你能读到的代码就是正在运行的代码。可自托管，小到一台树莓派。",
+      "p3_t": "采用 AGPL 的自由软件",
+      "p3_d": "阅读代码，将应用安装到自己的基础设施，并查看有文档说明的设计选择。连接哪些服务、使用哪些模型，由你分别选择。",
       "p3_link": "查看代码",
-      "p4_t": "由 AI 编写，由人类主导",
-      "p4_d": "超过 82 万行源代码——在 AI 辅助下开发，经人工审查，并依照公开方法审计。",
+      "p4_t": "设计决定，有据可查",
+      "p4_d": "架构、技术决定、指南与开发经验均可查阅。了解 LIA 如何构建、如何运行。",
       "p4_link": "阅读实践分享",
-      "honest": "免费公测，7×24 小时生产运行。",
+      "honest": "LIA 目前处于测试阶段。软件开源；托管及你选择的服务可能产生费用。",
       "cta": "知情地试用"
     },
     "day": {
@@ -12343,11 +12695,12 @@
       }
     },
     "gallery": {
-      "title": "LIA 的真实模样。",
-      "sub": "当前界面使用虚构的演示数据，并提供完整演示文稿。",
+      "title": "这就是你将使用的应用。",
+      "sub": "真实界面中的流程与设置，使用虚构数据截图。全屏打开截图，查看细节。",
       "tabs_label": "选择视图",
-      "tab_screens": "应用截图",
-      "tab_slides": "演示文稿（15 页）"
+      "tab_screens": "应用使用场景",
+      "tab_slides": "演示文稿（15 页）",
+      "provenance": "应用截图采用英文界面。数据用于演示，不代表实际操作或实测性能。"
     },
     "motion": {
       "pause": "暂停动画"
@@ -12558,6 +12911,348 @@
         "devices": "在不同屏幕上延续同一段对话",
         "weather": "为下一次出行做好准备",
         "health": "结合背景查看你的健康数据"
+      },
+      "example_label": "请求示例",
+      "result_label": "你可以获得什么",
+      "examples": {
+        "plan": {
+          "request": "结合最新沟通与文档，为我的项目会议做准备。",
+          "result": "汇总相关来源、待决定事项，以及可供批准的下一步行动。"
+        },
+        "call": {
+          "request": "致电询问我最后一个日程之后的双人桌。",
+          "result": "电话前查看具体提案，之后在同一对话中查看结果。电话功能需要配置。"
+        },
+        "voice": {
+          "request": "我们用语音聊：帮我安排今天。",
+          "result": "通过你选择的供应商进行语音对话，并访问已授权能力。"
+        },
+        "document": {
+          "request": "将这些内容整理成可分享的简报。",
+          "result": "在对话中获得结构化文档或生成文件。"
+        },
+        "browser": {
+          "request": "打开这个网站，找到我们项目需要的信息。",
+          "result": "通过浏览器探索信息，按需进行确认，并呈现查找结果。"
+        },
+        "calculation": {
+          "request": "换算这笔金额，并注明所用汇率的日期。",
+          "result": "可核查的计算、带日期的汇率，以及明确说明的舍入。"
+        },
+        "image": {
+          "request": "为这份演示文稿创作插图。",
+          "result": "生成的图片可以再次找到并使用。需要兼容的供应商。"
+        },
+        "diagram": {
+          "request": "画出这个项目的运作方式。",
+          "result": "通过图解将思路直观地组织起来。"
+        },
+        "home": {
+          "request": "为今晚调整客厅照明。",
+          "result": "控制已连接到实例的 Philips Hue 设备。"
+        },
+        "memory": {
+          "request": "记住这个偏好，并展示你了解的这个项目的信息。",
+          "result": "可查看、可修正，并能用于后续请求的个人背景信息。"
+        },
+        "radio": {
+          "request": "打开我的电台：先听今天的安排，再听我关注的新闻话题。",
+          "result": "在收听期间，根据已授权来源编排节目。"
+        },
+        "briefing": {
+          "request": "查看今天的重要事项。",
+          "result": "在仪表板中汇集日历、邮件、提醒与已启用来源。"
+        },
+        "automation": {
+          "request": "定期检查这个条件，满足时通知我。",
+          "result": "可配置的例行任务、任务状态，以及触发工作的结果。"
+        },
+        "board": {
+          "request": "将这个任务交给 LIA，并跟踪进度。",
+          "result": "有负责人的任务，附带沟通记录与可审阅的结果。"
+        },
+        "knowledge": {
+          "request": "查找这份资料中的条款及解释它们的来源。",
+          "result": "从你的知识与可访问来源中找出有用段落，并附上引用。"
+        },
+        "control": {
+          "request": "发送这条消息前，先让我查看提案。",
+          "result": "一份可以审阅、修改、批准或拒绝的草稿。"
+        },
+        "people": {
+          "request": "根据已接受的共享权限，寻找我和 Sam 的共同空闲时间。",
+          "result": "LIA 之间的协调，仅限每个人授予的访问权限。"
+        },
+        "tools": {
+          "request": "为这个需要添加工具或 Skill。",
+          "result": "根据配置，通过 Skills、插件与 MCP 扩展能力。"
+        },
+        "devices": {
+          "request": "在另一块屏幕上继续我的对话。",
+          "result": "在自适应应用中使用同一个账户，继续同一段对话。"
+        },
+        "weather": {
+          "request": "外出时预计天气如何，可以去哪里？",
+          "result": "从已启用服务获取天气预报、地点与路线，并说明其限制。"
+        },
+        "health": {
+          "request": "查看我的测量数据及变化。",
+          "result": "已记录的测量数据及参考背景。不能替代医疗建议。"
+        }
+      },
+      "feature_examples": {
+        "natural_language": {
+          "request": "明天早上提醒我给 Marie 打电话。",
+          "result": "LIA 根据请求准备提醒；你可以进一步明确时间。"
+        },
+        "multi_agent": {
+          "request": "结合日历、任务和相关邮件，帮我安排今天。",
+          "result": "专业助手汇集可访问的信息来源；相互独立的步骤可以并行进行。"
+        },
+        "rich_responses": {
+          "request": "显示我最新的邮件及其详情。",
+          "result": "清晰的卡片展示返回的信息；详情可以展开查看。"
+        },
+        "chat_sync": {
+          "request": "我在另一台设备上打开聊天。",
+          "result": "已保存的消息出现在同一对话中；连接恢复后会同步更新。"
+        },
+        "email_share": {
+          "request": "在分享界面中，我选择这份文档和收件人。",
+          "result": "通过已连接的邮箱发送；未连接邮箱时，中继服务只能发送到你已验证的地址。"
+        },
+        "generated_files": {
+          "request": "我在图库中保留这份重要报告。",
+          "result": "保留的文件不设到期日，并受账户页面所列的限制约束。"
+        },
+        "multichannel": {
+          "request": "我将 Telegram 关联到账户，并发送一条语音消息。",
+          "result": "启用的渠道连接你的助手及其背景信息，并使用该渠道支持的确认流程。"
+        },
+        "languages": {
+          "request": "我选择法语作为界面和回复语言。",
+          "result": "界面及生成内容按照语言设置工作，并使用已配置的模型。"
+        },
+        "memory": {
+          "request": "记住，我更喜欢上午 10 点以后的预约。",
+          "result": "一项可查看、修正或删除的长期偏好，可在相关请求中被调用。"
+        },
+        "bookmarks": {
+          "request": "我收藏这条回复，方便以后查找。",
+          "result": "回复、原始请求和日期保留在收藏中；检索需要先完成索引。"
+        },
+        "personal_crm": {
+          "request": "见面之前，我在关系页面中打开 Claire 的资料。",
+          "result": "汇集可访问的往来、记忆、通话和承诺，帮助准备下一次交流。"
+        },
+        "peers": {
+          "request": "告诉 Sam，今晚由我接孩子。",
+          "result": "经你确认后，同一实例上已接受连接的对方助手负责传递消息。"
+        },
+        "peer_shares": {
+          "request": "使用 Sam 已接受的共享权限，找一个明晚双方都有空的时间。",
+          "result": "LIA 读取获准共享的近期空闲情况；每次读取均有记录，权限可撤销。"
+        },
+        "peer_safety": {
+          "request": "我在连接列表中屏蔽一个人。",
+          "result": "屏蔽会终止访问且不通知对方；解除屏蔽不会恢复原先的共享权限。"
+        },
+        "personalities": {
+          "request": "我为 LIA 选择一种更沉稳的个性。",
+          "result": "交流语气会随所选个性调整；你可以在设置中更改。"
+        },
+        "psyche": {
+          "request": "我启用 LIA 的情感表达。",
+          "result": "Psyche 引擎按设置呈现模拟的心情和表情，陪伴交流。"
+        },
+        "mood_face": {
+          "request": "我在聊天时显示动画伙伴。",
+          "result": "它的面部呈现模拟的状态和情绪；外观和显示方式可以调整。"
+        },
+        "self_knowledge": {
+          "request": "你能用我的日历做什么？如何连接？",
+          "result": "LIA 根据自己的帮助知识库说明功能、设置和限制。"
+        },
+        "journals": {
+          "request": "我在个人日志中审阅并修正一条观察。",
+          "result": "附带来源和可信度的观察及个人画像，可以为兼容的流程补充背景信息。"
+        },
+        "briefing": {
+          "request": "我打开仪表板，准备今天的安排。",
+          "result": "汇集日历、邮件、提醒及其他可用来源，显示更新时间并提供可用操作。"
+        },
+        "personal_radio": {
+          "request": "我选择电台的信息来源，然后开始收听。",
+          "result": "节目结合获准使用的日程信息与注明来源的新闻；节目安排、文字稿和费用均可查看。"
+        },
+        "proactive": {
+          "request": "我设置 LIA 可以主动提供帮助的信息来源和时段。",
+          "result": "建议可以将相关信号与个人背景联系起来，并遵守你选择的限制。"
+        },
+        "proactive_wake": {
+          "request": "我允许在主动提醒时段使用重要邮件的信号。",
+          "result": "新信号可以提前触发对建议的评估，同时遵守来源、暂停和时段设置。"
+        },
+        "proactive_moments": {
+          "request": "我启用会后跟进。",
+          "result": "在检查背景信息及你的空闲情况后，跟进问题可以在预定时机出现。"
+        },
+        "interests": {
+          "request": "我关注天文学，并启用相关通知。",
+          "result": "定期搜索可以带来注明来源的新内容；你可以屏蔽话题或关闭提醒。"
+        },
+        "habits": {
+          "request": "我启用习惯学习，并查看已观察的天数。",
+          "result": "可见的统计数据识别证据充分的规律；你可以暂停学习。"
+        },
+        "habits_lifecycle": {
+          "request": "我查看一项已确认的习惯，然后将其暂停。",
+          "result": "连续记录和变化仍可查看；习惯状态会影响兼容流程中对相关背景的使用。"
+        },
+        "reminders_scheduling": {
+          "request": "每周一早上 8 点，总结我的未读邮件。",
+          "result": "定时例行任务按你设定的周期运行，并在应用中提供准备好的结果。"
+        },
+        "conditional_routines": {
+          "request": "我从简报中设置监测，等待 Claire 的回复。",
+          "result": "例行任务按实例规定的间隔检查条件，满足后执行关联工作。"
+        },
+        "workboard": {
+          "request": "我在看板上创建一个工单，设定截止日期和步骤。",
+          "result": "通过状态、负责人、评论和历史跟进工作，并清楚显示期限。"
+        },
+        "workboard_delegation": {
+          "request": "我在这个工单上委托 LIA 准备资料。",
+          "result": "LIA 使用所选模式，评论工作结果，并在工单中请求必要的确认。"
+        },
+        "telephony": {
+          "request": "给这家餐厅打电话，询问明晚 8 点能否订两人桌。",
+          "result": "先确认包含接听方、号码和目标的草稿；需要已配置的电话连接器。"
+        },
+        "telephony_callback": {
+          "request": "拨打我已验证的号码，帮我准备今天的安排。",
+          "result": "LIA 通过已配置的电话服务，以所选语音模式拨打你本人已验证的号码。"
+        },
+        "live_voice": {
+          "request": "使用我的 Live 密钥，与 LIA 交谈并请它准备今天的安排。",
+          "result": "双工对话；在委托模式中，请求通过聊天引擎及其确认流程处理。"
+        },
+        "meetings": {
+          "request": "我录制团队会议，然后审阅并修正纪要。",
+          "result": "获得结构化纪要、PDF 和发给自己的邮件；聊天中再次检索需要索引成功。"
+        },
+        "meeting_templates": {
+          "request": "我为这次会议选择纪要模板。",
+          "result": "章节按照所选模板组织；不必重新录音即可调整纪要格式。"
+        },
+        "skills": {
+          "request": "创建一个用迷你应用转换单位的技能。",
+          "result": "生成待安装的技能，可显示小组件，并在已配置的沙箱中运行命令。"
+        },
+        "health_metrics": {
+          "request": "我通过快捷指令和专用令牌上传步数，然后查看图表。",
+          "result": "显示带日期的测量值和变化，并解释被拒绝的数值；这不是诊断。"
+        },
+        "excalidraw": {
+          "request": "将这个项目的步骤画成流程图。",
+          "result": "通过已启用的工具生成 Excalidraw 图示，供你查看和继续完善。"
+        },
+        "image_generation": {
+          "request": "把这张附图的背景换成花园。",
+          "result": "若已配置的模型支持编辑，修改后的图片会出现在图库中，并显示费用。"
+        },
+        "document_generation": {
+          "request": "把这份总结做成带对比表格的 PDF 报告。",
+          "result": "生成受支持格式的文件，可在对话中审阅和下载。"
+        },
+        "attachments": {
+          "request": "我在请求中附上一张图片，请 LIA 解释。",
+          "result": "附件随请求提供，并受可用格式、大小限制和模型能力约束。"
+        },
+        "mcp_apps": {
+          "request": "我打开 MCP 服务器提供的交互界面。",
+          "result": "兼容服务器的应用显示在聊天中，并提供受支持的交互操作。"
+        },
+        "plugins": {
+          "request": "我从 ZIP 文件安装插件，并检查组件。",
+          "result": "列出受支持的技能和 MCP 服务器及其状态；被跳过的组件会说明原因。"
+        },
+        "mcp": {
+          "request": "我在设置中连接适合自己工具的 MCP 服务器。",
+          "result": "该服务器提供的工具可以接入 LIA，并遵守各自的权限和配置。"
+        },
+        "rag_spaces": {
+          "request": "我将资料导入知识空间，再询问其中的终止条款。",
+          "result": "空间和检索启用后，可找到已索引的相关段落及其来源。"
+        },
+        "mail_label_spaces": {
+          "request": "我把 Gmail 的“项目”标签连接到知识空间。",
+          "result": "带标签的邮件线程同步为文档；附件仅列出名称，不读取内容。"
+        },
+        "sub_agents": {
+          "request": "从多个角度探索这个话题，并比较信息来源。",
+          "result": "只读专业助手在各自预算内工作；LIA 可以汇总其发现。"
+        },
+        "browser_control": {
+          "request": "打开这个公开网站，查找产品规格。",
+          "result": "浏览过程有可见截图；登录和付款不属于这项自主流程。"
+        },
+        "computed_answers": {
+          "request": "把 250 美元换算成欧元，并注明汇率日期。",
+          "result": "通过工具按带日期的汇率计算，而非由模型估算金额。"
+        },
+        "devops_cli": {
+          "request": "管理员：检查磁盘空间和容器健康状态。",
+          "result": "诊断依据已配置 CLI 执行的命令，仅供管理员在其服务器范围内使用。"
+        },
+        "control": {
+          "request": "准备这封给 Claire 的邮件，发送前让我查看草稿。",
+          "result": "先审阅收件人和内容；可用操作允许确认、修改或拒绝。"
+        },
+        "usage_limits": {
+          "request": "管理员：设置实例上限和某个账户的预算。",
+          "result": "用量和限制可随时查看；达到上限后，受该限制约束的请求会被阻止。"
+        },
+        "privacy": {
+          "request": "我在设置中查看并导出自己的数据。",
+          "result": "导出可帮助取回信息；仍需了解实例运营者的技术访问权限及所选服务商。"
+        },
+        "native_apps": {
+          "request": "我将移动应用连接到自己的 LIA 服务器地址。",
+          "result": "在移动客户端中访问账户和实例功能，并使用其原生权限。"
+        },
+        "responsive": {
+          "request": "我安装 PWA，在手机上打开看板。",
+          "result": "界面适应小屏幕；离线时会明确提示服务器不可用。"
+        },
+        "simplicity": {
+          "request": "我在设置中搜索“记忆”，并固定该栏目。",
+          "result": "通过搜索找到设置；固定的栏目可在快捷栏中方便访问。"
+        },
+        "themes": {
+          "request": "我选择深色主题和更舒适的文字大小。",
+          "result": "颜色、背景和阅读体验按偏好调整，并保存在账户中。"
+        },
+        "connected_services": {
+          "request": "我在连接器页面关联日历和邮箱。",
+          "result": "LIA 使用获准连接的服务，每类服务选择一个提供方，并可分别断开连接。"
+        },
+        "environment": {
+          "request": "明天外出时，天气和空气质量怎么样？",
+          "result": "根据已配置来源提供预报与指标，并以该地点可用的数据为准。"
+        },
+        "smart_home": {
+          "request": "通过我已连接的 Philips Hue 桥接器调暗客厅灯光。",
+          "result": "控制已识别的灯具或场景，并显示 Hue 连接器报告的结果。"
+        },
+        "web_intelligence": {
+          "request": "找一个附近的地方，并规划前往路线。",
+          "result": "根据已配置的服务、你的访问权限和可用信息提供搜索、地点与路线。"
+        },
+        "voice_mode": {
+          "request": "我口述请求，然后收听 LIA 的回复。",
+          "result": "转写和语音播放使用已启用的引擎；本地法语唤醒词检测仍处于测试阶段。"
+        }
       }
     },
     "editorial": {
@@ -12583,6 +13278,239 @@
       "control_title": "让行动清晰可见",
       "control_body": "提议、确认和结果，各自清楚呈现。",
       "control_gain": "工作进展，你心中有数。"
+    },
+    "platform": {
+      "title": "界面简单。运维严谨。",
+      "sub": "适用于家人、同事或朋友圈：支持独立账户的网页应用，提供了解运行情况与处理问题的工具。",
+      "accounts": {
+        "title": "一个服务器，供多人使用",
+        "body": "每个人拥有自己的账户、连接器、记忆与偏好。可在界面中管理用户及能力。"
+      },
+      "models": {
+        "title": "你的模型与额度",
+        "body": "按角色配置模型，使用本地 Ollama，并设置实例及账户预算。按需配置可选服务。"
+      },
+      "monitoring": {
+        "title": "LIA 随附 Grafana 仪表板",
+        "body": "费用与 token、延迟、错误、Pipeline、ReAct、HITL、连接器与基础设施：通过仪表板查看实例的运行情况。"
+      },
+      "alerts": {
+        "title": "为及时处理问题提供信号",
+        "body": "Prometheus、Grafana、Loki、Tempo 与 Alertmanager 汇集指标、日志、追踪与告警规则。根据部署配置接收方及各项服务。"
+      },
+      "dashboard_title": "运维人员可以看到什么",
+      "dashboard_note": "LIA 的 Grafana 视图：实例资源、token 用量、费用与缓存。提供 30 多个完整仪表板。",
+      "dashboard_overview": "应用健康状态",
+      "dashboard_costs": "Token、缓存与费用",
+      "docs_link": "查看架构与文档",
+      "code_link": "查看仪表板与告警规则",
+      "business_title": "构建企业内部助手的基础。",
+      "business_body": "准备会议、检索业务知识、跟进承诺：这些用途同样可以帮助企业同事。多用户网页应用、连接器、MCP、API 与可观测性提供了可定制、可集成到企业环境的基础。",
+      "business_scope": "根据组织需要调整来源、权限与使用规则。部署时仍需明确身份体系、业务集成与托管方式；开源代码与文档帮助你界定这些工作。",
+      "install_link": "安装自己的实例"
+    },
+    "context": {
+      "title": "今天提供的信息，明天也可能帮得上忙。",
+      "sub": "根据已启用的功能和获授权的信息来源，你的偏好、交流与承诺可以为下一次请求提供参考。",
+      "memory": {
+        "title": "你的参考信息",
+        "body": "可查阅、可修正的偏好、记忆、规则与知识。"
+      },
+      "people": {
+        "title": "你的人际关系",
+        "body": "人物、交流与承诺，帮助你准备下一次联系。"
+      },
+      "commitments": {
+        "title": "你的下一步",
+        "body": "来自授权来源的约会、项目与待跟进事项。"
+      },
+      "preferences": {
+        "title": "你的选择",
+        "body": "风格、兴趣、来源与允许主动帮助的时间段。"
+      },
+      "center_title": "比如，再次见到 Claire 之前……",
+      "center_body": "关系功能汇集近期交流和待履行的承诺。在聊天中，利用可访问的资料准备会面；你对简洁回答的偏好，有助于突出重点。",
+      "respond": {
+        "title": "当你提出请求",
+        "body": "结合你的资料与检索到的信息，整理摘要。"
+      },
+      "anticipate": {
+        "title": "当 LIA 提出建议",
+        "body": "在授权来源与时间段内，提供有用的提示。"
+      },
+      "act": {
+        "title": "当你委托行动",
+        "body": "当流程要求时，由你检查并批准操作。"
+      },
+      "control": "查阅和修正记忆、限制来源、关闭主动帮助。LIA 的结论仍需核实。"
+    },
+    "home_meta": {
+      "title": "LIA — 串联你日常生活的个人助手",
+      "description": "LIA 将邮件、日历、文档与记忆相连，助你采取行动。设计于法国，开源、可自行托管，支持独立用户账户。"
+    },
+    "home_cta": {
+      "bubble": "你的日程和我，已经有话要聊了。",
+      "title": "从真正对你有用的事情开始。",
+      "subtitle": "准备项目、安排一天，或自行托管助手：了解 LIA，选择适合自己的使用方式。",
+      "button": "创建我的账户",
+      "note_beta": "BETA 注册受限，通过邮箱注册：先验证邮箱，再由管理员激活账户；演示实例会自动激活。可选服务取决于你的配置。",
+      "philosophy_link": "或者先了解我们的理念",
+      "install_link": "或安装自己的 LIA"
+    },
+    "home_product_demo": {
+      "meta_description": "同一段日常中的六个场景：Claire 的项目、个人 Radio、对 Marc 的承诺、电话、会议，以及与 Sarah 的晚餐。",
+      "choose_scene": "选择一个场景",
+      "steps": "演示步骤",
+      "steps_request": "你的请求",
+      "steps_context": "相关背景",
+      "steps_result": "具体结果",
+      "play": "播放演示",
+      "pause": "暂停演示",
+      "replay": "重新播放",
+      "difference": "这一流程能带来什么",
+      "example": "虚构示例",
+      "context": "LIA 汇集相关背景",
+      "illustrative": "示例场景 · 人物、数据和结果均为虚构。",
+      "sources": {
+        "space": "你的文档",
+        "mail": "你的邮件",
+        "meeting": "你的会议",
+        "calendar": "你的日历",
+        "commitment": "你的承诺",
+        "news": "新闻",
+        "routine": "你的例行任务",
+        "project": "你的项目",
+        "preferences": "你的偏好",
+        "approval": "你的确认",
+        "web": "网络",
+        "comparison": "研究",
+        "peer": "已连接的 LIA",
+        "scope": "获准的访问",
+        "transcript": "转写文本",
+        "notes": "待核对的笔记"
+      },
+      "scenes": {
+        "decision": {
+          "title": "Claire 的项目",
+          "summary": "把文档、最新邮件和会议内容放在一起，帮助做出同一个决定。",
+          "request": "帮我准备与 Claire 讨论 Atlas：项目资料写着 240 欧元，最新邮件却是 270 欧元。哪些信息需要确认？",
+          "source_1": "Atlas 项目资料 · 240 欧元",
+          "source_2": "最新邮件 · 270 欧元",
+          "source_3": "折扣 · 片段不明确",
+          "result_title": "与 Claire 会面，准备已就绪",
+          "result_1": "240 欧元",
+          "result_2": "270 欧元",
+          "result_3": "为 Claire 准备好两个问题：“Atlas 适用的价格是 240 欧元还是 270 欧元？会议中提到的折扣确认了吗？”",
+          "evidence_1": "项目资料",
+          "evidence_2": "Claire 的最新邮件",
+          "guardrail": "差异仍待核对；没有选定价格，也没有发送消息。",
+          "difference": "不用逐份复制资料，就能接上项目的来龙去脉。LIA 关联可访问的来源，明确显示矛盾，而不会把尚未确认的价格当作定论。"
+        },
+        "day": {
+          "title": "我的 Radio",
+          "summary": "在同一个节目中，了解自己的日程和感兴趣的话题。",
+          "request": "在仪表盘中选择个人节目与世界新闻：Atlas、我的承诺，以及出行和文化话题。",
+          "source_1": "个人内容 + 世界新闻",
+          "source_2": "Claire 与对 Marc 的承诺",
+          "source_3": "出行与文化 · 已选来源",
+          "result_title": "你的节目安排",
+          "result_1": "Atlas：确认 Claire 的报价",
+          "result_2": "Marc：委员会提前到 14 点，原承诺为 15 点",
+          "result_3": "随后：出行和文化新闻，以及对应的来源文章",
+          "evidence_1": "",
+          "evidence_2": "",
+          "guardrail": "此处是虚构节目，没有音频播放。在应用中，只读取你授权的个人来源。",
+          "difference": "把日常事务与兴趣话题放进同一个节目。在应用中，可通过播放器收听，再用转写文本和来源文章找回值得关注的内容。"
+        },
+        "watch": {
+          "title": "我的承诺",
+          "summary": "把新邮件与先前的承诺放在一起核对。",
+          "request": "一项已配置的例行任务关注 Marc 发来的 Atlas 委员会相关新邮件。",
+          "source_1": "原承诺 · 15 点",
+          "source_2": "Marc 将委员会提前到 14 点",
+          "source_3": "已配置的关注任务 · 新邮件",
+          "result_title": "看清变化，审阅回复",
+          "result_1": "委员会提前到 14 点",
+          "result_2": "你原先承诺的是 15 点。做出新承诺之前，先核实提前后的时间。",
+          "result_3": "尚未发送的草稿：“你好，Marc。我已记下委员会会议改为 14:00。我原先承诺的时间是 15:00。这次会议你需要哪些材料？”",
+          "evidence_1": "",
+          "evidence_2": "",
+          "guardrail": "关注任务由你启用，按实例设置的频率检查；提醒不会替你作决定。",
+          "difference": "新交流带来了对原有承诺的影响，也带来一份可修改的回复草稿。回复前，你不必独自重新拼凑背景。"
+        },
+        "call": {
+          "title": "打个电话",
+          "summary": "结合你的要求准备电话，确认后拨打，并提供结果摘要。",
+          "request": "致电 Les Jardins 餐厅，询问周四晚上 8 点是否有两人桌，最好在室外。",
+          "source_1": "19 点后有空",
+          "source_2": "两人 · 露台",
+          "source_3": "拨打前确认",
+          "result_title": "拨打电话前的具体提案",
+          "result_1": "周四 · 20 点",
+          "result_2": "2 人",
+          "result_3": "询问周四晚上 8 点的两人桌，室外有位则优先选择。未经我确认，不接受其他时段。",
+          "evidence_1": "",
+          "evidence_2": "",
+          "guardrail": "电话服务配置完成后，通话在你确认后开始。",
+          "difference": "LIA 准备通话委托：接收方、电话号码与目标。确认前，你可以修改或拒绝。确认后通话开始，结果随后回到对话中。",
+          "arg_when": "时间",
+          "arg_party": "人数",
+          "arg_goal": "目标",
+          "arg_callee": "接收方",
+          "arg_phone": "电话号码",
+          "preview_html": "<div class=\"lia-card lia-draft\"><div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--indigo\"><span style=\"font-size:var(--lia-text-lg)\">📞</span></div><div class=\"lia-card-top__info\"><div class=\"lia-card-top__title\">Les Jardins (Demo)</div></div></div><div class=\"lia-d-row\"><span class=\"material-symbols-outlined\">phone</span><span><strong>通话对象</strong>：Les Jardins (Demo)</span></div><div class=\"lia-d-row\"><span class=\"material-symbols-outlined\">phone</span><span><strong>电话</strong>：+1 202 555 0100</span></div><div class=\"lia-d-row\"><span class=\"material-symbols-outlined\">info</span><span><strong>目标</strong>：询问周四晚上 8 点的两人桌，室外有位则优先选择。未经我确认，不接受其他时段。</span></div></div>"
+        },
+        "research": {
+          "title": "我的会议",
+          "summary": "在纪要中保留决策、行动项和需要核对的片段。",
+          "request": "根据转写文本整理我与 Claire 的 Atlas 会议纪要，并保留折扣部分的不明确片段。",
+          "source_1": "Atlas 会议 · Claire",
+          "source_2": "提及的价格 · 270 欧元",
+          "source_3": "折扣 · 表述不明确",
+          "result_title": "可以修正的会议纪要",
+          "result_1": "按会议提及的 270 欧元继续比较，尚未作出最终批准。",
+          "result_2": "与 Claire 澄清折扣条件。",
+          "result_3": "折扣片段仍不明确：回看转写文本，修正纪要。",
+          "evidence_1": "查阅的来源",
+          "evidence_2": "项目要求",
+          "guardrail": "这是一份待核对的虚构摘要；此处不会创建任务、建立索引或生成附件。",
+          "difference": "让会议变成可用的工作文档，行动项和不确定之处一目了然。在应用中，你可以修正纪要并导出 PDF；后续检索需要先启用索引并完成索引处理。"
+        },
+        "relay": {
+          "title": "与 Sarah 共进晚餐",
+          "summary": "通过经同意共享的空闲时段，准备一份邀请。",
+          "request": "帮我找一个明晚与 Sarah 在 Les Jardins 吃饭的时间，准备邀请让我审阅。",
+          "source_1": "Sarah · 已接受连接，同一实例",
+          "source_2": "仅限获准共享的空闲时段",
+          "source_3": "你的日历 · 明天 19:30 空闲",
+          "result_title": "邀请草稿，等你审阅",
+          "result_1": "明天 · 19:30",
+          "result_2": "你和 Sarah · 在已查询的时段内均有空",
+          "result_3": "尚未发送的草稿：“你好，Sarah。明天 19:30 在 Les Jardins，你方便吗？”没有预订餐桌，也没有占用任何日历时段。",
+          "evidence_1": "共同空闲时间",
+          "evidence_2": "共享的空闲时段",
+          "guardrail": "连接须在同一实例内被接受；不会获得对 Sarah 全部数据的访问权。",
+          "difference": "在这个示例中，最近关于 Les Jardins 的交流优先于早先对 Verdi 的偏好。双方助手核对获授权的空闲时间，各自使用自己的账户和数据；是否邀请，由你决定。"
+        }
+      },
+      "result_label": "可供审阅的成果",
+      "card_details": "打开项目详情",
+      "document_name": "会议纪要 · Atlas 项目",
+      "document_format": "待审阅和修正的草稿 · 虚构示例",
+      "approval_hint": "试试确认操作：此演示不会拨打电话。",
+      "approval_confirmed": "已演示确认。在应用中，电话可在此后开始；本演示未执行任何操作。",
+      "approval_cancelled": "已演示拒绝。未拨打任何电话。",
+      "approval_reset": "重新查看提案",
+      "approval_edited": "修改指令示例。在应用中，LIA 会准备新的草稿；此处的预览仍为虚构示例，不会拨打电话。",
+      "explore_hint": "选择一个场景，查看请求、上下文和结果。",
+      "meeting_decisions": "后续决策",
+      "meeting_actions": "记录的行动项",
+      "meeting_uncertainty": "待核对的片段"
+    },
+    "home_feature_descriptions": {
+      "meetings": "在应用中录制会议，然后审阅由已配置引擎准备的结构化纪要。你可以修正决定和讨论过的任务，下载 PDF 分享，或接收到自己的邮箱。缺失信息和无法归属的信息应保留标记，仍需审阅。内容成功索引到已启用的知识空间后，LIA 可在对话中再次检索。处理费用会显示；功能是否可用取决于实例启用的能力和服务。",
+      "live_voice": "使用你的 Gemini Live、OpenAI 或 ElevenLabs API 密钥，与 LIA 进行全双工对话，边说边思考。在委派模式下，请求使用对话引擎、上下文与操作控制；直接模式使用获授权的读取工具。模型、声音、插话方式和委派能力，包括并行执行，因服务商而异。可用性与费用取决于已配置的服务。",
+      "telephony": "配置好你的 ElevenLabs 电话连接器后，LIA 可以替你联系他人、询问问题或预约时间。通话前，由你确认接收方、电话号码与目标；结束后，摘要会回到对话中。通话委托要求 LIA 不承诺意外支出，并将备选方案带回供你决定。选择后续行动前，请查阅结果。可用性与费用取决于已配置的服务。"
     }
   },
   "maps": {
@@ -12912,7 +13840,7 @@
     "consolidateNow": "整理",
     "consolidating": "整理中…",
     "consolidateNowTooltip": "立即强制整理（去重、层级晋升、置信度更新）。需要几秒钟。",
-    "consolidatedSuccess": "{{s}}秒内应用 {{n}} 个更改——刷新列表查看效果。",
+    "consolidatedSuccess": "整合在 {{s}} 秒内完成——日志有 {{n}} 处更改。",
     "consolidatedNoop": "无需更改——你的日志已经井井有条（{{s}}秒）。",
     "consolidatedQuota": "LLM 配额已超出——请稍后再试。",
     "consolidatedError": "手动整理失败。",
@@ -12921,6 +13849,7 @@
     "portraitNeverCompiled": "尚未编译",
     "portraitFormatFull": "完整版",
     "portraitFormatBrief": "简洁版",
+    "portraitLoadError": "无法加载画像。请刷新页面后重试。",
     "portraitTip": "画像是一个活的综合体。要更正它：标记问题、编辑 L3 条目，或触发整理。",
     "provenance": {
       "compiled_from": "编写依据：{{list}}。",
@@ -13087,9 +14016,9 @@
         "body": "<h2>隐私设计</h2><p>LIA从一开始就以数据保护为基本原则来设计，而非事后补充。</p><h2>Fernet对称加密</h2><p><strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）通过 <code>encrypt_data()</code> 保护 OAuth 令牌、连接器和 MCP 凭据及指定存储字段。服务在需要时解密这些值。选择性加密并不覆盖每个个人字段：对话消息以数据库文本保存。实例运营者控制密钥和数据库访问。</p><h2>最小化数据收集</h2><p>LIA仅收集运行所需的最少数据：</p><ul><li>个人资料信息（姓名、邮箱、偏好设置）</li><li>保存在你的实例中的对话历史</li><li>服务连接令牌（加密）</li><li>采用化名标识符的使用指标</li></ul><h2>运营者与配置的服务商</h2><p>运营者可能具有对存储数据的技术访问权限。配置的模型接收问题及有用上下文，如所选记忆或文档摘录；语音、图像和其他连接服务接收相应功能所需的数据。其隐私、数据保留及可能用于训练的政策适用。本地存储与访问控制不能替代服务商协议和设置。</p><h2>删除与级联</h2><p>账户删除流程清理对话、记忆、连接器、文档及关联存储中的个人内容。账务记录保留；删除步骤可为账务联系保留姓名和邮箱，最终擦除删除账户数据行。审计或诊断记录可能按其政策保留身份信息，备份遵循运营者的保留政策。重新激活不会恢复已清理的内容。</p><h2>安全会话与Cookie</h2><p>会话Cookie配置了<code>HttpOnly</code>、<code>Secure</code>（生产环境）和<code>SameSite=lax</code>属性。默认会话持续时间为7天，选择\"记住我\"可延长至30天。一次性令牌在首次使用后通过Redis黑名单机制失效。</p><h2>外部内容防护</h2><p>从外部来源（邮件、网页、文档）获取的内容在注入提示前标记为<code>UNTRUSTED</code>，并进行可配置封装。web_fetch工具限制为每个用户在60秒窗口内最多10次调用，以防止滥用。</p><h2>经过过滤的运行日志</h2><p>遵循 <strong>OWASP 日志备忘录</strong>，debug 级别以上的一行日志只携带<strong>事实</strong>——数量、长度、标识符、错误代码、URL 的主机名——绝不携带某人写下的文字，或模型关于他们写下的文字：没有搜索内容，没有兴趣，没有文件、标签或空间的名称，也没有浏览过的网页。</p><p>这条规则<strong>按值</strong>核查，而不是按字段名：一项测试会读取代码中的每一个日志调用，拒绝预览或任何由内容派生的值，无论它叫什么名字。错误信息所<strong>引用</strong>的内容——被 PostgreSQL 拒绝的值、校验的输入——会在写入日志之前被移除，数据库错误以其事实描述：代码、约束、表。服务商密钥在每个被记录的地址中都会被遮蔽。指标和追踪遵循同一规则：它们按模式记录所走的路由，绝不记录地址中包含的名字或搜索词。有两个限制照实说明：外部服务以未知格式返回的错误仍可能引用某个值；debug 级别（生产环境中关闭）会保留更多内容。</p><h2>数据可移植性 (v1.9.1)</h2><p>LIA允许每个用户从设置 > 功能中<strong>导出个人消费数据</strong>为CSV格式。三种导出类型：LLM消费（每次调用的Token和成本）、Google API消费和汇总摘要。安全性：<code>user_id</code>在服务器端强制设置——不暴露任何参数（IDOR防护）。</p><h2>恢复经过验证的备份</h2><p>生产部署提供夜间备份和恢复检查工具，默认保留 7 天、4 周和 6 个月，由运营者启用并监控。检查会将最新转储恢复到临时数据库，并与源数据库比较结构版本和行数。实际恢复范围仍取决于成功备份和所选策略。</p><h2>一份完整的记录，而不是一份样本</h2><p>三本自动维护的登记簿分别说明 LIA 为你<strong>做</strong>了什么、为回答你而<strong>查阅</strong>了什么，以及她<strong>自行着手</strong>做了什么。它们不承载任何内容：一次查阅只保留能力本身——「你的日程」——绝不保留搜索内容，因为写下来就等于抄录了这本登记簿正是为其问责而存在的那份数据。</p><p>你从<strong>登记册</strong>页面下载的记录是<strong>完整</strong>的。它此前带有行数上限：那是一种真实的保护，因为整份文档要在 Raspberry Pi 上于内存中拼装——但它被施加在了错误的变量上。稀缺的是内存；被限制的却是真相。服务端游标如今限制的是缓冲区：无论数据量多大，文件都承载你的筛选条件所指定的全部内容，文件头写明确切行数与生成时刻，并在你的浏览器接受时顺带压缩。</p>"
       },
       "observability": {
-        "title": "616个Prometheus指标、31个Grafana仪表板和Langfuse追踪",
-        "excerpt": "LIA提供企业级可观测性：616 指标、Grafana仪表板、通过Langfuse的LLM追踪，以及带处置指南的邮件告警。",
-        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 616个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能，按路由模板打标签：绝不出现名字或搜索词</li><li><strong>日志</strong> — 通过 structlog 生成结构化 JSON 日志，由 Grafana Alloy 收集并集中在 Loki 中：运行日志会过滤个人内容，debug 模式可能保留更多细节</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪，按路由模板命名，绝不使用具体地址；以及通过Langfuse的LLM追踪</li></ul><h2>43个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。43个模块覆盖的领域包括：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、Live 模式、电台、RAG空间、OAuth、MCP、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话、会议、workboard、效果登记册和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>31个Grafana仪表板</h2><p>LIA提供31个编号01至31的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony、briefing、product-value、meetings、effect-ledger、workboard、live 和 radio。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 29 项关键告警组成的核心——其中包括 API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成追踪每次LLM调用——消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文——另有七个自有的Prometheus指标，跟踪提示版本、评估分数、A/B 变体、追踪深度以及智能体之间的交接。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；警报与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。此后，诊断不再只凭一个数字：按事件类型声明的配方规定要读取哪些细分指标和日志事件，证据包在诊断时收集并去除个人数据，无法访问的来源被声明为不可用而非当作沉默，模型读到的内容会展示在判定下方。</p><h2>统计结果，而非尝试</h2><p>v1.38.3 重新审视了一个计数器。统计抵达服务商的调用次数，是关于服务商的事实——可一旦这些调用会被重试，它就成了错误的分母：被重试救回的失败会抬高错误率，尽管什么都没丢失。如今第二个计数器按逻辑操作各记一行，重试折叠其中，回答运维人员唯一会据以行动的问题：调用方拿到结果了吗？第三个计数器则说明限流对每次尝试做了什么，因为「预算太小」与「Redis 宕机」在布尔值里毫无区别，却需要相反的处置。</p><p>最近的一课，关乎选择度量什么。自主循环有迭代次数和时长的计数器，却唯独没有度量真正增长的东西：每一步交付给模型的提示词。在生产代码上实测，第一次迭代是 2.3k tokens，第九十次是 112k——因为每个工具结果都留在模型会反复重读的对话里。现在有两个直方图记录交付体积及其占模型上下文窗口的比例，由状态归约器本就维护的那个带记忆化的计数器供数，因此这项度量在热路径上不产生额外开销。它们并未附带任何压缩策略，这是刻意的：一个对从未观测过的量采取行动的系统，优化的只是一个猜测。</p><p>同样的原则也追上了工具成功率。工具失败的方式是<em>返回</em>一个失败，而不是抛出异常，而计数器只看异常：成功率从结构上就恒为 1.0，读取它的两条告警根本无法触发。如今由唯一的谓词决定什么算成功，供登记簿、指标和 ReAct 循环共同使用——显示的成功率下降了，因为它终于说了真话。</p><h2>互相关联的信号</h2><p>一个指标、一行日志和一条追踪讲述的是同一个请求——前提是你能从一个跳到另一个。在 LIA 中，一行日志可以打开其请求的追踪，一条追踪可以打开它的日志和指标，一个延迟点可以打开产生它的那个具体样例。每一个链接在修复之前都先在生产环境中测量过。承载这些信号的链路本身也受到监控——如果日志在途中丢失，会有告警提醒——所有仪表盘都遵循同一个约定：一周的历史，一个共用菜单。</p>"
+        "title": "618个Prometheus指标、31个Grafana仪表板和Langfuse追踪",
+        "excerpt": "LIA提供企业级可观测性：618 指标、Grafana仪表板、通过Langfuse的LLM追踪，以及带处置指南的邮件告警。",
+        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 618个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能，按路由模板打标签：绝不出现名字或搜索词</li><li><strong>日志</strong> — 通过 structlog 生成结构化 JSON 日志，由 Grafana Alloy 收集并集中在 Loki 中：运行日志会过滤个人内容，debug 模式可能保留更多细节</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪，按路由模板命名，绝不使用具体地址；以及通过Langfuse的LLM追踪</li></ul><h2>43个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。43个模块覆盖的领域包括：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、Live 模式、电台、RAG空间、OAuth、MCP、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话、会议、workboard、效果登记册和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>31个Grafana仪表板</h2><p>LIA提供31个编号01至31的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony、briefing、product-value、meetings、effect-ledger、workboard、live 和 radio。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 29 项关键告警组成的核心——其中包括 API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成追踪每次LLM调用——消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文——另有七个自有的Prometheus指标，跟踪提示版本、评估分数、A/B 变体、追踪深度以及智能体之间的交接。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；警报与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。此后，诊断不再只凭一个数字：按事件类型声明的配方规定要读取哪些细分指标和日志事件，证据包在诊断时收集并去除个人数据，无法访问的来源被声明为不可用而非当作沉默，模型读到的内容会展示在判定下方。</p><h2>统计结果，而非尝试</h2><p>v1.38.3 重新审视了一个计数器。统计抵达服务商的调用次数，是关于服务商的事实——可一旦这些调用会被重试，它就成了错误的分母：被重试救回的失败会抬高错误率，尽管什么都没丢失。如今第二个计数器按逻辑操作各记一行，重试折叠其中，回答运维人员唯一会据以行动的问题：调用方拿到结果了吗？第三个计数器则说明限流对每次尝试做了什么，因为「预算太小」与「Redis 宕机」在布尔值里毫无区别，却需要相反的处置。</p><p>最近的一课，关乎选择度量什么。自主循环有迭代次数和时长的计数器，却唯独没有度量真正增长的东西：每一步交付给模型的提示词。在生产代码上实测，第一次迭代是 2.3k tokens，第九十次是 112k——因为每个工具结果都留在模型会反复重读的对话里。现在有两个直方图记录交付体积及其占模型上下文窗口的比例，由状态归约器本就维护的那个带记忆化的计数器供数，因此这项度量在热路径上不产生额外开销。它们并未附带任何压缩策略，这是刻意的：一个对从未观测过的量采取行动的系统，优化的只是一个猜测。</p><p>同样的原则也追上了工具成功率。工具失败的方式是<em>返回</em>一个失败，而不是抛出异常，而计数器只看异常：成功率从结构上就恒为 1.0，读取它的两条告警根本无法触发。如今由唯一的谓词决定什么算成功，供登记簿、指标和 ReAct 循环共同使用——显示的成功率下降了，因为它终于说了真话。</p><h2>互相关联的信号</h2><p>一个指标、一行日志和一条追踪讲述的是同一个请求——前提是你能从一个跳到另一个。在 LIA 中，一行日志可以打开其请求的追踪，一条追踪可以打开它的日志和指标，一个延迟点可以打开产生它的那个具体样例。每一个链接在修复之前都先在生产环境中测量过。承载这些信号的链路本身也受到监控——如果日志在途中丢失，会有告警提醒——所有仪表盘都遵循同一个约定：一周的历史，一个共用菜单。</p>"
       },
       "prompt-engineering": {
         "title": "版本化提示系统：155个提示作为代码管理",
@@ -13913,13 +14842,15 @@
       "radio": "个人电台",
       "radio_description": "按需制作的个人电台，使用本人的语言，内容来自实例收集的新闻和本人的一天。关闭后电台接口停止服务，新闻编辑部暂停；设置和已添加的网站会保留。",
       "skill_library": "技能库",
-      "skill_library_description": "在技能门户中搜索，从技能的 GitHub 仓库安装并更新它。关闭后技能库不可用；已安装的技能会保留并继续运行。"
+      "skill_library_description": "在技能门户中搜索，从技能的 GitHub 仓库安装并更新它。关闭后技能库不可用；已安装的技能会保留并继续运行。",
+      "application_tools": "LIA 设置与管理",
+      "application_tools_description": "允许 LIA 查询应用信息，并在确认后执行所请求的更改。管理功能仍仅限管理员使用。"
     }
   },
   "showroom": {
-    "title": "引导任务",
-    "request": "帮我安排明天上午。我想去跑步、回复 Atlas 并发送报价单。准备好这些更改，但未经我批准不要动任何东西。",
-    "start": "开始任务",
+    "title": "看看 LIA 能为你做些什么",
+    "request": "准备我明天上午 9 点与 Claire 的 Atlas 会议。找出我对她的承诺，核对数字并起草回复，也建议一个时间让我审阅资料。",
+    "start": "探索这个情境",
     "continue": "继续",
     "restart": "重新演示任务",
     "honesty": {
@@ -13931,10 +14862,10 @@
     "phases": {
       "ready": "准备开始",
       "reading_sources": "读取数据源",
-      "planning": "检测冲突并规划",
+      "planning": "上下文带来的帮助",
       "email_decision": "你的决定：电子邮件回复",
       "calendar_decision": "你的决定：日历变更",
-      "receipt": "任务回执"
+      "receipt": "结果与你的决定"
     },
     "sources": {
       "title": "已查询的数据源",
@@ -13958,9 +14889,9 @@
       "quote_deadline": "报价单期限很紧"
     },
     "proposals": {
-      "email_subject": "回复：Atlas 检查点 — 09:30 可以",
-      "email_body": "你好 Emma，09:30 对我来说没问题。到时见！",
-      "calendar_title": "把跑步移出雨天时段",
+      "email_subject": "Atlas——方案比较与待确认价格",
+      "email_body": "Claire，你好！为明天上午 9 点的会议，我准备了之前承诺的方案比较。你的新方案标注每月 270 欧元，保存的资料则是每月 240 欧元。能否确认价格并说明有哪些变化？谢谢！",
+      "calendar_title": "安排我的准备时间",
       "calendar_reason": "雨下到 09:00 — 已提议无雨时段",
       "quote_title": "受保护时段：完成 Atlas 报价单",
       "from": "从",
@@ -13986,20 +14917,20 @@
     "receipt": {
       "title": "模拟回执",
       "reads_label": "已读取",
-      "reads_value": "4 个虚构数据源（邮件、日历、任务、天气）",
+      "reads_value": "关系、Atlas 文档、最新邮件和日历——均为虚构数据。",
       "proposed_label": "已准备",
-      "proposed_value": "1 份邮件草稿、1 项日历变更、1 个受保护工作时段",
+      "proposed_value": "一份资料、一封给 Claire 的回复，以及你个人日历中的建议时段。",
       "email_label": "邮件决定",
       "calendar_label": "日历决定",
       "refusal_label": "拒绝",
       "external_label": "外部操作",
-      "email_applied": "邮件回复已批准 — 已应用于虚构工作区",
-      "email_edited": "邮件回复已修改并应用于虚构工作区",
-      "email_refused": "邮件回复已拒绝 — 未应用任何内容",
-      "calendar_applied": "日历变更已批准 — 已应用于虚构工作区",
-      "calendar_refused": "日历变更已拒绝 — 未应用任何内容",
+      "email_applied": "在模拟中批准了回复；未发送真实邮件。",
+      "email_edited": "演示了修改请求；未生成新草稿，也未发送。",
+      "email_refused": "拒绝了发送；已准备的内容仍可查看。",
+      "calendar_applied": "在模拟中批准了个人时段；未更改真实日历。",
+      "calendar_refused": "拒绝了该时段；你的日历保持不变。",
       "refusal_respected": "你的拒绝得到了尊重：拒绝是一种结果，而不是错误。",
-      "no_external": "没有发生任何外部操作 — 没有任何内容离开此页面。"
+      "no_external": "此模拟未拨打真实电话、发送电子邮件或更改日历。"
     },
     "proof": {
       "open": "查看证据",
@@ -14027,10 +14958,10 @@
       "release": "查看发布版本",
       "install": "安装指南"
     },
-    "change_mission": "全部任务",
-    "proactive_intro": "LIA 主动出击 — 没有输入任何请求。",
+    "change_mission": "选择其他情境",
+    "proactive_intro": "LIA 主动带来的有用提醒",
     "picker": {
-      "subtitle": "六个合成任务，每个展示一项差异化机制。一切都在本页面本地运行 — 选择一个开始。"
+      "subtitle": "同一个人的六种日常情境：交流、承诺与偏好相互关联。选择一个任务，看看结果；只有需要执行的操作才会请求确认。"
     },
     "actions": {
       "title": "接下来？"
@@ -14041,9 +14972,9 @@
     },
     "m": {
       "overloaded_morning": {
-        "title": "超负荷的早晨",
-        "tagline": "四个数据源、两个冲突、两个决定 — 未经你批准不会应用任何更改。",
-        "mechanism": "编排 + 审批",
+        "title": "带着准备好的信息去交流",
+        "tagline": "Claire 的交流背景、相关文档与矛盾的报价：先整理有用的资料，再由你决定。",
+        "mechanism": "关系 · 来源 · 确认",
         "response": {
           "intro": "你的上午简直像个小战场：雨中的跑步、等回复的 Emma，还有一份不会自己写完的报价单。现在的情况是：",
           "chip_email_confirm": "已向 Emma 发送回复",
@@ -14061,13 +14992,13 @@
           "callout_body": "受保护时段在截止前为 Atlas 报价单预留了 45 分钟。",
           "closing": "剩下的只有跑步了 — 如果你听了我的建议，至少不会淋雨。"
         },
-        "note": "你刚看到的是：路由、约束下的规划和两次审批 — 与产品中相同的 HITL 组件。没有明确决定，什么都不会应用。"
+        "note": "关系视图汇集可访问的交流与承诺信息。聊天可以将其与文档、邮件联系起来；可用来源和结果仍需核查。这两项操作展示应用中的确认流程。"
       },
       "proactive_alert": {
-        "title": "LIA 先你一步",
-        "tagline": "无人提问：晨间扫描发现两个风险并给出解决方案。",
-        "mechanism": "主动性",
-        "request": "晨间扫描，07:05 — 有两件事需要你在 09:00 前关注。",
+        "title": "在合适的时机接上话题",
+        "tagline": "Marc 的回复到达了：LIA 将他的新请求与你的承诺关联起来，准备下一步。",
+        "mechanism": "条件例程 · 上下文",
+        "request": "你启用的例程检测到了 Marc 关于 Atlas 的回复。他的委员会会议提前到下午 2 点：新的截止时间值得留意。",
         "facts": {
           "rain_evening": "预计有强降雨",
           "run_evening": "跑步安排在",
@@ -14093,16 +15024,16 @@
           "reply_marc": {
             "phase": "你的决定：回复 Marc",
             "receipt_label": "回复 Marc",
-            "subject": "回复：方案 B — 同意",
-            "body": "你好 Marc，方案 B 对我可行。你会在 10:00 委员会之前收到细节。",
-            "applied": "回复 Marc 已批准 — 已应用到合成工作区",
-            "edited": "回复 Marc 已修改并应用到合成工作区",
-            "refused": "回复 Marc 已拒绝 — 未应用任何内容"
+            "subject": "Atlas——你下午 2 点的委员会会议",
+            "body": "Marc，你好！我看到委员会会议提前到了下午 2 点。我原定的交付时间是下午 3 点；我正在确认哪些内容可以提前，会尽快告知摘要何时可用。",
+            "applied": "在模拟中批准了回复；未发送真实邮件。",
+            "edited": "演示了修改请求；未生成新草稿，也未发送。",
+            "refused": "拒绝了回复；提醒仍可查看。"
           }
         },
         "receipt": {
-          "reads": "3 个合成数据源（天气、日历、收件箱）",
-          "proposed": "1 次日历移动、1 封邮件回复 — 均由 LIA 主动发起"
+          "reads": "例程、Marc 的最新消息与交流中记录的承诺——均为虚构数据。",
+          "proposed": "一条说明原因的提醒与一封待审阅的回复；没有日历修改。"
         },
         "response": {
           "intro": "趁你还在安睡，我先看了看你的一天：天气决定给你 18:00 的跑步捣乱，Marc 还在等你的回复 — 从周二等到现在，不过谁在数呢？",
@@ -14117,13 +15048,13 @@
           "kv_quiet_value": "22:00–07:00，绝不打扰",
           "closing": "我回到待命状态 — 明天 07:05 再聊，说好了，绝不提前。"
         },
-        "note": "这里没有人提出任何请求：计划扫描独自发现了这两个风险。扫描频率和免打扰时段都在设置里 — LIA 绝不会越界主动行动。"
+        "note": "条件例程按实例配置的频率检查受支持的来源，需先启用。访问权限、时间窗口、限制与来源都会影响可检测的信息。邮件回复仍遵循其确认策略。"
       },
       "memory_dinner": {
-        "title": "它替你记住",
-        "tagline": "一句简短请求，应用三项已记住的偏好 — 不会重复提问。",
-        "mechanism": "记忆 + 习惯",
-        "request": "帮我预订周五和 Sarah 的晚餐。",
+        "title": "与亲友找到共同的时间",
+        "tagline": "Sarah 分享了空闲时间：LIA 对照双方的时段，并参考最近的交流。",
+        "mechanism": "已授权的用户连接 · 记忆",
+        "request": "建议明晚与 Sarah 吃饭的安排。查看她向我分享的空闲时间，考虑她的偏好并起草邀请。",
         "facts": {
           "sarah_veg": "Sarah 是素食者 — 三月起记住",
           "last_dinner": "上次一起晚餐：Verdi — 她非常喜欢",
@@ -14140,26 +15071,26 @@
           "invite_sarah": {
             "phase": "你的决定：发给 Sarah 的消息",
             "receipt_label": "给 Sarah 的消息",
-            "subject": "周五在 Verdi 晚餐？",
-            "body": "嗨 Sarah！Verdi，周五 20:00 — 他们的素食菜单很棒。要我预订吗？",
-            "applied": "给 Sarah 的消息已批准 — 已应用到合成工作区",
-            "edited": "给 Sarah 的消息已修改并应用到合成工作区",
-            "refused": "给 Sarah 的消息已拒绝 — 未应用任何内容"
+            "subject": "明晚 7:30 去 Les Jardins 吗？",
+            "body": "Sarah，你好！明晚 7:30 看起来我们都有空。你之前提议换个地方去 Les Jardins，现在还想去吗？预订前我会确认素食选项和是否有空位。",
+            "applied": "在模拟中批准了邀请；未发送真实消息。",
+            "edited": "演示了修改请求；未发送邀请。",
+            "refused": "拒绝了邀请；未发送任何内容。"
           },
           "create_event": {
             "phase": "你的决定：日历事件",
             "receipt_label": "日历",
-            "tool": "把晚餐加入周五",
+            "tool": "在我的日历中记录建议安排",
             "what": "事件",
-            "what_value": "与 Sarah 的晚餐 — Verdi",
-            "when": "周五",
-            "applied": "晚餐已加入周五 20:00 — 已应用到合成日历",
-            "refused": "未创建事件 — 未做任何更改"
+            "what_value": "与 Sarah 的建议晚餐安排——待确认",
+            "when": "明天",
+            "applied": "已在你的虚构日历中记录该建议；没有 Sarah 日历的写入权限。",
+            "refused": "未创建日程；你的日历保持不变。"
           }
         },
         "receipt": {
-          "reads": "4 个合成数据源（记忆、习惯、日历、联系人）",
-          "proposed": "1 份消息草稿、1 个日历事件 — 基于已记住的偏好构建"
+          "reads": "记忆、共享的空闲时间、你的日历和最近的交流——均为虚构数据。",
+          "proposed": "一封邀请和你个人日历中的建议日程；没有预订餐厅。"
         },
         "response": {
           "intro": "周五和 Sarah 吃晚餐？小事一桩。Verdi，20:00 — 她是素食者，这我可没忘，而且你周五晚上正好有空。一切就绪，只差你点头。",
@@ -14176,13 +15107,13 @@
           "chip_event_cancel": "日历未变动 — 由你决定",
           "closing": "最难的部分还在后头：熬到周五。"
         },
-        "note": "一切都基于已记住的偏好安排，无需再问一遍。LIA 记住的内容都可以在设置中查看、编辑和删除。"
+        "note": "双方使用同一实例并接受连接。每个人选择共享哪些字段，也可以撤销权限。此处查看默认日历未来 48 小时的空闲时间，建议日程只属于当前用户。"
       },
       "phone_booking": {
-        "title": "它替你打电话",
-        "tagline": "一次真实世界的行动：准备好、说明白 — 未经你同意绝不拨号。",
-        "mechanism": "外呼电话",
-        "request": "帮我们订周六晚上 Chez Léon 的位子 — 你打电话吧，我总没时间。",
+        "title": "委托通话，掌握授权范围",
+        "tagline": "清楚看到接听方、号码和目标，在授权通话前先审阅。",
+        "mechanism": "呼出电话 · 应用草稿",
+        "request": "给 Les Jardins 打电话，询问周四晚上 8 点是否有两人餐位，最好在露台。未经我同意，不要确认其他时间。",
         "facts": {
           "birthday": "筹备生日晚餐 — 周六",
           "leon": "Chez Léon — 已保存电话号码",
@@ -14202,13 +15133,13 @@
             "callee_value": "Chez Léon",
             "goal": "目标",
             "goal_value": "两人桌 — 周六 20:00",
-            "applied": "通话已批准并完成 — 摘要已存入合成日志",
-            "refused": "未拨打电话 — 你的拒绝是一种决定，而不是错误"
+            "applied": "在模拟中批准了通话；下方摘要为虚构示例。",
+            "refused": "拒绝了通话；未拨打号码。"
           }
         },
         "receipt": {
-          "reads": "3 个合成数据源（任务、联系人、日历）",
-          "proposed": "1 次外呼电话 — 以你的明确批准为前提"
+          "reads": "联系人、你的日历与指令——均为虚构数据。",
+          "proposed": "一份可在确认前审阅和修改的通话委托。"
         },
         "response": {
           "intro_confirm": "搞定 — 趁你忙着更重要的事，我给 Chez Léon 打了电话。一分四十秒的通话，周六 20:00 两人桌，连生日都替你提了。",
@@ -14227,13 +15158,13 @@
           "transcript_3": "LIA：太好了，谢谢 — 周六见。",
           "closing_confirm": "你只需要准时出现。"
         },
-        "note": "每次外呼都会先展示目标和脚本 — 没有批准，就不会拨号。"
+        "note": "呼出电话需要实例配置 ElevenLabs。委托与确认流程界定请求范围；费用限制是给助手的指令，并非对其行为或预订结果的保证。"
       },
       "daily_briefing": {
-        "title": "你的上午，已消化好",
-        "tagline": "收件箱、日历、天气和任务，汇成一条丰富易读的回复。",
-        "mechanism": "富文本回复",
-        "request": "每日简报，07:00 — 你的一天已准备就绪。",
+        "title": "听与你相关的个人电台",
+        "tagline": "你的日程、承诺与所选话题，按需组成个人节目。",
+        "mechanism": "个人电台 · 所选来源",
+        "request": "准备我的个人电台：先讲今天的实用信息和我对 Claire、Marc 的承诺，再介绍我关注话题的新闻。",
         "facts": {
           "new_mails": "5 封新邮件 — 1 封需要你：Claire，关于合同",
           "meetings": "3 场会议 — 第一场在",
@@ -14257,8 +15188,8 @@
           }
         },
         "receipt": {
-          "reads": "4 个合成数据源（收件箱、日历、任务、天气）",
-          "proposed": "1 个专注时段 — 简报本身不做任何更改"
+          "reads": "日程、承诺与电台选择——均为虚构数据。",
+          "proposed": "一份个人节目预览；此处不生成音频或调用提供商生成内容。"
         },
         "response": {
           "intro": "早上好！趁你的咖啡变凉，看看你的一天：五封邮件里只有一封真正需要你，三场会议里有两场撞在一起，还有一片湛蓝的天空……供你在会议室里欣赏。",
@@ -14275,13 +15206,13 @@
           "chip_focus_cancel": "未预留时段 — 由你决定",
           "closing": "先回 Claire — 其余的可以等，反正它们习惯了。"
         },
-        "note": "这份简报是 LIA 原生的富文本 HTML 渲染：与真实回复相同的排版 — 在本页面本地生成，未调用任何模型。"
+        "note": "个人电台在会话期间按需准备，使用受支持的来源和已配置的声音。这里仅提供文字预览，不播放音频，也不展示实时新闻或语音质量。"
       },
       "config_tour": {
-        "title": "几次点击，随你定制",
-        "tagline": "语气、主动性、语言、连接 — 全部在界面里设置，毫无技术门槛。",
-        "mechanism": "应用内设置",
-        "request": "把你的回复改短一些，而且只在早上联系我。",
+        "title": "找回会议中作出的决定",
+        "tagline": "已录制的会议形成可修改的纪要和可分享的文档。",
+        "mechanism": "会议 · 纪要 · 文档",
+        "request": "整理与 Claire 的 Atlas 会议纪要，区分决定、提到的行动和待确认事项。我想修改纪要并导出 PDF。",
         "sources": {
           "personality": "设置 — 个性",
           "proactivity": "设置 — 主动性",
@@ -14321,8 +15252,8 @@
           }
         },
         "receipt": {
-          "reads": "4 个设置区域（个性、主动性、语言、连接）",
-          "proposed": "2 个一键开关 — 毫无技术门槛"
+          "reads": "转写、模板与参与者——均为虚构数据。",
+          "proposed": "一份可审阅的纪要预览；此处不录制、不导出，也不进行索引。"
         },
         "response": {
           "intro": "你的请求只有一句话；答案只有两个开关。它们就在这里：",
@@ -14334,7 +15265,7 @@
           "chip_mornings_cancel": "主动性计划未变 — 由你决定",
           "closing": "两次点击就能重新设定我……不知道该佩服你还是该委屈。"
         },
-        "note": "没有动过任何配置文件：你看到的一切都在界面里设置 — 撤销也同样简单。"
+        "note": "录制和转录需要相应权限与已配置的引擎，纪要也可能存在错误。之后在聊天中检索纪要，取决于索引是否启用并完成；本预览不执行索引。"
       }
     },
     "back_home": "返回首页",
@@ -14392,6 +15323,132 @@
         "disabled": "未启用",
         "unavailable": "演示实例未响应，目前无法列出它提供的功能。"
       }
+    },
+    "personal": {
+      "cancel": "遵从你的拒绝——不执行操作",
+      "config_tour": {
+        "closing": "在应用中，你可以修改纪要、更换模板，并导出 PDF 以便分享。",
+        "fact_1": "转录文本提到每月 270 欧元，但有关折扣的片段不清晰。",
+        "fact_2": "基于转录文本，整理摘要、决定、指派的行动与待解决问题。",
+        "fact_3": "此片段已识别你和 Claire；责任人仅限于其中明确提及的人。",
+        "finding_1": "不清晰的片段仍被标出，纪要需审阅和修正。",
+        "finding_2": "纪要中提到一项行动，不等于已经自动创建任务或发送邮件。",
+        "intro": "这是待审阅的纪要，明确作出的决定与提到的行动、不确定信息分别列出。",
+        "label_1": "记录的决定",
+        "label_2": "提到的行动",
+        "label_3": "待确认",
+        "source_1": "已完成转录的会议",
+        "source_2": "会议纪要模板",
+        "source_3": "已识别的参与者",
+        "value_1": "以每月 270 欧元继续比较，最终批准尚未作出。",
+        "value_2": "Claire 需要确认折扣条件；不会自动创建任务。",
+        "value_3": "有关折扣的片段不清晰，请核对转录文本并修改文档。"
+      },
+      "confirm": "确认演示——不执行真实操作",
+      "daily_briefing": {
+        "closing": "在实际的个人电台中，你可以选择来源、声音和预算，伴随转录文本收听节目。",
+        "fact_1": "明天上午 9 点与 Claire 开会；Atlas 方案比较仍需审阅。",
+        "fact_2": "Marc 将会议提前到下午 2 点，原定下午 3 点交付的摘要需要留意。",
+        "fact_3": "基于本次会话所选来源，关注出行与文化。",
+        "finding_1": "节目将你的个人信息与关注话题联系起来，不取决于每日简报显示了哪些板块。",
+        "finding_2": "收听节目不会发送邮件，也不会修改日历。",
+        "intro": "这是你的节目预览，结合了接下来的安排和你选择的话题。",
+        "label_1": "首先，你的日程",
+        "label_2": "然后，你的承诺",
+        "label_3": "最后，你的话题",
+        "source_1": "你的日程",
+        "source_2": "你的承诺",
+        "source_3": "你的电台话题与来源",
+        "value_1": "明天上午 9 点见 Claire：审阅方案比较并确认价格。",
+        "value_2": "Marc：查看新的截止时间，决定如何回复。",
+        "value_3": "出行与文化方面的精选内容，附可查看的来源。"
+      },
+      "edit": "已请求修改——未发送任何内容",
+      "edit_note": "在应用中，这条指令会用于准备新的草稿供你审阅。此处仅演示流程：不调用模型，也不发送原草稿。",
+      "memory_dinner": {
+        "closing": "LIA 帮助协调家人、朋友或同事；已接受的连接与所选权限始终是共享的基础。",
+        "fact_1": "Sarah 是素食者；你之前的笔记推荐 Verdi。",
+        "fact_2": "使用同一 LIA 实例；已获准查看未来 48 小时的空闲时间，明天晚上 7 点起有空。",
+        "fact_3": "你明天晚上 7:30 起有空。",
+        "fact_4": "Sarah 提议换个地方，去 Les Jardins；她的联系地址可用。",
+        "finding_1": "最近的交流建议了 Les Jardins，不能仅凭旧的 Verdi 偏好做决定。",
+        "finding_2": "明晚 7:30 符合共享的空闲时间，但这不会预订餐厅，也不会修改 Sarah 的日历。",
+        "intro": "明晚 7:30 是双方都有空的时段。我参考了 Sarah 最近的建议，而不是旧的 Verdi 笔记。",
+        "label_1": "时间",
+        "label_2": "需考虑的偏好",
+        "label_3": "共享权限范围",
+        "source_1": "可修改的记忆",
+        "source_2": "Sarah · 已接受的共享连接",
+        "source_3": "你的日历",
+        "source_4": "与 Sarah 最近的交流",
+        "value_1": "根据查看到的空闲时间，明晚 7:30 合适。",
+        "value_2": "需要素食餐点；菜单选项和餐位仍需确认。",
+        "value_3": "只查看获准共享的空闲时间，不读取全部详情，也不修改 Sarah 的日历。"
+      },
+      "overloaded_morning": {
+        "closing": "你重新掌握交流的来龙去脉和需要提出的问题，并能区分已准备的内容与已执行的操作。",
+        "fact_1": "最近的交流：你承诺在会议前提供方案比较。",
+        "fact_2": "保存的产品资料标注每月 240 欧元。",
+        "fact_3": "新方案标注每月 270 欧元，却没有说明差异。",
+        "fact_4": "Atlas 会议在明天上午 9 点；你在 8:30 至 8:50 有空。",
+        "finding_1": "两个价格不一致：应请求确认，而不是随意选一个数字。",
+        "finding_2": "你承诺的方案比较，为资料准备和回复提供了明确目标。",
+        "intro": "这是为与 Claire 交流准备的资料。方案比较可供审阅，价格仍需确认。",
+        "label_1": "需要跟进",
+        "label_2": "需要核实",
+        "label_3": "已确定的会议",
+        "source_1": "关系 · Claire",
+        "source_2": "知识空间 · Atlas",
+        "source_3": "Claire 最新的邮件",
+        "source_4": "你的日历",
+        "value_1": "你在上次交流中向 Claire 承诺的方案比较。",
+        "value_2": "资料为 240 欧元，最新邮件为 270 欧元：较新的来源并没有解释差异。",
+        "value_3": "明天上午 9 点。8:30 至 8:50 的准备时段是另一项建议，由你决定。"
+      },
+      "phone_booking": {
+        "callee": "Les Jardins（演示）",
+        "closing": "在应用中，结果会返回到对话中，便于你核查实际获得了什么。",
+        "edit_outcome": "已请求修改；本演示不拨打电话，也不生成新草稿。",
+        "fact_1": "Les Jardins（演示）· +1 202 555 0100——完全虚构的接听方。",
+        "fact_2": "你周四晚上 7 点之后有空，但这并不能说明餐厅有空位。",
+        "fact_3": "两人、周四晚上 8 点、优先露台；其他时间或费用需由你决定。",
+        "finding_1": "你的空闲时间与餐厅是否有位是两件事，应通过通话询问。",
+        "finding_2": "委托明确目标与边界，确认前不拨打电话。",
+        "goal": "询问周四晚上 8 点的两人餐位，有空位则优先露台。未经我同意，不接受其他时间。",
+        "intro": "这是授权通话后的摘要示例。结果是虚构的：没有联系任何真实餐厅。",
+        "label_1": "请求",
+        "label_2": "回复示例",
+        "label_3": "结果示例",
+        "source_1": "餐厅联系人",
+        "source_2": "你的日历",
+        "source_3": "你的通话委托",
+        "value_1": "周四晚上 8 点的两人餐位，有空位则优先露台。",
+        "value_2": "餐厅提供晚上 8 点的室内餐位，露台没有空位。",
+        "value_3": "接受了所请求时间的室内餐位；此示例未接受其他时间或费用。",
+        "preview_html": "<div class=\"lia-card lia-draft\"><div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--indigo\"><span style=\"font-size:var(--lia-text-lg)\">📞</span></div><div class=\"lia-card-top__info\"><div class=\"lia-card-top__title\">Les Jardins (Demo)</div></div></div><div class=\"lia-d-row\"><span class=\"material-symbols-outlined\">phone</span><span><strong>通话对象</strong>：Les Jardins (Demo)</span></div><div class=\"lia-d-row\"><span class=\"material-symbols-outlined\">phone</span><span><strong>电话</strong>：+1 202 555 0100</span></div><div class=\"lia-d-row\"><span class=\"material-symbols-outlined\">info</span><span><strong>目标</strong>：询问周四晚上 8 点的两人桌，室外有位则优先选择。未经我确认，不接受其他时段。</span></div></div>"
+      },
+      "proactive_alert": {
+        "closing": "一封新邮件成为与你日常安排相关的提醒，而不只是又一条孤立的通知。",
+        "fact_1": "关注 Marc 关于 Atlas 的回复，在选定的时间窗口内提醒你。",
+        "fact_2": "会议从下午 4 点提前到 2 点；Marc 需要在会前拿到摘要。",
+        "fact_3": "你原本承诺下午 3 点提供摘要，需要重新评估这个安排。",
+        "finding_1": "原定下午 3 点的交付已无法满足新的下午 2 点截止时间。",
+        "finding_2": "LIA 起草回复，但不会替你承诺工作一定能按时完成。",
+        "intro": "Marc 提前了会议时间。这里列出与你承诺的冲突，并准备了一封由你决定如何处理的回复。",
+        "label_1": "新信息",
+        "label_2": "你的承诺",
+        "label_3": "建议的下一步",
+        "source_1": "你启用的例程",
+        "source_2": "Marc 的新消息",
+        "source_3": "关系 · 尚待履行的承诺",
+        "value_1": "根据 Marc 最新的消息，会议在下午 2 点。",
+        "value_2": "承诺下午 3 点提供摘要：应告知 Marc，而不是掩盖时间冲突。",
+        "value_3": "一封谨慎的回复，可由你确认、修改或拒绝。"
+      },
+      "trace_compare": "找出一致之处与待核实信息",
+      "trace_context": "汇集已授权的信息来源",
+      "trace_note": "这些步骤与时长用于演示情境，并非性能测量。",
+      "trace_result": "准备可用的结果"
     }
   },
   "documents": {
@@ -14676,6 +15733,7 @@
       "segments_missing": "部分分段从未到达服务器。",
       "start_failed": "无法开始录音。",
       "stop_failed": "无法完成录音。",
+      "discard_failed": "无法确认删除。录音仍可访问；请先检查其状态再重试。",
       "storage_unavailable": "服务器无法保存音频（存储已满或不可用）。片段已保留并会重新发送。",
       "synthesis_failed": "无法撰写纪要。",
       "synthesis_too_long": "录音过长，无法一次性生成会议纪要。",
@@ -14796,6 +15854,7 @@
         "abandoned": "已中断",
         "all": "全部",
         "claimed": "进行中",
+        "waiting": "已请求交互",
         "failed": "已失败",
         "refused": "已拒绝",
         "succeeded": "已完成"
@@ -14820,6 +15879,8 @@
         "contact_update": "已修改联系人「{{target}}」",
         "devops_task": "已在「{{target}}」上执行运维任务",
         "document_append": "已向文档「{{target}}」追加内容",
+        "application_action": "已确认应用操作",
+        "application_action_named": "应用操作：{{target}}",
         "email": "已向 {{recipient}} 发送邮件",
         "email_delete": "已删除邮件：{{target}}",
         "email_filter": "已创建邮件过滤器",
@@ -14938,7 +15999,8 @@
       "weather": "天气",
       "web_fetch": "网页",
       "web_search": "网页搜索",
-      "wikipedia": "维基百科"
+      "wikipedia": "维基百科",
+      "setting": "应用设置"
     }
   },
   "registers": {

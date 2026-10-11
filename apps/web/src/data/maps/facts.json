@@ -229,7 +229,7 @@
     }
   ],
   "domains": 55,
-  "infra": 27,
+  "infra": 53,
   "adrFiles": {
     "1": "ADR-001-LangGraph-Orchestration.md",
     "2": "ADR-002-BFF-Pattern-Authentication.md",
@@ -563,6 +563,10 @@
     "331": "ADR-331-Dependency-Watch-And-A-Refresh-That-Never-Goes-Back.md",
     "332": "ADR-332-Deterministic-Cards-Received-Facts-And-Message-Owned-Actions.md",
     "333": "ADR-333-Linked-Signals-And-A-Pipeline-That-Watches-Itself.md",
-    "334": "ADR-334-Personal-Speaking-Avatar-And-One-Audible-Output.md"
+    "334": "ADR-334-Personal-Speaking-Avatar-And-One-Audible-Output.md",
+    "335": "ADR-335-Canonical-Semantic-Proofs-And-Constructible-Dependencies.md",
+    "336": "ADR-336-Requested-Outcomes-Checked-Against-Canonical-Observations.md",
+    "337": "ADR-337-Checkpointed-ReAct-Read-Segments-And-Turn-Local-Reuse.md",
+    "338": "ADR-338-Live-MCP-Contracts-And-Exact-Callable-Identity.md"
   }
 }

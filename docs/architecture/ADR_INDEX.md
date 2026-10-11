@@ -5002,3 +5002,43 @@ graph TD
 **Fichier**: `docs/architecture/ADR-333-Linked-Signals-And-A-Pipeline-That-Watches-Itself.md`
 
 **Décision** : Chaque signal ouvre le suivant — une ligne de journal sa trace (champ dérivé sur le `trace_id` JSON, 0 ligne sur 200 reconnue avant), une trace ses journaux et ses métriques (`$__tags` rétabli), un point de latence sa trace (stockage des exemplars, 19 045 jetés par jour avant). `job` nomme le service compose (il valait `api` sur tous les conteneurs) et le masquage du contenu s'applique à chaque conteneur. Loki, Alloy, Tempo et Grafana sont scrutés avec une liste `keep` chacun (une vingtaine de séries, pas neuf mille), `LogsNotDelivered` alerte quand des lignes se perdent, le tableau 16 dessine la chaîne et une garde tient chaque série lue à sa liste. Tous les tableaux s'ouvrent sur 7 jours (journaux et traces sur 4 h) avec un menu commun (choix du propriétaire, gardé), et une série qu'une alerte lit existe à zéro dès l'import.
+
+### ADR-334 : un avatar parlant personnel avec une seule sortie audible — conception proposée
+
+**Fichier**: `docs/architecture/ADR-334-Personal-Speaking-Avatar-And-One-Audible-Output.md`
+
+**Statut** : proposé ; implémentation et contrats automatisés disponibles, acceptation conditionnée aux essais fournisseur et appareils réels du propriétaire.
+
+**Décision proposée** : un visage Simli personnel accompagne l'audio déjà produit, avec une seule sortie audible, une admission et un arrêt contrôlés par l'API et une fermeture confirmée ou explicitement en attente. Le silence peut consommer le forfait ; Radio conserve son propre lecteur. Le fichier et la qualification portent les limites fournisseur et Android/iOS restantes.
+
+### ADR-335 : des preuves sémantiques canoniques et des dépendances constructibles
+
+**Fichier**: `docs/architecture/ADR-335-Canonical-Semantic-Proofs-And-Constructible-Dependencies.md`
+
+**Statut** : accepté ; implémenté et qualifié localement, sans certification de déploiement.
+
+**Décision** : les manifestes réellement disponibles au compte définissent les producteurs et consommateurs ; un catalogue vide reste vide. Forme JSON, type sémantique et rôle métier sont distincts. Une preuve exige la valeur canonique inchangée, le compte, la source réellement sélectionnée, l'entité, le chemin et le rôle admis ; une étiquette du planner ou une égalité textuelle ne suffit pas. La clôture conserve les ancêtres d'une chaîne de sources démarrable et expose les cycles sans amorce ; les tentatives de mutation invalident la preuve avant et après l'appel. Complète ADR-090, ADR-120, ADR-121, ADR-183 et ADR-233.
+
+### ADR-336 : les résultats demandés sont vérifiés sur les observations canoniques
+
+**Fichier**: `docs/architecture/ADR-336-Requested-Outcomes-Checked-Against-Canonical-Observations.md`
+
+**Statut** : accepté ; implémenté et qualifié localement, sans certification de déploiement.
+
+**Décision** : les obligations explicites sont ancrées à la requête courante et vérifiées sur les résultats structurés avant projection au modèle : valeur complète, même élément, opération, compte et exhaustivité. Le jour et le fuseau du tour sont estampillés par le serveur et conservés à la reprise. Brouillon, résultat opaque et délégation restent non probants. Les verdicts compacts survivent au checkpoint ; les lacunes constatées atteignent la reprise de lecture bornée et la synthèse, même si le modèle ne les a pas déclarées. Complète ADR-310, ADR-303 et ADR-184, avec les limites de l'extraction explicitement conservées.
+
+### ADR-337 : lectures ReAct checkpointées et réutilisation exacte dans le tour
+
+**Fichier**: `docs/architecture/ADR-337-Checkpointed-ReAct-Read-Segments-And-Turn-Local-Reuse.md`
+
+**Statut** : accepté ; implémenté et qualifié localement, sans certification de déploiement.
+
+**Décision** : chaque segment de lectures indépendantes déclaré admissible rend ses résultats au graphe avant une interruption possible. La concurrence est bornée ; les appels inconnus, interruptibles, mutants et délégués restent séquentiels. Une lecture fraîche, complète et non vide peut être réutilisée exactement dans le même tour, compte et contexte, sous le contrat et le TTL courants. Le cache de résultats est borné et checkpointé ; ce n'est pas un cache distribué ou entre tours. Une mutation invalide aux deux frontières, les budgets restent comptés et les appels abandonnés explicitement clos. Complète ADR-070, ADR-092, ADR-248 et ADR-256 ; les limites de crash restent énoncées.
+
+### ADR-338 : contrats MCP vivants et identité exacte des outils appelables
+
+**Fichier**: `docs/architecture/ADR-338-Live-MCP-Contracts-And-Exact-Callable-Identity.md`
+
+**Statut** : accepté ; implémenté et qualifié localement, sans certification de déploiement.
+
+**Décision** : les déclarations MCP courantes et leurs sorties structurées sont conservées sans inventer l'ontologie des serveurs utilisateurs. L'âge de schéma et les empreintes suivent le contrat ; seules les capacités réellement construites sont publiées. Origine et clé admin ou UUID utilisateur complets restent distincts des alias de domaine et de fonction. Le snapshot offert gouverne la résolution, les lectures sémantiques et les confirmations ; une cible de délégation est liée avant politique, HITL et invocation. La projection de capacités actuelle complète le texte stocké sans prétendre le régénérer. Complète ADR-070, ADR-255 et ADR-263.

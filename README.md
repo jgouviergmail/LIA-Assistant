@@ -5,15 +5,17 @@
 <h1 align="center">LIA</h1>
 
 <p align="center">
-  <strong>A self-hosted, multi-agent conversational assistant — LangGraph orchestration, Human-in-the-Loop before every mutation, transparency registers, enterprise observability, six languages.</strong>
+  <strong>Your day. LIA keeps up. You decide.</strong><br />
+  A personal assistant that brings your context together, helps you follow through, and prepares actions for review.<br />
+  <strong>Designed in France · Open source · Self-hostable · Six-language interface</strong>
 </p>
 
 <p align="center">
-  <strong>If you find this project valuable, a star on GitHub is the best way to say so. Thank you!</strong>
+  <strong>Prepare a conversation. Listen to your day. Keep track of your commitments.</strong>
 </p>
 
 <p align="center">
-  <a href="https://lia.jeyswork.com/"><img src="https://img.shields.io/badge/🚀_Try_LIA-lia.jeyswork.com-0EA5E9?style=for-the-badge" alt="Try LIA"></a>
+  <a href="https://lia.jeyswork.com/"><img src="https://img.shields.io/badge/🚀_Explore_LIA-lia.jeyswork.com-0EA5E9?style=for-the-badge" alt="Explore LIA"></a>
   &nbsp;&nbsp;
   <a href="https://github.com/jgouviergmail/LIA-Assistant/stargazers"><img src="https://img.shields.io/github/stars/jgouviergmail/LIA-Assistant?style=for-the-badge&logo=github&label=Star&color=gold" alt="GitHub Stars"></a>
 </p>
@@ -42,7 +44,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 2.6.1</strong> — <strong>Continuous speech, a controllable avatar and an interface within reach.</strong> Long Live answers keep their audio in order. The experimental Simli avatar has an explicit stop control with confirmed or pending closure, and its connection is controlled by the API. Floating windows adapt to the mobile keyboard without overwriting your preferred position. Updated public screenshots use fictional demonstration data. Provider and physical Android/iOS qualification of the avatar remains pending — 6 October 2026, 13:00 CEST.
+  <strong>Version 2.6.1</strong> — <strong>Continuous speech, a controllable avatar and an interface within reach.</strong> Long Live answers keep their audio in order. The experimental Simli avatar has an explicit stop control with confirmed or pending closure, and its connection is controlled by the API. Floating windows adapt to the mobile keyboard without overwriting your preferred position. Application screenshots use fictional demonstration data. Provider and physical Android/iOS qualification of the avatar remains pending — 6 October 2026, 13:00 CEST.
 </p>
 
 ---
@@ -51,10 +53,10 @@
 
 - [What is LIA?](#what-is-lia)
 - [Try LIA Online](#try-lia-online)
-- [Built by an AI, Directed by a Human](#built-by-an-ai-directed-by-a-human)
 - [Screenshots](#screenshots)
 - [Features](#features)
 - [Administration & Monitoring](#administration--monitoring)
+- [Built by an AI, Directed by a Human](#built-by-an-ai-directed-by-a-human)
 - [Quick Start](#quick-start)
 - [Architecture](#architecture)
 - [Technologies](#technologies)
@@ -69,128 +71,126 @@
 
 ## What is LIA?
 
-LIA is a personal assistant you host yourself. It reads your mail, calendar, contacts, tasks and documents through your own Google, Apple or Microsoft account, listens and speaks in six languages, acts on your behalf — never changes anything without asking first — and keeps a record of everything it did, read and decided.
+LIA is an open-source personal AI assistant in a web application you can host yourself. It connects the information you make available — emails, calendar, documents, preferences and commitments — to help you prepare conversations, organize your day and follow through.
 
-Under the hood: a FastAPI backend orchestrating 20+ specialised agents with LangGraph, a Next.js front end, PostgreSQL + pgvector and Redis, and a multi-provider LLM layer that runs as well on a cloud model as on a local one through Ollama.
+Its strength is the continuity between those activities. Memory, knowledge spaces, meeting records and **Relations**, its personal relationship view, make relevant context available for the next supported request. A preference you correct, a document you keep or a commitment you record can become useful again. Each feature contributes through its own sources, permissions and settings.
 
-```
-📅 "Find my meetings for tomorrow and send a reminder to all participants"
-📧 "Summarize my unread emails from this week that have attachments"
-👥 "Update the companies of my contacts who work at startups"
-🔔 "Remind me tomorrow at 9am to call Marie for her birthday"
-```
+LIA also helps between conversations: a daily briefing, a personal **Radio**, reminders, routines and proactive suggestions. You choose the sources and enabled features, and the time windows and channels for proactive help. Chat, rich cards, voice and Live sessions keep this assistance accessible in the same application.
 
-| The usual problem            | What LIA does about it                                                                                                                                                       |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Opaque LLM spend**         | Tokens are accounted per node and per provider; an account quota and an instance-wide daily ceiling both apply; prices live in an admin catalogue; everything exports to CSV |
-| **Actions nobody can audit** | Human-in-the-Loop before any mutation, and three registers — what was done, what was read, what was decided — sealed per account on request                                  |
-| **Fragmented integrations**  | One orchestration over 20+ agents, Google / Apple / Microsoft connectors, your own MCP servers, skills, plugins and sub-agents                                               |
-| **Operations in the dark**   | Prometheus, Grafana, Loki, Tempo and Langfuse, a vital alert core with runbooks, and a self-diagnosis written in the administrator's language                                |
-| **Vendor lock-in**           | Seven LLM providers with local models as first-class citizens, self-hosted on anything from a Raspberry Pi to a server, AGPL-3.0                                             |
+You can inspect sources, correct remembered information and review prepared drafts. Actions covered by approval flows ask for your decision before execution. Registers expose recorded consultations, action attempts and outcomes; usage and budgets are visible to users and operators.
+
+### Start with something that would help you
+
+| Your situation | Ask LIA, or use its dedicated view |
+| --- | --- |
+| **A discussion to prepare** | “Prepare my catch-up with Claire using the project brief, our recent emails and the last meeting notes. Highlight anything that conflicts.” |
+| **A promise to follow up** | Open **Relations** to review recent exchanges, the debrief and open commitments before contacting someone. |
+| **A message to get right** | “Draft an email to the supplier asking which delivery date they can commit to. Show me the draft before sending it.” |
+| **A meeting to keep useful** | Record it, review and correct the minutes, then export a PDF. Successfully indexed minutes can be retrieved in a later conversation. |
+| **A day to listen to** | Choose personal and news sources in **Radio**, then listen with the programme, transcript and articles beside you. |
+| **People to coordinate with** | “Find a time for dinner with Sam tomorrow evening using the availability shared with me. Show the invitation before sending it.” This uses an accepted connection and its permissions on the same instance. |
+
+These examples use the services and permissions enabled on your instance. Generated conclusions and documents remain yours to review.
+
+### What LIA brings together
+
+| What matters in daily use | What LIA provides |
+| --- | --- |
+| **Relevant context, ready to reuse** | Memory, knowledge, meeting records, saved answers and Relations support relevant requests from their authorized sources. You can inspect and correct what is kept. |
+| **Help when you ask and between requests** | Conversation, daily briefing and personal Radio, alongside reminders, scheduled work, conditional routines and proactive suggestions with their own source and timing controls. |
+| **A clear next step** | Rich results, reviewable drafts, downloadable documents and compatible skills or MCP apps present information and controls in the appropriate form. |
+| **A choice of how to work** | Pipeline builds and validates a plan before execution; ReAct explores iteratively from tool results. Chat and Live voice use documented provider and mode capabilities. |
+| **One installation for several people** | Separate accounts have their own connectors, memory and preferences. Accepted connections choose what to share and can exchange messages through their assistants. |
+| **A system you can inspect and operate** | Open code, a documented architecture, registers, model configuration, account and instance budgets, administration, Grafana dashboards and alert rules. |
+
+Cloud models and compatible local models served through native Ollama can be configured for supported processing roles. Model capabilities, host resources and enabled external services determine the available features and where information is processed. Hosting and provider services may incur costs.
+
+### A foundation for an internal company assistant
+
+Preparing meetings, retrieving business knowledge and following commitments can also help colleagues. LIA's multi-user web application, connectors, MCP, APIs and observability provide a foundation to customize and integrate into your organization.
+
+Define the deployment's identity, permissions, business sources, usage rules, integrations and hosting. The [architecture](#architecture), [documentation](#documentation) and [self-hosting guide](docs/guides/GUIDE_DEPLOYMENT.md) help scope that work.
 
 ---
 
 ## Try LIA Online
 
-LIA is hosted at **https://lia.jeyswork.com/** — no installation required.
+[Explore LIA and its real interface](https://lia.jeyswork.com/) or try the [public demonstration](https://lia.jeyswork.com/demo).
 
-The [interactive showroom](https://lia.jeyswork.com/demo) runs six guided synthetic missions, one per differentiating mechanism: orchestration under approval, proactivity, persistent memory, outbound calls, rich replies and in-app configuration. Its refreshed product scenes show the steps and results in a recognisable interface. Approve, edit or refuse each prepared change through the real approval UI, and read LIA's closing reply rendered by the production pipeline. Everything is labelled synthetic — no account, model or external service is contacted — and a proof drawer links every visible capability to its exact source. When a live demonstrator is published, the same page lists what is switched on there and what is not — read from the demonstrator's own configuration, never kept by hand — before offering the link.
+The public demonstration uses fictional scenarios. When the guided showroom is enabled, it illustrates requests, context, results and approval controls using the application's rendering components, without contacting a real model, account or external service. Source links let you inspect the mechanisms behind that showroom; a live demonstrator is offered when the instance publishes one.
 
-> **Closed beta** — access is granted at the administrator's discretion. To request an invitation, write to **liamyassistant@gmail.com**.
+> **Closed beta** — account access and activation are granted at the administrator's discretion. To request an invitation, write to **liamyassistant@gmail.com**.
 
-Self-hosting starts at the [Quick Start](#quick-start) below.
-
----
-
-## Built by an AI, Directed by a Human
-
-> _"Speed comes from the AI. Quality comes from the framework."_
-
-Nearly **100% of this codebase was written by an AI**, under human direction: a written
-engineering rulebook, blocking automated checks, systematic review, adversarial audits.
-The result is measured, not proclaimed:
-
-|                           |                                         |                             |                                                                         |
-| ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **55** functional domains | **820,000+** source lines (excl. tests) | **51,000+** automated tests | **333** ADRs                                                            |
-| **278** versions shipped  | **6 languages**, parity enforced in CI  | **616** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
-
-Source-line figure: 824,753 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-10-06). The published technical audit does not score security.
-
-- **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
-- **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
+To run your own LIA, start with [Quick Start](#quick-start) or the [production installation guide](docs/GETTING_STARTED.md).
 
 ---
 
 ## Screenshots
 
-Current interface, captured with fictional demonstration data. No personal account
-is used. See the [capture workflow](apps/web/e2e/README.md#public-screenshots) to refresh them.
+The application views below show the real interface in English with fictional demonstration data. They illustrate workflows and controls; no model, connected account or external action was exercised in these captures. The Radio player used a local silent audio fixture.
 
 <p align="center">
-  <img src="docs/assets/screenshot-homepage.png" alt="Dashboard — Homepage with usage statistics" width="800" />
-  <br /><em>Dashboard — Homepage with quick access, usage statistics, and personalized greeting</em>
+  <a href="docs/assets/screenshot-homepage.png"><img src="docs/assets/screenshot-homepage.png" alt="Personal home dashboard — Daily summary, calendar, unread mail, tasks and reminders" width="1000" /></a>
+  <br /><em>Your personal hub — daily summary, calendar, emails, tasks and reminders in one place, with activity and usage at a glance.</em>
+</p>
+
+This home dashboard capture is retained from the earlier public screenshot campaign, documented in the [capture workflow](apps/web/e2e/README.md#public-screenshots).
+
+Open any image for its full resolution. For the workflow captures below, the [application manifest](apps/web/public/screenshots/proof/manifest.json) records the capture provenance, native BIP masculine selection and interactions; the [capture runner](apps/web/e2e/capture/run-landing-proof.mjs) reproduces this campaign.
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/dossier.png"><img src="apps/web/public/screenshots/proof/dossier.png" alt="Chat — Project sources, conflicting dates and next steps" width="1000" /></a>
+  <br /><em>Prepare a conversation with the relevant sources and open questions in view.</em>
 </p>
 
 <p align="center">
-  <img src="docs/assets/screenshot-chat.png" alt="Chat — Conversation with appointment cards" width="800" />
-  <br /><em>Chat — Conversation with appointment cards and practical next steps</em>
+  <a href="apps/web/public/screenshots/proof/relations.png"><img src="apps/web/public/screenshots/proof/relations.png" alt="Relations — Debrief, open commitments and recent emails" width="1000" /></a>
+  <br /><em>Relations — pick up the conversation with recent exchanges and open commitments beside you.</em>
+</p>
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/radio.png"><img src="apps/web/public/screenshots/proof/radio.png" alt="Personal Radio — Player, programme, transcript and source articles" width="1000" /></a>
+  <br /><em>Personal Radio — your day and selected news, with the programme and sources in the actual player.</em>
 </p>
 
 <details>
-<summary><strong>More screenshots</strong></summary>
+<summary><strong>Meetings, knowledge, memory and actions you can review</strong></summary>
 
 <p align="center">
-  <img src="docs/assets/screenshot-chat-debug-panel.png" alt="Chat — Debug panel detail" width="800" />
-  <br /><em>Chat — Debug panel: query analysis, routing, execution phases and token cost</em>
+  <a href="apps/web/public/screenshots/proof/meetings.png"><img src="apps/web/public/screenshots/proof/meetings.png" alt="Meetings — Decisions, action items and editing and export controls" width="1000" /></a>
+  <br /><em>Meetings — review decisions and assigned action items, then edit or export the report.</em>
 </p>
 
 <p align="center">
-  <img src="docs/assets/screenshot-chat-interactive-skills.png" alt="Chat — Interactive skill widgets" width="800" />
-  <br /><em>Chat — An interactive skill mini-app rendered directly in the conversation</em>
+  <a href="apps/web/public/screenshots/proof/approval.png"><img src="apps/web/public/screenshots/proof/approval.png" alt="Approval — A prepared message and confirm, modify and cancel controls" width="1000" /></a>
+  <br /><em>Review a prepared message through the application’s approval controls.</em>
 </p>
 
 <p align="center">
-  <img src="docs/assets/screenshot-settings-preferences.png" alt="Settings — Personalization and account preferences" width="800" />
-  <br /><em>Settings — Personalization, language, appearance, notifications and security</em>
+  <a href="apps/web/public/screenshots/proof/knowledge.png"><img src="apps/web/public/screenshots/proof/knowledge.png" alt="Knowledge spaces — Documents, Drive folders and Gmail label sources" width="1000" /></a>
+  <br /><em>Knowledge spaces — documents and connected sources you can manage.</em>
 </p>
 
 <p align="center">
-  <img src="docs/assets/screenshot-settings-features.png" alt="Settings — Features (memory, interests, notifications)" width="800" />
-  <br /><em>Settings — Memory, personality, interests, automation and extensions</em>
+  <a href="apps/web/public/screenshots/proof/memory.png"><img src="apps/web/public/screenshots/proof/memory.png" alt="Memory — Editing a stored preference" width="1000" /></a>
+  <br /><em>Review and correct what LIA remembers.</em>
 </p>
 
 <p align="center">
-  <img src="docs/assets/screenshot-settings-features-memory.png" alt="Settings — Long-term memory" width="800" />
-  <br /><em>Settings — Long-term memory: pinned facts, automatic extraction, edit / delete / pin per memory</em>
+  <a href="apps/web/public/screenshots/proof/skill.png"><img src="apps/web/public/screenshots/proof/skill.png" alt="Chat — Interactive unit converter showing 2.5 metres as 250 centimetres" width="1000" /></a>
+  <br /><em>A useful mini-app inside the conversation — the actual unit-converter widget.</em>
 </p>
 
 <p align="center">
-  <img src="docs/assets/screenshot-settings-features-psyche.png" alt="Settings — Psyche Engine" width="800" />
-  <br /><em>Settings — Psyche Engine: Big Five personality traits modulating the assistant's emotional responsiveness</em>
-</p>
-
-<p align="center">
-  <img src="docs/assets/screenshot-settings-administration.png" alt="Settings — Administration panel" width="800" />
-  <br /><em>Settings — Administration: users, connectors, models, pricing, content and platform controls</em>
-</p>
-
-<p align="center">
-  <img src="docs/assets/screenshot-settings-administration-oneclick.png" alt="Administration — Platform capability switches" width="800" />
-  <br /><em>Administration — Enable or disable platform capabilities without a deployment</em>
-</p>
-
-<p align="center">
-  <img src="docs/assets/screenshot-settings-administration-llm.png" alt="Settings — LLM Configuration with multi-provider support" width="800" />
-  <br /><em>Administration — LLM Configuration: provider credentials and model selection for each operation</em>
-</p>
-
-<p align="center">
-  <img src="docs/assets/screenshot-faq.png" alt="FAQ — Searchable help center" width="800" />
-  <br /><em>FAQ — Searchable help center with categorized Q&A sections</em>
+  <a href="apps/web/public/screenshots/proof/administration.png"><img src="apps/web/public/screenshots/proof/administration.png" alt="Administration — Account budgets and instance spending ceiling" width="1000" /></a>
+  <br /><em>Administration — account budgets and the instance ceiling, with visible usage gauges.</em>
 </p>
 
 </details>
+
+
+
+The [Administration & Monitoring](#administration--monitoring) section below includes the two Grafana views supplied by the project.
 
 ---
 
@@ -229,7 +229,7 @@ Every capability below is documented in an architecture decision record (ADR) or
 
 - Push-to-talk, or the wake word "Dis LIA" — a small trained model run by ONNX Runtime in a browser worker, every file checked against its SHA-256, so no audio leaves the device for detection. "Stop" cuts LIA's voice while it reads an answer. French only for now, in beta; the other interface languages keep tap-to-speak ([ADR-329](docs/architecture/ADR-329-Live-Standby-And-Multilingual-Wake-Word.md), [WAKE_WORD_TRAINING](docs/technical/WAKE_WORD_TRAINING.md)).
 - Offline Whisper transcription in the user's own language.
-- Spoken answers from a catalogue-driven TTS (Edge, free; OpenAI; ElevenLabs) streamed sentence by sentence, first audio in about a second ([VOICE](docs/technical/VOICE.md), [ADR-081](docs/architecture/ADR-081-Voice-TTS-Catalogue-Driven.md), [ADR-082](docs/architecture/ADR-082-Progressive-Sentence-Streaming.md)).
+- Spoken answers from a catalogue-driven TTS (Edge, free; OpenAI; ElevenLabs), streamed sentence by sentence. Playback can begin before the complete answer is available; startup latency depends on the model, provider and connection ([VOICE](docs/technical/VOICE.md), [ADR-081](docs/architecture/ADR-081-Voice-TTS-Catalogue-Driven.md), [ADR-082](docs/architecture/ADR-082-Progressive-Sentence-Streaming.md)).
 - ElevenLabs synthesis shares an administrator-set concurrency ceiling across API workers and speech surfaces; the browser plays queued audio in sequence, even when synthesis completes out of order.
 
 #### A personal speaking avatar, experimental
@@ -244,7 +244,7 @@ Every capability below is documented in an architecture decision record (ADR) or
 
 - A real-time session on a live model the person connects with their own key (Gemini Live over a WebSocket, GPT-Live over WebRTC, or an ElevenLabs agent whose voice stays on its portal).
 - The Live provider connection carries audio directly between the browser and provider. With the optional avatar enabled, LIA's spoken output also passes through the API-controlled Simli relay; its provider token stays encrypted server-side.
-- The voice model owns the conversation and delegates every request for data or action to the chat engine through one declared function, so the delegated turn runs in the graph with its approvals, registers and quotas and is drawn in the thread while the person speaks.
+- In supported Live configurations, the voice model can delegate a data request or action to the chat engine. The delegated turn uses the graph’s approvals, registers and quotas and appears in the thread. Concurrent speech, interruption and delegation behavior depend on the provider, model and mode.
 - A provider declares its wire and the seam never branches on its name.
 - A direct session holds the read-only tools itself and acts on nothing.
 - A silence puts the session on standby instead of ending it: the provider connection closes and nothing is billed until the phrase or a tap wakes it into a new connection; only the person ends a session ([ADR-329](docs/architecture/ADR-329-Live-Standby-And-Multilingual-Wake-Word.md)).
@@ -287,7 +287,7 @@ Every capability below is documented in an architecture decision record (ADR) or
 #### E-mail, read whole and clean
 
 - The three providers speak one vocabulary at the client boundary: a text body, never HTML, with quoted history and signature removed, measured on real payloads.
-- The assistant chooses how much to read from the question: headers to list, a body paginated by paragraph to read, or a digest per message to reason over many. A small model computes each digest once; it is cached thirty days, counted in your usage and never invented ([ADR-287](docs/architecture/ADR-287-Email-Content-First-Detail-Levels-Digests-And-Neutral-Message.md), [EMAIL_FORMATTER](docs/technical/EMAIL_FORMATTER.md)).
+- The assistant chooses how much to read from the question: headers to list, a body paginated by paragraph to read, or a digest per message to reason over many. A small model computes each digest once; it is cached thirty days and counted in your usage. If digest generation fails or is truncated, the original body remains available ([ADR-287](docs/architecture/ADR-287-Email-Content-First-Detail-Levels-Digests-And-Neutral-Message.md), [EMAIL_FORMATTER](docs/technical/EMAIL_FORMATTER.md)).
 - An attachment is read too — its text when it has one, the vision slot for a picture or a scan — bounded, paginated and treated as what a stranger sent ([ADR-296](docs/architecture/ADR-296-Mail-Attachments-Read-By-Text-Or-Vision.md)).
 
 #### Connected from the first day
@@ -326,8 +326,8 @@ Every capability below is documented in an architecture decision record (ADR) or
 
 #### Two execution modes, one toggle
 
-- The _pipeline_ (planner → semantic validator → approval gate → parallel orchestrator) is deterministic and 4–8× cheaper in tokens.
-- _ReAct_ lets the model reason step by step for exploratory or ambiguous requests.
+- The _pipeline_ builds and validates a plan, applies the required approval gates and executes tools in dependency-aware waves.
+- _ReAct_ adapts its next steps to tool results for exploratory or ambiguous requests. Token use and latency depend on the task and configured models.
 - Both stream through the same response node ([ADR-070](docs/architecture/ADR-070-ReAct-Execution-Mode.md), [PLANNER](docs/technical/PLANNER.md)).
 - A ReAct tool result is projected item by item under a token budget derived from the slot's own window, never cut mid-item, the cut stated to the model and counted ([ADR-286](docs/architecture/ADR-286-Tool-Result-Projected-Per-Item-Under-A-Token-Budget.md)).
 - The loop binds its tools by relevance — the detected domains' tools, the best-ranked doors of every other family, the top of the turn's global ranking — so no family falls off a blind cap and the schemas stop being most of the prompt, and it reads the same knowledge spaces the pipeline reads ([ADR-293](docs/architecture/ADR-293-React-Tools-Bound-By-Relevance.md)).
@@ -343,7 +343,7 @@ Every capability below is documented in an architecture decision record (ADR) or
 
 #### Phone calls on your behalf — and to you
 
-- Through your own ElevenLabs + Twilio connector, every call to a third party confirmed before dialing, a strict mandate that forbids any expense beyond the objective, free/busy visibility only, no recording, and a post-call summary that states every cost ([ADR-127](docs/architecture/ADR-127-Agentic-Telephony.md), [TELEPHONY](docs/technical/TELEPHONY.md)).
+- Through your own ElevenLabs + Twilio connector, calls to third parties require confirmation before dialing. You review the recipient, number and objective; instructions bound the mandate, calendar access exposes free/busy information, and the call is not recorded. The post-call summary and available usage information remain reviewable ([ADR-127](docs/architecture/ADR-127-Agentic-Telephony.md), [TELEPHONY](docs/technical/TELEPHONY.md)).
 - **The phone as a channel:** LIA calls _you_ on a number you declared and verified by a spoken code, with no confirmation card, the chat's own context and your configured personality on the line.
 - The voice agent reads everything the chat reads through the same read-only tools (mails, calendar, tasks, contacts, files, places, weather, memory — one switch per domain, yours) and acts on nothing.
 - What you say comes back as your own message, with drafts to confirm in the chat, ten relay verdicts and one bill per call for what LIA spent ([ADR-290](docs/architecture/ADR-290-Phone-As-A-Channel-Owner-Calls.md)).
@@ -352,7 +352,7 @@ Every capability below is documented in an architecture decision record (ADR) or
 #### Documents and images
 
 - CSV, Excel, Word, PowerPoint, PDF, Markdown or text produced by local renderers with each format's native mechanisms (styles, fields, layouts, typed tables, bookmarks).
-- Nothing overflows by construction, and a truncated model answer is refused rather than rescued into a shorter file ([ADR-226](docs/architecture/ADR-226-Document-Generation-Agent.md), [ADR-274](docs/architecture/ADR-274-Document-Craft-Renderer-Owned-Model-Semantic.md), [ADR-275](docs/architecture/ADR-275-Truncated-Structured-Output-Is-A-Refusal.md)).
+- Format-specific renderers manage layout, and truncated structured model output is rejected instead of silently producing an incomplete file ([ADR-226](docs/architecture/ADR-226-Document-Generation-Agent.md), [ADR-274](docs/architecture/ADR-274-Document-Craft-Renderer-Owned-Model-Semantic.md), [ADR-275](docs/architecture/ADR-275-Truncated-Structured-Output-Is-A-Refusal.md)).
 - Image generation and natural-language editing on OpenAI GPT Image or Qwen Image 3.0 — a model family declares its offer, so nothing the configured model cannot serve is priced, offered or selected, the person's preference is resolved to that offer and every image arrives in the chosen format ([ADR-305](docs/architecture/ADR-305-Image-Model-Declares-Its-Offer.md), [IMAGE_GENERATION](docs/technical/IMAGE_GENERATION.md)).
 - On request, a new image's description is rewritten following the provider's own advice — a quoted text kept word for word, the original sent whenever in doubt, an edit never rewritten ([ADR-315](docs/architecture/ADR-315-Image-Prompt-Enhancement.md)).
 
@@ -485,9 +485,9 @@ Arithmetic, dates and currencies use tools in both execution modes, never a mode
 - Durations are counted between absolute instants across a clock change.
 - Currency conversion uses the European Central Bank reference rate with its date ([ADR-318](docs/architecture/ADR-318-Assistant-Tools-Exact-Answers-And-Own-Records.md)).
 
-#### A failure is said, never guessed
+#### Failures made visible
 
-- One status vocabulary whose every member is produced and read, one success predicate for the register, the metrics and the ReAct loop, a structural failure marker on the ReAct message, and an honesty directive that names the tool that failed and the exact total, so a model never fills the silence with an invented configuration problem ([ADR-303](docs/architecture/ADR-303-Tool-Failure-Restitution.md)).
+- One status vocabulary whose every member is produced and read, one success predicate for the register, the metrics and the ReAct loop, a structural failure marker on the ReAct message, and an honesty directive that names the tool that failed and the exact total, so the response has the recorded failure evidence instead of an unexplained gap ([ADR-303](docs/architecture/ADR-303-Tool-Failure-Restitution.md)).
 - Every act is filed under its own turn and stated to the response as the assistant's own ([ADR-263](docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md)).
 - No database transaction stays open while a provider answers ([ADR-304](docs/architecture/ADR-304-No-Transaction-Across-A-Network-Call.md)).
 
@@ -500,7 +500,7 @@ Arithmetic, dates and currencies use tools in both execution modes, never a mode
 
 ## Administration & Monitoring
 
-Operators get complete control and real-time visibility without touching configuration files or the database.
+The admin interface brings deployed capabilities, accounts, model configuration, budgets and diagnostics into one place. The observability stack adds metrics, logs, traces and alerts. Deployment settings still define which services and capabilities are available.
 
 ### Admin Dashboard
 
@@ -534,13 +534,49 @@ A 24-section panel embedded in the chat, organised into six groups; an empty sec
 
 ### Observability
 
-- **Prometheus**: 616 custom metrics (agents, LLM, infrastructure), labelled by route template — a name or a search in an address never becomes a series. A metric nobody can see is a metric nobody acts on: every one must be wired to a Grafana panel, a recording rule or an alert, and a shrink-only ratchet fails the build on a newly blind metric.
+- **Prometheus**: 618 custom metrics (agents, LLM, infrastructure), labelled by route template — a name or a search in an address never becomes a series. A metric nobody can see is a metric nobody acts on: every one must be wired to a Grafana panel, a recording rule or an alert, and a shrink-only ratchet fails the build on a newly blind metric.
 - **Grafana**: 31 dashboards, including product-value and radio cockpits · **Loki**: structured JSON logs that keep facts, never people's words, shipped by Grafana Alloy ([ADR-317](docs/architecture/ADR-317-A-Log-Line-Carries-Facts-Never-The-Words.md)) · **Tempo**: distributed tracing, spans named by the route template · **Langfuse**: LLM tracing with prompt versions. The whole stack runs on supported versions, pinned by digest.
 - **Linked signals, a pipeline that watches itself**: a log line opens its trace, a trace its logs and metrics, a latency point its exemplar; Loki, Alloy, Tempo and Grafana are scraped on closed keep-lists and `LogsNotDelivered` fires when lines go missing; every dashboard opens on seven days (logs and traces on four hours) behind one shared menu — [ADR-333](docs/architecture/ADR-333-Linked-Signals-And-A-Pipeline-That-Watches-Itself.md).
 - **Probes**: liveness (`GET /health`) split from readiness (`GET /ready`, 503 unless PostgreSQL **and** Redis answer) — [ADR-115](docs/architecture/ADR-115-Liveness-Readiness-Probes.md).
 - **Alerting**: a vital core (service, database and Redis down, disk, OOM, 5xx rate, SSE latency, backup failure, public-endpoint and TLS probes, chain self-monitoring) evaluated by Prometheus, emailed by a dedicated Alertmanager, unit-tested with `promtool`, every alert linking its runbook — [ADR-119](docs/architecture/ADR-119-Alerting-Reactivation-Minimal-Core.md).
 - **Per-process memory**: every API worker publishes what it holds (`lia_worker_memory_bytes`, one series per live worker), drawn on the infrastructure dashboard and watched by an alert that names the process; what a process loads is declared, measured on the target host and bounded where it multiplies — the supervisor never imports the application, heavy libraries load where they are used, and the speech engine keeps one resident model per worker ([ADR-283](docs/architecture/ADR-283-Worker-Memory-Anatomy.md)).
 - **Self-diagnostics**: a leader-elected self-check of the golden signals, one incident per outage whichever observer saw it first, and a budget-capped diagnosis written in each administrator's language from evidence collected at diagnosis time — metrics, a sanitised log excerpt, the running build, the alert's runbook — shown under its verdict in Settings › Platform health ([ADR-247](docs/architecture/ADR-247-Self-Diagnostics-And-Answer-Resilience.md), [ADR-266](docs/architecture/ADR-266-Diagnosis-Evidence-At-Diagnosis-Time-And-Exact-Str-Embedding-Inputs.md)).
+
+---
+
+### See the instance from the operator's side
+
+These two Grafana screenshots were supplied by the project owner and reproduced unchanged. Their figures show the supplied dashboard state; the [Grafana manifest](apps/web/public/screenshots/proof/grafana-manifest.json) records their origin and dimensions.
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/grafana-overview.png"><img src="apps/web/public/screenshots/proof/grafana-overview.png" alt="Grafana — Host CPU, memory, disk, network and container resources" width="1200" /></a>
+  <br /><em>Grafana — infrastructure and host/container resources.</em>
+</p>
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/grafana-costs.png"><img src="apps/web/public/screenshots/proof/grafana-costs.png" alt="Grafana — LLM token consumption, cost breakdowns and cache ratio" width="1200" /></a>
+  <br /><em>Grafana — LLM tokens, costs and cache.</em>
+</p>
+
+---
+
+## Built by an AI, Directed by a Human
+
+> _"Speed comes from the AI. Quality comes from the framework."_
+
+Nearly **100% of this codebase was written by an AI**, under human direction: a written
+engineering rulebook, blocking automated checks, systematic review, adversarial audits.
+The result is measured, not proclaimed:
+
+|                           |                                         |                             |                                                                         |
+| ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
+| **55** functional domains | **820,000+** source lines (excl. tests) | **51,000+** automated tests | **337** ADRs                                                            |
+| **278** versions shipped  | **6 languages**, parity enforced in CI  | **618** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+
+Source-line figure: 824,753 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-10-06). The published technical audit does not score security.
+
+- **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
+- **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
 
 ---
 
@@ -661,8 +697,8 @@ Three layers: a **Next.js** front end (chat, settings, six languages, SSE stream
 
 Switchable per user from the chat header:
 
-- **Pipeline** (default) — a **Planner** decomposes the request into an execution plan (a small DSL with dependencies, conditions and `FOR_EACH` iteration), a **Semantic Validator** checks its coherence, the **Approval Gate** handles Human-in-the-Loop, and a **Task Orchestrator** runs the tools in parallel waves; Bayesian pattern learning shortens the next similar request. Deterministic, and 4–8× fewer tokens than ReAct.
-- **ReAct** (⚡) — the model reasons iteratively, calling tools one by one and adapting to each result. More autonomous, more expensive; ideal for exploratory, research or ambiguous queries. Its iteration budget is extended while the loop keeps producing results, a turn that stops mid-flight closes its own books, the tools it binds are chosen by relevance to the question rather than cut by a cap — or all of them, when the person chose frequent exchanges so the provider's cache reads each turn back from the previous one — and a turn is judged on its result: a gap it declares buys a bounded recovery pass.
+- **Pipeline** (default) — a **Planner** decomposes the request into an execution plan (a small DSL with dependencies, conditions and `FOR_EACH` iteration), a **Semantic Validator** checks its coherence, tool-level approval flows review the actions that require confirmation, and a **Task Orchestrator** runs the tools in parallel waves; Bayesian pattern learning shortens the next similar request. Planning and validation precede execution; token use depends on the task and selected models.
+- **ReAct** (⚡) — the model reasons iteratively, calling tools one by one and adapting to each result. Suited to exploratory, research or ambiguous queries; cost and latency depend on the work and selected models. Its iteration budget is extended while the loop keeps producing results, a turn that stops mid-flight closes its own books, the tools it binds are chosen by relevance to the question rather than cut by a cap — or all of them, when the person chose frequent exchanges so the provider's cache reads each turn back from the previous one — and a turn is judged on its result: a gap it declares buys a bounded recovery pass.
 
 ```mermaid
 graph TD
@@ -764,11 +800,11 @@ The model catalogue lives in the database, curated from vendored public registri
 | DeepSeek   | Cost-effective reasoning with a thinking-mode toggle (`deepseek-flash`, `deepseek-v4-pro`); tariff by UTC window                                                   |
 | Qwen       | Thinking, tools and vision through Alibaba Cloud DashScope; explicit prompt cache where the family needs it; Qwen Image 3.0; regional endpoint via `QWEN_BASE_URL` |
 | Perplexity | Web-augmented answers; endpoint via `PERPLEXITY_BASE_URL`                                                                                                          |
-| Ollama     | Any local model, capabilities discovered from the server, native client; `OLLAMA_BASE_URL`                                                                         |
+| Ollama     | Compatible local models, capabilities discovered from the server, native client; `OLLAMA_BASE_URL`                                                                         |
 
 ### Local Models as First-Class Models
 
-Any LLM slot can run on a model hosted on your own machine, with no cloud account involved. LIA drives Ollama through its **native API** rather than an OpenAI compatibility layer ([ADR-267](docs/architecture/ADR-267-Ollama-Native-Provider-And-Discovered-Capabilities.md)):
+Compatible chat models hosted on your own machine can serve processing slots whose required capabilities they meet. Image generation, embeddings, Live and native decision providers have their own supported paths. Local inference depends on the chosen model and host resources. LIA drives Ollama through its **native API** rather than an OpenAI compatibility layer ([ADR-267](docs/architecture/ADR-267-Ollama-Native-Provider-And-Discovered-Capabilities.md)):
 
 - **Thinking is controlled, not endured** — the configured depth reaches the server as `think`, including switching it off, and the thinking trace comes back separated from the answer.
 - **The server declares the capabilities** — tools, vision, thinking and context length are read from the tag listing, so a depth never reaches a model that cannot think and a control a local model would ignore is not offered.
@@ -891,7 +927,7 @@ Instrumentation and caching are in place — per-node message windowing, LLM con
 
 ### Architecture Decision Records
 
-333 ADR files (ADR-001 through ADR-334 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
+337 ADR files (ADR-001 through ADR-338 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
 
 - [ADR-070: ReAct Execution Mode](docs/architecture/ADR-070-ReAct-Execution-Mode.md) — why two execution modes rather than one
 - [ADR-263: Execution Authority Chain and Effect Register](docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md) — how every act is claimed, closed and recorded

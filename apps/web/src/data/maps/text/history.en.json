@@ -1767,6 +1767,26 @@
       "title": "A personal speaking avatar, with one audible output — proposed design",
       "summary": "An optional Simli face accompanies existing speech on a personal key with one audible output. The API controls the connection and its stop; the window shows confirmed or pending closure because silence can consume the plan. The decision remains proposed until provider and real-device qualification; Radio keeps its own player.",
       "src": "23fbe214bd46"
+    },
+    "335": {
+      "title": "Canonical semantic proof and dependencies that can start",
+      "summary": "Linking two values requires an observation from the right source and account with the expected role; identical words are insufficient. The catalogue retains the read steps needed to start a chain and identifies dependencies without a source. An attempted change invalidates earlier proof both before and after the call.",
+      "src": "ea20ff58f396"
+    },
+    "336": {
+      "title": "Requested results are checked against what tools actually obtained",
+      "summary": "Explicit requests are anchored to the person's words and checked against observations: value, date, count, operation and completeness. The day and timezone remain those of the turn's start, even after resume. A draft stays pending and an opaque delegation stays unknown; verified gaps reach bounded read recovery and the answer.",
+      "src": "7bb027d3047a"
+    },
+    "337": {
+      "title": "ReAct reads saved before interruption and reused within the same turn",
+      "summary": "Declared independent reads can advance together under a limit, and their results are saved before a possible confirmation. A fresh complete read can serve again within the same turn and context. Changes invalidate reuse. A hard stop before saving can still repeat reads; observations are not shared across turns.",
+      "src": "fcd709716d2d"
+    },
+    "338": {
+      "title": "Current MCP contracts carry capabilities and exact server identity",
+      "summary": "Each person's MCP tools are discovered from their current declarations; only successfully constructed tools are advertised. The server keeps its exact identity separate from simplified routing and callable names. A server-bound task checks its target before confirmation. Older descriptions receive current capabilities without claiming to know the server's entire ontology.",
+      "src": "4d70e2379e7f"
     }
   }
 }

@@ -908,8 +908,12 @@
         "skill_proposal_name_taken": "A skill with this name already exists and can’t be replaced from the chat.",
         "skill_proposal_quota_reached": "You have reached the maximum number of skills. Remove one in Settings to install this one.",
         "skill_proposal_invalid": "This skill is no longer accepted. Ask LIA to generate it again.",
-        "skill_proposal_unavailable": "The proposal can’t be reached right now. Try again in a moment."
-      }
+        "skill_proposal_unavailable": "The proposal can’t be reached right now. Try again in a moment.",
+        "skill_proposal_completion_unknown": "The import result is uncertain. Check your skills; this proposal cannot be installed again."
+      },
+      "unknown": "The import result needs checking. This proposal will not be installed again automatically.",
+      "check_result": "Check result",
+      "cache_pending": "The skill was saved. Its catalogue refresh is still pending."
     },
     "document_expiry": {
       "expired": "This document has expired and is no longer available",
@@ -970,7 +974,13 @@
       "reactivate_description": "Your device paused location sharing while the app was closed. Re-enable it so LIA keeps using your real position instead of your home address.",
       "reactivate_button": "Re-enable",
       "detection": {
-        "keywords": ["nearby", "vicinity", "neighborhood", "surroundings", "area"],
+        "keywords": [
+          "nearby",
+          "vicinity",
+          "neighborhood",
+          "surroundings",
+          "area"
+        ],
         "patterns": [
           "around (me|here|us)",
           "close (by|to me)",
@@ -1260,6 +1270,9 @@
       },
       "resize": "Resize the debug panel"
     },
+    "card_group": {
+      "summary": "Show details"
+    },
     "card_actions": {
       "reply": "Reply",
       "forward": "Forward",
@@ -1310,6 +1323,93 @@
     "frame_retry": "Try again"
   },
   "settings": {
+    "application_tools": {
+      "document_upload_title": "Import a document",
+      "document_upload_choose": "Choose a local document",
+      "document_upload_confirm": "Import this document",
+      "document_upload_waiting": "Choose a file, then confirm its name, size and destination before sending it.",
+      "document_upload_accepted": "Document imported. Indexing is pending.",
+      "document_upload_sending": "Sending the confirmed document…",
+      "document_upload_destination": "Destination: {{name}}",
+      "document_upload_limits": "Maximum size: {{size}} · Documents: {{count}}/{{max}}",
+      "document_upload_types": "Accepted formats: {{types}}",
+      "document_upload_inactive": "This space is inactive and remains excluded from retrieval.",
+      "document_upload_cost": "Indexing uses platform quotas and may incur costs. Actual usage is available in the knowledge space.",
+      "document_upload_too_large": "This file exceeds the displayed size limit.",
+      "document_upload_progress": "Upload: {{progress}}%",
+      "secure_export_partial": "The export request was saved, but its status could not be confirmed. Check it in settings.",
+      "download_title": "Download your account archive",
+      "interests_download_title": "Download interests",
+      "document_archive_title": "Download document archive",
+      "asset_download_title": "Gallery file download",
+      "bookmark_download_title": "Saved answer download",
+      "skill_download_title": "Skill to download",
+      "document_download_title": "Download document",
+      "journals_download_title": "Download journal",
+      "memories_download_title": "Download current memories",
+      "download_waiting": "You confirmed this archive. Start its download request in the original browser.",
+      "download_attempted": "Check the request result. LIA cannot confirm that the file was saved to your device.",
+      "download_requested": "The download request is recorded. Your browser handles saving the file; LIA cannot confirm that it was saved.",
+      "download_start": "Start download",
+      "secure_export_title": "Finish requesting your account export",
+      "secure_export_requested": "Export requested. Preparation runs in the background; check its status in settings.",
+      "secure_title": "Finish signing out other sessions",
+      "mcp_configuration_title": "Configure a personal MCP server",
+      "mcp_configuration_open": "Open the private form",
+      "mcp_configuration_private": "Enter the endpoint and credentials in this private form. They are not sent to the assistant. Saving does not test the connection.",
+      "mcp_configuration_saved": "Configuration saved. The connection has not been tested.",
+      "mcp_configuration_waiting": "You confirmed this action. Complete the private form to save the configuration.",
+      "secure_waiting": "You confirmed this action. Continue through secure authentication to execute it.",
+      "secure_continue": "Continue securely",
+      "secure_check": "Check result",
+      "secure_running": "Execution is in progress. Check the result without submitting the action again.",
+      "secure_done": "Sign-out completed.",
+      "secure_complete_one": "{{count}} session signed out.",
+      "secure_complete_other": "{{count}} sessions signed out.",
+      "secure_expired": "This confirmation has expired. Ask LIA for a new proposal.",
+      "secure_failed": "The action could not be completed. Check its result before requesting a new proposal.",
+      "secure_unknown": "The result is not yet confirmed. Check it without submitting the action again.",
+      "secure_read_failed": "The current result could not be read. Try checking it again.",
+      "sync_failed": "The setting was saved, but the display could not be refreshed. Reload the page.",
+      "skill_file_upload_title": "Import a personal skill file",
+      "skill_file_upload_waiting": "Choose a .md or .zip file locally, then confirm its import.",
+      "skill_file_upload_sending": "Importing the skill file…",
+      "skill_file_upload_accepted": "The skill was imported.",
+      "skill_file_upload_choose": "Choose a skill file",
+      "skill_file_upload_confirm": "Import this skill",
+      "skill_file_upload_too_large": "The selected file exceeds the allowed size.",
+      "skill_file_upload_new": "Create a new personal skill. An existing name will be refused.",
+      "skill_file_upload_replace": "Replace only the personal skill “{{name}}”.",
+      "skill_file_upload_limits": "File: {{size}} maximum; package: {{files}} files and {{unpacked}} unpacked maximum.",
+      "skill_file_upload_effects": "Confirming imports the complete package and replaces the selected skill’s resources. Scripts are not run during import.",
+      "skill_file_upload_cache_pending": "The skill was saved. Its catalogue refresh is still pending.",
+      "plugin_file_upload_title": "Import a personal plugin ZIP",
+      "plugin_file_upload_waiting": "Choose a local ZIP, then confirm its import.",
+      "plugin_file_upload_sending": "Importing the plugin…",
+      "plugin_file_upload_accepted": "The plugin was imported.",
+      "plugin_file_upload_choose": "Choose a plugin ZIP",
+      "plugin_file_upload_confirm": "Import this plugin",
+      "plugin_file_upload_new": "Create a new personal plugin. An existing name will be refused.",
+      "plugin_file_upload_replace": "Replace only the plugin “{{name}}” and its listed components.",
+      "plugin_file_upload_effects": "Confirming imports the package and removes components absent from the new version. Scripts are not run. Individual components may be skipped; their outcomes are reported.",
+      "plugin_file_upload_cache_pending": "The plugin was saved. Its catalogue refresh is still pending.",
+      "plugin_file_upload_cleanup_pending": "The import was saved. Previous files still need cleanup verification.",
+      "plugin_file_upload_partial": "Some changes were saved, but the complete import was not confirmed. Check the result before preparing a new import.",
+      "plugin_file_upload_too_large": "The selected file exceeds the allowed size.",
+      "plugin_file_upload_limits": "File: {{size}} maximum; package: {{files}} files and {{unpacked}} unpacked maximum.",
+      "mcp_oauth_title": "Authorize a personal MCP server",
+      "mcp_oauth_open": "Open provider authorization",
+      "mcp_oauth_complete": "Complete authorization",
+      "mcp_oauth_waiting": "Confirm with the provider, then return to this conversation to complete saving. Never send codes or tokens in chat.",
+      "mcp_oauth_returned": "Return from the provider, then select Complete authorization. Nothing is saved until that step.",
+      "mcp_oauth_pending": "Awaiting provider authorization. You may check again after returning from the provider.",
+      "mcp_oauth_saved": "Authorization saved. The connection has not been tested.",
+      "meeting_pdf_download_title": "Meeting minutes to download",
+      "device_recording_title": "Recorder on this device",
+      "device_recording_waiting": "The approved action awaits this tab. Use the button to allow browser microphone access if needed.",
+      "device_recording_done": "The device confirmed the action. Minutes processing, if started, still needs verification.",
+      "device_recording_execute": "Execute on this device"
+    },
     "avatar": {
       "title": "Speaking avatar (beta)",
       "description": "An optional experimental Simli avatar accompanies voice comments and Live.",
@@ -1608,7 +1708,8 @@
       "delete_server": "Delete {{name}}",
       "generate_description": "Auto-generate",
       "generate_description_success": "Domain description generated",
-      "generate_description_no_tools": "No tools discovered — test connection first"
+      "generate_description_no_tools": "No tools discovered — test connection first",
+      "oauth_pending": "Provider authorization received. Return to the conversation to complete saving."
     },
     "sandbox_egress": {
       "title": "Sandbox network",
@@ -4024,6 +4125,7 @@
       "forget_all_description": "Every learned habit and the rhythm profile will be deleted. LIA will start learning again from scratch (unless you disable learning).",
       "forget_all_confirm": "Forget everything",
       "forget_all_done": "All habits forgotten.",
+      "forget_all_partial": "Habits and rhythm were erased, but cleanup of temporary traces is unconfirmed. You can try forgetting everything again.",
       "explanation": {
         "title": "Why this habit?",
         "error": "The explanation could not be loaded.",
@@ -4178,6 +4280,7 @@
         "failed_hint": "The export failed. Please try again.",
         "error_generic": "Something went wrong. Please try again.",
         "ready_hint": "Archive ready — {{size}} · expires {{date}}",
+        "archive_unavailable": "This archive is no longer available to download. Request a new export.",
         "expired_hint": "Export generated on {{created}}, expired on {{expired}}. Request a new export to download your data."
       },
       "auth": {
@@ -4243,6 +4346,7 @@
         "number_label": "My phone number",
         "number_placeholder": "+1 415 555 0100",
         "number_help": "International format preferred. LIA will only call this number once it is verified.",
+        "context_changed": "The account changed. Reload the settings before continuing.",
         "remove": "Remove the number",
         "verification_title": "Verification",
         "verified": "Verified",
@@ -4421,11 +4525,12 @@
         "server_create_failed": "Server could not be registered"
       },
       "via_plugin": "Via plugin",
-      "component_locked": "“{{name}}” belongs to an installed plugin — uninstall the plugin to remove it."
+      "component_locked": "“{{name}}” belongs to an installed plugin — uninstall the plugin to remove it.",
+      "file_cleanup_pending": "The plugin is saved. Some files from its previous version still need cleanup."
     },
     "eyes_style": {
-      "title": "Eyes style",
-      "description": "Choose the look of the chat's expressive eyes."
+      "title": "Avatar style",
+      "description": "Choose the look of the animated avatar that follows you throughout the app."
     },
     "meetings": {
       "title": "Meetings",
@@ -4579,6 +4684,8 @@
       "thinking": "Thinking level",
       "save": "Save the connector",
       "saved": "Live connector updated.",
+      "settings_changed": "Saved settings changed. Your unsaved edits are preserved; review them before saving.",
+      "reload_saved": "Reload saved settings",
       "save_error": "The connector could not be updated.",
       "preferences_title": "How the conversation behaves",
       "interruptions": "LIA stops when I speak",
@@ -5273,7 +5380,187 @@
       "get_steps_daily_breakdown": "Reading your steps day by day...",
       "compare_heart_rate_to_baseline": "Comparing your heart rate to your baseline...",
       "compare_steps_to_baseline": "Comparing your steps to your baseline...",
-      "detect_health_changes": "Looking for changes in your health data..."
+      "detect_health_changes": "Looking for changes in your health data...",
+      "get_lia_assistant_preferences": "Reading your assistant settings...",
+      "update_lia_assistant_preferences": "Preparing an assistant settings change...",
+      "get_lia_layout_preferences": "Reading your briefing grid and shortcuts...",
+      "update_lia_layout_preferences": "Preparing a grid or shortcut change...",
+      "get_lia_locations": "Reading your saved locations...",
+      "update_lia_home_location": "Preparing a home address change...",
+      "get_lia_heartbeat_preferences": "Reading your proactive settings...",
+      "update_lia_heartbeat_preferences": "Preparing a proactive settings change...",
+      "get_lia_channel_bindings": "Reading your linked channels...",
+      "update_lia_channel_binding": "Preparing a channel change...",
+      "unlink_lia_channel_binding": "Preparing to unlink the channel...",
+      "get_lia_connector_preferences": "Reading your connector preferences...",
+      "update_lia_connector_preferences": "Preparing a connector preference change...",
+      "get_lia_shared_mcp_preferences": "Reading your shared MCP preferences...",
+      "update_lia_shared_mcp_preferences": "Preparing a shared MCP preference change...",
+      "get_lia_connectors": "Reading your saved connections...",
+      "disconnect_lia_connector": "Preparing to disconnect the service...",
+      "get_lia_notification_devices": "Reading your notification devices...",
+      "get_lia_live_preferences": "Reading your Live conversation settings...",
+      "get_lia_live_connector_settings": "Reading Live connectors and their settings...",
+      "update_lia_live_connector_settings": "Preparing your Live connector settings...",
+      "get_lia_live_options": "Reading available Live models and voices...",
+      "get_lia_security_settings": "Reading your security settings...",
+      "set_lia_routine_state": "Preparing the routine state change...",
+      "get_lia_routines": "Reading your routines...",
+      "get_lia_reminders": "Reading reminder settings...",
+      "get_lia_memories": "Reading saved memories...",
+      "get_lia_interests": "Reading saved interests and their settings...",
+      "get_lia_interest_history": "Reading interest notification history...",
+      "get_lia_interest_details": "Reading interest weight explanation and sources...",
+      "create_lia_interest": "Preparing saved interest creation...",
+      "reactivate_lia_interest": "Preparing interest reactivation...",
+      "export_lia_interests": "Preparing your interests export...",
+      "export_lia_journals": "Preparing your journal export...",
+      "export_lia_memories": "Preparing your memory export...",
+      "get_lia_open_loops": "Reading your tracked commitments...",
+      "update_lia_psyche_settings": "Preparing personal psyche settings...",
+      "reset_lia_psyche": "Preparing psyche reset...",
+      "generate_lia_psyche_summary": "Preparing LIA's psyche summary...",
+      "get_lia_journal_portrait": "Reading the journal portrait...",
+      "update_lia_journal_settings": "Preparing journal settings...",
+      "delete_lia_journal_entries": "Preparing journal removal...",
+      "create_lia_journal_entry": "Preparing a journal entry...",
+      "update_lia_journal_entry": "Preparing a journal edit...",
+      "get_lia_journal_provenance": "Reading journal sources...",
+      "consolidate_lia_journals": "Preparing journal consolidation...",
+      "submit_lia_journal_portrait_feedback": "Preparing a portrait correction...",
+      "get_lia_journals": "Reading journal settings and entries...",
+      "get_lia_psyche": "Reading psyche settings and state...",
+      "get_lia_health_samples": "Reading health measurements...",
+      "delete_lia_health_samples": "Preparing health sample erasure...",
+      "revoke_lia_health_ingestion_token": "Preparing health token revocation...",
+      "create_lia_health_ingestion_token": "Preparing health token creation...",
+      "update_lia_relation_settings": "Preparing relationship settings...",
+      "get_lia_relations": "Reading relationship cards...",
+      "get_lia_relation_context": "Reading relationship provider sections...",
+      "get_lia_relation_debrief": "Reading the stored relationship debrief...",
+      "generate_lia_relation_debrief": "Preparing relationship debrief generation...",
+      "refresh_lia_relation_context": "Preparing relationship provider refresh...",
+      "set_lia_relation_favorite": "Preparing relationship favorite...",
+      "manage_lia_relation_grouping": "Preparing relationship grouping...",
+      "get_lia_relation_settings": "Reading relationship settings...",
+      "get_lia_peer_settings": "Reading connection settings...",
+      "create_lia_knowledge_space": "Preparing your space creation...",
+      "update_lia_knowledge_space": "Preparing your space update...",
+      "move_lia_knowledge_documents": "Preparing document move...",
+      "delete_lia_knowledge_documents": "Preparing document deletion...",
+      "delete_lia_knowledge_space": "Preparing your space deletion...",
+      "download_lia_knowledge_archive": "Preparing your document archive...",
+      "upload_lia_knowledge_document": "Preparing document import…",
+      "download_lia_knowledge_document": "Preparing your document download...",
+      "get_lia_knowledge_spaces": "Reading your knowledge spaces...",
+      "get_lia_workboard": "Reading your workboard...",
+      "share_lia_peer_image": "Preparing the image share...",
+      "update_lia_peer_block": "Preparing the block change...",
+      "remove_lia_peer_connection": "Preparing connection removal...",
+      "update_lia_peer_share": "Preparing my data sharing...",
+      "respond_lia_peer_request": "Preparing the invitation response...",
+      "request_lia_peer_connection": "Preparing a connection invitation...",
+      "search_lia_peer_directory": "Searching for an exact discoverable user...",
+      "update_lia_peer_settings": "Preparing connection visibility changes...",
+      "get_lia_health_chart": "Reading health chart aggregates...",
+      "get_lia_health_ingestion_tokens": "Reading health token metadata...",
+      "get_lia_personalities": "Reading available personalities...",
+      "get_lia_habits": "Reading your learned habits...",
+      "update_lia_habit_settings": "Preparing your habit-learning preference...",
+      "set_lia_habit_status": "Preparing your habit status...",
+      "delete_lia_habit": "Preparing your habit removal...",
+      "delete_all_lia_habits": "Preparing full habit forgetting...",
+      "recompute_lia_habits": "Preparing your habit recompute...",
+      "get_lia_habit_details": "Reading the evidence for this habit...",
+      "update_lia_open_loop": "Preparing your commitment correction...",
+      "close_lia_open_loop": "Preparing your commitment closure...",
+      "submit_lia_interest_feedback": "Preparing interest feedback...",
+      "delete_all_lia_interests": "Preparing deletion of all interests...",
+      "delete_lia_interest": "Preparing the interest deletion...",
+      "update_lia_interest": "Preparing the interest update...",
+      "update_lia_interest_settings": "Preparing interest notification settings...",
+      "get_lia_memory_provenance": "Reading the saved memory sources...",
+      "delete_all_lia_memories": "Preparing global saved-memory erasure...",
+      "delete_lia_memory": "Preparing the saved memory deletion...",
+      "update_lia_memory": "Preparing the saved memory edit...",
+      "create_lia_memory": "Preparing the saved memory creation...",
+      "set_lia_memory_pin": "Preparing the memory pin change...",
+      "create_lia_reminder": "Preparing reminder creation...",
+      "delete_lia_reminder": "Preparing reminder deletion...",
+      "update_lia_reminder": "Preparing reminder changes...",
+      "create_lia_routine": "Preparing your routine creation...",
+      "update_lia_routine": "Preparing routine changes...",
+      "execute_lia_routine": "Preparing a manual routine trigger...",
+      "delete_lia_routine": "Preparing routine deletion...",
+      "request_lia_account_export": "Preparing your full-account export request...",
+      "download_lia_account_export": "Preparing your account archive download...",
+      "get_lia_account_export": "Reading your account export status...",
+      "get_lia_device_sessions": "Reading your connected devices...",
+      "revoke_lia_device_session": "Preparing to sign out the device...",
+      "revoke_lia_other_device_sessions": "Preparing secure sign-out of other sessions...",
+      "get_lia_phone_identity": "Reading your phone identity...",
+      "update_lia_phone_number": "Preparing your phone number change...",
+      "update_lia_phone_preferences": "Preparing your call context and mode settings...",
+      "get_lia_phone_calls": "Reading your call history...",
+      "update_lia_live_preferences": "Preparing your Live settings...",
+      "remove_lia_notification_device": "Preparing to remove the notification device...",
+      "get_lia_preferences": "Reading your LIA settings...",
+      "update_lia_preferences": "Preparing a change to your LIA settings...",
+      "get_lia_knowledge_source_options": "Reading your knowledge source choices…",
+      "unlink_lia_knowledge_source": "Preparing source removal with document retention…",
+      "link_lia_knowledge_source": "Preparing the source link to your space…",
+      "sync_lia_knowledge_source": "Preparing synchronization of your source…",
+      "delete_lia_knowledge_source": "Preparing deletion of the source and its documents…",
+      "keep_lia_saved_answer": "Prepare saving the answer",
+      "delete_lia_saved_answer": "Prepares saved-answer deletion",
+      "get_lia_saved_answers": "Read saved answers",
+      "download_lia_saved_answer": "Prepares saved-answer download",
+      "get_lia_email_share_options": "Reads email-sharing options",
+      "get_lia_skills": "Reads personal skill settings",
+      "import_lia_skill_url": "Prepares a skill import from a URL",
+      "import_lia_plugin_url": "Prepares a plugin import from a URL",
+      "import_lia_plugin_file": "Prepares a local plugin file import",
+      "get_lia_skill_library": "Reads the skill library",
+      "install_lia_library_skill": "Prepares a library skill installation",
+      "update_lia_library_skill": "Prepares a library skill update",
+      "update_lia_skill_settings": "Updates personal skill activation",
+      "delete_lia_skill": "Deletes a personal skill",
+      "download_lia_skill": "Prepares a skill download",
+      "send_lia_email_share": "Prepares an email share",
+      "get_lia_generated_gallery": "Reading your gallery and keep quotas…",
+      "update_lia_generated_asset_retention": "Preparing file retention changes…",
+      "download_lia_generated_asset": "Prepare a generated file download",
+      "delete_lia_generated_assets": "Preparing deletion of your generated files…",
+      "import_lia_skill_file": "Prepares a personal skill file import",
+      "get_lia_plugins": "Reads personal plugins",
+      "get_lia_personal_mcp_servers": "Reads personal MCP servers",
+      "regenerate_lia_personal_mcp_description": "Regenerates a personal MCP description",
+      "test_lia_personal_mcp_connection": "Tests a personal MCP connection",
+      "disconnect_lia_personal_mcp_oauth": "Disconnects personal MCP OAuth",
+      "configure_lia_personal_mcp_server": "Opens secure personal MCP configuration",
+      "delete_lia_personal_mcp_server": "Deletes a personal MCP server",
+      "update_lia_personal_mcp_server_settings": "Changes personal MCP settings",
+      "set_lia_personal_mcp_server_enabled": "Changes personal MCP activation",
+      "delete_lia_plugin": "Prepares plugin removal",
+      "authorize_lia_personal_mcp_server": "Authorize a personal MCP server",
+      "get_lia_meeting_preferences": "Read meeting preferences",
+      "update_lia_meeting_preferences": "Update meeting preferences",
+      "get_lia_meetings": "Read meetings",
+      "get_lia_meeting_templates": "Read minutes templates",
+      "create_lia_meeting_template": "Create a minutes template",
+      "update_lia_meeting_template": "Update a minutes template",
+      "delete_lia_meeting_template": "Delete a minutes template",
+      "delete_lia_meeting_transcript": "Delete the meeting transcript",
+      "restore_lia_meeting_report": "Restore generated minutes",
+      "update_lia_meeting_report": "Edit meeting minutes",
+      "download_lia_meeting_pdf": "Meeting minutes to download",
+      "email_lia_meeting_report": "Email meeting minutes",
+      "delete_lia_meeting": "Delete meeting",
+      "reformat_lia_meeting_report": "Change meeting minutes format",
+      "regenerate_lia_meeting_report": "Regenerate meeting minutes",
+      "retry_lia_meeting": "Retry meeting processing",
+      "get_lia_meeting_recorder": "Recorder status",
+      "control_lia_meeting_recording": "Recorder command"
     },
     "reasoning": {
       "title": "Reasoning"
@@ -5290,6 +5577,16 @@
     "minimize": "Hide the eyes",
     "restore": "Show the eyes",
     "cycle_size": "Change the eyes size",
+    "sizes": {
+      "sm": "Small",
+      "md": "Medium",
+      "lg": "Large",
+      "xl": "Extra large"
+    },
+    "variants": {
+      "female": "Feminine",
+      "male": "Masculine"
+    },
     "styles": {
       "cozmo": {
         "name": "Cozmo",
@@ -5314,6 +5611,38 @@
       "smiley": {
         "name": "Smiley",
         "description": "A warm face whose mood, attention and expressions follow LIA."
+      },
+      "spirit": {
+        "name": "LIA Spirit",
+        "description": "An opalescent 3D companion whose expressions follow LIA’s state."
+      },
+      "moss": {
+        "name": "Mousse",
+        "description": "A mint and jade plant spirit whose expressions follow LIA."
+      },
+      "lumen": {
+        "name": "Lumo",
+        "description": "A pearlescent coral spirit with lunar leaves, whose expressions follow LIA."
+      },
+      "nimbo": {
+        "name": "Nimbo",
+        "description": "A soft cloud companion, expressive and mischievous."
+      },
+      "orbit": {
+        "name": "Orbit",
+        "description": "A curious little cosmic spirit with a lively gaze."
+      },
+      "bip": {
+        "name": "Bip",
+        "description": "A playful little robot with luminous eyes."
+      },
+      "boulon": {
+        "name": "Boulon",
+        "description": "A rounded robot, warm and a little clumsy."
+      },
+      "oscar": {
+        "name": "Oscar",
+        "description": "An elegant miniature butler, helpful and full of humor."
       },
       "anneaux": {
         "name": "Rings",
@@ -8260,17 +8589,17 @@
             "i6": "<b>🔧 Also fixed</b> — the tool selection and the ReAct ranking had gone blind on an embedding cache written at the wrong dimension; the semantic validator had skipped every turn since a September change; an ambiguous answer to a confirmation was read as an edit; the phone's Live call nobody answered left no notification; an open tab held a database connection for its whole life; the dev certificate was renewed on its age rather than its expiry."
           }
         },
-          "v2_6_1": {
-            "title": "v2.6.1 — Continuous speech, a controllable avatar and an interface within reach",
-            "date": "6 October 2026 · 13:00 CEST",
-            "count": "4",
-            "items": {
-              "i1": "<b>🎭 A visible stop control for the avatar</b> — The window keeps its stop button even when the chat encounters an error. It shows whether closure is confirmed or still pending; an open session can consume your Simli plan, including during silence.",
-              "i2": "<b>🎧 Continuous Live answers</b> — Long answers keep their audio segments in order. The avatar follows playback without repeating a phrase after an interruption; if output fails, the next answer can return to local speech.",
-              "i3": "<b>📱 Floating controls within reach</b> — The avatar, animated companion and shortcuts adapt to the visible area when the keyboard opens, you rotate the screen or zoom. These temporary adjustments preserve your chosen position.",
-              "i4": "<b>🖼️ The current interface in pictures</b> — The gallery and documentation show current screens with fictional demonstration data. Updated screenshots load with their own revision to avoid displaying an old image. The expanded viewer fills the screen on desktop and mobile."
-            }
-          },
+        "v2_6_1": {
+          "title": "v2.6.1 — Continuous speech, a controllable avatar and an interface within reach",
+          "date": "6 October 2026 · 13:00 CEST",
+          "count": "4",
+          "items": {
+            "i1": "<b>🎭 A visible stop control for the avatar</b> — The window keeps its stop button even when the chat encounters an error. It shows whether closure is confirmed or still pending; an open session can consume your Simli plan, including during silence.",
+            "i2": "<b>🎧 Continuous Live answers</b> — Long answers keep their audio segments in order. The avatar follows playback without repeating a phrase after an interruption; if output fails, the next answer can return to local speech.",
+            "i3": "<b>📱 Floating controls within reach</b> — The avatar, animated companion and shortcuts adapt to the visible area when the keyboard opens, you rotate the screen or zoom. These temporary adjustments preserve your chosen position.",
+            "i4": "<b>🖼️ The current interface in pictures</b> — The gallery and documentation show current screens with fictional demonstration data. Updated screenshots load with their own revision to avoid displaying an old image. The expanded viewer fills the screen on desktop and mobile."
+          }
+        },
         "v2_6_0": {
           "title": "v2.6.0 — A speaking face, faithful cards and every paid attempt accounted for",
           "date": "5 October 2026 · 06:58 CEST",
@@ -8457,7 +8786,7 @@
           },
           "q25": {
             "question": "What are the little animated eyes on the chat page?",
-            "answer": "They are LIA's <strong>expressive eyes</strong> — a small companion widget that mirrors what the assistant is doing and feeling. They watch the input while you type, squint while LIA thinks, scan side to side while it searches, and play the <strong>register</strong> of each answer — LIA states whether what she has just written is warm, assured, factual, apologetic, curious or concerned, and the face plays it, mouth included. Twelve distinct expressions, only two of which smile: a technical answer keeps a focused face. Left alone, the whole face lives on: the brows keep a faint arch and follow the gaze, one breath carries eyes, brows and mouth, the mouth plays small mimics at an unhurried pace, and every minute or two a short sketch plays — a fly to follow, a sneeze, a yawn, hiccups. Any change of expression drops it on the spot.<br><br><strong>Make them yours:</strong> drag them anywhere (arrow keys work too, and they never drift from where you put them), tap them on mobile to reveal the size and hide buttons, or dismiss them to a small restore dot. Six visual styles are available in <strong>Settings › Personalization › Eyes style</strong>, with live previews. The same face greets visitors on the public home page, in the capsule look, with a spot of its own that never moves the chat's. Under reduced-motion system settings the eyes stay still."
+            "answer": "They are LIA's <strong>expressive eyes</strong> — a small companion widget that mirrors what the assistant is doing and feeling. They watch the input while you type, squint while LIA thinks, scan side to side while it searches, and play the <strong>register</strong> of each answer — LIA states whether what she has just written is warm, assured, factual, apologetic, curious or concerned, and the face plays it, mouth included. Twelve distinct expressions, only two of which smile: a technical answer keeps a focused face. Left alone, the whole face lives on: the brows keep a faint arch and follow the gaze, one breath carries eyes, brows and mouth, the mouth plays small mimics at an unhurried pace, and every minute or two a short sketch plays — a fly to follow, a sneeze, a yawn, hiccups. Any change of expression drops it on the spot.<br><br><strong>Make them yours:</strong> drag them anywhere (arrow keys work too, and they never drift from where you put them), tap them on mobile to reveal the size and hide buttons, or dismiss them to a small restore dot. Six visual styles are available in <strong>Settings › Personalization › Avatar style</strong>, with live previews. The same face greets visitors on the public home page, in the capsule look, with a spot of its own that never moves the chat's. Under reduced-motion system settings the eyes stay still."
           },
           "q26": {
             "question": "How do I keep an answer so it outlives the conversation?",
@@ -11545,15 +11874,15 @@
     "hero": {
       "badge_beta": "BETA",
       "badge": "Personal AI assistant",
-      "title_line1": "Your life.",
-      "title_line2_before": "Your ",
-      "title_line2_highlight": "AI",
-      "title_line2_after": ".",
-      "title_line3": "Your rules.",
-      "subtitle_top": "An assistant that connects everything that matters to you.",
-      "subtitle_line1": "Your services, memories, and plans finally work together.",
-      "subtitle_line2": "Easy every day, yours to make your own.",
-      "subtitle_line3": "And always under your control.",
+      "title_line1": "Your day.",
+      "title_line2_before": "",
+      "title_line2_highlight": "LIA",
+      "title_line2_after": " keeps up.",
+      "title_line3": "You decide.",
+      "subtitle_top": "Your personal assistant, on request and proactively.",
+      "subtitle_line1": "Prepare for conversations. Listen to your day. Coordinate with the people around you.",
+      "subtitle_line2": "Your sources, memory and commitments come together to help you move forward.",
+      "subtitle_line3": "In one web app, with approval for sensitive actions.",
       "cta_primary": "Join the BETA",
       "scroll_hint": "Scroll to explore",
       "trust_agents": "AI agents",
@@ -11561,10 +11890,18 @@
       "trust_voices": "voice languages",
       "trust_gdpr": "GDPR principles",
       "badge_opensource": "Open Source",
-      "cta_github": "GitHub",
+      "cta_github": "Explore the code and install",
       "cta_demo": "Guided demo",
       "intro_paragraph": "LIA is an open-source personal AI assistant that orchestrates 20+ specialized agents to manage your emails, calendar, contacts, files, tasks, reminders, web search, weather, routes, and smart home. Compatible with Google Workspace, Apple iCloud, and Microsoft 365, LIA works in natural language with human validation of every sensitive action. Available in 6 interface languages, with voice mode and 7 LLM providers to choose from.",
-      "cta_star": "Star"
+      "cta_star": "Star",
+      "proof_origin": "Built in France",
+      "proof_accounts": "One server, separate accounts",
+      "proof_control": "Approve sensitive actions",
+      "home_cta_primary": "Create my account",
+      "home_access_note": "Limited BETA signup by email: verify your address, then an administrator activates your account; activation is automatic on a demo instance.",
+      "home_value": "Your conversations, memory and calendar: LIA connects the context to prepare what comes next and suggest the right action.",
+      "home_code_link": "The code and setup guide",
+      "home_cta_demo": "See LIA in action"
     },
     "video": {
       "aria_label": "Illustration video",
@@ -11581,20 +11918,20 @@
       "close": "Close the player"
     },
     "promise": {
-      "eyebrow": "AI shaped around you",
-      "title": "Everything connects. You stay in control.",
-      "lead": "Made in France, LIA is an open-source personal assistant that is free to install. Talk to it naturally, with no technical knowledge needed, and explore deeper customization whenever you want.",
+      "eyebrow": "One day, many ways to help",
+      "title": "Pick up the thread. Prepare what comes next.",
+      "lead": "Find the right project context, keep a commitment, prepare your next conversation: LIA works with the information you make accessible.",
       "ecosystem": {
-        "title": "One ecosystem, not a pile of apps",
-        "body": "Email, calendar, documents, home, and plans share a common thread. LIA connects what you entrust to it, remembers what matters, and offers help as your days unfold — or acts when you ask."
+        "title": "An assistant that gets to know you",
+        "body": "Memory, Relations and knowledge help you pick up where you left off without telling the whole story again."
       },
       "trust": {
-        "title": "Trust you can check",
-        "body": "The code is open. On a self-hosted instance, your data stays with you; external services you choose may receive information needed for your request. Sensitive actions wait for your approval, actions and costs are visible, and your data can be exported."
+        "title": "Proposals you can inspect",
+        "body": "Review sources and drafts. Approve sensitive actions. Registers show reads, attempts and their outcomes."
       },
       "freedom": {
-        "title": "At home, on every screen",
-        "body": "Install LIA with Docker on a Raspberry Pi ARM64, a Windows or Linux PC, or a Mac. Run local AI through Ollama or choose Claude, GPT, DeepSeek, and others. Use LIA on the web, iOS, or Android, and give loved ones their own accounts. Some external services may charge fees."
+        "title": "An app you can make your own",
+        "body": "Built in France and open source under AGPL. Use an instance in your browser or install your own with Docker. Hosting and external services may incur costs."
       }
     },
     "chat_mockup": {
@@ -11706,10 +12043,10 @@
       },
       "web_intelligence": {
         "title": "Search, places & routes",
-        "description": "Multi-source web search — Brave, Perplexity, Wikipedia — and reading any public page as clean text; places and shops nearby; routes by car, on foot, by bike or by public transport; automatic geolocation, with an opt-in remembered position that keeps answers local while travelling and always states its age. Wikipedia, page reading, places, routes and weather are provided by your instance: always on, nothing to configure."
+        "description": "Connect your context with public information: multi-source search through Brave, Perplexity and Wikipedia, reading accessible supported public pages, nearby places and routes by car, on foot, by bike or public transport. With your consent, a saved location can help local answers as you travel; its age remains visible. Search, places, routes and weather availability depends on instance configuration, your access and the data provided."
       },
       "voice_mode": {
-        "title": "Voice mode, 100 % local listening",
+        "title": "Voice, transcription and local wake word",
         "description": "Speak through local or optional remote transcription and listen to configurable, streamed speech. The French wake word is detected in the browser and remains in beta. An experimental Simli face can accompany voice comments and Live on your own key, after explicit activation; its window shows confirmed or pending closure. Simli can consume your plan during silence. Text and voice remain available when the avatar cannot connect."
       },
       "natural_language": {
@@ -11718,7 +12055,7 @@
       },
       "multi_agent": {
         "title": "20+ specialised agents",
-        "description": "Emails, calendar, contacts, files, tasks, weather, web search, Wikipedia, places, routes, reminders and more: every domain has its specialist. One request activates the right agents, which work in parallel whenever nothing forces them to wait — you never need to know which ones, or in what order. A plan spanning several domains completes in seconds."
+        "description": "Mail, calendars, contacts, files, tasks, weather, web search, places, routes and reminders: LIA can coordinate the specialists needed for one request. Independent steps can run in parallel; steps that need a prior result keep their order. Stay in the conversation to prepare your day or connect project information. Available capabilities depend on your access and instance; duration depends on the work, models and services used."
       },
       "proactive": {
         "title": "Proactive intelligence",
@@ -11782,7 +12119,7 @@
       },
       "psyche": {
         "title": "Living emotional intelligence",
-        "description": "LIA doesn’t recite — she feels. 14 moods, 22 emotions, a relationship that deepens message after message. Her vocabulary warms when she is touched, her sentences shorten under tension, her humour surfaces when the exchange is light — she never announces it, she shows it. Even her voice breathes with the moment: its prosody follows her mood within strict bounds, so good news never sounds like a weather report."
+        "description": "Conversation that adapts to the moment: LIA adjusts its vocabulary, pace and humor through its personality and a model of moods and emotions. This expressive behavior is a simulation, not human feeling. Depending on enabled voice capabilities, its prosody can follow that tone within defined limits. You get a personalized presence with the same permissions to act."
       },
       "mood_face": {
         "title": "A face that lives",
@@ -11790,11 +12127,11 @@
       },
       "mcp": {
         "title": "Extensible (MCP)",
-        "description": "Connect your own MCP servers — the Model Context Protocol, the industry’s open standard — to extend LIA without limit: instance servers or your own, four authentication modes including OAuth 2.1, automatic tool discovery. LIA speaks both generations of the protocol, with automatic fallback, and your servers work in ReAct mode as well as Pipeline. Iterative mode available: a dedicated agent reads the server’s documentation, then calls the tools with the right parameters. A server you add never chooses what LIA downloads: no remote reference in its schemas, no redirect to another site."
+        "description": "Add useful tools for your everyday life through compatible MCP servers, personal or shared by the instance. The Model Context Protocol enables tool discovery with several authentication options, including OAuth. Tools can be used in Pipeline or ReAct according to supported capabilities. In iterative mode, a dedicated agent uses available documentation to prepare calls. Your access, server configuration and protections on schemas and network destinations bound this extension."
       },
       "mcp_apps": {
         "title": "Interactive MCP Apps",
-        "description": "An MCP server can bring its interface with it: forms, visualisations and mini-apps show up right in the conversation, in real time, through the MCP Apps protocol. Every widget runs in a sandboxed frame — validated origins, no access to your session —, which lets a third-party tool be useful without ever becoming dangerous. Available to users and administrators alike."
+        "description": "When a compatible server provides one, its interface joins the conversation: forms, visualizations and mini-apps become usable in chat through MCP Apps. Each widget runs in a separate frame with controlled origins and restricted access. Inspect a result and interact with the tool in the same place. Available to users and administrators, depending on the server and its configuration."
       },
       "excalidraw": {
         "title": "Sketches & diagrams",
@@ -11818,7 +12155,7 @@
       },
       "simplicity": {
         "title": "Simple in a few clicks",
-        "description": "No technical skill required: guided setup, one-click connectors, everything works from the first use. A search field finds any setting by its name — or a synonym, in your language — and your favourite sections pin into a floating dock that follows you across the whole dashboard. A capability map says, for each one, whether it is active here and where to adjust it."
+        "description": "Find settings by name or synonym in your language, then pin favorite sections in a floating dashboard dock. The capabilities view shows what is active on your instance and where to configure it. Connectors request the access needed to link your services. Everyday use happens in the interface; hosting and some optional services require operator configuration."
       },
       "themes": {
         "title": "Customisable",
@@ -11882,7 +12219,7 @@
       },
       "document_generation": {
         "title": "AI document generation",
-        "description": "Ask for a CSV, an Excel workbook, a Word report, a PowerPoint deck or a PDF. A dedicated writer model produces the content in your language, then a local engine builds the file with the codes of its format, without an external file-conversion service: table of contents and pagination computed by Word, typed Excel columns under a filterable table, 16:9 slides laid out by intent, exact page numbers in PDF. Text is measured before it is placed — nothing overflows. Chainable on a web search in the same request."
+        "description": "Turn project information into a CSV, Excel spreadsheet, Word report, PowerPoint presentation or PDF. A writing model prepares the content in your language; a local engine builds the file without an external conversion service. Tables, styles, pagination and layout follow supported formats, with text measurement to limit overflow. Find the result in the conversation to review, download or share. Generation can follow research in the same request, depending on enabled capabilities."
       },
       "devops_cli": {
         "title": "DevOps CLI (Admin)",
@@ -11906,11 +12243,11 @@
       },
       "plugins": {
         "title": "Plugins (Agent Plugins standard)",
-        "description": "Install portable plugins from the whole AI ecosystem — the open agent-plugins.org standard adopted by ChatGPT, Cursor, GitHub Copilot and VS Code. One package bundles skills and MCP servers, installs in one step from a zip or an https link, reports every component honestly — installed, skipped and why, removed — and uninstalls just as cleanly. What you built for another tool works here, without a rewrite."
+        "description": "Bring several capabilities together in one package: LIA supports skills and MCP servers from the Agent Plugins v1 standard. Install a plugin from a ZIP file or HTTPS link, then inspect each component’s status: installed, skipped with a reason, or removed. Uninstall it from the application when needed. Reusing a plugin depends on its contents and the features LIA supports."
       },
       "environment": {
         "title": "Weather, air quality and pollen",
-        "description": "A weather question also brings back the air quality index and seasonal pollen, with the category published by the service itself — your country’s index when it exists, never an invented scale. On the chat card, on the five-day forecast, on your home page and on a place’s sheet. No key to provide: active from day one, and a notification can warn you before a planned outing."
+        "description": "Prepare an outing with forecasts and, when the source provides them, air quality and seasonal pollen. Displayed categories come from the service, including a local index where available. This information can appear in a chat card, forecasts, briefing or place details; an authorized notification can flag it. Availability and any required keys depend on instance configuration and enabled sources."
       },
       "meetings": {
         "title": "Record a meeting, get the minutes",
@@ -11989,7 +12326,7 @@
       },
       "bff": {
         "title": "Secure architecture",
-        "description": "A BFF pattern with HTTP-only cookies and Redis sessions: tokens are never exposed to the frontend. Passkeys and a TOTP second factor, with step-up re-authentication before sensitive actions. Strict CSP, OWASP Top 10 coverage, and third-party code running in a throwaway container with no socket, offline unless its hosts were allowed. A Google sign-in proves an address, never a right: it can neither activate nor unblock an account. Every page LIA reads is fetched on the address that was checked, one redirect at a time: none can lead it into an internal network."
+        "description": "A BFF pattern with HTTP-only cookies and Redis sessions: connector OAuth tokens are never exposed to the frontend. Passkeys and a TOTP second factor, with re-authentication for certain sensitive account operations such as second-factor management and export. A strict CSP, OWASP Top 10 coverage, and third-party code running in a disposable container without a socket, offline except for authorized hosts. A Google connection proves an address, never a permission: it cannot activate or unblock an account. Every page LIA reads is fetched at a verified address, redirect by redirect: none can lead it to an internal network."
       },
       "encryption": {
         "title": "Encryption",
@@ -12015,7 +12352,7 @@
     "tech": {
       "title": "Under the hood",
       "subtitle": "An architecture built for performance and scalability",
-      "intro": "LIA connects semantic routing with the tools and sources relevant to your request. For tasks to carry out, Pipeline prepares and checks a plan; ReAct advances through searches and adjustments. You choose the mode. The path is instrumented end to end, from token to euro, with email alerts on vital signals.\n\nBehind the interface: Bayesian plan learning, dual-vector semantic memory, hybrid BM25 + embeddings search over your documents, a LangGraph state machine checkpointed in PostgreSQL. All of it self-hostable — down to a Raspberry Pi.\n\nWhat it states, it read: every answer is anchored on the data actually retrieved — never on the memory of an earlier phrasing — and information that was never obtained is announced as missing rather than filled in.\n\nWhat runs is isolated from what runs it: a skill's code executes in a container created for a single call — no socket, no network beyond the hosts that were allowed, read-only — and if that sandbox cannot be built, nothing runs at all.",
+      "intro": "LIA connects semantic routing with the tools and sources relevant to your request. For tasks to carry out, Pipeline prepares and checks a plan; ReAct advances through searches and adjustments. You choose the mode. The path is instrumented end to end, from token to euro, with email alerts on vital signals.\n\nBehind the interface: Bayesian plan learning, dual-vector semantic memory, hybrid BM25 + embeddings search over your documents, a LangGraph state machine checkpointed in PostgreSQL. All of it self-hostable — down to a Raspberry Pi.\n\nLIA gives the model information retrieved by its tools and instructions to distinguish facts, sources and gaps. ReAct provides bounded recovery when a gap is declared. Registers let you inspect consultations and actions. A response can still be incomplete or incorrect: check its sources and correct its conclusions.\n\nWhat runs is isolated from what runs it: a skill's code executes in a container created for a single call — no socket, no network beyond the hosts that were allowed, read-only — and if that sandbox cannot be built, nothing runs at all.",
       "deep_dive_link": "Full technical deep dive",
       "langgraph": {
         "title": "Two ways to carry out a request",
@@ -12157,6 +12494,20 @@
         "settings_administration_oneclick": "Administration — Platform capability switches",
         "settings_administration_llm": "Administration — Provider credentials and model selection for each operation",
         "faq": "FAQ — Searchable help center with categorized Q&A"
+      },
+      "proof": {
+        "dashboard": "Your personal hub: daily summary, calendar, emails, tasks and reminders in one place.",
+        "dossier": "Prepare a decision with mail, documents and meeting notes",
+        "approval": "Review and approve an action in chat",
+        "knowledge": "Organize knowledge with documents and synchronized sources",
+        "skill": "Use a mini-app in the conversation",
+        "memory": "Inspect and edit memory",
+        "administration": "Set instance and account limits",
+        "grafana_overview": "Grafana: instance and container resources",
+        "grafana_costs": "Grafana: tokens, costs and cache",
+        "relations": "Relations · review conversations, useful facts and open commitments before getting back in touch.",
+        "meetings": "Meetings · review decisions and assigned action items, then edit or export the report.",
+        "radio": "Personal Radio · see the programme, its transcript and the sources you can inspect."
       }
     },
     "presentation": {
@@ -12216,16 +12567,16 @@
       "how_prefix": "Under the hood:",
       "c1": {
         "bubble": "The quote changed. The email explains why. The minutes record what was agreed.",
-        "title": "LIA gets it done. For real.",
-        "sub": "Give her the goal: she finds the pieces, connects them and moves the useful steps forward.",
-        "b1_t": "The whole case in one line of reasoning.",
-        "b1_d": "Emails, documents and meeting decisions come together in a result you can use.",
-        "b2_t": "She picks up your phone. Really.",
-        "b2_d": "Book, ask, check: you approve who and why, she calls, you get the written summary.",
-        "b3_t": "Work you can delegate.",
-        "b3_d": "Hand over a mission in the Workboard: its context, progress and discussion stay together.",
-        "b4_t": "The series, not the chore.",
-        "b4_d": "\"A reminder the day before each of my meetings\": she iterates over the whole week, in one request.",
+        "title": "Before, during and after your conversations.",
+        "sub": "Prepare the meeting, talk it through, then revisit the decisions and next steps.",
+        "b1_t": "Before: the context and useful questions.",
+        "b1_d": "Connect documents, recent conversations and meeting decisions. Arrive with the points that need clarifying.",
+        "b2_t": "During: speak and interrupt naturally.",
+        "b2_d": "Talk in Live with your Gemini, OpenAI or ElevenLabs key. Voices and delegation capabilities vary by provider.",
+        "b3_t": "After: minutes to correct and share.",
+        "b3_d": "Record the meeting, review its decisions and action items, then share the PDF. Once the minutes are indexed, you can retrieve them in chat.",
+        "b4_t": "During: speak and interrupt naturally.",
+        "b4_d": "Full-duplex Live uses your Gemini Live, OpenAI or ElevenLabs API key. Delegated requests use LIA’s engine, context and controls. Models, voices and delegation capabilities vary by provider.",
         "how": "20+ agents orchestrated in parallel · live voice sessions on your own Gemini, OpenAI or ElevenLabs key · agentic telephony via your ElevenLabs connector · browser control · Philips Hue · images & diagrams on demand.",
         "catalog_hint": "{{count}} detailed capabilities",
         "v_query": "\"a reminder the day before each of my meetings\"",
@@ -12237,18 +12588,18 @@
         "v_t3_sub": "creating…",
         "v_series": "4 reminders created",
         "v_series_sub": "the day before, 7 pm — one request",
-        "mechanism": "LIA selects the sources relevant to your request, runs independent searches together, then connects the useful passages and findings. You get an answer grounded in those sources, with the points that still need checking."
+        "mechanism": "Pipeline organizes a plan for a specific request; ReAct adapts its searches to explore. Useful sources, proposals and action controls remain connected to the work."
       },
       "c2": {
         "bubble": "Your appointment, the promise to keep, the email you sent: it is all one day.",
-        "title": "LIA knows you.",
-        "sub": "Your preferences and projects give meaning to what she finds. You can correct what she remembers.",
-        "b1_t": "Less context to repeat.",
-        "b1_d": "Remembered people, preferences and facts inform future requests when they are relevant.",
-        "b2_t": "Your day, to read or listen to.",
-        "b2_d": "The briefing brings together what matters. The radio builds programmes around your day, sources and interests.",
-        "b3_t": "She has moods. You can see them.",
-        "b3_d": "Her face shifts with the conversation and lives on between two answers; her humour shows when the exchange is light. From Professor to Cynic: 14 personalities.",
+        "title": "Your day has context. LIA brings it back.",
+        "sub": "From your briefing to your personal radio, appointments, commitments and interests fit into the same day.",
+        "b1_t": "Memory you can correct.",
+        "b1_d": "Preferences, people, projects and rules: inspect what LIA remembers, edit it, pin what matters or remove it.",
+        "b2_t": "Read your day or listen to it.",
+        "b2_d": "Read the essentials on the dashboard. Listen to a radio program composed from your day and your authorized news sources.",
+        "b3_t": "Prepare for your next conversation with the full picture.",
+        "b3_d": "In Relations, your personal mini CRM, each profile brings together exchanges, remembered facts, calls and open commitments. Prepare your next conversation with what matters for that person, beyond a simple contact list.",
         "how": "dual-vector semantic memory · introspective journals · daily briefing · Psyche Engine (14 moods, 22 emotions).",
         "catalog_hint": "{{count}} detailed capabilities",
         "s_chip": "The morning briefing",
@@ -12260,18 +12611,18 @@
         "s_day_b1": "9:00 Team sync",
         "s_day_b2": "11:30 Client",
         "s_day_b3": "6:30 pm Workout",
-        "mechanism": "Memory helps interpret your request; connected sources tell her what is happening now. The briefing and radio bring these pieces together according to your settings, without reading sources you switched off."
+        "mechanism": "Memory helps interpret your request; connected sources show what is happening now. Briefing and Radio each use their own source settings."
       },
       "c3": {
         "bubble": "You were waiting for a reply. It arrived. Here is what it changes for your project.",
-        "title": "LIA notices before you do.",
-        "sub": "An expectation tracked, context connected, a useful proposal at the right time.",
-        "b1_t": "A watch with a purpose.",
-        "b1_d": "In settings, define a routine’s condition and intended work: LIA checks the rule, then starts the planned action when the condition is met.",
-        "b2_t": "She watches your topics.",
-        "b2_d": "Tech, sport, finance, health: she follows what you care about and pushes the essentials, at the right time.",
-        "b3_t": "Work keeps its thread.",
-        "b3_d": "Routines, reminders and delegated missions stay tracked. See the progress and pick up where the work stands.",
+        "title": "Pick up the project at the right moment.",
+        "sub": "An awaited reply, a deadline, a useful signal: routines and proactivity connect new information to what you are working on.",
+        "b1_t": "A condition, then the right next step.",
+        "b1_d": "Choose the condition to watch and the work to run. LIA checks the signal at the instance’s defined cadence before triggering the next step.",
+        "b2_t": "The alert comes with context.",
+        "b2_d": "Available sources, projects and interests help LIA make a useful suggestion. You can configure or turn off this help.",
+        "b3_t": "Visible follow-up between requests.",
+        "b3_d": "Reminders, habits, scheduled actions and tickets keep their state in the application. See what is pending and what has completed.",
         "how": "configurable proactive intelligence · interests · natural-language reminders · scheduled routines · health tracking.",
         "catalog_hint": "{{count}} detailed capabilities",
         "v_intro": "nobody asked anything —",
@@ -12284,16 +12635,16 @@
       },
       "c4": {
         "bubble": "I propose. You decide. That’s the deal.",
-        "title": "Autonomy, with you in control.",
-        "sub": "See what is proposed, adjust it and find out what was actually done.",
-        "b1_t": "Approval for a specific action.",
-        "b1_d": "Before a message or call to someone else, she presents the recipient and content. Adjust the proposal before confirming.",
-        "b2_t": "Every reply shows its price.",
-        "b2_d": "Tokens and cents, message by message. Budgets you set, counters you see.",
-        "b3_t": "A stop button. A real one.",
-        "b3_d": "She stops mid-sentence and the partial text stays.",
-        "b4_t": "Your data stays yours.",
-        "b4_d": "Exportable data, controlled account access and encrypted credentials — with a self-hosting option, even on a Raspberry Pi. Necessary context goes to the providers configured for your requests.",
+        "title": "Delegate the action. Keep the decision.",
+        "sub": "Before a sensitive send or call, see the proposal. Afterwards, find the result and recorded cost.",
+        "b1_t": "A real proposal to review.",
+        "b1_d": "Recipient, content, purpose of the call: approvals cover the specific action. A draft can be revised before approval.",
+        "b2_t": "A proposal is not a result.",
+        "b2_d": "Action and consultation registers show what LIA did and read. Failures and limits remain visible.",
+        "b3_t": "Readable costs and budgets.",
+        "b3_d": "Token counts and calculated costs accompany responses. Set limits for each account and for the instance.",
+        "b4_t": "Choose your hosting and models.",
+        "b4_d": "Self-host the application and export your data. Your chosen external models and services receive the context needed for requests that use them.",
         "how": "Approvals at tool level, editable drafts, action and consultation records, budgets and encryption.",
         "catalog_hint": "{{count}} detailed capabilities + security",
         "s_chip": "Your call first",
@@ -12302,18 +12653,18 @@
         "s_quote": "\"Traffic has decided to stress-test our marriage…\"",
         "s_user": "Just soften the ending",
         "s_reply": "Softer version ready. Send this one?",
-        "mechanism": "Approval applies to a concrete action: a recipient, a message or a call objective. The outcome is then recorded from what actually succeeded, so a proposal, an attempt and a completed action remain distinct."
+        "mechanism": "Approval concerns the specific action: recipient, message or call objective. Registers retain attempts and their statuses, including failures, so you can review what happened."
       },
       "c5": {
         "bubble": "From scattered sources to a decision brief you can share.",
-        "title": "LIA grows with you.",
-        "sub": "Your knowledge, specialist research and tools you can extend as your needs grow.",
-        "b1_t": "Missing a capability? Describe it.",
-        "b1_d": "She writes the skill, proposes it — one click installs it — and renders it as a mini-app in the chat.",
-        "b2_t": "Your documents become a foundation.",
-        "b2_d": "LIA finds relevant passages, compares them with other sources and can produce a comparison or a document.",
-        "b3_t": "Plug her into your world.",
-        "b3_d": "MCP servers, specialised sub-agents: the ecosystem is open, and so is the code.",
+        "title": "From your sources to a useful deliverable.",
+        "sub": "Search your knowledge, compare it with the web and create a comparison, document or mini-app for the task.",
+        "b1_t": "Your knowledge joins the work.",
+        "b1_d": "Documents, Drive and synchronized mail in your spaces: find useful passages and their sources without copying everything.",
+        "b2_t": "A response takes the right form.",
+        "b2_d": "A table, generated file, diagram or interactive interface in chat: turn information into something you can read, use or share.",
+        "b3_t": "Add the capabilities you need.",
+        "b3_d": "Skills, plugins, MCP servers and read-only specialists expand what is possible. The code and contracts are documented.",
         "how": "sandboxed skills with interactive widgets · knowledge spaces (15+ formats, hybrid search) · MCP protocol · open source.",
         "catalog_hint": "{{count}} detailed capabilities",
         "v_forge": "Skill \"Budget tracker\" being assembled",
@@ -12323,14 +12674,14 @@
       },
       "c6": {
         "bubble": "Two calendars, two assistants. One proposal that respects each person’s sharing choices.",
-        "title": "LIA connects you to your people",
-        "sub": "On a shared server, your loved ones’ assistants can coordinate what each person chooses to share.",
-        "b1_t": "From messaging to coordination.",
-        "b1_d": "Find a time using shared availability, then approve the proposal their assistant will pass on.",
-        "b2_t": "Chosen, read-only shares.",
-        "b2_d": "Per connection, open your availability or your task titles — nothing by default, revocable anytime.",
-        "b3_t": "Protection by construction.",
-        "b3_d": "Discovery is opt-in and exact-name only; a stranger, a decline and a block get the same answer.",
+        "title": "With family, friends and colleagues.",
+        "sub": "One server, a personal assistant for each person. Your LIAs can deliver a message and coordinate the availability you choose to share.",
+        "b1_t": "Coordinate with fewer back-and-forth messages.",
+        "b1_d": "Dinner with friends, a family appointment or a catch-up with colleagues: LIA brings authorized time slots together and proposes a next step. An approved message can be delivered by the recipient’s assistant.",
+        "b2_t": "Your chosen circle, your sharing choices.",
+        "b2_d": "Accept connections, choose the availability or other information each person can access, and withdraw sharing when you wish. Coordination follows that scope.",
+        "b3_t": "Individual context. A shared instance.",
+        "b3_d": "Each account retains its connectors, memory and preferences. Administration manages accounts, capabilities and server budgets for a family, a team or a circle of friends.",
         "how": "one canonical row per connection, claim-once transitions, an HITL draft before any relay, delivery through the recipient's own assistant, and an access log re-validated at every read.",
         "catalog_hint": "{{count}} detailed capabilities",
         "s_chip": "Connections",
@@ -12344,7 +12695,7 @@
     },
     "basics": {
       "title": "And everything else, obviously.",
-      "sub": "Email, calendar, contacts, tasks, files — Google, Apple or Microsoft, your pick. Everyone promises that. LIA does it too, without making it a selling point.",
+      "sub": "Mail, calendars, contacts, tasks and files contribute to the same personal context. Connect Google, Apple or Microsoft according to available services: LIA can link this information with your preferences, commitments and knowledge to help you in the same conversation.",
       "detail_label": "The essentials, in detail",
       "detail_hint": "{{count}} detailed capabilities",
       "chip_emails": "Email",
@@ -12363,21 +12714,21 @@
     },
     "transparency": {
       "title": "LIA has nothing to hide.",
-      "sub": "Trust isn’t declared, it’s verified. Everything is public: the price, the code, the score.",
+      "sub": "Inspect costs, registers and code. Choose your infrastructure and the providers you entrust with your requests.",
       "cost_prefix": "Every message:",
-      "cost_note": "— the real counter, shown under every reply in the app —",
-      "p1_t": "The cost, to the cent",
-      "p1_d": "Shown message by message and totalled per conversation, at the price the provider really bills — off-peak hours and cache included. You even choose the rhythm that lightens it. No mainstream assistant shows you this.",
-      "p2_t": "8.3/10 — audited, publicly",
-      "p2_d": "24 areas, full protocol and report — including what still needs work.",
+      "cost_note": "Fictional counter example: cost calculated from configured models and rates, varying between requests.",
+      "p1_t": "Costs become visible",
+      "p1_d": "Tokens, cache and calculated costs in the conversation; budgets per user and for the instance. External services are billed by their providers.",
+      "p2_t": "A public audit, including its limits",
+      "p2_d": "The method, findings and improvements are published. Inspect the evidence; the report is not a certification.",
       "p2_link": "Read the audit report",
-      "p3_t": "100% open source",
-      "p3_d": "The code you can read is the code that runs. Self-hostable down to a Raspberry Pi.",
+      "p3_t": "Open software under AGPL",
+      "p3_d": "Read the code, install the application on your infrastructure and explore documented choices. Connected services and models remain separate choices.",
       "p3_link": "View the code",
-      "p4_t": "Written by an AI, directed by a human",
-      "p4_d": "820,000+ source lines — built with AI assistance, human review and published audit methods.",
+      "p4_t": "Design decisions explained",
+      "p4_d": "Architecture, technical decisions, guides and the development story are accessible. Understand how LIA is built and operated.",
       "p4_link": "Read the story",
-      "honest": "Free beta, running in production 24/7.",
+      "honest": "LIA is in beta. The software is open source; hosting and your chosen services may incur costs.",
       "cta": "Try it, knowing everything"
     },
     "day": {
@@ -12429,11 +12780,12 @@
       }
     },
     "gallery": {
-      "title": "See LIA for real.",
-      "sub": "Current interface with fictional demo data, alongside the full presentation.",
+      "title": "This is the application you will use.",
+      "sub": "Workflows and settings in the real interface, captured with fictional data. Open a screenshot full screen to read the details.",
       "tabs_label": "Choose a view",
-      "tab_screens": "Screenshots",
-      "tab_slides": "The deck (15 slides)"
+      "tab_screens": "The application in use",
+      "tab_slides": "The deck (15 slides)",
+      "provenance": "Application screenshots in English. Demonstration data; no real actions or measured performance."
     },
     "motion": {
       "pause": "Pause the animations"
@@ -12644,6 +12996,348 @@
         "devices": "The same thread, across your screens",
         "weather": "Prepare for your next outing",
         "health": "Your measurements, in context"
+      },
+      "example_label": "Example request",
+      "result_label": "What you can get",
+      "examples": {
+        "plan": {
+          "request": "Prepare my project meeting with the latest exchanges and documents.",
+          "result": "Relevant sources together, decisions to make and a next step to approve."
+        },
+        "call": {
+          "request": "Call for a table for two, after my last appointment.",
+          "result": "A specific proposal before the call, then its result in the same thread. Telephony requires configuration."
+        },
+        "voice": {
+          "request": "Let's talk out loud: help me prepare my day.",
+          "result": "A voice conversation with access to authorized capabilities through your chosen provider."
+        },
+        "document": {
+          "request": "Turn these findings into a brief I can share.",
+          "result": "A structured document or generated file, available in the conversation."
+        },
+        "browser": {
+          "request": "Open this site and find the information for our project.",
+          "result": "Browser exploration, with required approvals and the information found."
+        },
+        "calculation": {
+          "request": "Convert this amount and state the date of the rate used.",
+          "result": "A verifiable calculation, a dated rate and any rounding stated."
+        },
+        "image": {
+          "request": "Create an illustration for this presentation.",
+          "result": "A generated image you can find and reuse. A compatible provider is required."
+        },
+        "diagram": {
+          "request": "Draw how this project works.",
+          "result": "A diagram that organizes the ideas visually."
+        },
+        "home": {
+          "request": "Prepare the living room lighting for tonight.",
+          "result": "Control of Philips Hue devices connected to your instance."
+        },
+        "memory": {
+          "request": "Remember this preference, and show me what you know about this project.",
+          "result": "Personal context you can inspect, correct and use in later requests."
+        },
+        "radio": {
+          "request": "I start my radio: my day, then my news interests.",
+          "result": "A broadcast composed from your authorized sources while you listen."
+        },
+        "briefing": {
+          "request": "I check what matters today.",
+          "result": "Calendar, mail, reminders and available sources together on the dashboard."
+        },
+        "automation": {
+          "request": "Check this condition regularly and notify me when it is met.",
+          "result": "A configurable routine, its state and the result of the triggered work."
+        },
+        "board": {
+          "request": "I assign this ticket to LIA and follow its progress.",
+          "result": "A ticket with an assignee, exchanges and a result to inspect."
+        },
+        "knowledge": {
+          "request": "Find the clauses in this project and the sources explaining them.",
+          "result": "Useful passages from your knowledge and accessible sources, with references."
+        },
+        "control": {
+          "request": "Show me the proposal before sending this message.",
+          "result": "A draft to review, revise, approve or decline."
+        },
+        "people": {
+          "request": "Using accepted sharing, find a common time with Sam.",
+          "result": "Coordination between LIAs, limited to the access each person granted."
+        },
+        "tools": {
+          "request": "Add a tool or skill for this need.",
+          "result": "Capabilities extended through skills, plugins and MCP, according to configuration."
+        },
+        "devices": {
+          "request": "I pick up my conversation on another screen.",
+          "result": "The same account and conversation in the responsive application."
+        },
+        "weather": {
+          "request": "What weather is expected for my outing, and where can I go?",
+          "result": "Forecasts, places and routes from available services, with their limits."
+        },
+        "health": {
+          "request": "I check my measurements and their changes.",
+          "result": "Recorded measurements with reference context. They do not replace medical advice."
+        }
+      },
+      "feature_examples": {
+        "natural_language": {
+          "request": "Remind me tomorrow morning to call Marie.",
+          "result": "LIA prepares a reminder from your request; you can clarify the time."
+        },
+        "multi_agent": {
+          "request": "Prepare my day using my calendar, tasks and relevant emails.",
+          "result": "Specialists bring together accessible sources; independent steps can run together."
+        },
+        "rich_responses": {
+          "request": "Show my latest emails and their details.",
+          "result": "Readable cards display the returned information, with details you can expand."
+        },
+        "chat_sync": {
+          "request": "I open my chat on a second device.",
+          "result": "Saved messages appear in the same thread; it catches up after a disconnection."
+        },
+        "email_share": {
+          "request": "In Share, I choose this document and a recipient.",
+          "result": "Your connected mailbox handles the send; without it, the relay sends only to your verified address."
+        },
+        "generated_files": {
+          "request": "In my gallery, I keep this important report.",
+          "result": "The kept file remains available without expiry, within the limits shown for your account."
+        },
+        "multichannel": {
+          "request": "I link Telegram to my account and send a voice message.",
+          "result": "The enabled channel reaches your assistant and its context, with supported approvals."
+        },
+        "languages": {
+          "request": "I choose French for the interface and my replies.",
+          "result": "The interface and generated content follow your language settings, using the configured models."
+        },
+        "memory": {
+          "request": "Remember that I prefer appointments after 10 am.",
+          "result": "An enduring preference you can inspect, correct or delete, and recall for relevant requests."
+        },
+        "bookmarks": {
+          "request": "I bookmark this reply to find it later.",
+          "result": "The reply, its request and date stay in your bookmarks; search depends on indexing."
+        },
+        "personal_crm": {
+          "request": "In Relations, I open Claire’s profile before our appointment.",
+          "result": "Accessible exchanges, memories, calls and commitments come together to prepare your next conversation."
+        },
+        "peers": {
+          "request": "Tell Sam I’m picking up the children tonight.",
+          "result": "After approval, the message is delivered by your accepted connection’s assistant on the same instance."
+        },
+        "peer_shares": {
+          "request": "Using Sam’s accepted sharing, let’s find a slot tomorrow evening.",
+          "result": "LIA reads authorized near-term availability; every read is logged and access can be revoked."
+        },
+        "peer_safety": {
+          "request": "In my connections, I block someone.",
+          "result": "Blocking cuts off access without notifying them; unblocking does not restore sharing."
+        },
+        "personalities": {
+          "request": "I choose a more restrained personality for LIA.",
+          "result": "The conversation’s tone follows your chosen personality; you can change it in settings."
+        },
+        "psyche": {
+          "request": "I enable LIA’s emotional expressions.",
+          "result": "Simulated mood and expressions accompany conversations, using the Psyche engine’s settings."
+        },
+        "mood_face": {
+          "request": "I show the animated companion during my conversation.",
+          "result": "Its face expresses simulated states and emotions; its appearance and visibility remain adjustable."
+        },
+        "self_knowledge": {
+          "request": "What can you do with my calendar, and how do I connect it?",
+          "result": "LIA uses its help knowledge base to explain features, settings and limitations."
+        },
+        "journals": {
+          "request": "In my journals, I review and correct an observation.",
+          "result": "Observations and a sourced portrait, with confidence levels, can enrich compatible workflows."
+        },
+        "briefing": {
+          "request": "I open my dashboard to prepare for today.",
+          "result": "Calendar, emails, reminders and other available sources, with freshness indicators and accessible actions."
+        },
+        "personal_radio": {
+          "request": "I choose my radio sources, then start listening.",
+          "result": "A programme mixes your authorized daily context and sourced news; the programme, transcript and cost remain visible."
+        },
+        "proactive": {
+          "request": "I set the sources and hours when LIA can offer help.",
+          "result": "Suggestions can connect relevant signals to your context, within the limits you choose."
+        },
+        "proactive_wake": {
+          "request": "I allow important-email signals during my proactive hours.",
+          "result": "A signal can bring forward the assessment of a suggestion, respecting your sources, pauses and schedule."
+        },
+        "proactive_moments": {
+          "request": "I enable follow-up after meetings.",
+          "result": "A follow-up question can arrive at the planned moment, after checking context and your availability."
+        },
+        "interests": {
+          "request": "I follow astronomy and enable its notifications.",
+          "result": "Periodic searches can bring sourced updates; you can block a topic or turn off alerts."
+        },
+        "habits": {
+          "request": "I enable learning and inspect the observed days.",
+          "result": "Visible statistics identify sufficiently supported patterns; you can pause learning."
+        },
+        "habits_lifecycle": {
+          "request": "I inspect a confirmed habit, then pause it.",
+          "result": "Its streak and progression remain visible; its status guides compatible uses of that context."
+        },
+        "reminders_scheduling": {
+          "request": "Every Monday at 8 am, summarize my unread emails.",
+          "result": "A scheduled routine follows your recurrence, prepares the result and makes it available in the application."
+        },
+        "conditional_routines": {
+          "request": "From the briefing, I set up a watch for Claire’s awaited reply.",
+          "result": "A routine checks the condition at the instance’s cadence, then runs the associated work when it is met."
+        },
+        "workboard": {
+          "request": "I create a ticket, a deadline and its steps on my board.",
+          "result": "Work tracked by status, assignee, comments and history, with visible deadlines."
+        },
+        "workboard_delegation": {
+          "request": "On this ticket, I assign LIA the preparation of the dossier.",
+          "result": "LIA uses the chosen mode, comments on its findings and requests necessary approvals on the ticket."
+        },
+        "telephony": {
+          "request": "Call this restaurant to ask for a table for two tomorrow at 8 pm.",
+          "result": "A draft with the recipient, number and goal for approval; a configured telephony connector is required."
+        },
+        "telephony_callback": {
+          "request": "Call me on my verified number to prepare my day.",
+          "result": "LIA calls your own verified number, using your chosen voice mode and configured telephony."
+        },
+        "live_voice": {
+          "request": "With my Live key, I speak to LIA and ask it to prepare my day.",
+          "result": "A duplex conversation; in delegated mode, requests go through the chat and its approvals."
+        },
+        "meetings": {
+          "request": "I record the team meeting, then review and correct the minutes.",
+          "result": "Structured minutes, a PDF and email to yourself; recall in conversation requires successful indexing."
+        },
+        "meeting_templates": {
+          "request": "I choose my minutes template for this appointment.",
+          "result": "Sections follow the chosen template; minutes can be reformatted without recording again."
+        },
+        "skills": {
+          "request": "Create a skill for converting units in a mini-app.",
+          "result": "A skill proposed for installation, able to display a widget and run commands in the configured sandbox."
+        },
+        "health_metrics": {
+          "request": "I send my steps through a shortcut and dedicated token, then open the charts.",
+          "result": "Dated measurements and trends; rejected values are explained. This is not a diagnosis."
+        },
+        "excalidraw": {
+          "request": "Draw this project’s steps in a diagram.",
+          "result": "An Excalidraw diagram you can inspect and refine, using enabled tools."
+        },
+        "image_generation": {
+          "request": "Using this attached photo, replace the background with a garden.",
+          "result": "An edited image in your gallery, if the configured model supports editing, with its cost shown."
+        },
+        "document_generation": {
+          "request": "Turn this summary into a PDF report with a comparison table.",
+          "result": "A file built in a supported format, ready to review and download from the conversation."
+        },
+        "attachments": {
+          "request": "I attach an image to my request and ask for an explanation.",
+          "result": "The attachment accompanies your request, within available formats, size limits and model capabilities."
+        },
+        "mcp_apps": {
+          "request": "I open the interactive interface offered by my MCP server.",
+          "result": "An app from a compatible server appears in the chat, with supported interactions."
+        },
+        "plugins": {
+          "request": "I install a plugin from its ZIP and check its components.",
+          "result": "Supported skills and MCP servers are listed with their status; skipped components state why."
+        },
+        "mcp": {
+          "request": "In settings, I connect an MCP server suited to my tools.",
+          "result": "Tools exposed by that server can become available to LIA, under their permissions and configuration."
+        },
+        "rag_spaces": {
+          "request": "In a space, I import my dossier, then ask about its termination clauses.",
+          "result": "Relevant indexed passages appear with their sources, when the space and search are enabled."
+        },
+        "mail_label_spaces": {
+          "request": "I link the Gmail label “Project” to a knowledge space.",
+          "result": "Labeled threads synchronize as documents; attachments are named there, not read."
+        },
+        "sub_agents": {
+          "request": "Explore several angles on this topic and compare their sources.",
+          "result": "Read-only specialists work within their budgets; LIA can bring their findings together."
+        },
+        "browser_control": {
+          "request": "Open this public site and find the product’s specifications.",
+          "result": "Browser navigation with visible screenshots; login and payment remain outside this autonomous workflow."
+        },
+        "computed_answers": {
+          "request": "Convert 250 dollars to euros and give the rate’s date.",
+          "result": "A tool-based calculation with a dated rate, rather than a model’s estimate of the amount."
+        },
+        "devops_cli": {
+          "request": "Administrator: diagnose disk space and container health.",
+          "result": "A diagnosis backed by commands from the configured CLI, restricted to the administrator and its server scope."
+        },
+        "control": {
+          "request": "Prepare this email to Claire and show me the draft before sending.",
+          "result": "A recipient and content to inspect; available actions let you confirm, edit or decline."
+        },
+        "usage_limits": {
+          "request": "Administrator: I set the instance ceiling and an account’s budget.",
+          "result": "Usage and limits remain visible; affected requests are blocked when the ceiling is reached."
+        },
+        "privacy": {
+          "request": "In settings, I inspect and export my data.",
+          "result": "An export to recover your information; operator access and chosen providers still need to be considered."
+        },
+        "native_apps": {
+          "request": "I connect the mobile application to my LIA server’s address.",
+          "result": "Your account and the instance’s features are accessible in the mobile client, with its native permissions."
+        },
+        "responsive": {
+          "request": "I install the PWA and open my board on my phone.",
+          "result": "An interface adapted to small screens; offline, a page indicates that the server is unavailable."
+        },
+        "simplicity": {
+          "request": "I search settings for “memory” and pin its section.",
+          "result": "Search finds the setting, and pinned sections stay within reach in the dock."
+        },
+        "themes": {
+          "request": "I choose a dark theme and a more comfortable text size.",
+          "result": "Colors, background and readability adapt to my preferences, saved on my account."
+        },
+        "connected_services": {
+          "request": "In Connectors, I link my calendar and mailbox.",
+          "result": "LIA uses authorized services, with a provider chosen per family and separate disconnections."
+        },
+        "environment": {
+          "request": "What weather and air quality should I expect for tomorrow’s outing?",
+          "result": "Forecasts and indices from configured sources, using the data available for that location."
+        },
+        "smart_home": {
+          "request": "Dim the living-room lights using my connected Philips Hue bridge.",
+          "result": "A command for recognized lights or scenes, with the result reported by the Hue connector."
+        },
+        "web_intelligence": {
+          "request": "Find a place near me and a route to get there.",
+          "result": "Search, places and routes using configured services, your access and available information."
+        },
+        "voice_mode": {
+          "request": "I dictate my request, then listen to LIA’s reply.",
+          "result": "Transcription and speech playback use enabled engines; local French wake-word detection remains in beta."
+        }
       }
     },
     "editorial": {
@@ -12669,6 +13363,239 @@
       "control_title": "Make actions clear",
       "control_body": "Proposals, approvals and results each keep their place.",
       "control_gain": "You know where the work stands."
+    },
+    "platform": {
+      "title": "A simple interface. Serious operations.",
+      "sub": "For your family, colleagues or community of friends: a web application with separate accounts and tools to understand how it runs and intervene.",
+      "accounts": {
+        "title": "One server for several people",
+        "body": "Each person has their own accounts, connectors, memory and preferences. User and capability administration is available from the interface."
+      },
+      "models": {
+        "title": "Your models and limits",
+        "body": "Configure models per role, use local Ollama and set instance and account budgets. Configure optional services for your needs."
+      },
+      "monitoring": {
+        "title": "Grafana dashboards shipped with LIA",
+        "body": "Costs and tokens, latency, errors, Pipeline, ReAct, HITL, connectors and infrastructure: dashboards let you inspect how the instance is running."
+      },
+      "alerts": {
+        "title": "Signals to act in time",
+        "body": "Prometheus, Grafana, Loki, Tempo and Alertmanager bring together metrics, logs, traces and alert rules. Configure receivers and stack services for your deployment."
+      },
+      "dashboard_title": "What the operator can see",
+      "dashboard_note": "LIA Grafana views: instance resources, token consumption, costs and cache. More than 30 comprehensive dashboards.",
+      "dashboard_overview": "Application health",
+      "dashboard_costs": "Tokens, cache and costs",
+      "docs_link": "Explore architecture and documentation",
+      "code_link": "Read the dashboards and alert rules",
+      "business_title": "A foundation for your internal company assistant.",
+      "business_body": "Prepare meetings, retrieve business knowledge and track commitments: these workflows can also help your colleagues. The multi-user web application, connectors, MCP, APIs and observability provide a foundation you can customize and integrate into your environment.",
+      "business_scope": "Adapt sources, permissions and usage rules to your organisation. Identity, business integrations and hosting still need to be defined for your deployment; open code and documentation help scope that work.",
+      "install_link": "Install your own instance"
+    },
+    "context": {
+      "title": "What you share today can help tomorrow.",
+      "sub": "Your preferences, conversations and commitments can inform your next request, according to enabled features and authorized sources.",
+      "memory": {
+        "title": "Your reference points",
+        "body": "Preferences, memories, rules and knowledge you can review and correct."
+      },
+      "people": {
+        "title": "Your relationships",
+        "body": "People, conversations and commitments to prepare for your next contact."
+      },
+      "commitments": {
+        "title": "Your next steps",
+        "body": "Appointments, projects and follow-ups from the sources you allow."
+      },
+      "preferences": {
+        "title": "Your choices",
+        "body": "Style, interests, sources and proactive time windows."
+      },
+      "center_title": "For example, before you meet Claire again…",
+      "center_body": "Relations brings together the recent exchange and open commitment. In chat, prepare the meeting from accessible sources; your preference for concise replies helps bring out the essentials.",
+      "respond": {
+        "title": "When you ask",
+        "body": "A summary connected to your file and the details retrieved."
+      },
+      "anticipate": {
+        "title": "When LIA suggests",
+        "body": "A useful signal, within your permitted sources and time windows."
+      },
+      "act": {
+        "title": "When you delegate",
+        "body": "An action to inspect and approve where the workflow requires it."
+      },
+      "control": "Review and correct memory, limit sources, switch off proactivity. LIA’s conclusions still need checking."
+    },
+    "home_meta": {
+      "title": "LIA — The personal assistant that connects your everyday life",
+      "description": "LIA connects mail, calendars, documents and memory to help you act. Built in France, open source, self-hostable, with separate user accounts."
+    },
+    "home_cta": {
+      "bubble": "Your calendar and I already have things to discuss.",
+      "title": "Start with what would truly help you.",
+      "subtitle": "A project to prepare, a day to organize, an assistant to host: explore LIA and choose the workflow that suits you.",
+      "button": "Create my account",
+      "note_beta": "Limited BETA signup by email: verify your address, then an administrator activates your account; activation is automatic on a demo instance. Optional services depend on your configuration.",
+      "philosophy_link": "Or read our philosophy first",
+      "install_link": "Or install my own LIA"
+    },
+    "home_product_demo": {
+      "meta_description": "Six situations from one everyday life: Claire’s project, your Radio, a commitment to Marc, a call, a meeting and dinner with Sarah.",
+      "choose_scene": "Choose a situation",
+      "steps": "Demonstration steps",
+      "steps_request": "Your request",
+      "steps_context": "The context",
+      "steps_result": "The result",
+      "play": "Play the demonstration",
+      "pause": "Pause the demonstration",
+      "replay": "Replay the demonstration",
+      "difference": "What this workflow gives you",
+      "example": "Fictional example",
+      "context": "LIA brings the useful context together",
+      "illustrative": "Illustrative scenario · fictional people, data and outcomes.",
+      "sources": {
+        "space": "Your documents",
+        "mail": "Your emails",
+        "meeting": "Your meeting",
+        "calendar": "Your calendar",
+        "commitment": "Your commitments",
+        "news": "The news",
+        "routine": "Your routine",
+        "project": "Your project",
+        "preferences": "Your preferences",
+        "approval": "Your approval",
+        "web": "The web",
+        "comparison": "The research",
+        "peer": "Connected LIA",
+        "scope": "Approved access",
+        "transcript": "The transcript",
+        "notes": "Notes to review"
+      },
+      "scenes": {
+        "decision": {
+          "title": "Claire’s project",
+          "summary": "Documents, the latest email and the meeting inform one decision.",
+          "request": "Prepare my Atlas catch-up with Claire. The project sheet says €240 and her latest email €270: what needs confirming?",
+          "source_1": "Atlas sheet · €240",
+          "source_2": "Latest email · €270",
+          "source_3": "Discount · unclear passage",
+          "result_title": "Your catch-up with Claire is prepared",
+          "result_1": "€240",
+          "result_2": "€270",
+          "result_3": "Two questions ready for Claire: “Which price applies to Atlas, €240 or €270? Is the discount mentioned in the meeting confirmed?”",
+          "evidence_1": "Project sheet",
+          "evidence_2": "Claire’s latest email",
+          "guardrail": "The discrepancy needs checking; no price is selected and no message is sent.",
+          "difference": "Pick up your project without copying every document. LIA connects accessible sources and makes the contradiction visible, rather than treating an uncertain price as settled."
+        },
+        "day": {
+          "title": "My Radio",
+          "summary": "One programme connects your day and the topics you care about.",
+          "request": "From my dashboard, I choose a personal programme and world news: Atlas, my commitments, mobility and culture.",
+          "source_1": "Personal + world programme",
+          "source_2": "Claire and the commitment to Marc",
+          "source_3": "Mobility and culture · selected sources",
+          "result_title": "Your programme outline",
+          "result_1": "Atlas: Claire’s price needs confirmation",
+          "result_2": "Marc: committee at 2 pm, original commitment at 3 pm",
+          "result_3": "Then: mobility and culture news, with source articles",
+          "evidence_1": "",
+          "evidence_2": "",
+          "guardrail": "Fictional programme, with no audio played here. In the application, only authorized personal sources are read.",
+          "difference": "Your day and interests belong in the same programme. In the application, the player, transcript and source articles let you listen and revisit what deserves your attention."
+        },
+        "watch": {
+          "title": "My commitment",
+          "summary": "A new email is checked against what you had promised.",
+          "request": "An already configured routine watches Marc’s new emails about the Atlas committee.",
+          "source_1": "Original commitment · 3 pm",
+          "source_2": "Marc moves the committee to 2 pm",
+          "source_3": "Configured watch · new emails",
+          "result_title": "The change and a reply to review",
+          "result_1": "Committee moved to 2 pm",
+          "result_2": "Your commitment was for 3 pm. Check the new time before making another promise.",
+          "result_3": "Unsent draft: “Hi Marc, I’ve noted the committee at 2 pm. My original commitment was for 3 pm. Which items do you need for this meeting?”",
+          "evidence_1": "",
+          "evidence_2": "",
+          "guardrail": "Opt-in watch, at the instance’s configured cadence; the signal does not decide for you.",
+          "difference": "The new email arrives with what it changes for your commitment and a draft to work from. You do not have to reconstruct the context on your own before replying."
+        },
+        "call": {
+          "title": "A phone call",
+          "summary": "A call prepared around your constraints, approved by you, then summarised.",
+          "request": "Call Les Jardins restaurant to ask for a table for two on Thursday at 8 pm, outside if possible.",
+          "source_1": "Free after 7 pm",
+          "source_2": "Two · terrace",
+          "source_3": "Before the call",
+          "result_title": "A specific proposal before the call",
+          "result_1": "Thursday · 8 pm",
+          "result_2": "2 people",
+          "result_3": "Ask for a table for two on Thursday at 8 pm, outside if available. Do not accept another time without checking with me.",
+          "evidence_1": "",
+          "evidence_2": "",
+          "guardrail": "The call starts after approval, with telephony configured.",
+          "difference": "LIA prepares the call mandate: recipient, phone number and objective. You can edit or decline it before confirming. The call then starts and its outcome returns to the conversation.",
+          "arg_when": "When",
+          "arg_party": "Guests",
+          "arg_goal": "Objective",
+          "arg_callee": "Recipient",
+          "arg_phone": "Phone",
+          "preview_html": "<div class=\"lia-card lia-draft\"><div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--indigo\"><span style=\"font-size:var(--lia-text-lg)\">📞</span></div><div class=\"lia-card-top__info\"><div class=\"lia-card-top__title\">Les Jardins (Demo)</div></div></div><div class=\"lia-d-row\"><span class=\"material-symbols-outlined\">phone</span><span><strong>Callee</strong>: Les Jardins (Demo)</span></div><div class=\"lia-d-row\"><span class=\"material-symbols-outlined\">phone</span><span><strong>Phone</strong>: +1 202 555 0100</span></div><div class=\"lia-d-row\"><span class=\"material-symbols-outlined\">info</span><span><strong>Objective</strong>: Ask for a table for two on Thursday at 8 pm, outside if available. Do not accept another time without checking with me.</span></div></div>"
+        },
+        "research": {
+          "title": "My meeting",
+          "summary": "Minutes keep decisions, action items and passages that need checking.",
+          "request": "Prepare minutes for my Atlas meeting with Claire from the transcript. Keep the unclear discount passage visible.",
+          "source_1": "Atlas meeting · Claire",
+          "source_2": "Quoted price · €270",
+          "source_3": "Discount · unclear wording",
+          "result_title": "Minutes you can correct",
+          "result_1": "Continue the comparison at the quoted €270, without final approval.",
+          "result_2": "Clarify the discount terms with Claire.",
+          "result_3": "The discount passage remains unclear: review the transcript and correct the minutes.",
+          "evidence_1": "Sources consulted",
+          "evidence_2": "Project requirements",
+          "guardrail": "Fictional summary to review; no task, indexing or attachment is created here.",
+          "difference": "The meeting becomes a working document, with action items and uncertainties in view. In the application, you can correct the minutes and export a PDF; later retrieval requires indexing to be enabled and complete."
+        },
+        "relay": {
+          "title": "Dinner with Sarah",
+          "summary": "Consensually shared availability helps prepare an invitation.",
+          "request": "Find a time tomorrow evening to have dinner with Sarah at Les Jardins. Prepare the invitation for me to review.",
+          "source_1": "Sarah · accepted connection, same instance",
+          "source_2": "Authorized availability only",
+          "source_3": "Your calendar · free tomorrow at 7:30 pm",
+          "result_title": "Your invitation is ready to review",
+          "result_1": "Tomorrow · 7:30 pm",
+          "result_2": "You and Sarah · free in the consulted time ranges",
+          "result_3": "Unsent draft: “Hi Sarah, does tomorrow at 7:30 pm at Les Jardins work for you?” No table or calendar slot is booked.",
+          "evidence_1": "Shared time",
+          "evidence_2": "Shared availability",
+          "guardrail": "Accepted connection on the same instance; no general access to Sarah’s data.",
+          "difference": "In this example, the latest exchange about Les Jardins takes precedence over the older preference for Verdi. Your assistants combine authorized availability, each with their own account and data; you decide whether to invite."
+        }
+      },
+      "result_label": "The result to inspect",
+      "card_details": "Open the project details",
+      "document_name": "Meeting minutes · Atlas project",
+      "document_format": "Draft to review and correct · fictional example",
+      "approval_hint": "Try the approval: this demonstration makes no call.",
+      "approval_confirmed": "Approval illustrated. In the application, the call can then begin; nothing was executed here.",
+      "approval_cancelled": "Decline illustrated. No call was made.",
+      "approval_reset": "Review the proposal again",
+      "approval_edited": "Edit instruction illustrated. In the app, LIA prepares a new draft; here, the preview remains fictional and no call is made.",
+      "explore_hint": "Choose a situation, then explore its request, context and result.",
+      "meeting_decisions": "Next decision",
+      "meeting_actions": "Recorded action item",
+      "meeting_uncertainty": "Passage to check"
+    },
+    "home_feature_descriptions": {
+      "meetings": "Record a meeting from the application, then review structured minutes prepared by the configured engines. Correct decisions and discussed tasks, download a PDF to share or receive it at your own email address. Gaps and unattributed information should remain marked; reviewing is still useful. Once indexing succeeds in your enabled knowledge spaces, LIA can recall this content in conversation. Processing cost is shown. Availability depends on the instance’s capabilities and services.",
+      "live_voice": "Think out loud with LIA in a full-duplex conversation using your Gemini Live, OpenAI or ElevenLabs API key. In delegated mode, requests use the chat engine, its context and action controls. Direct mode uses authorised read tools. Models, voices, interruptions and delegation capabilities, including parallel execution, vary by provider. Availability and costs depend on the configured services.",
+      "telephony": "With your ElevenLabs telephony connector configured, LIA can contact someone, ask a question or request a time slot on your behalf. You approve the recipient, number and objective before the call; a summary then returns to the conversation. The mandate instructs LIA to avoid unexpected spending and report alternatives for your decision. Review the outcome before choosing a follow-up. Availability and costs depend on the configured services."
     }
   },
   "maps": {
@@ -12998,7 +13925,7 @@
     "consolidateNow": "Consolidate",
     "consolidating": "Consolidating…",
     "consolidateNowTooltip": "Force a consolidation right now (dedup, level promotions, confidence updates). Takes a few seconds.",
-    "consolidatedSuccess": "{{n}} change(s) applied in {{s}}s — refresh the list to see the effect.",
+    "consolidatedSuccess": "Consolidation completed in {{s}}s — {{n}} journal change(s).",
     "consolidatedNoop": "Nothing to change — your journal is already well organized ({{s}}s).",
     "consolidatedQuota": "LLM quota exceeded — try again later.",
     "consolidatedError": "Manual consolidation failed.",
@@ -13007,6 +13934,7 @@
     "portraitNeverCompiled": "Not compiled yet",
     "portraitFormatFull": "Full",
     "portraitFormatBrief": "Brief",
+    "portraitLoadError": "The portrait could not be loaded. Refresh to try again.",
     "portraitTip": "The portrait is a living synthesis. To correct it: signal a problem, edit the L3 entries, or trigger a consolidation.",
     "provenance": {
       "compiled_from": "Compiled from {{list}}.",
@@ -13173,9 +14101,9 @@
         "body": "<h2>Privacy by design</h2><p>LIA is designed from the ground up with data protection as a founding principle, not an afterthought.</p><h2>Fernet symmetric encryption</h2><p><strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256), through <code>encrypt_data()</code>, protects OAuth tokens, connector and MCP credentials and designated stored fields. Services decrypt these values when needed. This is selective encryption, not a claim that every personal field is encrypted; conversation messages are stored as database text. The instance operator controls the keys and database access.</p><h2>Collection minimization</h2><p>LIA only collects data strictly necessary for its operation:</p><ul><li>Profile information (name, email, preferences)</li><li>Conversation history stored on your instance</li><li>Service connection tokens (encrypted)</li><li>Usage metrics with pseudonymous identifiers</li></ul><h2>Operators and configured providers</h2><p>The instance operator may have technical access to stored data. A configured model receives the question and useful context, including selected memories or document excerpts; connected voice, image and other services receive what their features need. Their privacy, retention and possible training policies apply. Local storage and access controls do not replace provider agreements and settings.</p><h2>Deletion and cascading</h2><p>The account-deletion flow purges personal content across conversations, memories, connectors, documents and related stores. Billing records remain; deletion can keep a name and email for billing contact, while final erasure deletes the account row. Audit or diagnostic records may retain identifying details under their retention policies; backups follow the operator’s retention policy. Reactivation does not restore purged content.</p><h2>Secure sessions and cookies</h2><p>Session cookies are configured with <code>HttpOnly</code>, <code>Secure</code> (in production), and <code>SameSite=lax</code> attributes. Session duration is 7 days by default, extendable to 30 days with the \"Remember me\" option. Single-use tokens are invalidated after first use via a Redis blacklist.</p><h2>External content protection</h2><p>Content retrieved from external sources (emails, web pages, documents) is tagged as <code>UNTRUSTED</code> with configurable wrapping before injection into prompts. The web_fetch tool is rate limited to 10 calls per 60-second window per user to prevent abuse.</p><h2>Filtered operational logs</h2><p>Following the <strong>OWASP Logging Cheat Sheet</strong>, a log line above debug level carries <strong>facts</strong> — counts, lengths, identifiers, error codes, a URL's host — and never the text a person wrote, or a model wrote about them: no search, no interest, no name of a file, a label or a space, no page visited.</p><p>The rule is checked <strong>by the value</strong>, not by the field name: a test reads every logging call in the code and refuses a preview or a value derived from content, whatever it is called. What an error message <strong>quotes</strong> — a value PostgreSQL rejected, a validation input — is withheld before the line is written, and a database error is described by its facts: code, constraint, table. Provider keys are masked in every logged address. Metrics and traces follow the same rule: they name the route taken by its pattern, never the name or the search an address contains. Two limits are stated as they are: an external service's error in an unknown format can still quote a value, and the debug level — off in production — keeps more.</p><h2>Data portability (v1.9.1)</h2><p>LIA allows each user to <strong>export their own consumption data</strong> as CSV from Settings > Features. Three export types: LLM consumption (tokens and costs per call), Google API consumption, and aggregated summary. Security: the <code>user_id</code> is forced server-side — no parameter is exposed, preventing access to other users' data (IDOR protection).</p><h2>Backups with a proven restore</h2><p>The production deployment provides nightly backup and restore-check tools, with default retention of 7 days, 4 weeks and 6 months. The operator enables and monitors them. The restore drill loads the latest dump into a disposable database and compares its schema revision and row counts with the source. Recovery still depends on successful backups and the deployment's chosen policy.</p><h2>A complete record, not a sample</h2><p>Three registers kept automatically say what LIA <strong>did</strong> for you, what it <strong>consulted</strong> to answer you, and what it undertook <strong>on its own initiative</strong>. They carry no content: a consultation keeps the capability — \"your calendar\" — and never what was searched for, because writing it down would copy the very data the register exists to make accountable.</p><p>The record you download from the <strong>Registers</strong> page is <strong>complete</strong>. It used to carry a row ceiling: a real protection, since the whole document was assembled in memory on a Raspberry Pi, but applied to the wrong variable. What was scarce was memory; what was bounded was the truth. A server-side cursor now bounds the buffer: whatever the volume, the file carries everything your filters name, the exact count is stated in the header alongside the instant of generation, and the download is compressed on the fly when your browser accepts it.</p>"
       },
       "observability": {
-        "title": "616 Prometheus Metrics, 31 Grafana Dashboards, and Langfuse Tracing",
-        "excerpt": "LIA offers enterprise-grade observability with 616 metrics, dedicated Grafana dashboards, LLM tracing via Langfuse, and email alerting with runbooks.",
-        "body": "<h2>The three pillars of observability</h2><p>LIA implements the three pillars of modern observability:</p><ul><li><strong>Metrics</strong> — 616 Prometheus metrics covering HTTP, agents, tokens, costs, OAuth, and performance, labelled by route template: never a name or a search</li><li><strong>Logs</strong> — Structured JSON logging via structlog, collected by Grafana Alloy and centralized in Loki: personal-content filtering in operational logs, with more detail possible in debug mode</li><li><strong>Traces</strong> — Distributed tracing via OpenTelemetry (Tempo), named after the route template and never the concrete address, and LLM tracing via Langfuse</li></ul><h2>43 specialized metrics files</h2><p>Each domain has its own declarative metrics file. The 43 modules cover, among others: HTTP, agents (SSE/router/LLM/HITL/planner), database, LangGraph, Langfuse, voice, live mode, radio, RAG spaces, OAuth, MCP, channels, errors, sub-agents, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, health metrics, journals, telephony, meetings, workboard, effect registers, and usage limits. Each file defines domain-specific Prometheus Counter, Histogram, and Gauge metrics.</p><h2>Prometheus metrics definition</h2><p>Each domain defines its metrics declaratively:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>31 Grafana dashboards</h2><p>LIA provides 31 Grafana dashboards numbered 01 to 31: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, briefing, product-value, meetings, effect-ledger, workboard, live, and radio. Each dashboard offers views filterable by user, time period, and environment. The 26th is a product cockpit: validated outcomes (explicit 👍 or an action left uncorrected), activation funnel, retention and cost per useful result — the exact counting lives in PostgreSQL and Grafana reads it through a read-only role restricted to aggregate views.</p><h2>Target KPIs from code</h2><p>LIA monitors precise indicators defined in source code: streaming TTFT (Time To First Token), router latency between 0.1 and 2 seconds, agent tool execution duration between 0.1 and 10 seconds, router confidence p50 &gt; 0.8, LLM cost per request &lt; €0.05, HTTP 5xx error rate &lt; 1%.</p><h2>Email alerts with runbooks</h2><p>Supervision doesn't stop at dashboards: a core of 29 vital alerts — among them API, PostgreSQL or Redis down, disk, container memory, 5xx error rate, streaming latency, failed nightly backup, unreachable public URL, TLS certificate close to expiry, rate limiting running blind — is continuously evaluated by Prometheus and delivered by email through Alertmanager. Every alert references its runbook (step-by-step resolution procedure), thresholds are set per environment in .env files, and promtool unit tests guarantee that the thresholds displayed in notifications match the firing expressions exactly. A blackbox probe even tests the whole chain end to end, from the Cloudflare edge to the frontend, exactly like a user would.</p><h2>Langfuse: dedicated LLM tracing</h2><p>The Langfuse integration traces every LLM call — tokens consumed (input/output/cache), response time, model used, estimated cost and request context — and seven Prometheus metrics of its own follow prompt versions, evaluation scores, A/B variants, trace depth and agent handoffs. This identifies inefficient prompts, compares LLM models against each other, and optimizes token consumption over time.</p><h2>DevOps Claude CLI: Natural Language Diagnostics (v1.13.0)</h2><p>Latest evolution of the observability stack: administrators can now diagnose servers directly from the LIA conversation. By simply asking \"Check the logs to see if everything is working\", Claude Code CLI — installed in the API Docker container — independently inspects logs, checks container health, analyzes resource usage and reports its findings. Persistent sessions for multi-turn investigations, configurable permissions per environment (prod read-only, dev full access), and real-time streaming of investigation steps via SSE.</p><h2>And since v1.34: the assistant reads its own telemetry</h2><p>All of the above existed for humans; the assistant itself read none of it. ADR-247 closed that loop: a periodic self-check turns the golden signals plus direct probes into health snapshots with exact values; alerts and critical verdicts converge into one incident per outage, diagnosed by a budget-capped LLM grounded on the operations runbooks; administrators get a Platform health panel, proactive notifications and read-only chat tools. And a known outage now shapes answers — degraded capabilities are routed around at planning time, and failed steps are explained from typed error codes, never raw logs. Since then the diagnosis is no longer written from a number alone: a recipe declared per kind of incident says which breakdowns and which log events to read, the pack is collected at the moment of the diagnosis with personal data removed, a source it could not reach is stated as unavailable rather than read as silence, and what the model read is shown under its verdict.</p><h2>Counting outcomes, not attempts</h2><p>One counter had to be rethought in v1.38.3. Counting the calls that reach a provider is the truth about the provider — and the wrong denominator the moment those calls are retried, because a failure that was recovered inflates the error rate while nothing was actually lost. A second counter now records one row per logical operation, retries collapsed, and answers the only question an operator acts on: did the caller get its result? A third says what the rate shaper did with each attempt, because “the budget is too small” and “Redis is down” look identical in a boolean and call for opposite actions.</p><p>The most recent lesson is about choosing what to measure. The autonomous loop had counters for its iterations and its duration — and none for the thing that actually grows: the prompt delivered to the model at each step. Measured on production code, that is 2.3k tokens at the first iteration and 112k at the ninetieth, because every tool result stays in the conversation the model re-reads. Two histograms now record the delivered size and its share of the model's context window, fed by the same memoized counter the state reducer already maintains, so the measurement costs nothing on the hot path. No compression policy shipped with them, deliberately: a system that acts on a quantity it has never observed is optimising a guess.</p><p>The same principle caught up with the tool success rate. A tool fails by <em>returning</em> a failure, never by raising an exception, and the counter only watched exceptions: the rate was 1.0 by construction, and the two alerts that read it could not fire. One predicate now decides what a success is, for the register, the metrics and the ReAct loop — the displayed rate goes down, because it finally tells the truth.</p><h2>Signals that answer each other</h2><p>A metric, a log line and a trace tell the story of the same request — provided you can move from one to the other. In LIA, a log line opens its request’s trace, a trace opens its logs and metrics, and a latency point opens the exact example that produced it. Every link was measured in production before it was repaired. The pipeline carrying these signals is itself watched — an alert warns if logs get lost on the way — and every dashboard follows one convention: a week of history, a shared menu.</p>"
+        "title": "618 Prometheus Metrics, 31 Grafana Dashboards, and Langfuse Tracing",
+        "excerpt": "LIA offers enterprise-grade observability with 618 metrics, dedicated Grafana dashboards, LLM tracing via Langfuse, and email alerting with runbooks.",
+        "body": "<h2>The three pillars of observability</h2><p>LIA implements the three pillars of modern observability:</p><ul><li><strong>Metrics</strong> — 618 Prometheus metrics covering HTTP, agents, tokens, costs, OAuth, and performance, labelled by route template: never a name or a search</li><li><strong>Logs</strong> — Structured JSON logging via structlog, collected by Grafana Alloy and centralized in Loki: personal-content filtering in operational logs, with more detail possible in debug mode</li><li><strong>Traces</strong> — Distributed tracing via OpenTelemetry (Tempo), named after the route template and never the concrete address, and LLM tracing via Langfuse</li></ul><h2>43 specialized metrics files</h2><p>Each domain has its own declarative metrics file. The 43 modules cover, among others: HTTP, agents (SSE/router/LLM/HITL/planner), database, LangGraph, Langfuse, voice, live mode, radio, RAG spaces, OAuth, MCP, channels, errors, sub-agents, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, health metrics, journals, telephony, meetings, workboard, effect registers, and usage limits. Each file defines domain-specific Prometheus Counter, Histogram, and Gauge metrics.</p><h2>Prometheus metrics definition</h2><p>Each domain defines its metrics declaratively:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>31 Grafana dashboards</h2><p>LIA provides 31 Grafana dashboards numbered 01 to 31: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, briefing, product-value, meetings, effect-ledger, workboard, live, and radio. Each dashboard offers views filterable by user, time period, and environment. The 26th is a product cockpit: validated outcomes (explicit 👍 or an action left uncorrected), activation funnel, retention and cost per useful result — the exact counting lives in PostgreSQL and Grafana reads it through a read-only role restricted to aggregate views.</p><h2>Target KPIs from code</h2><p>LIA monitors precise indicators defined in source code: streaming TTFT (Time To First Token), router latency between 0.1 and 2 seconds, agent tool execution duration between 0.1 and 10 seconds, router confidence p50 &gt; 0.8, LLM cost per request &lt; €0.05, HTTP 5xx error rate &lt; 1%.</p><h2>Email alerts with runbooks</h2><p>Supervision doesn't stop at dashboards: a core of 29 vital alerts — among them API, PostgreSQL or Redis down, disk, container memory, 5xx error rate, streaming latency, failed nightly backup, unreachable public URL, TLS certificate close to expiry, rate limiting running blind — is continuously evaluated by Prometheus and delivered by email through Alertmanager. Every alert references its runbook (step-by-step resolution procedure), thresholds are set per environment in .env files, and promtool unit tests guarantee that the thresholds displayed in notifications match the firing expressions exactly. A blackbox probe even tests the whole chain end to end, from the Cloudflare edge to the frontend, exactly like a user would.</p><h2>Langfuse: dedicated LLM tracing</h2><p>The Langfuse integration traces every LLM call — tokens consumed (input/output/cache), response time, model used, estimated cost and request context — and seven Prometheus metrics of its own follow prompt versions, evaluation scores, A/B variants, trace depth and agent handoffs. This identifies inefficient prompts, compares LLM models against each other, and optimizes token consumption over time.</p><h2>DevOps Claude CLI: Natural Language Diagnostics (v1.13.0)</h2><p>Latest evolution of the observability stack: administrators can now diagnose servers directly from the LIA conversation. By simply asking \"Check the logs to see if everything is working\", Claude Code CLI — installed in the API Docker container — independently inspects logs, checks container health, analyzes resource usage and reports its findings. Persistent sessions for multi-turn investigations, configurable permissions per environment (prod read-only, dev full access), and real-time streaming of investigation steps via SSE.</p><h2>And since v1.34: the assistant reads its own telemetry</h2><p>All of the above existed for humans; the assistant itself read none of it. ADR-247 closed that loop: a periodic self-check turns the golden signals plus direct probes into health snapshots with exact values; alerts and critical verdicts converge into one incident per outage, diagnosed by a budget-capped LLM grounded on the operations runbooks; administrators get a Platform health panel, proactive notifications and read-only chat tools. And a known outage now shapes answers — degraded capabilities are routed around at planning time, and failed steps are explained from typed error codes, never raw logs. Since then the diagnosis is no longer written from a number alone: a recipe declared per kind of incident says which breakdowns and which log events to read, the pack is collected at the moment of the diagnosis with personal data removed, a source it could not reach is stated as unavailable rather than read as silence, and what the model read is shown under its verdict.</p><h2>Counting outcomes, not attempts</h2><p>One counter had to be rethought in v1.38.3. Counting the calls that reach a provider is the truth about the provider — and the wrong denominator the moment those calls are retried, because a failure that was recovered inflates the error rate while nothing was actually lost. A second counter now records one row per logical operation, retries collapsed, and answers the only question an operator acts on: did the caller get its result? A third says what the rate shaper did with each attempt, because “the budget is too small” and “Redis is down” look identical in a boolean and call for opposite actions.</p><p>The most recent lesson is about choosing what to measure. The autonomous loop had counters for its iterations and its duration — and none for the thing that actually grows: the prompt delivered to the model at each step. Measured on production code, that is 2.3k tokens at the first iteration and 112k at the ninetieth, because every tool result stays in the conversation the model re-reads. Two histograms now record the delivered size and its share of the model's context window, fed by the same memoized counter the state reducer already maintains, so the measurement costs nothing on the hot path. No compression policy shipped with them, deliberately: a system that acts on a quantity it has never observed is optimising a guess.</p><p>The same principle caught up with the tool success rate. A tool fails by <em>returning</em> a failure, never by raising an exception, and the counter only watched exceptions: the rate was 1.0 by construction, and the two alerts that read it could not fire. One predicate now decides what a success is, for the register, the metrics and the ReAct loop — the displayed rate goes down, because it finally tells the truth.</p><h2>Signals that answer each other</h2><p>A metric, a log line and a trace tell the story of the same request — provided you can move from one to the other. In LIA, a log line opens its request’s trace, a trace opens its logs and metrics, and a latency point opens the exact example that produced it. Every link was measured in production before it was repaired. The pipeline carrying these signals is itself watched — an alert warns if logs get lost on the way — and every dashboard follows one convention: a week of history, a shared menu.</p>"
       },
       "prompt-engineering": {
         "title": "Versioned Prompt System: 155 Prompts Managed as Code",
@@ -13920,13 +14848,15 @@
       "radio": "Personal radio",
       "radio_description": "A personal radio produced on demand in the person's language, from the news the instance collects and their own day. Turning it off closes the radio routes and pauses the newsroom; settings and added sites are kept.",
       "skill_library": "Skill library",
-      "skill_library_description": "Search a skill portal and install a skill from its GitHub repository, then update it. Turning it off closes the library; the skills already installed stay and keep running."
+      "skill_library_description": "Search a skill portal and install a skill from its GitHub repository, then update it. Turning it off closes the library; the skills already installed stay and keep running.",
+      "application_tools": "LIA settings and management",
+      "application_tools_description": "Allow LIA to read application information and request changes with confirmation. Administrative functions remain restricted to administrators."
     }
   },
   "showroom": {
-    "title": "Guided missions",
-    "request": "Organize my morning tomorrow. I want to run, reply to Atlas, and send the quote. Prepare the changes, but do not touch anything without my approval.",
-    "start": "Start the mission",
+    "title": "See what LIA can do for you",
+    "request": "Prepare tomorrow’s 9 am Atlas meeting with Claire. Find what I promised her, check the figures and draft a reply. Suggest a slot for me to review the briefing too.",
+    "start": "Explore this situation",
     "continue": "Continue",
     "restart": "Replay the mission",
     "honesty": {
@@ -13938,10 +14868,10 @@
     "phases": {
       "ready": "Ready to start",
       "reading_sources": "Reading the sources",
-      "planning": "Detecting conflicts and planning",
+      "planning": "What the context changes",
       "email_decision": "Your decision: the email reply",
       "calendar_decision": "Your decision: the calendar change",
-      "receipt": "Mission receipt"
+      "receipt": "Your result and decisions"
     },
     "sources": {
       "title": "Sources consulted",
@@ -13965,9 +14895,9 @@
       "quote_deadline": "The quote deadline is tight"
     },
     "proposals": {
-      "email_subject": "Re: Atlas checkpoint — 09:30 works",
-      "email_body": "Hello Emma, 09:30 works on my side. See you then!",
-      "calendar_title": "Move the run out of the rain",
+      "email_subject": "Atlas — comparison and price to confirm",
+      "email_body": "Hi Claire, I’ve prepared the comparison promised for tomorrow’s 9 am meeting. Your new proposal lists €270/month, versus €240/month on the saved sheet. Could you confirm the price and what has changed? Thanks!",
+      "calendar_title": "Reserve my preparation time",
       "calendar_reason": "Rain until 09:00 — dry slot proposed",
       "quote_title": "Protected block: finish the Atlas quote",
       "from": "From",
@@ -13993,20 +14923,20 @@
     "receipt": {
       "title": "Simulation receipt",
       "reads_label": "Read",
-      "reads_value": "4 synthetic sources (inbox, calendar, tasks, weather)",
+      "reads_value": "Relations, Atlas document, latest email and calendar — fictional data.",
       "proposed_label": "Prepared",
-      "proposed_value": "1 email draft, 1 calendar change, 1 protected work block",
+      "proposed_value": "A briefing, a reply to Claire and a slot in your own calendar.",
       "email_label": "Email decision",
       "calendar_label": "Calendar decision",
       "refusal_label": "Refusal",
       "external_label": "External actions",
-      "email_applied": "Email reply approved — applied to the synthetic workspace",
-      "email_edited": "Email reply edited, then applied to the synthetic workspace",
-      "email_refused": "Email reply refused — nothing was applied",
-      "calendar_applied": "Calendar change approved — applied to the synthetic workspace",
-      "calendar_refused": "Calendar change refused — nothing was applied",
+      "email_applied": "Reply approved in the simulation; no real email sent.",
+      "email_edited": "Edit instruction illustrated; no new draft or message sent.",
+      "email_refused": "Sending declined; the preparation remains available.",
+      "calendar_applied": "Personal time slot approved in the simulation; no real calendar changed.",
+      "calendar_refused": "Time slot declined; your calendar remains unchanged.",
       "refusal_respected": "Your refusal was respected: a refusal is an outcome, not an error.",
-      "no_external": "No external action occurred — nothing left this page."
+      "no_external": "This simulation made no real call, sent no email and changed no calendar."
     },
     "proof": {
       "open": "See the proof",
@@ -14034,10 +14964,10 @@
       "release": "See the releases",
       "install": "Installation guide"
     },
-    "change_mission": "All missions",
-    "proactive_intro": "LIA initiates — no request was typed.",
+    "change_mission": "Choose another situation",
+    "proactive_intro": "A useful signal, initiated by LIA",
     "picker": {
-      "subtitle": "Six synthetic missions, one per differentiating mechanism. Everything runs locally on this page — pick one."
+      "subtitle": "Six situations from one everyday life: your conversations, commitments and preferences come together. Pick a mission and see the result, with an approval only when an action calls for it."
     },
     "actions": {
       "title": "What next?"
@@ -14048,9 +14978,9 @@
     },
     "m": {
       "overloaded_morning": {
-        "title": "An overloaded morning",
-        "tagline": "Four sources, two conflicts, two decisions — nothing applied without you.",
-        "mechanism": "Orchestration + approvals",
+        "title": "Walk into your conversation prepared",
+        "tagline": "Claire’s context, the right document and conflicting prices: a useful briefing, then your decisions.",
+        "mechanism": "Relations · sources · approvals",
         "response": {
           "intro": "Your morning looked like a small battlefield: a run in the rain, Emma waiting on her reply, and a quote that was not going to write itself. Here is where things stand:",
           "chip_email_confirm": "Reply sent to Emma",
@@ -14068,13 +14998,13 @@
           "callout_body": "The protected block keeps 45 minutes for the Atlas quote before it is due.",
           "closing": "All that's left is the run — a dry one, if you took my advice."
         },
-        "note": "What you just saw: routing, planning under constraints and two approvals — the same HITL components as the product. Nothing applies without an explicit decision."
+        "note": "Relations brings together accessible details from your conversations and commitments. Chat can connect them with a document and email; available sources and results still need checking. These two actions illustrate their native approvals."
       },
       "proactive_alert": {
-        "title": "LIA gets there first",
-        "tagline": "Nothing was asked: the morning scan spots two risks and proposes fixes.",
-        "mechanism": "Proactivity",
-        "request": "Morning scan, 07:05 — two items need your attention before 09:00.",
+        "title": "Pick up the thread at the right time",
+        "tagline": "Marc’s reply arrives: LIA connects his new request to your commitment and prepares the next step.",
+        "mechanism": "Conditional routine · context",
+        "request": "Your enabled routine has detected Marc’s reply about Atlas. His committee has moved to 2 pm: a new deadline needs your attention.",
         "facts": {
           "rain_evening": "Heavy rain expected",
           "run_evening": "Run scheduled at",
@@ -14100,16 +15030,16 @@
           "reply_marc": {
             "phase": "Your decision: the reply to Marc",
             "receipt_label": "Reply to Marc",
-            "subject": "Re: Option B — yes",
-            "body": "Hello Marc, option B works for me. You will have the details before your 10:00 committee.",
-            "applied": "Reply to Marc approved — applied to the synthetic workspace",
-            "edited": "Reply to Marc edited, then applied to the synthetic workspace",
-            "refused": "Reply to Marc refused — nothing was applied"
+            "subject": "Atlas — your 2 pm committee",
+            "body": "Hi Marc, I’ve seen that the committee has moved to 2 pm. My original commitment was 3 pm; I’m checking what I can bring forward and will confirm when the summary will be available.",
+            "applied": "Reply approved in the simulation; no real email sent.",
+            "edited": "Edit instruction illustrated; no new draft or message sent.",
+            "refused": "Reply declined; the notification remains available."
           }
         },
         "receipt": {
-          "reads": "3 synthetic sources (weather, calendar, inbox)",
-          "proposed": "1 calendar move, 1 email reply — both initiated by LIA"
+          "reads": "Routine, Marc’s latest message and relationship commitment — fictional data.",
+          "proposed": "An explained notification and a reply to review; no calendar change."
         },
         "response": {
           "intro": "While you were still sound asleep, I had a look at your day: the weather decided to sabotage your 18:00 run, and Marc is still waiting for his answer — since Tuesday, but who's counting?",
@@ -14124,13 +15054,13 @@
           "kv_quiet_value": "22:00–07:00, never interrupted",
           "closing": "Back to standby — we'll talk tomorrow at 07:05, promise, not before."
         },
-        "note": "Nobody asked for anything here: the scheduled scan caught both risks on its own. Scan frequency and quiet hours live in the settings — LIA never initiates outside them."
+        "note": "Conditional routines check supported sources at the instance’s cadence. They must be enabled; access, windows, limits and sources affect what can be detected. The email reply remains subject to its approval policy."
       },
       "memory_dinner": {
-        "title": "It remembers for you",
-        "tagline": "One short ask, three remembered preferences applied — nothing asked twice.",
-        "mechanism": "Memory + habits",
-        "request": "Book a dinner with Sarah on Friday.",
+        "title": "Find time with your circle",
+        "tagline": "Sarah shares her availability: LIA compares your time slots and considers your latest conversation.",
+        "mechanism": "Authorized peers · memory",
+        "request": "Suggest dinner with Sarah tomorrow evening. Check the availability she shares with me, consider her preferences and draft the invitation.",
         "facts": {
           "sarah_veg": "Sarah is vegetarian — remembered since March",
           "last_dinner": "Last dinner together: Verdi — she loved it",
@@ -14147,26 +15077,26 @@
           "invite_sarah": {
             "phase": "Your decision: the message to Sarah",
             "receipt_label": "Message to Sarah",
-            "subject": "Dinner Friday at Verdi?",
-            "body": "Hi Sarah! Verdi, Friday 20:00 — their vegetarian menu is great. Shall I book?",
-            "applied": "Message to Sarah approved — applied to the synthetic workspace",
-            "edited": "Message to Sarah edited, then applied to the synthetic workspace",
-            "refused": "Message to Sarah refused — nothing was applied"
+            "subject": "Les Jardins tomorrow at 7:30 pm?",
+            "body": "Hi Sarah! Tomorrow at 7:30 pm seems to work for both of us. You suggested Les Jardins for a change; does that still suit you? I’ll check vegetarian options and availability before booking.",
+            "applied": "Invitation approved in the simulation; no real message sent.",
+            "edited": "Edit instruction illustrated; no invitation sent.",
+            "refused": "Invitation declined; nothing sent."
           },
           "create_event": {
             "phase": "Your decision: the calendar event",
             "receipt_label": "Calendar",
-            "tool": "Add the dinner to Friday",
+            "tool": "Add the proposal to my calendar",
             "what": "Event",
-            "what_value": "Dinner with Sarah — Verdi",
-            "when": "Friday at",
-            "applied": "Dinner added Friday 20:00 — applied to the synthetic calendar",
-            "refused": "No event created — nothing was changed"
+            "what_value": "Proposed dinner with Sarah — to be confirmed",
+            "when": "Tomorrow at",
+            "applied": "Proposal added to your fictional calendar; no write access to Sarah’s calendar.",
+            "refused": "No event created; your calendar remains unchanged."
           }
         },
         "receipt": {
-          "reads": "4 synthetic sources (memory, habits, calendar, contacts)",
-          "proposed": "1 message draft, 1 calendar event — built from remembered preferences"
+          "reads": "Memory, shared availability, your calendar and latest exchange — fictional data.",
+          "proposed": "An invitation and a proposed event in your calendar; no restaurant booking."
         },
         "response": {
           "intro": "Dinner with Sarah on Friday? Easy. Verdi, 20:00 — she's vegetarian, I hadn't forgotten, and your Friday evening was free. Everything was ready; only your go was missing.",
@@ -14183,13 +15113,13 @@
           "chip_event_cancel": "Calendar untouched — your call",
           "closing": "The hard part is still ahead: waiting until Friday."
         },
-        "note": "Everything was planned from remembered preferences, without asking again. What LIA retains is visible, editable and deletable from the settings."
+        "note": "Peers use the same instance and accept their connection. Each chooses shared fields and can revoke access. This read covers the next 48 hours of the default calendar; proposed events belong to the owner."
       },
       "phone_booking": {
-        "title": "It makes the call",
-        "tagline": "A real-world action: prepared, explained — and never dialed without your go.",
-        "mechanism": "Outbound calls",
-        "request": "Book us a table at Chez Léon for Saturday evening — call them, I never find the time.",
+        "title": "Delegate a call, keep control of its mandate",
+        "tagline": "Recipient, number and objective are visible: review them before authorizing the call.",
+        "mechanism": "Outbound call · native draft",
+        "request": "Call Les Jardins to ask for a table for two on Thursday at 8 pm, on the terrace if available. Don’t confirm another time without checking with me.",
         "facts": {
           "birthday": "Organize the birthday dinner — Saturday",
           "leon": "Chez Léon — phone number on file",
@@ -14209,13 +15139,13 @@
             "callee_value": "Chez Léon",
             "goal": "Goal",
             "goal_value": "Table for two — Saturday 20:00",
-            "applied": "Call authorized and completed — summary saved in the synthetic journal",
-            "refused": "No call was made — your refusal is a decision, not an error"
+            "applied": "Call approved in the simulation; the summary below is fictional.",
+            "refused": "Call declined; no number dialed."
           }
         },
         "receipt": {
-          "reads": "3 synthetic sources (tasks, contacts, calendar)",
-          "proposed": "1 outbound call — gated by your explicit approval"
+          "reads": "Contact, your calendar and instructions — fictional data.",
+          "proposed": "A call mandate you can review and edit before confirming."
         },
         "response": {
           "intro_confirm": "Done — I called Chez Léon while you were busy with more important things. One minute forty of conversation, a table for two on Saturday 20:00, and even a word about the birthday.",
@@ -14234,13 +15164,13 @@
           "transcript_3": "LIA: Perfect, thank you — see you Saturday.",
           "closing_confirm": "All you have to do now is show up on time."
         },
-        "note": "Every outbound call shows its goal and script first — no approval, no dial."
+        "note": "Outbound telephony requires the instance’s ElevenLabs configuration. The mandate and approvals frame the request; a fee restriction remains an instruction to the agent, not a behavioral or booking guarantee."
       },
       "daily_briefing": {
-        "title": "Your morning, already digested",
-        "tagline": "Inbox, calendar, weather and tasks in one rich, readable reply.",
-        "mechanism": "Rich replies",
-        "request": "Daily briefing, 07:00 — your day is ready to read.",
+        "title": "Listen to a Radio that relates to you",
+        "tagline": "Your day, commitments and chosen topics shape an on-demand personal programme.",
+        "mechanism": "Personal Radio · chosen sources",
+        "request": "Prepare my Radio: the useful points from my day, my commitments with Claire and Marc, then news on the topics I follow.",
         "facts": {
           "new_mails": "5 new emails — 1 needs you: Claire, about the contract",
           "meetings": "3 meetings — the first at",
@@ -14264,8 +15194,8 @@
           }
         },
         "receipt": {
-          "reads": "4 synthetic sources (inbox, calendar, tasks, weather)",
-          "proposed": "1 focus slot — the briefing itself changes nothing"
+          "reads": "Day, commitments and Radio selection — fictional data.",
+          "proposed": "A personal programme preview; no audio or provider content generated here."
         },
         "response": {
           "intro": "Good morning! While your coffee goes cold, here is your day: five emails and only one truly needs you, three meetings and two of them stepping on each other, and a big blue sky… to admire from the meeting room.",
@@ -14282,13 +15212,13 @@
           "chip_focus_cancel": "No slot reserved — your call",
           "closing": "Claire first — the rest can wait, it's used to it."
         },
-        "note": "This briefing is LIA's native rich-HTML rendering: the same formatting as real replies — composed locally here, with no model call."
+        "note": "Radio is prepared on demand during an active session, with supported sources and a configured voice. This preview stays written: it plays no audio and demonstrates neither real-time news nor voice quality."
       },
       "config_tour": {
-        "title": "Yours to shape, in a few clicks",
-        "tagline": "Tone, proactivity, languages, connections — set from the interface, nothing technical.",
-        "mechanism": "In-app settings",
-        "request": "Make your replies shorter, and only reach out to me in the morning.",
+        "title": "Recover what was decided",
+        "tagline": "A recorded meeting becomes minutes you can correct and a document you can share.",
+        "mechanism": "Meetings · minutes · document",
+        "request": "Prepare minutes from the Atlas meeting with Claire. Separate decisions, discussed actions and what still needs confirmation; I want to correct it and export it as a PDF.",
         "sources": {
           "personality": "Settings — Personality",
           "proactivity": "Settings — Proactivity",
@@ -14328,8 +15258,8 @@
           }
         },
         "receipt": {
-          "reads": "4 settings areas (personality, proactivity, languages, connections)",
-          "proposed": "2 one-click switches — nothing technical involved"
+          "reads": "Transcript, template and participants — fictional data.",
+          "proposed": "A reviewable minutes preview; no recording, export or indexing performed here."
         },
         "response": {
           "intro": "Your request fit in one sentence; the answer fits in two switches. Here is where they live:",
@@ -14341,7 +15271,7 @@
           "chip_mornings_cancel": "Proactive schedule unchanged — your call",
           "closing": "Two clicks to reprogram me… not sure if I should be impressed or offended."
         },
-        "note": "No config file was touched: everything you saw is set from the interface — and just as easy to undo."
+        "note": "Recording and transcription require permissions and configured engines. The minutes may contain errors. Later chat retrieval depends on indexing being enabled and completed; this preview does not perform it."
       }
     },
     "back_home": "Back to home",
@@ -14399,6 +15329,132 @@
         "disabled": "Switched off",
         "unavailable": "The demonstrator did not answer, so what it offers cannot be listed right now."
       }
+    },
+    "personal": {
+      "cancel": "Declined — no action",
+      "config_tour": {
+        "closing": "In the app, you can correct the minutes, change their template and export the PDF to share.",
+        "fact_1": "The transcript states €270/month; a passage about a discount is unclear.",
+        "fact_2": "Summary, decisions, assigned actions and open questions, based on the transcript.",
+        "fact_3": "You and Claire are identified in this excerpt; owners remain those explicitly named.",
+        "finding_1": "An unclear passage remains flagged: the minutes need reviewing and correcting.",
+        "finding_2": "An action mentioned in the minutes is not automatically a created task or a sent email.",
+        "intro": "Here are the minutes to review. Explicit decisions are separated from mentioned actions and uncertainties.",
+        "label_1": "Recorded decision",
+        "label_2": "Mentioned action",
+        "label_3": "To confirm",
+        "source_1": "Already-transcribed meeting",
+        "source_2": "Minutes template",
+        "source_3": "Identified participants",
+        "value_1": "Continue the comparison using €270/month; final approval is still pending.",
+        "value_2": "Claire should confirm the discount terms; no task is created automatically.",
+        "value_3": "The discount passage is unclear: check the transcript and correct the document."
+      },
+      "confirm": "Approval illustrated — no real action",
+      "daily_briefing": {
+        "closing": "In the real Radio, choose your sources, voices and budget, then listen to the programme with its transcript.",
+        "fact_1": "Meeting with Claire tomorrow at 9 am; the Atlas comparison still needs reviewing.",
+        "fact_2": "Marc has brought his committee forward to 2 pm: the summary promised by 3 pm needs attention.",
+        "fact_3": "Mobility and culture, from the sources selected for this session.",
+        "finding_1": "The programme connects your personal information and topics; it does not depend on the briefing’s visible sections.",
+        "finding_2": "Listening to a programme sends no email and changes no calendar.",
+        "intro": "Here is your programme preview. It connects what is coming up with the topics you chose.",
+        "label_1": "First, your day",
+        "label_2": "Then, your commitments",
+        "label_3": "Finally, your topics",
+        "source_1": "Your day",
+        "source_2": "Your commitments",
+        "source_3": "Your Radio topics and sources",
+        "value_1": "Claire tomorrow at 9 am: review the comparison and confirm the price.",
+        "value_2": "Marc: review the new deadline and decide on your reply.",
+        "value_3": "A mobility and culture selection, with sources you can inspect."
+      },
+      "edit": "Edit requested — nothing sent",
+      "edit_note": "In the app, this instruction prepares a new draft for you to review. Here it illustrates the flow: no model is called and the original draft is not sent.",
+      "memory_dinner": {
+        "closing": "LIA helps coordinate family, friends or colleagues; the accepted connection and chosen permissions remain the basis of sharing.",
+        "fact_1": "Sarah is vegetarian; your older note recommends Verdi.",
+        "fact_2": "Same LIA instance; authorized availability read for the next 48 hours, free tomorrow from 7 pm.",
+        "fact_3": "You are free tomorrow from 7:30 pm.",
+        "fact_4": "Sarah suggested Les Jardins for a change; her contact address is available.",
+        "finding_1": "The latest exchange suggests Les Jardins: the older Verdi preference should not decide on its own.",
+        "finding_2": "Tomorrow at 7:30 pm fits the shared availability; it books neither the restaurant nor Sarah’s calendar.",
+        "intro": "Tomorrow at 7:30 pm is a compatible slot. I used Sarah’s recent suggestion rather than the older note about Verdi.",
+        "label_1": "Time slot",
+        "label_2": "Preference to respect",
+        "label_3": "Sharing scope",
+        "source_1": "Editable memory",
+        "source_2": "Sarah · accepted sharing",
+        "source_3": "Your calendar",
+        "source_4": "Latest exchange with Sarah",
+        "value_1": "Tomorrow at 7:30 pm, based on the availability consulted.",
+        "value_2": "A vegetarian meal; menu options and a table still need checking.",
+        "value_3": "Authorized availability, without reading all details or changing Sarah’s calendar."
+      },
+      "overloaded_morning": {
+        "closing": "You recover the conversation’s context and the questions to ask, with preparation clearly separated from execution.",
+        "fact_1": "Latest exchange: you promised an offer comparison before the meeting.",
+        "fact_2": "The saved product sheet lists €240 per month.",
+        "fact_3": "The new proposal lists €270 per month without explaining the difference.",
+        "fact_4": "Atlas meeting tomorrow at 9 am; you are free from 8:30 to 8:50 am.",
+        "finding_1": "The two prices disagree: ask for confirmation instead of guessing a figure.",
+        "finding_2": "Your comparison commitment gives the briefing and reply a clear purpose.",
+        "intro": "Here is your briefing for Claire. The comparison is ready to review; the price still needs confirmation.",
+        "label_1": "Follow up on",
+        "label_2": "Check",
+        "label_3": "Confirmed meeting",
+        "source_1": "Relations · Claire",
+        "source_2": "Knowledge space · Atlas",
+        "source_3": "Claire’s latest email",
+        "source_4": "Your calendar",
+        "value_1": "The comparison you promised Claire in your latest exchange.",
+        "value_2": "€240 on the sheet, €270 in the latest email: the newer source does not explain the difference.",
+        "value_3": "Tomorrow at 9 am. The 8:30–8:50 am preparation slot is a separate proposal, subject to your decision."
+      },
+      "phone_booking": {
+        "callee": "Les Jardins (Demo)",
+        "closing": "In the app, the result returns to the conversation so you can check what was obtained.",
+        "edit_outcome": "Edit requested; no call made or new draft generated in this demonstration.",
+        "fact_1": "Les Jardins (Demo) · +1 202 555 0100 — entirely fictional recipient.",
+        "fact_2": "On Thursday you are free after 7 pm; that does not establish table availability.",
+        "fact_3": "Two people, Thursday 8 pm, terrace preferred; another time or fees require your decision.",
+        "finding_1": "Your availability and the restaurant’s are separate facts: the call must ask the question.",
+        "finding_2": "The mandate specifies the objective and limits; no call before confirmation.",
+        "goal": "Ask for a table for two on Thursday at 8 pm, on the terrace if available. Do not accept another time without checking with me.",
+        "intro": "Example summary after an authorized call. This result is fictional: no restaurant was called.",
+        "label_1": "Request",
+        "label_2": "Illustrated answer",
+        "label_3": "Illustrated outcome",
+        "source_1": "Restaurant contact",
+        "source_2": "Your calendar",
+        "source_3": "Your call mandate",
+        "value_1": "Table for two on Thursday at 8 pm; terrace if available.",
+        "value_2": "The restaurant offers an indoor table at 8 pm; the terrace is unavailable.",
+        "value_3": "Indoor table accepted at the requested time; no other time or expense accepted in this example.",
+        "preview_html": "<div class=\"lia-card lia-draft\"><div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--indigo\"><span style=\"font-size:var(--lia-text-lg)\">📞</span></div><div class=\"lia-card-top__info\"><div class=\"lia-card-top__title\">Les Jardins (Demo)</div></div></div><div class=\"lia-d-row\"><span class=\"material-symbols-outlined\">phone</span><span><strong>Callee</strong>: Les Jardins (Demo)</span></div><div class=\"lia-d-row\"><span class=\"material-symbols-outlined\">phone</span><span><strong>Phone</strong>: +1 202 555 0100</span></div><div class=\"lia-d-row\"><span class=\"material-symbols-outlined\">info</span><span><strong>Objective</strong>: Ask for a table for two on Thursday at 8 pm, outside if available. Do not accept another time without checking with me.</span></div></div>"
+      },
+      "proactive_alert": {
+        "closing": "A new email becomes a signal connected to your day, instead of another isolated notification.",
+        "fact_1": "Watch Marc’s replies about Atlas; notify you within the chosen window.",
+        "fact_2": "The committee has moved from 4 pm to 2 pm; Marc needs a summary before the meeting.",
+        "fact_3": "You had promised a summary by 3 pm: that commitment needs reviewing.",
+        "finding_1": "The old 3 pm commitment no longer meets the new 2 pm deadline.",
+        "finding_2": "LIA drafts a reply without promising on your behalf that the work will be finished.",
+        "intro": "Marc has brought his committee forward. Here is the conflict with your commitment, and a reply that leaves the decision with you.",
+        "label_1": "New information",
+        "label_2": "Your commitment",
+        "label_3": "Suggested next step",
+        "source_1": "Your enabled routine",
+        "source_2": "Marc’s new message",
+        "source_3": "Relations · open commitment",
+        "value_1": "Committee at 2 pm, according to Marc’s latest message.",
+        "value_2": "Summary promised by 3 pm: inform Marc instead of hiding the conflict.",
+        "value_3": "A careful reply for you to confirm, edit or decline."
+      },
+      "trace_compare": "Identify agreements and what still needs checking",
+      "trace_context": "Bring together authorized sources",
+      "trace_note": "The steps and their duration illustrate this scenario; they do not measure performance.",
+      "trace_result": "Prepare a useful result"
     }
   },
   "documents": {
@@ -14683,6 +15739,7 @@
       "segments_missing": "Some segments never reached the server.",
       "start_failed": "The recording could not be started.",
       "stop_failed": "The recording could not be finalized.",
+      "discard_failed": "Deletion could not be confirmed. The recording remains available; check its status before trying again.",
       "storage_unavailable": "The server could not store the audio (storage full or unavailable). The segments are kept and sent again.",
       "synthesis_failed": "The minutes could not be written.",
       "synthesis_too_long": "The recording is too long for the minutes to be written in one pass.",
@@ -14803,6 +15860,7 @@
         "abandoned": "Interrupted",
         "all": "All",
         "claimed": "In progress",
+        "waiting": "Interaction requested",
         "failed": "Failed",
         "refused": "Refused",
         "succeeded": "Done"
@@ -14827,6 +15885,8 @@
         "contact_update": "Updated the contact “{{target}}”",
         "devops_task": "Ran an administration task on “{{target}}”",
         "document_append": "Appended text to the document “{{target}}”",
+        "application_action": "Confirmed an application action",
+        "application_action_named": "Application action: {{target}}",
         "email": "Sent an email to {{recipient}}",
         "email_delete": "Deleted an email: {{target}}",
         "email_filter": "Created a mail filter",
@@ -14945,7 +16005,8 @@
       "weather": "Weather",
       "web_fetch": "Web page",
       "web_search": "Web search",
-      "wikipedia": "Wikipedia"
+      "wikipedia": "Wikipedia",
+      "setting": "Application settings"
     }
   },
   "registers": {

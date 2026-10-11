@@ -2489,6 +2489,64 @@
         "t.web",
         "t.redis"
       ]
+    },
+    {
+      "adr": 335,
+      "date": "2026-10-07",
+      "theme": "orchestration",
+      "functional": [
+        "f.chat"
+      ],
+      "technical": [
+        "t.toolsys",
+        "t.planner",
+        "t.dataregistry",
+        "t.initiative"
+      ]
+    },
+    {
+      "adr": 336,
+      "date": "2026-10-07",
+      "theme": "reliability",
+      "functional": [
+        "f.chat"
+      ],
+      "technical": [
+        "t.router",
+        "t.react",
+        "t.response",
+        "t.dataregistry"
+      ]
+    },
+    {
+      "adr": 337,
+      "date": "2026-10-07",
+      "theme": "reliability",
+      "functional": [
+        "f.chat",
+        "f.hitl"
+      ],
+      "technical": [
+        "t.react",
+        "t.langgraph",
+        "t.hitl",
+        "t.toolsys"
+      ]
+    },
+    {
+      "adr": 338,
+      "date": "2026-10-07",
+      "theme": "connectors",
+      "functional": [
+        "f.mcp",
+        "f.hitl"
+      ],
+      "technical": [
+        "t.mcp",
+        "t.toolsys",
+        "t.router",
+        "t.hitl"
+      ]
     }
   ]
 }

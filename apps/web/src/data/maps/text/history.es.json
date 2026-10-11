@@ -1767,6 +1767,26 @@
       "title": "Un avatar parlante personal con una sola salida audible — diseño propuesto",
       "summary": "Un rostro Simli opcional acompaña la voz existente con una clave personal y una sola salida audible. La API controla la conexión y su parada; la ventana muestra el cierre confirmado o pendiente porque el silencio puede consumir el plan. La decisión sigue propuesta hasta validar el proveedor y los dispositivos reales; Radio conserva su reproductor.",
       "src": "23fbe214bd46"
+    },
+    "335": {
+      "title": "Pruebas semánticas canónicas y dependencias que pueden empezar",
+      "summary": "Relacionar dos valores exige una observación de la fuente y la cuenta correctas, con el papel esperado; las palabras idénticas no bastan. El catálogo conserva las lecturas necesarias para iniciar una cadena e indica las dependencias sin fuente. Un intento de modificación invalida las pruebas anteriores antes y después de la llamada.",
+      "src": "ea20ff58f396"
+    },
+    "336": {
+      "title": "Los resultados solicitados se comprueban con lo que las herramientas realmente obtuvieron",
+      "summary": "Las peticiones explícitas se anclan en las palabras de la persona y se contrastan con observaciones: valor, fecha, cantidad, operación e integridad. El día y la zona horaria siguen siendo los del inicio del turno, incluso al reanudarlo. Un borrador queda pendiente y una delegación opaca, desconocida; las carencias verificadas llegan a la recuperación de lectura limitada y a la respuesta.",
+      "src": "7bb027d3047a"
+    },
+    "337": {
+      "title": "Lecturas ReAct guardadas antes de una interrupción y reutilizadas en el mismo turno",
+      "summary": "Las lecturas independientes declaradas pueden avanzar juntas con un límite; sus resultados se guardan antes de una posible confirmación. Una lectura reciente y completa puede volver a servir en el mismo turno y contexto. Los cambios invalidan su reutilización. Una parada abrupta antes de guardar aún puede repetir lecturas; las observaciones no se comparten entre turnos.",
+      "src": "fcd709716d2d"
+    },
+    "338": {
+      "title": "Los contratos MCP actuales describen capacidades e identidad exacta del servidor",
+      "summary": "Las herramientas MCP de cada persona se descubren a partir de sus declaraciones actuales; solo se anuncian las construidas correctamente. El servidor conserva su identidad exacta, separada de los nombres simplificados de enrutamiento y llamada. Una tarea ligada a un servidor comprueba su destino antes de confirmar. Las descripciones antiguas reciben las capacidades actuales sin afirmar conocer toda la ontología del servidor.",
+      "src": "4d70e2379e7f"
     }
   }
 }

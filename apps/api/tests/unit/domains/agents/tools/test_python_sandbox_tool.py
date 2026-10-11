@@ -34,6 +34,8 @@ from uuid import uuid4
 import pytest
 
 from src.core.constants import EXECUTION_MODE_PIPELINE, EXECUTION_MODE_REACT
+from src.domains.agents.tools.common import ToolErrorCode
+from src.domains.skills.executor import ScriptResult
 
 pytestmark = [pytest.mark.unit]
 
@@ -56,8 +58,8 @@ def _runtime(mode: str = EXECUTION_MODE_REACT) -> SimpleNamespace:
     return SimpleNamespace(context=context)
 
 
-def _ok(stdout: str = "3\n") -> SimpleNamespace:
-    return SimpleNamespace(success=True, output=stdout, error=None, execution_started=True)
+def _ok(stdout: str = "3\n") -> ScriptResult:
+    return ScriptResult(success=True, output=stdout, execution_started=True)
 
 
 async def _call(code: str = "print(1+2)", **kwargs: Any) -> Any:
@@ -140,7 +142,7 @@ class TestTheTurnBudgetIsBounded:
         from src.domains.agents.tools import python_sandbox_tools
 
         python_sandbox_tools.reset_turn_budget()
-        refusal = SimpleNamespace(
+        refusal = ScriptResult(
             success=False, output="", error="Input exceeds 100KB", execution_started=False
         )
         with (
@@ -158,11 +160,60 @@ class TestTheTurnBudgetIsBounded:
         assert logger.info.call_args.args[0] == "ephemeral_script_refused"
         assert python_sandbox_tools.drain_turn_scripts()[0]["execution_started"] is False
 
+    async def test_an_input_refusal_is_the_caller_s_to_fix(self) -> None:
+        refusal = ScriptResult(
+            success=False, output="", error="Input exceeds 100KB", execution_started=False
+        )
+        with patch(
+            "src.domains.skills.executor.SkillScriptExecutor.execute_source",
+            new_callable=AsyncMock,
+            return_value=refusal,
+        ):
+            result = await _call()
+
+        assert result.error_code == ToolErrorCode.INVALID_INPUT
+
+    async def test_an_unavailable_sandbox_costs_no_run_and_is_not_a_script_error(
+        self,
+    ) -> None:
+        """Production 2026-10-08: the API lost the Docker socket's group.
+
+        Reported as the script's failure, the model read the Docker client's
+        error as a traceback and rewrote a correct script three times. The
+        instance could not run anything: the answer says so and says why a
+        retry cannot help, and the executor's text never reaches the model.
+        """
+        from src.domains.agents.tools import python_sandbox_tools
+
+        python_sandbox_tools.reset_turn_budget()
+        unavailable = ScriptResult(
+            success=False,
+            output="",
+            error="Script sandbox unavailable",
+            exit_code=1,
+            sandbox_unavailable=True,
+        )
+        with patch(
+            "src.domains.skills.executor.SkillScriptExecutor.execute_source",
+            new_callable=AsyncMock,
+            return_value=unavailable,
+        ):
+            result = await _call()
+
+        assert result.success is False
+        assert result.error_code == ToolErrorCode.DEPENDENCY_ERROR
+        assert "Retrying will not help" in result.message
+        assert "traceback" not in result.structured_data
+        assert "Script sandbox unavailable" not in json.dumps(
+            result.model_dump(exclude={"metadata"}), default=str
+        )
+        assert python_sandbox_tools.runs_spent() == 0
+
     async def test_an_executed_script_failure_consumes_one_run(self) -> None:
         from src.domains.agents.tools import python_sandbox_tools
 
         python_sandbox_tools.reset_turn_budget()
-        failure = SimpleNamespace(
+        failure = ScriptResult(
             success=False, output="", error="ZeroDivisionError", execution_started=True
         )
         with patch(
@@ -282,7 +333,7 @@ class TestWhatComesBack:
         from src.domains.agents.tools import python_sandbox_tools
 
         python_sandbox_tools.reset_turn_budget()
-        failure = SimpleNamespace(
+        failure = ScriptResult(
             success=False,
             output="",
             error="NameError: name 'total' is not defined",
@@ -400,7 +451,7 @@ class TestTheAdminSeesTheCode:
         from src.domains.agents.tools import python_sandbox_tools
 
         python_sandbox_tools.reset_turn_budget()
-        failure = SimpleNamespace(
+        failure = ScriptResult(
             success=False, output="", error="ZeroDivisionError", execution_started=True
         )
         with patch(
@@ -493,11 +544,12 @@ class TestItSurvivesTheGraphRunner:
     def test_the_execute_node_seeds_and_persists(self) -> None:
         import inspect
 
-        from src.domains.agents.nodes import react_nodes
+        from src.domains.agents.nodes import react_call_execution
 
-        source = inspect.getsource(react_nodes.react_execute_tools_node)
+        source = inspect.getsource(react_call_execution.execute_call)
         assert "seed_turn(" in source, "the invocation must seed from state"
-        assert "react_script_runs" in source, "the consumed budget must return to state"
+        booked = inspect.getsource(react_call_execution._book)
+        assert "react_script_runs" in booked, "the consumed budget must return to state"
 
     def test_the_setup_zeroes_the_state_counter(self) -> None:
         import inspect

@@ -107,7 +107,7 @@
         "apps/api/src/infrastructure/email"
       ],
       "domains": ["auth", "users"],
-      "infra": ["email"],
+      "infra": ["email", "application_sessions"],
       "deps": ["t.redis", "t.postgres"]
     },
     {
@@ -118,10 +118,13 @@
         "apps/api/src/main.py",
         "apps/api/src/serve.py",
         "apps/api/src/api/v1/routes.py",
-        "apps/api/src/domains"
+        "apps/api/src/domains",
+        "apps/api/src/infrastructure/account_preferences.py",
+        "apps/api/src/infrastructure/personalization.py",
+        "apps/api/src/infrastructure/account_exports.py"
       ],
       "domains": ["shared"],
-      "infra": ["async_utils", "utils", "resilience"],
+      "infra": ["async_utils", "utils", "resilience", "account_preferences", "personalization", "account_exports", "account_export_downloads", "file_transfer", "confirmed_commit"],
       "deps": ["t.startup", "t.config", "t.postgres", "t.redis"]
     },
     {
@@ -397,9 +400,12 @@
       "paths": [
         "apps/api/src/domains/live",
         "apps/api/src/domains/voice_sessions",
-        "apps/web/src/lib/live"
+        "apps/web/src/lib/live",
+        "apps/api/src/infrastructure/live_preferences.py",
+        "apps/api/src/infrastructure/live_connector_preferences.py"
       ],
       "domains": ["live", "voice_sessions"],
+      "infra": ["live_preferences", "live_connector_preferences"],
       "deps": ["t.bff", "t.sse", "t.pricing"]
     },
     {
@@ -408,9 +414,11 @@
       "icon": "phone",
       "paths": [
         "apps/api/src/domains/telephony",
-        "apps/api/src/infrastructure/scheduler/voice_relay.py"
+        "apps/api/src/infrastructure/scheduler/voice_relay.py",
+        "apps/api/src/infrastructure/phone_identity.py"
       ],
       "domains": ["telephony"],
+      "infra": ["phone_identity", "phone_history", "phone_number_preferences", "phone_preferences"],
       "deps": ["t.live", "t.jobs"]
     },
     {
@@ -420,10 +428,11 @@
       "paths": [
         "apps/api/src/domains/notifications",
         "apps/api/src/domains/push_relay",
-        "apps/api/src/infrastructure/external/push_relay_client.py"
+        "apps/api/src/infrastructure/external/push_relay_client.py",
+        "apps/api/src/infrastructure/notification_devices.py"
       ],
       "domains": ["notifications", "push_relay", "push_channels"],
-      "infra": ["external"],
+      "infra": ["external", "notification_devices"],
       "deps": ["t.postgres"]
     },
     {
@@ -460,6 +469,7 @@
         "apps/api/src/infrastructure/scheduler/voice_session_closing.py"
       ],
       "domains": ["meetings"],
+      "infra": ["meeting_deletions", "meeting_email", "meeting_pdf", "meeting_preferences", "meeting_reads", "meeting_reformat", "meeting_regeneration", "meeting_report_updates", "meeting_reports", "meeting_retry", "meeting_templates", "meeting_transcripts"],
       "deps": ["t.postgres", "t.scheduler"]
     },
     {

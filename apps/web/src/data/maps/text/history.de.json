@@ -1767,6 +1767,26 @@
       "title": "Ein persönlicher sprechender Avatar mit einer hörbaren Ausgabe — vorgeschlagener Entwurf",
       "summary": "Ein optionales Simli-Gesicht begleitet die vorhandene Sprache mit persönlichem Schlüssel und einer hörbaren Ausgabe. Die API kontrolliert Verbindung und Stopp; das Fenster zeigt bestätigte oder ausstehende Schließung, da Stille das Kontingent verbrauchen kann. Die Entscheidung bleibt bis zur Anbieter- und Geräteprüfung vorgeschlagen; Radio behält seinen Player.",
       "src": "23fbe214bd46"
+    },
+    "335": {
+      "title": "Kanonische semantische Belege und Abhängigkeiten mit einem ausführbaren Anfang",
+      "summary": "Die Verknüpfung zweier Werte erfordert eine Beobachtung aus der richtigen Quelle und dem richtigen Konto mit der erwarteten Rolle; gleiche Wörter reichen nicht aus. Der Katalog erhält die Leseschritte, mit denen eine Kette beginnen kann, und benennt Abhängigkeiten ohne Quelle. Ein Änderungsversuch entwertet ältere Belege vor und nach dem Aufruf.",
+      "src": "ea20ff58f396"
+    },
+    "336": {
+      "title": "Angeforderte Ergebnisse werden an den tatsächlichen Werkzeugbeobachtungen geprüft",
+      "summary": "Explizite Anforderungen werden in den Worten der Person verankert und mit Beobachtungen verglichen: Wert, Datum, Anzahl, Vorgang und Vollständigkeit. Tag und Zeitzone bleiben auch bei einer Fortsetzung diejenigen des Rundenbeginns. Ein Entwurf bleibt ausstehend und eine undurchsichtige Delegation unbekannt; geprüfte Lücken erreichen die begrenzte Wiederaufnahme von Lesevorgängen und die Antwort.",
+      "src": "7bb027d3047a"
+    },
+    "337": {
+      "title": "ReAct-Leseergebnisse werden vor einer Unterbrechung gespeichert und innerhalb der Runde wiederverwendet",
+      "summary": "Deklarierte unabhängige Lesevorgänge können begrenzt parallel laufen; ihre Ergebnisse werden vor einer möglichen Bestätigung gespeichert. Ein aktuelles vollständiges Ergebnis kann in derselben Runde und im selben Kontext erneut dienen. Änderungen entwerten die Wiederverwendung. Ein abrupter Stopp vor dem Speichern kann Lesevorgänge wiederholen; Beobachtungen werden nicht zwischen Runden geteilt.",
+      "src": "fcd709716d2d"
+    },
+    "338": {
+      "title": "Aktuelle MCP-Verträge beschreiben Fähigkeiten und die genaue Serveridentität",
+      "summary": "Die MCP-Werkzeuge jeder Person werden anhand ihrer aktuellen Deklarationen entdeckt; nur erfolgreich erstellte Werkzeuge werden angeboten. Die genaue Serveridentität bleibt von vereinfachten Routing- und Aufrufnamen getrennt. Eine an einen Server gebundene Aufgabe prüft ihr Ziel vor der Bestätigung. Ältere Beschreibungen erhalten aktuelle Fähigkeiten, ohne Kenntnis der gesamten Serverontologie zu behaupten.",
+      "src": "4d70e2379e7f"
     }
   }
 }

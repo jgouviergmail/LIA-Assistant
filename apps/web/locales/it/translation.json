@@ -887,8 +887,12 @@
         "skill_proposal_name_taken": "Esiste già una skill con questo nome e non può essere sostituita dalla chat.",
         "skill_proposal_quota_reached": "Hai raggiunto il numero massimo di skill. Eliminane una nelle Impostazioni per installare questa.",
         "skill_proposal_invalid": "Questa skill non è più accettata. Chiedi a LIA di generarla di nuovo.",
-        "skill_proposal_unavailable": "La proposta non è raggiungibile al momento. Riprova tra poco."
-      }
+        "skill_proposal_unavailable": "La proposta non è raggiungibile al momento. Riprova tra poco.",
+        "skill_proposal_completion_unknown": "Il risultato dell’importazione è incerto. Controlla i tuoi skill; questa proposta non può essere reinstallata."
+      },
+      "unknown": "Il risultato dell’importazione deve essere verificato. Questa proposta non verrà reinstallata automaticamente.",
+      "check_result": "Verifica il risultato",
+      "cache_pending": "Lo skill è stato salvato. L’aggiornamento del catalogo è ancora in attesa."
     },
     "document_expiry": {
       "expired": "Questo documento è scaduto e non è più disponibile",
@@ -949,7 +953,14 @@
       "reactivate_description": "Il tuo dispositivo ha sospeso la condivisione della posizione mentre l'app era chiusa. Riattivala perché LIA continui a usare la tua posizione reale invece del tuo indirizzo personale.",
       "reactivate_button": "Riattiva",
       "detection": {
-        "keywords": ["vicinanze", "dintorni", "zona", "quartiere", "prossimita", "domicilio"],
+        "keywords": [
+          "vicinanze",
+          "dintorni",
+          "zona",
+          "quartiere",
+          "prossimita",
+          "domicilio"
+        ],
         "patterns": [
           "(nelle|in) vicinanz[ae]",
           "intorno a me",
@@ -1239,6 +1250,9 @@
       },
       "resize": "Ridimensiona il pannello di debug"
     },
+    "card_group": {
+      "summary": "Vedi il dettaglio"
+    },
     "card_actions": {
       "reply": "Rispondi",
       "forward": "Inoltra",
@@ -1289,6 +1303,93 @@
     "frame_retry": "Riprova"
   },
   "settings": {
+    "application_tools": {
+      "document_upload_title": "Importare un documento",
+      "document_upload_choose": "Scegliere un documento locale",
+      "document_upload_confirm": "Importare questo documento",
+      "document_upload_waiting": "Scelga un file e confermi nome, dimensione e destinazione prima dell’invio.",
+      "document_upload_accepted": "Documento importato. Indicizzazione in attesa.",
+      "document_upload_sending": "Invio del documento confermato…",
+      "document_upload_destination": "Destinazione: {{name}}",
+      "document_upload_limits": "Dimensione massima: {{size}} · Documenti: {{count}}/{{max}}",
+      "document_upload_types": "Formati accettati: {{types}}",
+      "document_upload_inactive": "Questo spazio è inattivo e rimane escluso dalla ricerca.",
+      "document_upload_cost": "L’indicizzazione usa le quote della piattaforma e può generare costi. L’uso effettivo è consultabile nello spazio di conoscenza.",
+      "document_upload_too_large": "Questo file supera il limite di dimensione visualizzato.",
+      "document_upload_progress": "Caricamento: {{progress}} %",
+      "secure_export_partial": "La richiesta di esportazione è stata salvata, ma non è stato possibile confermarne lo stato. Controlla nelle impostazioni.",
+      "download_title": "Scaricare l’archivio dell’account",
+      "interests_download_title": "Scarica interessi",
+      "document_archive_title": "Scarica archivio dei documenti",
+      "asset_download_title": "Download del file della galleria",
+      "bookmark_download_title": "Scarica la risposta salvata",
+      "skill_download_title": "Competenza da scaricare",
+      "document_download_title": "Scarica documento",
+      "journals_download_title": "Scarica il diario",
+      "memories_download_title": "Scarica i ricordi attuali",
+      "download_waiting": "Hai confermato questo archivio. Avvia la richiesta di download nel browser originale.",
+      "download_attempted": "Verifica il risultato della richiesta. LIA non può confermare il salvataggio del file sul dispositivo.",
+      "download_requested": "La richiesta di download è registrata. Il browser gestisce il salvataggio del file; LIA non può confermare che sia stato salvato.",
+      "download_start": "Avviare il download",
+      "secure_export_title": "Completare la richiesta di esportazione dell’account",
+      "secure_export_requested": "Esportazione richiesta. La preparazione continua in background; controlla lo stato nelle impostazioni.",
+      "secure_title": "Completare la disconnessione delle altre sessioni",
+      "mcp_configuration_title": "Configurare un server MCP personale",
+      "mcp_configuration_open": "Aprire il modulo privato",
+      "mcp_configuration_private": "Inserisci l’indirizzo e le credenziali in questo modulo privato. Non vengono inviati all’assistente. Il salvataggio non verifica la connessione.",
+      "mcp_configuration_saved": "Configurazione salvata. La connessione non è stata verificata.",
+      "mcp_configuration_waiting": "Hai confermato questa azione. Completa il modulo privato per salvare la configurazione.",
+      "secure_waiting": "Hai confermato questa azione. Prosegui tramite l’autenticazione sicura per eseguirla.",
+      "secure_continue": "Proseguire in sicurezza",
+      "secure_check": "Verificare il risultato",
+      "secure_running": "L’esecuzione è in corso. Verifica il risultato senza inviare nuovamente l’azione.",
+      "secure_done": "Disconnessione completata.",
+      "secure_complete_one": "{{count}} sessione disconnessa.",
+      "secure_complete_other": "{{count}} sessioni disconnesse.",
+      "secure_expired": "Questa conferma è scaduta. Chiedi una nuova proposta a LIA.",
+      "secure_failed": "Non è stato possibile completare l’azione. Verifica il risultato prima di chiedere una nuova proposta.",
+      "secure_unknown": "Il risultato non è ancora confermato. Verificalo senza inviare nuovamente l’azione.",
+      "secure_read_failed": "Non è stato possibile leggere il risultato attuale. Prova a verificarlo di nuovo.",
+      "sync_failed": "L’impostazione è stata salvata, ma non è stato possibile aggiornare lo schermo. Ricarica la pagina.",
+      "skill_file_upload_title": "Importa un file di skill personale",
+      "skill_file_upload_waiting": "Scegli localmente un file .md o .zip, poi conferma l’importazione.",
+      "skill_file_upload_sending": "Importazione del file di skill in corso…",
+      "skill_file_upload_accepted": "Lo skill è stato importato.",
+      "skill_file_upload_choose": "Scegli un file di skill",
+      "skill_file_upload_confirm": "Importa questo skill",
+      "skill_file_upload_too_large": "Il file scelto supera la dimensione consentita.",
+      "skill_file_upload_new": "Crea un nuovo skill personale. Un nome già utilizzato verrà rifiutato.",
+      "skill_file_upload_replace": "Sostituisci soltanto lo skill personale «{{name}}».",
+      "skill_file_upload_limits": "File: massimo {{size}}; pacchetto: massimo {{files}} file e {{unpacked}} decompressi.",
+      "skill_file_upload_effects": "La conferma importa il pacchetto completo e sostituisce le risorse dello skill selezionato. Gli script non vengono eseguiti durante l’importazione.",
+      "skill_file_upload_cache_pending": "Lo skill è stato salvato. L’aggiornamento del catalogo è ancora in attesa.",
+      "plugin_file_upload_title": "Importa un plugin personale da uno ZIP",
+      "plugin_file_upload_waiting": "Scegli uno ZIP locale e conferma la sua importazione.",
+      "plugin_file_upload_sending": "Importazione del plugin…",
+      "plugin_file_upload_accepted": "Il plugin è stato importato.",
+      "plugin_file_upload_choose": "Scegli uno ZIP di plugin",
+      "plugin_file_upload_confirm": "Importa questo plugin",
+      "plugin_file_upload_new": "Crea un nuovo plugin personale. Un nome esistente viene rifiutato.",
+      "plugin_file_upload_replace": "Sostituisci solo il plugin «{{name}}» e i componenti indicati.",
+      "plugin_file_upload_effects": "La conferma importa il pacchetto e rimuove i componenti assenti dalla nuova versione. Nessuno script viene eseguito. Alcuni componenti possono essere esclusi; i risultati vengono segnalati.",
+      "plugin_file_upload_cache_pending": "Il plugin è stato salvato. L’aggiornamento del catalogo è ancora in attesa.",
+      "plugin_file_upload_cleanup_pending": "L’importazione è stata salvata. La pulizia dei file precedenti deve essere verificata.",
+      "plugin_file_upload_partial": "Alcune modifiche sono state salvate, ma l’importazione completa non è stata confermata. Verifica il risultato prima di preparare una nuova importazione.",
+      "plugin_file_upload_too_large": "Il file scelto supera la dimensione consentita.",
+      "plugin_file_upload_limits": "File: massimo {{size}}; pacchetto: massimo {{files}} file e {{unpacked}} decompressi.",
+      "mcp_oauth_title": "Autorizza un server MCP personale",
+      "mcp_oauth_open": "Apri l’autorizzazione del fornitore",
+      "mcp_oauth_complete": "Completa l’autorizzazione",
+      "mcp_oauth_waiting": "Conferma con il fornitore e torna in questa conversazione per salvare. Non inviare codici o token nella chat.",
+      "mcp_oauth_returned": "Torna dal fornitore e scegli Completa l’autorizzazione. Nulla viene salvato prima di questo passaggio.",
+      "mcp_oauth_pending": "In attesa dell’autorizzazione del fornitore. Puoi verificare di nuovo al ritorno.",
+      "mcp_oauth_saved": "Autorizzazione salvata. La connessione non è stata testata.",
+      "meeting_pdf_download_title": "Verbale da scaricare",
+      "device_recording_title": "Registratore di questo dispositivo",
+      "device_recording_waiting": "L’azione approvata attende questa scheda. Usa il pulsante per consentire l’accesso al microfono se necessario.",
+      "device_recording_done": "Il dispositivo ha confermato l’azione. L’eventuale elaborazione del verbale deve ancora essere verificata.",
+      "device_recording_execute": "Esegui su questo dispositivo"
+    },
     "avatar": {
       "title": "Avatar parlante (beta)",
       "description": "Un avatar Simli sperimentale e facoltativo accompagna commenti vocali e Live.",
@@ -3012,7 +3113,8 @@
       "delete_server": "Elimina {{name}}",
       "generate_description": "Auto-genera",
       "generate_description_success": "Descrizione del dominio generata",
-      "generate_description_no_tools": "Nessuno strumento scoperto — testa prima la connessione"
+      "generate_description_no_tools": "Nessuno strumento scoperto — testa prima la connessione",
+      "oauth_pending": "Autorizzazione del fornitore ricevuta. Torna nella conversazione per completare il salvataggio."
     },
     "sandbox_egress": {
       "title": "Rete della sandbox",
@@ -4003,6 +4105,7 @@
       "forget_all_description": "Tutte le abitudini apprese e il profilo del ritmo saranno eliminati. LIA ricomincerà ad apprendere da zero (a meno che tu non disattivi l'apprendimento).",
       "forget_all_confirm": "Dimentica tutto",
       "forget_all_done": "Tutte le abitudini sono state dimenticate.",
+      "forget_all_partial": "Abitudini e ritmo sono stati cancellati, ma la pulizia delle tracce temporanee non è confermata. Puoi riprovare a dimenticare tutto.",
       "explanation": {
         "title": "Perché questa abitudine?",
         "error": "Impossibile caricare la spiegazione.",
@@ -4157,6 +4260,7 @@
         "failed_hint": "L’esportazione non è riuscita. Riprova.",
         "error_generic": "Qualcosa è andato storto. Riprova.",
         "ready_hint": "Archivio pronto — {{size}} · scade il {{date}}",
+        "archive_unavailable": "Questo archivio non è più disponibile per il download. Richiedi una nuova esportazione.",
         "expired_hint": "Esportazione generata il {{created}}, scaduta il {{expired}}. Richiedi una nuova esportazione per scaricare i tuoi dati."
       },
       "auth": {
@@ -4222,6 +4326,7 @@
         "number_label": "Il mio numero di telefono",
         "number_placeholder": "+39 312 345 6789",
         "number_help": "Preferibilmente in formato internazionale. LIA chiamerà questo numero solo una volta verificato.",
+        "context_changed": "L’account è cambiato. Ricarica le impostazioni prima di continuare.",
         "remove": "Rimuovi il numero",
         "verification_title": "Verifica",
         "verified": "Verificato",
@@ -4400,11 +4505,12 @@
         "server_create_failed": "Impossibile registrare il server"
       },
       "via_plugin": "Via plugin",
-      "component_locked": "«{{name}}» appartiene a un plugin installato — disinstalla il plugin per rimuoverlo."
+      "component_locked": "«{{name}}» appartiene a un plugin installato — disinstalla il plugin per rimuoverlo.",
+      "file_cleanup_pending": "Il plugin è salvato. Alcuni file della versione precedente devono ancora essere rimossi."
     },
     "eyes_style": {
-      "title": "Stile degli occhi",
-      "description": "Scegli l'aspetto degli occhi espressivi della chat."
+      "title": "Stile dell'avatar",
+      "description": "Scegli l'aspetto dell'avatar animato che ti accompagna in tutta l'applicazione."
     },
     "meetings": {
       "title": "Riunioni",
@@ -4558,6 +4664,8 @@
       "thinking": "Livello di ragionamento",
       "save": "Salva il connettore",
       "saved": "Connettore Live aggiornato.",
+      "settings_changed": "Le impostazioni salvate sono cambiate. Le modifiche non salvate sono conservate; controllale prima di salvarle.",
+      "reload_saved": "Ricarica le impostazioni salvate",
       "save_error": "Impossibile aggiornare il connettore.",
       "preferences_title": "Come si comporta la conversazione",
       "interruptions": "LIA si ferma quando parlo",
@@ -5265,7 +5373,187 @@
       "get_steps_daily_breakdown": "Lettura dei tuoi passi giorno per giorno...",
       "compare_heart_rate_to_baseline": "Confronto della tua frequenza cardiaca con il tuo riferimento...",
       "compare_steps_to_baseline": "Confronto dei tuoi passi con il tuo riferimento...",
-      "detect_health_changes": "Ricerca di cambiamenti nei tuoi dati sanitari..."
+      "detect_health_changes": "Ricerca di cambiamenti nei tuoi dati sanitari...",
+      "get_lia_assistant_preferences": "Lettura delle impostazioni del suo assistente...",
+      "update_lia_assistant_preferences": "Preparazione di una modifica alle impostazioni dell’assistente...",
+      "get_lia_layout_preferences": "Lettura della griglia del briefing e delle scorciatoie...",
+      "update_lia_layout_preferences": "Preparazione di una modifica alla griglia o alle scorciatoie...",
+      "get_lia_locations": "Lettura delle posizioni salvate...",
+      "update_lia_home_location": "Preparazione di una modifica del domicilio...",
+      "get_lia_heartbeat_preferences": "Lettura delle tue impostazioni proattive...",
+      "update_lia_heartbeat_preferences": "Preparazione di una modifica alle impostazioni proattive...",
+      "get_lia_channel_bindings": "Lettura dei tuoi canali collegati...",
+      "update_lia_channel_binding": "Preparazione di una modifica al canale...",
+      "unlink_lia_channel_binding": "Preparazione della rimozione del collegamento del canale...",
+      "get_lia_connector_preferences": "Lettura delle preferenze dei tuoi connettori...",
+      "update_lia_connector_preferences": "Preparazione di una modifica alle preferenze del connettore...",
+      "get_lia_shared_mcp_preferences": "Lettura delle tue preferenze MCP condivise...",
+      "update_lia_shared_mcp_preferences": "Preparazione di una modifica alle tue preferenze MCP condivise...",
+      "get_lia_connectors": "Lettura delle tue connessioni salvate...",
+      "disconnect_lia_connector": "Preparazione della disconnessione del servizio...",
+      "get_lia_notification_devices": "Lettura dei tuoi dispositivi di notifica...",
+      "get_lia_live_preferences": "Lettura delle impostazioni di conversazione Live...",
+      "get_lia_live_connector_settings": "Lettura dei connettori Live e delle loro impostazioni...",
+      "update_lia_live_connector_settings": "Preparazione delle impostazioni del connettore Live...",
+      "get_lia_live_options": "Lettura dei modelli e delle voci Live disponibili...",
+      "get_lia_security_settings": "Lettura delle impostazioni di sicurezza...",
+      "set_lia_routine_state": "Preparazione della modifica dello stato dell’automazione...",
+      "get_lia_routines": "Lettura delle automazioni...",
+      "get_lia_reminders": "Lettura delle impostazioni dei promemoria...",
+      "get_lia_memories": "Lettura dei ricordi salvati...",
+      "get_lia_interests": "Lettura degli interessi e delle impostazioni...",
+      "get_lia_interest_history": "Lettura della cronologia delle notifiche degli interessi...",
+      "get_lia_interest_details": "Lettura del calcolo del peso e delle fonti dell’interesse...",
+      "create_lia_interest": "Preparazione della creazione dell’interesse...",
+      "reactivate_lia_interest": "Preparazione della riattivazione dell’interesse...",
+      "export_lia_interests": "Preparazione dell’esportazione dei tuoi interessi...",
+      "export_lia_journals": "Preparazione dell’esportazione del diario...",
+      "export_lia_memories": "Preparazione dell’esportazione dei tuoi ricordi...",
+      "get_lia_open_loops": "Lettura dei tuoi impegni...",
+      "update_lia_psyche_settings": "Preparazione delle impostazioni personali della psiche...",
+      "reset_lia_psyche": "Preparazione del reset della psiche...",
+      "generate_lia_psyche_summary": "Preparazione della sintesi psicologica di LIA...",
+      "get_lia_journal_portrait": "Lettura del ritratto del diario...",
+      "update_lia_journal_settings": "Preparazione delle impostazioni del diario...",
+      "delete_lia_journal_entries": "Preparazione della rimozione del diario...",
+      "create_lia_journal_entry": "Preparazione di una voce del diario...",
+      "update_lia_journal_entry": "Preparazione di una modifica del diario...",
+      "get_lia_journal_provenance": "Lettura delle fonti del diario...",
+      "consolidate_lia_journals": "Preparazione del consolidamento del diario...",
+      "submit_lia_journal_portrait_feedback": "Preparazione di una correzione del ritratto...",
+      "get_lia_journals": "Lettura delle impostazioni e delle voci del diario...",
+      "get_lia_psyche": "Lettura delle impostazioni e dello stato della psiche...",
+      "get_lia_health_samples": "Lettura delle misure di salute...",
+      "delete_lia_health_samples": "Preparazione dell’eliminazione delle misure salute...",
+      "revoke_lia_health_ingestion_token": "Preparazione della revoca del token salute...",
+      "create_lia_health_ingestion_token": "Preparazione della creazione del token salute...",
+      "update_lia_relation_settings": "Preparazione delle impostazioni delle relazioni...",
+      "get_lia_relations": "Lettura delle schede delle relazioni...",
+      "get_lia_relation_context": "Lettura delle fonti esterne della relazione...",
+      "get_lia_relation_debrief": "Lettura del riepilogo della relazione salvato...",
+      "generate_lia_relation_debrief": "Preparazione della generazione del riepilogo della relazione...",
+      "refresh_lia_relation_context": "Preparazione dell’aggiornamento delle schede della relazione...",
+      "set_lia_relation_favorite": "Preparazione del preferito della relazione...",
+      "manage_lia_relation_grouping": "Preparazione del raggruppamento delle relazioni...",
+      "get_lia_relation_settings": "Lettura delle impostazioni delle relazioni...",
+      "get_lia_peer_settings": "Lettura delle impostazioni delle connessioni...",
+      "create_lia_knowledge_space": "Preparazione della creazione del tuo spazio...",
+      "update_lia_knowledge_space": "Preparazione della modifica del tuo spazio...",
+      "move_lia_knowledge_documents": "Preparazione dello spostamento dei documenti...",
+      "delete_lia_knowledge_documents": "Preparazione dell’eliminazione dei documenti...",
+      "delete_lia_knowledge_space": "Preparazione dell’eliminazione del tuo spazio...",
+      "download_lia_knowledge_archive": "Preparazione dell’archivio dei documenti...",
+      "upload_lia_knowledge_document": "Preparazione dell’importazione del documento…",
+      "download_lia_knowledge_document": "Preparazione del download del tuo documento...",
+      "get_lia_knowledge_spaces": "Lettura dei tuoi spazi di conoscenza...",
+      "get_lia_workboard": "Lettura della bacheca di lavoro...",
+      "share_lia_peer_image": "Preparazione della condivisione dell’immagine...",
+      "update_lia_peer_block": "Preparazione della modifica del blocco...",
+      "remove_lia_peer_connection": "Preparazione della rimozione della connessione...",
+      "update_lia_peer_share": "Preparazione della condivisione dei miei dati...",
+      "respond_lia_peer_request": "Preparazione della risposta all’invito...",
+      "request_lia_peer_connection": "Preparazione di un invito di connessione...",
+      "search_lia_peer_directory": "Ricerca esatta di un utente visibile...",
+      "update_lia_peer_settings": "Preparazione delle modifiche alla visibilità delle connessioni...",
+      "get_lia_health_chart": "Lettura degli aggregati dei grafici salute...",
+      "get_lia_health_ingestion_tokens": "Lettura dei metadati dei token salute...",
+      "get_lia_personalities": "Lettura delle personalità disponibili...",
+      "get_lia_habits": "Lettura delle tue abitudini apprese...",
+      "update_lia_habit_settings": "Preparazione dell’impostazione di apprendimento delle abitudini...",
+      "set_lia_habit_status": "Preparazione dello stato dell’abitudine...",
+      "delete_lia_habit": "Preparazione della rimozione dell’abitudine...",
+      "delete_all_lia_habits": "Preparazione della cancellazione di tutte le abitudini...",
+      "recompute_lia_habits": "Preparazione del ricalcolo delle abitudini...",
+      "get_lia_habit_details": "Lettura delle prove di questa abitudine...",
+      "update_lia_open_loop": "Preparazione della correzione del tuo impegno...",
+      "close_lia_open_loop": "Preparazione della chiusura del tuo impegno...",
+      "submit_lia_interest_feedback": "Preparazione del feedback sull’interesse...",
+      "delete_all_lia_interests": "Preparazione dell’eliminazione di tutti gli interessi...",
+      "delete_lia_interest": "Preparazione dell’eliminazione dell’interesse...",
+      "update_lia_interest": "Preparazione della modifica dell’interesse...",
+      "update_lia_interest_settings": "Preparazione delle impostazioni delle notifiche degli interessi...",
+      "get_lia_memory_provenance": "Lettura delle fonti del ricordo...",
+      "delete_all_lia_memories": "Preparazione della cancellazione delle memorie...",
+      "delete_lia_memory": "Preparazione della cancellazione del ricordo...",
+      "update_lia_memory": "Preparazione della modifica del ricordo...",
+      "create_lia_memory": "Preparazione della creazione del ricordo...",
+      "set_lia_memory_pin": "Preparazione del fissaggio del ricordo...",
+      "create_lia_reminder": "Preparazione della creazione del promemoria...",
+      "delete_lia_reminder": "Preparazione dell’eliminazione del promemoria...",
+      "update_lia_reminder": "Preparazione delle modifiche al promemoria...",
+      "create_lia_routine": "Preparazione della creazione dell’automazione...",
+      "update_lia_routine": "Preparazione delle modifiche all’automazione...",
+      "execute_lia_routine": "Preparazione dell’avvio manuale dell’automazione...",
+      "delete_lia_routine": "Preparazione dell’eliminazione dell’automazione...",
+      "request_lia_account_export": "Preparazione della richiesta di esportazione completa dell’account...",
+      "download_lia_account_export": "Preparazione del download dell’archivio dell’account...",
+      "get_lia_account_export": "Lettura dello stato dell’esportazione dell’account...",
+      "get_lia_device_sessions": "Lettura dei dispositivi connessi...",
+      "revoke_lia_device_session": "Preparazione della disconnessione del dispositivo...",
+      "revoke_lia_other_device_sessions": "Preparazione della disconnessione sicura delle altre sessioni...",
+      "get_lia_phone_identity": "Lettura della tua identità telefonica...",
+      "update_lia_phone_number": "Preparazione della modifica del tuo numero di telefono...",
+      "update_lia_phone_preferences": "Preparazione delle impostazioni del contesto e della modalità di chiamata...",
+      "get_lia_phone_calls": "Lettura della tua cronologia chiamate...",
+      "update_lia_live_preferences": "Preparazione delle impostazioni Live...",
+      "remove_lia_notification_device": "Preparazione della rimozione del dispositivo di notifica...",
+      "get_lia_preferences": "Lettura delle impostazioni di LIA...",
+      "update_lia_preferences": "Preparazione di una modifica alle impostazioni di LIA...",
+      "get_lia_knowledge_source_options": "Lettura delle fonti di conoscenza disponibili…",
+      "unlink_lia_knowledge_source": "Preparazione della rimozione della fonte conservando i documenti…",
+      "link_lia_knowledge_source": "Preparazione del collegamento della fonte al tuo spazio…",
+      "sync_lia_knowledge_source": "Preparazione della sincronizzazione della tua fonte…",
+      "delete_lia_knowledge_source": "Preparazione dell’eliminazione della fonte e dei suoi documenti…",
+      "keep_lia_saved_answer": "Preparare il salvataggio della risposta",
+      "delete_lia_saved_answer": "Prepara la cancellazione della risposta salvata",
+      "get_lia_saved_answers": "Leggere le risposte salvate",
+      "download_lia_saved_answer": "Prepara il download della risposta salvata",
+      "get_lia_email_share_options": "Legge le opzioni di condivisione via e-mail",
+      "get_lia_skills": "Legge le competenze personali",
+      "import_lia_skill_url": "Prepara l’importazione di una competenza da URL",
+      "import_lia_plugin_url": "Prepara l’importazione di un plugin da un URL",
+      "import_lia_plugin_file": "Prepara l’importazione di un file di plugin locale",
+      "get_lia_skill_library": "Consulta la libreria di competenze",
+      "install_lia_library_skill": "Prepara l’installazione di una competenza della libreria",
+      "update_lia_library_skill": "Prepara l’aggiornamento di una competenza della libreria",
+      "update_lia_skill_settings": "Modifica l’attivazione personale di una competenza",
+      "delete_lia_skill": "Elimina una competenza personale",
+      "download_lia_skill": "Prepara il download di una competenza",
+      "send_lia_email_share": "Prepara la condivisione via e-mail",
+      "get_lia_generated_gallery": "Lettura della galleria e delle quote di conservazione…",
+      "update_lia_generated_asset_retention": "Preparazione delle modifiche alla conservazione dei file…",
+      "download_lia_generated_asset": "Preparare il download di un file generato",
+      "delete_lia_generated_assets": "Preparazione dell’eliminazione dei file generati…",
+      "import_lia_skill_file": "Prepara l’importazione di un file di skill personale",
+      "get_lia_plugins": "Consulta i plugin personali",
+      "get_lia_personal_mcp_servers": "Consulta i server MCP personali",
+      "regenerate_lia_personal_mcp_description": "Rigenera la descrizione del MCP personale",
+      "test_lia_personal_mcp_connection": "Verifica una connessione MCP personale",
+      "disconnect_lia_personal_mcp_oauth": "Disconnette OAuth del MCP personale",
+      "configure_lia_personal_mcp_server": "Apre la configurazione sicura del MCP personale",
+      "delete_lia_personal_mcp_server": "Elimina un server MCP personale",
+      "update_lia_personal_mcp_server_settings": "Modifica le impostazioni del MCP personale",
+      "set_lia_personal_mcp_server_enabled": "Modifica l’attivazione del MCP personale",
+      "delete_lia_plugin": "Prepara la disinstallazione del plugin",
+      "authorize_lia_personal_mcp_server": "Autorizza un server MCP personale",
+      "get_lia_meeting_preferences": "Leggi le preferenze delle riunioni",
+      "update_lia_meeting_preferences": "Modifica le preferenze delle riunioni",
+      "get_lia_meetings": "Leggi le riunioni",
+      "get_lia_meeting_templates": "Leggi i modelli dei verbali",
+      "create_lia_meeting_template": "Crea un modello di verbale",
+      "update_lia_meeting_template": "Modifica un modello di verbale",
+      "delete_lia_meeting_template": "Elimina un modello di verbale",
+      "delete_lia_meeting_transcript": "Elimina la trascrizione della riunione",
+      "restore_lia_meeting_report": "Ripristina il verbale generato",
+      "update_lia_meeting_report": "Modifica il verbale",
+      "download_lia_meeting_pdf": "Verbale da scaricare",
+      "email_lia_meeting_report": "Invia il verbale per email",
+      "delete_lia_meeting": "Eliminare la riunione",
+      "reformat_lia_meeting_report": "Cambiare formato del verbale",
+      "regenerate_lia_meeting_report": "Rigenerare il verbale della riunione",
+      "retry_lia_meeting": "Riprova l’elaborazione della riunione",
+      "get_lia_meeting_recorder": "Stato del registratore",
+      "control_lia_meeting_recording": "Controllare il registratore"
     },
     "reasoning": {
       "title": "Ragionamento"
@@ -5282,6 +5570,16 @@
     "minimize": "Nascondi gli occhi",
     "restore": "Mostra gli occhi",
     "cycle_size": "Cambia la dimensione degli occhi",
+    "sizes": {
+      "sm": "Piccolo",
+      "md": "Medio",
+      "lg": "Grande",
+      "xl": "Molto grande"
+    },
+    "variants": {
+      "female": "Femminile",
+      "male": "Maschile"
+    },
     "styles": {
       "cozmo": {
         "name": "Cozmo",
@@ -5306,6 +5604,38 @@
       "smiley": {
         "name": "Smiley",
         "description": "Un volto caloroso il cui umore, attenzione ed espressioni seguono LIA."
+      },
+      "spirit": {
+        "name": "Spirito di LIA",
+        "description": "Un compagno 3D opalescente le cui espressioni seguono lo stato di LIA."
+      },
+      "moss": {
+        "name": "Mousse",
+        "description": "Un piccolo spirito vegetale menta e giada, con le espressioni di LIA."
+      },
+      "lumen": {
+        "name": "Lumo",
+        "description": "Uno spirito corallo perlato con foglie lunari e le espressioni di LIA."
+      },
+      "nimbo": {
+        "name": "Nimbo",
+        "description": "Un morbido compagno nuvola, espressivo e birichino."
+      },
+      "orbit": {
+        "name": "Orbit",
+        "description": "Un piccolo spirito cosmico curioso dallo sguardo vivace."
+      },
+      "bip": {
+        "name": "Bip",
+        "description": "Un piccolo robot giocherellone dagli occhi luminosi."
+      },
+      "boulon": {
+        "name": "Boulon",
+        "description": "Un robot dalle forme arrotondate, affettuoso e un po’ maldestro."
+      },
+      "oscar": {
+        "name": "Oscar",
+        "description": "Un maggiordomo in miniatura, elegante, premuroso e pieno di umorismo."
       },
       "anneaux": {
         "name": "Anelli",
@@ -8252,17 +8582,17 @@
             "i6": "<b>🔧 Corretto anche</b> — la selezione degli strumenti e la classifica ReAct erano diventate cieche per una cache di embedding scritta nella dimensione sbagliata; il validatore semantico saltava ogni turno da una modifica di settembre; una risposta ambigua a una conferma era letta come una modifica; una chiamata Live a cui nessuno rispondeva non lasciava alcuna notifica; una scheda aperta tratteneva una connessione al database per tutta la sua vita; il certificato di sviluppo era rinnovato per la sua età anziché per la scadenza."
           }
         },
-          "v2_6_1": {
-            "title": "v2.6.1 — Voce continua, un avatar controllabile e un’interfaccia a portata di mano",
-            "date": "6 ottobre 2026 · 13:00 CEST",
-            "count": "4",
-            "items": {
-              "i1": "<b>🎭 Un arresto visibile per l’avatar</b> — La finestra mantiene il pulsante di arresto anche se la chat incontra un errore. Indica se la chiusura è confermata o ancora in attesa; una sessione aperta può consumare il tuo piano Simli, anche nel silenzio.",
-              "i2": "<b>🎧 Risposte Live continue</b> — Le risposte lunghe mantengono i segmenti audio nell’ordine corretto. L’avatar segue la riproduzione senza ripetere la stessa frase dopo un’interruzione; se l’uscita fallisce, la risposta successiva può tornare alla voce locale.",
-              "i3": "<b>📱 Elementi flottanti accessibili</b> — Avatar, compagno animato e scorciatoie si adattano all’area visibile quando apri la tastiera, ruoti lo schermo o ingrandisci. Questi adattamenti temporanei conservano la posizione scelta.",
-              "i4": "<b>🖼️ L’interfaccia attuale in immagini</b> — Galleria e documentazione mostrano le schermate attuali con dati dimostrativi fittizi. Le nuove immagini si caricano con la propria revisione per evitare di mostrare una versione precedente. Il visualizzatore ingrandito occupa tutto lo schermo su computer e mobile."
-            }
-          },
+        "v2_6_1": {
+          "title": "v2.6.1 — Voce continua, un avatar controllabile e un’interfaccia a portata di mano",
+          "date": "6 ottobre 2026 · 13:00 CEST",
+          "count": "4",
+          "items": {
+            "i1": "<b>🎭 Un arresto visibile per l’avatar</b> — La finestra mantiene il pulsante di arresto anche se la chat incontra un errore. Indica se la chiusura è confermata o ancora in attesa; una sessione aperta può consumare il tuo piano Simli, anche nel silenzio.",
+            "i2": "<b>🎧 Risposte Live continue</b> — Le risposte lunghe mantengono i segmenti audio nell’ordine corretto. L’avatar segue la riproduzione senza ripetere la stessa frase dopo un’interruzione; se l’uscita fallisce, la risposta successiva può tornare alla voce locale.",
+            "i3": "<b>📱 Elementi flottanti accessibili</b> — Avatar, compagno animato e scorciatoie si adattano all’area visibile quando apri la tastiera, ruoti lo schermo o ingrandisci. Questi adattamenti temporanei conservano la posizione scelta.",
+            "i4": "<b>🖼️ L’interfaccia attuale in immagini</b> — Galleria e documentazione mostrano le schermate attuali con dati dimostrativi fittizi. Le nuove immagini si caricano con la propria revisione per evitare di mostrare una versione precedente. Il visualizzatore ingrandito occupa tutto lo schermo su computer e mobile."
+          }
+        },
         "v2_6_0": {
           "title": "v2.6.0 — Un volto che parla, schede fedeli e ogni tentativo pagato contabilizzato",
           "date": "5 ottobre 2026 · 06:58 CEST",
@@ -8449,7 +8779,7 @@
           },
           "q25": {
             "question": "Cosa sono gli occhietti animati nella pagina della chat?",
-            "answer": "Sono gli <strong>occhi espressivi</strong> di LIA — un piccolo widget compagno che riflette ciò che l'assistente sta facendo e provando. Guardano il campo di scrittura mentre digiti, si socchiudono quando LIA riflette, scandagliano da un lato all'altro quando cerca e interpretano il <strong>registro</strong> di ogni risposta — è LIA stessa a dichiarare se ciò che ha appena scritto è caloroso, sicuro, fattuale, dispiaciuto, incuriosito o preoccupato, e il volto lo interpreta, bocca compresa. Dodici espressioni distinte, di cui solo due sorridono: una risposta tecnica mantiene un volto concentrato. Lasciati in pace, tutto il volto continua a vivere: le sopracciglia mantengono un arco discreto e seguono lo sguardo, un solo respiro porta occhi, sopracciglia e bocca, la bocca gioca piccole mimiche senza fretta, e ogni uno o due minuti parte una breve scenetta — una mosca da seguire, uno starnuto, uno sbadiglio, il singhiozzo. Qualsiasi cambio di espressione la interrompe all'istante.<br><br><strong>Rendili tuoi:</strong> trascinali dove vuoi (funzionano anche le frecce della tastiera, e non derivano mai da dove li hai messi), toccali su mobile per mostrare i pulsanti di dimensione e nascondi, o riducili a un puntino di ripristino. Sei stili visivi sono disponibili in <strong>Impostazioni › Personalizzazione › Stile degli occhi</strong>, con anteprime animate. Lo stesso volto accoglie i visitatori nella pagina iniziale pubblica, nell'aspetto a capsule, con un posto tutto suo che non sposta mai quello della chat. Con la riduzione del movimento di sistema attiva, gli occhi restano fermi."
+            "answer": "Sono gli <strong>occhi espressivi</strong> di LIA — un piccolo widget compagno che riflette ciò che l'assistente sta facendo e provando. Guardano il campo di scrittura mentre digiti, si socchiudono quando LIA riflette, scandagliano da un lato all'altro quando cerca e interpretano il <strong>registro</strong> di ogni risposta — è LIA stessa a dichiarare se ciò che ha appena scritto è caloroso, sicuro, fattuale, dispiaciuto, incuriosito o preoccupato, e il volto lo interpreta, bocca compresa. Dodici espressioni distinte, di cui solo due sorridono: una risposta tecnica mantiene un volto concentrato. Lasciati in pace, tutto il volto continua a vivere: le sopracciglia mantengono un arco discreto e seguono lo sguardo, un solo respiro porta occhi, sopracciglia e bocca, la bocca gioca piccole mimiche senza fretta, e ogni uno o due minuti parte una breve scenetta — una mosca da seguire, uno starnuto, uno sbadiglio, il singhiozzo. Qualsiasi cambio di espressione la interrompe all'istante.<br><br><strong>Rendili tuoi:</strong> trascinali dove vuoi (funzionano anche le frecce della tastiera, e non derivano mai da dove li hai messi), toccali su mobile per mostrare i pulsanti di dimensione e nascondi, o riducili a un puntino di ripristino. Sei stili visivi sono disponibili in <strong>Impostazioni › Personalizzazione › Stile dell'avatar</strong>, con anteprime animate. Lo stesso volto accoglie i visitatori nella pagina iniziale pubblica, nell'aspetto a capsule, con un posto tutto suo che non sposta mai quello della chat. Con la riduzione del movimento di sistema attiva, gli occhi restano fermi."
           },
           "q26": {
             "question": "Come conservo una risposta perché sopravviva alla conversazione?",
@@ -11466,15 +11796,15 @@
     "hero": {
       "badge_beta": "BETA",
       "badge": "Assistente IA personale",
-      "title_line1": "La tua vita.",
-      "title_line2_before": "La tua ",
-      "title_line2_highlight": "IA",
-      "title_line2_after": ".",
-      "title_line3": "Le tue regole.",
-      "subtitle_top": "Un assistente che collega tutto ciò che conta per te.",
-      "subtitle_line1": "Servizi, ricordi e progetti finalmente dialogano tra loro.",
-      "subtitle_line2": "Semplice ogni giorno, personalizzabile come vuoi.",
-      "subtitle_line3": "E sempre sotto il tuo controllo.",
+      "title_line1": "La tua quotidianità.",
+      "title_line2_before": "",
+      "title_line2_highlight": "LIA",
+      "title_line2_after": " tiene il filo.",
+      "title_line3": "Decidi tu.",
+      "subtitle_top": "Il tuo assistente personale, su richiesta e in modo proattivo.",
+      "subtitle_line1": "Prepara i tuoi incontri. Ascolta la tua giornata. Organizzati con le persone vicine.",
+      "subtitle_line2": "Le tue fonti, la memoria e gli impegni si uniscono per aiutarti ad andare avanti.",
+      "subtitle_line3": "In un’app web, con le azioni sensibili da approvare.",
       "cta_primary": "Unisciti alla BETA",
       "scroll_hint": "Scorri per esplorare",
       "trust_agents": "agenti IA",
@@ -11482,10 +11812,18 @@
       "trust_voices": "lingue vocali",
       "trust_gdpr": "Principi GDPR",
       "badge_opensource": "Open Source",
-      "cta_github": "GitHub",
+      "cta_github": "Esplora il codice e installa",
       "cta_demo": "Demo guidata",
       "intro_paragraph": "LIA è un assistente IA personale open source che orchestra 20+ agenti specializzati per gestire email, calendario, contatti, file, attività, promemoria, ricerca web, meteo, percorsi e casa intelligente. Compatibile con Google Workspace, Apple iCloud e Microsoft 365, LIA funziona in linguaggio naturale con validazione umana di ogni azione sensibile.",
-      "cta_star": "Star"
+      "cta_star": "Star",
+      "proof_accounts": "Un server, account distinti",
+      "proof_control": "Approvi le azioni sensibili",
+      "proof_origin": "Progettata in Francia",
+      "home_cta_primary": "Crea il mio account",
+      "home_access_note": "Registrazione BETA limitata, via e-mail: verifica dell’indirizzo, poi attivazione da parte dell’amministratore, automatica su un’istanza dimostrativa.",
+      "home_value": "I tuoi scambi, la tua memoria, il tuo calendario: LIA collega il contesto per preparare il passo successivo e proporti l’azione più adatta.",
+      "home_code_link": "Il codice e la guida all’installazione",
+      "home_cta_demo": "Guarda LIA in azione"
     },
     "video": {
       "aria_label": "Video illustrativo",
@@ -11502,20 +11840,20 @@
       "close": "Chiudi il lettore"
     },
     "promise": {
-      "eyebrow": "Un'IA su misura per te",
-      "title": "Tutto si collega. Tu mantieni il controllo.",
-      "lead": "Creato in Francia, LIA è un assistente personale open source che puoi installare gratuitamente. Puoi parlarci in modo naturale, senza competenze tecniche, e personalizzarlo quanto desideri.",
+      "eyebrow": "Una quotidianità, tanti modi per aiutarti",
+      "title": "Riprendi il filo. Prepara ciò che viene dopo.",
+      "lead": "Ritrovare il contesto giusto, mantenere un impegno, preparare il prossimo scambio: LIA lavora con le informazioni che rendi accessibili.",
       "ecosystem": {
-        "title": "Un ecosistema, non una pila di app",
-        "body": "Email, calendario, documenti, casa e progetti seguono un filo comune. LIA collega ciò che gli affidi, ricorda quello che conta e ti offre aiuto giorno dopo giorno, oppure agisce quando glielo chiedi."
+        "title": "Un assistente che impara a conoscerti",
+        "body": "Memoria, Relazioni e conoscenze ti aiutano a riprendere il filo senza raccontare tutto da capo."
       },
       "trust": {
-        "title": "Fiducia che puoi verificare",
-        "body": "Il codice è aperto. Su un'istanza ospitata da te, i dati restano da te; i servizi esterni che scegli possono ricevere le informazioni necessarie alla tua richiesta. Le azioni sensibili attendono il tuo consenso, azioni e costi sono consultabili e i dati esportabili."
+        "title": "Proposte che puoi esaminare",
+        "body": "Rileggi fonti e bozze. Approva le azioni sensibili. I registri mostrano le letture, i tentativi e i loro risultati."
       },
       "freedom": {
-        "title": "A casa tua, su ogni schermo",
-        "body": "Installa LIA con Docker su Raspberry Pi ARM64, PC Windows o Linux oppure Mac. Usa un'IA locale con Ollama o scegli Claude, GPT, DeepSeek e altri. Accedi dal web, da iOS o Android e crea account per familiari e amici. Alcuni servizi esterni possono avere un costo."
+        "title": "Un’app da fare tua",
+        "body": "Progettata in Francia, open source con licenza AGPL. Usa un’istanza nel browser o installa la tua con Docker. L’hosting e i servizi esterni possono comportare costi."
       }
     },
     "chat_mockup": {
@@ -11627,10 +11965,10 @@
       },
       "web_intelligence": {
         "title": "Ricerca, luoghi e percorsi",
-        "description": "Ricerca web multi-fonte — Brave, Perplexity, Wikipedia — e lettura di qualsiasi pagina pubblica in testo pulito; luoghi e negozi nelle vicinanze; percorsi in auto, a piedi, in bici o con i mezzi pubblici; geolocalizzazione automatica, con una posizione memorizzata su tua scelta che mantiene le risposte locali in viaggio e dichiara sempre la sua età. Wikipedia, la lettura delle pagine, i luoghi, i percorsi e il meteo sono forniti dalla tua istanza: sempre attivi, niente da configurare."
+        "description": "Collega il tuo contesto alle informazioni pubbliche: ricerca su più fonti con Brave, Perplexity e Wikipedia, lettura di pagine pubbliche accessibili e supportate, luoghi vicini e itinerari in auto, a piedi, in bici o con i mezzi. Con il tuo consenso, una posizione memorizzata può aiutare le risposte locali durante gli spostamenti; la sua età resta visibile. La disponibilità di ricerca, luoghi, itinerari e meteo dipende dai servizi configurati sull’istanza, dai tuoi accessi e dai dati forniti."
       },
       "voice_mode": {
-        "title": "Modalità vocale, ascolto 100 % locale",
+        "title": "Voce, trascrizione e parola di attivazione locale",
         "description": "Parla con trascrizione locale o remota opzionale e ascolta una voce configurabile e progressiva. La parola di attivazione francese viene rilevata nel browser e resta in beta. Un volto Simli sperimentale può accompagnare commenti e Live con la tua chiave, dopo un’attivazione esplicita; la finestra indica la chiusura confermata o in attesa. Simli può consumare il piano durante il silenzio. Testo e voce restano disponibili se l’avatar non si connette."
       },
       "natural_language": {
@@ -11639,7 +11977,7 @@
       },
       "multi_agent": {
         "title": "Oltre 20 agenti specializzati",
-        "description": "Email, agenda, contatti, file, attività, meteo, ricerca web, Wikipedia, luoghi, percorsi, promemoria e altro ancora: ogni ambito ha il suo specialista. Una sola richiesta attiva gli agenti giusti, che lavorano in parallelo appena nulla li obbliga ad aspettarsi — non devi sapere quali, né in che ordine. Un piano che attraversa più ambiti si conclude in pochi secondi."
+        "description": "Email, calendario, contatti, file, attività, meteo, ricerca web, luoghi, itinerari e promemoria: LIA può coordinare gli specialisti necessari per una stessa richiesta. I passaggi indipendenti possono procedere in parallelo; quelli che attendono un risultato mantengono il loro ordine. Resti nella conversazione per preparare la giornata o collegare i documenti di un progetto. Le capacità disponibili dipendono dai tuoi accessi e dall’istanza; la durata dal lavoro, dai modelli e dai servizi usati."
       },
       "proactive": {
         "title": "Intelligenza proattiva",
@@ -11703,7 +12041,7 @@
       },
       "psyche": {
         "title": "Intelligenza emotiva viva",
-        "description": "LIA non recita — sente. 14 umori, 22 emozioni, una relazione che si approfondisce messaggio dopo messaggio. Il suo vocabolario si scalda quando è toccata, le sue frasi si accorciano sotto tensione, il suo umorismo affiora quando lo scambio è leggero — non lo annuncia mai, lo mostra. Persino la sua voce respira con l’istante: la prosodia segue il suo umore entro limiti rigorosi, perché una buona notizia non suoni come un bollettino meteo."
+        "description": "Una conversazione che si adatta al momento: LIA modula lessico, ritmo e umorismo attraverso la personalità e un modello di umori ed emozioni. Questo comportamento espressivo è una simulazione, non un sentimento umano. Secondo le capacità vocali attivate, anche la prosodia può seguire il tono entro i limiti previsti. Ritrovi una presenza personalizzata, con le stesse autorizzazioni per agire."
       },
       "mood_face": {
         "title": "Un volto che vive",
@@ -11711,11 +12049,11 @@
       },
       "mcp": {
         "title": "Estensibile (MCP)",
-        "description": "Collega i tuoi server MCP — il Model Context Protocol, standard aperto del settore — per estendere LIA senza limiti: server dell’istanza o i tuoi, quattro modalità di autenticazione tra cui OAuth 2.1, scoperta automatica degli strumenti. LIA parla le due generazioni del protocollo, con ripiego automatico, e i tuoi server funzionano in modalità ReAct come in Pipeline. Modalità iterativa disponibile: un agente dedicato legge la documentazione del server, poi chiama gli strumenti con i parametri giusti. Un server che aggiungi non sceglie mai cosa scarica LIA: nessun riferimento remoto nei suoi schemi, nessun reindirizzamento verso un altro sito."
+        "description": "Aggiungi strumenti utili alla tua quotidianità tramite server MCP compatibili, personali o condivisi dall’istanza. Il Model Context Protocol permette di scoprire gli strumenti con più modalità di autenticazione, tra cui OAuth. Possono essere usati in Pipeline o ReAct secondo le capacità supportate. In modalità iterativa, un agente dedicato usa la documentazione disponibile per preparare le chiamate. Accessi, configurazione del server e protezioni sugli schemi e sulle destinazioni di rete delimitano l’estensione."
       },
       "mcp_apps": {
         "title": "MCP Apps interattive",
-        "description": "Un server MCP può portare con sé la propria interfaccia: moduli, visualizzazioni e mini-applicazioni compaiono direttamente nella conversazione, in tempo reale, grazie al protocollo MCP Apps. Ogni widget gira in un riquadro isolato — origini verificate, nessun accesso alla tua sessione —, il che permette a uno strumento di terzi di essere utile senza mai diventare pericoloso. Disponibile per gli utenti come per gli amministratori."
+        "description": "Quando un server compatibile la offre, la sua interfaccia entra nella conversazione: moduli, visualizzazioni e mini-app si usano nella chat tramite il protocollo MCP Apps. Ogni widget appare in un riquadro separato, con origini controllate e accessi limitati. Puoi esaminare un risultato e interagire con lo strumento nello stesso posto. Disponibile per utenti e amministratori, secondo il server e la sua configurazione."
       },
       "excalidraw": {
         "title": "Schemi e diagrammi",
@@ -11739,7 +12077,7 @@
       },
       "simplicity": {
         "title": "Semplice in pochi clic",
-        "description": "Nessuna competenza tecnica richiesta: configurazione guidata, connettori in un clic, tutto funziona dal primo utilizzo. Un campo di ricerca trova qualsiasi impostazione per nome — o per sinonimo, nella tua lingua — e le tue sezioni preferite si fissano in un dock fluttuante che ti segue su tutta la dashboard. Una mappa delle capacità dice, per ciascuna, se è attiva qui e dove regolarla."
+        "description": "Trova le impostazioni per nome o sinonimo, nella tua lingua, poi fissa le sezioni preferite in un dock flottante nella dashboard. La vista delle capacità indica ciò che è attivo sulla tua istanza e dove configurarlo. I connettori chiedono gli accessi necessari per collegare i tuoi servizi. L’uso quotidiano avviene nell’interfaccia; hosting e alcuni servizi opzionali richiedono una configurazione da parte di chi gestisce l’istanza."
       },
       "themes": {
         "title": "Personalizzabile",
@@ -11803,7 +12141,7 @@
       },
       "document_generation": {
         "title": "Generazione di documenti IA",
-        "description": "Chiedi un CSV, un foglio Excel, un report Word, un PowerPoint o un PDF. Un modello redattore scrive il contenuto nella tua lingua, poi un motore locale costruisce il file con i codici del suo formato, senza un servizio esterno di conversione dei file: indice e numerazione calcolati da Word, colonne Excel tipizzate sotto una tabella filtrabile, diapositive 16:9 impaginate secondo l’intento, numeri di pagina esatti in PDF. Il testo è misurato prima di essere posato — nulla trabocca. Concatenabile a una ricerca web nella stessa richiesta."
+        "description": "Trasforma le informazioni del progetto in CSV, foglio Excel, rapporto Word, presentazione PowerPoint o PDF. Un modello di scrittura prepara il contenuto nella tua lingua; un motore locale costruisce il file senza servizi esterni di conversione. Tabelle, stili, impaginazione e layout seguono i formati supportati, con misurazioni del testo per limitare gli sforamenti. Ritrovi il risultato nella conversazione per rileggerlo, scaricarlo o condividerlo. La generazione può seguire una ricerca nella stessa richiesta, secondo le capacità attivate."
       },
       "devops_cli": {
         "title": "DevOps CLI (Admin)",
@@ -11827,11 +12165,11 @@
       },
       "plugins": {
         "title": "Plugin (standard Agent Plugins)",
-        "description": "Installa plugin portabili da tutto l’ecosistema IA — lo standard aperto agent-plugins.org, adottato da ChatGPT, Cursor, GitHub Copilot e VS Code. Un pacchetto raggruppa skill e server MCP, si installa in un passaggio da uno zip o da un link https, riferisce onestamente ogni componente — installato, ignorato e perché, rimosso — e si disinstalla altrettanto pulitamente. Ciò che hai costruito per un altro strumento funziona qui, senza riscrivere nulla."
+        "description": "Riunisci più capacità in un pacchetto: LIA supporta skill e server MCP dello standard Agent Plugins v1. Installa un plugin da un file ZIP o un link HTTPS, poi consulta lo stato di ogni componente: installato, ignorato con il motivo o rimosso. Puoi poi disinstallarlo dall’applicazione. Il riutilizzo di un plugin dipende dal contenuto e dalle funzionalità supportate da LIA."
       },
       "environment": {
         "title": "Meteo, qualità dell’aria e pollini",
-        "description": "Una domanda sul meteo riporta anche l’indice di qualità dell’aria e i pollini di stagione, con la categoria pubblicata dal servizio stesso — l’indice del tuo paese quando esiste, mai una scala inventata. Sulla scheda della chat, sulla previsione a cinque giorni, sulla tua pagina iniziale e sulla scheda di un luogo. Nessuna chiave da fornire: attivo dal primo giorno, e una notifica può avvisarti prima di un’uscita programmata."
+        "description": "Prepara un’uscita con previsioni e, quando la fonte li fornisce, qualità dell’aria e pollini stagionali. Le categorie visualizzate riprendono quelle del servizio, compreso l’indice locale quando esiste. Queste informazioni possono comparire nella scheda della chat, nelle previsioni, nel briefing o nei dettagli di un luogo; una notifica autorizzata può segnalarle. Disponibilità ed eventuali chiavi dipendono dalla configurazione dell’istanza e dalle fonti attivate."
       },
       "meetings": {
         "title": "Registra una riunione, ricevi il verbale",
@@ -11910,7 +12248,7 @@
       },
       "bff": {
         "title": "Architettura sicura",
-        "description": "Un pattern BFF con cookie HTTP-only e sessioni Redis: i token non raggiungono mai il frontend. Passkey e secondo fattore TOTP, con riautenticazione prima di ogni azione sensibile. CSP rigorosa, copertura OWASP Top 10 e codice di terzi in un container usa e getta senza socket, offline salvo gli host autorizzati. Un accesso con Google dimostra un indirizzo, mai un diritto: non può né attivare né sbloccare un account. Ogni pagina che LIA legge viene recuperata all'indirizzo verificato, reindirizzamento dopo reindirizzamento: nessuna può portarla in una rete interna."
+        "description": "Un modello BFF con cookie HTTP-only e sessioni Redis: i token OAuth dei connettori non vengono mai esposti al frontend. Passkey e secondo fattore TOTP, con nuova autenticazione per alcune operazioni sensibili dell’account, come la gestione del secondo fattore e l’esportazione. CSP rigorosa, copertura OWASP Top 10 e codice di terze parti eseguito in un contenitore temporaneo senza socket, offline salvo gli host autorizzati. L’accesso con Google conferma un indirizzo, mai un’autorizzazione: non può attivare né sbloccare un account. Ogni pagina letta da LIA viene recuperata a un indirizzo verificato, reindirizzamento dopo reindirizzamento: nessuna può portare LIA in una rete interna."
       },
       "encryption": {
         "title": "Crittografia",
@@ -11936,7 +12274,7 @@
     "tech": {
       "title": "Sotto il cofano",
       "subtitle": "Un'architettura pensata per prestazioni e scalabilità",
-      "intro": "LIA collega il routing semantico agli strumenti e alle fonti utili per la tua richiesta. Per le attività da eseguire, Pipeline prepara e verifica un piano; ReAct procede con ricerche e adattamenti. Scegli tu la modalità. Il percorso è strumentato da un capo all’altro, dal token all’euro, con avvisi e-mail sui segnali vitali.\n\nDietro l'interfaccia: apprendimento bayesiano dei piani, memoria semantica a doppio vettore, ricerca ibrida BM25 + embedding sui tuoi documenti, una state machine LangGraph con checkpoint in PostgreSQL. Tutto self-hostable — fino a un Raspberry Pi.\n\nCiò che afferma, l’ha letto: ogni risposta è ancorata ai dati realmente recuperati — mai al ricordo di una formulazione precedente — e un’informazione mai ottenuta viene dichiarata tale invece di essere colmata.\n\nCiò che gira è isolato da ciò che lo esegue: il codice di una skill viene eseguito in un container creato per una sola chiamata — senza socket, senza rete salvo gli host autorizzati, in sola lettura — e se quella sandbox non può essere costruita, non gira nulla.",
+      "intro": "LIA collega il routing semantico agli strumenti e alle fonti utili per la tua richiesta. Per le attività da eseguire, Pipeline prepara e verifica un piano; ReAct procede con ricerche e adattamenti. Scegli tu la modalità. Il percorso è strumentato da un capo all’altro, dal token all’euro, con avvisi e-mail sui segnali vitali.\n\nDietro l'interfaccia: apprendimento bayesiano dei piani, memoria semantica a doppio vettore, ricerca ibrida BM25 + embedding sui tuoi documenti, una state machine LangGraph con checkpoint in PostgreSQL. Tutto self-hostable — fino a un Raspberry Pi.\n\nLIA fornisce al modello le informazioni recuperate dagli strumenti e istruzioni per distinguere fatti, fonti e lacune. ReAct prevede un recupero limitato quando viene dichiarata una lacuna. I registri permettono di esaminare consultazioni e azioni. Una risposta può comunque essere incompleta o errata: puoi verificarne le fonti e correggere le conclusioni.\n\nCiò che gira è isolato da ciò che lo esegue: il codice di una skill viene eseguito in un container creato per una sola chiamata — senza socket, senza rete salvo gli host autorizzati, in sola lettura — e se quella sandbox non può essere costruita, non gira nulla.",
       "deep_dive_link": "Approfondimento tecnico completo",
       "langgraph": {
         "title": "Due modi di portare a termine una richiesta",
@@ -12078,6 +12416,20 @@
         "settings_administration_oneclick": "Amministrazione — Attivazione delle funzionalità della piattaforma",
         "settings_administration_llm": "Amministrazione — Credenziali dei provider e scelta del modello per ogni operazione",
         "faq": "FAQ — Centro assistenza con ricerca e categorie"
+      },
+      "proof": {
+        "dashboard": "Il tuo spazio personale: riepilogo del giorno, calendario, email, attività e promemoria in un unico posto.",
+        "administration": "Imposta i limiti dell’istanza e dei suoi account",
+        "approval": "Rivedi e approva un’azione nella chat",
+        "dossier": "Prepara una decisione con email, documenti e verbali",
+        "grafana_costs": "Grafana: token, costi e cache",
+        "grafana_overview": "Grafana: risorse dell’istanza e dei container",
+        "knowledge": "Organizza le conoscenze con documenti e fonti sincronizzate",
+        "memory": "Consulta e modifica la memoria",
+        "skill": "Usa una mini-app nella conversazione",
+        "relations": "Relazioni · ritrova gli scambi, i fatti utili e gli impegni aperti prima di ricontattare qualcuno.",
+        "meetings": "Riunioni · rileggi le decisioni e le azioni assegnate, poi correggi o esporta il resoconto.",
+        "radio": "Radio personale · ritrova il programma, la trascrizione e le fonti consultabili."
       }
     },
     "presentation": {
@@ -12137,16 +12489,16 @@
       "how_prefix": "Sotto il cofano:",
       "c1": {
         "bubble": "Il preventivo è cambiato. L’e-mail spiega perché. Il verbale riporta ciò che era stato deciso.",
-        "title": "LIA fa. Davvero.",
-        "sub": "Dille l’obiettivo: trova i materiali, li mette in relazione e fa avanzare i passaggi utili.",
-        "b1_t": "Tutto il dossier nello stesso ragionamento.",
-        "b1_d": "E-mail, documenti e decisioni delle riunioni si collegano per preparare un risultato che puoi usare.",
-        "b2_t": "Alza il telefono. Davvero.",
-        "b2_d": "Prenotare, chiedere, verificare: approvi chi e perché, lei chiama, tu ricevi il riepilogo scritto.",
-        "b3_t": "Un lavoro che puoi delegare.",
-        "b3_d": "Affida una missione nel Workboard: contesto, avanzamento e conversazione restano insieme.",
-        "b4_t": "La serie, non la fatica.",
-        "b4_d": "«Un promemoria la vigilia di ogni appuntamento»: itera su tutta la settimana, con una sola richiesta.",
+        "title": "Prima, durante e dopo i tuoi incontri.",
+        "sub": "Prepara l’incontro, parlane a voce, poi ritrova decisioni e prossimi passi.",
+        "b1_t": "Prima: il contesto e le domande utili.",
+        "b1_d": "Metti insieme documenti, scambi recenti e decisioni delle riunioni. Arrivi con i punti da chiarire.",
+        "b2_t": "Durante: parla e interrompi con naturalezza.",
+        "b2_d": "Parla in Live con la tua chiave API Gemini, OpenAI o ElevenLabs. Voci e possibilità di delega variano secondo il fornitore.",
+        "b3_t": "Dopo: un verbale da correggere e condividere.",
+        "b3_d": "Registra la riunione, rileggi decisioni e azioni, poi condividi il PDF. Una volta indicizzato il verbale, puoi ritrovarlo in chat.",
+        "b4_t": "Durante: parla e interrompi con naturalezza.",
+        "b4_d": "Il Live full duplex funziona con la tua chiave API Gemini Live, OpenAI o ElevenLabs. Le richieste delegate usano il motore LIA, il suo contesto e i suoi controlli. Modelli, voci e possibilità di delega variano secondo il fornitore.",
         "how": "20+ agenti orchestrati in parallelo · sessioni vocali live con la tua chiave Gemini, OpenAI o ElevenLabs · telefonia agentica col tuo connettore ElevenLabs · controllo del browser · Philips Hue · immagini e diagrammi su richiesta.",
         "catalog_hint": "{{count}} capacità nel dettaglio",
         "v_query": "«un promemoria la vigilia di ogni appuntamento»",
@@ -12158,18 +12510,18 @@
         "v_t3_sub": "creazione in corso…",
         "v_series": "4 promemoria creati",
         "v_series_sub": "la vigilia, ore 19 — una richiesta",
-        "mechanism": "LIA sceglie le fonti pertinenti alla tua richiesta, svolge insieme le ricerche indipendenti e collega i passaggi e gli elementi utili trovati. Ottieni una risposta basata su quelle fonti, con i punti ancora da verificare."
+        "mechanism": "Pipeline organizza un piano per una richiesta precisa; ReAct adatta le ricerche per esplorare. Fonti utili, proposte e controlli sulle azioni restano collegati al lavoro."
       },
       "c2": {
         "bubble": "Il tuo appuntamento, la promessa da mantenere, l’e-mail inviata: è tutta la stessa giornata.",
-        "title": "LIA ti conosce.",
-        "sub": "Le tue preferenze e i tuoi progetti danno significato a ciò che trova. Puoi correggere ciò che ricorda.",
-        "b1_t": "Meno contesto da ripetere.",
-        "b1_d": "Persone, preferenze e fatti memorizzati aiutano a rispondere alle richieste successive, quando sono pertinenti.",
-        "b2_t": "La tua giornata, da leggere o ascoltare.",
-        "b2_d": "Il briefing riunisce l’essenziale. La radio crea i suoi programmi con la tua giornata, le tue fonti e i tuoi interessi.",
-        "b3_t": "Ha i suoi umori. E li vedi.",
-        "b3_d": "Il suo volto cambia con la conversazione e vive tra una risposta e l’altra; il suo humour esce quando il tono è leggero. Dal Professore al Cinico: 14 personalità.",
+        "title": "La tua giornata ha un contesto. LIA lo ritrova.",
+        "sub": "Dal briefing alla tua radio personale, appuntamenti, impegni e argomenti che segui trovano posto nella stessa giornata.",
+        "b1_t": "Una memoria che puoi correggere.",
+        "b1_d": "Preferenze, persone, progetti e regole: consulta ciò che LIA ricorda, correggilo, fissa ciò che conta o eliminalo.",
+        "b2_t": "La tua giornata si legge o si ascolta.",
+        "b2_d": "Leggi l’essenziale nella dashboard. Ascolta una radio composta dalla tua giornata e dalle fonti di attualità che hai autorizzato.",
+        "b3_t": "Prepara il prossimo scambio con la persona giusta.",
+        "b3_d": "In Relazioni, il tuo mini-CRM personale, ogni scheda riunisce scambi, fatti ricordati, chiamate e impegni aperti. Prepara la prossima conversazione con ciò che conta per quella persona, oltre una semplice lista di contatti.",
         "how": "memoria semantica a doppio vettore · diari introspettivi · briefing quotidiano · Psyche Engine (14 umori, 22 emozioni).",
         "catalog_hint": "{{count}} capacità nel dettaglio",
         "s_chip": "Il briefing del mattino",
@@ -12181,18 +12533,18 @@
         "s_day_b1": "9:00 Sync di team",
         "s_day_b2": "11:30 Cliente",
         "s_day_b3": "18:30 Sport",
-        "mechanism": "La memoria aiuta a interpretare la tua richiesta; le fonti collegate raccontano ciò che accade ora. Briefing e radio riuniscono questi elementi secondo le tue impostazioni, senza leggere le fonti che hai disattivato."
+        "mechanism": "La memoria aiuta a interpretare la tua richiesta; le fonti collegate mostrano ciò che accade adesso. Briefing e Radio usano le fonti secondo le rispettive impostazioni."
       },
       "c3": {
         "bubble": "Aspettavi una risposta. È arrivata. Ecco cosa cambia per il tuo progetto.",
-        "title": "LIA se ne accorge prima di te.",
-        "sub": "Una risposta attesa sotto osservazione, il contesto collegato, una proposta utile al momento giusto.",
-        "b1_t": "Un monitoraggio con uno scopo.",
-        "b1_d": "Definisci nelle impostazioni la condizione e il lavoro di una routine: LIA verifica la regola e avvia l’azione prevista quando la condizione è soddisfatta.",
-        "b2_t": "Veglia sui tuoi temi.",
-        "b2_d": "Tech, sport, finanza, salute: segue ciò che ti appassiona e ti porta l’essenziale, al momento giusto.",
-        "b3_t": "Le attività mantengono il filo.",
-        "b3_d": "Routine, promemoria e missioni delegate restano sotto controllo. Ritrovi l’avanzamento e riprendi il lavoro dal punto in cui è arrivato.",
+        "title": "Riprendi il progetto al momento giusto.",
+        "sub": "Una risposta attesa, una scadenza, un segnale utile: routine e proattività collegano le novità a ciò che stai seguendo.",
+        "b1_t": "Una condizione, poi il passo giusto.",
+        "b1_d": "Scegli la condizione da monitorare e il lavoro da avviare. LIA verifica il segnale alla cadenza prevista dall’istanza prima di attivare il passo successivo.",
+        "b2_t": "L’avviso arriva con il contesto.",
+        "b2_d": "Fonti disponibili, progetti e interessi aiutano LIA a formulare una proposta utile. Puoi configurare o disattivare questo aiuto.",
+        "b3_t": "Un seguito visibile tra una richiesta e l’altra.",
+        "b3_d": "Promemoria, abitudini, azioni pianificate e ticket mantengono il loro stato nell’applicazione. Ritrovi ciò che è in attesa e ciò che è concluso.",
         "how": "intelligenza proattiva configurabile · centri d’interesse · promemoria in linguaggio naturale · routine pianificate · dati di salute.",
         "catalog_hint": "{{count}} capacità nel dettaglio",
         "v_intro": "nessuno ha chiesto nulla —",
@@ -12205,16 +12557,16 @@
       },
       "c4": {
         "bubble": "Io propongo. Tu disponi. È il patto.",
-        "title": "Autonomia, con te al comando.",
-        "sub": "Vedi ciò che viene proposto, puoi modificarlo e ritrovi ciò che è stato davvero fatto.",
-        "b1_t": "Il tuo consenso per un’azione precisa.",
-        "b1_d": "Prima di un messaggio o di una chiamata a un’altra persona, ti mostra destinatario e contenuto. Modifichi la proposta prima di confermare.",
-        "b2_t": "Ogni risposta mostra il suo prezzo.",
-        "b2_d": "Token e centesimi, messaggio per messaggio. Budget che fissi tu, contatori che vedi tu.",
-        "b3_t": "Un pulsante stop. Vero.",
-        "b3_d": "Si interrompe a metà frase e il testo parziale resta.",
-        "b4_t": "I tuoi dati restano tuoi.",
-        "b4_d": "Dati esportabili, accesso all'account controllato e credenziali cifrate — con hosting autonomo, anche su Raspberry Pi. Il contesto necessario viene inviato ai fornitori configurati per le tue richieste.",
+        "title": "Delega l’azione. Mantieni la decisione.",
+        "sub": "Prima di un invio o una chiamata sensibile, vedi la proposta. Poi ritrovi il risultato e la spesa registrata.",
+        "b1_t": "Una proposta concreta da rileggere.",
+        "b1_d": "Destinatario, contenuto, obiettivo della chiamata: le conferme riguardano l’azione precisa. Puoi rivedere una bozza prima di approvarla.",
+        "b2_t": "La proposta non è il risultato.",
+        "b2_d": "I registri delle azioni e delle consultazioni mostrano ciò che LIA ha fatto e letto. Un errore o un limite resta visibile.",
+        "b3_t": "Costi e budget chiari.",
+        "b3_d": "Token e costi calcolati accompagnano le risposte. Puoi impostare limiti per account e per l’istanza.",
+        "b4_t": "Scegli il tuo hosting e i modelli.",
+        "b4_d": "Ospita l’applicazione sui tuoi server ed esporta i tuoi dati. I modelli e i servizi esterni che scegli ricevono il contesto necessario alle richieste che li usano.",
         "how": "Conferme a livello degli strumenti, bozze modificabili, registri di azioni e consultazioni, budget e cifratura.",
         "catalog_hint": "{{count}} capacità nel dettaglio + sicurezza",
         "s_chip": "Prima il tuo consenso",
@@ -12223,18 +12575,18 @@
         "s_quote": "«Il traffico ha deciso di mettere alla prova il nostro matrimonio…»",
         "s_user": "Addolcisci solo il finale",
         "s_reply": "Versione più morbida pronta. Invio questa?",
-        "mechanism": "La conferma riguarda un’azione concreta: un destinatario, un messaggio o l’obiettivo di una chiamata. Il risultato viene poi registrato in base a ciò che è davvero riuscito, distinguendo una proposta, un tentativo e un’azione completata."
+        "mechanism": "La conferma riguarda l’azione concreta: destinatario, messaggio o obiettivo della chiamata. I registri conservano i tentativi e i loro stati, compresi gli errori, per ritrovare ciò che è successo."
       },
       "c5": {
         "bubble": "Da fonti sparse a una nota per decidere, pronta da condividere.",
-        "title": "LIA cresce con te.",
-        "sub": "Le tue conoscenze, ricerche specialistiche e strumenti che puoi estendere man mano che cambiano le tue esigenze.",
-        "b1_t": "Manca una capacità? Descrivila.",
-        "b1_d": "Scrive la skill, te la propone — un clic la installa — e la mostra come mini-app in chat.",
-        "b2_t": "I tuoi documenti diventano un punto d’appoggio.",
-        "b2_d": "LIA trova i passaggi utili, li confronta con altre fonti e può produrre un confronto o un documento.",
-        "b3_t": "Collegala al tuo mondo.",
-        "b3_d": "Server MCP, sub-agenti specializzati: l’ecosistema è aperto, e anche il codice.",
+        "title": "Dalle tue fonti a un risultato utile.",
+        "sub": "Interroga le tue conoscenze, confrontale con il web e crea un confronto, un documento o una mini-app adatta al bisogno.",
+        "b1_t": "Le tue conoscenze entrano nel lavoro.",
+        "b1_d": "Documenti, Drive ed email sincronizzate nei tuoi spazi: ritrova i passaggi utili e le fonti senza ricopiare tutto.",
+        "b2_t": "La risposta prende la forma giusta.",
+        "b2_d": "Tabella, file generato, diagramma o interfaccia interattiva nella chat: le informazioni diventano qualcosa che puoi leggere, usare o condividere.",
+        "b3_t": "Aggiungi le capacità che ti servono.",
+        "b3_d": "Skill, plugin, server MCP e specialisti in sola lettura ampliano il lavoro possibile. Il codice e i contratti sono documentati.",
         "how": "skill in sandbox con widget interattivi · spazi di conoscenza (15+ formati, ricerca ibrida) · protocollo MCP · open source.",
         "catalog_hint": "{{count}} capacità nel dettaglio",
         "v_forge": "Skill «Tracker budget» in assemblaggio",
@@ -12244,14 +12596,14 @@
       },
       "c6": {
         "bubble": "Due calendari, due assistenti. Una proposta che rispetta ciò che ognuno sceglie di condividere.",
-        "title": "LIA ti collega alle tue persone",
-        "sub": "Sullo stesso server, gli assistenti delle persone a te vicine possono coordinare ciò che ciascuno sceglie di condividere.",
-        "b1_t": "Dal messaggio al coordinamento.",
-        "b1_d": "Trova un orario usando le disponibilità condivise, poi approva la proposta che il suo assistente trasmetterà.",
-        "b2_t": "Condivisioni scelte, in sola lettura.",
-        "b2_d": "Per connessione, apri le tue disponibilità o i titoli delle attività — nulla per impostazione, revocabile sempre.",
-        "b3_t": "Protezione per costruzione.",
-        "b3_d": "La scoperta è volontaria e a nome esatto; uno sconosciuto, un rifiuto e un blocco ricevono la stessa risposta.",
+        "title": "In famiglia, tra amici e colleghi.",
+        "sub": "Un server, un assistente personale per ciascuno. Le vostre LIA possono trasmettere messaggi e coordinare le disponibilità che scegliete di condividere.",
+        "b1_t": "Organizzati con meno messaggi avanti e indietro.",
+        "b1_d": "Una cena tra amici, un appuntamento in famiglia, un incontro tra colleghi: LIA riunisce gli orari autorizzati e propone il passo successivo. Un messaggio approvato può essere consegnato dall’assistente del destinatario.",
+        "b2_t": "Una cerchia scelta, condivisioni sotto controllo.",
+        "b2_d": "Accetta le connessioni, scegli per ogni persona le disponibilità o le altre informazioni accessibili e ritira la condivisione quando vuoi. Il coordinamento segue questo ambito.",
+        "b3_t": "A ciascuno il suo contesto. Un’istanza comune.",
+        "b3_d": "Ogni account conserva connettori, memoria e preferenze. L’amministrazione gestisce account, capacità e budget del server per una famiglia, un team o una cerchia di amici.",
         "how": "una riga canonica per connessione, transizioni rivendicate una sola volta, una bozza HITL prima di ogni inoltro, consegna tramite l'assistente del destinatario e un registro d'accesso rivalidato a ogni lettura.",
         "catalog_hint": "{{count}} capacità nel dettaglio",
         "s_chip": "Connessioni",
@@ -12265,7 +12617,7 @@
     },
     "basics": {
       "title": "E tutto il resto, ovviamente.",
-      "sub": "Email, agenda, contatti, attività, file — Google, Apple o Microsoft, a scelta. Questo lo promettono tutti. LIA lo fa e basta, senza farne un vanto.",
+      "sub": "Email, calendario, contatti, attività e file alimentano lo stesso contesto personale. Secondo i servizi disponibili, collega Google, Apple o Microsoft: LIA può riunire queste informazioni con preferenze, impegni e conoscenze per aiutarti nella stessa conversazione.",
       "detail_label": "Le basi, nel dettaglio",
       "detail_hint": "{{count}} capacità nel dettaglio",
       "chip_emails": "Email",
@@ -12284,21 +12636,21 @@
     },
     "transparency": {
       "title": "LIA non ha nulla da nascondere.",
-      "sub": "La fiducia non si dichiara: si verifica. Tutto è pubblico: il prezzo, il codice, il voto.",
+      "sub": "Esamina costi, registri e codice. Scegli l’infrastruttura e i fornitori a cui affidi le tue richieste.",
       "cost_prefix": "Ogni messaggio:",
-      "cost_note": "— il contatore vero, visibile sotto ogni risposta nell’app —",
-      "p1_t": "Il costo, al centesimo",
-      "p1_d": "Mostrato messaggio per messaggio e sommato per conversazione, al prezzo che il fornitore fattura davvero — fasce ridotte e cache comprese. Scegli perfino il ritmo che lo alleggerisce. Nessun assistente di largo consumo te lo mostra.",
-      "p2_t": "8,3/10 — verificato, pubblicamente",
-      "p2_d": "24 ambiti, protocollo e report completi — incluso ciò che resta da migliorare.",
+      "cost_note": "Esempio fittizio del contatore: costo calcolato in base ai modelli e alle tariffe configurate, variabile da una richiesta all’altra.",
+      "p1_t": "I costi diventano visibili",
+      "p1_d": "Token, cache e costi calcolati nella conversazione; budget per utente e per l’istanza. I servizi esterni sono fatturati dai loro fornitori.",
+      "p2_t": "Un audit pubblico, con i suoi limiti",
+      "p2_d": "Metodo, risultati e punti da migliorare sono pubblicati. Puoi esaminare le prove; il rapporto non è una certificazione.",
       "p2_link": "Leggi il report di audit",
-      "p3_t": "100% open source",
-      "p3_d": "Il codice che puoi leggere è il codice che gira. Auto-ospitabile fino a un Raspberry Pi.",
+      "p3_t": "Software libero sotto licenza AGPL",
+      "p3_d": "Leggi il codice, installa l’applicazione sulla tua infrastruttura ed esplora le scelte documentate. I servizi e i modelli collegati restano scelte separate.",
       "p3_link": "Guarda il codice",
-      "p4_t": "Scritto da un’IA, diretto da un umano",
-      "p4_d": "Oltre 820.000 righe di codice sorgente — sviluppate con l'aiuto dell'IA, revisione umana e audit con metodo pubblicato.",
+      "p4_t": "Le scelte progettuali spiegate",
+      "p4_d": "Architettura, decisioni tecniche, guide e storia dello sviluppo sono accessibili. Comprendi come LIA è costruita e gestita.",
       "p4_link": "Leggi l’esperienza",
-      "honest": "Beta gratuita, in produzione 24/7.",
+      "honest": "LIA è in beta. Il software è open source; hosting e servizi scelti possono comportare costi.",
       "cta": "Provala, sapendo tutto"
     },
     "day": {
@@ -12350,11 +12702,12 @@
       }
     },
     "gallery": {
-      "title": "LIA, dal vero.",
-      "sub": "Interfaccia attuale con dati fittizi di dimostrazione e presentazione completa.",
+      "title": "Ecco l’applicazione che userai.",
+      "sub": "Percorsi e impostazioni nell’interfaccia reale, catturati con dati fittizi. Apri una schermata a tutto schermo per leggere i dettagli.",
       "tabs_label": "Scegli una vista",
-      "tab_screens": "Screenshot",
-      "tab_slides": "La presentazione (15 slide)"
+      "tab_screens": "L’applicazione in azione",
+      "tab_slides": "La presentazione (15 slide)",
+      "provenance": "Schermate dell’applicazione in inglese. Dati dimostrativi; nessuna azione reale o prestazione misurata."
     },
     "motion": {
       "pause": "Metti in pausa le animazioni"
@@ -12565,6 +12918,348 @@
         "devices": "Lo stesso filo, sui tuoi schermi",
         "weather": "Preparati alla tua prossima uscita",
         "health": "Le tue misure, con i loro riferimenti"
+      },
+      "example_label": "Esempio di richiesta",
+      "examples": {
+        "automation": {
+          "request": "Verifica regolarmente questa condizione e avvisami quando è soddisfatta.",
+          "result": "Una routine configurabile, il suo stato e il risultato del lavoro avviato."
+        },
+        "board": {
+          "request": "Assegno questo ticket a LIA e ne seguo l’avanzamento.",
+          "result": "Un ticket con assegnatario, scambi e un risultato da esaminare."
+        },
+        "briefing": {
+          "request": "Controllo ciò che conta oggi.",
+          "result": "Calendario, email, promemoria e fonti disponibili riuniti nella dashboard."
+        },
+        "browser": {
+          "request": "Apri questo sito e trova le informazioni per il nostro progetto.",
+          "result": "Esplorazione nel browser, con le approvazioni richieste e le informazioni trovate."
+        },
+        "calculation": {
+          "request": "Converti questo importo e indica la data del tasso usato.",
+          "result": "Un calcolo verificabile, un tasso datato e gli eventuali arrotondamenti indicati."
+        },
+        "call": {
+          "request": "Chiama per un tavolo per due dopo il mio ultimo appuntamento.",
+          "result": "Una proposta precisa prima della chiamata, poi il risultato nello stesso filo. La telefonia richiede configurazione."
+        },
+        "control": {
+          "request": "Mostrami la proposta prima di inviare questo messaggio.",
+          "result": "Una bozza da rileggere, rivedere, approvare o rifiutare."
+        },
+        "devices": {
+          "request": "Riprendo la conversazione su un altro schermo.",
+          "result": "Lo stesso account e la stessa conversazione nell’applicazione responsive."
+        },
+        "diagram": {
+          "request": "Disegna come funziona questo progetto.",
+          "result": "Un diagramma che organizza visivamente le idee."
+        },
+        "document": {
+          "request": "Trasforma questi risultati in una sintesi da condividere.",
+          "result": "Un documento strutturato o un file generato, disponibile nella conversazione."
+        },
+        "health": {
+          "request": "Consulto le mie misure e la loro evoluzione.",
+          "result": "Misure registrate con i loro riferimenti. Non sostituiscono un parere medico."
+        },
+        "home": {
+          "request": "Prepara l’illuminazione del soggiorno per stasera.",
+          "result": "Controllo dei dispositivi Philips Hue collegati alla tua istanza."
+        },
+        "image": {
+          "request": "Crea un’illustrazione per questa presentazione.",
+          "result": "Un’immagine generata che puoi ritrovare e riutilizzare. Serve un fornitore compatibile."
+        },
+        "knowledge": {
+          "request": "Trova le clausole di questo progetto e le fonti che le spiegano.",
+          "result": "Passaggi utili dalle tue conoscenze e dalle fonti accessibili, con riferimenti."
+        },
+        "memory": {
+          "request": "Ricorda questa preferenza e mostrami cosa sai di questo progetto.",
+          "result": "Un contesto personale che puoi consultare, correggere e usare nelle richieste successive."
+        },
+        "people": {
+          "request": "Trova un orario comune con Sam usando le condivisioni accettate.",
+          "result": "Coordinamento tra LIA, limitato agli accessi concessi da ciascuno."
+        },
+        "plan": {
+          "request": "Prepara l’incontro sul progetto con gli ultimi scambi e documenti.",
+          "result": "Fonti utili riunite, punti da decidere e un passo successivo da approvare."
+        },
+        "radio": {
+          "request": "Avvio la mia radio: la giornata, poi gli argomenti di attualità che mi interessano.",
+          "result": "Un programma composto dalle tue fonti autorizzate mentre ascolti."
+        },
+        "tools": {
+          "request": "Aggiungi uno strumento o una skill per questo bisogno.",
+          "result": "Capacità estese tramite skill, plugin e MCP, secondo la configurazione."
+        },
+        "voice": {
+          "request": "Parliamo a voce: aiutami a preparare la giornata.",
+          "result": "Una conversazione vocale con accesso alle capacità autorizzate tramite il fornitore che hai scelto."
+        },
+        "weather": {
+          "request": "Che tempo è previsto per la mia uscita e dove posso andare?",
+          "result": "Previsioni, luoghi e itinerari dai servizi disponibili, con i loro limiti."
+        }
+      },
+      "result_label": "Cosa puoi ottenere",
+      "feature_examples": {
+        "natural_language": {
+          "request": "Ricordami domattina di chiamare Marie.",
+          "result": "LIA prepara un promemoria dalla tua richiesta; puoi precisare l’orario."
+        },
+        "multi_agent": {
+          "request": "Prepara la mia giornata con agenda, attività ed e-mail utili.",
+          "result": "Gli specialisti riuniscono le fonti accessibili; i passaggi indipendenti possono procedere insieme."
+        },
+        "rich_responses": {
+          "request": "Mostra le mie ultime e-mail e i loro dettagli.",
+          "result": "Schede leggibili mostrano le informazioni ricevute, con dettagli espandibili."
+        },
+        "chat_sync": {
+          "request": "Apro la chat su un secondo dispositivo.",
+          "result": "I messaggi salvati raggiungono lo stesso filo; dopo una disconnessione, si aggiorna."
+        },
+        "email_share": {
+          "request": "In Condividi, scelgo questo documento e un destinatario.",
+          "result": "La casella collegata gestisce l’invio; senza di essa, il servizio inoltra solo al tuo indirizzo verificato."
+        },
+        "generated_files": {
+          "request": "Nella galleria, conservo questo rapporto importante.",
+          "result": "Il file conservato resta disponibile senza scadenza, entro i limiti mostrati per il tuo account."
+        },
+        "multichannel": {
+          "request": "Collego Telegram al mio account e invio un messaggio vocale.",
+          "result": "Il canale attivo raggiunge il tuo assistente e il suo contesto, con le conferme supportate."
+        },
+        "languages": {
+          "request": "Scelgo il francese per l’interfaccia e le risposte.",
+          "result": "L’interfaccia e i contenuti generati seguono le impostazioni della lingua, con i modelli configurati."
+        },
+        "memory": {
+          "request": "Ricorda che preferisco gli appuntamenti dopo le 10.",
+          "result": "Una preferenza duratura che puoi consultare, correggere o eliminare e ritrovare nelle richieste pertinenti."
+        },
+        "bookmarks": {
+          "request": "Conservo questa risposta per ritrovarla più avanti.",
+          "result": "La risposta, la richiesta e la data restano nei segnalibri; la ricerca dipende dall’indicizzazione."
+        },
+        "personal_crm": {
+          "request": "In Relazioni, apro la scheda di Claire prima dell’appuntamento.",
+          "result": "Scambi, ricordi, chiamate e impegni accessibili si riuniscono per preparare la prossima conversazione."
+        },
+        "peers": {
+          "request": "Di’ a Sam che passo a prendere i bambini stasera.",
+          "result": "Dopo la conferma, il messaggio è consegnato dall’assistente della connessione accettata sulla stessa istanza."
+        },
+        "peer_shares": {
+          "request": "Con le condivisioni accettate di Sam, cerchiamo un orario per domani sera.",
+          "result": "LIA consulta le disponibilità vicine autorizzate; ogni lettura è registrata e l’accesso revocabile."
+        },
+        "peer_safety": {
+          "request": "Nelle mie connessioni, blocco una persona.",
+          "result": "Il blocco interrompe gli accessi senza avvisarla; sbloccarla non ripristina le condivisioni."
+        },
+        "personalities": {
+          "request": "Scelgo una personalità più sobria per LIA.",
+          "result": "Il tono segue la personalità scelta; puoi cambiarla nelle impostazioni."
+        },
+        "psyche": {
+          "request": "Attivo le espressioni emotive di LIA.",
+          "result": "Umore ed espressioni simulati accompagnano gli scambi secondo le impostazioni del motore Psyche."
+        },
+        "mood_face": {
+          "request": "Mostro il compagno animato durante la conversazione.",
+          "result": "Il volto esprime stati ed emozioni simulati; aspetto e visibilità restano regolabili."
+        },
+        "self_knowledge": {
+          "request": "Cosa puoi fare con la mia agenda e come la collego?",
+          "result": "LIA usa la propria base di aiuto per spiegare funzioni, impostazioni e limiti."
+        },
+        "journals": {
+          "request": "Nei miei diari, rileggo e correggo un’osservazione.",
+          "result": "Osservazioni e ritratto con fonti e livelli di fiducia possono arricchire i percorsi compatibili."
+        },
+        "briefing": {
+          "request": "Apro la dashboard per preparare la giornata.",
+          "result": "Agenda, e-mail, promemoria e altre fonti disponibili, con indicatori di aggiornamento e azioni accessibili."
+        },
+        "personal_radio": {
+          "request": "Scelgo le fonti della radio e avvio l’ascolto.",
+          "result": "Un programma unisce il contesto autorizzato della giornata e notizie con fonti; scaletta, trascrizione e costo restano visibili."
+        },
+        "proactive": {
+          "request": "Imposto fonti e orari in cui LIA può offrirmi aiuto.",
+          "result": "Le proposte possono collegare segnali pertinenti al tuo contesto, entro i limiti che scegli."
+        },
+        "proactive_wake": {
+          "request": "Autorizzo i segnali delle e-mail importanti nella fascia di proattività.",
+          "result": "Un segnale può anticipare la valutazione di una proposta, rispettando fonti, pause e orari."
+        },
+        "proactive_moments": {
+          "request": "Attivo l’accompagnamento dopo una riunione.",
+          "result": "Una domanda di follow-up può arrivare al momento previsto, dopo aver verificato contesto e disponibilità."
+        },
+        "interests": {
+          "request": "Seguo l’astronomia e attivo le notifiche.",
+          "result": "Le ricerche periodiche possono portare novità con fonti; puoi bloccare un tema o disattivare gli avvisi."
+        },
+        "habits": {
+          "request": "Attivo l’apprendimento e consulto i giorni osservati.",
+          "result": "Statistiche visibili individuano ritmi sufficientemente documentati; puoi sospendere l’apprendimento."
+        },
+        "habits_lifecycle": {
+          "request": "Consulto un’abitudine confermata, poi la metto in pausa.",
+          "result": "La serie e l’evoluzione restano visibili; lo stato guida gli usi compatibili di quel contesto."
+        },
+        "reminders_scheduling": {
+          "request": "Ogni lunedì alle 8, riassumi le mie e-mail non lette.",
+          "result": "Una routine oraria segue la ricorrenza scelta, prepara il risultato e lo rende disponibile nell’applicazione."
+        },
+        "conditional_routines": {
+          "request": "Dal briefing, imposto un’attesa per la risposta di Claire.",
+          "result": "La routine verifica la condizione alla cadenza dell’istanza e avvia il lavoro associato quando è soddisfatta."
+        },
+        "workboard": {
+          "request": "Creo un ticket, una scadenza e i suoi passaggi sul mio tabellone.",
+          "result": "Un lavoro seguito per stato, responsabile, commenti e cronologia, con le scadenze visibili."
+        },
+        "workboard_delegation": {
+          "request": "Su questo ticket, affido a LIA la preparazione del dossier.",
+          "result": "LIA usa la modalità scelta, commenta i risultati e richiede le conferme necessarie sul ticket."
+        },
+        "telephony": {
+          "request": "Chiama questo ristorante per chiedere un tavolo per due domani alle 20.",
+          "result": "Una bozza con destinatario, numero e obiettivo da confermare; serve un connettore telefonico configurato."
+        },
+        "telephony_callback": {
+          "request": "Chiamami sul mio numero verificato per preparare la giornata.",
+          "result": "LIA chiama il tuo numero verificato con la modalità vocale scelta e la telefonia configurata."
+        },
+        "live_voice": {
+          "request": "Con la mia chiave Live, parlo a LIA e le chiedo di preparare la giornata.",
+          "result": "Una conversazione duplex; in modalità delegata, le richieste passano dalla chat e dalle sue conferme."
+        },
+        "meetings": {
+          "request": "Registro la riunione del team, poi rileggo e correggo il verbale.",
+          "result": "Un verbale strutturato, un PDF e un’e-mail a te stesso; il richiamo in chat richiede un’indicizzazione riuscita."
+        },
+        "meeting_templates": {
+          "request": "Scelgo il modello di verbale per questo appuntamento.",
+          "result": "Le sezioni seguono il modello scelto; il verbale può cambiare formato senza una nuova registrazione."
+        },
+        "skills": {
+          "request": "Crea una skill per convertire unità in una mini-app.",
+          "result": "Una competenza proposta da installare, che può mostrare un widget ed eseguire comandi nella sandbox configurata."
+        },
+        "health_metrics": {
+          "request": "Invio i passi con una scorciatoia e un token dedicato, poi apro i grafici.",
+          "result": "Misure datate e andamento; i valori rifiutati hanno una spiegazione. Non è una diagnosi."
+        },
+        "excalidraw": {
+          "request": "Disegna i passaggi di questo progetto in un diagramma.",
+          "result": "Uno schema Excalidraw da esaminare e rifinire, con gli strumenti attivati."
+        },
+        "image_generation": {
+          "request": "In questa foto allegata, sostituisci lo sfondo con un giardino.",
+          "result": "Un’immagine ritoccata nella galleria, se il modello supporta la modifica, con il costo visibile."
+        },
+        "document_generation": {
+          "request": "Trasforma questa sintesi in un rapporto PDF con una tabella comparativa.",
+          "result": "Un file in un formato supportato, da rileggere e scaricare dalla conversazione."
+        },
+        "attachments": {
+          "request": "Allego un’immagine alla richiesta e chiedo di spiegarla.",
+          "result": "L’allegato accompagna la richiesta nei formati, limiti di dimensione e capacità del modello disponibili."
+        },
+        "mcp_apps": {
+          "request": "Apro l’interfaccia interattiva proposta dal mio server MCP.",
+          "result": "Un’app di un server compatibile appare nella chat, con le interazioni supportate."
+        },
+        "plugins": {
+          "request": "Installo un plugin dal suo ZIP e verifico i componenti.",
+          "result": "Skill e server MCP supportati sono elencati con lo stato; quelli ignorati indicano il motivo."
+        },
+        "mcp": {
+          "request": "Nelle impostazioni, collego un server MCP adatto ai miei strumenti.",
+          "result": "Gli strumenti esposti dal server possono essere disponibili in LIA, con i loro permessi e la loro configurazione."
+        },
+        "rag_spaces": {
+          "request": "Importo il dossier in uno spazio e chiedo le clausole di recesso.",
+          "result": "I passaggi indicizzati pertinenti emergono con le fonti, quando spazio e ricerca sono attivi."
+        },
+        "mail_label_spaces": {
+          "request": "Collego l’etichetta Gmail «Progetto» a uno spazio di conoscenze.",
+          "result": "I thread etichettati si sincronizzano come documenti; gli allegati vi sono nominati, non letti."
+        },
+        "sub_agents": {
+          "request": "Esplora più prospettive su questo tema e confronta le fonti.",
+          "result": "Specialisti in sola lettura lavorano entro i propri budget; LIA può riunire i risultati."
+        },
+        "browser_control": {
+          "request": "Apri questo sito pubblico e trova le caratteristiche del prodotto.",
+          "result": "Navigazione con schermate visibili; accesso e pagamento restano fuori da questo percorso autonomo."
+        },
+        "computed_answers": {
+          "request": "Converti 250 dollari in euro e indica la data del cambio.",
+          "result": "Un calcolo tramite strumento con cambio datato, invece di una stima del modello."
+        },
+        "devops_cli": {
+          "request": "Amministratore: diagnostica spazio disco e stato dei container.",
+          "result": "Una diagnosi basata sui comandi del CLI configurato, riservata all’amministratore e al suo ambito server."
+        },
+        "control": {
+          "request": "Prepara questa e-mail a Claire e mostrami la bozza prima dell’invio.",
+          "result": "Destinatario e contenuto da esaminare; le azioni disponibili permettono di confermare, modificare o rifiutare."
+        },
+        "usage_limits": {
+          "request": "Amministratore: imposto il tetto dell’istanza e il budget di un account.",
+          "result": "Consumi e limiti restano visibili; le richieste interessate sono bloccate quando il tetto è raggiunto."
+        },
+        "privacy": {
+          "request": "Nelle impostazioni, consulto ed esporto i miei dati.",
+          "result": "Un export per recuperare le informazioni; restano da considerare l’accesso dell’operatore e i fornitori scelti."
+        },
+        "native_apps": {
+          "request": "Collego l’app mobile all’indirizzo del mio server LIA.",
+          "result": "Il tuo account e le funzioni dell’istanza sono accessibili nel client mobile con i suoi permessi nativi."
+        },
+        "responsive": {
+          "request": "Installo la PWA e apro il tabellone sul telefono.",
+          "result": "Un’interfaccia adattata al piccolo schermo; offline, una pagina indica che il server non è disponibile."
+        },
+        "simplicity": {
+          "request": "Cerco «memoria» nelle impostazioni e fisso la sua sezione.",
+          "result": "La ricerca trova l’impostazione e le sezioni fissate restano a portata nel dock."
+        },
+        "themes": {
+          "request": "Scelgo un tema scuro e una dimensione del testo più comoda.",
+          "result": "Colori, sfondo e leggibilità seguono le preferenze salvate nel mio account."
+        },
+        "connected_services": {
+          "request": "In Connettori, collego la mia agenda e la casella e-mail.",
+          "result": "LIA usa i servizi autorizzati, con un fornitore per famiglia e disconnessioni separate."
+        },
+        "environment": {
+          "request": "Che tempo e qualità dell’aria sono previsti per la mia uscita domani?",
+          "result": "Previsioni e indici delle fonti configurate, con i dati disponibili per quel luogo."
+        },
+        "smart_home": {
+          "request": "Abbassa le luci del salotto tramite il mio bridge Philips Hue collegato.",
+          "result": "Un comando per luci o scene riconosciute, con il risultato riportato dal connettore Hue."
+        },
+        "web_intelligence": {
+          "request": "Trova un luogo vicino a me e un percorso per arrivarci.",
+          "result": "Ricerca, luoghi e itinerari secondo i servizi configurati, i tuoi accessi e le informazioni disponibili."
+        },
+        "voice_mode": {
+          "request": "Detto la mia richiesta, poi ascolto la risposta di LIA.",
+          "result": "Trascrizione e lettura vocale usano i motori attivati; il risveglio locale in francese resta in beta."
+        }
       }
     },
     "editorial": {
@@ -12590,6 +13285,239 @@
       "control_title": "Rendere chiare le azioni",
       "control_body": "Proposte, conferme e risultati mantengono ciascuno il proprio posto.",
       "control_gain": "Sai a che punto è il lavoro."
+    },
+    "platform": {
+      "accounts": {
+        "body": "Ogni persona ha i propri account, connettori, memoria e preferenze. Utenti e capacità si amministrano dall’interfaccia.",
+        "title": "Un server per più persone"
+      },
+      "alerts": {
+        "body": "Prometheus, Grafana, Loki, Tempo e Alertmanager riuniscono metriche, log, tracce e regole di avviso. Configura destinatari e servizi dello stack per la tua installazione.",
+        "title": "Segnali per agire in tempo"
+      },
+      "code_link": "Consulta dashboard e regole di avviso",
+      "dashboard_costs": "Token, cache e costi",
+      "dashboard_note": "Schermate Grafana di LIA: risorse dell’istanza, consumo di token, costi e cache. Oltre 30 dashboard complete.",
+      "dashboard_overview": "Stato dell’applicazione",
+      "dashboard_title": "Cosa può vedere chi gestisce l’istanza",
+      "docs_link": "Esplora architettura e documentazione",
+      "models": {
+        "body": "Configura i modelli per ruolo, usa Ollama in locale e imposta budget per l’istanza e gli account. Configura i servizi opzionali in base alle tue esigenze.",
+        "title": "I tuoi modelli e limiti"
+      },
+      "monitoring": {
+        "body": "Costi e token, latenza, errori, Pipeline, ReAct, HITL, connettori e infrastruttura: le dashboard ti permettono di esaminare il funzionamento dell’istanza.",
+        "title": "Dashboard Grafana fornite con LIA"
+      },
+      "sub": "Per la tua famiglia, i colleghi o la comunità di amici: un’applicazione web con account distinti e strumenti per comprenderne il funzionamento e intervenire.",
+      "title": "Un’interfaccia semplice. Una gestione solida.",
+      "business_title": "Una base per il vostro assistente aziendale interno.",
+      "business_body": "Preparare riunioni, ritrovare conoscenze aziendali, seguire gli impegni: questi percorsi possono aiutare anche i vostri collaboratori. L’applicazione web multiutente, i connettori, MCP, le API e l’osservabilità offrono una base da personalizzare e integrare nel vostro ambiente.",
+      "business_scope": "Adattate fonti, diritti e regole d’uso alla vostra organizzazione. Identità, integrazioni aziendali e hosting restano da definire per il vostro deployment; il codice aperto e la documentazione aiutano a delimitare questo lavoro.",
+      "install_link": "Installa la tua istanza"
+    },
+    "context": {
+      "act": {
+        "body": "Un’azione da esaminare e approvare quando il percorso lo prevede.",
+        "title": "Quando deleghi"
+      },
+      "anticipate": {
+        "body": "Un segnale utile, secondo le fonti e le fasce orarie che autorizzi.",
+        "title": "Quando LIA propone"
+      },
+      "center_body": "Relazioni riunisce lo scambio recente e l’impegno ancora aperto. In chat, prepara l’incontro con le fonti accessibili; la tua preferenza per risposte concise aiuta ad andare all’essenziale.",
+      "center_title": "Per esempio, prima di rivedere Claire…",
+      "commitments": {
+        "body": "Appuntamenti, progetti e cose da seguire, dalle fonti che autorizzi.",
+        "title": "I tuoi prossimi passi"
+      },
+      "control": "Consulta e correggi la memoria, limita le fonti, disattiva la proattività. Le conclusioni di LIA restano da verificare.",
+      "memory": {
+        "body": "Preferenze, ricordi, regole e conoscenze che puoi consultare e correggere.",
+        "title": "I tuoi punti di riferimento"
+      },
+      "people": {
+        "body": "Persone, scambi e impegni per preparare il prossimo contatto.",
+        "title": "Le tue relazioni"
+      },
+      "preferences": {
+        "body": "Stile, interessi, fonti e fasce orarie per la proattività.",
+        "title": "Le tue scelte"
+      },
+      "respond": {
+        "body": "Una sintesi collegata al tuo dossier e agli elementi ritrovati.",
+        "title": "Quando chiedi"
+      },
+      "sub": "Le tue preferenze, i tuoi scambi e i tuoi impegni possono essere utili alla prossima richiesta, secondo le funzioni attive e le fonti autorizzate.",
+      "title": "Quello che condividi oggi può aiutarti domani."
+    },
+    "home_meta": {
+      "title": "LIA — L’assistente personale che collega la tua quotidianità",
+      "description": "LIA collega email, calendario, documenti e memoria per agire con te. Progettata in Francia, open source, da ospitare sui tuoi server, con account distinti."
+    },
+    "home_cta": {
+      "bubble": "La tua agenda e io abbiamo già di che parlare.",
+      "title": "Inizia da ciò che ti sarebbe davvero utile.",
+      "subtitle": "Un progetto da preparare, una giornata da organizzare, un assistente da ospitare: esplora LIA e scegli il percorso adatto a te.",
+      "button": "Crea il mio account",
+      "note_beta": "Registrazione BETA limitata, via e-mail: verifica dell’indirizzo, poi attivazione da parte dell’amministratore, automatica su un’istanza dimostrativa. Servizi opzionali in base alla tua configurazione.",
+      "philosophy_link": "O scopri prima la nostra filosofia",
+      "install_link": "Oppure installa il tuo LIA"
+    },
+    "home_product_demo": {
+      "meta_description": "Sei situazioni della stessa quotidianità: il progetto di Claire, la tua Radio, un impegno con Marc, una chiamata, una riunione e una cena con Sarah.",
+      "choose_scene": "Scegli una situazione",
+      "steps": "Passaggi della dimostrazione",
+      "steps_request": "La tua richiesta",
+      "steps_context": "Il contesto",
+      "steps_result": "Il risultato",
+      "play": "Riproduci la dimostrazione",
+      "pause": "Metti in pausa",
+      "replay": "Ripeti la dimostrazione",
+      "difference": "Cosa ti offre questo percorso",
+      "example": "Esempio fittizio",
+      "context": "LIA riunisce il contesto utile",
+      "illustrative": "Scenario illustrativo · persone, dati e risultati fittizi.",
+      "sources": {
+        "space": "I tuoi documenti",
+        "mail": "Le tue email",
+        "meeting": "La tua riunione",
+        "calendar": "Il tuo calendario",
+        "commitment": "I tuoi impegni",
+        "news": "Le notizie",
+        "routine": "La tua routine",
+        "project": "Il tuo progetto",
+        "preferences": "Le tue preferenze",
+        "approval": "La tua conferma",
+        "web": "Il web",
+        "comparison": "Le ricerche",
+        "peer": "LIA collegata",
+        "scope": "Accesso accettato",
+        "transcript": "La trascrizione",
+        "notes": "Le note da rivedere"
+      },
+      "scenes": {
+        "decision": {
+          "title": "Il progetto di Claire",
+          "summary": "Documenti, ultima email e riunione aiutano a prendere la stessa decisione.",
+          "request": "Prepara il mio punto su Atlas con Claire. La scheda indica 240 €, la sua ultima email 270 €: cosa va confermato?",
+          "source_1": "Scheda Atlas · 240 €",
+          "source_2": "Ultima email · 270 €",
+          "source_3": "Sconto · passaggio incerto",
+          "result_title": "Il tuo incontro con Claire è preparato",
+          "result_1": "240 €",
+          "result_2": "270 €",
+          "result_3": "Due domande pronte per Claire: «Quale prezzo si applica ad Atlas, 240 € o 270 €? Lo sconto citato in riunione è confermato?»",
+          "evidence_1": "Scheda del progetto",
+          "evidence_2": "Ultima email di Claire",
+          "guardrail": "La differenza va verificata: nessun prezzo viene scelto e nessun messaggio viene inviato.",
+          "difference": "Riprendi il filo del progetto senza copiare ogni documento. LIA collega le fonti accessibili e mostra la contraddizione, senza presentare un prezzo incerto come definitivo."
+        },
+        "day": {
+          "title": "La mia Radio",
+          "summary": "Un unico programma collega la tua giornata ai temi che ti interessano.",
+          "request": "Dal pannello scelgo un programma personale e le notizie dal mondo: Atlas, i miei impegni, mobilità e cultura.",
+          "source_1": "Programma personale + mondo",
+          "source_2": "Claire e l’impegno con Marc",
+          "source_3": "Mobilità e cultura · fonti scelte",
+          "result_title": "Il programma della tua emissione",
+          "result_1": "Atlas: il prezzo di Claire da confermare",
+          "result_2": "Marc: comitato alle 14, impegno iniziale alle 15",
+          "result_3": "Poi: notizie di mobilità e cultura, con gli articoli fonte",
+          "evidence_1": "",
+          "evidence_2": "",
+          "guardrail": "Programma fittizio, senza audio in questa demo. Nell’app vengono lette solo le fonti personali autorizzate.",
+          "difference": "La tua giornata e i tuoi interessi entrano nello stesso programma. Nell’app, lettore, trascrizione e articoli fonte ti permettono di ascoltare e ritrovare ciò che merita attenzione."
+        },
+        "watch": {
+          "title": "Il mio impegno",
+          "summary": "Una nuova email viene confrontata con ciò che avevi promesso.",
+          "request": "Una routine già configurata controlla le nuove email di Marc sul comitato Atlas.",
+          "source_1": "Impegno iniziale · ore 15",
+          "source_2": "Marc anticipa il comitato alle 14",
+          "source_3": "Controllo configurato · nuove email",
+          "result_title": "Il cambiamento e una risposta da rileggere",
+          "result_1": "Comitato anticipato alle 14",
+          "result_2": "Il tuo impegno era per le 15. Verifica il nuovo orario prima di fare un’altra promessa.",
+          "result_3": "Bozza non inviata: «Ciao Marc, ho preso nota del comitato alle 14. Il mio impegno iniziale era per le 15. Quali elementi ti servono per questo incontro?»",
+          "evidence_1": "",
+          "evidence_2": "",
+          "guardrail": "Controllo attivato da te, secondo la frequenza dell’istanza; il segnale non decide al tuo posto.",
+          "difference": "Il nuovo scambio arriva con ciò che cambia per il tuo impegno e una bozza da riprendere. Non devi ricostruire da solo il contesto prima di rispondere."
+        },
+        "call": {
+          "title": "Una chiamata",
+          "summary": "Una chiamata preparata con i tuoi vincoli, approvata da te e poi riepilogata.",
+          "request": "Chiama il ristorante Les Jardins per chiedere un tavolo per due giovedì alle 20, all’aperto se possibile.",
+          "source_1": "Libero dopo le 19",
+          "source_2": "Due · terrazza",
+          "source_3": "Prima della chiamata",
+          "result_title": "Una proposta precisa prima della chiamata",
+          "result_1": "Giovedì · ore 20",
+          "result_2": "2 persone",
+          "result_3": "Chiedere un tavolo per due giovedì alle 20, all’aperto se disponibile. Non accettare un altro orario senza consultarmi.",
+          "evidence_1": "",
+          "evidence_2": "",
+          "guardrail": "La chiamata parte dopo la conferma, con la telefonia configurata.",
+          "difference": "LIA prepara il mandato della chiamata: destinatario, numero e obiettivo. Puoi modificarlo o rifiutarlo prima di confermare. La chiamata parte e il suo risultato torna nella conversazione.",
+          "arg_goal": "Obiettivo",
+          "arg_party": "Persone",
+          "arg_when": "Quando",
+          "arg_callee": "Destinatario",
+          "arg_phone": "Telefono",
+          "preview_html": "<div class=\"lia-card lia-draft\"><div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--indigo\"><span style=\"font-size:var(--lia-text-lg)\">📞</span></div><div class=\"lia-card-top__info\"><div class=\"lia-card-top__title\">Les Jardins (Demo)</div></div></div><div class=\"lia-d-row\"><span class=\"material-symbols-outlined\">phone</span><span><strong>Interlocutore</strong>: Les Jardins (Demo)</span></div><div class=\"lia-d-row\"><span class=\"material-symbols-outlined\">phone</span><span><strong>Telefono</strong>: +1 202 555 0100</span></div><div class=\"lia-d-row\"><span class=\"material-symbols-outlined\">info</span><span><strong>Obiettivo</strong>: Chiedere un tavolo per due giovedì alle 20, all’aperto se disponibile. Non accettare un altro orario senza consultarmi.</span></div></div>"
+        },
+        "research": {
+          "title": "La mia riunione",
+          "summary": "Un verbale conserva decisioni, azioni e passaggi da verificare.",
+          "request": "Prepara il verbale della mia riunione Atlas con Claire dalla trascrizione. Mantieni visibile il passaggio incerto sullo sconto.",
+          "source_1": "Riunione Atlas · Claire",
+          "source_2": "Prezzo citato · 270 €",
+          "source_3": "Sconto · formulazione incerta",
+          "result_title": "Un verbale che puoi correggere",
+          "result_1": "Proseguire il confronto al prezzo citato di 270 €, senza approvazione finale.",
+          "result_2": "Chiarire le condizioni dello sconto con Claire.",
+          "result_3": "Il passaggio sullo sconto resta incerto: rileggere la trascrizione e correggere il verbale.",
+          "evidence_1": "Fonti consultate",
+          "evidence_2": "Requisiti del progetto",
+          "guardrail": "Sintesi fittizia da rivedere: qui non viene creata alcuna attività, indicizzazione o allegato.",
+          "difference": "La riunione diventa un documento di lavoro, con azioni e incertezze visibili. Nell’app puoi correggere il verbale ed esportarlo in PDF; la ricerca successiva richiede che l’indicizzazione sia attiva e completata."
+        },
+        "relay": {
+          "title": "Una cena con Sarah",
+          "summary": "Le disponibilità condivise con consenso aiutano a preparare un invito.",
+          "request": "Trova un orario domani sera per cenare con Sarah da Les Jardins. Prepara l’invito perché possa rileggerlo.",
+          "source_1": "Sarah · connessione accettata, stessa istanza",
+          "source_2": "Solo disponibilità autorizzate",
+          "source_3": "Il tuo calendario · domani alle 19:30 libero",
+          "result_title": "Il tuo invito è pronto da rileggere",
+          "result_1": "Domani · 19:30",
+          "result_2": "Tu e Sarah · liberi nelle fasce consultate",
+          "result_3": "Bozza non inviata: «Ciao Sarah, domani alle 19:30 al ristorante Les Jardins, ti va bene?» Non è stato prenotato alcun tavolo né bloccato alcun orario in calendario.",
+          "evidence_1": "Orario comune",
+          "evidence_2": "Disponibilità condivise",
+          "guardrail": "Connessione accettata sulla stessa istanza; nessun accesso generale ai dati di Sarah.",
+          "difference": "In questo esempio, l’ultimo scambio su Les Jardins viene prima della vecchia preferenza per Verdi. I vostri assistenti incrociano le disponibilità autorizzate, ciascuno con il proprio account e i propri dati; tu decidi se invitare."
+        }
+      },
+      "approval_cancelled": "Rifiuto illustrato. Nessuna chiamata è stata avviata.",
+      "approval_confirmed": "Conferma illustrata. Nell’applicazione la chiamata può iniziare; qui non è stato eseguito nulla.",
+      "approval_hint": "Prova la conferma: questa dimostrazione non avvia alcuna chiamata.",
+      "approval_reset": "Rivedi la proposta",
+      "card_details": "Apri i dettagli del progetto",
+      "document_format": "Bozza da rivedere e correggere · esempio fittizio",
+      "document_name": "Verbale · progetto Atlas",
+      "result_label": "Il risultato da esaminare",
+      "approval_edited": "Istruzione di modifica illustrata. Nell’app LIA prepara una nuova bozza; qui l’anteprima resta fittizia e non viene effettuata alcuna chiamata.",
+      "explore_hint": "Scegli una situazione ed esplora richiesta, contesto e risultato.",
+      "meeting_decisions": "Decisione da approfondire",
+      "meeting_actions": "Azione annotata",
+      "meeting_uncertainty": "Passaggio da verificare"
+    },
+    "home_feature_descriptions": {
+      "meetings": "Registra una riunione dall’applicazione, poi rileggi il verbale strutturato preparato dai motori configurati. Correggi decisioni e attività discusse, scarica un PDF da condividere o ricevilo al tuo indirizzo e-mail. Lacune e informazioni non attribuite devono restare segnalate; la revisione resta utile. Dopo un’indicizzazione riuscita negli spazi di conoscenze attivi, LIA può ritrovare il contenuto in conversazione. Il costo dell’elaborazione è visibile. La disponibilità dipende dalle capacità e dai servizi dell’istanza.",
+      "live_voice": "Ragiona ad alta voce con LIA in una conversazione full duplex, con la tua chiave API Gemini Live, OpenAI o ElevenLabs. In modalità delegata, le richieste usano il motore della chat, il suo contesto e i controlli sulle azioni. La modalità diretta usa gli strumenti di lettura autorizzati. Modelli, voci, interruzioni e possibilità di delega, anche in parallelo, variano secondo il fornitore. Disponibilità e costi dipendono dai servizi configurati.",
+      "telephony": "Con il tuo connettore telefonico ElevenLabs configurato, LIA può contattare qualcuno, fare una domanda o chiedere un orario per conto tuo. Confermi destinatario, numero e obiettivo prima della chiamata; poi una sintesi torna nella conversazione. Il mandato indica a LIA di non impegnare spese impreviste e di riportarti le alternative da valutare. Rileggi il risultato prima di decidere come proseguire. Disponibilità e costi dipendono dai servizi configurati."
     }
   },
   "maps": {
@@ -12919,7 +13847,7 @@
     "consolidateNow": "Consolida",
     "consolidating": "Consolidamento…",
     "consolidateNowTooltip": "Forza una consolidazione ora (deduplicazione, promozioni di livello, aggiornamenti di confidenza). Richiede qualche secondo.",
-    "consolidatedSuccess": "{{n}} modifica/he applicata/e in {{s}}s — aggiorna la lista per vedere l'effetto.",
+    "consolidatedSuccess": "Consolidamento completato in {{s}}s — {{n}} modifica/he al diario.",
     "consolidatedNoop": "Nulla da modificare — il tuo diario è già ben organizzato ({{s}}s).",
     "consolidatedQuota": "Quota LLM superata — riprova più tardi.",
     "consolidatedError": "Consolidazione manuale fallita.",
@@ -12928,6 +13856,7 @@
     "portraitNeverCompiled": "Non ancora compilato",
     "portraitFormatFull": "Completo",
     "portraitFormatBrief": "Sintesi",
+    "portraitLoadError": "Impossibile caricare il ritratto. Ricarica la pagina per riprovare.",
     "portraitTip": "Il ritratto è una sintesi viva. Per correggerlo: segnala un problema, modifica le voci L3 o avvia una consolidazione.",
     "provenance": {
       "compiled_from": "Compilato a partire da {{list}}.",
@@ -13094,9 +14023,9 @@
         "body": "<h2>Privacy by design</h2><p>LIA è progettato fin dall'origine con la protezione dei dati come principio fondante, non come un'aggiunta a posteriori.</p><h2>Crittografia simmetrica Fernet</h2><p><strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256), tramite <code>encrypt_data()</code>, protegge token OAuth, credenziali dei connettori e MCP e campi specifici. I servizi decifrano i valori quando necessario. La cifratura selettiva non copre ogni dato personale: i messaggi sono testo nel database. Il gestore controlla le chiavi e gli accessi alla base dati.</p><h2>Minimizzazione della raccolta</h2><p>LIA raccoglie solo i dati strettamente necessari al suo funzionamento:</p><ul><li>Informazioni del profilo (nome, email, preferenze)</li><li>Storico delle conversazioni conservato sulla tua istanza</li><li>Token di connessione ai servizi (crittografati)</li><li>Metriche di utilizzo con identificatori pseudonimi</li></ul><h2>Gestore e fornitori configurati</h2><p>Il gestore può avere accesso tecnico ai dati archiviati. Il modello riceve la domanda e il contesto utile, come memorie scelte o estratti di documenti; i servizi vocali, di immagini e altri servizi ricevono quanto necessario alle loro funzioni. Si applicano le rispettive politiche di privacy, conservazione e possibile addestramento. Archiviazione locale e accessi controllati non sostituiscono accordi e impostazioni dei fornitori.</p><h2>Eliminazione e cascading</h2><p>La cancellazione dell’account rimuove i contenuti personali da conversazioni, memorie, connettori, documenti e archivi associati. I registri contabili rimangono; l’eliminazione può conservare nome ed email per contatto contabile e la cancellazione finale elimina la riga dell’account. I registri di audit o diagnostica possono conservare dati identificativi secondo le proprie politiche; i backup seguono la conservazione del gestore. Riattivare non recupera i contenuti rimossi.</p><h2>Sessioni e cookie sicuri</h2><p>I cookie di sessione sono configurati con gli attributi <code>HttpOnly</code>, <code>Secure</code> (in produzione) e <code>SameSite=lax</code>. La durata della sessione è di 7 giorni per impostazione predefinita, estensibile a 30 giorni con l'opzione \"Ricordami\". I token monouso vengono invalidati dopo il primo utilizzo tramite una blacklist Redis.</p><h2>Protezione dei contenuti esterni</h2><p>I contenuti recuperati da fonti esterne (email, pagine web, documenti) vengono contrassegnati come <code>UNTRUSTED</code> con un wrapping configurabile prima dell'iniezione nei prompt. Lo strumento web_fetch è limitato a 10 chiamate per finestra di 60 secondi per utente per prevenire gli abusi.</p><h2>Log operativi filtrati</h2><p>Nella linea dell'<strong>OWASP Logging Cheat Sheet</strong>, una riga di log sopra il livello debug porta <strong>fatti</strong> — numeri, lunghezze, identificativi, codici di errore, l'host di un URL — e mai il testo che una persona ha scritto, o che un modello ha scritto su di lei: nessuna ricerca, nessun interesse, nessun nome di file, etichetta o spazio, nessuna pagina visitata.</p><p>La regola è verificata <strong>dal valore</strong>, non dal nome del campo: un test legge ogni chiamata di log del codice e rifiuta un'anteprima o un valore derivato da un contenuto, comunque si chiami. Ciò che un messaggio di errore <strong>cita</strong> — un valore rifiutato da PostgreSQL, l'input di una validazione — viene rimosso prima che la riga sia scritta, e un errore di database è descritto dai suoi fatti: codice, vincolo, tabella. Le chiavi dei fornitori sono mascherate in ogni indirizzo registrato. Le metriche e le tracce seguono la stessa regola: nominano il percorso seguito dal suo modello, mai il nome o la ricerca che un indirizzo contiene. Due limiti sono detti così come sono: l'errore di un servizio esterno in un formato sconosciuto può ancora citare un dato, e il livello debug — disattivato in produzione — conserva di più.</p><h2>Portabilità dei dati (v1.9.1)</h2><p>LIA consente a ogni utente di <strong>esportare i propri dati di consumo</strong> in formato CSV da Impostazioni > Funzionalità. Tre tipi di esportazione: consumo LLM (token e costi per chiamata), consumo API Google e riepilogo aggregato. Sicurezza: lo <code>user_id</code> viene forzato lato server — nessun parametro è esposto (protezione IDOR).</p><h2>Backup con ripristino provato</h2><p>Il deployment di produzione offre strumenti di backup notturno e verifica del ripristino, con conservazione predefinita di 7 giorni, 4 settimane e 6 mesi. Il gestore li attiva e controlla. La prova ripristina l’ultimo dump in un database temporaneo e confronta revisione dello schema e conteggi delle righe con la fonte. Il recupero dipende dai backup riusciti e dalla politica scelta.</p><h2>Un fascicolo completo, non un campione</h2><p>Tre registri tenuti automaticamente dicono che cosa LIA ha <strong>fatto</strong> per te, che cosa ha <strong>consultato</strong> per risponderti e che cosa ha intrapreso <strong>di propria iniziativa</strong>. Non portano alcun contenuto: una consultazione trattiene la capacità — «la tua agenda» — e mai ciò che è stato cercato, perché scriverlo equivarrebbe a ricopiare il dato stesso di cui il registro esiste per rendere conto.</p><p>Il fascicolo che scarichi dalla pagina <strong>Registri</strong> è <strong>completo</strong>. Prima portava un tetto di righe: una protezione reale, dato che l'intero documento veniva assemblato in memoria su un Raspberry Pi, ma applicata alla variabile sbagliata. Scarsa era la memoria; limitata era la verità. Un cursore lato server limita ora il buffer: qualunque sia il volume, il file porta tutto ciò che i tuoi filtri designano, il conteggio esatto è dichiarato in testa insieme all'istante di generazione, e il download è compresso al volo quando il tuo browser lo accetta.</p>"
       },
       "observability": {
-        "title": "616 metriche Prometheus, 31 dashboard Grafana e tracing Langfuse",
-        "excerpt": "LIA offre osservabilità enterprise con 616 metriche, dashboard Grafana, tracing LLM via Langfuse e alert e-mail con runbook.",
-        "body": "<h2>I tre pilastri dell'osservabilità</h2><p>LIA implementa i tre pilastri dell'osservabilità moderna:</p><ul><li><strong>Metriche</strong> — 616 metriche Prometheus che coprono HTTP, agenti, token, costi, OAuth e prestazioni, etichettate per modello di percorso: mai un nome né una ricerca</li><li><strong>Log</strong> — Logging strutturato JSON tramite structlog, raccolto da Grafana Alloy e centralizzato in Loki: filtraggio dei contenuti personali nei log operativi, con maggiori dettagli possibili in modalità debug</li><li><strong>Trace</strong> — Tracing distribuito tramite OpenTelemetry (Tempo), nominato secondo il modello del percorso e mai secondo l'indirizzo concreto, e tracing LLM tramite Langfuse</li></ul><h2>43 file di metriche specializzati</h2><p>Ogni dominio possiede il proprio file di metriche dichiarativo. I 43 moduli coprono, tra gli altri: HTTP, agents (SSE/router/LLM/HITL/planner), database, LangGraph, Langfuse, voice, modalità live, radio, RAG spaces, OAuth, MCP, channels, errori, sub-agenti, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, metriche di salute, diari, telefonia, riunioni, workboard, registri degli effetti e limiti di utilizzo. Ogni file definisce Counter, Histogram e Gauge Prometheus adattati al dominio.</p><h2>Definizione delle metriche Prometheus</h2><p>Ogni dominio definisce le proprie metriche in modo dichiarativo:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>31 dashboard Grafana</h2><p>LIA fornisce 31 dashboard Grafana numerati da 01 a 31: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, briefing, product-value, meetings, effect-ledger, workboard, live e radio. Ogni dashboard offre viste filtrabili per utente, periodo e ambiente. Il 26° è un cockpit prodotto: risultati validati (👍 esplicito o un'azione rimasta senza correzioni), funnel di attivazione, retention e costo per risultato utile — il conteggio esatto vive in PostgreSQL e Grafana lo legge tramite un ruolo in sola lettura ristretto alle viste aggregate.</p><h2>KPI target estratti dal codice</h2><p>LIA monitora indicatori precisi definiti nel codice sorgente: TTFT (Time To First Token) dello streaming, latenza del router tra 0.1 e 2 secondi, durata di esecuzione degli strumenti agenti tra 0.1 e 10 secondi, confidenza router p50 &gt; 0.8, costo LLM per richiesta &lt; 0.05€, tasso di errore HTTP 5xx &lt; 1%.</p><h2>Alert e-mail con runbook</h2><p>La supervisione non si ferma alle dashboard: un nucleo di 29 alert vitali — tra cui API, PostgreSQL o Redis non disponibili, disco, memoria dei container, tasso di errori 5xx, latenza di streaming, backup notturno fallito, URL pubblico irraggiungibile, certificato TLS prossimo alla scadenza, rate limiting fuori servizio — è valutato in continuo da Prometheus e notificato via e-mail tramite Alertmanager. Ogni alert referenzia il proprio runbook (procedura di risoluzione passo passo), le soglie sono configurate per ambiente in file .env, e test unitari promtool garantiscono che le soglie mostrate nelle notifiche corrispondano esattamente alle espressioni di attivazione. Una sonda blackbox testa perfino l'intera catena end-to-end, dall'edge Cloudflare al frontend, esattamente come un utente.</p><h2>Langfuse: tracing LLM dedicato</h2><p>L'integrazione Langfuse traccia ogni chiamata LLM — token consumati (input/output/cache), tempo di risposta, modello utilizzato, costo stimato e contesto della richiesta —, e sette metriche Prometheus proprie seguono le versioni dei prompt, i punteggi di valutazione, le varianti A/B, la profondità delle tracce e i passaggi di consegne tra agenti. Questo permette di identificare i prompt inefficaci, confrontare i modelli LLM tra loro e ottimizzare il consumo di token nel tempo.</p><h2>DevOps Claude CLI: Diagnostica in linguaggio naturale (v1.13.0)</h2><p>Ultima evoluzione dello stack di osservabilità: gli amministratori possono ora diagnosticare i server direttamente dalla conversazione LIA. Claude Code CLI — installato nel container API Docker — ispeziona in modo autonomo i log, verifica la salute dei container e analizza l'utilizzo delle risorse. Sessioni persistenti, permessi configurabili per ambiente e streaming in tempo reale dei passaggi di indagine via SSE.</p><h2>E dalla v1.34: l'assistente legge la propria telemetria</h2><p>Tutto quanto sopra esisteva per gli umani; l'assistente stessa non ne leggeva nulla. L'ADR-247 ha chiuso quel cerchio: un autocontrollo periodico trasforma i segnali aurei e sonde dirette in istantanee di salute con valori esatti; avvisi e verdetti critici convergono in un incidente per guasto, diagnosticato da un LLM con budget limitato e fondato sui runbook operativi; gli amministratori hanno un pannello Salute della piattaforma, notifiche proattive e strumenti di chat in sola lettura. E un guasto noto ora plasma le risposte — le capacità degradate vengono aggirate in pianificazione, e i passaggi falliti spiegati da codici di errore tipizzati, mai da log grezzi. Da allora la diagnosi non è più scritta da un numero solo: una ricetta dichiarata per tipo di incidente dice quali ripartizioni e quali eventi di log leggere, il fascicolo viene raccolto al momento della diagnosi con i dati personali rimossi, una fonte irraggiungibile è dichiarata non disponibile invece di essere letta come silenzio, e ciò che il modello ha letto è mostrato sotto il suo verdetto.</p><h2>Contare gli esiti, non i tentativi</h2><p>Un contatore è stato ripensato nella v1.38.3. Contare le chiamate che raggiungono un fornitore è la verità sul fornitore — e il denominatore sbagliato non appena quelle chiamate vengono ritentate, perché un errore recuperato gonfia il tasso di errore benché nulla sia andato perso. Un secondo contatore registra ora una riga per operazione logica, con i ritentativi ripiegati, e risponde all'unica domanda su cui un operatore agisce: il chiamante ha ottenuto il suo risultato? Un terzo dice cosa ha fatto la regolazione di frequenza di ogni tentativo, perché «il budget è troppo piccolo» e «Redis è caduto» sono indistinguibili in un booleano e richiedono azioni opposte.</p><p>La lezione più recente riguarda la scelta di ciò che si misura. Il ciclo autonomo contava le proprie iterazioni e la propria durata — e nulla per ciò che cresce davvero: il prompt consegnato al modello a ogni passo. Misurato sul codice di produzione, sono 2,3 k token alla prima iterazione e 112 k alla novantesima, perché ogni risultato di strumento resta nella conversazione che il modello rilegge. Due istogrammi registrano ora la dimensione consegnata e la sua quota della finestra di contesto del modello, alimentati dallo stesso contatore memoizzato che il riduttore di stato già mantiene, così la misura non costa nulla sul percorso caldo. Nessuna politica di compressione è partita con essi, deliberatamente: un sistema che agisce su una grandezza mai osservata sta ottimizzando una congettura.</p><p>Lo stesso principio ha raggiunto il tasso di successo degli strumenti. Uno strumento fallisce <em>restituendo</em> un errore, mai sollevando un'eccezione, e il contatore guardava solo le eccezioni: il tasso valeva 1,0 per costruzione, e i due allarmi che lo leggono non potevano scattare. Un solo predicato decide ora cos'è un successo, per il registro, le metriche e il ciclo ReAct: il tasso mostrato scende, perché finalmente dice la verità.</p><h2>Segnali che si rispondono</h2><p>Una metrica, un log e una traccia raccontano la stessa richiesta: bisogna però poter passare dall'uno all'altro. In LIA una riga di log apre la traccia della sua richiesta, una traccia apre i suoi log e le sue metriche, e un punto di latenza apre l'esempio preciso che lo ha prodotto. Ogni collegamento è stato misurato in produzione prima di essere riparato. La catena che trasporta questi segnali è a sua volta sorvegliata — un allarme avvisa se dei log si perdono per strada —, e tutte le dashboard seguono una stessa convenzione: una settimana di storico, un menu comune.</p>"
+        "title": "618 metriche Prometheus, 31 dashboard Grafana e tracing Langfuse",
+        "excerpt": "LIA offre osservabilità enterprise con 618 metriche, dashboard Grafana, tracing LLM via Langfuse e alert e-mail con runbook.",
+        "body": "<h2>I tre pilastri dell'osservabilità</h2><p>LIA implementa i tre pilastri dell'osservabilità moderna:</p><ul><li><strong>Metriche</strong> — 618 metriche Prometheus che coprono HTTP, agenti, token, costi, OAuth e prestazioni, etichettate per modello di percorso: mai un nome né una ricerca</li><li><strong>Log</strong> — Logging strutturato JSON tramite structlog, raccolto da Grafana Alloy e centralizzato in Loki: filtraggio dei contenuti personali nei log operativi, con maggiori dettagli possibili in modalità debug</li><li><strong>Trace</strong> — Tracing distribuito tramite OpenTelemetry (Tempo), nominato secondo il modello del percorso e mai secondo l'indirizzo concreto, e tracing LLM tramite Langfuse</li></ul><h2>43 file di metriche specializzati</h2><p>Ogni dominio possiede il proprio file di metriche dichiarativo. I 43 moduli coprono, tra gli altri: HTTP, agents (SSE/router/LLM/HITL/planner), database, LangGraph, Langfuse, voice, modalità live, radio, RAG spaces, OAuth, MCP, channels, errori, sub-agenti, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, metriche di salute, diari, telefonia, riunioni, workboard, registri degli effetti e limiti di utilizzo. Ogni file definisce Counter, Histogram e Gauge Prometheus adattati al dominio.</p><h2>Definizione delle metriche Prometheus</h2><p>Ogni dominio definisce le proprie metriche in modo dichiarativo:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>31 dashboard Grafana</h2><p>LIA fornisce 31 dashboard Grafana numerati da 01 a 31: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, briefing, product-value, meetings, effect-ledger, workboard, live e radio. Ogni dashboard offre viste filtrabili per utente, periodo e ambiente. Il 26° è un cockpit prodotto: risultati validati (👍 esplicito o un'azione rimasta senza correzioni), funnel di attivazione, retention e costo per risultato utile — il conteggio esatto vive in PostgreSQL e Grafana lo legge tramite un ruolo in sola lettura ristretto alle viste aggregate.</p><h2>KPI target estratti dal codice</h2><p>LIA monitora indicatori precisi definiti nel codice sorgente: TTFT (Time To First Token) dello streaming, latenza del router tra 0.1 e 2 secondi, durata di esecuzione degli strumenti agenti tra 0.1 e 10 secondi, confidenza router p50 &gt; 0.8, costo LLM per richiesta &lt; 0.05€, tasso di errore HTTP 5xx &lt; 1%.</p><h2>Alert e-mail con runbook</h2><p>La supervisione non si ferma alle dashboard: un nucleo di 29 alert vitali — tra cui API, PostgreSQL o Redis non disponibili, disco, memoria dei container, tasso di errori 5xx, latenza di streaming, backup notturno fallito, URL pubblico irraggiungibile, certificato TLS prossimo alla scadenza, rate limiting fuori servizio — è valutato in continuo da Prometheus e notificato via e-mail tramite Alertmanager. Ogni alert referenzia il proprio runbook (procedura di risoluzione passo passo), le soglie sono configurate per ambiente in file .env, e test unitari promtool garantiscono che le soglie mostrate nelle notifiche corrispondano esattamente alle espressioni di attivazione. Una sonda blackbox testa perfino l'intera catena end-to-end, dall'edge Cloudflare al frontend, esattamente come un utente.</p><h2>Langfuse: tracing LLM dedicato</h2><p>L'integrazione Langfuse traccia ogni chiamata LLM — token consumati (input/output/cache), tempo di risposta, modello utilizzato, costo stimato e contesto della richiesta —, e sette metriche Prometheus proprie seguono le versioni dei prompt, i punteggi di valutazione, le varianti A/B, la profondità delle tracce e i passaggi di consegne tra agenti. Questo permette di identificare i prompt inefficaci, confrontare i modelli LLM tra loro e ottimizzare il consumo di token nel tempo.</p><h2>DevOps Claude CLI: Diagnostica in linguaggio naturale (v1.13.0)</h2><p>Ultima evoluzione dello stack di osservabilità: gli amministratori possono ora diagnosticare i server direttamente dalla conversazione LIA. Claude Code CLI — installato nel container API Docker — ispeziona in modo autonomo i log, verifica la salute dei container e analizza l'utilizzo delle risorse. Sessioni persistenti, permessi configurabili per ambiente e streaming in tempo reale dei passaggi di indagine via SSE.</p><h2>E dalla v1.34: l'assistente legge la propria telemetria</h2><p>Tutto quanto sopra esisteva per gli umani; l'assistente stessa non ne leggeva nulla. L'ADR-247 ha chiuso quel cerchio: un autocontrollo periodico trasforma i segnali aurei e sonde dirette in istantanee di salute con valori esatti; avvisi e verdetti critici convergono in un incidente per guasto, diagnosticato da un LLM con budget limitato e fondato sui runbook operativi; gli amministratori hanno un pannello Salute della piattaforma, notifiche proattive e strumenti di chat in sola lettura. E un guasto noto ora plasma le risposte — le capacità degradate vengono aggirate in pianificazione, e i passaggi falliti spiegati da codici di errore tipizzati, mai da log grezzi. Da allora la diagnosi non è più scritta da un numero solo: una ricetta dichiarata per tipo di incidente dice quali ripartizioni e quali eventi di log leggere, il fascicolo viene raccolto al momento della diagnosi con i dati personali rimossi, una fonte irraggiungibile è dichiarata non disponibile invece di essere letta come silenzio, e ciò che il modello ha letto è mostrato sotto il suo verdetto.</p><h2>Contare gli esiti, non i tentativi</h2><p>Un contatore è stato ripensato nella v1.38.3. Contare le chiamate che raggiungono un fornitore è la verità sul fornitore — e il denominatore sbagliato non appena quelle chiamate vengono ritentate, perché un errore recuperato gonfia il tasso di errore benché nulla sia andato perso. Un secondo contatore registra ora una riga per operazione logica, con i ritentativi ripiegati, e risponde all'unica domanda su cui un operatore agisce: il chiamante ha ottenuto il suo risultato? Un terzo dice cosa ha fatto la regolazione di frequenza di ogni tentativo, perché «il budget è troppo piccolo» e «Redis è caduto» sono indistinguibili in un booleano e richiedono azioni opposte.</p><p>La lezione più recente riguarda la scelta di ciò che si misura. Il ciclo autonomo contava le proprie iterazioni e la propria durata — e nulla per ciò che cresce davvero: il prompt consegnato al modello a ogni passo. Misurato sul codice di produzione, sono 2,3 k token alla prima iterazione e 112 k alla novantesima, perché ogni risultato di strumento resta nella conversazione che il modello rilegge. Due istogrammi registrano ora la dimensione consegnata e la sua quota della finestra di contesto del modello, alimentati dallo stesso contatore memoizzato che il riduttore di stato già mantiene, così la misura non costa nulla sul percorso caldo. Nessuna politica di compressione è partita con essi, deliberatamente: un sistema che agisce su una grandezza mai osservata sta ottimizzando una congettura.</p><p>Lo stesso principio ha raggiunto il tasso di successo degli strumenti. Uno strumento fallisce <em>restituendo</em> un errore, mai sollevando un'eccezione, e il contatore guardava solo le eccezioni: il tasso valeva 1,0 per costruzione, e i due allarmi che lo leggono non potevano scattare. Un solo predicato decide ora cos'è un successo, per il registro, le metriche e il ciclo ReAct: il tasso mostrato scende, perché finalmente dice la verità.</p><h2>Segnali che si rispondono</h2><p>Una metrica, un log e una traccia raccontano la stessa richiesta: bisogna però poter passare dall'uno all'altro. In LIA una riga di log apre la traccia della sua richiesta, una traccia apre i suoi log e le sue metriche, e un punto di latenza apre l'esempio preciso che lo ha prodotto. Ogni collegamento è stato misurato in produzione prima di essere riparato. La catena che trasporta questi segnali è a sua volta sorvegliata — un allarme avvisa se dei log si perdono per strada —, e tutte le dashboard seguono una stessa convenzione: una settimana di storico, un menu comune.</p>"
       },
       "prompt-engineering": {
         "title": "Sistema di prompt versionati: 155 prompt gestiti come codice",
@@ -13920,13 +14849,15 @@
       "radio": "Radio personale",
       "radio_description": "Una radio personale prodotta su richiesta nella lingua della persona, dalle notizie che l'istanza raccoglie e dalla sua giornata. Disattivarla chiude le rotte della radio e sospende la redazione; le impostazioni e i siti aggiunti restano.",
       "skill_library": "Libreria di skill",
-      "skill_library_description": "Cercare in un portale di skill e installare una skill dal suo repository GitHub, poi aggiornarla. Disattivandola la libreria si chiude; le skill già installate restano e continuano a funzionare."
+      "skill_library_description": "Cercare in un portale di skill e installare una skill dal suo repository GitHub, poi aggiornarla. Disattivandola la libreria si chiude; le skill già installate restano e continuano a funzionare.",
+      "application_tools": "Impostazioni e gestione di LIA",
+      "application_tools_description": "Consentire a LIA di consultare le informazioni dell’applicazione e proporre modifiche con conferma. Le funzioni amministrative restano riservate agli amministratori."
     }
   },
   "showroom": {
-    "title": "Missioni guidate",
-    "request": "Organizza la mia mattinata di domani. Voglio correre, rispondere ad Atlas e inviare il preventivo. Prepara le modifiche, ma non toccare nulla senza la mia approvazione.",
-    "start": "Avvia la missione",
+    "title": "Scopri cosa può fare LIA per te",
+    "request": "Prepara il mio incontro di domani alle 9 con Claire su Atlas. Ritrova ciò che le ho promesso, verifica le cifre e prepara una risposta. Proponimi anche un momento per rileggere il dossier.",
+    "start": "Esplora questa situazione",
     "continue": "Continua",
     "restart": "Ripeti la missione",
     "honesty": {
@@ -13938,10 +14869,10 @@
     "phases": {
       "ready": "Pronto per iniziare",
       "reading_sources": "Lettura delle fonti",
-      "planning": "Rilevamento dei conflitti e pianificazione",
+      "planning": "Cosa cambia grazie al contesto",
       "email_decision": "La tua decisione: la risposta via e-mail",
       "calendar_decision": "La tua decisione: la modifica del calendario",
-      "receipt": "Ricevuta della missione"
+      "receipt": "Il tuo risultato e le tue decisioni"
     },
     "sources": {
       "title": "Fonti consultate",
@@ -13965,9 +14896,9 @@
       "quote_deadline": "La scadenza del preventivo è stretta"
     },
     "proposals": {
-      "email_subject": "Re: punto Atlas — 09:30 va bene",
-      "email_body": "Ciao Emma, le 09:30 mi vanno benissimo. A dopo!",
-      "calendar_title": "Spostare la corsa fuori dalla pioggia",
+      "email_subject": "Atlas — confronto e prezzo da confermare",
+      "email_body": "Ciao Claire, per il nostro incontro di domani alle 9 ho preparato il confronto promesso. La tua nuova proposta indica 270 €/mese, contro i 240 €/mese della scheda salvata. Puoi confermare il prezzo e cosa è cambiato? Grazie!",
+      "calendar_title": "Riservare il mio tempo di preparazione",
       "calendar_reason": "Pioggia fino alle 09:00 — fascia asciutta proposta",
       "quote_title": "Blocco protetto: completare il preventivo Atlas",
       "from": "Da",
@@ -13993,20 +14924,20 @@
     "receipt": {
       "title": "Ricevuta di simulazione",
       "reads_label": "Letto",
-      "reads_value": "4 fonti fittizie (posta, calendario, attività, meteo)",
+      "reads_value": "Relazioni, documento Atlas, ultima email e calendario — dati fittizi.",
       "proposed_label": "Preparato",
-      "proposed_value": "1 bozza di e-mail, 1 modifica del calendario, 1 blocco di lavoro protetto",
+      "proposed_value": "Un dossier, una risposta a Claire e una fascia oraria nel tuo calendario.",
       "email_label": "Decisione e-mail",
       "calendar_label": "Decisione calendario",
       "refusal_label": "Rifiuto",
       "external_label": "Azioni esterne",
-      "email_applied": "Risposta e-mail approvata — applicata allo spazio fittizio",
-      "email_edited": "Risposta e-mail modificata e poi applicata allo spazio fittizio",
-      "email_refused": "Risposta e-mail rifiutata — non è stato applicato nulla",
-      "calendar_applied": "Modifica del calendario approvata — applicata allo spazio fittizio",
-      "calendar_refused": "Modifica del calendario rifiutata — non è stato applicato nulla",
+      "email_applied": "Invio della risposta approvato nella simulazione; nessuna email reale inviata.",
+      "email_edited": "Istruzione di modifica illustrata; nessuna nuova bozza creata e nessun messaggio inviato.",
+      "email_refused": "Invio rifiutato; la preparazione resta consultabile.",
+      "calendar_applied": "Fascia oraria personale approvata nella simulazione; nessun calendario reale modificato.",
+      "calendar_refused": "Fascia oraria rifiutata; il tuo calendario resta invariato.",
       "refusal_respected": "Il tuo rifiuto è stato rispettato: un rifiuto è un risultato, non un errore.",
-      "no_external": "Nessuna azione esterna è avvenuta — nulla ha lasciato questa pagina."
+      "no_external": "Questa simulazione non ha effettuato chiamate reali, inviato e-mail o modificato calendari."
     },
     "proof": {
       "open": "Vedi le prove",
@@ -14034,10 +14965,10 @@
       "release": "Vedi le release",
       "install": "Guida all'installazione"
     },
-    "change_mission": "Tutte le missioni",
-    "proactive_intro": "LIA prende l'iniziativa — nessuna richiesta è stata digitata.",
+    "change_mission": "Scegli un’altra situazione",
+    "proactive_intro": "Un segnale utile, su iniziativa di LIA",
     "picker": {
-      "subtitle": "Sei missioni sintetiche, una per meccanismo differenziante. Tutto avviene localmente in questa pagina — scegline una."
+      "subtitle": "Sei situazioni dello stesso quotidiano: conversazioni, impegni e preferenze si collegano. Scegli una missione e scopri il risultato, con un’approvazione quando l’azione la richiede."
     },
     "actions": {
       "title": "E adesso?"
@@ -14048,9 +14979,9 @@
     },
     "m": {
       "overloaded_morning": {
-        "title": "Una mattinata sovraccarica",
-        "tagline": "Quattro fonti, due conflitti, due decisioni — nulla si applica senza di te.",
-        "mechanism": "Orchestrazione + approvazioni",
+        "title": "Arriva preparato al tuo incontro",
+        "tagline": "Il contesto di Claire, il documento giusto e prezzi discordanti: un dossier utile, poi le tue decisioni.",
+        "mechanism": "Relazioni · fonti · approvazioni",
         "response": {
           "intro": "La tua mattinata sembrava un piccolo campo di battaglia: una corsa sotto la pioggia, Emma in attesa di risposta e un preventivo che non si sarebbe scritto da solo. Ecco a che punto siamo:",
           "chip_email_confirm": "Risposta inviata a Emma",
@@ -14068,13 +14999,13 @@
           "callout_body": "Il blocco protetto riserva 45 minuti al preventivo Atlas prima della scadenza.",
           "closing": "Ti resta solo la corsa — all'asciutto, se hai seguito il mio consiglio."
         },
-        "note": "Quello che hai appena visto: routing, pianificazione sotto vincoli e due approvazioni — gli stessi componenti HITL del prodotto. Nulla si applica senza una decisione esplicita."
+        "note": "Relazioni riunisce elementi accessibili dei tuoi scambi e impegni. La chat può collegarli a un documento e a un’email; le fonti disponibili e il risultato restano da verificare. Queste due azioni illustrano i rispettivi percorsi di approvazione nativi."
       },
       "proactive_alert": {
-        "title": "LIA ti anticipa",
-        "tagline": "Nessuno ha chiesto nulla: la scansione mattutina rileva due rischi e propone soluzioni.",
-        "mechanism": "Proattività",
-        "request": "Scansione mattutina, 07:05 — due punti richiedono la tua attenzione prima delle 09:00.",
+        "title": "Riprendi il filo al momento giusto",
+        "tagline": "Arriva la risposta di Marc: LIA collega la nuova richiesta al tuo impegno e prepara il seguito.",
+        "mechanism": "Routine condizionale · contesto",
+        "request": "La routine che hai attivato ha rilevato una risposta di Marc su Atlas. Il suo comitato è anticipato alle 14: una nuova scadenza merita la tua attenzione.",
         "facts": {
           "rain_evening": "Attese piogge intense",
           "run_evening": "Corsa prevista alle",
@@ -14100,16 +15031,16 @@
           "reply_marc": {
             "phase": "La tua decisione: la risposta a Marc",
             "receipt_label": "Risposta a Marc",
-            "subject": "Re: Opzione B — sì",
-            "body": "Ciao Marc, l'opzione B va bene per me. Avrai i dettagli prima del tuo comitato delle 10:00.",
-            "applied": "Risposta a Marc approvata — applicata allo spazio sintetico",
-            "edited": "Risposta a Marc modificata, poi applicata allo spazio sintetico",
-            "refused": "Risposta a Marc rifiutata — nulla è stato applicato"
+            "subject": "Atlas — il tuo comitato delle 14",
+            "body": "Ciao Marc, ho visto che il comitato è anticipato alle 14. Il mio impegno iniziale era per le 15; verifico cosa posso anticipare e ti confermo presto quando sarà disponibile la sintesi.",
+            "applied": "Risposta approvata nella simulazione; nessuna email reale inviata.",
+            "edited": "Istruzione di modifica illustrata; nessuna nuova bozza creata e nessun messaggio inviato.",
+            "refused": "Risposta rifiutata; il segnale resta consultabile."
           }
         },
         "receipt": {
-          "reads": "3 fonti sintetiche (meteo, calendario, posta in arrivo)",
-          "proposed": "1 spostamento di calendario, 1 risposta e-mail — entrambi su iniziativa di LIA"
+          "reads": "Routine, ultimo messaggio di Marc e impegno nella relazione — dati fittizi.",
+          "proposed": "Un segnale motivato e una risposta da rileggere; nessuna modifica al calendario."
         },
         "response": {
           "intro": "Mentre dormivi ancora tranquillo, ho dato un'occhiata alla tua giornata: il meteo ha deciso di sabotare la tua corsa delle 18:00, e Marc aspetta ancora la sua risposta — da martedì, ma chi tiene il conto?",
@@ -14124,13 +15055,13 @@
           "kv_quiet_value": "22:00–07:00, mai interrotte",
           "closing": "Torno in ascolto — ci sentiamo domani alle 07:05, promesso, non prima."
         },
-        "note": "Qui nessuno ha chiesto nulla: la scansione pianificata ha rilevato i due rischi da sola. Frequenza e ore di silenzio si regolano nelle impostazioni — LIA non agisce mai al di fuori."
+        "note": "Le routine condizionali verificano le fonti supportate con la frequenza dell’istanza. Devono essere attivate; accessi, finestre, limiti e fonti influiscono su ciò che può essere rilevato. La risposta email resta soggetta alla propria politica di approvazione."
       },
       "memory_dinner": {
-        "title": "Si ricorda per te",
-        "tagline": "Una richiesta breve, tre preferenze ricordate applicate — nulla viene chiesto due volte.",
-        "mechanism": "Memoria + abitudini",
-        "request": "Prenota una cena con Sarah venerdì.",
+        "title": "Trova un momento con le persone a te vicine",
+        "tagline": "Sarah condivide le sue disponibilità: LIA confronta le vostre fasce orarie e tiene conto dell’ultimo scambio.",
+        "mechanism": "Utenti collegati e autorizzati · memoria",
+        "request": "Proponi una cena con Sarah domani sera. Consulta le disponibilità che condivide con me, considera le sue preferenze e prepara l’invito.",
         "facts": {
           "sarah_veg": "Sarah è vegetariana — memorizzato da marzo",
           "last_dinner": "Ultima cena insieme: Verdi — le era piaciuto moltissimo",
@@ -14147,26 +15078,26 @@
           "invite_sarah": {
             "phase": "La tua decisione: il messaggio a Sarah",
             "receipt_label": "Messaggio a Sarah",
-            "subject": "Cena venerdì da Verdi?",
-            "body": "Ciao Sarah! Verdi, venerdì 20:00 — il loro menù vegetariano è ottimo. Prenoto?",
-            "applied": "Messaggio a Sarah approvato — applicato allo spazio sintetico",
-            "edited": "Messaggio a Sarah modificato, poi applicato allo spazio sintetico",
-            "refused": "Messaggio a Sarah rifiutato — nulla è stato applicato"
+            "subject": "Les Jardins domani alle 19:30?",
+            "body": "Ciao Sarah! Domani alle 19:30 sembra andare bene a tutti e due. Avevi proposto Les Jardins per cambiare; ti va ancora? Verificherò le opzioni vegetariane e la disponibilità prima di prenotare.",
+            "applied": "Invito approvato nella simulazione; nessun messaggio reale inviato.",
+            "edited": "Istruzione di modifica illustrata; nessun invito inviato.",
+            "refused": "Invito rifiutato; nessun messaggio inviato."
           },
           "create_event": {
             "phase": "La tua decisione: l'evento in calendario",
             "receipt_label": "Calendario",
-            "tool": "Aggiungere la cena a venerdì",
+            "tool": "Annotare la proposta nel mio calendario",
             "what": "Evento",
-            "what_value": "Cena con Sarah — Verdi",
-            "when": "Venerdì alle",
-            "applied": "Cena aggiunta venerdì 20:00 — applicato al calendario sintetico",
-            "refused": "Nessun evento creato — nulla è stato modificato"
+            "what_value": "Proposta di cena con Sarah — da confermare",
+            "when": "Domani alle",
+            "applied": "Proposta annotata nel tuo calendario fittizio; nessun accesso in scrittura al calendario di Sarah.",
+            "refused": "Nessun evento creato; il tuo calendario resta invariato."
           }
         },
         "receipt": {
-          "reads": "4 fonti sintetiche (memoria, abitudini, calendario, contatti)",
-          "proposed": "1 bozza di messaggio, 1 evento in calendario — costruiti su preferenze ricordate"
+          "reads": "Memoria, disponibilità condivise, il tuo calendario e ultimo scambio — dati fittizi.",
+          "proposed": "Un invito e un evento proposto nel tuo calendario; nessuna prenotazione del ristorante."
         },
         "response": {
           "intro": "Una cena con Sarah venerdì? Facile. Verdi, 20:00 — è vegetariana, non l'avevo dimenticato, e il tuo venerdì sera era libero. Era tutto pronto; mancava solo il tuo via libera.",
@@ -14183,13 +15114,13 @@
           "chip_event_cancel": "Calendario intatto — la tua scelta",
           "closing": "La parte più difficile deve ancora arrivare: resistere fino a venerdì."
         },
-        "note": "Tutto è stato organizzato a partire dalle preferenze ricordate, senza chiedere di nuovo. Ciò che LIA ricorda è visibile, modificabile ed eliminabile dalle impostazioni."
+        "note": "Gli utenti collegati usano la stessa istanza e accettano la connessione. Ognuno sceglie i campi condivisi e può revocare l’accesso. Questa lettura riguarda le prossime 48 ore del calendario predefinito; gli eventi proposti appartengono al titolare."
       },
       "phone_booking": {
-        "title": "La telefonata la fa lei",
-        "tagline": "Un'azione nel mondo reale: preparata, spiegata — e mai composta senza il tuo via libera.",
-        "mechanism": "Chiamate in uscita",
-        "request": "Prenotaci un tavolo da Chez Léon sabato sera — chiamali tu, io non trovo mai il tempo.",
+        "title": "Delega una chiamata, mantieni il controllo dell’incarico",
+        "tagline": "Destinatario, numero e obiettivo sono visibili: li rileggi prima di autorizzare la chiamata.",
+        "mechanism": "Chiamata in uscita · bozza nativa",
+        "request": "Chiama Les Jardins per chiedere un tavolo per due giovedì alle 20, in terrazza se possibile. Non confermare un altro orario senza consultarmi.",
         "facts": {
           "birthday": "Organizzare la cena di compleanno — sabato",
           "leon": "Chez Léon — numero di telefono registrato",
@@ -14209,13 +15140,13 @@
             "callee_value": "Chez Léon",
             "goal": "Obiettivo",
             "goal_value": "Tavolo per due — sabato 20:00",
-            "applied": "Chiamata autorizzata ed effettuata — sintesi salvata nel diario sintetico",
-            "refused": "Nessuna chiamata effettuata — il tuo rifiuto è una decisione, non un errore"
+            "applied": "Chiamata approvata nella simulazione; il riepilogo seguente è fittizio.",
+            "refused": "Chiamata rifiutata; nessun numero composto."
           }
         },
         "receipt": {
-          "reads": "3 fonti sintetiche (attività, contatti, calendario)",
-          "proposed": "1 chiamata in uscita — vincolata alla tua approvazione esplicita"
+          "reads": "Contatto, il tuo calendario e le tue istruzioni — dati fittizi.",
+          "proposed": "Un incarico per la chiamata, da rileggere e modificare prima della conferma."
         },
         "response": {
           "intro_confirm": "Fatto — ho chiamato Chez Léon mentre ti occupavi di cose più importanti. Un minuto e quaranta di conversazione, un tavolo per due sabato alle 20:00, e perfino un accenno al compleanno.",
@@ -14234,13 +15165,13 @@
           "transcript_3": "LIA: Perfetto, grazie — a sabato.",
           "closing_confirm": "Ora devi solo arrivare puntuale."
         },
-        "note": "Ogni chiamata in uscita mostra prima obiettivo e copione — niente approvazione, niente chiamata."
+        "note": "La telefonia in uscita richiede la configurazione ElevenLabs dell’istanza. Incarico e approvazioni definiscono la richiesta; un limite sulle spese resta un’istruzione all’agente, non una garanzia di comportamento o di prenotazione."
       },
       "daily_briefing": {
-        "title": "La tua mattinata, già digerita",
-        "tagline": "Posta, calendario, meteo e attività in un'unica risposta ricca e leggibile.",
-        "mechanism": "Risposte ricche",
-        "request": "Briefing quotidiano, 07:00 — la tua giornata è pronta da leggere.",
+        "title": "Ascolta una Radio che ti riguarda",
+        "tagline": "La tua giornata, i tuoi impegni e i temi scelti compongono un programma personale su richiesta.",
+        "mechanism": "Radio personale · fonti scelte",
+        "request": "Prepara la mia Radio: i punti utili della giornata, i miei impegni con Claire e Marc, poi le notizie sui temi che seguo.",
         "facts": {
           "new_mails": "5 nuove e-mail — 1 ti aspetta: Claire, sul contratto",
           "meetings": "3 riunioni — la prima alle",
@@ -14264,8 +15195,8 @@
           }
         },
         "receipt": {
-          "reads": "4 fonti sintetiche (posta, calendario, attività, meteo)",
-          "proposed": "1 slot di concentrazione — il briefing in sé non modifica nulla"
+          "reads": "Giornata, impegni e selezione Radio — dati fittizi.",
+          "proposed": "Un’anteprima del programma personale; qui non vengono generati audio né contenuti di fornitori."
         },
         "response": {
           "intro": "Buongiorno! Mentre il tuo caffè si raffredda, ecco la tua giornata: cinque e-mail di cui una sola ti serve davvero, tre riunioni di cui due si pestano i piedi, e un grande cielo azzurro… da ammirare dalla sala riunioni.",
@@ -14282,13 +15213,13 @@
           "chip_focus_cancel": "Nessuno slot riservato — la tua scelta",
           "closing": "Prima Claire — il resto può aspettare, ci è abituato."
         },
-        "note": "Questo briefing è il rendering HTML ricco nativo di LIA: la stessa formattazione delle risposte reali — composto qui localmente, senza chiamata al modello."
+        "note": "La Radio viene preparata su richiesta durante una sessione attiva, con fonti supportate e una voce configurata. Questa anteprima resta scritta: non riproduce audio e non dimostra né notizie in tempo reale né qualità vocale."
       },
       "config_tour": {
-        "title": "Su misura per te, in pochi clic",
-        "tagline": "Tono, proattività, lingue, connessioni — tutto dall'interfaccia, niente di tecnico.",
-        "mechanism": "Impostazioni integrate",
-        "request": "Rendi le tue risposte più corte e contattami solo di mattina.",
+        "title": "Ritrova ciò che è stato deciso",
+        "tagline": "Una riunione registrata diventa un verbale da correggere e un documento da condividere.",
+        "mechanism": "Riunioni · verbale · documento",
+        "request": "Prepara un verbale dell’incontro Atlas con Claire. Separa le decisioni, le azioni discusse e ciò che resta da confermare; voglio poterlo correggere ed esportare in PDF.",
         "sources": {
           "personality": "Impostazioni — Personalità",
           "proactivity": "Impostazioni — Proattività",
@@ -14328,8 +15259,8 @@
           }
         },
         "receipt": {
-          "reads": "4 aree di impostazioni (personalità, proattività, lingue, connessioni)",
-          "proposed": "2 interruttori a un clic — niente di tecnico"
+          "reads": "Trascrizione, modello e partecipanti — dati fittizi.",
+          "proposed": "Un’anteprima del verbale da rileggere; qui non vengono eseguite registrazioni, esportazioni o indicizzazioni."
         },
         "response": {
           "intro": "La tua richiesta stava in una frase; la risposta sta in due interruttori. Ecco dove vivono:",
@@ -14341,7 +15272,7 @@
           "chip_mornings_cancel": "Programmazione della proattività invariata — la tua scelta",
           "closing": "Due clic per riprogrammarmi… non so se sentirmi colpita o offesa."
         },
-        "note": "Nessun file di configurazione è stato toccato: tutto ciò che hai visto si regola dall'interfaccia — e si annulla altrettanto facilmente."
+        "note": "Registrazione e trascrizione richiedono autorizzazioni e motori configurati. Il verbale può contenere errori. Il recupero successivo nella chat dipende dall’indicizzazione attivata e completata; questa anteprima non la esegue."
       }
     },
     "back_home": "Torna alla home",
@@ -14399,6 +15330,132 @@
         "disabled": "Disattivato",
         "unavailable": "Il dimostratore non ha risposto: ciò che offre non può essere elencato al momento."
       }
+    },
+    "personal": {
+      "cancel": "Rifiuto rispettato — nessuna azione",
+      "config_tour": {
+        "closing": "Nell’applicazione puoi correggere il verbale, cambiarne il modello ed esportarlo in PDF per condividerlo.",
+        "fact_1": "La trascrizione indica 270 €/mese; un passaggio sullo sconto è incerto.",
+        "fact_2": "Sintesi, decisioni, azioni assegnate e punti aperti, a partire dalla trascrizione.",
+        "fact_3": "Tu e Claire siete identificati in questo estratto; i responsabili restano quelli esplicitamente indicati.",
+        "finding_1": "Un passaggio incerto resta segnalato: il verbale va riletto e corretto.",
+        "finding_2": "Un’azione citata nel verbale non equivale automaticamente a un’attività creata o a un’email inviata.",
+        "intro": "Ecco il verbale da rileggere. Le decisioni esplicite sono separate dalle azioni citate e dalle incertezze.",
+        "label_1": "Decisione rilevata",
+        "label_2": "Azione citata",
+        "label_3": "Da confermare",
+        "source_1": "Riunione già trascritta",
+        "source_2": "Modello di verbale",
+        "source_3": "Partecipanti identificati",
+        "value_1": "Proseguire il confronto sulla base di 270 €/mese; l’approvazione finale resta da dare.",
+        "value_2": "Claire deve confermare le condizioni dello sconto; non viene creata automaticamente alcuna attività.",
+        "value_3": "Il passaggio sullo sconto è incerto: verifica la trascrizione e correggi il documento."
+      },
+      "confirm": "Approvazione illustrata — nessuna azione reale",
+      "daily_briefing": {
+        "closing": "Nella Radio reale scegli fonti, voci e budget, poi ascolti il programma con la sua trascrizione.",
+        "fact_1": "Incontro con Claire domani alle 9; il confronto Atlas resta da rileggere.",
+        "fact_2": "Marc anticipa il comitato alle 14: la sintesi promessa per le 15 merita attenzione.",
+        "fact_3": "Mobilità e cultura, dalle fonti selezionate per questa sessione.",
+        "finding_1": "Il programma collega le tue informazioni personali e i tuoi temi; non dipende dalle sezioni visibili del briefing.",
+        "finding_2": "Ascoltare un programma non invia email e non modifica il calendario.",
+        "intro": "Ecco l’anteprima del tuo programma. Collega ciò che ti attende ai temi che hai scelto.",
+        "label_1": "Prima, la tua giornata",
+        "label_2": "Poi, i tuoi impegni",
+        "label_3": "Infine, i tuoi temi",
+        "source_1": "La tua giornata",
+        "source_2": "I tuoi impegni",
+        "source_3": "I tuoi temi e le tue fonti Radio",
+        "value_1": "Claire domani alle 9: rileggere il confronto e confermare il prezzo.",
+        "value_2": "Marc: ritrovare la nuova scadenza e decidere la risposta.",
+        "value_3": "Una selezione su mobilità e cultura, con fonti consultabili."
+      },
+      "edit": "Modifica richiesta — nessun invio",
+      "edit_note": "Nell’applicazione, questa istruzione prepara una nuova bozza da rileggere. Qui illustra il percorso: non viene chiamato alcun modello e la bozza iniziale non viene inviata.",
+      "memory_dinner": {
+        "closing": "LIA aiuta a coordinare famiglia, amici o colleghi; la connessione accettata e i permessi scelti restano la base della condivisione.",
+        "fact_1": "Sarah è vegetariana; la tua vecchia nota consiglia Verdi.",
+        "fact_2": "Stessa istanza LIA; lettura autorizzata delle sue disponibilità nelle prossime 48 ore, libera domani dalle 19.",
+        "fact_3": "Sei libero domani dalle 19:30.",
+        "fact_4": "Sarah ha proposto Les Jardins per cambiare; il suo indirizzo di contatto è disponibile.",
+        "finding_1": "L’ultimo scambio propone Les Jardins: la vecchia preferenza per Verdi non deve decidere da sola.",
+        "finding_2": "Domani alle 19:30 è compatibile con le disponibilità condivise; questo non prenota il ristorante né blocca il calendario di Sarah.",
+        "intro": "Domani alle 19:30 è una fascia compatibile. Ho considerato la proposta recente di Sarah invece della vecchia nota su Verdi.",
+        "label_1": "Fascia oraria",
+        "label_2": "Preferenza da rispettare",
+        "label_3": "Ambito della condivisione",
+        "source_1": "Memoria modificabile",
+        "source_2": "Sarah · condivisione accettata",
+        "source_3": "Il tuo calendario",
+        "source_4": "Ultimo scambio con Sarah",
+        "value_1": "Domani alle 19:30, secondo le disponibilità consultate.",
+        "value_2": "Un pasto vegetariano; le opzioni del menu e il tavolo restano da verificare.",
+        "value_3": "Disponibilità autorizzate, senza leggere tutti i dettagli né modificare il calendario di Sarah."
+      },
+      "overloaded_morning": {
+        "closing": "Ritrovi il filo dello scambio e le domande da porre, senza confondere la preparazione con un’azione eseguita.",
+        "fact_1": "Ultimo scambio: hai promesso un confronto delle offerte prima dell’incontro.",
+        "fact_2": "La scheda prodotto salvata indica 240 € al mese.",
+        "fact_3": "La nuova proposta indica 270 € al mese, senza spiegare la differenza.",
+        "fact_4": "Incontro Atlas domani alle 9; sei libero dalle 8:30 alle 8:50.",
+        "finding_1": "I due prezzi non coincidono: chiedere conferma, senza scegliere una cifra a caso.",
+        "finding_2": "Il confronto promesso dà uno scopo concreto al dossier e alla risposta.",
+        "intro": "Ecco il tuo dossier per Claire. Il confronto è pronto da rileggere; il prezzo resta da confermare.",
+        "label_1": "Da riprendere",
+        "label_2": "Da verificare",
+        "label_3": "Incontro confermato",
+        "source_1": "Relazioni · Claire",
+        "source_2": "Spazio di conoscenza · Atlas",
+        "source_3": "Ultima email di Claire",
+        "source_4": "Il tuo calendario",
+        "value_1": "Il confronto promesso a Claire nel vostro ultimo scambio.",
+        "value_2": "240 € nella scheda, 270 € nell’ultima email: la fonte più recente non spiega la differenza.",
+        "value_3": "Domani alle 9. La fascia 8:30–8:50 per la preparazione è una proposta distinta, che dipende dalla tua decisione."
+      },
+      "phone_booking": {
+        "callee": "Les Jardins (Demo)",
+        "closing": "Nell’applicazione, il risultato torna nella conversazione per permetterti di verificare ciò che è stato ottenuto.",
+        "edit_outcome": "Modifica richiesta; in questa dimostrazione non viene effettuata alcuna chiamata né generata una nuova bozza.",
+        "fact_1": "Les Jardins (Demo) · +1 202 555 0100 — destinatario completamente fittizio.",
+        "fact_2": "Giovedì sei libero dopo le 19; questo non dimostra che un tavolo sia disponibile.",
+        "fact_3": "Due persone, giovedì alle 20, preferibilmente in terrazza; un altro orario o eventuali costi richiedono la tua decisione.",
+        "finding_1": "La tua disponibilità e quella del ristorante sono due fatti distinti: la chiamata deve porre la domanda.",
+        "finding_2": "L’incarico precisa obiettivo e limiti; nessuna chiamata prima della conferma.",
+        "goal": "Chiedere un tavolo per due giovedì alle 20, in terrazza se disponibile. Non accettare un altro orario senza consultarmi.",
+        "intro": "Esempio di riepilogo dopo una chiamata autorizzata. Questo risultato è fittizio: non è stato chiamato alcun ristorante.",
+        "label_1": "Richiesta",
+        "label_2": "Risposta illustrata",
+        "label_3": "Risultato illustrato",
+        "source_1": "Contatto del ristorante",
+        "source_2": "Il tuo calendario",
+        "source_3": "Il tuo incarico per la chiamata",
+        "value_1": "Tavolo per due giovedì alle 20; terrazza se disponibile.",
+        "value_2": "Il ristorante propone un tavolo all’interno alle 20; la terrazza non è disponibile.",
+        "value_3": "Tavolo all’interno accettato all’orario richiesto; in questo esempio non sono stati accettati altri orari né spese.",
+        "preview_html": "<div class=\"lia-card lia-draft\"><div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--indigo\"><span style=\"font-size:var(--lia-text-lg)\">📞</span></div><div class=\"lia-card-top__info\"><div class=\"lia-card-top__title\">Les Jardins (Demo)</div></div></div><div class=\"lia-d-row\"><span class=\"material-symbols-outlined\">phone</span><span><strong>Interlocutore</strong>: Les Jardins (Demo)</span></div><div class=\"lia-d-row\"><span class=\"material-symbols-outlined\">phone</span><span><strong>Telefono</strong>: +1 202 555 0100</span></div><div class=\"lia-d-row\"><span class=\"material-symbols-outlined\">info</span><span><strong>Obiettivo</strong>: Chiedere un tavolo per due giovedì alle 20, all’aperto se disponibile. Non accettare un altro orario senza consultarmi.</span></div></div>"
+      },
+      "proactive_alert": {
+        "closing": "Una nuova email diventa un segnale collegato al tuo quotidiano, invece di una notifica in più.",
+        "fact_1": "Monitorare le risposte di Marc su Atlas e avvisarti nella finestra scelta.",
+        "fact_2": "Il comitato è anticipato dalle 16 alle 14; Marc chiede una sintesi prima della riunione.",
+        "fact_3": "Avevi promesso una sintesi per le 15: questo impegno va riesaminato.",
+        "finding_1": "L’impegno iniziale per le 15 non risponde più alla nuova scadenza delle 14.",
+        "finding_2": "LIA propone una risposta, senza promettere al tuo posto che il lavoro sarà finito.",
+        "intro": "Marc ha anticipato il suo comitato. Ecco il conflitto con il tuo impegno e una risposta che lascia la decisione nelle tue mani.",
+        "label_1": "Nuovo fatto",
+        "label_2": "Il tuo impegno",
+        "label_3": "Seguito proposto",
+        "source_1": "La routine che hai attivato",
+        "source_2": "Nuovo messaggio di Marc",
+        "source_3": "Relazioni · impegno aperto",
+        "value_1": "Comitato alle 14, secondo l’ultimo messaggio di Marc.",
+        "value_2": "Sintesi promessa per le 15: avvisare Marc invece di nascondere il conflitto.",
+        "value_3": "Una risposta prudente, da confermare, modificare o rifiutare."
+      },
+      "trace_compare": "Individuare le concordanze e ciò che resta da verificare",
+      "trace_context": "Riunire le fonti autorizzate",
+      "trace_note": "I passaggi e la loro durata illustrano questo scenario; non misurano le prestazioni.",
+      "trace_result": "Preparare un risultato utile"
     }
   },
   "documents": {
@@ -14683,6 +15740,7 @@
       "segments_missing": "Alcuni segmenti non hanno mai raggiunto il server.",
       "start_failed": "Impossibile avviare la registrazione.",
       "stop_failed": "Impossibile finalizzare la registrazione.",
+      "discard_failed": "Impossibile confermare l'eliminazione. La registrazione resta disponibile; verificane lo stato prima di riprovare.",
       "storage_unavailable": "Il server non ha potuto salvare l'audio (spazio pieno o non disponibile). I segmenti sono conservati e reinviati.",
       "synthesis_failed": "Impossibile redigere il verbale.",
       "synthesis_too_long": "La registrazione è troppo lunga per redigere il verbale in una sola volta.",
@@ -14803,6 +15861,7 @@
         "abandoned": "Interrotta",
         "all": "Tutte",
         "claimed": "In corso",
+        "waiting": "Interazione richiesta",
         "failed": "Non riuscita",
         "refused": "Rifiutata",
         "succeeded": "Eseguita"
@@ -14827,6 +15886,8 @@
         "contact_update": "Contatto «{{target}}» modificato",
         "devops_task": "Attività di amministrazione eseguita su «{{target}}»",
         "document_append": "Testo aggiunto al documento «{{target}}»",
+        "application_action": "Confermata un’azione nell’applicazione",
+        "application_action_named": "Azione nell’applicazione: {{target}}",
         "email": "E-mail inviata a {{recipient}}",
         "email_delete": "E-mail eliminata: {{target}}",
         "email_filter": "Filtro di posta creato",
@@ -14945,7 +16006,8 @@
       "weather": "Meteo",
       "web_fetch": "Pagina web",
       "web_search": "Ricerca web",
-      "wikipedia": "Wikipedia"
+      "wikipedia": "Wikipedia",
+      "setting": "Impostazioni dell’applicazione"
     }
   },
   "registers": {
