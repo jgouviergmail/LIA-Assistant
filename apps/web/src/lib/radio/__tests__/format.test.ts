@@ -193,6 +193,15 @@ describe('radioStatusMessage', () => {
     });
   });
 
+  it('keeps announcing it while the first programme is awaited', () => {
+    // The estimate arrives with the start's answer, when the player already waits
+    // for the first programme: shown on `starting` alone, it was never seen.
+    expect(radioStatusMessage(view({ status: 'waiting', startupEstimateS: 9.6 }), 'fr')).toEqual({
+      key: 'radio.banner.starting_eta',
+      values: { seconds: 10 },
+    });
+  });
+
   it('otherwise names the state', () => {
     expect(radioStatusMessage(view({ status: 'waiting' }), 'fr')).toEqual({
       key: 'radio.banner.waiting',

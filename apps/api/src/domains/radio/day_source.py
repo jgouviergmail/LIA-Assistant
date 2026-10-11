@@ -100,9 +100,18 @@ class ListenerDay:
         self._horizon = timedelta(seconds=horizon_s)
         self._record = record
         self._clock = clock
+        # The opening's weather read, while it runs: the day's waits for it.
+        self._weather_read: asyncio.Task[PersonalFacts] | None = None
 
     async def day(self) -> PersonalFacts:
-        """The listener's material, in its four parts (the antenna's ``DaySource``)."""
+        """The listener's material, in its four parts (the antenna's ``DaySource``).
+
+        It starts once the opening's weather read has finished: read side by side,
+        a cold weather section would be fetched — and billed — twice.
+        """
+        if self._weather_read is not None:
+            # Never raises, and leaves the read to its owner (``weather``).
+            await asyncio.wait({self._weather_read})
         started = perf_counter()
         opened: set[str] = set()
         failed: set[str] = set()
@@ -110,6 +119,48 @@ class ListenerDay:
             drafts = await self._briefing(opened, failed)
             for source, more in (await self._own(self._clock(), opened, failed)).items():
                 drafts.setdefault(source, []).extend(more)
+        finally:
+            if opened:
+                self._record(
+                    opened=frozenset(opened),
+                    failed=frozenset(failed),
+                    duration_ms=int((perf_counter() - started) * 1000),
+                )
+        return personal_facts(drafts, disabled=self._silent)
+
+    async def weather(self, *, wait_s: float) -> PersonalFacts:
+        """The weather alone — the opening's material, never waited for long.
+
+        The first programme says the time and the weather; it used to wait for the
+        whole day, every connector and reader included (production 2026-10-08: the
+        first voice 42 to 49 s after the start). The weather section is read alone,
+        through the briefing's reader and cache, and a read slower than ``wait_s``
+        is cancelled: the opening then says the time alone.
+
+        Args:
+            wait_s: The longest the opening waits for it.
+
+        Returns:
+            The weather in the day's part, or nothing (switched off, late, failed).
+        """
+        if PersonalSource.WEATHER in self._silent:
+            return PersonalFacts()
+        read = asyncio.create_task(self._read_weather())
+        self._weather_read = read
+        try:
+            return await asyncio.wait_for(read, wait_s)
+        except TimeoutError:
+            logger.info("radio_opening_weather_late", wait_s=wait_s)
+            return PersonalFacts()
+
+    async def _read_weather(self) -> PersonalFacts:
+        started = perf_counter()
+        opened: set[str] = set()
+        failed: set[str] = set()
+        try:
+            drafts = await self._briefing(
+                opened, failed, sources=frozenset({PersonalSource.WEATHER})
+            )
         finally:
             if opened:
                 self._record(
@@ -136,9 +187,13 @@ class ListenerDay:
         return frozenset(part for edition in editions for part in EDITION_PARTS[edition])
 
     async def _briefing(
-        self, opened: set[str], failed: set[str]
+        self,
+        opened: set[str],
+        failed: set[str],
+        *,
+        sources: frozenset[PersonalSource] = BRIEFING_SOURCES,
     ) -> dict[PersonalSource, list[PersonalDraft]]:
-        sources = BRIEFING_SOURCES - self._silent
+        sources = sources - self._silent
         if not sources:
             return {}
         source_by_section = {BRIEFING_SECTIONS[source]: source for source in sources}
@@ -154,7 +209,9 @@ class ListenerDay:
         except Exception as exc:  # noqa: BLE001 — the readers' sources still speak
             logger.warning("radio_briefing_unavailable", error_type=type(exc).__name__)
             return {}
-        return briefing_drafts(cards)
+        return {
+            source: drafts for source, drafts in briefing_drafts(cards).items() if source in sources
+        }
 
     def _reads(self, now: datetime) -> list[tuple[PersonalSource, SourceReader]]:
         """Every read of this gathering: the day's and the corner's, then the parts due."""

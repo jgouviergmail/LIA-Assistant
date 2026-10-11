@@ -62,6 +62,11 @@ TTS_RATE_LIMIT_BASE_WAIT_SECONDS: Final[float] = 5.0
 #: in twenty minutes, every one refused, each one billed).
 FAILED_FORMAT_REST_SECONDS: Final[int] = 5 * 60
 
+#: The longest the opening waits for the weather, read alone: the first programme is
+#: the one the listener waits for, and a cold weather section answers in about a
+#: second (Google Weather, measured 2026-10-08) — later, the opening says the time.
+OPENING_WEATHER_WAIT_SECONDS: Final[float] = 3.0
+
 #: What a listener's radio may spend is counted over this rolling window (ADR-324
 #: decision 37): the amount is the operator's (``RADIO_BUDGET_24H_EUR``), the day
 #: is the rule's.

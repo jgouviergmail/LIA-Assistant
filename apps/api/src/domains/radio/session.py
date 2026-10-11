@@ -265,6 +265,21 @@ def needs_planning(state: SessionState) -> bool:
     return len(_waiting(state)) < 2
 
 
+def opening_unstarted(state: SessionState) -> bool:
+    """Whether the opening is planned and its production not started yet.
+
+    It starts before anything else is planned: the next slot needs the whole desk
+    — every connector, the news, the meanings — and the first voice used to wait
+    for it (production 2026-10-08: 42 to 49 s from the start).
+    """
+    return any(
+        slot.format is RadioFormat.OPENING
+        and slot.seq not in state.in_production
+        and slot.seq not in state.produced
+        for slot in state.slots
+    )
+
+
 def plan(state: SessionState, decision: GridDecision, air_at: datetime) -> SessionState:
     """The running order with the grid's next slot at its end."""
     return replace(state, slots=append(state.slots, decision, air_at))
@@ -518,6 +533,7 @@ __all__ = [
     "grid_inputs",
     "hearing",
     "needs_planning",
+    "opening_unstarted",
     "plan",
     "production_failed",
     "production_started",

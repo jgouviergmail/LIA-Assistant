@@ -53,10 +53,10 @@ from src.domains.radio.flash import (
     what_resumes,
 )
 from src.domains.radio.formats import Frequency, RadioFormat
-from src.domains.radio.grid import next_segment
+from src.domains.radio.grid import next_segment, opening_due
 from src.domains.radio.pacing import Playhead, StageTimings, production_s, ran_late
 from src.domains.radio.production import NothingAired, ProducedSegment
-from src.domains.radio.programme import Slot, hand_over_to, preceding
+from src.domains.radio.programme import Slot, aired_segments, hand_over_to, preceding
 from src.domains.radio.session import (
     DISCARD_AT_END,
     ActionKind,
@@ -68,6 +68,7 @@ from src.domains.radio.session import (
     ended_for,
     grid_inputs,
     needs_planning,
+    opening_unstarted,
     plan,
     production_failed,
     production_started,
@@ -231,8 +232,14 @@ class _Run:
 
 async def _plan(run: _Run, listening: Listening, ports: LoopPorts, tuning: LoopTuning) -> None:
     """Complete the running order one slot ahead for scheduling. A planned
-    successor is not named on air until its own audio is ready."""
+    successor is not named on air until its own audio is ready.
+
+    The opening starts before anything else is planned: the next slot needs the
+    whole desk, and the first voice used to wait for it.
+    """
     while needs_planning(run.state):
+        if opening_unstarted(run.state):
+            return
         before = len(run.state.slots)
         await _plan_one(run, listening, ports, tuning)
         if len(run.state.slots) == before:
@@ -240,13 +247,15 @@ async def _plan(run: _Run, listening: Listening, ports: LoopPorts, tuning: LoopT
 
 
 async def _plan_one(run: _Run, listening: Listening, ports: LoopPorts, tuning: LoopTuning) -> None:
+    # The grid's opening reads nothing of the desk: it is planned without it.
+    opening = opening_due(aired_segments(run.state.slots))
     inputs = grid_inputs(
         run.state,
         now=ports.now(),
         first_delay_s=tuning.first_delay_s,
         timezone=listening.timezone,
         frequencies=listening.frequencies,
-        available=await ports.available(),
+        available=frozenset() if opening else await ports.available(),
         public_mode=listening.public_mode,
         voices_by_format=listening.voices_by_format,
     )
@@ -303,11 +312,41 @@ def _collect(run: _Run, now: datetime, tuning: LoopTuning, language: str) -> Non
             _learn(run, seq, now, tuning, language)
         segment = _outcome(seq, task)
         if isinstance(segment, ProducedSegment):
+            if not run.state.produced:
+                _first_ready(run, seq, now)
             run.ready[seq] = segment
             run.state = production_succeeded(run.state, seq, segment.duration_s)
         else:
             # The station's silence rests the format, and never counts toward the stop.
             run.state = production_failed(run.state, seq, at=now, counted=segment is None)
+
+
+def _first_ready(run: _Run, seq: int, now: datetime) -> None:
+    """Say how long the first voice took from the start — the wait a listener hears."""
+    slot = next((s for s in run.state.slots if s.seq == seq), None)
+    logger.info(
+        "radio_first_segment_ready",
+        format=slot.format.value if slot else None,
+        elapsed_s=round((now - run.state.started_at).total_seconds(), 1),
+    )
+
+
+async def _pause(run: _Run, ports: LoopPorts, tick_s: float) -> None:
+    """Wait for the next tick — or, until a programme is ready, for the production
+    that brings it: the first voice airs the moment it exists, not a tick later.
+    The programmes after it keep the tick."""
+    productions = list(run.tasks.values()) if not run.state.produced else []
+    if not productions:
+        await ports.sleep(tick_s)
+        return
+    tick = asyncio.ensure_future(ports.sleep(tick_s))
+    try:
+        await asyncio.wait({tick, *productions}, return_when=asyncio.FIRST_COMPLETED)
+    finally:
+        if not tick.done():
+            tick.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await tick
 
 
 async def _read_inbox(run: _Run, ports: LoopPorts) -> None:
@@ -497,7 +536,7 @@ async def run_session(
                 # edge cannot turn the loop into a spin.
                 run.state = withdrawn(run.state, action.slot.seq)
             await ports.board.publish(run.state, run.ready)
-            await ports.sleep(tuning.tick_s)
+            await _pause(run, ports, tuning.tick_s)
     finally:
         await _cancel_all(run)
 

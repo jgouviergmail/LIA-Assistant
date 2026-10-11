@@ -39,6 +39,7 @@ import structlog
 
 from src.domains.radio.aired import HeardLine
 from src.domains.radio.cast import Cast
+from src.domains.radio.constants import OPENING_WEATHER_WAIT_SECONDS
 from src.domains.radio.editorial import (
     NO_SUBJECTS,
     NewsCandidate,
@@ -108,6 +109,10 @@ class DaySource(Protocol):
 
     async def day(self) -> PersonalFacts:
         """The day's and the corner's facts."""
+        ...
+
+    async def weather(self, *, wait_s: float) -> PersonalFacts:
+        """The weather alone, in the day's part — nothing when later than ``wait_s``."""
         ...
 
 
@@ -507,7 +512,11 @@ class Antenna:
     ) -> tuple[ProducedSegment | None, str]:
         """The segment (or none) and the outcome that names how it went."""
         local_now = self._local_now()
-        desk, shortlists = await self._desk(local_now, before=slot.seq - 1)
+        shortlists: dict[RadioFormat, list[NewsCandidate]] = {}
+        if slot.format is RadioFormat.OPENING:
+            desk = await self._opening_desk(local_now)
+        else:
+            desk, shortlists = await self._desk(local_now, before=slot.seq - 1)
         if FORMAT_SPECS[slot.format].needs_analysis:
             desk = await self._with_analysis(desk, shortlists.get(slot.format, []))
         tz = self._setup.timezone
@@ -674,6 +683,29 @@ class Antenna:
             news_exhausted=reading.exhausted,
         )
         return desk, shortlists
+
+    async def _opening_desk(self, local_now: datetime) -> Desk:
+        """The opening's desk: the clock and the weather, never the whole day.
+
+        The first programme is the one the listener waits for, and it says nothing
+        else (``packs._opening``): reading the whole desk first — every connector,
+        the news, the meanings — put its voice 42 to 49 s after the start
+        (production 2026-10-08). What aired before still counts (the ledger).
+        """
+        keys = frozenset(await self._keys())
+        try:
+            personal = await self._day.weather(wait_s=OPENING_WEATHER_WAIT_SECONDS)
+        except Exception as exc:  # noqa: BLE001 — a blind weather leaves the clock
+            logger.warning("radio_day_unavailable", error_type=type(exc).__name__)
+            personal = PersonalFacts()
+        return Desk(
+            clock=clock_fact(local_now),
+            day=personal.day,
+            edition=journal_edition(local_now),
+            aired=keys | self._flash_keys,
+            heard_this_session=frozenset(self._aired_here),
+            said=frozenset(self._said),
+        )
 
     async def _read_vectors(self, titles: Iterable[str], now: datetime) -> dict[str, Vector] | None:
         """The meanings of the headlines read this session — None when the listener's

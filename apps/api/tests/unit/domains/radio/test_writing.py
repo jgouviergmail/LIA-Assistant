@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 
 import pytest
@@ -127,3 +128,38 @@ async def test_an_analysis_that_fails_gives_nothing() -> None:
         max_points=6,
     )
     assert facts == ()
+
+
+class TestTheOpeningIsWrittenWithoutReasoning:
+    """The first programme is the one the listener waits for: its welcome is asked
+    without the model's reasoning (production 2026-10-08: 8.4 s before its first
+    word); every other programme keeps the slot's own configuration."""
+
+    async def test_the_opening_goes_through_the_quick_call(self) -> None:
+        full, quick = Door(ScriptDraft(title="x", lines=[])), Door(ScriptDraft(title="y", lines=[]))
+        radio = ModelScriptWriter(
+            template=TEMPLATES.writer,
+            station=STATION,
+            call=full,
+            quick_call=quick,
+            quote_max_chars=120,
+        )
+        await radio.write(request())
+        assert (len(quick.sent), len(full.sent)) == (1, 0)
+
+    async def test_every_other_programme_keeps_the_slot_s_reasoning(self) -> None:
+        full, quick = Door(ScriptDraft(title="x", lines=[])), Door(ScriptDraft(title="y", lines=[]))
+        radio = ModelScriptWriter(
+            template=TEMPLATES.writer,
+            station=STATION,
+            call=full,
+            quick_call=quick,
+            quote_max_chars=120,
+        )
+        brief = replace(
+            request(),
+            format=RadioFormat.BRIEF,
+            pack=FactPack(format=RadioFormat.BRIEF, facts=(clock_fact(NOW),)),
+        )
+        await radio.write(brief)
+        assert (len(quick.sent), len(full.sent)) == (0, 1)

@@ -167,14 +167,17 @@ function player(api = new FakeApi()) {
   let tick: () => void = () => undefined;
   let cleared = false;
   let created = 0;
+  /** Every report pace the controller asked for, in order. */
+  const paces: number[] = [];
   const timeouts: { callback: () => void; ms: number; cleared: boolean }[] = [];
   const controller = new RadioController({
     api,
     audio,
     timers: {
-      setInterval: callback => {
+      setInterval: (callback, ms) => {
         tick = callback;
-        return 1;
+        paces.push(ms);
+        return paces.length;
       },
       clearInterval: () => {
         cleared = true;
@@ -189,6 +192,7 @@ function player(api = new FakeApi()) {
       revoke: url => revoked.push(url),
     },
     reportIntervalMs: 5000,
+    startupReportIntervalMs: 1000,
     reportFailuresMax: 3,
     onChange: view => views.push(view),
   });
@@ -200,6 +204,7 @@ function player(api = new FakeApi()) {
     views,
     tick: () => tick(),
     cleared: () => cleared,
+    paces,
     timeouts,
     /** The music's rest between two programmes runs out (unless it was cleared). */
     rest: () => {
@@ -512,14 +517,37 @@ describe('RadioController', () => {
   });
 
   it('gives up after repeated failed reports while nothing is left to play', async () => {
+    const { api, audio, controller, tick } = player();
+    api.startAnswer = Promise.resolve(session({ segments: [segment(1)] }));
+    await controller.start();
+    await settle();
+    audio.endSegment();
+    await settle();
+    api.reportAnswer = () => Promise.reject(new Error('offline'));
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      tick();
+      await settle();
+    }
+    expect(controller.view().status).toBe('waiting');
+    tick();
+    await settle();
+    expect(controller.view()).toMatchObject({ status: 'ended', error: 'connection_lost' });
+  });
+
+  it('gives up after the same time without an answer at the start’s faster pace', async () => {
+    // Three failures at 5 s are fifteen seconds: at the start's pace of a report a
+    // second, three failures in a row are a blip, never a lost connection.
     const { api, controller, tick } = player();
     await controller.start();
     await settle();
     api.reportAnswer = () => Promise.reject(new Error('offline'));
-    for (let attempt = 0; attempt < 3; attempt += 1) {
+    for (let attempt = 0; attempt < 14; attempt += 1) {
       tick();
       await settle();
     }
+    expect(controller.view().status).toBe('waiting');
+    tick();
+    await settle();
     expect(controller.view()).toMatchObject({ status: 'ended', error: 'connection_lost' });
   });
 
@@ -687,6 +715,33 @@ describe('RadioController', () => {
 function flash(seq = 100_001): RadioSegment {
   return { ...segment(seq, null), format: 'flash', title: 'From the chat' };
 }
+
+describe('RadioController — the first programme', () => {
+  it('reports every second until the first programme plays, then at its pace', async () => {
+    const { api, controller, tick, paces } = player();
+    await controller.start();
+    expect(paces).toEqual([1000]);
+
+    api.reportAnswer = () => Promise.resolve(session({ segments: [segment(1)] }));
+    tick();
+    await settle();
+    expect(controller.view()).toMatchObject({ status: 'playing', current: { seq: 1 } });
+    expect(paces).toEqual([1000, 5000]);
+  });
+
+  it('tells the startup estimate for as long as the first programme is awaited', async () => {
+    const { api, controller, tick } = player();
+    api.startAnswer = Promise.resolve(session({ startup_estimate_s: 12 }));
+    await controller.start();
+    expect(controller.view()).toMatchObject({ status: 'waiting', startupEstimateS: 12 });
+
+    api.reportAnswer = () =>
+      Promise.resolve(session({ startup_estimate_s: 12, segments: [segment(1)] }));
+    tick();
+    await settle();
+    expect(controller.view()).toMatchObject({ status: 'playing', startupEstimateS: null });
+  });
+});
 
 describe('RadioController — a news flash', () => {
   it('cuts the programme for the flash, then resumes it where it stopped', async () => {

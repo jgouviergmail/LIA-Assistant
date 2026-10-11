@@ -14,6 +14,8 @@ import { browserMusicBed } from './web-audio';
 
 /** How often the player reports where it is (every report is answered with the session). */
 export const RADIO_REPORT_INTERVAL_MS = 5000;
+/** How often it reports until the first programme plays: the first voice airs at once. */
+export const RADIO_STARTUP_REPORT_INTERVAL_MS = 1000;
 /** Failed reports in a row, with nothing left to play, before the player gives up. */
 export const RADIO_REPORT_FAILURES_MAX = 6;
 
@@ -36,6 +38,7 @@ export function radioPlayer(): RadioController {
       revoke: url => URL.revokeObjectURL(url),
     },
     reportIntervalMs: RADIO_REPORT_INTERVAL_MS,
+    startupReportIntervalMs: RADIO_STARTUP_REPORT_INTERVAL_MS,
     reportFailuresMax: RADIO_REPORT_FAILURES_MAX,
     onChange: view => useRadioStore.getState().setView(view),
   });

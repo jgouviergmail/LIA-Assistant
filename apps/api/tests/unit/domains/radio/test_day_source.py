@@ -22,7 +22,7 @@ from src.domains.radio.constants import JOURNAL_EVENING_FROM_HOUR, JOURNAL_NOON_
 from src.domains.radio.day_source import ListenerDay
 from src.domains.radio.facts import FactKind, Sensitivity
 from src.domains.radio.formats import Frequency
-from src.domains.radio.personal import JournalPart, PersonalDraft, PersonalSource
+from src.domains.radio.personal import JournalPart, PersonalDraft, PersonalFacts, PersonalSource
 
 pytestmark = pytest.mark.unit
 
@@ -377,3 +377,105 @@ class TestDoneAndAhead:
         day = _day(tickets, meetings, recorder, done={PersonalSource.AGENDA: done}, tz=east)
         await day.day()
         assert done.calls == 1
+
+
+class TestTheWeatherAlone:
+    """The opening's material: the weather section read alone, never waiting long.
+
+    The first programme a listener waits for says the time and the weather; it used
+    to wait for the whole day — every connector, every reader (production
+    2026-10-08: the first voice 42 to 49 s after the start).
+    """
+
+    async def test_only_the_weather_section_is_read_and_recorded(self) -> None:
+        selected: list[frozenset[str]] = []
+
+        async def cards(
+            sections: frozenset[str], *, on_read: SectionReadObserver | None = None
+        ) -> CardsBundle:
+            selected.append(sections)
+            if on_read is not None:
+                on_read("weather", CardStatus.OK)
+            return _cards()
+
+        tickets, meetings, recorder = Reader([TICKET]), Reader([MEETING]), Recorder()
+        facts = await _day(tickets, meetings, recorder, cards=cards).weather(wait_s=1.0)
+
+        assert selected == [frozenset({"weather"})]
+        assert [fact.kind for fact in facts.day] == [FactKind.WEATHER]
+        assert (facts.corner, facts.done, facts.ahead) == ((), (), ())
+        assert (tickets.calls, meetings.calls) == (0, 0)
+        assert recorder.rows == [(frozenset({"weather"}), frozenset())]
+
+    async def test_a_weather_switched_off_is_never_read(self) -> None:
+        selected: list[frozenset[str]] = []
+
+        async def cards(
+            sections: frozenset[str], *, on_read: SectionReadObserver | None = None
+        ) -> CardsBundle:
+            selected.append(sections)
+            return _cards()
+
+        day = _day(
+            Reader([]),
+            Reader([]),
+            Recorder(),
+            cards=cards,
+            disabled_sources=frozenset({PersonalSource.WEATHER}),
+        )
+        assert await day.weather(wait_s=1.0) == PersonalFacts()
+        assert selected == []
+
+    async def test_a_late_weather_leaves_the_opening_with_the_clock(self) -> None:
+        cancelled = asyncio.Event()
+
+        async def slow(
+            sections: frozenset[str], *, on_read: SectionReadObserver | None = None
+        ) -> CardsBundle:
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                cancelled.set()
+                raise
+            return _cards()
+
+        facts = await _day(Reader([]), Reader([]), Recorder(), cards=slow).weather(wait_s=0.01)
+
+        assert facts == PersonalFacts()
+        # Nothing is left reading behind the opening's back.
+        assert cancelled.is_set()
+
+    async def test_a_broken_briefing_is_silent(self) -> None:
+        facts = await _day(Reader([]), Reader([]), Recorder(), cards=_broken_cards).weather(
+            wait_s=1.0
+        )
+        assert facts == PersonalFacts()
+
+    async def test_the_whole_day_waits_for_the_weather_read_in_flight(self) -> None:
+        """Read side by side, a cold weather section is fetched twice and billed twice:
+        the day's read starts once the weather's has finished, and meets the cache."""
+        calls: list[str] = []
+        release = asyncio.Event()
+
+        async def cards(
+            sections: frozenset[str], *, on_read: SectionReadObserver | None = None
+        ) -> CardsBundle:
+            calls.append("start " + ",".join(sorted(sections)))
+            if sections == frozenset({"weather"}):
+                await release.wait()
+            calls.append("end " + ",".join(sorted(sections)))
+            return _cards()
+
+        listener = _day(Reader([]), Reader([]), Recorder(), cards=cards)
+        weather = asyncio.create_task(listener.weather(wait_s=5.0))
+        await asyncio.sleep(0)
+        day = asyncio.create_task(listener.day())
+        for _ in range(5):
+            await asyncio.sleep(0)
+        assert calls == ["start weather"]  # the day waits
+
+        release.set()
+        await weather
+        await day
+        assert calls[:2] == ["start weather", "end weather"]
+        assert calls[2].startswith("start ") and "weather" in calls[2]

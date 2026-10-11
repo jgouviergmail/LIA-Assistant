@@ -23,6 +23,7 @@ from src.domains.radio.antenna import (
     AntennaSetup,
 )
 from src.domains.radio.cast import Cast
+from src.domains.radio.constants import OPENING_WEATHER_WAIT_SECONDS
 from src.domains.radio.delivery import StylePhrases
 from src.domains.radio.editorial import NewsCandidate, Subjects
 from src.domains.radio.facts import FactKind, FactPack, RadioFact, Sensitivity, clock_fact
@@ -114,12 +115,20 @@ class Sources:
         self.day_reads = 0
         self.news_reads = 0
         self.day_fails = day_fails
+        #: How long each weather read was allowed to take.
+        self.weather_waits: list[float] = []
 
     async def day(self) -> PersonalFacts:
         self.day_reads += 1
         if self.day_fails:
             raise ConnectionError("briefing down")
         return PersonalFacts(day=DAY)
+
+    async def weather(self, *, wait_s: float) -> PersonalFacts:
+        self.weather_waits.append(wait_s)
+        if self.day_fails:
+            raise ConnectionError("briefing down")
+        return PersonalFacts(day=tuple(fact for fact in DAY if fact.kind is FactKind.WEATHER))
 
     async def candidates(
         self, *, heard_keys: frozenset[str], heard_stories: frozenset[str]
@@ -1009,6 +1018,34 @@ class TestDesk:
         assert request.clock_mark == mark
         assert request.clock_mark is not None and request.clock_mark.hour == 10
         assert request.local_now.utcoffset() == timedelta(hours=2)
+
+
+class TestTheOpeningComesFirst:
+    """The first programme the listener waits for says the time and the weather alone:
+    it used to wait for the whole desk — every connector, the news, the meanings
+    (production 2026-10-08: the first voice 42 to 49 s after the start)."""
+
+    async def test_it_reads_neither_the_day_nor_the_news(
+        self, tmp_path: Path, studio: Studio
+    ) -> None:
+        sources = Sources()
+        await antenna(tmp_path, sources=sources).produce(
+            slot(RadioFormat.OPENING), previous=None, following=None
+        )
+        assert (sources.day_reads, sources.news_reads) == (0, 0)
+        assert sources.weather_waits == [OPENING_WEATHER_WAIT_SECONDS]
+        [request] = studio.requests
+        assert {fact.kind for fact in request.pack.facts} == {FactKind.CLOCK, FactKind.WEATHER}
+
+    async def test_a_blind_weather_leaves_it_the_clock(
+        self, tmp_path: Path, studio: Studio
+    ) -> None:
+        produced = await antenna(tmp_path, sources=Sources(day_fails=True)).produce(
+            slot(RadioFormat.OPENING), previous=None, following=None
+        )
+        assert isinstance(produced, ProducedSegment)
+        [request] = studio.requests
+        assert [fact.kind for fact in request.pack.facts] == [FactKind.CLOCK]
 
 
 class TestDistinctData:

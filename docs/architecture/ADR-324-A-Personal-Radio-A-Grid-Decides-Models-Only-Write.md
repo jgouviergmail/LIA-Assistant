@@ -1219,6 +1219,43 @@ its own personality, distinct from the chat's.
       and stay under its spend tracker; error sections never voice stale data. The
       briefing's cache-only API remains cache-only for callers that need that contract.
 
+42. **The first programme comes first** (2026-10-09, owner request: « the delay before
+    the first programme, at the start, is sometimes too long; it must always come as
+    fast as possible — leave the others as they are »). Measured on production over
+    seven days (14 sessions): the first voice aired 12 to 49 s after the start (42.5,
+    47.5 and 48.7 s on the three latest), and the opening's writer call began only 19 to
+    30 s in. Four waits stood in front of it, and each one goes; the programmes after it
+    are produced exactly as before.
+    - **The opening reads no desk.** It waited for the whole desk — every reader of the
+      listener's day, the news shortlists with their full texts and embeddings — to say
+      the time and the weather. `Antenna._opening_desk` hands it the clock and the
+      weather alone, read alone through the briefing's reader and cache
+      (`ListenerDay.weather`) and waited for `OPENING_WEATHER_WAIT_SECONDS` at most: a
+      later read is cancelled and settled (its consultation filed inside the session's
+      collector), and the opening says the time alone. The day's own read starts once
+      that read has finished, so a cold weather section is never fetched — and billed —
+      twice. Planning the opening reads no availability either (`grid.opening_due`).
+    - **Nothing is planned before the opening starts** (`session.opening_unstarted`): the
+      journal's slot used to be planned, its desk read included, ahead of it. It is
+      planned once the opening is in production and produced beside it, as before.
+    - **The loop wakes on a finished production**, not at its next tick
+      (`orchestrator._pause` races the tick against the productions in flight), and the
+      player reports every second until the first programme plays
+      (`RADIO_STARTUP_REPORT_INTERVAL_MS`), then at its usual pace. Its give-up rule
+      counts TIME without an answer, never a number of reports: counted in reports, the
+      faster pace would have ended a session on a blip of a few seconds.
+    - **The opening is written without reasoning** (`writing.UNREASONED_FORMATS`: the
+      writer slot through `short_answer_config`, ADR-285) — twenty-five seconds of
+      welcome need no deliberation, and a thinking writer spent 8.4 s on one.
+
+    The startup estimate the start answers with was never shown: the player had already
+    moved to waiting when it arrived. It is now told until the first programme plays.
+    `radio_first_segment_ready` logs how long the first programme took. Rejected:
+    retrying a failed opening — the only opening failures measured (four `mix_failed`,
+    2026-10-04) came from a failure every production met at once, which a retry meets
+    too. The cost of the change: the opening airs sooner and the second programme does
+    not, so the station's music after the opening lasts longer.
+
 ## Consequences
 
 - A listener starts the radio — under the name they gave it — from the header, the logo

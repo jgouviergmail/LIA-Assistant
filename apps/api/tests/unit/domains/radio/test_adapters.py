@@ -311,10 +311,20 @@ class TestTheCollectedDay:
                 events.append("read")
                 return facts
 
+            async def weather(self, *, wait_s: float) -> PersonalFacts:
+                events.append(f"weather {wait_s}")
+                return facts
+
         monkeypatch.setattr(adapters, "collecting", collecting)
 
         assert await CollectedDay(Day(), "radio_run").day() is facts
         assert events == ["open radio_run", "read", "close radio_run"]
+
+        events.clear()
+        # The opening's weather alone is read under the same collector: a read
+        # recorded outside one is dropped by the sink.
+        assert await CollectedDay(Day(), "radio_run").weather(wait_s=3.0) is facts
+        assert events == ["open radio_run", "weather 3.0", "close radio_run"]
 
 
 class Answer(BaseModel):
@@ -354,6 +364,32 @@ class TestTheBoundCall:
         assert seen["user_id"] == USER
         # The node metadata adds the metrics handler beside the session's tracker.
         assert callback in seen["config"]["callbacks"]
+
+    def test_a_short_call_asks_the_same_slot_without_reasoning(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The opening's welcome: the slot's own model, under the platform's one
+        rule for a short answer (``short_answer_config``, ADR-285)."""
+        built: list[tuple[str, object]] = []
+        short = object()
+
+        @dataclass
+        class SlotConfig:
+            provider: str
+
+        def get_llm(slot: str, config_override: object = None) -> object:
+            built.append((slot, config_override))
+            return object()
+
+        monkeypatch.setattr(adapters, "get_llm", get_llm)
+        monkeypatch.setattr(adapters, "short_answer_config", lambda slot: short)
+        monkeypatch.setattr(
+            adapters, "get_llm_config_for_agent", lambda _settings, slot: SlotConfig("vendor")
+        )
+
+        bound_call(RADIO_WRITER_SLOT, user_id=USER, callbacks=[], short=True)
+
+        assert built == [(RADIO_WRITER_SLOT, short)]
 
 
 class Client:

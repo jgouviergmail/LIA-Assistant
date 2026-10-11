@@ -158,7 +158,9 @@ export function radioStatusMessage(view: RadioView, locale: Language): RadioMess
       view.endReason !== null && END_REASONS.has(view.endReason) ? view.endReason : 'other';
     return { key: `radio.end_reason.${reason}` };
   }
-  if (view.status === 'starting' && view.startupEstimateS !== null) {
+  // The estimate comes with the start's answer, when the player already waits for
+  // the first programme: the controller keeps it only until that programme plays.
+  if ((view.status === 'starting' || view.status === 'waiting') && view.startupEstimateS !== null) {
     return {
       key: 'radio.banner.starting_eta',
       values: { seconds: Math.max(1, Math.round(view.startupEstimateS)) },

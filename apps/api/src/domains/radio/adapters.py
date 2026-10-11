@@ -33,7 +33,7 @@ from src.core.config import settings
 from src.core.constants import DEFAULT_ELEVENLABS_BASE_URL, ELEVENLABS_PROVIDER_NAME
 from src.core.i18n import get_language_name, normalize_language
 from src.core.i18n_radio import radio_station_name
-from src.core.llm_config_helper import get_llm_config_for_agent
+from src.core.llm_config_helper import get_llm_config_for_agent, short_answer_config
 from src.core.prompt_store import read_prompt_file
 from src.core.user_display import resolve_user_display_name
 from src.domains.briefing.consultations import SelectedCardsReader
@@ -380,6 +380,15 @@ class CollectedDay:
         async with collecting(self.run_id):
             return await self.source.day()
 
+    async def weather(self, *, wait_s: float) -> PersonalFacts:
+        """The opening's weather alone, its read recorded.
+
+        A read later than ``wait_s`` is cancelled and settled before this returns,
+        so whatever it opened is filed inside the collector, never after it.
+        """
+        async with collecting(self.run_id):
+            return await self.source.weather(wait_s=wait_s)
+
 
 class SpendFiler(Protocol):
     """Files what the session spent so far (its tracker)."""
@@ -458,18 +467,22 @@ def flash_source(record: RadioSessionRecord, setup: RadioSetup) -> FlashSource |
     return NotificationFlashes(record.user_id, record.run_id)
 
 
-def bound_call(slot: LLMType, *, user_id: UUID, callbacks: list[Any]) -> StructuredCall:
+def bound_call(
+    slot: LLMType, *, user_id: UUID, callbacks: list[Any], short: bool = False
+) -> StructuredCall:
     """The structured door, bound to a radio slot, the listener and the session's tracker.
 
     Args:
         slot: The radio slot answering.
         user_id: The listener (the ceilings' owner).
         callbacks: The session tracker's callback.
+        short: Ask the slot without reasoning, by the platform's one rule for a
+            short answer (``short_answer_config``) — the opening's welcome.
 
     Returns:
         A call the writer, the analyst or the checker makes.
     """
-    llm = get_llm(slot)
+    llm = get_llm(slot, config_override=short_answer_config(slot)) if short else get_llm(slot)
     provider = get_llm_config_for_agent(settings, slot).provider
     config = enrich_config_with_node_metadata(
         {"configurable": {"user_id": str(user_id)}, "callbacks": callbacks},
@@ -511,6 +524,9 @@ def _crew(
             template=templates.writer,
             station=station,
             call=call(RADIO_WRITER_SLOT),
+            quick_call=bound_call(
+                RADIO_WRITER_SLOT, user_id=record.user_id, callbacks=callbacks, short=True
+            ),
             quote_max_chars=limits.quote_max_chars,
             taste=ListenerTaste(setup.interests, setup.stated_tastes),
         ),

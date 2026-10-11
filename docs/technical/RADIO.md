@@ -66,7 +66,11 @@ no failure (decision 33).
    productions ran past them (`pacing.ran_late`, `StageTimings.lateness_s` —
    decision 39: a writer slot that thinks takes several times what one that does
    not takes).
-   Before the first sound, the first two slots are produced at once. The
+   The first programme comes first (decision 42): the opening is planned
+   alone, reads the clock and the weather alone (never the desk), is written
+   without reasoning, and the loop wakes the moment a production finishes; the
+   second slot is planned once the opening is in production and produced
+   beside it. The
    farewell is planned only inside the sign-off window (`SIGN_OFF_WINDOW_SECONDS`
    before the stop); when nothing else fits before it, NOTHING is planned and the
    station's music plays — the grid is asked again at every tick. Before the
@@ -87,7 +91,9 @@ no failure (decision 33).
    and failed-production rests still apply.
 3. **Production** (`antenna.Antenna.produce`): the desk (the listener's day and
    corner, the news shortlists, what they already heard) is read at most once
-   per `desk_ttl_s`; the slot's pack is built; the writer writes; the
+   per `desk_ttl_s` — the opening's is the clock and the weather alone, the
+   weather waited for `OPENING_WEATHER_WAIT_SECONDS` at most; the slot's pack is
+   built; the writer writes; the
    deterministic verifier repairs, drops or refuses; the model verifier reads
    the formats the listener chose; each line is voiced (in parallel, billed);
    the lines are joined with their pauses and loudness-normalised (voice alone —
@@ -447,8 +453,9 @@ voice; `web-audio.ts` routes both decks through Web Audio — iOS ignores an
 element's `volume` — from this origin's files). The permission to play is taken
 inside the click for the voice and the music; the music starts with the first
 answer, which names its mood. Segments are fetched as blobs through the API
-client (`media-src` allows `blob:`); a report every few seconds and at every
-boundary; a session the API opened after the listener pressed stop is stopped
+client (`media-src` allows `blob:`); a report every second until the first
+programme plays, then every few seconds, and at every boundary — the startup
+estimate is told until that first programme plays; a session the API opened after the listener pressed stop is stopped
 at once.
 
 **A news flash** is not queued: its audio is fetched as soon as an answer names

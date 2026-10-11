@@ -115,7 +115,15 @@ export interface RadioControllerDeps {
   timers: RadioTimers;
   urls: RadioObjectUrls;
   reportIntervalMs: number;
-  /** Failed reports in a row, while nothing is left to play, before giving up. */
+  /**
+   * The reports' pace until the first programme plays: the first voice airs the
+   * moment the antenna has it, not at the next of the usual reports.
+   */
+  startupReportIntervalMs: number;
+  /**
+   * Failed reports in a row at the usual pace, while nothing is left to play,
+   * before giving up — the same TIME without an answer at the start's pace.
+   */
   reportFailuresMax: number;
   onChange: (view: RadioView) => void;
 }
@@ -137,7 +145,10 @@ export class RadioController {
   private fetches = new AbortController();
   private advancing: Promise<void> | null = null;
   private loop: number | null = null;
-  private failedReports = 0;
+  /** The pace the reports run at (the start's, then the usual one). */
+  private reportPace = 0;
+  /** How long the reports have failed in a row (the paces they were sent at). */
+  private failedReportsMs = 0;
   private serverEnded = false;
   private costEur: number | null = null;
   private stopAt: string | null = null;
@@ -196,7 +207,7 @@ export class RadioController {
     }
     this.sessionId = state.session_id;
     this.move('started');
-    this.loop = this.deps.timers.setInterval(() => void this.report(), this.deps.reportIntervalMs);
+    this.reportEvery(this.deps.startupReportIntervalMs);
     await this.apply(state);
   }
 
@@ -252,7 +263,9 @@ export class RadioController {
       next: nextSegment(this.queue, this.programmeSeq()),
       costEur: this.costEur,
       stopAt: this.stopAt,
-      startupEstimateS: this.startupEstimateS,
+      // Told for as long as the first programme is awaited, never after it.
+      startupEstimateS:
+        this.lastPlayed === 0 && this.current === null ? this.startupEstimateS : null,
       endReason: this.endReason,
       error: this.error,
       refusedBudget: this.refusedBudget,
@@ -280,7 +293,7 @@ export class RadioController {
     this.prefetched = new Map();
     this.fetches = new AbortController();
     this.advancing = null;
-    this.failedReports = 0;
+    this.failedReportsMs = 0;
     this.serverEnded = false;
     this.costEur = null;
     this.stopAt = null;
@@ -331,15 +344,18 @@ export class RadioController {
       state = await this.deps.api.report(sessionId, this.playhead());
     } catch {
       if (lifetime.aborted) return;
-      this.failedReports += 1;
-      if (this.failedReports >= this.deps.reportFailuresMax && this.status === 'waiting') {
+      // Counted in time, not in reports: at the start's pace of one a second, six
+      // failures in a row are a blip, where six at the usual pace are half a minute.
+      this.failedReportsMs += this.reportPace;
+      const giveUpMs = this.deps.reportFailuresMax * this.deps.reportIntervalMs;
+      if (this.failedReportsMs >= giveUpMs && this.status === 'waiting') {
         this.error = 'connection_lost';
         this.finish();
       }
       return;
     }
     if (lifetime.aborted) return;
-    this.failedReports = 0;
+    this.failedReportsMs = 0;
     await this.apply(state);
   }
 
@@ -544,6 +560,7 @@ export class RadioController {
     this.currentUrl = url;
     this.articles = withArticles(this.articles, segment);
     this.move('segment_started');
+    this.reportEvery(this.deps.reportIntervalMs);
     this.deps.audio.music(segment.mood ?? this.mood ?? FALLBACK_MOOD);
     try {
       await this.deps.audio.playSegment(url);
@@ -599,6 +616,14 @@ export class RadioController {
   private finish(): void {
     this.silence();
     this.move('ended');
+  }
+
+  /** Report at `ms` from now on — a pace already running is left as it is. */
+  private reportEvery(ms: number): void {
+    if (this.loop !== null && this.reportPace === ms) return;
+    if (this.loop !== null) this.deps.timers.clearInterval(this.loop);
+    this.reportPace = ms;
+    this.loop = this.deps.timers.setInterval(() => void this.report(), ms);
   }
 
   private silence(): void {

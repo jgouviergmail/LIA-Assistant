@@ -17,7 +17,7 @@ second paid attempt at the same prompt is the orchestrator's call, not this one'
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Protocol
+from typing import Final, Protocol
 
 import structlog
 from langchain_core.messages import BaseMessage
@@ -28,6 +28,7 @@ from src.domains.radio.analysis import AnalysisDraft, analysis_facts
 from src.domains.radio.checking import CheckDraft, checked_positions, unsupported_positions
 from src.domains.radio.constants import SOURCE_LABEL_MAX_CHARS
 from src.domains.radio.facts import FactPack, RadioFact, SourceRef
+from src.domains.radio.formats import RadioFormat
 from src.domains.radio.production import WritingRequest
 from src.domains.radio.prompting import (
     AnalysisRequest,
@@ -59,6 +60,12 @@ def _refusal(error: StructuredOutputError) -> str:
     return "truncated" if isinstance(error, StructuredOutputTruncatedError) else "unusable"
 
 
+#: The formats written without the model's reasoning: the opening is the first sound
+#: a listener waits for, and twenty-five seconds of welcome need no deliberation
+#: (production 2026-10-08: 8.4 s of a thinking writer before its first word).
+UNREASONED_FORMATS: Final[frozenset[RadioFormat]] = frozenset({RadioFormat.OPENING})
+
+
 class ModelScriptWriter:
     """Writes a segment's script with the radio's writer slot."""
 
@@ -70,10 +77,23 @@ class ModelScriptWriter:
         call: StructuredCall,
         quote_max_chars: int,
         taste: ListenerTaste = ListenerTaste(),
+        quick_call: StructuredCall | None = None,
     ) -> None:
+        """Bind the writer.
+
+        Args:
+            template: The writer's versioned prompt.
+            station: The station's voice.
+            call: The writer slot's structured door.
+            quote_max_chars: The longest quotation a line may carry.
+            taste: What the listener likes.
+            quick_call: The same slot asked without reasoning, for
+                ``UNREASONED_FORMATS``; None: every format goes through ``call``.
+        """
         self._template = template
         self._station = station
         self._call = call
+        self._quick_call = quick_call
         self._quote_max_chars = quote_max_chars
         self._taste = taste
 
@@ -86,8 +106,11 @@ class ModelScriptWriter:
             quote_max_chars=self._quote_max_chars,
             taste=self._taste,
         )
+        call = self._call
+        if self._quick_call is not None and request.format in UNREASONED_FORMATS:
+            call = self._quick_call
         try:
-            return await self._call(single_call_messages(prompt), ScriptDraft)
+            return await call(single_call_messages(prompt), ScriptDraft)
         except StructuredOutputError as error:
             logger.info("radio_writer_refused", format=request.format.value, reason=_refusal(error))
             return None
@@ -172,4 +195,10 @@ class ModelLineChecker:
         return unsupported_positions(lines, draft.verdicts)
 
 
-__all__ = ["ModelAnalyst", "ModelLineChecker", "ModelScriptWriter", "StructuredCall"]
+__all__ = [
+    "UNREASONED_FORMATS",
+    "ModelAnalyst",
+    "ModelLineChecker",
+    "ModelScriptWriter",
+    "StructuredCall",
+]

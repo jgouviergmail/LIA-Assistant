@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
+from structlog.testing import capture_logs
 
 from src.domains.radio import orchestrator as orchestrator_module
 from src.domains.radio.aired import HeardLine
@@ -653,3 +654,62 @@ class TestWhatWasHeard:
         await stopper
         assert reason is EndReason.LISTENER
         assert remembered(world)[:2] == ["1:first", "1:second"]
+
+
+class TestTheFirstProgrammeComesFirst:
+    """The first voice is the one a listener waits for: the opening starts before the
+    desk is read for what follows, and airs the moment it is ready (production
+    2026-10-08: 42 to 49 s from the start to the first voice). The programmes after
+    it keep their pace."""
+
+    async def test_the_opening_starts_before_the_desk_is_read(self) -> None:
+        desk = asyncio.Event()
+
+        class SlowDesk(World):
+            async def available(self) -> frozenset[RadioFormat]:
+                await desk.wait()  # every connector, the news, the meanings
+                return await super().available()
+
+        world = SlowDesk()
+        loop = asyncio.create_task(run(world, minutes=30))
+        for _ in range(50):
+            if world.produced:
+                break
+            await asyncio.sleep(0)
+        assert [fmt for fmt, _, _ in world.produced] == [RadioFormat.OPENING]
+        assert not desk.is_set()
+
+        world.stop = True
+        desk.set()
+        assert await loop is EndReason.LISTENER
+
+    async def test_the_opening_is_published_the_moment_it_is_ready(self) -> None:
+        """No tick in between: the loop wakes when the opening's production ends."""
+        tick = asyncio.Event()
+
+        class LongTick(World):
+            async def sleep(self, seconds: float) -> None:
+                if not self.ready:
+                    await tick.wait()  # a tick far longer than the production
+                await super().sleep(seconds)
+
+        world = LongTick()
+        loop = asyncio.create_task(run(world, minutes=30))
+        for _ in range(50):
+            if 1 in world.ready:
+                break
+            await asyncio.sleep(0)
+        assert 1 in world.ready, "the opening waited for the tick"
+
+        world.stop = True
+        tick.set()
+        assert await loop is EndReason.LISTENER
+
+    async def test_how_long_the_first_voice_took_is_logged_once(self) -> None:
+        world = World()
+        with capture_logs() as logs:
+            await run(world)
+        ready = [log for log in logs if log["event"] == "radio_first_segment_ready"]
+        assert len(ready) == 1
+        assert ready[0]["format"] == RadioFormat.OPENING.value
+        assert ready[0]["elapsed_s"] >= 0

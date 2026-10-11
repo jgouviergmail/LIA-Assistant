@@ -55,7 +55,7 @@ at 8:58 for a segment that airs at 9:01 is a bulletin.
 from __future__ import annotations
 
 import random
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta, tzinfo
 from enum import StrEnum
@@ -431,6 +431,21 @@ def _hears_news(inputs: GridInputs) -> bool:
     )
 
 
+def opening_due(aired: Sequence[AiredSegment]) -> bool:
+    """Whether the next slot is the opening (rule 1): nothing planned or aired yet.
+
+    The loop reads it too: the opening needs nothing from the desk, so it is
+    planned and started before the desk is read for what follows.
+
+    Args:
+        aired: The running order as the grid reads it.
+
+    Returns:
+        True when the grid's next decision is the opening, whatever is available.
+    """
+    return not aired
+
+
 def next_segment(inputs: GridInputs, rng: random.Random) -> GridDecision | None:
     """Decide the next segment, or ``None`` when there is nothing to air.
 
@@ -444,7 +459,7 @@ def next_segment(inputs: GridInputs, rng: random.Random) -> GridDecision | None:
         producer asks again (with a timer, rule 2 calls the farewell once the
         window opens).
     """
-    if not inputs.aired:
+    if opening_due(inputs.aired):
         return GridDecision(RadioFormat.OPENING, GridReason.OPENING, station_id_due=True)
     if any(seg.format is RadioFormat.SIGN_OFF for seg in inputs.aired):
         return None
