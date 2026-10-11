@@ -2,7 +2,7 @@
 import type { Locator, Page, TestInfo } from '@playwright/test';
 import { test, expect, chatRoutes, waitForHydration, type MockRoute } from '../fixtures';
 import en from '../../locales/en/translation.json';
-import type { ConversationMessage } from '../../src/hooks/useConversation';
+import type { ConversationMessage } from '../../src/types/conversation-message';
 import type { PsycheStateSummary } from '../../src/types/psyche';
 
 const HISTORY_ID = 'selected-avatar-history';

@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiClient } from '@/lib/api-client';
 import { Message, type GeneratedDocument, type GeneratedImage } from '@/types/chat';
+import type { ConversationMessage } from '@/types/conversation-message';
 import type { SkillProposalCard } from '@/lib/skill-proposals/types';
 import { useAuth } from '@/hooks/useAuth';
 import { CHAT_SEARCH_RESULTS_PAGE_SIZE } from '@/lib/constants';
@@ -67,30 +68,8 @@ export function archivedCardsFromMetadata(metadata: Record<string, unknown> | nu
   };
 }
 
-export interface ConversationMessage {
-  id: string;
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  message_metadata: Record<string, unknown> | null; // API uses Pydantic alias "message_metadata"
-  created_at: string;
-  tokens_in: number | null;
-  tokens_out: number | null;
-  tokens_cache: number | null;
-  cost_eur: number | null;
-  google_api_requests: number | null;
-  // Per-message STT cost (only for user messages produced by a remote
-  // transcription provider). All NULL for assistant messages and for typed
-  // text / local-Sherpa user messages.
-  stt_provider: string | null;
-  stt_audio_duration_seconds: number | null;
-  stt_cost_eur: number | null;
-  // Per-message TTS cost (only for assistant messages synthesised by a
-  // paid TTS provider — Edge stays NULL). Mirror of STT pattern.
-  tts_provider: string | null;
-  tts_model: string | null;
-  tts_characters: number | null;
-  tts_cost_eur: number | null;
-}
+// The wire shape lives in an import-free module the E2E project can read.
+export type { ConversationMessage };
 
 export interface ConversationTotals {
   conversation_id: string;
