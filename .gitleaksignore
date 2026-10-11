@@ -245,3 +245,34 @@ eda9c50d554d03285a1f4f2c9f1dbe8b901e188a:apps/api/tests/unit/domains/notificatio
 # fixture from eda9c50. The entire test module is byte-identical; messaging
 # is mocked and the deterministic sample is never sent to Firebase.
 fdf43ae46ee1eaec0db8612e69cca137497c57fe:apps/api/tests/unit/domains/notifications/test_service_event_loop.py:generic-api-key:50
+
+# Post-v2.6.1 application-tools lot (499c4cec), reviewed 2026-10-11: every match
+# is a SHA-256 digest of a source file in two generated inventories, keyed by
+# file names such as oauth_router.py or api-client.ts that the generic rule reads
+# as a key name. They fingerprint public repository files; none is a credential.
+499c4cecce3dc1f57afbb58e99e9714575e6c9aa:docs/superpowers/specs/2026-10-06-lia-application-interface-inventory.json:generic-api-key:14677
+499c4cecce3dc1f57afbb58e99e9714575e6c9aa:docs/superpowers/specs/2026-10-06-lia-application-interface-inventory.json:generic-api-key:14683
+499c4cecce3dc1f57afbb58e99e9714575e6c9aa:docs/superpowers/specs/2026-10-06-lia-application-interface-inventory.json:generic-api-key:14693
+499c4cecce3dc1f57afbb58e99e9714575e6c9aa:docs/superpowers/specs/2026-10-06-lia-application-interface-inventory.json:generic-api-key:14834
+499c4cecce3dc1f57afbb58e99e9714575e6c9aa:docs/superpowers/specs/2026-10-06-lia-application-interface-inventory.json:generic-api-key:14895
+499c4cecce3dc1f57afbb58e99e9714575e6c9aa:docs/superpowers/specs/2026-10-06-lia-application-interface-inventory.json:generic-api-key:14935
+499c4cecce3dc1f57afbb58e99e9714575e6c9aa:docs/superpowers/specs/2026-10-06-lia-application-interface-inventory.json:generic-api-key:14946
+499c4cecce3dc1f57afbb58e99e9714575e6c9aa:docs/superpowers/specs/2026-10-06-lia-application-interface-inventory.json:generic-api-key:14955
+499c4cecce3dc1f57afbb58e99e9714575e6c9aa:docs/superpowers/specs/2026-10-06-lia-application-interface-inventory.json:generic-api-key:14958
+499c4cecce3dc1f57afbb58e99e9714575e6c9aa:docs/superpowers/specs/2026-10-06-lia-application-interface-inventory.json:generic-api-key:14959
+499c4cecce3dc1f57afbb58e99e9714575e6c9aa:docs/superpowers/specs/2026-10-06-lia-application-interface-inventory.json:generic-api-key:14972
+499c4cecce3dc1f57afbb58e99e9714575e6c9aa:docs/superpowers/specs/2026-10-06-lia-application-interface-inventory.json:generic-api-key:14990
+499c4cecce3dc1f57afbb58e99e9714575e6c9aa:docs/superpowers/specs/2026-10-06-lia-application-interface-inventory.json:generic-api-key:14996
+499c4cecce3dc1f57afbb58e99e9714575e6c9aa:docs/superpowers/specs/2026-10-06-lia-application-interface-inventory.json:generic-api-key:14997
+499c4cecce3dc1f57afbb58e99e9714575e6c9aa:docs/superpowers/specs/2026-10-06-lia-application-interface-inventory.json:generic-api-key:15016
+499c4cecce3dc1f57afbb58e99e9714575e6c9aa:docs/superpowers/specs/2026-10-06-lia-application-interface-inventory.json:generic-api-key:15055
+499c4cecce3dc1f57afbb58e99e9714575e6c9aa:docs/superpowers/specs/2026-10-06-lia-application-interface-inventory.json:generic-api-key:15058
+499c4cecce3dc1f57afbb58e99e9714575e6c9aa:docs/superpowers/specs/2026-10-06-lia-application-interface-inventory.json:generic-api-key:15059
+499c4cecce3dc1f57afbb58e99e9714575e6c9aa:docs/superpowers/specs/2026-10-06-lia-application-interface-inventory.json:generic-api-key:15060
+499c4cecce3dc1f57afbb58e99e9714575e6c9aa:docs/superpowers/specs/2026-10-06-lia-application-interface-inventory.json:generic-api-key:15062
+499c4cecce3dc1f57afbb58e99e9714575e6c9aa:docs/superpowers/specs/2026-10-06-lia-application-interface-inventory.json:generic-api-key:15063
+499c4cecce3dc1f57afbb58e99e9714575e6c9aa:docs/superpowers/specs/2026-10-06-lia-application-interface-inventory.json:generic-api-key:15078
+499c4cecce3dc1f57afbb58e99e9714575e6c9aa:docs/superpowers/specs/2026-10-06-lia-application-interface-inventory.json:generic-api-key:15082
+499c4cecce3dc1f57afbb58e99e9714575e6c9aa:docs/superpowers/specs/2026-10-06-lia-application-interface-inventory.json:generic-api-key:15086
+499c4cecce3dc1f57afbb58e99e9714575e6c9aa:docs/superpowers/specs/2026-10-06-lia-application-interface-inventory.json:generic-api-key:15089
+499c4cecce3dc1f57afbb58e99e9714575e6c9aa:docs/superpowers/specs/assets/2026-10-09-lia-world/evidence/global-review-evidence.json:generic-api-key:50
