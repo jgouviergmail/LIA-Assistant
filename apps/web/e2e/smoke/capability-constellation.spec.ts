@@ -117,7 +117,9 @@ test.describe('capability constellation', () => {
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto('/fr/dashboard/capabilities');
 
-    const chart = page.locator('svg[viewBox="0 0 100 100"]');
+    // Scoped to the constellation: the companion's eyes draw their contour in an SVG with
+    // the same viewBox, and a bare selector would match them too.
+    const chart = page.locator('.capability-scene svg[viewBox="0 0 100 100"]');
     await expect(chart).toBeVisible({ timeout: 30_000 });
     await expect(chart).toHaveAttribute('aria-hidden', 'true');
 
@@ -159,7 +161,7 @@ test.describe('capability constellation', () => {
     await page.goto('/fr/dashboard/capabilities');
 
     await expect(page.getByRole('list').first()).toBeVisible({ timeout: 30_000 });
-    await expect(page.locator('svg[viewBox="0 0 100 100"]')).toHaveCount(0);
+    await expect(page.locator('.capability-scene svg[viewBox="0 0 100 100"]')).toHaveCount(0);
     await expect(page.getByRole('link', { name: /Mémoire/i })).toBeVisible();
   });
 });
