@@ -1,0 +1,3 @@
+REQUESTED RESULT COVERAGE — measured against canonical tool outputs:
+{coverage}
+Satisfy only the explicit requested results above. A satisfied result needs no repeat search. A pending_confirmation result is an existing draft awaiting the person, never an executed action and never a reason to create it again. Unknown means the available payload cannot prove coverage; do not claim verified completion from it. Recover missing, failed or partial reads with the existing recovery ladder and budget, preserving successful observations and confirmed actions. Your final answer must state any result still missing, failed or partial; never announce that the full request was completed when these remain.

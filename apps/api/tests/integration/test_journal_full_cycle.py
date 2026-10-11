@@ -55,7 +55,11 @@ def stubbed_embeddings():
         "src.domains.journals.service._generate_dual_embeddings",
         AsyncMock(return_value=(None, None)),
     ):
-        yield
+        with patch(
+            "src.domains.journals.portrait_builder.is_capability_enabled",
+            AsyncMock(return_value=True),
+        ):
+            yield
 
 
 async def _make_user(session: AsyncSession, *, journals_enabled: bool = True) -> User:
@@ -184,8 +188,13 @@ class TestAtomicIncrements:
         service = JournalService(async_session)
 
         # Signal evidence three times — each call adds exactly +1.
-        for _ in range(3):
-            await service.update_entry(entry, evidence_outcome="evidence")
+        for event in range(3):
+            await service.update_entry(
+                entry,
+                evidence_outcome="evidence",
+                event_key=f"turn:{event}",
+                expected_revision=entry.revision,
+            )
 
         # Re-fetch to confirm the DB state, not just the ORM cache.
         await async_session.refresh(entry)
@@ -201,14 +210,35 @@ class TestAtomicIncrements:
         entry = await _make_entry(async_session, user)
         service = JournalService(async_session)
 
-        await service.update_entry(entry, evidence_outcome="evidence")
-        await service.update_entry(entry, evidence_outcome="contradiction")
-        await service.update_entry(entry, evidence_outcome="evidence")
-        await service.update_entry(entry, evidence_outcome="contradiction")
+        for index, outcome in enumerate(("evidence", "contradiction", "evidence", "contradiction")):
+            await service.update_entry(
+                entry,
+                evidence_outcome=outcome,
+                event_key=f"turn:{index}",
+                expected_revision=entry.revision,
+            )
 
         await async_session.refresh(entry)
         assert entry.evidence_count == 2
         assert entry.contradiction_count == 2
+
+    async def test_replayed_source_event_does_not_count_twice(
+        self,
+        async_session: AsyncSession,
+        stubbed_embeddings: Any,
+    ) -> None:
+        user = await _make_user(async_session)
+        entry = await _make_entry(async_session, user)
+        service = JournalService(async_session)
+        for _ in range(2):
+            await service.update_entry(
+                entry,
+                evidence_outcome="evidence",
+                event_key="same-response",
+                expected_revision=entry.revision,
+            )
+        await async_session.refresh(entry)
+        assert entry.evidence_count == 1
 
 
 # -----------------------------------------------------------------------------
@@ -256,6 +286,15 @@ class TestPortraitPersistence:
         # Simulate what the consolidation step does at the end of its run.
         user.journal_portrait_full = "Full portrait body — multiple facets here."
         user.journal_portrait_brief = "Brief portrait body — essence in 2 sentences."
+        from datetime import UTC, datetime
+
+        from src.domains.journals.source_state import portrait_source_state
+
+        user.journal_portrait_compiled_at = datetime.now(UTC)
+        user.journal_portrait_sources = {
+            "journal_revision": user.journal_revision,
+            "source_state": await portrait_source_state(async_session, user),
+        }
         async_session.add(user)
         await async_session.commit()
 

@@ -76,6 +76,8 @@ _get_emails_desc = (
 
 get_emails_catalogue_manifest = ToolManifest(
     name="get_emails_tool",
+    concurrency_safe=True,
+    result_reuse_ttl_seconds=30,
     agent="email_agent",
     description=_get_emails_desc,
     # Discriminant phrases - Email mailbox operations
@@ -171,7 +173,10 @@ get_emails_catalogue_manifest = ToolManifest(
     outputs=[
         # Full email outputs (merged from both tools)
         OutputFieldSchema(
-            path="emails", type="array", description="List of emails with full details"
+            path="emails",
+            type="array",
+            description="List of emails with full details",
+            semantic_type="EmailMessage",
         ),
         OutputFieldSchema(
             path="emails[].id", type="string", description="Message ID", semantic_type="message_id"
@@ -192,13 +197,25 @@ get_emails_catalogue_manifest = ToolManifest(
             path="emails[].labelIds",
             type="array",
             description="Labels",
-            semantic_type="email_label",
+            semantic_type="email_label_id",
         ),
-        OutputFieldSchema(path="emails[].subject", type="string", description="Email subject line"),
+        OutputFieldSchema(
+            path="emails[].subject",
+            type="string",
+            description="Email subject line",
+            semantic_type="Text",
+        ),
         OutputFieldSchema(
             path="emails[].from",
             type="string",
             description="Sender (RFC 5322 name-addr, e.g. 'Jane <jane@x.com>')",
+            semantic_type="Text",
+        ),
+        OutputFieldSchema(
+            path="emails[].from_email",
+            type="string",
+            nullable=True,
+            description="Validated plain sender mailbox; absent for an unreadable From header",
             semantic_type="email_address",  # Cross-domain: "reply to/invite the sender"
         ),
         OutputFieldSchema(
@@ -216,12 +233,55 @@ get_emails_catalogue_manifest = ToolManifest(
             path="emails[].date_formatted",
             type="string",
             description="Date in the user timezone and language",
+            semantic_type="formatted_time",
         ),
         OutputFieldSchema(
             path="emails[].attachments",
             type="array",
             description="Attachment info",
             semantic_type="attachment_info",
+        ),
+        OutputFieldSchema(
+            path="emails[].attachments[].filename",
+            type="string",
+            nullable=True,
+            description="Attachment file name",
+            semantic_type="file_name",
+        ),
+        OutputFieldSchema(
+            path="emails[].attachments[].attachment_id",
+            type="string",
+            nullable=True,
+            description="Gmail attachment handle",
+            semantic_type="email_attachment_id",
+        ),
+        OutputFieldSchema(
+            path="emails[].attachments[].attachmentId",
+            type="string",
+            nullable=True,
+            description="Microsoft/IMAP attachment handle",
+            semantic_type="email_attachment_id",
+        ),
+        OutputFieldSchema(
+            path="emails[].attachments[].mime_type",
+            type="string",
+            nullable=True,
+            description="Gmail attachment MIME type",
+            semantic_type="file_mime_type",
+        ),
+        OutputFieldSchema(
+            path="emails[].attachments[].mimeType",
+            type="string",
+            nullable=True,
+            description="Microsoft/IMAP attachment MIME type",
+            semantic_type="file_mime_type",
+        ),
+        OutputFieldSchema(
+            path="emails[].attachments[].size",
+            type="integer",
+            nullable=True,
+            description="Attachment size in bytes",
+            semantic_type="file_size",
         ),
         OutputFieldSchema(path="count", type="integer", description="Messages in this page"),
         OutputFieldSchema(

@@ -106,6 +106,25 @@ class TestExportCoverage:
         exportable = set(exportable_tables())
         assert {"conversation_messages", "journal_entries", "memories"} <= exportable
 
+    def test_journal_evidence_is_portable_with_its_rule_version(self) -> None:
+        assert "journal_evidence_events" in exportable_tables()
+        owner = uuid4()
+        row = _row_to_dict(
+            "journal_evidence_events",
+            SimpleNamespace(
+                _mapping={
+                    "user_id": owner,
+                    "journal_entry_id": uuid4(),
+                    "rule_revision": 4,
+                    "event_key": "feedback:example",
+                    "outcome": "contradiction",
+                }
+            ),
+            owner,
+        )
+        assert row["rule_revision"] == 4
+        assert row["outcome"] == "contradiction"
+
     def test_markdown_renderer_references_real_columns(self) -> None:
         """A renamed column must break the readable rendering loudly.
 

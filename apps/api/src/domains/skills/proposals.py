@@ -44,9 +44,14 @@ from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
 
-ProposalStatus = Literal["pending", "installed"]
+ProposalStatus = Literal["pending", "installing", "unknown", "installed"]
 #: A stored status read back as the vocabulary (a KeyError refuses the record).
-_STATUS_OF: Final[dict[str, ProposalStatus]] = {"pending": "pending", "installed": "installed"}
+_STATUS_OF: Final[dict[str, ProposalStatus]] = {
+    "pending": "pending",
+    "installing": "installing",
+    "unknown": "unknown",
+    "installed": "installed",
+}
 
 #: The message-metadata key the chat reads proposal cards from (done chunk and archive).
 SKILL_PROPOSALS_METADATA_KEY: Final = "skill_proposals"
@@ -129,6 +134,8 @@ class SkillProposal:
     replaces: str | None
     changes: ProposalChanges | None
     status: ProposalStatus = "pending"
+    attempt_id: str | None = None
+    cache_refresh_pending: bool = False
 
     def to_json(self) -> str:
         """The stored record (every field — ``from_json`` reads them all back)."""
@@ -159,6 +166,8 @@ class SkillProposal:
                 replaces=None if data["replaces"] is None else _str(data["replaces"]),
                 changes=None if changes is None else _changes(changes),
                 status=_STATUS_OF[data["status"]],
+                attempt_id=None if data.get("attempt_id") is None else _str(data["attempt_id"]),
+                cache_refresh_pending=_bool(data.get("cache_refresh_pending", False)),
             )
         except ValueError, TypeError, KeyError, AttributeError:
             return None
@@ -194,6 +203,12 @@ def _str(value: Any) -> str:
     """A stored string, or a refusal of the record."""
     if not isinstance(value, str):
         raise TypeError("not a string")
+    return value
+
+
+def _bool(value: Any) -> bool:
+    if not isinstance(value, bool):
+        raise TypeError("not a boolean")
     return value
 
 
@@ -316,6 +331,18 @@ def index_key(owner_id: str) -> str:
     return f"{SKILL_PROPOSAL_INDEX_KEY_PREFIX}:{owner_id}"
 
 
+_TRANSITION_SCRIPT: Final = """
+local raw = redis.call('GET', KEYS[1])
+if not raw then return 0 end
+local ok, current = pcall(cjson.decode, raw)
+if not ok or current.owner_id ~= ARGV[1] or current.id ~= ARGV[2] then return 0 end
+if current.status ~= ARGV[3] then return 0 end
+if ARGV[3] ~= 'pending' and current.attempt_id ~= ARGV[4] then return 0 end
+redis.call('SET', KEYS[1], ARGV[5], 'XX', 'KEEPTTL')
+return 1
+"""
+
+
 class ProposalStore:
     """The proposals of every account, in Redis, each with its lifetime."""
 
@@ -393,6 +420,23 @@ class ProposalStore:
             keepttl=True,
         )
         return bool(stored)
+
+    async def transition(self, expected: SkillProposal, changed: SkillProposal) -> bool:
+        """One owner/identity/status/attempt transition, retaining the original bounded TTL."""
+        if expected.owner_id != changed.owner_id or expected.id != changed.id:
+            raise ValueError("A proposal transition cannot change its identity")
+        return bool(
+            await self._redis.eval(
+                _TRANSITION_SCRIPT,
+                1,
+                proposal_key(expected.owner_id, expected.id),
+                expected.owner_id,
+                expected.id,
+                expected.status,
+                expected.attempt_id or "",
+                changed.to_json(),
+            )
+        )
 
 
 # ---------------------------------------------------------------------------

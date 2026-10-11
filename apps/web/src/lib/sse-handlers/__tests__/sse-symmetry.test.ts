@@ -36,6 +36,7 @@ const BACKEND_CONTRACT_TYPES = [
   'execution_step',
   'registry_update',
   'result_preview',
+  'application_state_changed',
   'debug_metrics',
   'debug_metrics_update',
   'hitl_interrupt',

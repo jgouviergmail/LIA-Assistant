@@ -47,9 +47,11 @@ export class RoutedLivePlayer implements LivePlayer {
   private nativeIdle = true;
   private nativeBlocked = false;
   private nativeFallback = false;
+  private nativeSpeakingHint = false;
   private preRoll: ArrayBuffer | null = null;
   private activityTimer: ReturnType<typeof setInterval> | null = null;
   private directAudio: HTMLAudioElement | null = null;
+  private directAudioReady = false;
   private remoteStream: MediaStream | null = null;
   private releaseCapture: (() => void) | null = null;
   private stopPermission: (() => void) | null = null;
@@ -90,7 +92,12 @@ export class RoutedLivePlayer implements LivePlayer {
   }
   attachRemoteStream(stream: MediaStream): () => void {
     if (this.disposed) return () => {};
+    // The SDK's mode event may precede TrackSubscribed; replacement flushes
+    // the old route, but the latest hint still belongs to the arriving stream.
+    const speakingHint = this.nativeSpeakingHint;
     this.releaseRemoteStream();
+    this.nativeSpeakingHint = speakingHint;
+    this.nativeIdle = !speakingHint;
     const attachment = ++this.attachment;
     this.native = true;
     this.nativeBlocked = false;
@@ -98,18 +105,7 @@ export class RoutedLivePlayer implements LivePlayer {
     this.remoteStream = stream;
     const engine = this.avatar();
     if (engine?.permitted) this.beginNativeCapture();
-    else {
-      // Preserve native playback for an account that has never opted in.
-      const audio = document.createElement('audio');
-      audio.autoplay = true;
-      audio.srcObject = stream;
-      audio.style.display = 'none';
-      document.body.appendChild(audio);
-      this.directAudio = audio;
-      void audio.play().catch(() => {
-        if (attachment === this.attachment && !this.disposed) this.notify(false);
-      });
-    }
+    else this.playDirectAudio(stream, attachment);
     this.stopPermission =
       engine?.subscribe(() => {
         if (!engine.permitted) this.nextNativeResponse = false;
@@ -124,6 +120,28 @@ export class RoutedLivePlayer implements LivePlayer {
       this.releaseRemoteStream();
     };
   }
+  private playDirectAudio(stream: MediaStream, attachment: number): void {
+    // Preserve the single native sink for an account that has never opted in.
+    const audio = document.createElement('audio');
+    audio.autoplay = true;
+    audio.srcObject = stream;
+    audio.style.display = 'none';
+    document.body.appendChild(audio);
+    this.directAudio = audio;
+    void audio
+      .play()
+      .then(() => {
+        if (!this.ownsDirectAudio(audio, attachment)) return;
+        this.directAudioReady = true;
+        this.notify(this.nativeSpeakingHint);
+      })
+      .catch(() => {
+        if (this.ownsDirectAudio(audio, attachment)) this.notify(false);
+      });
+  }
+  private ownsDirectAudio(audio: HTMLAudioElement, attachment: number): boolean {
+    return !this.disposed && attachment === this.attachment && this.directAudio === audio;
+  }
   private releaseRemoteStream(): void {
     this.stopPermission?.();
     this.stopPermission = null;
@@ -133,6 +151,7 @@ export class RoutedLivePlayer implements LivePlayer {
     if (this.directAudio) this.directAudio.srcObject = null;
     this.directAudio?.remove();
     this.directAudio = null;
+    this.directAudioReady = false;
     this.remoteStream = null;
     if (this.activityTimer) clearInterval(this.activityTimer);
     this.activityTimer = null;
@@ -152,6 +171,7 @@ export class RoutedLivePlayer implements LivePlayer {
     if (this.directAudio) this.directAudio.srcObject = null;
     this.directAudio?.remove();
     this.directAudio = null;
+    this.directAudioReady = false;
     this.releaseCapture?.();
     this.releaseCapture = this.capture.attach(stream);
     this.nativeActive = false;
@@ -160,13 +180,14 @@ export class RoutedLivePlayer implements LivePlayer {
   /** False is only a provider hint, never an EOF or a reason to drop the tail. */
   nativeSpeaking(speaking: boolean): void {
     if (this.disposed) return;
+    this.nativeSpeakingHint = speaking;
     if (this.nativeFallback) {
       this.notify(speaking);
       return;
     }
     if (this.directAudio) {
       this.nativeIdle = !speaking;
-      this.notify(speaking);
+      this.notify(speaking && this.directAudioReady);
       if (!speaking && this.nextNativeResponse) this.beginNativeCapture();
       return;
     }
@@ -400,6 +421,7 @@ export class RoutedLivePlayer implements LivePlayer {
     this.notify(false);
     this.nativeActive = false;
     this.nativeIdle = true;
+    this.nativeSpeakingHint = false;
     this.preRoll = null;
     if (this.native && !this.directAudio) {
       this.nativeBlocked = true;

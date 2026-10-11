@@ -15,8 +15,9 @@ back. Two readings, each with a deliberate default:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Final
+from typing import Any, Final, Literal
 
+from src.core.application_interaction import pending_interaction_of
 from src.core.tool_outcome import explicit_success
 
 #: Identifiers a provider hands back, most specific first, so a result carrying
@@ -55,6 +56,13 @@ class ToolOutcome:
     succeeded: bool
     provider_ref: str | None
     payload: Any
+    waiting: bool = False
+
+    @property
+    def status(self) -> Literal["waiting", "succeeded", "failed"]:
+        if self.waiting:
+            return "waiting"
+        return "succeeded" if self.succeeded else "failed"
 
 
 def _as_data(result: Any) -> Any:
@@ -149,4 +157,5 @@ def read_outcome(result: Any) -> ToolOutcome:
         succeeded=_explicit_success(data, result),
         provider_ref=_find_provider_ref(data),
         payload=data,
+        waiting=pending_interaction_of(data) is not None,
     )

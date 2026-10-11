@@ -1,0 +1,1097 @@
+{
+  "measured_on": "2026-10-06",
+  "oracle": "Exact content/identity/precision; documented ISO date/datetime contract; comma whitespace ignored; explicitly listed fictional address aliases accepted equally in every phase.",
+  "scope": "Real DB-configured model decisions; narrowed native catalogues and fictional observations. No native external effects or full router/tool-selection evaluation.",
+  "statistical_limit": "One sample per case/mode/phase with configured sampling, no statistical confidence or causal performance claim.",
+  "phases": [
+    {
+      "phase": "semantic-reference-12",
+      "scope": "production prompts/schemas; controlled query intelligence and fictional tool observations; no tool effects",
+      "analyzer_evaluated": false,
+      "configuration": {
+        "planner": {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "db_updated_at": "2026-09-23T15:40:25.650468+00:00",
+          "db_model_required": true,
+          "effective": {
+            "provider": "deepseek",
+            "model": "deepseek-flash",
+            "temperature": 0.2,
+            "max_tokens": 10000,
+            "timeout_seconds": 90.0,
+            "reasoning_effort": {
+              "level": "none",
+              "budget_tokens": null,
+              "exclude_from_output": false
+            }
+          },
+          "inherited_fields": [
+            "max_tokens",
+            "timeout_seconds",
+            "reasoning_effort"
+          ],
+          "experiment_max_retries": 0,
+          "experiment_sdk_max_retries": 0,
+          "price": {
+            "input_unit_price": 0.15,
+            "output_unit_price": 0.6,
+            "cached_input_unit_price": 0.003,
+            "pricing_unit": "per_1m_tokens",
+            "time_slots": [
+              {
+                "end_utc": "04:00",
+                "weekdays": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start_utc": "01:00",
+                "input_unit_price": 0.3,
+                "output_unit_price": 1.2,
+                "cached_input_unit_price": 0.006
+              },
+              {
+                "end_utc": "10:00",
+                "weekdays": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start_utc": "06:00",
+                "input_unit_price": 0.3,
+                "output_unit_price": 1.2,
+                "cached_input_unit_price": 0.006
+              }
+            ],
+            "audio_input_unit_price": null,
+            "audio_output_unit_price": null,
+            "cache_write_multiplier": 1.0
+          }
+        },
+        "react_agent": {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "db_updated_at": "2026-09-30T19:51:06.668790+00:00",
+          "db_model_required": true,
+          "effective": {
+            "provider": "deepseek",
+            "model": "deepseek-flash",
+            "temperature": 0.5,
+            "max_tokens": 50000,
+            "timeout_seconds": 120.0,
+            "reasoning_effort": {
+              "level": "none",
+              "budget_tokens": null,
+              "exclude_from_output": false
+            }
+          },
+          "inherited_fields": [
+            "max_tokens",
+            "timeout_seconds"
+          ],
+          "experiment_max_retries": 0,
+          "experiment_sdk_max_retries": 0,
+          "price": {
+            "input_unit_price": 0.15,
+            "output_unit_price": 0.6,
+            "cached_input_unit_price": 0.003,
+            "pricing_unit": "per_1m_tokens",
+            "time_slots": [
+              {
+                "end_utc": "04:00",
+                "weekdays": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start_utc": "01:00",
+                "input_unit_price": 0.3,
+                "output_unit_price": 1.2,
+                "cached_input_unit_price": 0.006
+              },
+              {
+                "end_utc": "10:00",
+                "weekdays": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start_utc": "06:00",
+                "input_unit_price": 0.3,
+                "output_unit_price": 1.2,
+                "cached_input_unit_price": 0.006
+              }
+            ],
+            "audio_input_unit_price": null,
+            "audio_output_unit_price": null,
+            "cache_write_multiplier": 1.0
+          }
+        },
+        "query_analyzer": {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "db_updated_at": "2026-09-23T22:14:36.665467+00:00",
+          "db_model_required": true,
+          "effective": {
+            "provider": "deepseek",
+            "model": "deepseek-flash",
+            "temperature": 0.2,
+            "max_tokens": 10000,
+            "timeout_seconds": 60.0,
+            "reasoning_effort": {
+              "level": "none",
+              "budget_tokens": null,
+              "exclude_from_output": false
+            }
+          },
+          "inherited_fields": [
+            "max_tokens",
+            "timeout_seconds",
+            "reasoning_effort"
+          ],
+          "experiment_max_retries": 0,
+          "experiment_sdk_max_retries": 0,
+          "price": {
+            "input_unit_price": 0.15,
+            "output_unit_price": 0.6,
+            "cached_input_unit_price": 0.003,
+            "pricing_unit": "per_1m_tokens",
+            "time_slots": [
+              {
+                "end_utc": "04:00",
+                "weekdays": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start_utc": "01:00",
+                "input_unit_price": 0.3,
+                "output_unit_price": 1.2,
+                "cached_input_unit_price": 0.006
+              },
+              {
+                "end_utc": "10:00",
+                "weekdays": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start_utc": "06:00",
+                "input_unit_price": 0.3,
+                "output_unit_price": 1.2,
+                "cached_input_unit_price": 0.006
+              }
+            ],
+            "audio_input_unit_price": null,
+            "audio_output_unit_price": null,
+            "cache_write_multiplier": 1.0
+          }
+        }
+      },
+      "provider_calls": 31,
+      "cost_eur": 0.01079979009354,
+      "original_successes": 19,
+      "comparable_successes": 20,
+      "decisions": 24,
+      "results": [
+        {
+          "scenario": "contact_to_attendees",
+          "mode": "planner",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "contact_to_attendees",
+          "mode": "react",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "explicit_email_no_lookup",
+          "mode": "planner",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "explicit_email_no_lookup",
+          "mode": "react",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "mail_sender_to_attendees",
+          "mode": "planner",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "mail_sender_to_attendees",
+          "mode": "react",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "mail_content_to_task",
+          "mode": "planner",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "mail_content_to_task",
+          "mode": "react",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "nancy_city_forecast",
+          "mode": "planner",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "nancy_city_forecast",
+          "mode": "react",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "nancy_person_forecast",
+          "mode": "planner",
+          "original_failures": [
+            "KeyError: \"Failed to resolve $steps.step_1.contacts[0].addresses[0].city: path 'contacts[0].addresses[0].city' not found in step result. Error: 'city'\""
+          ],
+          "comparable_failures": [
+            "KeyError: \"Failed to resolve $steps.step_1.contacts[0].addresses[0].city: path 'contacts[0].addresses[0].city' not found in step result. Error: 'city'\""
+          ]
+        },
+        {
+          "scenario": "nancy_person_forecast",
+          "mode": "react",
+          "original_failures": [
+            "location: expected '12 rue des Lilas, Lyon, France', observed 'Lyon, France'"
+          ],
+          "comparable_failures": [
+            "location: expected '12 rue des Lilas, Lyon, France', observed 'Lyon, France'"
+          ]
+        },
+        {
+          "scenario": "contact_address_to_route",
+          "mode": "planner",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "contact_address_to_route",
+          "mode": "react",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "event_to_arrival_route",
+          "mode": "planner",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "event_to_arrival_route",
+          "mode": "react",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "event_to_forecast_date",
+          "mode": "planner",
+          "original_failures": [
+            "date: expected '2026-10-08', observed '2026-10-08T10:00:00+02:00'"
+          ],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "event_to_forecast_date",
+          "mode": "react",
+          "original_failures": [
+            "location: expected '20 quai Claude Bernard, Lyon, France', observed 'Lyon, France'",
+            "date: expected '2026-10-08', observed '2026-10-08T10:00:00+02:00'"
+          ],
+          "comparable_failures": [
+            "location: expected '20 quai Claude Bernard, Lyon, France', observed 'Lyon, France'"
+          ]
+        },
+        {
+          "scenario": "explicit_route_no_lookup",
+          "mode": "planner",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "explicit_route_no_lookup",
+          "mode": "react",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "two_explicit_recipients_one_event",
+          "mode": "planner",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "two_explicit_recipients_one_event",
+          "mode": "react",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "literal_content_preserved",
+          "mode": "planner",
+          "original_failures": [
+            "ToolErrorCode.INVALID_INPUT: Step step_1: parameter 'notes' references non-existent step: fake"
+          ],
+          "comparable_failures": [
+            "ToolErrorCode.INVALID_INPUT: Step step_1: parameter 'notes' references non-existent step: fake"
+          ]
+        },
+        {
+          "scenario": "literal_content_preserved",
+          "mode": "react",
+          "original_failures": [],
+          "comparable_failures": []
+        }
+      ]
+    },
+    {
+      "phase": "semantic-analyzed-12",
+      "scope": "production prompts/schemas; controlled query intelligence and fictional tool observations; no tool effects",
+      "analyzer_evaluated": true,
+      "configuration": {
+        "planner": {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "db_updated_at": "2026-09-23T15:40:25.650468+00:00",
+          "db_model_required": true,
+          "effective": {
+            "provider": "deepseek",
+            "model": "deepseek-flash",
+            "temperature": 0.2,
+            "max_tokens": 10000,
+            "timeout_seconds": 90.0,
+            "reasoning_effort": {
+              "level": "none",
+              "budget_tokens": null,
+              "exclude_from_output": false
+            }
+          },
+          "inherited_fields": [
+            "max_tokens",
+            "timeout_seconds",
+            "reasoning_effort"
+          ],
+          "experiment_max_retries": 0,
+          "experiment_sdk_max_retries": 0,
+          "price": {
+            "input_unit_price": 0.15,
+            "output_unit_price": 0.6,
+            "cached_input_unit_price": 0.003,
+            "pricing_unit": "per_1m_tokens",
+            "time_slots": [
+              {
+                "end_utc": "04:00",
+                "weekdays": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start_utc": "01:00",
+                "input_unit_price": 0.3,
+                "output_unit_price": 1.2,
+                "cached_input_unit_price": 0.006
+              },
+              {
+                "end_utc": "10:00",
+                "weekdays": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start_utc": "06:00",
+                "input_unit_price": 0.3,
+                "output_unit_price": 1.2,
+                "cached_input_unit_price": 0.006
+              }
+            ],
+            "audio_input_unit_price": null,
+            "audio_output_unit_price": null,
+            "cache_write_multiplier": 1.0
+          }
+        },
+        "react_agent": {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "db_updated_at": "2026-09-30T19:51:06.668790+00:00",
+          "db_model_required": true,
+          "effective": {
+            "provider": "deepseek",
+            "model": "deepseek-flash",
+            "temperature": 0.5,
+            "max_tokens": 50000,
+            "timeout_seconds": 120.0,
+            "reasoning_effort": {
+              "level": "none",
+              "budget_tokens": null,
+              "exclude_from_output": false
+            }
+          },
+          "inherited_fields": [
+            "max_tokens",
+            "timeout_seconds"
+          ],
+          "experiment_max_retries": 0,
+          "experiment_sdk_max_retries": 0,
+          "price": {
+            "input_unit_price": 0.15,
+            "output_unit_price": 0.6,
+            "cached_input_unit_price": 0.003,
+            "pricing_unit": "per_1m_tokens",
+            "time_slots": [
+              {
+                "end_utc": "04:00",
+                "weekdays": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start_utc": "01:00",
+                "input_unit_price": 0.3,
+                "output_unit_price": 1.2,
+                "cached_input_unit_price": 0.006
+              },
+              {
+                "end_utc": "10:00",
+                "weekdays": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start_utc": "06:00",
+                "input_unit_price": 0.3,
+                "output_unit_price": 1.2,
+                "cached_input_unit_price": 0.006
+              }
+            ],
+            "audio_input_unit_price": null,
+            "audio_output_unit_price": null,
+            "cache_write_multiplier": 1.0
+          }
+        },
+        "query_analyzer": {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "db_updated_at": "2026-09-23T22:14:36.665467+00:00",
+          "db_model_required": true,
+          "effective": {
+            "provider": "deepseek",
+            "model": "deepseek-flash",
+            "temperature": 0.2,
+            "max_tokens": 10000,
+            "timeout_seconds": 60.0,
+            "reasoning_effort": {
+              "level": "none",
+              "budget_tokens": null,
+              "exclude_from_output": false
+            }
+          },
+          "inherited_fields": [
+            "max_tokens",
+            "timeout_seconds",
+            "reasoning_effort"
+          ],
+          "experiment_max_retries": 0,
+          "experiment_sdk_max_retries": 0,
+          "price": {
+            "input_unit_price": 0.15,
+            "output_unit_price": 0.6,
+            "cached_input_unit_price": 0.003,
+            "pricing_unit": "per_1m_tokens",
+            "time_slots": [
+              {
+                "end_utc": "04:00",
+                "weekdays": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start_utc": "01:00",
+                "input_unit_price": 0.3,
+                "output_unit_price": 1.2,
+                "cached_input_unit_price": 0.006
+              },
+              {
+                "end_utc": "10:00",
+                "weekdays": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start_utc": "06:00",
+                "input_unit_price": 0.3,
+                "output_unit_price": 1.2,
+                "cached_input_unit_price": 0.006
+              }
+            ],
+            "audio_input_unit_price": null,
+            "audio_output_unit_price": null,
+            "cache_write_multiplier": 1.0
+          }
+        }
+      },
+      "provider_calls": 43,
+      "cost_eur": 0.015728749929479997,
+      "original_successes": 17,
+      "comparable_successes": 23,
+      "decisions": 24,
+      "results": [
+        {
+          "scenario": "contact_to_attendees",
+          "mode": "planner",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "contact_to_attendees",
+          "mode": "react",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "explicit_email_no_lookup",
+          "mode": "planner",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "explicit_email_no_lookup",
+          "mode": "react",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "mail_sender_to_attendees",
+          "mode": "planner",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "mail_sender_to_attendees",
+          "mode": "react",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "mail_content_to_task",
+          "mode": "planner",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "mail_content_to_task",
+          "mode": "react",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "nancy_city_forecast",
+          "mode": "planner",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "nancy_city_forecast",
+          "mode": "react",
+          "original_failures": [
+            "location: expected 'Nancy, France', observed 'Nancy,France'"
+          ],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "nancy_person_forecast",
+          "mode": "planner",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "nancy_person_forecast",
+          "mode": "react",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "contact_address_to_route",
+          "mode": "planner",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "contact_address_to_route",
+          "mode": "react",
+          "original_failures": [
+            "origin: expected '1 place Bellecour, Lyon', observed '1 place Bellecour, Lyon, France'"
+          ],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "event_to_arrival_route",
+          "mode": "planner",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "event_to_arrival_route",
+          "mode": "react",
+          "original_failures": [
+            "origin: expected '1 place Bellecour, Lyon', observed '1 place Bellecour, Lyon, France'"
+          ],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "event_to_forecast_date",
+          "mode": "planner",
+          "original_failures": [
+            "date: expected '2026-10-08', observed '2026-10-08T10:00:00+02:00'"
+          ],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "event_to_forecast_date",
+          "mode": "react",
+          "original_failures": [
+            "location: expected '20 quai Claude Bernard, Lyon, France', observed 'Lyon, France'",
+            "date: expected '2026-10-08', observed '2026-10-08T10:00:00+02:00'"
+          ],
+          "comparable_failures": [
+            "location: expected '20 quai Claude Bernard, Lyon, France', observed 'Lyon, France'"
+          ]
+        },
+        {
+          "scenario": "explicit_route_no_lookup",
+          "mode": "planner",
+          "original_failures": [
+            "origin: expected '1 place Bellecour, Lyon', observed '1 place Bellecour, Lyon, France'"
+          ],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "explicit_route_no_lookup",
+          "mode": "react",
+          "original_failures": [
+            "origin: expected '1 place Bellecour, Lyon', observed '1 place Bellecour, Lyon, France'"
+          ],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "two_explicit_recipients_one_event",
+          "mode": "planner",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "two_explicit_recipients_one_event",
+          "mode": "react",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "literal_content_preserved",
+          "mode": "planner",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "literal_content_preserved",
+          "mode": "react",
+          "original_failures": [],
+          "comparable_failures": []
+        }
+      ]
+    },
+    {
+      "phase": "semantic-qualified-12",
+      "scope": "production prompts/schemas; controlled query intelligence and fictional tool observations; no tool effects",
+      "analyzer_evaluated": true,
+      "configuration": {
+        "planner": {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "db_updated_at": "2026-09-23T15:40:25.650468+00:00",
+          "db_model_required": true,
+          "effective": {
+            "provider": "deepseek",
+            "model": "deepseek-flash",
+            "temperature": 0.2,
+            "max_tokens": 10000,
+            "timeout_seconds": 90.0,
+            "reasoning_effort": {
+              "level": "none",
+              "budget_tokens": null,
+              "exclude_from_output": false
+            }
+          },
+          "inherited_fields": [
+            "max_tokens",
+            "timeout_seconds",
+            "reasoning_effort"
+          ],
+          "experiment_max_retries": 0,
+          "experiment_sdk_max_retries": 0,
+          "price": {
+            "input_unit_price": 0.15,
+            "output_unit_price": 0.6,
+            "cached_input_unit_price": 0.003,
+            "pricing_unit": "per_1m_tokens",
+            "time_slots": [
+              {
+                "end_utc": "04:00",
+                "weekdays": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start_utc": "01:00",
+                "input_unit_price": 0.3,
+                "output_unit_price": 1.2,
+                "cached_input_unit_price": 0.006
+              },
+              {
+                "end_utc": "10:00",
+                "weekdays": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start_utc": "06:00",
+                "input_unit_price": 0.3,
+                "output_unit_price": 1.2,
+                "cached_input_unit_price": 0.006
+              }
+            ],
+            "audio_input_unit_price": null,
+            "audio_output_unit_price": null,
+            "cache_write_multiplier": 1.0
+          }
+        },
+        "react_agent": {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "db_updated_at": "2026-09-30T19:51:06.668790+00:00",
+          "db_model_required": true,
+          "effective": {
+            "provider": "deepseek",
+            "model": "deepseek-flash",
+            "temperature": 0.5,
+            "max_tokens": 50000,
+            "timeout_seconds": 120.0,
+            "reasoning_effort": {
+              "level": "none",
+              "budget_tokens": null,
+              "exclude_from_output": false
+            }
+          },
+          "inherited_fields": [
+            "max_tokens",
+            "timeout_seconds"
+          ],
+          "experiment_max_retries": 0,
+          "experiment_sdk_max_retries": 0,
+          "price": {
+            "input_unit_price": 0.15,
+            "output_unit_price": 0.6,
+            "cached_input_unit_price": 0.003,
+            "pricing_unit": "per_1m_tokens",
+            "time_slots": [
+              {
+                "end_utc": "04:00",
+                "weekdays": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start_utc": "01:00",
+                "input_unit_price": 0.3,
+                "output_unit_price": 1.2,
+                "cached_input_unit_price": 0.006
+              },
+              {
+                "end_utc": "10:00",
+                "weekdays": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start_utc": "06:00",
+                "input_unit_price": 0.3,
+                "output_unit_price": 1.2,
+                "cached_input_unit_price": 0.006
+              }
+            ],
+            "audio_input_unit_price": null,
+            "audio_output_unit_price": null,
+            "cache_write_multiplier": 1.0
+          }
+        },
+        "query_analyzer": {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "db_updated_at": "2026-09-23T22:14:36.665467+00:00",
+          "db_model_required": true,
+          "effective": {
+            "provider": "deepseek",
+            "model": "deepseek-flash",
+            "temperature": 0.2,
+            "max_tokens": 10000,
+            "timeout_seconds": 60.0,
+            "reasoning_effort": {
+              "level": "none",
+              "budget_tokens": null,
+              "exclude_from_output": false
+            }
+          },
+          "inherited_fields": [
+            "max_tokens",
+            "timeout_seconds",
+            "reasoning_effort"
+          ],
+          "experiment_max_retries": 0,
+          "experiment_sdk_max_retries": 0,
+          "price": {
+            "input_unit_price": 0.15,
+            "output_unit_price": 0.6,
+            "cached_input_unit_price": 0.003,
+            "pricing_unit": "per_1m_tokens",
+            "time_slots": [
+              {
+                "end_utc": "04:00",
+                "weekdays": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start_utc": "01:00",
+                "input_unit_price": 0.3,
+                "output_unit_price": 1.2,
+                "cached_input_unit_price": 0.006
+              },
+              {
+                "end_utc": "10:00",
+                "weekdays": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start_utc": "06:00",
+                "input_unit_price": 0.3,
+                "output_unit_price": 1.2,
+                "cached_input_unit_price": 0.006
+              }
+            ],
+            "audio_input_unit_price": null,
+            "audio_output_unit_price": null,
+            "cache_write_multiplier": 1.0
+          }
+        }
+      },
+      "provider_calls": 43,
+      "cost_eur": 0.015274695538620002,
+      "original_successes": 23,
+      "comparable_successes": 23,
+      "decisions": 24,
+      "results": [
+        {
+          "scenario": "contact_to_attendees",
+          "mode": "planner",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "contact_to_attendees",
+          "mode": "react",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "explicit_email_no_lookup",
+          "mode": "planner",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "explicit_email_no_lookup",
+          "mode": "react",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "mail_sender_to_attendees",
+          "mode": "planner",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "mail_sender_to_attendees",
+          "mode": "react",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "mail_content_to_task",
+          "mode": "planner",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "mail_content_to_task",
+          "mode": "react",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "nancy_city_forecast",
+          "mode": "planner",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "nancy_city_forecast",
+          "mode": "react",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "nancy_person_forecast",
+          "mode": "planner",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "nancy_person_forecast",
+          "mode": "react",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "contact_address_to_route",
+          "mode": "planner",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "contact_address_to_route",
+          "mode": "react",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "event_to_arrival_route",
+          "mode": "planner",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "event_to_arrival_route",
+          "mode": "react",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "event_to_forecast_date",
+          "mode": "planner",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "event_to_forecast_date",
+          "mode": "react",
+          "original_failures": [
+            "location: expected '20 quai Claude Bernard, Lyon, France', observed 'Lyon, France'"
+          ],
+          "comparable_failures": [
+            "location: expected '20 quai Claude Bernard, Lyon, France', observed 'Lyon, France'"
+          ]
+        },
+        {
+          "scenario": "explicit_route_no_lookup",
+          "mode": "planner",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "explicit_route_no_lookup",
+          "mode": "react",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "two_explicit_recipients_one_event",
+          "mode": "planner",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "two_explicit_recipients_one_event",
+          "mode": "react",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "literal_content_preserved",
+          "mode": "planner",
+          "original_failures": [],
+          "comparable_failures": []
+        },
+        {
+          "scenario": "literal_content_preserved",
+          "mode": "react",
+          "original_failures": [],
+          "comparable_failures": []
+        }
+      ]
+    }
+  ],
+  "cost_eur": 0.04180323556164,
+  "provider_calls": 117
+}

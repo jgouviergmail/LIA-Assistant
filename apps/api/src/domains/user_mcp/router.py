@@ -24,14 +24,14 @@ from src.core.constants import (
     MCP_USER_OAUTH_STATE_REDIS_PREFIX,
 )
 from src.core.dependencies import get_db
-from src.core.exceptions import ValidationError, raise_bad_gateway
 from src.core.native_client import detect_native_client
 from src.core.native_deep_link import NativeDeepLinkHost
 from src.core.oauth.native_return import make_native_flow_probe, oauth_return_redirect
 from src.core.session_dependencies import get_current_active_session
 from src.domains.feature_switches.guard import capability_dependencies
 from src.domains.feature_switches.registry import PlatformCapability
-from src.domains.user_mcp.models import UserMCPAuthType, UserMCPServer, UserMCPServerStatus
+from src.domains.user_mcp.authorization import initiate_personal_mcp_authorization
+from src.domains.user_mcp.projection import server_to_response as _server_to_response
 from src.domains.user_mcp.schemas import (
     McpAppCallToolRequest,
     McpAppCallToolResponse,
@@ -48,7 +48,12 @@ from src.domains.user_mcp.schemas import (
 )
 from src.domains.user_mcp.service import UserMCPServerService
 from src.domains.users.models import User
+from src.infrastructure.mcp.oauth_application_guard import application_command_from_state
 from src.infrastructure.mcp.oauth_flow import MCPOAuthFlowHandler, safe_oauth_error_code_value
+from src.infrastructure.mcp.personal_oauth_contract import (
+    check_application_mcp_oauth,
+    get_application_mcp_oauth,
+)
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -68,7 +73,11 @@ def _mcp_return(is_native: bool, params: dict[str, str]) -> RedirectResponse:
     return oauth_return_redirect(
         is_native=is_native,
         host=NativeDeepLinkHost.MCP_CALLBACK,
-        path=MCP_USER_OAUTH_REDIRECT_PATH,
+        path=(
+            "/dashboard/chat"
+            if "application_command_id" in params
+            else MCP_USER_OAUTH_REDIRECT_PATH
+        ),
         params=params,
     )
 
@@ -92,53 +101,6 @@ router = APIRouter(
         Depends(detect_native_client),
     ],
 )
-
-
-def _server_to_response(
-    server: UserMCPServer,
-    service: UserMCPServerService,
-) -> UserMCPServerResponse:
-    """Convert UserMCPServer model to response schema."""
-    # Parse discovered tools from cache
-    tools: list[MCPDiscoveredToolResponse] = []
-    if server.discovered_tools_cache:
-        cache = server.discovered_tools_cache
-        tool_list = cache if isinstance(cache, list) else cache.get("tools", [])
-        tools = [
-            MCPDiscoveredToolResponse(
-                tool_name=t.get("name", t.get("tool_name", "")),
-                description=t.get("description", ""),
-                input_schema=t.get("input_schema", {}),
-                title=t.get("title"),
-            )
-            for t in tool_list
-        ]
-
-    # Delegate credential metadata extraction to service (no duplicate decrypt)
-    metadata = service.build_response_metadata(server)
-
-    return UserMCPServerResponse(
-        id=server.id,
-        name=server.name,
-        url=server.url,
-        auth_type=UserMCPAuthType(server.auth_type),
-        status=UserMCPServerStatus(server.status),
-        is_enabled=server.is_enabled,
-        domain_description=server.domain_description,
-        timeout_seconds=server.timeout_seconds,
-        hitl_required=server.hitl_required,
-        iterative_mode=server.iterative_mode,
-        header_name=metadata["header_name"],
-        has_credentials=metadata["has_credentials"],
-        has_oauth_credentials=metadata["has_oauth_credentials"],
-        oauth_scopes=metadata["oauth_scopes"],
-        tool_count=len(tools),
-        tools=tools,
-        last_connected_at=server.last_connected_at,
-        last_error=server.last_error,
-        created_at=server.created_at,
-        updated_at=server.updated_at,
-    )
 
 
 # =============================================================================
@@ -415,56 +377,7 @@ async def oauth_authorize(
 
     ResourceNotFoundError (404) propagates automatically for ownership check.
     """
-    service = UserMCPServerService(db)
-    server = await service.get_with_ownership_check(server_id, user.id)
-
-    if server.auth_type != UserMCPAuthType.OAUTH2.value:
-        raise ValidationError("Server auth_type must be 'oauth2' to use OAuth authorization")
-
-    # Extract pre-registered client credentials if available
-    client_id: str | None = None
-    client_secret: str | None = None
-    stored_issuer: str | None = None
-    creds = service.get_decrypted_credentials(server)
-    if creds:
-        client_id = creds.get("client_id")
-        client_secret = creds.get("client_secret")
-        stored_issuer = creds.get("issuer")
-
-    # Extract user-specified scopes (stored in oauth_metadata by service)
-    requested_scopes = (server.oauth_metadata or {}).get("requested_scopes", "")
-
-    async with MCPOAuthFlowHandler() as handler:
-        try:
-            authorization_url, metadata_cache = await handler.initiate_flow(
-                server_id=server.id,
-                user_id=user.id,
-                mcp_url=server.url,
-                cached_metadata=server.oauth_metadata,
-                client_id=client_id,
-                client_secret=client_secret,
-                requested_scopes=requested_scopes,
-                stored_issuer=stored_issuer,
-            )
-        except Exception as e:
-            logger.error(
-                "user_mcp_oauth_initiate_failed",
-                user_id=str(user.id),
-                server_id=str(server_id),
-                error=str(e),
-            )
-            raise_bad_gateway(
-                "Failed to initiate OAuth flow. The MCP server may be unreachable "
-                "or misconfigured.",
-                server_id=str(server_id),
-            )
-
-    # Cache OAuth metadata for future flows (avoids re-discovery)
-    if metadata_cache:
-        await service.cache_oauth_metadata(server, metadata_cache)
-        await db.commit()
-
-    return UserMCPOAuthInitiateResponse(authorization_url=authorization_url)
+    return await initiate_personal_mcp_authorization(db, user.id, server_id)
 
 
 # =============================================================================
@@ -584,6 +497,16 @@ async def oauth_callback(
     user back on the frontend with a marker — never on a bare 422.
     """
     if error or not code or not state:
+        if state:
+            try:
+                rejected = await MCPOAuthFlowHandler._consume_state(state)
+                linked = application_command_from_state(rejected) if rejected else None
+                if linked is not None:
+                    await get_application_mcp_oauth().fail(linked)
+            except Exception as failure:
+                logger.warning(
+                    "user_mcp_oauth_rejection_settlement_failed", error_type=type(failure).__name__
+                )
         # `error` is provider-controlled free text: log only an allowlisted
         # code (SEC-030) and never reflect the raw value into the redirect.
         logger.warning(
@@ -606,9 +529,21 @@ async def oauth_callback(
     async with MCPOAuthFlowHandler() as handler:
         try:
             server_id, user_id, encrypted_creds = await handler.handle_callback(
-                code=code, state=state, iss=iss
+                code=code, state=state, iss=iss, application_check=check_application_mcp_oauth
             )
 
+            if isinstance(handler.application_command_id, UUID):
+                await get_application_mcp_oauth().stage(
+                    server_id, user_id, handler.application_command_id, encrypted_creds
+                )
+                return _mcp_return(
+                    is_native,
+                    {
+                        "mcp_oauth": "pending",
+                        "server_id": str(server_id),
+                        "application_command_id": str(handler.application_command_id),
+                    },
+                )
             # Persist encrypted tokens and mark server as active
             await UserMCPServerService.update_oauth_credentials(server_id, encrypted_creds)
 
@@ -621,9 +556,16 @@ async def oauth_callback(
             return _mcp_return(is_native, {"mcp_oauth": "success", "server_id": str(server_id)})
 
         except Exception as e:
+            if isinstance(handler.application_command_id, UUID):
+                try:
+                    await get_application_mcp_oauth().fail(handler.application_command_id)
+                except Exception as failure:
+                    logger.warning(
+                        "user_mcp_oauth_callback_settlement_failed",
+                        error_type=type(failure).__name__,
+                    )
             logger.error(
                 "user_mcp_oauth_callback_failed",
-                error=str(e),
                 error_type=type(e).__name__,
             )
 

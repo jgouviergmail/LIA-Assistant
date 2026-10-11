@@ -74,6 +74,11 @@ def build_planner_human_message(
     human message — so the planner converges instead of oscillating.
     """
     content = f"Query: {intelligence.original_query}"
+    if intelligence.requested_outcomes:
+        content += "\nExplicit requested results (source-anchored analysis hints): " + json.dumps(
+            [goal.model_dump(mode="json") for goal in intelligence.requested_outcomes],
+            ensure_ascii=False,
+        )
     if intelligence.english_enriched_query:
         content += (
             "\nResolved facts (authoritative for tool parameters — dates, times, "

@@ -36,6 +36,16 @@ logger = structlog.get_logger(__name__)
 KEY = "relation_debriefs"
 
 
+async def _allowed(user_id: UUID) -> bool:
+    if not settings.relation_debrief_enabled:
+        return False
+    if not await is_capability_enabled(PlatformCapability.RELATION_DEBRIEF):
+        return False
+    async with get_db_context() as db:
+        user = await db.get(User, user_id)
+    return bool(user is not None and user.relation_debrief_enabled)
+
+
 async def read_relation_debriefs(
     *, user_id: UUID, language: str, budget: SourceBudget
 ) -> PortraitSourceSection:
@@ -94,7 +104,12 @@ async def read_relation_debriefs(
 
 #: Where this source's freshness is read (the consolidation's eligibility).
 FRESHNESS = FreshnessProbe(
-    table="relation_debriefs", user_column="user_id", stamp_column="generated_at"
+    table="relation_debriefs",
+    user_column="user_id",
+    stamp_column="generated_at",
+    allowed=_allowed,
+    expires_daily=True,
+    semantic_columns=("display_name", "generated_for", "state", "body"),
 )
 
 # Installed at import for every path that does not go through the boot; the

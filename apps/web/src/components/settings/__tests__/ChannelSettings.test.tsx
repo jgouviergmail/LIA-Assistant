@@ -13,6 +13,8 @@ import type {
 } from '@/hooks/useChannelBindings';
 
 const { useChannelBindings } = vi.hoisted(() => ({ useChannelBindings: vi.fn() }));
+const { auth } = vi.hoisted(() => ({ auth: { id: 'one' } }));
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: auth.id } }) }));
 vi.mock('@/hooks/useChannelBindings', () => ({ useChannelBindings }));
 const { toast } = vi.hoisted(() => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('sonner', () => ({ toast }));
@@ -58,9 +60,18 @@ function renderChannels() {
   );
 }
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => { vi.clearAllMocks(); auth.id = 'one'; });
 
 describe('ChannelSettings — unbound', () => {
+  it('removes an already displayed OTP when the account changes', async () => {
+    useChannelBindings.mockReturnValue(hook({ generateOtp: vi.fn().mockResolvedValue({ code: '123456', expires_in_seconds: 300, bot_username: 'LIABot', channel_type: 'telegram' }) }));
+    const { user, rerender } = renderChannels();
+    await user.click(screen.getByRole('button', { name: 'settings.channels.link_button' }));
+    expect(await screen.findByText('123456')).toBeInTheDocument();
+    auth.id = 'two';
+    rerender(<ChannelSettings lng="en" />);
+    expect(screen.queryByText('123456')).not.toBeInTheDocument();
+  });
   it('shows a spinner while the bindings load', () => {
     useChannelBindings.mockReturnValue(hook({ loading: true, bindings: [] }));
     renderChannels();
@@ -96,6 +107,18 @@ describe('ChannelSettings — unbound', () => {
 });
 
 describe('ChannelSettings — bound', () => {
+  it('suppresses the old account completion toast after a late toggle', async () => {
+    let complete: (() => void) | undefined;
+    const toggleBinding = vi.fn(() => new Promise<{ id: string; is_active: boolean }>(done => { complete = () => done({ id: 'b1', is_active: false }); }));
+    useChannelBindings.mockReturnValue(hook({ bindings: [binding()], toggleBinding }));
+    const { user, rerender } = renderChannels();
+    await user.click(screen.getByRole('switch'));
+    auth.id = 'two';
+    rerender(<ChannelSettings lng="en" />);
+    complete?.();
+    await waitFor(() => expect(toggleBinding).toHaveBeenCalledOnce());
+    expect(toast.success).not.toHaveBeenCalled();
+  });
   it('reflects the active binding and toggles it', async () => {
     const toggleBinding = vi.fn().mockResolvedValue({ id: 'b1', is_active: false });
     useChannelBindings.mockReturnValue(

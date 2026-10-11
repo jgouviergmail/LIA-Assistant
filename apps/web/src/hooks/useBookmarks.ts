@@ -12,7 +12,9 @@
 
 import { useCallback, useMemo, useState } from 'react';
 
-import { useApiQuery } from '@/hooks/useApiQuery';
+import { useAuth } from '@/hooks/useAuth';
+import { useApplicationAccountQuery } from '@/hooks/useApplicationAccountQuery';
+import { useApplicationResourceSync } from '@/hooks/useApplicationResourceSync';
 import type { BookmarkList } from '@/types/bookmarks';
 
 /** Rows per page — the galleries' rhythm. */
@@ -50,8 +52,11 @@ export function bookmarksPath(query: string | undefined, offset: number): string
 }
 
 export function useBookmarks(query: string | undefined, enabled: boolean): UseBookmarksReturn {
+  const { user } = useAuth();
+  const accountId = user?.id;
   const [page, setPage] = useState(1);
-  const key = useMemo(() => (query ?? '').trim(), [query]);
+  const needle = (query ?? '').trim();
+  const key = useMemo(() => JSON.stringify([accountId, needle]), [accountId, needle]);
   const [lastKey, setLastKey] = useState(key);
   const effectivePage = key === lastKey ? page : 1;
   if (key !== lastKey) {
@@ -62,14 +67,12 @@ export function useBookmarks(query: string | undefined, enabled: boolean): UseBo
     setPage(1);
   }
 
-  const { data, loading, error, refetch } = useApiQuery<BookmarkList>(
-    bookmarksPath(key, (effectivePage - 1) * BOOKMARKS_PAGE_SIZE),
-    {
-      componentName: 'BookmarkList',
-      enabled,
-      deps: [key, effectivePage, enabled],
-    }
+  const { data, loading, error, refetch, ownerId } = useApplicationAccountQuery<BookmarkList>(
+    bookmarksPath(needle, (effectivePage - 1) * BOOKMARKS_PAGE_SIZE),
+    'BookmarkList',
+    enabled
   );
+  useApplicationResourceSync(ownerId, 'generated_assets', refetch);
 
   // The page FOLLOWS the data: deleting the last bookmark of the last page
   // must not leave a blank list under « page 3 of 2 ».
@@ -84,7 +87,7 @@ export function useBookmarks(query: string | undefined, enabled: boolean): UseBo
     page: shownPage,
     totalPages,
     setPage: useCallback((next: number) => setPage(Math.max(1, next)), []),
-    firstLoad: data === null || data === undefined,
+    firstLoad: loading && data == null,
     loading,
     error,
     refetch,

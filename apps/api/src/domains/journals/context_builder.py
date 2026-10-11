@@ -19,16 +19,20 @@ Design decisions:
 - Recent entries injected only when ``journal_context_recent_entries`` > 0
   (default 0), deduplicated with semantic results
 - User's max_chars setting loaded from DB (not available in node scope)
-- Truncation respects max_chars budget
+- Whole entries respect the rendered max_chars budget, including its header
 - Returns debug data alongside context for the debug panel
 """
 
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
+from src.core.constants import USER_MESSAGE_EMBEDDING_TRUNCATION_LENGTH
+from src.domains.feature_switches.registry import PlatformCapability, is_capability_enabled
 from src.domains.journals.constants import (
     JOURNAL_MOOD_EMOJI,
     JOURNAL_OPERATIONAL_INJECTION_EXCLUDE_LEVELS,
@@ -45,6 +49,22 @@ from src.infrastructure.database import get_db_context
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
+
+if TYPE_CHECKING:
+    from src.domains.users.models import User
+
+
+def _shared_embedding_matches_journal() -> bool:
+    """The shared message vector uses the memory model's query task.
+
+    Equal widths alone do not make two models' vector spaces compatible.
+    Both retrieval wrappers use RETRIEVAL_QUERY for this text.
+    """
+    return bool(
+        settings.memory_embedding_model.removeprefix("models/")
+        == settings.journal_embedding_model.removeprefix("models/")
+        and settings.memory_embedding_dimensions == settings.journal_embedding_dimensions
+    )
 
 
 def track_injected_entries(entry_ids: list[UUID]) -> None:
@@ -73,6 +93,235 @@ def track_injected_entries(entry_ids: list[UUID]) -> None:
             )
 
     safe_fire_and_forget(_track(), name="journal_injection_tracking")
+
+
+async def _authorized_user(db: AsyncSession, user_id: UUID) -> User | None:
+    """Check the system gate before SQL, then the account's current consent."""
+    if not settings.journals_enabled or not await is_capability_enabled(
+        PlatformCapability.JOURNALS
+    ):
+        return None
+    from sqlalchemy import select
+
+    from src.domains.users.models import User
+
+    result = await db.execute(
+        select(User).where(User.id == user_id).execution_options(populate_existing=True)
+    )
+    user: User | None = result.scalar_one_or_none()
+    if (
+        user is None
+        or not user.journals_enabled
+        or not user.is_active
+        or user.deleted_at is not None
+    ):
+        return None
+    return user
+
+
+def _context_limits(
+    user: User,
+    max_results_override: int | None,
+    exclude_levels: list[str] | None,
+) -> tuple[int, int, int, list[str]]:
+    """Count-only callers remain semantic-only; explicit level overrides survive."""
+    max_chars = getattr(
+        user, "journal_context_max_chars", settings.journal_default_context_max_chars
+    )
+    max_results = getattr(user, "journal_context_max_results", settings.journal_context_max_results)
+    recent_count = settings.journal_context_recent_entries
+    if max_results_override is not None:
+        max_results = max_results_override
+        recent_count = 0
+    excluded = (
+        JOURNAL_OPERATIONAL_INJECTION_EXCLUDE_LEVELS if exclude_levels is None else exclude_levels
+    )
+    return max_chars, max_results, recent_count, excluded
+
+
+async def _query_embedding(
+    user_id: UUID,
+    query: str,
+    embedding: list[float] | None,
+    run_id: str | None,
+    session_id: str | None,
+) -> list[float] | None:
+    """Attribute fallback embedding work and clear its context even on failure."""
+    if embedding is not None:
+        return embedding
+    from src.domains.journals.embedding import get_journal_embeddings
+    from src.infrastructure.llm.embedding_context import (
+        clear_embedding_context,
+        set_embedding_context,
+    )
+
+    set_embedding_context(
+        user_id=str(user_id), session_id=session_id or "journal_search", run_id=run_id
+    )
+    try:
+        result: list[float] | None = await get_journal_embeddings().aembed_query(
+            query[:USER_MESSAGE_EMBEDDING_TRUNCATION_LENGTH]
+        )
+        return result
+    finally:
+        clear_embedding_context()
+
+
+async def _semantic_entries(
+    repo: JournalEntryRepository,
+    user_id: UUID,
+    query: str,
+    embedding: list[float] | None,
+    max_results: int,
+    excluded: list[str],
+    run_id: str | None,
+    session_id: str | None,
+) -> list[tuple[JournalEntry, float]]:
+    """Embedding/search failures leave temporal retrieval available."""
+    entries: list[tuple[JournalEntry, float]] = []
+    try:
+        embedding = await _query_embedding(user_id, query, embedding, run_id, session_id)
+        if not embedding:
+            logger.warning("journal_context_embedding_empty", user_id=str(user_id))
+            return []
+        min_score = await effective_threshold(user_id, JOURNAL_INJECTION_PERIMETER)
+        observed: list[float] = []
+        entries = await repo.search_by_relevance(
+            user_id=user_id,
+            query_embedding=embedding,
+            limit=max_results,
+            min_score=min_score,
+            exclude_levels=excluded,
+            operational_only=True,
+            observed_scores=observed,
+        )
+        if observed:
+            await observe_score(user_id, JOURNAL_INJECTION_PERIMETER, max(observed))
+        return entries
+    except Exception as error:
+        logger.warning(
+            "journal_context_semantic_search_failed",
+            user_id=str(user_id),
+            error=str(error),
+            error_type=type(error).__name__,
+        )
+        return entries
+
+
+async def _recent_entries(
+    repo: JournalEntryRepository,
+    user_id: UUID,
+    count: int,
+    excluded: list[str],
+    scored: list[tuple[JournalEntry, float]],
+) -> list[tuple[JournalEntry, float | None]]:
+    """Continuity entries precede relevance entries, without duplicate rules."""
+    if count <= 0:
+        return []
+    raw = await repo.get_recent_for_user(
+        user_id,
+        limit=count,
+        exclude_levels=excluded,
+        operational_only=True,
+    )
+    semantic_ids = {entry.id for entry, _ in scored}
+    return [(entry, None) for entry in raw if entry.id not in semantic_ids]
+
+
+def _render_entry(entry: JournalEntry, score: float | None) -> tuple[str, int]:
+    """Render the complete directive with the exact version sent to the model."""
+    date = entry.created_at.strftime("%Y-%m-%d")
+    theme = entry.theme.replace("_", " ")
+    mood = JOURNAL_MOOD_EMOJI.get(entry.mood, "")
+    score_label = f"score={score:.2f}" if score is not None else "recent"
+    revision = int(getattr(entry, "revision", 1) or 1)
+    confidence = getattr(entry, "confidence", "medium")
+    return (
+        f"- [{score_label} | {date} | {theme} | {mood} | "
+        f"confidence={confidence} | revision={revision}] **{entry.title}** — {entry.content}",
+        revision,
+    )
+
+
+def _debug_entry(entry: JournalEntry, score: float | None, revision: int) -> dict[str, Any]:
+    return {
+        "theme": entry.theme,
+        "title": entry.title[:25],
+        "full_title": entry.title,
+        "content": entry.content,
+        "score": round(score, 4) if score is not None else None,
+        "mood": entry.mood,
+        "char_count": entry.char_count,
+        "source": entry.source,
+        "confidence": getattr(entry, "confidence", "medium"),
+        "revision": revision,
+        "date": entry.created_at.strftime("%Y-%m-%d"),
+        "injected": True,
+    }
+
+
+def _pack_entries(
+    entries: list[tuple[JournalEntry, float | None]],
+    max_chars: int,
+    truncate_to_budget: bool,
+    include_debug: bool,
+) -> tuple[str, list[UUID], dict[str, int], list[dict[str, Any]]]:
+    """Account for the whole header and newlines; omitted entries retain no IDs."""
+    lines = [
+        "## PERSONAL JOURNAL — BEHAVIORAL DIRECTIVES",
+        (
+            "These are YOUR behavioral directives from past interactions. "
+            "Most follow the format: WHEN [context] → DO [action] "
+            "(BECAUSE [observation]). "
+            "Entries marked [recent] are your latest directives; scored entries "
+            "match the current context semantically."
+        ),
+        "Apply matching directives silently — do not reference them explicitly.",
+        "",
+    ]
+    used = len("\n".join(lines))
+    injected_ids: list[UUID] = []
+    revisions: dict[str, int] = {}
+    debug: list[dict[str, Any]] = []
+    for entry, score in entries:
+        line, revision = _render_entry(entry, score)
+        if include_debug:
+            debug.append(_debug_entry(entry, score, revision))
+        if truncate_to_budget and used + len(line) + 1 > max_chars:
+            if include_debug:
+                debug[-1]["injected"] = False
+            continue
+        lines.append(line)
+        used += len(line) + 1
+        injected_ids.append(entry.id)
+        revisions[str(entry.id)] = revision
+    result = "\n".join(lines) if injected_ids else ""
+    return result, injected_ids, revisions, debug
+
+
+def _context_debug(
+    result: str,
+    scored_count: int,
+    recent_count: int,
+    injected_count: int,
+    max_chars: int,
+    max_results: int,
+    revisions: dict[str, int],
+    entries: list[dict[str, Any]],
+    include_debug: bool,
+) -> dict[str, Any]:
+    if not include_debug:
+        return {"injected_revisions": revisions}
+    return {
+        "entries_found": scored_count,
+        "entries_recent": recent_count,
+        "entries_injected": injected_count,
+        "total_chars_injected": len(result),
+        "max_chars_budget": max_chars,
+        "max_results_setting": max_results,
+        "entries": entries,
+        "injected_revisions": revisions,
+    }
 
 
 async def build_journal_context(
@@ -118,8 +367,8 @@ async def build_journal_context(
         max_results_override: Hard cap on the number of entries injected,
             overriding the user's ``journal_context_max_results`` setting.
             Used by the ReAct loop to inject a small, bounded set of directives.
-        truncate_to_budget: When True (default), the last entry is truncated to
-            respect ``max_chars``. When False, entries are injected in full and
+        truncate_to_budget: When True (default), whole entries that do not fit
+            ``max_chars`` are omitted. When False, entries are injected in full and
             only the count cap applies (no mid-directive truncation) — used by
             the ReAct loop where each entry is already bounded by max_entry_chars.
 
@@ -135,235 +384,57 @@ async def build_journal_context(
         user_id = UUID(user_id)
 
     try:
-        # Check system-level feature flag FIRST (before any DB query)
-        if not settings.journals_enabled:
+        user = await _authorized_user(db, user_id)
+        if user is None:
             return None, None, []
-
-        # Load user settings from DB (not available in node scope)
-        from sqlalchemy import select
-
-        from src.domains.users.models import User
-
-        user_result = await db.execute(select(User).where(User.id == user_id))
-        user = user_result.scalar_one_or_none()
-
-        if not user:
-            return None, None, []
-
-        # Check user-level feature flag
-        if not getattr(user, "journals_enabled", settings.journals_enabled):
-            return None, None, []
-
-        max_chars = getattr(
-            user, "journal_context_max_chars", settings.journal_default_context_max_chars
+        max_chars, max_results, recent_count, excluded = _context_limits(
+            user, max_results_override, exclude_levels
         )
-        max_results = getattr(
-            user, "journal_context_max_results", settings.journal_context_max_results
-        )
-        recent_count = settings.journal_context_recent_entries
-        if max_results_override is not None:
-            max_results = max_results_override
-            # Count-capped semantic-only path (ReAct): recency must not crowd out
-            # the most relevant directives within the small fixed budget.
-            recent_count = 0
-
-        # Operational injection carries only L1/L2 behavioural directives.
-        # None → default exclusion; an explicit list (incl. []) overrides it.
-        effective_exclude_levels = (
-            JOURNAL_OPERATIONAL_INJECTION_EXCLUDE_LEVELS
-            if exclude_levels is None
-            else exclude_levels
-        )
-
         repo = JournalEntryRepository(db)
-
-        # Semantic search (best-effort — embedding failure degrades gracefully)
-        scored_entries: list[tuple[JournalEntry, float]] = []
-        _effective_embedding = query_embedding  # Use pre-computed if available
-        try:
-            # If no pre-computed embedding, compute locally (fallback)
-            if _effective_embedding is None:
-                from src.domains.journals.embedding import get_journal_embeddings
-                from src.infrastructure.llm.embedding_context import (
-                    clear_embedding_context,
-                    set_embedding_context,
-                )
-
-                set_embedding_context(
-                    user_id=str(user_id),
-                    session_id=session_id or "journal_search",
-                    run_id=run_id,
-                )
-                try:
-                    embeddings_model = get_journal_embeddings()
-                    _effective_embedding = await embeddings_model.aembed_query(query[:500])
-                finally:
-                    clear_embedding_context()
-
-            if _effective_embedding:
-                # Lot 7 (2026-08-19): per-user adaptive threshold. Prod ran at
-                # a 10% injection rate with scores massed just under the fixed
-                # 0.63 — the effective value is learned inside hard bounds and
-                # published through this call's debug/log surfaces.
-                min_score = await effective_threshold(user_id, JOURNAL_INJECTION_PERIMETER)
-                _observed: list[float] = []
-                scored_entries = await repo.search_by_relevance(
-                    user_id=user_id,
-                    query_embedding=_effective_embedding,
-                    limit=max_results,
-                    min_score=min_score,
-                    exclude_levels=effective_exclude_levels,
-                    observed_scores=_observed,
-                )
-                if _observed:
-                    # No candidates → no information about the threshold.
-                    await observe_score(user_id, JOURNAL_INJECTION_PERIMETER, max(_observed))
-            else:
-                logger.warning(
-                    "journal_context_embedding_empty",
-                    user_id=str(user_id),
-                )
-        except Exception as embed_err:
-            logger.warning(
-                "journal_context_semantic_search_failed",
-                user_id=str(user_id),
-                error=str(embed_err),
-                error_type=type(embed_err).__name__,
-            )
-
-        # Fetch recent entries for temporal continuity (always, regardless of embedding)
-        recent_entries: list[tuple[JournalEntry, float | None]] = []
-        if recent_count > 0:
-            raw_recent = await repo.get_recent_for_user(
-                user_id, limit=recent_count, exclude_levels=effective_exclude_levels
-            )
-            # Deduplicate: exclude entries already in semantic results
-            semantic_ids = {entry.id for entry, _ in scored_entries}
-            for entry in raw_recent:
-                if entry.id not in semantic_ids:
-                    recent_entries.append((entry, None))  # None score = recent
-
-        # Merge: recent entries first (continuity), then semantic (relevance)
-        all_entries: list[tuple[JournalEntry, float | None]] = recent_entries + [
-            (entry, score) for entry, score in scored_entries
+        embedding = query_embedding if _shared_embedding_matches_journal() else None
+        scored_entries = await _semantic_entries(
+            repo, user_id, query, embedding, max_results, excluded, run_id, session_id
+        )
+        recent_entries = await _recent_entries(
+            repo, user_id, recent_count, excluded, scored_entries
+        )
+        all_entries = (recent_entries + [(entry, score) for entry, score in scored_entries])[
+            :max_results
         ]
-
-        # Respect max_results budget
-        all_entries = all_entries[:max_results]
-
         if not all_entries:
             return None, None, []
-
-        # Format entries with scores, respecting max_chars budget
-        lines = [
-            "## PERSONAL JOURNAL — BEHAVIORAL DIRECTIVES",
-            (
-                "These are YOUR behavioral directives from past interactions. "
-                "Most follow the format: WHEN [context] → DO [action] "
-                "(BECAUSE [observation]). "
-                "Entries marked [recent] are your latest directives; scored entries "
-                "match the current context semantically."
-            ),
-            "Apply matching directives silently — do not reference them explicitly.",
-            "",
-        ]
-        current_chars = sum(len(line) for line in lines)
-
-        # Debug data collection and injection tracking
-        debug_entries: list[dict[str, Any]] = []
-        injected_ids: list[UUID] = []  # UUIDs of entries actually injected
-        injected_count = 0
-
-        for entry, score in all_entries:
-            # Format entry line
-            date_str = entry.created_at.strftime("%Y-%m-%d")
-            theme_label = entry.theme.replace("_", " ")
-            mood_emoji = JOURNAL_MOOD_EMOJI.get(entry.mood, "")
-
-            # Score label: numeric for semantic, [recent] for temporal
-            score_label = f"score={score:.2f}" if score is not None else "recent"
-
-            content_preview = entry.content
-            line = (
-                f"- [{score_label} | {date_str} | {theme_label} | {mood_emoji}] "
-                f"**{entry.title}** — {content_preview}"
-            )
-
-            # Collect debug data for each entry (before budget check)
-            if include_debug:
-                debug_entries.append(
-                    {
-                        "theme": entry.theme,
-                        "title": entry.title[:25],
-                        "full_title": entry.title,
-                        "content": entry.content,
-                        "score": round(score, 4) if score is not None else None,
-                        "mood": entry.mood,
-                        "char_count": entry.char_count,
-                        "source": entry.source,
-                        "date": date_str,
-                        "injected": True,  # Will be set to False if budget exceeded
-                    }
-                )
-
-            # Check budget (skipped when truncate_to_budget=False — count cap only,
-            # entries injected in full to avoid mid-directive truncation)
-            if truncate_to_budget and current_chars + len(line) > max_chars:
-                # Try with truncated content
-                available = max_chars - current_chars - 100  # Reserve for header
-                if available > 50:
-                    content_preview = entry.content[: available - 50] + "..."
-                    line = (
-                        f"- [{score_label} | {date_str} | {theme_label} | {mood_emoji}] "
-                        f"**{entry.title}** — {content_preview}"
-                    )
-                    lines.append(line)
-                    injected_ids.append(entry.id)
-                    injected_count += 1
-                else:
-                    # Mark as not injected in debug
-                    if include_debug and debug_entries:
-                        debug_entries[-1]["injected"] = False
-                break  # Budget exhausted
-
-            lines.append(line)
-            current_chars += len(line) + 1  # +1 for newline
-            injected_ids.append(entry.id)
-            injected_count += 1
-
-        result = "\n".join(lines)
-
-        # Build debug data
-        debug_data: dict[str, Any] | None = None
-        if include_debug:
-            debug_data = {
-                "entries_found": len(scored_entries),
-                "entries_recent": len(recent_entries),
-                "entries_injected": injected_count,
-                "total_chars_injected": len(result),
-                "max_chars_budget": max_chars,
-                "max_results_setting": max_results,
-                "entries": debug_entries,
-            }
-
+        result, injected_ids, revisions, debug_entries = _pack_entries(
+            all_entries, max_chars, truncate_to_budget, include_debug
+        )
+        debug_data = _context_debug(
+            result,
+            len(scored_entries),
+            len(recent_entries),
+            len(injected_ids),
+            max_chars,
+            max_results,
+            revisions,
+            debug_entries,
+            include_debug,
+        )
         logger.info(
             "journal_context_built",
             user_id=str(user_id),
             semantic_count=len(scored_entries),
             recent_count=len(recent_entries),
-            entries_injected=injected_count,
+            entries_injected=len(injected_ids),
             result_chars=len(result),
             max_chars=max_chars,
-            semantic_scores=[round(s, 4) for _, s in scored_entries] if scored_entries else [],
+            semantic_scores=[round(s, 4) for _, s in scored_entries],
             has_debug_data=debug_data is not None,
-            debug_entries_count=len(debug_data.get("entries", [])) if debug_data else 0,
+            debug_entries_count=len(debug_data.get("entries", [])),
         )
 
         # Fire-and-forget injection tracking (non-blocking)
         if injected_ids:
             track_injected_entries(injected_ids)
 
-        return result, debug_data, [str(_id) for _id in injected_ids]
+        return result or None, debug_data, [str(_id) for _id in injected_ids]
 
     except Exception as e:
         # Graceful degradation — context injection failure must not break the prompt

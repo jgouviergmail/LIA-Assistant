@@ -22,6 +22,7 @@ from langchain_core.messages import HumanMessage, RemoveMessage
 from langchain_core.runnables import RunnableConfig
 from structlog import get_logger
 
+from src.core.application_origin import ApplicationOrigin
 from src.core.config import settings
 from src.core.field_names import (
     FIELD_CONVERSATION_ID,
@@ -34,6 +35,7 @@ from src.core.i18n import resolve_language
 from src.domains.agents.constants import (
     HITL_DECISION_NEW_REQUEST,
 )
+from src.domains.agents.context.extraction_revision import with_current_extraction_revision
 from src.domains.agents.context.runtime_context_builder import build_runtime_context
 from src.domains.agents.context.store import get_tool_context_store
 from src.domains.agents.models import (
@@ -673,6 +675,7 @@ class OrchestrationService:
         user_exchange_rhythm: str | None = None,  # users.exchange_rhythm as stored — ADR-311
         is_automated_source: bool = False,  # True for automated runs (scheduled actions)
         side_channel_queue: asyncio.Queue | None = None,  # SSE side-channel for tools
+        application_origin: ApplicationOrigin | None = None,
     ) -> AsyncGenerator[tuple[str, Any]]:
         """
         Execute graph with streaming and yield raw (mode, chunk) tuples.
@@ -793,7 +796,10 @@ class OrchestrationService:
             user_execution_mode=user_execution_mode,
             user_exchange_rhythm=user_exchange_rhythm,
             is_automated_source=is_automated_source,
+            application_origin=application_origin,
         )
+
+        runtime_context = await with_current_extraction_revision(runtime_context)
 
         # === PHASE 8 - HITL: Check if resuming from interrupt ===
         # If _interrupt_resume_data is present, use Command(resume=...) pattern

@@ -11,6 +11,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'phone-owner' } }) }));
 
 import { renderWithProviders, screen, userEvent, waitFor } from '@/__tests__/test-utils';
 import type { TelephonyIdentity } from '@/types/telephony';
@@ -87,6 +88,19 @@ describe('TelephonyIdentitySection', () => {
     expect(field).toHaveValue('+33612345678');
     expect(field).toHaveAttribute('inputmode', 'tel');
     expect(field).toHaveAttribute('autocomplete', 'tel');
+  });
+
+  it('preserves an unsent focused number when a confirmed native change refreshes identity', async () => {
+    mockHook(identity());
+    const { rerender } = renderWithProviders(<TelephonyIdentitySection lng="fr" />);
+    const field = screen.getByRole('textbox', { name: 'settings.telephony.identity.number_label' });
+    await userEvent.clear(field);
+    await userEvent.type(field, '+33699999999');
+    mockHook(identity({ phone_number: null, verified: false, verification_pending: false }));
+    rerender(<TelephonyIdentitySection lng="fr" />);
+    expect(field).toHaveValue('+33699999999');
+    expect(field).toHaveFocus();
+    expect(field).not.toBeDisabled();
   });
 
   it('saves what was typed and shows the backend sentence when refused', async () => {

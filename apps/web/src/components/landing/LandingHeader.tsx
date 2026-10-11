@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -15,6 +15,7 @@ import type { Language } from '@/i18n/settings';
 
 interface LandingHeaderProps {
   lng: string;
+  home?: boolean;
 }
 
 /** One in-page anchor of the landing, as the nav renders it. */
@@ -24,15 +25,13 @@ interface NavAnchor {
   /** i18n key of its label. */
   readonly key: string;
   /**
-   * Hide it in the DESKTOP row below `lg`.
+   * Hide it in the desktop row below `xl`.
    *
-   * That row appears at 880px and is saturated there: with six page links plus
-   * the language, theme, login and CTA controls, a seventh entry ran the French
-   * row 96px past the viewport (measured — `smoke/landing-nav-row.spec.ts`
-   * guards it). An entry marked here is still offered by the mobile menu at
-   * every size, and by both footers.
+   * The row starts at 1024px; its extra entries join at 1280px so the logo,
+   * links and account actions keep their own space. The menu below 1024px
+   * carries every entry; both footers also keep these links available.
    */
-  readonly lgOnly?: boolean;
+  readonly xlOnly?: boolean;
 }
 
 /**
@@ -46,7 +45,7 @@ interface NavAnchor {
  */
 const SECTION_ANCHORS: readonly NavAnchor[] = [
   { id: 'features', key: 'landing.nav.features' },
-  { id: 'changelog', key: 'landing.nav.changelog', lgOnly: true },
+  { id: 'changelog', key: 'landing.nav.changelog', xlOnly: true },
 ];
 
 /** One separate page of the public site, as the nav links it. */
@@ -56,8 +55,8 @@ interface NavPage {
   readonly key: string;
   /** Unlocalized path. */
   readonly href: string;
-  /** Hidden in the desktop row below `lg`, like `NavAnchor.lgOnly`. */
-  readonly lgOnly?: boolean;
+  /** Hidden in the desktop row below `xl`, like `NavAnchor.xlOnly`. */
+  readonly xlOnly?: boolean;
 }
 
 /**
@@ -67,10 +66,10 @@ interface NavPage {
  * "Maps" opens the page links, right after the release anchor (owner
  * arbitration 2026-09-24: « entre Nouveautés et Story »). The 880px row has no
  * room left for it (`smoke/landing-nav-row.spec.ts`), so it joins the row at
- * `lg`, exactly like the release entry beside it.
+ * `xl`, exactly like the release entry beside it.
  */
 const PAGE_LINKS: readonly NavPage[] = [
-  { id: 'maps', key: 'landing.nav.maps', href: '/maps', lgOnly: true },
+  { id: 'maps', key: 'landing.nav.maps', href: '/maps', xlOnly: true },
   { id: 'story', key: 'landing.nav.story', href: '/story' },
   { id: 'why', key: 'landing.nav.philosophy', href: '/why' },
   { id: 'how', key: 'landing.nav.technical', href: '/how' },
@@ -79,11 +78,13 @@ const PAGE_LINKS: readonly NavPage[] = [
   { id: 'more', key: 'landing.nav.more', href: '/more' },
 ];
 
-export function LandingHeader({ lng }: LandingHeaderProps) {
+export function LandingHeader({ lng, home = false }: LandingHeaderProps) {
   const { t } = useTranslation();
+  const registerLabel = t(home ? 'landing.hero.home_cta_primary' : 'landing.nav.get_started');
   const [activeSection, setActiveSection] = useState<string>('');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   const loginHref = buildLocalizedPath('/login', lng as Language);
   const registerHref = buildLocalizedPath('/register', lng as Language);
@@ -130,6 +131,7 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && mobileOpen) {
         setMobileOpen(false);
+        menuButtonRef.current?.focus();
       }
     };
     document.addEventListener('keydown', handleKeyDown);
@@ -146,9 +148,9 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
       )}
     >
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex h-16 items-center justify-between gap-3">
           {/* Logo */}
-          <Link href={`/${lng}`} className="flex items-center gap-2 font-bold text-lg">
+          <Link href={`/${lng}`} className="flex shrink-0 items-center gap-2 font-bold text-lg">
             {/* `landing-logo`: the beat's heartbeat hook (ADR-330, amended). */}
             <Image
               src="/v4-lia-brain.svg"
@@ -167,14 +169,14 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
               BETA buttons first appear, the fr row ran 4px past the viewport
               while es, the next widest, still had 24px to spare. Each step down
               buys ~4px per link across the row. */}
-          <div className="hidden mobile:flex items-center gap-0.5">
-            {SECTION_ANCHORS.map(({ id, key, lgOnly }) => (
+          <div className="hidden lg:flex items-center gap-0.5">
+            {SECTION_ANCHORS.map(({ id, key, xlOnly }) => (
               <a
                 key={id}
                 href={buildAnchorHref(id)}
                 className={cn(
-                  'px-1.5 py-2 text-sm font-medium rounded-md transition-colors',
-                  lgOnly && 'hidden lg:block',
+                  'shrink-0 whitespace-nowrap px-1.5 py-2 text-sm font-medium rounded-md transition-colors',
+                  xlOnly && 'hidden xl:block',
                   activeSection === id
                     ? 'text-primary bg-primary/10'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
@@ -184,13 +186,13 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
               </a>
             ))}
             <span className="w-px h-4 bg-border mx-0.5" aria-hidden="true" />
-            {PAGE_LINKS.map(({ id, key, href, lgOnly }) => (
+            {PAGE_LINKS.map(({ id, key, href, xlOnly }) => (
               <Link
                 key={id}
                 href={buildLocalizedPath(href, lng as Language)}
                 className={cn(
-                  'px-1.5 py-2 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted/50',
-                  lgOnly && 'hidden lg:block'
+                  'shrink-0 whitespace-nowrap px-1.5 py-2 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted/50',
+                  xlOnly && 'hidden xl:block'
                 )}
               >
                 {t(key)}
@@ -199,7 +201,7 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
           </div>
 
           {/* Right actions */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex shrink-0 items-center gap-1.5">
             <div className="hidden sm:block">
               <LanguageSelector currentLocale={lng as Language} />
             </div>
@@ -207,21 +209,23 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
                 see MotionToggle) — the mobile menu and the footer carry it. */}
             <MotionToggle className="hidden xl:inline-flex" />
             <ThemeToggle />
-            <Button asChild variant="ghost" size="sm" className="hidden mobile:inline-flex">
+            <Button asChild variant="ghost" size="sm" className="hidden lg:inline-flex">
               <Link href={loginHref}>{t('landing.nav.login')}</Link>
             </Button>
-            <Button asChild size="sm" className="hidden mobile:inline-flex">
-              <Link href={registerHref}>{t('landing.nav.get_started')}</Link>
+            <Button asChild size="sm" className="hidden lg:inline-flex">
+              <Link href={registerHref}>{registerLabel}</Link>
             </Button>
 
             {/* Mobile hamburger */}
             <Button
               variant="ghost"
               size="sm"
-              className="mobile:hidden w-10 h-10 p-0"
+              ref={menuButtonRef}
+              className="lg:hidden w-11 h-11 p-0"
               onClick={() => setMobileOpen(!mobileOpen)}
               aria-label={mobileOpen ? t('common.close') : t('common.menu')}
               aria-expanded={mobileOpen}
+              aria-controls={mobileOpen ? 'landing-mobile-menu' : undefined}
             >
               {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </Button>
@@ -230,7 +234,10 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
 
         {/* Mobile menu — solid background */}
         {mobileOpen && (
-          <div className="mobile:hidden border-t border-border/50 py-4 space-y-1 bg-background">
+          <div
+            id="landing-mobile-menu"
+            className="lg:hidden max-h-[calc(100dvh-4rem)] overflow-y-auto border-t border-border/50 py-4 space-y-1 bg-background"
+          >
             {SECTION_ANCHORS.map(({ id, key }) => (
               <a
                 key={id}
@@ -271,7 +278,7 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
             <div className="px-4 pt-2">
               <Button asChild size="sm" className="w-full">
                 <Link href={registerHref} onClick={handleNavClick}>
-                  {t('landing.nav.get_started')}
+                  {registerLabel}
                 </Link>
               </Button>
             </div>

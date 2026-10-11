@@ -37,9 +37,10 @@ class SkillProposalResponse(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     id: str = Field(..., description="The proposal's id.")
-    status: Literal["pending", "installed"] = Field(
+    status: Literal["pending", "installing", "unknown", "installed"] = Field(
         ..., description="pending until the person installs it."
     )
+    cache_refresh_pending: bool = False
     name: str = Field(..., description="The skill's name.")
     description: str = Field(..., description="The skill's description.")
     replaces: bool = Field(..., description="Whether it replaces a skill of the person's own.")
@@ -63,6 +64,7 @@ class SkillProposalResponse(BaseModel):
         return cls(
             id=card["id"],
             status=proposal.status,
+            cache_refresh_pending=proposal.cache_refresh_pending,
             name=card["name"],
             description=card["description"],
             replaces=card["replaces"],

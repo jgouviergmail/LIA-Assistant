@@ -120,6 +120,10 @@ class MCPDiscoveredTool(BaseModel):
         default_factory=dict,
         description="JSON Schema for tool input parameters",
     )
+    output_schema: dict[str, Any] | None = Field(
+        default=None,
+        description="Server-declared JSON Schema for structured tool results",
+    )
     title: str | None = Field(
         default=None,
         description="Human-readable display name (Tool.title, else Tool.annotations.title)",

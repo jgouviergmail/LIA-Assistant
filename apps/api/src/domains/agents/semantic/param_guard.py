@@ -13,18 +13,32 @@ with a recoverable error BEFORE the paid API call, in both execution modes
 (pipeline parallel executor + ReAct execute-tools node).
 
 Fail-open by design: no manifest, no semantic_type, no resolved names, or an
-unexpected registry error → no blocking. The guard must never break a valid
-tool call; it only intercepts a provably wrong one (exact match against the
-turn's resolved person names, so false positives are practically impossible).
+unexpected registry error → no blocking. An exact match against the turn's
+resolved person names is a collision signal. A genuinely homonymous location
+passes only when an explicitly selected canonical field proves its role,
+identity, account and unchanged value.
 """
 
-from collections.abc import Collection, Mapping
+from collections.abc import Collection, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
 from langchain_core.runnables import RunnableConfig
 
 from src.core.field_names import FIELD_RESOLVED_PERSON_NAMES
+from src.domains.agents.semantic.core_types import load_core_types
+from src.domains.agents.semantic.manifest_semantics import available_manifest
+from src.domains.agents.semantic.semantic_type import TypeCategory
+from src.domains.agents.semantic.type_registry import get_registry
+from src.domains.agents.semantic.value_bindings import (
+    SEMANTIC_SOURCE_OBSERVATIONS_KEY,
+    SEMANTIC_SOURCE_VALID_AFTER_KEY,
+    SEMANTIC_VALUE_BINDINGS_KEY,
+    SemanticValueBinding,
+    parse_source_observations,
+    parse_value_bindings,
+    value_binding_exempts_collision,
+)
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -34,6 +48,7 @@ logger = get_logger(__name__)
 GUARDED_SEMANTIC_TYPES: dict[str, str] = {
     "physical_address": "physical address",
     "email_address": "email address",
+    "locality": "place or locality",
 }
 
 
@@ -119,12 +134,41 @@ def config_with_person_names(
         copy with ``resolved_person_names`` added to configurable.
     """
     names = collect_resolved_person_names(state.get("resolved_references"))
+    config = config_with_binding_evidence(config, state)
     if not names:
         return config
     configurable = {
         **(config.get("configurable") or {}),
         FIELD_RESOLVED_PERSON_NAMES: sorted(names),
     }
+    return {**config, "configurable": configurable}
+
+
+def config_with_binding_evidence(
+    config: RunnableConfig, state: Mapping[str, object]
+) -> RunnableConfig:
+    """Carry current checkpointed evidence without trusting stale config sidecars."""
+    configurable = dict(config.get("configurable") or {})
+    keys = (
+        SEMANTIC_VALUE_BINDINGS_KEY,
+        SEMANTIC_SOURCE_OBSERVATIONS_KEY,
+        SEMANTIC_SOURCE_VALID_AFTER_KEY,
+    )
+    if not any(key in state or key in configurable for key in keys):
+        return config
+    bindings = parse_value_bindings(state.get(SEMANTIC_VALUE_BINDINGS_KEY))
+    sources = parse_source_observations(state.get(SEMANTIC_SOURCE_OBSERVATIONS_KEY))
+    configurable[SEMANTIC_VALUE_BINDINGS_KEY] = [
+        binding.model_dump(mode="json") for binding in bindings
+    ]
+    configurable[SEMANTIC_SOURCE_OBSERVATIONS_KEY] = {
+        key: observed.model_dump(mode="json") for key, observed in sources.items()
+    }
+    cutoff = state.get(SEMANTIC_SOURCE_VALID_AFTER_KEY)
+    if isinstance(cutoff, str):
+        configurable[SEMANTIC_SOURCE_VALID_AFTER_KEY] = cutoff
+    else:
+        configurable.pop(SEMANTIC_SOURCE_VALID_AFTER_KEY, None)
     return {**config, "configurable": configurable}
 
 
@@ -141,13 +185,115 @@ def person_names_from_config(config: RunnableConfig) -> frozenset[str]:
     return frozenset(name for name in names if isinstance(name, str))
 
 
-def _iter_string_values(value: Any) -> list[str]:
+def _iter_string_values(value: object) -> list[str]:
     """Flatten a parameter value into the strings to check (str or list[str])."""
     if isinstance(value, str):
         return [value]
     if isinstance(value, list):
         return [item for item in value if isinstance(item, str)]
     return []
+
+
+def _json_type_matches(type_name: object, value: object) -> bool:
+    """Check declared JSON shape, keeping booleans distinct from numbers."""
+    if isinstance(type_name, list):
+        return any(_json_type_matches(member, value) for member in type_name)
+    matches = {
+        "null": value is None,
+        "string": isinstance(value, str),
+        "object": isinstance(value, dict),
+        "array": isinstance(value, list),
+        "boolean": isinstance(value, bool),
+        "integer": isinstance(value, int) and not isinstance(value, bool),
+        "number": isinstance(value, int | float) and not isinstance(value, bool),
+    }
+    return matches.get(type_name, True) if isinstance(type_name, str) else True
+
+
+def _object_constraints_match(schema: dict[str, object], value: object) -> bool:
+    """Use required fields and discriminants to rule out impossible branches."""
+    if not isinstance(value, dict):
+        return True
+    required = schema.get("required")
+    if isinstance(required, list) and any(name not in value for name in required):
+        return False
+    properties = schema.get("properties")
+    if not isinstance(properties, dict):
+        return True
+    return all(
+        _schema_shape_matches(child, value[name])
+        for name, child in properties.items()
+        if name in value
+    )
+
+
+def _schema_shape_matches(schema: object, value: object) -> bool:
+    """Conservative branch applicability, never treating format failures as absence.
+
+    An invalid email must still reach the email guard. Only declared shapes,
+    required fields and exact enum/const discriminants rule out a branch.
+    """
+    if not isinstance(schema, dict):
+        return True
+    if not _json_type_matches(schema.get("type"), value):
+        return False
+    if "const" in schema and value != schema["const"]:
+        return False
+    options = schema.get("enum")
+    if isinstance(options, list) and value not in options:
+        return False
+    return _object_constraints_match(schema, value)
+
+
+def _composed_schema_values(
+    schema: dict[str, object], value: object, path: str
+) -> Iterator[tuple[str, str, str]]:
+    """Conjunctions accumulate constraints; unions guard only guaranteed leaves."""
+    members = schema.get("allOf")
+    if isinstance(members, list):
+        for member in members:
+            yield from _iter_schema_values(member, value, path)
+    for keyword in ("anyOf", "oneOf"):
+        branches = schema.get(keyword)
+        if not isinstance(branches, list):
+            continue
+        checks = [
+            set(_iter_schema_values(branch, value, path))
+            for branch in branches
+            if _schema_shape_matches(branch, value)
+        ]
+        if checks:
+            yield from sorted(set.intersection(*checks))
+
+
+def _array_schema_values(
+    schema: dict[str, object], value: object, path: str
+) -> Iterator[tuple[str, str, str]]:
+    """Tuple prefixes own their positions; items applies only after the prefix."""
+    if not isinstance(value, list):
+        return
+    prefixes = schema.get("prefixItems")
+    members = prefixes if isinstance(prefixes, list) else []
+    for index, child_value in enumerate(value):
+        child = members[index] if index < len(members) else schema.get("items")
+        yield from _iter_schema_values(child, child_value, f"{path}[{index}]")
+
+
+def _iter_schema_values(schema: object, value: object, path: str) -> Iterator[tuple[str, str, str]]:
+    """Yield only values with explicit schema annotations, keeping their path."""
+    if not isinstance(schema, dict):
+        return
+    semantic_type = schema.get("x-semantic-type")
+    if isinstance(semantic_type, str):
+        for candidate in _iter_string_values(value):
+            yield path, semantic_type, candidate
+    properties = schema.get("properties")
+    if isinstance(properties, dict) and isinstance(value, dict):
+        for name, child in properties.items():
+            if isinstance(name, str) and name in value:
+                yield from _iter_schema_values(child, value[name], f"{path}.{name}")
+    yield from _array_schema_values(schema, value, path)
+    yield from _composed_schema_values(schema, value, path)
 
 
 # Textual stand-ins for "no value" that a JSON-emitting LLM produces verbatim.
@@ -193,18 +339,20 @@ def strip_placeholder_arguments(
         return dict(args)
 
     try:
-        from src.domains.agents.registry import get_global_registry
-        from src.domains.agents.registry.agent_registry import ToolManifestNotFound
-
-        try:
-            manifest = get_global_registry().get_tool_manifest(tool_name)
-        except ToolManifestNotFound:
+        manifest = available_manifest(tool_name)
+        if manifest is None:
             return dict(args)
 
+        type_registry = get_registry()
+        if not len(type_registry):
+            load_core_types(type_registry)
         droppable = {
             param.name
             for param in manifest.parameters
-            if getattr(param, "semantic_type", None) and not getattr(param, "required", False)
+            if param.semantic_type
+            and not param.required
+            and (type_def := type_registry.get(param.semantic_type)) is not None
+            and type_def.category != TypeCategory.CONTENT
         }
         if not droppable:
             return dict(args)
@@ -236,6 +384,10 @@ def check_semantic_params(
     tool_name: str,
     args: Mapping[str, Any],
     resolved_person_names: Collection[str],
+    *,
+    value_bindings: Sequence[SemanticValueBinding] = (),
+    account_id: str | None = None,
+    known_sources: Mapping[str, SemanticValueBinding] | None = None,
 ) -> SemanticParamViolation | None:
     """Check final tool arguments against the turn's resolved person names.
 
@@ -253,24 +405,36 @@ def check_semantic_params(
         return None
 
     try:
-        from src.domains.agents.registry import get_global_registry
-        from src.domains.agents.registry.agent_registry import ToolManifestNotFound
-
-        try:
-            manifest = get_global_registry().get_tool_manifest(tool_name)
-        except ToolManifestNotFound:
+        manifest = available_manifest(tool_name)
+        if manifest is None:
             return None
 
         for param in manifest.parameters:
             semantic_type = getattr(param, "semantic_type", None)
-            if semantic_type not in GUARDED_SEMANTIC_TYPES:
-                continue
-            for candidate in _iter_string_values(args.get(param.name)):
-                if _normalize(candidate) in resolved_person_names:
+            checks = list(_iter_schema_values(param.schema, args.get(param.name), param.name))
+            if semantic_type in GUARDED_SEMANTIC_TYPES:
+                checks.extend(
+                    (param.name, semantic_type, candidate)
+                    for candidate in _iter_string_values(args.get(param.name))
+                )
+            for path, type_name, candidate in checks:
+                if (
+                    type_name in GUARDED_SEMANTIC_TYPES
+                    and _normalize(candidate) in resolved_person_names
+                    and not value_binding_exempts_collision(
+                        value_bindings,
+                        path=path,
+                        value=candidate,
+                        semantic_type=type_name,
+                        expected_role=getattr(param, "semantic_role", None),
+                        account_id=account_id,
+                        known_sources=known_sources or {},
+                    )
+                ):
                     return SemanticParamViolation(
                         tool_name=tool_name,
-                        param_name=param.name,
-                        semantic_type=semantic_type,
+                        param_name=path,
+                        semantic_type=type_name,
                         value=candidate,
                     )
         return None

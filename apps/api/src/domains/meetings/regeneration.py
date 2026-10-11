@@ -10,24 +10,32 @@ forever — the reaper is the safety net for a hard kill).
 
 from __future__ import annotations
 
-from uuid import UUID
+import asyncio
+from uuid import UUID, uuid4
 
 import structlog
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.config import settings
 from src.core.constants import MEETINGS_PROACTIVE_TASK_TYPE
 from src.core.i18n import normalize_language
-from src.domains.meetings.models import MeetingStage
+from src.domains.meetings.error_codes import ERROR_USAGE_LIMIT
+from src.domains.meetings.job_heartbeat import run_with_heartbeats
+from src.domains.meetings.models import Meeting, MeetingStage
 from src.domains.meetings.processing import (
     ERROR_SYNTHESIS,
     ERROR_SYNTHESIS_TOO_LONG,
     ERROR_UNEXPECTED,
+    LeaseLostError,
     synthesis_cost_eur,
 )
 from src.domains.meetings.repository import MeetingRepository
+from src.domains.meetings.schemas import TranscriptTurn
 from src.domains.meetings.synthesis import SynthesisContext, synthesize_minutes
-from src.domains.meetings.template_resolution import template_for_regeneration
+from src.domains.meetings.template_resolution import TemplateDecision, template_for_regeneration
 from src.domains.meetings.templates import sections_to_json
-from src.infrastructure.async_utils import safe_fire_and_forget
+from src.domains.usage_limits.service import UsageLimitService
+from src.infrastructure.async_utils import safe_fire_and_forget, write_through_cancellation
 from src.infrastructure.database import get_db_context
 from src.infrastructure.llm.structured_output import (
     StructuredOutputError,
@@ -46,38 +54,116 @@ def launch_regenerate(meeting_id: UUID) -> None:
 
 
 async def regenerate_minutes(meeting_id: UUID) -> None:
-    """Re-synthesize the minutes; the old ones stay until the new ones are published."""
-    from src.domains.meetings.indexing import schedule_reindex
+    """One live, unique owner executes a queued rebuild; old workers cannot publish."""
+    worker_id = f"regenerate-{uuid4().hex}"
+    lifetime = settings.meetings_job_lease_ttl_seconds
+    async with get_db_context() as db:
+        if not await MeetingRepository(db).claim_regeneration(
+            meeting_id, worker_id=worker_id, ttl_seconds=lifetime
+        ):
+            return
+    try:
+        await _regenerate_owned(meeting_id, worker_id, lifetime)
+    except asyncio.CancelledError:
+        await write_through_cancellation(
+            lambda: _close_owned_regeneration(
+                meeting_id, worker_id, lifetime, "regeneration_interrupted"
+            ),
+            attempts=3,
+            label="meeting_regeneration_cancelled",
+        )
+        raise
+    except Exception:
+        await _close_owned_regeneration(meeting_id, worker_id, lifetime, ERROR_UNEXPECTED)
+        logger.exception("meeting_regeneration_failed", meeting_id=str(meeting_id))
+
+
+async def _close_owned_regeneration(
+    meeting_id: UUID, worker_id: str, lifetime: int, code: str
+) -> None:
+    async with get_db_context() as db:
+        await MeetingRepository(db).fail_regenerate(
+            meeting_id, code=code, message="", worker_id=worker_id, ttl_seconds=lifetime
+        )
+
+
+async def _prepare_regeneration(
+    db: AsyncSession,
+    repo: MeetingRepository,
+    meeting_id: UUID,
+    worker_id: str,
+    lifetime: int,
+) -> tuple[Meeting, TemplateDecision, list[TranscriptTurn], SynthesisContext] | None:
     from src.domains.meetings.service import MeetingService
     from src.domains.users.repository import UserRepository
 
+    meeting = await repo.get_by_id(meeting_id)
+    if (
+        meeting is None
+        or meeting.stage is not MeetingStage.SYNTHESIZING
+        or meeting.worker_id != worker_id
+    ):
+        return None
+    if not meeting.transcript_encrypted:
+        await repo.fail_regenerate(
+            meeting_id,
+            code="transcript_unavailable",
+            message="",
+            worker_id=worker_id,
+            ttl_seconds=lifetime,
+        )
+        return None
+    user = await UserRepository(db).get_by_id(meeting.user_id)
+    if user is None:
+        await repo.fail_regenerate(
+            meeting_id,
+            code="user_missing",
+            message="",
+            worker_id=worker_id,
+            ttl_seconds=lifetime,
+        )
+        return None
+    check = await UsageLimitService.check_user_allowed(meeting.user_id)
+    if not check.allowed:
+        await repo.fail_regenerate(
+            meeting_id,
+            code=ERROR_USAGE_LIMIT,
+            message="",
+            worker_id=worker_id,
+            ttl_seconds=lifetime,
+        )
+        return None
+    language = normalize_language(user.language)
+    decision = await template_for_regeneration(db, meeting=meeting, language=language)
+    turns = MeetingService.decrypt_transcript(meeting.transcript_encrypted)
+    context = SynthesisContext(
+        language=language,
+        timezone=meeting.client_timezone,
+        started_at=meeting.started_at,
+        stopped_at=meeting.stopped_at,
+        duration_seconds=meeting.audio_duration_seconds,
+        location_label=meeting.location_label,
+        calendar_title=None,
+        calendar_attendees=[],
+        gaps=meeting.audio_gaps,
+        diarized=meeting.stt_diarized,
+    )
+    # The reads end before the model is asked (ADR-304): this session is
+    # the job's own, and the synthesis can take minutes.
+    await db.commit()
+    return meeting, decision, turns, context
+
+
+async def _regenerate_owned(meeting_id: UUID, worker_id: str, lifetime: int) -> None:
+    """Re-synthesize the minutes; the old ones stay until the new ones are published."""
+    from src.domains.meetings.indexing import schedule_reindex
+
     async with get_db_context() as db:
         repo = MeetingRepository(db)
-        meeting = await repo.get_by_id(meeting_id)
-        if meeting is None or meeting.stage is not MeetingStage.SYNTHESIZING:
+        prepared = await _prepare_regeneration(db, repo, meeting_id, worker_id, lifetime)
+        if prepared is None:
             return
-        if not meeting.transcript_encrypted:
-            await repo.fail_regenerate(meeting_id, code="transcript_unavailable", message="")
-            return
-        user = await UserRepository(db).get_by_id(meeting.user_id)
-        language = normalize_language(getattr(user, "language", None))
-        decision = await template_for_regeneration(db, meeting=meeting, language=language)
-        turns = MeetingService.decrypt_transcript(meeting.transcript_encrypted)
-        context = SynthesisContext(
-            language=language,
-            timezone=meeting.client_timezone,
-            started_at=meeting.started_at,
-            stopped_at=meeting.stopped_at,
-            duration_seconds=meeting.audio_duration_seconds,
-            location_label=meeting.location_label,
-            calendar_title=None,
-            calendar_attendees=[],
-            gaps=meeting.audio_gaps,
-            diarized=meeting.stt_diarized,
-        )
-        # The reads end before the model is asked (ADR-304): this session is
-        # the job's own, and the synthesis can take minutes.
-        await db.commit()
+        meeting, decision, turns, context = prepared
         capture = TokenCaptureHandler()
         try:
             async with capture_spend_on_failure(
@@ -88,8 +174,11 @@ async def regenerate_minutes(meeting_id: UUID) -> None:
                 model_name="unknown",
                 source="user",
             ):
-                synthesis = await synthesize_minutes(
-                    turns, decision.sections, context, capture=capture
+
+                synthesis = await run_with_heartbeats(
+                    lambda: synthesize_minutes(turns, decision.sections, context, capture=capture),
+                    lambda: _heartbeat_regeneration(meeting_id, worker_id, lifetime),
+                    float(settings.meetings_job_heartbeat_interval_seconds),
                 )
                 await bill_captured_usage(
                     capture,
@@ -104,17 +193,33 @@ async def regenerate_minutes(meeting_id: UUID) -> None:
             # reader is told WHY rather than « it failed » (ADR-275).
             meeting_failures_total.labels(reason=ERROR_SYNTHESIS_TOO_LONG).inc()
             await repo.fail_regenerate(
-                meeting_id, code=ERROR_SYNTHESIS_TOO_LONG, message=str(exc)[:1000]
+                meeting_id,
+                code=ERROR_SYNTHESIS_TOO_LONG,
+                message=str(exc)[:1000],
+                worker_id=worker_id,
+                ttl_seconds=lifetime,
             )
             return
         except StructuredOutputError as exc:
             meeting_failures_total.labels(reason=ERROR_SYNTHESIS).inc()
-            await repo.fail_regenerate(meeting_id, code=ERROR_SYNTHESIS, message=str(exc)[:1000])
+            await repo.fail_regenerate(
+                meeting_id,
+                code=ERROR_SYNTHESIS,
+                message=str(exc)[:1000],
+                worker_id=worker_id,
+                ttl_seconds=lifetime,
+            )
             return
         except Exception as exc:  # noqa: BLE001 — a stage left at SYNTHESIZING blocks every retry
             logger.exception("meeting_regenerate_unexpected", meeting_id=str(meeting_id))
             meeting_failures_total.labels(reason=ERROR_UNEXPECTED).inc()
-            await repo.fail_regenerate(meeting_id, code=ERROR_UNEXPECTED, message=str(exc)[:1000])
+            await repo.fail_regenerate(
+                meeting_id,
+                code=ERROR_UNEXPECTED,
+                message=str(exc)[:1000],
+                worker_id=worker_id,
+                ttl_seconds=lifetime,
+            )
             return
         report = synthesis.report.model_dump(mode="json")
         usage = synthesis.usage
@@ -139,8 +244,10 @@ async def regenerate_minutes(meeting_id: UUID) -> None:
                 db=db,
                 source="user",
             )
-        await repo.finish_regenerate(
+        published = await repo.finish_regenerate(
             meeting_id,
+            worker_id=worker_id,
+            ttl_seconds=lifetime,
             values={
                 "template_snapshot": sections_to_json(decision.sections),
                 "template_ref": str(decision.ref),
@@ -157,6 +264,8 @@ async def regenerate_minutes(meeting_id: UUID) -> None:
             tokens_cache=usage.tokens_cache,
             cost_eur=synthesis_cost_eur(usage),
         )
+        if not published:
+            return
         logger.info(
             "meeting_minutes_regenerated",
             meeting_id=str(meeting_id),
@@ -168,3 +277,12 @@ async def regenerate_minutes(meeting_id: UUID) -> None:
 
 
 __all__ = ["launch_regenerate", "regenerate_minutes"]
+
+
+async def _heartbeat_regeneration(meeting_id: UUID, worker_id: str, lifetime: int) -> None:
+    async with get_db_context() as db:
+        alive = await MeetingRepository(db).heartbeat_regeneration(
+            meeting_id, worker_id=worker_id, ttl_seconds=lifetime
+        )
+    if not alive:
+        raise LeaseLostError("Regeneration owner expired")

@@ -30,6 +30,7 @@ import { useState, type FormEvent } from 'react';
 import { CheckCircle2, PhoneCall, Smartphone } from 'lucide-react';
 
 import { useTranslation } from '@/i18n/client';
+import { useAuth } from '@/hooks/useAuth';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -425,6 +426,11 @@ function IdentityPanels({ lng, hook }: { lng: Language; hook: UseTelephonyIdenti
 }
 
 export default function TelephonyIdentitySection({ lng }: BaseSettingsProps) {
+  const { user } = useAuth();
+  return <OwnedTelephonyIdentitySection key={user?.id ?? 'signed-out'} lng={lng} />;
+}
+
+function OwnedTelephonyIdentitySection({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   const hook = useTelephonyIdentity();
 

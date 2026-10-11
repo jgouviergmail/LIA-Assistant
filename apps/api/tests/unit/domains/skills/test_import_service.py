@@ -342,6 +342,7 @@ class TestImportFilesEndToEnd:
     async def test_missing_description_rejected(self, tmp_path: Path) -> None:
         db = MagicMock()
         db.commit = AsyncMock()
+        db.execute = AsyncMock()
         svc = SkillImportService(db=db)
         no_desc = "---\nname: nodesc\n---\n\n# NoDesc\nbody\n"
         settings = MagicMock(
@@ -372,6 +373,7 @@ class TestImportFilesEndToEnd:
     async def test_happy_path_commits_and_registers(self, tmp_path: Path) -> None:
         db = MagicMock()
         db.commit = AsyncMock()
+        db.execute = AsyncMock()
         svc = SkillImportService(db=db)
         self._mock_repo(svc)
         settings = MagicMock(
@@ -419,6 +421,7 @@ class TestImportFilesEndToEnd:
         leave the disk clean and surface the same 409 as the up-front check."""
         db = MagicMock()
         db.commit = AsyncMock()
+        db.execute = AsyncMock()
         svc = SkillImportService(db=db)
         self._mock_repo(svc)
         settings = MagicMock(

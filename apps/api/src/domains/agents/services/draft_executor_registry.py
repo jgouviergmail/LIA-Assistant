@@ -84,6 +84,9 @@ def ensure_executors_registered() -> None:
         from src.domains.agents.tools.telephony_tools import execute_phone_call_draft
 
         register_executor(DraftType.TOOL_CALL.value, execute_tool_call_draft)
+        from src.domains.agents.application.draft_execution import execute_application_action_draft
+
+        register_executor(DraftType.APPLICATION_ACTION.value, execute_application_action_draft)
         register_executor(DraftType.EMAIL.value, execute_email_draft)
         register_executor(DraftType.EMAIL_REPLY.value, execute_email_reply_draft)
         register_executor(DraftType.EMAIL_FORWARD.value, execute_email_forward_draft)

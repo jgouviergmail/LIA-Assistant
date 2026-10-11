@@ -43,12 +43,27 @@ async def init_mcp(registry: AgentRegistry | None) -> MCPClientManager | None:
         behavior. None when disabled, skipped or failed before creation.
     """
     mcp_manager = None
+    from src.infrastructure.mcp.access_policy import configure_shared_mcp_access
+    from src.infrastructure.mcp.preferences_gateway import configure_shared_mcp_preferences
+
+    configure_shared_mcp_access(None)
+    configure_shared_mcp_preferences(None)
     if getattr(settings, "mcp_enabled", False) and registry is not None:
         try:
+            from src.domains.user_mcp.shared_access import require_shared_mcp_access
+            from src.domains.user_mcp.shared_preference_commands import (
+                read_shared_mcp_preferences,
+                set_shared_mcp_enabled,
+            )
             from src.infrastructure.mcp.client_manager import initialize_mcp_client_manager
+            from src.infrastructure.mcp.preferences_gateway import SharedMCPPreferencesGateway
             from src.infrastructure.mcp.registration import build_mcp_adapters, register_mcp_tools
 
             mcp_manager = await initialize_mcp_client_manager()
+            configure_shared_mcp_access(require_shared_mcp_access)
+            configure_shared_mcp_preferences(
+                SharedMCPPreferencesGateway(read_shared_mcp_preferences, set_shared_mcp_enabled)
+            )
             if mcp_manager and mcp_manager.discovered_tools:
                 # Adapter creation guards per tool: one unadaptable declaration
                 # must not cost every admin MCP capability (parity with the
@@ -80,7 +95,63 @@ async def init_mcp(registry: AgentRegistry | None) -> MCPClientManager | None:
 
 async def init_user_mcp_pool() -> None:
     """Initialize the User MCP Pool (evolution F2.1 — MCP Per-User)."""
+    from src.infrastructure.mcp.personal_metadata_gateway import configure_personal_mcp_metadata
+    from src.infrastructure.mcp.personal_oauth_contract import (
+        MCPApplicationOAuthCallbacks,
+        configure_application_mcp_oauth,
+    )
+    from src.infrastructure.mcp.personal_state_gateway import (
+        PersonalMCPStateGateway,
+        configure_personal_mcp_state,
+    )
+
+    configure_personal_mcp_metadata(None)
+    configure_personal_mcp_state(None)
+    configure_application_mcp_oauth(None)
     if getattr(settings, "mcp_user_enabled", False):
+        from src.domains.agents.application.personal_mcp_oauth_callbacks import (
+            check_personal_mcp_oauth_callback,
+            fail_personal_mcp_oauth_callback,
+            stage_personal_mcp_oauth_callback,
+        )
+        from src.domains.user_mcp.management_projection import read_personal_mcp_metadata
+        from src.domains.user_mcp.personal_configuration import configure_personal_mcp_server
+        from src.domains.user_mcp.personal_connection import test_personal_mcp_connection
+        from src.domains.user_mcp.personal_delete import delete_personal_mcp_server
+        from src.domains.user_mcp.personal_description import regenerate_personal_mcp_description
+        from src.domains.user_mcp.personal_oauth_authorization import (
+            save_personal_mcp_oauth,
+            start_personal_mcp_oauth,
+        )
+        from src.domains.user_mcp.personal_oauth_disconnect import disconnect_personal_mcp_oauth
+        from src.domains.user_mcp.personal_settings import update_personal_mcp_settings
+        from src.domains.user_mcp.personal_state import (
+            observe_personal_mcp_state,
+            set_personal_mcp_state,
+        )
+
+        configure_personal_mcp_metadata(read_personal_mcp_metadata)
+        configure_personal_mcp_state(
+            PersonalMCPStateGateway(
+                observe_personal_mcp_state,
+                set_personal_mcp_state,
+                update_personal_mcp_settings,
+                delete_personal_mcp_server,
+                regenerate_personal_mcp_description,
+                test_personal_mcp_connection,
+                disconnect_personal_mcp_oauth,
+                configure_personal_mcp_server,
+                start_personal_mcp_oauth,
+                save_personal_mcp_oauth,
+            )
+        )
+        configure_application_mcp_oauth(
+            MCPApplicationOAuthCallbacks(
+                check_personal_mcp_oauth_callback,
+                stage_personal_mcp_oauth_callback,
+                fail_personal_mcp_oauth_callback,
+            )
+        )
         try:
             from src.infrastructure.mcp.user_pool import initialize_user_mcp_pool
 

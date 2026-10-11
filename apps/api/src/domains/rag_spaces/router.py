@@ -379,6 +379,7 @@ async def upload_document(
             filename=document.filename,
             original_filename=document.original_filename,
             content_type=document.content_type,
+            durable_upload=True,
         ),
         name=f"rag_process_{document.id}",
     )

@@ -8,7 +8,7 @@
  */
 
 /** Outcome of a recorded effect, exactly as the ledger stores it. */
-export type EffectStatus = 'succeeded' | 'failed' | 'refused' | 'claimed' | 'abandoned';
+export type EffectStatus = 'succeeded' | 'failed' | 'refused' | 'claimed' | 'abandoned' | 'waiting';
 
 /** Where the authority to act came from. */
 /**

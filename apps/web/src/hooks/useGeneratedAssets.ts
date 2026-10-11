@@ -10,8 +10,8 @@
  *
  * Two rules the hook obeys, both learned elsewhere in this app:
  *
- * - `firstLoad` is derived from the ABSENCE of data, never from `error`: a
- *   refetch clears the error, and a spinner keyed on it unmounts the grid
+ * - `firstLoad` covers a pending read without data, never a completed failure:
+ *   a refetch clears the error, and a spinner keyed on it unmounts the grid
  *   mid-refresh (`usePagedSection`'s doctrine, measured on
  *   `PeerConnectionsSettings`).
  * - The page resets to its start whenever the family or a filter changes, so
@@ -20,13 +20,17 @@
 
 import { useCallback, useMemo, useState } from 'react';
 
-import { useApiQuery } from '@/hooks/useApiQuery';
+import { useAuth } from '@/hooks/useAuth';
+import { useApplicationAccountQuery } from '@/hooks/useApplicationAccountQuery';
+import { useApplicationResourceSync } from '@/hooks/useApplicationResourceSync';
 import type {
   GeneratedAssetFamily,
   GeneratedAssetFilters,
   GeneratedAssetKeepUsage,
   GeneratedAssetList,
 } from '@/types/generated-assets';
+
+const releaseGalleryOverride = () => {};
 
 /** Rows per page. One rhythm for the three galleries. */
 export const GALLERY_PAGE_SIZE = 24;
@@ -43,7 +47,7 @@ export interface UseGeneratedAssetsReturn {
   page: number;
   totalPages: number;
   setPage: (page: number) => void;
-  /** True only before the first payload — never on a refetch. */
+  /** Pending without an owned payload; settled failures expose the error. */
   firstLoad: boolean;
   loading: boolean;
   error: Error | null;
@@ -76,15 +80,32 @@ export function galleryPath(
   return `/generated-assets?${params.toString()}`;
 }
 
+/** Owned page metadata and its empty defaults share one projection. */
+function galleryValues(data: GeneratedAssetList | undefined): Pick<
+  UseGeneratedAssetsReturn,
+  'items' | 'total' | 'totalBytes' | 'keep' | 'totalPages'
+> {
+  const total = data?.total ?? 0;
+  return {
+    items: data?.items ?? [],
+    total,
+    totalBytes: data?.total_bytes ?? 0,
+    keep: data?.keep ?? null,
+    totalPages: Math.max(1, Math.ceil(total / GALLERY_PAGE_SIZE)),
+  };
+}
+
 export function useGeneratedAssets(
   family: GeneratedAssetFamily,
   filters: GeneratedAssetFilters,
   enabled: boolean
 ): UseGeneratedAssetsReturn {
+  const { user } = useAuth();
+  const accountId = user?.id;
   const [page, setPage] = useState(1);
   // The filters are the page's identity: a narrowing that kept the offset
   // would land on a page the new set does not have.
-  const key = useMemo(() => JSON.stringify([family, filters]), [family, filters]);
+  const key = useMemo(() => JSON.stringify([accountId, family, filters]), [accountId, family, filters]);
   const [lastKey, setLastKey] = useState(key);
   const effectivePage = key === lastKey ? page : 1;
   if (key !== lastKey) {
@@ -95,33 +116,27 @@ export function useGeneratedAssets(
     setPage(1);
   }
 
-  const { data, loading, error, refetch } = useApiQuery<GeneratedAssetList>(
+  const { data, loading, error, refetch, ownerId } = useApplicationAccountQuery<GeneratedAssetList>(
     galleryPath(family, filters, (effectivePage - 1) * GALLERY_PAGE_SIZE),
-    {
-      componentName: 'GeneratedAssetsSettings',
-      enabled,
-      deps: [key, effectivePage, enabled],
-    }
+    'GeneratedAssetsSettings',
+    enabled
   );
+  useApplicationResourceSync(ownerId, 'generated_assets', refetch, releaseGalleryOverride);
 
   // The page FOLLOWS the data. Deleting the last file of the last page used to
   // leave a blank grid under a pager reading « page 3 of 2 »: the set shrank
   // and the page stayed where it was. Clamped on render rather than in an
   // effect, for the same reason the filter reset is (one frame of the old page
   // against the new set, and the hooks ratchet refuses setState in an effect).
-  const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / GALLERY_PAGE_SIZE));
-  const shownPage = Math.min(effectivePage, totalPages);
+  const values = galleryValues(data);
+  const shownPage = Math.min(effectivePage, values.totalPages);
   if (shownPage !== page) setPage(shownPage);
 
   return {
-    items: data?.items ?? [],
-    total: data?.total ?? 0,
-    totalBytes: data?.total_bytes ?? 0,
-    keep: data?.keep ?? null,
+    ...values,
     page: shownPage,
-    totalPages,
     setPage: useCallback((next: number) => setPage(Math.max(1, next)), []),
-    firstLoad: data === null || data === undefined,
+    firstLoad: loading && data == null,
     loading,
     error,
     refetch,

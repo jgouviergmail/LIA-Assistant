@@ -212,3 +212,46 @@ class TestDraftFastPathSchedulesExtractions:
         mocks["memory"].assert_called_once()
         mocks["interest"].assert_called_once()
         mocks["journal"].assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_draft_forwards_previous_versions_without_exposing_them_again(self):
+        state = _state("confirm")
+        state["injected_journal_ids"] = ["previous-rule"]
+        state["injected_journal_revisions"] = {"previous-rule": 2}
+        with ExitStack() as stack:
+            mocks = _patch_collaborators(stack)
+            result = await response_node(state, _config())
+
+        kwargs = mocks["journal"].call_args.kwargs
+        assert kwargs["previous_turn_injected_ids"] == ["previous-rule"]
+        assert kwargs["previous_turn_injected_revisions"] == {"previous-rule": 2}
+        assert result["injected_journal_ids"] == []
+        assert result["injected_journal_revisions"] == {}
+
+    @pytest.mark.asyncio
+    async def test_nominal_turn_checkpoints_current_versions_and_evaluates_previous(self):
+        from src.domains.agents.services.response_context import ResponseContextBundle
+
+        state = _state(None)
+        state["injected_journal_ids"] = ["previous-rule"]
+        state["injected_journal_revisions"] = {"previous-rule": 2}
+        bundle = ResponseContextBundle(
+            user_msg_is_trivial=False,
+            journal_injected_ids=["current-rule"],
+            journal_injected_revisions={"current-rule": 3},
+        )
+        with ExitStack() as stack:
+            mocks = _patch_collaborators(stack)
+            stack.enter_context(
+                patch(
+                    "src.domains.agents.services.response_context.fetch_response_context",
+                    AsyncMock(return_value=bundle),
+                )
+            )
+            result = await response_node(state, _config())
+
+        assert mocks["journal"].call_args.kwargs["previous_turn_injected_revisions"] == {
+            "previous-rule": 2
+        }
+        assert result["injected_journal_ids"] == ["current-rule"]
+        assert result["injected_journal_revisions"] == {"current-rule": 3}

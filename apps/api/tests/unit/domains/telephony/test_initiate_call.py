@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
@@ -22,6 +23,15 @@ from src.domains.telephony.client import ElevenLabsAgentsError
 from src.domains.telephony.models import CallKind, PhoneCallStatus
 from src.domains.telephony.schemas import OutboundCallResult
 from src.domains.telephony.service import TelephonyService
+
+
+@pytest.fixture(autouse=True)
+def _offline_journal_portrait(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Dial orchestration tests keep the new portrait reader offline."""
+    monkeypatch.setattr(
+        "src.domains.journals.portrait_builder.build_journal_user_model_block",
+        AsyncMock(return_value=""),
+    )
 
 
 class _FakeDB:
@@ -150,7 +160,13 @@ def _install_fakes(
 
 
 def _user() -> SimpleNamespace:
-    return SimpleNamespace(full_name="Jean Test", email="jean@example.com", timezone="Europe/Paris")
+    return SimpleNamespace(
+        id=uuid4(),
+        full_name="Jean Test",
+        email="jean@example.com",
+        timezone="Europe/Paris",
+        phone_disabled_domains=[],
+    )
 
 
 async def _call(service: TelephonyService, **kwargs: object) -> object:

@@ -12,6 +12,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 import { ApiError } from '@/lib/api-client';
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'live-settings-account' } }) }));
+vi.mock('@/hooks/useApplicationAccountQuery', () => ({
+  useApplicationAccountQuery: (url: string, _component: string, enabled: boolean) => {
+    const table: Record<string, unknown> = {
+      '/live/connectors': h.connectors, '/live/models': h.models,
+      '/live/voices?provider=gemini': GEMINI_VOICES, '/live/voices?provider=openai': OPENAI_VOICES,
+      '/live/voices?provider=elevenlabs': PORTAL_VOICES, '/live/preferences': PREFS, '/live/config': LIVE_CONFIG,
+    };
+    return { ownerId: 'live-settings-account', data: enabled ? table[url] : undefined,
+      loading: false, error: null, refetch: vi.fn(async () => {}), setData: vi.fn() };
+  },
+}));
 
 const CAPABILITIES = {
   async_delegation: true,
@@ -205,6 +217,24 @@ describe('LiveModeSettings', () => {
     h.put.mockReset();
     h.put.mockImplementation(async (_url: string, body: unknown) => body);
     sample.play.mockClear();
+  });
+
+  it('keeps an edited duration when confirmed settings arrive, with an explicit reload', async () => {
+    const { user, rerender } = renderWithProviders(<LiveModeSettings lng="fr" />);
+    const idle = screen.getByLabelText('settings.live_mode.idle_timeout');
+    await user.clear(idle);
+    await user.type(idle, '120');
+    h.connectors = {
+      connectors: [{ ...GEMINI, settings: { ...GEMINI.settings, session_max_minutes: 20 } }],
+      active_provider: 'gemini',
+    };
+    rerender(<LiveModeSettings lng="fr" />);
+    expect(screen.getByLabelText('settings.live_mode.idle_timeout')).toHaveValue(120);
+    expect(screen.getByText('settings.live_mode.settings_changed')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'settings.live_mode.reload_saved' }));
+    expect(screen.getByLabelText('settings.live_mode.idle_timeout')).toHaveValue(60);
+    expect(screen.getByLabelText('settings.live_mode.session_max')).toHaveValue(20);
+    expect(screen.queryByText('settings.live_mode.settings_changed')).toBeNull();
   });
 
   it('renders nothing when the instance flag is off', () => {

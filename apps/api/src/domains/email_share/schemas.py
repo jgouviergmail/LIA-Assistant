@@ -49,7 +49,7 @@ class SharedMarkdown(BaseModel):
         return value
 
 
-class EmailShareRequest(BaseModel):
+class EmailShareEnvelope(BaseModel):
     """Send one file or one answer, with a subject and optional words."""
 
     recipients: list[EmailStr] = Field(
@@ -70,9 +70,6 @@ class EmailShareRequest(BaseModel):
         max_length=EMAIL_SHARE_MESSAGE_MAX_CHARS,
         description="The words above the file; nothing is written in their place.",
     )
-    attachment: Annotated[SharedFile | SharedMarkdown, Field(discriminator="kind")] = Field(
-        description="What is sent: a generated file, or an answer as Markdown."
-    )
 
     @field_validator("subject")
     @classmethod
@@ -92,6 +89,14 @@ class EmailShareRequest(BaseModel):
         if value is None:
             return None
         return value.strip() or None
+
+
+class EmailShareRequest(EmailShareEnvelope):
+    """The original UI envelope and its selected file or exact Markdown export."""
+
+    attachment: Annotated[SharedFile | SharedMarkdown, Field(discriminator="kind")] = Field(
+        description="What is sent: a generated file, or an answer as Markdown."
+    )
 
 
 class EmailShareOptions(BaseModel):

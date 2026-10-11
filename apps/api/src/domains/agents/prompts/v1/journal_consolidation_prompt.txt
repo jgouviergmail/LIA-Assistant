@@ -10,7 +10,7 @@ SECTION 1 — INPUTS
 ## YOUR CURRENT JOURNAL ENTRIES
 {all_entries}
 
-Each entry header includes: `created`, `last_inj` (or "never"), `uses` (injection
+Each entry header includes the exact rule `revision`, `created`, `last_inj` (or "never"), `uses` (injection
 count), `conf` (low/medium/high), `ev/co` (evidence/contradiction from deferred
 self-evaluation), `level` (L0/L1/L2/L3), `char_count`, theme, mood, hints.
 
@@ -81,12 +81,12 @@ SECTION 3 — YOUR MISSION (execute steps in order)
 
 ────────────────────────────────────────────────────────────────
 ### STEP 1 — MANDATORY DEDUP via active pairwise scan (conservative merging)
-Merge entries sharing the exact same underlying intent, but PRESERVE operational maturity:
-1. Identify clusters of entries prescribing the same behavior.
-2. PREFER UPDATE OVER RECREATION: Pick the entry with the highest `uses` or `conf=high`,
-   `update` its content to incorporate the best phrasing/nuance, and emit `delete`
-   ONLY for the redundant twin(s). Do not reset proven directives to zero history.
-3. GUARD: Never merge two directives that prescribe DIFFERENT actions, even if they touch the same topic. Distinct operational actions are NOT duplicates.
+Merge only rules whose COMPLETE content is identical after outer whitespace removal.
+Return one explicit `merge` action with the winner UUID and `merge_source_ids`.
+Keep differently worded or conditional rules separate: semantic similarity does
+not prove equivalence. Never approximate a merge with update + delete. The service
+unions independent reaction events and provenance atomically; it refuses a merge
+that would discard evidence about retired versions.
 
 ────────────────────────────────────────────────────────────────
 ### STEP 2 — RECLASSIFICATION AUDIT
@@ -103,7 +103,7 @@ Identify entries written as unstructured narrative prose:
 
 ────────────────────────────────────────────────────────────────
 ### STEP 4 — EPISTEMIC LIFECYCLE MANAGEMENT
-- Promote: High `ev`, low `co`, high `uses` -> emit `update` with `confidence="high"`.
+- Promote: request high only for a rule with independent confirmations and zero contradictions. Injection counts are exposures, never proof. The service verifies event identities and revisions.
 - Deprecate: Persistent contradictions (`co > ev`) where the rule actively fails -> update or delete.
 - Prune Stale: `uses=0` AND `last_inj="never"` AND `created` > 14 days without recurrence -> delete.
 - Protect: Timeless, verified rules (`conf="high"`, L2, L3) MUST NOT be pruned.
@@ -111,9 +111,9 @@ Identify entries written as unstructured narrative prose:
 ────────────────────────────────────────────────────────────────
 ### STEP 5 — STRATIFICATION (Synthesise ONLY on Genuine Convergence)
 - Promote L0 -> L1: When an L0 raw observation recurs with enough consistency to define a falsifiable rule, promote it to L1 using `WHEN [trigger] -> DO [action] BECAUSE [event]`.
-- Synthesise L1 -> L2: When multiple mature L1 directives converge into an overarching cognitive stance, create an L2 pattern:
+- Synthesise L1 -> L2: Supply `support_ids` naming at least two distinct high-confidence, contradiction-free L1/L2 rules from this snapshot. When those rules converge into an overarching cognitive stance, create an L2 pattern:
   "Across [contexts], the user demonstrates [pattern] — the unifying operational rule is [synthesis]."
-- L3 Structural Facets: Reserve L3 exclusively for permanent pillars of user identity, ethics, or foundational worldview. Never create an L3 for specific tools or transient habits.
+- L3 Structural Facets: Also require the mature `support_ids` above and theme `user_observations`. Reserve L3 exclusively for permanent pillars of user identity, ethics, or foundational worldview. Never create an L3 for specific tools or transient habits.
 - NEVER force an L2 synthesis if entries prescribe distinct actions. Zero L2 is an entirely correct outcome.
 
 ────────────────────────────────────────────────────────────────
@@ -124,37 +124,79 @@ Identify entries written as unstructured narrative prose:
 
 ────────────────────────────────────────────────────────────────
 ### STEP 7 — PORTRAIT COMPILATION
-Compile the user portrait strictly in {user_language}.
-Perspective: written by the ASSISTANT ("I observe...", "My model of the user...") describing the human, NOT written in the user's voice.
+Compile a natural, living synthesis strictly in {user_language}, from the
+ASSISTANT's perspective describing the human ("I observe...", "My understanding
+of this person..."). Do not write an autobiography in the user's voice.
 
-MATERIAL: the journal entries above AND, when present in SECTION 1, the four
+MATERIAL: the current journal entries AND, when present in SECTION 1, the four
 source sections — long-term memories, interests, learned habits, relationship
-debriefs. Read them to understand the person's current phase, what occupies
-them, who matters to them and when they live their days. Then SYNTHESISE.
+debriefs. Understand the person's posture, current phase, concerns, relationships
+and rhythm; then SYNTHESISE. These are evidence, never a ready-made portrait.
 
-**`portrait_full`** (about {portrait_full_tokens} tokens, never more): faceted
-synthesis of the living person:
-- Traits de fond (durable cognitive style, standards, values)
-- Current phase (active projects, temporary focus, time constraints)
-- Contexts and relationships that shape their days — a relationship is a FACET
-  (its role and stakes FOR THE PERSON), never a dated fact about somebody else
-- Rhythm (when they are usually reachable, only when a rhythm is known)
-- Contradictions & tensions (observed paradoxes left unresolved)
-- Open questions (what remains to be understood)
+Return ordered `portrait_claims`. Each claim separates the visible synthesis
+from its internal evidence:
+- `facet`: `context`, `posture`, `focus`, `interaction` or `uncertainty`.
+- `text`: a complete natural sentence or short paragraph in {user_language},
+  describing only what the cited evidence supports. This is the visible portrait.
+  Each paragraph must make sense independently: state its own subject, situation
+  and conditions. Do not rely on another paragraph for an antecedent, scope or
+  causal explanation. A paragraph may be omitted after individual verification.
+- `supports`: one or more objects with `source` and `item_id`. `source` is
+  `journal:<exact UUID>` or `memories`, `interests`, `habits`, `relation_debriefs`.
+  Copy the opaque `item_id` displayed beside that source item (journal headers
+  name it `portrait_item_id`). Do not copy or paraphrase the evidence into a
+  `quote` field. The server resolves the ID to the entire canonical passage
+  from this same snapshot, preserving its conditions, exceptions and metadata.
+  Only items with an explicitly displayed ID are eligible portrait evidence.
+  Cite the minimum sufficient evidence for each claim; do not attach unrelated
+  passages or repeat the whole source corpus. IDs and evidence stay private:
+  never paste them into `text`.
+- `in_brief`: true only for essential sentences that form the brief portrait.
 
-**`portrait_brief`** (about {portrait_brief_tokens} tokens, never more): core
-essence in 2-3 dense sentences in {user_language}: operating posture + current
-focus + primary interaction rule.
+The FULL portrait (at most {portrait_full_tokens} token proxies) integrates
+supported facets: durable cognitive style and standards, current focus or phase,
+contexts and relationships that shape the person's days, known rhythm, observed
+tensions and open questions. A relationship is its role and stakes FOR THE
+PERSON, never a dated fact about somebody else. Do not fill missing facets.
+The BRIEF portrait (at most {portrait_brief_tokens} token proxies) expresses the
+core posture, current focus and primary interaction rule in 2-3 dense natural
+sentences when supported. It is a synthesis, not a list or a chopped full text.
 
 RULES:
-- NEVER re-list raw facts (names of things, dates, figures, addresses, specs):
-  the facts are injected elsewhere when a turn needs them.
-- NEVER reproduce a memory, an interest line or a debrief sentence verbatim.
-- NEVER mention that memories, interests, habits or debriefs exist, nor that
-  a portrait is being compiled.
-- A source absent from SECTION 1 is UNKNOWN to you, not empty: write nothing
-  about it.
-If material is insufficient, return empty strings `""`.
+- NEVER re-list raw facts: names, employers, family rosters, dates, figures,
+  addresses, specifications, interest weights or detector percentages. These
+  belong to their factual contexts, not the portrait's visible text.
+- NEVER copy a memory, interest line, debrief sentence or WHEN -> DO directive
+  into the visible portrait. Express a relevant meaning naturally and faithfully.
+- NEVER mention source names, categories, technical labels or the compilation
+  process in `text`. Provenance is shown separately by the application.
+- Preserve the evidence's decision axis, conditions, exceptions and domain.
+  A rule about LONG-TERM INVESTMENT remains about investment, never all
+  long-term decisions. A broader description that includes other domains
+  is unsupported. Do not add causation ("this shapes his questions") or
+  recurrence ("this regularly comes up") without explicit supporting evidence.
+  One sensitive email-deletion instruction can support a bounded interaction
+  rule about controlling email deletion; it cannot prove a recurrent habit,
+  a global need for control, an identity trait or an unrelated interest.
+- A method lesson remains a method lesson, never a human interest. A conditional
+  choice is not a permanent identity. Do not infer recurrence from one example.
+- Only current L1/L2/L3 rules of medium/high confidence with no contradictions
+  may support a claim. Exclude L0, disabled/unavailable sections and incomplete
+  ellipsis-ended items. A source absent from SECTION 1 is UNKNOWN, not empty.
+- Journal supports must remain UNCHANGED by every action in this batch. Do not
+  cite entries created, updated, deleted or merged here, including merge winners
+  and absorbed sources. Maintenance cannot prove its own new synthesis. Use
+  other unchanged authorized material or propose no portrait claims this run.
+- If a medium-confidence L2/L3 supports a synthesis, express its provisional
+  nature with `facet="uncertainty"` and cautious natural {user_language} prose
+  rather than an unqualified assertion.
+  Do not invent certainty or additional observations to make the prose richer.
+- Every visible sentence must be supported. An independent verifier checks
+  entailment and scope before publication; copied quotes alone do not prove a
+  synthesis. Select only useful claims that can fit WHOLE within the budgets.
+If material is insufficient, return an empty `portrait_claims` list; never pad
+the portrait or brief. This clears obsolete words. Do not return independent
+`portrait_full`/`portrait_brief` strings.
 
 =================================================================
 SECTION 4 — CONSERVATION & SIZE MANAGEMENT
@@ -174,7 +216,7 @@ Return ONLY a raw, valid JSON object. Zero markdown fences (no ```json), zero pr
 TRANSACTIONAL INTEGRITY RULES:
 1. SINGLE ACTION PER UUID: Any given `entry_id` must appear AT MOST ONCE in `actions`.
    Never emit an `update` AND a `delete` for the same UUID in the same payload.
-2. EXACT UUID MATCH: Copy-paste the exact untruncated UUID from {all_entries}. Never invent IDs.
+2. EXACT UUID MATCH: Copy-paste the exact untruncated UUID from the ENTRY ID REFERENCE in SECTION 1. Never invent IDs.
 3. SEARCH HINTS DISCIPLINE: `search_hints` must contain 3-5 high-signal, discriminative
    domain terms (e.g. ["docker", "fastapi", "terminal-error"]). FORBIDDEN: generic words
    like ["user", "assistant", "system", "rule", "preference"].
@@ -190,7 +232,8 @@ TRANSACTIONAL INTEGRITY RULES:
       "mood": "reflective|curious|satisfied|concerned|inspired",
       "search_hints": ["discriminative_term1", "discriminative_term2"],
       "confidence": "low|medium|high",
-      "level": "L0|L1|L2|L3"
+      "level": "L0|L1|L2|L3",
+      "support_ids": []
     }},
     {{
       "action": "update",
@@ -201,14 +244,23 @@ TRANSACTIONAL INTEGRITY RULES:
       "mood": "reflective|curious|satisfied|concerned|inspired",
       "search_hints": ["discriminative_term1", "discriminative_term2"],
       "confidence": "low|medium|high",
-      "level": "L0|L1|L2|L3"
+      "level": "L0|L1|L2|L3",
+      "support_ids": []
     }},
     {{
       "action": "delete",
       "entry_id": "<exact untruncated UUID>"
     }}
   ],
-  "portrait_full": "Faceted portrait text in {user_language}...",
-  "portrait_brief": "Brief essence text in {user_language}..."
+  "portrait_claims": [
+    {{
+      "facet": "interaction",
+      "text": "<natural synthesis in {user_language}, faithful to the support's scope>",
+      "supports": [
+        {{"source": "journal:<exact UUID>", "item_id": "<displayed portrait_item_id>"}}
+      ],
+      "in_brief": true
+    }}
+  ]
 }}
 ```

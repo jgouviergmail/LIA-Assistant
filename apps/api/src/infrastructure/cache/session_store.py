@@ -6,9 +6,11 @@ Conforms to OAuth 2.1 and modern web security best practices.
 
 import hashlib
 import json
+from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
-from uuid import uuid4
+from typing import Any, Literal
+from uuid import UUID, uuid4
 
 import redis.asyncio as aioredis
 import structlog
@@ -19,9 +21,73 @@ from src.core.constants import (
     SESSION_DISPLAY_ID_LENGTH,
     SESSION_LAST_SEEN_COARSE_SECONDS,
 )
+from src.core.exceptions import AuthorizationError
 from src.core.field_names import FIELD_USER_ID
+from src.infrastructure.cache.session_revocation import revoke_selected_sessions
 
 logger = structlog.get_logger(__name__)
+
+_UPDATE_SESSION_FIELD = """
+local saved = redis.call('GET', KEYS[1])
+if not saved then return 0 end
+local valid, data = pcall(cjson.decode, saved)
+if not valid or type(data) ~= 'table' or data.user_id ~= ARGV[3] then return 0 end
+data[ARGV[1]] = ARGV[2]
+redis.call('SET', KEYS[1], cjson.encode(data), 'XX', 'KEEPTTL')
+return 1
+"""
+
+
+def session_display_id(session_id: str) -> str:
+    return hashlib.sha256(session_id.encode("utf-8")).hexdigest()[:SESSION_DISPLAY_ID_LENGTH]
+
+
+class SessionListingLimitError(ValueError):
+    """An indexed session list exceeds a caller's bounded read allowance."""
+
+
+@dataclass
+class SessionListingObservation:
+    """Invalid indexed metadata makes the valid-row result explicitly incomplete."""
+
+    incomplete: bool = False
+
+
+def _listed_session(session_id: str, payload: str | bytes, owner_id: str) -> UserSession | None:
+    """Read an indexed row only when its stored owner and metadata remain valid."""
+    try:
+        session = UserSession.from_dict(session_id, json.loads(payload))
+    except AttributeError, KeyError, TypeError, ValueError:
+        logger.warning("session_list_parse_error", user_id=owner_id)
+        return None
+    if session.user_id != owner_id:
+        logger.warning("session_list_owner_mismatch", user_id=owner_id)
+        return None
+    if session.created_at.tzinfo is None:
+        session.created_at = session.created_at.replace(tzinfo=UTC)
+    if session.last_seen_at is not None and session.last_seen_at.tzinfo is None:
+        session.last_seen_at = session.last_seen_at.replace(tzinfo=UTC)
+    return session
+
+
+def _listed_sessions(
+    session_ids: list[str],
+    payloads: Sequence[str | bytes | None],
+    owner_id: str,
+    observation: SessionListingObservation | None,
+) -> list[UserSession]:
+    """Decode an index batch, preserving uncertainty and stable presentation order."""
+    sessions: list[UserSession] = []
+    for session_id, payload in zip(session_ids, payloads, strict=True):
+        if payload is None:
+            continue  # expired session still indexed — harmless leftover
+        session = _listed_session(session_id, payload, owner_id)
+        if session is not None:
+            sessions.append(session)
+        elif observation is not None:
+            observation.incomplete = True
+    sessions.sort(key=lambda s: (s.created_at, s.display_id), reverse=True)
+    return sessions
 
 
 class UserSession:
@@ -87,9 +153,7 @@ class UserSession:
     @property
     def display_id(self) -> str:
         """Opaque UI identifier — the raw session id NEVER leaves the server."""
-        return hashlib.sha256(self.session_id.encode("utf-8")).hexdigest()[
-            :SESSION_DISPLAY_ID_LENGTH
-        ]
+        return session_display_id(self.session_id)
 
     def to_dict(self) -> dict[str, Any]:
         """
@@ -250,7 +314,7 @@ class SessionStore:
 
         logger.info(
             "session_created_minimal",
-            session_id=session_id,
+            display_id=session.display_id,
             user_id=user_id,
             remember_me=remember_me,
             ttl_days=ttl / 86400,
@@ -278,7 +342,7 @@ class SessionStore:
         data = await self.redis.get(key)
 
         if not data:
-            logger.debug("session_not_found", session_id=session_id)
+            logger.debug("session_not_found", display_id=session_display_id(session_id))
             return None
 
         try:
@@ -287,14 +351,18 @@ class SessionStore:
 
             logger.debug(
                 "session_retrieved_minimal",
-                session_id=session_id,
+                display_id=session.display_id,
                 user_id=session.user_id,
                 remember_me=session.remember_me,
             )
             return session
 
-        except (json.JSONDecodeError, KeyError) as exc:
-            logger.error("session_parse_error", session_id=session_id, error=str(exc))
+        except (AttributeError, KeyError, TypeError, ValueError) as exc:
+            logger.error(
+                "session_parse_error",
+                display_id=session_display_id(session_id),
+                error_type=type(exc).__name__,
+            )
             # Delete corrupted session
             await self.redis.delete(key)
             return None
@@ -325,13 +393,15 @@ class SessionStore:
 
             logger.info(
                 "session_deleted",
-                session_id=session_id,
+                display_id=session_display_id(session_id),
                 user_id=session.user_id if session else None,
                 deindexed=session is not None,
             )
             return True
         else:
-            logger.debug("session_not_found_for_deletion", session_id=session_id)
+            logger.debug(
+                "session_not_found_for_deletion", display_id=session_display_id(session_id)
+            )
             return False
 
     async def delete_all_user_sessions(self, user_id: str) -> int:
@@ -428,14 +498,29 @@ class SessionStore:
             and (now - session.last_seen_at).total_seconds() < SESSION_LAST_SEEN_COARSE_SECONDS
         ):
             return
-        session.last_seen_at = now
-        await self.redis.set(
-            f"session:{session_id}",
-            json.dumps(session.to_dict()),
-            keepttl=True,
-        )
+        await self._update_session_field(session, "last_seen_at", now)
 
-    async def list_user_sessions(self, user_id: str) -> list[UserSession]:
+    async def _update_session_field(
+        self, session: UserSession, field: Literal["last_seen_at", "step_up_at"], value: datetime
+    ) -> bool:
+        """Atomically change one field of an existing, still-owned row without renewing it."""
+        result: object = await self.redis.eval(
+            _UPDATE_SESSION_FIELD,
+            1,
+            f"session:{session.session_id}",
+            field,
+            value.isoformat(),
+            str(session.user_id),
+        )
+        return type(result) is int and result == 1
+
+    async def list_user_sessions(
+        self,
+        user_id: str,
+        *,
+        max_sessions: int | None = None,
+        observation: SessionListingObservation | None = None,
+    ) -> list[UserSession]:
         """List the user's live sessions (device overview, D2).
 
         Args:
@@ -444,7 +529,15 @@ class SessionStore:
         Returns:
             Sessions still present in Redis, newest first.
         """
-        member_ids = await self.redis.smembers(f"user:{user_id}:sessions")
+        index_key = f"user:{user_id}:sessions"
+        if max_sessions is not None:
+            if max_sessions < 1:
+                raise ValueError("Invalid session listing allowance")
+            if await self.redis.scard(index_key) > max_sessions:
+                raise SessionListingLimitError("Session index exceeds listing allowance")
+        member_ids = await self.redis.smembers(index_key)
+        if max_sessions is not None and len(member_ids) > max_sessions:
+            raise SessionListingLimitError("Session index exceeds listing allowance")
         session_ids = [sid.decode("utf-8") if isinstance(sid, bytes) else sid for sid in member_ids]
         if not session_ids:
             return []
@@ -454,16 +547,7 @@ class SessionStore:
             pipeline.get(f"session:{session_id}")
         payloads = await pipeline.execute()
 
-        sessions: list[UserSession] = []
-        for session_id, payload in zip(session_ids, payloads, strict=True):
-            if not payload:
-                continue  # expired session still indexed — harmless leftover
-            try:
-                sessions.append(UserSession.from_dict(session_id, json.loads(payload)))
-            except json.JSONDecodeError, KeyError:
-                logger.warning("session_list_parse_error", session_id=session_id)
-        sessions.sort(key=lambda s: s.created_at, reverse=True)
-        return sessions
+        return _listed_sessions(session_ids, payloads, user_id, observation)
 
     async def delete_session_by_display_id(self, user_id: str, display_id: str) -> bool:
         """Revoke one of the user's sessions by its opaque display id.
@@ -477,7 +561,8 @@ class SessionStore:
         """
         for session in await self.list_user_sessions(user_id):
             if session.display_id == display_id:
-                return await self.delete_session(session.session_id)
+                removed = await revoke_selected_sessions(self, UUID(user_id), (session,))
+                return removed > 0
         return False
 
     async def delete_other_user_sessions(self, user_id: str, keep_session_id: str) -> int:
@@ -490,12 +575,14 @@ class SessionStore:
         Returns:
             Number of sessions deleted.
         """
-        deleted = 0
-        for session in await self.list_user_sessions(user_id):
-            if session.session_id == keep_session_id:
-                continue
-            if await self.delete_session(session.session_id):
-                deleted += 1
+        sessions = await self.list_user_sessions(user_id)
+        current = next((item for item in sessions if item.session_id == keep_session_id), None)
+        if current is None:
+            raise AuthorizationError(detail={"error_code": "SESSION_UNAVAILABLE"})
+        selected = tuple(item for item in sessions if item.session_id != keep_session_id)
+        deleted = await revoke_selected_sessions(
+            self, UUID(user_id), selected, current=current, require_fresh_step_up=True
+        )
         logger.info(
             "other_user_sessions_deleted",
             user_id=user_id,
@@ -519,15 +606,11 @@ class SessionStore:
         if session is None:
             return False
 
-        session.step_up_at = datetime.now(UTC)
-        await self.redis.set(
-            f"session:{session_id}",
-            json.dumps(session.to_dict()),
-            keepttl=True,
-        )
+        if not await self._update_session_field(session, "step_up_at", datetime.now(UTC)):
+            return False
         logger.info(
             "session_step_up_recorded",
-            session_id=session_id,
+            display_id=session.display_id,
             user_id=session.user_id,
         )
         return True

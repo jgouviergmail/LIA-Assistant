@@ -144,12 +144,9 @@ async def test_later_reminder_confirmation_cannot_retarget_the_selected_item(mon
         "content": "Reminder",
         CARD_COMPOSITION_DRAFT_KEY: selection("cancel_reminder"),
     }
-    if changed:
-        with pytest.raises(CardCompositionUnavailable):
-            await execute_reminder_delete_draft(content, USER, AsyncMock())
-        service.cancel_reminder.assert_not_awaited()
-    else:
-        await execute_reminder_delete_draft(content, USER, AsyncMock())
-        service.cancel_reminder.assert_awaited_once_with(user_id=USER, reminder_id=UUID(target))
-        assert db.commit.await_count == 2
+    result = await execute_reminder_delete_draft(content, USER, AsyncMock())
+    # The old shape has no full snapshot; both cases need a new native draft.
+    assert result == {"success": False, "error_code": "SCHEMA_CHANGED"}
+    service.cancel_reminder.assert_not_awaited()
+    db.commit.assert_not_awaited()
     assert card_composition_ctx.get() is None

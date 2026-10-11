@@ -1,12 +1,9 @@
 """
-Core Semantic Types - the complete catalogue of the 96+ types
+Core semantic catalogue and its verified entity/value extensions.
 
-Defines every semantic type identified in the LIA codebase, organised as a
-hierarchy inspired by schema.org.
-
-Types found:
-- 5 explicit types that already existed
-- 91+ implicit types identified in the manifests, tools and schemas
+Types are organised as schema.org-inspired metadata. Native manifests and
+explicit MCP schemas describe actual producers and consumers; editorial
+relations never authorize value conversion (ADR-090, ADR-233).
 
 Hierarchy:
 - Thing (root)
@@ -15,9 +12,15 @@ Hierarchy:
   - Event → CalendarEvent
   - Intangible → Identifier, QuantitativeValue, DateTime, etc.
   - CreativeWork → DigitalDocument, Message, etc.
-  - Action → SearchAction, NavigateAction, etc.
 """
 
+from src.domains.agents.semantic.entity_types import (
+    CALENDAR_EVENT,
+    CONTACT,
+    EMAIL_MESSAGE,
+    PLACE,
+)
+from src.domains.agents.semantic.native_types import load_native_types
 from src.domains.agents.semantic.resource_handle_types import load_resource_handle_types
 from src.domains.agents.semantic.semantic_type import SemanticType, TypeCategory
 from src.domains.agents.semantic.type_registry import TypeRegistry
@@ -50,20 +53,6 @@ PERSON = SemanticType(
     uri="http://schema.org/Person",
 )
 
-CONTACT = SemanticType(
-    name="Contact",
-    parent="Person",
-    category=TypeCategory.IDENTITY,
-    description="A person in address book with contact information",
-    properties={
-        "name": "person_name",
-        "email": "email_address",
-        "phone": "phone_number",
-        "address": "physical_address",
-    },
-    source_domains=["contact"],
-    used_in_tools=["get_contacts_tool", "create_contact_tool", "update_contact_tool"],
-)
 
 # =============================================================================
 # CONTACT POINT (Identity subtypes)
@@ -120,23 +109,6 @@ PERSON_NAME = SemanticType(
 # PLACE HIERARCHY (Location types)
 # =============================================================================
 
-PLACE = SemanticType(
-    name="Place",
-    parent="Thing",
-    category=TypeCategory.LOCATION,
-    description="Entities that have a somewhat fixed, physical extension",
-    uri="http://schema.org/Place",
-    # Entity type for the "place" domain (a Google Places result IS a
-    # schema.org Place). `properties` drive evidence-driven expansion: a
-    # referenced place can provide these semantic types.
-    properties={
-        "address": "physical_address",
-        "phone": "phone_number",
-        "coordinates": "coordinate",
-    },
-    source_domains=["place"],
-    used_in_tools=["get_places_tool"],
-)
 
 POSTAL_ADDRESS = SemanticType(
     name="PostalAddress",
@@ -151,6 +123,7 @@ POSTAL_ADDRESS = SemanticType(
         "postalCode": "postal_code",
     },
     related_types=["coordinate", "place_id"],
+    narrower_types=["physical_address"],
 )
 
 PHYSICAL_ADDRESS = SemanticType(
@@ -160,7 +133,7 @@ PHYSICAL_ADDRESS = SemanticType(
     description="Physical postal address or location description",
     examples=["10 Rue de la Paix, Paris", "Eiffel Tower", "home"],
     related_types=["coordinate", "place_id", "formatted_address"],
-    broader_types=["PostalAddress", "Place"],
+    broader_types=["PostalAddress"],
     source_domains=["contact", "place", "event", "route"],
     used_in_tools=[
         "get_route_tool",
@@ -177,6 +150,7 @@ FORMATTED_ADDRESS = SemanticType(
     category=TypeCategory.LOCATION,
     description="Fully formatted address string",
     examples=["10 Rue de la Paix, 75002 Paris, France"],
+    related_types=["physical_address"],
     source_domains=["place", "route"],
 )
 
@@ -186,7 +160,7 @@ GEO_COORDINATES = SemanticType(
     category=TypeCategory.LOCATION,
     description="Geographic coordinates (latitude/longitude pair)",
     uri="http://schema.org/GeoCoordinates",
-    properties={"latitude": "float", "longitude": "float"},
+    properties={"latitude": "latitude", "longitude": "longitude"},
 )
 
 COORDINATE = SemanticType(
@@ -195,8 +169,8 @@ COORDINATE = SemanticType(
     category=TypeCategory.LOCATION,
     description="Geographic coordinates (latitude/longitude)",
     examples=["48.8566, 2.3522", "(48.8566, 2.3522)"],
-    properties={"latitude": "float", "longitude": "float"},
-    related_types=["physical_address", "place_id"],
+    properties={"latitude": "latitude", "longitude": "longitude"},
+    related_types=["physical_address", "place_id", "PostalAddress"],
     source_domains=["place", "route"],
     used_in_tools=["get_places_tool", "get_route_tool"],
 )
@@ -265,22 +239,6 @@ EVENT = SemanticType(
     uri="http://schema.org/Event",
 )
 
-CALENDAR_EVENT = SemanticType(
-    name="CalendarEvent",
-    parent="Event",
-    category=TypeCategory.TEMPORAL,
-    description="Event in a calendar (meeting, appointment, etc.)",
-    # `properties` drive evidence-driven expansion: a referenced event can
-    # provide these semantic types (mirrors the calendar manifests' outputs:
-    # events[].location, events[].start.dateTime, attendees[].email).
-    properties={
-        "location": "physical_address",
-        "start_datetime": "event_start_datetime",
-        "attendees": "email_address",
-    },
-    source_domains=["event"],
-    used_in_tools=["create_event_tool", "update_event_tool", "get_events_tool"],
-)
 
 # =============================================================================
 # INTANGIBLE TYPES (Identifiers, Measurements, etc.)
@@ -336,6 +294,7 @@ CONTACT_ID = SemanticType(
 
 FILE_ID = SemanticType(
     name="file_id",
+    related_types=["attachment_info"],
     parent="Identifier",
     category=TypeCategory.RESOURCE_ID,
     description="Unique identifier for file (Google Drive)",
@@ -356,7 +315,7 @@ MESSAGE_ID = SemanticType(
     parent="Identifier",
     category=TypeCategory.RESOURCE_ID,
     description="Unique identifier for email message",
-    related_types=["thread_id", "email_address"],
+    related_types=["thread_id", "email_address", "attachment_info"],
     source_domains=["email"],
     used_in_tools=["get_emails_tool", "reply_email_tool"],
 )
@@ -392,7 +351,7 @@ PLACE_ID = SemanticType(
     parent="Identifier",
     category=TypeCategory.RESOURCE_ID,
     description="Unique identifier for place (Google Places)",
-    related_types=["physical_address", "coordinate"],
+    related_types=["physical_address", "coordinate", "PostalAddress"],
     source_domains=["place", "route"],
     used_in_tools=["get_places_tool"],
 )
@@ -496,7 +455,7 @@ MODIFICATION_TIMESTAMP = SemanticType(
 
 BIRTHDAY = SemanticType(
     name="birthday",
-    parent="DateTime",
+    parent="Date",
     category=TypeCategory.TEMPORAL,
     description="Person's birthday date",
     source_domains=["contact"],
@@ -628,10 +587,9 @@ CONFIDENCE_SCORE = SemanticType(
 
 PRICE_LEVEL = SemanticType(
     name="price_level",
-    parent="QuantitativeValue",
-    category=TypeCategory.MEASUREMENT,
-    description="Price level indicator (1-4 scale)",
-    examples=["1", "3"],
+    parent="Text",
+    category=TypeCategory.CONTENT,
+    description="Localized place price-level label, not a numeric amount or API filter code",
     source_domains=["place"],
 )
 
@@ -740,23 +698,6 @@ CREATIVE_WORK = SemanticType(
     uri="http://schema.org/CreativeWork",
 )
 
-EMAIL_MESSAGE = SemanticType(
-    name="EmailMessage",
-    parent="CreativeWork",
-    category=TypeCategory.CONTENT,
-    description="An email message in the user's mailbox",
-    uri="http://schema.org/EmailMessage",
-    # Entity type for the "email" domain. `properties` drive evidence-driven
-    # expansion: a referenced email can provide these semantic types
-    # ("invite the sender of this email to the meeting").
-    properties={
-        "sender": "email_address",
-        "thread": "thread_id",
-        "identifier": "message_id",
-    },
-    source_domains=["email"],
-    used_in_tools=["get_emails_tool", "reply_email_tool", "forward_email_tool"],
-)
 
 TEXT = SemanticType(
     name="Text",
@@ -1030,7 +971,7 @@ def load_core_types(registry: TypeRegistry) -> None:
     Load all core types into the registry.
 
     This function must be called at application startup
-    to populate the global registry with the 96+ defined types.
+    to populate the global registry, including its entity and native extensions.
 
     Args:
         registry: TypeRegistry instance to populate
@@ -1038,8 +979,8 @@ def load_core_types(registry: TypeRegistry) -> None:
     Example:
         >>> registry = get_registry()
         >>> load_core_types(registry)
-        >>> len(registry)
-        96+
+        >>> registry.get("email_address") is not None
+        True
     """
     # Root types
     registry.register(THING)
@@ -1096,6 +1037,7 @@ def load_core_types(registry: TypeRegistry) -> None:
     registry.register(PLACE_TYPE)
 
     # Temporal types
+    load_native_types(registry)
     registry.register(DATE_TIME)
     registry.register(DATETIME)
     registry.register(TIMEZONE)

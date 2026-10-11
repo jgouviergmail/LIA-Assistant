@@ -20,6 +20,7 @@
  *    is what survives a refactor of the gesture.
  */
 import { test, expect, waitForHydration, type MockRoute } from '../fixtures';
+import type { GeneratedAsset } from '../../src/types/generated-assets';
 
 /** A node the section really renders — a `<form>` would never appear. */
 const CARD = '[data-testid="generated-asset-card"]';
@@ -27,7 +28,7 @@ const CARD = '[data-testid="generated-asset-card"]';
 const IMAGE_ID = 'a1b2c3d4-0000-4000-8000-000000000001';
 const OTHER_ID = 'a1b2c3d4-0000-4000-8000-000000000002';
 
-function asset(overrides: Record<string, unknown> = {}) {
+function asset(overrides: Partial<GeneratedAsset> = {}): GeneratedAsset {
   return {
     id: IMAGE_ID,
     title: 'Coucher de soleil',
@@ -38,6 +39,7 @@ function asset(overrides: Record<string, unknown> = {}) {
     conversation_id: null,
     created_at: '2026-09-10T08:00:00Z',
     expires_at: '2026-09-11T08:00:00Z',
+    shared_by_name: null,
     ...overrides,
   };
 }
@@ -53,7 +55,7 @@ function asset(overrides: Record<string, unknown> = {}) {
 function galleryRoutes(
   asked: string[],
   deletes: unknown[] = [],
-  items: Record<string, unknown>[] = [asset(), asset({ id: OTHER_ID, title: 'Plan de la salle' })]
+  items: GeneratedAsset[] = [asset(), asset({ id: OTHER_ID, title: 'Plan de la salle' })]
 ): MockRoute[] {
   return [
     {
@@ -78,10 +80,16 @@ function galleryRoutes(
           body: JSON.stringify({
             items,
             total: items.length,
-            total_bytes: 4096,
+            total_bytes: items.reduce((total, item) => total + item.file_size, 0),
             limit: 24,
             offset: 0,
             max_limit: 100,
+            keep: {
+              kept_files: items.filter(item => item.expires_at === null).length,
+              kept_bytes: items.filter(item => item.expires_at === null).reduce((total, item) => total + item.file_size, 0),
+              max_files: 100,
+              max_bytes: 100_000_000,
+            },
           }),
         });
       },

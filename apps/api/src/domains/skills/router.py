@@ -9,7 +9,6 @@ from __future__ import annotations
 import asyncio
 import json
 import shutil
-import zipfile
 from io import BytesIO
 from pathlib import Path
 from typing import Any
@@ -29,6 +28,7 @@ from src.core.session_dependencies import (
 )
 from src.domains.feature_switches.guard import capability_dependencies
 from src.domains.feature_switches.registry import PlatformCapability
+from src.domains.skills.archive import create_skill_archive as _create_skill_zip
 from src.domains.skills.exceptions import (
     raise_admin_skill_delete_forbidden,
     raise_skill_invalid_format,
@@ -39,6 +39,9 @@ from src.domains.skills.exceptions import (
     raise_skill_write_failed,
 )
 from src.domains.skills.models import SkillProvenance
+from src.domains.skills.ui_projection import merge_skill_metadata as _merge_with_cache
+from src.domains.skills.ui_projection import parsed_skill_metadata as _skill_to_response
+from src.domains.skills.url_rate_limit import rate_limit_url_import as _url_import_rate_limit
 from src.domains.users.models import User
 from src.infrastructure.observability.logging import get_logger
 
@@ -71,125 +74,9 @@ class SkillUrlImportRequest(BaseModel):
     url: str = Field(..., min_length=12, max_length=2048, description="https:// source URL")
 
 
-async def _url_import_rate_limit(
-    user: User = Depends(get_current_active_session),
-) -> None:
-    """Per-user sliding-window limit on outbound skill fetches.
-
-    Failed imports consume no skill quota, so without this an authenticated
-    user could hammer arbitrary https hosts through the API. Same Redis
-    limiter and fail-open policy as the auth dependencies
-    (``domains/auth/dependencies.py``).
-
-    Raises:
-        RateLimitError: 429 when the window is exhausted.
-    """
-    from src.core.exceptions import raise_rate_limit_exceeded
-    from src.infrastructure.rate_limiting.redis_limiter import get_rate_limiter
-
-    max_calls = settings.skills_url_import_rate_max_calls
-    window_seconds = settings.skills_url_import_rate_window_seconds
-    try:
-        limiter = await get_rate_limiter()
-        allowed = await limiter.acquire(
-            key=f"skills:url_import:{user.id}",
-            max_calls=max_calls,
-            window_seconds=window_seconds,
-        )
-        if not allowed:
-            logger.warning(
-                "skill_url_import_rate_limited",
-                user_id=str(user.id),
-                max_calls=max_calls,
-                window_seconds=window_seconds,
-            )
-            raise_rate_limit_exceeded(
-                limit=max_calls,
-                window_seconds=window_seconds,
-                retry_after=window_seconds,
-                headers={"Retry-After": str(window_seconds)},
-            )
-    except HTTPException:
-        raise
-    except Exception as exc:
-        # Fail-open policy — matches RedisRateLimiter's own behavior: a
-        # Redis outage must not take the import feature down with it.
-        logger.error("skill_url_import_rate_check_failed", error=str(exc))
-
-
 # ---------------------------------------------------------------------------
 # Shared helpers (disk operations — unchanged)
 # ---------------------------------------------------------------------------
-
-
-def _merge_with_cache(
-    db_data: dict[str, Any],
-    *,
-    enabled_for_user: bool = True,
-) -> dict[str, Any]:
-    """Merge DB skill data with SkillsCache technical metadata for API response."""
-    from src.domains.skills.cache import SkillsCache
-
-    cached = SkillsCache.get_exact(db_data["name"], db_data.get("owner_id"))
-    return {
-        "name": db_data["name"],
-        "description": db_data["description"],
-        "descriptions": db_data.get("descriptions"),
-        "scope": db_data["scope"],
-        "category": cached.get("category") if cached else None,
-        "priority": cached.get("priority", 50) if cached else 50,
-        "always_loaded": cached.get("always_loaded", False) if cached else False,
-        "has_scripts": bool(cached.get("scripts")) if cached else False,
-        "has_plan_template": bool(cached.get("plan_template")) if cached else False,
-        "enabled_for_user": enabled_for_user,
-        "admin_enabled": db_data.get("admin_enabled", True),
-        # UXR Lot 8 (A4): multi-turn dialogue flag (ADR-118) — feeds the
-        # frontend slash-command registry (dialogue skills are conversational
-        # commands).
-        "dialogue": bool(cached.get("dialogue", False)) if cached else False,
-        # UXR Lot 10 (B12): declared output channels (None ⇒ "text" default
-        # in the gallery UI).
-        "outputs": cached.get("outputs") if cached else None,
-        # ADR-327: how the content arrived (a third-party skill is marked in the
-        # gallery, and a library skill is updated from its source, never edited).
-        "skill_id": db_data.get("skill_id"),
-        "provenance": db_data.get("provenance"),
-    }
-
-
-def _skill_to_response(
-    skill: dict[str, Any],
-    scope: str,
-    *,
-    enabled_for_user: bool = True,
-) -> dict[str, Any]:
-    """Build a safe API response dict from a parsed cache skill (no instructions)."""
-    return {
-        "name": skill["name"],
-        "description": skill["description"],
-        "descriptions": skill.get("descriptions"),
-        "scope": scope,
-        "category": skill.get("category"),
-        "priority": skill.get("priority", 50),
-        "always_loaded": skill.get("always_loaded", False),
-        "has_scripts": bool(skill.get("scripts")),
-        "has_plan_template": bool(skill.get("plan_template")),
-        "enabled_for_user": enabled_for_user,
-        "dialogue": bool(skill.get("dialogue", False)),
-        "outputs": skill.get("outputs"),
-    }
-
-
-def _create_skill_zip(skill: dict[str, Any]) -> bytes:
-    """Build a zip archive for a skill directory (SKILL.md + all bundled resources)."""
-    skill_dir = Path(skill["source_path"]).parent
-    buf = BytesIO()
-    with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
-        for file_path in sorted(skill_dir.rglob("*")):
-            if file_path.is_file():
-                arcname = Path(skill["name"]) / file_path.relative_to(skill_dir)
-                zf.write(file_path, arcname)
-    return buf.getvalue()
 
 
 def _update_skill_file_description(skill_path: Path, new_description: str) -> None:
@@ -398,12 +285,18 @@ async def update_admin_skill_description(
 async def download_skill(
     skill_name: str,
     user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
 ) -> StreamingResponse:
     """Download an accessible skill (admin or own user skill) as a zip archive."""
     from src.domains.skills.cache import SkillsCache
+    from src.domains.skills.preference_service import SkillPreferenceService
 
     user_id = str(user.id)
-    skill = SkillsCache.get_by_name_for_user(skill_name, user_id)
+    visible = await SkillPreferenceService(db).get_user_visible_skills(user.id)
+    selected = next((item for item in visible if item["name"] == skill_name), None)
+    if selected is None:
+        raise_skill_not_found(skill_name)
+    skill = SkillsCache.get_exact(skill_name, selected.get("owner_id"))
     if not skill:
         raise_skill_not_found(skill_name)
 
@@ -413,6 +306,9 @@ async def download_skill(
 
     # Offload directory read + zip compression off the event loop (CA-4).
     zip_bytes = await asyncio.to_thread(_create_skill_zip, skill)
+    current = await SkillPreferenceService(db).get_user_visible_skills(user.id)
+    if not any(item["skill_id"] == selected["skill_id"] for item in current):
+        raise_skill_not_found(skill_name)
     return StreamingResponse(
         BytesIO(zip_bytes),
         media_type="application/zip",
@@ -597,7 +493,7 @@ async def delete_skill(
 ) -> None:
     """Delete a user skill (cannot delete admin skills)."""
     from src.domains.skills.cache import SkillsCache
-    from src.domains.skills.preference_service import SkillPreferenceService
+    from src.domains.skills.removal import cleanup_removal, observe_removal, stage_removal
 
     user_id = str(user.id)
 
@@ -621,17 +517,17 @@ async def delete_skill(
     if row is not None and row.plugin_id is not None:
         raise_skill_locked_by_plugin(skill_name)
 
-    # Delete from disk
-    skill_dir = Path(skill["source_path"]).parent
-    if skill_dir.exists():
-        shutil.rmtree(skill_dir, ignore_errors=True)
-
-    # Delete from DB — this person's row only (ADR-327: a name is per account).
-    if row is not None:
-        await SkillPreferenceService(db).delete_skill(row.id)
+    if row is None:
+        raise_skill_not_found(skill_name)
+    observed = await observe_removal(db, user.id, row.id)
+    await stage_removal(db, user.id, observed)
+    # Disk remains untouched until this acknowledgement is certain.
     await db.commit()
-
+    cleaned = await cleanup_removal(db, observed)
+    await db.commit()
     await SkillsCache.invalidate_and_reload()
+    if not cleaned:
+        raise_skill_write_failed(skill_name, "post-commit cleanup pending")
     logger.info("skill_deleted", skill_name=skill_name, user_id=user_id)
 
 

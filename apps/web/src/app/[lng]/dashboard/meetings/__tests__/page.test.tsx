@@ -8,6 +8,8 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 import type { MeetingSummary } from '@/types/meetings';
 
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'meeting-list-owner' } }) }));
+
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }));
 vi.mock('sonner', () => ({ toast }));
 

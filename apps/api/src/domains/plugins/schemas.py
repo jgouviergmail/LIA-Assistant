@@ -216,6 +216,9 @@ class PluginImportReport(BaseModel):
     """Full outcome of a plugin install or update (the SHOULD-report of §11.3)."""
 
     plugin_id: str = Field(description="Installed plugin row id")
+    file_cleanup_pending: bool = Field(
+        default=False, description="Known import with predecessor files awaiting cleanup"
+    )
     name: str = Field(description="Plugin name from the manifest")
     version: str | None = Field(default=None, description="Manifest version")
     description: str | None = Field(default=None, description="Manifest description")

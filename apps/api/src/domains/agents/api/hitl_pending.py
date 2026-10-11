@@ -19,17 +19,13 @@ from src.core.config import settings
 from src.core.exceptions import CacheError
 from src.core.i18n import normalize_language
 from src.core.i18n_api_messages import APIMessages
+from src.core.stream_codes import HITL_DECISION_STALE_ERROR_CODE as HITL_DECISION_STALE_ERROR_CODE
 from src.domains.agents.api.error_messages import SSEErrorMessages
 from src.domains.agents.api.schemas import ChatStreamChunk
 from src.domains.agents.utils import hitl_cache
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
-
-#: The code of the error a structured decision gets when the question it
-#: answers no longer waits — written by both chat doors, read by the
-#: channel door, which answers it « expired » (Lot 1 option B).
-HITL_DECISION_STALE_ERROR_CODE = "hitl_decision_stale"
 
 
 def extract_decision_type(resume_data: object) -> str:

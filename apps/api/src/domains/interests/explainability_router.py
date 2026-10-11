@@ -31,13 +31,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.config import settings
-from src.core.constants import (
-    INTEREST_DECAY_FLOOR,
-)
 from src.core.dependencies import get_db
-from src.core.exceptions import raise_interest_not_found
 from src.core.session_dependencies import get_current_active_session
+from src.domains.interests.explainability import explain_interest, get_owned_interest
 from src.domains.interests.repository import InterestRepository
 from src.domains.interests.schemas import InterestExplanation
 from src.domains.shared.provenance_repository import ProvenanceRepository
@@ -77,32 +73,8 @@ async def get_interest_explanation(
             account — the two answer identically.
     """
     repo = InterestRepository(db)
-    interest = await repo.get_by_id(interest_id)
-    if not interest or interest.user_id != user.id:
-        raise_interest_not_found(interest_id)
-
-    now = datetime.now(UTC)
-    days_since = max(0, (now - interest.last_mentioned_at).days)
-    decay_rate = settings.interest_decay_rate_per_day
-
-    return InterestExplanation(
-        positive_signals=interest.positive_signals,
-        negative_signals=interest.negative_signals,
-        prior_alpha=settings.interest_prior_alpha,
-        prior_beta=settings.interest_prior_beta,
-        base_weight=repo.calculate_weight(interest),
-        decay_rate_per_day=decay_rate,
-        decay_floor=INTEREST_DECAY_FLOOR,
-        days_since_last_mention=days_since,
-        # The SAME call the ranking makes, with the same default — the two
-        # disagreed until 2026-08-04, and an explanation of a number nobody
-        # applies is worse than no explanation.
-        effective_weight=repo.calculate_effective_weight(interest, now=now),
-        last_mentioned_at=interest.last_mentioned_at,
-        last_notified_at=interest.last_notified_at,
-        status=interest.status,
-        dormant_since=interest.dormant_since,
-    )
+    interest = await get_owned_interest(db, user.id, interest_id)
+    return explain_interest(interest, repo, now=datetime.now(UTC))
 
 
 @router.get(
@@ -134,9 +106,7 @@ async def get_interest_provenance(
         ResourceNotFoundError: Unknown interest, or one belonging to another
             account.
     """
-    interest = await InterestRepository(db).get_by_id(interest_id)
-    if not interest or interest.user_id != user.id:
-        raise_interest_not_found(interest_id)
+    await get_owned_interest(db, user.id, interest_id)
 
     references = await ProvenanceRepository(db).resolve_for(
         user_id=user.id, interest_id=interest_id

@@ -13,6 +13,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from src.infrastructure.mcp.tool_adapter import MCPToolAdapter, build_args_schema
+from tests.helpers.runtime_context import installed_runtime_context
 
 
 class TestBuildArgsSchema:
@@ -103,7 +104,11 @@ class TestBuildArgsSchema:
         model = build_args_schema(schema)
         assert model is not None
         assert model.model_json_schema()["properties"]["field"]["anyOf"] == [
-            {"type": "string"},
+            {
+                "type": "string",
+                "minLength": 1,
+                "allOf": [{"type": "string", "minLength": 1}, {"type": "string"}, {"minLength": 1}],
+            },
             {"type": "null"},
         ]
 
@@ -125,16 +130,17 @@ class TestBuildArgsSchema:
         assert props["query"]["description"] == "Search text"
         assert model.model_json_schema()["required"] == ["query"]
 
-    def test_a_leading_underscore_property_costs_only_itself(self):
-        """``create_model`` refuses the name; it used to take the tool with it."""
+    def test_a_leading_underscore_property_uses_a_wire_alias(self):
         model = build_args_schema(
             {"properties": {"_internal": {"type": "string"}, "kept": {"type": "string"}}}
         )
         assert model is not None
-        assert set(model.model_fields) == {"kept"}
+        assert set(model.model_json_schema()["properties"]) == {"kept", "_internal"}
 
-    def test_a_schema_of_only_unusable_properties_still_degrades_to_none(self):
-        assert build_args_schema({"properties": {"_a": {"type": "string"}}}) is None
+    def test_a_schema_of_only_underscore_properties_remains_callable(self):
+        model = build_args_schema({"properties": {"_a": {"type": "string"}}})
+        assert model is not None
+        assert model.model_validate({"_a": "x"}).model_dump(by_alias=True) == {"_a": "x"}
 
     def test_empty_properties(self):
         schema = {"properties": {}}
@@ -355,6 +361,13 @@ class TestMCPToolAdapterFromMcpTool:
 class TestMCPToolAdapterArun:
     """Test MCPToolAdapter._arun() execution."""
 
+    @pytest.fixture(autouse=True)
+    def authenticated_access(self):
+        from tests.helpers.mcp_access import installed_shared_mcp_access
+
+        with installed_shared_mcp_access() as actor, installed_runtime_context(user_id=actor.id):
+            yield
+
     @pytest.fixture
     def adapter(self):
         return MCPToolAdapter.from_mcp_tool(
@@ -379,7 +392,7 @@ class TestMCPToolAdapterArun:
 
         assert isinstance(result, UnifiedToolOutput)
         assert result.success is True
-        assert result.structured_data["result"] == '{"result": "success"}'
+        assert result.structured_data["result"] == {"result": "success"}
         mock_manager.call_tool.assert_called_once_with(
             "test_server", "test_tool", {"arg1": "test_value"}
         )
@@ -547,16 +560,18 @@ class TestUnionTypeSchemas:
         )
         assert model is not None
         props = model.model_json_schema()["properties"]
-        assert _array_member(props["tags"])["items"] == {"type": "string"}
+        assert _array_member(props["tags"])["items"] == {
+            "anyOf": [{"type": "string"}, {"type": "null"}]
+        }
 
     def test_multi_concrete_union_still_accepts_every_member(self):
-        """Pydantic's lax coercion means the narrowing rejects no valid call."""
+        """Valid JSON branch values retain their wire shape."""
         model = build_args_schema(
             {"properties": {"amount": {"type": ["number", "string"]}}, "required": []}
         )
         assert model is not None
-        assert model(amount="3.5").amount == 3.5
-        assert model(amount=7).amount == 7.0
+        assert model(amount="3.5").amount == "3.5"
+        assert model(amount=7).amount == 7
 
     @pytest.mark.parametrize("declared", [["null"], [], ["date", "null"]])
     def test_undecidable_union_degrades_to_string(self, declared):

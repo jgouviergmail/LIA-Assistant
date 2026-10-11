@@ -24,13 +24,13 @@ Observability:
 
 import time
 from contextlib import suppress
-from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 import structlog
 
 from src.core.config import settings
 from src.core.constants import SCHEDULER_JOB_MEMORY_CONSOLIDATION
+from src.domains.memories.consolidation_commands import merge_unchanged_candidates
 from src.domains.memories.models import Memory
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.locks import SchedulerLock
@@ -114,15 +114,13 @@ def _count_pair(outcome: str) -> None:
         memory_consolidation_pairs_total.labels(outcome=outcome).inc()
 
 
-async def _apply_merge(repo: MemoryRepository, survivor: Memory, loser: Memory) -> None:
+async def _apply_merge(repo: MemoryRepository, survivor: Memory, loser: Memory) -> bool:
     """Supersede the loser with the survivor (Lot 2-B1, ADR-235).
 
     The loser leaves the active set pointing at the survivor — the merge
     keeps its trail instead of destroying the row.
     """
-    loser.invalidated_at = datetime.now(UTC)
-    loser.superseded_by_id = survivor.id
-    await repo.update(loser)
+    return await merge_unchanged_candidates(repo.db, survivor, loser)
 
 
 async def consolidate_memories() -> dict[str, Any]:
@@ -162,6 +160,7 @@ async def consolidate_memories() -> dict[str, Any]:
         "skipped_categories_differ": 0,
         "skipped_emotional_diff": 0,
         "skipped_already_consumed": 0,
+        "skipped_changed": 0,
         "users_processed": 0,
     }
 
@@ -247,7 +246,10 @@ async def consolidate_memories() -> dict[str, Any]:
                     survivor, loser = _pick_survivor(mem_a, mem_b)
 
                     try:
-                        await _apply_merge(repo, survivor, loser)
+                        if not await _apply_merge(repo, survivor, loser):
+                            stats["skipped_changed"] += 1
+                            _count_pair("stale")
+                            continue
                         _count_pair("merged")
                         stats["merges_applied"] += 1
                         consumed_ids.add(str(loser.id))
@@ -282,6 +284,7 @@ async def consolidate_memories() -> dict[str, Any]:
             skipped_categories_differ=stats["skipped_categories_differ"],
             skipped_emotional_diff=stats["skipped_emotional_diff"],
             skipped_already_consumed=stats["skipped_already_consumed"],
+            skipped_changed=stats["skipped_changed"],
             users_processed=stats["users_processed"],
             duration_seconds=round(duration, 3),
         )

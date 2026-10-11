@@ -1,14 +1,7 @@
 /**
- * Mission: your morning, already digested (the daily briefing).
- *
- * The rich-answer showcase: a proactive morning digest of inbox, calendar,
- * weather and tasks, closed by ONE small optional decision (a focus slot to
- * answer Claire). The value lives in the receipt's rich HTML reply — stat
- * tiles, agenda table, overlap warning — rendered by the production
- * pipeline.
- *
- * Same data contract as every mission fixture: i18n keys, bounded 'HH:MM'
- * literals, deep-frozen (fixtures.test.ts).
+ * Personal-assistant showroom: daily_briefing.
+ * Historical telemetry id retained; the versioned fixture defines this story.
+ * All data is fictional, immutable and resolved through the active locale.
  */
 
 import { deepFreeze } from '@/components/showroom/missions/deep-freeze';
@@ -16,74 +9,59 @@ import type { ShowroomMissionDefinition } from '@/components/showroom/types';
 
 export const DAILY_BRIEFING: ShowroomMissionDefinition = deepFreeze({
   id: 'daily_briefing',
-  fixtureVersion: 'daily_briefing-v1',
+  fixtureVersion: 'daily_briefing-v2',
   titleKey: 'showroom.m.daily_briefing.title',
   taglineKey: 'showroom.m.daily_briefing.tagline',
   mechanismKey: 'showroom.m.daily_briefing.mechanism',
   requestKey: 'showroom.m.daily_briefing.request',
-  proactive: true,
+  proactive: false,
   sources: [
     {
-      id: 'inbox',
-      labelKey: 'showroom.sources.inbox',
-      emoji: '📬',
-      items: [{ labelKey: 'showroom.m.daily_briefing.facts.new_mails' }],
-    },
-    {
       id: 'calendar',
-      labelKey: 'showroom.sources.calendar',
+      labelKey: 'showroom.personal.daily_briefing.source_1',
       emoji: '📅',
       items: [
-        { labelKey: 'showroom.m.daily_briefing.facts.meetings', time: '09:00' },
-        { labelKey: 'showroom.m.daily_briefing.facts.overlap', time: '14:00' },
+        {
+          labelKey: 'showroom.personal.daily_briefing.fact_1',
+        },
       ],
     },
     {
-      id: 'tasks',
-      labelKey: 'showroom.sources.tasks',
-      emoji: '✅',
-      items: [{ labelKey: 'showroom.m.daily_briefing.facts.due' }],
+      id: 'relations',
+      labelKey: 'showroom.personal.daily_briefing.source_2',
+      emoji: '👥',
+      items: [
+        {
+          labelKey: 'showroom.personal.daily_briefing.fact_2',
+        },
+      ],
     },
     {
-      id: 'weather',
-      labelKey: 'showroom.sources.weather',
-      emoji: '☀️',
-      items: [{ labelKey: 'showroom.m.daily_briefing.facts.clear' }],
+      id: 'radio',
+      labelKey: 'showroom.personal.daily_briefing.source_3',
+      emoji: '📻',
+      items: [
+        {
+          labelKey: 'showroom.personal.daily_briefing.fact_3',
+        },
+      ],
     },
   ],
   findings: [
-    { labelKey: 'showroom.m.daily_briefing.findings.claire', time: '09:00' },
     {
-      labelKey: 'showroom.m.daily_briefing.findings.overlap',
-      time: '14:00',
-      endTime: '15:30',
+      labelKey: 'showroom.personal.daily_briefing.finding_1',
+    },
+    {
+      labelKey: 'showroom.personal.daily_briefing.finding_2',
     },
   ],
   traceKeys: [
-    'showroom.m.daily_briefing.trace_schedule',
-    'showroom.trace.sources',
-    'showroom.trace.planning',
-    'showroom.m.daily_briefing.trace_compose',
+    'showroom.trace.routing',
+    'showroom.personal.trace_context',
+    'showroom.personal.trace_compare',
+    'showroom.personal.trace_result',
   ],
-  decisions: [
-    {
-      id: 'focus_block',
-      kind: 'tool',
-      allowed: ['confirm', 'cancel'],
-      phaseLabelKey: 'showroom.m.daily_briefing.decisions.focus_block.phase',
-      receiptLabelKey: 'showroom.m.daily_briefing.decisions.focus_block.receipt_label',
-      icon: 'task',
-      toolNameKey: 'showroom.m.daily_briefing.decisions.focus_block.tool',
-      args: [
-        { labelKey: 'showroom.proposals.from', value: '08:30' },
-        { labelKey: 'showroom.proposals.to', value: '08:50' },
-      ],
-      outcome: {
-        confirm: 'showroom.m.daily_briefing.decisions.focus_block.applied',
-        cancel: 'showroom.m.daily_briefing.decisions.focus_block.refused',
-      },
-    },
-  ],
+  decisions: [],
   receipt: {
     readsKey: 'showroom.m.daily_briefing.receipt.reads',
     proposedKey: 'showroom.m.daily_briefing.receipt.proposed',

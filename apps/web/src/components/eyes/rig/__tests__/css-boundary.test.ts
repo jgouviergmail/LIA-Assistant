@@ -25,7 +25,7 @@ import { join } from 'node:path';
 
 import { CHANNELS, CHANNEL_KEYS, formatChannel } from '@/components/eyes/rig/channels';
 import { STYLE_LID_MODE } from '@/components/eyes/rig/poses';
-import { EYE_STYLE_IDS } from '@/components/eyes/eye-styles';
+import { RIG_EYE_STYLE_IDS } from '@/components/eyes/eye-styles';
 import { SVG_CHANNELS } from '../face-geometry';
 
 const CSS = readFileSync(join(process.cwd(), 'src/styles/eyes.css'), 'utf8');
@@ -100,7 +100,7 @@ describe('eyes.css × rig boundary', () => {
     // squash for these styles, and the stylesheet does the same for the blink.
     // Drift between them would give a style a squashed blink and a clipped
     // squint — or the reverse, which is what broke the ring in the browser.
-    const squashing = EYE_STYLE_IDS.filter(id => STYLE_LID_MODE[id] === 'squash').sort();
+    const squashing = RIG_EYE_STYLE_IDS.filter(id => STYLE_LID_MODE[id] === 'squash').sort();
     const rule = CODE.slice(
       CODE.indexOf('.lia-eye-blink {', CODE.indexOf('clip-path: none')) - 400
     );

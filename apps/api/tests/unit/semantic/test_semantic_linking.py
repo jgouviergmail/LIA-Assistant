@@ -138,24 +138,6 @@ class TestExpandDomainsEvidenceDriven:
         assert result == ["email"]
 
 
-class TestGetPrimaryTypeForDomain:
-    """Tests for _get_primary_type_for_domain() helper."""
-
-    def test_known_domains_have_primary_types(self, expansion_service):
-        """Known domains should return their primary types (singular domain names)."""
-        assert expansion_service._get_primary_type_for_domain("contact") == "person_name"
-        assert expansion_service._get_primary_type_for_domain("email") == "message_id"
-        assert expansion_service._get_primary_type_for_domain("event") == "event_id"
-        assert expansion_service._get_primary_type_for_domain("task") == "task_id"
-        assert expansion_service._get_primary_type_for_domain("file") == "file_id"
-        assert expansion_service._get_primary_type_for_domain("place") == "place_id"
-        assert expansion_service._get_primary_type_for_domain("route") == "physical_address"
-
-    def test_unknown_domain_returns_text(self, expansion_service):
-        """Unknown domains should return 'text' as fallback."""
-        assert expansion_service._get_primary_type_for_domain("unknown_domain") == "text"
-
-
 class TestGenerateJinja2Suggestions:
     """Tests for generate_jinja2_suggestions() function."""
 
@@ -213,14 +195,16 @@ class TestVitrineChains:
 
     def test_email_sender_feeds_event_attendees(self, agent_registry):
         """'invite l'expéditeur de ce mail à la réunion' —
-        emails[].from (email_address) → create_event_tool.attendees."""
+        emails[].from_email (email_address) → create_event_tool.attendees."""
         suggestions = generate_jinja2_suggestions(
             target_tool="create_event_tool",
             target_param="attendees",
             available_step_ids=["get_emails"],
             step_tool_mapping={"get_emails": "get_emails_tool"},
         )
-        assert "$steps.get_emails.emails[0].from" in suggestions
+        # Array inputs are explicitly constructed; a strict MCP cannot rely
+        # on the native executor's string-to-list coercion.
+        assert '["$steps.get_emails.emails[0].from_email"]' in suggestions
 
     def test_route_destination_feeds_weather_location(self, agent_registry):
         """'quel temps à destination ?' —

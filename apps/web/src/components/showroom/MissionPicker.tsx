@@ -9,7 +9,7 @@
  * synthetic contract is stated before anything runs.
  */
 
-import { Bell, Brain, type LucideIcon, Newspaper, Phone, Settings2, Sunrise } from 'lucide-react';
+import { Bell, FileText, Handshake, type LucideIcon, Phone, Radio, UserRound } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import type { ShowroomMissionDefinition, ShowroomMissionId } from '@/components/showroom/types';
@@ -17,12 +17,12 @@ import { Badge } from '@/components/ui/badge';
 
 /** Icons are code, not fixture data — one per bounded mission id. */
 const MISSION_ICONS: Record<ShowroomMissionId, LucideIcon> = {
-  overloaded_morning: Sunrise,
+  overloaded_morning: UserRound,
   proactive_alert: Bell,
-  memory_dinner: Brain,
+  memory_dinner: Handshake,
   phone_booking: Phone,
-  daily_briefing: Newspaper,
-  config_tour: Settings2,
+  daily_briefing: Radio,
+  config_tour: FileText,
 };
 
 export interface MissionPickerProps {

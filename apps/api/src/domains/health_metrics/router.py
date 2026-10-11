@@ -28,6 +28,7 @@ from src.core.constants import HEALTH_METRICS_KINDS
 from src.core.dependencies import get_db
 from src.core.exceptions import raise_invalid_input
 from src.core.session_dependencies import get_current_active_session
+from src.domains.health_metrics.removal_commands import remove_health_samples
 from src.domains.health_metrics.schemas import (
     HealthMetricAggregateResponse,
     HealthMetricDeleteResponse,
@@ -106,10 +107,7 @@ async def delete_all_samples(
     db: AsyncSession = Depends(get_db),
 ) -> HealthMetricDeleteResponse:
     """Delete every sample (all kinds) for the authenticated user."""
-    service = HealthMetricsService(db)
-    count = await service.delete_all(current_user.id)
-    await db.commit()
-    return HealthMetricDeleteResponse(scope="all", kind=None, affected_rows=count)
+    return await remove_health_samples(db, current_user.id, None)
 
 
 @router.delete("", response_model=HealthMetricDeleteResponse)
@@ -124,14 +122,7 @@ async def delete_samples_by_kind(
             f"Unsupported kind: {kind}",
             allowed=list(HEALTH_METRICS_KINDS),
         )
-    service = HealthMetricsService(db)
-    count = await service.delete_by_kind(current_user.id, kind)
-    await db.commit()
-    return HealthMetricDeleteResponse(
-        scope="kind",
-        kind=kind,
-        affected_rows=count,
-    )
+    return await remove_health_samples(db, current_user.id, kind)
 
 
 # =============================================================================

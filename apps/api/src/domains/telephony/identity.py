@@ -30,18 +30,21 @@ import structlog
 
 from src.core.exceptions import raise_user_not_found
 from src.core.i18n import resolve_language
-from src.core.security.utils import decrypt_data, encrypt_data
 from src.domains.shared.phone_domains import is_phone_domain, unknown_phone_domains
 from src.domains.telephony.callback import live_unavailable_reason
 from src.domains.telephony.errors import (
     raise_phone_call_mode_unknown,
     raise_phone_domain_unknown,
-    raise_phone_number_invalid,
     raise_phone_number_missing,
+    raise_phone_verification_not_pending,
 )
-from src.domains.telephony.phone_numbers import to_e164
+from src.domains.telephony.number_commands import update_phone_number
+from src.domains.telephony.number_state import stored_phone_number
+from src.domains.telephony.preference_commands import locked_phone_actor, update_phone_preferences
+from src.domains.telephony.schemas import TelephonyIdentityUpdateRequest
 from src.domains.users.repository import UserRepository
 from src.domains.voice_sessions.session import VoiceSessionMode, as_voice_session_mode
+from src.infrastructure.phone_number_preferences import PhoneNumberWriteCheck
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -109,18 +112,7 @@ class TelephonyIdentityService:
         must render and the person can declare it again; it must never turn
         into a 500 or, worse, a verified line nobody can read.
         """
-        token = user.phone_number_encrypted
-        if not token:
-            return None
-        try:
-            return decrypt_data(token)
-        except Exception as exc:  # noqa: BLE001 — degrade to "not set"
-            logger.warning(
-                "phone_number_decrypt_failed",
-                user_id=str(user.id),
-                error_type=type(exc).__name__,
-            )
-            return None
+        return stored_phone_number(user)
 
     @classmethod
     def _identity_of(cls, user: Any) -> PhoneIdentity:
@@ -179,25 +171,9 @@ class TelephonyIdentityService:
         Raises:
             ValidationError: when the input is not a dialable E.164 line.
         """
-        number = to_e164(raw)
-        if number is None:
-            raise_phone_number_invalid(resolve_language(language))
-        user = await self._user(user_id)
-        if self._stored_number(user) == number:
-            # The same line, typed again: nothing to write, the verification
-            # stands. Re-encrypting would rotate the token for no reason.
-            return self._identity_of(user)
-        await self.users.update(
-            user,
-            {
-                "phone_number_encrypted": encrypt_data(number),
-                # A new line is a new identity: it must be heard again.
-                "phone_number_verified_at": None,
-            },
-        )
-        await self.db.commit()
+        await update_phone_number(self.db, user_id, raw, users=self.users, language=language)
         logger.info("phone_number_declared", user_id=str(user_id))
-        return self._identity_of(user)
+        return self._identity_of(await self._user(user_id))
 
     async def clear_number(self, user_id: UUID) -> None:
         """Forget the number and its verification.
@@ -205,14 +181,17 @@ class TelephonyIdentityService:
         Args:
             user_id: Whose.
         """
-        user = await self._user(user_id)
-        await self.users.update(
-            user, {"phone_number_encrypted": None, "phone_number_verified_at": None}
-        )
-        await self.db.commit()
+        await update_phone_number(self.db, user_id, None, users=self.users)
         logger.info("phone_number_cleared", user_id=str(user_id))
 
-    async def mark_verified(self, user_id: UUID, *, language: str | None = None) -> PhoneIdentity:
+    async def mark_verified(
+        self,
+        user_id: UUID,
+        *,
+        language: str | None = None,
+        expected_number: str | None = None,
+        check: PhoneNumberWriteCheck | None = None,
+    ) -> PhoneIdentity:
         """Stamp the declared number as heard — called once a code matched.
 
         Args:
@@ -226,9 +205,14 @@ class TelephonyIdentityService:
             ResourceConflictError: no number is declared — a stamp with no
                 line under it would be a verified number nobody can read.
         """
-        user = await self._user(user_id)
-        if self._stored_number(user) is None:
+        user = await locked_phone_actor(self.users, user_id, None)
+        number = self._stored_number(user)
+        if number is None:
             raise_phone_number_missing(resolve_language(language))
+        if expected_number is not None and number != expected_number:
+            raise_phone_verification_not_pending(resolve_language(language))
+        if check is not None:
+            await check()
         await self.users.update(user, {"phone_number_verified_at": datetime.now(UTC)})
         await self.db.commit()
         logger.info("phone_number_verified", user_id=str(user_id))
@@ -244,11 +228,16 @@ class TelephonyIdentityService:
         Returns:
             The identity after the write.
         """
-        user = await self._user(user_id)
-        await self.users.update(user, {"phone_rich_context_enabled": enabled})
-        await self.db.commit()
-        logger.info("phone_rich_context_set", user_id=str(user_id), enabled=enabled)
-        return self._identity_of(user)
+        return await self.update_preferences(
+            user_id, TelephonyIdentityUpdateRequest(rich_context_enabled=enabled)
+        )
+
+    async def update_preferences(
+        self, user_id: UUID, patch: TelephonyIdentityUpdateRequest, *, language: str | None = None
+    ) -> PhoneIdentity:
+        """Validate all specified switches and commit them together under the owner lock."""
+        await update_phone_preferences(self.db, user_id, patch, language=language, users=self.users)
+        return self._identity_of(await self._user(user_id))
 
     async def set_call_mode(
         self, user_id: UUID, mode: str, *, language: str | None = None
@@ -274,11 +263,9 @@ class TelephonyIdentityService:
             stored = as_voice_session_mode(mode)
         except ValueError:
             raise_phone_call_mode_unknown(resolve_language(language))
-        user = await self._user(user_id)
-        await self.users.update(user, {"phone_call_mode": stored})
-        await self.db.commit()
-        logger.info("phone_call_mode_set", user_id=str(user_id), mode=stored)
-        return self._identity_of(user)
+        return await self.update_preferences(
+            user_id, TelephonyIdentityUpdateRequest(call_mode=stored), language=language
+        )
 
     async def set_disabled_domains(
         self, user_id: UUID, domains: list[str], *, language: str | None = None
@@ -302,12 +289,9 @@ class TelephonyIdentityService:
         """
         if unknown_phone_domains(domains):
             raise_phone_domain_unknown(resolve_language(language))
-        user = await self._user(user_id)
-        stored = sorted(set(domains))
-        await self.users.update(user, {"phone_disabled_domains": stored})
-        await self.db.commit()
-        logger.info("phone_disabled_domains_set", user_id=str(user_id), count=len(stored))
-        return self._identity_of(user)
+        return await self.update_preferences(
+            user_id, TelephonyIdentityUpdateRequest(disabled_domains=domains), language=language
+        )
 
 
 __all__ = ["PhoneIdentity", "TelephonyIdentityService"]

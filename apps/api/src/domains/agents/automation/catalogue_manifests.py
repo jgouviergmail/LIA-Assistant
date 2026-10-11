@@ -10,7 +10,6 @@ from datetime import UTC, datetime
 from src.core.config import settings
 from src.core.constants import RECURRENCE_ROUTINE_LIMITS
 from src.domains.agents.registry.catalogue import (
-    REASON_UNDONE_BY_ONE_CALL,
     AgentManifest,
     CostProfile,
     DisplayMetadata,
@@ -78,11 +77,13 @@ create_scheduled_action_catalogue_manifest = ToolManifest(
                 ParameterConstraint(kind="min_length", value=1),
                 ParameterConstraint(kind="max_length", value=200),
             ],
+            semantic_type="Text",
         ),
         ParameterSchema(
             name="action_prompt",
             type="string",
             required=True,
+            semantic_type="Text",
             description=(
                 "The instruction executed on each run, in the user's own words "
                 "and language (full agent capabilities apply)."
@@ -107,6 +108,7 @@ create_scheduled_action_catalogue_manifest = ToolManifest(
             path="message",
             type="string",
             description="Draft confirmation message shown to the user",
+            semantic_type="Text",
         ),
     ],
     cost=CostProfile(
@@ -175,6 +177,26 @@ list_scheduled_actions_catalogue_manifest = ToolManifest(
             semantic_type="automation_id",
         ),
         OutputFieldSchema(
+            path="automations[].title",
+            type="string",
+            description="Routine title",
+            semantic_type="Text",
+        ),
+        OutputFieldSchema(
+            path="automations[].last_executed_at",
+            type="string",
+            nullable=True,
+            description="Last execution instant (ISO 8601)",
+            semantic_type="datetime",
+        ),
+        OutputFieldSchema(
+            path="automations[].next_trigger_at",
+            type="string",
+            nullable=True,
+            description="Next scheduled instant; null for condition triggers",
+            semantic_type="datetime",
+        ),
+        OutputFieldSchema(
             path="count",
             type="integer",
             description="Number of automations",
@@ -216,13 +238,12 @@ list_scheduled_actions_catalogue_manifest = ToolManifest(
 
 toggle_scheduled_action_catalogue_manifest = ToolManifest(
     name="toggle_scheduled_action_tool",
-    mutation_policy="reversible",
-    mutation_policy_reason=REASON_UNDONE_BY_ONE_CALL,
+    mutation_policy="draft",
     agent="automation_agent",
     description=(
-        "Enables or disables an existing automation (reversible switch). "
+        "Prepares human confirmation to invert an existing automation's observed state. "
         "Requires the automation id from list_scheduled_actions_tool. "
-        "Use to pause ('pause my press review') or resume an automation."
+        "Prefer set_lia_routine_state_tool for an explicit desired state. No write before confirmation."
     ),
     parameters=[
         ParameterSchema(
@@ -235,15 +256,10 @@ toggle_scheduled_action_catalogue_manifest = ToolManifest(
     ],
     outputs=[
         OutputFieldSchema(
-            path="success",
-            type="boolean",
-            description="Whether the toggle succeeded",
-        ),
-        OutputFieldSchema(
-            path="is_enabled",
-            type="boolean",
-            description="New enabled state",
-        ),
+            path="draft",
+            type="object",
+            description="Pending exact human confirmation; no state change yet",
+        )
     ],
     cost=CostProfile(
         est_tokens_in=40,
@@ -254,7 +270,7 @@ toggle_scheduled_action_catalogue_manifest = ToolManifest(
     permissions=PermissionProfile(
         required_scopes=[],
         data_classification="CONFIDENTIAL",
-        hitl_required=False,  # Reversible — one message toggles it back
+        hitl_required=False,  # The application draft carries exact HITL approval.
     ),
     semantic_keywords=[
         "disable or pause one of my automations",

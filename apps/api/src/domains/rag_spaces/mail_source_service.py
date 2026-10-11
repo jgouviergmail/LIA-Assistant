@@ -27,6 +27,7 @@ from src.domains.connectors.service import ConnectorService
 from src.domains.connectors.session_scope import DetachedConnectorService
 from src.domains.rag_spaces.consultations import SECTION_MAIL, space_read
 from src.domains.rag_spaces.drive_ingest import discard_document
+from src.domains.rag_spaces.jobs_repository import validate_source_worker_id
 from src.domains.rag_spaces.models import RAGMailSource, RAGSourceSyncStatus
 from src.domains.rag_spaces.repository import (
     RAGDocumentRepository,
@@ -34,6 +35,10 @@ from src.domains.rag_spaces.repository import (
     RAGSpaceRepository,
 )
 from src.domains.rag_spaces.service import raise_space_not_found
+from src.domains.rag_spaces.source_link_observation import (
+    SourceLinkObservation,
+    observed_source_name,
+)
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_rag_spaces import rag_mail_sources_total_count
 
@@ -114,6 +119,7 @@ class RAGMailSyncService:
         await self._verify_space_ownership(space_id, user_id)
         client = await self._get_gmail_client(user_id)
         try:
+            await self.db.commit()  # Ownership/credential reads end before the provider wait.
             async with space_read(user_id=user_id, section=SECTION_MAIL):
                 mapping = await client.list_labels(use_cache=False)
         finally:
@@ -126,9 +132,45 @@ class RAGMailSyncService:
         return sorted(labels, key=lambda label: label["name"].lower())
 
     async def link_label(
-        self, space_id: UUID, user_id: UUID, label_id: str, label_name: str
+        self,
+        space_id: UUID,
+        user_id: UUID,
+        label_id: str,
+        label_name: str,
+        *,
+        observation: SourceLinkObservation | None = None,
+        commit: bool = True,
     ) -> RAGMailSource:
         """Link a Gmail label to a space (the label must exist on the account)."""
+        if not commit and observation is None:
+            raise ValueError("Deferred source linking requires prior provider inspection")
+        if observation is None:
+            observation = await self.prepare_label_link(
+                space_id, user_id, label_id, fallback_name=label_name
+            )
+            label_name = observation.name
+        observation.require_scope("mail", space_id, user_id, label_id, label_name)
+        if await self.space_repo.get_by_id_for_owner_update(space_id, user_id) is None:
+            raise_space_not_found(space_id)
+        await self._label_link_constraints(space_id, user_id, label_id)
+        source = await self.source_repo.create(
+            {
+                "space_id": space_id,
+                "user_id": user_id,
+                "label_id": label_id,
+                "label_name": label_name,
+                "sync_status": RAGSourceSyncStatus.IDLE,
+            }
+        )
+        if not commit:
+            await self.db.flush()
+            return source
+        await self.db.commit()
+        rag_mail_sources_total_count.inc()
+        logger.info("rag_mail_source_linked", source_id=str(source.id), space_id=str(space_id))
+        return source
+
+    async def _label_link_constraints(self, space_id: UUID, user_id: UUID, label_id: str) -> None:
         _require_mail_sync_enabled()
         await self._verify_space_ownership(space_id, user_id)
         if (
@@ -150,8 +192,15 @@ class RAGMailSyncService:
                 detail="This Gmail label is already linked to this space",
                 log_event="rag_mail_source_duplicate",
             )
+
+    async def prepare_label_link(
+        self, space_id: UUID, user_id: UUID, label_id: str, *, fallback_name: str | None = None
+    ) -> SourceLinkObservation:
+        """Inspect a real account label without writing a source or borrowing a transaction."""
+        await self._label_link_constraints(space_id, user_id, label_id)
         client = await self._get_gmail_client(user_id)
         try:
+            await self.db.commit()
             async with space_read(user_id=user_id, section=SECTION_MAIL):
                 label = await client.get_label(label_id)
         finally:
@@ -162,25 +211,34 @@ class RAGMailSyncService:
                 detail="The specified Gmail label does not exist",
                 log_event="rag_mail_label_not_found",
             )
-        source = await self.source_repo.create(
-            {
-                "space_id": space_id,
-                "user_id": user_id,
-                "label_id": label_id,
-                "label_name": str(label.get("name") or label_name),
-                "sync_status": RAGSourceSyncStatus.IDLE,
-            }
+        return SourceLinkObservation(
+            "mail",
+            space_id,
+            user_id,
+            label_id,
+            observed_source_name(label, label_id, fallback_name),
         )
-        await self.db.commit()
-        rag_mail_sources_total_count.inc()
-        # No label name at INFO: it is the user's own vocabulary.
-        logger.info("rag_mail_source_linked", source_id=str(source.id), space_id=str(space_id))
-        return source
 
     async def unlink_label(
-        self, space_id: UUID, source_id: UUID, user_id: UUID, delete_documents: bool = False
+        self,
+        space_id: UUID,
+        source_id: UUID,
+        user_id: UUID,
+        delete_documents: bool = False,
+        *,
+        commit: bool = True,
     ) -> None:
-        """Unlink a label; keep its documents (unlinked) or delete them."""
+        """Unlink a label; keep its documents (unlinked) or delete them.
+
+        Args:
+            space_id: Owning space identity.
+            source_id: Exact label source to remove.
+            user_id: Current space owner.
+            delete_documents: Whether the ordinary Source path removes documents.
+            commit: False leaves a retain-only unlink in the caller's transaction.
+        """
+        if not commit and delete_documents:
+            raise ValueError("Deferred source unlink must retain documents")
         await self._verify_space_ownership(space_id, user_id)
         source = await self._get_source_or_404(source_id, space_id)
         if delete_documents:
@@ -192,6 +250,9 @@ class RAGMailSyncService:
                 {"sid": str(source_id)},
             )
         await self.source_repo.delete(source)
+        if not commit:
+            await self.db.flush()
+            return
         await self.db.commit()
         rag_mail_sources_total_count.dec()
         logger.info(
@@ -208,22 +269,30 @@ class RAGMailSyncService:
         await self._verify_space_ownership(space_id, user_id)
         return await self._get_source_or_404(source_id, space_id)
 
-    async def try_acquire_sync_lock(self, source_id: UUID) -> bool:
+    async def try_acquire_sync_lock(
+        self, source_id: UUID, *, commit: bool = True, worker_id: str | None = None
+    ) -> bool:
         """Atomically take the SYNCING lease (a fresh run: attempts = 1)."""
+        if not commit and worker_id is None:
+            raise ValueError("Deferred source claims require a unique caller worker identity")
+        owner = worker_id if worker_id is not None else _MAIL_WORKER_ID
+        validate_source_worker_id(owner)
+        clock = "clock_timestamp()" if worker_id is not None else "now()"
         result = await self.db.execute(
             text(
                 "UPDATE rag_mail_sources "
                 "SET sync_status = :syncing, error_message = NULL, "
-                "lease_expires_at = now() + (:ttl * interval '1 second'), "
-                "heartbeat_at = now(), attempts = 1, worker_id = :wid "
+                f"lease_expires_at = {clock} + (:ttl * interval '1 second'), "
+                f"heartbeat_at = {clock}, attempts = 1, worker_id = :wid "
                 "WHERE id = :id AND sync_status != :syncing"
             ),
             {
                 "syncing": RAGSourceSyncStatus.SYNCING,
                 "id": str(source_id),
                 "ttl": settings.rag_job_lease_ttl_seconds,
-                "wid": _MAIL_WORKER_ID,
+                "wid": owner,
             },
         )
-        await self.db.commit()
+        if commit:
+            await self.db.commit()
         return (getattr(result, "rowcount", 0) or 0) > 0

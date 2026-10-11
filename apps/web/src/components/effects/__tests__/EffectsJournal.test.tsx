@@ -40,6 +40,7 @@ vi.mock('react-i18next', () => ({
         'effects.journal.status.refused': 'Refused',
         'effects.journal.status.claimed': 'In progress',
         'effects.journal.status.abandoned': 'Interrupted',
+        'effects.journal.status.waiting': 'Interaction requested',
         'effects.journal.source.user': 'You asked',
         'effects.journal.source.scheduled': 'Scheduled',
         'effects.journal.source.subagent': 'Sub-agent',
@@ -112,6 +113,21 @@ beforeEach(() => {
 });
 
 describe('EffectsJournal', () => {
+  it('shows a requested interaction separately and keeps focus when filtering it', async () => {
+    hookResult.current = state({ entries: [entry({ status: 'waiting' })] });
+    render(<EffectsJournal lng="en" />);
+    const list = screen.getByRole('list');
+    expect(within(list).getByText('Interaction requested')).toBeInTheDocument();
+    expect(within(list).queryByText('Done')).not.toBeInTheDocument();
+    expect(within(list).queryByText('Failed')).not.toBeInTheDocument();
+    const filter = screen.getByRole('button', { name: 'Interaction requested' });
+    await userEvent.click(filter);
+    expect(requestedStatus.current).toBe('waiting');
+    expect(filter).toHaveAttribute('aria-current', 'true');
+    expect(filter).toHaveFocus();
+    expect(filter).not.toBeDisabled();
+  });
+
   it('states what was done, in the reader s language', () => {
     render(<EffectsJournal lng="en" />);
 

@@ -38,6 +38,7 @@ from typing import TYPE_CHECKING
 
 import structlog
 
+from src.core.application_tools import APPLICATION_TOOL_ALIASES, APPLICATION_TOOL_NAMES
 from src.core.config import settings
 from src.core.constants import REDIS_KEY_CAPABILITY_PREFIX
 from src.domains.system_settings.models import SystemSettingKey
@@ -59,6 +60,7 @@ class PlatformCapability(str, Enum):
     """A capability an administrator can switch on or off at runtime."""
 
     STT = "stt"
+    APPLICATION_TOOLS = "application_tools"
     TTS = "tts"
     IMAGE_GENERATION = "image_generation"
     DOCUMENT_GENERATION = "document_generation"
@@ -152,6 +154,13 @@ class CapabilitySpec:
 
 
 CAPABILITY_SPECS: dict[PlatformCapability, CapabilitySpec] = {
+    PlatformCapability.APPLICATION_TOOLS: CapabilitySpec(
+        capability=PlatformCapability.APPLICATION_TOOLS,
+        env_flag="application_tools_enabled",
+        setting_key=SystemSettingKey.CAPABILITY_APPLICATION_TOOLS_ENABLED,
+        tools=APPLICATION_TOOL_NAMES + APPLICATION_TOOL_ALIASES,
+        service_enforced=True,
+    ),
     PlatformCapability.AVATAR: CapabilitySpec(
         capability=PlatformCapability.AVATAR,
         family="media",

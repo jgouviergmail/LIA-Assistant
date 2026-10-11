@@ -41,16 +41,33 @@ from src.core.constants import (
 )
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.core.prompt_layout import single_call_messages
+from src.domains.agents.context.runtime_context import runtime_context_if_running
 from src.domains.agents.prompts import load_prompt
 from src.domains.agents.services.jev_extraction_observer import (
     observe_extractor,
     start_extraction_observation,
+)
+from src.domains.agents.services.memory_embedding_preparation import prepare_memory_embeddings
+from src.domains.agents.services.memory_extraction_context import (
+    _maybe_build_health_context as _maybe_build_health_context,
 )
 from src.domains.agents.services.memory_extraction_context import (
     format_existing_memories_with_ids as _format_existing_memories_with_ids,
 )
 from src.domains.agents.services.memory_extraction_context import (
     format_messages_for_extraction as _format_messages_for_extraction,
+)
+from src.domains.agents.services.memory_extraction_debug import (
+    _MEMORY_DEBUG_CACHE_MAX_SIZE as _MEMORY_DEBUG_CACHE_MAX_SIZE,
+)
+from src.domains.agents.services.memory_extraction_debug import (
+    _cache_debug_result as _cache_debug_result,
+)
+from src.domains.agents.services.memory_extraction_debug import (
+    _memory_extraction_debug_cache as _memory_extraction_debug_cache,
+)
+from src.domains.agents.services.memory_extraction_debug import (
+    get_memory_extraction_debug as get_memory_extraction_debug,
 )
 from src.domains.agents.services.memory_extraction_parsing import (
     parse_extraction_result,
@@ -61,6 +78,7 @@ from src.domains.llm_config.jev_registry import JevUsage
 from src.domains.memories.protection import automated_edit_refusal
 from src.domains.shared.extraction_targets import find_last_user_message
 from src.domains.shared.provenance_capture import record_origin
+from src.domains.users.extraction_consent import ExtractionKind, snapshot_extraction_consent
 from src.infrastructure.llm import get_llm
 from src.infrastructure.llm.embedding_context import (
     clear_embedding_context,
@@ -76,9 +94,6 @@ from src.infrastructure.observability.logging import get_logger
 logger = get_logger(__name__)
 
 # Per-run_id debug results cache for memory extraction.
-_memory_extraction_debug_cache: dict[str, tuple[float, dict[str, Any]]] = {}
-_MEMORY_DEBUG_CACHE_MAX_SIZE = 100
-_MEMORY_DEBUG_CACHE_TTL_SECONDS = 120.0
 
 
 # ============================================================================
@@ -182,86 +197,9 @@ def _get_personality_addon_prompt() -> str:
     return str(load_prompt("memory_extraction_personality_addon"))
 
 
-async def _maybe_build_health_context(user_id: str) -> str:
-    """Return the Health Metrics context block for the extraction prompt.
-
-    Returns an empty string when the global feature flag is off, the user
-    has not opted into Health Metrics assistant integrations, or when
-    their health history is empty. The prompt template includes a
-    ``{health_context}`` placeholder flagged ``(optional)`` so the LLM
-    handles the empty case transparently.
-
-    Args:
-        user_id: Owner user ID (string form from the extractor plumbing).
-
-    Returns:
-        A short textual block (``""`` if none).
-    """
-    from src.core.config import settings as global_settings
-    from src.core.constants import HEALTH_METRICS_USER_TOGGLE_ATTR
-
-    if not getattr(global_settings, "health_metrics_enabled", False):
-        return ""
-
-    try:
-        from src.infrastructure.database.session import get_db_context
-
-        async with get_db_context() as db:
-            from src.domains.health_metrics.service import HealthMetricsService
-            from src.domains.users.repository import UserRepository
-
-            user = await UserRepository(db).get_by_id(UUID(user_id))
-            if user is None or not getattr(user, HEALTH_METRICS_USER_TOGGLE_ATTR, False):
-                return ""
-            service = HealthMetricsService(db)
-            return await service.build_health_context_for_prompt(UUID(user_id))
-    except Exception as exc:  # pragma: no cover - defensive
-        logger.warning(
-            "memory_extractor_health_context_failed",
-            user_id=user_id,
-            error=str(exc),
-        )
-        return ""
-
-
 # ============================================================================
 # Debug Cache
 # ============================================================================
-
-
-def _cache_debug_result(run_id: str, data: dict[str, Any]) -> None:
-    """Store debug data with timestamp and size enforcement."""
-    while len(_memory_extraction_debug_cache) >= _MEMORY_DEBUG_CACHE_MAX_SIZE:
-        oldest_key = min(
-            _memory_extraction_debug_cache,
-            key=lambda k: _memory_extraction_debug_cache[k][0],
-        )
-        _memory_extraction_debug_cache.pop(oldest_key, None)
-    _memory_extraction_debug_cache[run_id] = (time.monotonic(), data)
-
-
-def get_memory_extraction_debug(run_id: str) -> dict[str, Any] | None:
-    """Retrieve and consume debug data for streaming service.
-
-    Args:
-        run_id: Pipeline run_id.
-
-    Returns:
-        Debug dict or None.
-    """
-    now = time.monotonic()
-    stale_keys = [
-        k
-        for k, (ts, _) in _memory_extraction_debug_cache.items()
-        if now - ts > _MEMORY_DEBUG_CACHE_TTL_SECONDS
-    ]
-    for k in stale_keys:
-        _memory_extraction_debug_cache.pop(k, None)
-
-    entry = _memory_extraction_debug_cache.pop(run_id, None)
-    if entry is None:
-        return None
-    return entry[1]
 
 
 # ============================================================================
@@ -329,6 +267,19 @@ async def extract_memories_background(
                         "skipped_reason": "No messages to analyze",
                     },
                 )
+            return 0
+
+        run_context = runtime_context_if_running()
+        if run_context is not None and run_context.extraction_revision is None:
+            return 0
+        async with get_db_context() as db:
+            extraction_revision = await snapshot_extraction_consent(
+                db,
+                UUID(user_id),
+                ExtractionKind.MEMORY,
+                expected_revision=run_context.extraction_revision if run_context else None,
+            )
+        if extraction_revision is None:
             return 0
 
         # Set embedding context for cost tracking
@@ -443,6 +394,19 @@ async def extract_memories_background(
                 personality_instruction=personality_instruction
             )
 
+        # Do not start another paid phase after a consent change during retrieval.
+        async with get_db_context() as db:
+            if (
+                await snapshot_extraction_consent(
+                    db,
+                    UUID(user_id),
+                    ExtractionKind.MEMORY,
+                    expected_revision=extraction_revision,
+                )
+                is None
+            ):
+                return 0
+
         # Call LLM
         llm = get_llm("memory_extraction")
         _llm_start = time.time()
@@ -543,10 +507,29 @@ async def extract_memories_background(
         )
 
         try:
+            from src.domains.memories.service import _generate_dual_embeddings
+
+            prepared = await prepare_memory_embeddings(
+                UUID(user_id),
+                actions,
+                _generate_dual_embeddings,
+                extraction_revision=extraction_revision,
+            )
             async with get_db_context() as db:
                 from src.domains.memories.service import MemoryService
 
-                service = MemoryService(db)
+                if (
+                    await snapshot_extraction_consent(
+                        db,
+                        UUID(user_id),
+                        ExtractionKind.MEMORY,
+                        expected_revision=extraction_revision,
+                        lock=True,
+                    )
+                    is None
+                ):
+                    return 0
+                service = MemoryService(db, embedder=prepared.resolve)
 
                 for action in actions:
                     try:

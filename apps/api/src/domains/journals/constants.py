@@ -11,6 +11,11 @@ used across journal services, repository, and router.
 
 JOURNAL_ENTRY_TITLE_MAX_LENGTH = 200
 JOURNAL_ENTRY_CONTENT_MAX_LENGTH = 800
+JOURNAL_ENTRY_CONTENT_ABSOLUTE_MAX_LENGTH = 2000
+
+# Changing compilation doctrine makes stored words eligible for a fresh review.
+JOURNAL_PORTRAIT_POLICY_VERSION = "grounded_narrative_v3"
+JOURNAL_PORTRAIT_REVIEW_MAX_INPUT_TOKENS = 12000
 
 # =========================================================================
 # Extraction defaults

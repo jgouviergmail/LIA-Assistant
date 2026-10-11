@@ -51,12 +51,14 @@ send_email_to_me_catalogue_manifest = ToolManifest(
             type="string",
             required=False,
             description="Subject. Required unless content_instruction is provided.",
+            semantic_type="Text",
         ),
         ParameterSchema(
             name="body",
             type="string",
             required=False,
             description="Content. Required unless content_instruction is provided.",
+            semantic_type="Text",
         ),
         ParameterSchema(
             name="content_instruction",
@@ -66,6 +68,7 @@ send_email_to_me_catalogue_manifest = ToolManifest(
                 "What the e-mail should contain, for generation (e.g. 'a short summary of "
                 "today's forecast'). Use instead of subject/body."
             ),
+            semantic_type="Text",
         ),
         ParameterSchema(name="is_html", type="boolean", required=False, description="Is HTML body"),
     ],
@@ -79,6 +82,7 @@ send_email_to_me_catalogue_manifest = ToolManifest(
             path="message_id",
             type="string",
             nullable=True,
+            semantic_type="message_id",
             description="Provider message id, when the mailbox returned one",
         ),
     ],

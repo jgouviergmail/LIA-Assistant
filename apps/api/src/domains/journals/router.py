@@ -13,9 +13,6 @@ References:
     - Pattern: domains/interests/router.py
 """
 
-import csv
-import io
-import json
 from contextlib import suppress
 from typing import Literal
 from uuid import UUID
@@ -25,18 +22,28 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
-from src.core.constants import (
-    JOURNAL_CONSOLIDATION_ENABLED_DEFAULT,
-    JOURNAL_CONSOLIDATION_WITH_HISTORY_DEFAULT,
-)
 from src.core.dependencies import get_db
-from src.core.exceptions import ResourceNotFoundError, ValidationError
+from src.core.exceptions import ResourceNotFoundError
 from src.core.i18n import normalize_language
 from src.core.session_dependencies import get_current_active_session
 from src.domains.feature_switches.guard import capability_dependencies
 from src.domains.feature_switches.registry import PlatformCapability
-from src.domains.journals.constants import JOURNAL_PORTRAIT_FEEDBACK_THEME
-from src.domains.journals.models import JournalEntry, JournalEntrySource, JournalTheme
+from src.domains.journals.creation_commands import JournalCreationKind, create_managed_journal_entry
+from src.domains.journals.management_export import export_managed_journals
+from src.domains.journals.management_projection import (
+    available_journal_themes,
+)
+from src.domains.journals.management_projection import (
+    build_journal_settings as _build_settings_response,
+)
+from src.domains.journals.management_projection import (
+    build_journal_theme_counts as _build_theme_counts,
+)
+from src.domains.journals.models import JournalEntry
+from src.domains.journals.portrait_feedback_configuration import portrait_feedback_entry
+from src.domains.journals.portrait_read import read_managed_portrait
+from src.domains.journals.preference_commands import update_journal_preferences
+from src.domains.journals.removal_commands import remove_journal_entries
 from src.domains.journals.schemas import (
     JournalConsolidationResponse,
     JournalEntryCreate,
@@ -47,12 +54,10 @@ from src.domains.journals.schemas import (
     JournalPortraitResponse,
     JournalSettingsResponse,
     JournalSettingsUpdate,
-    JournalThemeInfo,
     JournalThemesResponse,
-    ThemeCount,
-    provenance_of,
 )
 from src.domains.journals.service import JournalService
+from src.domains.journals.update_commands import update_managed_journal_entry
 from src.domains.shared.provenance_repository import ProvenanceRepository
 from src.domains.shared.schemas import ProvenanceResponse
 from src.domains.users.models import User
@@ -86,77 +91,6 @@ def _entry_to_response(entry: JournalEntry) -> JournalEntryResponse:
     return JournalEntryResponse.model_validate(entry)
 
 
-def _build_theme_counts(theme_counts: dict[str, int], user_id: UUID) -> list[ThemeCount]:
-    """Convert raw per-theme counts into validated response items.
-
-    A theme string absent from :class:`JournalTheme` is skipped, not raised on:
-    ``JournalTheme(unknown)`` raises ``ValueError``, which would turn a single
-    unexpected row into a 500 on ``GET /journals`` — the whole journal page,
-    not just one counter. Skipping keeps the page usable; the warning keeps the
-    anomaly visible rather than silently swallowed.
-
-    Args:
-        theme_counts: Mapping of raw theme code to active entry count.
-        user_id: Owner user UUID, for the anomaly log.
-
-    Returns:
-        One ``ThemeCount`` per recognised theme.
-    """
-    counts: list[ThemeCount] = []
-    for raw_theme, count in theme_counts.items():
-        try:
-            theme = JournalTheme(raw_theme)
-        except ValueError:
-            logger.warning(
-                "journal_unknown_theme_in_corpus",
-                user_id=str(user_id),
-                theme=raw_theme,
-                count=count,
-            )
-            continue
-        counts.append(ThemeCount(theme=theme, count=count))
-    return counts
-
-
-async def _build_settings_response(user: User, service: JournalService) -> JournalSettingsResponse:
-    """Build full settings response with size and cost info.
-
-    Args:
-        user: Authenticated User model with journal_* fields.
-        service: JournalService instance for size queries.
-
-    Returns:
-        Complete JournalSettingsResponse with size and cost info.
-    """
-    max_total_chars = getattr(
-        user, "journal_max_total_chars", settings.journal_default_max_total_chars
-    )
-    size_info = await service.get_size_info(user.id, max_total_chars)
-    last_cost = JournalService.build_cost_info_from_user(user)
-
-    return JournalSettingsResponse(
-        journals_enabled=getattr(user, "journals_enabled", settings.journals_enabled),
-        journal_consolidation_enabled=getattr(
-            user, "journal_consolidation_enabled", JOURNAL_CONSOLIDATION_ENABLED_DEFAULT
-        ),
-        journal_consolidation_with_history=getattr(
-            user, "journal_consolidation_with_history", JOURNAL_CONSOLIDATION_WITH_HISTORY_DEFAULT
-        ),
-        journal_max_total_chars=max_total_chars,
-        journal_context_max_chars=getattr(
-            user, "journal_context_max_chars", settings.journal_default_context_max_chars
-        ),
-        journal_max_entry_chars=getattr(
-            user, "journal_max_entry_chars", settings.journal_max_entry_chars
-        ),
-        journal_context_max_results=getattr(
-            user, "journal_context_max_results", settings.journal_context_max_results
-        ),
-        size_info=size_info,
-        last_cost=last_cost,
-    )
-
-
 # =============================================================================
 # Themes Endpoint (static path — must be before /{entry_id} routes)
 # =============================================================================
@@ -167,12 +101,7 @@ async def list_themes(
     user: User = Depends(get_current_active_session),
 ) -> JournalThemesResponse:
     """List available journal themes with labels."""
-    return JournalThemesResponse(
-        themes=[
-            JournalThemeInfo(code=t.value, label=t.value.replace("_", " ").title())
-            for t in JournalTheme
-        ]
-    )
+    return available_journal_themes()
 
 
 # =============================================================================
@@ -201,27 +130,7 @@ async def update_journal_settings(
     Raises:
         ValidationError: If max_total_chars is set below current usage.
     """
-    service = JournalService(db)
-    update_data = data.model_dump(exclude_unset=True)
-
-    # Validate max_total_chars >= current total
-    if "journal_max_total_chars" in update_data:
-        total_chars = await service.repo.get_total_chars(user.id)
-        if update_data["journal_max_total_chars"] < total_chars:
-            raise ValidationError(
-                detail=(
-                    f"Cannot set max_total_chars ({update_data['journal_max_total_chars']}) "
-                    f"below current usage ({total_chars}). "
-                    "Delete entries first to reduce usage."
-                )
-            )
-
-    if update_data:
-        for field_name, value in update_data.items():
-            setattr(user, field_name, value)
-        await db.commit()
-
-    return await _build_settings_response(user, service)
+    return await update_journal_preferences(db, user.id, data)
 
 
 # =============================================================================
@@ -238,105 +147,7 @@ async def export_entries(
     db: AsyncSession = Depends(get_db),
 ) -> StreamingResponse:
     """Export all journal entries (GDPR data portability)."""
-    service = JournalService(db)
-    entries, _ = await service.list_entries(user_id=user.id, limit=10000)
-
-    if export_format == "csv":
-        output = io.StringIO()
-        writer = csv.writer(output)
-        writer.writerow(
-            [
-                "id",
-                "theme",
-                "level",
-                "title",
-                "content",
-                "mood",
-                "status",
-                "source",
-                "personality_code",
-                "char_count",
-                "confidence",
-                "evidence_count",
-                "contradiction_count",
-                "injection_count",
-                "last_injected_at",
-                "created_at",
-                "updated_at",
-            ]
-        )
-        for entry in entries:
-            writer.writerow(
-                [
-                    str(entry.id),
-                    entry.theme,
-                    entry.level,
-                    entry.title,
-                    entry.content,
-                    entry.mood,
-                    entry.status,
-                    entry.source,
-                    entry.personality_code,
-                    entry.char_count,
-                    entry.confidence,
-                    entry.evidence_count,
-                    entry.contradiction_count,
-                    entry.injection_count,
-                    entry.last_injected_at.isoformat() if entry.last_injected_at else "",
-                    entry.created_at.isoformat(),
-                    entry.updated_at.isoformat() if entry.updated_at else "",
-                ]
-            )
-        output.seek(0)
-        return StreamingResponse(
-            iter([output.getvalue()]),
-            media_type="text/csv",
-            headers={"Content-Disposition": "attachment; filename=journal_entries.csv"},
-        )
-
-    # JSON format — also includes the compiled portrait for full GDPR portability
-    data = {
-        "entries": [
-            {
-                "id": str(entry.id),
-                "theme": entry.theme,
-                "level": entry.level,
-                "title": entry.title,
-                "content": entry.content,
-                "mood": entry.mood,
-                "status": entry.status,
-                "source": entry.source,
-                "personality_code": entry.personality_code,
-                "char_count": entry.char_count,
-                "confidence": entry.confidence,
-                "evidence_count": entry.evidence_count,
-                "contradiction_count": entry.contradiction_count,
-                "injection_count": entry.injection_count,
-                "last_injected_at": (
-                    entry.last_injected_at.isoformat() if entry.last_injected_at else None
-                ),
-                "created_at": entry.created_at.isoformat(),
-                "updated_at": entry.updated_at.isoformat() if entry.updated_at else None,
-            }
-            for entry in entries
-        ],
-        "portrait": {
-            "full": getattr(user, "journal_portrait_full", None),
-            "brief": getattr(user, "journal_portrait_brief", None),
-            "compiled_at": (
-                _portrait_compiled_at.isoformat()
-                if (_portrait_compiled_at := getattr(user, "journal_portrait_compiled_at", None))
-                else None
-            ),
-            "sources": getattr(user, "journal_portrait_sources", None),
-        },
-    }
-    json_str = json.dumps(data, ensure_ascii=False, indent=2)
-    return StreamingResponse(
-        iter([json_str]),
-        media_type="application/json",
-        headers={"Content-Disposition": "attachment; filename=journal_entries.json"},
-    )
+    return await export_managed_journals(db, user.id, export_format)
 
 
 # =============================================================================
@@ -389,20 +200,7 @@ async def create_entry(
     db: AsyncSession = Depends(get_db),
 ) -> JournalEntryResponse:
     """Create a new journal entry manually."""
-    service = JournalService(db)
-
-    entry = await service.create_entry(
-        user_id=user.id,
-        theme=data.theme.value,
-        title=data.title,
-        content=data.content,
-        mood=data.mood.value,
-        source=JournalEntrySource.MANUAL.value,
-        search_hints=data.search_hints,
-    )
-
-    await db.commit()
-    return _entry_to_response(entry)
+    return await create_managed_journal_entry(db, user.id, data)
 
 
 @router.patch("/{entry_id}", response_model=JournalEntryResponse)
@@ -417,24 +215,7 @@ async def update_entry(
     Raises:
         ResourceNotFoundError: If entry does not exist or belongs to another user.
     """
-    service = JournalService(db)
-
-    entry = await service.get_entry_for_user(entry_id, user.id)
-    if not entry:
-        raise ResourceNotFoundError(resource_type="journal_entry", resource_id=entry_id)
-
-    updated = await service.update_entry(
-        entry=entry,
-        title=data.title,
-        content=data.content,
-        mood=data.mood.value if data.mood else None,
-        search_hints=data.search_hints,
-        confidence=data.confidence.value if data.confidence else None,
-        level=data.level.value if data.level else None,
-    )
-
-    await db.commit()
-    return _entry_to_response(updated)
+    return await update_managed_journal_entry(db, user.id, entry_id, data)
 
 
 @router.delete("/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -448,14 +229,7 @@ async def delete_entry(
     Raises:
         ResourceNotFoundError: If entry does not exist or belongs to another user.
     """
-    service = JournalService(db)
-
-    entry = await service.get_entry_for_user(entry_id, user.id)
-    if not entry:
-        raise ResourceNotFoundError(resource_type="journal_entry", resource_id=entry_id)
-
-    await service.delete_entry(entry)
-    await db.commit()
+    await remove_journal_entries(db, user.id, entry_id)
 
 
 @router.delete("", status_code=status.HTTP_204_NO_CONTENT)
@@ -464,9 +238,7 @@ async def delete_all_entries(
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """Delete all journal entries for the current user (GDPR)."""
-    service = JournalService(db)
-    await service.delete_all_for_user(user.id)
-    await db.commit()
+    await remove_journal_entries(db, user.id, None)
 
 
 @router.post("/consolidate", response_model=JournalConsolidationResponse)
@@ -490,6 +262,7 @@ async def consolidate_now(
     import time
 
     from src.core.exceptions import raise_usage_limit_exceeded
+    from src.domains.journals.consolidation_lifecycle import ConsolidationAttempt
     from src.domains.journals.consolidation_service import consolidate_journals_for_user
     from src.domains.usage_limits.service import UsageLimitService
 
@@ -525,6 +298,7 @@ async def consolidate_now(
     max_entry_chars = getattr(user, "journal_max_entry_chars", settings.journal_max_entry_chars)
     consolidation_with_history = bool(getattr(user, "journal_consolidation_with_history", False))
 
+    attempt = ConsolidationAttempt()
     started = time.monotonic()
     actions_applied = await consolidate_journals_for_user(
         user_id=user.id,
@@ -535,8 +309,11 @@ async def consolidate_now(
         max_total_chars=max_total_chars,
         max_entry_chars=max_entry_chars,
         last_consolidated_at=user.journal_last_consolidated_at,
+        manual=True,
+        attempt=attempt,
     )
     duration_ms = int((time.monotonic() - started) * 1000)
+    await db.refresh(user)
 
     logger.info(
         "journal_consolidate_now_completed",
@@ -548,6 +325,7 @@ async def consolidate_now(
     return JournalConsolidationResponse(
         actions_applied=actions_applied,
         duration_ms=duration_ms,
+        status=attempt.status,
     )
 
 
@@ -559,6 +337,7 @@ async def consolidate_now(
 @router.get("/portrait", response_model=JournalPortraitResponse)
 async def get_portrait(
     user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
 ) -> JournalPortraitResponse:
     """Read the compiled user-model portrait (full + brief + compiled_at).
 
@@ -569,12 +348,7 @@ async def get_portrait(
     2. POST a feedback signal via /journals/portrait/feedback (lever 2)
     3. Trigger a full consolidation via /journals/consolidate (lever 3)
     """
-    return JournalPortraitResponse(
-        full=getattr(user, "journal_portrait_full", None),
-        brief=getattr(user, "journal_portrait_brief", None),
-        compiled_at=getattr(user, "journal_portrait_compiled_at", None),
-        sources=provenance_of(getattr(user, "journal_portrait_sources", None)),
-    )
+    return await read_managed_portrait(db, user)
 
 
 @router.post("/portrait/feedback", response_model=JournalConsolidationResponse)
@@ -597,6 +371,7 @@ async def portrait_feedback(
     import time
 
     from src.core.exceptions import raise_usage_limit_exceeded
+    from src.domains.journals.consolidation_lifecycle import ConsolidationAttempt
     from src.domains.journals.consolidation_service import consolidate_journals_for_user
     from src.domains.usage_limits.service import UsageLimitService
 
@@ -606,30 +381,10 @@ async def portrait_feedback(
             reason="LLM quota exceeded — try again later.",
         )
 
-    # 1. Persist the user's correction as a fresh L0 entry the consolidation
-    #    will see in its working set. Phrased so the LLM understands it is
-    #    feedback ON the portrait, not an observation about the user.
-    correction_title = "User feedback on portrait"
-    correction_body = data.comment.strip()
-    if data.highlighted_section:
-        correction_body = (
-            f"User highlighted: «{data.highlighted_section.strip()}»\n"
-            f"User feedback: {correction_body}"
-        )
-    # Theme by subject (see JOURNAL_PORTRAIT_FEEDBACK_THEME): portrait feedback
-    # corrects the model of the USER, so it is a `user_observations` feedstock.
-    service = JournalService(db)
-    await service.create_entry(
-        user_id=user.id,
-        theme=JOURNAL_PORTRAIT_FEEDBACK_THEME,
-        title=correction_title,
-        content=correction_body[: settings.journal_max_entry_chars],
-        source="user_correction",
-        max_entry_chars=settings.journal_max_entry_chars,
-        confidence="high",
-        level="L0",
+    # The source command preserves complete correction text and prepares embeddings outside locks.
+    await create_managed_journal_entry(
+        db, user.id, portrait_feedback_entry(data), kind=JournalCreationKind.PORTRAIT_CORRECTION
     )
-    await db.commit()
 
     # 2. Resolve personality (best-effort).
     personality_instruction: str | None = None
@@ -658,6 +413,7 @@ async def portrait_feedback(
     max_entry_chars = getattr(user, "journal_max_entry_chars", settings.journal_max_entry_chars)
     consolidation_with_history = bool(getattr(user, "journal_consolidation_with_history", False))
 
+    attempt = ConsolidationAttempt()
     started = time.monotonic()
     actions_applied = await consolidate_journals_for_user(
         user_id=user.id,
@@ -668,8 +424,11 @@ async def portrait_feedback(
         max_total_chars=max_total_chars,
         max_entry_chars=max_entry_chars,
         last_consolidated_at=user.journal_last_consolidated_at,
+        manual=True,
+        attempt=attempt,
     )
     duration_ms = int((time.monotonic() - started) * 1000)
+    await db.refresh(user)
 
     with suppress(Exception):
         from src.infrastructure.observability.metrics_journals import (
@@ -683,11 +442,13 @@ async def portrait_feedback(
         user_id=str(user.id),
         actions_applied=actions_applied,
         duration_ms=duration_ms,
+        status=attempt.status,
     )
 
     return JournalConsolidationResponse(
         actions_applied=actions_applied,
         duration_ms=duration_ms,
+        status=attempt.status,
     )
 
 

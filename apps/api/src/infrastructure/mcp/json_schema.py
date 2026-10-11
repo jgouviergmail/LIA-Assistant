@@ -29,6 +29,9 @@ from typing import Annotated, Any, Literal
 
 from pydantic import WithJsonSchema
 
+from src.infrastructure.mcp.schema_constraints import merge_conjuncts
+from src.infrastructure.mcp.schema_projection import binding_schema
+
 #: JSON Schema type name → Python type used for Pydantic field annotations.
 #: The keys are also the vocabulary of type names this codebase recognises,
 #: so the planner catalogue narrows to the same set rather than keeping a
@@ -97,7 +100,7 @@ def properties_of(input_schema: Any) -> dict[str, Any]:
     """
     if not isinstance(input_schema, dict):
         return {}
-    properties = input_schema.get("properties")
+    properties = resolve_property(input_schema, input_schema).spec.get("properties")
     return properties if isinstance(properties, dict) else {}
 
 
@@ -117,7 +120,7 @@ def required_of(input_schema: Any) -> set[str]:
     """
     if not isinstance(input_schema, dict):
         return set()
-    required = input_schema.get("required")
+    required = resolve_property(input_schema, input_schema).spec.get("required")
     if not isinstance(required, list):
         return set()
     return {name for name in required if isinstance(name, str)}
@@ -191,14 +194,13 @@ def sanitize_array_items(field_spec: dict[str, Any]) -> dict[str, Any]:
         declared = items.get("type")
         item_type = normalize_schema_type(declared) if declared is not None else None
         if item_type in JSON_SCHEMA_TYPE_MAP:
-            sanitized: dict[str, Any] = {"type": item_type}
-            if isinstance(items.get("enum"), list):
-                sanitized["enum"] = items["enum"]
+            sanitized = declaration_for(item_type, items)
             if isinstance(items.get("description"), str):
                 sanitized["description"] = items["description"]
-            if item_type == "array":
-                sanitized["items"] = sanitize_array_items(items)
             return sanitized
+        compacted = compact_schema(items)
+        if compacted and any(key in compacted for key in ("anyOf", "oneOf")):
+            return compacted
     return {"type": DEFAULT_TYPE}
 
 
@@ -324,6 +326,11 @@ def _dereference(pointer: Any, root: Any, seen: frozenset[str]) -> dict[str, Any
     return target if isinstance(target, dict) else None
 
 
+def referenced_schema(pointer: object, root: object) -> dict[str, Any] | None:
+    """Read a local reference without reducing away its union alternatives."""
+    return _dereference(pointer, root, frozenset())
+
+
 def _resolve(spec: Any, root: Any, depth: int, seen: frozenset[str]) -> ResolvedType:
     """Recursive core of :func:`resolve_property`.
 
@@ -341,19 +348,14 @@ def _resolve(spec: Any, root: Any, depth: int, seen: frozenset[str]) -> Resolved
 
     pointer = spec.get("$ref")
     if pointer is not None:
-        target = _dereference(pointer, root, seen)
-        if target is None:
-            return ResolvedType(None, False, {})
-        return _resolve(target, root, depth + 1, seen | {pointer})
+        return _resolve_reference(spec, root, depth, seen)
+
+    if isinstance(spec.get("allOf"), list) and spec["allOf"]:
+        return _resolve_allof(spec, root, depth, seen)
 
     declared = spec.get("type")
     if declared is not None:
-        name = normalize_schema_type(declared)
-        return ResolvedType(
-            name if name in JSON_SCHEMA_TYPE_MAP else DEFAULT_TYPE,
-            declares_null(declared),
-            spec,
-        )
+        return _resolve_declared(spec)
 
     if "const" in spec:
         value = spec["const"]
@@ -366,13 +368,55 @@ def _resolve(spec: Any, root: Any, depth: int, seen: frozenset[str]) -> Resolved
 
     values = spec.get("enum")
     if isinstance(values, list) and values:
-        inferred_name = next(
-            (inferred for value in values if (inferred := _json_type_of_value(value)) is not None),
-            None,
-        )
-        return ResolvedType(inferred_name, any(value is None for value in values), spec)
+        return _resolve_enum(values, spec)
 
     return ResolvedType(None, False, spec)
+
+
+def _resolve_enum(values: list[object], spec: dict[str, object]) -> ResolvedType:
+    inferred_name = next(
+        (inferred for value in values if (inferred := _json_type_of_value(value)) is not None),
+        None,
+    )
+    return ResolvedType(inferred_name, any(value is None for value in values), spec)
+
+
+def _resolve_declared(spec: dict[str, object]) -> ResolvedType:
+    declared = spec["type"]
+    name = normalize_schema_type(declared)
+    return ResolvedType(
+        name if name in JSON_SCHEMA_TYPE_MAP else DEFAULT_TYPE,
+        declares_null(declared),
+        spec,
+    )
+
+
+def _resolve_reference(
+    spec: dict[str, object], root: object, depth: int, seen: frozenset[str]
+) -> ResolvedType:
+    pointer = spec["$ref"]
+    target = _dereference(pointer, root, seen)
+    if target is None or not isinstance(pointer, str):
+        return ResolvedType(None, False, {})
+    siblings = {key: value for key, value in spec.items() if key != "$ref"}
+    if not siblings:
+        return _resolve(target, root, depth + 1, seen | {pointer})
+    return _resolve({"allOf": [target, siblings]}, root, depth + 1, seen | {pointer})
+
+
+def _resolve_allof(
+    spec: dict[str, object], root: object, depth: int, seen: frozenset[str]
+) -> ResolvedType:
+    members = spec["allOf"]
+    if not isinstance(members, list):
+        return ResolvedType(None, False, spec)
+    base = {key: value for key, value in spec.items() if key != "allOf"}
+    resolved = [_resolve(member, root, depth + 1, seen) for member in [base, *members]]
+    effective = merge_conjuncts([member.spec for member in resolved])
+    summary = _resolve(effective, root, depth + 1, seen)
+    typed = [member for member in resolved if member.name is not None]
+    nullable = all(member.nullable for member in typed) if typed else summary.nullable
+    return ResolvedType(summary.name, nullable, {**effective, "allOf": members})
 
 
 def _resolve_composition(
@@ -413,7 +457,16 @@ def _resolve_composition(
             chosen = resolved
     if chosen is None:
         return ResolvedType(None, nullable, parent)
-    return ResolvedType(chosen.name, nullable or chosen.nullable, chosen.spec)
+    return ResolvedType(
+        chosen.name, nullable or chosen.nullable, _composition_spec(members, parent, chosen)
+    )
+
+
+def _composition_spec(
+    members: list[object], parent: dict[str, object], chosen: ResolvedType
+) -> dict[str, object]:
+    non_null = [member for member in members if not _is_null_schema(member)]
+    return parent if len(non_null) > 1 else chosen.spec
 
 
 def resolve_property(spec: Any, root: Any) -> ResolvedType:
@@ -434,17 +487,9 @@ def resolve_property(spec: Any, root: Any) -> ResolvedType:
     an unresolvable reference — resolves to ``name=None``, which callers keep as
     a permissively typed property rather than a lost one.
 
-    Two reductions are deliberately partial, and stated here so they are limits
-    rather than surprises. Neither appears in any of the seven live MCP servers
-    this was measured against, so widening them would be speculation:
-
-    * A ``$ref`` carrying sibling keywords resolves to its TARGET. 2020-12 does
-      apply those siblings, but only ``description`` and ``default`` are
-      recovered downstream (by the field builder, which sees both specs); a
-      sibling ``enum`` or bound would be read from the target instead.
-    * ``allOf`` is reduced to its first typed member rather than merged, so a
-      constraint carried by a LATER member is not published. The type — the
-      part that decides whether a call can be built at all — is correct.
+    Conjunctions and reference siblings retain their original branches and
+    summarize their fields, required names and tighter ordinary scalar bounds.
+    Conditional and remote declarations remain undecidable; no URL is fetched.
 
     Args:
         spec: The property declaration, of any shape.
@@ -489,7 +534,9 @@ def compact_schema(spec: Any, depth: int = 0) -> dict[str, Any] | None:
     # false: they carry `items` and `properties`, and dropping those leaves the
     # reader an array of unknown element type.
     param_type = normalize_schema_type(declared_type) if declared_type is not None else None
-    if param_type:
+    if isinstance(declared_type, list):
+        _compact_type_union(declared_type, result)
+    elif param_type:
         result["type"] = param_type
 
     # Enums are critical for the LLM (e.g., element type: rectangle, ellipse, ...)
@@ -499,43 +546,60 @@ def compact_schema(spec: Any, depth: int = 0) -> dict[str, Any] | None:
         result["enum"] = spec["enum"]
     if "format" in spec:
         result["format"] = spec["format"]
+    if isinstance(spec.get("x-semantic-type"), str):
+        result["x-semantic-type"] = spec["x-semantic-type"]
+    _compact_constraints(spec, result)
 
-    # Array items, and the size bounds the server actually enforces: a cap the
-    # planner cannot see is a trap, not a contract (ADR-184).
-    if param_type == "array":
-        if "items" in spec:
-            items_compact = compact_schema(spec["items"], depth + 1)
-            if items_compact:
-                result["items"] = items_compact
-        for bound in ("minItems", "maxItems"):
-            if _is_number(spec.get(bound)):
-                result[bound] = spec[bound]
-
-    # Object properties
-    if param_type == "object" and isinstance(spec.get("properties"), dict):
-        compact_props: dict[str, Any] = {}
-        for prop_name, prop_spec in spec["properties"].items():
-            prop_compact = compact_schema(prop_spec, depth + 1)
-            if prop_compact:
-                compact_props[prop_name] = prop_compact
-            else:
-                compact_props[prop_name] = {
-                    "type": normalize_schema_type(as_property_spec(prop_spec).get("type", "string"))
-                }
-        if compact_props:
-            result["properties"] = compact_props
-        if isinstance(spec.get("required"), list):
-            result["required"] = spec["required"]
-
-    # anyOf / oneOf (union types)
-    for key in ("anyOf", "oneOf"):
-        if key in spec:
-            compacted = [compact_schema(s, depth + 1) for s in spec[key]]
-            compacted = [c for c in compacted if c]
-            if compacted:
-                result[key] = compacted
+    _compact_structure(spec, result, depth)
+    _compact_compositions(spec, result, depth)
 
     return result if result else None
+
+
+def _compact_structure(spec: dict[str, object], result: dict[str, object], depth: int) -> None:
+    if "items" in spec:
+        items = compact_schema(spec["items"], depth + 1)
+        if items:
+            result["items"] = items
+    properties = spec.get("properties")
+    if isinstance(properties, dict):
+        result["properties"] = {
+            name: compact_schema(child, depth + 1)
+            or {"type": normalize_schema_type(as_property_spec(child).get("type", DEFAULT_TYPE))}
+            for name, child in properties.items()
+        }
+    if isinstance(spec.get("required"), list):
+        result["required"] = spec["required"]
+
+
+def _compact_compositions(spec: dict[str, object], result: dict[str, object], depth: int) -> None:
+    for key in _COMPOSITION_KEYWORDS:
+        members = spec.get(key)
+        if isinstance(members, list):
+            compacted = [compact_schema(member, depth + 1) for member in members]
+            if kept := [member for member in compacted if member]:
+                result[key] = kept
+
+
+def _compact_type_union(declared: list[object], result: dict[str, object]) -> None:
+    names = [name for name in declared if name in (*JSON_SCHEMA_TYPE_MAP, NULL_TYPE)]
+    if names and names != [NULL_TYPE]:
+        result["anyOf"] = [{"type": name} for name in names]
+    else:
+        result["type"] = DEFAULT_TYPE
+
+
+def _compact_constraints(spec: dict[str, object], result: dict[str, object]) -> None:
+    for keyword in _NUMERIC_PUBLISHED:
+        if _is_number(spec.get(keyword)):
+            result[keyword] = spec[keyword]
+    for keyword in (*_TEXT_PUBLISHED, "description"):
+        if isinstance(spec.get(keyword), str):
+            result[keyword] = spec[keyword]
+    if isinstance(spec.get("additionalProperties"), bool):
+        result["additionalProperties"] = spec["additionalProperties"]
+    if "const" in spec:
+        result["const"] = spec["const"]
 
 
 # --------------------------------------------------------------------------
@@ -617,7 +681,7 @@ def constraint_enum(spec: dict[str, Any]) -> list[Any] | None:
     Returns:
         The declared enum, or None when there is no usable one.
     """
-    values = spec.get("enum")
+    values = [spec["const"]] if "const" in spec else spec.get("enum")
     if not isinstance(values, list) or not values:
         return None
     if all(value is None for value in values):
@@ -674,6 +738,14 @@ def constraints_of(spec: dict[str, Any]) -> dict[ConstraintKind, Any]:
     return constraints
 
 
+def _publish_composition(declaration: dict[str, object], spec: dict[str, object]) -> None:
+    """Keep the declared alternatives on the model-facing schema."""
+    compacted = compact_schema(spec) or {}
+    for keyword in ("anyOf", "oneOf", "allOf"):
+        if keyword in compacted:
+            declaration[keyword] = compacted[keyword]
+
+
 def declaration_for(type_name: str, spec: dict[str, Any]) -> dict[str, Any]:
     """The JSON Schema declaration shown to providers for a resolved property.
 
@@ -691,16 +763,16 @@ def declaration_for(type_name: str, spec: dict[str, Any]) -> dict[str, Any]:
         constraint keyword that has the shape its dialect requires.
     """
     declaration: dict[str, Any] = {"type": type_name}
-    if type_name == "array":
-        declaration["items"] = sanitize_array_items(spec)
-    if type_name == "object":
-        # A structured object published as a bare {"type": "object"} tells the
-        # model nothing about the fields it must fill. The planner manifest has
-        # always carried this; the signature had not.
-        compacted = compact_schema(spec) or {}
-        for key in ("properties", "required"):
-            if key in compacted:
-                declaration[key] = compacted[key]
+    if isinstance(spec.get("x-semantic-type"), str):
+        declaration["x-semantic-type"] = spec["x-semantic-type"]
+    _publish_structure(type_name, spec, declaration)
+    if "const" in spec:
+        declaration["const"] = spec["const"]
+    _publish_composition(declaration, spec)
+    if isinstance(spec.get("type"), list) and "anyOf" in declaration:
+        declaration.pop("type", None)
+    if isinstance(spec.get("additionalProperties"), bool):
+        declaration["additionalProperties"] = spec["additionalProperties"]
 
     values = publishable_enum(spec)
     if values is not None:
@@ -713,7 +785,19 @@ def declaration_for(type_name: str, spec: dict[str, Any]) -> dict[str, Any]:
     for keyword in _TEXT_PUBLISHED:
         if isinstance(spec.get(keyword), str):
             declaration[keyword] = spec[keyword]
-    return declaration
+    return binding_schema(declaration)
+
+
+def _publish_structure(
+    type_name: str, spec: dict[str, object], declaration: dict[str, object]
+) -> None:
+    if type_name == "array":
+        declaration["items"] = sanitize_array_items(spec)
+    if type_name == "object":
+        compacted = compact_schema(spec) or {}
+        for key in ("properties", "required"):
+            if key in compacted:
+                declaration[key] = compacted[key]
 
 
 def annotation_for(type_name: str, spec: dict[str, Any]) -> Any:
@@ -735,9 +819,34 @@ def annotation_for(type_name: str, spec: dict[str, Any]) -> Any:
     Returns:
         A Python type, or an annotated one carrying the published declaration.
     """
+    if len(schema_type_names(spec) - {NULL_TYPE}) > 1:
+        return Annotated[object, WithJsonSchema(binding_schema(compact_schema(spec) or {}))]
+    if isinstance(spec.get("type"), list):
+        # Nullability of this FIELD is carried by Pydantic's outer annotation.
+        # Item schemas retain their own null branch through declaration_for.
+        spec = {**spec, "type": type_name}
     if type_name == "array":
         return array_python_type(spec)
     declaration = declaration_for(type_name, spec)
     if set(declaration) == {"type"}:
         return JSON_SCHEMA_TYPE_MAP[type_name]
     return Annotated[JSON_SCHEMA_TYPE_MAP[type_name], WithJsonSchema(declaration)]
+
+
+def schema_type_names(spec: object, depth: int = 0) -> set[str]:
+    """Read all explicitly admitted primitive types, without choosing a branch."""
+    if depth > MAX_RESOLUTION_DEPTH or not isinstance(spec, dict):
+        return set()
+    declared = spec.get("type")
+    if isinstance(declared, str):
+        return {declared}
+    if isinstance(declared, list):
+        return {name for name in declared if isinstance(name, str)}
+    for keyword in ("anyOf", "oneOf"):
+        members = spec.get(keyword)
+        if isinstance(members, list):
+            return set().union(*(schema_type_names(member, depth + 1) for member in members))
+    values = spec.get("enum")
+    if isinstance(values, list):
+        return {_json_type_of_value(value) or NULL_TYPE for value in values}
+    return set()

@@ -26,6 +26,7 @@ from src.domains.meetings.models import (
     MeetingStatus,
     MeetingTemplate,
 )
+from src.domains.meetings.regeneration_repository import MeetingRegenerationRepositoryMixin
 from src.domains.meetings.schemas import TemplateSelection
 
 # Statuses under which a recording still accepts segments.
@@ -49,7 +50,7 @@ def _status_literal(status: MeetingStatus) -> Any:
     return literal(status, Meeting.status.type)
 
 
-class MeetingRepository(BaseRepository[Meeting]):
+class MeetingRepository(MeetingRegenerationRepositoryMixin, BaseRepository[Meeting]):
     """Meetings: reads scoped by owner, transitions as atomic conditional updates."""
 
     def __init__(self, db: AsyncSession) -> None:
@@ -57,11 +58,18 @@ class MeetingRepository(BaseRepository[Meeting]):
 
     # ------------------------------------------------------------------ reads
 
-    async def get_for_user(self, meeting_id: UUID, user_id: UUID) -> Meeting | None:
+    async def get_for_user(
+        self, meeting_id: UUID, user_id: UUID, *, lock: bool = False
+    ) -> Meeting | None:
         """One meeting, only when it belongs to ``user_id``."""
-        result = await self.db.execute(
-            select(Meeting).where(Meeting.id == meeting_id, Meeting.user_id == user_id)
+        query = (
+            select(Meeting)
+            .where(Meeting.id == meeting_id, Meeting.user_id == user_id)
+            .execution_options(populate_existing=True)
         )
+        if lock:
+            query = query.with_for_update()
+        result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
     async def get_live_for_user(self, user_id: UUID) -> Meeting | None:
@@ -390,7 +398,7 @@ class MeetingRepository(BaseRepository[Meeting]):
         return [row[0] for row in result.all()]
 
     async def requeue_for_retry(
-        self, meeting_id: UUID, *, from_statuses: tuple[MeetingStatus, ...]
+        self, meeting_id: UUID, *, from_statuses: tuple[MeetingStatus, ...], commit: bool = True
     ) -> bool:
         """``failed|stopped → stopped`` with a fresh retry budget (user-triggered)."""
         stmt = (
@@ -408,7 +416,8 @@ class MeetingRepository(BaseRepository[Meeting]):
             .execution_options(synchronize_session=False)
         )
         result = await self.db.execute(stmt)
-        await self.db.commit()
+        if commit:
+            await self.db.commit()
         return bool(result.rowcount)  # type: ignore[attr-defined]
 
     # ------------------------------------------------------------- minutes
@@ -421,6 +430,7 @@ class MeetingRepository(BaseRepository[Meeting]):
         edited_at: datetime,
         location_label: str | None,
         touch_location: bool,
+        commit: bool = True,
     ) -> None:
         """Replace the user-visible minutes (and optionally the location label)."""
         values: dict[str, Any] = {"report_current": report, "report_edited_at": edited_at}
@@ -432,7 +442,8 @@ class MeetingRepository(BaseRepository[Meeting]):
             .values(**values)
             .execution_options(synchronize_session=False)
         )
-        await self.db.commit()
+        if commit:
+            await self.db.commit()
 
     async def set_index_state(
         self,
@@ -461,7 +472,9 @@ class MeetingRepository(BaseRepository[Meeting]):
         )
         await self.db.commit()
 
-    async def delete_transcript(self, meeting_id: UUID, *, deleted_at: datetime) -> None:
+    async def delete_transcript(
+        self, meeting_id: UUID, *, deleted_at: datetime, commit: bool = True
+    ) -> None:
         """Purge the transcript, keep the minutes."""
         await self.db.execute(
             update(Meeting)
@@ -469,91 +482,14 @@ class MeetingRepository(BaseRepository[Meeting]):
             .values(transcript_encrypted=None, transcript_deleted_at=deleted_at)
             .execution_options(synchronize_session=False)
         )
-        await self.db.commit()
+        if commit:
+            await self.db.commit()
 
     # ---------------------------------------------------------- regenerate
 
-    async def begin_regenerate(
-        self, meeting_id: UUID, *, values: dict[str, Any] | None = None
-    ) -> bool:
-        """``ready`` (idle) → ``ready`` + ``stage=synthesizing``. True iff this call did it.
-
-        The status stays READY so the minutes remain readable while the new
-        ones are computed; the stage is the progress the page shows. ``values``
-        (ADR-259: the template the rebuild must use) ride on the same UPDATE,
-        so the job never reads a ref the claim did not write.
-        """
-        stmt = (
-            update(Meeting)
-            .where(
-                Meeting.id == meeting_id,
-                Meeting.status == MeetingStatus.READY,
-                Meeting.stage.is_(None),
-            )
-            .values(
-                stage=MeetingStage.SYNTHESIZING,
-                last_error_code=None,
-                last_error_message=None,
-                **(values or {}),
-            )
-            .execution_options(synchronize_session=False)
-        )
-        result = await self.db.execute(stmt)
-        await self.db.commit()
-        return bool(result.rowcount)  # type: ignore[attr-defined]
-
-    async def finish_regenerate(
-        self,
-        meeting_id: UUID,
-        *,
-        values: dict[str, Any],
-        tokens_in: int = 0,
-        tokens_out: int = 0,
-        tokens_cache: int = 0,
-        cost_eur: float | None = None,
+    async def set_template(
+        self, meeting_id: UUID, *, ref: str, name: str, commit: bool = True
     ) -> None:
-        """Publish regenerated minutes, clear the stage and ADD the pass to the meeting's spend.
-
-        Every rebuild is paid; the row keeps the sum of every pass (the initial
-        synthesis included) so the page states what the minutes cost in total.
-        """
-        spend: dict[str, Any] = {
-            "synthesis_tokens_in": Meeting.synthesis_tokens_in + tokens_in,
-            "synthesis_tokens_out": Meeting.synthesis_tokens_out + tokens_out,
-            "synthesis_tokens_cache": Meeting.synthesis_tokens_cache + tokens_cache,
-        }
-        if cost_eur is not None:
-            spend["synthesis_cost_eur"] = func.coalesce(Meeting.synthesis_cost_eur, 0.0) + cost_eur
-        await self.db.execute(
-            update(Meeting)
-            .where(Meeting.id == meeting_id, Meeting.status == MeetingStatus.READY)
-            .values(stage=None, **values, **spend)
-            .execution_options(synchronize_session=False)
-        )
-        await self.db.commit()
-
-    async def clear_stale_regenerations(self, older_than_seconds: int) -> int:
-        """``ready`` + ``stage`` older than the lease TTL → stage cleared, error recorded (ADR-259).
-
-        A regeneration is a fire-and-forget without a lease: a hard kill leaves
-        the stage set and every later attempt refused (``regeneration_in_progress``).
-        """
-        threshold = func.now() - text(":s * interval '1 second'").bindparams(s=older_than_seconds)
-        stmt = (
-            update(Meeting)
-            .where(
-                Meeting.status == MeetingStatus.READY,
-                Meeting.stage.is_not(None),
-                Meeting.updated_at < threshold,
-            )
-            .values(stage=None, last_error_code="regeneration_interrupted", last_error_message="")
-            .execution_options(synchronize_session=False)
-        )
-        result = await self.db.execute(stmt)
-        await self.db.commit()
-        return int(result.rowcount or 0)  # type: ignore[attr-defined]
-
-    async def set_template(self, meeting_id: UUID, *, ref: str, name: str) -> None:
         """Remember the template chosen for a meeting before its minutes exist (ADR-259)."""
         await self.db.execute(
             update(Meeting)
@@ -561,7 +497,8 @@ class MeetingRepository(BaseRepository[Meeting]):
             .values(template_ref=ref, template_name=name)
             .execution_options(synchronize_session=False)
         )
-        await self.db.commit()
+        if commit:
+            await self.db.commit()
 
     async def count_derived(self, meeting_id: UUID) -> int:
         """How many minutes were produced from this meeting's transcript (reformat 'new')."""
@@ -571,22 +508,18 @@ class MeetingRepository(BaseRepository[Meeting]):
         return int(total or 0)
 
     async def create_from_transcript(
-        self, source: Meeting, *, values: dict[str, Any], rag_enabled: bool
+        self,
+        source: Meeting,
+        *,
+        values: dict[str, Any],
+        rag_enabled: bool,
+        derived_id: UUID | None = None,
     ) -> Meeting:
         """A new meeting row derived from ``source``'s transcript (reformat 'new', ADR-259)."""
-        return await self.create(
-            derived_meeting_values(source, template_values=values, rag_enabled=rag_enabled)
-        )
-
-    async def fail_regenerate(self, meeting_id: UUID, *, code: str, message: str) -> None:
-        """Clear the stage and record why the regeneration failed; the old minutes stay."""
-        await self.db.execute(
-            update(Meeting)
-            .where(Meeting.id == meeting_id)
-            .values(stage=None, last_error_code=code, last_error_message=message)
-            .execution_options(synchronize_session=False)
-        )
-        await self.db.commit()
+        payload = derived_meeting_values(source, template_values=values, rag_enabled=rag_enabled)
+        if derived_id is not None:
+            payload["id"] = derived_id
+        return await self.create(payload)
 
     # --------------------------------------------------------- audio purge
 
@@ -715,15 +648,16 @@ class MeetingTemplateRepository(BaseRepository[MeetingTemplate]):
             select(MeetingTemplate)
             .where(MeetingTemplate.user_id == user_id)
             .order_by(MeetingTemplate.name.asc(), MeetingTemplate.created_at.asc())
+            .execution_options(populate_existing=True)
         )
         return list(result.scalars().all())
 
     async def get_for_user(self, template_id: UUID, user_id: UUID) -> MeetingTemplate | None:
         """One template, only when it belongs to ``user_id``."""
         result = await self.db.execute(
-            select(MeetingTemplate).where(
-                MeetingTemplate.id == template_id, MeetingTemplate.user_id == user_id
-            )
+            select(MeetingTemplate)
+            .where(MeetingTemplate.id == template_id, MeetingTemplate.user_id == user_id)
+            .execution_options(populate_existing=True)
         )
         return result.scalar_one_or_none()
 
@@ -753,7 +687,7 @@ class MeetingPreferenceRepository(BaseRepository[MeetingPreference]):
             update(MeetingPreference)
             .where(
                 MeetingPreference.user_id == user_id,
-                MeetingPreference.default_template_ref == ref,
+                func.lower(MeetingPreference.default_template_ref) == ref,
             )
             .values(default_template_ref=None)
             .execution_options(synchronize_session=False)
@@ -762,6 +696,8 @@ class MeetingPreferenceRepository(BaseRepository[MeetingPreference]):
 
     async def get_for_user(self, user_id: UUID) -> MeetingPreference | None:
         result = await self.db.execute(
-            select(MeetingPreference).where(MeetingPreference.user_id == user_id)
+            select(MeetingPreference)
+            .where(MeetingPreference.user_id == user_id)
+            .execution_options(populate_existing=True)
         )
         return result.scalar_one_or_none()

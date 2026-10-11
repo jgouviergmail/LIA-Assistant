@@ -75,6 +75,11 @@ def service(space: MagicMock, target: MagicMock) -> RAGSpaceService:
         return {space.id: space, target.id: target}.get(space_id)
 
     svc.space_repo.get_by_id.side_effect = get_by_id
+
+    async def locked(space_id, owner):
+        return await get_by_id(space_id)
+
+    svc.space_repo.get_by_id_for_owner_update.side_effect = locked
     svc.doc_repo.count_for_space.return_value = 0
     return svc
 
@@ -218,6 +223,56 @@ async def test_archive_refuses_beyond_the_size_ceiling(
     assert exc.value.detail == {"code": "archive_too_large", "max_mb": 1}
 
 
+@pytest.mark.parametrize(
+    ("original", "safe"),
+    [
+        ("../outside.txt", "outside.txt"),
+        ("nested\\outside.txt", "outside.txt"),
+        ("C:\\outside.txt", "outside.txt"),
+        ("/absolute.txt", "absolute.txt"),
+        ("file.txt:stream", "file.txt_stream"),
+        ("unsafe\x00\n.txt", "unsafe__.txt"),
+        ("CON.txt", "_CON.txt"),
+        ("..", "document"),
+    ],
+)
+async def test_archive_original_names_cannot_escape_or_hide_entries_on_extraction(
+    storage, service, space, user_id, original, safe
+):
+    doc = document(space, original=original)
+    write_file(storage, doc)
+    index_documents(service, doc)
+    path, _ = await document_ops.build_archive(service, space.id, user_id, [doc.id])
+    try:
+        with zipfile.ZipFile(path) as archive:
+            assert archive.namelist() == [safe]
+            assert archive.read(safe) == b"hello"
+    finally:
+        path.unlink()
+
+
+async def test_archive_reserves_missing_manifest_and_case_insensitive_extraction_names(
+    storage, service, space, user_id
+):
+    first = document(space, filename="a.txt", original="_missing.txt")
+    second = document(space, filename="b.txt", original="_MISSING.TXT")
+    missing = document(space, filename="c.txt", original="../lost\n.txt")
+    write_file(storage, first, b"one")
+    write_file(storage, second, b"two")
+    index_documents(service, first, second, missing)
+    path, _ = await document_ops.build_archive(
+        service, space.id, user_id, [first.id, second.id, missing.id]
+    )
+    try:
+        with zipfile.ZipFile(path) as archive:
+            assert archive.namelist() == ["_missing (2).txt", "_MISSING (3).TXT", "_missing.txt"]
+            assert archive.read("_missing (2).txt") == b"one"
+            assert archive.read("_MISSING (3).TXT") == b"two"
+            assert archive.read("_missing.txt") == b"lost_.txt\n"
+    finally:
+        path.unlink()
+
+
 # ---------------------------------------------------------------------------
 # Move
 # ---------------------------------------------------------------------------
@@ -350,6 +405,7 @@ async def test_move_updates_row_and_chunks_commits_then_moves_the_file(
 ) -> None:
     doc = document(space)
     old_path = write_file(storage, doc, b"payload")
+    doc.file_size = len(b"payload")
     index_documents(service, doc)
     order: list[str] = []
 
@@ -363,27 +419,22 @@ async def test_move_updates_row_and_chunks_commits_then_moves_the_file(
         return 3
 
     async def commit() -> None:
+        prepared = storage / str(user_id) / str(target.id) / doc.filename
+        assert prepared.read_bytes() == b"payload" and old_path.read_bytes() == b"payload"
         order.append("commit")
 
     service.doc_repo.update.side_effect = update
     service.chunk_repo.move_to_space.side_effect = move_to_space
     service.db.commit.side_effect = commit
-    real_replace = os.replace
-
-    def replace(src: str, dst: str) -> None:
-        order.append("file")
-        real_replace(src, dst)
-
-    with patch.object(document_ops.os, "replace", replace):
-        result = await document_ops.move_documents(
-            service,
-            space.id,
-            user_id,
-            RAGDocumentMoveRequest(ids=[doc.id], target_space_id=target.id),
-        )
+    result = await document_ops.move_documents(
+        service,
+        space.id,
+        user_id,
+        RAGDocumentMoveRequest(ids=[doc.id], target_space_id=target.id),
+    )
 
     assert result.done == [doc.id] and result.skipped == []
-    assert order == ["update", "chunks", "commit", "file"]
+    assert order == ["update", "chunks", "commit"]
     service.doc_repo.update.assert_awaited_once_with(doc, {"space_id": target.id})
     service.chunk_repo.move_to_space.assert_awaited_once_with(doc.id, target.id)
     assert not old_path.exists()
@@ -409,7 +460,7 @@ async def test_move_reverts_row_and_chunks_when_the_rename_fails(
 
     service.doc_repo.update.side_effect = update
 
-    with patch.object(document_ops.os, "replace", side_effect=OSError("disk full")):
+    with patch.object(document_ops, "stage_document_file", side_effect=OSError("disk full")):
         result = await document_ops.move_documents(
             service,
             space.id,
@@ -419,9 +470,9 @@ async def test_move_reverts_row_and_chunks_when_the_rename_fails(
 
     assert result.done == []
     assert [(s.id, s.code) for s in result.skipped] == [(doc.id, "document_move_failed")]
-    assert service.doc_repo.update.await_args_list[-1].args == (doc, {"space_id": space.id})
-    assert service.chunk_repo.move_to_space.await_args_list[-1].args == (doc.id, space.id)
-    assert service.db.commit.await_count == 2
+    service.doc_repo.update.assert_not_awaited()
+    service.chunk_repo.move_to_space.assert_not_awaited()
+    service.db.commit.assert_not_awaited()
     assert old_path.exists()
 
 

@@ -21,6 +21,7 @@ from typing import Any
 
 from langgraph.store.base import BaseStore
 
+from src.core.application_origin import ApplicationOrigin
 from src.core.exchange_rhythm import effective_exchange_rhythm
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.models import MessagesState
@@ -46,6 +47,7 @@ def build_runtime_context(
     user_execution_mode: str | None = None,
     user_exchange_rhythm: str | None = None,
     is_automated_source: bool = False,
+    application_origin: ApplicationOrigin | None = None,
 ) -> LiaRuntimeContext:
     """Build the context of one conversation run.
 
@@ -76,6 +78,8 @@ def build_runtime_context(
         user_exchange_rhythm: ``users.exchange_rhythm`` as stored; ``None`` (never
             chosen) or an unreadable value follows the instance default (ADR-311).
         is_automated_source: True for runs the user did not type.
+        application_origin: Live authenticated HTTP session authority, withdrawn from
+            automated or mismatched-actor runs. Never read from graph state or client hints.
 
     Returns:
         A ready-to-inject :class:`LiaRuntimeContext`.
@@ -96,6 +100,13 @@ def build_runtime_context(
         psyche_enabled=user_psyche_enabled,
         voice_enabled=user_voice_enabled,
         is_automated_source=is_automated_source,
+        application_origin=(
+            application_origin
+            if not is_automated_source
+            and application_origin is not None
+            and application_origin.user_id == user_id
+            else None
+        ),
         exchange_rhythm=effective_exchange_rhythm(user_exchange_rhythm),
         display_name=state.get("user_display_name"),
         deps=tool_deps,

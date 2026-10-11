@@ -137,6 +137,7 @@ def _schedule_post_response_extractions(
     final_content: str,
     previous_journal_injected_ids: list[str],
     psyche_appraisal: Any,
+    previous_journal_injected_revisions: dict[str, int] | None = None,
 ) -> None:
     """Schedule the six post-response background extractions (fire-and-forget).
 
@@ -163,6 +164,8 @@ def _schedule_post_response_extractions(
         previous_journal_injected_ids: Journal entries injected on the previous
             turn, for deferred self-evaluation (T → T+1, ADR-079).
         psyche_appraisal: Parsed self-report from the response, or None.
+        previous_journal_injected_revisions: Exact versions exposed on the previous
+            turn; legacy checkpoints without versions cannot reinforce a rule.
     """
     model_messages = as_model_messages(state.get(STATE_KEY_MESSAGES, []))
     user_memory_enabled = (
@@ -421,6 +424,7 @@ def _schedule_post_response_extractions(
                     assistant_response=final_content,
                     query_embedding=user_message_embedding,
                     previous_turn_injected_ids=previous_journal_injected_ids,
+                    previous_turn_injected_revisions=previous_journal_injected_revisions or {},
                 ),
                 name=f"journal_extraction_{user_id}_{thread_id[:8]}",
                 run_id=run_id,

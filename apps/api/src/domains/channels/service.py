@@ -306,8 +306,9 @@ class ChannelService:
         Raises:
             ResourceNotFoundError: If binding doesn't exist or belongs to another user.
         """
-        binding = await self.get_binding_with_ownership_check(binding_id, user_id)
-        binding = await self.repository.update(binding, {"is_active": not binding.is_active})
+        from src.domains.channels.preference_commands import toggle_owned_channel_binding
+
+        binding = await toggle_owned_channel_binding(self.db, user_id, binding_id)
 
         logger.info(
             "channel_binding_toggled",
@@ -329,12 +330,13 @@ class ChannelService:
         Raises:
             ResourceNotFoundError: If binding doesn't exist or belongs to another user.
         """
-        binding = await self.get_binding_with_ownership_check(binding_id, user_id)
-        await self.repository.delete(binding)
+        from src.domains.channels.preference_commands import unlink_owned_channel_binding
+
+        channel_type = await unlink_owned_channel_binding(self.db, user_id, binding_id)
 
         logger.info(
             "channel_binding_deleted",
             binding_id=str(binding_id),
             user_id=str(user_id),
-            channel_type=binding.channel_type,
+            channel_type=channel_type,
         )

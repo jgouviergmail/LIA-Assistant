@@ -10,7 +10,131 @@ Supported languages: fr, en, es, de, it, zh-CN
 import re
 
 from src.core.i18n import resolve_language
+from src.core.i18n_application import (
+    APPLICATION_CHANNEL_UNLINK,
+    APPLICATION_CONNECTOR_UNLINK,
+    APPLICATION_DRAFT_COPY,
+    APPLICATION_EXPIRY_LABELS,
+    APPLICATION_EXPORT_DOWNLOAD,
+    APPLICATION_EXPORT_REQUEST,
+    APPLICATION_FIELD_LABELS,
+    APPLICATION_INTEREST_BULK,
+    APPLICATION_INTEREST_CREATION,
+    APPLICATION_INTEREST_FEEDBACK,
+    APPLICATION_INTEREST_REACTIVATION,
+    APPLICATION_INTEREST_REMOVAL,
+    APPLICATION_INTEREST_UPDATE,
+    APPLICATION_LIVE_CONNECTOR,
+    APPLICATION_LIVE_PREFERENCES,
+    APPLICATION_LOCATION_CLEAR,
+    APPLICATION_MEMORY_BULK,
+    APPLICATION_MEMORY_CREATION,
+    APPLICATION_MEMORY_PIN,
+    APPLICATION_MEMORY_REMOVAL,
+    APPLICATION_MEMORY_UPDATE,
+    APPLICATION_NOTIFICATION_DEVICE_REMOVE,
+    APPLICATION_NUMBER_STATUS,
+    APPLICATION_OTHER_SESSIONS,
+    APPLICATION_PHONE_NUMBER,
+    APPLICATION_PHONE_PREFERENCES,
+    APPLICATION_REMINDER_CREATION,
+    APPLICATION_REMINDER_REMOVAL,
+    APPLICATION_REMINDER_UPDATE,
+    APPLICATION_ROUTINE_CREATION,
+    APPLICATION_ROUTINE_REMOVAL,
+    APPLICATION_ROUTINE_RUN,
+    APPLICATION_ROUTINE_STATE,
+    APPLICATION_ROUTINE_UPDATE,
+    APPLICATION_SESSION_CLOSED,
+    APPLICATION_SESSION_REVOKE,
+    APPLICATION_UNAVAILABLE,
+)
+from src.core.i18n_asset_delete import ASSET_DELETE_COPY
+from src.core.i18n_asset_download import ASSET_DOWNLOAD_COPY
+from src.core.i18n_asset_retention import ASSET_RETENTION_COPY
+from src.core.i18n_bookmark_delete import BOOKMARK_DELETE_COPY
+from src.core.i18n_bookmark_download import BOOKMARK_DOWNLOAD_COPY
+from src.core.i18n_bookmark_keep import BOOKMARK_KEEP_COPY
+from src.core.i18n_document_archive import DOCUMENT_ARCHIVE_COPY
+from src.core.i18n_document_delete import DOCUMENT_DELETE_COPY
+from src.core.i18n_document_download import DOCUMENT_DOWNLOAD_COPY
+from src.core.i18n_document_move import DOCUMENT_MOVE_COPY
+from src.core.i18n_document_upload import DOCUMENT_UPLOAD_COPY
+from src.core.i18n_email_share_send import EMAIL_SHARE_SEND_COPY
+from src.core.i18n_habit_actions import HABIT_ACTION_COPY
+from src.core.i18n_habit_forgetting import HABIT_FORGET_COPY, HABIT_FORGET_COUNTS
+from src.core.i18n_habit_recompute import HABIT_RECOMPUTE_COPY
+from src.core.i18n_habit_settings import HABIT_SETTINGS_COPY
+from src.core.i18n_health_removal import HEALTH_REMOVAL_COPY
+from src.core.i18n_health_token import HEALTH_TOKEN_COPY
+from src.core.i18n_health_token_creation import HEALTH_TOKEN_CREATION_COPY
+from src.core.i18n_journal_consolidation import JOURNAL_CONSOLIDATION_COPY
+from src.core.i18n_journal_creation import JOURNAL_CREATION_COPY
+from src.core.i18n_journal_export import JOURNAL_EXPORT_COPY
+from src.core.i18n_journal_feedback import JOURNAL_FEEDBACK_COPY
+from src.core.i18n_journal_removal import JOURNAL_REMOVAL_COPY
+from src.core.i18n_journal_settings import JOURNAL_SETTINGS_COPY
+from src.core.i18n_journal_update import JOURNAL_UPDATE_COPY
+from src.core.i18n_management_export import MANAGEMENT_EXPORT_COPY
+from src.core.i18n_meeting_deletion import MEETING_DELETION_COPY
+from src.core.i18n_meeting_email import MEETING_EMAIL_COPY
+from src.core.i18n_meeting_pdf import MEETING_PDF_COPY
+from src.core.i18n_meeting_preferences import MEETING_PREFERENCE_COPY
+from src.core.i18n_meeting_reformat import MEETING_REFORMAT_COPY
+from src.core.i18n_meeting_regeneration import MEETING_REGENERATION_COPY
+from src.core.i18n_meeting_report_restore import MEETING_REPORT_RESTORE_COPY
+from src.core.i18n_meeting_report_update import MEETING_REPORT_UPDATE_COPY
+from src.core.i18n_meeting_retry import MEETING_RETRY_COPY
+from src.core.i18n_meeting_template_actions import MEETING_TEMPLATE_ACTION_COPY
+from src.core.i18n_meeting_transcripts import MEETING_TRANSCRIPT_COPY
+from src.core.i18n_memory_export import MEMORY_EXPORT_COPY
+from src.core.i18n_open_loop import OPEN_LOOP_COPY
+from src.core.i18n_peer_block import PEER_BLOCK_COPY
+from src.core.i18n_peer_image import PEER_IMAGE_COPY
+from src.core.i18n_peer_preferences import PEER_PREFERENCES_COPY
+from src.core.i18n_peer_removal import PEER_REMOVAL_COPY
+from src.core.i18n_peer_request import PEER_REQUEST_COPY
+from src.core.i18n_peer_response import PEER_RESPONSE_COPY
+from src.core.i18n_peer_share import PEER_SHARE_COPY
+from src.core.i18n_personal_mcp import (
+    PERSONAL_MCP_CONFIGURATION_COPY,
+    PERSONAL_MCP_CONNECTION_COPY,
+    PERSONAL_MCP_DELETE_COPY,
+    PERSONAL_MCP_DESCRIPTION_COPY,
+    PERSONAL_MCP_OAUTH_COPY,
+    PERSONAL_MCP_OAUTH_DISCONNECT_COPY,
+    PERSONAL_MCP_SETTINGS_COPY,
+    PERSONAL_MCP_STATE_COPY,
+)
+from src.core.i18n_plugin_delete import PLUGIN_DELETE_COPY
+from src.core.i18n_plugin_import import PLUGIN_FILE_IMPORT_COPY, PLUGIN_IMPORT_COPY
+from src.core.i18n_psyche_reset import PSYCHE_RESET_COPY
+from src.core.i18n_psyche_settings import PSYCHE_SETTINGS_COPY
+from src.core.i18n_psyche_summary import PSYCHE_SUMMARY_COPY
+from src.core.i18n_recording_device import RECORDING_DEVICE_COPY
+from src.core.i18n_relation_context_refresh import RELATION_CONTEXT_REFRESH_COPY
+from src.core.i18n_relation_debrief_build import RELATION_DEBRIEF_BUILD_COPY
+from src.core.i18n_relation_favorite import RELATION_FAVORITE_COPY
+from src.core.i18n_relation_grouping import RELATION_GROUPING_COPY
+from src.core.i18n_relation_settings import RELATION_SETTINGS_COPY
+from src.core.i18n_skill_delete import SKILL_DELETE_COPY
+from src.core.i18n_skill_download import SKILL_DOWNLOAD_COPY
+from src.core.i18n_skill_file_upload import SKILL_FILE_UPLOAD_COPY
+from src.core.i18n_skill_library_import import SKILL_LIBRARY_IMPORT_COPY
+from src.core.i18n_skill_personal import SKILL_PERSONAL_COPY
+from src.core.i18n_skill_url_import import SKILL_URL_IMPORT_COPY
+from src.core.i18n_source_delete import SOURCE_DELETE_COPY
+from src.core.i18n_source_link import SOURCE_LINK_COPY
+from src.core.i18n_source_sync import SOURCE_SYNC_COPY
+from src.core.i18n_source_unlink import SOURCE_UNLINK_COPY
+from src.core.i18n_space_create import SPACE_CREATE_COPY
+from src.core.i18n_space_delete import SPACE_DELETE_COPY
+from src.core.i18n_space_update import SPACE_UPDATE_COPY
 from src.core.i18n_types import Language
+from src.core.i18n_workboard_comment import WORKBOARD_COMMENT_COPY
+from src.core.i18n_workboard_create import WORKBOARD_CREATE_COPY
+from src.core.i18n_workboard_delete import WORKBOARD_DELETE_COPY
+from src.core.i18n_workboard_update import WORKBOARD_UPDATE_COPY
 from src.core.text_clip import ELLIPSIS, one_line, spell_unseen
 
 # ============================================================================
@@ -970,6 +1094,284 @@ DRAFT_RECIPIENT_CONNECTOR: dict[Language, str] = {
 _RECIPIENT_PREVIEW_MAX_CHARS = 60
 #: What separates two recipients on a row.
 _RECIPIENT_JOINER = ", "
+
+
+for _language, _application_copy in APPLICATION_DRAFT_COPY.items():
+    DRAFT_SUCCESS_MESSAGES[_language]["application_action"] = _application_copy.success
+    DRAFT_CANCEL_MESSAGES[_language]["application_action"] = _application_copy.cancelled
+    DRAFT_SUMMARY_LABELS[_language]["application_action"] = _application_copy.summary
+    DRAFT_PREVIEW_LABELS[_language].update(
+        application_before=_application_copy.before,
+        application_after=_application_copy.after,
+        application_unavailable=APPLICATION_UNAVAILABLE[_language],
+        application_expiry=APPLICATION_EXPIRY_LABELS[_language],
+        application_location_clear=APPLICATION_LOCATION_CLEAR[_language],
+        application_channel_unlink=APPLICATION_CHANNEL_UNLINK[_language],
+        application_connector_unlink=APPLICATION_CONNECTOR_UNLINK[_language],
+        application_notification_device_remove=APPLICATION_NOTIFICATION_DEVICE_REMOVE[_language],
+        application_live_preferences=APPLICATION_LIVE_PREFERENCES[_language],
+        application_live_connector=APPLICATION_LIVE_CONNECTOR[_language],
+        application_phone_preferences=APPLICATION_PHONE_PREFERENCES[_language],
+        application_phone_number=APPLICATION_PHONE_NUMBER[_language],
+        application_session_revoke=APPLICATION_SESSION_REVOKE[_language],
+        application_session_closed=APPLICATION_SESSION_CLOSED[_language],
+        application_other_sessions_note=APPLICATION_OTHER_SESSIONS[_language].note,
+        application_other_sessions_count=APPLICATION_OTHER_SESSIONS[_language].count_label,
+        application_current_session_kept=APPLICATION_OTHER_SESSIONS[_language].current,
+        application_export_note=APPLICATION_EXPORT_REQUEST[_language].note,
+        application_management_export_note=MANAGEMENT_EXPORT_COPY[_language].note,
+        application_interests_export_title=MANAGEMENT_EXPORT_COPY[_language].interests,
+        application_journal_feedback_note=JOURNAL_FEEDBACK_COPY[_language][1],
+        application_health_token_note=HEALTH_TOKEN_COPY[_language][1],
+        application_health_token_creation_note=HEALTH_TOKEN_CREATION_COPY[_language][1],
+        application_field_health_token_to_create=HEALTH_TOKEN_CREATION_COPY[_language][0],
+        application_field_health_token_to_revoke=HEALTH_TOKEN_COPY[_language][0],
+        application_health_removal_note=HEALTH_REMOVAL_COPY[_language][1],
+        application_field_health_samples_to_delete=HEALTH_REMOVAL_COPY[_language][0],
+        application_psyche_summary_note=PSYCHE_SUMMARY_COPY[_language][1],
+        application_field_psyche_summary=PSYCHE_SUMMARY_COPY[_language][0],
+        application_field_journal_feedback=JOURNAL_FEEDBACK_COPY[_language][0],
+        application_journal_consolidation_note=JOURNAL_CONSOLIDATION_COPY[_language][1],
+        application_field_journal_consolidation=JOURNAL_CONSOLIDATION_COPY[_language][0],
+        application_journal_export_note=JOURNAL_EXPORT_COPY[_language].note,
+        application_journals_export_title=JOURNAL_EXPORT_COPY[_language].title,
+        application_memory_export_note=MEMORY_EXPORT_COPY[_language].note,
+        application_memories_export_title=MEMORY_EXPORT_COPY[_language].title,
+        application_export_download_note=APPLICATION_EXPORT_DOWNLOAD[_language].note,
+        application_export_download_title=APPLICATION_EXPORT_DOWNLOAD[_language].title,
+        application_export_title=APPLICATION_EXPORT_REQUEST[_language].title,
+        application_routine_note=APPLICATION_ROUTINE_STATE[_language].note,
+        application_routine_title=APPLICATION_ROUTINE_STATE[_language].title,
+        application_routine_enabled=APPLICATION_ROUTINE_STATE[_language].enabled,
+        application_routine_disabled=APPLICATION_ROUTINE_STATE[_language].disabled,
+        application_routine_creation_note=APPLICATION_ROUTINE_CREATION[_language].note,
+        application_routine_creation_title=APPLICATION_ROUTINE_CREATION[_language].title,
+        application_reminder_creation_note=APPLICATION_REMINDER_CREATION[_language].note,
+        application_reminder_creation_title=APPLICATION_REMINDER_CREATION[_language].title,
+        application_reminder_removal_note=APPLICATION_REMINDER_REMOVAL[_language],
+        application_reminder_update_note=APPLICATION_REMINDER_UPDATE[_language],
+        application_memory_pin_note=APPLICATION_MEMORY_PIN[_language].note,
+        application_memory_bulk_note=APPLICATION_MEMORY_BULK[_language].note,
+        application_field_memories_to_delete=APPLICATION_MEMORY_BULK[_language].title,
+        application_memory_removal_note=APPLICATION_MEMORY_REMOVAL[_language],
+        application_field_memory_to_delete=APPLICATION_MEMORY_CREATION[_language].title,
+        application_memory_update_note=APPLICATION_MEMORY_UPDATE[_language],
+        application_field_memory_configuration=APPLICATION_MEMORY_CREATION[_language].title,
+        application_memory_creation_note=APPLICATION_MEMORY_CREATION[_language].note,
+        application_interest_creation_note=APPLICATION_INTEREST_CREATION[_language].note,
+        application_interest_bulk_note=APPLICATION_INTEREST_BULK[_language].note,
+        application_interest_feedback_note=APPLICATION_INTEREST_FEEDBACK[_language].note,
+        application_open_loop_note=OPEN_LOOP_COPY[_language][1],
+        application_field_habits_enabled=HABIT_SETTINGS_COPY[_language][0],
+        application_habit_settings_note=HABIT_SETTINGS_COPY[_language][1],
+        application_psyche_settings_note=PSYCHE_SETTINGS_COPY[_language][4],
+        application_relation_settings_note=RELATION_SETTINGS_COPY[_language][2],
+        application_relation_favorite_note=RELATION_FAVORITE_COPY[_language][1],
+        application_relation_grouping_note=RELATION_GROUPING_COPY[_language][1],
+        application_relation_debrief_build_note=RELATION_DEBRIEF_BUILD_COPY[_language][1],
+        application_peer_preferences_note=PEER_PREFERENCES_COPY[_language][2],
+        application_peer_request_note=PEER_REQUEST_COPY[_language][1],
+        application_peer_response_note=PEER_RESPONSE_COPY[_language][1],
+        application_field_peer_response=PEER_RESPONSE_COPY[_language][0],
+        application_peer_share_note=PEER_SHARE_COPY[_language][1],
+        application_field_peer_share=PEER_SHARE_COPY[_language][0],
+        application_peer_removal_note=PEER_REMOVAL_COPY[_language][1],
+        application_field_peer_removal=PEER_REMOVAL_COPY[_language][0],
+        application_peer_block_note=PEER_BLOCK_COPY[_language][1],
+        application_peer_image_note=PEER_IMAGE_COPY[_language][1],
+        application_workboard_create_note=WORKBOARD_CREATE_COPY[_language][1],
+        application_space_create_note=SPACE_CREATE_COPY[_language][1],
+        application_field_space_create=SPACE_CREATE_COPY[_language][0],
+        application_document_download_note=DOCUMENT_DOWNLOAD_COPY[_language][1],
+        application_asset_download_note=ASSET_DOWNLOAD_COPY[_language][1],
+        application_field_asset_to_download=ASSET_DOWNLOAD_COPY[_language][0],
+        application_document_upload_note=DOCUMENT_UPLOAD_COPY[_language][1],
+        application_source_unlink_note=SOURCE_UNLINK_COPY[_language][1],
+        application_field_source_to_unlink=SOURCE_UNLINK_COPY[_language][0],
+        application_source_link_note=SOURCE_LINK_COPY[_language][1],
+        application_field_source_to_link=SOURCE_LINK_COPY[_language][0],
+        application_source_sync_note=SOURCE_SYNC_COPY[_language][1],
+        application_field_source_to_sync=SOURCE_SYNC_COPY[_language][0],
+        application_source_delete_note=SOURCE_DELETE_COPY[_language][1],
+        application_field_source_to_delete=SOURCE_DELETE_COPY[_language][0],
+        application_asset_retention_note=ASSET_RETENTION_COPY[_language][1],
+        application_field_asset_retention=ASSET_RETENTION_COPY[_language][0],
+        application_asset_delete_note=ASSET_DELETE_COPY[_language][1],
+        application_bookmark_keep_note=BOOKMARK_KEEP_COPY[_language][1],
+        application_field_skill_personal_state=SKILL_PERSONAL_COPY[_language][0],
+        application_field_personal_mcp_state=PERSONAL_MCP_STATE_COPY[_language][0],
+        application_personal_mcp_state_note=PERSONAL_MCP_STATE_COPY[_language][1],
+        application_field_personal_mcp_configuration=PERSONAL_MCP_CONFIGURATION_COPY[_language][0],
+        application_personal_mcp_configuration_note=PERSONAL_MCP_CONFIGURATION_COPY[_language][1],
+        application_field_personal_mcp_oauth=PERSONAL_MCP_OAUTH_COPY[_language][0],
+        application_personal_mcp_oauth_note=PERSONAL_MCP_OAUTH_COPY[_language][1],
+        application_field_meeting_delete=MEETING_DELETION_COPY[_language][0],
+        application_field_device_recording=RECORDING_DEVICE_COPY[_language][0],
+        application_recording_device_note=RECORDING_DEVICE_COPY[_language][1],
+        application_meeting_deletion_note=MEETING_DELETION_COPY[_language][1],
+        application_field_meeting_reformat=MEETING_REFORMAT_COPY[_language][0],
+        application_meeting_reformat_note=MEETING_REFORMAT_COPY[_language][1],
+        application_field_meeting_regeneration=MEETING_REGENERATION_COPY[_language][0],
+        application_meeting_regeneration_note=MEETING_REGENERATION_COPY[_language][1],
+        application_field_meeting_retry=MEETING_RETRY_COPY[_language][0],
+        application_meeting_retry_note=MEETING_RETRY_COPY[_language][1],
+        application_field_meeting_email_send=MEETING_EMAIL_COPY[_language][0],
+        application_meeting_email_note=MEETING_EMAIL_COPY[_language][1],
+        application_field_meeting_pdf_download=MEETING_PDF_COPY[_language][0],
+        application_meeting_pdf_note=MEETING_PDF_COPY[_language][1],
+        application_field_meeting_report_update=MEETING_REPORT_UPDATE_COPY[_language][0],
+        application_meeting_report_update_note=MEETING_REPORT_UPDATE_COPY[_language][1],
+        application_field_meeting_report_restore=MEETING_REPORT_RESTORE_COPY[_language][0],
+        application_meeting_report_restore_note=MEETING_REPORT_RESTORE_COPY[_language][1],
+        application_field_meeting_transcript_delete=MEETING_TRANSCRIPT_COPY[_language][0],
+        application_meeting_transcript_delete_note=MEETING_TRANSCRIPT_COPY[_language][1],
+        application_field_meeting_preferences=MEETING_PREFERENCE_COPY[_language][0],
+        application_meeting_preferences_note=MEETING_PREFERENCE_COPY[_language][1],
+        application_field_meeting_template_create=MEETING_TEMPLATE_ACTION_COPY[_language][0],
+        application_field_meeting_template_update=MEETING_TEMPLATE_ACTION_COPY[_language][1],
+        application_field_meeting_template_delete=MEETING_TEMPLATE_ACTION_COPY[_language][2],
+        application_meeting_template_create_note=MEETING_TEMPLATE_ACTION_COPY[_language][3],
+        application_meeting_template_update_note=MEETING_TEMPLATE_ACTION_COPY[_language][3],
+        application_meeting_template_delete_note=MEETING_TEMPLATE_ACTION_COPY[_language][3],
+        application_field_personal_mcp_settings=PERSONAL_MCP_SETTINGS_COPY[_language][0],
+        application_personal_mcp_settings_note=PERSONAL_MCP_SETTINGS_COPY[_language][1],
+        application_field_personal_mcp_server_delete=PERSONAL_MCP_DELETE_COPY[_language][0],
+        application_personal_mcp_delete_note=PERSONAL_MCP_DELETE_COPY[_language][1],
+        application_field_personal_mcp_description=PERSONAL_MCP_DESCRIPTION_COPY[_language][0],
+        application_personal_mcp_description_note=PERSONAL_MCP_DESCRIPTION_COPY[_language][1],
+        application_field_personal_mcp_connection=PERSONAL_MCP_CONNECTION_COPY[_language][0],
+        application_personal_mcp_connection_note=PERSONAL_MCP_CONNECTION_COPY[_language][1],
+        application_field_personal_mcp_oauth_disconnect=PERSONAL_MCP_OAUTH_DISCONNECT_COPY[
+            _language
+        ][0],
+        application_personal_mcp_oauth_disconnect_note=PERSONAL_MCP_OAUTH_DISCONNECT_COPY[
+            _language
+        ][1],
+        application_skill_update_note=SKILL_PERSONAL_COPY[_language][1],
+        application_field_skill_to_delete=SKILL_DELETE_COPY[_language][0],
+        application_skill_delete_note=SKILL_DELETE_COPY[_language][1],
+        application_field_plugin_to_delete=PLUGIN_DELETE_COPY[_language][0],
+        application_plugin_delete_note=PLUGIN_DELETE_COPY[_language][1],
+        application_field_plugin_url_import=PLUGIN_IMPORT_COPY[_language][0],
+        application_plugin_url_import_note=PLUGIN_IMPORT_COPY[_language][1],
+        application_field_plugin_file_upload=PLUGIN_FILE_IMPORT_COPY[_language][0],
+        application_plugin_file_upload_note=PLUGIN_FILE_IMPORT_COPY[_language][1],
+        application_field_skill_file_upload=SKILL_FILE_UPLOAD_COPY[_language][0],
+        application_skill_file_upload_note=SKILL_FILE_UPLOAD_COPY[_language][1],
+        application_field_skill_url_import=SKILL_URL_IMPORT_COPY[_language][0],
+        application_skill_url_import_note=SKILL_URL_IMPORT_COPY[_language][1],
+        application_field_skill_library_import=SKILL_LIBRARY_IMPORT_COPY[_language][0],
+        application_skill_library_import_note=SKILL_LIBRARY_IMPORT_COPY[_language][1],
+        application_field_skill_to_download=SKILL_DOWNLOAD_COPY[_language][0],
+        application_skill_download_note=SKILL_DOWNLOAD_COPY[_language][1],
+        application_bookmark_download_note=BOOKMARK_DOWNLOAD_COPY[_language][1],
+        application_field_saved_answer_to_download=BOOKMARK_DOWNLOAD_COPY[_language][0],
+        application_email_share_send_note=EMAIL_SHARE_SEND_COPY[_language][1],
+        application_field_email_to_send=EMAIL_SHARE_SEND_COPY[_language][0],
+        application_field_saved_answer_to_keep=BOOKMARK_KEEP_COPY[_language][0],
+        application_bookmark_delete_note=BOOKMARK_DELETE_COPY[_language][1],
+        application_field_saved_answer_to_delete=BOOKMARK_DELETE_COPY[_language][0],
+        application_field_assets_to_delete=ASSET_DELETE_COPY[_language][0],
+        application_field_document_to_upload=DOCUMENT_UPLOAD_COPY[_language][0],
+        application_field_document_to_download=DOCUMENT_DOWNLOAD_COPY[_language][0],
+        application_document_archive_note=DOCUMENT_ARCHIVE_COPY[_language][1],
+        application_field_archive_to_download=DOCUMENT_ARCHIVE_COPY[_language][0],
+        application_document_delete_note=DOCUMENT_DELETE_COPY[_language][1],
+        application_field_documents_to_delete=DOCUMENT_DELETE_COPY[_language][0],
+        application_document_move_note=DOCUMENT_MOVE_COPY[_language][1],
+        application_field_documents_to_move=DOCUMENT_MOVE_COPY[_language][0],
+        application_space_delete_note=SPACE_DELETE_COPY[_language][1],
+        application_field_space_delete=SPACE_DELETE_COPY[_language][0],
+        application_space_update_note=SPACE_UPDATE_COPY[_language][1],
+        application_field_space_update=SPACE_UPDATE_COPY[_language][0],
+        application_workboard_comment_note=WORKBOARD_COMMENT_COPY[_language][1],
+        application_field_workboard_comment=WORKBOARD_COMMENT_COPY[_language][0],
+        application_workboard_delete_note=WORKBOARD_DELETE_COPY[_language][1],
+        application_field_workboard_delete=WORKBOARD_DELETE_COPY[_language][0],
+        application_workboard_update_note=WORKBOARD_UPDATE_COPY[_language][1],
+        application_field_workboard_update=WORKBOARD_UPDATE_COPY[_language][0],
+        application_field_workboard_create=WORKBOARD_CREATE_COPY[_language][0],
+        application_field_peer_image=PEER_IMAGE_COPY[_language][0],
+        application_field_peer_block=PEER_BLOCK_COPY[_language][0],
+        application_field_peer_request=PEER_REQUEST_COPY[_language][0],
+        application_field_discovery_enabled=PEER_PREFERENCES_COPY[_language][0],
+        application_field_email_visible=PEER_PREFERENCES_COPY[_language][1],
+        application_relation_context_refresh_note=RELATION_CONTEXT_REFRESH_COPY[_language][1],
+        application_field_relation_context=RELATION_CONTEXT_REFRESH_COPY[_language][0],
+        application_field_relation_debrief=RELATION_DEBRIEF_BUILD_COPY[_language][0],
+        application_field_relation_grouping=RELATION_GROUPING_COPY[_language][0],
+        application_field_relation_favorite=RELATION_FAVORITE_COPY[_language][0],
+        application_field_relation_debrief_enabled=RELATION_SETTINGS_COPY[_language][0],
+        application_field_relation_overview_scope=RELATION_SETTINGS_COPY[_language][1],
+        application_journal_settings_note=JOURNAL_SETTINGS_COPY[_language][7],
+        application_field_journal_entries_to_delete=JOURNAL_REMOVAL_COPY[_language][0],
+        application_journal_removal_note=JOURNAL_REMOVAL_COPY[_language][1],
+        application_field_journal_entry_to_create=JOURNAL_CREATION_COPY[_language][0],
+        application_journal_creation_note=JOURNAL_CREATION_COPY[_language][1],
+        application_field_journal_entry=JOURNAL_UPDATE_COPY[_language][0],
+        application_journal_update_note=JOURNAL_UPDATE_COPY[_language][1],
+        **{
+            f"application_field_{field}": JOURNAL_SETTINGS_COPY[_language][index]
+            for index, field in enumerate(
+                (
+                    "journals_enabled",
+                    "journal_consolidation_enabled",
+                    "journal_consolidation_with_history",
+                    "journal_max_total_chars",
+                    "journal_context_max_chars",
+                    "journal_max_entry_chars",
+                    "journal_context_max_results",
+                )
+            )
+        },
+        application_psyche_reset_note=PSYCHE_RESET_COPY[_language][1],
+        application_field_psyche_reset=PSYCHE_RESET_COPY[_language][0],
+        application_field_psyche_enabled=PSYCHE_SETTINGS_COPY[_language][0],
+        application_field_psyche_display_avatar=PSYCHE_SETTINGS_COPY[_language][1],
+        application_field_psyche_sensitivity=PSYCHE_SETTINGS_COPY[_language][2],
+        application_field_psyche_stability=PSYCHE_SETTINGS_COPY[_language][3],
+        application_field_habit=HABIT_ACTION_COPY[_language][0],
+        application_habit_status_note=HABIT_ACTION_COPY[_language][1],
+        application_habit_delete_note=HABIT_ACTION_COPY[_language][2],
+        application_field_habit_data=HABIT_FORGET_COPY[_language][0],
+        application_habit_forget_note=HABIT_FORGET_COPY[_language][1],
+        application_habit_count=HABIT_FORGET_COUNTS[_language][0],
+        application_habit_profile_count=HABIT_FORGET_COUNTS[_language][1],
+        application_habit_activity_count=HABIT_FORGET_COUNTS[_language][2],
+        application_field_habit_recompute=HABIT_RECOMPUTE_COPY[_language][0],
+        application_habit_recompute_note=HABIT_RECOMPUTE_COPY[_language][1],
+        application_field_open_loop=OPEN_LOOP_COPY[_language][0],
+        application_interest_reactivation_note=APPLICATION_INTEREST_REACTIVATION[_language].note,
+        application_field_interest_to_reactivate=APPLICATION_INTEREST_REACTIVATION[_language].title,
+        application_field_interest_feedback=APPLICATION_INTEREST_FEEDBACK[_language].title,
+        application_field_interests_to_delete=APPLICATION_INTEREST_BULK[_language].title,
+        application_interest_removal_note=APPLICATION_INTEREST_REMOVAL[_language].note,
+        application_field_interest_to_delete=APPLICATION_INTEREST_REMOVAL[_language].title,
+        application_interest_update_note=APPLICATION_INTEREST_UPDATE[_language].note,
+        application_field_interest_configuration=APPLICATION_INTEREST_UPDATE[_language].title,
+        application_field_interest_to_create=APPLICATION_INTEREST_CREATION[_language].title,
+        application_field_memory_to_create=APPLICATION_MEMORY_CREATION[_language].title,
+        application_field_memory_pin=APPLICATION_MEMORY_PIN[_language].title,
+        application_memory_pinned=APPLICATION_MEMORY_PIN[_language].pinned,
+        application_memory_unpinned=APPLICATION_MEMORY_PIN[_language].unpinned,
+        application_field_reminder_to_delete=APPLICATION_REMINDER_CREATION[_language].title,
+        application_routine_removal_note=APPLICATION_ROUTINE_REMOVAL[_language],
+        application_routine_update_note=APPLICATION_ROUTINE_UPDATE[_language],
+        application_routine_run_note=APPLICATION_ROUTINE_RUN[_language].note,
+        application_field_routine_to_delete=APPLICATION_ROUTINE_STATE[_language].title,
+    )
+    DRAFT_PREVIEW_LABELS[_language].update(
+        {
+            f"application_number_{key}": value
+            for key, value in APPLICATION_NUMBER_STATUS[_language].items()
+        }
+    )
+    DRAFT_PREVIEW_LABELS[_language].update(
+        {
+            f"application_field_{key}": value
+            for key, value in APPLICATION_FIELD_LABELS[_language].items()
+        }
+    )
 
 
 def _stringify_recipient(value: object) -> str:

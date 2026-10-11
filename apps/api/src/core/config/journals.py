@@ -103,6 +103,13 @@ class JournalsSettings(BaseSettings):
         description="Minimum number of active entries before consolidation is eligible.",
     )
 
+    journal_consolidation_timeout_seconds: int = Field(
+        default=300,
+        ge=30,
+        le=1800,
+        description="Hard bound for a consolidation operation, including maintenance settlement.",
+    )
+
     journal_consolidation_history_max_messages: int = Field(
         default=JOURNAL_CONSOLIDATION_HISTORY_MAX_MESSAGES_DEFAULT,
         ge=10,

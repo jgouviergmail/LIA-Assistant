@@ -20,6 +20,9 @@ import { create } from 'zustand';
 import type { MoodLabel, PsycheState, PsycheStateSummary, RelationshipStage } from '@/types/psyche';
 
 interface PsycheStoreState {
+  ownerId: string | null;
+  bindOwner: (ownerId: string | null) => void;
+  clearObservedState: () => void;
   // Live mood state
   moodLabel: MoodLabel;
   moodColor: string;
@@ -51,6 +54,7 @@ interface PsycheStoreState {
 }
 
 const INITIAL_STATE = {
+  ownerId: null,
   moodLabel: 'neutral' as MoodLabel,
   moodColor: '#9ca3af',
   moodPleasure: 0,
@@ -69,6 +73,8 @@ const INITIAL_STATE = {
 
 export const usePsycheStore = create<PsycheStoreState>(set => ({
   ...INITIAL_STATE,
+  bindOwner: ownerId => set(previous => previous.ownerId === ownerId ? previous : { ...INITIAL_STATE, ownerId }),
+  clearObservedState: () => set(previous => ({ ...INITIAL_STATE, ownerId: previous.ownerId, enabled: previous.enabled, displayAvatar: previous.displayAvatar })),
 
   updateFromSSE: (summary: PsycheStateSummary) =>
     set(previous => ({

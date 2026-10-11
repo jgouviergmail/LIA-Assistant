@@ -39,7 +39,12 @@ from src.domains.telephony.live_tools import (
     attach_live_tools,
     live_tools_attached,
 )
-from src.domains.telephony.mandates import MandateInputs, build_override, mandate_for
+from src.domains.telephony.mandates import (
+    MandateInputs,
+    append_owner_portrait,
+    build_override,
+    mandate_for,
+)
 from src.domains.telephony.models import CallKind, PhoneCall, PhoneCallStatus
 from src.domains.telephony.repository import TelephonyRepository
 from src.domains.users.models import User
@@ -470,6 +475,14 @@ class TelephonyService:
                 result_budget_tokens=settings.live_delegation_result_max_tokens,
             ),
             mode=call_mode,
+        )
+
+        override = await append_owner_portrait(
+            override,
+            user=user,
+            kind=kind,
+            user_context=user_context if mandate.rich_context else "",
+            rich_context_allowed=mandate.rich_context,
         )
 
         created = await self._create_dialing_row(

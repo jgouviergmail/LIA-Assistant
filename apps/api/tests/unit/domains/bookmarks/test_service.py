@@ -52,6 +52,7 @@ def _request(content: str = "Réserve la salle B à 14 h") -> MagicMock:
 def repositories() -> tuple[MagicMock, MagicMock]:
     """The bookmark repository and the message reads, both stubbed."""
     bookmarks = MagicMock()
+    bookmarks.lock_keep_owner = AsyncMock()
     bookmarks.get_by_message = AsyncMock(return_value=None)
     bookmarks.count_for_user = AsyncMock(return_value=0)
     bookmarks.owned_assistant_message = AsyncMock(return_value=_message())

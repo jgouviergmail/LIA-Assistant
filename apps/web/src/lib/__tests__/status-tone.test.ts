@@ -200,7 +200,7 @@ describe('lifecycleTone', () => {
   it('gives every effect status a tone, and no two families the same one', () => {
     // The whole EffectStatus union, so a sixth value cannot ship unmapped and
     // land on the neutral fallback in silence.
-    const tones = ['succeeded', 'failed', 'refused', 'claimed', 'abandoned'].map(lifecycleTone);
+    const tones = ['succeeded', 'failed', 'refused', 'claimed', 'abandoned', 'waiting'].map(lifecycleTone);
     expect(new Set(tones).size).toBe(5);
   });
 

@@ -64,6 +64,7 @@ browser_task_catalogue_manifest = ToolManifest(
             type="string",
             description="Natural language description of the browsing task",
             required=True,
+            semantic_type="Text",
         ),
     ],
     outputs=[
@@ -71,6 +72,7 @@ browser_task_catalogue_manifest = ToolManifest(
             path="content",
             type="string",
             description="Extracted content from the browsing session (text, data, results)",
+            semantic_type="Text",
         ),
     ],
     cost=CostProfile(
@@ -119,6 +121,7 @@ browser_navigate_catalogue_manifest = ToolManifest(
             type="string",
             description="The URL to navigate to",
             required=True,
+            semantic_type="URL",
         ),
     ],
     outputs=[
@@ -126,6 +129,7 @@ browser_navigate_catalogue_manifest = ToolManifest(
             path="accessibility_tree",
             type="string",
             description="Page content as accessibility tree with [EN] element references",
+            semantic_type="Text",
         ),
         OutputFieldSchema(
             path="interactive_count",
@@ -181,6 +185,7 @@ browser_snapshot_catalogue_manifest = ToolManifest(
             path="accessibility_tree",
             type="string",
             description="Current page accessibility tree with [EN] references",
+            semantic_type="Text",
         ),
     ],
     cost=CostProfile(
@@ -236,6 +241,7 @@ browser_click_catalogue_manifest = ToolManifest(
             path="accessibility_tree",
             type="string",
             description="Page state after click",
+            semantic_type="Text",
         ),
     ],
     cost=CostProfile(
@@ -291,6 +297,7 @@ browser_fill_catalogue_manifest = ToolManifest(
             type="string",
             description="The value to fill into the field",
             required=True,
+            semantic_type="Text",
         ),
     ],
     outputs=[
@@ -298,6 +305,7 @@ browser_fill_catalogue_manifest = ToolManifest(
             path="accessibility_tree",
             type="string",
             description="Page state after filling the field",
+            semantic_type="Text",
         ),
     ],
     cost=CostProfile(
@@ -353,6 +361,7 @@ browser_press_key_catalogue_manifest = ToolManifest(
             path="accessibility_tree",
             type="string",
             description="Page state after key press",
+            semantic_type="Text",
         ),
     ],
     cost=CostProfile(

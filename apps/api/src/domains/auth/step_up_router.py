@@ -16,13 +16,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.config import settings
 from src.core.constants import RATE_LIMIT_STEP_UP_PER_MINUTE
 from src.core.dependencies import get_db
-from src.core.exceptions import raise_invalid_credentials, raise_invalid_input
+from src.core.exceptions import (
+    raise_invalid_credentials,
+    raise_invalid_input,
+    raise_step_up_required,
+)
 from src.core.security import verify_password
 from src.core.session_dependencies import (
     get_current_active_session,
     get_session_store,
     require_recent_step_up,
 )
+from src.core.session_freshness import step_up_valid_until
 from src.domains.auth.dependencies import create_user_rate_limiter
 from src.domains.auth.schemas import (
     StepUpPasswordRequest,
@@ -49,9 +54,11 @@ rate_limit_step_up = create_user_rate_limiter(
 
 async def _record_step_up(session_id: str, store: SessionStore) -> StepUpVerifiedResponse:
     """Mark the session stepped-up and return the freshness horizon."""
-    await store.mark_step_up(session_id)
+    started = datetime.now(UTC)
+    if not await store.mark_step_up(session_id):
+        raise_step_up_required()
     return StepUpVerifiedResponse(
-        step_up_valid_until=datetime.now(UTC) + timedelta(seconds=settings.step_up_window_seconds)
+        step_up_valid_until=started + timedelta(seconds=settings.step_up_window_seconds)
     )
 
 
@@ -69,33 +76,24 @@ async def step_up_status(
     lia_session: str | None = Cookie(default=None),
 ) -> StepUpStatusResponse:
     """Report available step-up methods for the Security UI."""
-    methods: list[str] = []
+    from src.domains.auth.security_queries import methods_for_account
+
     password_set = user.hashed_password is not None
-    if password_set:
-        methods.append("password")
-
-    # An identity-provider account can always re-prove itself by signing in
-    # again with that provider (the fresh session opens the step-up window).
-    # This is the ONLY method an OAuth-only account has before it enrolls a
-    # first passkey/TOTP — without it, enrollment and export deadlock.
-    if user.oauth_provider:
-        methods.append(f"oauth_{user.oauth_provider}")
-
+    has_passkeys, has_totp = False, False
     if settings.mfa_enabled:
         webauthn_service = WebAuthnService(db)
-        if await webauthn_service.list_credentials(user):
-            methods.append("passkey")
+        has_passkeys = bool(await webauthn_service.list_credentials(user))
         totp_service = TOTPService(db)
-        if await totp_service.has_confirmed_totp(user.id):
-            methods.append("totp")
+        has_totp = await totp_service.has_confirmed_totp(user.id)
+    methods = methods_for_account(user, has_passkeys=has_passkeys, has_totp=has_totp)
 
     valid_until: datetime | None = None
     if lia_session:
         session = await store.get_session(lia_session)
-        if session and session.step_up_at:
-            horizon = session.step_up_at + timedelta(seconds=settings.step_up_window_seconds)
-            if horizon > datetime.now(UTC):
-                valid_until = horizon
+        if session and session.user_id == str(user.id):
+            valid_until = step_up_valid_until(
+                session.step_up_at, datetime.now(UTC), settings.step_up_window_seconds
+            )
 
     return StepUpStatusResponse(
         methods=methods,

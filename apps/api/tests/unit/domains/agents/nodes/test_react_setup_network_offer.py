@@ -12,6 +12,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from src.domains.agents.nodes import react_nodes as mod
+from src.domains.agents.nodes import react_prompt as prompt_mod
 from src.domains.agents.nodes.react_nodes import react_setup_node
 
 pytestmark = pytest.mark.unit
@@ -31,21 +32,21 @@ def _lean_setup(monkeypatch: pytest.MonkeyPatch) -> Any:
 async def test_the_offer_reaches_the_prompt_when_the_sandbox_is_available() -> None:
     offer = object()
     with (
-        patch.object(mod, "sandbox_available", AsyncMock(return_value=True)),
-        patch.object(mod, "network_available", AsyncMock(return_value=offer)) as read,
-        patch.object(mod, "build_system_prompt", MagicMock(return_value="P")) as build,
+        patch.object(prompt_mod, "sandbox_available", AsyncMock(return_value=True)),
+        patch.object(prompt_mod, "network_available", AsyncMock(return_value=offer)) as read,
+        patch.object(prompt_mod, "build_system_prompt", MagicMock(return_value="P")) as build,
     ):
         await react_setup_node({"messages": []}, {"configurable": {}})
     read.assert_awaited_once()
-    assert build.call_args.kwargs == {"computation": True, "network": offer}
+    assert build.call_args.kwargs == {"computation": True, "network": offer, "tool_names": []}
 
 
 async def test_without_the_sandbox_the_offer_is_not_even_read() -> None:
     with (
-        patch.object(mod, "sandbox_available", AsyncMock(return_value=False)),
-        patch.object(mod, "network_available", AsyncMock()) as read,
-        patch.object(mod, "build_system_prompt", MagicMock(return_value="P")) as build,
+        patch.object(prompt_mod, "sandbox_available", AsyncMock(return_value=False)),
+        patch.object(prompt_mod, "network_available", AsyncMock()) as read,
+        patch.object(prompt_mod, "build_system_prompt", MagicMock(return_value="P")) as build,
     ):
         await react_setup_node({"messages": []}, {"configurable": {}})
     read.assert_not_awaited()
-    assert build.call_args.kwargs == {"computation": False, "network": None}
+    assert build.call_args.kwargs == {"computation": False, "network": None, "tool_names": []}

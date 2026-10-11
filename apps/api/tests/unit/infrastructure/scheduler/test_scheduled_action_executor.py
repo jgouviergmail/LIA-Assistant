@@ -258,6 +258,27 @@ def _sse_payload(env: _Env) -> dict[str, Any]:
 
 
 @pytest.mark.asyncio
+async def test_executor_refuses_a_routine_owned_by_a_different_account():
+    with _executor_env(chunks=[_chunk("token", "hello")]) as env:
+        env.action.user_id = uuid.uuid4()
+        result = await execute_single_action(action_id=env.action_id, user_id=env.user_id)
+    assert result == ""
+    env.agent_service.stream_chat_response.assert_not_called()
+
+
+@pytest.mark.parametrize("allowed", [[False], [True, False], [True, True, False]])
+async def test_a_withdrawn_exact_manual_guard_never_calls_the_pipeline(allowed: list[bool]):
+    guard = AsyncMock(side_effect=allowed)
+    with _executor_env(chunks=[_chunk("token", "hello")]) as env:
+        result = await execute_single_action(
+            action_id=env.action_id, user_id=env.user_id, execution_guard=guard
+        )
+    assert result == ""
+    env.agent_service.stream_chat_response.assert_not_called()
+    assert guard.await_count == len(allowed)
+
+
+@pytest.mark.asyncio
 async def test_execute_single_action_marks_run_as_automated_source():
     """execute_single_action must call stream_chat_response(is_automated_source=True).
 

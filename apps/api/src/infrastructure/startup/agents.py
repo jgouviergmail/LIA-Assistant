@@ -140,6 +140,12 @@ async def init_agent_registry(
         never happened.
     """
     registry = None  # Pre-init: used by MCP + semantic tool selector downstream
+    from src.infrastructure.proactive.context_sink import configure_proactive_context_writer
+
+    configure_proactive_context_writer(None)
+    from src.infrastructure.channels.assistant_gateway import configure_channel_gateway
+
+    configure_channel_gateway(None)
     try:
         from src.domains.agents.context import get_tool_context_store
         from src.domains.agents.graphs import (
@@ -163,6 +169,17 @@ async def init_agent_registry(
 
         # Get tool context store (AsyncPostgresStore for persistent contextual references)
         store = await get_tool_context_store()
+        from uuid import UUID
+
+        from pydantic import JsonValue
+
+        async def write_proactive_context(actor_id: UUID, value: dict[str, JsonValue]) -> None:
+            await store.aput((str(actor_id), "heartbeat_context"), "last_heartbeat", value)
+
+        configure_proactive_context_writer(write_proactive_context)
+        from src.domains.agents.api.channel_gateway import build_channel_gateway
+
+        configure_channel_gateway(build_channel_gateway())
 
         # Create and configure global registry
         from src.domains.agents.registry import AgentRegistry

@@ -1,7 +1,8 @@
 import { useCallback } from 'react';
 
 import { apiEndpointUrl } from '@/lib/api-client';
-import { useApiQuery } from './useApiQuery';
+import { useApplicationAccountQuery } from './useApplicationAccountQuery';
+import { useApplicationResourceSync } from './useApplicationResourceSync';
 import { useApiMutation } from './useApiMutation';
 
 const ENDPOINT = '/plugins';
@@ -46,6 +47,7 @@ export interface PluginComponentReport {
 
 /** Full outcome of a plugin install or update. */
 export interface PluginImportReport {
+  file_cleanup_pending?: boolean;
   plugin_id: string;
   name: string;
   version: string | null;
@@ -86,10 +88,10 @@ export function usePlugins() {
     loading,
     error,
     refetch,
-  } = useApiQuery<PluginListResponse>(ENDPOINT, {
-    componentName: 'Plugins',
-    initialData: { plugins: [], total: 0 },
-  });
+    ownerId,
+    isCurrent,
+  } = useApplicationAccountQuery<PluginListResponse>(ENDPOINT, 'Plugins');
+  useApplicationResourceSync(ownerId, 'plugins', refetch);
 
   const plugins = listData?.plugins ?? [];
   const total = listData?.total ?? 0;
@@ -110,6 +112,7 @@ export function usePlugins() {
    */
   const importPlugin = useCallback(
     async (file: File): Promise<PluginImportReport> => {
+      if (!isCurrent()) throw new Error('Application account changed');
       const formData = new FormData();
       formData.append('file', file);
 
@@ -125,34 +128,39 @@ export function usePlugins() {
       }
 
       const report: PluginImportReport = await response.json();
+      if (!isCurrent()) throw new Error('Application account changed');
       await refetch();
       return report;
     },
-    [refetch]
+    [isCurrent, refetch]
   );
 
   /** Install/update a plugin from an https URL (same hardened fetch as skills). */
   const importFromUrl = useCallback(
     async (url: string): Promise<PluginImportReport | undefined> => {
+      if (!isCurrent()) throw new Error('Application account changed');
       const report = await importFromUrlMutation.mutate(`${ENDPOINT}/import-from-url`, { url });
-      if (report) {
+      if (report && isCurrent()) {
         await refetch();
       }
-      return report;
+      return isCurrent() ? report : undefined;
     },
-    [importFromUrlMutation, refetch]
+    [importFromUrlMutation, isCurrent, refetch]
   );
 
   /** Uninstall a plugin and every component it installed (group removal). */
   const uninstallPlugin = useCallback(
     async (pluginId: string): Promise<void> => {
+      if (!isCurrent()) throw new Error('Application account changed');
       await deleteMutation.mutate(`${ENDPOINT}/${pluginId}`);
-      await refetch();
+      if (isCurrent()) await refetch();
     },
-    [deleteMutation, refetch]
+    [deleteMutation, isCurrent, refetch]
   );
 
   return {
+    ownerId,
+    hasLoaded: listData !== undefined,
     plugins,
     total,
     loading,

@@ -105,6 +105,7 @@ class TestOwnershipIsEnforcedByTheService:
         service = ReminderService(AsyncMock())
         service.repository = MagicMock()
         service.repository.get_by_id = AsyncMock(return_value=found)
+        service.repository.lock_owned = AsyncMock(return_value=found)
         service.repository.cancel_reminder = AsyncMock()
         return service
 

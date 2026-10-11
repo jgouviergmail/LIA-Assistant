@@ -261,6 +261,151 @@ words, reopens the account's eligibility when a source moves, and turns the
 « ~150-220 » / « ~50-70 tokens » written in prose since this ADR into two
 settings the prompt reads (ADR-184).
 
+## Amendment 2026-10-07 — evidence versions and faithful consolidation
+
+The functional audit reproduced independent failures: a late human restriction
+was cut from extraction, stale ORM counters lost concurrent reactions, editing a
+rule retained its old validation, deleting its final source retained the portrait,
+and successful completion swallowed edits made during a model call. Real model
+replays also turned a film-date verification method into a cinema interest and
+replaced two conditional choice rules with an unsupported permanent identity.
+
+The implementation now enforces these contracts in code:
+
+- Extraction retains the complete latest human message, admits conversation
+  writes only at L0/L1, and checks the actual previous exposure's rule revision.
+  A consent revision is checked before context, before model work and at settlement.
+- Independent outcomes are uniquely recorded in `journal_evidence_events` for
+  their rule revision. A semantic change (content, theme or level) starts a new
+  validation history. Exposure is not evidence; whole-answer positive feedback
+  remains descriptive reception and cannot alone certify a rule.
+- Consolidation uses one expiring per-account lease for manual and scheduled
+  calls. It captures journal/consent/source identities before model work and
+  checks them again under the owner lock. Provider work is prepared outside that
+  lock; maintenance, portrait and successful watermark commit together. Invalid,
+  failed and stale attempts consume pacing, never the successful revision.
+- A merge is an explicit operation over equivalent complete propositions at
+  the same theme and level. It unions reaction identities and provenance, and
+  refuses a merge that cannot preserve historical evidence.
+- The portrait is now a bounded **selection of complete, verified source
+  passages**, rather than unchecked free prose. This deliberately supersedes
+  the earlier instruction to paraphrase every source and never quote it.
+  Conditions, exception clauses, dates and uncertainty remain attached. The model
+  chooses relevant passages; code verifies and packs them under the application
+  token proxy. No additional model call is required. The brief format may be
+  empty if no complete passage fits.
+- Source identity includes gates, every row's identity/version, deletions,
+  source budgets and naturally expiring local-day material. Ambient consumers
+  and the portrait endpoint refuse invalid lineage. Contradiction and semantic
+  edits invalidate immediately; confirming evidence preserves already-current
+  selected words while making maintenance eligible.
+- The shared builders enforce effective permission, whole rendered budgets and
+  operational qualification. Native Live and telephone SELF reuse the bounded
+  portrait; third-party telephone recipients receive no owner portrait.
+
+The migration preserves descriptive counters and exposure history, demotes
+uncorroborated legacy high confidence and invalidates unversioned portraits.
+Source identity distinguishes semantic evidence from exposure bookkeeping.
+Canonical all-row fingerprints retain non-maximal edits and deletions, while
+access/notification timestamps cannot blank an otherwise current portrait.
+Memory ranking additionally binds the ordered selected IDs, so a genuine
+usage-driven page change remains stale. Habits bind both their mirror rows
+and the consumed rhythm profile; an unchanged nightly recompute does not
+create new evidence merely by moving its timestamp.
+
+PostgreSQL acceptance tests cover concurrency, revision checks, replay,
+rollback, source deletion, consent withdrawal and migration round trips.
+Finite tests do not establish longitudinal learning benefit: selection relevance,
+cross-entry semantic convergence and answer usefulness still require measured
+evaluation on representative conversations. See the current
+[technical reference](../technical/JOURNALS.md) for runtime seams and controls.
+
+## Corrective amendment 2026-10-07 — restore the portrait's synthesis voice
+
+The extractive portrait choice recorded in the preceding amendment was a
+product regression. "How LIA sees you" became copied memory facts, source and
+category labels, interest weights and operational `WHEN -> DO` rules. Exact
+source quotations avoided unsupported paraphrases but removed the synthesis
+that this ADR and ADR-292 require. The settings card correctly displayed the
+API words; removing labels or hiding facts in that card would leave the wrong
+portrait in every other flow. The extractive publication contract is therefore
+superseded by this correction.
+
+The full portrait again expresses supported cognitive posture, current phase
+or focus, relevant contexts and relationships as facets, known rhythm,
+observed tensions and open questions in natural prose from the assistant's
+perspective. The brief carries the useful posture, focus and interaction
+essence. Both use the account's language and admit complete synthesized text
+under the existing budgets. Missing facets remain absent. Raw names, dates,
+rosters, metrics, source labels and copied directives are evidence for the
+reasoning, not its visible portrait. A narrowly scoped email-control request
+cannot become an enduring need for control or a recurrent habit inferred from
+one instance; provisional inferences remain cautious in natural language.
+
+Generation returns structured claims with a facet, natural text, snapshot-bound
+source-item identifiers and brief eligibility. The server resolves each identifier
+to its canonical complete internal support passage; the model no longer recopies
+source punctuation and metadata. The prompt omits source items that cannot pass
+the completeness gate. Legacy exact quotes remain readable but cannot be combined
+with an identifier in the same support. Structural source checks establish
+traceability and current authorization. Journal supports cannot be created or
+mutated by the same maintenance batch, including merge winners and losers.
+Those checks still do not prove that a paraphrase preserves its sources'
+meaning, conditions or scope.
+
+Actual maintenance mutations nominate a subsequent paced portrait pass through
+provenance `portrait_pending`, while their successful watermark still consumes
+the writes. That later pass can cite the corrected current material. Omitted
+portrait claims keep outstanding work pending; an explicit proposal, including
+an empty list, consumes it when no actual maintenance remains. A cosmetic no-op
+does not reopen eligibility or erase an already-current portrait, and an
+already-reviewed portrait supported by unchanged material may remain current
+while the follow-up is pending. This is a separate operation, not a reprompt
+within the original generation.
+
+Nonempty budget-admitted claims therefore receive an independent bounded
+semantic review through the same configured `journal_consolidation` slot and
+account operation. Exact passages are sent once in a proof registry; the entire
+request must fit the domain review-input ceiling and half the effective model
+context before provider work. The verifier checks support, scope, style and uncertainty
+for each independently readable claim. A complete typed response selects the claims
+approved on every criterion; refused claims are omitted. A malformed, incomplete or
+truncated verdict, or a verdict approving no claim, rejects the operation and
+preserves an already-current portrait. Selection makes no additional model call or
+application-level retry. The existing provider retry bounds remain.
+Empty or maintenance-only proposals need no review. This changes the
+earlier zero-additional-call assertion: proposing a portrait now incurs
+conditional verification work, attributed alongside generation even when a
+later phase fails. Known paid partial failures remain accounted for. Consent,
+source identities and usage limits are rechecked before that spend. The receipt
+binds both the complete reviewed candidate and the approved publication, including
+their wording, exact proofs, brief membership and compiler policy; both are
+rechecked at atomic publication.
+
+This partial-publication correction addresses the repeated development failure
+observed with an empty journal on 2026-10-07: authorized memories and interests
+produced usable claims, but one refused claim vetoed all approved paragraphs.
+The selection is over the original budget-admitted candidate, not the generator's
+unfiltered list. Removing claims cannot refill a budget slot, promote a paragraph
+into the brief or introduce unchecked text. Each paragraph must retain its own
+subject, conditions and scope when another paragraph is removed. A wholly refused
+candidate is never converted into an empty proposal that clears the old portrait.
+
+Compiler-policy identity participates in the canonical source state. Stored
+extractive and unversioned portraits are omitted and nominated for actual
+recompilation; unchanged source rows cannot keep the old rendering current.
+Changing source eligibility or its proof protocol also changes that identity.
+No-output settlement cannot stamp new-policy provenance onto old words. The
+source budgets, separate provenance display, revision-bound evidence,
+consent/lease fences and atomic maintenance settlement remain in force.
+
+Semantic review is a separate judgment by the same configured model, not a
+statistically independent oracle or a deterministic proof of psychological
+truth or long-term usefulness. Qualification must include
+natural-output cases and scope-preserving paraphrases, alongside the SQL and
+revision invariants. See the [technical reference](../technical/JOURNALS.md)
+for the current runtime contract and attribution.
+
 ## References
 
 - [ADR-057: Personal Journals](ADR-057-Personal-Journals.md) — original design

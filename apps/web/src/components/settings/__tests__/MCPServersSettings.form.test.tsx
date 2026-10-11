@@ -59,6 +59,7 @@ const updateServer = vi.fn();
 
 function hook(over: Partial<McpHook> = {}) {
   return {
+    ownerId: 'owner',
     servers: [],
     total: 0,
     loading: false,
@@ -82,9 +83,7 @@ function hook(over: Partial<McpHook> = {}) {
 
 function render(over: Partial<McpHook> = {}) {
   useUserMCPServers.mockReturnValue(hook(over));
-  return renderWithProviders(
-    <MCPServersSettings lng="en" />
-  );
+  return renderWithProviders(<MCPServersSettings lng="en" />);
 }
 
 type User = ReturnType<typeof render>['user'];
@@ -117,6 +116,16 @@ beforeEach(() => {
 });
 
 describe('MCPServersSettings — creating a server', () => {
+  it('closes the old account credential form and clears all typed values', async () => {
+    const { user, rerender } = render({ ownerId: 'owner' });
+    const name = await openCreate(user);
+    await user.type(name, 'private owned name');
+    useUserMCPServers.mockReturnValue(hook({ ownerId: 'other' }));
+    rerender(<MCPServersSettings lng="en" />);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    const currentName = await openCreate(user);
+    expect(currentName).toHaveValue('');
+  });
   it('refuses to save until a name and a URL are given', async () => {
     const { user } = render();
     const name = await openCreate(user);
@@ -296,7 +305,7 @@ describe('MCPServersSettings — editing a server', () => {
     expect(saveButton()).toBeEnabled();
   });
 
-  it('clears a description by sending it as undefined', async () => {
+  it('clears a description by sending an explicit null', async () => {
     const { user } = render({
       servers: [server({ domain_description: 'Weather data' })],
       total: 1,
@@ -307,7 +316,7 @@ describe('MCPServersSettings — editing a server', () => {
     await user.click(saveButton());
 
     await waitFor(() =>
-      expect(updateServer).toHaveBeenCalledWith('s1', { domain_description: undefined })
+      expect(updateServer).toHaveBeenCalledWith('s1', { domain_description: null })
     );
   });
 

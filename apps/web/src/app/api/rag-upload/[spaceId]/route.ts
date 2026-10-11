@@ -22,6 +22,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import https from 'https';
 import http from 'http';
 import type { IncomingMessage } from 'http';
+import { applicationCommandStatusSchema } from '@/types/application-commands';
+import { documentUploadSelectionSchema } from '@/lib/application-document-upload';
 
 const API_URL_SERVER = process.env.API_URL_SERVER || 'https://api:8000';
 
@@ -102,7 +104,7 @@ let activeUploads = 0;
 
 /** JSON error with the shape the frontend already parses (`detail`). */
 function errorResponse(status: number, detail: string): NextResponse {
-  return NextResponse.json({ detail }, { status });
+  return NextResponse.json({ detail }, { status, headers: { 'cache-control': 'no-store' } });
 }
 
 /**
@@ -275,6 +277,21 @@ async function isSessionValid(sessionCookie: string): Promise<boolean> {
   }
 }
 
+async function isNativeUploadWaiting(cookie: string, command: string, spaceId: string): Promise<boolean> {
+  try {
+    const result = await requestUpstream(`${API_URL_SERVER}/api/v1/application-commands/${command}`, {
+      method: 'GET', headers: { cookie: `${SESSION_COOKIE_NAME}=${cookie}` }, timeoutMs: AUTH_CHECK_TIMEOUT_MS,
+    });
+    if (result.status !== 200) return false;
+    const status = applicationCommandStatusSchema.safeParse(JSON.parse(result.body));
+    if (!status.success || status.data.operation_id !== 'knowledge_document.upload' ||
+      status.data.command_id !== command || status.data.phase !== 'waiting' || status.data.interaction?.kind !== 'device') return false;
+    const selected = documentUploadSelectionSchema.safeParse(status.data.outcome?.values.document_to_upload);
+    return selected.success && selected.data.space.id === spaceId &&
+      Date.parse(status.data.expires_at) > Date.now();
+  } catch { return false; }
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ spaceId: string }> }
@@ -286,6 +303,10 @@ export async function POST(
   if (!SPACE_ID_UUID_RE.test(spaceId)) {
     return errorResponse(400, 'Invalid space id');
   }
+  const command = request.nextUrl.searchParams.get('application_command');
+  if (command !== null && (!SPACE_ID_UUID_RE.test(command) || request.headers.get('x-lia-file-confirmed') !== 'true')) {
+    return errorResponse(400, 'Invalid file confirmation');
+  }
 
   // SEC-006 step 1: no session cookie at all → refuse without reading anything.
   const sessionCookie = readCookie(request.headers.get('cookie'), SESSION_COOKIE_NAME);
@@ -296,6 +317,9 @@ export async function POST(
   // SEC-006 step 2: a cookie is not a session — resolve it upstream first.
   if (!(await isSessionValid(sessionCookie))) {
     return errorResponse(401, 'Authentication required');
+  }
+  if (command !== null && !(await isNativeUploadWaiting(sessionCookie, command, spaceId))) {
+    return errorResponse(403, 'Upload command unavailable');
   }
 
   // SEC-006 step 3: bound how much this process can hold at once. Checked after
@@ -322,25 +346,11 @@ export async function POST(
 
     // spaceId is a validated UUID; encodeURIComponent is defense in depth so the
     // segment can never widen the path even if the guard above is ever loosened.
-    const targetUrl = `${API_URL_SERVER}/api/v1/rag-spaces/${encodeURIComponent(spaceId)}/documents`;
-
-    const upstream = await requestUpstream(
-      targetUrl,
-      {
-        method: 'POST',
-        headers: {
-          'content-type': request.headers.get('content-type') || 'application/octet-stream',
-          'content-length': String(body.byteLength),
-          cookie: `${SESSION_COOKIE_NAME}=${sessionCookie}`,
-        },
-        timeoutMs: UPSTREAM_TIMEOUT_MS,
-      },
-      body
-    );
+    const upstream = await forwardUpload(request, body, sessionCookie, spaceId, command);
 
     return new NextResponse(upstream.body, {
       status: upstream.status,
-      headers: { 'content-type': upstream.contentType },
+      headers: { 'content-type': upstream.contentType, 'cache-control': 'no-store' },
     });
   } catch {
     // Never surface the transport error: it leaks internal hostnames, ports and
@@ -349,4 +359,27 @@ export async function POST(
   } finally {
     activeUploads -= 1;
   }
+}
+
+/** Forward exactly once to the admitted GUI or original-browser command route. */
+function forwardUpload(
+  request: NextRequest,
+  body: Buffer,
+  sessionCookie: string,
+  spaceId: string,
+  command: string | null
+): Promise<UpstreamResult> {
+  const targetUrl = command === null
+    ? `${API_URL_SERVER}/api/v1/rag-spaces/${encodeURIComponent(spaceId)}/documents`
+    : `${API_URL_SERVER}/api/v1/application-commands/${encodeURIComponent(command)}/document-upload`;
+  return requestUpstream(targetUrl, {
+    method: 'POST',
+    headers: {
+      'content-type': request.headers.get('content-type') || 'application/octet-stream',
+      'content-length': String(body.byteLength),
+      cookie: `${SESSION_COOKIE_NAME}=${sessionCookie}`,
+      ...(command === null ? {} : { 'x-lia-file-confirmed': 'true' }),
+    },
+    timeoutMs: UPSTREAM_TIMEOUT_MS,
+  }, body);
 }

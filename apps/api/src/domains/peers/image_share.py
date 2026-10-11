@@ -31,7 +31,8 @@ from __future__ import annotations
 import asyncio
 import shutil
 import uuid
-from contextlib import suppress
+from collections.abc import Awaitable, Callable
+from contextlib import nullcontext, suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -85,6 +86,12 @@ QUOTA_REACHED_CODE = "peers_image_quota_reached"
 _NOT_CONNECTED_CODE = "peers_not_connected"
 #: Scope of the per-sender lock the two daily caps are counted under.
 _SHARE_LOCK_SCOPE = "peer_image_share"
+
+ImageShareCommit = Callable[[AsyncSession, Attachment, PeerImageShare, Path], Awaitable[None]]
+
+
+class ImageShareCommitUnknown(RuntimeError):
+    """An attempted commit cannot be treated as a rejected copy or automatically retried."""
 
 
 @dataclass(frozen=True)
@@ -165,7 +172,11 @@ async def _recipient_of(
 
 
 def _source_file(attachment: Attachment) -> Path:
-    return Path(settings.attachments_storage_path) / attachment.file_path
+    root = Path(settings.attachments_storage_path).resolve()
+    source = (root / attachment.file_path).resolve()
+    if not source.is_relative_to(root):
+        _refuse("not_shareable", NOT_SHAREABLE_CODE)
+    return source
 
 
 async def _shareable_source(
@@ -246,6 +257,19 @@ def _copy_file(source: Path, target: Path) -> None:
     shutil.copyfile(source, target)
 
 
+async def _copy_without_abandoning_file(source: Path, target: Path) -> None:
+    """Cancellation waits for the disk worker before withdrawing its completed copy."""
+    task = asyncio.create_task(asyncio.to_thread(_copy_file, source, target))
+    try:
+        await asyncio.shield(task)
+    except asyncio.CancelledError:
+        try:
+            await task
+        finally:
+            await asyncio.to_thread(target.unlink, True)
+        raise
+
+
 async def _record(
     db: AsyncSession,
     *,
@@ -295,6 +319,8 @@ async def share_image(
     connection_id: uuid.UUID,
     attachment_id: uuid.UUID,
     comment: str | None,
+    commit: ImageShareCommit | None = None,
+    record_user_action: bool = True,
 ) -> SharedImage:
     """Copy one of the sender's generated images into a connection's gallery.
 
@@ -304,6 +330,10 @@ async def share_image(
         connection_id: The accepted connection it travels on.
         attachment_id: The sender's generated image.
         comment: Optional words for the recipient, quoted literally in their chat.
+        commit: Optional caller-owned guard/commit boundary. It must raise
+            ImageShareCommitUnknown when its commit may have succeeded.
+        record_user_action: False only when the caller's confirmed tool already
+            records the action, to avoid a second synthetic clicked-action row.
 
     Returns:
         The committed share, with what the recipient's chat needs.
@@ -328,11 +358,12 @@ async def share_image(
     target = Path(settings.attachments_storage_path) / relative_path
     # The sender's act, in the action register (ADR-263): claimed once every
     # check has passed and before the copy, settled from the commit.
-    async with recorded_action(
+    action = recorded_action(
         user_id=sender_id, capability=PEER_IMAGE_SHARE_CAPABILITY, arguments={}
-    ) as act:
+    )
+    async with action if record_user_action else nullcontext():
         try:
-            await asyncio.to_thread(_copy_file, _source_file(source), target)
+            await _copy_without_abandoning_file(_source_file(source), target)
             copy, share = await _record(
                 db,
                 source=source,
@@ -344,8 +375,22 @@ async def share_image(
                 connection_id=connection_id,
                 now=now,
             )
-            await db.commit()
-        except Exception as exc:
+            if commit is None:
+                try:
+                    await db.commit()
+                except (Exception, asyncio.CancelledError) as exc:
+                    raise ImageShareCommitUnknown(
+                        "Image share commit was not acknowledged"
+                    ) from exc
+            else:
+                await commit(db, copy, share, target)
+        except ImageShareCommitUnknown:
+            # The commit may have succeeded. Removing its file would corrupt a
+            # committed recipient gallery. Retain it for authoritative recovery.
+            await db.rollback()
+            _count("completion_unknown")
+            raise
+        except BaseException as exc:
             # A copy nobody's row points at would outlive every sweep: withdraw it.
             await db.rollback()
             await asyncio.to_thread(target.unlink, True)
@@ -357,7 +402,7 @@ async def share_image(
                 error_type=type(exc).__name__,
             )
             raise
-        act.succeeded = True
+        action.succeeded = True
 
     _count("shared")
     logger.info(

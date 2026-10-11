@@ -9,10 +9,11 @@
  * local state and rollback on error.
  */
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import { useApiMutation } from '@/hooks/useApiMutation';
-import { useApiQuery } from '@/hooks/useApiQuery';
+import { useApplicationAccountQuery } from '@/hooks/useApplicationAccountQuery';
+import { useApplicationPreferenceState } from '@/hooks/useApplicationPreferenceState';
 import type { UserChatShortcut } from '@/lib/slash-commands';
 
 const ENDPOINT = '/chat/shortcuts';
@@ -38,42 +39,21 @@ export interface UseChatShortcutsReturn {
 }
 
 export function useChatShortcuts(enabled = true): UseChatShortcutsReturn {
-  const { data, loading, error } = useApiQuery<ChatShortcutsResponse>(ENDPOINT, {
-    componentName: 'useChatShortcuts',
-    enabled,
-  });
-  // Derived-with-override (no state-sync effect — react-hooks ratchet).
-  // Memoized so `save`'s dependency keeps a stable identity across renders.
-  const [override, setOverride] = useState<UserChatShortcut[] | null>(null);
-  const serverShortcuts = data?.shortcuts;
-  const shortcuts = useMemo(() => override ?? serverShortcuts ?? [], [override, serverShortcuts]);
-
-  const mutation = useApiMutation<ChatShortcutsPayload, ChatShortcutsResponse>({
+  const { data, loading, error, refetch, ownerId } = useApplicationAccountQuery<ChatShortcutsResponse>(ENDPOINT, 'useChatShortcuts', enabled);
+  const { mutate, loading: saving } = useApiMutation<ChatShortcutsPayload, ChatShortcutsResponse>({
     method: 'PUT',
     componentName: 'useChatShortcuts',
   });
-
-  const save = useCallback(
-    async (next: UserChatShortcut[]): Promise<boolean> => {
-      const previous = shortcuts;
-      setOverride(next);
-      try {
-        await mutation.mutate(ENDPOINT, { shortcuts: next });
-        return true;
-      } catch {
-        setOverride(previous);
-        return false;
-      }
-    },
-    [shortcuts, mutation]
-  );
+  const write = useCallback((next: UserChatShortcut[]) => mutate(ENDPOINT, { shortcuts: next }), [mutate]);
+  const saved = useMemo(() => data?.shortcuts ?? [], [data?.shortcuts]);
+  const { value, save } = useApplicationPreferenceState(ownerId, saved, 'chat_shortcuts', refetch, write);
 
   return {
-    shortcuts,
+    shortcuts: value ?? [],
     maxCount: data?.max_count ?? 0,
     loading,
     error: !!error,
     save,
-    saving: mutation.loading,
+    saving,
   };
 }

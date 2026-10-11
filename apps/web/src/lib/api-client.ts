@@ -11,6 +11,7 @@
 import { readErrorDetail } from '@/lib/api-error';
 import { API_TIMEOUT_DEFAULT, NATIVE_CLIENT_HEADER } from '@/lib/constants';
 import { isNativeShell } from '@/lib/native/shell';
+import { applicationDeviceHeaders } from '@/lib/application-device-identity';
 
 /**
  * HTTP client error with status code and response data.
@@ -429,6 +430,7 @@ class ApiClient {
     const needsContentType = ['POST', 'PUT', 'PATCH'].includes(method.toUpperCase());
     const headers: Record<string, string> = {
       ...(fetchConfig.headers as Record<string, string>),
+      ...applicationDeviceHeaders(endpoint),
     };
     if (needsContentType) {
       headers['Content-Type'] = 'application/json';

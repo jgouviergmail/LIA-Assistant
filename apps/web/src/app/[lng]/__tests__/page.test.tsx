@@ -34,6 +34,12 @@ vi.mock('@/components/landing/editorial/EditorialChapters', () => ({
 vi.mock('@/components/landing/editorial/PromiseSection', () => ({
   PromiseSection: () => <div data-testid="promise-section" />,
 }));
+vi.mock('@/components/landing/editorial/PersonalContextSection', () => ({
+  PersonalContextSection: () => <div data-testid="personal-context-section" />,
+}));
+vi.mock('@/components/landing/editorial/PlatformSection', () => ({
+  PlatformSection: () => <div data-testid="platform-section" />,
+}));
 vi.mock('@/components/landing/editorial/BasicsBand', () => ({
   BasicsBand: () => <div data-testid="basics-band" />,
 }));
@@ -85,11 +91,13 @@ describe('HomePage (cosmos landing)', () => {
       'landing-header',
       'cosmos-hero',
       'landing-video-section',
+      'gallery-section',
       'promise-section',
+      'personal-context-section',
       'editorial-chapters',
       'basics-band',
       'transparency-section',
-      'gallery-section',
+      'platform-section',
       'tech-section',
       'changelog-section',
       'blog-preview',
@@ -114,7 +122,7 @@ describe('HomePage (cosmos landing)', () => {
 
     // The pinned day and the finale render live (not mocked).
     expect(screen.getByRole('heading', { name: 'landing.day.title' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'landing.cta.title' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'landing.home_cta.title' })).toBeInTheDocument();
     // Finale horizon: clean planet — clouds only (no lightning, dawn, rim, moonlet).
     expect(container.querySelector('.cosmos-globe')).toBeInTheDocument();
     expect(container.querySelectorAll('.cosmos-cloud')).toHaveLength(3);

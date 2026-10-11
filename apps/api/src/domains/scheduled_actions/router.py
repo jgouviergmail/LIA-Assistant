@@ -11,25 +11,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.dependencies import get_db
-from src.core.exceptions import raise_scheduled_action_already_executing
 from src.core.session_dependencies import get_current_active_session
-from src.core.time_utils import now_utc
 from src.domains.scheduled_actions.models import (
     ScheduledAction as ScheduledActionModel,
-)
-from src.domains.scheduled_actions.models import (
-    ScheduledActionStatus,
 )
 from src.domains.scheduled_actions.schemas import (
     ScheduledActionCreate,
     ScheduledActionListResponse,
     ScheduledActionResponse,
     ScheduledActionUpdate,
-    ScheduledActionWeek,
-    ScheduledActionWeekCell,
     ScheduledActionWeekResponse,
 )
 from src.domains.scheduled_actions.service import ScheduledActionService
+from src.domains.scheduled_actions.week_projection import project_routine_week
 from src.domains.users.models import User
 from src.infrastructure.async_utils import safe_fire_and_forget
 from src.infrastructure.observability.logging import get_logger
@@ -97,32 +91,7 @@ async def week_scheduled_actions(
 ) -> ScheduledActionWeekResponse:
     """The current week of every routine of the current user."""
     weeks = await ScheduledActionService(db).week_for_user(user.id)
-    return ScheduledActionWeekResponse(
-        actions=[
-            ScheduledActionWeek(
-                id=week.action_id,
-                timezone=week.timezone,
-                week_start=week.week_start,
-                today=week.today,
-                cells=[
-                    ScheduledActionWeekCell(
-                        day=cell.day,
-                        date=cell.date,
-                        slot_at=cell.slot_at,
-                        hour=cell.hour,
-                        minute=cell.minute,
-                        outcome=cell.outcome,
-                        run_at=cell.run_at,
-                        error=cell.error,
-                        manual=cell.manual,
-                    )
-                    for cell in week.cells
-                ],
-            )
-            for week in weeks
-        ],
-        generated_at=now_utc(),
-    )
+    return project_routine_week(weeks)
 
 
 # =============================================================================
@@ -276,16 +245,7 @@ async def execute_scheduled_action(
     The result will appear in the user's conversation and as a notification.
     """
     service = ScheduledActionService(db)
-    action = await service.get_with_ownership_check(action_id, user.id)
-
-    # Guard: reject if already executing (scheduler or another manual trigger)
-    if action.status == ScheduledActionStatus.EXECUTING.value:
-        raise_scheduled_action_already_executing(action.id)
-
-    # Reserve status='executing' BEFORE fire-and-forget to prevent scheduler
-    # from picking up the same action concurrently (it queries WHERE status='active').
-    # If the background task crashes, recover_stale_executing resets it.
-    action.status = ScheduledActionStatus.EXECUTING.value
+    action = await service.reserve_manual_execution(action_id, user.id)
     await db.commit()
 
     # Fire-and-forget execution via background task

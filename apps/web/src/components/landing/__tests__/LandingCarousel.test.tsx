@@ -40,6 +40,24 @@ function stageAlt(): string {
 }
 
 describe('LandingCarousel', () => {
+  it('shows a single capture without navigation and keeps the full-screen view available', async () => {
+    const user = userEvent.setup();
+    const { container } = renderCarousel({ slides: SLIDES.slice(0, 1), zoomable: true });
+
+    expect(stageAlt()).toBe('Home screen');
+    expect(screen.queryByRole('button', { name: 'common.previous' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'common.next' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Home screen' })).toBeNull();
+    expect(container.querySelector('[aria-hidden="true"].tabular-nums')).toBeNull();
+    expect(screen.getByRole('group', { name: 'App captures' })).not.toHaveAttribute('tabindex');
+
+    const expand = screen.getByRole('button', { name: 'common.expand_image' });
+    await user.click(expand);
+    expect(screen.getByRole('dialog', { name: 'Home screen' })).toBeVisible();
+    await user.keyboard('{Escape}');
+    expect(expand).toHaveFocus();
+  });
+
   it('shows the first view with its caption and an always-visible control pair', () => {
     renderCarousel();
 
@@ -84,32 +102,52 @@ describe('LandingCarousel', () => {
 
   it('navigates on a swipe, and stays put below the threshold', () => {
     renderCarousel();
-    const stage = screen.getByRole('group', { name: 'App captures' });
+    const stage = () => screen.getByRole('img', { name: stageAlt() });
     // Distances are derived from the shared threshold, never hardcoded: the
     // constant may move, the intent (past it / short of it) may not.
     const past = CAROUSEL_SWIPE_THRESHOLD_PX + 20;
     const short = CAROUSEL_SWIPE_THRESHOLD_PX - 10;
     const at = (clientX: number) => ({ touches: [{ clientX }] });
 
-    fireEvent.touchStart(stage, at(300));
-    fireEvent.touchMove(stage, at(300 - past));
-    fireEvent.touchEnd(stage);
+    fireEvent.touchStart(stage(), at(300));
+    fireEvent.touchMove(stage(), at(300 - past));
+    fireEvent.touchEnd(stage());
     expect(stageAlt()).toBe('Chat screen');
 
-    fireEvent.touchStart(stage, at(300));
-    fireEvent.touchMove(stage, at(300 + past));
-    fireEvent.touchEnd(stage);
+    fireEvent.touchStart(stage(), at(300));
+    fireEvent.touchMove(stage(), at(300 + past));
+    fireEvent.touchEnd(stage());
     expect(stageAlt()).toBe('Home screen');
 
-    fireEvent.touchStart(stage, at(300));
-    fireEvent.touchMove(stage, at(300 - short));
-    fireEvent.touchEnd(stage);
+    fireEvent.touchStart(stage(), at(300));
+    fireEvent.touchMove(stage(), at(300 - short));
+    fireEvent.touchEnd(stage());
     expect(stageAlt()).toBe('Home screen');
 
     // A finger that lands and lifts without moving is a tap, not a swipe.
-    fireEvent.touchStart(stage, at(300));
-    fireEvent.touchEnd(stage);
+    fireEvent.touchStart(stage(), at(300));
+    fireEvent.touchEnd(stage());
     expect(stageAlt()).toBe('Home screen');
+  });
+
+  it('lets a visitor browse the mixed-format thumbnail rail without changing the active image', () => {
+    renderCarousel({
+      variant: 'application',
+      slides: SLIDES.map((slide, index) =>
+        index === 0 ? { ...slide, aspectRatio: 1440 / 2265 } : slide
+      ),
+    });
+    const thumbnail = screen.getByRole('button', { name: 'Home screen' });
+    const past = CAROUSEL_SWIPE_THRESHOLD_PX + 20;
+    fireEvent.touchStart(thumbnail, { touches: [{ clientX: 300 }] });
+    fireEvent.touchMove(thumbnail, { touches: [{ clientX: 300 - past }] });
+    fireEvent.touchEnd(thumbnail);
+    expect(stageAlt()).toBe('Home screen');
+    const image = screen.getByRole('img', { name: 'Home screen' });
+    fireEvent.touchStart(image, { touches: [{ clientX: 300 }] });
+    fireEvent.touchMove(image, { touches: [{ clientX: 300 - past }] });
+    fireEvent.touchEnd(image);
+    expect(stageAlt()).toBe('Chat screen');
   });
 
   it('offers one named thumbnail per view and marks the current one', async () => {

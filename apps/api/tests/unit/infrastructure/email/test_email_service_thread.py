@@ -16,9 +16,10 @@ class _RecordingSmtp:
 
     seen: dict[str, object] = {}
 
-    def __init__(self, host: str, port: int) -> None:
+    def __init__(self, host: str, port: int, *, timeout: float | None = None) -> None:
         _RecordingSmtp.seen["thread"] = threading.current_thread().name
         _RecordingSmtp.seen["host"] = (host, port)
+        _RecordingSmtp.seen["timeout"] = timeout
 
     def __enter__(self) -> _RecordingSmtp:
         return self
@@ -58,6 +59,7 @@ async def test_send_email_runs_smtp_in_a_worker_thread_with_the_platform_sender(
     assert smtp.seen["from"] == "lia@example.test"
     assert smtp.seen["to"] == "me@example.test"
     assert smtp.seen["host"] == ("relay.test", 2525)
+    assert isinstance(smtp.seen["timeout"], (int, float)) and smtp.seen["timeout"] > 0
     # asyncio.to_thread: the exchange happened off the loop's thread.
     assert smtp.seen["thread"] != threading.main_thread().name
     assert "From: lia@example.test" in str(smtp.seen["payload"])

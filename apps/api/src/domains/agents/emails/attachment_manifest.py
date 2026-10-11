@@ -61,18 +61,21 @@ get_email_attachment_catalogue_manifest = ToolManifest(
             type="string",
             required=True,
             description="The message id (from $steps or CONTEXT).",
+            semantic_type="message_id",
         ),
         ParameterSchema(
             name="attachment_id",
             type="string",
             required=False,
             description="The listed attachment handle (attachments[].attachment_id); wins over filename.",
+            semantic_type="email_attachment_id",
         ),
         ParameterSchema(
             name="filename",
             type="string",
             required=False,
             description="The attachment's file name, when its handle is unknown (must be unique).",
+            semantic_type="file_name",
         ),
         ParameterSchema(
             name="question",
@@ -89,13 +92,24 @@ get_email_attachment_catalogue_manifest = ToolManifest(
         ),
     ],
     outputs=[
-        OutputFieldSchema(path="filename", type="string", description="The file name as sent"),
         OutputFieldSchema(
-            path="mime_type", type="string", description="MIME type read from the bytes"
+            path="filename",
+            type="string",
+            description="The file name as sent",
+            semantic_type="file_name",
+        ),
+        OutputFieldSchema(
+            path="mime_type",
+            type="string",
+            description="MIME type read from the bytes",
+            semantic_type="file_mime_type",
         ),
         OutputFieldSchema(path="route", type="string", description="text | vision"),
         OutputFieldSchema(
-            path="text", type="string", description="The reading, one part (external content)"
+            path="text",
+            type="string",
+            description="The reading, one part (external content)",
+            semantic_type="file_content",
         ),
         OutputFieldSchema(path="part", type="integer", description="The part served"),
         OutputFieldSchema(path="parts", type="integer", description="Number of parts"),

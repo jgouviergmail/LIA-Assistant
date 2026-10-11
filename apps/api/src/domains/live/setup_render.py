@@ -9,9 +9,11 @@ function serves both, so the two renderings cannot drift. Extracted from
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from src.domains.journals.portrait_builder import build_journal_user_model_block
 from src.domains.live.direct_mandate import build_direct_setup_inputs
 
 if TYPE_CHECKING:
@@ -59,7 +61,7 @@ async def render_setup_inputs(
     """
     preferences = connectors.preferences(user)
     if mode == "direct":
-        return await build_direct_setup_inputs(
+        inputs = await build_direct_setup_inputs(
             user_id=user.id,
             model=chosen.model,
             voice=chosen.voice,
@@ -73,17 +75,32 @@ async def render_setup_inputs(
             personality=personality,
             psyche_block=psyche_block,
         )
-    return connectors.setup_inputs(
-        provider,
-        user,
-        chosen,
-        language=language,
-        timezone=timezone,
-        display_name=display_name,
-        now=now,
-        personality=personality,
-        psyche_block=psyche_block,
-    )
+    else:
+        inputs = connectors.setup_inputs(
+            provider,
+            user,
+            chosen,
+            language=language,
+            timezone=timezone,
+            display_name=display_name,
+            now=now,
+            personality=personality,
+            psyche_block=psyche_block,
+        )
+    # One composition for start and wake, shared by every provider and mode.
+    # A native domain refusal also refuses its ambient portrait.
+    if "journal" not in (user.phone_disabled_domains or ()):
+        portrait = await build_journal_user_model_block(
+            user.id,
+            format="brief",
+            flow="live",
+            max_tokens=inputs.target_tokens,
+            budget_prefix=inputs.system_instruction,
+        )
+        instruction = f"{inputs.system_instruction}\n\n{portrait}" if portrait else ""
+        if instruction:
+            inputs = replace(inputs, system_instruction=instruction)
+    return inputs
 
 
 __all__ = ["render_setup_inputs"]

@@ -59,7 +59,9 @@ class RelationDebriefRepository:
             The row, or None when this relationship has never been debriefed.
         """
         result = await self.db.execute(
-            select(RelationDebrief).where(
+            select(RelationDebrief)
+            .execution_options(populate_existing=True)
+            .where(
                 RelationDebrief.user_id == user_id,
                 RelationDebrief.name_key == name_key,
             )

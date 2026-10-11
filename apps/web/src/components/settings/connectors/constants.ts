@@ -228,7 +228,7 @@ export const CONNECTORS_WITH_PREFERENCES = [
 ];
 
 // Preference field mapping by connector type
-export const PREFERENCE_FIELDS: Record<string, string> = {
+export const PREFERENCE_FIELDS: Record<string, 'default_calendar_name' | 'default_task_list_name'> = {
   google_calendar: 'default_calendar_name',
   google_tasks: 'default_task_list_name',
   apple_calendar: 'default_calendar_name',

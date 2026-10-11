@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { Laptop, LogOut, MonitorSmartphone, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
@@ -30,6 +29,8 @@ import {
   type DeviceSession,
 } from '@/hooks/useSessions';
 import { logger } from '@/lib/logger';
+import { useApplicationAccountState } from '@/hooks/useApplicationAccountState';
+import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
 
 /**
  * "My devices" — live sessions of the account (security program D2).
@@ -43,28 +44,29 @@ import { logger } from '@/lib/logger';
 export function DeviceSessionsSettings() {
   const { t, i18n } = useTranslation();
   const { sessions, loading, revokeSession, revokeOthers } = useSessions();
-  const { guard, stepUpOpen, onVerified, onCancel } = useStepUpGuard();
   const { user, refreshUser } = useAuth();
+  const { isCurrent } = useApplicationAccountLifetime(user?.id);
+  const { guard, stepUpOpen, onVerified, onCancel } = useStepUpGuard({ ownerId: user?.id });
   const { setEnabled: setLoginNotifications } = useLoginNotificationsPreference();
-  const [notifBusy, setNotifBusy] = useState(false);
+  const [notifBusy, setNotifBusy] = useApplicationAccountState(user?.id, false);
 
   const handleNotifToggle = async (enabled: boolean) => {
     setNotifBusy(true);
     try {
       await setLoginNotifications(enabled);
-      await refreshUser();
+      if (isCurrent()) await refreshUser();
     } catch (err) {
       logger.error('Login-notification preference failed', err as Error, {
         component: 'DeviceSessionsSettings',
       });
-      toast.error(t('settings.security.devices.error_generic'));
+      if (isCurrent()) toast.error(t('settings.security.devices.error_generic'));
     } finally {
       setNotifBusy(false);
     }
   };
-  const [revokeTarget, setRevokeTarget] = useState<DeviceSession | null>(null);
-  const [revokeAllOpen, setRevokeAllOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [revokeTarget, setRevokeTarget] = useApplicationAccountState<DeviceSession | null>(user?.id, null);
+  const [revokeAllOpen, setRevokeAllOpen] = useApplicationAccountState(user?.id, false);
+  const [busy, setBusy] = useApplicationAccountState(user?.id, false);
 
   const formatDateTime = (iso: string): string =>
     new Date(iso).toLocaleString(i18n.language, {
@@ -96,13 +98,13 @@ export function DeviceSessionsSettings() {
     setBusy(true);
     try {
       await revokeSession(revokeTarget.id);
-      toast.success(t('settings.security.devices.revoked'));
+      if (isCurrent()) toast.success(t('settings.security.devices.revoked'));
       setRevokeTarget(null);
     } catch (err) {
       logger.error('Session revocation failed', err as Error, {
         component: 'DeviceSessionsSettings',
       });
-      toast.error(t('settings.security.devices.error_generic'));
+      if (isCurrent()) toast.error(t('settings.security.devices.error_generic'));
     } finally {
       setBusy(false);
     }
@@ -113,13 +115,13 @@ export function DeviceSessionsSettings() {
     try {
       const revoked = await guard(() => revokeOthers());
       setRevokeAllOpen(false);
-      toast.success(t('settings.security.devices.others_revoked', { count: revoked }));
+      if (isCurrent()) toast.success(t('settings.security.devices.others_revoked', { count: revoked }));
     } catch (err) {
       if (!(err instanceof ApiStepUpError)) {
         logger.error('Revoke-others failed', err as Error, {
           component: 'DeviceSessionsSettings',
         });
-        toast.error(t('settings.security.devices.error_generic'));
+        if (isCurrent()) toast.error(t('settings.security.devices.error_generic'));
       }
     } finally {
       setBusy(false);

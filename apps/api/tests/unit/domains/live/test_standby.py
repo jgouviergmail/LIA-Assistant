@@ -41,6 +41,16 @@ from tests.unit.domains.live.fakes import FakeRedis
 
 pytestmark = pytest.mark.unit
 
+
+@pytest.fixture(autouse=True)
+def _offline_portrait_reader():
+    """Standby tests exercise the real setup renderer without external data reads."""
+    with patch(
+        "src.domains.live.setup_render.build_journal_user_model_block", AsyncMock(return_value="")
+    ):
+        yield
+
+
 STANDBY = "src.domains.live.standby"
 CLOSING = "src.infrastructure.scheduler.voice_session_closing"
 SERVICE = "src.domains.live.service"

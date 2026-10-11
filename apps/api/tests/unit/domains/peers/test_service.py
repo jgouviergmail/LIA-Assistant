@@ -33,6 +33,7 @@ def _service() -> PeersService:
     service.repo = AsyncMock()
     service.repo.has_block_between.return_value = False
     service.repo.get_pair.return_value = None
+    service.repo.list_shares_for_connections.return_value = []
     service._get_discoverable_user = AsyncMock(  # type: ignore[method-assign]
         return_value=SimpleNamespace(id=ADDRESSEE, full_name="Peer Beta", email="beta@test.local")
     )
@@ -307,7 +308,6 @@ class TestPeerEmailVisibility:
     async def test_an_accepted_connection_sees_an_address_its_owner_opened(self):
         service = _service()
         service.repo.list_accepted_for_user.return_value = [self._accepted_pair()]
-        service.repo.list_shares.return_value = []
         self._directory(service, [(ADDRESSEE, "Peer Beta", "beta@test.local", True)])
 
         (view,) = await service.get_connections(REQUESTER)
@@ -318,7 +318,6 @@ class TestPeerEmailVisibility:
     async def test_a_peer_who_did_not_opt_in_keeps_only_the_masked_hint(self):
         service = _service()
         service.repo.list_accepted_for_user.return_value = [self._accepted_pair()]
-        service.repo.list_shares.return_value = []
         self._directory(service, [(ADDRESSEE, "Peer Beta", "beta@test.local", False)])
 
         (view,) = await service.get_connections(REQUESTER)

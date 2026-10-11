@@ -12,6 +12,7 @@ from uuid import UUID
 
 import structlog
 from sqlalchemy import func, select, update
+from sqlalchemy.engine import Result
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.repository import BaseRepository
@@ -25,6 +26,16 @@ class ReminderRepository(BaseRepository[Reminder]):
 
     def __init__(self, db: AsyncSession) -> None:
         super().__init__(db, Reminder)
+
+    async def lock_owned(self, reminder_id: UUID, user_id: UUID) -> Reminder | None:
+        """Refresh the owned row under the scheduler's same row-lock boundary."""
+        result: Result[tuple[Reminder]] = await self.db.execute(
+            select(Reminder)
+            .where(Reminder.id == reminder_id, Reminder.user_id == user_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        return result.scalar_one_or_none()
 
     async def get_pending_for_user(
         self,
@@ -55,6 +66,22 @@ class ReminderRepository(BaseRepository[Reminder]):
         )
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
+
+    async def page_pending_by_id(
+        self, user_id: UUID, *, after_id: UUID | None, limit: int
+    ) -> list[Reminder]:
+        """Owned pending rows in stable id order, with one look-ahead row."""
+        if not 1 <= limit <= 50:
+            raise ValueError("Invalid reminder page limit")
+        statement = (
+            select(Reminder)
+            .where(Reminder.user_id == user_id, Reminder.status == ReminderStatus.PENDING.value)
+            .order_by(Reminder.id.asc())
+            .limit(limit + 1)
+        )
+        if after_id is not None:
+            statement = statement.where(Reminder.id > after_id)
+        return list((await self.db.execute(statement)).scalars().all())
 
     async def count_pending_for_user(self, user_id: UUID) -> int:
         """How many reminders are still waiting to fire.

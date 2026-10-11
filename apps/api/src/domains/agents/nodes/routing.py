@@ -967,7 +967,7 @@ def route_from_react_call_model(
 
 def route_from_react_execute_tools(
     state: MessagesState,
-) -> Literal["react_call_model", "hitl_dispatch"]:
+) -> Literal["react_call_model", "hitl_dispatch", "react_execute_tools", "react_finalize"]:
     """Route after ReAct tool execution: draft confirmation or continue the loop.
 
     When a mutation tool prepared a draft, ``react_execute_tools_node`` sets
@@ -992,6 +992,17 @@ def route_from_react_execute_tools(
             decision=NODE_DRAFT_CRITIQUE,
         ).inc()
         return NODE_DRAFT_CRITIQUE
+
+    from src.domains.agents.nodes.react_execution import pending_calls
+    from src.domains.agents.utils.react_budget import react_exit_reason
+
+    reason = react_exit_reason(state)
+    if reason is not None:
+        note_stop_reason(reason)
+        return "react_finalize"
+
+    if pending_calls(state)[1]:
+        return "react_execute_tools"
 
     langgraph_conditional_edges_total.labels(
         edge_name="route_from_react_execute_tools",

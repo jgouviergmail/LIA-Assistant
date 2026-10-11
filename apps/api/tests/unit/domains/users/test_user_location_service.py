@@ -89,6 +89,7 @@ def db() -> AsyncMock:
 @pytest.mark.unit
 async def test_update_encrypts_and_persists(db: AsyncMock):
     user = _make_user(opt_in=True)
+    db.scalar.return_value = user
     module = "src.domains.users.user_location_service"
     enc_patch, dec_patch = _identity_crypto(module)
     with enc_patch, dec_patch:
@@ -107,6 +108,7 @@ async def test_update_encrypts_and_persists(db: AsyncMock):
 @pytest.mark.unit
 async def test_update_forbidden_when_opt_out(db: AsyncMock):
     user = _make_user(opt_in=False)
+    db.scalar.return_value = user
     result = await UserLocationService(db).update_last_known_location(
         user, lat=48.85, lon=2.35, accuracy=None
     )
@@ -120,6 +122,7 @@ async def test_update_forbidden_when_opt_out(db: AsyncMock):
 async def test_update_throttled_when_recent(db: AsyncMock):
     recent = datetime.now(UTC) - timedelta(minutes=5)
     user = _make_user(opt_in=True, last_known_updated_at=recent)
+    db.scalar.return_value = user
     module = "src.domains.users.user_location_service"
     enc_patch, dec_patch = _identity_crypto(module)
     with enc_patch, dec_patch:
@@ -135,6 +138,7 @@ async def test_update_throttled_when_recent(db: AsyncMock):
 async def test_update_accepts_after_throttle_window(db: AsyncMock):
     old = datetime.now(UTC) - timedelta(minutes=45)
     user = _make_user(opt_in=True, last_known_updated_at=old)
+    db.scalar.return_value = user
     module = "src.domains.users.user_location_service"
     enc_patch, dec_patch = _identity_crypto(module)
     with enc_patch, dec_patch:
@@ -148,6 +152,7 @@ async def test_update_accepts_after_throttle_window(db: AsyncMock):
 @pytest.mark.unit
 async def test_update_without_accuracy_omits_field(db: AsyncMock):
     user = _make_user(opt_in=True)
+    db.scalar.return_value = user
     module = "src.domains.users.user_location_service"
     enc_patch, dec_patch = _identity_crypto(module)
     with enc_patch, dec_patch:

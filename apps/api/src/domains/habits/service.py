@@ -103,6 +103,7 @@ class HabitsService:
             Outcome label for metrics: ``computed`` | ``skipped_no_delta``
             | ``skipped_no_activity``.
         """
+        await self.repository.lock_learning_owner(user.id)
         user_tz = resolve_user_timezone(user)
         now_local = datetime.now(user_tz)
         # Last COMPLETE local day: a partial today must never dilute presence.

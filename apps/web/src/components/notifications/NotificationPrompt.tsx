@@ -24,6 +24,8 @@ import { type Language } from '@/i18n/settings';
 import { toast } from 'sonner';
 import { logger } from '@/lib/logger';
 import { useFCMToken } from '@/hooks/useFCMToken';
+import { useAuth } from '@/hooks/useAuth';
+import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
 import { getDeviceType } from '@/lib/firebase';
 
 interface NotificationPromptProps {
@@ -70,6 +72,8 @@ export function NotificationPrompt({
   onSuccess,
 }: NotificationPromptProps) {
   const { t } = useTranslation(lng);
+  const { user } = useAuth();
+  const { isCurrent } = useApplicationAccountLifetime(user?.id);
   const {
     permissionStatus,
     isSupported,
@@ -94,6 +98,7 @@ export function NotificationPrompt({
    * This MUST be a direct user interaction for permission to work.
    */
   const handleEnableNotifications = async () => {
+    if (!isCurrent()) return;
     logger.info('NotificationPrompt: User clicked enable', {
       component: 'NotificationPrompt',
       permissionStatus,
@@ -105,6 +110,7 @@ export function NotificationPrompt({
     // await, `error` / `permissionStatus` still hold the values captured by
     // the render that created this handler (see EnrollmentResult).
     const result = await requestPermission();
+    if (!isCurrent()) return;
 
     if (result.status === 'enrolled') {
       toast.success(t('notifications.enabled_success'));

@@ -23,6 +23,7 @@ from fastapi.responses import JSONResponse
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from src.core.application_device_identity import APPLICATION_DEVICE_HEADER
 from src.core.client_ip import UNKNOWN_CLIENT_IP, resolve_client_ip
 from src.core.config import settings
 from src.core.constants import (
@@ -690,6 +691,7 @@ def setup_middleware(app: FastAPI) -> None:
             # ten minutes — Starlette's default `max_age`. The alternative was a
             # list of OAuth paths in the web client, and a path allowlist rots.
             NATIVE_CLIENT_HEADER,
+            APPLICATION_DEVICE_HEADER,
         ],
         # A bounded CSV preview must withhold a cut record across API origins.
         expose_headers=["X-Request-ID", "X-Preview-Truncated"],

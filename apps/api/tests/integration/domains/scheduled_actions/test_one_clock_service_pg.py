@@ -31,6 +31,50 @@ from src.domains.users.models import User
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
+
+@pytest.mark.parametrize(
+    "initial, state, desired",
+    [
+        (True, "active", False),
+        (False, "executing", True),
+        (False, "error", True),
+        (True, "active", True),
+    ],
+)
+async def test_explicit_enabled_state_preserves_scheduler_reservations_in_sql(
+    async_session: AsyncSession, initial: bool, state: str, desired: bool
+) -> None:
+    user_id = await _user(async_session)
+    service = ScheduledActionService(async_session)
+    action = await service.create(
+        user_id,
+        ScheduledActionCreate(
+            title="State", action_prompt="Read weather", recurrence=EVERY_DAY_AT_EIGHT
+        ),
+        user_timezone="Europe/Paris",
+    )
+    action.is_enabled = initial
+    action.status = state
+    action.consecutive_failures = 3
+    action.last_error = "source-error"
+    await async_session.commit()
+    before = action.next_trigger_at
+    await service.set_enabled(action.id, user_id, desired)
+    await async_session.commit()
+    await async_session.refresh(action)
+    assert action.is_enabled is desired
+    if state == "executing":
+        assert action.status == "executing" and action.next_trigger_at == before
+    elif initial == desired or not desired:
+        assert action.next_trigger_at == before and action.consecutive_failures == 3
+    else:
+        assert (
+            action.status == "active"
+            and action.consecutive_failures == 0
+            and action.last_error is None
+        )
+
+
 EVERY_DAY_AT_EIGHT = RecurrenceSpec(
     freq="daily",
     times=DailyTimes(mode="at", at=(TimeOfDay(hour=8, minute=0),)),

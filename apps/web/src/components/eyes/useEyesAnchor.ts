@@ -33,7 +33,8 @@ export interface AnchorPosition {
 export function anchoredPosition(
   start: DOMRect,
   end: DOMRect,
-  widget: { w: number; h: number }
+  widget: { w: number; h: number },
+  minimumTop = ANCHOR_MARGIN_PX
 ): AnchorPosition {
   const midX = (start.right + end.left) / 2;
   const midY = (start.top + start.bottom + end.top + end.bottom) / 4;
@@ -43,7 +44,7 @@ export function anchoredPosition(
   left = Math.min(left, end.left - ANCHOR_MARGIN_PX - widget.w);
   return {
     left: Math.max(ANCHOR_MARGIN_PX, left),
-    top: Math.max(ANCHOR_MARGIN_PX, midY - widget.h / 2),
+    top: Math.max(ANCHOR_MARGIN_PX, minimumTop, midY - widget.h / 2),
   };
 }
 
@@ -74,10 +75,22 @@ export function useEyesAnchor(
         return;
       }
       const widgetRect = rootRef.current?.getBoundingClientRect();
-      const next = anchoredPosition(start, end, {
-        w: widgetRect?.width ?? 0,
-        h: widgetRect?.height ?? 0,
-      });
+      // A large companion must never displace itself onto the search or
+      // action controls. The floating corner is available when the gap is tight.
+      if ((widgetRect?.width ?? 0) > end.left - start.right - ANCHOR_MARGIN_PX * 2) {
+        setPosition(prev => (prev === null ? prev : null));
+        return;
+      }
+      const navigation = firstVisibleRect('.lia-dashboard-header');
+      const next = anchoredPosition(
+        start,
+        end,
+        {
+          w: widgetRect?.width ?? 0,
+          h: widgetRect?.height ?? 0,
+        },
+        (navigation?.bottom ?? 0) + ANCHOR_MARGIN_PX
+      );
       setPosition(prev => (prev && prev.left === next.left && prev.top === next.top ? prev : next));
     };
 

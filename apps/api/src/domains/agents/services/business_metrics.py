@@ -81,6 +81,7 @@ OUTCOME_FAILURE = "failure"
 #: (``skill_runner_outcomes_total`` counts it). Not counted on any
 #: ``agent_success_rate_total`` series.
 OUTCOME_NO_AGENT = "no_agent"
+OUTCOME_WAITING = "waiting"
 
 #: One executed draft's status, as ``DraftExecutionResult.to_agent_result``
 #: writes it, as a verdict. A batch's aggregate status is not read: it says
@@ -498,6 +499,11 @@ def infer_conversation_outcome(
     """
     if _planning_failed(state):
         return OUTCOME_FAILURE
+    if draft_result and any(
+        isinstance(entry, dict) and entry.get("status") == "waiting"
+        for entry in _executed_drafts(draft_result)
+    ):
+        return OUTCOME_WAITING
     verdicts = [
         *_result_verdicts(_current_turn_results(state)),
         *_tool_verdicts(state),

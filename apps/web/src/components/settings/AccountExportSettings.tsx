@@ -10,7 +10,10 @@ import { Button } from '@/components/ui/button';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { StepUpDialog } from '@/components/auth/StepUpDialog';
 import { useStepUpGuard } from '@/hooks/useStepUpGuard';
-import { useApiQuery } from '@/hooks/useApiQuery';
+import { useAuth } from '@/hooks/useAuth';
+import { useApplicationAccountQuery } from '@/hooks/useApplicationAccountQuery';
+import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
+import { useApplicationResourceSync } from '@/hooks/useApplicationResourceSync';
 import { formatFileSize } from '@/lib/format';
 import { formatInstant } from '@/lib/format-instant';
 import { lifecycleTone } from '@/lib/status-tone';
@@ -24,6 +27,7 @@ interface ExportJob {
   created_at: string;
   completed_at: string | null;
   expires_at: string | null;
+  download_available: boolean;
 }
 
 /**
@@ -42,10 +46,12 @@ function ExportJobStatus({ job, locale }: { job: ExportJob | null | undefined; l
       </Badge>
       {job.status === 'done' && (
         <p className="text-xs text-muted-foreground">
-          {t('settings.security.export.ready_hint', {
-            size: job.file_size_bytes != null ? formatFileSize(job.file_size_bytes) : '—',
-            date: job.expires_at ? formatInstant(job.expires_at, locale) : '—',
-          })}
+          {job.download_available
+            ? t('settings.security.export.ready_hint', {
+                size: job.file_size_bytes != null ? formatFileSize(job.file_size_bytes) : '—',
+                date: job.expires_at ? formatInstant(job.expires_at, locale) : '—',
+              })
+            : t('settings.security.export.archive_unavailable')}
         </p>
       )}
       {job.status === 'expired' && (
@@ -72,54 +78,65 @@ function ExportJobStatus({ job, locale }: { job: ExportJob | null | undefined; l
  *
  * Requesting is step-up guarded (the archive contains decrypted personal
  * data); the section hides itself when the instance has exports disabled
- * (the flag-gated router answers 404). Polls while a job is in flight.
+ * (the flag-gated router answers 404).
  * Renders as a SettingsSection card like every other section.
  */
 export function AccountExportSettings() {
+  const { user } = useAuth();
+  return <AccountExportSettingsBody key={user?.id ?? 'anonymous'} />;
+}
+
+function AccountExportSettingsBody() {
   const { t, i18n } = useTranslation();
-  const [unavailable, setUnavailable] = useState(false);
-  const { data: job, refetch } = useApiQuery<ExportJob | null>('/account/export/latest', {
-    componentName: 'AccountExportSettings',
-    onError: error => {
-      if (error instanceof ApiError && error.status === 404) setUnavailable(true);
-    },
-  });
+  const { data: job, ownerId, error, refetch } = useApplicationAccountQuery<ExportJob | null>(
+    '/account/export/latest', 'AccountExportSettings'
+  );
+  const { isCurrent } = useApplicationAccountLifetime(ownerId);
   const { guard, stepUpOpen, onVerified, onCancel } = useStepUpGuard();
   const [busy, setBusy] = useState(false);
+  const releaseOverride = useCallback(() => {}, []);
+  useApplicationResourceSync(ownerId, 'account_export', refetch, releaseOverride);
 
   const inFlight = job?.status === 'pending' || job?.status === 'running';
 
   const handleRequest = useCallback(async () => {
+    if (!isCurrent() || busy || inFlight) return;
     setBusy(true);
     try {
-      await guard(() => apiClient.post('/account/export'));
+      await guard(async () => {
+        if (!isCurrent()) throw new ApiStepUpError();
+        return apiClient.post('/account/export');
+      });
+      if (!isCurrent()) return;
       toast.success(t('settings.security.export.requested'));
       await refetch();
     } catch (err) {
+      if (!isCurrent()) return;
       if (!(err instanceof ApiStepUpError)) {
-        logger.error('Export request failed', err as Error, {
+        logger.error('Export request failed', err instanceof Error ? err : new Error('Export request failed'), {
           component: 'AccountExportSettings',
         });
         toast.error(t('settings.security.export.error_generic'));
       }
     } finally {
-      setBusy(false);
+      if (isCurrent()) setBusy(false);
     }
-  }, [guard, refetch, t]);
+  }, [busy, inFlight, isCurrent, guard, refetch, t]);
 
-  if (unavailable) return null;
+  if (!ownerId || (error instanceof ApiError && error.status === 404)) return null;
 
   // Absolute API URL — the browser follows this link directly (streams the
   // archive to disk; the filename comes from Content-Disposition).
   const downloadHref =
-    job?.status === 'done' ? apiEndpointUrl(`/account/export/${job.id}/download`) : null;
+    job?.status === 'done' && job.download_available
+      ? apiEndpointUrl(`/account/export/${job.id}/download`) : null;
 
   const content = (
     <div className="space-y-3">
-      <div className="flex items-start gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
         <ExportJobStatus job={job} locale={i18n.language} />
-        <div className="ml-auto flex flex-col items-end gap-2 shrink-0">
-          <Button size="sm" onClick={handleRequest} disabled={busy || inFlight}>
+        <div className="flex flex-wrap gap-2 sm:ml-auto sm:flex-col sm:items-end shrink-0">
+          <Button size="sm" onClick={handleRequest} aria-disabled={busy || inFlight}>
             {inFlight
               ? t('settings.security.export.in_progress')
               : t('settings.security.export.request')}

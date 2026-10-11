@@ -46,8 +46,8 @@ async def meetings_job_reaper() -> None:
         requeued, dead_lettered = await repo.requeue_expired_leases(
             settings.meetings_job_max_attempts
         )
-        # ADR-259: a regeneration is a fire-and-forget without a lease; a hard
-        # kill leaves the stage set. Past the lease TTL nobody is working on it.
+        # Fenced regeneration heartbeats determine expiry; legacy queued rows
+        # fall back to their update timestamp after a hard kill.
         cleared = await repo.clear_stale_regenerations(settings.meetings_job_lease_ttl_seconds)
         orphans = await repo.fetch_stopped_orphans(
             grace_seconds=settings.meetings_reaper_interval_seconds, limit=_REDRIVE_BATCH
@@ -88,7 +88,8 @@ async def meetings_audio_retention_reaper() -> None:
         repo = MeetingRepository(db)
         due = await repo.fetch_audio_to_purge(limit=_PURGE_BATCH)
         for meeting in due:
-            await store.purge_meeting(meeting.user_id, meeting.id)
+            if not await store.purge_meeting(meeting.user_id, meeting.id):
+                continue
             await repo.mark_audio_purged(meeting.id, purged_at=datetime.now(UTC))
             purged += 1
         await db.commit()

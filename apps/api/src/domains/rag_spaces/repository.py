@@ -8,9 +8,11 @@ Phase: evolution — RAG Spaces (User Knowledge Documents)
 Created: 2026-03-14
 """
 
+from collections.abc import Sequence
 from uuid import UUID
 
 from sqlalchemy import case, delete, func, or_, select, update
+from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -24,6 +26,8 @@ from src.domains.rag_spaces.models import (
     RAGMailSource,
     RAGSpace,
 )
+from src.domains.rag_spaces.source_worker_lease import require_source_worker
+from src.domains.rag_spaces.space_mutation import lock_owned_space
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -39,6 +43,9 @@ class RAGSpaceRepository(BaseRepository[RAGSpace]):
 
     def __init__(self, db: AsyncSession) -> None:
         super().__init__(db, RAGSpace)
+
+    async def get_by_id_for_owner_update(self, space_id: UUID, user_id: UUID) -> RAGSpace | None:
+        return await lock_owned_space(self.db, user_id, space_id)
 
     async def get_by_id(self, id: UUID, include_inactive: bool = True) -> RAGSpace | None:
         """Get space by ID, including inactive spaces by default."""
@@ -229,12 +236,17 @@ class RAGDriveSourceRepository(BaseRepository[RAGDriveSource]):
     def __init__(self, db: AsyncSession) -> None:
         super().__init__(db, RAGDriveSource)
 
+    async def update(self, instance: RAGDriveSource, data: dict[str, object]) -> RAGDriveSource:
+        await require_source_worker(self.db, source_id=instance.id, kind="drive")
+        return await super().update(instance, data)
+
     async def get_all_for_space(self, space_id: UUID) -> list[RAGDriveSource]:
         """Get all Drive sources for a space, ordered by creation date descending."""
         stmt = (
             select(RAGDriveSource)
             .where(RAGDriveSource.space_id == space_id)
             .order_by(RAGDriveSource.created_at.desc())
+            .execution_options(populate_existing=True)
         )
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
@@ -275,6 +287,10 @@ class RAGMailSourceRepository(BaseRepository[RAGMailSource]):
 
     def __init__(self, db: AsyncSession) -> None:
         super().__init__(db, RAGMailSource)
+
+    async def update(self, instance: RAGMailSource, data: dict[str, object]) -> RAGMailSource:
+        await require_source_worker(self.db, source_id=instance.id, kind="mail")
+        return await super().update(instance, data)
 
     async def get_all_for_space(self, space_id: UUID) -> list[RAGMailSource]:
         """Every label source of a space, newest first."""
@@ -372,6 +388,7 @@ class RAGDocumentRepository(BaseRepository[RAGDocument]):
             RAGDocument.user_id == user_id,
             RAGDocument.status == RAGDocumentStatus.READY,
             RAGSpace.user_id == user_id,
+            RAGSpace.is_system.is_(False),
         ]
         if needle:
             filters.append(
@@ -387,6 +404,7 @@ class RAGDocumentRepository(BaseRepository[RAGDocument]):
             .order_by(RAGDocument.created_at.desc(), RAGDocument.id.desc())
             .limit(limit)
             .offset(offset)
+            .execution_options(populate_existing=True)
         )
         return list(rows.scalars().all()), total.scalar_one()
 
@@ -477,6 +495,29 @@ class RAGDocumentRepository(BaseRepository[RAGDocument]):
         )
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def get_by_drive_file_ids(
+        self, space_id: UUID, file_ids: Sequence[str]
+    ) -> dict[str, RAGDocument]:
+        """Read currentness for one provider page in one space-scoped query.
+
+        Duplicate identities retain the single-item lookup's explicit refusal;
+        a mapping must never silently choose an arbitrary document.
+        """
+        if not file_ids:
+            return {}
+        rows = await self.db.scalars(
+            select(RAGDocument).where(
+                RAGDocument.space_id == space_id, RAGDocument.drive_file_id.in_(file_ids)
+            )
+        )
+        indexed: dict[str, RAGDocument] = {}
+        for document in rows:
+            identity = document.drive_file_id
+            if identity is None or identity in indexed:
+                raise MultipleResultsFound("Ambiguous Drive document identity")
+            indexed[identity] = document
+        return indexed
 
     async def get_drive_file_ids_for_source(self, drive_source_id: UUID) -> set[str]:
         """Get all Drive file IDs already ingested for a given source."""

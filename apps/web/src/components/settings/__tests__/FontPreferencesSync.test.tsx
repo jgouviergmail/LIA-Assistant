@@ -72,6 +72,15 @@ describe('FontPreferencesSync', () => {
     expect(setFontSize).not.toHaveBeenCalled();
   });
 
+  it('does not carry an unsaved preview into another account with the same saved size', () => {
+    useAuth.mockReturnValue({ user: { id: 'first', font_size: 16 } });
+    const { rerender } = render(<FontPreferencesSync />);
+    fontState.fontSize = 18;
+    useAuth.mockReturnValue({ user: { id: 'second', font_size: 16 } });
+    rerender(<FontPreferencesSync />);
+    expect(setFontSize).toHaveBeenCalledWith(16);
+  });
+
   it('keeps the device choice for a visitor', () => {
     useAuth.mockReturnValue({ user: null });
     render(<FontPreferencesSync />);

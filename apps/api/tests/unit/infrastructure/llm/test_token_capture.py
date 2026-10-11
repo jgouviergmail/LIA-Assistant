@@ -14,10 +14,13 @@ billed every cached token twice — at the full input rate and at the cached one
 from __future__ import annotations
 
 from unittest.mock import MagicMock
+from uuid import uuid4
 
 import pytest
+from langchain_core.messages import AIMessage
 from langchain_core.outputs import ChatGeneration, LLMResult
 
+from src.infrastructure.cache.pricing_cache import capture_pricing_snapshot
 from src.infrastructure.llm.token_capture import TokenCaptureHandler
 
 
@@ -28,6 +31,30 @@ def _generation_with_usage(usage: dict | None) -> MagicMock:
     gen = MagicMock(spec=ChatGeneration)
     gen.message = message
     return gen
+
+
+def _direct_response(tokens_in: int, tokens_out: int) -> AIMessage:
+    return AIMessage(
+        content="synthetic response",
+        usage_metadata={
+            "input_tokens": tokens_in,
+            "output_tokens": tokens_out,
+            "total_tokens": tokens_in + tokens_out,
+        },
+    )
+
+
+@pytest.fixture
+def synthetic_pricing(monkeypatch):
+    """Use known in-memory prices; no supplier or real account is involved."""
+    monkeypatch.setattr(
+        "src.infrastructure.llm.token_capture.get_cached_cost_usd_eur",
+        lambda **kwargs: ((kwargs["prompt_tokens"] + kwargs["completion_tokens"]) * 0.001,) * 2,
+    )
+    monkeypatch.setattr(
+        "src.infrastructure.llm.token_capture.get_cached_usd_eur_rate", lambda _: 1.0
+    )
+    return capture_pricing_snapshot()
 
 
 @pytest.mark.unit
@@ -154,3 +181,87 @@ class TestTokenCaptureHandler:
         handler.on_llm_end(LLMResult(generations=[]))
         assert handler.tokens_in == 0
         assert handler.has_usage is False
+
+    def test_two_direct_call_fallbacks_share_capture_and_claim_only_new_usage(
+        self, synthetic_pricing
+    ):
+        handler = TokenCaptureHandler("synthetic-model")
+        first = _direct_response(10, 2)
+        handler.ensure_response_record(
+            first, model_name="synthetic-model", started_at=1.0, snapshot=synthetic_pricing
+        )
+        # The unchanged default still deduplicates the same logical operation.
+        handler.ensure_response_record(
+            first, model_name="synthetic-model", started_at=1.0, snapshot=synthetic_pricing
+        )
+        assert len(handler.claim_billing_records("synthetic-model")) == 1
+        checkpoint = len(handler.get_billing_records("synthetic-model"))
+        handler.ensure_response_record(
+            _direct_response(20, 3),
+            model_name="synthetic-model",
+            started_at=2.0,
+            snapshot=synthetic_pricing,
+            known_calls_before=checkpoint,
+        )
+        pending = handler.claim_billing_records("synthetic-model")
+        assert [(record.tokens_in, record.tokens_out) for record in pending] == [(20, 3)]
+        assert handler.claim_billing_records("synthetic-model") == ()
+        assert (handler.tokens_in, handler.tokens_out) == (30, 5)
+        records = handler.get_billing_records("synthetic-model")
+        assert [record.started_at for record in records] == [1.0, 2.0]
+        assert sum(record.cost_eur for record in records) == pytest.approx(0.035)
+
+    def test_second_callback_is_not_billed_again_by_its_direct_fallback(self, synthetic_pricing):
+        handler = TokenCaptureHandler("synthetic-model")
+        handler.ensure_response_record(
+            _direct_response(10, 2),
+            model_name="synthetic-model",
+            started_at=1.0,
+            snapshot=synthetic_pricing,
+        )
+        checkpoint = len(handler.get_billing_records("synthetic-model"))
+        response = _direct_response(20, 3)
+        second_id = uuid4()
+        handler.on_llm_start({}, [], run_id=second_id)
+        handler.on_llm_end(
+            LLMResult(generations=[[ChatGeneration(message=response)]]), run_id=second_id
+        )
+        handler.ensure_response_record(
+            response,
+            model_name="synthetic-model",
+            started_at=2.0,
+            snapshot=synthetic_pricing,
+            known_calls_before=checkpoint,
+        )
+        assert len(handler.get_billing_records("synthetic-model")) == 2
+        assert (handler.tokens_in, handler.tokens_out) == (30, 5)
+        assert sum(
+            record.cost_eur for record in handler.get_billing_records("synthetic-model")
+        ) == pytest.approx(0.035)
+
+    def test_failed_second_call_keeps_known_partial_spend_after_first_settlement(
+        self, synthetic_pricing
+    ):
+        handler = TokenCaptureHandler("synthetic-model")
+        handler.ensure_response_record(
+            _direct_response(10, 2),
+            model_name="synthetic-model",
+            started_at=1.0,
+            snapshot=synthetic_pricing,
+        )
+        assert len(handler.claim_billing_records("synthetic-model")) == 1
+        second_id = uuid4()
+        handler.on_llm_start({}, [], run_id=second_id)
+        handler.on_llm_error(
+            RuntimeError("synthetic review failure"),
+            run_id=second_id,
+            response=LLMResult(generations=[[ChatGeneration(message=_direct_response(3, 1))]]),
+        )
+        pending = handler.claim_billing_records("synthetic-model")
+        assert len(pending) == 1
+        assert pending[0].status == "error" and pending[0].failure_kind
+        assert (pending[0].tokens_in, pending[0].tokens_out) == (3, 1)
+        assert sum(
+            record.cost_eur for record in handler.get_billing_records("synthetic-model")
+        ) == pytest.approx(0.016)
+        assert handler.claim_billing_records("synthetic-model") == ()

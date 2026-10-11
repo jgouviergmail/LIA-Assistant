@@ -11,8 +11,8 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from src.domains.agents.web_fetch import url_validator
 from src.domains.skill_library.http import FetchOutcome, fetch
+from src.infrastructure.utils import url_validation as url_validator
 
 pytestmark = pytest.mark.unit
 

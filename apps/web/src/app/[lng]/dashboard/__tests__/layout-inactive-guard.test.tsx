@@ -39,6 +39,8 @@ import type { ConnectorHealthResponse, ConnectorHealthSettings } from '@/hooks/u
 import type { AvatarConfig } from '@/lib/avatars/types';
 import type { PersonalityListResponse, UserPersonalityResponse } from '@/types/personality';
 import { usePersonalityStore } from '@/stores/personalityStore';
+import { CompanionPresence } from '@/components/companion/CompanionPresence';
+import { usePsycheStore } from '@/stores/psycheStore';
 
 const { useAuth } = vi.hoisted(() => ({ useAuth: vi.fn() }));
 vi.mock('@/hooks/useAuth', () => ({ useAuth }));
@@ -71,6 +73,19 @@ vi.mock('@/components/broadcast/BroadcastModal', () => ({
 }));
 
 import DashboardLayout from '../layout';
+
+const { applicationEyesSpy } = vi.hoisted(() => ({ applicationEyesSpy: vi.fn() }));
+vi.mock('@/components/eyes/ApplicationEyes', () => ({
+  ApplicationEyes: () => {
+    applicationEyesSpy();
+    return (
+      <>
+        <CompanionPresence isAuthenticated renderAvatar={false} />
+        <div data-testid="application-avatar" />
+      </>
+    );
+  },
+}));
 
 const ACTIVE_USER = {
   id: 'u1',
@@ -176,6 +191,7 @@ async function renderLayout() {
 beforeEach(() => {
   vi.clearAllMocks();
   usePersonalityStore.getState().reset();
+  usePsycheStore.getState().reset();
   FakeEventSource.instances = [];
   vi.stubGlobal('EventSource', FakeEventSource);
   vi.stubGlobal(
@@ -209,6 +225,7 @@ describe('Dashboard shell — account awaiting activation', () => {
     expect(broadcastProviderSpy).not.toHaveBeenCalled();
     expect(broadcastModalSpy).not.toHaveBeenCalled();
     expect(FakeEventSource.instances).toHaveLength(0);
+    expect(applicationEyesSpy).not.toHaveBeenCalled();
   });
 
   it('still sends the account to the page that explains the situation', async () => {
@@ -221,6 +238,25 @@ describe('Dashboard shell — account awaiting activation', () => {
 });
 
 describe('Dashboard shell — active account', () => {
+  it('releases the previous account mood even on pages without a psyche query', async () => {
+    useAuth.mockReturnValue({ user: ACTIVE_USER, isLoading: false, logout: vi.fn() });
+    usePsycheStore.setState({ ownerId: 'previous-account', moodLabel: 'serene', enabled: true });
+    await renderLayout();
+    expect(usePsycheStore.getState().ownerId).toBe(ACTIVE_USER.id);
+    expect(usePsycheStore.getState().moodLabel).toBe('neutral');
+    expect(usePsycheStore.getState().enabled).toBe(false);
+    expect(vi.mocked(fetch).mock.calls.map(([input]) => String(input))).not.toContain(
+      '/api/v1/psyche/state'
+    );
+  });
+
+  it('preserves the current account mood when the shell mounts', async () => {
+    useAuth.mockReturnValue({ user: ACTIVE_USER, isLoading: false, logout: vi.fn() });
+    usePsycheStore.setState({ ownerId: ACTIVE_USER.id, moodLabel: 'serene', enabled: true });
+    await renderLayout();
+    expect(usePsycheStore.getState().moodLabel).toBe('serene');
+    expect(usePsycheStore.getState().enabled).toBe(true);
+  });
   it('renders the shell and its children', async () => {
     useAuth.mockReturnValue({ user: ACTIVE_USER, isLoading: false, logout: vi.fn() });
 
@@ -228,6 +264,7 @@ describe('Dashboard shell — active account', () => {
 
     expect(screen.getByTestId(CHILD_MARKER)).toBeInTheDocument();
     expect(broadcastProviderSpy).toHaveBeenCalled();
+    expect(screen.getAllByTestId('application-avatar')).toHaveLength(1);
     expect(FakeEventSource.instances).toHaveLength(1);
     unmount();
     expect(FakeEventSource.instances[0].close).toHaveBeenCalledOnce();
@@ -274,6 +311,7 @@ describe('Dashboard shell — signed out', () => {
 
     expect(screen.queryByTestId(CHILD_MARKER)).not.toBeInTheDocument();
     expect(broadcastProviderSpy).not.toHaveBeenCalled();
+    expect(applicationEyesSpy).not.toHaveBeenCalled();
     expect(push).toHaveBeenCalledWith(expect.stringContaining('login'));
   });
 });

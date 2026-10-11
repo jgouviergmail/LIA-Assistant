@@ -44,6 +44,12 @@ from src.core.security.utils import (
     generate_code_verifier,
     generate_state_token,
 )
+from src.infrastructure.mcp.oauth_application_guard import (
+    MCPApplicationOAuthCheck,
+    application_command_from_state,
+    application_oauth_state,
+    check_application_oauth,
+)
 from src.infrastructure.mcp.security import validate_http_endpoint
 from src.infrastructure.observability.log_facts import url_host
 
@@ -162,6 +168,7 @@ class MCPOAuthFlowHandler:
 
     def __init__(self) -> None:
         self._http_client = httpx.AsyncClient(timeout=settings.mcp_oauth_http_timeout_seconds)
+        self.application_command_id: UUID | None = None
 
     async def __aenter__(self) -> MCPOAuthFlowHandler:
         return self
@@ -280,6 +287,9 @@ class MCPOAuthFlowHandler:
         client_secret: str | None = None,
         requested_scopes: str | None = None,
         stored_issuer: str | None = None,
+        *,
+        application_command_id: UUID | None = None,
+        application_check: MCPApplicationOAuthCheck | None = None,
     ) -> tuple[str, dict]:
         """
         Build the OAuth authorization URL with PKCE.
@@ -304,6 +314,7 @@ class MCPOAuthFlowHandler:
             ValueError: If PKCE S256 is not supported, discovery fails, or the
                 authorization server changed and no re-registration is possible.
         """
+        await check_application_oauth(server_id, user_id, application_command_id, application_check)
         # Discover or use cached auth server metadata
         if cached_metadata and "authorization_endpoint" in cached_metadata:
             metadata = MCPAuthServerMetadata(cached_metadata)
@@ -391,6 +402,8 @@ class MCPOAuthFlowHandler:
         if is_native_client():
             state_data[NATIVE_FLOW_METADATA_KEY] = True
 
+        await check_application_oauth(server_id, user_id, application_command_id, application_check)
+        state_data.update(application_oauth_state(application_command_id))
         await self._store_state(state, state_data)
 
         # Build redirect URI
@@ -463,6 +476,8 @@ class MCPOAuthFlowHandler:
         code: str,
         state: str,
         iss: str | None = None,
+        *,
+        application_check: MCPApplicationOAuthCheck | None = None,
     ) -> tuple[UUID, UUID, str]:
         """
         Exchange authorization code for tokens.
@@ -486,6 +501,7 @@ class MCPOAuthFlowHandler:
         state_data = await self._consume_state(state)
         if not state_data:
             raise ValueError("Invalid or expired OAuth state token")
+        self.application_command_id = application_command_from_state(state_data)
 
         # RFC 9207 (spec 2026-07-28): validate a present `iss` against the
         # recorded issuer BEFORE the authorization code goes anywhere. Both
@@ -507,6 +523,9 @@ class MCPOAuthFlowHandler:
 
         server_id = UUID(state_data["server_id"])
         user_id = UUID(state_data["user_id"])
+        await check_application_oauth(
+            server_id, user_id, self.application_command_id, application_check
+        )
         code_verifier = decrypt_data(state_data["code_verifier"])
         token_endpoint = state_data["token_endpoint"]
         client_id = state_data["client_id"]
@@ -543,6 +562,9 @@ class MCPOAuthFlowHandler:
                 "Refusing to send the authorization code to an unvalidated token endpoint."
             )
 
+        await check_application_oauth(
+            server_id, user_id, self.application_command_id, application_check
+        )
         try:
             resp = await self._http_client.post(
                 token_endpoint,
@@ -601,6 +623,9 @@ class MCPOAuthFlowHandler:
             has_refresh_token=bool(tokens.get("refresh_token")),
         )
 
+        await check_application_oauth(
+            server_id, user_id, self.application_command_id, application_check
+        )
         return server_id, user_id, encrypted_creds
 
     # =========================================================================

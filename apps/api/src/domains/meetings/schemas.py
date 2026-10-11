@@ -11,13 +11,56 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from enum import Enum
-from typing import Any, Literal
+from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.core.constants import MEETINGS_BULK_MAX, MEETINGS_TEMPLATE_REF_MAX
+from src.core.meeting_reformat import MeetingReformatRequest as MeetingReformatRequest
+from src.core.meeting_reports import ActionItem as ActionItem
+from src.core.meeting_reports import MeetingPatchRequest as MeetingPatchRequest
+from src.core.meeting_reports import MeetingReport as MeetingReport
+from src.core.meeting_reports import Participant as Participant
+from src.core.meeting_reports import ReportSection as ReportSection
+from src.core.meeting_reports import TopicItem as TopicItem
+from src.core.meeting_reports import TranscriptLine as TranscriptLine
+from src.core.meeting_templates import (
+    MAX_TEMPLATE_SECTIONS as MAX_TEMPLATE_SECTIONS,
+)
+from src.core.meeting_templates import (
+    SECTION_KEY_PATTERN as SECTION_KEY_PATTERN,
+)
+from src.core.meeting_templates import (
+    TEMPLATE_REF_PATTERN as TEMPLATE_REF_PATTERN,
+)
+from src.core.meeting_templates import (
+    MeetingTemplateCreate as MeetingTemplateCreate,
+)
+from src.core.meeting_templates import (
+    MeetingTemplateListResponse as MeetingTemplateListResponse,
+)
+from src.core.meeting_templates import (
+    MeetingTemplateResponse as MeetingTemplateResponse,
+)
+from src.core.meeting_templates import (
+    MeetingTemplateSummary as MeetingTemplateSummary,
+)
+from src.core.meeting_templates import (
+    MeetingTemplateUpdate as MeetingTemplateUpdate,
+)
+from src.core.meeting_templates import (
+    SectionKind as SectionKind,
+)
+from src.core.meeting_templates import (
+    TemplateCategory as TemplateCategory,
+)
+from src.core.meeting_templates import (
+    TemplateSection as TemplateSection,
+)
+from src.core.meeting_templates import (
+    TemplateSelection as TemplateSelection,
+)
 from src.domains.meetings.models import (
     MeetingAudioFormat,
     MeetingIndexState,
@@ -30,46 +73,10 @@ from src.infrastructure.llm.decision_types import DecisionCharge
 
 #: Upper bound of sections a template may carry — enough for any minutes
 #: format, small enough for one structured-output call.
-MAX_TEMPLATE_SECTIONS = 12
 #: A stable slug the model echoes back; the label is what the user reads.
-SECTION_KEY_PATTERN = r"^[a-z][a-z0-9_]{1,39}$"
 #: ``auto`` or an ISO-639-1 code; the engines validate the code themselves.
 LANGUAGE_PATTERN = r"^(auto|[a-z]{2})$"
 #: ``builtin:<catalogue key>`` or ``user:<uuid>`` — the two template identities (ADR-259).
-TEMPLATE_REF_PATTERN = r"^(builtin:[a-z][a-z0-9_]{1,59}|user:[0-9a-fA-F-]{36})$"
-
-
-class SectionKind(str, Enum):
-    """How a section is filled and rendered."""
-
-    PARAGRAPH = "paragraph"
-    BULLETS = "bullets"
-    TOPICS = "topics"
-    ACTION_ITEMS = "action_items"
-    #: The whole exchange, turn by turn, rewritten under the section's
-    #: instruction (ADR-259) — filled part by part, never by the single call.
-    TRANSCRIPT = "transcript"
-
-
-class TemplateCategory(str, Enum):
-    """Where a template is filed in the library (ADR-259)."""
-
-    CUSTOM = "custom"
-    MEETING = "meeting"
-    TRANSCRIPT = "transcript"
-    ANALYSIS = "analysis"
-    BUSINESS = "business"
-    TECHNICAL = "technical"
-    PERSONAL = "personal"
-    LEARNING = "learning"
-
-
-class TemplateSelection(str, Enum):
-    """How the template that wrote a meeting's minutes was chosen (ADR-259)."""
-
-    AUTO = "auto"
-    USER = "user"
-    PREFERENCE = "preference"
 
 
 # ----------------------------------------------------------------------------
@@ -77,199 +84,9 @@ class TemplateSelection(str, Enum):
 # ----------------------------------------------------------------------------
 
 
-class TemplateSection(BaseModel):
-    """One section of a minutes template."""
-
-    key: str = Field(
-        pattern=SECTION_KEY_PATTERN,
-        description="Stable slug the model echoes back (2-40 chars, [a-z0-9_]).",
-    )
-    label: str = Field(min_length=1, max_length=80, description="Heading shown in the minutes.")
-    instruction: str = Field(
-        min_length=1,
-        max_length=600,
-        description="What the model must put in this section.",
-    )
-    kind: SectionKind = Field(description="Shape of the content (paragraph, bullets, ...).")
-
-
-def _unique_keys(sections: list[TemplateSection]) -> list[TemplateSection]:
-    keys = [section.key for section in sections]
-    if len(set(keys)) != len(keys):
-        raise ValueError("section keys must be unique")
-    return sections
-
-
-class MeetingTemplateSummary(BaseModel):
-    """One library entry, as the list shows it."""
-
-    ref: str = Field(description="builtin:<key> or user:<uuid>.")
-    name: str = Field(description="Template name (built-ins: localized).")
-    description: str | None = Field(default=None, description="What the template is for.")
-    category: TemplateCategory = Field(description="Library category.")
-    builtin: bool = Field(description="True for a catalogue template (read-only).")
-    sections_count: int = Field(ge=1, description="Number of sections.")
-    auto_selectable: bool = Field(
-        description="Whether automatic selection may pick it (transcript templates: never)."
-    )
-
-
-class MeetingTemplateListResponse(BaseModel):
-    """The library: every built-in plus the user's own, and the user cap."""
-
-    items: list[MeetingTemplateSummary]
-    max_user_templates: int = Field(description="How many templates the user may keep.")
-
-
-class MeetingTemplateResponse(BaseModel):
-    """A template with its sections."""
-
-    ref: str = Field(description="builtin:<key> or user:<uuid>.")
-    id: uuid.UUID | None = Field(default=None, description="Row id; null for a built-in.")
-    name: str = Field(description="Template name.")
-    description: str | None = Field(default=None, description="What the template is for.")
-    category: TemplateCategory = Field(description="Library category.")
-    sections: list[TemplateSection] = Field(description="Ordered sections.")
-    builtin: bool = Field(description="True for a catalogue template (read-only).")
-    builtin_key: str | None = Field(
-        default=None, description="For a user template: the built-in it was duplicated from."
-    )
-    auto_selectable: bool = Field(description="Whether automatic selection may pick it.")
-
-
-class MeetingTemplateCreate(BaseModel):
-    """Create a user template, from scratch or by duplicating a reference."""
-
-    name: str | None = Field(default=None, min_length=1, max_length=120)
-    description: str | None = Field(default=None, max_length=500)
-    category: TemplateCategory = Field(default=TemplateCategory.CUSTOM)
-    sections: list[TemplateSection] | None = Field(
-        default=None, min_length=1, max_length=MAX_TEMPLATE_SECTIONS
-    )
-    duplicate_of: str | None = Field(
-        default=None,
-        max_length=MEETINGS_TEMPLATE_REF_MAX,
-        pattern=TEMPLATE_REF_PATTERN,
-        description="A ref whose sections (and category) are copied when `sections` is absent.",
-    )
-
-    @field_validator("sections")
-    @classmethod
-    def _sections_unique(
-        cls, sections: list[TemplateSection] | None
-    ) -> list[TemplateSection] | None:
-        return _unique_keys(sections) if sections is not None else None
-
-    @model_validator(mode="after")
-    def _sections_or_source(self) -> MeetingTemplateCreate:
-        if (self.sections is None) == (self.duplicate_of is None):
-            raise ValueError("exactly one of sections or duplicate_of")
-        if self.sections is not None and self.name is None:
-            raise ValueError("name is required without duplicate_of")
-        return self
-
-
-class MeetingTemplateUpdate(BaseModel):
-    """Replace a user template (PUT semantics)."""
-
-    name: str = Field(min_length=1, max_length=120, description="Template name.")
-    description: str | None = Field(default=None, max_length=500)
-    category: TemplateCategory = Field(default=TemplateCategory.CUSTOM)
-    sections: list[TemplateSection] = Field(
-        min_length=1, max_length=MAX_TEMPLATE_SECTIONS, description="Ordered sections."
-    )
-
-    @field_validator("sections")
-    @classmethod
-    def _sections_unique(cls, sections: list[TemplateSection]) -> list[TemplateSection]:
-        return _unique_keys(sections)
-
-
 # ----------------------------------------------------------------------------
 # Minutes
 # ----------------------------------------------------------------------------
-
-
-class Participant(BaseModel):
-    """One person in the meeting, as far as the recording tells."""
-
-    label: str = Field(
-        min_length=1,
-        max_length=40,
-        description="Stable speaker label from diarization (e.g. 'S1'), or a free label.",
-    )
-    name: str | None = Field(default=None, max_length=120, description="Name when established.")
-    role: str | None = Field(default=None, max_length=120, description="Role when stated.")
-
-
-class TopicItem(BaseModel):
-    """One discussed topic with its own summary."""
-
-    title: str = Field(min_length=1, max_length=200, description="Topic title.")
-    summary: str = Field(min_length=1, max_length=4000, description="What was said about it.")
-
-
-class ActionItem(BaseModel):
-    """One action, task or commitment."""
-
-    description: str = Field(min_length=1, max_length=1000, description="What must be done.")
-    owner: str | None = Field(default=None, max_length=120, description="Who, when named.")
-    due_date: str | None = Field(
-        default=None,
-        max_length=40,
-        description="Absolute deadline (YYYY-MM-DD when precise) or null.",
-    )
-
-
-class TranscriptLine(BaseModel):
-    """One rewritten turn of a ``transcript`` section (ADR-259)."""
-
-    speaker: str = Field(min_length=1, max_length=40, description="Speaker label or name.")
-    start: float = Field(ge=0, description="Turn start, seconds from the recording start.")
-    text: str = Field(min_length=1, max_length=4000, description="The rewritten turn.")
-
-
-class ReportSection(BaseModel):
-    """One filled section — exactly one payload shape is meaningful per kind."""
-
-    key: str = Field(pattern=SECTION_KEY_PATTERN, description="Template section key.")
-    label: str = Field(min_length=1, max_length=80, description="Heading (from the template).")
-    kind: SectionKind = Field(description="Shape of the content.")
-    paragraph: str | None = Field(default=None, max_length=8000, description="For 'paragraph'.")
-    bullets: list[str] = Field(default_factory=list, description="For 'bullets'.")
-    topics: list[TopicItem] = Field(default_factory=list, description="For 'topics'.")
-    action_items: list[ActionItem] = Field(default_factory=list, description="For 'action_items'.")
-    transcript: list[TranscriptLine] = Field(default_factory=list, description="For 'transcript'.")
-
-    def is_empty(self) -> bool:
-        """Whether the section carries no content for its kind."""
-        match self.kind:
-            case SectionKind.PARAGRAPH:
-                return not (self.paragraph or "").strip()
-            case SectionKind.BULLETS:
-                return not any(item.strip() for item in self.bullets)
-            case SectionKind.TOPICS:
-                return not self.topics
-            case SectionKind.ACTION_ITEMS:
-                return not self.action_items
-            case SectionKind.TRANSCRIPT:
-                return not any(line.text.strip() for line in self.transcript)
-
-
-class MeetingReport(BaseModel):
-    """The minutes: fixed header fields + the template's sections, in order."""
-
-    title: str = Field(min_length=1, max_length=200, description="Relevant meeting title.")
-    participants: list[Participant] = Field(default_factory=list, description="Participants.")
-    sections: list[ReportSection] = Field(default_factory=list, description="Filled sections.")
-
-    @field_validator("sections")
-    @classmethod
-    def _unique_section_keys(cls, sections: list[ReportSection]) -> list[ReportSection]:
-        keys = [section.key for section in sections]
-        if len(set(keys)) != len(keys):
-            raise ValueError("report section keys must be unique")
-        return sections
 
 
 class TranscriptTurn(BaseModel):
@@ -334,35 +151,6 @@ class MeetingStopRequest(BaseModel):
         default=False,
         description="Finalize even when some segments never arrived (gaps are recorded).",
     )
-
-
-class MeetingPatchRequest(BaseModel):
-    """Edit the minutes (partial). Every provided field replaces the current one."""
-
-    title: str | None = Field(default=None, min_length=1, max_length=200)
-    participants: list[Participant] | None = Field(default=None)
-    sections: list[ReportSection] | None = Field(default=None)
-    location_label: str | None = Field(default=None, max_length=255)
-    template_ref: str | None = Field(
-        default=None,
-        max_length=MEETINGS_TEMPLATE_REF_MAX,
-        pattern=TEMPLATE_REF_PATTERN,
-        description="Minutes template for this meeting, while it is still live or queued.",
-    )
-
-    @property
-    def touches_report(self) -> bool:
-        """Whether anything but the template choice is being edited."""
-        return any(
-            value is not None
-            for value in (self.title, self.participants, self.sections, self.location_label)
-        )
-
-    @model_validator(mode="after")
-    def _something_to_change(self) -> MeetingPatchRequest:
-        if not self.touches_report and self.template_ref is None:
-            raise ValueError("nothing to update")
-        return self
 
 
 class MeetingPreferencesUpdate(BaseModel):
@@ -559,17 +347,6 @@ class MeetingActionResponse(BaseModel):
     stage: MeetingStage | None = None
     detail: dict[str, Any] | None = Field(
         default=None, description="Action-specific payload (e.g. missing segment sequences)."
-    )
-
-
-class MeetingReformatRequest(BaseModel):
-    """Write the minutes again with another template (ADR-259)."""
-
-    template_ref: str = Field(
-        max_length=MEETINGS_TEMPLATE_REF_MAX, pattern=TEMPLATE_REF_PATTERN, description="Template."
-    )
-    mode: Literal["replace", "new"] = Field(
-        description="replace = these minutes; new = new minutes from the same transcript."
     )
 
 

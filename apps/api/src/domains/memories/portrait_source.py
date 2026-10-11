@@ -14,10 +14,12 @@ from __future__ import annotations
 from uuid import UUID
 
 import structlog
+from sqlalchemy import Select, select
 
 from src.core.config import settings
 from src.domains.feature_switches.registry import PlatformCapability, is_capability_enabled
 from src.domains.memories.emotional_state import emotional_label
+from src.domains.memories.models import Memory
 from src.domains.memories.repository import MemoryRepository
 from src.domains.shared.portrait_sources import (
     FreshnessProbe,
@@ -91,8 +93,39 @@ async def read_memories(
         return empty_section(KEY, "unavailable")
 
 
-#: Where this source's freshness is read (the consolidation's eligibility).
-FRESHNESS = FreshnessProbe(table="memories", user_column="user_id", stamp_column="updated_at")
+def _selected_ids(user_id: UUID, budget: SourceBudget) -> Select[tuple[UUID]]:
+    """The same ordered active page as list_for_portrait, without vector reads."""
+    return (
+        select(Memory.id)
+        .where(Memory.user_id == user_id, Memory.invalidated_at.is_(None))
+        .order_by(
+            Memory.pinned.desc(),
+            Memory.importance.desc(),
+            Memory.usage_count.desc(),
+            Memory.created_at.desc(),
+            Memory.id.desc(),
+        )
+        .limit(max(0, budget.max_items))
+    )
+
+
+#: Exposure counters matter only when they change the selected page.
+FRESHNESS = FreshnessProbe(
+    table="memories",
+    user_column="user_id",
+    stamp_column="updated_at",
+    allowed=_allowed,
+    semantic_columns=(
+        "content",
+        "category",
+        "emotional_weight",
+        "created_at",
+        "pinned",
+        "importance",
+        "invalidated_at",
+    ),
+    selection_query=_selected_ids,
+)
 
 # Installed at import for every path that does not go through the boot; the
 # boot INSTALLS explicitly too, because an already-imported module wires

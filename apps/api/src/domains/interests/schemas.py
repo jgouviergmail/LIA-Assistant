@@ -84,10 +84,13 @@ class InterestUpdate(BaseModel):
     )
 
 
+InterestFeedbackKind = Literal["thumbs_up", "thumbs_down", "block"]
+
+
 class InterestFeedbackRequest(BaseModel):
     """Submit feedback on a notification."""
 
-    feedback: Literal["thumbs_up", "thumbs_down", "block"] = Field(
+    feedback: InterestFeedbackKind = Field(
         description="Feedback type: thumbs_up (positive), thumbs_down (negative), block (never notify)"
     )
     run_id: str | None = Field(

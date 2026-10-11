@@ -1,8 +1,12 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { PluginImportReportDetails } from './PluginImportReportDetails';
+
+import { useRef } from 'react';
+import { useApplicationAccountState } from '@/hooks/useApplicationAccountState';
+import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
 import { Puzzle, Trash2, Link2, Upload, Blocks, Server } from 'lucide-react';
-import { toast } from 'sonner';
+import { useApplicationAccountToast } from '@/hooks/useApplicationAccountToast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -30,7 +34,6 @@ import { SettingsSection } from '@/components/settings/SettingsSection';
 import {
   usePlugins,
   type InstalledPlugin,
-  type PluginComponentReport,
   type PluginImportReport,
 } from '@/hooks/usePlugins';
 
@@ -39,17 +42,6 @@ interface PluginsSettingsProps {
 }
 
 type Translator = (key: string, options?: Record<string, unknown>) => string;
-
-/** Badge tone per component outcome in the import report. */
-const STATUS_VARIANT: Record<
-  PluginComponentReport['status'],
-  'default' | 'secondary' | 'outline' | 'destructive'
-> = {
-  installed: 'default',
-  updated: 'secondary',
-  skipped: 'outline',
-  removed: 'destructive',
-};
 
 /** One installed plugin row: identity, component-count badges, uninstall. */
 function PluginRow({
@@ -94,39 +86,13 @@ function PluginRow({
         variant="ghost"
         size="sm"
         className="shrink-0 self-end text-destructive hover:text-destructive sm:self-center"
-        disabled={uninstalling}
+        aria-disabled={uninstalling}
         aria-label={t('settings.plugins.uninstall_aria', { name: plugin.name })}
-        onClick={() => onUninstall(plugin)}
+        onClick={() => { if (!uninstalling) onUninstall(plugin); }}
       >
         <Trash2 className="mr-1.5 h-4 w-4" aria-hidden="true" />
         {t('settings.plugins.uninstall')}
       </Button>
-    </li>
-  );
-}
-
-/** One line of the import report: kind icon, key, status, translated reason. */
-function ReportComponentLine({
-  component,
-  t,
-}: {
-  component: PluginComponentReport;
-  t: Translator;
-}) {
-  const issue = component.issues[0];
-  const KindIcon = component.kind === 'skill' ? Blocks : Server;
-  return (
-    <li className="flex flex-wrap items-center gap-2 text-sm">
-      <KindIcon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-      <span className="min-w-0 truncate font-medium">{component.key}</span>
-      <Badge variant={STATUS_VARIANT[component.status]}>
-        {t(`settings.plugins.status.${component.status}`)}
-      </Badge>
-      {issue && (
-        <span className="w-full pl-6 text-xs text-muted-foreground">
-          {t(`settings.plugins.reasons.${issue.code}`)}
-        </span>
-      )}
     </li>
   );
 }
@@ -150,18 +116,7 @@ function ImportReportDialog({
           </DialogTitle>
           <DialogDescription>{t('settings.plugins.report_description')}</DialogDescription>
         </DialogHeader>
-        <ul className="space-y-2">
-          {report?.components.map(component => (
-            <ReportComponentLine
-              key={`${component.kind}:${component.key}`}
-              component={component}
-              t={t}
-            />
-          ))}
-          {report && report.components.length === 0 && (
-            <li className="text-sm text-muted-foreground">{t('settings.plugins.report_empty')}</li>
-          )}
-        </ul>
+        <PluginImportReportDetails report={report} t={t} />
       </DialogContent>
     </Dialog>
   );
@@ -225,15 +180,20 @@ export function PluginsSettings({ lng }: PluginsSettingsProps) {
     importingFromUrl,
     uninstallPlugin,
     uninstalling,
+    ownerId,
+    hasLoaded,
   } = usePlugins();
+  const { isCurrent } = useApplicationAccountLifetime(ownerId);
+  const toast = useApplicationAccountToast(ownerId);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
-  const [importUrl, setImportUrl] = useState('');
-  const [report, setReport] = useState<PluginImportReport | null>(null);
-  const [pluginToUninstall, setPluginToUninstall] = useState<InstalledPlugin | null>(null);
+  const [uploading, setUploading] = useApplicationAccountState(ownerId, false);
+  const [importUrl, setImportUrl] = useApplicationAccountState<string>(ownerId, '');
+  const [report, setReport] = useApplicationAccountState<PluginImportReport | null>(ownerId, null);
+  const [pluginToUninstall, setPluginToUninstall] = useApplicationAccountState<InstalledPlugin | null>(ownerId, null);
 
   const handleReport = (result: PluginImportReport) => {
+    if (!isCurrent()) return;
     setReport(result);
     toast.success(
       t(result.updated ? 'settings.plugins.update_success' : 'settings.plugins.import_success', {
@@ -243,6 +203,7 @@ export function PluginsSettings({ lng }: PluginsSettingsProps) {
   };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isCurrent() || uploading) return;
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
@@ -257,6 +218,7 @@ export function PluginsSettings({ lng }: PluginsSettingsProps) {
   };
 
   const handleUrlImport = async () => {
+    if (!isCurrent() || importingFromUrl) return;
     const url = importUrl.trim();
     if (!url) return;
     try {
@@ -271,7 +233,7 @@ export function PluginsSettings({ lng }: PluginsSettingsProps) {
   };
 
   const handleUninstall = async () => {
-    if (!pluginToUninstall) return;
+    if (!isCurrent() || uninstalling || !pluginToUninstall) return;
     const name = pluginToUninstall.name;
     setPluginToUninstall(null);
     try {
@@ -292,6 +254,7 @@ export function PluginsSettings({ lng }: PluginsSettingsProps) {
       {/* Import controls */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <input
+          key={ownerId}
           ref={fileInputRef}
           type="file"
           accept=".zip"
@@ -303,8 +266,8 @@ export function PluginsSettings({ lng }: PluginsSettingsProps) {
         <Button
           variant="outline"
           size="sm"
-          disabled={uploading}
-          onClick={() => fileInputRef.current?.click()}
+          aria-disabled={uploading}
+          onClick={() => { if (isCurrent() && !uploading) fileInputRef.current?.click(); }}
         >
           {uploading ? (
             <LoadingSpinner className="mr-2 h-4 w-4" />
@@ -328,7 +291,7 @@ export function PluginsSettings({ lng }: PluginsSettingsProps) {
           <Button
             variant="outline"
             size="sm"
-            disabled={importingFromUrl || !importUrl.trim()}
+            aria-disabled={importingFromUrl || !importUrl.trim()}
             onClick={() => void handleUrlImport()}
           >
             {importingFromUrl ? (
@@ -342,7 +305,7 @@ export function PluginsSettings({ lng }: PluginsSettingsProps) {
       </div>
 
       {/* Installed plugins */}
-      {loading ? (
+      {loading && !hasLoaded ? (
         <div className="flex justify-center py-8">
           <LoadingSpinner className="h-6 w-6" />
         </div>
@@ -351,7 +314,7 @@ export function PluginsSettings({ lng }: PluginsSettingsProps) {
           {t('settings.plugins.empty')}
         </p>
       ) : (
-        <ul className="mt-4 space-y-3">
+        <ul className="mt-4 space-y-3" aria-busy={loading}>
           {plugins.map(plugin => (
             <PluginRow
               key={plugin.id}

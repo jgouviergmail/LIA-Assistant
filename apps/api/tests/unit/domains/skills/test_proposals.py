@@ -111,8 +111,9 @@ class TestReadingTheInstalledPackage:
 
 
 class TestRecord:
-    def test_round_trips_every_field(self) -> None:
-        proposal = _proposal()
+    @pytest.mark.parametrize("status", ["pending", "installing", "unknown", "installed"])
+    def test_round_trips_every_field(self, status: str) -> None:
+        proposal = _proposal(status=status, attempt_id="b" * 32, cache_refresh_pending=True)
 
         restored = SkillProposal.from_json(proposal.to_json())
 
@@ -130,6 +131,8 @@ class TestRecord:
             "replaces",
             "changes",
             "status",
+            "attempt_id",
+            "cache_refresh_pending",
         }
 
     def test_a_new_skill_round_trips_without_changes(self) -> None:

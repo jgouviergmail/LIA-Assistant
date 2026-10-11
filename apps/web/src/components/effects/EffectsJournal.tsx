@@ -64,10 +64,11 @@ const STATUS_ICONS: Record<EffectStatus, LucideIcon> = {
   refused: AlertCircle,
   claimed: Clock,
   abandoned: AlertCircle,
+  waiting: Clock,
 };
 
 /** Filter tokens offered above the list. `all` is the default. */
-const STATUS_FILTERS = ['all', 'succeeded', 'failed', 'refused'] as const;
+const STATUS_FILTERS = ['all', 'succeeded', 'failed', 'refused', 'waiting'] as const;
 type StatusFilter = (typeof STATUS_FILTERS)[number];
 
 /** Badge tone per outcome — from the shared vocabulary, never a local map. */

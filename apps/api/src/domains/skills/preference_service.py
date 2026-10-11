@@ -122,7 +122,11 @@ class SkillPreferenceService:
         if not skill:
             raise ValueError(f"Skill '{skill_name}' not found")
 
-        is_active = await self.state_repo.toggle(user_id, skill.id)
+        from src.domains.skills.personal_state import personal_state, set_personal_state
+
+        state = await personal_state(self.db, user_id, skill.id)
+        is_active = not state.is_active
+        await set_personal_state(self.db, user_id, skill.id, enabled=is_active)
         logger.info(
             "skill_toggled",
             skill_name=skill_name,

@@ -101,6 +101,16 @@ export interface ShowroomDraftDecision extends ShowroomDecisionBase {
   bodyKey: string;
 }
 
+/** A phone-call draft uses the same native critique/edit card as the app. */
+export interface ShowroomPhoneDecision extends ShowroomDecisionBase {
+  kind: 'phone_draft';
+  calleeNameKey: string;
+  /** Reserved fictional NANP number, never dialed by the showroom. */
+  calleePhone: '+1 202 555 0100';
+  objectiveKey: string;
+  previewHtmlKey: string;
+}
+
 /** One bounded tool argument row: literal value OR i18n-resolved value. */
 export interface ShowroomToolArg {
   labelKey: string;
@@ -115,7 +125,10 @@ export interface ShowroomToolDecision extends ShowroomDecisionBase {
   args: readonly ShowroomToolArg[];
 }
 
-export type ShowroomDecisionSpec = ShowroomDraftDecision | ShowroomToolDecision;
+export type ShowroomDecisionSpec =
+  | ShowroomDraftDecision
+  | ShowroomPhoneDecision
+  | ShowroomToolDecision;
 
 /** A complete synthetic mission — versioned, immutable, i18n-key-driven. */
 export interface ShowroomMissionDefinition {
@@ -135,7 +148,7 @@ export interface ShowroomMissionDefinition {
   findings: readonly ShowroomFinding[];
   /** Four storyboard trace step labels (routing/sources/planning/proposals). */
   traceKeys: readonly [string, string, string, string];
-  /** 1..N HITL decisions, decided strictly in order. */
+  /** Zero for informative missions; otherwise HITL decisions in order. */
   decisions: readonly ShowroomDecisionSpec[];
   /** Receipt header lines (what was read / what was proposed). */
   receipt: { readsKey: string; proposedKey: string };

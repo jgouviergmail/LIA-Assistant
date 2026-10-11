@@ -11,12 +11,13 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
+import { renderWithProviders, screen, waitFor, act } from '@/__tests__/test-utils';
+import { publishApplicationResources } from '@/lib/application-resources';
 import { dataQuery, loadingQuery } from '@/__tests__/api-mocks';
 import type { PsycheHistoryEntry } from '@/types/psyche';
 
 const { useApiQuery } = vi.hoisted(() => ({ useApiQuery: vi.fn() }));
-vi.mock('@/hooks/useApiQuery', () => ({ useApiQuery }));
+vi.mock('@/hooks/useApplicationAccountQuery', () => ({ useApplicationAccountQuery: useApiQuery }));
 
 import { PsycheHistory } from '../PsycheHistory';
 
@@ -60,15 +61,27 @@ beforeEach(() => {
 });
 
 describe('PsycheHistory — fetch gating', () => {
+  it('rereads the current open history after a native reset and ignores another owner', async () => {
+    const refetch = vi.fn().mockResolvedValue(undefined);
+    useApiQuery.mockReturnValue({ ...dataQuery<PsycheHistoryEntry[]>([]), ownerId: 'one', refetch });
+    const { unmount } = render();
+    act(() => publishApplicationResources('two', new Set(['psyche'])));
+    expect(refetch).not.toHaveBeenCalled();
+    act(() => publishApplicationResources('one', new Set(['psyche'])));
+    await waitFor(() => expect(refetch).toHaveBeenCalledTimes(1));
+    unmount();
+    act(() => publishApplicationResources('one', new Set(['psyche'])));
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
   it('does not query while the panel is closed', () => {
     render(false);
-    expect(useApiQuery.mock.calls[0][1]).toMatchObject({ enabled: false });
+    expect(useApiQuery.mock.calls[0][2]).toBe(false);
   });
 
   it('queries the last 7 days by default', () => {
     render();
     expect(lastEndpoint()).toBe('/psyche/history?limit=200&hours=168');
-    expect(useApiQuery.mock.calls[0][1]).toMatchObject({ enabled: true });
+    expect(useApiQuery.mock.calls[0][2]).toBe(true);
   });
 
   it.each([

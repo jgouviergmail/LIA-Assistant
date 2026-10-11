@@ -6,12 +6,18 @@
  * the widget itself is tested in `components/eyes/__tests__`.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
 // `vi.mock` is hoisted above every import and constant: the factory's
 // state must be hoisted with it.
-const hoisted = vi.hoisted(() => ({ dynamicOptions: [] as unknown[] }));
+const hoisted = vi.hoisted(() => ({ dynamicOptions: [] as unknown[], narrow: false }));
+
+vi.mock('@/hooks/useMediaQuery', () => ({ useMediaQuery: () => hoisted.narrow }));
+
+beforeEach(() => {
+  hoisted.narrow = false;
+});
 
 vi.mock('next/dynamic', () => ({
   default: (_loader: unknown, options: unknown) => {
@@ -24,6 +30,8 @@ vi.mock('next/dynamic', () => ({
         data-phase={String(props.streamPhase)}
         data-hitl={String(props.hitlAwaiting)}
         data-style={String(props.styleId)}
+        data-size={String(props.size)}
+        data-variant={String(props.variant)}
       />
     );
   },
@@ -41,9 +49,18 @@ describe('LandingEyes', () => {
     expect(widget).toHaveAttribute('data-hitl', 'false');
   });
 
-  it('shows the SMILEY to every visitor, whatever a chat user chose', () => {
+  it('preserves masculine BIP at maximum size on desktop', () => {
     render(<LandingEyes />);
-    expect(screen.getByTestId('eyes-widget')).toHaveAttribute('data-style', 'smiley');
+    const widget = screen.getByTestId('eyes-widget');
+    expect(widget).toHaveAttribute('data-style', 'bip');
+    expect(widget).toHaveAttribute('data-size', 'xl');
+    expect(widget).toHaveAttribute('data-variant', 'male');
+  });
+
+  it('leaves the narrow homepage free of a floating widget over its content', () => {
+    hoisted.narrow = true;
+    render(<LandingEyes />);
+    expect(screen.queryByTestId('eyes-widget')).not.toBeInTheDocument();
   });
 
   it('loads the widget client-only — it positions itself from the viewport', () => {

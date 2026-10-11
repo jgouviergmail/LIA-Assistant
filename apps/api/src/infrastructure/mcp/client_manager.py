@@ -54,8 +54,10 @@ from src.infrastructure.mcp.security import validate_server_config
 from src.infrastructure.mcp.utils import (
     build_client_info,
     extract_app_meta,
+    extract_output_schema,
     extract_tool_annotations,
     extract_tool_title,
+    structured_result_text,
     unwrap_exception_group,
 )
 from src.infrastructure.observability.metrics_mcp import mcp_server_health
@@ -286,6 +288,7 @@ class MCPClientManager:
                     tool_name=tool.name,
                     description=tool.description or "",
                     input_schema=tool.input_schema or {},
+                    output_schema=extract_output_schema(tool),
                     title=extract_tool_title(tool),
                     annotations=extract_tool_annotations(tool),
                     app_resource_uri=app_resource_uri,
@@ -434,6 +437,10 @@ class MCPClientManager:
             raise RuntimeError(
                 f"MCP tool '{tool_name}' on server '{server_name}' returned error: {error_text}"
             )
+
+        structured_text = structured_result_text(result)
+        if structured_text is not None:
+            return structured_text
 
         # Parse content
         parts: list[str] = []

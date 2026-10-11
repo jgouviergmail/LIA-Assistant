@@ -157,6 +157,13 @@ async def build_psychological_profile(
     try:
         async with get_db_context() as db:
             from src.domains.memories.repository import MemoryRepository
+            from src.domains.users.extraction_consent import (
+                ExtractionKind,
+                snapshot_extraction_consent,
+            )
+
+            if await snapshot_extraction_consent(db, UUID(user_id), ExtractionKind.MEMORY) is None:
+                return None, EmotionalState.NEUTRAL, None
 
             repo = MemoryRepository(db)
 

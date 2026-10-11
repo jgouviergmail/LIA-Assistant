@@ -186,6 +186,7 @@ class OpenLoopRepository(BaseRepository[OpenLoop]):
         user_id: UUID,
         *,
         reason: str,
+        emit_metric: bool = True,
     ) -> bool:
         """Atomically close an OPEN loop (conditional UPDATE claim).
 
@@ -228,7 +229,8 @@ class OpenLoopRepository(BaseRepository[OpenLoop]):
                     track_open_loop_closure,
                 )
 
-                track_open_loop_closure(reason)
+                if emit_metric:
+                    track_open_loop_closure(reason)
         return claimed
 
     async def update_loop(

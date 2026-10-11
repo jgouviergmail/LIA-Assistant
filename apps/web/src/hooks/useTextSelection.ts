@@ -34,6 +34,24 @@ function scopeOf(node: Node | null): Element | null {
   return element?.closest(SELECTION_SCOPE_SELECTOR) ?? null;
 }
 
+/** Clip the selection to its scrollports, keeping hidden lines out of the anchor. */
+function visibleSelectionRect(rect: DOMRect, scope: Element, doc: Document) {
+  let { top, left, bottom, right } = rect;
+  for (let element: Element | null = scope; element; element = element.parentElement) {
+    const style = doc.defaultView?.getComputedStyle(element);
+    const bounds = element.getBoundingClientRect();
+    if (/(auto|scroll|hidden|clip)/.test(style?.overflowY || style?.overflow || '')) {
+      top = Math.max(top, bounds.top);
+      bottom = Math.min(bottom, bounds.bottom);
+    }
+    if (/(auto|scroll|hidden|clip)/.test(style?.overflowX || style?.overflow || '')) {
+      left = Math.max(left, bounds.left);
+      right = Math.min(right, bounds.right);
+    }
+  }
+  return bottom < top || right < left ? null : { top, left, width: right - left, bottom };
+}
+
 /**
  * Pure reader: the current document selection as a snapshot, or null when it
  * is collapsed, too short, outside the scope, or spanning several scopes.
@@ -49,11 +67,10 @@ export function readScopedSelection(doc: Document): TextSelectionSnapshot | null
   const endScope = scopeOf(range.endContainer);
   // Outside the assistant bubbles, or spanning TWO of them: not ours.
   if (!startScope || startScope !== endScope) return null;
-  const rect = range.getBoundingClientRect();
-  return {
-    text,
-    rect: { top: rect.top, left: rect.left, width: rect.width, bottom: rect.bottom },
-  };
+  // A long selection can extend past the chat's scrollport. Anchor only to
+  // the visible portion, so its hidden lines cannot push the menu offscreen.
+  const rect = visibleSelectionRect(range.getBoundingClientRect(), startScope, doc);
+  return rect ? { text, rect } : null;
 }
 
 function subscribe(onStoreChange: () => void): () => void {
@@ -63,9 +80,18 @@ function subscribe(onStoreChange: () => void): () => void {
     timer = window.setTimeout(onStoreChange, SELECTION_DEBOUNCE_MS);
   };
   document.addEventListener('selectionchange', onChange);
+  document.addEventListener('scroll', onStoreChange, true);
+  window.addEventListener('resize', onStoreChange);
+  const viewport = window.visualViewport;
+  viewport?.addEventListener('resize', onStoreChange);
+  viewport?.addEventListener('scroll', onStoreChange);
   return () => {
     window.clearTimeout(timer);
     document.removeEventListener('selectionchange', onChange);
+    document.removeEventListener('scroll', onStoreChange, true);
+    window.removeEventListener('resize', onStoreChange);
+    viewport?.removeEventListener('resize', onStoreChange);
+    viewport?.removeEventListener('scroll', onStoreChange);
   };
 }
 
@@ -77,7 +103,9 @@ let cachedValue: TextSelectionSnapshot | null = null;
 
 function getSnapshot(): TextSelectionSnapshot | null {
   const fresh = readScopedSelection(document);
-  const key = fresh ? `${fresh.text}|${fresh.rect.top}|${fresh.rect.left}` : '';
+  const key = fresh
+    ? `${fresh.text}|${fresh.rect.top}|${fresh.rect.left}|${fresh.rect.width}|${fresh.rect.bottom}`
+    : '';
   if (key !== cachedKey) {
     cachedKey = key;
     cachedValue = fresh;

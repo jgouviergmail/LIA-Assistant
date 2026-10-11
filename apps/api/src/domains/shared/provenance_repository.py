@@ -17,12 +17,12 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import and_, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped
 
 from src.core.constants import PROVENANCE_MAX_REFERENCES_PER_SUBJECT
-from src.domains.conversations.models import ConversationMessage
+from src.domains.conversations.models import Conversation, ConversationMessage
 from src.domains.shared.provenance import ProvenanceOutcome, ProvenanceReference
 from src.infrastructure.observability.logging import get_logger
 
@@ -206,17 +206,29 @@ class ProvenanceRepository:
         """
         column, value = self._subject(journal_entry_id, memory_id, interest_id)
         stmt = (
-            select(ProvenanceReference, ConversationMessage.content)
+            select(ProvenanceReference, ConversationMessage.content, Conversation.id)
             .outerjoin(
-                ConversationMessage, ConversationMessage.id == ProvenanceReference.message_id
+                Conversation,
+                and_(
+                    Conversation.id == ProvenanceReference.conversation_id,
+                    Conversation.user_id == user_id,
+                    Conversation.deleted_at.is_(None),
+                ),
+            )
+            .outerjoin(
+                ConversationMessage,
+                and_(
+                    ConversationMessage.id == ProvenanceReference.message_id,
+                    ConversationMessage.conversation_id == Conversation.id,
+                ),
             )
             .where(column == value, ProvenanceReference.user_id == user_id)
             .order_by(ProvenanceReference.captured_at.desc(), ProvenanceReference.id.desc())
         )
         resolved: list[ResolvedReference] = []
-        for reference, content in (await self.db.execute(stmt)).all():
-            # No live conversation → tombstone, whatever the join returned.
-            live = reference.conversation_id is not None
+        for reference, content, live_conversation_id in (await self.db.execute(stmt)).all():
+            # A stale/foreign/soft-deleted source is dated and textless too.
+            live = live_conversation_id is not None
             excerpt = None
             if live and content:
                 excerpt = content[:excerpt_chars].strip()
@@ -225,7 +237,7 @@ class ProvenanceRepository:
                     id=reference.id,
                     outcome=reference.outcome,
                     captured_at=reference.captured_at,
-                    conversation_id=reference.conversation_id,
+                    conversation_id=live_conversation_id,
                     excerpt=excerpt,
                 )
             )

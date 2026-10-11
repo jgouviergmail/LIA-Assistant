@@ -1,13 +1,7 @@
 /**
- * Mission: LIA gets there first (proactivity / heartbeat).
- *
- * Demonstrates the differentiator chatbots lack: LIA initiates. No visitor
- * request is typed — the morning scan raises two risks (rain over the
- * evening run, an answer Marc has been waiting for) and proposes bounded
- * fixes, each still gated by an explicit decision.
- *
- * Same data contract as every mission fixture: i18n keys, bounded 'HH:MM'
- * literals, example.invalid addresses, deep-frozen (fixtures.test.ts).
+ * Personal-assistant showroom: proactive_alert.
+ * Historical telemetry id retained; the versioned fixture defines this story.
+ * All data is fictional, immutable and resolved through the active locale.
  */
 
 import { deepFreeze } from '@/components/showroom/missions/deep-freeze';
@@ -15,7 +9,7 @@ import type { ShowroomMissionDefinition } from '@/components/showroom/types';
 
 export const PROACTIVE_ALERT: ShowroomMissionDefinition = deepFreeze({
   id: 'proactive_alert',
-  fixtureVersion: 'proactive_alert-v1',
+  fixtureVersion: 'proactive_alert-v2',
   titleKey: 'showroom.m.proactive_alert.title',
   taglineKey: 'showroom.m.proactive_alert.tagline',
   mechanismKey: 'showroom.m.proactive_alert.mechanism',
@@ -23,74 +17,51 @@ export const PROACTIVE_ALERT: ShowroomMissionDefinition = deepFreeze({
   proactive: true,
   sources: [
     {
-      id: 'weather',
-      labelKey: 'showroom.sources.weather',
-      emoji: '🌧️',
+      id: 'routine',
+      labelKey: 'showroom.personal.proactive_alert.source_1',
+      emoji: '🔔',
       items: [
         {
-          labelKey: 'showroom.m.proactive_alert.facts.rain_evening',
-          time: '17:00',
-          endTime: '20:00',
+          labelKey: 'showroom.personal.proactive_alert.fact_1',
         },
       ],
     },
     {
-      id: 'calendar',
-      labelKey: 'showroom.sources.calendar',
-      emoji: '📅',
+      id: 'inbox',
+      labelKey: 'showroom.personal.proactive_alert.source_2',
+      emoji: '📬',
       items: [
-        { labelKey: 'showroom.m.proactive_alert.facts.run_evening', time: '18:00' },
-        { labelKey: 'showroom.m.proactive_alert.facts.free_slot', time: '07:00' },
+        {
+          labelKey: 'showroom.personal.proactive_alert.fact_2',
+        },
       ],
     },
     {
-      id: 'inbox',
-      labelKey: 'showroom.sources.inbox',
-      emoji: '📬',
+      id: 'relations',
+      labelKey: 'showroom.personal.proactive_alert.source_3',
+      emoji: '👥',
       items: [
-        { labelKey: 'showroom.m.proactive_alert.facts.marc_waiting' },
-        { labelKey: 'showroom.m.proactive_alert.facts.marc_committee', time: '10:00' },
+        {
+          labelKey: 'showroom.personal.proactive_alert.fact_3',
+        },
       ],
     },
   ],
   findings: [
     {
-      labelKey: 'showroom.m.proactive_alert.findings.rain_vs_run',
-      time: '17:00',
-      endTime: '20:00',
+      labelKey: 'showroom.personal.proactive_alert.finding_1',
     },
-    { labelKey: 'showroom.m.proactive_alert.findings.reply_before', time: '10:00' },
+    {
+      labelKey: 'showroom.personal.proactive_alert.finding_2',
+    },
   ],
   traceKeys: [
-    'showroom.m.proactive_alert.trace_trigger',
-    'showroom.trace.sources',
-    'showroom.trace.planning',
-    'showroom.trace.proposals',
+    'showroom.trace.routing',
+    'showroom.personal.trace_context',
+    'showroom.personal.trace_compare',
+    'showroom.personal.trace_result',
   ],
   decisions: [
-    {
-      id: 'move_run',
-      kind: 'tool',
-      allowed: ['confirm', 'cancel'],
-      phaseLabelKey: 'showroom.m.proactive_alert.decisions.move_run.phase',
-      receiptLabelKey: 'showroom.m.proactive_alert.decisions.move_run.receipt_label',
-      icon: 'calendar',
-      toolNameKey: 'showroom.m.proactive_alert.decisions.move_run.tool',
-      args: [
-        {
-          labelKey: 'showroom.proposals.from',
-          valueKey: 'showroom.m.proactive_alert.decisions.move_run.from_value',
-        },
-        {
-          labelKey: 'showroom.proposals.to',
-          valueKey: 'showroom.m.proactive_alert.decisions.move_run.to_value',
-        },
-      ],
-      outcome: {
-        confirm: 'showroom.m.proactive_alert.decisions.move_run.applied',
-        cancel: 'showroom.m.proactive_alert.decisions.move_run.refused',
-      },
-    },
     {
       id: 'reply_marc',
       kind: 'draft',

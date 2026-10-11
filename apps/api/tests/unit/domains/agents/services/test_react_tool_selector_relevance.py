@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 from typing import Any
+from uuid import UUID
 
 import pytest
 from langchain_core.tools import BaseTool
@@ -31,8 +32,15 @@ from src.core.constants import (
     MCP_USER_TOOL_NAME_PREFIX,
 )
 from src.core.context import request_tool_manifests_ctx, user_mcp_tools_ctx
+from src.domains.agents.registry.catalogue import CostProfile, PermissionProfile, ToolManifest
 from src.domains.agents.services.react_tool_selector import ReactToolSelector
+from src.infrastructure.mcp.registration import (
+    build_mcp_react_task_manifest,
+    build_mcp_tool_manifest,
+)
 from src.infrastructure.mcp.user_context import UserMCPToolsContext
+from src.infrastructure.mcp.user_tool_adapter import UserMCPToolAdapter
+from tests.unit.domains.agents.services.test_react_tool_selector import _task_instance
 
 pytestmark = pytest.mark.unit
 
@@ -72,14 +80,22 @@ class _Tool(BaseTool):
         return ""
 
 
+def _native_manifest(name: str, agent: str, *, binding_unit: str | None = None) -> ToolManifest:
+    return ToolManifest(
+        name=name,
+        agent=agent,
+        description="Native-shaped selector fixture",
+        parameters=[],
+        outputs=[],
+        cost=CostProfile(),
+        permissions=PermissionProfile(hitl_required=False),
+        binding_unit=binding_unit,
+    )
+
+
 class _Harness:
     def __init__(self) -> None:
-        self.manifests = [
-            SimpleNamespace(
-                name=name, agent=agent, permissions=SimpleNamespace(hitl_required=False)
-            )
-            for name, agent in CATALOGUE
-        ]
+        self.manifests = [_native_manifest(name, agent) for name, agent in CATALOGUE]
         self.ctx = UserMCPToolsContext()
         for name, _agent in CATALOGUE:
             self.ctx.tool_instances[name] = _Tool(name=name)
@@ -188,22 +204,58 @@ class TestNothingRegresses:
 # An expanded iterative MCP server: its tools rank on their own, its door stays
 # ---------------------------------------------------------------------------
 
-_SERVER = f"{MCP_USER_TOOL_NAME_PREFIX}_srv1"
+_SERVER_ID = UUID("12345678-2222-3333-4444-555555555555")
+_SERVER = f"{MCP_USER_TOOL_NAME_PREFIX}_{str(_SERVER_ID)[:8]}"
 _DOOR = f"{_SERVER}{MCP_ITERATIVE_TASK_SUFFIX}"
 _INDIVIDUAL = [f"{_SERVER}_a", f"{_SERVER}_b", f"{_SERVER}_c"]
+
+
+def _add_iterative_server(harness: _Harness) -> None:
+    """Publish an owned task and real per-server adapters in registration order."""
+    harness.manifests.append(
+        build_mcp_react_task_manifest(
+            _DOOR,
+            "mcp_srv1_agent",
+            "Selector server",
+            "Selector fixture delegation",
+            [],
+            [],
+            mcp_origin="user",
+            mcp_server_key=str(_SERVER_ID),
+        )
+    )
+    harness.ctx.tool_instances[_DOOR] = _task_instance(
+        name=_DOOR, server_id=_SERVER_ID, server_name="Selector server"
+    )
+    for rpc, name in zip(("a", "b", "c"), _INDIVIDUAL, strict=True):
+        adapter = UserMCPToolAdapter.from_discovered_tool(
+            server_id=_SERVER_ID,
+            user_id=UUID(int=1),
+            server_name="Selector server",
+            tool_name=rpc,
+            description="Selector fixture individual",
+            input_schema={"type": "object", "properties": {}},
+        )
+        assert adapter.name == name
+        harness.ctx.tool_instances[name] = adapter
+        harness.ctx.reactive_tool_manifests[name] = build_mcp_tool_manifest(
+            name,
+            "mcp_srv1_agent",
+            rpc,
+            adapter.description,
+            {"type": "object", "properties": {}},
+            [],
+            False,
+            mcp_origin="user",
+            mcp_server_key=str(_SERVER_ID),
+        )
 
 
 @pytest.fixture
 def mcp_harness(harness: _Harness, monkeypatch: pytest.MonkeyPatch) -> _Harness:
     """The catalogue plus one iterative server: a task manifest, three hidden tools."""
     monkeypatch.setattr(settings, "react_mcp_expand_iterative_enabled", True)
-    harness.manifests.append(
-        SimpleNamespace(
-            name=_DOOR, agent="mcp_srv1_agent", permissions=SimpleNamespace(hitl_required=False)
-        )
-    )
-    for name in (_DOOR, *_INDIVIDUAL):
-        harness.ctx.tool_instances[name] = _Tool(name=name)
+    _add_iterative_server(harness)
     return harness
 
 
@@ -264,10 +316,9 @@ def unit_harness(harness: _Harness) -> _Harness:
     """The catalogue plus a family holding a three-tool unit and one loose tool."""
     for name, agent in [*_UNIT, ("query_state", "query_agent")]:
         harness.manifests.append(
-            SimpleNamespace(
-                name=name,
-                agent=agent,
-                permissions=SimpleNamespace(hitl_required=False),
+            _native_manifest(
+                name,
+                agent,
                 binding_unit="skills" if name != "query_state" else None,
             )
         )

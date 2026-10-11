@@ -18,15 +18,13 @@ that class of drift impossible.
 
 from __future__ import annotations
 
-import importlib
 from difflib import get_close_matches
-from pathlib import Path
 from typing import Any
 
 import pytest
 
-from src.domains.agents.registry.catalogue import ToolManifest
 from src.domains.agents.registry.domain_taxonomy import DOMAIN_REGISTRY
+from src.domains.agents.registry.semantic_inventory import collect_static_manifests
 from src.domains.agents.semantic.expansion_service import get_expansion_service
 
 # Pseudo-domains used in source_domains that are not functional domains in
@@ -74,27 +72,7 @@ def _collect_static_manifests() -> list[Any]:
     Dynamic manifests (MCP servers, user tools) are out of scope — they are
     discovered at runtime and never referenced by the static ontology.
     """
-    import src.domains.agents as agents_pkg
-
-    base = Path(agents_pkg.__file__).parent
-    module_names = [
-        f"src.domains.agents.{child.name}.catalogue_manifests"
-        for child in sorted(base.iterdir())
-        if (child / "catalogue_manifests.py").is_file()
-    ]
-    module_names.append("src.domains.skills.catalogue_manifests")
-
-    by_name: dict[str, Any] = {}
-    for module_name in module_names:
-        module = importlib.import_module(module_name)
-        for value in vars(module).values():
-            if isinstance(value, ToolManifest):
-                by_name[value.name] = value
-            elif isinstance(value, (list, tuple)):
-                for item in value:
-                    if isinstance(item, ToolManifest):
-                        by_name[item.name] = item
-    return list(by_name.values())
+    return collect_static_manifests()
 
 
 @pytest.fixture(scope="module")
@@ -210,6 +188,7 @@ class TestEveryRequiredHandleHasAReadOnlySource:
 
     def test_required_semantic_types_are_all_sourceable(self, manifests: list[Any]) -> None:
         from src.domains.agents.registry.catalogue import is_read_only_tool
+        from src.domains.agents.semantic.semantic_type import is_semantic_pivot
 
         sources: dict[str, set[str]] = {}
         for manifest in manifests:
@@ -224,7 +203,11 @@ class TestEveryRequiredHandleHasAReadOnlySource:
         for manifest in manifests:
             for param in manifest.parameters or []:
                 semantic_type = getattr(param, "semantic_type", None)
-                if not semantic_type or not getattr(param, "required", False):
+                if (
+                    not semantic_type
+                    or not getattr(param, "required", False)
+                    or not is_semantic_pivot(semantic_type)
+                ):
                     continue
                 if not sources.get(semantic_type, set()) - {manifest.name}:
                     dead_ends.append(

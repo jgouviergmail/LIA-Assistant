@@ -20,6 +20,7 @@ from src.core.session_dependencies import get_current_active_session
 from src.domains.auth.dependencies import create_user_rate_limiter
 from src.domains.feature_switches.guard import capability_dependencies
 from src.domains.feature_switches.registry import PlatformCapability
+from src.domains.peers.constants import PEER_ACCESS_LOG_MAX_ENTRIES
 from src.domains.peers.image_share import deliver_shared_image, share_image
 from src.domains.peers.notifications import dispatch_peer_events
 from src.domains.peers.repository import PeersRepository
@@ -306,7 +307,9 @@ async def share_image_with_connection(
     description="Transparency view: cross-user reads of MY data, newest first.",
 )
 async def list_access_log(
-    limit: int = Query(default=50, ge=1, le=200, description="Max entries returned."),
+    limit: int = Query(
+        default=50, ge=1, le=PEER_ACCESS_LOG_MAX_ENTRIES, description="Max entries returned."
+    ),
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> list[AccessLogEntry]:

@@ -14,12 +14,15 @@ from typing import Any, NoReturn
 
 import structlog
 from fastapi import status
+from sqlalchemy import String
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.exceptions import BaseAPIException
 from src.core.i18n_meeting_templates import TEMPLATE_KEYS
+from src.core.meeting_templates import canonical_template_reference
 from src.domains.meetings.models import MeetingTemplate
+from src.domains.meetings.preference_owner import lock_meeting_preference_owner
 from src.domains.meetings.repository import MeetingPreferenceRepository, MeetingTemplateRepository
 from src.domains.meetings.schemas import (
     MeetingTemplateCreate,
@@ -35,6 +38,13 @@ from src.domains.meetings.template_catalogue import (
     builtin_sections,
     builtin_summary,
     builtin_template,
+)
+from src.domains.meetings.template_confirmation import (
+    TemplateWriteConfirmation,
+    TemplateWriteFacts,
+    commit_template_write,
+    template_receipt,
+    validate_template_write,
 )
 from src.domains.meetings.template_ref import TemplateRef
 from src.domains.meetings.templates import parse_sections, sections_to_json
@@ -117,6 +127,12 @@ def parse_ref(value: str) -> TemplateRef:
 # ============================================================================
 
 
+def _copy_name(name: str, counter: int, maximum: int) -> str:
+    """Reserve room for the distinguishing suffix within the actual storage bound."""
+    suffix = f" ({counter})"
+    return f"{name[:maximum-len(suffix)]}{suffix}"
+
+
 class MeetingTemplateService:
     """Library reads and writes; resolution of references for the pipeline."""
 
@@ -197,45 +213,85 @@ class MeetingTemplateService:
 
     # ----------------------------------------------------------------- writes
 
-    async def create(
+    async def creation_facts(
         self, user_id: uuid.UUID, request: MeetingTemplateCreate, language: str | None
-    ) -> MeetingTemplateResponse:
-        """A new user row, from sections or by duplicating a reference; bounded by the cap."""
+    ) -> TemplateWriteFacts:
+        """Preview the exact original copied name/content and current quota without writing."""
         maximum = settings.meetings_max_user_templates
-        if await self.repo.count_for_user(user_id) >= maximum:
+        count = await self.repo.count_for_user(user_id)
+        if count >= maximum:
             raise_template_limit(maximum)
         payload = await self._creation_payload(user_id, request, language)
+        return TemplateWriteFacts(
+            count=count,
+            maximum=maximum,
+            values={key: value for key, value in payload.items() if key != "user_id"},
+        )
+
+    async def create(
+        self,
+        user_id: uuid.UUID,
+        request: MeetingTemplateCreate,
+        language: str | None,
+        *,
+        confirmation: TemplateWriteConfirmation | None = None,
+    ) -> MeetingTemplateResponse:
+        """A new user row, from sections or by duplicating a reference; bounded by the cap."""
+        await lock_meeting_preference_owner(self.db, user_id)
+        facts = await self.creation_facts(user_id, request, language)
+        await validate_template_write(confirmation, facts)
+        payload = {"user_id": user_id, **facts.values}
+        if confirmation is not None and confirmation.created_id is not None:
+            payload["id"] = confirmation.created_id
         row = await self.repo.create(payload)
-        await self.db.commit()
+        response = self._response(row)
+        await commit_template_write(
+            self.db, confirmation, template_receipt("meeting_template_created", response)
+        )
         logger.info(
             "meeting_template_created",
             user_id=str(user_id),
             template_id=str(row.id),
             duplicate_of=request.duplicate_of,
         )
-        return self._response(row)
+        return response
 
     async def update(
-        self, user_id: uuid.UUID, ref: str, request: MeetingTemplateUpdate
+        self,
+        user_id: uuid.UUID,
+        ref: str,
+        request: MeetingTemplateUpdate,
+        *,
+        confirmation: TemplateWriteConfirmation | None = None,
     ) -> MeetingTemplateResponse:
         """Replace a user row (PUT semantics); a built-in is read-only."""
         parsed = parse_ref(ref)
         if parsed.kind == "builtin":
             raise_template_readonly(ref)
+        await lock_meeting_preference_owner(self.db, user_id)
         row = await self._owned_row(parsed, user_id)
-        row = await self.repo.update(
-            row,
-            {
-                "name": request.name,
-                "description": request.description,
-                "category": request.category.value,
-                "sections": sections_to_json(request.sections),
-            },
+        payload = request.model_dump(mode="json")
+        before = self._response(row)
+        await validate_template_write(
+            confirmation, TemplateWriteFacts(current=before, values=payload)
         )
-        await self.db.commit()
-        return self._response(row)
+        unchanged = payload == before.model_dump(
+            mode="json", include=set(MeetingTemplateUpdate.model_fields)
+        )
+        if confirmation is None or not unchanged:
+            row = await self.repo.update(row, payload)
+        response = self._response(row)
+        await commit_template_write(
+            self.db,
+            confirmation,
+            template_receipt("meeting_template_updated", response),
+            no_op=unchanged,
+        )
+        return response
 
-    async def delete(self, user_id: uuid.UUID, ref: str) -> bool:
+    async def delete(
+        self, user_id: uuid.UUID, ref: str, *, confirmation: TemplateWriteConfirmation | None = None
+    ) -> bool:
         """Delete a user row; a preference pointing at it goes back to automatic.
 
         Returns:
@@ -244,10 +300,35 @@ class MeetingTemplateService:
         parsed = parse_ref(ref)
         if parsed.kind == "builtin":
             raise_template_readonly(ref)
+        await lock_meeting_preference_owner(self.db, user_id)
         row = await self._owned_row(parsed, user_id)
+        preference = (
+            await self.preference_repo.get_for_user(user_id) if confirmation is not None else None
+        )
+        default = (
+            canonical_template_reference(preference.default_template_ref) if preference else None
+        )
+        await validate_template_write(
+            confirmation,
+            TemplateWriteFacts(
+                current=self._response(row),
+                default_template_ref=default,
+                values={"ref": ref, "deleted": True, "reset_default_template": default == ref},
+            ),
+        )
         await self.repo.delete(row)
         reset = await self.preference_repo.clear_default_template_if(user_id, str(parsed))
-        await self.db.commit()
+        await commit_template_write(
+            self.db,
+            confirmation,
+            {
+                "meeting_template_deleted": {
+                    "ref": ref,
+                    "deleted": True,
+                    "reset_default_template": reset,
+                }
+            },
+        )
         logger.info(
             "meeting_template_deleted",
             user_id=str(user_id),
@@ -304,10 +385,15 @@ class MeetingTemplateService:
         taken = {row.name for row in await self.repo.list_for_user(user_id)}
         if name not in taken:
             return name
+        column_type = MeetingTemplate.__table__.c.name.type
+        if not isinstance(column_type, String) or column_type.length is None:
+            raise ValueError("Template names require a bounded storage type")
         counter = 2
-        while f"{name} ({counter})" in taken:
+        candidate = _copy_name(name, counter, column_type.length)
+        while candidate in taken:
             counter += 1
-        return f"{name} ({counter})"
+            candidate = _copy_name(name, counter, column_type.length)
+        return candidate
 
     @staticmethod
     def _response(row: MeetingTemplate) -> MeetingTemplateResponse:

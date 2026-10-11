@@ -443,11 +443,12 @@ class TestTheLoopGoesOn:
             patch(f"{mod.__name__}.interrupt", return_value={"action": "cancel"}),
             patch(f"{mod.__name__}.python_sandbox_egress_grants_total"),
         ):
-            result = await react_nodes.react_execute_tools_node(
+            from tests.unit.domains.agents.nodes.react_execution_harness import execute_all
+
+            result = await execute_all(
                 _loop_state(
                     ("egress_refused_tool", "c-refused"), ("egress_breaks_tool", "c-breaks")
                 ),
-                {},
             )
 
         refused, broke = [m for m in result["messages"] if isinstance(m, ToolMessage)]
@@ -627,8 +628,10 @@ class TestTheCallsBooks:
 
         _registered("books_twice_tool", _finds)
         monkeypatch.setattr(react_nodes, "_extract_draft_info", _first_processing_fails)
-        result = await react_nodes.react_execute_tools_node(
-            _loop_state(("books_twice_tool", "c-first"), ("books_twice_tool", "c-second")), {}
+        from tests.unit.domains.agents.nodes.react_execution_harness import execute_all
+
+        result = await execute_all(
+            _loop_state(("books_twice_tool", "c-first"), ("books_twice_tool", "c-second"))
         )
 
         first, second = [m for m in result["messages"] if isinstance(m, ToolMessage)]

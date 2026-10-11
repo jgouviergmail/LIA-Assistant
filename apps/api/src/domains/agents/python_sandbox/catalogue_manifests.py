@@ -82,6 +82,7 @@ run_python_catalogue_manifest = ToolManifest(
             type="string",
             required=True,
             description="One short sentence on what this computes (shown to administrators).",
+            semantic_type="Text",
         ),
         ParameterSchema(
             name="hosts",
@@ -103,9 +104,17 @@ run_python_catalogue_manifest = ToolManifest(
         ),
     ],
     outputs=[
-        OutputFieldSchema(path="stdout", type="string", description="What the script printed."),
         OutputFieldSchema(
-            path="traceback", type="string", description="The error, when the script failed."
+            path="stdout",
+            type="string",
+            description="What the script printed.",
+            semantic_type="Text",
+        ),
+        OutputFieldSchema(
+            path="traceback",
+            type="string",
+            description="The error, when the script failed.",
+            semantic_type="Text",
         ),
         OutputFieldSchema(
             path="hosts", type="array", description="The hosts a network run could reach."

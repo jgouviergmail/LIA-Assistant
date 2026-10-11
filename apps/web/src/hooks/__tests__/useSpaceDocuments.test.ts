@@ -292,6 +292,12 @@ describe('useSpaceDocuments — managing the list', () => {
 });
 
 describe('useSpaceDocuments — indexing poll', () => {
+  it('asks for a refresh while a durable upload is pending', () => {
+    vi.useFakeTimers();
+    const { onDocumentReady } = setup([document({ status: 'pending' })]);
+    vi.advanceTimersByTime(STATUS_POLL_INTERVAL_MS);
+    expect(onDocumentReady).toHaveBeenCalled();
+  });
   it('asks for a refresh while a document is still processing', () => {
     vi.useFakeTimers();
     const { onDocumentReady } = setup([document({ status: 'processing' })]);

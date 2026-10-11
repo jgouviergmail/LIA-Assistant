@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
-from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,19 +20,16 @@ from src.core.i18n import normalize_language
 from src.core.security.utils import encrypt_data
 from src.core.session_dependencies import get_current_active_session
 from src.core.user_display import resolve_user_display_name
-from src.domains.chat.repository import ChatRepository
-from src.domains.conversations.service import ConversationService
 from src.domains.feature_switches.guard import capability_dependencies
 from src.domains.feature_switches.registry import PlatformCapability
-from src.domains.shared.phone_domains import PHONE_DOMAINS
 from src.domains.telephony.connector import TelephonyConnectorService
+from src.domains.telephony.history_queries import project_call_history
 from src.domains.telephony.identity import PhoneIdentity, TelephonyIdentityService
-from src.domains.telephony.models import PhoneCall
+from src.domains.telephony.identity_queries import project_identity
 from src.domains.telephony.repository import TelephonyRepository
 from src.domains.telephony.schemas import (
     TelephonyActivateRequest,
     TelephonyCallSummary,
-    TelephonyCallUsage,
     TelephonyConnectorResponse,
     TelephonyIdentityConfirmRequest,
     TelephonyIdentityNumberRequest,
@@ -43,7 +39,6 @@ from src.domains.telephony.schemas import (
     TelephonyKeyValidateRequest,
     TelephonyKeyValidateResponse,
 )
-from src.domains.telephony.spend import phone_call_run_id
 from src.domains.telephony.verification import TelephonyVerificationService
 from src.domains.telephony.webhook_handler import (
     SIGNATURE_HEADER,
@@ -51,7 +46,6 @@ from src.domains.telephony.webhook_handler import (
     authenticate_and_reconcile,
 )
 from src.domains.users.models import User
-from src.domains.voice_sessions.summary import session_run_ids_by_key
 from src.infrastructure.async_utils import safe_fire_and_forget
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.observability.logging import get_logger
@@ -197,53 +191,7 @@ async def list_calls(
     """
     calls = await TelephonyRepository(db).list_recent_for_user(user.id, limit=limit)
     logger.info("telephony_calls_listed", user_id=str(user.id), count=len(calls))
-    # Lot 8: the bill of a direct call is the per-run summary under its own run
-    # id. A LIVE call (ADR-301) delegated its requests as chat turns, each
-    # under a run of its own: its bill is the SUM of those runs and of its
-    # own. Two batched reads for the page, never one per row.
-    delegated = await _delegated_runs_of(db, user.id, calls)
-    run_ids = [phone_call_run_id(call.id) for call in calls]
-    run_ids += [run for runs in delegated.values() for run in runs]
-    summaries = await ChatRepository(db).get_token_summaries_by_run_ids(run_ids)
-    listed: list[TelephonyCallSummary] = []
-    for call in calls:
-        summary = TelephonyCallSummary.model_validate(call)
-        own = phone_call_run_id(call.id)
-        rows = [
-            row for run in (own, *delegated.get(own, [])) if (row := summaries.get(run)) is not None
-        ]
-        if rows:
-            summary = summary.model_copy(
-                update={
-                    "usage": TelephonyCallUsage(
-                        tokens_in=sum(r.total_prompt_tokens for r in rows),
-                        tokens_out=sum(r.total_completion_tokens for r in rows),
-                        tokens_cache=sum(r.total_cached_tokens for r in rows),
-                        cost_eur=float(sum(r.billed_cost_eur for r in rows)),
-                        google_api_requests=sum(r.google_api_requests for r in rows),
-                    )
-                }
-            )
-        listed.append(summary)
-    return listed
-
-
-async def _delegated_runs_of(
-    db: AsyncSession, user_id: UUID, calls: list[PhoneCall]
-) -> dict[str, list[str]]:
-    """The delegated runs of the page's LIVE calls, keyed by session key.
-
-    Reads nothing when the page holds no Live call, and creates no
-    conversation: an account with calls but no conversation has no delegated
-    turn to find.
-    """
-    keys = [phone_call_run_id(call.id) for call in calls if call.call_mode == "delegated"]
-    if not keys:
-        return {}
-    conversation = await ConversationService().get_active_conversation(user_id, db)
-    if conversation is None:
-        return {}
-    return await session_run_ids_by_key(db, conversation_id=conversation.id, live_session_ids=keys)
+    return await project_call_history(db, user.id, calls)
 
 
 # ---------------------------------------------------------------------------
@@ -255,19 +203,7 @@ def _identity_response(
     identity: PhoneIdentity, *, verification_pending: bool = False
 ) -> TelephonyIdentityResponse:
     """Project the service's identity onto the public schema."""
-    return TelephonyIdentityResponse(
-        phone_number=identity.phone_number,
-        verified=identity.verified,
-        verified_at=identity.verified_at,
-        rich_context_enabled=identity.rich_context_enabled,
-        disabled_domains=list(identity.disabled_domains),
-        call_mode=identity.call_mode,
-        call_mode_effective=identity.call_mode_effective,
-        live_available=identity.live_available,
-        live_unavailable_reason=identity.live_unavailable_reason,
-        available_domains=list(PHONE_DOMAINS),
-        verification_pending=verification_pending,
-    )
+    return project_identity(identity, verification_pending=verification_pending)
 
 
 async def _verification(db: AsyncSession) -> TelephonyVerificationService:
@@ -367,16 +303,7 @@ async def update_identity(
     db: AsyncSession = Depends(get_db),
 ) -> TelephonyIdentityResponse:
     """Persist the switches the body carries."""
-    service = TelephonyIdentityService(db)
-    identity = await service.get_identity(user.id)
-    if body.rich_context_enabled is not None:
-        identity = await service.set_rich_context(user.id, body.rich_context_enabled)
-    if body.disabled_domains is not None:
-        identity = await service.set_disabled_domains(
-            user.id, body.disabled_domains, language=normalize_language(user.language)
-        )
-    if body.call_mode is not None:
-        identity = await service.set_call_mode(
-            user.id, body.call_mode, language=normalize_language(user.language)
-        )
+    identity = await TelephonyIdentityService(db).update_preferences(
+        user.id, body, language=normalize_language(user.language)
+    )
     return _identity_response(identity)

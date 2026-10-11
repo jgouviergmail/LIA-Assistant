@@ -30,6 +30,7 @@ from src.domains.agents.effects.runtime import EFFECT_GATED_ATTR
 from src.domains.agents.effects.scope import EffectScope, effect_scope
 from src.infrastructure.mcp.tool_adapter import MCPToolAdapter
 from src.infrastructure.mcp.user_tool_adapter import UserMCPToolAdapter
+from tests.helpers.mcp_access import installed_shared_mcp_access
 
 pytestmark = [pytest.mark.unit]
 
@@ -59,13 +60,16 @@ def _user_mcp_tool() -> UserMCPToolAdapter:
 @pytest.fixture(autouse=True)
 def _attended_user() -> Any:
     gate_runtime.reset_policy_cache()
-    with patch(
-        "src.domains.agents.context.runtime_context.runtime_context_if_running",
-        return_value=SimpleNamespace(
-            user_id=uuid.uuid4(),
-            thread_id="thread-mcp",
-            execution_mode="pipeline",
-            is_automated_source=False,
+    with (
+        installed_shared_mcp_access() as actor,
+        patch(
+            "src.domains.agents.context.runtime_context.runtime_context_if_running",
+            return_value=SimpleNamespace(
+                user_id=actor.id,
+                thread_id="thread-mcp",
+                execution_mode="pipeline",
+                is_automated_source=False,
+            ),
         ),
     ):
         yield

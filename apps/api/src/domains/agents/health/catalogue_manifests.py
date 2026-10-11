@@ -28,6 +28,7 @@ from src.domains.agents.registry.catalogue import (
     PermissionProfile,
     ToolManifest,
 )
+from src.domains.health_metrics.kinds import HEALTH_KINDS
 
 # Register the Health Signals context type at module import time.
 # The catalogue_loader imports this module before it validates that every
@@ -93,15 +94,55 @@ _WINDOW_DAYS_PARAM = ParameterSchema(
 )
 
 _BASELINE_OUTPUTS = [
-    OutputFieldSchema(path="kind", type="string", description="Kind discriminator"),
+    OutputFieldSchema(
+        path="kind",
+        type="string",
+        description="Kind discriminator",
+        semantic_type="health_metric_kind",
+    ),
     OutputFieldSchema(path="unit", type="string", description="Unit label (bpm, steps...)"),
     OutputFieldSchema(
         path="mode", type="string", description="Baseline mode: empty / bootstrap / rolling"
     ),
-    OutputFieldSchema(path="baseline_value", type="number", description="Median baseline value"),
-    OutputFieldSchema(path="window_value", type="number", description="Recent window aggregate"),
-    OutputFieldSchema(path="delta_pct", type="number", description="Signed delta in %"),
+    OutputFieldSchema(
+        path="baseline_value",
+        type="number",
+        nullable=True,
+        description="Median baseline value",
+        semantic_type="QuantitativeValue",
+    ),
+    OutputFieldSchema(
+        path="window_value",
+        type="number",
+        nullable=True,
+        description="Recent window aggregate",
+        semantic_type="QuantitativeValue",
+    ),
+    OutputFieldSchema(
+        path="delta_pct", type="number", nullable=True, description="Signed delta in %"
+    ),
 ]
+
+
+def _summary_metadata(prefix: str = "") -> list[OutputFieldSchema]:
+    """The window and freshness metadata compute_kind_summary always produces."""
+    return [
+        OutputFieldSchema(
+            path=f"{prefix}from_ts",
+            type="string",
+            description="Window start (ISO 8601)",
+            semantic_type="datetime",
+        ),
+        OutputFieldSchema(
+            path=f"{prefix}to_ts",
+            type="string",
+            description="Window end (ISO 8601)",
+            semantic_type="datetime",
+        ),
+        OutputFieldSchema(
+            path=f"{prefix}unit", type="string", description="Declared measurement unit"
+        ),
+    ]
 
 
 # ============================================================================
@@ -127,8 +168,17 @@ get_steps_summary_catalogue_manifest = ToolManifest(
     ],
     parameters=[_TIME_MIN_PARAM, _TIME_MAX_PARAM],
     outputs=[
-        OutputFieldSchema(path="kind", type="string", description="'steps'"),
-        OutputFieldSchema(path="total", type="integer", description="Total steps (period)"),
+        OutputFieldSchema(
+            path="kind", type="string", description="'steps'", semantic_type="health_metric_kind"
+        ),
+        *_summary_metadata(),
+        OutputFieldSchema(
+            path="total",
+            type="integer",
+            description="Total steps (period)",
+            nullable=True,
+            semantic_type="QuantitativeValue",
+        ),
         OutputFieldSchema(
             path="samples_count", type="integer", description="Number of raw samples"
         ),
@@ -136,6 +186,7 @@ get_steps_summary_catalogue_manifest = ToolManifest(
             path="last_sample_at",
             type="string",
             description="ISO timestamp",
+            nullable=True,
             semantic_type="datetime",
         ),
     ],
@@ -169,6 +220,18 @@ get_steps_daily_breakdown_catalogue_manifest = ToolManifest(
     parameters=[_DAYS_PARAM],
     outputs=[
         OutputFieldSchema(path="days", type="array", description="Per-day entries"),
+        OutputFieldSchema(
+            path="days[].date",
+            type="string",
+            description="Calendar day (YYYY-MM-DD)",
+            semantic_type="Date",
+        ),
+        OutputFieldSchema(
+            path="days[].value",
+            type="number",
+            description="Daily total in steps",
+            semantic_type="QuantitativeValue",
+        ),
         OutputFieldSchema(path="window", type="integer", description="Window length (days)"),
     ],
     cost=CostProfile(est_tokens_in=80, est_tokens_out=250, est_cost_usd=0.0007, est_latency_ms=250),
@@ -234,10 +297,41 @@ get_heart_rate_summary_catalogue_manifest = ToolManifest(
     ],
     parameters=[_TIME_MIN_PARAM, _TIME_MAX_PARAM],
     outputs=[
-        OutputFieldSchema(path="kind", type="string", description="'heart_rate'"),
-        OutputFieldSchema(path="avg", type="number", description="Average bpm"),
-        OutputFieldSchema(path="min", type="integer", description="Min bpm"),
-        OutputFieldSchema(path="max", type="integer", description="Max bpm"),
+        OutputFieldSchema(
+            path="kind",
+            type="string",
+            description="'heart_rate'",
+            semantic_type="health_metric_kind",
+        ),
+        *_summary_metadata(),
+        OutputFieldSchema(
+            path="last_sample_at",
+            type="string",
+            nullable=True,
+            description="Last sample instant (ISO 8601)",
+            semantic_type="datetime",
+        ),
+        OutputFieldSchema(
+            path="avg",
+            type="number",
+            nullable=True,
+            description="Average bpm",
+            semantic_type="QuantitativeValue",
+        ),
+        OutputFieldSchema(
+            path="min",
+            type="integer",
+            nullable=True,
+            description="Min bpm",
+            semantic_type="QuantitativeValue",
+        ),
+        OutputFieldSchema(
+            path="max",
+            type="integer",
+            nullable=True,
+            description="Max bpm",
+            semantic_type="QuantitativeValue",
+        ),
     ],
     cost=CostProfile(est_tokens_in=80, est_tokens_out=180, est_cost_usd=0.0005, est_latency_ms=200),
     permissions=PermissionProfile(
@@ -290,7 +384,7 @@ get_health_overview_catalogue_manifest = ToolManifest(
         "Cross-kind aggregation between ``time_min`` and ``time_max`` (ISO 8601): "
         "emits one summary entry per registered kind (steps, heart_rate, and any future additions).\n"
         "**Use for**: 'How's my health today?', 'Summarise my health this week'.\n"
-        "**Output**: `{from_ts, to_ts, overview: {kind: {...}}}`."
+        "**Output**: `{overview: {kind: {from_ts, to_ts, ...}}}`."
     ),
     semantic_keywords=[
         "overall health today",
@@ -300,14 +394,12 @@ get_health_overview_catalogue_manifest = ToolManifest(
     ],
     parameters=[_TIME_MIN_PARAM, _TIME_MAX_PARAM],
     outputs=[
-        OutputFieldSchema(
-            path="from_ts",
-            type="string",
-            description="Window start (ISO)",
-            semantic_type="datetime",
-        ),
-        OutputFieldSchema(path="to_ts", type="string", description="Window end (ISO)"),
         OutputFieldSchema(path="overview", type="object", description="Per-kind summary dict"),
+        *[
+            OutputFieldSchema(path=f"overview.{kind}", type="object", description=f"{kind} summary")
+            for kind in HEALTH_KINDS
+        ],
+        *[field for kind in HEALTH_KINDS for field in _summary_metadata(f"overview.{kind}.")],
     ],
     cost=CostProfile(est_tokens_in=80, est_tokens_out=400, est_cost_usd=0.0009, est_latency_ms=400),
     permissions=PermissionProfile(

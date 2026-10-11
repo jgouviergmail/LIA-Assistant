@@ -3,6 +3,7 @@ import { GhostWord } from '../cosmic/GhostWord';
 import { CHAPTERS } from './chapters-data';
 import { ChapterSection } from './ChapterSection';
 import { ProductScene } from '../demo/ProductScene';
+import { ScreenshotsSection } from '../ScreenshotsSection';
 import { SecurityDetail } from './SecurityDetail';
 
 /**
@@ -30,7 +31,17 @@ export async function EditorialChapters({
           t={t}
           chapter={chapter}
           reverse={i % 2 === 1}
-          visual={<ProductScene sceneId={chapter.scene} />}
+          visual={
+            chapter.id === 'act' ? (
+              <ScreenshotsSection view="meetings" />
+            ) : chapter.id === 'know' ? (
+              <ScreenshotsSection view="relations" />
+            ) : chapter.id === 'grow' ? (
+              <ScreenshotsSection view="knowledge" />
+            ) : (
+              <ProductScene sceneId={chapter.scene} home />
+            )
+          }
           catalogExtra={chapter.id === 'control' ? <SecurityDetail t={t} lng={lng} /> : undefined}
           ghost={
             ghosts ? (

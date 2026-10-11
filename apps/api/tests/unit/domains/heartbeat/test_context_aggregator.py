@@ -44,6 +44,7 @@ def _make_settings(**overrides) -> SimpleNamespace:
         "workboard_enabled": True,
         "habits_enabled": True,
         "health_metrics_enabled": True,
+        "journals_enabled": True,
     }
     defaults.update(overrides)
     return SimpleNamespace(**defaults)
@@ -59,6 +60,19 @@ def _make_user(**overrides) -> SimpleNamespace:
     }
     defaults.update(overrides)
     return SimpleNamespace(**defaults)
+
+
+@pytest.fixture
+def _journal_feature_gates(monkeypatch):
+    from unittest.mock import AsyncMock
+
+    from src.core.config import settings
+
+    monkeypatch.setattr(settings, "journals_enabled", True)
+    monkeypatch.setattr(
+        "src.domains.heartbeat.context_aggregator.is_capability_enabled",
+        AsyncMock(return_value=True),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -952,11 +966,11 @@ class TestFormatUtcDatetime:
 
 
 @pytest.mark.unit
+@pytest.mark.usefixtures("_journal_feature_gates")
 class TestFetchJournals:
-    """Journal fetch must use the native async embedding API (audit A6)."""
+    """The heartbeat shares whole-entry policy and tracking with conversation."""
 
-    async def test_uses_native_async_embed_query(self):
-        """embed_query is sync/blocking; the async path must await aembed_query."""
+    async def test_uses_the_shared_builder_and_retains_the_full_action(self):
         from unittest.mock import AsyncMock, patch
         from uuid import uuid4
 
@@ -965,43 +979,62 @@ class TestFetchJournals:
         user = MagicMock()
         user.journals_enabled = True
 
-        entry = SimpleNamespace(
-            title="Entry",
-            content="Some journal content",
-            theme="focus",
-            mood="calm",
-            created_at=datetime(2026, 7, 1, tzinfo=UTC),
+        content = "WHEN preparing a report " + "verify facts; " * 15 + "DO ask before publishing."
+        entry = {
+            "full_title": "Entry",
+            "content": content,
+            "theme": "learnings",
+            "mood": "reflective",
+            "date": "2026-07-01",
+            "score": 0.91,
+            "injected": True,
+            "confidence": "medium",
+            "revision": 3,
+        }
+        builder = AsyncMock(
+            return_value=("whole block", {"entries": [entry, {**entry, "injected": False}]}, ["id"])
         )
-
-        embeddings = MagicMock()
-        embeddings.aembed_query = AsyncMock(return_value=[0.1, 0.2, 0.3])
-
-        repo = MagicMock()
-        repo.search_by_relevance = AsyncMock(return_value=[(entry, 0.91)])
 
         with (
             patch(
-                "src.domains.journals.embedding.get_journal_embeddings",
-                return_value=embeddings,
-            ),
-            patch(
-                "src.domains.journals.repository.JournalEntryRepository",
-                return_value=repo,
+                "src.domains.journals.context_builder.build_journal_context",
+                builder,
             ),
         ):
             result = await aggregator._fetch_journals(uuid4(), user, query="focus patterns")
 
-        embeddings.aembed_query.assert_awaited_once_with("focus patterns")
+        assert builder.await_args.kwargs["query"] == "focus patterns"
+        assert builder.await_args.kwargs["include_debug"] is True
         assert result == [
             {
                 "title": "Entry",
-                "content_preview": "Some journal content",
-                "theme": "focus",
-                "mood": "calm",
+                "content_preview": f"[confidence=medium | revision=3] {content}",
+                "theme": "learnings",
+                "mood": "reflective",
                 "date": "2026-07-01",
                 "score": "0.91",
             }
         ]
+
+    async def test_deployment_off_opens_nothing_even_with_user_opt_in(self):
+        from unittest.mock import AsyncMock, patch
+        from uuid import uuid4
+
+        from src.core.config import settings
+
+        with (
+            patch.object(settings, "journals_enabled", False),
+            patch(
+                "src.domains.journals.context_builder.build_journal_context", AsyncMock()
+            ) as builder,
+        ):
+            assert (
+                await ContextAggregator(MagicMock())._fetch_journals(
+                    uuid4(), SimpleNamespace(journals_enabled=True), "q"
+                )
+                is None
+            )
+        builder.assert_not_awaited()
 
 
 # ---------------------------------------------------------------------------
@@ -1010,6 +1043,7 @@ class TestFetchJournals:
 
 
 @pytest.mark.unit
+@pytest.mark.usefixtures("_journal_feature_gates")
 class TestSecondPassMemories:
     """Memories must use the dynamic second-pass query, like journals (ADR-135).
 
@@ -1091,7 +1125,7 @@ class TestSecondPassMemories:
         from uuid import uuid4
 
         aggregator = ContextAggregator(MagicMock())
-        user = _make_user()
+        user = _make_user(journals_enabled=True)
 
         calendar_events = [{"summary": "Standup", "start": "09:00", "end": "09:15"}]
 
@@ -1134,7 +1168,7 @@ class TestSecondPassMemories:
         from uuid import uuid4
 
         aggregator = ContextAggregator(MagicMock())
-        user = _make_user()
+        user = _make_user(journals_enabled=True)
 
         async def _fake_fresh_session(fetch, *args):
             return None
@@ -1495,6 +1529,7 @@ class TestProviderClientLifecycle:
 
 
 @pytest.mark.unit
+@pytest.mark.usefixtures("_journal_feature_gates")
 class TestTheSecondPassReportsWhatItActuallyOpened:
     """A source the person switched off was never opened.
 
@@ -1516,7 +1551,37 @@ class TestTheSecondPassReportsWhatItActuallyOpened:
     @staticmethod
     def _user(**enabled):
         """A user whose source switches answer exactly as asked."""
-        return SimpleNamespace(heartbeat_sources=dict(enabled))
+        return SimpleNamespace(heartbeat_sources=dict(enabled), journals_enabled=True)
+
+    @pytest.mark.parametrize("gate", ["deployment", "operator", "user"])
+    async def test_refused_journal_is_not_searched_or_filed(self, monkeypatch, gate):
+        from unittest.mock import AsyncMock, patch
+        from uuid import uuid4
+
+        from src.core.config import settings
+
+        user = self._user()
+        if gate == "deployment":
+            monkeypatch.setattr(settings, "journals_enabled", False)
+        elif gate == "operator":
+            monkeypatch.setattr(
+                "src.domains.heartbeat.context_aggregator.is_capability_enabled",
+                AsyncMock(return_value=False),
+            )
+        else:
+            user.journals_enabled = False
+        aggregator = self._aggregator()
+        aggregator._fetch_journals = AsyncMock()
+        with patch(
+            "src.domains.heartbeat.context_aggregator.is_source_enabled",
+            side_effect=lambda _user, name: name == "journals",
+        ):
+            opened = await aggregator._second_pass(
+                HeartbeatContext(), uuid4(), user, _make_settings()
+            )
+
+        assert opened == []
+        aggregator._fetch_journals.assert_not_awaited()
 
     async def test_nothing_enabled_opens_nothing(self):
         from unittest.mock import patch

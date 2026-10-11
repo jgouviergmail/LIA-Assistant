@@ -71,6 +71,24 @@ def mock_registry():
             source_domains=["event", "task"],
             used_in_tools=["create_event_tool"],
         ),
+        SemanticType(
+            name="event_start_datetime",
+            parent="datetime",
+            category=TypeCategory.TEMPORAL,
+            source_domains=["event"],
+        ),
+        SemanticType(
+            name="thread_id",
+            parent="Thing",
+            category=TypeCategory.RESOURCE_ID,
+            source_domains=["email"],
+        ),
+        SemanticType(
+            name="message_id",
+            parent="Thing",
+            category=TypeCategory.RESOURCE_ID,
+            source_domains=["email"],
+        ),
         # Entity types (mirror the real ontology) — drive evidence-driven expansion
         SemanticType(
             name="Contact",
@@ -459,25 +477,6 @@ class TestEvidenceEntityRegistry:
             pytest.raises(RuntimeError, match="GhostEntityType"),
         ):
             es.assert_evidence_entity_types_complete()
-
-
-class TestGetPrimaryTypeForDomain:
-    """Tests for _get_primary_type_for_domain method."""
-
-    def test_returns_person_name_for_contact(self, expansion_service):
-        """Test that contact domain returns person_name."""
-        result = expansion_service._get_primary_type_for_domain("contact")
-        assert result == "person_name"
-
-    def test_returns_message_id_for_email(self, expansion_service):
-        """Test that email domain returns message_id."""
-        result = expansion_service._get_primary_type_for_domain("email")
-        assert result == "message_id"
-
-    def test_returns_text_for_unknown_domain(self, expansion_service):
-        """Test that unknown domain returns text."""
-        result = expansion_service._get_primary_type_for_domain("unknown_domain")
-        assert result == "text"
 
 
 class TestGlobalExpansionService:

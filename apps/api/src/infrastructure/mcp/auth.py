@@ -21,7 +21,7 @@ from __future__ import annotations
 import asyncio
 import json
 import time
-from collections.abc import AsyncGenerator, Callable, Coroutine, Generator
+from collections.abc import AsyncGenerator, Awaitable, Callable, Coroutine, Generator
 from contextlib import suppress
 from secrets import token_urlsafe
 from typing import TYPE_CHECKING, Any
@@ -37,6 +37,7 @@ from src.core.constants import (
     MCP_USER_DEFAULT_API_KEY_HEADER,
 )
 from src.core.security.utils import decrypt_data, encrypt_data
+from src.infrastructure.mcp.catalogue_fingerprint import canonical_fingerprint
 from src.infrastructure.mcp.oauth_flow import safe_oauth_error_code
 from src.infrastructure.mcp.utils import MCPAuthRequiredError
 
@@ -81,6 +82,11 @@ class MCPStaticTokenAuth(httpx2.Auth):
         self.header_name = header_name
         self.header_value = header_value
 
+    @property
+    def catalogue_identity(self) -> str:
+        """Changing a static credential can change the server-visible catalogue."""
+        return canonical_fingerprint({"header": self.header_name, "value": self.header_value})
+
     def auth_flow(self, request: httpx2.Request) -> Generator[httpx2.Request, httpx2.Response]:
         request.headers[self.header_name] = self.header_value
         yield request
@@ -110,6 +116,8 @@ class MCPOAuth2Auth(httpx2.Auth):
         client_id: str | None = None,
         client_secret: str | None = None,
         resource: str | None = None,
+        catalogue_scope: str = "",
+        guarded_persistence: Callable[[dict | None, dict | None], Awaitable[bool]] | None = None,
     ) -> None:
         self.server_id = server_id
         self._get_creds_fn = get_creds_fn
@@ -119,6 +127,20 @@ class MCPOAuth2Auth(httpx2.Auth):
         self._client_id = client_id
         self._client_secret = client_secret
         self._resource = resource
+        self._catalogue_scope = catalogue_scope
+        self._guarded_persistence = guarded_persistence
+
+    @property
+    def catalogue_identity(self) -> str:
+        """Rotating access tokens keep identity; changed OAuth scopes do not."""
+        return canonical_fingerprint(
+            {
+                "endpoint": self._token_endpoint,
+                "client_id": self._client_id,
+                "resource": self._resource,
+                "scope": self._catalogue_scope,
+            }
+        )
 
     async def async_auth_flow(
         self, request: httpx2.Request
@@ -126,7 +148,7 @@ class MCPOAuth2Auth(httpx2.Auth):
         """Inject Bearer token, retry with refresh on 401."""
         creds = await self._get_creds_fn()
         if not creds or "access_token" not in creds:
-            await self._mark_auth_required_fn()
+            await self._mark_required(creds)
             yield request
             return
 
@@ -146,7 +168,7 @@ class MCPOAuth2Auth(httpx2.Auth):
                 request.headers["Authorization"] = f"Bearer {new_creds['access_token']}"
                 yield request
             else:
-                await self._mark_auth_required_fn()
+                await self._mark_required(creds)
                 logger.warning(
                     "mcp_oauth_refresh_failed",
                     server_id=str(self.server_id),
@@ -213,14 +235,15 @@ class MCPOAuth2Auth(httpx2.Auth):
             # Persist while still owning the distributed lock. Releasing it
             # before the DB write let another worker replay the old refresh
             # token and overwrite a successful rotation.
-            await self._update_creds_fn(new_credentials)
+            await self._persist_refresh(creds, new_credentials)
             return new_credentials
         except MCPRefreshTransientError, MCPRefreshCompletedByPeer:
             raise
         except Exception as error:
-            logger.exception(
+            logger.error(
                 "mcp_oauth_refresh_exception",
                 server_id=str(self.server_id),
+                error_type=type(error).__name__,
             )
             raise MCPRefreshTransientError("MCP OAuth refresh could not complete") from error
         finally:
@@ -252,6 +275,19 @@ class MCPOAuth2Auth(httpx2.Auth):
         except Exception:
             return False, False
 
+    async def _mark_required(self, expected: dict | None) -> None:
+        if self._guarded_persistence is not None:
+            await self._guarded_persistence(expected, None)
+        else:
+            await self._mark_auth_required_fn()
+
+    async def _persist_refresh(self, expected: dict, replacement: dict) -> None:
+        if self._guarded_persistence is not None:
+            if not await self._guarded_persistence(expected, replacement):
+                raise MCPRefreshTransientError("MCP authentication changed during refresh")
+        else:
+            await self._update_creds_fn(replacement)
+
     async def _wait_for_peer_refresh(self, creds: dict) -> None:
         """Never replay a refresh token while another request rotates it."""
         logger.info("mcp_oauth_refresh_lock_contention", server_id=str(self.server_id))
@@ -279,7 +315,12 @@ class MCPOAuth2Auth(httpx2.Auth):
         return data
 
 
-async def load_user_mcp_creds(server_id: UUID, display_name: str) -> dict[str, Any] | None:
+async def load_user_mcp_creds(
+    server_id: UUID,
+    display_name: str,
+    *,
+    expected_binding: tuple[UUID, str, str] | None = None,
+) -> dict[str, Any] | None:
     """Fresh read of a user MCP server's stored OAuth credentials.
 
     Called on EVERY outgoing request by :class:`MCPOAuth2Auth`, so the status
@@ -314,6 +355,12 @@ async def load_user_mcp_creds(server_id: UUID, display_name: str) -> dict[str, A
             return None
         if srv.status == UserMCPServerStatus.AUTH_REQUIRED.value:
             raise MCPAuthRequiredError(display_name)
+        if expected_binding is not None and (
+            srv.auth_type != "oauth2"
+            or (srv.user_id, srv.url, (srv.oauth_metadata or {}).get("token_endpoint", ""))
+            != expected_binding
+        ):
+            raise MCPAuthRequiredError(display_name)
         if srv.credentials_encrypted:
             try:
                 result: dict[str, Any] = json.loads(decrypt_data(srv.credentials_encrypted))
@@ -346,6 +393,19 @@ async def list_auth_required_server_names(user_id: UUID) -> list[str]:
         repo = UserMCPServerRepository(db)
         servers = await repo.get_auth_required_for_user(user_id)
         return [s.name for s in servers]
+
+
+def _oauth_persistence(
+    server_id: UUID, owner_id: UUID, token_endpoint: str, bound_url: str
+) -> Callable[[dict | None, dict | None], Awaitable[bool]]:
+    async def guarded_persistence(expected: dict | None, replacement: dict | None) -> bool:
+        from src.domains.user_mcp.oauth_refresh import persist_matching_oauth_refresh
+
+        return await persist_matching_oauth_refresh(
+            server_id, owner_id, token_endpoint, bound_url, expected, replacement
+        )
+
+    return guarded_persistence
 
 
 def build_auth_for_server(server: UserMCPServer) -> httpx2.Auth:
@@ -406,9 +466,12 @@ def build_auth_for_server(server: UserMCPServer) -> httpx2.Auth:
         # Build async callbacks for credential management
         server_id = server.id
         display_name = server.name
+        owner_id, bound_url = server.user_id, server.url
 
         async def get_creds() -> dict[str, Any] | None:
-            return await load_user_mcp_creds(server_id, display_name)
+            return await load_user_mcp_creds(
+                server_id, display_name, expected_binding=(owner_id, bound_url, token_endpoint)
+            )
 
         async def update_creds(new_creds: dict) -> None:
             from src.domains.user_mcp.service import UserMCPServerService
@@ -441,6 +504,8 @@ def build_auth_for_server(server: UserMCPServer) -> httpx2.Auth:
             client_id=creds.get("client_id"),
             client_secret=creds.get("client_secret"),
             resource=server.url,
+            catalogue_scope=creds.get("scope", ""),
+            guarded_persistence=_oauth_persistence(server_id, owner_id, token_endpoint, bound_url),
         )
 
     # Unknown auth type — pass through

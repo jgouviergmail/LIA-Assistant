@@ -6,7 +6,6 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { act } from 'react';
 
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 import userEvent from '@testing-library/user-event';
@@ -19,6 +18,12 @@ vi.mock('@/lib/api-client', async importOriginal => {
 });
 const { useApiQuery } = vi.hoisted(() => ({ useApiQuery: vi.fn() }));
 vi.mock('@/hooks/useApiQuery', () => ({ useApiQuery }));
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'export-owner' } }) }));
+vi.mock('@/hooks/useApplicationAccountQuery', () => ({
+  useApplicationAccountQuery: (url: string, componentName: string) => ({
+    ...useApiQuery(url, { componentName }), ownerId: 'export-owner',
+  }),
+}));
 const { useStepUpGuard } = vi.hoisted(() => ({ useStepUpGuard: vi.fn() }));
 vi.mock('@/hooks/useStepUpGuard', () => ({ useStepUpGuard }));
 vi.mock('@/components/auth/StepUpDialog', () => ({
@@ -32,6 +37,7 @@ import { AccountExportSettings } from '../AccountExportSettings';
 interface JobOver {
   status?: string;
   error_code?: string | null;
+  download_available?: boolean;
 }
 
 function job(over: JobOver = {}) {
@@ -43,6 +49,7 @@ function job(over: JobOver = {}) {
     created_at: '2026-07-23T10:00:00Z',
     completed_at: '2026-07-23T10:05:00Z',
     expires_at: '2026-07-24T10:05:00Z',
+    download_available: true,
     ...over,
   };
 }
@@ -70,6 +77,13 @@ beforeEach(() => {
 });
 
 describe('AccountExportSettings — states', () => {
+  it('does not offer an unavailable done archive and explains why', () => {
+    useApiQuery.mockReturnValue(queryHook({ data: job({ download_available: false }) }));
+    renderWithProviders(<AccountExportSettings />);
+    expect(screen.queryByRole('link', { name: 'settings.security.export.download' })).toBeNull();
+    expect(screen.getByText('settings.security.export.archive_unavailable')).toBeInTheDocument();
+    expect(screen.queryByText('settings.security.export.ready_hint')).toBeNull();
+  });
   it('offers the request button with no prior job', () => {
     renderWithProviders(<AccountExportSettings />);
     expect(
@@ -119,7 +133,7 @@ describe('AccountExportSettings — states', () => {
     renderWithProviders(<AccountExportSettings />);
     expect(
       screen.getByRole('button', { name: 'settings.security.export.in_progress' })
-    ).toBeDisabled();
+    ).toHaveAttribute('aria-disabled', 'true');
   });
 
   it('explains an export_too_large failure', () => {
@@ -131,14 +145,8 @@ describe('AccountExportSettings — states', () => {
   });
 
   it('hides itself when the instance has exports disabled (404)', async () => {
-    let onError: ((e: Error) => void) | undefined;
-    useApiQuery.mockImplementation((_url: string, options: { onError?: (e: Error) => void }) => {
-      onError = options.onError;
-      return queryHook();
-    });
+    useApiQuery.mockReturnValue(queryHook({ error: new ApiError('Not found', 404) }));
     const { container } = renderWithProviders(<AccountExportSettings />);
-    // The hook reports the 404 after render, like the real fetch would.
-    act(() => onError?.(new ApiError('Not found', 404)));
     await waitFor(() => expect(container).toBeEmptyDOMElement());
   });
 });

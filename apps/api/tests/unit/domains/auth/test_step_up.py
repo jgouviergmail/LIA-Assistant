@@ -51,19 +51,21 @@ class TestSessionPayloadV3:
         restored = UserSession.from_dict("sid", payload)
         assert restored.step_up_at is None
 
-    async def test_mark_step_up_preserves_ttl(self) -> None:
-        """mark_step_up rewrites the payload with keepttl (never extends)."""
+    async def test_mark_step_up_requires_the_atomic_store_write_to_succeed(self) -> None:
+        """The real Redis integration proves TTL preservation and revocation races."""
         redis = AsyncMock()
         session = _session(step_up_at=None)
         redis.get = AsyncMock(return_value=json.dumps(session.to_dict()))
         redis.set = AsyncMock()
+        redis.eval = AsyncMock(return_value=1)
         store = SessionStore(redis)
 
         updated = await store.mark_step_up(session.session_id)
 
         assert updated is True
-        set_kwargs = redis.set.call_args.kwargs
-        assert set_kwargs["keepttl"] is True
+        redis.set.assert_not_awaited()
+        redis.eval.return_value = 0
+        assert await store.mark_step_up(session.session_id) is False
 
     async def test_mark_step_up_unknown_session(self) -> None:
         """A vanished session cannot be marked."""
@@ -87,6 +89,7 @@ class TestRequireRecentStepUp:
         """A step-up inside the window returns the user."""
         user = MagicMock()
         session = _session(step_up_at=datetime.now(UTC) - timedelta(seconds=10))
+        user.id = uuid.UUID(session.user_id)
 
         result = await require_recent_step_up(
             lia_session=session.session_id,

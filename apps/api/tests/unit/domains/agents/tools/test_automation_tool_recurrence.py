@@ -30,9 +30,12 @@ def _no_database() -> Iterator[None]:
     and the test still passes — nine seconds later, and green for the wrong
     reason on a machine with no database at all.
     """
-    with patch(
-        "src.domains.agents.tools.runtime_helpers.get_user_preferences",
-        AsyncMock(return_value=("Europe/Paris", "fr", "fr")),
+    with (
+        patch("src.domains.agents.tools.automation_tools.require_automation_account", AsyncMock()),
+        patch(
+            "src.domains.agents.tools.runtime_helpers.get_user_preferences",
+            AsyncMock(return_value=("Europe/Paris", "fr", "fr")),
+        ),
     ):
         yield
 

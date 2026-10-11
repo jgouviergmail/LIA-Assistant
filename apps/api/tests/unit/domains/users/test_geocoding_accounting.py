@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import uuid
 from decimal import Decimal
+from typing import Never
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -41,10 +42,11 @@ def persisted(monkeypatch: pytest.MonkeyPatch) -> list[TrackingContext]:
     monkeypatch.setattr(
         "src.domains.shared.consultation_surfaces.record_surface_consultations", MagicMock()
     )
+    monkeypatch.setattr("src.infrastructure.llm.usage_guard.enforce_usage_limit", AsyncMock())
     return seen
 
 
-def _client(monkeypatch: pytest.MonkeyPatch, places: list[dict]) -> None:
+def _client(monkeypatch: pytest.MonkeyPatch, places: list[dict]) -> MagicMock:
     async def _search_text(*, query: str, max_results: int, use_cache: bool) -> dict:
         # What the real client does after Google answers.
         track_google_api_call("places", "/places:searchText", cached=False)
@@ -52,10 +54,12 @@ def _client(monkeypatch: pytest.MonkeyPatch, places: list[dict]) -> None:
 
     client = MagicMock()
     client.search_text = AsyncMock(side_effect=_search_text)
+    client.close = AsyncMock()
     monkeypatch.setattr(
         "src.domains.connectors.clients.google_places_client.GooglePlacesClient",
         MagicMock(return_value=client),
     )
+    return client
 
 
 def _location(address: str = "1 rue de la Paix, Paris") -> MagicMock:
@@ -108,5 +112,71 @@ async def test_meaningful_coordinates_call_nothing(
         user_id=uuid.uuid4(), user=MagicMock(language="fr"), location=location
     )
     assert result == (48.87, 2.33, "ChIJ")
+    client.assert_not_called()
+    assert persisted == []
+
+
+@pytest.mark.parametrize("fault", ["success", "empty", "lookup", "billed_lookup", "cleanup"])
+async def test_each_geocoding_lookup_releases_its_owned_http_client(
+    monkeypatch: pytest.MonkeyPatch, persisted: list[TrackingContext], fault: str
+) -> None:
+    from src.domains.users.models import User
+    from src.domains.users.schemas import HomeLocationUpdate
+
+    client = _client(
+        monkeypatch,
+        [] if fault == "empty" else [{"location": {"latitude": 0, "longitude": 12}}],
+    )
+    if fault == "lookup":
+        client.search_text.side_effect = RuntimeError("private lookup error")
+    if fault == "billed_lookup":
+
+        async def paid_lookup_failure(*, query: str, max_results: int, use_cache: bool) -> Never:
+            track_google_api_call("places", "/places:searchText", cached=False)
+            raise RuntimeError("private lookup error")
+
+        client.search_text.side_effect = paid_lookup_failure
+    if fault == "cleanup":
+        client.close.side_effect = RuntimeError("private cleanup error")
+    log = MagicMock()
+    monkeypatch.setattr(geocoding, "logger", log)
+    actor = User(id=uuid.uuid4(), language="fr", is_active=True)
+    request = HomeLocationUpdate(address="Private home", lat=0, lon=0)
+    if fault in {"lookup", "billed_lookup", "empty"}:
+        with pytest.raises(BaseAPIException):
+            await geocoding.resolve_home_coordinates(user_id=actor.id, user=actor, location=request)
+    else:
+        assert await geocoding.resolve_home_coordinates(
+            user_id=actor.id, user=actor, location=request
+        ) == (0, 12, None)
+    client.close.assert_awaited_once()
+    assert "private cleanup error" not in str(log.mock_calls)
+    assert "private lookup error" not in str(log.mock_calls)
+    assert len(persisted) == (0 if fault == "lookup" else 1)
+
+
+async def test_equator_or_prime_meridian_coordinates_are_valid(
+    monkeypatch: pytest.MonkeyPatch, persisted: list
+) -> None:
+    _client(monkeypatch, [{"id": "zero", "location": {"latitude": 0, "longitude": 12}}])
+    assert await geocoding.resolve_home_coordinates(
+        user_id=uuid.uuid4(), user=MagicMock(language="fr"), location=_location()
+    ) == (0, 12, "zero")
+    assert len(persisted) == 1
+
+
+async def test_paid_resolution_checks_current_budgets_before_any_request(
+    monkeypatch: pytest.MonkeyPatch, persisted: list
+) -> None:
+    guard = AsyncMock(side_effect=RuntimeError("budget unavailable"))
+    monkeypatch.setattr("src.infrastructure.llm.usage_guard.enforce_usage_limit", guard)
+    client = MagicMock()
+    monkeypatch.setattr(
+        "src.domains.connectors.clients.google_places_client.GooglePlacesClient", client
+    )
+    with pytest.raises(RuntimeError, match="budget unavailable"):
+        await geocoding.resolve_home_coordinates(
+            user_id=uuid.uuid4(), user=MagicMock(language="fr"), location=_location()
+        )
     client.assert_not_called()
     assert persisted == []

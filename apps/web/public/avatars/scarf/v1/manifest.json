@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "total_bytes": 19034,
+  "source": "Original knit material and front-only scarf; native geometry supplies the collar and occlusion",
+  "artwork": {
+    "knit": {
+      "file": "exec-f2b9de39-19a8-4100-8e97-64d25168fb05.png",
+      "sha256": "b91357da71eeac29f45419bc08faa6d662ef2e4c15cc80e2c4b8ca4e544f91f6",
+      "prompt_sha256": "f462614c4b6f2cfbc1c25fa578287a3c392d0bd7826bdea5ca6874bc7cb6086e"
+    },
+    "front": {
+      "file": "exec-efbedd00-3085-480b-ab1f-84194d558bd1.png",
+      "sha256": "c4ba86c8e105e9a88bf323423a86661a9979cdbc329d73d0a8ff2b2c27cd8641",
+      "prompt_sha256": "1efdf214381c4b9d158d26f98824b4f672a0496a05cb73a2336cb325917155e3"
+    }
+  },
+  "assets": {
+    "knit": {
+      "width": 128,
+      "height": 128,
+      "bytes": 10362,
+      "sha256": "7788e775cfb478869caaf978c43c69a3fc737e3f3f84ede4b6853596eb5683be",
+      "alpha": false
+    },
+    "front": {
+      "width": 192,
+      "height": 192,
+      "bytes": 8672,
+      "sha256": "92888018612cf9357f0a691faadea6471b418bc06b19e7143c50146be1318e26",
+      "alpha": true
+    }
+  },
+  "delivery": {
+    "codec": "WebP",
+    "quality": 94,
+    "animation": false
+  }
+}

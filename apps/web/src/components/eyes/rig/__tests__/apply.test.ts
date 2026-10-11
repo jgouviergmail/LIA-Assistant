@@ -14,6 +14,39 @@ function host(): HTMLElement {
 }
 
 describe('createRigWriter', () => {
+  it('refreshes added mouth layers at a material switch, then avoids querying them on stable frames', () => {
+    const element = host();
+    element.dataset.style = 'billes';
+    element.innerHTML = '<svg><path data-rig-mouth=""/></svg>';
+    const writer = createRigWriter(element);
+    const values = restChannelValues();
+    writer.write(values);
+    const mouth = element.querySelector<SVGPathElement>('[data-rig-mouth]')!;
+    mouth.dataset.rigMouthShape = 'sculpted';
+    mouth.parentElement!.insertAdjacentHTML(
+      'beforeend',
+      '<path data-rig-mouth-teeth=""/><path data-rig-mouth-tongue=""/>'
+    );
+    const teeth = element.querySelector('[data-rig-mouth-teeth]')!;
+    const tongue = element.querySelector('[data-rig-mouth-tongue]')!;
+    writer.write(values);
+    expect(teeth.getAttribute('d')).toBeTruthy();
+    expect(tongue.getAttribute('d')).toBeTruthy();
+    const queries = vi.spyOn(element, 'querySelector');
+    const firstTeeth = teeth.getAttribute('d');
+    writer.write({ ...values, mouthOpen: 0.7, mouthCurve: 0.7 });
+    expect(teeth.getAttribute('d')).not.toBe(firstTeeth);
+    writer.write(values);
+    expect(queries).not.toHaveBeenCalled();
+    delete mouth.dataset.rigMouthShape;
+    teeth.remove();
+    tongue.remove();
+    writer.write(values);
+    queries.mockClear();
+    writer.write({ ...values, mouthOpen: 0.4 });
+    expect(queries).not.toHaveBeenCalled();
+  });
+
   it('projects continuous SVG contours and does not rewrite an unchanged eye when the mouth moves', () => {
     const element = host();
     element.dataset.style = 'anneaux';

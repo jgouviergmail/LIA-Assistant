@@ -19,6 +19,11 @@ import type {
 
 const push = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
+// The disabled debrief still reads its account identity before gating the query.
+// renderWithProviders deliberately leaves auth to each test's data fixture.
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({ user: { id: 'relation-detail-account' } }),
+}));
 
 // Chat deep links are REAL navigations since 2026-08-01 (ADR-192): the App
 // Router restored the search params of the entry it already held, so a second
@@ -66,7 +71,6 @@ vi.mock('@/hooks/useRelations', async importOriginal => ({
   useRelationContext,
   useOverviewScope,
 }));
-
 
 import { settingsSectionHref } from '@/lib/settings-sections';
 import { RelationDetailPanel } from '../RelationDetailPanel';

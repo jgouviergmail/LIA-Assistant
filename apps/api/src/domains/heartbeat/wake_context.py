@@ -26,7 +26,7 @@ from uuid import UUID
 import structlog
 
 from src.core.constants import PUSH_WAKE_MAIL_MAX_MESSAGES
-from src.domains.agents.prompts.prompt_loader import load_prompt
+from src.core.prompt_store import read_prompt_file
 from src.domains.push_channels.wake import WakePayload
 from src.domains.push_channels.wake_filter import (
     CalendarWakeRules,
@@ -184,7 +184,7 @@ def build_fresh_block(trigger: str) -> str:
     Returns:
         The rendered FRESH line.
     """
-    return load_prompt("heartbeat_wake_fresh_prompt").strip().format(trigger=trigger)
+    return read_prompt_file("heartbeat_wake_fresh_prompt").strip().format(trigger=trigger)
 
 
 async def wake_or_delta_messages(

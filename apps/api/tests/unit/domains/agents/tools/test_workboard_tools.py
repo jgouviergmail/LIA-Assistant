@@ -21,16 +21,34 @@ the planner cannot read is a trap, not a contract (ADR-184).
 from __future__ import annotations
 
 import uuid
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.exceptions import ResourceNotFoundError, ValidationError
+from src.domains.agents.application.action_preparation import build_action_content
+from src.domains.agents.application.draft_models import ApplicationActionDraftContent
+from src.domains.agents.application.workboard_create_schemas import (
+    WorkboardCreateInput,
+    WorkboardCreatePatch,
+    WorkboardCreateSelection,
+)
+from src.domains.agents.application.workboard_create_spec import WORKBOARD_CREATE_OPERATION
+from src.domains.agents.application.workboard_delete_schemas import (
+    WorkboardDeleteInput,
+    WorkboardDeletePatch,
+    WorkboardDeleteSelection,
+    WorkboardDeleteTarget,
+)
+from src.domains.agents.application.workboard_delete_spec import WORKBOARD_DELETE_OPERATION
 from src.domains.agents.tools import workboard_tools
+from src.domains.users.models import User
 from src.domains.workboard.constants import STATUS_ORDER, WorkboardError
 
 pytestmark = pytest.mark.unit
@@ -61,7 +79,7 @@ def _ticket_row(**overrides: Any) -> Any:
 
 def _runtime() -> Any:
     return SimpleNamespace(
-        context=SimpleNamespace(user_id=str(USER), user_timezone="Europe/Paris"),
+        context=SimpleNamespace(user_id=str(USER), user_timezone="Europe/Paris", language="fr"),
         config={"configurable": {"thread_id": "t"}},
         store=MagicMock(),
     )
@@ -75,6 +93,7 @@ async def _session(db: Any) -> Any:
 def _service(**methods: Any) -> Any:
     service = MagicMock()
     service.create = AsyncMock(return_value=_ticket_row())
+    service.validate_creation = AsyncMock()
     service.update = AsyncMock(return_value=_ticket_row(status="done"))
     service.run_now = AsyncMock(return_value=_ticket_row(status="todo"))
     service.comment = AsyncMock(return_value=SimpleNamespace(id=uuid.uuid4()))
@@ -85,6 +104,8 @@ def _service(**methods: Any) -> Any:
     service.get = AsyncMock(
         return_value=SimpleNamespace(ticket=_ticket_row(), children=[], comments=[], events=[])
     )
+    service.repo.count_visible = AsyncMock(side_effect=lambda identities, actor_id: len(identities))
+    service.repo.get_visible = AsyncMock(return_value=_ticket_row())
     service.deletable = AsyncMock(return_value=(_ticket_row(), 2))
     for name, value in methods.items():
         setattr(service, name, value)
@@ -99,7 +120,7 @@ async def _running(service: Any) -> Any:
     with (
         patch(f"{MODULE}.get_db_context", lambda: _session(db)),
         patch(f"{MODULE}.WorkboardService", return_value=service),
-        patch(f"{MODULE}.get_user_preferences", AsyncMock(return_value=("UTC", "fr", "fr-FR"))),
+        patch(f"{MODULE}.creation_access", AsyncMock(return_value=User(id=USER, is_active=True))),
         patch(
             f"{MODULE}.validate_runtime_config",
             return_value=SimpleNamespace(user_id=str(USER), session_id="s", store=MagicMock()),
@@ -108,12 +129,121 @@ async def _running(service: Any) -> Any:
         yield service
 
 
+@asynccontextmanager
+async def _creation_running(service: MagicMock) -> AsyncIterator[MagicMock]:
+    """Adapter unit tests observe source validation, while real HITL is SQL-tested separately."""
+    actor = User(id=USER, is_active=True)
+    db = AsyncMock(spec=AsyncSession)
+
+    async def prepare(
+        db: AsyncSession,
+        owner: uuid.UUID,
+        request: WorkboardCreateInput,
+        *,
+        command_id: uuid.UUID | None = None,
+    ) -> ApplicationActionDraftContent:
+        await service.validate_creation(actor, request)
+        selected = WorkboardCreateSelection(
+            request=request,
+            assignee_kind="lia" if request.assignee == "lia" else "human",
+            holder_id=request.assignee_user_id,
+            holder_name=None,
+            parent_title=None,
+            owned_count=0,
+            max_tickets=5,
+            state_digest="e" * 64,
+        )
+        return build_action_content(
+            owner,
+            WORKBOARD_CREATE_OPERATION,
+            WorkboardCreatePatch(workboard_create=selected),
+            {"workboard_create": selected.public_scope()},
+            {"workboard_create": selected.public_scope(after=True)},
+            command_id=command_id,
+        )
+
+    boundary = "src.domains.agents.tools.workboard_creation_tool"
+    with (
+        patch(f"{boundary}.get_db_context", lambda: _session(db)),
+        patch(f"{boundary}.WorkboardService", return_value=service),
+        patch(f"{boundary}.creation_access", AsyncMock(return_value=actor)),
+        patch(f"{boundary}.prepare_workboard_creation", prepare),
+        patch(f"{boundary}.save_command", AsyncMock()),
+        patch(f"{boundary}.get_user_preferences", AsyncMock(return_value=("UTC", "fr", "fr-FR"))),
+        patch(
+            f"{boundary}.validate_runtime_config", return_value=SimpleNamespace(user_id=str(USER))
+        ),
+    ):
+        yield service
+        service.create.assert_not_awaited()
+
+
+@asynccontextmanager
+async def _deletion_running(service: MagicMock) -> AsyncIterator[MagicMock]:
+    """Observe source resolution/refusal; the real subtree and HITL have SQL oracles."""
+    actor = User(id=USER, is_active=True)
+    db = AsyncMock(spec=AsyncSession)
+
+    async def prepare(
+        db: AsyncSession, owner: uuid.UUID, request: WorkboardDeleteInput
+    ) -> ApplicationActionDraftContent:
+        row, children = await service.deletable(actor, request.ticket_id)
+        selected = WorkboardDeleteSelection(
+            request=request,
+            items=[
+                WorkboardDeleteTarget(
+                    ticket_id=request.ticket_id,
+                    title=row.title,
+                    status=row.status,
+                    running=False,
+                    has_pending_action=False,
+                )
+            ]
+            + [
+                WorkboardDeleteTarget(
+                    ticket_id=uuid.uuid4(),
+                    title=f"Step {index}",
+                    status="todo",
+                    running=False,
+                    has_pending_action=False,
+                )
+                for index in range(children)
+            ],
+            comments=0,
+            events=0,
+            owned_count=children + 1,
+            state_digest="e" * 64,
+        )
+        return build_action_content(
+            owner,
+            WORKBOARD_DELETE_OPERATION,
+            WorkboardDeletePatch(workboard_delete=selected),
+            {"workboard_delete": selected.public_scope()},
+            {"workboard_delete": selected.public_scope(after=True)},
+        )
+
+    boundary = "src.domains.agents.tools.workboard_delete_tool"
+    common = "src.domains.agents.application.native_tool_preparation"
+    with (
+        patch(f"{boundary}.get_db_context", lambda: _session(db)),
+        patch(f"{boundary}.WorkboardService", return_value=service),
+        patch(f"{boundary}.creation_access", AsyncMock(return_value=actor)),
+        patch(f"{boundary}.prepare_workboard_delete", prepare),
+        patch(f"{common}.save_command", AsyncMock()),
+        patch(f"{common}.validate_runtime_config", return_value=SimpleNamespace(user_id=str(USER))),
+    ):
+        yield service
+        service.delete.assert_not_awaited()
+
+
 class TestARefusalTravelsAsItsCode:
     async def test_a_validation_refusal_keeps_its_stable_code(self) -> None:
         service = _service(
-            create=AsyncMock(side_effect=ValidationError(WorkboardError.TITLE_TOO_LONG.value))
+            validate_creation=AsyncMock(
+                side_effect=ValidationError(WorkboardError.TITLE_TOO_LONG.value)
+            )
         )
-        async with _running(service):
+        async with _creation_running(service):
             result = await workboard_tools.create_ticket_tool.coroutine(
                 title="x", runtime=_runtime()
             )
@@ -136,9 +266,11 @@ class TestARefusalTravelsAsItsCode:
         """The code is a translation key; a sentence would freeze one language
         into the payload the frontend renders."""
         service = _service(
-            create=AsyncMock(side_effect=ValidationError(WorkboardError.TOO_MANY_TICKETS.value))
+            validate_creation=AsyncMock(
+                side_effect=ValidationError(WorkboardError.TOO_MANY_TICKETS.value)
+            )
         )
-        async with _running(service):
+        async with _creation_running(service):
             result = await workboard_tools.create_ticket_tool.coroutine(
                 title="x", runtime=_runtime()
             )
@@ -149,24 +281,24 @@ class TestARefusalTravelsAsItsCode:
 class TestWhoHoldsIt:
     async def test_me_and_lia_are_keywords_not_names(self) -> None:
         service = _service()
-        async with _running(service):
+        async with _creation_running(service):
             await workboard_tools.create_ticket_tool.coroutine(
                 title="x", assignee="lia", runtime=_runtime()
             )
 
         service.resolve_connected_user_id.assert_not_awaited()
-        assert service.create.await_args.args[1].assignee == "lia"
+        assert service.validate_creation.await_args.args[1].assignee == "lia"
 
     async def test_anything_else_is_a_name_the_service_resolves(self) -> None:
         service = _service()
-        async with _running(service):
+        async with _creation_running(service):
             await workboard_tools.create_ticket_tool.coroutine(
                 title="x", assignee="Marie", runtime=_runtime()
             )
 
         service.resolve_connected_user_id.assert_awaited_once()
         assert service.resolve_connected_user_id.await_args.args[1] == "Marie"
-        assert service.create.await_args.args[1].assignee_user_id is not None
+        assert service.validate_creation.await_args.args[1].assignee_user_id is not None
 
     async def test_a_name_matching_nobody_connected_refuses(self) -> None:
         service = _service(
@@ -174,7 +306,7 @@ class TestWhoHoldsIt:
                 side_effect=ValidationError(WorkboardError.ASSIGNEE_NOT_CONNECTED.value)
             )
         )
-        async with _running(service):
+        async with _creation_running(service):
             result = await workboard_tools.create_ticket_tool.coroutine(
                 title="x", assignee="Nobody", runtime=_runtime()
             )
@@ -184,7 +316,7 @@ class TestWhoHoldsIt:
 
     async def test_the_keyword_is_read_case_insensitively(self) -> None:
         service = _service()
-        async with _running(service):
+        async with _creation_running(service):
             await workboard_tools.create_ticket_tool.coroutine(
                 title="x", assignee=" LIA ", runtime=_runtime()
             )
@@ -192,60 +324,25 @@ class TestWhoHoldsIt:
         service.resolve_connected_user_id.assert_not_awaited()
 
 
-class TestWhatWasNotSaidIsNotChanged:
-    def test_none_means_not_mentioned(self) -> None:
-        assert workboard_tools._optional(a=None, b="x", c=False) == {"b": "x", "c": False}
-
-    async def test_an_update_touches_only_what_was_given(self) -> None:
-        service = _service()
-        async with _running(service):
-            await workboard_tools.update_ticket_tool.coroutine(
-                ticket="Book the venue", status="done", runtime=_runtime()
-            )
-
-        changes = service.update.await_args.args[2]
-        assert changes.status == "done"
-        assert changes.priority is None
-        assert changes.title is None
-
-    async def test_run_now_is_a_second_call_not_a_field(self) -> None:
-        service = _service()
-        async with _running(service):
-            await workboard_tools.update_ticket_tool.coroutine(
-                ticket="Book the venue", run_now=True, runtime=_runtime()
-            )
-
-        service.run_now.assert_awaited_once()
-
-    async def test_without_run_now_nothing_is_launched(self) -> None:
-        service = _service()
-        async with _running(service):
-            await workboard_tools.update_ticket_tool.coroutine(
-                ticket="Book the venue", status="todo", runtime=_runtime()
-            )
-
-        service.run_now.assert_not_awaited()
-
-
 class TestDeletionAsksFirst:
     """The native shape of every destructive tool: a draft, then an executor."""
 
     async def test_the_tool_returns_a_draft_and_deletes_nothing(self) -> None:
         service = _service()
-        async with _running(service):
+        async with _deletion_running(service):
             result = await workboard_tools.delete_ticket_tool.coroutine(
                 ticket="Book the venue", runtime=_runtime()
             )
 
         service.delete.assert_not_awaited()
         assert result.metadata.get("requires_confirmation") is True
-        assert result.metadata.get("draft_type") == "ticket_delete"
+        assert result.metadata.get("draft_type") == "application_action"
 
     async def test_the_draft_names_the_ticket_and_its_steps(self) -> None:
         """What the person confirms must be what goes: the title they know
         and how many steps follow it out."""
         service = _service(deletable=AsyncMock(return_value=(_ticket_row(), 2)))
-        async with _running(service):
+        async with _deletion_running(service):
             result = await workboard_tools.delete_ticket_tool.coroutine(
                 ticket="Book the venue", runtime=_runtime()
             )
@@ -265,15 +362,15 @@ class TestDeletionAsksFirst:
                 side_effect=ValidationError(WorkboardError.PEER_CANNOT_DELETE.value)
             )
         )
-        async with _running(service):
+        async with _deletion_running(service):
             result = await workboard_tools.delete_ticket_tool.coroutine(
                 ticket="Book the venue", runtime=_runtime()
             )
 
         assert result.success is False
-        assert WorkboardError.PEER_CANNOT_DELETE.value in result.message
+        assert result.error_code == "CONSTRAINT_VIOLATION"
 
-    async def test_the_executor_deletes_on_the_confirmed_replay(self) -> None:
+    async def test_legacy_executor_refuses_without_deleting(self) -> None:
         service = _service()
         async with _running(service):
             result = await workboard_tools.execute_ticket_delete_draft(
@@ -282,16 +379,10 @@ class TestDeletionAsksFirst:
                 None,
             )
 
-        service.delete.assert_awaited_once()
-        assert result["success"] is True
-        assert result["deleted"] == 3
-        # The success sentence (« Ticket '…' supprimé ») reads the title from
-        # the RESULT: an executor that drops it renders an empty quote.
-        assert result["title"] == "Book the venue"
+        service.delete.assert_not_awaited()
+        assert result == {"success": False, "error": "STALE_STATE"}
 
-    async def test_the_executor_re_checks_the_rights(self) -> None:
-        """An arbitrary delay separates the question from the answer, and the
-        ticket may have changed hands in between."""
+    async def test_legacy_executor_never_attempts_source_mutation(self) -> None:
         service = _service(
             delete=AsyncMock(side_effect=ValidationError(WorkboardError.PEER_CANNOT_DELETE.value))
         )
@@ -301,7 +392,8 @@ class TestDeletionAsksFirst:
             )
 
         assert result["success"] is False
-        assert WorkboardError.PEER_CANNOT_DELETE.value in result["error"]
+        assert result["error"] == "STALE_STATE"
+        service.delete.assert_not_awaited()
 
     def test_the_executor_is_registered_for_its_draft_type(self) -> None:
         """A confirmed draft must always resolve to an executor."""
@@ -327,14 +419,16 @@ class TestDatesAreThePersons:
         normalised every date in UTC — a 9 a.m. start became 11 a.m. in Paris."""
         service = _service()
         preferences = AsyncMock(return_value=("Europe/Paris", "fr", "fr-FR"))
-        async with _running(service):
-            with patch(f"{MODULE}.get_user_preferences", preferences):
+        async with _creation_running(service):
+            with patch(
+                "src.domains.agents.tools.workboard_creation_tool.get_user_preferences", preferences
+            ):
                 await workboard_tools.create_ticket_tool.coroutine(
                     title="x", start_at="2026-09-10T09:00:00", runtime=_runtime()
                 )
 
         preferences.assert_awaited_once()
-        start_at = service.create.await_args.args[1].start_at
+        start_at = service.validate_creation.await_args.args[1].start_at
         assert start_at is not None
         assert start_at.utcoffset() is not None
         assert start_at.hour == 9 and start_at.utcoffset().total_seconds() == 2 * 3600

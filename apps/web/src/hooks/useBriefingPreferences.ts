@@ -10,10 +10,11 @@
  * universal path; drag-and-drop is a pointer-only enhancement).
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 
 import { useApiMutation } from '@/hooks/useApiMutation';
-import { useApiQuery } from '@/hooks/useApiQuery';
+import { useApplicationAccountQuery } from '@/hooks/useApplicationAccountQuery';
+import { useApplicationPreferenceState } from '@/hooks/useApplicationPreferenceState';
 import type { BriefingPreferences, BriefingSection } from '@/types/briefing';
 
 /** Immutable move of `name` one step up/down; identity when impossible. */
@@ -60,35 +61,14 @@ export interface UseBriefingPreferencesReturn {
 }
 
 export function useBriefingPreferences(enabled = true): UseBriefingPreferencesReturn {
-  const { data, loading, error } = useApiQuery<BriefingPreferences>('/briefing/preferences', {
-    componentName: 'useBriefingPreferences',
-    enabled,
-  });
-  // Derived-with-override (no state-sync effect — react-hooks ratchet): the
-  // server payload is the base; an optimistic save overrides it locally and
-  // rolls back to the pre-save view on error.
-  const [override, setOverride] = useState<BriefingPreferences | null>(null);
-  const preferences = override ?? data ?? null;
-
+  const { data, loading, error, refetch, ownerId } = useApplicationAccountQuery<BriefingPreferences>('/briefing/preferences', 'useBriefingPreferences', enabled);
   const { mutate } = useApiMutation<BriefingPreferences, BriefingPreferences>({
     method: 'PUT',
     componentName: 'useBriefingPreferences',
   });
 
-  const save = useCallback(
-    async (next: BriefingPreferences): Promise<boolean> => {
-      const previous = preferences;
-      setOverride(next);
-      try {
-        await mutate('/briefing/preferences', next);
-        return true;
-      } catch {
-        setOverride(previous);
-        return false;
-      }
-    },
-    [preferences, mutate]
-  );
+  const write = useCallback((next: BriefingPreferences) => mutate('/briefing/preferences', next), [mutate]);
+  const { value, save } = useApplicationPreferenceState(ownerId, data, 'briefing_preferences', refetch, write);
 
-  return { preferences, loading, error: !!error, save };
+  return { preferences: value ?? null, loading, error: !!error, save };
 }

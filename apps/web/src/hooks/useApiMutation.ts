@@ -108,7 +108,6 @@ export function useApiMutation<TData = unknown, TResponse = unknown>(
           method,
           endpoint,
           status: apiError instanceof ApiError ? apiError.status : undefined,
-          requestData,
         });
 
         onError?.(errorObj);

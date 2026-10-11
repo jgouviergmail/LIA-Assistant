@@ -17,7 +17,9 @@ from uuid import UUID
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.domains.psyche.management_read import psyche_history_filters
 from src.domains.psyche.models import PsycheHistory, PsycheState
+from src.domains.users.models import User
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -65,6 +67,7 @@ class PsycheStateRepository:
         Returns:
             Created PsycheState with generated ID.
         """
+        await self.lock_management_owner(state.user_id)
         self.db.add(state)
         await self.db.flush()
         logger.info(
@@ -77,13 +80,10 @@ class PsycheStateRepository:
     async def update(self, state: PsycheState) -> PsycheState:
         """Flush pending changes on an already-tracked psyche state.
 
-        No locking of any kind is performed: this is a plain flush of the
-        session-tracked instance. The pre-response path (own session, commits
-        the decayed state) and the fire-and-forget post-response task (own
-        session, commits the appraisal) can race on the same row; the last
-        commit wins whole-row. Acceptable today because both writers touch
-        the same user sequentially in practice — revisit with SELECT ... FOR
-        UPDATE if a real concurrent-writer path appears.
+        Take the compatible parent key-share fence before dirty state flushes
+        its child lock. Management resets lock the owner first; taking these
+        in reverse order would deadlock when the writer adds history later.
+        Normal appraisal updates retain their source dirty-column semantics.
 
         Args:
             state: PsycheState instance with modified fields.
@@ -91,8 +91,16 @@ class PsycheStateRepository:
         Returns:
             Updated PsycheState.
         """
+        await self.lock_management_owner(state.user_id)
         await self.db.flush()
         return state
+
+    async def lock_management_owner(self, user_id: UUID) -> None:
+        """Do not let an automatic flush invert owner-before-child ordering."""
+        with self.db.no_autoflush:
+            await self.db.scalar(
+                select(User.id).where(User.id == user_id).with_for_update(read=True, key_share=True)
+            )
 
     async def delete_for_user(self, user_id: UUID) -> int:
         """Delete all psyche data for a user (GDPR compliance).
@@ -141,6 +149,7 @@ class PsycheStateRepository:
         Returns:
             Created PsycheHistory with generated ID.
         """
+        await self.lock_management_owner(snapshot.user_id)
         self.db.add(snapshot)
         await self.db.flush()
         logger.debug(
@@ -168,17 +177,13 @@ class PsycheStateRepository:
         Returns:
             List of PsycheHistory, ordered by created_at descending.
         """
+        cutoff = datetime.now(UTC) - timedelta(hours=hours) if hours else None
         query = (
             select(PsycheHistory)
-            .where(PsycheHistory.user_id == user_id)
-            .order_by(PsycheHistory.created_at.desc())
+            .where(*psyche_history_filters(user_id, snapshot_type, cutoff))
+            .order_by(PsycheHistory.created_at.desc(), PsycheHistory.id.desc())
             .limit(limit)
         )
-        if snapshot_type:
-            query = query.where(PsycheHistory.snapshot_type == snapshot_type)
-        if hours:
-            cutoff = datetime.now(UTC) - timedelta(hours=hours)
-            query = query.where(PsycheHistory.created_at >= cutoff)
 
         result = await self.db.execute(query)
         return list(result.scalars().all())

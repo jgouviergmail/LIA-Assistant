@@ -101,6 +101,56 @@ function callPost(spaceId: string, request: NextRequest = makeRequest()) {
   return POST(request, { params: Promise.resolve({ spaceId }) });
 }
 
+describe('native original-browser upload admission', () => {
+  const command = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  function nativeRequest() {
+    return new NextRequest(`http://localhost/api/rag-upload/${VALID_UUID}?application_command=${command}`, {
+      method: 'POST', body: 'multipart-body', headers: {
+        cookie: 'lia_session=abc', 'content-type': 'multipart/form-data; boundary=x',
+        'x-lia-file-confirmed': 'true',
+      },
+    });
+  }
+  function status(spaceId: string = VALID_UUID, phase = 'waiting') {
+    const expires = new Date(Date.now() + 60_000).toISOString();
+    const interaction = { interaction_id: command, kind: 'device', expires_at: expires };
+    return { schema_version: 1, command_id: command, operation_id: 'knowledge_document.upload',
+      phase, expires_at: expires, interaction,
+      outcome: { success: false, phase, committed: false, no_op: false, error_code: null, interaction,
+        values: { document_to_upload: { space: { id: spaceId, name: 'Destination', description: null, is_active: true, kind: null },
+          document_count: 0, max_documents: 200, max_file_size_bytes: 20 * 1024 * 1024,
+          allowed_content_types: ['text/plain'], browser_file_confirmation_required: true,
+          indexing_requested: true, indexing_cost_may_apply: true } } } };
+  }
+  function stubNative(value: unknown) {
+    requestSpy.mockImplementation((options: { path?: string }, callback: Parameters<ReturnType<typeof fakeUpstream>>[1]) => {
+      const body = options.path?.includes('/auth/me') ? '{}' : options.path?.endsWith(command) ? JSON.stringify(value) : '{}';
+      return fakeUpstream(200, body)(options, callback);
+    });
+  }
+  it('targets only the confirmed native endpoint and forwards only the session cookie', async () => {
+    stubNative(status());
+    const response = await callPost(VALID_UUID, nativeRequest());
+    expect(response.status).toBe(200);
+    const calls = requestSpy.mock.calls.map(([options]) => options);
+    const sent = calls.find(options => options.method === 'POST');
+    expect(sent.path).toBe(`/api/v1/application-commands/${command}/document-upload`);
+    expect(sent.headers['x-lia-file-confirmed']).toBe('true');
+    expect(sent.headers.cookie).toBe('lia_session=abc');
+    expect(response.headers.get('cache-control')).toBe('no-store');
+  });
+  it.each(['wrong-space', 'malformed', 'not-waiting'])('rejects %s before consuming the file body', async scenario => {
+    stubNative(scenario === 'malformed' ? {} : status(scenario === 'wrong-space' ? command : VALID_UUID,
+      scenario === 'not-waiting' ? 'committed' : 'waiting'));
+    const request = nativeRequest();
+    const reader = vi.spyOn(request.body!, 'getReader');
+    const response = await callPost(VALID_UUID, request);
+    expect(response.status).toBe(403);
+    expect(reader).not.toHaveBeenCalled();
+    expect(requestSpy.mock.calls.some(([options]) => options.method === 'POST')).toBe(false);
+  });
+});
+
 beforeEach(() => {
   requestSpy.mockReset();
   stubUpstreamOk();

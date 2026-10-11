@@ -34,13 +34,14 @@ def mock_db():
 
 
 @pytest.fixture
-def service(mock_db):
+def service(mock_db, monkeypatch):
     """Create service with mocked repository dependencies."""
     svc = RAGDriveSyncService(mock_db)
     svc.space_repo = AsyncMock()
     svc.doc_repo = AsyncMock()
     svc.source_repo = AsyncMock()
     svc.chunk_repo = AsyncMock()
+    monkeypatch.setattr("src.domains.shared.consultation_sink._collector_factory", None)
     return svc
 
 
@@ -126,7 +127,7 @@ class TestRAGDriveSyncServiceLinkFolder:
         assert create_data["folder_id"] == "drive_folder_abc123"
         assert create_data["folder_name"] == "My Documents"
         assert create_data["sync_status"] == RAGDriveSyncStatus.IDLE
-        service.db.commit.assert_awaited_once()
+        assert service.db.commit.await_count == 2  # Release provider reads, then commit the link.
 
     @pytest.mark.asyncio
     @patch("src.domains.rag_spaces.drive_sync.settings")

@@ -34,6 +34,7 @@ class TestTheVocabulary:
             "failed",
             "abandoned",
             "refused",
+            "waiting",
         }
 
     def test_source_vocabulary_is_only_what_exists(self) -> None:
@@ -118,7 +119,7 @@ class TestTheModelAndTheMigrationAgree:
         ("column", "expected"),
         [
             ("source", {"user", "scheduled", "subagent", "proactive"}),
-            ("status", {"claimed", "succeeded", "failed", "abandoned", "refused"}),
+            ("status", {"claimed", "succeeded", "failed", "abandoned", "refused", "waiting"}),
         ],
     )
     def test_enums_are_stored_as_values_not_names(self, column: str, expected: set[str]) -> None:

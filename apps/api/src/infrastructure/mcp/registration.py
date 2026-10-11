@@ -15,18 +15,22 @@ Updated: 2026-03-03 — Per-server agent routing (F2.5)
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import structlog
+from langchain_core.tools import StructuredTool
 
 from src.core.config import settings
 from src.core.constants import (
     MCP_DISPLAY_EMOJI,
-    MCP_ITERATIVE_TASK_SUFFIX,
-    MCP_REFERENCE_TOOL_NAME,
 )
 from src.domains.agents.constants import AGENT_MCP
 from src.domains.agents.registry.catalogue import POLICIES_REQUIRING_REASON
+from src.infrastructure.mcp.admin_registration import (
+    AdminRegistrationPorts,
+    AdminServer,
+    register_admin_server,
+)
 from src.infrastructure.mcp.json_schema import (
     DEFAULT_TYPE,
     as_property_spec,
@@ -37,10 +41,20 @@ from src.infrastructure.mcp.json_schema import (
     required_of,
     resolve_property,
 )
+from src.infrastructure.mcp.registration_aliases import (
+    adapt_admin_aliases,
+    admin_task_aliases,
+    admin_tool_aliases,
+    usable_admin_discoveries,
+)
 from src.infrastructure.mcp.schemas import MCPDiscoveredTool, MCPServerConfig
-from src.infrastructure.mcp.security import resolve_hitl_requirement
+from src.infrastructure.mcp.semantic_schema import (
+    normalized_schema,
+    output_fields_from_schema,
+    semantic_type_of,
+)
+from src.infrastructure.mcp.task_identity import bind_task_identity
 from src.infrastructure.mcp.tool_adapter import MCPToolAdapter
-from src.infrastructure.mcp.utils import is_app_only
 from src.infrastructure.observability.metrics_mcp import (
     mcp_tool_registration_failures_total,
 )
@@ -63,6 +77,7 @@ logger = structlog.get_logger(__name__)
 # collect_all_mcp_domains() in domain_taxonomy.py.
 # ---------------------------------------------------------------------------
 _admin_mcp_domains: dict[str, str] = {}  # domain_slug → description
+_admin_mcp_server_domains: dict[str, str] = {}  # exact configured key → domain_slug
 
 
 def get_admin_mcp_domains() -> dict[str, str]:
@@ -75,7 +90,12 @@ def get_admin_mcp_domains() -> dict[str, str]:
     return dict(_admin_mcp_domains)
 
 
-def _register_iterative_task_tool(task_tool_name: str, server_name: str, description: str) -> None:
+def get_admin_mcp_server_domains() -> dict[str, str]:
+    """Return the authoritative boot snapshot of exact admin keys to domains."""
+    return dict(_admin_mcp_server_domains)
+
+
+def _register_iterative_task_tool(task_tool_name: str, server_name: str, description: str) -> bool:
     """Register the generic mcp_server_task_tool under a per-server name.
 
     Each iterative MCP server needs its own entry in ToolRegistry so the
@@ -90,12 +110,15 @@ def _register_iterative_task_tool(task_tool_name: str, server_name: str, descrip
         task_tool_name: Per-server tool name (e.g., "mcp_excalidraw_task").
         server_name: Human-readable server name for the description.
         description: The server's domain description.
+
+    Returns:
+        Whether the task callable is registered; failure must not publish its manifest.
     """
     from src.domains.agents.tools.tool_registry import get_tool, register_external_tool
 
     # If already registered (e.g., module reload), skip
     if get_tool(task_tool_name):
-        return
+        return True
 
     try:
         from src.domains.agents.tools.mcp_react_tools import (
@@ -105,23 +128,34 @@ def _register_iterative_task_tool(task_tool_name: str, server_name: str, descrip
 
         # Create a named copy of the tool with the per-server name.
         # BaseTool.name is a Pydantic field — model_copy creates a shallow copy.
+        if not isinstance(mcp_server_task_tool, StructuredTool):
+            raise TypeError("MCP task delegation requires a StructuredTool")
         named_tool = mcp_server_task_tool.model_copy(
             update={
                 "name": task_tool_name,
                 "description": iterative_task_tool_description(server_name, description),
+                "metadata": {
+                    "mcp_origin": "admin",
+                    "mcp_server_key": server_name,
+                    "mcp_server_name": server_name,
+                },
             }
         )
+        named_tool = bind_task_identity(named_tool, {"server_name": server_name})
         register_external_tool(named_tool)
         logger.info(
             "mcp_iterative_task_tool_registered",
             task_tool_name=task_tool_name,
         )
-    except ImportError:
-        logger.warning(
-            "mcp_iterative_task_tool_import_failed",
-            task_tool_name=task_tool_name,
-            msg="mcp_react_tools module not available (MCP_REACT_ENABLED=false?)",
+        return True
+    except ImportError as exc:
+        record_tool_registration_failure(
+            scope="admin",
+            server=server_name,
+            tool_name=task_tool_name,
+            exc=exc,
         )
+        return False
 
 
 def record_tool_registration_failure(
@@ -193,6 +227,9 @@ def build_mcp_adapters(
         Dict of adapter name → adapter for every tool that could be built.
     """
     adapters: dict[str, MCPToolAdapter] = {}
+    from src.domains.agents.tools.tool_registry import list_tool_names
+
+    aliases = admin_tool_aliases(discovered_tools, reserved=list_tool_names())
     for server_name, tools in discovered_tools.items():
         for tool in tools:
             try:
@@ -202,7 +239,9 @@ def build_mcp_adapters(
                     description=tool.description,
                     input_schema=tool.input_schema,
                     app_resource_uri=tool.app_resource_uri,
+                    output_schema=tool.output_schema,
                 )
+                adapter.name = aliases[(server_name, tool.tool_name)]
             except Exception as exc:
                 record_tool_registration_failure(
                     scope="admin",
@@ -240,171 +279,86 @@ def register_mcp_tools(
     Returns:
         Total number of tools registered
     """
-    from src.domains.agents.registry.catalogue import AgentManifest
-    from src.domains.agents.registry.domain_taxonomy import (
-        auto_generate_server_description,
-        slugify_mcp_server_name,
-    )
+    from src.domains.agents.registry.domain_taxonomy import DOMAIN_REGISTRY, deduplicate_mcp_slugs
 
     _admin_mcp_domains.clear()
+    _admin_mcp_server_domains.clear()
     reference_content = reference_content or {}
-
     if not adapters:
         logger.info("mcp_registration_no_tools")
         return 0
+    domains = deduplicate_mcp_slugs(list(discovered_tools), reserved=set(DOMAIN_REGISTRY))
+    from src.domains.agents.tools.tool_registry import list_tool_names
 
+    task_keys = {
+        key
+        for key, config in server_configs.items()
+        if config.iterative_mode and settings.mcp_react_enabled
+    }
+    tasks = admin_task_aliases(task_keys, reserved=list_tool_names())
+    aliases = admin_tool_aliases(
+        discovered_tools, reserved=set(list_tool_names()) | set(tasks.values())
+    )
+    adapters = adapt_admin_aliases(adapters, aliases)
+    ports = AdminRegistrationPorts(
+        standard_manifest=_mcp_tool_to_manifest,
+        task_manifest=_build_mcp_react_manifest,
+        register_task=_register_iterative_task_tool,
+        register_adapter=_register_tool_in_central_registry,
+    )
     registered_count = 0
-
     for server_name, tools in discovered_tools.items():
-        server_config = server_configs.get(server_name)
-        domain_slug = slugify_mcp_server_name(server_name)
-        agent_name = f"{domain_slug}_agent"
-
-        # Description: from config or auto-generated (shared helper)
-        description = None
-        if server_config and server_config.description:
-            description = server_config.description
-        if not description:
-            description = auto_generate_server_description(
-                [t.description for t in tools], server_name
-            )
-
-        # Store for domain routing (read by collect_all_mcp_domains)
-        _admin_mcp_domains[domain_slug] = description
-
-        # ADR-062: Iterative mode — delegate to ReAct sub-agent
-        is_iterative = (
-            server_config
-            and getattr(server_config, "iterative_mode", False)
-            and settings.mcp_react_enabled
+        config = server_configs.get(server_name)
+        domain = domains[server_name]
+        usable = usable_admin_discoveries(
+            server_name,
+            tools,
+            adapters,
+            aliases,
+            skip_reference=server_name not in tasks and bool(reference_content.get(server_name)),
         )
-
-        if is_iterative:
-            # Iterative mode: register individual tools in tool_registry only
-            # (the ReAct agent needs them), but the CATALOGUE sees a single
-            # per-server task tool (the planner delegates to the ReAct agent).
-            for tool_item in tools:
-                adapter_name = f"mcp_{server_name}_{tool_item.tool_name}"
-                adapter = adapters.get(adapter_name)
-                if adapter:
-                    _register_tool_in_central_registry(adapter)
-                    registered_count += 1
-
-            # Per-server task tool name (unique to avoid manifest collision
-            # when multiple servers have iterative_mode=true).
-            # parallel_executor looks up this name in ToolRegistry.
-            task_tool_name = f"mcp_{server_name}{MCP_ITERATIVE_TASK_SUFFIX}"
-
-            # Register the generic mcp_server_task_tool under this per-server
-            # name so parallel_executor can find it.
-            _register_iterative_task_tool(task_tool_name, server_name, description)
-
-            task_manifest = _build_mcp_react_manifest(
-                react_tool_name=task_tool_name,
-                agent_name=agent_name,
-                server_name=server_name,
-                description=description,
-            )
-            agent_manifest = AgentManifest(
-                name=agent_name,
-                description=description,
-                tools=[task_tool_name],
-            )
-            registry.register_agent_manifest(agent_manifest)
-            registry.register_tool_manifest(task_manifest)
-
-            logger.info(
-                "mcp_server_registered_iterative",
-                server=server_name,
-                domain=domain_slug,
-                agent=agent_name,
-                individual_tools=registered_count,
-            )
-            continue
-
-        # Standard mode: register individual tools in catalogue + tool_registry
-        server_tool_names = [
-            f"mcp_{server_name}_{t.tool_name}"
-            for t in tools
-            if not is_app_only(t.app_visibility)
-            and not (t.tool_name == MCP_REFERENCE_TOOL_NAME and reference_content.get(server_name))
-        ]
-        agent_manifest = AgentManifest(
-            name=agent_name,
-            description=description,
-            tools=server_tool_names,
+        description = _server_description(server_name, usable, config)
+        server = AdminServer(
+            server_name,
+            domain,
+            description,
+            tools,
+            config,
+            {tool.tool_name: aliases[(server_name, tool.tool_name)] for tool in tools},
+            tasks.get(server_name),
         )
-        registry.register_agent_manifest(agent_manifest)
-
-        # Register individual tools (manifest + instance + central registry)
-        for tool_item in tools:
-            # MCP Apps: app-only tools are iframe-only → skip LLM catalogue.
-            if is_app_only(tool_item.app_visibility):
-                logger.info(
-                    "mcp_tool_app_only_skipped",
-                    server=server_name,
-                    tool_name=tool_item.tool_name,
-                )
-                continue
-
-            # Skip read_me tool if its content was auto-fetched at discovery.
-            # The content is injected into the planner prompt instead.
-            if tool_item.tool_name == MCP_REFERENCE_TOOL_NAME and reference_content.get(
-                server_name
-            ):
-                logger.debug(
-                    "mcp_tool_reference_skipped",
-                    server=server_name,
-                    tool_name=MCP_REFERENCE_TOOL_NAME,
-                )
-                continue
-
-            adapter_name = f"mcp_{server_name}_{tool_item.tool_name}"
-            adapter = adapters.get(adapter_name)
-            if not adapter:
-                logger.warning(
-                    "mcp_registration_adapter_missing",
-                    adapter_name=adapter_name,
-                )
-                continue
-
-            # Resolve HITL requirement
-            hitl_required = global_hitl_required
-            if server_config:
-                hitl_required = resolve_hitl_requirement(server_config, global_hitl_required)
-
-            # Create ToolManifest with per-server agent_name
-            tool_manifest = _mcp_tool_to_manifest(
-                discovered=tool_item,
-                adapter_name=adapter_name,
-                hitl_required=hitl_required,
-                agent_name=agent_name,
-            )
-
-            # Register in AgentRegistry
-            registry.register_tool_manifest(tool_manifest)
-            registry.register_tool_instance(adapter_name, adapter)
-
-            # Register in central tool_registry (for parallel_executor)
-            _register_tool_in_central_registry(adapter)
-
-            registered_count += 1
-
-        logger.info(
-            "mcp_server_registered",
-            server=server_name,
-            domain=domain_slug,
-            agent=agent_name,
-            tools_count=len(server_tool_names),
+        registered = register_admin_server(
+            registry,
+            server,
+            adapters,
+            ports,
+            reference_content,
+            global_hitl_required,
+            settings.mcp_react_enabled,
         )
-
+        if registered:
+            _admin_mcp_domains[domain] = description
+            _admin_mcp_server_domains[server_name] = domain
+            registered_count += registered
     logger.info(
         "mcp_tools_registered",
         total=registered_count,
-        servers=list(discovered_tools.keys()),
-        domains=list(_admin_mcp_domains.keys()),
+        servers=list(discovered_tools),
+        domains=list(_admin_mcp_domains),
     )
     return registered_count
+
+
+def _server_description(
+    server_name: str, tools: list[MCPDiscoveredTool], config: MCPServerConfig | None
+) -> str:
+    from src.domains.agents.registry.domain_taxonomy import auto_generate_server_description
+
+    if config and config.description:
+        return config.description
+    return auto_generate_server_description(
+        [tool.description for tool in tools], server_name, [tool.tool_name for tool in tools]
+    )
 
 
 def _register_tool_in_central_registry(adapter: MCPToolAdapter) -> None:
@@ -549,6 +503,10 @@ def build_mcp_tool_manifest(
     semantic_keywords: list[str],
     hitl_required: bool,
     annotations: dict[str, Any] | None = None,
+    output_schema: dict[str, Any] | None = None,
+    *,
+    mcp_origin: Literal["admin", "user"] | None = None,
+    mcp_server_key: str | None = None,
 ) -> ToolManifest:
     """Build a ToolManifest for an MCP tool (shared by admin and user MCP).
 
@@ -558,11 +516,14 @@ def build_mcp_tool_manifest(
         tool_name: Raw MCP tool name
         description: Tool description
         input_schema: JSON Schema for the tool's input
+        output_schema: Optional server-declared schema for the canonical result
         semantic_keywords: Keywords for semantic matching
         hitl_required: Whether HITL approval is required
         annotations: Server-declared behaviour hints, read through
             :func:`declared_tool_category` — which believes a declared
             mutation and never a declared read-only claim.
+        mcp_origin: Owning configuration scope, when explicitly known.
+        mcp_server_key: Exact configured admin key or user-server UUID.
 
     Returns:
         ToolManifest instance
@@ -570,7 +531,6 @@ def build_mcp_tool_manifest(
     from src.domains.agents.registry.catalogue import (
         CostProfile,
         DisplayMetadata,
-        OutputFieldSchema,
         PermissionProfile,
         ToolManifest,
     )
@@ -590,13 +550,7 @@ def build_mcp_tool_manifest(
         agent=agent_name,
         description=description,
         parameters=parameters,
-        outputs=[
-            OutputFieldSchema(
-                path="result",
-                type="string",
-                description="MCP tool response",
-            )
-        ],
+        outputs=output_fields_from_schema(output_schema),
         cost=CostProfile(
             est_tokens_in=100,
             est_tokens_out=500,
@@ -624,6 +578,8 @@ def build_mcp_tool_manifest(
         tool_category=declared_tool_category(annotations),
         mutation_policy=_derived_policy,
         mutation_policy_reason=derive_mcp_mutation_policy_reason(_derived_policy),
+        mcp_origin=mcp_origin,
+        mcp_server_key=mcp_server_key,
     )
 
 
@@ -635,6 +591,9 @@ def build_mcp_react_task_manifest(
     parameters: list[ParameterSchema],
     semantic_keywords: list[str],
     hitl_required: bool = False,
+    *,
+    mcp_origin: Literal["admin", "user"] | None = None,
+    mcp_server_key: str | None = None,
 ) -> ToolManifest:
     """Build a ToolManifest for an MCP iterative (ReAct) task tool.
 
@@ -650,6 +609,8 @@ def build_mcp_react_task_manifest(
         parameters: List of ParameterSchema for the tool signature.
         semantic_keywords: Keywords for semantic tool scoring.
         hitl_required: Whether HITL approval is required.
+        mcp_origin: Owning configuration scope, when explicitly known.
+        mcp_server_key: Exact configured admin key or user-server UUID.
 
     Returns:
         ToolManifest instance for the task delegation tool.
@@ -701,6 +662,9 @@ def build_mcp_react_task_manifest(
             category="tool",
         ),
         tool_category=None,
+        delegates_execution=True,
+        mcp_origin=mcp_origin,
+        mcp_server_key=mcp_server_key,
         # ADR-263: the iterative tool opens a whole ReAct loop over the
         # server's toolbox. Its category stays None (the loop is not one
         # operation), but what it OWES follows the server's HITL setting: with
@@ -757,6 +721,8 @@ def _build_mcp_react_manifest(
         ],
         semantic_keywords=[server_name, "task", "iterative", "react"],
         hitl_required=False,
+        mcp_origin="admin",
+        mcp_server_key=server_name,
     )
 
 
@@ -802,7 +768,9 @@ def _mcp_tool_to_manifest(
     adapter_name: str,
     hitl_required: bool,
     agent_name: str = AGENT_MCP,
-) -> Any:
+    *,
+    server_key: str | None = None,
+) -> ToolManifest:
     """Convert an MCPDiscoveredTool to a ToolManifest (admin MCP).
 
     Args:
@@ -812,6 +780,7 @@ def _mcp_tool_to_manifest(
         hitl_required: Resolved HITL requirement for the owning server.
         agent_name: Per-server agent name for domain extraction.
             Defaults to AGENT_MCP for backward compatibility.
+        server_key: Exact configured key, overriding discovery metadata when supplied.
 
     Returns:
         The ToolManifest the planner catalogue exposes for this tool.
@@ -834,6 +803,9 @@ def _mcp_tool_to_manifest(
         semantic_keywords=semantic_keywords,
         hitl_required=hitl_required,
         annotations=discovered.annotations,
+        output_schema=discovered.output_schema,
+        mcp_origin="admin",
+        mcp_server_key=server_key if server_key is not None else discovered.server_name,
     )
 
 
@@ -878,8 +850,8 @@ def json_schema_to_parameters(
         # spec is compacted, so a $ref'd or anyOf-wrapped object shows its real
         # properties instead of the wrapper.
         param_schema: dict[str, Any] | None = None
-        if param_type in ("array", "object"):
-            param_schema = compact_schema(resolved.spec)
+        if param_type in ("array", "object") or _has_schema_alternatives(resolved.spec):
+            param_schema = compact_schema(normalized_schema(spec, root or {}))
         parameters.append(
             ParameterSchema(
                 name=name,
@@ -895,10 +867,19 @@ def json_schema_to_parameters(
                     for kind, value in constraints_of(resolved.spec).items()
                 ],
                 schema=param_schema,
+                semantic_type=semantic_type_of(spec, root or {}),
             )
         )
 
     return parameters
+
+
+def _has_schema_alternatives(spec: dict[str, object]) -> bool:
+    return (
+        isinstance(spec.get("type"), list)
+        or isinstance(spec.get("enum"), list)
+        or any(isinstance(spec.get(key), list) for key in ("anyOf", "oneOf", "allOf"))
+    )
 
 
 # Backward-compatible aliases for imports using the old private names. The

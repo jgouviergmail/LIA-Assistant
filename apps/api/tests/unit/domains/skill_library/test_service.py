@@ -25,7 +25,11 @@ from src.domains.skill_library.errors import (
 )
 from src.domains.skill_library.repository import InstalledSkill, SourceRecord
 from src.domains.skill_library.resolver import ReadSkill
-from src.domains.skill_library.schemas import LibraryInstallRequest, LibraryInstallResponse
+from src.domains.skill_library.schemas import (
+    LibraryInstallRequest,
+    LibraryInstallResponse,
+)
+from src.domains.skills.import_hooks import AfterSkillCommit, BeforeSkillSwap
 from tests.unit.domains.skill_library.fakes import FakeHub, audit_of, entry, manifest
 
 pytestmark = pytest.mark.unit
@@ -61,7 +65,14 @@ def account(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
         return str(state["conflict"])
 
     async def register(
-        _user_id: UUID, read: ReadSkill, files: dict[str, bytes], record: SourceRecord
+        _user_id: UUID,
+        read: ReadSkill,
+        files: dict[str, bytes],
+        record: SourceRecord,
+        *,
+        before_swap: BeforeSkillSwap | None = None,
+        before_commit: BeforeSkillSwap | None = None,
+        after_commit: AfterSkillCommit | None = None,
     ) -> LibraryInstallResponse:
         state["registered"].append((read, files, record))
         return LibraryInstallResponse(
@@ -118,16 +129,27 @@ class TestPreviewing:
         commit = hub.publish(
             REPO,
             "v1",
-            {"skills/pdf/SKILL.md": manifest("pdf"), "skills/pdf/scripts/x.py": b"print(1)"},
+            {
+                "skills/pdf/SKILL.md": manifest("pdf"),
+                "skills/pdf/scripts/x.py": b"print(1)",
+            },
         )
         hub.audits = audit_of("pdf", snyk="low")
         answer = await service.preview(
-            ME, repository=REPO, skill_id="pdf", portal="skills_sh", registry_id=f"{REPO}/pdf"
+            ME,
+            repository=REPO,
+            skill_id="pdf",
+            portal="skills_sh",
+            registry_id=f"{REPO}/pdf",
         )
 
         shown = answer.preview
         assert shown is not None and answer.choice is None
-        assert (shown.name, shown.path, shown.commit_sha) == ("pdf", "skills/pdf", commit)
+        assert (shown.name, shown.path, shown.commit_sha) == (
+            "pdf",
+            "skills/pdf",
+            commit,
+        )
         assert shown.has_scripts is True and shown.blocked_by is None
         assert shown.audits is not None and shown.audits[0].risk == "low"
 
@@ -160,7 +182,11 @@ class TestPreviewing:
 
 
 def _request(commit: str, **overrides: Any) -> LibraryInstallRequest:
-    base: dict[str, Any] = {"repository": REPO, "path": "skills/pdf", "commit_sha": commit}
+    base: dict[str, Any] = {
+        "repository": REPO,
+        "path": "skills/pdf",
+        "commit_sha": commit,
+    }
     return LibraryInstallRequest(**{**base, **overrides})
 
 
@@ -180,7 +206,11 @@ class TestInstalling:
             first,
             hub.tree_sha(REPO, first, "skills/pdf"),
         )
-        assert (record.origin, record.portal, record.ref) == ("github", "skills_sh", "HEAD")
+        assert (record.origin, record.portal, record.ref) == (
+            "github",
+            "skills_sh",
+            "HEAD",
+        )
 
     async def test_an_audit_refuses_before_any_file_is_downloaded(
         self, hub: FakeHub, account: dict[str, Any]
@@ -189,7 +219,10 @@ class TestInstalling:
         hub.audits = audit_of("pdf", socket="high")
         with pytest.raises(LibraryRefusal) as refused:
             await service.install(ME, _request(commit))
-        assert (refused.value.code, refused.value.detail) == (AUDIT_BLOCKED, {"risk": "high"})
+        assert (refused.value.code, refused.value.detail) == (
+            AUDIT_BLOCKED,
+            {"risk": "high"},
+        )
         raw = [s.path for s in hub.seen if s.host == "raw.githubusercontent.com"]
         assert raw == [f"/{REPO}/{commit}/skills/pdf/SKILL.md"]  # the manifest, to name it
         assert account["registered"] == []
@@ -204,7 +237,8 @@ class TestInstalling:
         assert refused.value.code == AUDIT_BLOCKED
 
     @pytest.mark.parametrize(
-        ("conflict", "code"), [("installed", ALREADY_INSTALLED), ("name_taken", NAME_TAKEN)]
+        ("conflict", "code"),
+        [("installed", ALREADY_INSTALLED), ("name_taken", NAME_TAKEN)],
     )
     async def test_a_taken_name_is_refused(
         self, hub: FakeHub, account: dict[str, Any], conflict: str, code: str
@@ -231,7 +265,11 @@ class TestUpdating:
     ) -> None:
         first = hub.publish(REPO, "v1", {"a/SKILL.md": manifest("a"), "b/SKILL.md": manifest("b")})
         tree_a, tree_b = hub.tree_sha(REPO, first, "a"), hub.tree_sha(REPO, first, "b")
-        hub.publish(REPO, "v2", {"a/SKILL.md": manifest("a"), "b/SKILL.md": manifest("b", "New.")})
+        hub.publish(
+            REPO,
+            "v2",
+            {"a/SKILL.md": manifest("a"), "b/SKILL.md": manifest("b", "New.")},
+        )
         account["rows"] = [
             _installed(name="a", path="a", tree_sha=tree_a),
             _installed(name="b", path="b", tree_sha=tree_b),
@@ -239,18 +277,27 @@ class TestUpdating:
             _installed(name="lost", repository="acme/missing"),
         ]
         states = {i.name: i.update for i in (await service.installed(ME)).items}
-        assert states == {"a": "current", "b": "available", "gone": "unknown", "lost": "unknown"}
+        assert states == {
+            "a": "current",
+            "b": "available",
+            "gone": "unknown",
+            "lost": "unknown",
+        }
 
     async def test_an_update_preview_lists_what_changes(
         self, hub: FakeHub, account: dict[str, Any]
     ) -> None:
         first = hub.publish(
-            REPO, "v1", {"p/SKILL.md": manifest("p"), "p/old.md": b"o", "p/keep.md": b"k"}
+            REPO,
+            "v1",
+            {"p/SKILL.md": manifest("p"), "p/old.md": b"o", "p/keep.md": b"k"},
         )
         row = _installed(name="p", path="p", tree_sha=hub.tree_sha(REPO, first, "p"))
         account["rows"] = [row]
         hub.publish(
-            REPO, "v2", {"p/SKILL.md": manifest("p", "New."), "p/new.md": b"n", "p/keep.md": b"k"}
+            REPO,
+            "v2",
+            {"p/SKILL.md": manifest("p", "New."), "p/new.md": b"n", "p/keep.md": b"k"},
         )
 
         answer = await service.update_preview(ME, row.skill_id)
@@ -268,7 +315,10 @@ class TestUpdating:
         commit = hub.publish(REPO, "v2", {"p/SKILL.md": manifest("p-renamed")})
         with pytest.raises(LibraryRefusal) as refused:
             await service.update(ME, row.skill_id, commit)
-        assert (refused.value.code, refused.value.detail) == (RENAMED, {"name": "p-renamed"})
+        assert (refused.value.code, refused.value.detail) == (
+            RENAMED,
+            {"name": "p-renamed"},
+        )
 
     async def test_an_update_installs_the_previewed_commit(
         self, hub: FakeHub, account: dict[str, Any]

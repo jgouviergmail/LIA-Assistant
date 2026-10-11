@@ -56,6 +56,7 @@ def _installed_statement(owner_id: UUID) -> Select[tuple[UUID, str, SkillLibrary
         .join(SkillLibrarySource, SkillLibrarySource.skill_id == Skill.id)
         .where(Skill.owner_id == owner_id)
         .where(Skill.provenance == SkillProvenance.LIBRARY.value)
+        .execution_options(populate_existing=True)
         .order_by(Skill.name, Skill.id)
     )
 

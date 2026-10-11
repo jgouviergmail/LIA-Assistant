@@ -39,6 +39,229 @@ def import_domain_models() -> None:
     import_all_models()
 
 
+def init_notification_devices() -> None:
+    """Withdraw prior bindings before installing the saved-notification-device owner."""
+    from src.infrastructure.notification_devices import configure_notification_devices
+
+    configure_notification_devices(None)
+    from src.domains.notifications.device_gateway import SavedNotificationDevices
+
+    configure_notification_devices(SavedNotificationDevices())
+
+
+def init_live_connector_preferences() -> None:
+    """Withdraw prior Live connector bindings before installing the current owner."""
+    from src.infrastructure.live_connector_preferences import configure_live_connector_preferences
+
+    configure_live_connector_preferences(None)
+    from src.domains.live.connector_preference_gateway import SavedLiveConnectorPreferences
+
+    configure_live_connector_preferences(SavedLiveConnectorPreferences())
+
+
+def init_account_exports() -> None:
+    from src.infrastructure.account_exports import configure_account_exports
+
+    configure_account_exports(None)
+    from src.domains.account_export.gateway import SavedAccountExports
+
+    configure_account_exports(SavedAccountExports())
+
+
+def init_phone_identity() -> None:
+    """Withdraw old phone bindings before installing the current read owner."""
+    from src.infrastructure.phone_identity import configure_phone_identity
+
+    configure_phone_identity(None)
+    from src.domains.telephony.identity_gateway import SavedPhoneIdentity
+
+    configure_phone_identity(SavedPhoneIdentity())
+
+
+def init_phone_history() -> None:
+    """Withdraw old history bindings before installing the current owner."""
+    from src.infrastructure.phone_history import configure_phone_history
+
+    configure_phone_history(None)
+    from src.domains.telephony.history_gateway import SavedPhoneHistory
+
+    configure_phone_history(SavedPhoneHistory())
+
+
+def init_phone_number() -> None:
+    """Withdraw prior number owners before installing the current saved-state owner."""
+    from src.infrastructure.phone_number_preferences import configure_phone_number_preferences
+
+    configure_phone_number_preferences(None)
+    from src.domains.telephony.number_gateway import SavedPhoneNumber
+
+    configure_phone_number_preferences(SavedPhoneNumber())
+
+
+def init_phone_preferences() -> None:
+    """Withdraw prior consent owners before installing the current saved-state owner."""
+    from src.infrastructure.phone_preferences import configure_phone_preferences
+
+    configure_phone_preferences(None)
+    from src.domains.telephony.preference_gateway import SavedPhonePreferences
+
+    configure_phone_preferences(SavedPhonePreferences())
+
+
+def init_meeting_deletions() -> None:
+    """Withdraw any earlier deletion owner before disabled or failed boot."""
+    from src.infrastructure.meeting_deletions import configure_meeting_deletions
+
+    configure_meeting_deletions(None)
+    if not settings.meetings_enabled:
+        return
+    from src.domains.meetings.deletion_gateway import SavedMeetingDeletions
+
+    configure_meeting_deletions(SavedMeetingDeletions())
+
+
+def init_meeting_reformat() -> None:
+    """Withdraw an earlier reformat owner before disabled or failed boot."""
+    from src.infrastructure.meeting_reformat import configure_meeting_reformat
+
+    configure_meeting_reformat(None)
+    if not settings.meetings_enabled:
+        return
+    from src.domains.meetings.reformat_gateway import SavedMeetingReformat
+
+    configure_meeting_reformat(SavedMeetingReformat())
+
+
+def init_meeting_regeneration() -> None:
+    """Withdraw an earlier rebuild owner before disabled or failed boot."""
+    from src.infrastructure.meeting_regeneration import configure_meeting_regeneration
+
+    configure_meeting_regeneration(None)
+    if not settings.meetings_enabled:
+        return
+    from src.domains.meetings.regeneration_gateway import SavedMeetingRegeneration
+
+    configure_meeting_regeneration(SavedMeetingRegeneration())
+
+
+def init_meeting_retry() -> None:
+    """Withdraw an earlier retry owner before disabled or failed boot."""
+    from src.infrastructure.meeting_retry import configure_meeting_retry
+
+    configure_meeting_retry(None)
+    if not settings.meetings_enabled:
+        return
+    from src.domains.meetings.retry_gateway import SavedMeetingRetry
+
+    configure_meeting_retry(SavedMeetingRetry())
+
+
+def init_meeting_email() -> None:
+    """Withdraw a stale delivery owner before disabled/failed boot."""
+    from src.infrastructure.meeting_email import configure_meeting_email
+
+    configure_meeting_email(None)
+    if not settings.meetings_enabled:
+        return
+    from src.domains.meetings.email_gateway import SavedMeetingEmail
+
+    configure_meeting_email(SavedMeetingEmail())
+
+
+def init_meeting_pdf() -> None:
+    """Withdraw the previous renderer before a disabled or failed restart."""
+    from src.infrastructure.meeting_pdf import configure_meeting_pdf
+
+    configure_meeting_pdf(None)
+    if not settings.meetings_enabled:
+        return
+    from src.domains.meetings.pdf_gateway import SavedMeetingPDF
+
+    configure_meeting_pdf(SavedMeetingPDF())
+
+
+def init_meeting_report_updates() -> None:
+    """Withdraw the previous sparse writer before a disabled or failed restart."""
+    from src.infrastructure.meeting_report_updates import configure_meeting_report_updates
+
+    configure_meeting_report_updates(None)
+    if not settings.meetings_enabled:
+        return
+    from src.domains.meetings.report_update_gateway import SavedMeetingReportUpdates
+
+    configure_meeting_report_updates(SavedMeetingReportUpdates())
+
+
+def init_meeting_reports() -> None:
+    """Withdraw the previous report owner before a disabled or failed restart."""
+    from src.infrastructure.meeting_reports import configure_meeting_reports
+
+    configure_meeting_reports(None)
+    if not settings.meetings_enabled:
+        return
+    from src.domains.meetings.report_gateway import SavedMeetingReports
+
+    configure_meeting_reports(SavedMeetingReports())
+
+
+def init_meeting_transcripts() -> None:
+    """Withdraw the previous purge owner before a disabled or failed restart."""
+    from src.infrastructure.meeting_transcripts import configure_meeting_transcripts
+
+    configure_meeting_transcripts(None)
+    if not settings.meetings_enabled:
+        return
+    from src.domains.meetings.transcript_gateway import SavedMeetingTranscripts
+
+    configure_meeting_transcripts(SavedMeetingTranscripts())
+
+
+def init_meeting_reads() -> None:
+    """Read ports never retain stale owners after a failed or disabled restart."""
+    from src.infrastructure.meeting_reads import configure_meeting_reads
+
+    configure_meeting_reads(None)
+    if not settings.meetings_enabled:
+        return
+    from src.domains.meetings.read_gateway import SavedMeetingReads
+
+    configure_meeting_reads(SavedMeetingReads())
+
+
+def init_meeting_templates() -> None:
+    """Bind the original template owner; withdraw stale bindings first."""
+    from src.infrastructure.meeting_templates import configure_meeting_templates
+
+    configure_meeting_templates(None)
+    if not settings.meetings_enabled:
+        return
+    from src.domains.meetings.template_gateway import SavedMeetingTemplates
+
+    configure_meeting_templates(SavedMeetingTemplates())
+
+
+def init_meeting_preferences() -> None:
+    """Withdraw stale bindings before loading the original meeting settings owner."""
+    from src.infrastructure.meeting_preferences import configure_meeting_preferences
+
+    configure_meeting_preferences(None)
+    if not settings.meetings_enabled:
+        return
+    from src.domains.meetings.preference_gateway import SavedMeetingPreferences
+
+    configure_meeting_preferences(SavedMeetingPreferences())
+
+
+def init_live_preferences() -> None:
+    """Withdraw prior bindings before installing the live-reflex owner."""
+    from src.infrastructure.live_preferences import configure_live_preferences
+
+    configure_live_preferences(None)
+    from src.domains.live.preference_gateway import SavedLivePreferences
+
+    configure_live_preferences(SavedLivePreferences())
+
+
 def _validate_memory_category_vocabulary() -> None:
     """Boot gate of the memory-category vocabulary (ADR-085 pattern).
 

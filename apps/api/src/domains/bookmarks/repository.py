@@ -12,7 +12,7 @@ from collections.abc import Iterable, Sequence
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import or_, select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.repository import BaseRepository
@@ -33,12 +33,36 @@ class BookmarkRepository(BaseRepository[MessageBookmark]):
     def __init__(self, db: AsyncSession) -> None:
         super().__init__(db, MessageBookmark)
 
+    async def lock_keep_owner(self, user_id: UUID) -> None:
+        """Serialize the account's new keeps before checking the count or message."""
+        await self.db.execute(
+            select(func.pg_advisory_xact_lock(func.hashtextextended(f"bookmark-keep:{user_id}", 0)))
+        )
+
     # ------------------------------------------------------------------
     # Reads over the message table (declared VISIBLE_ONLY)
     # ------------------------------------------------------------------
 
+    async def latest_visible_assistant_message(self, user_id: UUID) -> ConversationMessage | None:
+        """The real last visible archived answer in the account's active conversation."""
+        statement = visible_only(
+            select(ConversationMessage)
+            .join(Conversation, ConversationMessage.conversation_id == Conversation.id)
+            .where(
+                Conversation.user_id == user_id,
+                Conversation.deleted_at.is_(None),
+                ConversationMessage.role == "assistant",
+            )
+            .order_by(ConversationMessage.created_at.desc(), ConversationMessage.id.desc())
+            .limit(1),
+            include_hidden=False,
+        )
+        return (
+            await self.db.execute(statement.execution_options(populate_existing=True))
+        ).scalar_one_or_none()
+
     async def owned_assistant_message(
-        self, user_id: UUID, message_id: UUID
+        self, user_id: UUID, message_id: UUID, *, lock: bool = False
     ) -> ConversationMessage | None:
         """The visible assistant message the account owns, or ``None``.
 
@@ -60,10 +84,14 @@ class BookmarkRepository(BaseRepository[MessageBookmark]):
             ),
             include_hidden=False,
         )
-        return (await self.db.execute(statement)).scalar_one_or_none()
+        if lock:
+            statement = statement.with_for_update(of=ConversationMessage)
+        return (
+            await self.db.execute(statement.execution_options(populate_existing=True))
+        ).scalar_one_or_none()
 
     async def preceding_user_message(
-        self, message: ConversationMessage
+        self, message: ConversationMessage, *, lock: bool = False
     ) -> ConversationMessage | None:
         """The last visible user message written before ``message``.
 
@@ -87,7 +115,11 @@ class BookmarkRepository(BaseRepository[MessageBookmark]):
             .order_by(ConversationMessage.created_at.desc(), ConversationMessage.id.desc())
             .limit(1)
         )
-        return (await self.db.execute(statement)).scalar_one_or_none()
+        if lock:
+            statement = statement.with_for_update(of=ConversationMessage)
+        return (
+            await self.db.execute(statement.execution_options(populate_existing=True))
+        ).scalar_one_or_none()
 
     # ------------------------------------------------------------------
     # Bookmarks
@@ -116,10 +148,14 @@ class BookmarkRepository(BaseRepository[MessageBookmark]):
         Returns:
             The row, or ``None``.
         """
-        statement = select(MessageBookmark).where(
-            MessageBookmark.id == bookmark_id, MessageBookmark.user_id == user_id
+        statement = (
+            select(MessageBookmark)
+            .where(MessageBookmark.id == bookmark_id, MessageBookmark.user_id == user_id)
+            .execution_options(populate_existing=True)
         )
-        return (await self.db.execute(statement)).scalar_one_or_none()
+        return (
+            await self.db.execute(statement.execution_options(populate_existing=True))
+        ).scalar_one_or_none()
 
     async def get_by_message(self, user_id: UUID, message_id: UUID) -> MessageBookmark | None:
         """The bookmark taken from one message, if any.
@@ -131,10 +167,14 @@ class BookmarkRepository(BaseRepository[MessageBookmark]):
         Returns:
             The row, or ``None``.
         """
-        statement = select(MessageBookmark).where(
-            MessageBookmark.user_id == user_id, MessageBookmark.message_id == message_id
+        statement = (
+            select(MessageBookmark)
+            .where(MessageBookmark.user_id == user_id, MessageBookmark.message_id == message_id)
+            .execution_options(populate_existing=True)
         )
-        return (await self.db.execute(statement)).scalar_one_or_none()
+        return (
+            await self.db.execute(statement.execution_options(populate_existing=True))
+        ).scalar_one_or_none()
 
     async def count_for_user(self, user_id: UUID) -> int:
         """How many bookmarks the account keeps — the figure the cap reads.
@@ -316,8 +356,22 @@ class BookmarkRepository(BaseRepository[MessageBookmark]):
         Returns:
             The documents still linked, keyed by their id.
         """
-        ids = [row.rag_document_id for row in bookmarks if row.rag_document_id is not None]
-        if not ids:
+        references = {
+            (row.rag_document_id, row.user_id)
+            for row in bookmarks
+            if row.rag_document_id is not None
+        }
+        if not references:
             return {}
-        rows = (await self.db.execute(select(RAGDocument).where(RAGDocument.id.in_(ids)))).scalars()
-        return {document.id: document for document in rows}
+        ids = {identity for identity, _ in references}
+        owners = {owner for _, owner in references}
+        rows = (
+            await self.db.execute(
+                select(RAGDocument).where(RAGDocument.id.in_(ids), RAGDocument.user_id.in_(owners))
+            )
+        ).scalars()
+        return {
+            document.id: document
+            for document in rows
+            if (document.id, document.user_id) in references
+        }

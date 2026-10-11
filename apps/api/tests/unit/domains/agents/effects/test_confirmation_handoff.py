@@ -28,6 +28,7 @@ from unittest.mock import patch
 
 import pytest
 
+from src.core.i18n import language_scope
 from src.domains.agents.drafts.models import DraftType
 from src.domains.agents.effects import runtime as gate_runtime
 from src.domains.agents.effects.scope import EffectScope, effect_scope
@@ -46,14 +47,17 @@ async def _tool(**kwargs: Any) -> dict[str, Any]:
 def _reset() -> Any:
     CALLS.clear()
     gate_runtime.reset_policy_cache()
-    with patch(
-        "src.domains.agents.context.runtime_context.runtime_context_if_running",
-        return_value=SimpleNamespace(
-            user_id=__import__("uuid").uuid4(),
-            thread_id="thread-A",
-            execution_mode="pipeline",
-            is_automated_source=False,
+    with (
+        patch(
+            "src.domains.agents.context.runtime_context.runtime_context_if_running",
+            return_value=SimpleNamespace(
+                user_id=__import__("uuid").uuid4(),
+                thread_id="thread-A",
+                execution_mode="pipeline",
+                is_automated_source=False,
+            ),
         ),
+        language_scope("en"),
     ):
         yield
 
@@ -145,7 +149,18 @@ class TestTheCallComesBackAsADraft:
 class TestTheLabelTheUserReads:
     """The card says WHAT will run: the label is the only readable part of it."""
 
-    def test_an_mcp_namespaced_tool_reads_as_words(self) -> None:
+    @pytest.mark.parametrize(
+        "language,separator",
+        [
+            ("en", ": "),
+            ("fr", "\u00a0: "),
+            ("de", ": "),
+            ("es", ": "),
+            ("it", ": "),
+            ("zh-CN", "："),
+        ],
+    )
+    def test_an_mcp_namespaced_tool_reads_as_words(self, language: str, separator: str) -> None:
         """Real MCP servers namespace with a DOUBLE underscore.
 
         ``billing__cancel_subscription`` through a naive ``replace`` renders a
@@ -154,8 +169,8 @@ class TestTheLabelTheUserReads:
         from src.domains.agents.effects.confirmation import readable_tool_name
 
         assert (
-            readable_tool_name("mcp_era_billing__cancel_subscription")
-            == "era: billing cancel subscription"
+            readable_tool_name("mcp_era_billing__cancel_subscription", language=language)
+            == f"era{separator}billing cancel subscription"
         )
 
     def test_a_native_tool_keeps_its_words(self) -> None:

@@ -99,6 +99,22 @@ search_user_documents_catalogue_manifest = ToolManifest(
             type="integer",
             description="Number of excerpts returned",
         ),
+        OutputFieldSchema(
+            path="documents[].filename",
+            type="string",
+            description="Original document filename",
+            semantic_type="file_name",
+            nullable=True,
+        ),
+        OutputFieldSchema(
+            path="documents[].space",
+            type="string",
+            description="Knowledge-space display name",
+            nullable=True,
+        ),
+        OutputFieldSchema(
+            path="documents[].score", type="number", description="Hybrid retrieval relevance score"
+        ),
     ],
     cost=CostProfile(
         est_tokens_in=60,

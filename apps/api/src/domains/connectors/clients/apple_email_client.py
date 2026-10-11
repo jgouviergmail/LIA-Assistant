@@ -151,6 +151,8 @@ class AppleEmailClient(BaseAppleClient):
         bcc: str | None = None,
         is_html: bool = False,
         attachments: Sequence[OutgoingAttachment] = (),
+        *,
+        single_attempt: bool = False,
     ) -> dict[str, Any]:
         """Send an email via SMTP, with its files when given (ADR-321)."""
         return await self._execute_with_retry(
@@ -163,6 +165,7 @@ class AppleEmailClient(BaseAppleClient):
             bcc,
             is_html,
             attachments,
+            max_retries=0 if single_attempt else 3,
         )
 
     async def reply_email(

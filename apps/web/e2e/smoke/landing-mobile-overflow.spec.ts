@@ -15,20 +15,28 @@
  * This spec therefore asserts the invariant in three ways:
  *  1. statically after load,
  *  2. across all six selected demo scenes and their three phases, at both
- *     375px and 320px (the Playwright clock drives the reveal timers),
+ *     375px and 320px (the reader selects each step explicitly),
  *  3. after scrolling through every section (chapter vignettes stage on
  *     intersection).
  * A final static pass runs at 320px (WCAG 1.4.10 reflow floor).
  *
- * Animations are deliberately ENABLED (reducedMotion: no-preference overrides
- * the config default): the oscillation only exists with the timeline running.
+ * Decorative animations are deliberately ENABLED (reducedMotion:
+ * no-preference overrides the config default). The homepage demonstration
+ * stays manual; the clock also checks that idle time cannot replace its result.
  */
 import type { Locator, Page } from '@playwright/test';
 import { test, expect, waitForHydration } from '../fixtures';
 import { unfoldCatalogs, unfoldLandingDetails } from './landing-catalogs';
 import { awaitStyledPage, expectNoOverflow } from './overflow-report';
 
-const SCENES = ['Décider', 'Écouter', 'Anticiper', 'Déléguer', 'Approfondir', 'Se coordonner'];
+const SCENES = [
+  'Le dossier de Claire',
+  'Ma Radio',
+  'Mon engagement',
+  'Un appel',
+  'Ma réunion',
+  'Un dîner avec Sarah',
+];
 
 /**
  * Horizontal page bounds alone miss text cut INSIDE a fixed-height card.
@@ -44,6 +52,23 @@ async function expectUnclippedScene(scene: Locator, label: string): Promise<void
       if (!textNode.textContent?.trim()) continue;
       const element = textNode.parentElement;
       if (!element || getComputedStyle(element).visibility === 'hidden') continue;
+      // Native closed details can retain text-range geometry even though
+      // their body is not painted. Keep measuring their visible summary;
+      // the result phase also opens each disclosure and checks its body.
+      let folded = false;
+      for (
+        let ancestor: HTMLElement | null = element;
+        ancestor;
+        ancestor = ancestor.parentElement
+      ) {
+        if (!(ancestor instanceof HTMLDetailsElement) || ancestor.open) continue;
+        const summary = ancestor.querySelector(':scope > summary');
+        if (!summary?.contains(element)) {
+          folded = true;
+          break;
+        }
+      }
+      if (folded) continue;
       const range = document.createRange();
       range.selectNodeContents(textNode);
       for (const rect of range.getClientRects()) {
@@ -84,6 +109,16 @@ async function expectDemoStep(steps: Locator, expected: string): Promise<void> {
     .toBe(expected);
 }
 
+/** Native buttons expose every reading depth without autoplay or focus jumps. */
+async function selectDemoStep(steps: Locator, name: string): Promise<void> {
+  const command = steps.getByRole('button', { name, exact: true });
+  await command.focus();
+  await command.press('Enter');
+  await expect(command).toHaveAttribute('aria-pressed', 'true');
+  await expect(command).toBeFocused();
+  await expectDemoStep(steps, name);
+}
+
 async function expectSelectedScene(chooser: Locator, title: string): Promise<void> {
   await expect
     .poll(() =>
@@ -109,30 +144,36 @@ async function exerciseDemoScenes(page: Page, width: number): Promise<void> {
   await waitForHydration(page, '[aria-label="Choisir une situation"]');
   await chooser.scrollIntoViewIfNeeded();
   await page.clock.runFor(1500);
-  // Freeze after hydration and entrance motion. Each replay below starts a
-  // fresh timer, so layout checks cannot race the next reveal under CPU load.
+  // Freeze decorative entrance motion after hydration. The scene's steps are
+  // explicit controls, so layout checks cannot race an automatic reveal.
   await page.clock.pauseAt(await page.evaluate(() => Date.now() + 100));
 
   for (const title of SCENES) {
     const choice = chooser.getByRole('button', { name: title, exact: true });
     await choice.click();
     await expectSelectedScene(chooser, title);
-    await player.getByRole('button', { name: 'Rejouer la démonstration' }).click();
-    await page.clock.runFor(1);
-    await expectDemoStep(steps, 'Ta demande');
+    await selectDemoStep(steps, 'Ta demande');
     await expectNoOverflow(page, `${width}px ${title}: request`);
     await expectUnclippedScene(scene, `${width}px ${title}: request`);
 
-    await page.clock.runFor(1700);
-    await expectDemoStep(steps, 'Le contexte');
+    await selectDemoStep(steps, 'Le contexte');
     await expectNoOverflow(page, `${width}px ${title}: context`);
     await expectUnclippedScene(scene, `${width}px ${title}: context`);
 
-    await page.clock.runFor(2400);
-    await expectDemoStep(steps, 'Le résultat');
+    await selectDemoStep(steps, 'Le résultat');
+    // The actual renderer is dynamically loaded. A placeholder fitting the
+    // viewport cannot prove that the returned cards remain readable.
+    await expect(scene.locator('.markdown-content').first()).toBeVisible();
     await expectNoOverflow(page, `${width}px ${title}: result`);
     await expectUnclippedScene(scene, `${width}px ${title}: result`);
     await expect(scene.getByText(title, { exact: true })).toBeVisible();
+    for (const details of await scene.locator('details.lia-collapsible').all()) {
+      if (await details.evaluate(node => (node as HTMLDetailsElement).open)) continue;
+      await details.locator(':scope > summary').click();
+      await expect(details).toHaveJSProperty('open', true);
+    }
+    await expectNoOverflow(page, `${width}px ${title}: expanded result`);
+    await expectUnclippedScene(scene, `${width}px ${title}: expanded result`);
     // The result remains available for reading, without cycling to another
     // scenario or letting a later animation frame push content off-screen.
     // This assertion checks retention after idle time, not each decorative

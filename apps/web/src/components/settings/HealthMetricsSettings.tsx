@@ -39,6 +39,7 @@ import {
 import { toast } from 'sonner';
 
 import { useAuth } from '@/hooks/useAuth';
+import { useHealthTokenSecret } from '@/hooks/useHealthTokenSecret';
 import { useHealthMetrics, type HealthMetricsPeriod } from '@/hooks/useHealthMetrics';
 import { apiEndpointUrl } from '@/lib/api-client';
 import { useTranslation } from '@/i18n/client';
@@ -90,7 +91,6 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
   const [openSections, setOpenSections] = useState<string[]>(DEFAULT_OPEN_SECTIONS);
   const [period, setPeriod] = useState<HealthMetricsPeriod>('day');
   const [newTokenLabel, setNewTokenLabel] = useState('');
-  const [justCreatedToken, setJustCreatedToken] = useState<string | null>(null);
   const [showJustCreated, setShowJustCreated] = useState(true);
 
   const { user, refreshUser } = useAuth();
@@ -107,6 +107,7 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
     deleteAll,
     updateAgentsEnabled,
   } = useHealthMetrics(period);
+  const { secret: justCreatedToken, issue, clear: clearSecret } = useHealthTokenSecret(createToken);
 
   const handleAgentsToggle = useCallback(
     async (enabled: boolean) => {
@@ -155,16 +156,16 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
   );
 
   const handleCreateToken = useCallback(async () => {
-    const result = await createToken(newTokenLabel.trim() || undefined);
+    const result = await issue(newTokenLabel.trim() || undefined);
+    if (result === undefined) return;
     if (result) {
-      setJustCreatedToken(result.token);
       setShowJustCreated(true);
       setNewTokenLabel('');
       toast.success(t('healthMetrics.tokens.created', 'Jeton créé. Copiez-le maintenant.'));
     } else {
       toast.error(t('healthMetrics.tokens.createError', 'Impossible de créer le jeton.'));
     }
-  }, [createToken, newTokenLabel, t]);
+  }, [issue, newTokenLabel, t]);
 
   const handleRevokeToken = useCallback(
     async (tokenId: string) => {
@@ -395,12 +396,7 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
                         <Copy className="h-4 w-4" />
                       </Button>
                     </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setJustCreatedToken(null)}
-                    >
+                    <Button type="button" variant="ghost" size="sm" onClick={clearSecret}>
                       {t('common.close', 'Fermer')}
                     </Button>
                   </div>

@@ -71,7 +71,8 @@ def _identity_outputs() -> list[OutputFieldSchema]:
         OutputFieldSchema(
             path="identity_confidence",
             type="string",
-            description="How confidently the name was matched (high | medium | low).",
+            description="How the name was matched (exact | normalized).",
+            semantic_type="identity_confidence",
         ),
         OutputFieldSchema(
             path="is_peer",
@@ -107,6 +108,26 @@ get_calls_catalogue_manifest = ToolManifest(
             path="calls",
             type="array",
             description="Page of past calls, newest first: objective, outcome, summary, instant.",
+        ),
+        OutputFieldSchema(
+            path="calls[].objective",
+            type="string",
+            description="Call objective",
+            semantic_type="Text",
+        ),
+        OutputFieldSchema(
+            path="calls[].summary",
+            type="string",
+            nullable=True,
+            description="Call summary",
+            semantic_type="Text",
+        ),
+        OutputFieldSchema(
+            path="calls[].occurred_at",
+            type="string",
+            nullable=True,
+            description="Call instant (ISO 8601)",
+            semantic_type="datetime",
         ),
         OutputFieldSchema(
             path="calls_total",
@@ -165,6 +186,19 @@ get_open_loops_catalogue_manifest = ToolManifest(
             type="integer",
             description="EXACT number of open commitments (database aggregate).",
         ),
+        OutputFieldSchema(
+            path="open_loops[].subject",
+            type="string",
+            description="Commitment content",
+            semantic_type="Text",
+        ),
+        OutputFieldSchema(
+            path="open_loops[].due_hint",
+            type="string",
+            nullable=True,
+            description="Captured deadline (ISO 8601), absent when unknown",
+            semantic_type="datetime",
+        ),
     ],
     cost=CostProfile(est_tokens_in=60, est_tokens_out=250, est_cost_usd=0.0002, est_latency_ms=250),
     permissions=PermissionProfile(
@@ -217,6 +251,20 @@ get_peer_messages_catalogue_manifest = ToolManifest(
                 "directions were kept. Absent means no exact count describes "
                 "the list: do not state one."
             ),
+        ),
+        OutputFieldSchema(
+            path="peer_messages[].content",
+            type="string",
+            nullable=True,
+            description="Retained message content, absent when scrubbed",
+            semantic_type="Text",
+        ),
+        OutputFieldSchema(
+            path="peer_messages[].occurred_at",
+            type="string",
+            nullable=True,
+            description="Exchange instant (ISO 8601)",
+            semantic_type="datetime",
         ),
     ],
     cost=CostProfile(est_tokens_in=60, est_tokens_out=250, est_cost_usd=0.0002, est_latency_ms=250),

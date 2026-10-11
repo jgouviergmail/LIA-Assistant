@@ -25,6 +25,12 @@ def mock_db():
 def service(mock_db):
     svc = RAGSpaceService(mock_db)
     svc.space_repo = AsyncMock()
+
+    async def owned_space(space_id, user_id):
+        space = await svc.space_repo.get_by_id(space_id)
+        return space if space is not None and space.user_id == user_id else None
+
+    svc.space_repo.get_by_id_for_owner_update.side_effect = owned_space
     svc.doc_repo = AsyncMock()
     svc.chunk_repo = AsyncMock()
     svc.source_repo = AsyncMock()
@@ -161,7 +167,11 @@ class TestListSpacesExcludesSystem:
         """System spaces should be excluded from user listing."""
         service.space_repo.get_all_for_user = AsyncMock(return_value=[user_space, system_space])
         service.doc_repo.get_space_stats = AsyncMock(
-            return_value={"document_count": 0, "total_size": 0, "ready_document_count": 0}
+            return_value={
+                "document_count": 0,
+                "total_size": 0,
+                "ready_document_count": 0,
+            }
         )
 
         result = await service.list_spaces(user_space.user_id)
@@ -191,7 +201,11 @@ class TestSystemSpaceCRUD:
         )
         service.space_repo.get_system_spaces = AsyncMock(return_value=[system_space])
         service.doc_repo.get_space_stats = AsyncMock(
-            return_value={"document_count": 1, "total_size": 0, "ready_document_count": 1}
+            return_value={
+                "document_count": 1,
+                "total_size": 0,
+                "ready_document_count": 1,
+            }
         )
         service.chunk_repo.count_for_space = AsyncMock(return_value=139)
 

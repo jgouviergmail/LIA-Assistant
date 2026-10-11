@@ -34,6 +34,8 @@ CADDYFILE = repo_root_or_skip() / "infrastructure" / "demo-instance" / "Caddyfil
 #: Exactly what the demonstrator exposes. Adding an entry here is a decision
 #: that shows up in review; adding one only in the Caddyfile fails.
 EXPECTED_ALLOWED = {
+    # Authenticated continuations of the visitor's own confirmed assistant actions.
+    "/api/v1/application-commands/*",
     # Getting in and staying in.
     "/api/v1/auth/*",
     # The conversation: SSE stream, history, HITL decisions.

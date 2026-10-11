@@ -31,10 +31,10 @@ const HTML_BLOCK_START =
 const FENCE_OPEN = /^ {0,3}(`{3,}|~{3,})/;
 
 /** Any start or end tag, with its self-closing slash. */
-const TAG = /<(\/?)([a-z][a-z0-9-]*)\b[^<>]*?(\/?)>/gi;
+export const TAG = /<(\/?)([a-z][a-z0-9-]*)\b[^<>]*?(\/?)>/gi;
 
 /** Elements that never close: they open nothing. */
-const VOID_ELEMENTS = new Set([
+export const VOID_ELEMENTS = new Set([
   'area',
   'base',
   'br',
@@ -73,6 +73,11 @@ class Splitter {
   private depth = 0;
   private inHtml = false;
 
+  /** Whether the text read so far left no HTML block and no code fence open. */
+  get atTopLevel(): boolean {
+    return !this.inHtml && this.fence === null;
+  }
+
   read(line: string): void {
     if (this.inHtml) {
       this.continueHtml(line);
@@ -99,6 +104,19 @@ class Splitter {
     if (last?.html === html) last.lines.push(line);
     else this.segments.push({ html, lines: [line] });
   }
+}
+
+/**
+ * Whether a text ends outside any HTML block and any code fence, read the way
+ * {@link messageToMarkdown} reads an answer.
+ *
+ * @param text - The beginning of an answer, cut at a line boundary.
+ * @returns True when what follows `text` starts at the answer's top level.
+ */
+export function endsAtTopLevel(text: string): boolean {
+  const splitter = new Splitter();
+  for (const line of text.split('\n')) splitter.read(line);
+  return splitter.atTopLevel;
 }
 
 /** A Markdown stretch without the blank lines around it (its first line's indent kept). */

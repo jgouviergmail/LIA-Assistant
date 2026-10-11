@@ -1,0 +1,60 @@
+{
+  "date": "2026-10-06",
+  "model": {
+    "repository": "Qwen/Qwen3-0.6B-GGUF",
+    "revision": "23749fefcc72300e3a2ad315e1317431b06b590a",
+    "file": "Qwen3-0.6B-Q8_0.gguf",
+    "sha256": "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031",
+    "url": "https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/23749fefcc72300e3a2ad315e1317431b06b590a/Qwen3-0.6B-Q8_0.gguf"
+  },
+  "servers": [
+    {
+      "provider": "llamacpp",
+      "stable": "v0.6.0",
+      "build": "b11429",
+      "reported": "0.6.0-dev (build 11429, commit d81235049)",
+      "commit": "d81235049384534c167caea52b85a694f6103d14",
+      "url": "https://github.com/ggml-org/llama.cpp/releases/download/b11429/llama-b11429-bin-win-cpu-x64.zip",
+      "sha256": "1283323272b04cd07905816a597a0da810918102de958f4ff6f7bbaa70ed2efe",
+      "allocated_context": 2048,
+      "slots": 1,
+      "cpu_threads": 4,
+      "template": "GGUF embedded, LLAMA_ARG_CHAT_TEMPLATE_KWARGS enable_thinking=false",
+      "test_api_key": "synthetic only"
+    },
+    {
+      "provider": "ollama",
+      "stable": "v0.35.1",
+      "url": "https://github.com/ollama/ollama/releases/download/v0.35.1/ollama-windows-amd64.zip",
+      "sha256": "dc50b9ca7f9023c86525012632cd1615b093d0407987444a7f62ecab617e8e93",
+      "allocated_context": 2048,
+      "slots": 1,
+      "template": "import via FROM GGUF, no custom TEMPLATE",
+      "model_id": "lia-qa-qwen3:latest"
+    },
+    {
+      "provider": "lmstudio",
+      "stable_daemon": "0.0.25+1",
+      "cli_commit": "69d945a",
+      "engine": "llama.cpp-linux-x86_64-avx2-2.41.0",
+      "desktop_stable_reference": "0.4.25 (not executed)",
+      "url": "https://llmster.lmstudio.ai/download/0.0.25-1-linux-x64.full.tar.gz",
+      "sha512": "4d119af740379fc7509894d761a85183420a6dd3cb994596a1b6e4b37208a5d3e8cb94ffe583115b1473a6722bab5fffc09b90eb22c755f5dde1458774ab4951",
+      "allocated_context": 2048,
+      "slots": 1,
+      "gpu": "off",
+      "template": "GGUF model, no user template override",
+      "daemon_isolation": "dedicated Docker container, no host port published",
+      "docker_image": "sha256:f945b27471a8733908fb408175c197b5ca87de57ce1fde4d50617ce7c3708bbe"
+    },
+    {
+      "provider": "omlx",
+      "stable": "v0.7.0",
+      "url": "https://github.com/jundot/omlx/archive/refs/tags/v0.7.0.zip",
+      "sha256": "339d1d79cd5b1a7c33c95426c25612eb4c567978a860930f770aabd5885021bf",
+      "inference": "not run, no Mac Apple Silicon",
+      "contract_tests": "actual stable source, no conftest hardware stubs"
+    }
+  ],
+  "cleanup": "complete: owned Windows servers stopped, model unloaded, isolated Docker container stopped and removed, downloaded temporary directory removed; user services preserved"
+}

@@ -54,6 +54,8 @@ vi.mock('../connectors', async importOriginal => {
 });
 const { useApiQuery } = vi.hoisted(() => ({ useApiQuery: vi.fn() }));
 vi.mock('@/hooks/useApiQuery', () => ({ useApiQuery }));
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'current-account' } }) }));
+vi.mock('@/hooks/useApplicationConnectors', () => ({ useApplicationConnectors: () => ({ ...useApiQuery(), ownerId: 'current-account' }) }));
 const { useApiMutation } = vi.hoisted(() => ({ useApiMutation: vi.fn() }));
 vi.mock('@/hooks/useApiMutation', () => ({ useApiMutation }));
 const { get, post, del } = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), del: vi.fn() }));

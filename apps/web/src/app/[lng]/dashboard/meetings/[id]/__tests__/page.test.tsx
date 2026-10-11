@@ -9,6 +9,8 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 import type { MeetingDetail, MeetingReport } from '@/types/meetings';
 
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'meeting-detail-owner' } }) }));
+
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock('sonner', () => ({ toast }));
 

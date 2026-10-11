@@ -37,6 +37,12 @@ from src.domains.rag_spaces.mail_sync import (
 
 pytestmark = pytest.mark.unit
 
+
+@pytest.fixture(autouse=True)
+def isolate_fake_consultation_persistence(monkeypatch):
+    monkeypatch.setattr("src.domains.shared.consultation_sink._collector_factory", None)
+
+
 LABEL = "Label_42"
 
 
@@ -203,7 +209,7 @@ async def test_an_unchanged_thread_is_skipped_and_a_changed_one_replaced() -> No
     )
     client = AsyncMock()
     client.get_thread = AsyncMock(return_value=thread)
-    existing = MagicMock(mail_last_message_at=datetime.fromtimestamp(2000, tz=UTC))
+    existing = MagicMock(status="ready", mail_last_message_at=datetime.fromtimestamp(2000, tz=UTC))
     doc_repo = MagicMock()
     doc_repo.get_by_mail_thread_id = AsyncMock(return_value=existing)
     doc_repo.count_for_space = AsyncMock(return_value=0)
@@ -296,6 +302,38 @@ def _sync_harness(*, indexed: set[str], ready: int = 0) -> tuple[Any, ...]:
 
 
 @pytest.mark.usefixtures("settings_patch")
+@pytest.mark.parametrize("incomplete", ["thread_cap", "page_cap"])
+async def test_incomplete_mail_listing_retains_unseen_documents_and_history(
+    monkeypatch, incomplete
+):
+    source = _source(last_history_id=123)
+    monkeypatch.setattr(
+        mail_sync.settings,
+        "rag_mail_max_threads_per_sync",
+        1 if incomplete == "thread_cap" else 100,
+    )
+    monkeypatch.setattr(mail_sync, "_MAX_PAGES", 1)
+    client = AsyncMock()
+    client.get_profile.return_value = {"historyId": "777"}
+    client.list_threads.return_value = {"threads": [{"id": "visible"}], "nextPageToken": "more"}
+    doc_repo, source_repo, jobs = _sync_harness(indexed={"visible", "hidden"}, ready=2)
+    remove = AsyncMock()
+    with (
+        patch.object(mail_sync, "RAGDocumentRepository", return_value=doc_repo),
+        patch.object(mail_sync, "RAGMailSourceRepository", return_value=source_repo),
+        patch.object(mail_sync, "RAGJobsRepository", return_value=jobs),
+        patch.object(mail_sync, "ingest_thread", AsyncMock(return_value=IngestResult("skipped"))),
+        patch.object(mail_sync, "remove_thread_document", remove),
+        patch.object(mail_sync, "process_queued", AsyncMock(return_value=(0, 0))),
+    ):
+        await sync_source(AsyncMock(), client, source, user_id=source.user_id)
+    remove.assert_not_awaited()
+    final = source_repo.update.await_args.args[1]
+    assert final["sync_status"] == "error" and final["error_message"]
+    assert "last_history_id" not in final
+
+
+@pytest.mark.usefixtures("settings_patch")
 async def test_full_sync_anchors_before_listing_removes_leavers_and_counts_exactly() -> None:
     source = _source()
     order: list[str] = []
@@ -364,8 +402,37 @@ async def test_full_sync_is_bounded_by_the_thread_cap(monkeypatch: pytest.Monkey
 
     client.list_threads = _list
     ids = await mail_sync._list_label_threads(client, LABEL, 3)
-    assert ids == ["a", "b", "c", "d"][:4]  # the page is read whole
+    assert ids.ids == ("a", "b", "c") and not ids.complete
     assert calls == [3, 1]
+
+
+@pytest.mark.parametrize("duplicate", [False, True])
+async def test_mail_census_at_exact_limit_is_complete_without_continuation(duplicate):
+    client = AsyncMock()
+    client.list_threads.return_value = {"threads": [{"id": "a"}, {"id": "a" if duplicate else "b"}]}
+    listing = await mail_sync._list_label_threads(client, LABEL, 2)
+    assert listing.complete and listing.ids == (("a",) if duplicate else ("a", "b"))
+
+
+async def test_mail_census_refuses_malformed_identity_before_a_deletion_verdict():
+    client = AsyncMock()
+    client.list_threads.return_value = {"threads": [{}]}
+    with pytest.raises(ValueError, match="invalid thread identity"):
+        await mail_sync._list_label_threads(client, LABEL, 2)
+
+
+async def test_push_does_not_call_a_partial_full_sync_resynced():
+    source = _source()
+    service = MagicMock()
+    service.try_acquire_sync_lock = AsyncMock(return_value=True)
+    with (
+        patch.object(mail_sync, "apply_history", AsyncMock(return_value="no_anchor")),
+        patch.object(mail_sync, "sync_source", AsyncMock(return_value=False)),
+    ):
+        assert (
+            await mail_sync._serve_source(AsyncMock(), AsyncMock(), service, source, source.user_id)
+            == "error"
+        )
 
 
 # ---------------------------------------------------------------------------

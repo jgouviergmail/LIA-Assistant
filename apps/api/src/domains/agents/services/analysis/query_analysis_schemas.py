@@ -15,6 +15,7 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict, field_validator
 from pydantic import Field as PydanticField
 
+from src.domains.agents.analysis.requested_outcomes import GoalRequirement
 from src.domains.agents.services.analysis.skill_suppression import normalize_skill_name
 
 __all__ = [
@@ -108,6 +109,11 @@ class QueryAnalysisOutput(BaseModel):
     """Structured output from query analysis LLM."""
 
     model_config = ConfigDict(extra="ignore")
+
+    requested_outcomes: list[GoalRequirement] = PydanticField(
+        default_factory=list,
+        description="Explicit results requested in the current message, with exact source quotes; no anticipated needs.",
+    )
 
     intent: str = PydanticField(description="action or conversation")
     primary_domain: str | None = PydanticField(

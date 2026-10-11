@@ -543,6 +543,18 @@ class ProactiveTaskRunner:
         Returns:
             True if notification was sent, False otherwise.
         """
+        # A long-running heartbeat must not retain a revoked delivery preference.
+        from src.domains.heartbeat.delivery_guard import heartbeat_delivery_current
+
+        heartbeat_stamp: str | None = None
+        if self.task.task_type == "heartbeat":
+            from src.domains.heartbeat.delivery_guard import heartbeat_delivery_stamp
+
+            heartbeat_stamp = await heartbeat_delivery_stamp(user.id)
+            if heartbeat_stamp is None:
+                stats.record_skip("settings_unavailable")
+                return False
+
         # 3. Select target
         target = await self.task.select_target(user.id)
         if target is None:
@@ -552,6 +564,19 @@ class ProactiveTaskRunner:
                 user_id=str(user.id),
             )
             stats.record_skip("no_target")
+            return False
+
+        if not await heartbeat_delivery_current(user.id, heartbeat_stamp):
+            from src.domains.heartbeat.delivery_guard import abandoned_heartbeat_selection
+            from src.domains.heartbeat.schemas import HeartbeatTarget
+
+            result = (
+                abandoned_heartbeat_selection(target)
+                if isinstance(target, HeartbeatTarget)
+                else ProactiveTaskResult.failure("SETTINGS_CHANGED")
+            )
+            await self._bill(user, result, target, run_id, conversation_id=None, failed=True)
+            stats.record_skip("settings_changed")
             return False
 
         # 4. Generate content
@@ -570,6 +595,11 @@ class ProactiveTaskRunner:
             # A generation that broke after its model call still spent: billed,
             # and filed as failed (a result that spent nothing bills nothing).
             await self._bill(user, result, target, run_id, conversation_id=None, failed=True)
+            return False
+
+        if not await heartbeat_delivery_current(user.id, heartbeat_stamp):
+            await self._bill(user, result, target, run_id, conversation_id=None, failed=True)
+            stats.record_skip("settings_changed")
             return False
 
         self._count_content_source(result)

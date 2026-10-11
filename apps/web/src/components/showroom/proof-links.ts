@@ -11,6 +11,17 @@
 
 const REPO_URL = 'https://github.com/jgouviergmail/LIA-Assistant';
 
+import type { ShowroomMissionId } from '@/lib/product-telemetry';
+
+const MISSION_FIXTURES: Record<ShowroomMissionId, string> = {
+  overloaded_morning: 'overloaded-morning',
+  proactive_alert: 'proactive-alert',
+  memory_dinner: 'memory-dinner',
+  phone_booking: 'phone-booking',
+  daily_briefing: 'daily-briefing',
+  config_tour: 'config-tour',
+};
+
 const FULL_SHA = /^[0-9a-f]{40}$/;
 
 export type ProofLinkKind = 'product-core' | 'p0-fixture';
@@ -79,16 +90,23 @@ const PROOF_REGISTRY = [
 
 /** Build the drawer links for a candidate SHA. Never throws. */
 export function getShowroomProofLinks(
-  sha: string | undefined
+  sha: string | undefined,
+  missionId: ShowroomMissionId = 'overloaded_morning'
 ): ShowroomProofLinks {
   const isImmutable = typeof sha === 'string' && FULL_SHA.test(sha);
   return {
     isImmutable,
-    links: PROOF_REGISTRY.map((entry) => ({
+    links: PROOF_REGISTRY.map(entry => ({
       id: entry.id,
       labelKey: `showroom.proof.links.${entry.id}`,
       kind: entry.kind,
-      url: isImmutable ? `${REPO_URL}/blob/${sha}/${entry.path}` : REPO_URL,
+      url: isImmutable
+        ? `${REPO_URL}/blob/${sha}/${
+            entry.id === 'fixture'
+              ? `apps/web/src/components/showroom/missions/${MISSION_FIXTURES[missionId]}.ts`
+              : entry.path
+          }`
+        : REPO_URL,
     })),
   };
 }

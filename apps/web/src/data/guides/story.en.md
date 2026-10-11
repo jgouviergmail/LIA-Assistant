@@ -20,7 +20,7 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
 | Source lines (excluding tests) — 55 functional domains | **820,000+** |
 | Automated tests, run on every commit and release | **51,000+** |
-| Documented architecture decisions (ADR) | **333** |
+| Documented architecture decisions (ADR) | **337** |
 | Versions shipped at a steady pace | **278** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **8.3/10** |
@@ -54,7 +54,7 @@ Several agents can work on the same repository at once — two different familie
 
 ## 4. The trade-offs
 
-Three structural decisions, among the 333 documented:
+Three structural decisions, among the 337 documented:
 
 **Sovereignty & reversibility — no irreversible vendor dependency.** AI models (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, local models via Ollama) sit behind a single abstraction: any usage can switch provider through configuration, with cost comparison. The same principle applies to business services: Google, Apple and Microsoft are interchangeable per functional category. Self-hosting gives you control of the server; account data is stored on the instance and connector credentials are encrypted. The remote services you choose still receive the data needed for their part of a request.
 

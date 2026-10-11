@@ -26,6 +26,7 @@ from src.domains.agents.data_registry.models import RegistryItem
 from src.domains.agents.data_registry.state import merge_registry
 from src.domains.agents.utils.message_filters import remove_orphan_tool_messages
 from src.domains.agents.utils.react_budget import react_turn_reset
+from src.domains.agents.utils.react_execution_contracts import CachedRead, ReadObservation
 from src.infrastructure.llm.message_view import model_view_content
 from src.infrastructure.observability.logging import get_logger
 
@@ -548,6 +549,7 @@ class MessagesState(TypedDict):
     # Reset gracefully on conversation reset (no IDs available → extraction skips
     # the deferred-eval section silently).
     injected_journal_ids: list[str] | None
+    injected_journal_revisions: dict[str, int] | None
 
     # Context Compaction: Intelligent history summarization (F4)
     # When conversation history exceeds a dynamic token threshold, the compaction node
@@ -591,6 +593,13 @@ class MessagesState(TypedDict):
     # ADR-170: HMAC digest → count of identical tool requests within the turn.
     # Only the digest is stored: never the tool name, never the arguments.
     react_call_digests: dict[str, int]
+    react_read_results: dict[str, CachedRead]
+    react_read_observations: dict[str, ReadObservation]
+    react_last_productive_message_id: str | None
+    requested_outcome_evidence: list[dict[str, object]]
+    semantic_value_bindings: list[dict[str, object]]
+    semantic_source_observations: dict[str, dict[str, object]]
+    semantic_source_valid_after: str | None
     # ADR-310: the recovery passes of this turn, one record per pass — the id of
     # the draft's predecessor, the draft (removed from the thread) and its gaps.
     react_recovery_passes: list[dict[str, Any]]
@@ -770,6 +779,7 @@ def create_initial_state(
         journal_planner_injection_debug=None,  # Journal planner injection metrics for debug panel
         # Personal Journals deferred self-evaluation (ADR-079)
         injected_journal_ids=None,  # IDs of journal entries injected at this turn
+        injected_journal_revisions=None,
         # Context Compaction (F4)
         compaction_summary=None,  # Last compaction summary
         compaction_count=0,  # Compactions performed

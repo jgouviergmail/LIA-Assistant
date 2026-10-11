@@ -132,14 +132,15 @@ class TestToolTimeIsCharged:
         assert result["react_tool_seconds"] >= 12.0 + _SLEEP_SECONDS
 
     async def test_several_calls_in_one_iteration_are_summed(self) -> None:
+        from tests.unit.domains.agents.nodes.react_execution_harness import execute_all
+
         _register_tool("budget_probe_ok")
 
-        result = await react_nodes.react_execute_tools_node(
+        result = await execute_all(
             _state(
                 ["budget_probe_ok"],
                 [_call("budget_probe_ok", "c4"), _call("budget_probe_ok", "c5")],
             ),
-            {},
         )
 
         assert result["react_tool_seconds"] >= 2 * _SLEEP_SECONDS

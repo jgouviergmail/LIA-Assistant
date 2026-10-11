@@ -1,0 +1,48 @@
+import { vi } from 'vitest';
+import { sphereGraphics } from './sphere-graphics';
+
+/** Driver double for resource ownership; real raster/occlusion is browser-qualified. */
+export function smileyClothGraphics(supported = true) {
+  return {
+    ...sphereGraphics(),
+    DEPTH_TEST: 2929 as const,
+    DEPTH_BUFFER_BIT: 256 as const,
+    COLOR_BUFFER_BIT: 16384 as const,
+    LEQUAL: 515 as const,
+    ALWAYS: 519 as const,
+    ELEMENT_ARRAY_BUFFER: 34963 as const,
+    UNSIGNED_SHORT: 5123 as const,
+    TEXTURE_2D: 3553 as const,
+    TEXTURE0: 33984 as const,
+    RGBA: 6408 as const,
+    UNSIGNED_BYTE: 5121 as const,
+    TEXTURE_MIN_FILTER: 10241 as const,
+    TEXTURE_MAG_FILTER: 10240 as const,
+    TEXTURE_WRAP_S: 10242 as const,
+    TEXTURE_WRAP_T: 10243 as const,
+    LINEAR: 9729 as const,
+    REPEAT: 10497 as const,
+    CLAMP_TO_EDGE: 33071 as const,
+    BLEND: 3042 as const,
+    ONE: 1 as const,
+    ONE_MINUS_SRC_ALPHA: 771 as const,
+    getExtension: vi.fn(() => (supported ? {} : null)),
+    getContextAttributes: vi.fn(() => ({ depth: true })),
+    enable: vi.fn(),
+    depthFunc: vi.fn(),
+    depthMask: vi.fn(),
+    clearDepth: vi.fn(),
+    clearColor: vi.fn(),
+    clear: vi.fn(),
+    blendFunc: vi.fn(),
+    uniform2fv: vi.fn(),
+    uniform1i: vi.fn(),
+    createTexture: vi.fn<() => WebGLTexture | null>(() => ({})),
+    deleteTexture: vi.fn(),
+    bindTexture: vi.fn(),
+    activeTexture: vi.fn(),
+    texImage2D: vi.fn(),
+    texParameteri: vi.fn(),
+    drawElements: vi.fn(),
+  };
+}

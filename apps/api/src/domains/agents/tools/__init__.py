@@ -12,7 +12,9 @@ LOT 11: Added Perplexity and Places tools.
 """
 
 import structlog
+from langchain_core.tools import BaseTool
 
+from src.core.config import settings as _devops_settings
 from src.domains.agents.tools.base import APIKeyConnectorTool, ConnectorTool
 from src.domains.agents.tools.brave_tools import (
     brave_news_tool,
@@ -121,10 +123,9 @@ def _log_conditional_import_failure(family: str, error: Exception) -> None:
     )
 
     tool_module_import_failures.labels(module=family).inc()
-    _logger.exception(
+    _logger.error(
         "conditional_tool_import_failed",
         tool_family=family,
-        error=str(error),
         error_type=type(error).__name__,
     )
 
@@ -257,17 +258,18 @@ if _SUB_AGENT_TOOLS_AVAILABLE:
 
 # DevOps Tools (Claude CLI Remote Server Management — feature-flagged)
 # Conditional import: only load when DEVOPS_ENABLED=true
-_DEVOPS_TOOLS_AVAILABLE = False
-try:
-    from src.core.config import settings as _devops_settings
+_DEVOPS_TOOLS_AVAILABLE = _devops_settings.devops_enabled
 
-    if getattr(_devops_settings, "devops_enabled", False):
-        from src.domains.agents.tools.devops_tools import claude_server_task_tool
 
-        _DEVOPS_TOOLS_AVAILABLE = True
-except Exception as _devops_import_error:
-    _DEVOPS_TOOLS_AVAILABLE = False
-    _log_conditional_import_failure("devops_tools", _devops_import_error)
+def __getattr__(name: str) -> BaseTool:
+    # Registration can resolve the full application catalogue. Defer it until
+    # callers request the tool; tool_registry also loads this module explicitly.
+    if name != "claude_server_task_tool" or not _DEVOPS_TOOLS_AVAILABLE:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    from src.domains.agents.tools.devops_tools import claude_server_task_tool
+
+    return claude_server_task_tool
+
 
 # Conditionally extend __all__ with browser tools
 if _BROWSER_TOOLS_AVAILABLE:

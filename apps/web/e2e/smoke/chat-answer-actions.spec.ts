@@ -203,6 +203,35 @@ test.describe("an answer's own actions", () => {
   });
 });
 
+test.describe('the cards of an answer', () => {
+  test('fold under one « Show details », opened from the keyboard', async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await authenticate();
+    await mockApi(routes({ answer: HTML_ANSWER }));
+    await page.goto('/en/dashboard/chat');
+    await waitForHydration(page, 'textarea');
+
+    // The words stay in view; the card the response node appended is folded.
+    await expect(page.getByText('Your quarter is', { exact: false })).toBeVisible();
+    const card = page.getByRole('link', { name: 'Board review' });
+    await expect(card).toHaveCount(0);
+    const summary = page.locator('details.lia-card-group > summary');
+    await expect(summary).toHaveText('Show details');
+
+    // The browser's own <summary> activation: Enter opens it.
+    await summary.focus();
+    await expect(summary).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(card).toBeInViewport();
+
+    const scan = await scanPage(page, test.info(), 'answer card group');
+    expect(scan.blocking, `axe violations on the card group:\n${scan.summary}`).toHaveLength(0);
+  });
+});
+
 /**
  * The widths of the row's two cards. The handle's parent is the panel's frame,
  * whose parent is the row; the conversation card is the row's first child

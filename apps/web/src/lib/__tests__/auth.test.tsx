@@ -457,6 +457,15 @@ describe('AuthProvider — Google OAuth', () => {
 });
 
 describe('AuthProvider — refreshing the user', () => {
+  it('does not request private profile data without a signed-in account', async () => {
+    browseTo('/login');
+    const { context } = await settled(renderAuth());
+
+    await expect(context().refreshUser()).resolves.toBe(false);
+    expect(get).not.toHaveBeenCalled();
+    expect(context().user).toBeNull();
+  });
+
   it('picks up a profile change', async () => {
     const rendered = await settled(renderAuth());
     const { context } = rendered;
@@ -489,8 +498,37 @@ describe('AuthProvider — refreshing the user', () => {
     const { context } = rendered;
     get.mockRejectedValue(new Error('offline'));
 
-    await expect(context().refreshUser()).resolves.toBeUndefined();
+    await expect(context().refreshUser()).resolves.toBe(false);
     expect(context().user?.email).toBe('user@test.dev');
+  });
+
+  it('rejects a profile returned for a different account', async () => {
+    const { context } = await settled(renderAuth());
+    const before = context().user;
+    get.mockResolvedValue(makeUser({ id: 'another-account', full_name: 'Private' }));
+    await act(async () => { expect(await context().refreshUser()).toBe(false); });
+    expect(context().user).toBe(before);
+  });
+
+  it('cannot restore a signed-out account from a late refresh response', async () => {
+    const { context } = await settled(renderAuth());
+    let finish: (value: ReturnType<typeof makeUser>) => void = () => {};
+    get.mockImplementationOnce(() => new Promise<ReturnType<typeof makeUser>>(resolve => { finish = resolve; }));
+    const pending = context().refreshUser();
+    await act(async () => { await context().logout(); });
+    await act(async () => { finish(makeUser({ email: 'user@test.dev' })); expect(await pending).toBe(false); });
+    expect(context().user).toBeNull();
+  });
+
+  it('keeps the newest response when two refresh requests finish out of order', async () => {
+    const { context } = await settled(renderAuth());
+    let finish: (value: ReturnType<typeof makeUser>) => void = () => {};
+    get.mockImplementationOnce(() => new Promise<ReturnType<typeof makeUser>>(resolve => { finish = resolve; }));
+    const old = context().refreshUser();
+    get.mockResolvedValue(makeUser({ email: 'user@test.dev', font_size: 18 }));
+    await act(async () => { expect(await context().refreshUser()).toBe(true); });
+    await act(async () => { finish(makeUser({ email: 'user@test.dev', font_size: 16 })); expect(await old).toBe(false); });
+    expect(context().user?.font_size).toBe(18);
   });
 });
 

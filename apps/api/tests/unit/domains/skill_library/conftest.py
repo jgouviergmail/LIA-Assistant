@@ -12,8 +12,8 @@ from collections.abc import Iterator
 
 import pytest
 
-from src.domains.agents.web_fetch import url_validator
 from src.domains.skill_library import cache, service
+from src.infrastructure.utils import url_validation as url_validator
 from tests.unit.domains.skill_library.fakes import FakeHub
 
 

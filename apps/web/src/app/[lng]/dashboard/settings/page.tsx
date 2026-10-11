@@ -32,7 +32,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useLanguageParam } from '@/hooks/useLanguageParam';
 import { useSearchParams } from 'next/navigation';
 import { CONNECTOR_LABELS, isValidConnectorType } from '@/constants/connectors';
-import { MCP_OAUTH_TOAST, resolveMcpOAuthOutcome } from '@/lib/mcp-oauth-callback';
+import { MCP_OAUTH_TOAST, resolveMcpOAuthOutcome, resumeApplicationMCPOAuthReturn } from '@/lib/mcp-oauth-callback';
 import { FeatureErrorBoundary } from '@/components/errors';
 import { PortraitShortcut } from '@/components/settings/PortraitShortcut';
 import { SettingsOverview } from '@/components/settings/SettingsOverview';
@@ -238,8 +238,10 @@ export default function SettingsPage({ params }: SettingsPageProps) {
       const url = new URL(window.location.href);
       url.searchParams.delete('mcp_oauth');
       url.searchParams.delete('server_id');
+      url.searchParams.delete('application_command_id');
       url.searchParams.delete('error');
       window.history.replaceState({}, '', url.toString());
+      resumeApplicationMCPOAuthReturn(mcpOAuthOutcome, searchParams.get('application_command_id'));
     }
   }, [searchParams, t]);
 

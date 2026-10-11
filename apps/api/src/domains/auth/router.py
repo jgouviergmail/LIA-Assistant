@@ -2,8 +2,6 @@
 Auth router with FastAPI endpoints for authentication.
 """
 
-from contextlib import suppress
-
 import structlog
 from fastapi import (
     APIRouter,
@@ -39,6 +37,11 @@ from src.domains.auth.dependencies import (
 from src.domains.auth.login_notification import (
     notify_new_login_if_unknown,
     resolve_attestation,
+)
+from src.domains.auth.preference_commands import (
+    AssistantPreferencePatch,
+    stt_remote_available,
+    update_assistant_preferences,
 )
 from src.domains.auth.schemas import (
     AuthFeaturesResponse,
@@ -113,18 +116,9 @@ router = APIRouter(
 )
 async def auth_features() -> AuthFeaturesResponse:
     """Expose which authentication features are mounted on this instance."""
-    return AuthFeaturesResponse(
-        mfa_enabled=settings.mfa_enabled,
-        # The server refuses a registration without them (lot 2); a form that
-        # cannot show the box makes the instance impossible to sign up to —
-        # measured 2026-08-06, every UI registration failed on
-        # `terms_accepted` while the API path worked.
-        terms_required=settings.demo_mode_enabled,
-        terms_version=settings.demo_terms_version if settings.demo_mode_enabled else "",
-        # A demonstrator draws no button it would refuse: federated
-        # sign-in is closed there (core/demo_mode.py).
-        federated_signin_enabled=not settings.demo_mode_enabled,
-    )
+    from src.domains.auth.security_queries import effective_auth_features
+
+    return effective_auth_features()
 
 
 @router.post(
@@ -518,10 +512,9 @@ async def update_memory_preference(
         MemoryPreferenceResponse with updated state and confirmation
     """
     # Update user's memory preference
-    user.memory_enabled = data.memory_enabled
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
+    user = await update_assistant_preferences(
+        db, user.id, AssistantPreferencePatch(memory_enabled=data.memory_enabled)
+    )
 
     logger.info(
         "user_memory_preference_updated",
@@ -566,10 +559,11 @@ async def update_health_metrics_agents_preference(
     Returns:
         HealthMetricsAgentsPreferenceResponse with the updated state.
     """
-    user.health_metrics_agents_enabled = data.health_metrics_agents_enabled
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
+    user = await update_assistant_preferences(
+        db,
+        user.id,
+        AssistantPreferencePatch(health_metrics_agents_enabled=data.health_metrics_agents_enabled),
+    )
 
     logger.info(
         "user_health_metrics_agents_preference_updated",
@@ -611,10 +605,9 @@ async def update_execution_mode_preference(
     Returns:
         ExecutionModePreferenceResponse with updated state and confirmation.
     """
-    user.execution_mode = data.execution_mode
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
+    user = await update_assistant_preferences(
+        db, user.id, AssistantPreferencePatch(execution_mode=data.execution_mode)
+    )
 
     logger.info(
         "user_execution_mode_preference_updated",
@@ -657,13 +650,9 @@ async def update_location_preference(
     Returns:
         Current opt-in state with a localized confirmation message.
     """
-    user.use_last_known_location = data.enabled
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
-
-    if not data.enabled:
-        await UserLocationService(db).wipe_last_known_location(user)
+    user = await update_assistant_preferences(
+        db, user.id, AssistantPreferencePatch(use_last_known_location=data.enabled)
+    )
 
     logger.info(
         "user_location_preference_updated",
@@ -787,19 +776,9 @@ async def update_voice_preference(
         VoicePreferenceResponse with updated state and confirmation
     """
     # Update user's voice preference
-    user.voice_enabled = data.voice_enabled
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
-
-    with suppress(Exception):
-        from src.infrastructure.observability.metrics_voice import (
-            voice_preference_toggles_total,
-        )
-
-        voice_preference_toggles_total.labels(
-            action="enabled" if data.voice_enabled else "disabled"
-        ).inc()
+    user = await update_assistant_preferences(
+        db, user.id, AssistantPreferencePatch(voice_enabled=data.voice_enabled)
+    )
 
     logger.info(
         "user_voice_preference_updated",
@@ -814,15 +793,8 @@ async def update_voice_preference(
 
 
 def _stt_remote_available() -> bool:
-    """True iff an ElevenLabs API key is registered.
-
-    Read from the in-memory LLM config override cache (no DB round-trip),
-    so the response can be flipped instantly after the admin saves the key.
-    """
-    from src.core.constants import ELEVENLABS_PROVIDER_NAME
-    from src.core.llm_config_helper import get_provider_api_key
-
-    return bool(get_provider_api_key(ELEVENLABS_PROVIDER_NAME))
+    """Compatibility seam; the shared command owner publishes provider availability."""
+    return stt_remote_available()
 
 
 @router.get(
@@ -884,23 +856,20 @@ async def update_voice_mode_preference(
     """
     remote_available = _stt_remote_available()
 
-    if data.voice_mode_enabled is not None:
-        user.voice_mode_enabled = data.voice_mode_enabled
+    if data.voice_stt_mode == "remote" and not remote_available:
+        from src.core.exceptions import raise_invalid_input
 
-    if data.voice_stt_mode is not None:
-        if data.voice_stt_mode == "remote" and not remote_available:
+        raise_invalid_input("Remote STT is not configured", voice_stt_mode=data.voice_stt_mode)
+    changes = data.model_dump(exclude_unset=True, exclude_none=True)
+    if changes:
+        try:
+            user = await update_assistant_preferences(
+                db, user.id, AssistantPreferencePatch.model_validate(changes)
+            )
+        except ValueError:
             from src.core.exceptions import raise_invalid_input
 
-            raise_invalid_input(
-                "Remote STT is not available: ElevenLabs API key is not configured. "
-                "Ask an administrator to add it under Tarification LLM Texte.",
-                voice_stt_mode=data.voice_stt_mode,
-            )
-        user.voice_stt_mode = data.voice_stt_mode
-
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
+            raise_invalid_input("Remote STT is not configured")
 
     logger.info(
         "user_voice_mode_preference_updated",
@@ -946,10 +915,9 @@ async def update_tokens_display_preference(
         TokensDisplayPreferenceResponse with updated state and confirmation
     """
     # Update user's tokens display preference
-    user.tokens_display_enabled = data.tokens_display_enabled
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
+    user = await update_assistant_preferences(
+        db, user.id, AssistantPreferencePatch(tokens_display_enabled=data.tokens_display_enabled)
+    )
 
     logger.info(
         "user_tokens_display_preference_updated",
@@ -985,10 +953,9 @@ async def update_login_notifications_preference(
     Returns:
         Current preference state with a localized confirmation message.
     """
-    user.login_notifications_enabled = data.enabled
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
+    user = await update_assistant_preferences(
+        db, user.id, AssistantPreferencePatch(login_notifications_enabled=data.enabled)
+    )
 
     logger.info(
         "user_login_notifications_preference_updated",
@@ -1030,10 +997,9 @@ async def update_onboarding_preference(
         OnboardingPreferenceResponse with updated state and confirmation
     """
     # Update user's onboarding completed preference
-    user.onboarding_completed = data.onboarding_completed
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
+    user = await update_assistant_preferences(
+        db, user.id, AssistantPreferencePatch(onboarding_completed=data.onboarding_completed)
+    )
 
     logger.info(
         "user_onboarding_preference_updated",
@@ -1075,10 +1041,9 @@ async def update_debug_panel_preference(
         DebugPanelPreferenceResponse with updated state and confirmation
     """
     # Update user's debug panel preference
-    user.debug_panel_enabled = data.debug_panel_enabled
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
+    user = await update_assistant_preferences(
+        db, user.id, AssistantPreferencePatch(debug_panel_enabled=data.debug_panel_enabled)
+    )
 
     logger.info(
         "user_debug_panel_preference_updated",
@@ -1136,10 +1101,9 @@ async def update_display_mode_preference(
             f"Must be one of: {', '.join(RESPONSE_DISPLAY_MODE_CHOICES)}"
         )
 
-    user.response_display_mode = data.response_display_mode
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
+    user = await update_assistant_preferences(
+        db, user.id, AssistantPreferencePatch(response_display_mode=data.response_display_mode)
+    )
 
     logger.info(
         "user_display_mode_preference_updated",

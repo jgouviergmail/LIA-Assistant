@@ -12,7 +12,6 @@ References:
     - Pattern: domains/memories/router.py
 """
 
-from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Literal
 from uuid import UUID
@@ -30,13 +29,34 @@ from src.core.exceptions import (
     raise_interest_not_found,
     raise_interest_store_error,
 )
-from src.core.export_utils import create_csv_response
 from src.core.i18n_api_messages import APIMessages
+from src.core.management_export_file import prepare_management_export_file
+from src.core.management_export_response import ManagementExportResponse
 from src.core.session_dependencies import get_current_active_session
 from src.domains.interests.helpers import generate_interest_embedding
-from src.domains.interests.models import InterestCategory, InterestStatus, UserInterest
+from src.domains.interests.management_commands import (
+    create_managed_interest,
+    delete_all_managed_interests,
+    delete_managed_interest,
+    get_managed_interest,
+    lock_interest_actor,
+    preview_interest_update,
+    require_available_interest_configuration,
+    update_managed_interest,
+)
+from src.domains.interests.management_export import InterestExportRecord, interest_export_rows
+from src.domains.interests.management_feedback import (
+    apply_interest_feedback_effects,
+    record_interest_feedback_metric,
+)
+from src.domains.interests.management_reactivation import reactivate_managed_interest
+from src.domains.interests.models import InterestCategory, InterestStatus
+from src.domains.interests.preference_commands import update_interest_settings
+from src.domains.interests.read_models import interest_to_response as _interest_to_response
+from src.domains.interests.read_models import (
+    user_to_settings_response as _user_to_settings_response,
+)
 from src.domains.interests.repository import (
-    InterestNotificationRepository,
     InterestRepository,
 )
 from src.domains.interests.schemas import (
@@ -56,56 +76,6 @@ from src.infrastructure.observability.logging import get_logger
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/interests", tags=["Interests"])
-
-
-def _user_to_settings_response(user: User) -> InterestSettingsResponse:
-    """
-    Convert User model to InterestSettingsResponse.
-
-    Args:
-        user: User model instance with interest settings
-
-    Returns:
-        InterestSettingsResponse with user's settings
-    """
-    return InterestSettingsResponse(
-        interests_enabled=user.interests_enabled,
-        interests_notify_start_hour=user.interests_notify_start_hour,
-        interests_notify_end_hour=user.interests_notify_end_hour,
-        interests_notify_min_per_day=user.interests_notify_min_per_day,
-        interests_notify_max_per_day=user.interests_notify_max_per_day,
-    )
-
-
-def _interest_to_response(
-    interest: UserInterest,
-    repo: InterestRepository,
-) -> InterestResponse:
-    """
-    Convert UserInterest model to InterestResponse with computed weight.
-
-    Args:
-        interest: UserInterest model instance
-        repo: InterestRepository for weight calculation
-
-    Returns:
-        InterestResponse with computed effective weight
-    """
-    return InterestResponse(
-        id=interest.id,
-        topic=interest.topic,
-        category=InterestCategory(interest.category),
-        weight=repo.calculate_effective_weight(
-            interest,
-            decay_rate_per_day=settings.interest_decay_rate_per_day,
-        ),
-        status=InterestStatus(interest.status),
-        positive_signals=interest.positive_signals,
-        negative_signals=interest.negative_signals,
-        last_mentioned_at=interest.last_mentioned_at,
-        last_notified_at=interest.last_notified_at,
-        created_at=interest.created_at,
-    )
 
 
 # =============================================================================
@@ -240,12 +210,7 @@ async def create_interest(
             )
 
         # Create interest with embedding
-        interest = await repo.create(
-            user_id=user.id,
-            topic=data.topic,
-            category=data.category.value,
-            embedding=topic_embedding,
-        )
+        interest = await create_managed_interest(db, user.id, data, embedding=topic_embedding)
 
         await db.commit()
         await db.refresh(interest)
@@ -319,27 +284,15 @@ async def update_settings(
 ) -> InterestSettingsResponse:
     """Update user's interest notification settings."""
     try:
-        # Update fields that were provided
-        update_data = data.model_dump(exclude_unset=True)
-
-        if not update_data:
-            # No changes, return current settings
-            return _user_to_settings_response(user)
-
-        # Apply updates
-        for field, value in update_data.items():
-            setattr(user, field, value)
-
-        await db.commit()
-        await db.refresh(user)
+        saved = await update_interest_settings(db, user.id, data)
 
         logger.info(
             "interest_settings_updated",
             user_id=str(user.id),
-            updated_fields=list(update_data.keys()),
+            updated_fields=list(data.model_fields_set),
         )
 
-        return _user_to_settings_response(user)
+        return _user_to_settings_response(saved)
 
     except Exception as e:
         await db.rollback()
@@ -370,20 +323,14 @@ async def delete_all_interests(
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """Delete all interests for the current user (GDPR erasure)."""
+    owner = user.id
     try:
-        repo = InterestRepository(db)
-
-        # Get count for logging
-        interests = await repo.get_all_for_user(user.id)
-        count = len(interests)
-
-        # Delete all
-        await repo.delete_all_for_user(user.id)
+        count = await delete_all_managed_interests(db, owner)
         await db.commit()
 
         logger.info(
             "interests_delete_all",
-            user_id=str(user.id),
+            user_id=str(owner),
             deleted_count=count,
         )
 
@@ -391,7 +338,7 @@ async def delete_all_interests(
         await db.rollback()
         logger.error(
             "interests_delete_all_failed",
-            user_id=str(user.id),
+            user_id=str(owner),
             error=str(e),
         )
         raise_interest_store_error(
@@ -414,59 +361,27 @@ async def export_interests(
     ),
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
-) -> dict | StreamingResponse:
+) -> StreamingResponse:
     """Export all interests for GDPR data portability."""
     try:
-        repo = InterestRepository(db)
-
-        # Get all interests
-        interests = await repo.get_all_for_user(user.id)
-
-        # Convert to export format
-        export_data = [
-            {
-                "id": str(interest.id),
-                "topic": interest.topic,
-                "category": interest.category,
-                "status": interest.status,
-                "positive_signals": interest.positive_signals,
-                "negative_signals": interest.negative_signals,
-                "weight": round(
-                    repo.calculate_effective_weight(
-                        interest,
-                        decay_rate_per_day=settings.interest_decay_rate_per_day,
-                    ),
-                    4,
-                ),
-                "last_mentioned_at": (
-                    interest.last_mentioned_at.isoformat() if interest.last_mentioned_at else ""
-                ),
-                "last_notified_at": (
-                    interest.last_notified_at.isoformat() if interest.last_notified_at else ""
-                ),
-                "created_at": interest.created_at.isoformat() if interest.created_at else "",
-            }
-            for interest in interests
-        ]
-
+        now = datetime.now(UTC)
+        reader = await prepare_management_export_file(
+            interest_export_rows(db, user.id, now),
+            format=export_format,
+            fieldnames=tuple(InterestExportRecord.model_fields),
+            collection="interests",
+            metadata={"user_id": str(user.id), "exported_at": now.isoformat()},
+            count_key="total_interests",
+            max_bytes=settings.account_export_max_bytes,
+        )
         logger.info(
             "interests_exported",
             user_id=str(user.id),
-            total=len(export_data),
+            file_size_bytes=reader.file_size_bytes,
             export_format=export_format,
         )
 
-        # Return CSV format
-        if export_format == "csv":
-            return create_csv_response(data=export_data, filename_prefix="interests")
-
-        # Return JSON format
-        return {
-            "user_id": str(user.id),
-            "exported_at": datetime.now(UTC).isoformat(),
-            "total_interests": len(export_data),
-            "interests": export_data,
-        }
+        return ManagementExportResponse(reader, collection="interests", format=export_format)
 
     except Exception as e:
         logger.error(
@@ -498,15 +413,7 @@ async def delete_interest(
 ) -> None:
     """Delete a specific interest."""
     try:
-        repo = InterestRepository(db)
-
-        # Get interest and verify ownership
-        interest = await repo.get_by_id(interest_id)
-
-        if not interest or interest.user_id != user.id:
-            raise_interest_not_found(interest_id)
-
-        await repo.delete(interest)
+        await delete_managed_interest(db, user.id, interest_id)
         await db.commit()
 
         logger.info(
@@ -554,59 +461,25 @@ async def update_interest(
     try:
         repo = InterestRepository(db)
 
-        # Get interest and verify ownership
-        interest = await repo.get_by_id(interest_id)
-
-        if not interest or interest.user_id != user.id:
-            raise_interest_not_found(interest_id)
-
-        # Get fields to update
-        update_data = data.model_dump(exclude_unset=True)
-
-        if not update_data:
-            # No changes, return current state
-            return _interest_to_response(interest, repo)
-
-        # Determine new values
-        new_topic = update_data.get("topic", interest.topic)
-        new_category_enum = update_data.get("category")
-        new_category_value = new_category_enum.value if new_category_enum else interest.category
-
-        topic_changed = "topic" in update_data and update_data["topic"] != interest.topic
-        category_changed = "category" in update_data and new_category_value != interest.category
-
-        # Check uniqueness if topic or category changes
-        if topic_changed or category_changed:
-            existing = await repo.get_by_user_topic_category(
-                user_id=user.id,
-                topic=new_topic,
-                category=new_category_value,
-            )
-            if existing and existing.id != interest_id:
-                raise ResourceConflictError(
-                    resource_type="interest",
-                    detail=APIMessages.interest_already_exists_in_category(),
-                )
-
-        # Regenerate embedding if topic changes
-        new_embedding = None
-        if topic_changed:
-            new_embedding = await generate_interest_embedding(new_topic)
-            logger.info(
-                "interest_embedding_regenerated",
-                interest_id=str(interest_id),
-                user_id=str(user.id),
-                has_embedding=new_embedding is not None,
-            )
-
-        # Apply update
-        await repo.update(
-            interest=interest,
-            topic=update_data.get("topic"),
-            category=new_category_value if category_changed else None,
-            positive_signals=update_data.get("positive_signals"),
-            negative_signals=update_data.get("negative_signals"),
+        interest = await get_managed_interest(db, user.id, interest_id)
+        expected = preview_interest_update(interest, InterestUpdate())
+        expected_status, expected_subject = interest.status, interest.subject
+        configuration = preview_interest_update(interest, data)
+        await require_available_interest_configuration(db, interest, configuration)
+        topic_changed = configuration.topic != expected.topic
+        assert configuration.topic is not None
+        new_embedding = (
+            await generate_interest_embedding(configuration.topic) if topic_changed else None
+        )
+        interest, _ = await update_managed_interest(
+            db,
+            user.id,
+            interest,
+            data,
             embedding=new_embedding,
+            expected=expected,
+            expected_status=expected_status,
+            expected_subject=expected_subject,
         )
 
         await db.commit()
@@ -616,7 +489,7 @@ async def update_interest(
             "interest_updated",
             user_id=str(user.id),
             interest_id=str(interest_id),
-            updated_fields=list(update_data.keys()),
+            updated_fields=list(data.model_fields_set),
             topic_changed=topic_changed,
         )
 
@@ -665,72 +538,38 @@ async def submit_feedback(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, str]:
     """Submit feedback on an interest."""
-    from src.domains.conversations.repository import ConversationRepository
+    owner = user.id
 
     try:
+        actor = await lock_interest_actor(db, owner)
         repo = InterestRepository(db)
 
         # Get interest and verify ownership
-        interest = await repo.get_by_id(interest_id)
+        interest = await repo.get_by_id(interest_id, lock=True)
 
-        if not interest or interest.user_id != user.id:
+        if not interest or interest.user_id != owner:
             raise_interest_not_found(interest_id)
 
-        # Apply feedback on the interest entity
-        await repo.apply_feedback(interest, data.feedback)
-
-        # ADR-214 amendment (2026-09-03): a thumb is an explicit human act — a
-        # presence hour for the rhythm detector (the notification itself never is).
-        from src.domains.habits.presence import record_presence
-
-        await record_presence(db, user, kind="feedback")
-
-        # Record the verdict in the notification audit trail. Only when the card
-        # told us WHICH notification it came from: attributing it to a guessed
-        # row would be worse than leaving it null.
-        audit_updated = False
-        if data.run_id:
-            audit_updated = await InterestNotificationRepository(db).update_feedback_by_run_id(
-                run_id=data.run_id,
-                user_id=user.id,
-                feedback=data.feedback,
-            )
-
-        # Persist feedback state on the associated proactive message(s) so that
-        # the frontend feedback buttons stay hidden across reloads and devices.
-        #
-        # Scoped to the card that was actually voted on when we know which one
-        # it was. A card's `target_id` is the INTEREST, so without the run_id
-        # this marks EVERY notification that interest ever produced — nine of
-        # them for a single interest on the development database — leaving
-        # eight cards answered-looking, unanswerable, and permanently listed as
-        # "no feedback" in the history the audit trail feeds.
-        conv_repo = ConversationRepository(db)
-        messages_updated = await conv_repo.mark_proactive_feedback_submitted(
-            user_id=user.id,
-            target_id=interest_id,
-            feedback_value=data.feedback,
+        effects = await apply_interest_feedback_effects(
+            db,
+            actor,
+            interest,
+            data.feedback,
             run_id=data.run_id,
         )
 
         await db.commit()
 
-        # Prometheus metric for dashboard 13 "User Feedback"
-        with suppress(Exception):
-            from src.infrastructure.observability.metrics_registry import (
-                track_proactive_feedback,
-            )
-
-            track_proactive_feedback(task_type="interest", feedback_type=data.feedback)
+        record_interest_feedback_metric(data.feedback)
 
         logger.info(
             "interest_feedback_submitted",
-            user_id=str(user.id),
+            user_id=str(owner),
             interest_id=str(interest_id),
             feedback=data.feedback,
             new_status=interest.status,
-            messages_updated=messages_updated,
-            audit_updated=audit_updated,
+            messages_updated=effects.messages_updated,
+            audit_updated=effects.audit_updated,
         )
 
         return {"message": APIMessages.feedback_submitted_successfully()}
@@ -742,7 +581,7 @@ async def submit_feedback(
         await db.rollback()
         logger.error(
             "interest_feedback_failed",
-            user_id=str(user.id),
+            user_id=str(owner),
             interest_id=str(interest_id),
             error=str(e),
         )
@@ -784,26 +623,16 @@ async def reactivate_interest(
         ResourceNotFoundError: If the interest is missing or not owned by the user.
         ResourceConflictError: If the interest is not in the ``dormant`` status.
     """
+    owner = user.id
     try:
         repo = InterestRepository(db)
-        interest = await repo.get_by_id(interest_id)
-
-        if not interest or interest.user_id != user.id:
-            raise_interest_not_found(interest_id)
-
-        if interest.status != InterestStatus.DORMANT.value:
-            raise ResourceConflictError(
-                resource_type="interest",
-                detail=APIMessages.interest_not_dormant(),
-            )
-
-        await repo.reactivate(interest)
+        interest = await reactivate_managed_interest(db, owner, interest_id)
         await db.commit()
         await db.refresh(interest)
 
         logger.info(
             "interest_reactivated",
-            user_id=str(user.id),
+            user_id=str(owner),
             interest_id=str(interest_id),
         )
 
@@ -816,7 +645,7 @@ async def reactivate_interest(
         await db.rollback()
         logger.error(
             "interest_reactivate_failed",
-            user_id=str(user.id),
+            user_id=str(owner),
             interest_id=str(interest_id),
             error=str(e),
         )

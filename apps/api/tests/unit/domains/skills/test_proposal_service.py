@@ -9,6 +9,7 @@ the eviction) is proven on a real server in the integration suite.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
@@ -18,6 +19,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.exceptions import BaseAPIException, ValidationError
 from src.domains.shared import action_sink
@@ -34,6 +36,7 @@ from src.domains.skills.proposal_errors import (
 )
 from src.domains.skills.proposals import (
     _SAVE_SCRIPT,
+    _TRANSITION_SCRIPT,
     ProposalChanges,
     ProposalStore,
     SkillProposal,
@@ -88,6 +91,20 @@ class FakeRedis:
                 del self.keys[key]
                 return 1
             return 0
+        if script == _TRANSITION_SCRIPT:
+            key, owner, proposal_id, state, attempt, changed = map(str, args)
+            current = json.loads(self.keys[key]) if key in self.keys else None
+            if (
+                not current
+                or current["owner_id"] != owner
+                or current["id"] != proposal_id
+                or current["status"] != state
+            ):
+                return 0
+            if state != "pending" and current.get("attempt_id") != attempt:
+                return 0
+            self.keys[key] = changed
+            return 1
         raise NotImplementedError(script[:30])
 
 
@@ -145,6 +162,7 @@ def importer() -> Iterator[MagicMock]:
     with (
         patch.object(proposal_service, "SkillImportService", return_value=service),
         patch.object(proposal_service, "get_db_context", return_value=_Db()),
+        patch.object(proposal_service, "require_skill_access", AsyncMock()),
     ):
         yield service
 
@@ -244,6 +262,29 @@ class TestPropose:
 
 
 class TestInstall:
+    async def test_lost_commit_acknowledgement_is_retained_and_never_replayed(
+        self,
+        redis: FakeRedis,
+        importer: MagicMock,
+        recorder: FakeRecorder,
+        service_settings: SimpleNamespace,
+    ) -> None:
+        from src.domains.skills.import_commit import SkillImportCompletionUnknown
+
+        await _stored(redis, _proposal())
+        importer.import_files.side_effect = SkillImportCompletionUnknown()
+        with _cache(None):
+            for _ in range(2):
+                with pytest.raises(ProposalRefusal) as refusal:
+                    await proposal_service.install(
+                        MagicMock(spec=AsyncSession), OWNER, "p" * 32, redis=redis
+                    )
+                assert refusal.value.code == "skill_proposal_completion_unknown"
+        saved = await ProposalStore(redis).load(str(OWNER), "p" * 32)
+        assert saved is not None and saved.status == "unknown"
+        importer.import_files.assert_awaited_once()
+        assert recorder.settled == [False]
+
     async def test_installs_what_was_proposed_and_records_the_act(
         self,
         redis: FakeRedis,
@@ -255,10 +296,16 @@ class TestInstall:
         await _stored(redis, proposal)
 
         with _cache(None):
-            installed = await proposal_service.install(MagicMock(), OWNER, proposal.id, redis=redis)
+            installed = await proposal_service.install(
+                MagicMock(spec=AsyncSession), OWNER, proposal.id, redis=redis
+            )
 
         assert installed.status == "installed"
-        importer.import_files.assert_awaited_once_with(FILES, owner_id=OWNER)
+        importer.import_files.assert_awaited_once()
+        assert importer.import_files.call_args.args == (FILES,)
+        assert importer.import_files.call_args.kwargs["owner_id"] == OWNER
+        assert callable(importer.import_files.call_args.kwargs["before_swap"])
+        assert callable(importer.import_files.call_args.kwargs["before_commit"])
         assert recorder.claims == [
             {"user_id": OWNER, "capability": "skill_proposal_install", "target": "ma-skill"}
         ]
@@ -276,7 +323,9 @@ class TestInstall:
     ) -> None:
         await _stored(redis, _proposal().installed())
 
-        installed = await proposal_service.install(MagicMock(), OWNER, "p" * 32, redis=redis)
+        installed = await proposal_service.install(
+            MagicMock(spec=AsyncSession), OWNER, "p" * 32, redis=redis
+        )
 
         assert installed.status == "installed"
         importer.import_files.assert_not_awaited()
@@ -288,7 +337,9 @@ class TestInstall:
         await _stored(redis, _proposal())
 
         with pytest.raises(ProposalRefusal) as refused:
-            await proposal_service.install(MagicMock(), UUID(int=7), "p" * 32, redis=redis)
+            await proposal_service.install(
+                MagicMock(spec=AsyncSession), UUID(int=7), "p" * 32, redis=redis
+            )
 
         assert refused.value.code == NOT_FOUND
 
@@ -299,7 +350,9 @@ class TestInstall:
         await _stored(redis, _proposal())
 
         with pytest.raises(ProposalRefusal) as refused:
-            await proposal_service.install(MagicMock(), OWNER, "p" * 32, redis=redis)
+            await proposal_service.install(
+                MagicMock(spec=AsyncSession), OWNER, "p" * 32, redis=redis
+            )
 
         assert refused.value.code == DISABLED
         importer.import_files.assert_not_awaited()
@@ -311,7 +364,9 @@ class TestInstall:
         redis.keys[f"skill_proposal_claim:{OWNER}:{'p' * 32}"] = "someone-else"
 
         with pytest.raises(ProposalRefusal) as refused:
-            await proposal_service.install(MagicMock(), OWNER, "p" * 32, redis=redis)
+            await proposal_service.install(
+                MagicMock(spec=AsyncSession), OWNER, "p" * 32, redis=redis
+            )
 
         assert refused.value.code == BUSY
         importer.import_files.assert_not_awaited()
@@ -330,7 +385,9 @@ class TestInstall:
 
         with _cache(_installed_skill(tmp_path, {"SKILL.md": "another\n"})):
             with pytest.raises(ProposalRefusal) as refused:
-                await proposal_service.install(MagicMock(), OWNER, "p" * 32, redis=redis)
+                await proposal_service.install(
+                    MagicMock(spec=AsyncSession), OWNER, "p" * 32, redis=redis
+                )
 
         assert refused.value.code == STALE
         importer.import_files.assert_not_awaited()
@@ -349,7 +406,9 @@ class TestInstall:
 
         with _cache(_installed_skill(tmp_path, {"SKILL.md": "v2\n"})):
             with pytest.raises(ProposalRefusal) as refused:
-                await proposal_service.install(MagicMock(), OWNER, "p" * 32, redis=redis)
+                await proposal_service.install(
+                    MagicMock(spec=AsyncSession), OWNER, "p" * 32, redis=redis
+                )
 
         assert refused.value.code == STALE
 
@@ -365,7 +424,9 @@ class TestInstall:
         await _stored(redis, _proposal(replaces=package_fingerprint(described)))
 
         with _cache(_installed_skill(tmp_path, described)):
-            await proposal_service.install(MagicMock(), OWNER, "p" * 32, redis=redis)
+            await proposal_service.install(
+                MagicMock(spec=AsyncSession), OWNER, "p" * 32, redis=redis
+            )
 
         importer.import_files.assert_awaited_once()
         assert recorder.settled == [True]
@@ -382,7 +443,9 @@ class TestInstall:
         await _stored(redis, _proposal())
 
         with _cache(_installed_skill(tmp_path, FILES)):
-            installed = await proposal_service.install(MagicMock(), OWNER, "p" * 32, redis=redis)
+            installed = await proposal_service.install(
+                MagicMock(spec=AsyncSession), OWNER, "p" * 32, redis=redis
+            )
 
         assert installed.status == "installed"
         importer.import_files.assert_not_awaited()
@@ -399,7 +462,9 @@ class TestInstall:
         await _stored(redis, _proposal())
 
         with _cache(None), pytest.raises(ProposalRefusal) as refused:
-            await proposal_service.install(MagicMock(), OWNER, "p" * 32, redis=redis)
+            await proposal_service.install(
+                MagicMock(spec=AsyncSession), OWNER, "p" * 32, redis=redis
+            )
 
         assert refused.value.code == QUOTA_REACHED
         assert recorder.claims == []
@@ -415,7 +480,9 @@ class TestInstall:
         await _stored(redis, _proposal())
 
         with _cache(None), pytest.raises(ProposalRefusal) as refused:
-            await proposal_service.install(MagicMock(), OWNER, "p" * 32, redis=redis)
+            await proposal_service.install(
+                MagicMock(spec=AsyncSession), OWNER, "p" * 32, redis=redis
+            )
 
         assert refused.value.code == NAME_TAKEN
         assert recorder.settled == [False]
@@ -428,6 +495,8 @@ class TestInstall:
         redis.fail = True
 
         with pytest.raises(ProposalRefusal) as refused:
-            await proposal_service.install(MagicMock(), OWNER, "p" * 32, redis=redis)
+            await proposal_service.install(
+                MagicMock(spec=AsyncSession), OWNER, "p" * 32, redis=redis
+            )
 
         assert refused.value.code == UNAVAILABLE

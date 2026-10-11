@@ -135,7 +135,7 @@ def _patch_db():
 
     @contextlib.asynccontextmanager
     async def _ctx():
-        yield SimpleNamespace()
+        yield SimpleNamespace(scalar=AsyncMock(return_value=SimpleNamespace()))
 
     return patch("src.domains.relations.service.get_db_context", _ctx)
 
@@ -538,17 +538,18 @@ class TestFavoritesInOverview:
 
     async def test_add_and_remove_favorite_fold_the_name(self) -> None:
         service = RelationsService(user_id=uuid4())
-        repo = SimpleNamespace(add=AsyncMock(), remove=AsyncMock(return_value=True))
+        repo = SimpleNamespace(add=AsyncMock(), remove_identity=AsyncMock(return_value=True))
         with (
             _patch_db(),
             patch("src.domains.relations.service.RelationFavoriteRepository", return_value=repo),
+            _patch_aliases(),
         ):
             await service.add_favorite("  Mémé Jeanne ")
             await service.remove_favorite("MÉMÉ jeanne")
         repo.add.assert_awaited_once_with(
             service.user_id, name_key="meme jeanne", display_name="Mémé Jeanne"
         )
-        repo.remove.assert_awaited_once_with(service.user_id, name_key="meme jeanne")
+        repo.remove_identity.assert_awaited_once_with(service.user_id, canonical_key="meme jeanne")
 
 
 @pytest.mark.unit
@@ -972,7 +973,12 @@ class TestOverviewScopePersistence:
     def _patch_user(self, user):
         import contextlib
 
-        db = SimpleNamespace(get=AsyncMock(return_value=user), commit=AsyncMock())
+        db = SimpleNamespace(
+            get=AsyncMock(return_value=user),
+            scalar=AsyncMock(return_value=user),
+            flush=AsyncMock(),
+            commit=AsyncMock(),
+        )
 
         @contextlib.asynccontextmanager
         async def _ctx():
@@ -1021,9 +1027,11 @@ class TestOverviewScopePersistence:
         assert all(isinstance(section, str) for section in stored["sections"])
         assert RelationOverviewScope.from_stored(stored) == RelationOverviewScope.default()
 
-    async def test_a_vanished_user_is_a_no_op_not_a_crash(self) -> None:
+    async def test_a_vanished_user_refuses_instead_of_acknowledging_an_unstored_scope(self) -> None:
+        from src.core.exceptions import ResourceNotFoundError
+
         patcher, db = self._patch_user(None)
-        with patcher:
+        with patcher, pytest.raises(ResourceNotFoundError):
             await RelationsService(user_id=uuid4()).set_overview_scope(
                 RelationOverviewScope.default()
             )

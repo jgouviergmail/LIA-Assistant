@@ -28,7 +28,7 @@ import { sentHistoryOf } from '@/lib/sent-history';
 import { hitlAwaitsUser, visibleChatSurfaces } from '@/lib/chat-surfaces';
 import { visibleFollowups, visibleMotivation } from '@/components/chat/FollowupChips';
 import { ChatConditionalSurfaces } from '@/components/chat/ChatConditionalSurfaces';
-import { EyesWidget } from '@/components/eyes/EyesWidget';
+import { useEyesChatState } from '@/components/eyes/useEyesChatState';
 import { useEyesChatWiring } from '@/components/eyes/useEyesChatWiring';
 import { SelectionActions } from '@/components/chat/SelectionActions';
 import { ResetConversationConfirm } from '@/components/chat/ResetConversationConfirm';
@@ -293,6 +293,7 @@ export default function ChatPage() {
   // typing activity, notification pings). Lives in its own hook — the page's
   // render function sits under the complexity ratchet.
   const eyesWiring = useEyesChatWiring(chatStatus, messages);
+  useEyesChatState({ chatStatus, streamPhase, hitlAwaiting: hitl.status === 'awaiting' });
 
   // Handle message change from ChatInput (geolocation prompt detection +
   // draft persistence — debounced, empty clears immediately).
@@ -383,6 +384,7 @@ export default function ChatPage() {
   // notifications keep their toast, and every message that lands elsewhere
   // is MERGED into the thread once it is free (hooks/useChatServerSync).
   useChatServerSync({
+    owner: user,
     signedIn: !!user,
     authLoading: isLoading,
     apiAvailable,
@@ -800,7 +802,9 @@ export default function ChatPage() {
             panel's `backdrop-filter` makes it their backdrop root, so the
             header's and composer's glass still frost the bubbles passing
             beneath them, as before. */}
-        <div className="flex flex-col flex-1 min-w-0 rounded-xl border border-border/50 bg-background/35 shadow-lg backdrop-blur-md overflow-hidden">
+        {/* The glass panel is a stacking context. A pending decision or browser
+            transfer must lift that context above the floating companion. */}
+        <div className="relative has-[[data-application-action-priority=true]]:z-40 flex flex-col flex-1 min-w-0 rounded-xl border border-border/50 bg-background/35 shadow-lg backdrop-blur-md overflow-hidden">
           {/* Messages area. The header + search + banner block is STICKY INSIDE
               this scroll container (2026-07-30): backdrop-blur only renders
               what actually passes behind the surface, and this chat shell is a
@@ -1128,13 +1132,6 @@ export default function ChatPage() {
           onConfirm={handleResetConversation}
         />
         {cardComposition.confirmDialog}
-
-        {/* Expressive eyes — floating, draggable, hideable (restore dot). */}
-        <EyesWidget
-          chatStatus={chatStatus}
-          streamPhase={streamPhase}
-          hitlAwaiting={hitl.status === 'awaiting'}
-        />
 
         {/* Debug Panel - Right side (only when enabled + desktop viewport ≥1024px),
             at the width the person dragged it to — into the conversation, which

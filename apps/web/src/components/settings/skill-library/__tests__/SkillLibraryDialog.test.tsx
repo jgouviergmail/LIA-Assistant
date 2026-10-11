@@ -21,6 +21,7 @@ import type { LibraryPreview, LibrarySearchResponse } from '@/lib/skill-library/
 
 const { api } = vi.hoisted(() => ({ api: { get: vi.fn(), post: vi.fn() } }));
 vi.mock('@/lib/api-client', () => ({ default: api, ApiError: class extends Error {} }));
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'library-owner' } }) }));
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock('sonner', () => ({ toast }));
 

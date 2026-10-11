@@ -39,6 +39,7 @@ from src.core.constants import (
 )
 from src.domains.connectors.service import ConnectorService
 from src.domains.conversations.activity_probe import fetch_last_seen_at
+from src.domains.feature_switches.registry import PlatformCapability, is_capability_enabled
 
 #: Fetched by ``_second_pass`` rather than the parallel gather, and read
 #: just the same.
@@ -69,6 +70,15 @@ from src.domains.push_channels.wake import WakePayload
 from src.infrastructure.database.session import get_db_context
 
 logger = structlog.get_logger(__name__)
+
+
+async def _journals_enabled(user: Any) -> bool:
+    """A refused journal is neither searched nor filed as consulted."""
+    return bool(
+        getattr(user, "journals_enabled", False)
+        and get_settings().journals_enabled
+        and await is_capability_enabled(PlatformCapability.JOURNALS)
+    )
 
 
 def _format_event_time(dt_field: dict[str, Any] | None, user_tz: ZoneInfo) -> str:
@@ -310,7 +320,7 @@ class ContextAggregator:
         second_pass_query = build_second_pass_query(context)
         opened: list[str] = []
 
-        if is_source_enabled(user, "journals"):
+        if is_source_enabled(user, "journals") and await _journals_enabled(user):
             opened.append("journals")
             try:
                 journal_result = await self._fetch_journals(user_id, user, query=second_pass_query)
@@ -1072,51 +1082,37 @@ class ContextAggregator:
         """
         # Skip if journals disabled
         # Check user-level journals flag (fall back to system default)
-        from src.core.config import settings as app_settings
-
-        if not getattr(user, "journals_enabled", app_settings.journals_enabled):
+        if not await _journals_enabled(user):
             return None
 
         try:
-            from src.domains.journals.constants import (
-                JOURNAL_OPERATIONAL_INJECTION_EXCLUDE_LEVELS,
-            )
-            from src.domains.journals.embedding import get_journal_embeddings
-            from src.domains.journals.repository import JournalEntryRepository
+            from src.domains.journals.context_builder import build_journal_context
 
-            repo = JournalEntryRepository(self._db)
-
-            # Use the same embedding model as journal creation (OpenAI, 1536 dim)
-            embeddings = get_journal_embeddings()
             search_query = query or "user preferences observations patterns priorities"
-            query_embedding = await embeddings.aembed_query(search_query)
-
-            if not query_embedding:
-                return None
-
-            scored_entries = await repo.search_by_relevance(
+            block, debug, _ids = await build_journal_context(
                 user_id=user_id,
-                query_embedding=query_embedding,
-                limit=3,  # Keep small for heartbeat budget
-                min_score=app_settings.journal_context_min_score,
-                # Operational injection carries only L1/L2 directives; L0 (private
-                # feedstock) and L3 (carried by the portrait brief) are excluded (ADR-088).
-                exclude_levels=JOURNAL_OPERATIONAL_INJECTION_EXCLUDE_LEVELS,
+                query=search_query,
+                db=self._db,
+                max_results_override=get_settings().journal_react_context_max_entries,
+                include_debug=True,
             )
-
-            if not scored_entries:
+            if not block or not debug:
                 return None
 
             return [
                 {
-                    "title": entry.title,
-                    "content_preview": entry.content[:200],
-                    "theme": entry.theme,
-                    "mood": entry.mood,
-                    "date": entry.created_at.strftime("%Y-%m-%d"),
-                    "score": f"{score:.2f}",
+                    "title": entry["full_title"],
+                    "content_preview": (
+                        f"[confidence={entry['confidence']} | revision={entry['revision']}] "
+                        f"{entry['content']}"
+                    ),
+                    "theme": entry["theme"],
+                    "mood": entry["mood"],
+                    "date": entry["date"],
+                    "score": str(entry["score"]),
                 }
-                for entry, score in scored_entries
+                for entry in debug["entries"]
+                if entry["injected"]
             ]
 
         except Exception as e:

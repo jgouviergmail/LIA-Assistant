@@ -17,6 +17,8 @@ import { AnimatedEmoji } from '@/components/ui/animated-emoji';
 import { getMoodColor } from '@/lib/psyche-colors';
 import { usePsycheStore } from '@/stores/psycheStore';
 import apiClient from '@/lib/api-client';
+import { useAuth } from '@/hooks/useAuth';
+import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import type { PsycheState } from '@/types/psyche';
@@ -31,6 +33,8 @@ export function PsycheStateSummary({ lng, refreshKey = 0 }: PsycheStateSummaryPr
   const { t } = useTranslation(lng, 'translation');
   const { moodLabel, relationshipStage, enabled, fullState: state } = usePsycheStore();
   const isFirstRender = useRef(true);
+  const { user } = useAuth();
+  const { isCurrent } = useApplicationAccountLifetime(user?.id);
   // Hover-to-animate mood emoji (micro-interactions batch I8) — no permanent loop.
   const [emojiHovered, setEmojiHovered] = useState(false);
 
@@ -40,11 +44,18 @@ export function PsycheStateSummary({ lng, refreshKey = 0 }: PsycheStateSummaryPr
       isFirstRender.current = false;
       return;
     }
+    let cancelled = false;
     apiClient
-      .get<PsycheState>('/psyche/state')
-      .then(fresh => usePsycheStore.getState().updateFromFullState(fresh))
+      .get<PsycheState | null>('/psyche/state?initialize=false')
+      .then(fresh => {
+        if (cancelled || !isCurrent()) return;
+        const store = usePsycheStore.getState();
+        if (fresh === null) store.clearObservedState();
+        else store.updateFromFullState(fresh);
+      })
       .catch(() => {});
-  }, [refreshKey]);
+    return () => { cancelled = true; };
+  }, [refreshKey, isCurrent]);
 
   if (!enabled) {
     return (

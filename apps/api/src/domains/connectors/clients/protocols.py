@@ -67,6 +67,8 @@ class EmailClientProtocol(OutgoingCeiling, Protocol):
         bcc: str | None = None,
         is_html: bool = False,
         attachments: Sequence[OutgoingAttachment] = (),
+        *,
+        single_attempt: bool = False,
     ) -> dict: ...
 
     async def reply_email(

@@ -1,0 +1,344 @@
+{
+  "language": {
+    "fr": {
+      "fr": "Français",
+      "en": "English",
+      "es": "Español",
+      "de": "Deutsch",
+      "it": "Italiano",
+      "zh-CN": "简体中文"
+    },
+    "en": {
+      "fr": "Français",
+      "en": "English",
+      "es": "Español",
+      "de": "Deutsch",
+      "it": "Italiano",
+      "zh-CN": "简体中文"
+    },
+    "de": {
+      "fr": "Français",
+      "en": "English",
+      "es": "Español",
+      "de": "Deutsch",
+      "it": "Italiano",
+      "zh-CN": "简体中文"
+    },
+    "es": {
+      "fr": "Français",
+      "en": "English",
+      "es": "Español",
+      "de": "Deutsch",
+      "it": "Italiano",
+      "zh-CN": "简体中文"
+    },
+    "it": {
+      "fr": "Français",
+      "en": "English",
+      "es": "Español",
+      "de": "Deutsch",
+      "it": "Italiano",
+      "zh-CN": "简体中文"
+    },
+    "zh-CN": {
+      "fr": "Français",
+      "en": "English",
+      "es": "Español",
+      "de": "Deutsch",
+      "it": "Italiano",
+      "zh-CN": "简体中文"
+    }
+  },
+  "color_theme": {
+    "fr": {
+      "default": "Bleu Professionnel",
+      "ocean": "Turquoise",
+      "forest": "Sauge",
+      "sunset": "Rose",
+      "slate": "Lavande"
+    },
+    "en": {
+      "default": "Professional Blue",
+      "ocean": "Teal",
+      "forest": "Sage",
+      "sunset": "Rose",
+      "slate": "Lavender"
+    },
+    "de": {
+      "default": "Professionelles Blau",
+      "ocean": "Türkis",
+      "forest": "Salbei",
+      "sunset": "Rosa",
+      "slate": "Lavendel"
+    },
+    "es": {
+      "default": "Azul Profesional",
+      "ocean": "Turquesa",
+      "forest": "Salvia",
+      "sunset": "Rosa",
+      "slate": "Lavanda"
+    },
+    "it": {
+      "default": "Blu Professionale",
+      "ocean": "Turchese",
+      "forest": "Salvia",
+      "sunset": "Rosa",
+      "slate": "Lavanda"
+    },
+    "zh-CN": {
+      "default": "专业蓝",
+      "ocean": "青绿",
+      "forest": "鼠尾草",
+      "sunset": "玫瑰",
+      "slate": "薰衣草"
+    }
+  },
+  "theme": {
+    "fr": {
+      "light": "Clair",
+      "dark": "Sombre",
+      "system": "Système",
+      "oled": "Noir absolu (OLED)"
+    },
+    "en": {
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System",
+      "oled": "Absolute black (OLED)"
+    },
+    "de": {
+      "light": "Hell",
+      "dark": "Dunkel",
+      "system": "System",
+      "oled": "Absolutes Schwarz (OLED)"
+    },
+    "es": {
+      "light": "Claro",
+      "dark": "Oscuro",
+      "system": "Sistema",
+      "oled": "Negro absoluto (OLED)"
+    },
+    "it": {
+      "light": "Chiaro",
+      "dark": "Scuro",
+      "system": "Sistema",
+      "oled": "Nero assoluto (OLED)"
+    },
+    "zh-CN": {
+      "light": "浅色",
+      "dark": "深色",
+      "system": "系统",
+      "oled": "纯黑（OLED）"
+    }
+  },
+  "font_family": {
+    "fr": {
+      "system": "Système (Inter)",
+      "noto-sans": "Noto Sans",
+      "plus-jakarta-sans": "Plus Jakarta Sans",
+      "ibm-plex-sans": "IBM Plex Sans",
+      "geist": "Geist",
+      "source-sans-pro": "Source Sans Pro",
+      "merriweather": "Merriweather",
+      "libre-baskerville": "Libre Baskerville",
+      "fira-code": "Fira Code"
+    },
+    "en": {
+      "system": "System (Inter)",
+      "noto-sans": "Noto Sans",
+      "plus-jakarta-sans": "Plus Jakarta Sans",
+      "ibm-plex-sans": "IBM Plex Sans",
+      "geist": "Geist",
+      "source-sans-pro": "Source Sans Pro",
+      "merriweather": "Merriweather",
+      "libre-baskerville": "Libre Baskerville",
+      "fira-code": "Fira Code"
+    },
+    "de": {
+      "system": "System (Inter)",
+      "noto-sans": "Noto Sans",
+      "plus-jakarta-sans": "Plus Jakarta Sans",
+      "ibm-plex-sans": "IBM Plex Sans",
+      "geist": "Geist",
+      "source-sans-pro": "Source Sans Pro",
+      "merriweather": "Merriweather",
+      "libre-baskerville": "Libre Baskerville",
+      "fira-code": "Fira Code"
+    },
+    "es": {
+      "system": "Sistema (Inter)",
+      "noto-sans": "Noto Sans",
+      "plus-jakarta-sans": "Plus Jakarta Sans",
+      "ibm-plex-sans": "IBM Plex Sans",
+      "geist": "Geist",
+      "source-sans-pro": "Source Sans Pro",
+      "merriweather": "Merriweather",
+      "libre-baskerville": "Libre Baskerville",
+      "fira-code": "Fira Code"
+    },
+    "it": {
+      "system": "Sistema (Inter)",
+      "noto-sans": "Noto Sans",
+      "plus-jakarta-sans": "Plus Jakarta Sans",
+      "ibm-plex-sans": "IBM Plex Sans",
+      "geist": "Geist",
+      "source-sans-pro": "Source Sans Pro",
+      "merriweather": "Merriweather",
+      "libre-baskerville": "Libre Baskerville",
+      "fira-code": "Fira Code"
+    },
+    "zh-CN": {
+      "system": "系统 (Inter)",
+      "noto-sans": "Noto Sans",
+      "plus-jakarta-sans": "Plus Jakarta Sans",
+      "ibm-plex-sans": "IBM Plex Sans",
+      "geist": "Geist",
+      "source-sans-pro": "Source Sans Pro",
+      "merriweather": "Merriweather",
+      "libre-baskerville": "Libre Baskerville",
+      "fira-code": "Fira Code"
+    }
+  },
+  "exchange_rhythm": {
+    "fr": {
+      "frequent": "Échanges fréquents",
+      "occasional": "Échanges ponctuels"
+    },
+    "en": {
+      "frequent": "Frequent exchanges",
+      "occasional": "Occasional exchanges"
+    },
+    "de": {
+      "frequent": "Häufiger Austausch",
+      "occasional": "Gelegentlicher Austausch"
+    },
+    "es": {
+      "frequent": "Intercambios frecuentes",
+      "occasional": "Intercambios puntuales"
+    },
+    "it": {
+      "frequent": "Scambi frequenti",
+      "occasional": "Scambi occasionali"
+    },
+    "zh-CN": {
+      "frequent": "频繁交流",
+      "occasional": "偶尔交流"
+    }
+  },
+  "execution_mode": {
+    "fr": {
+      "pipeline": "Mode Pipeline",
+      "react": "Mode ReAct"
+    },
+    "en": {
+      "pipeline": "Pipeline mode",
+      "react": "ReAct mode"
+    },
+    "de": {
+      "pipeline": "Pipeline-Modus",
+      "react": "ReAct-Modus"
+    },
+    "es": {
+      "pipeline": "Modo Pipeline",
+      "react": "Modo ReAct"
+    },
+    "it": {
+      "pipeline": "Modalità Pipeline",
+      "react": "Modalità ReAct"
+    },
+    "zh-CN": {
+      "pipeline": "Pipeline 模式",
+      "react": "ReAct 模式"
+    }
+  },
+  "voice_stt_mode": {
+    "fr": {
+      "local": "Local (Sherpa)",
+      "remote": "Distant (ElevenLabs)"
+    },
+    "en": {
+      "local": "Local (Sherpa)",
+      "remote": "Remote (ElevenLabs)"
+    },
+    "de": {
+      "local": "Lokal (Sherpa)",
+      "remote": "Extern (ElevenLabs)"
+    },
+    "es": {
+      "local": "Local (Sherpa)",
+      "remote": "Remoto (ElevenLabs)"
+    },
+    "it": {
+      "local": "Locale (Sherpa)",
+      "remote": "Remoto (ElevenLabs)"
+    },
+    "zh-CN": {
+      "local": "本地（Sherpa）",
+      "remote": "远程（ElevenLabs）"
+    }
+  },
+  "response_display_mode": {
+    "fr": {
+      "cards": "Cartes HTML",
+      "html": "HTML enrichi",
+      "html_cards": "HTML enrichi + cartes",
+      "markdown": "Markdown"
+    },
+    "en": {
+      "cards": "HTML Cards",
+      "html": "Rich HTML",
+      "html_cards": "Rich HTML + cards",
+      "markdown": "Markdown"
+    },
+    "de": {
+      "cards": "HTML-Karten",
+      "html": "Rich-HTML",
+      "html_cards": "Rich-HTML + Karten",
+      "markdown": "Markdown"
+    },
+    "es": {
+      "cards": "Tarjetas HTML",
+      "html": "HTML enriquecido",
+      "html_cards": "HTML enriquecido + tarjetas",
+      "markdown": "Markdown"
+    },
+    "it": {
+      "cards": "Schede HTML",
+      "html": "HTML arricchito",
+      "html_cards": "HTML arricchito + schede",
+      "markdown": "Markdown"
+    },
+    "zh-CN": {
+      "cards": "HTML卡片",
+      "html": "富HTML",
+      "html_cards": "富HTML + 卡片",
+      "markdown": "Markdown"
+    }
+  },
+  "__boolean__": {
+    "fr": {
+      "true": "Oui",
+      "false": "Non"
+    },
+    "en": {
+      "true": "Yes",
+      "false": "No"
+    },
+    "de": {
+      "true": "Ja",
+      "false": "Nein"
+    },
+    "es": {
+      "true": "Sí",
+      "false": "No"
+    },
+    "it": {
+      "true": "Sì",
+      "false": "No"
+    },
+    "zh-CN": {
+      "true": "是",
+      "false": "否"
+    }
+  }
+}

@@ -16,7 +16,21 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { useApiQuery } = vi.hoisted(() => ({ useApiQuery: vi.fn() }));
-vi.mock('@/hooks/useApiQuery', () => ({ useApiQuery }));
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'debrief-test-owner' } }) }));
+vi.mock('@/hooks/useApiQuery', async () => {
+  const { useEffect } = await import('react');
+  return {
+    useApiQuery: (endpoint: string, options: { onSuccess?: (data: unknown) => void }) => {
+      const result = useApiQuery(endpoint, options);
+      const observed = result.data;
+      const notify = options.onSuccess;
+      useEffect(() => {
+        if (observed !== undefined) notify?.(observed);
+      }, [observed, notify]);
+      return { ...result, refetchVerified: async () => true };
+    },
+  };
+});
 
 const { apiPost } = vi.hoisted(() => ({ apiPost: vi.fn() }));
 vi.mock('@/lib/api-client', () => ({
@@ -70,9 +84,7 @@ function mountThenSettle(
 ) {
   const { enabled = true, providerReady = true } = options;
   mockRead(undefined, true);
-  const utils = renderHook(() =>
-    useRelationDebrief('Gérard Dupont', { enabled, providerReady })
-  );
+  const utils = renderHook(() => useRelationDebrief('Gérard Dupont', { enabled, providerReady }));
   mockRead(data);
   utils.rerender();
   return utils;
@@ -86,9 +98,7 @@ beforeEach(() => {
 describe('useRelationDebrief', () => {
   it('reads without building', async () => {
     mockRead(debrief());
-    renderHook(() =>
-      useRelationDebrief('Gérard Dupont', { enabled: true, providerReady: true })
-    );
+    renderHook(() => useRelationDebrief('Gérard Dupont', { enabled: true, providerReady: true }));
 
     await waitFor(() => expect(useApiQuery).toHaveBeenCalled());
     expect(apiPost).not.toHaveBeenCalled();
@@ -104,8 +114,7 @@ describe('useRelationDebrief', () => {
   it('waits for the provider sections rather than racing their caches', async () => {
     mockRead(undefined, true);
     const { rerender } = renderHook(
-      ({ ready }) =>
-        useRelationDebrief('Gérard Dupont', { enabled: true, providerReady: ready }),
+      ({ ready }) => useRelationDebrief('Gérard Dupont', { enabled: true, providerReady: ready }),
       { initialProps: { ready: false } }
     );
     mockRead(debrief({ status: 'absent', body: null }));
@@ -144,9 +153,7 @@ describe('useRelationDebrief', () => {
     // for one relationship from another one status is the same class of
     // mistake the panel guards against by staging on `loading`.
     mockRead(debrief({ status: 'absent', body: null }), true);
-    renderHook(() =>
-      useRelationDebrief('Gérard Dupont', { enabled: true, providerReady: true })
-    );
+    renderHook(() => useRelationDebrief('Gérard Dupont', { enabled: true, providerReady: true }));
 
     await waitFor(() => expect(useApiQuery).toHaveBeenCalled());
     expect(apiPost).not.toHaveBeenCalled();

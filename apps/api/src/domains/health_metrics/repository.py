@@ -36,6 +36,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.repository import BaseRepository
 from src.domains.health_metrics.baseline import DailyStat
+from src.domains.health_metrics.management_lock import lock_health_writer
+from src.domains.health_metrics.management_read import (
+    health_sample_statement,
+    health_token_statement,
+)
 from src.domains.health_metrics.models import HealthMetricToken, HealthSample
 from src.infrastructure.observability.logging import get_logger
 
@@ -99,6 +104,7 @@ class HealthSampleRepository(BaseRepository[HealthSample]):
         """
         if not samples:
             return (0, 0, 0)
+        await lock_health_writer(self.db, user_id)
 
         # Dedupe intra-batch on (date_start, date_end) before UPSERT.
         # PostgreSQL's ``ON CONFLICT ... DO UPDATE`` raises
@@ -171,14 +177,12 @@ class HealthSampleRepository(BaseRepository[HealthSample]):
         Returns:
             List of HealthSample ordered by ``date_start`` descending.
         """
-        stmt = select(HealthSample).where(HealthSample.user_id == user_id)
-        if kind is not None:
-            stmt = stmt.where(HealthSample.kind == kind)
-        if from_ts is not None:
-            stmt = stmt.where(HealthSample.date_start >= from_ts)
-        if to_ts is not None:
-            stmt = stmt.where(HealthSample.date_start < to_ts)
-        stmt = stmt.order_by(HealthSample.date_start.desc()).limit(limit).offset(offset)
+        stmt = health_sample_statement(user_id, kind=kind, from_ts=from_ts, to_ts=to_ts)
+        stmt = (
+            stmt.order_by(HealthSample.date_start.desc(), HealthSample.id.desc())
+            .limit(limit)
+            .offset(offset)
+        )
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
@@ -390,10 +394,8 @@ class HealthMetricTokenRepository(BaseRepository[HealthMetricToken]):
         Returns:
             List of HealthMetricToken ordered by created_at desc.
         """
-        stmt = (
-            select(HealthMetricToken)
-            .where(HealthMetricToken.user_id == user_id)
-            .order_by(HealthMetricToken.created_at.desc())
+        stmt = health_token_statement(user_id).order_by(
+            HealthMetricToken.created_at.desc(), HealthMetricToken.id.desc()
         )
         result = await self.db.execute(stmt)
         return list(result.scalars().all())

@@ -35,7 +35,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -46,6 +46,9 @@ from src.domains.habits.models import HabitKind, HabitStatus
 from src.domains.habits.offer_bookkeeping import occurrence_after_last_offer
 from src.domains.habits.recurrence_locks import RecurrenceLock, evaluate_locks
 from src.infrastructure.cache import recurrence_store
+
+if TYPE_CHECKING:
+    from src.domains.habits.repository import HabitsRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -226,8 +229,7 @@ class _Window:
 
 async def _demote_if_active(repo: Any, row: Any, state: _PassState) -> None:
     """Delete an ACTIVE row whose request stopped; the person's own statuses stay."""
-    if row.status == HabitStatus.ACTIVE.value:
-        await repo.delete_habit(row)
+    if row.status == HabitStatus.ACTIVE.value and await repo.delete_stale_active_habit(row):
         state.slots_used -= 1
         state.count("demoted")
 
@@ -281,14 +283,14 @@ async def _sync_signature(
         state.count(action)
     elif len(in_window) >= window.existence_bar:
         if row is not None:
-            await repo.touch_habit(row, _observed_at(in_window[-1], window.tz))
-            state.count("kept")
+            if await repo.touch_habit(row, _observed_at(in_window[-1], window.tz)):
+                state.count("kept")
     elif row is not None:
         await _demote_if_active(repo, row, state)
 
 
 async def _promote_or_refresh(
-    repo: Any,
+    repo: HabitsRepository,
     user_id: UUID,
     signature: str,
     row: Any,
@@ -315,19 +317,18 @@ async def _promote_or_refresh(
     """
     observed_at = _observed_at(in_window[-1], tz)
     if row is None:
-        await repo.upsert_habit(
+        return await repo.upsert_habit(
             user_id=user_id,
             kind=HabitKind.RECURRING_REQUEST.value,
             key=signature,
             payload=lock_payload(lock, usual_intent=usual_intent),
             last_observed_at=observed_at,
         )
-        return "created"
     if row.status == HabitStatus.BLOCKED.value:
         return "blocked"
     offer_dates = [str(d) for d in (row.payload or {}).get("offer_dates") or []]
     lift_mute = occurrence_after_last_offer(offer_dates, {d.isoformat() for d in in_window})
-    await repo.upsert_habit(
+    return await repo.upsert_habit(
         user_id=user_id,
         kind=HabitKind.RECURRING_REQUEST.value,
         key=signature,
@@ -335,4 +336,3 @@ async def _promote_or_refresh(
         last_observed_at=observed_at,
         reset_mute=lift_mute,
     )
-    return "updated"

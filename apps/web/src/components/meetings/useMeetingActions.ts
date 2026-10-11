@@ -9,7 +9,9 @@
  */
 
 import { useCallback, type Dispatch, type SetStateAction } from 'react';
-import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
+import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
+import { useApplicationAccountToast } from '@/hooks/useApplicationAccountToast';
 
 import type { ConfirmOptions } from '@/components/ui/use-confirm';
 import type { UseMeetingReturn } from '@/hooks/useMeetings';
@@ -56,64 +58,74 @@ export function useMeetingActions(
   deps: MeetingActionDeps
 ): MeetingActions {
   const { t, confirm, navigateToList, navigateToMeeting, setDraft, setShowTranscript } = deps;
+  const { user } = useAuth();
+  const { isCurrent } = useApplicationAccountLifetime(user?.id);
+  const toast = useApplicationAccountToast(user?.id);
 
   const run = useCallback(
-    async (operation: () => Promise<void>, successKey?: string) => {
+    async (operation: () => Promise<void | boolean>, successKey?: string) => {
+      if (!isCurrent()) return;
       try {
-        await operation();
-        if (successKey) toast.success(t(successKey));
+        const outcome = await operation();
+        if (outcome !== false && isCurrent() && successKey) toast.success(t(successKey));
       } catch (error) {
         toast.error(describeFailure(t, error, 'common.error'));
       }
     },
-    [t]
+    [t, isCurrent, toast]
   );
 
   const confirmed = useCallback(
-    async (prefix: string, confirmLabelKey: string, destructive: boolean) =>
-      confirm({
+    async (prefix: string, confirmLabelKey: string, destructive: boolean) => {
+      if (!isCurrent()) return false;
+      const approved = await confirm({
         title: t(`meetings.detail.${prefix}_title`),
         description: t(`meetings.detail.${prefix}_description`),
         confirmLabel: t(confirmLabelKey),
         destructive,
-      }),
-    [confirm, t]
+      });
+      return approved && isCurrent();
+    },
+    [confirm, t, isCurrent]
   );
 
   const save = useCallback(
     (draft: MeetingReport) =>
       run(async () => {
-        await state.patch({
+        const saved = await state.patch({
           title: draft.title,
           participants: draft.participants,
           sections: draft.sections,
         });
+        if (saved === null || !isCurrent()) return false;
         setDraft(null);
       }, 'meetings.detail.saved'),
-    [run, setDraft, state]
+    [run, setDraft, state, isCurrent]
   );
 
   const resetReport = useCallback(async () => {
     if (!(await confirmed('confirm_reset', 'meetings.detail.reset', false))) return;
     await run(async () => {
-      await state.resetReport();
+      const saved = await state.resetReport();
+      if (saved === null || !isCurrent()) return false;
       setDraft(null);
     }, 'meetings.detail.saved');
-  }, [confirmed, run, setDraft, state]);
+  }, [confirmed, run, setDraft, state, isCurrent]);
 
   const regenerate = useCallback(async () => {
     if (!(await confirmed('confirm_regenerate', 'meetings.detail.regenerate', false))) return;
     await run(async () => {
       await state.regenerate();
+      if (!isCurrent()) return;
       setDraft(null);
     });
-  }, [confirmed, run, setDraft, state]);
+  }, [confirmed, run, setDraft, state, isCurrent]);
 
   const reformat = useCallback(
     (request: MeetingReformatRequest) =>
       run(async () => {
         const response = await state.reformat(request);
-        if (response === null) return;
+        if (response === null || !isCurrent()) return;
         setDraft(null);
         if (request.mode === 'new') {
           toast.success(t('meetings.detail.reformat.started_new'));
@@ -122,7 +134,7 @@ export function useMeetingActions(
           toast.success(t('meetings.detail.reformat.started_replace'));
         }
       }),
-    [navigateToMeeting, run, setDraft, state, t]
+    [navigateToMeeting, run, setDraft, state, t, isCurrent, toast]
   );
 
   const retry = useCallback(() => run(() => state.retry()), [run, state]);
@@ -130,7 +142,7 @@ export function useMeetingActions(
   const email = useCallback(
     () =>
       run(async () => {
-        await state.email();
+        return await state.email() !== null;
       }, 'meetings.detail.email_ok'),
     [run, state]
   );
@@ -142,20 +154,21 @@ export function useMeetingActions(
       return;
     }
     await run(async () => {
-      await state.deleteTranscript();
+      const saved = await state.deleteTranscript();
+      if (saved === null || !isCurrent()) return;
       setShowTranscript(false);
     });
-  }, [confirmed, run, setShowTranscript, state]);
+  }, [confirmed, run, setShowTranscript, state, isCurrent]);
 
   const remove = useCallback(async () => {
     if (!(await confirmed('confirm_delete', 'meetings.detail.delete', true))) return;
     await run(async () => {
-      if (await state.remove()) {
+      if (await state.remove() && isCurrent()) {
         toast.success(t('meetings.detail.deleted'));
         navigateToList();
       }
     });
-  }, [confirmed, navigateToList, run, state, t]);
+  }, [confirmed, navigateToList, run, state, t, isCurrent, toast]);
 
   return { save, resetReport, regenerate, reformat, retry, email, deleteTranscript, remove };
 }

@@ -62,12 +62,23 @@ beforeEach(() => {
   vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
 });
 afterEach(() => {
+  document.querySelectorAll('audio').forEach(audio => audio.remove());
   vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
 async function settle() {
   for (let n = 0; n < 30; n++) await Promise.resolve();
+}
+function pendingPlayback() {
+  let resolve: () => void = () => {};
+  vi.mocked(HTMLMediaElement.prototype.play).mockImplementationOnce(
+    () =>
+      new Promise<void>(done => {
+        resolve = done;
+      })
+  );
+  return () => resolve();
 }
 function fixture() {
   let notify: (speaking: boolean) => void = () => {};
@@ -119,6 +130,113 @@ function fixture() {
   const player = new RoutedLivePlayer(local, () => engine);
   return { engine, player, local, wire, activity: (speaking: boolean) => notify(speaking) };
 }
+it('replays a pre-track speaking hint only after the existing native sink starts', async () => {
+  const f = fixture();
+  const played = pendingPlayback();
+  const listener = vi.fn();
+  f.player.onSpeakingChange(listener);
+  f.player.nativeSpeaking(true);
+  const release = f.player.attachRemoteStream(new MediaStream());
+  expect(f.player.isSpeaking).toBe(false);
+  expect(listener).not.toHaveBeenCalled();
+  expect(document.querySelectorAll('audio')).toHaveLength(1);
+  played();
+  await settle();
+  expect(f.player.isSpeaking).toBe(true);
+  expect(listener.mock.calls).toEqual([[true]]);
+  expect(HTMLMediaElement.prototype.play).toHaveBeenCalledOnce();
+  release();
+  expect(listener.mock.calls).toEqual([[true], [false]]);
+  expect(document.querySelector('audio')).toBeNull();
+  expect(vi.getTimerCount()).toBe(0);
+  f.player.dispose();
+  f.engine.dispose();
+});
+it('waits for native playback when a speaking hint arrives after the track', async () => {
+  const f = fixture();
+  const played = pendingPlayback();
+  const listener = vi.fn();
+  f.player.onSpeakingChange(listener);
+  const release = f.player.attachRemoteStream(new MediaStream());
+  f.player.nativeSpeaking(true);
+  expect(f.player.isSpeaking).toBe(false);
+  expect(listener).not.toHaveBeenCalled();
+  played();
+  await settle();
+  expect(f.player.isSpeaking).toBe(true);
+  expect(listener.mock.calls).toEqual([[true]]);
+  release();
+  f.player.dispose();
+  f.engine.dispose();
+});
+it.each(['silence', 'interruption', 'release', 'dispose'] as const)(
+  'does not revive a pre-track speaking hint after %s while playback is pending',
+  async cancellation => {
+    const f = fixture();
+    const played = pendingPlayback();
+    const listener = vi.fn();
+    f.player.onSpeakingChange(listener);
+    f.player.nativeSpeaking(true);
+    const release = f.player.attachRemoteStream(new MediaStream());
+    switch (cancellation) {
+      case 'silence':
+        f.player.nativeSpeaking(false);
+        break;
+      case 'interruption':
+        f.player.flush();
+        break;
+      case 'release':
+        release();
+        break;
+      case 'dispose':
+        f.player.dispose();
+    }
+    played();
+    await settle();
+    expect(f.player.isSpeaking).toBe(false);
+    expect(listener).not.toHaveBeenCalledWith(true);
+    release();
+    f.player.dispose();
+    f.engine.dispose();
+    expect(document.querySelector('audio')).toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
+  }
+);
+it('keeps an attached silent native stream quiet without a speaking hint', async () => {
+  const f = fixture();
+  const listener = vi.fn();
+  f.player.onSpeakingChange(listener);
+  const release = f.player.attachRemoteStream(new MediaStream());
+  await settle();
+  expect(f.player.isSpeaking).toBe(false);
+  expect(listener).not.toHaveBeenCalled();
+  release();
+  f.player.dispose();
+  f.engine.dispose();
+});
+it('preserves the hint across replacement but ignores the obsolete playback promise', async () => {
+  const f = fixture();
+  const oldPlayed = pendingPlayback();
+  const played = pendingPlayback();
+  const listener = vi.fn();
+  f.player.onSpeakingChange(listener);
+  f.player.nativeSpeaking(true);
+  const oldRelease = f.player.attachRemoteStream(new MediaStream());
+  const release = f.player.attachRemoteStream(new MediaStream());
+  oldPlayed();
+  await settle();
+  expect(f.player.isSpeaking).toBe(false);
+  expect(listener).not.toHaveBeenCalled();
+  oldRelease();
+  expect(document.querySelectorAll('audio')).toHaveLength(1);
+  played();
+  await settle();
+  expect(f.player.isSpeaking).toBe(true);
+  expect(listener.mock.calls).toEqual([[true]]);
+  release();
+  f.player.dispose();
+  f.engine.dispose();
+});
 it('preserves native playback for opt-out and hot opt-in waits for a new request', async () => {
   const f = fixture();
   await f.player.warmup();
@@ -172,10 +290,13 @@ it('local native activity comes from rendered PCM and late callbacks cannot resu
   const f = fixture();
   f.engine.setPermission(true);
   await f.player.warmup();
-  const release = f.player.attachRemoteStream(new MediaStream());
-  await settle();
   const listener = vi.fn();
   f.player.onSpeakingChange(listener);
+  f.player.nativeSpeaking(true);
+  const release = f.player.attachRemoteStream(new MediaStream());
+  await settle();
+  expect(listener).not.toHaveBeenCalled();
+  expect(f.player.isSpeaking).toBe(false);
   const node = CaptureNode.instances[0];
   const port = node.port;
   node.emit(new Int16Array(1024).fill(33).buffer);

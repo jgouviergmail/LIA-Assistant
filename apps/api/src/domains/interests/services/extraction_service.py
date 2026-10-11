@@ -67,8 +67,11 @@ from src.domains.agents.utils.json_parser import extract_json_from_llm_response
 from src.domains.interests.repository import InterestRepository
 from src.domains.interests.schemas import ExtractedInterest
 from src.domains.interests.services.action_applier import (
-    apply_interest_actions,
     find_similar_interest,
+)
+from src.domains.interests.services.extraction_storage import (
+    capture_interest_revision,
+    store_interest_extraction,
 )
 from src.domains.llm_config.jev_registry import JevUsage
 from src.domains.shared.extraction_targets import (
@@ -712,6 +715,10 @@ async def extract_interests_background(
         ... )
     """
     try:
+        actor_id = UUID(user_id)
+        revision = await capture_interest_revision(get_db_context, actor_id)
+        if revision is None:
+            return 0
         # Run core analysis (uses cache if available)
         analysis = await _analyze_interests_core(
             user_id=user_id,
@@ -756,37 +763,15 @@ async def extract_interests_background(
             )
             return 0
 
-        # Process each extracted interest action (create/update/delete)
-        user_uuid = UUID(user_id)
-
-        async with get_db_context() as db:
-            repo = InterestRepository(db)
-
-            # Deduplication candidates: EVERY status (blocked and dormant rows
-            # included), otherwise a rejected subject is silently re-created —
-            # see services/action_applier for the production timeline.
-            existing_interests = await repo.get_for_dedup(
-                user_uuid, limit=settings.interest_dedup_scan_limit
-            )
-            stored_count = await apply_interest_actions(
-                repo,
-                user_id=user_id,
-                actions=analysis.extracted_interests,
-                existing_interests=existing_interests,
-                conversation_id=conversation_id,
-            )
-
-            await db.commit()
-
-            logger.info(
-                "interest_extraction_completed",
-                user_id=user_id,
-                session_id=session_id,
-                extracted_count=len(analysis.extracted_interests),
-                stored_count=stored_count,
-            )
-
-            return stored_count
+        return await store_interest_extraction(
+            get_db_context,
+            actor_id,
+            revision,
+            analysis.extracted_interests,
+            session_id=session_id,
+            conversation_id=conversation_id,
+            run_id=parent_run_id,
+        )
 
     except Exception as e:
         logger.error(

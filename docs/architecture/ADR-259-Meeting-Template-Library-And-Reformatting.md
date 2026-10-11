@@ -97,6 +97,23 @@ explainable (`MeetingPendingPanel`: the error, a retry on the same template,
 a delete), and the reaper now clears a regeneration whose lease expired
 (`clear_stale_regenerations`) — fact 4 closed.
 
+Regeneration ownership was strengthened during the native application-tools
+integration. Each queued rebuild is claimed by one unique worker token and
+renewed through `heartbeat_at`; the database clock determines its lifetime.
+Publication and failure require that same live owner. The reaper clears expired
+owners, and a late result cannot overwrite a newer rebuild. Legacy queued rows
+without a heartbeat retain their original timestamp-based expiry. The existing
+account quota check precedes template preparation and the model call. A lost
+heartbeat cancels model work; captured paid attempts still use the original
+failure-accounting path. A known saved publication alone schedules indexing.
+
+The transitions live in
+`apps/api/src/domains/meetings/regeneration_repository.py`, composed into the
+original repository; the API keeps its existing status/stage response. Controlled
+PostgreSQL workers verify quota refusal, duplicate launch, expired ownership,
+stale publication and cancellation. No schema migration or new provider is
+required for these guards.
+
 ### The minutes leave from the platform
 
 `send_minutes_email` sends from `APPLICATION_SMTP_FROM` through

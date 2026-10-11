@@ -22,7 +22,8 @@ export interface ConnectorsResponse {
 }
 
 export interface ConnectorPreferences {
-  [key: string]: string;
+  default_calendar_name?: string | null;
+  default_task_list_name?: string | null;
 }
 
 /**

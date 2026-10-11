@@ -1,23 +1,18 @@
 import Link from 'next/link';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { ArrowRight } from 'lucide-react';
 import { initI18next } from '@/i18n';
 import { FadeInOnScroll } from './FadeInOnScroll';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import type { Language } from '@/i18n/settings';
-import { BLOG_ARTICLES, type BlogArticle, type BlogCategory } from '@/data/blog-articles';
+import { BLOG_ARTICLES, type BlogArticle } from '@/data/blog-articles';
 import { ShuffledBlogGrid } from './ShuffledBlogGrid';
+import { ARTICLE_IMAGE_DEFAULT_WIDTH, articleImageSrc } from '@/lib/blog/article-images';
 
 interface BlogPreviewSectionProps {
   lng: string;
 }
-
-export const CATEGORY_BADGE: Record<BlogCategory, string> = {
-  architecture: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  integrations: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-  features: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
-  security: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-  technical: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-};
 
 /** Always-shown articles in fixed first positions */
 const PINNED_SLUGS = ['react-execution-mode', 'multi-agent-orchestration'];
@@ -34,6 +29,11 @@ export async function BlogPreviewSection({ lng }: BlogPreviewSectionProps) {
   );
 
   const pool = BLOG_ARTICLES.filter(a => !PINNED_SLUGS.includes(a.slug));
+  const illustratedSlugs = BLOG_ARTICLES.filter(article =>
+    existsSync(
+      join(process.cwd(), 'public', articleImageSrc(article.slug, ARTICLE_IMAGE_DEFAULT_WIDTH))
+    )
+  ).map(article => article.slug);
 
   const translations: Record<
     string,
@@ -71,6 +71,7 @@ export async function BlogPreviewSection({ lng }: BlogPreviewSectionProps) {
           displayCount={DISPLAY_COUNT}
           translations={translations}
           lng={lng}
+          illustratedSlugs={illustratedSlugs}
         />
 
         <FadeInOnScroll>

@@ -40,6 +40,7 @@ from src.core.exceptions import (
     raise_user_not_verified,
 )
 from src.core.i18n import declare_language
+from src.core.session_freshness import step_up_is_fresh
 from src.domains.users.models import User
 from src.domains.users.repository import UserRepository
 from src.infrastructure.cache.redis import get_redis_session
@@ -149,7 +150,7 @@ async def _authenticate(
         await session_store.delete_session(session.session_id)
         logger.warning(
             "orphan_session_deleted",
-            session_id=session.session_id,
+            display_id=session.display_id,
             user_id=session.user_id,
         )
         raise_session_invalid()
@@ -159,7 +160,7 @@ async def _authenticate(
 
     logger.debug(
         "session_authenticated_user_fetched",
-        session_id=session.session_id,
+        display_id=session.display_id,
         user_id=str(user.id),
         email=user.email,
         is_verified=user.is_verified,
@@ -333,15 +334,12 @@ async def require_recent_step_up(
     assert lia_session is not None  # get_current_active_session already required it
 
     session = await session_store.get_session(lia_session)
-    if session is None or session.step_up_at is None:
+    if session is None or session.user_id != str(user.id):
         raise_step_up_required()
-
-    age_seconds = (datetime.now(UTC) - session.step_up_at).total_seconds()
-    if age_seconds > settings.step_up_window_seconds:
+    if not step_up_is_fresh(session.step_up_at, datetime.now(UTC), settings.step_up_window_seconds):
         logger.debug(
             "step_up_expired",
-            session_id=lia_session,
-            age_seconds=int(age_seconds),
+            display_id=session.display_id,
         )
         raise_step_up_required()
 
@@ -385,7 +383,7 @@ async def get_optional_session(
     if user:
         logger.debug(
             "optional_user_found",
-            session_id=session.session_id,
+            display_id=session.display_id,
             user_id=str(user.id),
             email=user.email,
         )
@@ -395,7 +393,7 @@ async def get_optional_session(
         await session_store.delete_session(session.session_id)
         logger.debug(
             "optional_session_orphan_cleaned",
-            session_id=session.session_id,
+            display_id=session.display_id,
             user_id=session.user_id,
         )
 

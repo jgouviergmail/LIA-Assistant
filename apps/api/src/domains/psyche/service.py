@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import time as _time
 import zoneinfo
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
@@ -36,10 +37,8 @@ from src.domains.psyche.constants import (
     MOOD_EXPRESSION_GRAMMAR,
     PSYCHE_SCHEMA_VERSION,
     RELATIONSHIP_STAGE_DIRECTIVES,
-    RELATIONSHIP_STAGES,
     RESET_LEVEL_FULL,
     RESET_LEVEL_PURGE,
-    RESET_LEVEL_SOFT,
     SELF_EFFICACY_CONVERSATION_DOMAIN,
     SNAPSHOT_TYPE_MESSAGE,
 )
@@ -741,7 +740,13 @@ class PsycheService:
     # LLM Summary
     # =========================================================================
 
-    async def generate_summary(self, user_id: UUID, user_language: str) -> str:
+    async def generate_summary(
+        self,
+        user_id: UUID,
+        user_language: str,
+        *,
+        before_model: Callable[[], Awaitable[None]] | None = None,
+    ) -> str:
         """Generate a natural language summary of the current psyche state via LLM.
 
         Calls a lightweight LLM to produce 2-3 sentences describing the mood,
@@ -816,6 +821,8 @@ class PsycheService:
         started_at = time()
         pricing_snapshot = capture_pricing_snapshot()
         capture = TokenCaptureHandler(requested_model)
+        if before_model is not None:
+            await before_model()
         try:
             async with capture_spend_on_failure(
                 capture,
@@ -1014,27 +1021,9 @@ class PsycheService:
             dominance_center=settings.psyche_dominance_center,
         )
 
-        if level in (RESET_LEVEL_SOFT, RESET_LEVEL_FULL):
-            # Reset mood to baseline
-            state.mood_pleasure = baseline.pleasure
-            state.mood_arousal = baseline.arousal
-            state.mood_dominance = baseline.dominance
-            state.mood_quadrant_since = datetime.now(UTC)
-            state.active_emotions = []
-            state.last_appraisal = None
-            state.drive_curiosity = 0.5
-            state.drive_engagement = 0.5
+        from src.domains.psyche.reset_policy import apply_psyche_reset
 
-        if level == RESET_LEVEL_FULL:
-            # Also reset relationship and self-efficacy
-            state.relationship_stage = RELATIONSHIP_STAGES[0]
-            state.relationship_depth = 0.0
-            state.relationship_warmth_active = 0.5
-            state.relationship_trust = 0.3
-            state.relationship_interaction_count = 0
-            state.relationship_total_duration_minutes = 0.0
-            state.self_efficacy = PsycheEngine.initialize_self_efficacy()
-            state.narrative_identity = None
+        apply_psyche_reset(state, level, baseline)
 
         await self.repo.update(state)
 
@@ -1140,6 +1129,7 @@ class PsycheService:
             select(Personality)
             .join(User, User.personality_id == Personality.id)
             .where(User.id == user_id)
+            .execution_options(populate_existing=True)
         )
         personality = result.scalar_one_or_none()
 
@@ -1147,11 +1137,25 @@ class PsycheService:
             return PersonalityTraits(), None
 
         traits = PersonalityTraits(
-            openness=personality.trait_openness or 0.5,
-            conscientiousness=personality.trait_conscientiousness or 0.5,
-            extraversion=personality.trait_extraversion or 0.5,
-            agreeableness=personality.trait_agreeableness or 0.5,
-            neuroticism=personality.trait_neuroticism or 0.5,
+            openness=personality.trait_openness if personality.trait_openness is not None else 0.5,
+            conscientiousness=(
+                personality.trait_conscientiousness
+                if personality.trait_conscientiousness is not None
+                else 0.5
+            ),
+            extraversion=(
+                personality.trait_extraversion
+                if personality.trait_extraversion is not None
+                else 0.5
+            ),
+            agreeableness=(
+                personality.trait_agreeableness
+                if personality.trait_agreeableness is not None
+                else 0.5
+            ),
+            neuroticism=(
+                personality.trait_neuroticism if personality.trait_neuroticism is not None else 0.5
+            ),
         )
 
         pad_override = None

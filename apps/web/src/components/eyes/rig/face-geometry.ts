@@ -1,6 +1,7 @@
 /** Continuous facial contours. Geometry only: no clock, spring or DOM reads. */
 import { STROKE_CHANNELS } from './stroke-geometry';
 import type { ChannelKey, ChannelValues, EyeSide } from './channels';
+export { sculptedMouthContours, type SculptedMouthContours } from './sculpted-mouth';
 
 /** Channels read by the SVG projection, also checked by the boundary guard. */
 export const SVG_CHANNELS: readonly ChannelKey[] = [
@@ -13,6 +14,8 @@ export const SVG_CHANNELS: readonly ChannelKey[] = [
   'browArcR',
   'browRotL',
   'browRotR',
+  'browSL',
+  'browSR',
 ];
 
 function bounded(value: number, min: number, max: number): number {
@@ -39,4 +42,16 @@ export function browPath(v: Readonly<ChannelValues>, side: EyeSide): string {
   const arc = bounded(v[`browArc${side}`], 0, 1);
   const tilt = bounded(v[`browRot${side}`], -30, 30) * 0.5;
   return `M 7 ${n(22 - tilt)} C 29 ${n(22 - arc * 30 - tilt * 0.35)} 71 ${n(22 - arc * 30 + tilt * 0.35)} 93 ${n(22 + tilt)}`;
+}
+
+/** A full tapered cartoon brow, driven by the same continuous arch and tilt. */
+export function sculptedBrowPath(v: Readonly<ChannelValues>, side: EyeSide): string {
+  const mirrored = side === 'R';
+  const arc = bounded(v[`browArc${side}`], 0, 1);
+  const tilt = bounded(v[`browRot${side}`], -30, 30) * 0.65 * (mirrored ? -1 : 1);
+  const upper = 17 - arc * 25;
+  const weight = bounded(v[`browS${side}`], 0.94, 1.06);
+  const lower = upper + 20 * weight;
+  const point = (x: number, y: number) => `${mirrored ? 100 - x : x} ${n(y)}`;
+  return `M ${point(5, 22 - tilt)} C ${point(24, upper - tilt * 0.35)} ${point(68, upper + tilt * 0.35)} ${point(94, 22 + tilt)} Q ${point(99, 26 + tilt)} ${point(94, 22 + 9 * weight + tilt)} C ${point(70, lower + tilt * 0.35)} ${point(27, lower - tilt * 0.35)} ${point(8, 22 + 12 * weight - tilt)} Q ${point(1, 22 + 8 * weight - tilt)} ${point(5, 22 - tilt)} Z`;
 }

@@ -39,7 +39,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.constants import RESPONSE_FEEDBACK_JOURNAL_IDS_MAX
-from src.core.field_names import FIELD_INJECTED_JOURNAL_IDS, FIELD_RESPONSE_FEEDBACK
+from src.core.field_names import (
+    FIELD_INJECTED_JOURNAL_IDS,
+    FIELD_INJECTED_JOURNAL_REVISIONS,
+    FIELD_RESPONSE_FEEDBACK,
+)
 from src.domains.conversations.models import Conversation, ConversationMessage
 from src.infrastructure.observability.logging import get_logger
 
@@ -62,7 +66,15 @@ class JournalFeedbackHooks(Protocol):
     """
 
     async def apply_verdict(
-        self, db: AsyncSession, user_id: UUID, entry_ids: list[str], outcome: str
+        self,
+        db: AsyncSession,
+        user_id: UUID,
+        entry_ids: list[str],
+        outcome: str,
+        *,
+        expected_revisions: dict[str, int],
+        event_key: str,
+        evidence_source: str | None,
     ) -> int:
         """Increment the outcome counter on the user's entries; return count."""
         ...
@@ -103,6 +115,13 @@ async def get_assistant_message_for_user(
     )
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
+
+
+async def lock_feedback_owner(db: AsyncSession, user_id: UUID) -> None:
+    """Acquire the owner before the message and journal rows, consistently."""
+    from src.domains.users.models import User
+
+    await db.execute(select(User.id).where(User.id == user_id).with_for_update())
 
 
 async def persist_verdict(
@@ -157,6 +176,9 @@ async def apply_verdict_to_journals(
     user_id: UUID,
     metadata: dict[str, Any] | None,
     verdict: ResponseFeedbackVerdict,
+    *,
+    message_id: UUID | None = None,
+    conversation_id: UUID | None = None,
 ) -> int:
     """Feed the injected entries' evidence/contradiction counters (first verdict).
 
@@ -170,13 +192,36 @@ async def apply_verdict_to_journals(
         Number of entries actually updated.
     """
     raw_ids = (metadata or {}).get(FIELD_INJECTED_JOURNAL_IDS)
-    if not isinstance(raw_ids, list) or not raw_ids or not _journals_ready():
+    raw_revisions = (metadata or {}).get(FIELD_INJECTED_JOURNAL_REVISIONS)
+    if (
+        not isinstance(raw_ids, list)
+        or not raw_ids
+        or not isinstance(raw_revisions, dict)
+        or not message_id
+        or not _journals_ready()
+    ):
         return 0
     assert _journal_hooks is not None  # narrowed by _journals_ready
 
-    entry_ids = [str(rid) for rid in raw_ids[:RESPONSE_FEEDBACK_JOURNAL_IDS_MAX]]
+    entry_ids = list(dict.fromkeys(str(rid) for rid in raw_ids[:RESPONSE_FEEDBACK_JOURNAL_IDS_MAX]))
+    revisions = {
+        entry_id: revision
+        for entry_id in entry_ids
+        if isinstance(revision := raw_revisions.get(entry_id), int)
+        and not isinstance(revision, bool)
+        and revision > 0
+    }
+    entry_ids = [entry_id for entry_id in entry_ids if entry_id in revisions]
+    if not entry_ids:
+        return 0
     updated = await _journal_hooks.apply_verdict(
-        db, user_id, entry_ids, _VERDICT_TO_OUTCOME[verdict]
+        db,
+        user_id,
+        entry_ids,
+        _VERDICT_TO_OUTCOME[verdict],
+        expected_revisions=revisions,
+        event_key=f"response:{message_id}",
+        evidence_source=str(conversation_id) if conversation_id else None,
     )
     if updated:
         logger.info(

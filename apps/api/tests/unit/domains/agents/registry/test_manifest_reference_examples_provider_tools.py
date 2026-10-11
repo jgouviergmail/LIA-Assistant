@@ -200,23 +200,37 @@ def _tool_runtime() -> ToolRuntime:
 
 
 async def _run_create_reminder() -> UnifiedToolOutput:
-    """Drive ``create_reminder_tool`` with its service and session mocked away."""
-    service = MagicMock()
-    service.create_reminder = AsyncMock(return_value=_pending_reminder())
+    """Drive the temporal adapter and native draft, replacing only SQL boundaries."""
+    from src.domains.users.models import User
 
+    actor = User(
+        id=uuid.uuid4(),
+        email="reminder-proposal@example.test",
+        hashed_password="test",
+        is_active=True,
+        timezone="Europe/Paris",
+    )
     with (
         patch(
-            "src.infrastructure.database.session.get_db_context",
+            "src.domains.agents.tools.application_reminder_tools.get_db_context",
             return_value=_db_context_double(),
         ),
-        patch("src.domains.reminders.service.ReminderService", return_value=service),
+        patch(
+            "src.domains.agents.application.reminder_creation.load_actor",
+            AsyncMock(return_value=actor),
+        ),
+        patch(
+            "src.domains.agents.application.reminder_creation.require_application_tools",
+            AsyncMock(),
+        ),
+        patch("src.domains.agents.tools.application_reminder_tools.save_command", AsyncMock()),
     ):
         return await _drive(
             reminder_tools.create_reminder_tool,
             content="Rappeler le dentiste",
             original_message="rappelle-moi d'appeler le dentiste demain à 9h",
             runtime=_tool_runtime(),
-            trigger_datetime="2026-08-03T09:00:00+02:00",
+            trigger_datetime="2099-08-03T09:00:00+02:00",
         )
 
 
@@ -235,6 +249,8 @@ async def _run_list_reminders() -> UnifiedToolOutput:
             return_value=_db_context_double(),
         ),
         patch("src.domains.reminders.service.ReminderService", return_value=service),
+        patch("src.domains.agents.application.authorization.load_actor", AsyncMock()),
+        patch("src.domains.agents.application.availability.require_application_tools", AsyncMock()),
     ):
         return await _drive(reminder_tools.list_reminders_tool, runtime=_tool_runtime())
 

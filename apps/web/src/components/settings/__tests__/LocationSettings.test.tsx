@@ -10,14 +10,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
-import { queryResult, mutationResult, mutateSpy, setDataSpy } from '@/__tests__/api-mocks';
+import { mutationResult, mutateSpy } from '@/__tests__/api-mocks';
 import type { useGeolocation as useGeolocationFn } from '@/hooks/useGeolocation';
 import type { HomeLocation } from '../LocationSettings';
 
 const { useGeolocation } = vi.hoisted(() => ({ useGeolocation: vi.fn() }));
 vi.mock('@/hooks/useGeolocation', () => ({ useGeolocation }));
-const { useApiQuery } = vi.hoisted(() => ({ useApiQuery: vi.fn() }));
-vi.mock('@/hooks/useApiQuery', () => ({ useApiQuery }));
+const { useApplicationAccountQuery } = vi.hoisted(() => ({ useApplicationAccountQuery: vi.fn() }));
+vi.mock('@/hooks/useApplicationAccountQuery', () => ({ useApplicationAccountQuery }));
 const { useApiMutation } = vi.hoisted(() => ({ useApiMutation: vi.fn() }));
 vi.mock('@/hooks/useApiMutation', () => ({ useApiMutation }));
 const { toast } = vi.hoisted(() => ({
@@ -57,19 +57,23 @@ function geo(over: Partial<GeoHook> = {}) {
 /** Captured per test so assertions can target the right mutation. */
 let putMutate: ReturnType<typeof mutateSpy>;
 let deleteMutate: ReturnType<typeof mutateSpy>;
-let setHomeData: ReturnType<typeof setDataSpy<HomeLocation | null>>;
+let persistedHome: HomeLocation | null;
+const refetchHome = vi.fn(async () => {});
 
 function stubHome(data: HomeLocation | null) {
-  setHomeData = setDataSpy<HomeLocation | null>();
-  useApiQuery.mockReturnValue(queryResult<HomeLocation | null>({ data, setData: setHomeData }));
+  persistedHome = data;
+  useApplicationAccountQuery.mockImplementation(() => ({ data: persistedHome, ownerId: 'one', refetch: refetchHome }));
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
   useGeolocation.mockReturnValue(geo());
   stubHome(null);
-  putMutate = mutateSpy().mockResolvedValue({ address: '10 Downing St', lat: 51.5, lon: -0.12 });
-  deleteMutate = mutateSpy().mockResolvedValue(undefined);
+  putMutate = mutateSpy().mockImplementation(async () => {
+    persistedHome = { address: '10 Downing St', lat: 51.5, lon: -0.12 };
+    return persistedHome;
+  });
+  deleteMutate = mutateSpy().mockImplementation(async () => { persistedHome = null; });
   // The component instantiates two mutations; route them by HTTP method.
   useApiMutation.mockImplementation((opts: { method: string }) =>
     opts.method === 'PUT'
@@ -150,6 +154,17 @@ describe('LocationSettings — last-known location', () => {
 });
 
 describe('LocationSettings — home location', () => {
+  it('preserves a focused unsaved address when a confirmed native address arrives', async () => {
+    const { user, rerender } = renderWithProviders(<LocationSettings lng="en" />);
+    const input = screen.getByPlaceholderText('settings.location.home.placeholder');
+    await user.type(input, 'My unsaved address');
+    stubHome({ address: 'Confirmed address', lat: 4, lon: 5 });
+    rerender(<LocationSettings lng="en" />);
+    expect(screen.getByText('Confirmed address')).toBeInTheDocument();
+    expect(input).toBeInTheDocument();
+    expect(input).toHaveValue('My unsaved address');
+    expect(input).toHaveFocus();
+  });
   it('keeps save disabled while the address is blank', async () => {
     const { user } = renderWithProviders(<LocationSettings lng="en" />);
     const save = screen.getByRole('button', { name: 'common.save' });
@@ -172,14 +187,10 @@ describe('LocationSettings — home location', () => {
         lon: 0,
       })
     );
-    // Optimistic cache write with the server payload — no refetch.
-    expect(setHomeData).toHaveBeenCalledWith({
-      address: '10 Downing St',
-      lat: 51.5,
-      lon: -0.12,
-    });
+    expect(screen.getByText('10 Downing St')).toBeInTheDocument();
+    expect(refetchHome).toHaveBeenCalled();
     expect(toast.success).toHaveBeenCalledWith('settings.location.home.saved');
-    expect(input).toHaveValue('');
+    expect(input).not.toBeInTheDocument();
   });
 
   it('reports a save failure and leaves the cache untouched', async () => {
@@ -193,16 +204,18 @@ describe('LocationSettings — home location', () => {
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith('settings.location.home.save_error')
     );
-    expect(setHomeData).not.toHaveBeenCalled();
+    expect(screen.queryByText('10 Downing St')).not.toBeInTheDocument();
   });
 
   it('shows the stored address and clears it optimistically', async () => {
     stubHome({ address: '10 Downing St', lat: 51.5, lon: -0.12 });
-    const { user } = renderWithProviders(<LocationSettings lng="en" />);
+    const { user, rerender } = renderWithProviders(<LocationSettings lng="en" />);
     expect(screen.getByText('10 Downing St')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'common.delete' }));
     await waitFor(() => expect(deleteMutate).toHaveBeenCalledWith(HOME_ENDPOINT, undefined));
-    expect(setHomeData).toHaveBeenCalledWith(null);
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('settings.location.home.cleared'));
+    rerender(<LocationSettings lng="en" />);
+    await waitFor(() => expect(screen.queryByText('10 Downing St')).not.toBeInTheDocument());
     expect(toast.success).toHaveBeenCalledWith('settings.location.home.cleared');
   });
 
@@ -214,6 +227,6 @@ describe('LocationSettings — home location', () => {
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith('settings.location.home.clear_error')
     );
-    expect(setHomeData).not.toHaveBeenCalled();
+    expect(screen.getByText('10 Downing St')).toBeInTheDocument();
   });
 });

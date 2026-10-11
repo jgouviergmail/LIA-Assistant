@@ -19,6 +19,7 @@ vi.mock('@/hooks/useInterests', async importOriginal => {
 });
 const { toast } = vi.hoisted(() => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('sonner', () => ({ toast }));
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'owned-interest-account' } }) }));
 
 import { InterestsSettings } from '../InterestsSettings';
 import type { Interest, useInterests as useInterestsFn } from '@/hooks/useInterests';

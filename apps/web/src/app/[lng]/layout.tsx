@@ -20,6 +20,7 @@ import { ThemeInitScript } from '@/components/theme-init-script';
 import { ColorThemeProvider } from '@/lib/theme-context';
 import { FontProvider } from '@/lib/font-context';
 import { FontPreferencesSync } from '@/components/settings/FontPreferencesSync';
+import { ColorPreferencesSync } from '@/components/settings/ColorPreferencesSync';
 import { TranslationsProvider } from '@/components/TranslationsProvider';
 import { fontVariables } from '@/lib/fonts';
 import { Toaster } from '@/components/ui/toaster';
@@ -144,6 +145,7 @@ export default async function LanguageLayout({ children, params }: LayoutProps) 
                         <TelemetryBootstrap />
                         <PresencePing />
                         <FontPreferencesSync />
+                        <ColorPreferencesSync />
                         {/* The landing video's one element for the whole
                             visit (ADR-330, amended): framed on the landing,
                             docked on the other public pages, gone on sign-in

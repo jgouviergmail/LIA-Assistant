@@ -64,13 +64,23 @@ KNOWN_UNDECLARED_IDENTITY_BRIDGES: frozenset[tuple[str, str]] = frozenset(
         # initiative after EVERY contact resolution (contacts are usually
         # mid-plan lookups, not the turn's subject). Revisit with usage data.
         ("contact", "weather"),
+        # Gallery names identify a peer who SHARED a file, never its subject or
+        # an assignee/call recipient. The fine-grained person_name pivot stays
+        # available for explicit requests; a gallery listing alone must not
+        # propose contacting that person or starting unrelated work. Product
+        # adjacency is deliberately independent from type compatibility (ADR-090).
+        ("generated_file", "contact"),
+        ("generated_file", "peer"),
+        ("generated_file", "task"),
+        ("generated_file", "telephony"),
     }
 )
 
-# Annotation floors (A-06) — measured 2026-08-19; may only rise.
-MIN_ANNOTATED_PARAMS = 125
-MIN_ANNOTATED_OUTPUTS = 145
-MIN_CONSUMED_ONTOLOGY_TYPES = 71
+# Annotation floors (A-06) — measured 2026-10-06 over the complete collector.
+# Descriptive Text annotations count here; they are not automatic pivots.
+MIN_ANNOTATED_PARAMS = 212
+MIN_ANNOTATED_OUTPUTS = 387
+MIN_CONSUMED_ONTOLOGY_TYPES = 93
 
 
 @pytest.fixture(scope="module")
@@ -192,7 +202,7 @@ class TestNewAdjacencies:
 
     @pytest.mark.parametrize(
         ("domain", "related"),
-        [("event", "email"), ("task", "contact")],
+        [("event", "email"), ("task", "contact"), ("file", "event")],
     )
     def test_adjacency_declared(self, domain: str, related: str) -> None:
         assert related in DOMAIN_REGISTRY[domain].related_domains, (

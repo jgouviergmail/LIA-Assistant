@@ -19,6 +19,7 @@ export const PROPOSAL_REFUSAL_CODES: ReadonlySet<string> = new Set([
   'skill_proposal_quota_reached',
   'skill_proposal_invalid',
   'skill_proposal_unavailable',
+  'skill_proposal_completion_unknown',
 ]);
 
 /**

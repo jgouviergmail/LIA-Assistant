@@ -1,0 +1,3791 @@
+{
+  "metadata": {
+    "utc": "2026-10-06T10:37:40.982957+00:00",
+    "provider": "llamacpp",
+    "base": "http://host.docker.internal:12911",
+    "model": "lia-qa-qwen3",
+    "libraries": {
+      "httpx": "0.28.1",
+      "openai": "2.54.0",
+      "langchain-openai": "1.5.2",
+      "langchain-core": "1.5.6",
+      "pydantic": "2.13.4"
+    }
+  },
+  "cases": [
+    {
+      "case": "required_tool_and_result_roundtrip",
+      "passed": true,
+      "error": null,
+      "seconds": 0.95,
+      "observation": {
+        "request": {
+          "model": "lia-qa-qwen3",
+          "messages": [
+            {
+              "role": "user",
+              "content": "Call echo_marker with marker probe. Do not answer directly. /no_think"
+            }
+          ],
+          "temperature": 0,
+          "max_tokens": 160,
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "echo_marker",
+                "description": "Return the marker supplied by the caller.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "marker": {
+                      "type": "string",
+                      "enum": [
+                        "probe"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "marker"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          ],
+          "tool_choice": "required"
+        },
+        "http_status": 200,
+        "response": {
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [
+                  {
+                    "type": "function",
+                    "function": {
+                      "name": "echo_marker",
+                      "arguments": "{\"marker\": \"probe\"}"
+                    },
+                    "id": "N2Sq0xOID9qWhrLkIru0flQyunIrd2H4"
+                  }
+                ]
+              }
+            }
+          ],
+          "created": 1791283062,
+          "model": "lia-qa-qwen3",
+          "system_fingerprint": "b11429-d81235049",
+          "object": "chat.completion",
+          "usage": {
+            "completion_tokens": 20,
+            "prompt_tokens": 179,
+            "total_tokens": 199,
+            "prompt_tokens_details": {
+              "cached_tokens": 178
+            }
+          },
+          "id": "chatcmpl-0rdvJq2FX92mRvpdwJEQczRdMm5xaWEo",
+          "timings": {
+            "cache_n": 178,
+            "prompt_n": 1,
+            "prompt_ms": 45.685,
+            "prompt_per_token_ms": 45.685,
+            "prompt_per_second": 21.889022655138447,
+            "predicted_n": 20,
+            "predicted_ms": 506.677,
+            "predicted_per_token_ms": 26.66721052631579,
+            "predicted_per_second": 37.49923521296605
+          }
+        },
+        "roundtrip": {
+          "request": {
+            "model": "lia-qa-qwen3",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Call echo_marker with marker probe. Do not answer directly. /no_think"
+              },
+              {
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [
+                  {
+                    "type": "function",
+                    "function": {
+                      "name": "echo_marker",
+                      "arguments": "{\"marker\": \"probe\"}"
+                    },
+                    "id": "N2Sq0xOID9qWhrLkIru0flQyunIrd2H4"
+                  }
+                ]
+              },
+              {
+                "role": "tool",
+                "tool_call_id": "N2Sq0xOID9qWhrLkIru0flQyunIrd2H4",
+                "content": "{\"marker\":\"probe\",\"success\":true}"
+              }
+            ],
+            "temperature": 0,
+            "max_tokens": 160
+          },
+          "http_status": 200,
+          "response": {
+            "choices": [
+              {
+                "finish_reason": "stop",
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "The marker probe has been successfully marked."
+                }
+              }
+            ],
+            "created": 1791283062,
+            "model": "lia-qa-qwen3",
+            "system_fingerprint": "b11429-d81235049",
+            "object": "chat.completion",
+            "usage": {
+              "completion_tokens": 9,
+              "prompt_tokens": 69,
+              "total_tokens": 78,
+              "prompt_tokens_details": {
+                "cached_tokens": 68
+              }
+            },
+            "id": "chatcmpl-YWutyM0LFcJEyrQcuFay0FyUpzBOPI4p",
+            "timings": {
+              "cache_n": 68,
+              "prompt_n": 1,
+              "prompt_ms": 18.333,
+              "prompt_per_token_ms": 18.333,
+              "prompt_per_second": 54.54644629902362,
+              "predicted_n": 9,
+              "predicted_ms": 195.068,
+              "predicted_per_token_ms": 24.3835,
+              "predicted_per_second": 41.011339635409186
+            }
+          }
+        }
+      }
+    },
+    {
+      "case": "streamed_required_tool_fragments",
+      "passed": true,
+      "error": null,
+      "seconds": 0.574,
+      "observation": {
+        "request": {
+          "model": "lia-qa-qwen3",
+          "messages": [
+            {
+              "role": "user",
+              "content": "Call echo_marker with marker probe. Do not answer directly. /no_think"
+            }
+          ],
+          "temperature": 0,
+          "max_tokens": 160,
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "echo_marker",
+                "description": "Return the marker supplied by the caller.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "marker": {
+                      "type": "string",
+                      "enum": [
+                        "probe"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "marker"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          ],
+          "tool_choice": "required"
+        },
+        "http_status": 200,
+        "events": [
+          {
+            "choices": [
+              {
+                "finish_reason": null,
+                "index": 0,
+                "delta": {
+                  "role": "assistant",
+                  "content": null
+                }
+              }
+            ],
+            "created": 1791283062,
+            "id": "chatcmpl-uMsqHapCjAhVFnpAbMJTl7kCHeDoPYQB",
+            "model": "lia-qa-qwen3",
+            "system_fingerprint": "b11429-d81235049",
+            "object": "chat.completion.chunk"
+          },
+          {
+            "choices": [
+              {
+                "finish_reason": null,
+                "index": 0,
+                "delta": {
+                  "tool_calls": [
+                    {
+                      "index": 0,
+                      "id": "VuFnwHR2bKn35iNbwohxOzlu1U0VfLZl",
+                      "type": "function",
+                      "function": {
+                        "name": "echo_marker",
+                        "arguments": "{"
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "created": 1791283062,
+            "id": "chatcmpl-uMsqHapCjAhVFnpAbMJTl7kCHeDoPYQB",
+            "model": "lia-qa-qwen3",
+            "system_fingerprint": "b11429-d81235049",
+            "object": "chat.completion.chunk"
+          },
+          {
+            "choices": [
+              {
+                "finish_reason": null,
+                "index": 0,
+                "delta": {
+                  "tool_calls": [
+                    {
+                      "index": 0,
+                      "function": {
+                        "arguments": "\""
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "created": 1791283062,
+            "id": "chatcmpl-uMsqHapCjAhVFnpAbMJTl7kCHeDoPYQB",
+            "model": "lia-qa-qwen3",
+            "system_fingerprint": "b11429-d81235049",
+            "object": "chat.completion.chunk"
+          },
+          {
+            "choices": [
+              {
+                "finish_reason": null,
+                "index": 0,
+                "delta": {
+                  "tool_calls": [
+                    {
+                      "index": 0,
+                      "function": {
+                        "arguments": "marker"
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "created": 1791283062,
+            "id": "chatcmpl-uMsqHapCjAhVFnpAbMJTl7kCHeDoPYQB",
+            "model": "lia-qa-qwen3",
+            "system_fingerprint": "b11429-d81235049",
+            "object": "chat.completion.chunk"
+          },
+          {
+            "choices": [
+              {
+                "finish_reason": null,
+                "index": 0,
+                "delta": {
+                  "tool_calls": [
+                    {
+                      "index": 0,
+                      "function": {
+                        "arguments": "\":"
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "created": 1791283062,
+            "id": "chatcmpl-uMsqHapCjAhVFnpAbMJTl7kCHeDoPYQB",
+            "model": "lia-qa-qwen3",
+            "system_fingerprint": "b11429-d81235049",
+            "object": "chat.completion.chunk"
+          },
+          {
+            "choices": [
+              {
+                "finish_reason": null,
+                "index": 0,
+                "delta": {
+                  "tool_calls": [
+                    {
+                      "index": 0,
+                      "function": {
+                        "arguments": " \""
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "created": 1791283062,
+            "id": "chatcmpl-uMsqHapCjAhVFnpAbMJTl7kCHeDoPYQB",
+            "model": "lia-qa-qwen3",
+            "system_fingerprint": "b11429-d81235049",
+            "object": "chat.completion.chunk"
+          },
+          {
+            "choices": [
+              {
+                "finish_reason": null,
+                "index": 0,
+                "delta": {
+                  "tool_calls": [
+                    {
+                      "index": 0,
+                      "function": {
+                        "arguments": "probe"
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "created": 1791283062,
+            "id": "chatcmpl-uMsqHapCjAhVFnpAbMJTl7kCHeDoPYQB",
+            "model": "lia-qa-qwen3",
+            "system_fingerprint": "b11429-d81235049",
+            "object": "chat.completion.chunk"
+          },
+          {
+            "choices": [
+              {
+                "finish_reason": null,
+                "index": 0,
+                "delta": {
+                  "tool_calls": [
+                    {
+                      "index": 0,
+                      "function": {
+                        "arguments": "\"}"
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "created": 1791283062,
+            "id": "chatcmpl-uMsqHapCjAhVFnpAbMJTl7kCHeDoPYQB",
+            "model": "lia-qa-qwen3",
+            "system_fingerprint": "b11429-d81235049",
+            "object": "chat.completion.chunk"
+          },
+          {
+            "choices": [
+              {
+                "finish_reason": "tool_calls",
+                "index": 0,
+                "delta": {}
+              }
+            ],
+            "created": 1791283062,
+            "id": "chatcmpl-uMsqHapCjAhVFnpAbMJTl7kCHeDoPYQB",
+            "model": "lia-qa-qwen3",
+            "system_fingerprint": "b11429-d81235049",
+            "object": "chat.completion.chunk"
+          },
+          {
+            "choices": [],
+            "created": 1791283062,
+            "id": "chatcmpl-uMsqHapCjAhVFnpAbMJTl7kCHeDoPYQB",
+            "model": "lia-qa-qwen3",
+            "system_fingerprint": "b11429-d81235049",
+            "object": "chat.completion.chunk",
+            "usage": {
+              "completion_tokens": 20,
+              "prompt_tokens": 179,
+              "total_tokens": 199,
+              "prompt_tokens_details": {
+                "cached_tokens": 178
+              }
+            },
+            "timings": {
+              "cache_n": 178,
+              "prompt_n": 1,
+              "prompt_ms": 26.833,
+              "prompt_per_token_ms": 26.833,
+              "prompt_per_second": 37.267543696194984,
+              "predicted_n": 20,
+              "predicted_ms": 518.752,
+              "predicted_per_token_ms": 27.30273684210526,
+              "predicted_per_second": 36.62636481401518
+            }
+          }
+        ],
+        "done": true
+      }
+    },
+    {
+      "case": "streamed_auto_tool_fragments",
+      "passed": true,
+      "error": null,
+      "seconds": 0.55,
+      "observation": {
+        "request": {
+          "model": "lia-qa-qwen3",
+          "messages": [
+            {
+              "role": "user",
+              "content": "Call echo_marker with marker probe. Do not answer directly. /no_think"
+            }
+          ],
+          "temperature": 0,
+          "max_tokens": 160,
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "echo_marker",
+                "description": "Return the marker supplied by the caller.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "marker": {
+                      "type": "string",
+                      "enum": [
+                        "probe"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "marker"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          ],
+          "tool_choice": "auto"
+        },
+        "http_status": 200,
+        "events": [
+          {
+            "choices": [
+              {
+                "finish_reason": null,
+                "index": 0,
+                "delta": {
+                  "role": "assistant",
+                  "content": null
+                }
+              }
+            ],
+            "created": 1791283062,
+            "id": "chatcmpl-cJTQuhEVoPWagbxL4ekzXaGhGjrDM1UF",
+            "model": "lia-qa-qwen3",
+            "system_fingerprint": "b11429-d81235049",
+            "object": "chat.completion.chunk"
+          },
+          {
+            "choices": [
+              {
+                "finish_reason": null,
+                "index": 0,
+                "delta": {
+                  "tool_calls": [
+                    {
+                      "index": 0,
+                      "id": "bth5qUN0D0EwRE3DdewiwejOi1qp1rTW",
+                      "type": "function",
+                      "function": {
+                        "name": "echo_marker",
+                        "arguments": "{"
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "created": 1791283063,
+            "id": "chatcmpl-cJTQuhEVoPWagbxL4ekzXaGhGjrDM1UF",
+            "model": "lia-qa-qwen3",
+            "system_fingerprint": "b11429-d81235049",
+            "object": "chat.completion.chunk"
+          },
+          {
+            "choices": [
+              {
+                "finish_reason": null,
+                "index": 0,
+                "delta": {
+                  "tool_calls": [
+                    {
+                      "index": 0,
+                      "function": {
+                        "arguments": "\""
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "created": 1791283063,
+            "id": "chatcmpl-cJTQuhEVoPWagbxL4ekzXaGhGjrDM1UF",
+            "model": "lia-qa-qwen3",
+            "system_fingerprint": "b11429-d81235049",
+            "object": "chat.completion.chunk"
+          },
+          {
+            "choices": [
+              {
+                "finish_reason": null,
+                "index": 0,
+                "delta": {
+                  "tool_calls": [
+                    {
+                      "index": 0,
+                      "function": {
+                        "arguments": "marker"
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "created": 1791283063,
+            "id": "chatcmpl-cJTQuhEVoPWagbxL4ekzXaGhGjrDM1UF",
+            "model": "lia-qa-qwen3",
+            "system_fingerprint": "b11429-d81235049",
+            "object": "chat.completion.chunk"
+          },
+          {
+            "choices": [
+              {
+                "finish_reason": null,
+                "index": 0,
+                "delta": {
+                  "tool_calls": [
+                    {
+                      "index": 0,
+                      "function": {
+                        "arguments": "\":"
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "created": 1791283063,
+            "id": "chatcmpl-cJTQuhEVoPWagbxL4ekzXaGhGjrDM1UF",
+            "model": "lia-qa-qwen3",
+            "system_fingerprint": "b11429-d81235049",
+            "object": "chat.completion.chunk"
+          },
+          {
+            "choices": [
+              {
+                "finish_reason": null,
+                "index": 0,
+                "delta": {
+                  "tool_calls": [
+                    {
+                      "index": 0,
+                      "function": {
+                        "arguments": " \""
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "created": 1791283063,
+            "id": "chatcmpl-cJTQuhEVoPWagbxL4ekzXaGhGjrDM1UF",
+            "model": "lia-qa-qwen3",
+            "system_fingerprint": "b11429-d81235049",
+            "object": "chat.completion.chunk"
+          },
+          {
+            "choices": [
+              {
+                "finish_reason": null,
+                "index": 0,
+                "delta": {
+                  "tool_calls": [
+                    {
+                      "index": 0,
+                      "function": {
+                        "arguments": "probe"
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "created": 1791283063,
+            "id": "chatcmpl-cJTQuhEVoPWagbxL4ekzXaGhGjrDM1UF",
+            "model": "lia-qa-qwen3",
+            "system_fingerprint": "b11429-d81235049",
+            "object": "chat.completion.chunk"
+          },
+          {
+            "choices": [
+              {
+                "finish_reason": null,
+                "index": 0,
+                "delta": {
+                  "tool_calls": [
+                    {
+                      "index": 0,
+                      "function": {
+                        "arguments": "\"}"
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "created": 1791283063,
+            "id": "chatcmpl-cJTQuhEVoPWagbxL4ekzXaGhGjrDM1UF",
+            "model": "lia-qa-qwen3",
+            "system_fingerprint": "b11429-d81235049",
+            "object": "chat.completion.chunk"
+          },
+          {
+            "choices": [
+              {
+                "finish_reason": "tool_calls",
+                "index": 0,
+                "delta": {}
+              }
+            ],
+            "created": 1791283063,
+            "id": "chatcmpl-cJTQuhEVoPWagbxL4ekzXaGhGjrDM1UF",
+            "model": "lia-qa-qwen3",
+            "system_fingerprint": "b11429-d81235049",
+            "object": "chat.completion.chunk"
+          },
+          {
+            "choices": [],
+            "created": 1791283063,
+            "id": "chatcmpl-cJTQuhEVoPWagbxL4ekzXaGhGjrDM1UF",
+            "model": "lia-qa-qwen3",
+            "system_fingerprint": "b11429-d81235049",
+            "object": "chat.completion.chunk",
+            "usage": {
+              "completion_tokens": 20,
+              "prompt_tokens": 179,
+              "total_tokens": 199,
+              "prompt_tokens_details": {
+                "cached_tokens": 178
+              }
+            },
+            "timings": {
+              "cache_n": 178,
+              "prompt_n": 1,
+              "prompt_ms": 25.727,
+              "prompt_per_token_ms": 25.727,
+              "prompt_per_second": 38.86966999650173,
+              "predicted_n": 20,
+              "predicted_ms": 498.013,
+              "predicted_per_token_ms": 26.21121052631579,
+              "predicted_per_second": 38.15161451608693
+            }
+          }
+        ],
+        "done": true
+      }
+    },
+    {
+      "case": "installed_langchain_required_tools",
+      "passed": true,
+      "error": null,
+      "seconds": 1.554,
+      "observation": {
+        "message": {
+          "content": "",
+          "additional_kwargs": {
+            "refusal": null
+          },
+          "response_metadata": {
+            "token_usage": {
+              "completion_tokens": 20,
+              "prompt_tokens": 179,
+              "total_tokens": 199,
+              "completion_tokens_details": null,
+              "prompt_tokens_details": {
+                "audio_tokens": null,
+                "cache_write_tokens": null,
+                "cached_tokens": 178
+              }
+            },
+            "model_provider": "openai",
+            "model_name": "lia-qa-qwen3",
+            "system_fingerprint": "b11429-d81235049",
+            "id": "chatcmpl-zXQDrwVUgisozwXA3y1i1ntHsoTrTojL",
+            "finish_reason": "tool_calls",
+            "logprobs": null
+          },
+          "type": "ai",
+          "name": null,
+          "id": "lc_run--01a110ca-6e86-7223-b88a-b0994d894f55-0",
+          "tool_calls": [
+            {
+              "name": "echo_marker",
+              "args": {
+                "marker": "probe"
+              },
+              "id": "PjlJdkBAYRIvsk7QoUXu9aJ0yqF4axtB",
+              "type": "tool_call"
+            }
+          ],
+          "invalid_tool_calls": [],
+          "usage_metadata": {
+            "input_tokens": 179,
+            "output_tokens": 20,
+            "total_tokens": 199,
+            "input_token_details": {
+              "cache_read": 178
+            },
+            "output_token_details": {}
+          }
+        }
+      }
+    },
+    {
+      "case": "full_lia_execution_plan_schema",
+      "passed": true,
+      "error": null,
+      "seconds": 14.86,
+      "observation": {
+        "request": {
+          "model": "lia-qa-qwen3",
+          "messages": [
+            {
+              "role": "user",
+              "content": "Output exactly this JSON document: {\"plan_id\": \"probe\", \"user_id\": \"probe\", \"session_id\": \"probe\", \"steps\": [], \"metadata\": {\"needs_clarification\": true}}. /no_think"
+            }
+          ],
+          "temperature": 0,
+          "max_tokens": 320,
+          "response_format": {
+            "type": "json_schema",
+            "json_schema": {
+              "name": "ExecutionPlan",
+              "strict": true,
+              "schema": {
+                "$defs": {
+                  "ExecutionStep": {
+                    "description": "One execution step of a multi-agent plan.\n\nAn atomic action to run:\n- a tool call through an agent (TOOL)\n- a conditional branch (CONDITIONAL)\n- a new plan (REPLAN, future)\n- a human approval (HUMAN, future)\n\nMutable on purpose (``frozen=False``): steps may be adjusted during execution.\n\nAttributes:\n    step_id: Unique step identifier (e.g. \"step_1\", \"step_2\")\n    step_type: Step type (TOOL, CONDITIONAL, etc.)\n    agent_name: The agent in charge (e.g. \"contacts_agent\")\n    tool_name: The tool to run (when step_type=TOOL)\n    parameters: Tool parameters (may contain $steps.X references)\n    depends_on: The step_ids this step depends on\n    condition: Conditional expression (when step_type=CONDITIONAL)\n    on_success: Step_id to run on success (for CONDITIONAL)\n    on_fail: Step_id to run on failure (for CONDITIONAL)\n    timeout_seconds: Execution timeout (None = no timeout)\n    approvals_required: When True, HITL approval is required\n    description: Text description of the step (for UI/logs)\n\nExamples:\n    >>> # TOOL step\n    >>> step1 = ExecutionStep(\n    ...     step_id=\"step_1\",\n    ...     step_type=StepType.TOOL,\n    ...     agent_name=\"contacts_agent\",\n    ...     tool_name=\"search_contacts_tool\",\n    ...     parameters={\"query\": \"John\"},\n    ...     description=\"Search contacts named John\"\n    ... )\n\n    >>> # TOOL step with reference\n    >>> step2 = ExecutionStep(\n    ...     step_id=\"step_2\",\n    ...     step_type=StepType.TOOL,\n    ...     agent_name=\"contacts_agent\",\n    ...     tool_name=\"get_contact_details_tool\",\n    ...     parameters={\"resource_name\": \"$steps.step_1.contacts[0].resource_name\"},\n    ...     depends_on=[\"step_1\"],\n    ...     description=\"Get the details of the first contact found\"\n    ... )\n\n    >>> # CONDITIONAL step\n    >>> step3 = ExecutionStep(\n    ...     step_id=\"step_3\",\n    ...     step_type=StepType.CONDITIONAL,\n    ...     condition=\"len($steps.step_1.contacts) > 1\",\n    ...     on_success=\"step_4\",\n    ...     on_fail=\"step_5\",\n    ...     depends_on=[\"step_1\"],\n    ...     description=\"Check whether several contacts were found\"\n    ... )",
+                    "properties": {
+                      "step_id": {
+                        "description": "Unique step identifier (e.g. 'step_1', 'search_contacts')",
+                        "title": "Step Id",
+                        "type": "string"
+                      },
+                      "step_type": {
+                        "$ref": "#/$defs/StepType",
+                        "description": "Step type (TOOL, CONDITIONAL, etc.)"
+                      },
+                      "agent_name": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Agent name (required for TOOL)",
+                        "title": "Agent Name"
+                      },
+                      "tool_name": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Tool name (required for TOOL)",
+                        "title": "Tool Name"
+                      },
+                      "parameters": {
+                        "additionalProperties": true,
+                        "description": "Tool parameters (may contain $steps.X references)",
+                        "title": "Parameters",
+                        "type": "object"
+                      },
+                      "depends_on": {
+                        "description": "The step_ids this step depends on",
+                        "items": {
+                          "type": "string"
+                        },
+                        "title": "Depends On",
+                        "type": "array"
+                      },
+                      "condition": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Safe Python conditional expression (required for CONDITIONAL)",
+                        "title": "Condition"
+                      },
+                      "on_success": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Step_id to run when the condition is True",
+                        "title": "On Success"
+                      },
+                      "on_fail": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Step_id to run when the condition is False or fails",
+                        "title": "On Fail"
+                      },
+                      "timeout_seconds": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Execution timeout in seconds (None = no timeout)",
+                        "title": "Timeout Seconds"
+                      },
+                      "approvals_required": {
+                        "default": false,
+                        "description": "When True, HITL approval is required before execution",
+                        "title": "Approvals Required",
+                        "type": "boolean"
+                      },
+                      "description": {
+                        "default": "",
+                        "description": "Text description of the step (for UI/logs)",
+                        "title": "Description",
+                        "type": "string"
+                      },
+                      "for_each": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Reference to array to iterate over. E.g., '$steps.get_hotels.places'. When set, this step is expanded at runtime into N parallel steps.",
+                        "title": "For Each"
+                      },
+                      "for_each_max": {
+                        "description": "Maximum items to process (safety limit). Default 10, max 100.",
+                        "maximum": 100,
+                        "minimum": 1,
+                        "title": "For Each Max",
+                        "type": "integer"
+                      },
+                      "on_item_error": {
+                        "default": "continue",
+                        "description": "Behavior on item error during for_each iteration: 'continue' (skip failed, continue others), 'stop' (abort all on first failure), 'collect_errors' (continue but collect all errors).",
+                        "enum": [
+                          "continue",
+                          "stop",
+                          "collect_errors"
+                        ],
+                        "title": "On Item Error",
+                        "type": "string"
+                      },
+                      "delay_between_items_ms": {
+                        "default": 0,
+                        "description": "Delay in milliseconds between items for API rate limiting. 0 = parallel execution, >0 = sequential with delay.",
+                        "maximum": 10000,
+                        "minimum": 0,
+                        "title": "Delay Between Items Ms",
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "step_id",
+                      "step_type"
+                    ],
+                    "title": "ExecutionStep",
+                    "type": "object"
+                  },
+                  "StepType": {
+                    "description": "Step types an ExecutionPlan supports.\n\nMVP (Phase 1):\n- TOOL: runs a tool through an agent\n- CONDITIONAL: branches on results\n\nFuture (Phase 2):\n- REPLAN: the LLM planner regenerates the plan\n- HUMAN: asks for a HITL (Human-In-The-Loop) approval\n\nAttributes:\n    TOOL: a tool call through an agent\n    CONDITIONAL: evaluates a condition to branch\n    REPLAN: asks for a new plan (future)\n    HUMAN: interrupts for a human approval (future)",
+                    "enum": [
+                      "TOOL",
+                      "CONDITIONAL",
+                      "REPLAN",
+                      "HUMAN"
+                    ],
+                    "title": "StepType",
+                    "type": "string"
+                  }
+                },
+                "description": "A complete multi-agent execution plan.\n\nGenerated by the LLM planner, checked by the validator, run by the orchestrator.\n\nMutable on purpose (``frozen=False``): steps may be adjusted during execution.\n\nAttributes:\n    plan_id: Unique plan identifier (UUID)\n    user_id: The user's ID (for permissions and context)\n    session_id: Session ID (for conversational continuity)\n    steps: Ordered steps to run\n    execution_mode: Execution mode (\"sequential\" for the MVP, \"parallel\" in future)\n    max_cost_usd: Maximum allowed cost (validation)\n    estimated_cost_usd: Estimated cost, from the manifests\n    max_timeout_seconds: Global plan timeout\n    version: DSL format version (semver)\n    created_at: Creation timestamp\n    metadata: Additional metadata (query, intention, etc.)\n\nExamples:\n    >>> plan = ExecutionPlan(\n    ...     plan_id=str(uuid4()),\n    ...     user_id=\"user_123\",\n    ...     session_id=\"sess_456\",\n    ...     steps=[\n    ...         ExecutionStep(step_id=\"step_1\", step_type=StepType.TOOL, ...),\n    ...         ExecutionStep(step_id=\"step_2\", step_type=StepType.TOOL, ...),\n    ...     ],\n    ...     execution_mode=\"sequential\",\n    ...     max_cost_usd=1.0,\n    ...     estimated_cost_usd=0.002,\n    ... )",
+                "properties": {
+                  "plan_id": {
+                    "description": "Unique plan identifier (UUID)",
+                    "title": "Plan Id",
+                    "type": "string"
+                  },
+                  "user_id": {
+                    "description": "User ID (for permissions and context)",
+                    "title": "User Id",
+                    "type": "string"
+                  },
+                  "session_id": {
+                    "default": "",
+                    "description": "Session ID (for conversational continuity)",
+                    "title": "Session Id",
+                    "type": "string"
+                  },
+                  "steps": {
+                    "description": "Ordered steps to run. EMPTY when metadata has needs_clarification=True.",
+                    "items": {
+                      "$ref": "#/$defs/ExecutionStep"
+                    },
+                    "title": "Steps",
+                    "type": "array"
+                  },
+                  "execution_mode": {
+                    "default": "sequential",
+                    "description": "Execution mode (sequential for the MVP, parallel in future)",
+                    "enum": [
+                      "sequential",
+                      "parallel"
+                    ],
+                    "title": "Execution Mode",
+                    "type": "string"
+                  },
+                  "max_cost_usd": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "Maximum allowed cost (None = no limit)",
+                    "title": "Max Cost Usd"
+                  },
+                  "estimated_cost_usd": {
+                    "default": 0.0,
+                    "description": "Estimated cost, from the manifests",
+                    "title": "Estimated Cost Usd",
+                    "type": "number"
+                  },
+                  "max_timeout_seconds": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "Global plan timeout (None = no timeout)",
+                    "title": "Max Timeout Seconds"
+                  },
+                  "version": {
+                    "default": "1.0.0",
+                    "description": "DSL format version (semver)",
+                    "title": "Version",
+                    "type": "string"
+                  },
+                  "created_at": {
+                    "description": "Creation timestamp (UTC)",
+                    "format": "date-time",
+                    "title": "Created At",
+                    "type": "string"
+                  },
+                  "metadata": {
+                    "additionalProperties": true,
+                    "description": "Additional metadata (query, intention, router_output, etc.)",
+                    "title": "Metadata",
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "user_id"
+                ],
+                "title": "ExecutionPlan",
+                "type": "object"
+              }
+            }
+          }
+        },
+        "http_status": 200,
+        "response": {
+          "choices": [
+            {
+              "finish_reason": "stop",
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "{\n  \"user_id\": \"probe\",\n  \"session_id\": \"probe\",\n  \"steps\": [],\n  \"metadata\": {\n    \"needs_clarification\": true\n  }\n}"
+              }
+            }
+          ],
+          "created": 1791283079,
+          "model": "lia-qa-qwen3",
+          "system_fingerprint": "b11429-d81235049",
+          "object": "chat.completion",
+          "usage": {
+            "completion_tokens": 44,
+            "prompt_tokens": 59,
+            "total_tokens": 103,
+            "prompt_tokens_details": {
+              "cached_tokens": 1
+            }
+          },
+          "id": "chatcmpl-aOMRyIaIPiMyELORaLLxhXnM8pke3s0x",
+          "timings": {
+            "cache_n": 1,
+            "prompt_n": 58,
+            "prompt_ms": 618.391,
+            "prompt_per_token_ms": 10.661913793103448,
+            "prompt_per_second": 93.79179192452672,
+            "predicted_n": 44,
+            "predicted_ms": 1156.311,
+            "predicted_per_token_ms": 26.89095348837209,
+            "predicted_per_second": 37.18722731168345
+          }
+        }
+      }
+    },
+    {
+      "case": "json_object_mode",
+      "passed": true,
+      "error": null,
+      "seconds": 0.596,
+      "observation": {
+        "request": {
+          "model": "lia-qa-qwen3",
+          "messages": [
+            {
+              "role": "user",
+              "content": "Output only JSON {\"status\":\"probe\",\"value\":5}. /no_think"
+            }
+          ],
+          "temperature": 0,
+          "max_tokens": 160,
+          "response_format": {
+            "type": "json_object"
+          }
+        },
+        "http_status": 200,
+        "response": {
+          "choices": [
+            {
+              "finish_reason": "stop",
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "{\"status\": \"probe\", \"value\": 5}"
+              }
+            }
+          ],
+          "created": 1791283080,
+          "model": "lia-qa-qwen3",
+          "system_fingerprint": "b11429-d81235049",
+          "object": "chat.completion",
+          "usage": {
+            "completion_tokens": 17,
+            "prompt_tokens": 28,
+            "total_tokens": 45,
+            "prompt_tokens_details": {
+              "cached_tokens": 4
+            }
+          },
+          "id": "chatcmpl-oaT4RuNF1D1IHIOhXodDy6KXY2kZTtpv",
+          "timings": {
+            "cache_n": 4,
+            "prompt_n": 24,
+            "prompt_ms": 202.648,
+            "prompt_per_token_ms": 8.443666666666667,
+            "prompt_per_second": 118.4319608384983,
+            "predicted_n": 17,
+            "predicted_ms": 372.956,
+            "predicted_per_token_ms": 23.30975,
+            "predicted_per_second": 42.90050300839777
+          }
+        }
+      }
+    },
+    {
+      "case": "oversized_context_rejected",
+      "passed": true,
+      "error": null,
+      "seconds": 0.03,
+      "observation": {
+        "http_status": 400,
+        "response": {
+          "error": {
+            "code": 400,
+            "message": "request (3520 tokens) exceeds the available context size (2048 tokens), try increasing it",
+            "type": "exceed_context_size_error",
+            "n_prompt_tokens": 3520,
+            "n_ctx": 2048
+          }
+        },
+        "input_repeated_words": 3500,
+        "loaded_context": 2048
+      }
+    },
+    {
+      "case": "two_concurrent_requests_one_server_slot",
+      "passed": true,
+      "error": null,
+      "seconds": 0.122,
+      "observation": {
+        "calls": [
+          {
+            "request": {
+              "model": "lia-qa-qwen3",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "Output only the literal string probe. /no_think"
+                }
+              ],
+              "temperature": 0,
+              "max_tokens": 32
+            },
+            "http_status": 200,
+            "response": {
+              "choices": [
+                {
+                  "finish_reason": "stop",
+                  "index": 0,
+                  "message": {
+                    "role": "assistant",
+                    "content": "probe"
+                  }
+                }
+              ],
+              "created": 1791283080,
+              "model": "lia-qa-qwen3",
+              "system_fingerprint": "b11429-d81235049",
+              "object": "chat.completion",
+              "usage": {
+                "completion_tokens": 2,
+                "prompt_tokens": 23,
+                "total_tokens": 25,
+                "prompt_tokens_details": {
+                  "cached_tokens": 22
+                }
+              },
+              "id": "chatcmpl-bzlkBRdz6jlTq51R5MO2PElx8bMGd9ip",
+              "timings": {
+                "cache_n": 22,
+                "prompt_n": 1,
+                "prompt_ms": 25.821,
+                "prompt_per_token_ms": 25.821,
+                "prompt_per_second": 38.728166995856085,
+                "predicted_n": 2,
+                "predicted_ms": 24.439,
+                "predicted_per_token_ms": 24.439,
+                "predicted_per_second": 40.91820450918614
+              }
+            }
+          },
+          {
+            "request": {
+              "model": "lia-qa-qwen3",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "Output only the literal string probe. /no_think"
+                }
+              ],
+              "temperature": 0,
+              "max_tokens": 32
+            },
+            "http_status": 200,
+            "response": {
+              "choices": [
+                {
+                  "finish_reason": "stop",
+                  "index": 0,
+                  "message": {
+                    "role": "assistant",
+                    "content": "probe"
+                  }
+                }
+              ],
+              "created": 1791283080,
+              "model": "lia-qa-qwen3",
+              "system_fingerprint": "b11429-d81235049",
+              "object": "chat.completion",
+              "usage": {
+                "completion_tokens": 2,
+                "prompt_tokens": 23,
+                "total_tokens": 25,
+                "prompt_tokens_details": {
+                  "cached_tokens": 22
+                }
+              },
+              "id": "chatcmpl-RwZctvFZLHocTZsuH9vL4C1Q5j1DzTOD",
+              "timings": {
+                "cache_n": 22,
+                "prompt_n": 1,
+                "prompt_ms": 23.337,
+                "prompt_per_token_ms": 23.337,
+                "prompt_per_second": 42.850409221408064,
+                "predicted_n": 2,
+                "predicted_ms": 19.559,
+                "predicted_per_token_ms": 19.559,
+                "predicted_per_second": 51.12735824939925
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "case": "read_timeout_then_next_request",
+      "passed": true,
+      "error": null,
+      "seconds": 0.473,
+      "observation": {
+        "read_timeout_observed": true,
+        "request": {
+          "model": "lia-qa-qwen3",
+          "messages": [
+            {
+              "role": "user",
+              "content": "Output only the literal string probe. /no_think"
+            }
+          ],
+          "temperature": 0,
+          "max_tokens": 160
+        },
+        "http_status": 200,
+        "response": {
+          "choices": [
+            {
+              "finish_reason": "stop",
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "probe"
+              }
+            }
+          ],
+          "created": 1791283081,
+          "model": "lia-qa-qwen3",
+          "system_fingerprint": "b11429-d81235049",
+          "object": "chat.completion",
+          "usage": {
+            "completion_tokens": 2,
+            "prompt_tokens": 23,
+            "total_tokens": 25,
+            "prompt_tokens_details": {
+              "cached_tokens": 22
+            }
+          },
+          "id": "chatcmpl-Pz8Huv6KY3ZwdNodYeXoUj1V3IXP0QX3",
+          "timings": {
+            "cache_n": 22,
+            "prompt_n": 1,
+            "prompt_ms": 23.827,
+            "prompt_per_token_ms": 23.827,
+            "prompt_per_second": 41.96919461115541,
+            "predicted_n": 2,
+            "predicted_ms": 26.707,
+            "predicted_per_token_ms": 26.707,
+            "predicted_per_second": 37.443366907552324
+          }
+        }
+      }
+    },
+    {
+      "case": "reasoning_preserved_by_installed_langchain",
+      "passed": false,
+      "error": "AssertionError: No reasoning_content retained by installed ChatOpenAI; compare raw wire observation",
+      "seconds": 4.648,
+      "observation": {
+        "chunks": [
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {
+              "finish_reason": "length",
+              "model_name": "lia-qa-qwen3",
+              "system_fingerprint": "b11429-d81235049",
+              "model_provider": "openai"
+            },
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": null
+          },
+          {
+            "content": "",
+            "additional_kwargs": {},
+            "response_metadata": {},
+            "type": "AIMessageChunk",
+            "name": null,
+            "id": "lc_run--01a110ca-af5a-7133-afbb-13069efb0a74",
+            "tool_calls": [],
+            "invalid_tool_calls": [],
+            "usage_metadata": null,
+            "tool_call_chunks": [],
+            "chunk_position": "last"
+          }
+        ],
+        "extra_body": {
+          "chat_template_kwargs": {
+            "enable_thinking": true
+          }
+        }
+      }
+    }
+  ]
+}

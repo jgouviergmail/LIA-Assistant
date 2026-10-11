@@ -28,6 +28,7 @@ from src.core.constants import (
     CHAT_SHORTCUT_ID_MAX_LENGTH,
     CHAT_SHORTCUT_TEXT_MAX_LENGTH,
 )
+from src.core.slash_commands import STATIC_SLASH_COMMAND_IDS
 
 # Lowercase slug: letters/digits, hyphen-separated, no leading/trailing hyphen.
 _SHORTCUT_ID_RE = re.compile(r"^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$")
@@ -56,6 +57,8 @@ class ChatShortcut(BaseModel):
     def _slug_shape(cls, value: str) -> str:
         if not _SHORTCUT_ID_RE.fullmatch(value):
             raise ValueError("Shortcut id must be a lowercase slug (letters, digits, hyphens)")
+        if value in STATIC_SLASH_COMMAND_IDS:
+            raise ValueError("Shortcut id is reserved for an application command")
         return value
 
     @field_validator("text")

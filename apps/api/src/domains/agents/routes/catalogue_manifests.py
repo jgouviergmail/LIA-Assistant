@@ -57,6 +57,8 @@ _get_route_desc = (
 
 get_route_catalogue_manifest = ToolManifest(
     name="get_route_tool",
+    concurrency_safe=True,
+    result_reuse_ttl_seconds=30,
     agent="route_agent",
     description=_get_route_desc,
     # Discriminant phrases - Route and direction queries
@@ -195,7 +197,7 @@ get_route_catalogue_manifest = ToolManifest(
             path="route.duration_minutes",
             type="integer",
             description="Duration in minutes",
-            semantic_type="duration",
+            semantic_type="duration_minutes",
         ),
         OutputFieldSchema(
             path="route.duration_formatted",
@@ -208,6 +210,7 @@ get_route_catalogue_manifest = ToolManifest(
             type="integer",
             nullable=True,
             description="Duration with traffic",
+            semantic_type="duration_minutes",
         ),
         OutputFieldSchema(
             path="route.traffic_conditions",
@@ -381,7 +384,7 @@ get_route_matrix_catalogue_manifest = ToolManifest(
             path="matrix[][].duration_minutes",
             type="integer",
             description="Duration in minutes",
-            semantic_type="duration",
+            semantic_type="duration_minutes",
         ),
         OutputFieldSchema(
             path="matrix[][].duration_formatted",

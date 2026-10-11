@@ -44,6 +44,7 @@ from src.core.constants import (
     MCP_TOOL_NAME_PREFIX,
 )
 from src.domains.agents.context.schemas import ContextSaveMode
+from src.domains.agents.registry.value_contracts import SemanticFieldRole
 
 # =============================================================================
 # Tool Category for Strategy-Based Filtering
@@ -331,6 +332,7 @@ class ParameterSchema:
     # Typed as a Literal so a typo in a manifest annotation fails MyPy rather than
     # silently disabling the reset.
     search_role: Literal["range_end"] | None = None
+    semantic_role: SemanticFieldRole | None = None
 
 
 # ============================================================================
@@ -376,6 +378,7 @@ class OutputFieldSchema:
     description: str
     nullable: bool = False
     semantic_type: str | None = None  # Semantic type for cross-domain LLM reasoning
+    semantic_role: SemanticFieldRole | None = None
 
 
 # ============================================================================
@@ -608,6 +611,10 @@ class ToolManifest:
     )
     max_iterations: int = 1
     supports_dry_run: bool = False
+    # Explicit execution contracts: absence never implies concurrency or reuse.
+    concurrency_safe: bool = False
+    result_reuse_ttl_seconds: int | None = None
+    exclusive_scope: str | None = None
     reference_fields: list[str] = field(default_factory=list)
     context_key: str | None = None
     context_save_mode: ContextSaveMode | None = None  # Explicit LIST/DETAILS override for auto-save
@@ -710,6 +717,13 @@ class ToolManifest:
     # Default "literal" preserves current behavior for every existing tool.
     text_search_mode: Literal["literal", "semantic", "hybrid"] = "literal"
 
+    # Delegation returns a loop's report, not proof of its individual reads/writes.
+    delegates_execution: bool = False
+
+    # The adapter supplies identity; a normalized domain never replaces a server key.
+    mcp_origin: Literal["admin", "user"] | None = None
+    mcp_server_key: str | None = None
+
     def __post_init__(self) -> None:
         """Validate the manifest."""
         if not self.name:
@@ -721,6 +735,8 @@ class ToolManifest:
         # Validate semver version (simple check)
         if not self.version or len(self.version.split(".")) != 3:
             raise ValueError(f"Invalid semver version: {self.version}")
+        if self.result_reuse_ttl_seconds is not None and self.result_reuse_ttl_seconds <= 0:
+            raise ValueError("result_reuse_ttl_seconds must be positive or None")
 
 
 # ============================================================================

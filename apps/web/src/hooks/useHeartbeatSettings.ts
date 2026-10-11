@@ -1,6 +1,9 @@
-import { useCallback } from 'react';
-import { useApiQuery } from './useApiQuery';
+import { useCallback, useRef, useState } from 'react';
 import { useApiMutation } from './useApiMutation';
+import { useApplicationAccountQuery } from './useApplicationAccountQuery';
+import { useApplicationAccountLifetime } from './useApplicationAccountLifetime';
+import { useApplicationResourceSync } from './useApplicationResourceSync';
+import { publishApplicationResources } from '@/lib/application-resources';
 
 /**
  * Heartbeat settings response from API.
@@ -66,46 +69,58 @@ export interface HeartbeatSettingsUpdate {
  * Hook for managing heartbeat notification settings.
  */
 export function useHeartbeatSettings() {
-  // Fetch settings
-  const {
-    data: settings,
-    loading,
-    error,
-    refetch,
-    setData,
-  } = useApiQuery<HeartbeatSettings>('/heartbeat/settings', {
-    componentName: 'useHeartbeatSettings',
-  });
-
-  // Settings mutation
-  const { mutate: updateMutate, loading: updating } = useApiMutation({
+  const { data, loading, error, refetch, ownerId } = useApplicationAccountQuery<HeartbeatSettings>('/heartbeat/settings', 'useHeartbeatSettings');
+  const { lifetime, isCurrent } = useApplicationAccountLifetime(ownerId);
+  const [override, setOverride] = useState<{ lifetime: typeof lifetime; value: HeartbeatSettings } | null>(null);
+  const queues = useRef(new Map<typeof lifetime, Promise<HeartbeatSettings | undefined>>());
+  const revisions = useRef(new Map<typeof lifetime, number>());
+  const settings = override?.lifetime === lifetime ? override.value : data;
+  const release = useCallback(() => {
+    setOverride(current => current && queues.current.has(current.lifetime) ? current : null);
+  }, []);
+  useApplicationResourceSync(ownerId, 'heartbeat', refetch, release);
+  const { mutate: updateMutate, loading: updating } = useApiMutation<HeartbeatSettingsUpdate, HeartbeatSettings>({
     method: 'PATCH',
     componentName: 'useHeartbeatSettings',
   });
 
-  /**
-   * Update heartbeat settings with optimistic update.
-   */
   const updateSettings = useCallback(
     async (data: HeartbeatSettingsUpdate): Promise<HeartbeatSettings | undefined> => {
-      // Optimistic update
-      setData(prev => {
-        if (!prev) return prev;
-        return { ...prev, ...data };
+      if (!ownerId || !isCurrent()) return undefined;
+      const revision = (revisions.current.get(lifetime) ?? 0) + 1;
+      revisions.current.set(lifetime, revision);
+      setOverride(current => {
+        const prev = current?.lifetime === lifetime ? current.value : settings;
+        if (!prev) return current;
+        return { lifetime, value: { ...prev, ...data,
+          disabled_sources: data.heartbeat_disabled_sources ?? prev.disabled_sources } };
       });
-
-      const result = await updateMutate('/heartbeat/settings', data);
-
-      if (result) {
-        setData(result as HeartbeatSettings);
-        return result as HeartbeatSettings;
-      } else {
-        // Revert on failure
-        refetch();
-        return undefined;
+      const queued = queues.current.get(lifetime) ?? Promise.resolve(undefined);
+      const writing = queued.then(async () => {
+        if (!isCurrent()) return undefined;
+        try {
+          const result = await updateMutate('/heartbeat/settings', data);
+          if (!result || !isCurrent()) return undefined;
+          if (revisions.current.get(lifetime) === revision) setOverride({ lifetime, value: result });
+          return result;
+        } catch {
+          if (isCurrent() && revisions.current.get(lifetime) === revision) {
+            setOverride(current => current?.lifetime === lifetime ? null : current);
+          }
+          return undefined;
+        }
+      });
+      queues.current.set(lifetime, writing);
+      try { return await writing; }
+      finally {
+        if (queues.current.get(lifetime) === writing) {
+          queues.current.delete(lifetime);
+          revisions.current.delete(lifetime);
+          publishApplicationResources(ownerId, new Set(['heartbeat']));
+        }
       }
     },
-    [updateMutate, setData, refetch]
+    [ownerId, isCurrent, lifetime, settings, updateMutate]
   );
 
   return {

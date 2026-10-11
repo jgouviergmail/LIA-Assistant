@@ -25,7 +25,7 @@ import {
 } from '@/components/eyes/rig/channels';
 import type { LoopSpec } from '@/components/eyes/rig/loops';
 import type { EyeExpression, IdleMoodFamily } from '@/components/eyes/expression-engine';
-import type { EyeStyleId } from '@/components/eyes/eye-styles';
+import type { RigEyeStyleId } from '@/components/eyes/eye-styles';
 
 // =============================================================================
 // Declaration helpers — a pose reads as a sentence, not as a key list
@@ -339,7 +339,7 @@ export const POSES: Record<EyeExpression, PartialChannelValues> = {
 // as base radii and base tilt). Cozmo is the rest pose, so it declares none.
 // =============================================================================
 
-export const STYLE_GEOMETRY: Record<EyeStyleId, PartialChannelValues> = {
+export const STYLE_GEOMETRY: Record<RigEyeStyleId, PartialChannelValues> = {
   cozmo: {},
   smiley: radii(0.3, 0.3, 0.3, 0.3),
   capsules: radii(0.5, 0.5, 0.5, 0.5),
@@ -355,7 +355,44 @@ export const STYLE_GEOMETRY: Record<EyeStyleId, PartialChannelValues> = {
 
 type StyleOverrides = Partial<Record<EyeExpression, PartialChannelValues>>;
 
-export const STYLE_POSE_OVERRIDES: Partial<Record<EyeStyleId, StyleOverrides>> = {
+/** Sculpted eyes retain their iris proportions. Lids are measured on the
+ * complete texture canvas, including its alpha margin; a weak sy remap only
+ * cropped empty pixels and erased the distinction between joy and rest. */
+function smileyEyes(top: number, bottom: number, radius = 0.22): PartialChannelValues {
+  return merge(
+    both('sy', 1),
+    both('oy', 50),
+    both('lidTop', top),
+    both('lidBot', bottom),
+    both('lidR', radius)
+  );
+}
+
+const SMILEY_POSES: Record<EyeExpression, PartialChannelValues> = {
+  neutral: merge(smileyEyes(19, 10), brow(0.035, -2, 2, 0.32), pupils(0.98), mouth(0.36, 0.72)),
+  attentive: merge(smileyEyes(16, 10), pupils(1.03)),
+  joy: merge(smileyEyes(18, 42, 0.34), both('ty', -0.02)),
+  excited: merge(smileyEyes(14, 10), both('ty', -0.03)),
+  tender: merge(smileyEyes(30, 16, 0.28), brow(0.005, -8, 8, 0.45), pupils(1.12)),
+  surprise: smileyEyes(8, 8, 0.18),
+  fear: merge(smileyEyes(12, 12), pupils(0.72)),
+  anger: merge(smileyEyes(38, 12), pair('rot', 4, -4)),
+  sad: merge(smileyEyes(35, 12), pair('rot', -3, 3)),
+  worried: smileyEyes(31, 12),
+  question: merge(smileyEyes(16, 10), { lidTopR: 43, lidBotR: 12 }),
+  thinking: merge(smileyEyes(29, 10), { lidTopR: 45 }, pupils(0.94)),
+  searching: smileyEyes(26, 16),
+  focused: smileyEyes(38, 25, 0.24),
+  speaking: merge(smileyEyes(24, 13), brow(0.012, -2, 2, 0.32)),
+  bored: smileyEyes(51, 12),
+  tired: smileyEyes(44, 16),
+  sleepy: smileyEyes(62, 19),
+  sleep: merge(smileyEyes(50, 50), both('blink', 1)),
+  wink: merge(smileyEyes(18, 42, 0.34), both('ty', -0.02), { blinkR: 1 }),
+};
+
+export const STYLE_POSE_OVERRIDES: Partial<Record<RigEyeStyleId, StyleOverrides>> = {
+  smiley: SMILEY_POSES,
   /** Cozmo's screens re-shape their corners per emotion — a dome for joy,
    * a hard corner for the scowl, a lens for focus. */
   cozmo: {
@@ -431,7 +468,7 @@ export const STYLE_POSE_OVERRIDES: Partial<Record<EyeStyleId, StyleOverrides>> =
  * `focused`, `traits` rendered two specks and `anneaux` rendered "( • )".
  * The blink already had this exception; the SUSTAINED lids never did.
  */
-export const STYLE_LID_MODE: Record<EyeStyleId, 'clip' | 'squash'> = {
+export const STYLE_LID_MODE: Record<RigEyeStyleId, 'clip' | 'squash'> = {
   cozmo: 'clip',
   smiley: 'clip',
   capsules: 'clip',
@@ -468,7 +505,7 @@ function foldLidsIntoSquash(pose: ChannelValues): ChannelValues {
 }
 
 /** The complete channel set an expression resolves to, for one style. */
-export function resolvePose(expression: EyeExpression, styleId: EyeStyleId): ChannelValues {
+export function resolvePose(expression: EyeExpression, styleId: RigEyeStyleId): ChannelValues {
   const pose: ChannelValues = {
     ...restChannelValues(),
     ...STYLE_GEOMETRY[styleId],
@@ -801,4 +838,16 @@ export function resolveLoops(expression: EyeExpression, family: IdleMoodFamily):
       return [...breathLoops(breath.periodMs, breath.scale), ...DRIFT_LOOPS];
     }
   }
+}
+
+/** Keep enlarged resting faces quiet; authored reactions retain their full motion. */
+export function calibratedLoops(
+  expression: EyeExpression,
+  family: IdleMoodFamily,
+  idleScale = 1
+): LoopSpec[] {
+  const loops = resolveLoops(expression, family);
+  if (!BREATHING.has(expression)) return loops;
+  const scale = Number.isFinite(idleScale) ? Math.max(0, Math.min(1, idleScale)) : 1;
+  return loops.map(loop => ({ ...loop, amplitude: loop.amplitude * scale }));
 }

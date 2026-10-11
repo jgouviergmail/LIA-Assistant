@@ -11,6 +11,8 @@ import { useTranslation } from '@/i18n/client';
 import { type Language } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { useFCMToken } from '@/hooks/useFCMToken';
+import { useAuth } from '@/hooks/useAuth';
+import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
 import { NotificationPrompt } from '@/components/notifications/NotificationPrompt';
 import { toast } from 'sonner';
 import { getDeviceType } from '@/lib/firebase';
@@ -44,7 +46,13 @@ function DeviceIcon({ type }: { type: string }) {
 }
 
 export function NotificationSettings({ lng }: NotificationSettingsProps) {
+  const { user } = useAuth();
+  return <AccountNotificationSettings key={user?.id ?? 'signed-out'} ownerId={user?.id} lng={lng} />;
+}
+
+function AccountNotificationSettings({ lng, ownerId }: NotificationSettingsProps & { ownerId: string | undefined }) {
   const { t } = useTranslation(lng);
+  const { isCurrent } = useApplicationAccountLifetime(ownerId);
   const {
     permissionStatus,
     isSupported,
@@ -67,30 +75,35 @@ export function NotificationSettings({ lng }: NotificationSettingsProps) {
 
   // Handle token deletion
   const handleDeleteToken = async (tokenId: string) => {
+    if (!isCurrent()) return;
     setDeletingTokenId(tokenId);
     try {
       await unregisterToken(tokenId);
+      if (!isCurrent()) return;
       toast.success(t('settings.notifications.device_removed'));
     } catch {
-      toast.error(t('settings.notifications.device_remove_error'));
+      if (isCurrent()) toast.error(t('settings.notifications.device_remove_error'));
     } finally {
-      setDeletingTokenId(null);
+      if (isCurrent()) setDeletingTokenId(null);
     }
   };
 
   // Handle disabling notifications for current device
   const handleDisableCurrentDevice = async () => {
-    if (!currentDeviceToken) return;
+    if (!currentDeviceToken || !isCurrent()) return;
 
     setDeletingTokenId(currentDeviceToken.id);
     try {
       await unregisterToken(currentDeviceToken.id);
+      if (!isCurrent()) return;
       toast.success(t('settings.notifications.disabled_success'));
     } catch {
-      toast.error(t('settings.notifications.device_remove_error'));
+      if (isCurrent()) toast.error(t('settings.notifications.device_remove_error'));
     } finally {
-      setDeletingTokenId(null);
-      setShowDisableConfirm(false);
+      if (isCurrent()) {
+        setDeletingTokenId(null);
+        setShowDisableConfirm(false);
+      }
     }
   };
 

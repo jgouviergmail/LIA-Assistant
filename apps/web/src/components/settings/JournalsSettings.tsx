@@ -69,6 +69,7 @@ import {
   type JournalEntryLevel,
   type JournalTheme,
   type JournalEntryMood,
+  type JournalConsolidationResult,
 } from '@/hooks/useJournals';
 import { toast } from 'sonner';
 
@@ -122,6 +123,10 @@ const LEVEL_BADGE: Record<JournalEntryLevel, string> = {
 
 const ALL_LEVELS: JournalEntryLevel[] = ['L0', 'L1', 'L2', 'L3'];
 
+function consolidationSucceeded(result: JournalConsolidationResult): boolean {
+  return !result.status || result.status === 'success' || result.status === 'no_op';
+}
+
 /** Theme display info */
 const THEME_INFO: Record<JournalTheme, { icon: string; color: string }> = {
   self_reflection: { icon: '\u{1F6AA}', color: 'blue' },
@@ -134,6 +139,25 @@ interface JournalsSettingsProps {
   lng: Language;
 }
 
+function PortraitReadError({
+  error,
+  lng,
+}: {
+  error: Error | null | undefined;
+  lng: Language;
+}) {
+  const { t } = useTranslation(lng, 'translation');
+  if (!error) return null;
+  return (
+    <div role="alert" className="flex gap-2 rounded-lg border border-warning/40 p-3 text-sm">
+      <AlertTriangle className="h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
+      <span>
+        {t('journals.portraitLoadError', 'The portrait could not be loaded. Refresh to try again.')}
+      </span>
+    </div>
+  );
+}
+
 export function JournalsSettings({ lng }: JournalsSettingsProps) {
   const { t } = useTranslation(lng, 'translation');
 
@@ -142,6 +166,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
     settings: journalSettings,
     isLoading,
     portrait,
+    portraitError,
     createEntry,
     updateEntry,
     deleteEntry,
@@ -311,6 +336,12 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
         highlighted_section: feedbackHighlight.trim() || undefined,
       });
       if (result) {
+        if (!consolidationSucceeded(result)) {
+          toast.error(
+            t('journals.portraitFeedbackError', 'Failed to submit feedback on the portrait.')
+          );
+          return;
+        }
         const seconds = Math.max(1, Math.round(result.duration_ms / 1000));
         toast.success(
           t(
@@ -341,8 +372,12 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
     try {
       const result = await consolidateNow();
       if (result) {
+        if (!consolidationSucceeded(result)) {
+          toast.error(t('journals.consolidatedError', 'Manual consolidation failed.'));
+          return;
+        }
         const seconds = Math.max(1, Math.round(result.duration_ms / 1000));
-        if (result.actions_applied === 0) {
+        if (result.status === 'no_op' || (!result.status && result.actions_applied === 0)) {
           toast.success(
             t(
               'journals.consolidatedNoop',
@@ -354,7 +389,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
           toast.success(
             t(
               'journals.consolidatedSuccess',
-              '{{n}} change(s) applied in {{s}}s — refresh the list to see the effect.',
+              'Consolidation completed in {{s}}s — {{n}} journal change(s).',
               { n: result.actions_applied, s: seconds }
             )
           );
@@ -429,6 +464,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
         {journalSettings?.journals_enabled && (
           <div className="space-y-5 pl-1">
             {/* Portrait section (read-only — three levers for correction) */}
+            <PortraitReadError error={portraitError} lng={lng} />
             <PortraitCard
               portrait={portrait}
               lng={lng}

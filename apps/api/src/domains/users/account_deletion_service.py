@@ -164,6 +164,7 @@ def build_purge_statements(user_id: UUID) -> list[tuple[str, Delete]]:
         # conversation_messages above). Group 1: a row may reference another
         # effect through retry_of.
         by_user("agent_effects"),
+        by_user("application_commands", "actor_id"),
         by_user("agent_treatments"),
         # ADR-263 lot 6: the turns. Group 1 like its two neighbours — its
         # message references are SET NULL, so it never blocks and never
@@ -199,6 +200,7 @@ def build_purge_statements(user_id: UUID) -> list[tuple[str, Delete]]:
         # nothing to remove — the CASCADE would already have fired. Purging it
         # first keeps this statement meaningful rather than incidentally empty.
         by_user("provenance_references"),
+        by_user("journal_evidence_events"),
         # Group 2 — Main tables (FK directly to users)
         by_user("relation_favorites"),
         by_user("relation_aliases"),

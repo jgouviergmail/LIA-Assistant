@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Sequence
+from pathlib import Path
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -75,6 +76,11 @@ def _run_id_of(message: ConversationMessage) -> str | None:
     return run_id if isinstance(run_id, str) and run_id else None
 
 
+def enqueue_bookmark_index(bookmark_id: UUID) -> None:
+    """Use the existing durable reconciliation/index lifecycle after a known keep."""
+    safe_fire_and_forget(index_bookmark(bookmark_id), name=f"bookmark_index_{bookmark_id}")
+
+
 class BookmarkService:
     """Service for the answers a person keeps.
 
@@ -87,7 +93,7 @@ class BookmarkService:
         self.repository = BookmarkRepository(db)
 
     async def keep(
-        self, user_id: UUID, message_id: UUID, *, language: str | None = None
+        self, user_id: UUID, message_id: UUID, *, language: str | None = None, commit: bool = True
     ) -> tuple[MessageBookmark, bool]:
         """Keep one assistant answer.
 
@@ -98,6 +104,7 @@ class BookmarkService:
             user_id: The caller.
             message_id: The archived assistant message the bubble carries.
             language: The caller's language, for the translated refusals.
+            commit: False stages the copy only; the caller owns commit and post-ack indexing.
 
         Returns:
             The bookmark, and whether this call created it.
@@ -109,41 +116,24 @@ class BookmarkService:
             BookmarkLimitReachedError: The account keeps as many as it may.
         """
         language = resolve_language(language)
+        await self.repository.lock_keep_owner(user_id)
         existing = await self.repository.get_by_message(user_id, message_id)
         if existing is not None:
             return existing, False
 
-        message = await self.repository.owned_assistant_message(user_id, message_id)
-        if message is None:
-            raise_bookmark_not_found(message_id)
-        if not (message.content or "").strip():
-            raise_bookmark_nothing_to_keep(language)
-
+        copy = await self.copy_owned_answer(user_id, message_id, language=language)
         cap = settings.bookmarks_max_per_user
         if await self.repository.count_for_user(user_id) >= cap:
             raise_bookmark_limit_reached(cap, language)
 
-        request = (
-            None
-            if _answers_no_request(message)
-            else (await self.repository.preceding_user_message(message))
-        )
         try:
-            bookmark = await self.repository.add(
-                MessageBookmark(
-                    user_id=user_id,
-                    message_id=message.id,
-                    conversation_id=message.conversation_id,
-                    content=message.content,
-                    request_content=request.content if request is not None else None,
-                    answered_at=message.created_at,
-                    # The turn that produced the answer: its token summary
-                    # outlives the conversation, so the answer keeps its cost.
-                    run_id=_run_id_of(message),
-                )
-            )
+            bookmark = await self.repository.add(copy)
+            if not commit:
+                return bookmark, True
             await self.db.commit()
         except IntegrityError:
+            if not commit:
+                raise
             # Two clicks in flight for one message: the partial unique index
             # let exactly one row through, and the toggle asked for a state —
             # the row the other click wrote IS that state.
@@ -156,13 +146,39 @@ class BookmarkService:
             "bookmark_kept",
             user_id=str(user_id),
             bookmark_id=str(bookmark.id),
-            message_id=str(message.id),
-            has_request=request is not None,
+            message_id=str(message_id),
+            has_request=bookmark.request_content is not None,
         )
         # The projection rides the commit that created the row — a bookmark
         # that already existed was projected when it was kept.
-        safe_fire_and_forget(index_bookmark(bookmark.id), name=f"bookmark_index_{bookmark.id}")
+        enqueue_bookmark_index(bookmark.id)
         return bookmark, True
+
+    async def copy_owned_answer(
+        self, user_id: UUID, message_id: UUID, *, language: str | None = None
+    ) -> MessageBookmark:
+        """Observe the exact visible answer/request copy without saving or scheduling work."""
+        language = resolve_language(language)
+        message = await self.repository.owned_assistant_message(user_id, message_id)
+        if message is None:
+            raise_bookmark_not_found(message_id)
+        if not (message.content or "").strip():
+            raise_bookmark_nothing_to_keep(language)
+
+        request = (
+            None
+            if _answers_no_request(message)
+            else (await self.repository.preceding_user_message(message))
+        )
+        return MessageBookmark(
+            user_id=user_id,
+            message_id=message.id,
+            conversation_id=message.conversation_id,
+            content=message.content,
+            request_content=request.content if request is not None else None,
+            answered_at=message.created_at,
+            run_id=_run_id_of(message),
+        )
 
     async def list_page(
         self, user_id: UUID, filters: BookmarkFilters
@@ -204,7 +220,13 @@ class BookmarkService:
             ``run_id → message_token_summary row`` for the turns that left one.
         """
         run_ids = sorted({row.run_id for row in bookmarks if row.run_id})
-        return await ChatRepository(self.db).get_token_summaries_by_run_ids(run_ids)
+        references = {(row.run_id, row.user_id) for row in bookmarks if row.run_id}
+        summaries = await ChatRepository(self.db).get_token_summaries_by_run_ids(run_ids)
+        return {
+            run: summary
+            for run, summary in summaries.items()
+            if (run, summary.user_id) in references
+        }
 
     async def attached_message_ids(self, user_id: UUID) -> dict[UUID, UUID]:
         """What every bubble needs to draw its toggle: ``message_id → bookmark_id``.
@@ -217,7 +239,7 @@ class BookmarkService:
         """
         return await self.repository.attached_message_ids(user_id)
 
-    async def remove(self, user_id: UUID, bookmark_id: UUID) -> None:
+    async def remove(self, user_id: UUID, bookmark_id: UUID, *, commit: bool = True) -> Path | None:
         """Delete one bookmark the account owns.
 
         Args:
@@ -230,8 +252,10 @@ class BookmarkService:
         bookmark = await self.repository.get_for_user(user_id, bookmark_id)
         if bookmark is None:
             raise_bookmark_not_found(bookmark_id)
-        await self._delete_with_projection(bookmark)
-        logger.info("bookmark_removed", user_id=str(user_id), bookmark_id=str(bookmark_id))
+        path = await self._delete_with_projection(bookmark, commit=commit)
+        if commit:
+            logger.info("bookmark_removed", user_id=str(user_id), bookmark_id=str(bookmark_id))
+        return path
 
     async def remove_by_message(self, user_id: UUID, message_id: UUID) -> bool:
         """The bubble's second click: drop the bookmark taken from one message.
@@ -251,7 +275,9 @@ class BookmarkService:
         logger.info("bookmark_removed_by_message", user_id=str(user_id), message_id=str(message_id))
         return True
 
-    async def _delete_with_projection(self, bookmark: MessageBookmark) -> None:
+    async def _delete_with_projection(
+        self, bookmark: MessageBookmark, *, commit: bool = True
+    ) -> Path | None:
         """Delete the projection and the row in ONE commit, then the stored file.
 
         The chunks and the document row go in the same transaction as the
@@ -263,5 +289,9 @@ class BookmarkService:
         """
         path = await discard_index(self.db, bookmark)
         await self.repository.delete(bookmark)
+        if not commit:
+            await self.db.flush()
+            return path
         await self.db.commit()
         await asyncio.to_thread(unlink_quietly, path)
+        return None

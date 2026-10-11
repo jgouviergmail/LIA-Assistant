@@ -97,6 +97,26 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
 
     # Startup
     registries.import_domain_models()
+    registries.init_notification_devices()
+    registries.init_meeting_deletions()
+    registries.init_meeting_reformat()
+    registries.init_meeting_regeneration()
+    registries.init_meeting_retry()
+    registries.init_meeting_email()
+    registries.init_meeting_pdf()
+    registries.init_meeting_report_updates()
+    registries.init_meeting_reports()
+    registries.init_meeting_transcripts()
+    registries.init_meeting_reads()
+    registries.init_meeting_templates()
+    registries.init_meeting_preferences()
+    registries.init_live_preferences()
+    registries.init_live_connector_preferences()
+    registries.init_account_exports()
+    registries.init_phone_identity()
+    registries.init_phone_history()
+    registries.init_phone_preferences()
+    registries.init_phone_number()
 
     logger.info(
         "application_startup",

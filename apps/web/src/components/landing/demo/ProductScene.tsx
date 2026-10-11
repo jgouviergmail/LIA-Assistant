@@ -1,11 +1,16 @@
 'use client';
 
-import { Check, ChevronRight, FileText, LockKeyhole, Sparkles } from 'lucide-react';
+import dynamic from 'next/dynamic';
+import { Check, ClipboardList, FileText, LockKeyhole, Mail, Radio, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { SCENE_TONES } from './scene-tones';
+import { ProductApproval } from './ProductApproval';
+import { ClassicProductResult } from './ClassicProductResult';
+import { productResultHtml } from './product-result-html';
 import {
   PRODUCT_DEMO_KEY,
+  HOME_PRODUCT_DEMO_KEY,
   productScene,
   type ProductSceneId,
   type ProductScenePhase,
@@ -16,100 +21,51 @@ interface ProductSceneProps {
   /** Omit for a completed illustration; the player reveals the same scene in three beats. */
   phase?: ProductScenePhase;
   className?: string;
+  /** Richer results and copy are scoped to the homepage. */
+  home?: boolean;
 }
+
+const MarkdownContent = dynamic(
+  () => import('@/components/chat/MarkdownContent').then(module => module.MarkdownContent),
+  { loading: () => <div aria-hidden="true" className="h-40 rounded-lg bg-muted/40" /> }
+);
+
+/** The homepage uses a meeting, while the legacy scene remains a web search. */
+const HOME_SOURCES = {
+  decision: ['space', 'mail', 'meeting'],
+  day: ['preferences', 'calendar', 'news'],
+  watch: ['commitment', 'mail', 'routine'],
+  call: ['calendar', 'preferences', 'approval'],
+  research: ['meeting', 'transcript', 'notes'],
+  relay: ['peer', 'scope', 'calendar'],
+} satisfies Record<ProductSceneId, readonly string[]>;
 
 export function ProductResult({ sceneId }: { sceneId: ProductSceneId }) {
   const { t } = useTranslation();
-  const key = `${PRODUCT_DEMO_KEY}.scenes.${sceneId}`;
-  const tone = SCENE_TONES[sceneId];
-
-  if (sceneId === 'day') {
-    return (
-      <div className="space-y-3">
-        <div className="flex h-8 items-center justify-center gap-1" aria-hidden="true">
-          {[8, 16, 24, 12, 28, 19, 32, 22, 14, 26, 32, 18, 10, 24, 16, 8].map((height, i) => (
-            <span key={i} className={cn('w-1.5 rounded-full', tone.fill)} style={{ height }} />
-          ))}
-        </div>
-        <ol className="space-y-2">
-          {[1, 2, 3].map(n => (
-            <li key={n} className="flex items-center gap-2 text-xs leading-snug">
-              <span
-                className={cn('h-1.5 w-1.5 shrink-0 rounded-full', tone.fill)}
-                aria-hidden="true"
-              />
-              {t(`${key}.result_${n}`)}
-            </li>
-          ))}
-        </ol>
-      </div>
-    );
-  }
-
-  if (sceneId === 'watch') {
-    return (
-      <div className="space-y-3">
-        <div
-          className={cn(
-            'flex items-center gap-2 rounded-lg p-2 text-xs leading-snug',
-            tone.surface
-          )}
-        >
-          <Check className={cn('h-4 w-4 shrink-0', tone.text)} aria-hidden="true" />
-          {t(`${key}.result_1`)}
-        </div>
-        <p className={cn('border-l-2 pl-3 text-sm leading-snug', tone.border)}>
-          {t(`${key}.result_2`)}
-        </p>
-        <p className="text-xs leading-snug text-muted-foreground">{t(`${key}.result_3`)}</p>
-      </div>
-    );
-  }
-
-  if (sceneId === 'call' || sceneId === 'relay') {
-    return (
-      <div className="space-y-3">
-        <div
-          className={cn(
-            'grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-lg p-3',
-            tone.surface
-          )}
-        >
-          <p className="text-sm font-semibold leading-snug">{t(`${key}.result_1`)}</p>
-          <ChevronRight className={cn('h-4 w-4', tone.text)} aria-hidden="true" />
-          <p className="text-right text-sm font-semibold leading-snug">{t(`${key}.result_2`)}</p>
-        </div>
-        <p className="text-xs leading-relaxed">{t(`${key}.result_3`)}</p>
-      </div>
-    );
-  }
-
+  if (sceneId === 'call') return <ProductApproval />;
   return (
-    <div className="space-y-3">
-      <div className={cn('grid grid-cols-2 divide-x divide-border rounded-lg py-3', tone.surface)}>
-        {[1, 2].map(n => (
-          <div key={n} className="px-3">
-            <p className="text-xs font-semibold leading-snug">{t(`${key}.result_${n}`)}</p>
-            <span className="mt-1.5 block text-px-10 leading-snug text-muted-foreground">
-              {t(`${key}.evidence_${n}`)}
-            </span>
-          </div>
-        ))}
-      </div>
-      <div className="flex items-start gap-2 text-xs leading-relaxed">
-        <FileText className={cn('mt-0.5 h-4 w-4 shrink-0', tone.text)} aria-hidden="true" />
-        <span>{t(`${key}.result_3`)}</span>
-      </div>
+    <div className="landing-product-result space-y-3 [--lia-text-secondary:var(--lia-text)]">
+      {sceneId === 'day' && (
+        <div className="flex h-9 items-center justify-center gap-1" aria-hidden="true">
+          <Radio className="mr-3 h-5 w-5 text-primary" />
+          {[8, 16, 24, 12, 28, 19, 32, 22, 14, 26, 32, 18, 10, 24, 16, 8].map((height, i) => (
+            <span key={i} className="w-1.5 rounded-full bg-primary/60" style={{ height }} />
+          ))}
+        </div>
+      )}
+      <MarkdownContent content={productResultHtml(sceneId, t)} />
     </div>
   );
 }
 
 /** A readable product illustration, shared by the hero player and the chapters. */
-export function ProductScene({ sceneId, phase = 2, className }: ProductSceneProps) {
+export function ProductScene({ sceneId, phase = 2, className, home = false }: ProductSceneProps) {
   const { t } = useTranslation();
   const scene = productScene(sceneId);
-  const Icon = scene.icon;
-  const key = `${PRODUCT_DEMO_KEY}.scenes.${scene.id}`;
+  const Icon = home && sceneId === 'research' ? ClipboardList : scene.icon;
+  const sources = home ? HOME_SOURCES[sceneId] : scene.sources;
+  const demoKey = home ? HOME_PRODUCT_DEMO_KEY : PRODUCT_DEMO_KEY;
+  const key = `${demoKey}.scenes.${scene.id}`;
   const tone = SCENE_TONES[sceneId];
 
   return (
@@ -123,7 +79,7 @@ export function ProductScene({ sceneId, phase = 2, className }: ProductSceneProp
         <Icon className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
         <p className="text-sm font-semibold">{t(`${key}.title`)}</p>
         <span className="ml-auto shrink-0 text-px-10 text-muted-foreground">
-          {t(`${PRODUCT_DEMO_KEY}.example`)}
+          {t(`${demoKey}.example`)}
         </span>
       </div>
       <div className="flex flex-1 flex-col gap-4 p-4">
@@ -140,16 +96,22 @@ export function ProductScene({ sceneId, phase = 2, className }: ProductSceneProp
         >
           <p className="flex items-center gap-1.5 text-px-11 font-medium text-muted-foreground">
             <Sparkles className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-            {t(`${PRODUCT_DEMO_KEY}.context`)}
+            {t(`${demoKey}.context`)}
           </p>
           <div className="grid grid-cols-3 gap-1.5">
-            {scene.sources.map((source, i) => (
+            {sources.map((source, i) => (
               <div
                 key={source}
                 className="min-w-0 rounded-lg border border-border bg-background px-2 py-2"
               >
-                <span className="block text-px-10 font-semibold leading-snug text-primary">
-                  {t(`${PRODUCT_DEMO_KEY}.sources.${source}`)}
+                <span className="mb-1 flex items-center gap-1 text-px-10 font-semibold leading-snug text-primary">
+                  {home &&
+                    (source === 'mail' ? (
+                      <Mail className="h-3 w-3 shrink-0" aria-hidden="true" />
+                    ) : (
+                      <FileText className="h-3 w-3 shrink-0" aria-hidden="true" />
+                    ))}
+                  {t(`${demoKey}.sources.${source}`)}
                 </span>
                 <span className="mt-1 block text-px-11 leading-snug">
                   {t(`${key}.source_${i + 1}`)}
@@ -173,7 +135,11 @@ export function ProductScene({ sceneId, phase = 2, className }: ProductSceneProp
             <Check className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
             {t(`${key}.result_title`)}
           </p>
-          <ProductResult sceneId={sceneId} />
+          {home ? (
+            <ProductResult key={sceneId} sceneId={sceneId} />
+          ) : (
+            <ClassicProductResult sceneId={sceneId} />
+          )}
           <div className="flex items-start gap-1.5 border-t border-border pt-2 text-px-10 leading-relaxed text-muted-foreground">
             <LockKeyhole className="mt-0.5 h-3 w-3 shrink-0 text-primary" aria-hidden="true" />
             <span>{t(`${key}.guardrail`)}</span>
@@ -181,7 +147,7 @@ export function ProductScene({ sceneId, phase = 2, className }: ProductSceneProp
         </div>
       </div>
       <p className="border-t border-border px-4 py-2 text-px-10 leading-snug text-muted-foreground">
-        {t(`${PRODUCT_DEMO_KEY}.illustrative`)}
+        {t(`${demoKey}.illustrative`)}
       </p>
     </div>
   );

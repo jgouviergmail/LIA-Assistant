@@ -98,14 +98,20 @@ search_journal_catalogue_manifest = ToolManifest(
         OutputFieldSchema(
             path="entries", type="array", description="Matching entries, most relevant first"
         ),
-        OutputFieldSchema(path="entries[].title", type="string", description="Entry title"),
         OutputFieldSchema(
-            path="entries[].content", type="string", description="What LIA wrote, as written"
+            path="entries[].title", type="string", description="Entry title", semantic_type="Text"
+        ),
+        OutputFieldSchema(
+            path="entries[].content",
+            type="string",
+            description="What LIA wrote, as written",
+            semantic_type="Text",
         ),
         OutputFieldSchema(
             path="entries[].kind",
             type="string",
             description="directive, pattern or portrait_facet",
+            semantic_type="journal_entry_kind",
         ),
         OutputFieldSchema(
             path="entries[].confidence",
@@ -118,6 +124,7 @@ search_journal_catalogue_manifest = ToolManifest(
             type="string",
             nullable=True,
             description="ISO date the entry was written",
+            semantic_type="Date",
         ),
         OutputFieldSchema(
             path="count",

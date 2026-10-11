@@ -45,6 +45,8 @@ _get_files_desc = (
 
 get_files_catalogue_manifest = ToolManifest(
     name="get_files_tool",
+    concurrency_safe=True,
+    result_reuse_ttl_seconds=30,
     agent="file_agent",
     description=_get_files_desc,
     # Discriminant phrases - Cloud storage file operations
@@ -152,7 +154,9 @@ get_files_catalogue_manifest = ToolManifest(
         OutputFieldSchema(
             path="files[].id", type="string", description="File ID", semantic_type="file_id"
         ),
-        OutputFieldSchema(path="files[].name", type="string", description="File name"),
+        OutputFieldSchema(
+            path="files[].name", type="string", description="File name", semantic_type="file_name"
+        ),
         OutputFieldSchema(
             path="files[].mimeType",
             type="string",
@@ -171,7 +175,16 @@ get_files_catalogue_manifest = ToolManifest(
             description="Last modified",
             semantic_type="modification_timestamp",
         ),
-        OutputFieldSchema(path="files[].owners", type="string", description="Owner names"),
+        OutputFieldSchema(
+            path="files[].owners", type="array", description="Provider owner records"
+        ),
+        OutputFieldSchema(
+            path="files[].owners[].emailAddress",
+            type="string",
+            nullable=True,
+            description="Owner email address",
+            semantic_type="email_address",
+        ),
         OutputFieldSchema(
             path="files[].shared",
             type="boolean",
@@ -252,7 +265,9 @@ read_spreadsheet_catalogue_manifest = ToolManifest(
         ),
     ],
     outputs=[
-        OutputFieldSchema(path="title", type="string", description="Spreadsheet title"),
+        OutputFieldSchema(
+            path="title", type="string", description="Spreadsheet title", semantic_type="Text"
+        ),
         OutputFieldSchema(path="sheet", type="string", description="Sheet actually read"),
         OutputFieldSchema(path="sheets", type="array", description="Available sheets"),
         OutputFieldSchema(path="values", type="array", description="Rows of cell values"),
@@ -302,8 +317,15 @@ read_document_catalogue_manifest = ToolManifest(
         ),
     ],
     outputs=[
-        OutputFieldSchema(path="title", type="string", description="Document title"),
-        OutputFieldSchema(path="content", type="string", description="Structured text content"),
+        OutputFieldSchema(
+            path="title", type="string", description="Document title", semantic_type="Text"
+        ),
+        OutputFieldSchema(
+            path="content",
+            type="string",
+            description="Structured text content",
+            semantic_type="file_content",
+        ),
         OutputFieldSchema(
             path="truncated", type="boolean", description="True when the content was cut"
         ),
@@ -428,6 +450,7 @@ append_document_text_catalogue_manifest = ToolManifest(
             type="string",
             required=True,
             description="Text appended verbatim at the end of the document",
+            semantic_type="Text",
         ),
     ],
     outputs=[

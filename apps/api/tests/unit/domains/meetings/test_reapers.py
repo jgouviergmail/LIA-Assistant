@@ -111,8 +111,10 @@ async def test_job_reaper_counts_the_workers_it_dead_letters(
     assert dead_lettered._value.get() == before[1] + 2
 
 
+@pytest.mark.parametrize("cleanup_succeeded", [True, False])
 async def test_retention_reaper_purges_files_then_marks_the_row(
     monkeypatch: pytest.MonkeyPatch,
+    cleanup_succeeded: bool,
 ) -> None:
     meeting = SimpleNamespace(id=uuid.uuid4(), user_id=uuid.uuid4())
     marked: list[uuid.UUID] = []
@@ -134,8 +136,9 @@ async def test_retention_reaper_purges_files_then_marks_the_row(
         def __init__(self, root) -> None:  # noqa: ANN001
             pass
 
-        async def purge_meeting(self, user_id: uuid.UUID, meeting_id: uuid.UUID) -> None:
+        async def purge_meeting(self, user_id: uuid.UUID, meeting_id: uuid.UUID) -> bool:
             purged.append((user_id, meeting_id))
+            return cleanup_succeeded
 
     monkeypatch.setattr(rp, "MeetingAudioStore", _Store)
     _install_db(monkeypatch, _Repo)
@@ -143,4 +146,4 @@ async def test_retention_reaper_purges_files_then_marks_the_row(
     await rp.meetings_audio_retention_reaper()
 
     assert purged == [(meeting.user_id, meeting.id)]
-    assert marked == [meeting.id]
+    assert marked == ([meeting.id] if cleanup_succeeded else [])

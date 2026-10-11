@@ -23,6 +23,9 @@ const { push, apiGet, apiPut } = vi.hoisted(() => ({
   apiPut: vi.fn(),
 }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({ user: { id: 'relation-switch-account' } }),
+}));
 
 // Chat deep links are REAL navigations since 2026-08-01 (ADR-192): the App
 // Router restored the search params of the entry it already held, so a second

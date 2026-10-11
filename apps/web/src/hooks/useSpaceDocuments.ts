@@ -65,8 +65,8 @@ export function useSpaceDocuments({
     };
   }, []);
 
-  // Poll processing status for documents in "processing" state
-  const processingDocs = documents.filter(d => d.status === 'processing');
+  // Both new durable jobs and reindexing can be waiting before a worker runs.
+  const processingDocs = documents.filter(d => ['pending', 'processing', 'reindexing'].includes(d.status));
 
   useEffect(() => {
     if (processingDocs.length === 0) return;

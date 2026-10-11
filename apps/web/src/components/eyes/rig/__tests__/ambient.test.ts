@@ -32,7 +32,7 @@ it('gives every condition a distinct motif rather than another opacity of the sa
   }
 });
 
-it('lets weather particles travel quietly, freezes them for reduced motion and retires them with work', () => {
+it('lets weather particles travel quietly and freezes motion while keeping the condition visible during work', () => {
   const rig = createEyeRig();
   rig.setContext({ ...NEUTRAL_CONTEXT, weather: 'snow' });
   for (let i = 0; i < 180; i++) rig.step(16);
@@ -48,10 +48,10 @@ it('lets weather particles travel quietly, freezes them for reduced motion and r
   expect(rig.values()).toEqual(frozen);
   rig.setContext({ ...NEUTRAL_CONTEXT, weather: 'snow', activity: 'reading' });
   rig.step(16);
-  expect(rig.values().weatherSnow).toBe(0);
+  expect(rig.values().weatherSnow).toBe(1);
 });
 
-it('crossfades weather and yields to actual work without erasing the light of the room', () => {
+it('crossfades changed conditions while preserving the active prop and room light during work', () => {
   const rig = createEyeRig();
   rig.setContext({ ...NEUTRAL_CONTEXT, weather: 'rain', dayPhase: 'evening' });
   expect(rig.values().weatherRain).toBe(0);
@@ -63,7 +63,7 @@ it('crossfades weather and yields to actual work without erasing the light of th
   expect(rig.values().weatherRain).toBe(before);
   for (let i = 0; i < 300; i++) rig.step(16);
   expect(rig.values().weatherRain).toBe(0);
-  expect(rig.values().weatherCold).toBe(0);
+  expect(rig.values().weatherCold).toBe(0.65);
   expect(rig.values().lightWarm).toBeGreaterThan(0.5);
 });
 
@@ -79,12 +79,12 @@ it('keeps reduced motion static and never lets the climate start a mouth perform
   expect(frame.mouthOpen).toBe(0);
 });
 
-it('gives the answer the full stage before returning to the weather', () => {
+it('retains the verified condition throughout an answer and removes it when that condition ends', () => {
   const rig = createEyeRig({ reducedMotion: true });
   rig.setContext({ ...NEUTRAL_CONTEXT, weather: 'heat', responding: true });
   rig.step(16);
-  expect(rig.values().weatherHeat).toBe(0);
-  rig.setContext({ ...NEUTRAL_CONTEXT, weather: 'heat' });
-  rig.step(16);
   expect(rig.values().weatherHeat).toBe(1);
+  rig.setContext(NEUTRAL_CONTEXT);
+  rig.step(16);
+  expect(rig.values().weatherHeat).toBe(0);
 });

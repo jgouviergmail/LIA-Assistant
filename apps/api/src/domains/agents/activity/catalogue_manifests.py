@@ -29,7 +29,7 @@ from src.domains.agents.registry.catalogue import (
 #: (``RegisterOrigin``), pinned to it by a test.
 ActivityOrigin = Literal["mine", "initiative", "all"]
 #: An action's outcome — the effect register's vocabulary (``EffectStatus``).
-ActivityStatus = Literal["succeeded", "failed", "refused", "claimed", "abandoned"]
+ActivityStatus = Literal["succeeded", "failed", "refused", "claimed", "abandoned", "waiting"]
 
 ACTIVITY_ORIGINS: tuple[str, ...] = get_args(ActivityOrigin)
 ACTIVITY_STATUSES: tuple[str, ...] = get_args(ActivityStatus)
@@ -119,6 +119,7 @@ get_my_activity_catalogue_manifest = ToolManifest(
             type="string",
             required=False,
             description=ACTIVITY_STATUS_DESCRIPTION,
+            semantic_type="effect_status",
             constraints=[ParameterConstraint(kind="enum", value=list(ACTIVITY_STATUSES))],
         ),
         ParameterSchema(
@@ -134,23 +135,63 @@ get_my_activity_catalogue_manifest = ToolManifest(
     ],
     outputs=[
         OutputFieldSchema(path="period", type="object", description="from, to, timezone"),
+        OutputFieldSchema(
+            path="period.from",
+            type="string",
+            nullable=True,
+            description="Period start instant (ISO 8601)",
+            semantic_type="datetime",
+        ),
+        OutputFieldSchema(
+            path="period.to",
+            type="string",
+            nullable=True,
+            description="Period end instant (ISO 8601)",
+            semantic_type="datetime",
+        ),
+        OutputFieldSchema(
+            path="period.timezone",
+            type="string",
+            description="User timezone",
+            semantic_type="timezone",
+        ),
         OutputFieldSchema(path="actions", type="array", description="The newest actions"),
         OutputFieldSchema(
-            path="actions[].action", type="string", description="What was done, in words"
-        ),
-        OutputFieldSchema(path="actions[].status", type="string", description="Its outcome"),
-        OutputFieldSchema(path="actions[].when", type="string", description="Local ISO time"),
-        OutputFieldSchema(
-            path="actions_total", type="integer", description="EXACT count of matching actions"
+            path="actions[].action",
+            type="string",
+            description="What was done, in words",
         ),
         OutputFieldSchema(
-            path="actions_by_status", type="object", description="EXACT count per outcome"
+            path="actions[].status",
+            type="string",
+            description="Its outcome",
+            semantic_type="effect_status",
         ),
         OutputFieldSchema(
-            path="consultations", type="array", description="Reads per kind of data, exact"
+            path="actions[].when",
+            type="string",
+            description="Local ISO time",
+            semantic_type="datetime",
         ),
         OutputFieldSchema(
-            path="consultations_total", type="integer", description="EXACT count of reads"
+            path="actions_total",
+            type="integer",
+            description="EXACT count of matching actions",
+        ),
+        OutputFieldSchema(
+            path="actions_by_status",
+            type="object",
+            description="EXACT count per outcome",
+        ),
+        OutputFieldSchema(
+            path="consultations",
+            type="array",
+            description="Reads per kind of data, exact",
+        ),
+        OutputFieldSchema(
+            path="consultations_total",
+            type="integer",
+            description="EXACT count of reads",
         ),
         OutputFieldSchema(
             path="count", type="integer", description="EXACT actions + consultations"

@@ -36,6 +36,7 @@ from src.core.i18n import get_language_name
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.core.llm_usage import LLMBillingRecord, LLMUsage
 from src.core.user_display import resolve_user_display_name
+from src.domains.relations.debrief.controls import check_debrief_boundary
 from src.domains.relations.debrief.prompts import load_debrief_prompt
 from src.domains.relations.debrief.schemas import DebriefBody, DebriefDraft
 from src.infrastructure.llm.factory import get_llm
@@ -139,6 +140,7 @@ async def write_debrief(
         max_open_points=RELATION_DEBRIEF_MAX_OPEN_POINTS_DEFAULT,
         max_notable_facts=RELATION_DEBRIEF_MAX_NOTABLE_FACTS_DEFAULT,
     )
+    await check_debrief_boundary(author.user_id, "work")
     async with capture_spend_on_failure(
         capture,
         user_id=author.user_id,

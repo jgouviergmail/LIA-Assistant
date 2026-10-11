@@ -27,9 +27,11 @@ from src.domains.peers.discovery import looks_like_email, mask_email
 from src.domains.peers.models import (
     PeerConnection,
     PeerConnectionStatus,
+    PeerDomainShare,
     PeerShareDomain,
     PeerShareLevel,
 )
+from src.domains.peers.pair_fence import lock_peer_pair
 from src.domains.peers.repository import PeersRepository
 from src.domains.peers.schemas import (
     AccessLogEntry,
@@ -58,7 +60,7 @@ _DISCOVERY_RELATIONSHIP: dict[str, Literal["pending", "connected"]] = {
 }
 
 # v1 share matrix (spec A1): which levels each domain admits.
-_VALID_SHARE_LEVELS: dict[str, frozenset[str]] = {
+VALID_SHARE_LEVELS: dict[str, frozenset[str]] = {
     PeerShareDomain.CALENDAR.value: frozenset(
         {PeerShareLevel.AVAILABILITY.value, PeerShareLevel.DETAILS.value}
     ),
@@ -222,7 +224,9 @@ class PeersService:
             User.deleted_at.is_(None),
             User.discovery_enabled.is_(True),
         )
-        return (await self.db.execute(stmt)).scalar_one_or_none()
+        return (
+            await self.db.execute(stmt.execution_options(populate_existing=True))
+        ).scalar_one_or_none()
 
     def _emit(
         self,
@@ -298,6 +302,8 @@ class PeersService:
             raise_invalid_input("peers_self_request")
         if context_message is not None and len(context_message) > PEERS_CONTEXT_MESSAGE_MAX_CHARS:
             raise_invalid_input("peers_context_message_too_long")
+
+        await lock_peer_pair(self.db, requester_id, addressee_id)
 
         addressee = await self._get_discoverable_user(addressee_id)
         if addressee is None or await self.repo.has_block_between(requester_id, addressee_id):
@@ -375,7 +381,7 @@ class PeersService:
         )
 
     async def _get_participant_connection(
-        self, user_id: UUID, connection_id: UUID
+        self, user_id: UUID, connection_id: UUID, *, lock: bool = False
     ) -> PeerConnection:
         """Load a connection the caller participates in, or answer neutrally.
 
@@ -386,7 +392,11 @@ class PeersService:
         Returns:
             The pair row.
         """
-        connection = await self.repo.get_by_id(connection_id)
+        connection = (
+            await self.repo.get_by_id(connection_id, for_update=True)
+            if lock
+            else await self.repo.get_by_id(connection_id)
+        )
         if connection is None or user_id not in (connection.user_a_id, connection.user_b_id):
             raise_not_found_or_unauthorized("peer", connection_id)
         return connection
@@ -574,7 +584,7 @@ class PeersService:
             domain: Domain to (un)share.
             level: Granularity; None removes the share.
         """
-        connection = await self._get_participant_connection(user_id, connection_id)
+        connection = await self._get_participant_connection(user_id, connection_id, lock=True)
         if connection.status != PeerConnectionStatus.ACCEPTED.value:
             raise_invalid_input("peers_not_connected")
         if level is None:
@@ -585,7 +595,7 @@ class PeersService:
                 domain=domain.value,
             )
             return
-        if level.value not in _VALID_SHARE_LEVELS[domain.value]:
+        if level.value not in VALID_SHARE_LEVELS[domain.value]:
             raise_invalid_input("peers_invalid_share_level")
         await self.repo.upsert_share(connection.id, user_id, domain.value, level.value)
         logger.info(
@@ -656,11 +666,14 @@ class PeersService:
         if not connections:
             return []
         directory = await self._peer_directory({self._peer_of(c, user_id) for c in connections})
+        shares_by_connection: dict[UUID, list[PeerDomainShare]] = {}
+        for share in await self.repo.list_shares_for_connections([c.id for c in connections]):
+            shares_by_connection.setdefault(share.connection_id, []).append(share)
         views: list[ConnectionView] = []
         for connection in connections:
             peer_id = self._peer_of(connection, user_id)
             name, hint, opted_in_email = directory.get(peer_id, ("", "", None))
-            shares = await self.repo.list_shares(connection.id)
+            shares = shares_by_connection.get(connection.id, [])
             views.append(
                 ConnectionView(
                     id=connection.id,

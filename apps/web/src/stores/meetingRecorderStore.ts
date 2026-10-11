@@ -68,6 +68,7 @@ export interface PersistedRecording {
 }
 
 export interface MeetingRecorderState {
+  ownerId: string | null;
   phase: MeetingRecorderPhase;
   recording: PersistedRecording | null;
   engine: EngineInfo | null;
@@ -86,6 +87,7 @@ export interface MeetingRecorderState {
 }
 
 export interface MeetingRecorderActions {
+  setOwner: (ownerId: string) => void;
   begin: (
     recording: PersistedRecording,
     engine: EngineInfo | null,
@@ -106,6 +108,7 @@ export interface MeetingRecorderActions {
 export type MeetingRecorderStore = MeetingRecorderState & MeetingRecorderActions;
 
 const INITIAL: MeetingRecorderState = {
+  ownerId: null,
   phase: 'idle',
   recording: null,
   engine: null,
@@ -141,14 +144,16 @@ export const useMeetingRecorderStore = create<MeetingRecorderStore>()(
   persist(
     set => ({
       ...INITIAL,
+      setOwner: ownerId => set(state => (state.ownerId === ownerId ? {} : { ...INITIAL, ownerId })),
       begin: (recording, engine, limits) =>
-        set({
+        set(state => ({
           ...INITIAL,
+          ownerId: state.ownerId,
           phase: 'recording',
           recording,
           engine,
           limits,
-        }),
+        })),
       setPhase: phase => set({ phase }),
       setNextSequence: next =>
         set(state => ({
@@ -165,11 +170,12 @@ export const useMeetingRecorderStore = create<MeetingRecorderStore>()(
       setSilencePrompt: open => set({ silencePrompt: open }),
       setMissingSegments: missing => set({ missingSegments: missing }),
       fail: code => set({ phase: 'error', errorCode: code, level: 0, silencePrompt: false }),
-      reset: () => set({ ...INITIAL }),
+      reset: () => set(state => ({ ...INITIAL, ownerId: state.ownerId })),
     }),
     {
       name: MEETING_RECORDER_STATE_KEY,
       partialize: state => ({
+        ownerId: state.ownerId,
         phase: phaseAfterReload(state.phase),
         recording: state.recording,
         // The bounds the server published at start: a resume after a reload

@@ -1,0 +1,155 @@
+{
+  "recorded_date": "2026-10-09",
+  "provenance": "Measurements transcribed from completed tool outputs in this task; scopes and limitations in the companion validation report. Not a full-world certification.",
+  "existing_tests": {
+    "backend_core": 124,
+    "backend_translation_and_i18n": 106,
+    "frontend_core": 201,
+    "frontend_language": 12,
+    "total": 443,
+    "outcome": "passed",
+    "new_world_tests_executed": 0
+  },
+  "redis_primitive": {
+    "outcome": "passed",
+    "clients": 4,
+    "concurrent_requests": 100,
+    "checks": [
+      "cap_five",
+      "cap_ten",
+      "same_account_one_slot",
+      "stable_fifo_no_newcomer_bypass",
+      "stale_release_fenced",
+      "expiry_atomic",
+      "cap_reduction_no_ejection"
+    ],
+    "scope": "Disposable UUID-prefixed keys on dev Redis database 15; primitive only, not the application protocol"
+  },
+  "pi_snapshot": {
+    "architecture": "aarch64",
+    "memory_total_mib": 16218,
+    "memory_used_mib": 9049,
+    "memory_available_mib": 7169,
+    "swap_total_mib": 2047,
+    "swap_used_mib": 1185,
+    "temperature_celsius": 47.2,
+    "throttled": "0x0",
+    "load_average": [
+      1.47,
+      1.44,
+      1.45
+    ],
+    "interval_cpu_idle_percent": [
+      94,
+      96
+    ],
+    "interval_swap_in_out": [
+      0,
+      0
+    ],
+    "api_workers": 4,
+    "scope": "Quiet bounded observation; historical swap occupancy is not current swap-pressure proof"
+  },
+  "pi_synthetic": {
+    "python": "3.14.7",
+    "max_rss_kib": 14944,
+    "samples": [
+      {
+        "population": 5,
+        "iterations": 2000,
+        "median_tick_ms": 0.088926,
+        "p95_tick_ms": 0.095148,
+        "mean_payload_bytes_per_tick": 1580.457,
+        "approx_cpu_fraction_one_core_at_10hz": 0.00089687622
+      },
+      {
+        "population": 10,
+        "iterations": 2000,
+        "median_tick_ms": 0.310668,
+        "p95_tick_ms": 0.32189,
+        "mean_payload_bytes_per_tick": 6643.8545,
+        "approx_cpu_fraction_one_core_at_10hz": 0.003122289
+      }
+    ],
+    "scope": "Synthetic floor movement and per-recipient JSON, no actual game/network/auth/Redis/mixed load"
+  },
+  "browser": {
+    "gpu": "ANGLE NVIDIA GeForce RTX 4090 Direct3D11",
+    "desktop_viewport": [
+      1280,
+      720
+    ],
+    "desktop_canvas": [
+      1280,
+      666
+    ],
+    "dpr": 1,
+    "pixi_probed_version": "8.22.0",
+    "three_probed_version": "0.186.1",
+    "initial_pixi": [
+      {
+        "population": 5,
+        "median_frame_ms": 51.5,
+        "p95_frame_ms": 52.8
+      },
+      {
+        "population": 10,
+        "median_frame_ms": 52,
+        "p95_frame_ms": 53.2
+      }
+    ],
+    "later_pixi": {
+      "population": 10,
+      "median_frame_ms": 16.7,
+      "p95_frame_ms": 16.8
+    },
+    "three": [
+      {
+        "population": 5,
+        "median_frame_ms": 16.7,
+        "p95_frame_ms": 16.8,
+        "draw_calls": 13,
+        "triangles": 15160
+      },
+      {
+        "population": 10,
+        "median_frame_ms": 16.7,
+        "p95_frame_ms": 16.8,
+        "draw_calls": 23,
+        "triangles": 15620
+      }
+    ],
+    "narrow_desktop": {
+      "viewport": [
+        390,
+        844
+      ],
+      "canvas": [
+        390,
+        790
+      ],
+      "horizontal_overflow": false,
+      "median_frame_ms": 16.7,
+      "p95_frame_ms": 16.8
+    },
+    "projection": {
+      "points": 1000,
+      "max_error": 0
+    },
+    "input": {
+      "steps_before_input_focus": 434,
+      "step_delta_while_input_focused": 0
+    },
+    "camera": {
+      "zoom_before": 1,
+      "zoom_after": 1.2,
+      "minimap_mode": "free",
+      "minimap_center": [
+        16,
+        16
+      ],
+      "recenter_mode": "follow"
+    },
+    "scope": "Synthetic scenes, short rAF timings on one powerful desktop GPU; narrow viewport is not a real phone"
+  }
+}

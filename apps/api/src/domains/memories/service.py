@@ -24,12 +24,27 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.domains.memories.models import Memory, MemoryCategory
-from src.domains.memories.protection import is_protected_from_deletion
+from src.domains.memories.models import Memory
+from src.domains.memories.prepared_embeddings import MemoryEmbedder
+from src.domains.memories.protection import initial_memory_pin, is_protected_from_deletion
 from src.domains.memories.repository import MemoryRepository
+from src.domains.memories.schemas import MemoryCreate, MemoryUpdate
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+def preview_memory_update(memory: Memory, changes: MemoryUpdate) -> MemoryCreate:
+    """Project a sparse UI delta without mutating the source or preparing vectors."""
+    current = {
+        "content": memory.content,
+        "category": memory.category,
+        "emotional_weight": memory.emotional_weight,
+        "trigger_topic": memory.trigger_topic,
+        "usage_nuance": memory.usage_nuance,
+        "importance": memory.importance,
+    }
+    return MemoryCreate.model_validate(current | changes.model_dump(exclude_none=True))
 
 
 # =============================================================================
@@ -111,18 +126,34 @@ class MemoryService:
     and embedding generation. Same pattern as JournalService.
     """
 
-    def __init__(self, db: AsyncSession) -> None:
+    def __init__(self, db: AsyncSession, *, embedder: MemoryEmbedder | None = None) -> None:
         """Initialize service with database session.
 
         Args:
             db: AsyncSession for database operations.
         """
         self.db = db
+        self._embedder = embedder
         self.repo = MemoryRepository(db)
 
     # =========================================================================
     # Create
     # =========================================================================
+
+    async def create_from_management(
+        self, user_id: UUID, data: MemoryCreate, *, memory_id: UUID | None = None
+    ) -> Memory:
+        """One mapping from UI configuration to the existing creation business rules."""
+        return await self.create_memory(
+            user_id=user_id,
+            content=data.content,
+            category=data.category,
+            emotional_weight=data.emotional_weight,
+            trigger_topic=data.trigger_topic,
+            usage_nuance=data.usage_nuance,
+            importance=data.importance,
+            memory_id=memory_id,
+        )
 
     async def create_memory(
         self,
@@ -134,6 +165,8 @@ class MemoryService:
         usage_nuance: str = "",
         importance: float = 0.7,
         context_biometric: dict[str, Any] | None = None,
+        *,
+        memory_id: UUID | None = None,
     ) -> Memory:
         """Create a new memory with auto-generated embedding.
 
@@ -159,13 +192,16 @@ class MemoryService:
         char_count = len(content)
 
         # Generate dual embeddings: content + trigger_topic separately
-        embedding, keyword_embedding = await _generate_dual_embeddings(content, trigger_topic)
+        embedding, keyword_embedding = await (self._embedder or _generate_dual_embeddings)(
+            content, trigger_topic
+        )
 
         memory = Memory(
+            id=memory_id,
             user_id=user_id,
             content=content,
             category=category,
-            pinned=category == MemoryCategory.PROCEDURAL.value,
+            pinned=initial_memory_pin(category),
             emotional_weight=emotional_weight,
             trigger_topic=trigger_topic,
             usage_nuance=usage_nuance,
@@ -292,6 +328,18 @@ class MemoryService:
         )
         return successor
 
+    async def update_from_management(self, memory: Memory, data: MemoryUpdate) -> Memory:
+        """Keep UI and native sparse update semantics on the same typed source seam."""
+        return await self.update_memory(
+            memory,
+            content=data.content,
+            category=data.category,
+            emotional_weight=data.emotional_weight,
+            trigger_topic=data.trigger_topic,
+            usage_nuance=data.usage_nuance,
+            importance=data.importance,
+        )
+
     async def update_memory(
         self,
         memory: Memory,
@@ -344,9 +392,9 @@ class MemoryService:
 
         # Re-embed if content or trigger_topic changed
         if content_changed:
-            memory.embedding, memory.keyword_embedding = await _generate_dual_embeddings(
-                memory.content, memory.trigger_topic
-            )
+            memory.embedding, memory.keyword_embedding = await (
+                self._embedder or _generate_dual_embeddings
+            )(memory.content, memory.trigger_topic)
 
         updated = await self.repo.update(memory)
 

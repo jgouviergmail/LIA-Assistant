@@ -6,9 +6,9 @@ file pins the executor wrapper, whose failure modes are not the same ones:
 
 - a draft executor's return value is a ``dict`` the caller reports as the
   action's outcome, so anything invented here is shown to the user as a fact;
-- the caller (``draft_executor._execute_confirmed_draft``) reads only whether
-  the call RAISED — it reports ``success=True`` for any dict that comes back,
-  so an honest failure must travel as an exception, not as a payload.
+- the caller (``draft_executor._execute_confirmed_draft``) preserves explicit
+  negative outcomes; a lost claim with no recorded result still raises, since
+  the wrapper has no authoritative outcome to serve in that case.
 """
 
 from __future__ import annotations
@@ -74,6 +74,13 @@ class _Ledger:
             return gate_runtime.ClaimTicket(
                 effect_id=uuid.uuid4(), claim_token=None, served_result=None
             )
+        if self.answer == "truncated":
+            return gate_runtime.ClaimTicket(
+                effect_id=uuid.uuid4(),
+                claim_token=None,
+                served_result={"truncated": True, "text": '{"success": false'},
+                served_status="failed",
+            )
         return None  # the ledger itself is unavailable
 
     async def close(self, effect_id: Any, token: Any, *, outcome: Any) -> None:
@@ -117,6 +124,15 @@ class TestTheNominalPath:
 
 
 class TestTheApprovalIsSpentOnce:
+    async def test_a_truncated_record_is_not_a_complete_result_or_a_success(
+        self, ledger: _Ledger
+    ) -> None:
+        ledger.answer = "truncated"
+        gated = gate_runtime.gated_executor("email_send", _executor)
+        with _install(ledger), pytest.raises(gate_runtime.EffectAlreadyClaimed):
+            await gated({"to": "x@y.z"}, uuid.uuid4(), None)
+        assert RUNS == []
+
     async def test_a_lost_claim_serves_the_record_instead_of_re_running(
         self, ledger: _Ledger
     ) -> None:

@@ -37,11 +37,14 @@ class TestEligibilityQueryShape:
 
     def test_active_entries_floor_still_applies(self) -> None:
         sql = _sql()
-        assert "count(journal_entries.id) >= " in sql
+        assert "entry_count >= " in sql
 
     def test_cooldown_still_paces_the_scheduler(self) -> None:
         sql = _sql()
-        assert "journal_last_consolidated_at < " in sql
+        assert (
+            "coalesce(users.journal_last_attempted_at, users.journal_last_consolidated_at) < "
+            in sql
+        )
 
     def test_only_active_entries_count(self) -> None:
         """Archived entries are not work: they never re-trigger a run."""

@@ -17,10 +17,11 @@
  * to the place where shortcuts are chosen is the one that helps nobody.
  */
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import { useApiMutation } from '@/hooks/useApiMutation';
-import { useApiQuery } from '@/hooks/useApiQuery';
+import { useApplicationAccountQuery } from '@/hooks/useApplicationAccountQuery';
+import { useApplicationPreferenceState } from '@/hooks/useApplicationPreferenceState';
 import { useAuth } from '@/hooks/useAuth';
 import { isSettingsSectionToken, type SettingsSectionToken } from '@/lib/settings-sections';
 
@@ -70,46 +71,26 @@ export interface UseSettingsShortcutsReturn {
 
 export function useSettingsShortcuts(enabled = true): UseSettingsShortcutsReturn {
   const { refreshUser } = useAuth();
-  const { data, loading, error } = useApiQuery<SettingsShortcutsResponse>(ENDPOINT, {
-    componentName: 'useSettingsShortcuts',
-    enabled,
-  });
-  // Derived-with-override (no state-sync effect — react-hooks ratchet).
-  const [override, setOverride] = useState<SettingsSectionToken[] | null>(null);
-  const serverShortcuts = data?.shortcuts;
-  const shortcuts = useMemo(
-    () => override ?? knownShortcutTokens(serverShortcuts),
-    [override, serverShortcuts]
-  );
-
-  const mutation = useApiMutation<SettingsShortcutsPayload, SettingsShortcutsResponse>({
+  const { data, loading, error, refetch, ownerId } = useApplicationAccountQuery<SettingsShortcutsResponse>(ENDPOINT, 'useSettingsShortcuts', enabled);
+  const { mutate, loading: saving } = useApiMutation<SettingsShortcutsPayload, SettingsShortcutsResponse>({
     method: 'PUT',
     componentName: 'useSettingsShortcuts',
   });
-
-  const save = useCallback(
-    async (next: SettingsSectionToken[]): Promise<boolean> => {
-      const previous = shortcuts;
-      setOverride(next);
-      try {
-        await mutation.mutate(ENDPOINT, { shortcuts: next });
-      } catch {
-        setOverride(previous);
-        return false;
-      }
-      // The dock reads `useAuth().user`: refresh it so every screen follows.
-      await refreshUser();
-      return true;
-    },
-    [shortcuts, mutation, refreshUser]
-  );
+  const write = useCallback((next: SettingsSectionToken[]) => mutate(ENDPOINT, { shortcuts: next }), [mutate]);
+  const saved = useMemo(() => knownShortcutTokens(data?.shortcuts), [data?.shortcuts]);
+  const { value, save: saveState } = useApplicationPreferenceState(ownerId, saved, 'profile', refetch, write);
+  const save = useCallback(async (next: SettingsSectionToken[]): Promise<boolean> => {
+    if (!await saveState(next)) return false;
+    await refreshUser();
+    return true;
+  }, [saveState, refreshUser]);
 
   return {
-    shortcuts,
+    shortcuts: value ?? [],
     maxCount: data?.max_count ?? 0,
     loading,
     error: !!error,
     save,
-    saving: mutation.loading,
+    saving,
   };
 }

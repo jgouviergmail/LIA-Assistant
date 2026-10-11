@@ -24,6 +24,9 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 
 import { useStaleGuard } from '@/hooks/useStaleGuard';
+import { useAuth } from '@/hooks/useAuth';
+import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
+import { useApplicationResourceSync } from '@/hooks/useApplicationResourceSync';
 import { ApiError } from '@/lib/api-client';
 import { workboardApi } from '@/lib/workboard/api';
 import {
@@ -95,12 +98,29 @@ export function useWorkboard(
   filters: BoardFilters = {},
   options: { paused?: boolean } = {}
 ): UseWorkboardResult {
+  const { user } = useAuth();
+  const ownerId = user?.id;
+  const { lifetime, isCurrent } = useApplicationAccountLifetime(ownerId);
   const [state, dispatch] = useReducer(workboardReducer, initialWorkboardState);
+  const [snapshotOwner, setSnapshotOwner] = useState(lifetime);
+  const owned = snapshotOwner === lifetime;
+  const visibleState = owned ? state : initialWorkboardState;
   const [firstLoad, setFirstLoad] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [isUnavailable, setIsUnavailable] = useState(false);
   const guard = useStaleGuard();
+  const nativeDirty = useRef(false);
+  useEffect(() => {
+    guard.begin();
+    dispatch({ type: 'restored', snapshot: initialWorkboardState });
+    setSnapshotOwner(lifetime);
+    setFirstLoad(true);
+    setLoading(!!ownerId);
+    setError(null);
+    setIsUnavailable(false);
+    nativeDirty.current = false;
+  }, [guard, lifetime, ownerId]);
 
   // Two LATEST-VALUE refs, updated POST-COMMIT like `useApiQuery` does: a ref
   // written during render is a render-phase side effect React is free to
@@ -121,7 +141,7 @@ export function useWorkboard(
   const paused = options.paused ?? false;
   useEffect(() => {
     filtersRef.current = filters;
-    stateRef.current = state;
+    stateRef.current = visibleState;
     // Post-commit like the two above, and for the same reason: a ref written
     // during render belongs to an arbitrary attempt React is free to discard.
     // The poll only reads it on a 30 s timer, so a commit's delay is nothing.
@@ -131,19 +151,21 @@ export function useWorkboard(
 
   const read = useCallback(
     async (quiet: boolean) => {
+      if (!isCurrent()) return;
       const isStale = guard.begin();
+      const obsolete = () => isStale() || !isCurrent();
       // A QUIET read never touches `loading`: that flag spins the refresh
       // button and drives `aria-busy`, so a background poll announcing itself
       // every thirty seconds would be the opposite of « without impact ».
       if (!quiet) setLoading(true);
       try {
         const page = await workboardApi.board(filtersRef.current);
-        if (isStale()) return;
+        if (obsolete()) return;
         dispatch({ type: 'loaded', page });
         setError(null);
         setIsUnavailable(false);
       } catch (caught) {
-        if (isStale()) return;
+        if (obsolete()) return;
         // The router is absent when the instance flag is off, so a 404 is a
         // CONFIGURATION answer, not a failure to report.
         if (caught instanceof ApiError && caught.status === 404) {
@@ -157,16 +179,37 @@ export function useWorkboard(
         if (quiet) return;
         setError(caught instanceof Error ? caught : new Error(String(caught)));
       } finally {
-        if (!isStale() && !quiet) {
+        if (!obsolete() && !quiet) {
           setLoading(false);
           setFirstLoad(false);
         }
       }
     },
-    [guard]
+    [guard, isCurrent]
   );
 
   const refetch = useCallback(() => read(false), [read]);
+  const release = useCallback(() => {
+    guard.begin();
+  }, [guard]);
+  const flushNativeRefresh = useCallback(async () => {
+    if (!isCurrent() || !nativeDirty.current || pausedRef.current || writesInFlight.current > 0)
+      return;
+    nativeDirty.current = false;
+    await refetch();
+  }, [isCurrent, refetch]);
+  const nativeRefresh = useCallback(async () => {
+    nativeDirty.current = true;
+    await flushNativeRefresh();
+  }, [flushNativeRefresh]);
+  const nativeRefreshRef = useRef(flushNativeRefresh);
+  useEffect(() => {
+    nativeRefreshRef.current = flushNativeRefresh;
+  }, [flushNativeRefresh]);
+  useEffect(() => {
+    if (!paused) void flushNativeRefresh();
+  }, [paused, flushNativeRefresh]);
+  useApplicationResourceSync(ownerId, 'workboard', nativeRefresh, release);
 
   useEffect(() => {
     void refetch();
@@ -174,8 +217,8 @@ export function useWorkboard(
     // rebuilt on every render would otherwise re-fetch forever.
   }, [refetch, filterKey]);
 
-  // Nothing pushes a peer's change to this tab (ADR-276 leaves real-time sync
-  // out of scope), so coming back to it is when the board re-reads.
+  // Remote peer changes are re-read on focus; this account's confirmed changes
+  // also publish the addressed resource hint above.
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState === 'visible') void refetch();
@@ -214,6 +257,7 @@ export function useWorkboard(
       return await call();
     } finally {
       writesInFlight.current -= 1;
+      if (writesInFlight.current === 0) void nativeRefreshRef.current();
     }
   }, []);
 
@@ -221,19 +265,22 @@ export function useWorkboard(
   const write = useCallback(
     (call: () => Promise<unknown>, after?: () => void | Promise<void>): Promise<WriteOutcome> =>
       duringWrite(async () => {
+        if (!isCurrent()) return { ok: false, errorCode: null };
         try {
           await call();
+          if (!isCurrent()) return { ok: false, errorCode: null };
           await after?.();
           return { ok: true, errorCode: null };
         } catch (caught) {
           return { ok: false, errorCode: workboardErrorCode(caught) };
         }
       }),
-    [duringWrite]
+    [duringWrite, isCurrent]
   );
 
   const move = useCallback(
     async (id: string, status: string, position: number): Promise<WriteOutcome> => {
+      if (!isCurrent()) return { ok: false, errorCode: null };
       // The snapshot is the rollback: restoring it puts every card back at the
       // index it held, which re-deriving an inverse move could only approximate.
       const snapshot: WorkboardState = stateRef.current;
@@ -241,43 +288,48 @@ export function useWorkboard(
       return duringWrite(async () => {
         try {
           const row = await workboardApi.move(id, { status, position });
+          if (!isCurrent()) return { ok: false, errorCode: null };
           dispatch({ type: 'patched', ticket: row });
           return { ok: true, errorCode: null };
         } catch (caught) {
-          dispatch({ type: 'restored', snapshot });
+          if (isCurrent()) dispatch({ type: 'restored', snapshot });
           return { ok: false, errorCode: workboardErrorCode(caught) };
         }
       });
     },
-    [duringWrite]
+    [duringWrite, isCurrent]
   );
 
   const patch = useCallback(
     (id: string, body: TicketUpdateBody): Promise<WriteOutcome> =>
       duringWrite(async () => {
+        if (!isCurrent()) return { ok: false, errorCode: null };
         try {
           const row = await workboardApi.update(id, body);
+          if (!isCurrent()) return { ok: false, errorCode: null };
           dispatch({ type: 'patched', ticket: row });
           return { ok: true, errorCode: null };
         } catch (caught) {
           return { ok: false, errorCode: workboardErrorCode(caught) };
         }
       }),
-    [duringWrite]
+    [duringWrite, isCurrent]
   );
 
   const runNow = useCallback(
     (id: string): Promise<WriteOutcome> =>
       duringWrite(async () => {
+        if (!isCurrent()) return { ok: false, errorCode: null };
         try {
           const row = await workboardApi.runNow(id);
+          if (!isCurrent()) return { ok: false, errorCode: null };
           dispatch({ type: 'patched', ticket: row });
           return { ok: true, errorCode: null };
         } catch (caught) {
           return { ok: false, errorCode: workboardErrorCode(caught) };
         }
       }),
-    [duringWrite]
+    [duringWrite, isCurrent]
   );
 
   const create = useCallback(
@@ -297,18 +349,18 @@ export function useWorkboard(
     [write, refetch]
   );
 
-  const column = useCallback((status: string) => ticketsOf(state, status), [state]);
+  const column = useCallback((status: string) => ticketsOf(visibleState, status), [visibleState]);
 
   return useMemo(
     () => ({
-      tickets: state.tickets,
-      countsByStatus: state.countsByStatus,
-      total: state.total,
+      tickets: visibleState.tickets,
+      countsByStatus: visibleState.countsByStatus,
+      total: visibleState.total,
       column,
-      firstLoad,
-      loading,
-      error,
-      isUnavailable,
+      firstLoad: !owned || firstLoad,
+      loading: !owned || loading,
+      error: owned ? error : null,
+      isUnavailable: owned && isUnavailable,
       refetch,
       move,
       patch,
@@ -318,7 +370,8 @@ export function useWorkboard(
       remove,
     }),
     [
-      state,
+      visibleState,
+      owned,
       column,
       firstLoad,
       loading,

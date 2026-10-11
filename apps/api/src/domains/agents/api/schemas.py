@@ -11,6 +11,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from src.core.application_device_snapshot import RecordingDeviceSnapshot
 from src.core.card_composition import CardCompositionRequest
 from src.core.constants import CHAT_MESSAGE_MAX_LENGTH
 from src.domains.agents.capability_directives import DirectiveCapability
@@ -155,6 +156,7 @@ class ChatRequest(BaseModel):
         description="User message content",
     )
     user_id: uuid.UUID = Field(description="User UUID")
+    recording_device: RecordingDeviceSnapshot | None = None
     session_id: str = Field(description="Session identifier")
     context: BrowserContext | None = Field(
         default=None,
@@ -293,6 +295,7 @@ class ChatStreamChunk(BaseModel):
         # Data Registry: Registry-First Architecture (side-channel data)
         "registry_update",  # Data Registry: Registry items for frontend rendering (emitted BEFORE tokens)
         "result_preview",  # Ephemeral qualified collection; final registry remains authoritative.
+        "application_state_changed",  # Addressed hints; clients reread current authorized values.
         # Debug Panel: Scoring metrics for threshold tuning (only emitted when DEBUG=true)
         "debug_metrics",  # Debug: All scoring metrics with thresholds for debug panel
         "debug_metrics_update",  # Debug: Supplementary metrics (post-background tasks, merged by frontend)

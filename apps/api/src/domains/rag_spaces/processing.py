@@ -17,19 +17,26 @@ import asyncio
 import os
 import time
 from contextlib import suppress
+from functools import partial
 from pathlib import Path
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
+from src.domains.rag_spaces.bookmark_processing_guard import (
+    BookmarkProcessingStopped,
+    require_bookmark_processing,
+    settle_stopped_bookmark,
+)
 from src.domains.rag_spaces.embedding import get_rag_embeddings
 from src.domains.rag_spaces.jobs_repository import RAGJobsRepository
 from src.domains.rag_spaces.models import (
     RAGChunk,
     RAGDocument,
     RAGDocumentErrorCode,
+    RAGDocumentSourceType,
     RAGDocumentStatus,
 )
 from src.domains.rag_spaces.repository import (
@@ -37,6 +44,18 @@ from src.domains.rag_spaces.repository import (
     RAGDocumentRepository,
     RAGSpaceRepository,
 )
+from src.domains.rag_spaces.source_document_lease import (
+    renew_source_document,
+    require_source_document,
+)
+from src.domains.rag_spaces.source_worker_lease import (
+    NATIVE_DOCUMENT_WORKER_PREFIX,
+    SourceLeaseLost,
+    current_source_worker,
+    native_source_limit,
+    require_source_worker,
+)
+from src.domains.rag_spaces.source_worker_runtime import source_worker_external
 from src.domains.rag_spaces.storage_paths import stored_file_path
 from src.infrastructure.database.session import get_db_context
 from src.infrastructure.llm.embedding_context import (
@@ -410,6 +429,8 @@ async def process_document(
     filename: str,
     original_filename: str,
     content_type: str,
+    *,
+    durable_upload: bool = False,
 ) -> bool:
     """
     Background task to process an uploaded document.
@@ -450,6 +471,12 @@ async def process_document(
 
     # Track previous status for gauge transitions (processing or reindexing)
     previous_status = RAGDocumentStatus.PROCESSING
+    is_bookmark = False
+    worker_id = (
+        f"{NATIVE_DOCUMENT_WORKER_PREFIX}{uuid4().hex}"
+        if current_source_worker() is not None
+        else _WORKER_ID
+    )
 
     try:
         async with get_db_context() as db:
@@ -466,6 +493,32 @@ async def process_document(
                 return False
 
             previous_status = document.status
+            is_bookmark = document.source_type == RAGDocumentSourceType.BOOKMARK
+            if is_bookmark:
+                if document.status != RAGDocumentStatus.PENDING:
+                    return False
+                worker_id = f"bookmark-doc-{uuid4().hex}"
+                await require_bookmark_processing(db, document_id, user_id, space_id)
+            scope = current_source_worker()
+            if scope is not None:
+                await require_source_worker(db)
+                reference = (
+                    document.drive_source_id if scope.kind == "drive" else document.mail_source_id
+                )
+                if (
+                    document.user_id != scope.actor_id
+                    or user_id != scope.actor_id
+                    or document.space_id != scope.space_id
+                    or space_id != scope.space_id
+                    or reference != scope.source_id
+                ):
+                    raise SourceLeaseLost("Native processing targets another source document")
+                durable_upload = True
+            if durable_upload and document.status != RAGDocumentStatus.PENDING:
+                # A queued launcher can arrive after another launcher/reaper
+                # claimed or completed the row. It never owns that work.
+                logger.info("rag_upload_already_claimed", document_id=str(document_id))
+                return False
 
             # Durable-job claim (audit F001): an upload/recovered document starts
             # PENDING; atomically claim it (PENDING -> PROCESSING + lease). If the
@@ -476,7 +529,7 @@ async def process_document(
             holds_lease = False
             if document.status == RAGDocumentStatus.PENDING:
                 claimed = await jobs.claim_document(
-                    document_id, _WORKER_ID, settings.rag_job_lease_ttl_seconds
+                    document_id, worker_id, settings.rag_job_lease_ttl_seconds
                 )
                 if not claimed:
                     logger.info("rag_document_claim_contended", document_id=str(document_id))
@@ -501,11 +554,17 @@ async def process_document(
                     db,
                     "File not found on disk",
                     code=RAGDocumentErrorCode.FILE_MISSING,
+                    worker_id=worker_id,
                 )
                 return False
 
             try:
-                text = await asyncio.to_thread(extract_text, file_path, content_type)
+                text = await source_worker_external(
+                    lambda: asyncio.to_thread(extract_text, file_path, content_type),
+                    renewal=partial(renew_source_document, document_id, worker_id),
+                )
+            except SourceLeaseLost:
+                raise
             except Exception as e:
                 await _mark_document_error(
                     doc_repo,
@@ -513,13 +572,19 @@ async def process_document(
                     db,
                     f"Text extraction failed: {e}",
                     code=RAGDocumentErrorCode.EXTRACTION_FAILED,
+                    worker_id=worker_id,
                 )
                 return False
 
             if not text.strip():
                 code = await asyncio.to_thread(classify_empty_extraction, file_path, content_type)
                 await _mark_document_error(
-                    doc_repo, document, db, "No text content extracted", code=code
+                    doc_repo,
+                    document,
+                    db,
+                    "No text content extracted",
+                    code=code,
+                    worker_id=worker_id,
                 )
                 return False
 
@@ -539,10 +604,13 @@ async def process_document(
                     db,
                     "No chunks produced after splitting",
                     code=RAGDocumentErrorCode.NO_CHUNKS,
+                    worker_id=worker_id,
                 )
                 return False
 
-            max_chunks = settings.rag_spaces_max_chunks_per_document
+            max_chunks = native_source_limit(
+                settings.rag_spaces_max_chunks_per_document, "max_chunks"
+            )
             if len(chunk_texts) > max_chunks:
                 await _mark_document_error(
                     doc_repo,
@@ -550,6 +618,7 @@ async def process_document(
                     db,
                     f"Document produces {len(chunk_texts)} chunks, exceeding limit of {max_chunks}",
                     code=RAGDocumentErrorCode.TOO_MANY_CHUNKS,
+                    worker_id=worker_id,
                 )
                 return False
 
@@ -563,15 +632,28 @@ async def process_document(
             embeddings_model = get_rag_embeddings()
             embedding_vectors: list[list[float]] = []
             for batch_start in range(0, len(chunk_texts), EMBEDDING_BATCH_SIZE):
+                if is_bookmark:
+                    await require_bookmark_processing(
+                        db,
+                        document_id,
+                        user_id,
+                        space_id,
+                        worker_id=worker_id if holds_lease else None,
+                        before_spend=True,
+                    )
+                    await db.commit()
                 # Renew the lease before each (slow) embedding batch so a live job
                 # is never reclaimed by the reaper mid-flight. Only meaningful when
                 # we hold the lease (the claimed upload/recovery path).
-                if holds_lease:
+                if holds_lease and current_source_worker() is None:
                     await jobs.heartbeat_document(
-                        document_id, _WORKER_ID, settings.rag_job_lease_ttl_seconds
+                        document_id, worker_id, settings.rag_job_lease_ttl_seconds
                     )
                 batch = chunk_texts[batch_start : batch_start + EMBEDDING_BATCH_SIZE]
-                batch_vectors = await embeddings_model.aembed_documents(batch)
+                batch_vectors = await source_worker_external(
+                    partial(embeddings_model.aembed_documents, batch),
+                    renewal=partial(renew_source_document, document_id, worker_id),
+                )
                 embedding_vectors.extend(batch_vectors)
 
             # 5. Build chunk objects
@@ -611,6 +693,11 @@ async def process_document(
             # generation survives side by side. Idempotent on retry: a re-run
             # clears just the partial new-generation chunks, never the old ones.
             space_repo = RAGSpaceRepository(db)
+            if is_bookmark:
+                await require_bookmark_processing(
+                    db, document_id, user_id, space_id, worker_id=worker_id if holds_lease else None
+                )
+            await require_source_document(db, document_id, worker_id)
             serving_model = await space_repo.get_serving_model(space_id)
             if serving_model is not None and serving_model != model_name:
                 await chunk_repo.delete_by_document_and_model(document_id, model_name)
@@ -671,6 +758,17 @@ async def process_document(
             )
             return True
 
+    except BookmarkProcessingStopped:
+        try:
+            async with get_db_context() as db:
+                await settle_stopped_bookmark(db, document_id, user_id, space_id, worker_id)
+        except Exception:
+            logger.exception("bookmark_processing_settle_pending", document_id=str(document_id))
+        logger.warning("bookmark_processing_stopped", document_id=str(document_id))
+        return False
+    except SourceLeaseLost:
+        logger.warning("rag_document_source_lease_lost", document_id=str(document_id))
+        return False
     except Exception as e:
         logger.error(
             "rag_document_processing_failed",
@@ -684,11 +782,12 @@ async def process_document(
         # _mark_document_error (retrying them cannot help).
         try:
             async with get_db_context() as db:
+                await require_source_document(db, document_id, worker_id)
                 jobs = RAGJobsRepository(db)
                 new_status = await jobs.fail_or_retry_document(
                     document_id,
                     f"Processing failed: {e}",
-                    settings.rag_job_max_attempts,
+                    1 if current_source_worker() is not None else settings.rag_job_max_attempts,
                 )
                 if new_status == RAGDocumentStatus.ERROR:
                     rag_documents_processed_total.labels(status="error").inc()
@@ -710,6 +809,7 @@ async def _mark_document_error(
     error_message: str,
     *,
     code: RAGDocumentErrorCode,
+    worker_id: str | None = None,
 ) -> None:
     """Mark a document as error — the technical message and its code — and update the gauges.
 
@@ -721,6 +821,10 @@ async def _mark_document_error(
         code: Why it failed, in the closed vocabulary the frontend translates.
     """
     previous_status = document.status
+    if current_source_worker() is not None:
+        if worker_id is None:
+            raise SourceLeaseLost("Native document error needs its own job identity")
+        await require_source_document(db, document.id, worker_id)
     await doc_repo.update(
         document,
         {

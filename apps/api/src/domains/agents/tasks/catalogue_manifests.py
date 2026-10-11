@@ -128,7 +128,9 @@ get_tasks_catalogue_manifest = ToolManifest(
         OutputFieldSchema(
             path="tasks[].id", type="string", description="Task ID", semantic_type="task_id"
         ),
-        OutputFieldSchema(path="tasks[].title", type="string", description="Title"),
+        OutputFieldSchema(
+            path="tasks[].title", type="string", description="Title", semantic_type="Text"
+        ),
         OutputFieldSchema(
             path="tasks[].status", type="string", description="Status", semantic_type="task_status"
         ),
@@ -139,7 +141,13 @@ get_tasks_catalogue_manifest = ToolManifest(
             description="Due date",
             semantic_type="datetime",
         ),
-        OutputFieldSchema(path="tasks[].notes", type="string", nullable=True, description="Notes"),
+        OutputFieldSchema(
+            path="tasks[].notes",
+            type="string",
+            nullable=True,
+            description="Notes",
+            semantic_type="Text",
+        ),
         OutputFieldSchema(
             path="tasks[].updated",
             type="string",
@@ -196,6 +204,7 @@ create_task_catalogue_manifest = ToolManifest(
             required=True,
             description="Title",
             constraints=[ParameterConstraint(kind="min_length", value=1)],
+            semantic_type="Text",
         ),
         ParameterSchema(
             name="due",
@@ -204,7 +213,13 @@ create_task_catalogue_manifest = ToolManifest(
             description="Due date (ISO)",
             semantic_type="datetime",
         ),
-        ParameterSchema(name="notes", type="string", required=False, description="Description"),
+        ParameterSchema(
+            name="notes",
+            type="string",
+            required=False,
+            description="Description",
+            semantic_type="Text",
+        ),
         ParameterSchema(
             name="task_list_id",
             type="string",
@@ -217,7 +232,7 @@ create_task_catalogue_manifest = ToolManifest(
         OutputFieldSchema(
             path="task_id", type="string", description="Created ID", semantic_type="task_id"
         ),
-        OutputFieldSchema(path="title", type="string", description="Title"),
+        OutputFieldSchema(path="title", type="string", description="Title", semantic_type="Text"),
         OutputFieldSchema(
             path="due",
             type="string",
@@ -282,7 +297,7 @@ complete_task_catalogue_manifest = ToolManifest(
         OutputFieldSchema(
             path="status", type="string", description="New status", semantic_type="task_status"
         ),
-        OutputFieldSchema(path="title", type="string", description="Title"),
+        OutputFieldSchema(path="title", type="string", description="Title", semantic_type="Text"),
     ],
     cost=CostProfile(est_tokens_in=100, est_tokens_out=80, est_cost_usd=0.003, est_latency_ms=400),
     permissions=PermissionProfile(
@@ -333,8 +348,20 @@ update_task_catalogue_manifest = ToolManifest(
             description="Task ID",
             semantic_type="task_id",
         ),
-        ParameterSchema(name="title", type="string", required=False, description="New title"),
-        ParameterSchema(name="notes", type="string", required=False, description="New notes"),
+        ParameterSchema(
+            name="title",
+            type="string",
+            required=False,
+            description="New title",
+            semantic_type="Text",
+        ),
+        ParameterSchema(
+            name="notes",
+            type="string",
+            required=False,
+            description="New notes",
+            semantic_type="Text",
+        ),
         ParameterSchema(
             name="due",
             type="string",
@@ -359,14 +386,16 @@ update_task_catalogue_manifest = ToolManifest(
     ],
     outputs=[
         OutputFieldSchema(path="task_id", type="string", description="ID", semantic_type="task_id"),
-        OutputFieldSchema(path="title", type="string", description="Title"),
+        OutputFieldSchema(path="title", type="string", description="Title", semantic_type="Text"),
         OutputFieldSchema(
             path="status", type="string", description="Status", semantic_type="task_status"
         ),
         OutputFieldSchema(
             path="due", type="string", nullable=True, description="Due", semantic_type="datetime"
         ),
-        OutputFieldSchema(path="notes", type="string", nullable=True, description="Notes"),
+        OutputFieldSchema(
+            path="notes", type="string", nullable=True, description="Notes", semantic_type="Text"
+        ),
     ],
     cost=CostProfile(est_tokens_in=150, est_tokens_out=100, est_cost_usd=0.005, est_latency_ms=500),
     permissions=PermissionProfile(
@@ -421,7 +450,7 @@ delete_task_catalogue_manifest = ToolManifest(
         OutputFieldSchema(
             path="task_id", type="string", description="Deleted ID", semantic_type="task_id"
         ),
-        OutputFieldSchema(path="message", type="string", description="Msg"),
+        OutputFieldSchema(path="message", type="string", description="Msg", semantic_type="Text"),
     ],
     cost=CostProfile(est_tokens_in=100, est_tokens_out=50, est_cost_usd=0.003, est_latency_ms=400),
     permissions=PermissionProfile(
@@ -476,7 +505,9 @@ list_task_lists_catalogue_manifest = ToolManifest(
             description="ID",
             semantic_type="task_list_id",
         ),
-        OutputFieldSchema(path="tasks[].title", type="string", description="Title"),
+        OutputFieldSchema(
+            path="tasks[].title", type="string", description="Title", semantic_type="Text"
+        ),
     ],
     cost=CostProfile(est_tokens_in=50, est_tokens_out=150, est_cost_usd=0.001, est_latency_ms=300),
     permissions=PermissionProfile(

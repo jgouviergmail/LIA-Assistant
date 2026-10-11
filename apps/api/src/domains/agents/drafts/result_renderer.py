@@ -96,6 +96,7 @@ _ITEM_LABEL_MAX_CHARS = 60
 MIXED_BATCH_TYPE = "batch"
 
 _STATUS_MARKS = {
+    "waiting": "⏳",
     "success": "✅",
     "cancelled": "🚫",
     "partial_error": "⚠️",
@@ -391,9 +392,7 @@ def _describe_items(
         row_config = get_draft_display_config(str(own_type)) if own_type else None
         row_config = row_config or config
         status = item.get("status")
-        mark = _STATUS_MARKS[
-            "cancelled" if status == "cancelled" else "success" if status == "success" else "error"
-        ]
+        mark = _STATUS_MARKS.get(str(status), _STATUS_MARKS["error"])
         label = _item_label(row_config, content)
         if not label:
             logger.warning(
@@ -409,7 +408,7 @@ def _describe_items(
     return tuple(items)
 
 
-def _batch_headline(
+def _completed_batch_headline(
     draft_type: str, config: DraftDisplayConfig | None, data: dict[str, Any], user_lang: Language
 ) -> str:
     """What a batch is headed with: the count, the noun and the verb agreed."""
@@ -436,6 +435,18 @@ def _batch_headline(
     return f"{success_count}/{total_count}"
 
 
+def _batch_headline(
+    draft_type: str, config: DraftDisplayConfig | None, data: dict[str, Any], user_lang: Language
+) -> str:
+    from src.core.i18n_application import APPLICATION_WAITING_COUNT
+
+    completed = _completed_batch_headline(draft_type, config, data, user_lang)
+    waiting = data.get("waiting_count", 0)
+    if type(waiting) is int and waiting > 0:
+        return f"{completed} · {APPLICATION_WAITING_COUNT[user_lang].format(count=waiting)}"
+    return completed
+
+
 def _describe_batch(
     status: str,
     draft_type: str,
@@ -448,7 +459,7 @@ def _describe_batch(
     user_lang, user_tz = _batch_locale(batch_results)
     return ResultSpec(
         emoji=domain_emoji,
-        mark=_STATUS_MARKS["success" if status == "success" else "partial_error"],
+        mark=_STATUS_MARKS.get(status, _STATUS_MARKS["partial_error"]),
         headline=_batch_headline(draft_type, config, data, user_lang),
         separator=label_separator(user_lang),
         lines=(),
@@ -507,7 +518,11 @@ def describe_execution_result(result: dict[str, Any] | None) -> ResultSpec | Non
     config = get_draft_display_config(draft_type)
     domain_emoji = config.emoji if config else ""
 
-    if action == DraftAction.CONFIRM_BATCH.value and status in ("success", "partial_error"):
+    if action == DraftAction.CONFIRM_BATCH.value and status in (
+        "success",
+        "partial_error",
+        "waiting",
+    ):
         return _describe_batch(status, draft_type, domain_emoji, config, data)
 
     if status == "success":
@@ -528,7 +543,7 @@ def describe_execution_result(result: dict[str, Any] | None) -> ResultSpec | Non
             (),
         )
 
-    if status in ("cancelled", "error"):
+    if status in ("cancelled", "error", "waiting"):
         return ResultSpec(domain_emoji, _STATUS_MARKS[status], _drawn(message), "", (), ())
 
     return None

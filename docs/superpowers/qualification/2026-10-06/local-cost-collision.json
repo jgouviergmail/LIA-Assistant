@@ -1,0 +1,20 @@
+{
+  "mode": "isolated_process_synthetic_snapshot_no_database_or_redis",
+  "caller_provider": "ollama",
+  "model": "shared-model",
+  "input_tokens": 1000,
+  "output_tokens": 100,
+  "cache_price_usd_per_million": {
+    "input": 1.0,
+    "output": 2.0
+  },
+  "current_result": [
+    0.0012000000000000001,
+    0.0010800000000000002
+  ],
+  "function_has_provider_parameter": false,
+  "required_local_result": [
+    0.0,
+    0.0
+  ]
+}

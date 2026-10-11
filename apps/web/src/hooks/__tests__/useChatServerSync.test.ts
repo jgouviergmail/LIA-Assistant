@@ -39,6 +39,7 @@ import { proactiveToastPresentation, useChatServerSync } from '@/hooks/useChatSe
 
 function options(overrides: Partial<UseChatServerSyncOptions> = {}): UseChatServerSyncOptions {
   return {
+    owner: { id: 'owner-a' },
     signedIn: true,
     authLoading: false,
     apiAvailable: true,

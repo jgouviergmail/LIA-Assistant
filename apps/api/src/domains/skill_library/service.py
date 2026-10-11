@@ -31,7 +31,7 @@ from src.core.constants import (
     SKILL_LIBRARY_QUERY_MAX_CHARS,
     SKILL_LIBRARY_QUERY_MIN_CHARS,
 )
-from src.core.exceptions import BaseAPIException
+from src.core.exceptions import AuthorizationError, BaseAPIException
 from src.domains.skill_library.errors import (
     ALREADY_INSTALLED,
     AUDIT_BLOCKED,
@@ -93,6 +93,7 @@ from src.infrastructure.database.session import get_db_context
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
+    from src.domains.skills.import_hooks import AfterSkillCommit, BeforeSkillSwap
     from src.domains.skills.models import Skill
 
 logger = structlog.get_logger(__name__)
@@ -203,7 +204,14 @@ def _write_folder(root: Path, files: dict[str, bytes]) -> None:
 
 
 async def _register(
-    user_id: UUID, read: ReadSkill, files: dict[str, bytes], record: SourceRecord
+    user_id: UUID,
+    read: ReadSkill,
+    files: dict[str, bytes],
+    record: SourceRecord,
+    *,
+    before_swap: BeforeSkillSwap | None = None,
+    before_commit: BeforeSkillSwap | None = None,
+    after_commit: AfterSkillCommit | None = None,
 ) -> LibraryInstallResponse:
     """Hand the files to the import pipeline and record their provenance with them."""
     from src.domains.skills.import_service import SkillImportService
@@ -225,7 +233,12 @@ async def _register(
                     owner_id=user_id,
                     provenance=SkillProvenance.LIBRARY,
                     after_register=keep_source,
+                    before_swap=before_swap,
+                    before_commit=before_commit,
+                    after_commit=after_commit,
                 )
+        except AuthorizationError:
+            raise
         except BaseAPIException as exc:
             code = _IMPORT_REFUSALS[import_refusal_kind(exc)]
             reason = exc.detail if code == INVALID_SKILL and isinstance(exc.detail, str) else None
@@ -367,7 +380,33 @@ async def preview(
     return LibraryPreviewAnswer(preview=shown)
 
 
-async def install(user_id: UUID, request: LibraryInstallRequest) -> LibraryInstallResponse:
+async def preview_install(user_id: UUID, request: LibraryInstallRequest) -> LibraryPreviewResponse:
+    """Read the exact requested install commit without following a moving branch."""
+    _check_repository(request.repository, request.path, request.ref)
+    portal = _portal_of(request.portal)
+    async with _client() as client:
+        read = await read_at_commit(
+            client,
+            repository=request.repository,
+            ref=request.ref,
+            commit_sha=request.commit_sha,
+            path=request.path,
+            portal=portal,
+            audit_id=request.skill_id,
+        )
+    conflict = await _conflict(user_id, read.name, request.repository, request.path)
+    return _preview_of(read, portal=portal, registry_id=request.registry_id, conflict=conflict)
+
+
+async def install(
+    user_id: UUID,
+    request: LibraryInstallRequest,
+    *,
+    before_swap: BeforeSkillSwap | None = None,
+    before_commit: BeforeSkillSwap | None = None,
+    after_commit: AfterSkillCommit | None = None,
+    expected_preview: LibraryPreviewResponse | None = None,
+) -> LibraryInstallResponse:
     """Install the folder a preview showed, at the commit it showed.
 
     Raises:
@@ -393,6 +432,12 @@ async def install(user_id: UUID, request: LibraryInstallRequest) -> LibraryInsta
             raise LibraryRefusal(ALREADY_INSTALLED)
         if conflict == "name_taken":
             raise LibraryRefusal(NAME_TAKEN)
+        if (
+            expected_preview is not None
+            and _preview_of(read, portal=portal, registry_id=request.registry_id, conflict=conflict)
+            != expected_preview
+        ):
+            raise LibraryRefusal(SOURCE_INVALID)
         files = await download(client, read.folder)
     record = SourceRecord(
         portal=request.portal,
@@ -404,7 +449,15 @@ async def install(user_id: UUID, request: LibraryInstallRequest) -> LibraryInsta
         commit_sha=read.folder.commit_sha,
         tree_sha=read.folder.tree_sha,
     )
-    return await _register(user_id, read, files, record)
+    return await _register(
+        user_id,
+        read,
+        files,
+        record,
+        before_swap=before_swap,
+        before_commit=before_commit,
+        after_commit=after_commit,
+    )
 
 
 async def _installed_skill(user_id: UUID, skill_id: UUID) -> InstalledSkill:
@@ -474,7 +527,9 @@ def _blobs(listing: dict[str, object]) -> dict[str, str]:
     }
 
 
-async def update_preview(user_id: UUID, skill_id: UUID) -> LibraryUpdatePreviewResponse:
+async def update_preview(
+    user_id: UUID, skill_id: UUID, *, commit_sha: str | None = None
+) -> LibraryUpdatePreviewResponse:
     """The version an update would install, and the files it changes.
 
     Raises:
@@ -483,7 +538,11 @@ async def update_preview(user_id: UUID, skill_id: UUID) -> LibraryUpdatePreviewR
     """
     row = await _installed_skill(user_id, skill_id)
     async with _client() as client:
-        commit = await resolve_commit(client, row.repository, row.ref)
+        commit = (
+            commit_sha
+            if commit_sha is not None
+            else await resolve_commit(client, row.repository, row.ref)
+        )
         read = await read_at_commit(
             client,
             repository=row.repository,
@@ -504,7 +563,16 @@ async def update_preview(user_id: UUID, skill_id: UUID) -> LibraryUpdatePreviewR
     return LibraryUpdatePreviewResponse(preview=shown, changes=changes)
 
 
-async def update(user_id: UUID, skill_id: UUID, commit_sha: str) -> LibraryInstallResponse:
+async def update(
+    user_id: UUID,
+    skill_id: UUID,
+    commit_sha: str,
+    *,
+    before_swap: BeforeSkillSwap | None = None,
+    before_commit: BeforeSkillSwap | None = None,
+    after_commit: AfterSkillCommit | None = None,
+    expected_preview: LibraryPreviewResponse | None = None,
+) -> LibraryInstallResponse:
     """Install the version an update preview showed, in place of the current one.
 
     Raises:
@@ -527,6 +595,14 @@ async def update(user_id: UUID, skill_id: UUID, commit_sha: str) -> LibraryInsta
             raise LibraryRefusal(AUDIT_BLOCKED, risk=read.blocked_by)
         if read.name != row.name:
             raise LibraryRefusal(RENAMED, name=read.name)
+        if (
+            expected_preview is not None
+            and _preview_of(
+                read, portal=row.portal, registry_id=row.registry_id, conflict="installed"
+            )
+            != expected_preview
+        ):
+            raise LibraryRefusal(SOURCE_INVALID)
         files = await download(client, read.folder)
     record = SourceRecord(
         portal=row.portal,
@@ -538,4 +614,12 @@ async def update(user_id: UUID, skill_id: UUID, commit_sha: str) -> LibraryInsta
         commit_sha=read.folder.commit_sha,
         tree_sha=read.folder.tree_sha,
     )
-    return await _register(user_id, read, files, record)
+    return await _register(
+        user_id,
+        read,
+        files,
+        record,
+        before_swap=before_swap,
+        before_commit=before_commit,
+        after_commit=after_commit,
+    )

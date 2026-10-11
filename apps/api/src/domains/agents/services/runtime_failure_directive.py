@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 import structlog
 
 from src.core.config import settings
+from src.domains.agents.services.outcome_directive import build_requested_outcomes_block
 from src.domains.agents.utils.message_filters import current_turn_responses
 
 if TYPE_CHECKING:
@@ -67,6 +68,7 @@ async def build_run_honesty_block(state: dict[str, Any]) -> str:
         must not break response synthesis.
     """
     blocks = [build_truncation_block(state)]
+    blocks.append(build_requested_outcomes_block(state))
     blocks.append(await _failures_block(state))
     return "\n\n".join(block for block in blocks if block)
 

@@ -31,7 +31,8 @@ effect_outcomes_total = Counter(
     "lia_effect_outcomes_total",
     "Claimed effects closed, by policy and outcome: succeeded or failed from an "
     "explicit result (a tool that reported failure closes as failed, never as "
-    "succeeded), abandoned when the run was cancelled before the result came back",
+    "succeeded), waiting for an explicit browser or secure interaction, abandoned "
+    "when the run was cancelled before the result came back",
     ["policy", "status"],
 )
 

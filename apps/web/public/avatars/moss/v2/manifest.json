@@ -1,0 +1,36 @@
+{
+  "version": 2,
+  "character": "moss",
+  "total_bytes": 19602,
+  "source": "Original art directed with image generation; native rig supplies the complete live face",
+  "delivery": {
+    "size": 192,
+    "codec": "WebP",
+    "quality": 94,
+    "animation": false
+  },
+  "artwork": {
+    "male": {
+      "file": "exec-bf59b9d7-5293-4250-bd90-65ddbb1465f2.png",
+      "sha256": "536f8620d8685d3b95ce4466903591f522eeb1d65c5997a1a1470a8b67cbe387",
+      "prompt_sha256": "36fa6384ee7bdeb686b0d58d4ca504f9c43cc01ca0548430ac59e5b36af987aa"
+    },
+    "female": {
+      "file": "exec-07ea3500-5506-48cd-af38-734ac277acad.png",
+      "sha256": "6f7e2a64dcfffd3d61f379261b3d74a83917725d2ef236666b6143d8f5150303",
+      "prompt_sha256": "a7d3df73e7f6d36a5fff1d3ab7c105ef9860a3ecccce709cfdb6f3d25a8aafc6"
+    }
+  },
+  "assets": {
+    "male/body": {
+      "size": 192,
+      "bytes": 10744,
+      "sha256": "d0b2f8de9c9ad29fd205f09adce04e522ecf0d309c1960301473b497f603435d"
+    },
+    "female/body": {
+      "size": 192,
+      "bytes": 8858,
+      "sha256": "b71a83aa43b2c889db7d39bee4785eb6eed6a05a9bed7699a643a88a24c5b77e"
+    }
+  }
+}

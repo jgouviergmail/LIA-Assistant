@@ -10,10 +10,8 @@ Architecture:
     Separated from client_manager.py (SRP). Prepares for future per-user
     MCP server management (Feature 2.1).
 
-    SSRF constants are COPIED from domains/agents/web_fetch/url_validator.py
-    (not imported) to avoid infrastructure → domain dependency violation.
-    TODO: Future: extract to infrastructure/security/ssrf.py shared module
-    (DRY with url_validator.py)
+    Address policy and the IP predicate belong to infrastructure/utils/url_validation.py,
+    shared with web fetch and the skill library without a domain dependency.
 
 Phase: evolution F2 — MCP Support
 Created: 2026-02-28
@@ -22,89 +20,26 @@ Created: 2026-02-28
 from __future__ import annotations
 
 import asyncio
-import ipaddress
 import socket
 from urllib.parse import urlparse
 
 import structlog
 
 from src.infrastructure.mcp.schemas import MCPServerConfig, MCPTransportType
+from src.infrastructure.utils.url_validation import (
+    _BLOCKED_HOSTNAME_SUFFIXES as _BLOCKED_HOSTNAME_SUFFIXES,
+)
+from src.infrastructure.utils.url_validation import (
+    _BLOCKED_HOSTNAMES as _BLOCKED_HOSTNAMES,
+)
+from src.infrastructure.utils.url_validation import (
+    _BLOCKED_IP_NETWORKS as _BLOCKED_IP_NETWORKS,
+)
+from src.infrastructure.utils.url_validation import (
+    check_ip_safety as _check_ip_safety,
+)
 
 logger = structlog.get_logger(__name__)
-
-# ============================================================================
-# BLOCKED NETWORK RANGES (copied from url_validator.py — see module docstring)
-# RFC 1918 + RFC 6598 + loopback + link-local + metadata + ULA + reserved
-# ============================================================================
-
-_BLOCKED_IP_NETWORKS = [
-    # IPv4 private (RFC 1918)
-    ipaddress.ip_network("10.0.0.0/8"),
-    ipaddress.ip_network("172.16.0.0/12"),
-    ipaddress.ip_network("192.168.0.0/16"),
-    # IPv4 loopback
-    ipaddress.ip_network("127.0.0.0/8"),
-    # IPv4 link-local + AWS/GCP metadata
-    ipaddress.ip_network("169.254.0.0/16"),
-    # IPv4 "this" network
-    ipaddress.ip_network("0.0.0.0/8"),
-    # IPv4 CGNAT / Shared Address Space (RFC 6598)
-    ipaddress.ip_network("100.64.0.0/10"),
-    # IPv4 benchmarking (RFC 2544)
-    ipaddress.ip_network("198.18.0.0/15"),
-    # IPv4 documentation / test-nets (RFC 5737)
-    ipaddress.ip_network("192.0.2.0/24"),
-    ipaddress.ip_network("198.51.100.0/24"),
-    ipaddress.ip_network("203.0.113.0/24"),
-    # IPv4 reserved for future use
-    ipaddress.ip_network("240.0.0.0/4"),
-    # IPv4 multicast
-    ipaddress.ip_network("224.0.0.0/4"),
-    # IPv6 loopback
-    ipaddress.ip_network("::1/128"),
-    # IPv6 ULA (Unique Local Address)
-    ipaddress.ip_network("fc00::/7"),
-    # IPv6 link-local
-    ipaddress.ip_network("fe80::/10"),
-]
-
-_BLOCKED_HOSTNAMES = frozenset(
-    {
-        "localhost",
-        "metadata.google.internal",
-        "metadata.google",
-        "169.254.169.254",  # AWS/GCP metadata endpoint
-    }
-)
-
-_BLOCKED_HOSTNAME_SUFFIXES = (
-    ".internal",
-    ".local",
-    ".localhost",
-)
-
-
-def _check_ip_safety(ip_str: str) -> bool:
-    """
-    Check if an IP address is safe (not in blocked ranges).
-
-    Handles IPv4-mapped IPv6 addresses (e.g., ::ffff:127.0.0.1 → 127.0.0.1).
-
-    Args:
-        ip_str: IP address string (IPv4 or IPv6)
-
-    Returns:
-        True if the IP is safe (public), False if blocked (private/internal)
-    """
-    try:
-        addr = ipaddress.ip_address(ip_str)
-        # Normalize IPv4-mapped IPv6 (::ffff:127.0.0.1 → 127.0.0.1)
-        if isinstance(addr, ipaddress.IPv6Address) and addr.ipv4_mapped:
-            addr = addr.ipv4_mapped
-    except ValueError:
-        return False
-
-    return not any(addr in network for network in _BLOCKED_IP_NETWORKS)
 
 
 async def validate_http_endpoint(url: str) -> tuple[bool, str | None]:

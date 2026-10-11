@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>LIA — Monde isométrique · Validation visuelle</title>
+  <style>
+    :root { color-scheme: light; --ink:#192433; --muted:#526171; --blue:#42648b; --line:#dce2e7; --paper:#f6f5f1; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--paper); color:var(--ink); font:16px/1.65 system-ui,-apple-system,"Segoe UI",sans-serif; }
+    a { color:var(--blue); text-underline-offset:4px; }
+    a:focus-visible { outline:3px solid var(--blue); outline-offset:5px; }
+    header,main,footer { max-width:1440px; margin:auto; padding:32px clamp(20px,5vw,72px); }
+    header { padding-top:60px; }
+    .eyebrow { font-size:12px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; color:var(--muted); }
+    h1 { font-size:clamp(32px,4.2vw,64px); line-height:1.08; font-weight:650; letter-spacing:-.035em; max-width:850px; margin:20px 0; }
+    h2 { font-size:clamp(24px,2.5vw,34px); line-height:1.2; letter-spacing:-.025em; margin:8px 0 14px; }
+    p { max-width:920px; margin:12px 0; }
+    .lead { font-size:clamp(18px,1.5vw,22px); color:var(--muted); }
+    nav { display:flex; flex-wrap:wrap; gap:10px 20px; border-top:1px solid var(--line); border-bottom:1px solid var(--line); padding:18px 0; margin-top:30px; }
+    nav a { padding:6px 0; min-height:44px; }
+    .notice { background:#e9eef2; border-left:3px solid var(--blue); padding:18px 22px; margin-top:28px; }
+    section { scroll-margin-top:24px; padding:18px 0 48px; }
+    .caption { display:grid; grid-template-columns:80px 1fr; gap:22px; margin-bottom:22px; }
+    .number { border-top:1px solid var(--ink); padding-top:10px; font-size:24px; font-variant-numeric:tabular-nums; }
+    figure { margin:0; }
+    .art { display:block; border:1px solid var(--line); border-radius:16px; background:white; overflow:hidden; }
+    .art img { display:block; width:100%; height:auto; }
+    figcaption { color:var(--muted); font-size:14px; margin:14px 4px 0; }
+    .mobile { display:grid; grid-template-columns:minmax(240px,480px) 1fr; gap:clamp(24px,5vw,76px); align-items:center; }
+    .mobile .art { max-width:480px; }
+    .detail { border-top:1px solid var(--line); padding-top:22px; }
+    ul { padding-left:22px; }
+    li { margin:10px 0; }
+    footer { border-top:1px solid var(--line); color:var(--muted); font-size:14px; }
+    @media (max-width:720px) { header { padding-top:32px; } .caption { grid-template-columns:40px 1fr; gap:14px; } .mobile { grid-template-columns:1fr; } .mobile figure { margin:auto; } }
+    @media (prefers-reduced-motion:no-preference) { html { scroll-behavior:smooth; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="eyebrow">LIA · Monde social isométrique · 9 octobre 2026</div>
+    <h1>Un monde à parcourir.<br>Son LIA à retrouver.</h1>
+    <p class="lead">Une direction visuelle en cinq situations : un espace généreux, des lieux utiles, un chez-soi privé et des rencontres dans la langue de chacun.</p>
+    <nav aria-label="Situations proposées">
+      <a href="#monde">01 · Le monde</a><a href="#fonction">02 · Une fonction LIA</a><a href="#personnel">03 · Chez soi et en visite</a><a href="#mobile">04 · Sur téléphone</a><a href="#langues">05 · Entre langues</a>
+    </nav>
+    <div class="notice"><strong>Visuels de conception, pour validation.</strong> Ils illustrent l'ambiance et les interactions prévues. Ce sont des images générées, pas des captures d'une extension déjà développée. Les montants, textes et données sont fictifs. Cliquez sur une image pour la consulter en grand.</div>
+  </header>
+  <main>
+    <section id="monde" aria-labelledby="monde-title">
+      <div class="caption"><div class="number" aria-hidden="true">01</div><div><h2 id="monde-title">De l'espace pour se déplacer</h2><p>La caméra accompagne l'avatar dans un monde qui continue hors de l'écran. La carte en haut à droite permet de se repérer ; zoom, exploration et recentrage complètent les déplacements. Les chemins et places donnent de l'air aux rencontres.</p></div></div>
+      <figure><a class="art" href="01-world-gameplay.png" target="_blank" rel="noopener" aria-label="Ouvrir en grand la proposition de monde"><img src="01-world-gameplay.png" alt="Place isométrique lumineuse, chemins larges, poste et observatoire partiellement visibles, avatars et robot BIP, carte en haut à droite."></a><figcaption>Un seul monde partagé par les utilisateurs de l'instance. Cinq places au lancement ; objectif dix après qualification. BIP et les représentations des utilisateurs absents ne consomment pas de place.</figcaption></figure>
+    </section>
+    <section id="fonction" aria-labelledby="fonction-title">
+      <div class="caption"><div class="number" aria-hidden="true">02</div><div><h2 id="fonction-title">Un lieu qui donne accès à une vraie fonction</h2><p>L'observatoire accueille le calendrier. L'interface privée s'ouvre à côté du monde et conserve les règles de LIA : consultation, aperçu, confirmation et coût réel lorsqu'un appel à l'assistant est nécessaire.</p></div></div>
+      <figure><a class="art" href="02-calendar-private.png" target="_blank" rel="noopener" aria-label="Ouvrir en grand le calendrier privé"><img src="02-calendar-private.png" loading="lazy" alt="Observatoire isométrique et panneau privé du calendrier avec exemple de rendez-vous, confirmation et consommation illustrative."></a><figcaption>Les autres participants voient le lieu et les avatars ; ils ne reçoivent pas le calendrier, le dialogue avec LIA ou la consommation. Les valeurs affichées sont des exemples.</figcaption></figure>
+    </section>
+    <section id="personnel" aria-labelledby="personnel-title">
+      <div class="caption"><div class="number" aria-hidden="true">03</div><div><h2 id="personnel-title">Le même chez-soi, deux niveaux de visibilité</h2><p>Le propriétaire retrouve une sélection maîtrisée de ses centres d'intérêt et de ses souvenirs, avec des accès dédiés pour les gérer. Un invité temporaire voit une décoration neutre ou explicitement autorisée et les éléments sociaux nécessaires à la visite.</p></div></div>
+      <figure><a class="art" href="03-personal-home-guest.png" target="_blank" rel="noopener" aria-label="Ouvrir en grand les vues propriétaire et invité"><img src="03-personal-home-guest.png" loading="lazy" alt="Comparaison d'un intérieur personnel vu par le propriétaire et par son invité ; données et commandes privées uniquement dans la vue propriétaire."></a><figcaption>Une visite n'accorde aucun accès au profil, aux souvenirs ou aux centres d'intérêt. Les illustrations montrent la règle ; la projection réseau et les collisions compatibles devront la prouver lors du développement.</figcaption></figure>
+    </section>
+    <section id="mobile" aria-labelledby="mobile-title">
+      <div class="caption"><div class="number" aria-hidden="true">04</div><div><h2 id="mobile-title">Un jeu confortable sur téléphone</h2><p>Le cadrage montre une portion du monde, avec carte, recentrage, commandes tactiles et discussion compacte. L'heure et la météo appartiennent à l'utilisateur : les autres participants peuvent voir la même place sous un autre ciel.</p></div></div>
+      <div class="mobile"><figure><a class="art" href="04-mobile-gameplay.png" target="_blank" rel="noopener" aria-label="Ouvrir en grand la proposition mobile"><img src="04-mobile-gameplay.png" loading="lazy" alt="Vue mobile nocturne avec pluie discrète, chemins isométriques spacieux, BIP, carte en haut à droite et commandes tactiles."></a><figcaption>Une interface mobile prévue dès le départ. Cette illustration ne mesure pas les performances d'un téléphone.</figcaption></figure><div class="detail"><h3>Le profil pour appareils modestes</h3><ul><li>Rendu dans le navigateur ; logique, droits et synchronisation sur le Pi.</li><li>Décors préparés, détails proches et effets limités, qualité ajustable.</li><li>Objectif de 30 images par seconde sur les appareils minimum à qualifier.</li><li>Texte et formulaires accessibles dans l'interface normale de LIA.</li></ul><p>Les essais sur la RTX 4090 disponible ne remplacent pas les mesures sur de vrais téléphones et un PC à circuit graphique intégré.</p></div></div>
+    </section>
+    <section id="langues" aria-labelledby="langues-title">
+      <div class="caption"><div class="number" aria-hidden="true">05</div><div><h2 id="langues-title">Se rencontrer dans la langue de chacun</h2><p>Chacun utilise la langue définie dans LIA. Un LLM dédié traduit les échanges entre langues avant leur affichage au destinataire, avec accès volontaire à l'original et un état explicite en cas d'échec.</p></div></div>
+      <figure><a class="art" href="05-multilingual-chat.png" target="_blank" rel="noopener" aria-label="Ouvrir en grand les échanges français et anglais"><img src="05-multilingual-chat.png" loading="lazy" alt="Deux utilisateurs du même monde, interfaces française et anglaise et messages traduits dans la langue de chacun."></a><figcaption>Maquette d'intention : les correspondances d'avatars, l'ordre des bulles et les marqueurs de traduction seront normalisés dans la vraie interface. Les étiquettes des lieux seront des textes localisés, indépendants des textures. Le coût illustré n'est pas un tarif ; l'attribution proposée est à l'émetteur, une fois par traduction physique et langue cible.</figcaption></figure>
+    </section>
+    <div class="notice"><strong>Ce que ces visuels permettent de valider :</strong> l'ambiance, l'échelle, la place de BIP, le rapport entre monde et fonctions, le cadrage mobile et la confidentialité visible. La fluidité sur appareils modestes, la protection des données sur le réseau et la qualité du futur traducteur nécessitent leurs essais dédiés.</div>
+  </main>
+  <footer>
+    <p><a href="../../2026-10-09-lia-isometric-world-analysis.md">Analyse fonctionnelle et technique</a> · <a href="../../2026-10-09-lia-isometric-world-validation.md">Rapport de validation et limites des preuves</a> · <a href="prompts.json">Prompts des visuels</a></p>
+    <p>Direction provisoire : univers isométrique chaleureux, construit avec des volumes simples et des décors soignés. Les premières vues trop concentrées ont été remplacées par les propositions 01 et 04.</p>
+  </footer>
+</body>
+</html>

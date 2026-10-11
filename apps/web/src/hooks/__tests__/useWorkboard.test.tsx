@@ -33,6 +33,8 @@ const api = vi.hoisted(() => ({
   detail: vi.fn(),
   needsMe: vi.fn(),
 }));
+const { useAuth } = vi.hoisted(() => ({ useAuth: vi.fn() }));
+vi.mock('@/hooks/useAuth', () => ({ useAuth }));
 vi.mock('@/lib/workboard/api', () => ({ workboardApi: api, boardParams: vi.fn(() => ({})) }));
 
 function ticket(overrides: Partial<TicketRow> & { id: string }): TicketRow {
@@ -86,7 +88,72 @@ function page(): BoardPage {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  api.board.mockReset();
+  useAuth.mockReturnValue({ user: { id: 'account-one' } });
   api.board.mockResolvedValue(page());
+});
+
+it('rereads returned work after an addressed native connection change', async () => {
+  const { publishApplicationResources } = await import('@/lib/application-resources');
+  const { result } = renderHook(() => useWorkboard());
+  await waitFor(() => expect(result.current.total).toBe(2));
+  api.board.mockResolvedValue({ tickets: [], total: 0, counts_by_status: {} });
+  act(() => publishApplicationResources('account-other', new Set(['workboard'])));
+  expect(api.board).toHaveBeenCalledTimes(1);
+  act(() => publishApplicationResources('account-one', new Set(['workboard'])));
+  await waitFor(() => expect(result.current.total).toBe(0));
+});
+
+it('hides the previous account board immediately and refuses its retained write callback', async () => {
+  const { result, rerender } = renderHook(() => useWorkboard());
+  await waitFor(() => expect(result.current.total).toBe(2));
+  const obsolete = result.current.move;
+  api.board.mockReturnValueOnce(new Promise(() => {}));
+  useAuth.mockReturnValue({ user: { id: 'account-two' } });
+  rerender();
+  expect(result.current.tickets).toEqual([]);
+  await act(async () => {
+    expect(await obsolete('a', 'done', 0)).toEqual({ ok: false, errorCode: null });
+  });
+  expect(api.move).not.toHaveBeenCalled();
+});
+
+it('a late old-account move cannot repaint the new account board', async () => {
+  const { result, rerender } = renderHook(() => useWorkboard());
+  await waitFor(() => expect(result.current.total).toBe(2));
+  let finish: ((value: TicketRow) => void) | undefined;
+  api.move.mockImplementationOnce(
+    () =>
+      new Promise<TicketRow>(resolve => {
+        finish = resolve;
+      })
+  );
+  let moving: Promise<unknown> | undefined;
+  act(() => {
+    moving = result.current.move('a', 'done', 0);
+  });
+  useAuth.mockReturnValue({ user: { id: 'account-two' } });
+  api.board.mockResolvedValue({ tickets: [], total: 0, counts_by_status: {} });
+  rerender();
+  await waitFor(() => expect(result.current.firstLoad).toBe(false));
+  await act(async () => {
+    finish?.(ticket({ id: 'a', status: 'done' }));
+    await moving;
+  });
+  expect(result.current.tickets).toEqual([]);
+});
+
+it('retains an addressed native refresh during dragging and applies it when dragging ends', async () => {
+  const { publishApplicationResources } = await import('@/lib/application-resources');
+  const { result, rerender } = renderHook(({ paused }) => useWorkboard({}, { paused }), {
+    initialProps: { paused: true },
+  });
+  await waitFor(() => expect(result.current.total).toBe(2));
+  api.board.mockResolvedValue({ tickets: [], total: 0, counts_by_status: {} });
+  act(() => publishApplicationResources('account-one', new Set(['workboard'])));
+  expect(api.board).toHaveBeenCalledTimes(1);
+  rerender({ paused: false });
+  await waitFor(() => expect(result.current.total).toBe(0));
 });
 
 afterEach(() => {

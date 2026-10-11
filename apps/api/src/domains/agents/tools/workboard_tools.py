@@ -32,33 +32,40 @@ from uuid import UUID
 import structlog
 from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg
+from pydantic import Field, StrictBool
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.exceptions import ResourceNotFoundError, ValidationError
-from src.core.time_utils import normalize_user_datetime
+from src.core.config import settings
+from src.core.exceptions import (
+    AuthorizationError,
+    ResourceNotFoundError,
+    ValidationError,
+    raise_not_found_or_unauthorized,
+)
+from src.domains.agents.application.availability import application_access_error_code
+from src.domains.agents.application.workboard_create import creation_access
+from src.domains.agents.application.workboard_create_schemas import WorkboardCreateInput
+from src.domains.agents.application.workboard_update_schemas import WorkboardUpdateInput
 from src.domains.agents.constants import AGENT_TICKET, CONTEXT_DOMAIN_TICKETS
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.context.schemas import ContextSaveMode
-from src.domains.agents.drafts.models import DraftType
-from src.domains.agents.drafts.service import DraftService
 from src.domains.agents.tools.decorators import read_tool, write_tool
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import (
-    get_user_preferences,
     validate_runtime_config,
 )
+from src.domains.agents.tools.workboard_comment_tool import propose_workboard_comment
+from src.domains.agents.tools.workboard_creation_tool import propose_workboard_creation
+from src.domains.agents.tools.workboard_delete_tool import propose_workboard_delete
+from src.domains.agents.tools.workboard_update_tool import propose_workboard_update
 from src.domains.agents.workboard.context import ticket_registry_items
 from src.domains.users.models import User
 from src.domains.workboard.board_queries import AssigneeFilter, BoardFilters
-from src.domains.workboard.schemas import CommentCreate, TicketCreate, TicketUpdate
 from src.domains.workboard.service import WorkboardService
 from src.infrastructure.database.session import get_db_context
 
 logger = structlog.get_logger(__name__)
-
-#: What a tool returns when the caller has no account row. Not an expected
-#: state — the runtime already validated the session — so it is reported rather
-#: than silently treated as « no tickets ».
-_NO_ACCOUNT = "The account could not be loaded."
 
 
 def _refusal(error: Exception) -> UnifiedToolOutput:
@@ -106,45 +113,18 @@ def _ticket_summary(ticket: Any) -> dict[str, Any]:
     }
 
 
-async def _actor(db: Any, user_id: UUID) -> User | None:
-    """The account row the service acts as.
-
-    Args:
-        db: The open session.
-        user_id: Who is calling.
-
-    Returns:
-        The row, or None when it is gone.
-    """
-    return await db.get(User, user_id)
-
-
-async def _assignment(
-    service: WorkboardService, owner_id: UUID, assignee: str | None
-) -> tuple[str | None, UUID | None]:
-    """Read what the model wrote in ``assignee`` into what the service takes.
-
-    Three shapes reach this from the chat and only two are keywords: « me » and
-    « lia ». Anything else is a NAME, and resolving it is the service's own
-    business — it already owns who may hold a ticket.
-
-    Args:
-        service: The bound service.
-        owner_id: The board's owner.
-        assignee: What the model wrote, or None.
-
-    Returns:
-        ``(keyword, user_id)`` — exactly one of the two is set.
-
-    Raises:
-        ValidationError: The name matches nobody connected, or several.
-    """
-    if assignee is None:
-        return None, None
-    keyword = assignee.strip().lower()
-    if keyword in {"me", "lia"}:
-        return keyword, None
-    return None, await service.resolve_connected_user_id(owner_id, assignee.strip())
+async def _actor(db: AsyncSession, user_id: UUID) -> User | UnifiedToolOutput:
+    """Historical readers use the same fresh application/Workboard/account authority."""
+    try:
+        return await creation_access(db, user_id)
+    except AuthorizationError as refused:
+        return UnifiedToolOutput.failure(
+            message="Workboard reading refused.", error_code=application_access_error_code(refused)
+        )
+    except SQLAlchemyError:
+        return UnifiedToolOutput.failure(
+            message="Workboard reading unavailable.", error_code="DEPENDENCY_ERROR"
+        )
 
 
 def _board_side(assignee: str | None) -> AssigneeFilter:
@@ -166,7 +146,7 @@ def _board_side(assignee: str | None) -> AssigneeFilter:
 
 @write_tool(name="create_ticket", agent_name=AGENT_TICKET)
 async def create_ticket_tool(
-    title: Annotated[str, "What the ticket is, in the user's own words"],
+    title: Annotated[str | None, "Legacy title; use request for the full current UI schema"] = None,
     description: Annotated[
         str | None,
         "What it is about. When assignee='lia' this IS the brief LIA will run.",
@@ -184,10 +164,13 @@ async def create_ticket_tool(
     parent_ticket: Annotated[
         str | None, "The ticket this is a step of, by id or exact title (ONE level)"
     ] = None,
-    follow: Annotated[bool | None, "Be told in the chat about this ticket (off by default)"] = None,
-    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
+    follow: Annotated[
+        StrictBool | None, "Be told in the chat about this ticket (off by default)"
+    ] = None,
+    request: WorkboardCreateInput | None = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, object] | None, InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
-    """Put a ticket on the user's workboard.
+    """Prepare mandatory confirmation for an exact ticket creation.
 
     Args:
         title: What the ticket is.
@@ -199,74 +182,34 @@ async def create_ticket_tool(
         assignee: Who holds it.
         parent_ticket: The ticket this one is a step of.
         follow: Whether to be told about it in the chat.
+        request: Full current source UI configuration; exclusive with legacy fields.
         runtime: LangChain tool runtime (injected).
 
     Returns:
-        The new ticket, or a typed refusal.
+        A pending native confirmation, with no ticket creation.
     """
-    validated = validate_runtime_config(runtime, "create_ticket_tool")
-    if isinstance(validated, UnifiedToolOutput):
-        return validated
-    user_id = UUID(str(validated.user_id))
-    zone, _language, _locale = await get_user_preferences(runtime)
-
-    async with get_db_context() as db:
-        actor = await _actor(db, user_id)
-        if actor is None:
-            return UnifiedToolOutput.failure(message=_NO_ACCOUNT, error_code="NOT_FOUND")
-        service = WorkboardService(db)
-        try:
-            keyword, holder = await _assignment(service, user_id, assignee)
-            parent_id = (
-                (await service.resolve_reference(user_id, parent_ticket)).id
-                if parent_ticket
-                else None
-            )
-            payload = TicketCreate(
-                title=title,
-                description=description,
-                parent_id=parent_id,
-                assignee=keyword or "me",
-                assignee_user_id=holder,
-                **_optional(
-                    priority=priority,
-                    status=status,
-                    follow=follow,
-                    start_at=normalize_user_datetime(start_at, zone),
-                    due_at=normalize_user_datetime(due_at, zone),
-                ),
-            )
-            ticket = await service.create(actor, payload)
-            await db.commit()
-        except (ValidationError, ResourceNotFoundError) as refused:
-            return _refusal(refused)
-
-    logger.info("workboard_ticket_created_from_chat", user_id=str(user_id))
-    return UnifiedToolOutput.action_success(
-        message=f"Ticket created: {ticket.title} ({ticket.status}).",
-        structured_data={"ticket": _ticket_summary(ticket)},
+    return await propose_workboard_creation(
+        runtime,
+        request,
+        {
+            "title": title,
+            "description": description,
+            "priority": priority,
+            "status": status,
+            "start_at": start_at,
+            "due_at": due_at,
+            "assignee": assignee,
+            "parent_ticket": parent_ticket,
+            "follow": follow,
+        },
     )
-
-
-def _optional(**values: Any) -> dict[str, Any]:
-    """Keep only what the model actually said.
-
-    A ``None`` here means « not mentioned », and passing it would overwrite a
-    schema default with nothing — the difference between « leave it as it is »
-    and « clear it », which the update path spells with its own flags.
-
-    Args:
-        **values: Candidate fields.
-
-    Returns:
-        The subset that was given.
-    """
-    return {name: value for name, value in values.items() if value is not None}
 
 
 @write_tool(name="update_ticket", agent_name=AGENT_TICKET)
 async def update_ticket_tool(
-    ticket: Annotated[str, "The ticket: its id, or its exact title"],
+    ticket: Annotated[
+        str | None, "Legacy ticket id or exact title; use request for the full UI schema"
+    ] = None,
     status: Annotated[str | None, "Move it to this column"] = None,
     priority: Annotated[str | None, "low | medium | high | urgent"] = None,
     title: Annotated[str | None, "A new title (owner only)"] = None,
@@ -274,11 +217,12 @@ async def update_ticket_tool(
     start_at: Annotated[str | None, "A new start date, the user's LOCAL time (ISO 8601)"] = None,
     due_at: Annotated[str | None, "A new due date, the user's LOCAL time (ISO 8601)"] = None,
     assignee: Annotated[str | None, "'me', 'lia', or the exact NAME of a connected user"] = None,
-    follow: Annotated[bool | None, "Whether to be told about this ticket in the chat"] = None,
-    run_now: Annotated[bool | None, "Ask LIA to run it at the next sweep"] = None,
-    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
+    follow: Annotated[StrictBool | None, "Whether to be told about this ticket in the chat"] = None,
+    run_now: Annotated[StrictBool | None, "Ask LIA to run it at the next sweep"] = None,
+    request: WorkboardUpdateInput | None = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, object] | None, InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
-    """Change a ticket on the workboard. Only the fields given are touched.
+    """Prepare mandatory confirmation for a source ticket update, move or run request.
 
     Args:
         ticket: Which ticket.
@@ -291,58 +235,44 @@ async def update_ticket_tool(
         assignee: Who holds it now.
         follow: Whether to be told about it.
         run_now: Ask LIA to run it at the next sweep.
+        request: Full current UI schema; exclusive with legacy fields.
         runtime: LangChain tool runtime (injected).
 
     Returns:
-        The ticket as it now stands, or a typed refusal.
+        A native confirmation; no changes or notifications before approval.
     """
-    validated = validate_runtime_config(runtime, "update_ticket_tool")
-    if isinstance(validated, UnifiedToolOutput):
-        return validated
-    user_id = UUID(str(validated.user_id))
-    zone, _language, _locale = await get_user_preferences(runtime)
-
-    async with get_db_context() as db:
-        actor = await _actor(db, user_id)
-        if actor is None:
-            return UnifiedToolOutput.failure(message=_NO_ACCOUNT, error_code="NOT_FOUND")
-        service = WorkboardService(db)
-        try:
-            row = await service.resolve_reference(user_id, ticket)
-            keyword, holder = await _assignment(service, row.owner_user_id, assignee)
-            changes = TicketUpdate(
-                assignee=keyword,
-                assignee_user_id=holder,
-                **_optional(
-                    status=status,
-                    priority=priority,
-                    title=title,
-                    description=description,
-                    follow=follow,
-                    start_at=normalize_user_datetime(start_at, zone),
-                    due_at=normalize_user_datetime(due_at, zone),
-                ),
-            )
-            row = await service.update(actor, row.id, changes)
-            if run_now:
-                row = await service.run_now(actor, row.id)
-            await db.commit()
-        except (ValidationError, ResourceNotFoundError) as refused:
-            return _refusal(refused)
-
-    return UnifiedToolOutput.action_success(
-        message=f"Ticket updated: {row.title} ({row.status}).",
-        structured_data={"ticket": _ticket_summary(row)},
+    return await propose_workboard_update(
+        ticket,
+        runtime,
+        request,
+        {
+            "status": status,
+            "priority": priority,
+            "title": title,
+            "description": description,
+            "start_at": start_at,
+            "due_at": due_at,
+            "assignee": assignee,
+            "follow": follow,
+            "run_now": run_now,
+        },
     )
 
 
 @write_tool(name="comment_ticket", agent_name=AGENT_TICKET)
 async def comment_ticket_tool(
     ticket: Annotated[str, "The ticket: its id, or its exact title"],
-    body: Annotated[str, "The comment, in the user's own language"],
-    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
+    body: Annotated[
+        str,
+        Field(
+            description="The literal comment, in the user's own language",
+            min_length=1,
+            max_length=settings.workboard_comment_max_chars,
+        ),
+    ],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, object] | None, InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
-    """Add a comment to a ticket's thread, where both sides read it.
+    """Prepare mandatory confirmation for a literal comment and any pending-answer consequence.
 
     Args:
         ticket: Which ticket.
@@ -350,29 +280,9 @@ async def comment_ticket_tool(
         runtime: LangChain tool runtime (injected).
 
     Returns:
-        The comment's id, or a typed refusal.
+        A native confirmation; nothing is posted or approved here.
     """
-    validated = validate_runtime_config(runtime, "comment_ticket_tool")
-    if isinstance(validated, UnifiedToolOutput):
-        return validated
-    user_id = UUID(str(validated.user_id))
-
-    async with get_db_context() as db:
-        actor = await _actor(db, user_id)
-        if actor is None:
-            return UnifiedToolOutput.failure(message=_NO_ACCOUNT, error_code="NOT_FOUND")
-        service = WorkboardService(db)
-        try:
-            row = await service.resolve_reference(user_id, ticket)
-            comment = await service.comment(actor, row.id, CommentCreate(body=body))
-            await db.commit()
-        except (ValidationError, ResourceNotFoundError) as refused:
-            return _refusal(refused)
-
-    return UnifiedToolOutput.action_success(
-        message=f"Comment added to {row.title}.",
-        structured_data={"comment": {"id": str(comment.id), "ticket_id": str(row.id)}},
-    )
+    return await propose_workboard_comment(ticket, body, runtime)
 
 
 @read_tool(name="list_tickets", agent_name=AGENT_TICKET, context_domain=CONTEXT_DOMAIN_TICKETS)
@@ -410,8 +320,8 @@ async def list_tickets_tool(
 
     async with get_db_context() as db:
         actor = await _actor(db, user_id)
-        if actor is None:
-            return UnifiedToolOutput.failure(message=_NO_ACCOUNT, error_code="NOT_FOUND")
+        if isinstance(actor, UnifiedToolOutput):
+            return actor
         filters = BoardFilters(
             statuses=(status,) if status else None,
             assignee=_board_side(assignee),
@@ -420,12 +330,16 @@ async def list_tickets_tool(
             query=query or None,
         )
         try:
-            rows, total, counts = await WorkboardService(db).board(
-                actor, filters, limit=page, offset=0
-            )
+            service = WorkboardService(db)
+            rows, total, counts = await service.board(actor, filters, limit=page, offset=0)
+            if await service.repo.count_visible([row.id for row in rows], user_id) != len(rows):
+                raise_not_found_or_unauthorized("workboard", user_id)
         except (ValidationError, ResourceNotFoundError) as refused:
             return _refusal(refused)
         tickets = [_ticket_summary(row) for row in rows]
+        checked = await _actor(db, user_id)
+        if isinstance(checked, UnifiedToolOutput):
+            return checked
 
     return UnifiedToolOutput.data_success(
         message=f"{total} ticket(s) match; showing {len(tickets)}.",
@@ -455,12 +369,14 @@ async def get_ticket_tool(
 
     async with get_db_context() as db:
         actor = await _actor(db, user_id)
-        if actor is None:
-            return UnifiedToolOutput.failure(message=_NO_ACCOUNT, error_code="NOT_FOUND")
+        if isinstance(actor, UnifiedToolOutput):
+            return actor
         service = WorkboardService(db)
         try:
             row = await service.resolve_reference(user_id, ticket)
             bundle = await service.get(actor, row.id)
+            if await service.repo.get_visible(bundle.ticket.id, user_id) is None:
+                raise_not_found_or_unauthorized("ticket", bundle.ticket.id)
         except (ValidationError, ResourceNotFoundError) as refused:
             return _refusal(refused)
         last_run: dict[str, str | float | None] = {
@@ -484,6 +400,9 @@ async def get_ticket_tool(
             ],
             "last_run": last_run,
         }
+        checked = await _actor(db, user_id)
+        if isinstance(checked, UnifiedToolOutput):
+            return checked
 
     # The ticket read becomes the CURRENT one (« that one ») and the list from
     # the last listing is left alone: a read is not a listing, and « the second
@@ -515,17 +434,14 @@ async def get_ticket_tool(
 @write_tool(name="delete_ticket", agent_name=AGENT_TICKET)
 async def delete_ticket_tool(
     ticket: Annotated[str, "The ticket: its id, or its exact title"],
-    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, object] | None, InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Ask to delete a ticket, with its steps, its comments and its history.
 
-    Nothing is deleted here. This returns a TICKET_DELETE draft the person
-    confirms, and :func:`execute_ticket_delete_draft` performs it on the
-    confirmed replay — the shape every destructive native tool takes
-    (``event_delete``, ``task_delete``, ``reminder_delete``…). ``confirm`` is
-    reserved for third-party MCP tools, where the policy is DERIVED from the
-    server's own annotations rather than declared, and the generic replay it
-    uses carries no runtime a native tool could read its identity from.
+    Nothing is deleted here. The native application draft names the exact
+    owned subtree and its counts. Confirmation rechecks that scope, current
+    capability and actual persisted removal. Legacy TICKET_DELETE cards are
+    refused as stale: their stored content cannot prove this exact scope.
 
     The rights are checked BEFORE asking: a holder who is not the owner may
     not delete, and a card they could only ever have refused would be a
@@ -540,69 +456,18 @@ async def delete_ticket_tool(
     Returns:
         The confirmation draft, or a typed refusal.
     """
-    validated = validate_runtime_config(runtime, "delete_ticket_tool")
-    if isinstance(validated, UnifiedToolOutput):
-        return validated
-    user_id = UUID(str(validated.user_id))
-
-    async with get_db_context() as db:
-        actor = await _actor(db, user_id)
-        if actor is None:
-            return UnifiedToolOutput.failure(message=_NO_ACCOUNT, error_code="NOT_FOUND")
-        service = WorkboardService(db)
-        try:
-            row = await service.resolve_reference(user_id, ticket)
-            row, steps = await service.deletable(actor, row.id)
-        except (ValidationError, ResourceNotFoundError) as refused:
-            return _refusal(refused)
-
-    return DraftService().create_draft(
-        draft_type=DraftType.TICKET_DELETE,
-        content={"ticket_id": str(row.id), "title": row.title, "children": steps},
-        source_tool="delete_ticket_tool",
-    )
+    return await propose_workboard_delete(ticket, runtime)
 
 
 async def execute_ticket_delete_draft(
-    draft_content: dict[str, Any], user_id: UUID, deps: Any
-) -> dict[str, Any]:
-    """Delete the ticket the person confirmed.
+    draft_content: dict[str, object], user_id: UUID, deps: object
+) -> dict[str, object]:
+    """Refuse persisted legacy cards; a new native proposal supplies exact consent.
 
-    Called by ``DraftCritiqueInteraction.process_draft_action`` when the card
-    is accepted. The rights are re-checked here rather than trusted from the
-    draft: an arbitrary delay separates the question from the answer, and the
-    ticket may have changed hands in between.
-
-    Args:
-        draft_content: ``{ticket_id, title, children}`` from the draft.
-        user_id: The confirming account.
-        deps: Tool dependency container (unused: the board is internal).
-
-    Returns:
-        ``{success, ticket_id, deleted}``, or a failure naming the code.
+    Legacy content carries only a title and child count, without a frozen
+    subtree or command identity. It cannot be upgraded after confirmation
+    without asking the person to approve the newly observed scope. Retain the
+    registered reader so checkpoint resumes receive a finite refusal rather
+    than resolving to a missing executor.
     """
-    ticket_id = UUID(str(draft_content["ticket_id"]))
-    async with get_db_context() as db:
-        actor = await _actor(db, user_id)
-        if actor is None:
-            return {"success": False, "error": _NO_ACCOUNT}
-        try:
-            removed = await WorkboardService(db).delete(actor, ticket_id)
-            await db.commit()
-        except (ValidationError, ResourceNotFoundError) as refused:
-            return {"success": False, "error": str(getattr(refused, "detail", "") or refused)}
-
-    logger.info(
-        "workboard_ticket_delete_draft_executed",
-        user_id=str(user_id),
-        ticket_id=str(ticket_id),
-        removed=removed,
-    )
-    return {
-        "success": True,
-        "ticket_id": str(ticket_id),
-        # The success sentence quotes it (`DRAFT_SUCCESS_MESSAGES`), and the
-        # engine reads it from the RESULT, not from the draft.
-        "title": str(draft_content.get("title", "")),
-        "deleted": removed,
-    }
+    return {"success": False, "error": "STALE_STATE"}

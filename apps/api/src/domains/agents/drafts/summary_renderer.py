@@ -31,6 +31,7 @@ from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.i18n import resolve_language
 from src.core.i18n_drafts import get_draft_summary_label
 from src.core.text_clip import one_line, spell_unseen
+from src.domains.agents.application.draft_rendering import summarize_application_action
 from src.domains.agents.drafts.models import DraftType
 
 if TYPE_CHECKING:
@@ -284,6 +285,7 @@ def _summarize_ticket_delete(content: dict[str, Any], format_dt: _FormatDt) -> _
 # =============================================================================
 
 _SUMMARY_RENDERERS: dict[DraftType, _SummaryRenderer] = {
+    DraftType.APPLICATION_ACTION: summarize_application_action,
     DraftType.EMAIL: _summarize_email,
     DraftType.EMAIL_REPLY: _summarize_email_reply,
     DraftType.EMAIL_FORWARD: _summarize_email_forward,

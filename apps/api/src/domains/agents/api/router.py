@@ -16,6 +16,7 @@ from fastapi import APIRouter, Cookie, Depends, Request, Response
 from fastapi.responses import StreamingResponse
 from starlette.requests import ClientDisconnect
 
+from src.core.application_device_identity import APPLICATION_DEVICE_HEADER
 from src.core.config import settings
 from src.core.constants import (
     DEFAULT_USER_DISPLAY_TIMEZONE,
@@ -59,6 +60,7 @@ from src.domains.agents.services.hitl.action_requests import with_available_acti
 from src.domains.agents.utils import generate_run_id
 from src.domains.chat.schemas import TokenSummaryDTO
 from src.domains.users.models import User
+from src.infrastructure.application_sessions import bind_browser_recording_session
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_agents import (
     e2e_request_duration_with_agents,
@@ -391,6 +393,12 @@ async def stream_chat(
     # D2 remote sign-out: captured at connect time, re-checked at every
     # keepalive tick so a revoked session closes its stream within one tick.
     bff_session_id = http_request.cookies.get(settings.session_cookie_name)
+    application_origin = bind_browser_recording_session(
+        current_user.id,
+        bff_session_id,
+        device_id=http_request.headers.get(APPLICATION_DEVICE_HEADER),
+        recording_snapshot=request.recording_device,
+    )
 
     # === USAGE LIMIT CHECK (Layer 0: HTTP 429 before SSE stream) ===
     # No `usage_limits_enabled` guard: the check also enforces the INSTANCE
@@ -726,6 +734,7 @@ async def stream_chat(
                         client_user_agent=http_request.headers.get("user-agent"),
                         live_session_id=request.live_session_id,
                         spoken_text=request.spoken_text,
+                        application_origin=application_origin,
                     )
                     if settings.background_runs_enabled:
                         # ADR-117: detached execution — the run survives client
@@ -849,6 +858,7 @@ async def stream_chat(
                     client_user_agent=http_request.headers.get("user-agent"),
                     live_session_id=request.live_session_id,
                     spoken_text=request.spoken_text,
+                    application_origin=application_origin,
                 )
                 if settings.background_runs_enabled:
                     # ADR-117: detached execution — the run survives client

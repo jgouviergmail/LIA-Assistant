@@ -6,6 +6,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
 
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'skills-owner' } }) }));
+
 const { useSkills } = vi.hoisted(() => ({ useSkills: vi.fn() }));
 vi.mock('@/hooks/useSkills', async importOriginal => {
   const original = await importOriginal<typeof import('@/hooks/useSkills')>();

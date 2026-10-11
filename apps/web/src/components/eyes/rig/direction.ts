@@ -1,7 +1,8 @@
 /** Shared art direction for every skin: temperament, task, then answer release. */
 import type { ActivityFamily } from '../activity';
 import type { EyeExpression } from '../expression-engine';
-import type { ChannelValues } from './channels';
+import { CHANNELS, type ChannelValues } from './channels';
+import type { RigEyeStyleId } from '../eye-styles';
 import { absolute, relative } from './choreo';
 import type { Tape } from './tape';
 import type { DayPhase, WeatherFeeling } from '../environment';
@@ -19,6 +20,7 @@ export interface ActingContext {
   accomplished: boolean;
   responding: boolean;
   weather: WeatherFeeling | null;
+  weatherFlags?: readonly WeatherFeeling[];
   dayPhase: DayPhase;
 }
 
@@ -34,6 +36,7 @@ export const NEUTRAL_CONTEXT: Readonly<ActingContext> = {
   accomplished: false,
   responding: false,
   weather: null,
+  weatherFlags: [],
   dayPhase: 'noon',
 };
 
@@ -41,17 +44,30 @@ export function finiteUnit(value: number, min = -1): number {
   return Number.isFinite(value) ? Math.max(min, Math.min(1, value)) : 0;
 }
 
+/** Courtesy is the style's resting material, not an extra layer of emotion.
+ * Strong feelings gradually release that rest curve in either direction,
+ * retaining the native emotional range and its continuous spring travel. */
+function temperamentCurve(
+  curve: number,
+  expression: EyeExpression,
+  pleasure: number,
+  styleId?: RigEyeStyleId
+): number {
+  const courtesy =
+    styleId === 'smiley' && expression === 'neutral'
+      ? Math.max(0, curve - CHANNELS.mouthCurve.rest)
+      : 0;
+  return curve + pleasure * 0.7 - Math.abs(pleasure) * courtesy;
+}
+
 /** Readable cartoon temperament; authored tasks, lids and silhouettes keep priority. */
 export function contextualPose(
   pose: ChannelValues,
   expression: EyeExpression,
-  context: ActingContext
+  context: ActingContext,
+  styleId?: RigEyeStyleId
 ): ChannelValues {
-  const available =
-    !context.activity &&
-    !context.responding &&
-    ['neutral', 'attentive', 'joy', 'tender', 'bored'].includes(expression);
-  const ambient = ambientChannels(context.weather, context.dayPhase, available);
+  const ambient = ambientChannels(context.weather, context.dayPhase, true, context.weatherFlags);
   if (expression === 'sleep' || expression === 'sleepy') return { ...pose, ...ambient };
   const resting = expression === 'neutral' || expression === 'attentive';
   const weight = resting && !context.activity && !context.responding ? 1 : 0.18;
@@ -67,7 +83,7 @@ export function contextualPose(
   return {
     ...pose,
     ...ambient,
-    mouthCurve: pose.mouthCurve + pleasure * 0.7 + satisfied * 0.18,
+    mouthCurve: temperamentCurve(pose.mouthCurve, expression, pleasure, styleId) + satisfied * 0.18,
     tilt:
       pose.tilt + pleasure * 1.5 + confidence * 1.2 + satisfied * 1.8 - ambient.weatherWind * 2.5,
     mouthSkew:

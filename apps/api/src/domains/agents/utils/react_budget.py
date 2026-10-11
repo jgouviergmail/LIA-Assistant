@@ -51,6 +51,8 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING, Any, TypedDict
 
+from src.domains.agents.utils.react_execution_contracts import CachedRead, ReadObservation
+
 if TYPE_CHECKING:
     from langchain_core.messages import BaseMessage
 
@@ -98,6 +100,13 @@ class ReactTurnReset(TypedDict):
     react_tool_seconds: float
     react_productive_iterations: int
     react_call_digests: dict[str, int]
+    react_read_results: dict[str, CachedRead]
+    react_read_observations: dict[str, ReadObservation]
+    react_last_productive_message_id: str | None
+    requested_outcome_evidence: list[dict[str, object]]
+    semantic_value_bindings: list[dict[str, object]]
+    semantic_source_observations: dict[str, dict[str, object]]
+    semantic_source_valid_after: str | None
     react_scripts: list[dict[str, Any]]
     react_activated_skills: list[str]
     react_recovery_passes: list[dict[str, Any]]
@@ -132,6 +141,13 @@ def react_turn_reset() -> ReactTurnReset:
         react_productive_iterations=0,
         # ADR-170: the repetition brake forgets what the previous turn called.
         react_call_digests={},
+        react_read_results={},
+        react_read_observations={},
+        react_last_productive_message_id=None,
+        requested_outcome_evidence=[],
+        semantic_value_bindings=[],
+        semantic_source_observations={},
+        semantic_source_valid_after=None,
         # ADR-327: the skills the loop activated this turn — read by the response
         # node, which must not run the runner for what the loop already ran.
         react_activated_skills=[],

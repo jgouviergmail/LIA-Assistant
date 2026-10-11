@@ -1,7 +1,8 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 import { apiEndpointUrl } from '@/lib/api-client';
-import { useApiQuery } from './useApiQuery';
+import { useApplicationAccountQuery } from './useApplicationAccountQuery';
+import { useApplicationResourceSync } from './useApplicationResourceSync';
 import { useApiMutation } from './useApiMutation';
 import { useResourceRevision } from '@/stores/revisionStore';
 
@@ -106,12 +107,16 @@ export function useSkills(adminView = false) {
     error,
     refetch,
     setData,
-  } = useApiQuery<SkillListResponse>(listEndpoint, {
-    componentName: 'Skills',
-    initialData: { skills: [], total: 0 },
-    // A skill installed from the chat's card (ADR-327) is read again here.
-    deps: [revision],
-  });
+    ownerId,
+  } = useApplicationAccountQuery<SkillListResponse>(listEndpoint, 'Skills');
+  useApplicationResourceSync(ownerId, 'skills', refetch);
+  // Library/chat installations publish the existing revision as well.
+  const seenRevision = useRef(revision);
+  useEffect(() => {
+    if (seenRevision.current === revision) return;
+    seenRevision.current = revision;
+    void refetch().catch(() => undefined);
+  }, [revision, refetch]);
 
   const skills = listData?.skills ?? [];
   const total = listData?.total ?? 0;

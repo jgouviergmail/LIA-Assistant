@@ -1493,7 +1493,10 @@ class PlanValidator:
 
         # Pattern to extract $steps.X references
         # Captures the step_id after "$steps."
-        steps_reference_pattern = re.compile(r"\$steps\.([a-zA-Z_][a-zA-Z0-9_]*)")
+        from src.domains.agents.orchestration.reference_strings import (
+            parameter_strings,
+            step_reference_ids,
+        )
 
         # Pattern to extract $context.X references
         # Captures: $context.contacts.0.resource_name, $context.emails[0].id
@@ -1513,9 +1516,7 @@ class PlanValidator:
 
             # 2. Parameters for TOOL steps
             if step.step_type == StepType.TOOL and step.parameters:
-                for param_name, param_value in step.parameters.items():
-                    if isinstance(param_value, str):
-                        strings_to_check.append((f"parameter '{param_name}'", param_value))
+                strings_to_check.extend(parameter_strings(step.parameters))
 
             # 3. on_success and on_fail for CONDITIONAL steps
             # Phase 5.2A: Strict validation with forbidden values
@@ -1608,7 +1609,7 @@ class PlanValidator:
             # Analyze all collected strings
             for source, string_value in strings_to_check:
                 # Extract all $steps.X references
-                steps_matches = steps_reference_pattern.findall(string_value)
+                steps_matches = step_reference_ids(string_value)
 
                 for referenced_step_id in steps_matches:
                     # Verify that the referenced step exists

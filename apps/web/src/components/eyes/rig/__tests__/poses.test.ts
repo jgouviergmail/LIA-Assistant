@@ -26,7 +26,7 @@ import {
 } from '@/components/eyes/rig/poses';
 import { CHANNELS, restChannelValues, type ChannelKey } from '@/components/eyes/rig/channels';
 import { EYE_EXPRESSIONS } from '@/components/eyes/expression-engine';
-import { EYE_STYLE_IDS } from '@/components/eyes/eye-styles';
+import { RIG_EYE_STYLE_IDS } from '@/components/eyes/eye-styles';
 
 const isChannel = (key: string): key is ChannelKey => key in CHANNELS;
 
@@ -37,7 +37,7 @@ describe('pose tables', () => {
   });
 
   it('declares geometry for every registered style', () => {
-    EYE_STYLE_IDS.forEach(id => expect(STYLE_GEOMETRY[id]).toBeDefined());
+    RIG_EYE_STYLE_IDS.forEach(id => expect(STYLE_GEOMETRY[id]).toBeDefined());
   });
 
   it('never lets a GENERIC recipe declare a silhouette radius', () => {
@@ -60,7 +60,7 @@ describe('pose tables', () => {
       Object.keys(geometry).forEach(key => expect(isChannel(key)).toBe(true))
     );
     Object.entries(STYLE_POSE_OVERRIDES).forEach(([styleId, byExpression]) => {
-      expect(EYE_STYLE_IDS).toContain(styleId);
+      expect(RIG_EYE_STYLE_IDS).toContain(styleId);
       Object.entries(byExpression ?? {}).forEach(([expression, values]) => {
         expect(EYE_EXPRESSIONS).toContain(expression);
         Object.keys(values ?? {}).forEach(key => expect(isChannel(key)).toBe(true));
@@ -129,7 +129,7 @@ describe('resolvePose', () => {
 
 describe('lid mode', () => {
   it('declares how EVERY style closes an eye', () => {
-    EYE_STYLE_IDS.forEach(id => expect(['clip', 'squash']).toContain(STYLE_LID_MODE[id]));
+    RIG_EYE_STYLE_IDS.forEach(id => expect(['clip', 'squash']).toContain(STYLE_LID_MODE[id]));
   });
 
   it('clips the styles with a surface, squashes the drawn ones', () => {

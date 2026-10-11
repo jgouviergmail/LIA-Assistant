@@ -53,10 +53,17 @@ async def _explain(interest: UserInterest, *, caller: uuid.UUID | None = None):
         from src.domains.interests.repository import InterestRepository
 
         real = InterestRepository(AsyncMock())
-        repo_cls.return_value.get_by_id = AsyncMock(return_value=interest)
         repo_cls.return_value.calculate_weight = real.calculate_weight
         repo_cls.return_value.calculate_effective_weight = real.calculate_effective_weight
-        return await get_interest_explanation(interest_id=interest.id, user=user, db=AsyncMock())
+        db = AsyncMock()
+
+        async def owned_selection(statement):
+            parameters = statement.compile().params
+            assert {interest.id, user.id} <= set(parameters.values())
+            return interest if user.id == interest.user_id else None
+
+        db.scalar.side_effect = owned_selection
+        return await get_interest_explanation(interest_id=interest.id, user=user, db=db)
 
 
 class TestTheWeightCanBeRecomputed:

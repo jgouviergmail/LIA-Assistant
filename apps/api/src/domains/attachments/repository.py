@@ -216,5 +216,9 @@ class AttachmentRepository(BaseRepository[Attachment]):
 
         if not ids:
             return []
-        statement = _select(Attachment).where(Attachment.id.in_(ids), Attachment.user_id == user_id)
+        statement = (
+            _select(Attachment)
+            .where(Attachment.id.in_(ids), Attachment.user_id == user_id)
+            .execution_options(populate_existing=True)
+        )
         return list((await self.db.execute(statement)).scalars())

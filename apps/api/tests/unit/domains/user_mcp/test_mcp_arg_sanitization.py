@@ -14,6 +14,8 @@ import pytest
 from src.infrastructure.mcp.tool_adapter import MCPToolAdapter
 from src.infrastructure.mcp.user_tool_adapter import UserMCPToolAdapter
 from src.infrastructure.mcp.utils import drop_none_values
+from tests.helpers.mcp_access import installed_shared_mcp_access
+from tests.helpers.runtime_context import installed_runtime_context
 
 
 class TestDropNoneValues:
@@ -82,9 +84,13 @@ class TestAdminAdapterStripsNone:
 
         mock_manager = MagicMock()
         mock_manager.call_tool = AsyncMock(return_value="ok")
-        with patch(
-            "src.infrastructure.mcp.client_manager.get_mcp_client_manager",
-            return_value=mock_manager,
+        with (
+            installed_shared_mcp_access() as actor,
+            installed_runtime_context(user_id=actor.id),
+            patch(
+                "src.infrastructure.mcp.client_manager.get_mcp_client_manager",
+                return_value=mock_manager,
+            ),
         ):
             await adapter._arun(query="lia", sort=None)
 

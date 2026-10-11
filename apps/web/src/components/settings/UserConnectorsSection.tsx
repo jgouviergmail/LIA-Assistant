@@ -9,7 +9,9 @@ import { logger } from '@/lib/logger';
 import { KeyRound, Lightbulb, Phone, Plug, Save } from 'lucide-react';
 import { AppleMark, GoogleMark, MicrosoftMark } from '@/components/icons/BrandMarks';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { useApiQuery } from '@/hooks/useApiQuery';
+import { useApplicationConnectors } from '@/hooks/useApplicationConnectors';
+import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
+import { useAuth } from '@/hooks/useAuth';
 import { useApiMutation } from '@/hooks/useApiMutation';
 import { useTranslation } from '@/i18n/client';
 import { SettingsSection } from '@/components/settings/SettingsSection';
@@ -38,7 +40,6 @@ import {
   MICROSOFT_AUTH_ENDPOINTS,
   MUTUAL_EXCLUSIVITY_MAP,
   type Connector,
-  type ConnectorsResponse,
   isConnectorActive,
   isConnectorError,
   isConnectorTypeActive,
@@ -72,6 +73,11 @@ import { navigateToAuthorizationUrl } from '@/lib/safe-navigation';
 const OAUTH_RECONNECT_PENDING_KEY = 'oauth_connectors_reconnect_pending';
 
 export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
+  const { user } = useAuth();
+  return <AccountUserConnectorsSection key={user?.id ?? 'signed-out'} lng={lng} />;
+}
+
+function AccountUserConnectorsSection({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
 
   // State for API key input forms
@@ -84,10 +90,8 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
   const [appleConnectTarget, setAppleConnectTarget] = useState<string[] | null>(null);
 
   // Connectors data query
-  const { data, loading, setData, refetch } = useApiQuery<ConnectorsResponse>('/connectors', {
-    componentName: 'UserConnectorsSection',
-    initialData: { connectors: [] },
-  });
+  const { data, loading, setData, refetch, ownerId } = useApplicationConnectors();
+  const { isCurrent } = useApplicationAccountLifetime(ownerId);
 
   const connectors = useMemo(() => data?.connectors || [], [data?.connectors]);
 
@@ -213,13 +217,15 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
   // typography and the app's language, and blocks the thread. This runs AFTER
   // the user confirmed.
   const handleDisconnect = async (connectorId: string) => {
-    if (deleteLoading) return;
+    if (deleteLoading || !isCurrent()) return;
     setPendingDisconnect(null);
 
     try {
       const removed = data?.connectors.find(c => c.id === connectorId);
       if (removed?.connector_type === 'simli') await stopAvatarForConnectorChange();
+      if (!isCurrent()) return;
       await deleteConnector(`/connectors/${connectorId}`);
+      if (!isCurrent()) return;
       setData(prev => {
         if (!prev) return prev;
         return {
@@ -231,13 +237,14 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
       if (removed && isLiveConnectorType(removed.connector_type)) bumpRevision('live_connectors');
       if (removed?.connector_type === 'simli') bumpRevision('avatar');
     } catch {
-      toast.error(t('settings.connectors.disconnect_error'));
+      if (isCurrent()) toast.error(t('settings.connectors.disconnect_error'));
     }
   };
 
   // Every connector activated here takes the person's own key: the keyless
   // ones are provided by the instance and never listed (ADR-307).
   const handleActivateApiKeyConnector = async (connectorType: string) => {
+    if (!isCurrent()) return;
     const apiKey = apiKeyInputs[connectorType];
 
     if (!apiKey?.trim()) {
@@ -253,6 +260,7 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
         api_key: apiKey.trim(),
         key_name: `${connectorType}_key`,
       });
+      if (!isCurrent()) return;
 
       setApiKeyInputs(prev => ({ ...prev, [connectorType]: '' }));
       if (result) {
@@ -264,13 +272,14 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
       toast.success(t('settings.connectors.api_key.success'));
       if (connectorType === 'simli') bumpRevision('avatar');
     } catch (error: unknown) {
+      if (!isCurrent()) return;
       logger.error(`Failed to activate ${connectorType} connector`, error as Error, {
         component: 'UserConnectorsSection',
         connectorType,
       });
       toast.error(getApiErrorDetail(error) ?? t('settings.connectors.api_key.error'));
     } finally {
-      setActivatingConnector(null);
+      if (isCurrent()) setActivatingConnector(null);
     }
   };
 
@@ -1052,7 +1061,7 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
       {/* W4a: in-app confirmation for the destructive disconnect. Mounted once
           for the whole list; `pendingDisconnect` holds the connector id. */}
       <DisconnectConnectorConfirm
-        open={pendingDisconnect !== null}
+        open={Boolean(pendingDisconnectLabel)}
         onOpenChange={open => {
           if (!open) setPendingDisconnect(null);
         }}

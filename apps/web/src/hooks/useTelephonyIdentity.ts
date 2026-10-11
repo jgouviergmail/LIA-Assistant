@@ -14,11 +14,15 @@
  * good, like the calls list does.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { apiClient, ApiError } from '@/lib/api-client';
 import { logger } from '@/lib/logger';
-import { useStaleGuard } from '@/hooks/useStaleGuard';
+import { useApplicationAccountQuery } from '@/hooks/useApplicationAccountQuery';
+import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
+import { useApplicationAccountState } from '@/hooks/useApplicationAccountState';
+import { useApplicationResourceSync } from '@/hooks/useApplicationResourceSync';
 import type {
   PhoneCallMode,
   TelephonyIdentity,
@@ -57,68 +61,70 @@ function refusalOf(error: unknown): string {
 }
 
 export function useTelephonyIdentity(enabled = true): UseTelephonyIdentityReturn {
-  const [identity, setIdentity] = useState<TelephonyIdentity | null>(null);
-  const [isLoading, setIsLoading] = useState(enabled);
-  const [isUnavailable, setIsUnavailable] = useState(false);
-  const [isBusy, setIsBusy] = useState(false);
-  const [codeExpiresInSeconds, setCodeExpiresInSeconds] = useState<number | null>(null);
-  const guard = useStaleGuard();
-
+  const { t } = useTranslation();
+  const { data, loading, error, refetch: read, setData, ownerId } =
+    useApplicationAccountQuery<TelephonyIdentity>(ENDPOINT, 'useTelephonyIdentity', enabled);
+  const { lifetime, isCurrent } = useApplicationAccountLifetime(ownerId);
+  const [isBusy, setIsBusy] = useApplicationAccountState(ownerId, false);
+  const [codeExpiresInSeconds, setCodeExpiresInSeconds] =
+    useApplicationAccountState<number | null>(ownerId, null);
+  const queues = useRef(new Map<typeof lifetime, Promise<string | null>>());
   const refetch = useCallback(async () => {
-    const isStale = guard.begin();
-    try {
-      const response = await apiClient.get<TelephonyIdentity>(ENDPOINT);
-      if (isStale()) return;
-      setIdentity(response);
-    } catch (error) {
-      if (isStale()) return;
-      if (error instanceof ApiError && error.status === 404) {
-        setIsUnavailable(true);
-        setIdentity(null);
-        return;
+    if (!isCurrent()) return;
+    const previous = queues.current.get(lifetime) ?? Promise.resolve(null);
+    const reading = previous.then(async () => {
+      if (isCurrent()) await read();
+      return null;
+    });
+    // Reads and writes share one queue, so an older read cannot undo a save.
+    queues.current.set(lifetime, reading);
+    try { await reading; }
+    finally {
+      if (queues.current.get(lifetime) === reading) {
+        queues.current.delete(lifetime);
+        if (isCurrent()) setIsBusy(false);
       }
-      if (error instanceof TypeError) return;
-      logger.error('Failed to fetch telephony identity', error as Error, {
-        component: 'useTelephonyIdentity',
-      });
-    } finally {
-      if (!isStale()) setIsLoading(false);
     }
-  }, [guard]);
-
-  useEffect(() => {
-    if (!enabled || isUnavailable) {
-      setIsLoading(false);
-      return;
-    }
-    void refetch();
-  }, [enabled, isUnavailable, refetch]);
+  }, [lifetime, isCurrent, read, setIsBusy]);
+  const release = useCallback(() => {}, []);
+  useApplicationResourceSync(ownerId, 'phone_identity', refetch, release);
 
   /** Run one action; on success adopt the identity it returns (or re-read). */
   const run = useCallback(
     async (action: () => Promise<TelephonyIdentity | undefined | void>): Promise<string | null> => {
+      if (!enabled || !ownerId || !isCurrent()) return t('settings.telephony.identity.context_changed');
       setIsBusy(true);
+      const previous = (queues.current.get(lifetime) ?? Promise.resolve(null)).catch(() => null);
+      const writing = previous.then(async (): Promise<string | null> => {
+        if (!isCurrent()) return t('settings.telephony.identity.context_changed');
+        try {
+          const next = await action();
+          if (!isCurrent()) return t('settings.telephony.identity.context_changed');
+          if (next) setData(next);
+          else await read();
+          return null;
+        } catch (failure) {
+          if (!isCurrent()) return t('settings.telephony.identity.context_changed');
+          const status = failure instanceof ApiError ? failure.status : undefined;
+          logger.warn('Telephony identity action refused', {
+            component: 'useTelephonyIdentity', status,
+          });
+          // Preserve the original refusal if its recovery read also fails.
+          if (status === 409) await read().catch(() => {});
+          return refusalOf(failure);
+        }
+      });
+      queues.current.set(lifetime, writing);
       try {
-        const next = await action();
-        if (next) setIdentity(next);
-        else await refetch();
-        return null;
-      } catch (error) {
-        const status = error instanceof ApiError ? error.status : undefined;
-        logger.warn('Telephony identity action refused', {
-          component: 'useTelephonyIdentity',
-          status,
-        });
-        // A conflict means the page and the server disagree on the state (a
-        // code that expired, a number that changed): re-read, so the form
-        // stops asking for something the server no longer expects.
-        if (status === 409) await refetch();
-        return refusalOf(error);
+        return await writing;
       } finally {
-        setIsBusy(false);
+        if (queues.current.get(lifetime) === writing) {
+          queues.current.delete(lifetime);
+          if (isCurrent()) setIsBusy(false);
+        }
       }
     },
-    [refetch]
+    [enabled, ownerId, isCurrent, lifetime, read, setData, setIsBusy, t]
   );
 
   const setNumber = useCallback(
@@ -139,19 +145,19 @@ export function useTelephonyIdentity(enabled = true): UseTelephonyIdentityReturn
     () =>
       run(async () => {
         const started = await apiClient.post<TelephonyIdentityVerifyStart>(`${ENDPOINT}/verify`);
-        setCodeExpiresInSeconds(started.expires_in_seconds);
+        if (isCurrent()) setCodeExpiresInSeconds(started.expires_in_seconds);
       }),
-    [run]
+    [run, isCurrent, setCodeExpiresInSeconds]
   );
 
   const confirmCode = useCallback(
     (code: string) =>
       run(async () => {
         const next = await apiClient.post<TelephonyIdentity>(`${ENDPOINT}/confirm`, { code });
-        setCodeExpiresInSeconds(null);
+        if (isCurrent()) setCodeExpiresInSeconds(null);
         return next;
       }),
-    [run]
+    [run, isCurrent, setCodeExpiresInSeconds]
   );
 
   const setRichContext = useCallback(
@@ -173,9 +179,9 @@ export function useTelephonyIdentity(enabled = true): UseTelephonyIdentityReturn
   );
 
   return {
-    identity,
-    isLoading,
-    isUnavailable,
+    identity: data ?? null,
+    isLoading: loading && !data,
+    isUnavailable: error instanceof ApiError && error.status === 404,
     isBusy,
     codeExpiresInSeconds,
     setNumber,

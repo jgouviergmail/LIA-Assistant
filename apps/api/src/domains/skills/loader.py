@@ -290,7 +290,7 @@ def scan_skills_directory(
     if not base_path.exists():
         return skills
 
-    skip_dirs = {".git", "node_modules", "__pycache__", ".venv"}
+    skip_dirs = {".git", "node_modules", "__pycache__", ".venv", ".lia-removal"}
 
     for skill_dir in sorted(base_path.iterdir()):
         if not skill_dir.is_dir() or skill_dir.name in skip_dirs:

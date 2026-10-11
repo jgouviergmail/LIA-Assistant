@@ -23,6 +23,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.dependencies import get_db
 from src.core.exceptions import raise_invalid_input
 from src.core.session_dependencies import get_current_active_session
+from src.domains.attachments.gallery_projection import (
+    GALLERY_DEFAULT_LIMIT,
+    GALLERY_FAMILIES,
+    GALLERY_MAX_LIMIT,
+    GALLERY_MIN_LIMIT,
+    GALLERY_QUERY_MAX_LENGTH,
+    read_gallery_page,
+)
 from src.domains.attachments.gallery_queries import GALLERY_SORTS, GalleryFilters
 from src.domains.attachments.keep import keep_generated, keep_usage, release_generated
 from src.domains.attachments.models import AttachmentOrigin
@@ -33,7 +41,6 @@ from src.domains.attachments.schemas import (
     GeneratedAssetsDeleteResponse,
     GeneratedAssetsKeepRequest,
     GeneratedAssetsKeepResponse,
-    GeneratedAssetSummary,
 )
 from src.domains.attachments.service import AttachmentService
 from src.domains.users.models import User
@@ -45,14 +52,10 @@ router = APIRouter(prefix="/generated-assets", tags=["Generated assets"])
 
 #: What a reader may list. Deliberately the GENERATED origins only — the enum
 #: member is resolved from this map, never built from a raw query string.
-_LISTABLE: dict[str, AttachmentOrigin] = {
-    "images": AttachmentOrigin.GENERATED_IMAGE,
-    "documents": AttachmentOrigin.GENERATED_DOCUMENT,
-    "screenshots": AttachmentOrigin.BROWSER_SCREENSHOT,
-}
+_LISTABLE: dict[str, AttachmentOrigin] = GALLERY_FAMILIES
 
 #: Page size bounds. Published to the client through the response (ADR-184).
-_MIN_LIMIT, _MAX_LIMIT, _DEFAULT_LIMIT = 1, 100, 24
+_MIN_LIMIT, _MAX_LIMIT, _DEFAULT_LIMIT = GALLERY_MIN_LIMIT, GALLERY_MAX_LIMIT, GALLERY_DEFAULT_LIMIT
 
 
 @router.get(
@@ -64,7 +67,7 @@ async def list_generated_assets(
     family: Annotated[str, Query(description="images | documents | screenshots")],
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
-    q: Annotated[str | None, Query(max_length=200)] = None,
+    q: Annotated[str | None, Query(max_length=GALLERY_QUERY_MAX_LENGTH)] = None,
     created_after: datetime | None = None,
     created_before: datetime | None = None,
     expires_before: datetime | None = None,
@@ -113,17 +116,7 @@ async def list_generated_assets(
         limit=limit,
         offset=offset,
     )
-    service = AttachmentService(db)
-    rows, total, total_bytes = await service.list_generated(user.id, filters)
-    return GeneratedAssetListResponse(
-        items=[GeneratedAssetSummary.model_validate(row) for row in rows],
-        total=total,
-        total_bytes=total_bytes,
-        limit=limit,
-        offset=offset,
-        max_limit=_MAX_LIMIT,
-        keep=GeneratedAssetKeepUsage.model_validate(await keep_usage(db, user.id)),
-    )
+    return await read_gallery_page(db, user.id, filters)
 
 
 @router.post(

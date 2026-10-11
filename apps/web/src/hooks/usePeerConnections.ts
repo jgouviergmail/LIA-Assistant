@@ -14,7 +14,8 @@ import { useCallback } from 'react';
 
 import { ApiError } from '@/lib/api-client';
 import { useApiMutation } from '@/hooks/useApiMutation';
-import { useApiQuery } from '@/hooks/useApiQuery';
+import { useApplicationAccountQuery } from '@/hooks/useApplicationAccountQuery';
+import { useApplicationResourceSync } from '@/hooks/useApplicationResourceSync';
 
 export interface DiscoveryMatch {
   peer_id: string;
@@ -93,27 +94,28 @@ function extractErrorCode(err: unknown): string | null {
  * @param enabled - Skip all queries when false (section gated off).
  */
 export function usePeerConnections(enabled = true) {
-
-  const me = useApiQuery<DiscoveryState>('/peers/me', {
-    componentName: 'usePeerConnections',
-    enabled,
-  });
-  const requests = useApiQuery<ConnectionView[]>('/peers/requests', {
-    componentName: 'usePeerConnections',
-    enabled,
-  });
-  const connections = useApiQuery<ConnectionView[]>('/peers/connections', {
-    componentName: 'usePeerConnections',
-    enabled,
-  });
-  const blocks = useApiQuery<BlockView[]>('/peers/blocks', {
-    componentName: 'usePeerConnections',
-    enabled,
-  });
-  const accessLog = useApiQuery<AccessLogEntry[]>('/peers/access-log', {
-    componentName: 'usePeerConnections',
-    enabled,
-  });
+  const me = useApplicationAccountQuery<DiscoveryState>('/peers/me', 'usePeerConnections', enabled);
+  const requests = useApplicationAccountQuery<ConnectionView[]>(
+    '/peers/requests',
+    'usePeerConnections',
+    enabled
+  );
+  const connections = useApplicationAccountQuery<ConnectionView[]>(
+    '/peers/connections',
+    'usePeerConnections',
+    enabled
+  );
+  const blocks = useApplicationAccountQuery<BlockView[]>(
+    '/peers/blocks',
+    'usePeerConnections',
+    enabled
+  );
+  const accessLog = useApplicationAccountQuery<AccessLogEntry[]>(
+    '/peers/access-log',
+    'usePeerConnections',
+    enabled
+  );
+  const { isCurrent, ownerId } = me;
 
   const queries = [me, requests, connections, blocks, accessLog];
   const anyLoading = queries.some(query => query.loading);
@@ -149,22 +151,24 @@ export function usePeerConnections(enabled = true) {
       mutate: (url: string, body?: unknown) => Promise<unknown>,
       url: string,
       body: unknown,
-      refetches: Array<() => void>
+      refetches: Array<() => Promise<void>>
     ): Promise<PeerActionResult> => {
+      if (!enabled || !isCurrent()) return { ok: false, errorCode: 'FORBIDDEN' };
       try {
         await mutate(url, body);
-        refetches.forEach(refetch => refetch());
+        refetches.forEach(refetch => {
+          void refetch().catch(() => {});
+        });
         return { ok: true, errorCode: null };
       } catch (err) {
         return { ok: false, errorCode: extractErrorCode(err) };
       }
     },
-    []
+    [enabled, isCurrent]
   );
 
   const setDiscovery = useCallback(
-    (value: boolean) =>
-      run(putMutate, '/peers/me', { discovery_enabled: value }, [refetchMe]),
+    (value: boolean) => run(putMutate, '/peers/me', { discovery_enabled: value }, [refetchMe]),
     [run, putMutate, refetchMe]
   );
 
@@ -177,17 +181,19 @@ export function usePeerConnections(enabled = true) {
 
   const search = useCallback(
     async (query: string): Promise<PeerSearchResult> => {
+      if (!enabled || !isCurrent()) return { matches: null, errorCode: 'FORBIDDEN' };
       try {
         // Forwarded verbatim: whether this is a name or an address is the
         // backend's single decision (`looks_like_email`) — a second heuristic
         // here would eventually disagree with it on the same string.
         const result = await postMutate('/peers/discovery/search', { query });
+        if (!isCurrent()) return { matches: null, errorCode: 'FORBIDDEN' };
         return { matches: result as DiscoveryMatch[], errorCode: null };
       } catch (err) {
         return { matches: null, errorCode: extractErrorCode(err) };
       }
     },
-    [postMutate]
+    [postMutate, enabled, isCurrent]
   );
 
   const sendRequest = useCallback(
@@ -212,9 +218,7 @@ export function usePeerConnections(enabled = true) {
 
   const removeConnection = useCallback(
     (connectionId: string) =>
-      run(deleteMutate, `/peers/connections/${connectionId}`, undefined, [
-        refetchConnections,
-      ]),
+      run(deleteMutate, `/peers/connections/${connectionId}`, undefined, [refetchConnections]),
     [run, deleteMutate, refetchConnections]
   );
 
@@ -237,18 +241,30 @@ export function usePeerConnections(enabled = true) {
   );
 
   const unblock = useCallback(
-    (peerId: string) =>
-      run(deleteMutate, `/peers/blocks/${peerId}`, undefined, [refetchBlocks]),
+    (peerId: string) => run(deleteMutate, `/peers/blocks/${peerId}`, undefined, [refetchBlocks]),
     [run, deleteMutate, refetchBlocks]
   );
 
-  const refetchAll = useCallback(() => {
-    refetchMe();
-    refetchRequests();
-    refetchConnections();
-    refetchBlocks();
-    refetchAccessLog();
-  }, [refetchMe, refetchRequests, refetchConnections, refetchBlocks, refetchAccessLog]);
+  const refetchAll = useCallback(async () => {
+    if (!enabled || !isCurrent()) return;
+    await Promise.all([
+      refetchMe(),
+      refetchRequests(),
+      refetchConnections(),
+      refetchBlocks(),
+      refetchAccessLog(),
+    ]);
+  }, [
+    enabled,
+    isCurrent,
+    refetchMe,
+    refetchRequests,
+    refetchConnections,
+    refetchBlocks,
+    refetchAccessLog,
+  ]);
+  const release = useCallback(() => {}, []);
+  useApplicationResourceSync(ownerId, 'peers', refetchAll, release);
 
   return {
     discoveryEnabled: me.data?.discovery_enabled ?? null,

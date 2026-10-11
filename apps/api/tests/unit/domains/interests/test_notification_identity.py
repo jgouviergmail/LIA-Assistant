@@ -85,7 +85,7 @@ async def _capture_created_row(
     class _InterestRepo:
         def __init__(self, _db: object) -> None: ...
 
-        async def get_by_id(self, _id: uuid.UUID) -> None:
+        async def mark_notified(self, _interest: object) -> None:
             return None
 
     with (
@@ -98,6 +98,11 @@ async def _capture_created_row(
             _NotifRepo,
         ),
         patch("src.domains.interests.proactive_task.InterestRepository", _InterestRepo),
+        patch("src.domains.interests.proactive_task.lock_interest_actor", new=AsyncMock()),
+        patch(
+            "src.domains.interests.proactive_task.get_managed_interest",
+            new=AsyncMock(return_value=target),
+        ),
         patch(
             "src.domains.interests.helpers.generate_interest_embedding",
             new=AsyncMock(return_value=None),

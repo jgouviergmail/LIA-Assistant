@@ -30,7 +30,12 @@ def _row(**over):
         category="custom",
         builtin_key=None,
         sections=[
-            {"key": "summary", "label": "Résumé", "instruction": "Prose.", "kind": "paragraph"}
+            {
+                "key": "summary",
+                "label": "Résumé",
+                "instruction": "Prose.",
+                "kind": "paragraph",
+            }
         ],
     )
     for key, value in over.items():
@@ -43,6 +48,7 @@ def service() -> MeetingTemplateService:
     db = MagicMock()
     db.commit = AsyncMock()
     db.rollback = AsyncMock()
+    db.scalar = AsyncMock(return_value=SimpleNamespace(id=USER))
     svc = MeetingTemplateService(db)
     svc.repo = AsyncMock()
     svc.repo.list_for_user.return_value = []
@@ -119,10 +125,12 @@ async def test_bulk_delete_removes_user_rows_and_reports_foreign_builtin_and_mal
     service: MeetingTemplateService,
 ) -> None:
     mine = _row()
-    service.repo.get_for_user.side_effect = lambda tid, uid: mine if tid == mine.id else None
+    service.repo.get_for_user.side_effect = lambda tid, uid: (mine if tid == mine.id else None)
     foreign = uuid.uuid4()
     result = await template_bulk.bulk_delete(
-        service, USER, [f"user:{mine.id}", f"user:{foreign}", "builtin:default_minutes", "x"]
+        service,
+        USER,
+        [f"user:{mine.id}", f"user:{foreign}", "builtin:default_minutes", "x"],
     )
     assert result.deleted == [f"user:{mine.id}"]
     assert [(s.ref, s.code) for s in result.skipped] == [
@@ -152,9 +160,10 @@ async def test_bulk_delete_reports_a_failed_row_and_keeps_going(
     service: MeetingTemplateService,
 ) -> None:
     first, second = _row(name="A"), _row(name="B")
-    service.repo.get_for_user.side_effect = lambda tid, uid: {first.id: first, second.id: second}[
-        tid
-    ]
+    service.repo.get_for_user.side_effect = lambda tid, uid: {
+        first.id: first,
+        second.id: second,
+    }[tid]
 
     async def delete(row):
         if row is first:

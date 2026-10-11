@@ -116,7 +116,7 @@ class TestParityWithThePipeline:
     """The per-family timeout policy must have TWO callers, not two copies."""
 
     def test_react_bounds_tool_execution_with_the_shared_policy(self) -> None:
-        source = inspect.getsource(react_nodes.react_execute_tools_node)
+        source = inspect.getsource(react_nodes._execute_react_calls)
 
         assert "compute_step_timeout" in source, (
             "the pipeline bounds every tool family and ReAct bounded none; "
@@ -125,13 +125,19 @@ class TestParityWithThePipeline:
         # The bound travels to the ONE door every call goes through
         # (`invoke_with_settlement`, ADR-298), which applies it to each
         # invocation — the first and, after an egress answer, the second.
-        assert "timeout=tool_timeout" in source, "the computed bound must actually be applied"
+        from src.domains.agents.nodes import react_call_execution
+
+        assert "timeout=tool_timeout" in inspect.getsource(
+            react_call_execution._invoke
+        ), "the computed bound must actually be applied"
         from src.domains.agents.nodes import react_egress_question
 
         assert "wait_for" in inspect.getsource(react_egress_question.invoke_with_settlement)
 
     def test_react_charges_the_time_it_spends_in_tools(self) -> None:
-        source = inspect.getsource(react_nodes.react_execute_tools_node)
+        from src.domains.agents.nodes import react_call_execution
+
+        source = inspect.getsource(react_call_execution._book)
 
         assert (
             "react_tool_seconds" in source
@@ -140,7 +146,9 @@ class TestParityWithThePipeline:
     def test_a_timeout_is_recoverable_not_fatal(self) -> None:
         """A tool that overruns must hand the model a message it can act on,
         the way the pipeline turns a step timeout into a failed StepResult."""
-        source = inspect.getsource(react_nodes.react_execute_tools_node)
+        from src.domains.agents.nodes import react_call_execution
+
+        source = inspect.getsource(react_call_execution._invoke)
 
         assert "TimeoutError" in source
 
@@ -302,15 +310,17 @@ class TestTimeoutAttribution:
             assert "unavailable" in msg
 
     def test_the_margin_is_declared_once_and_shared(self) -> None:
-        from src.domains.agents.nodes import react_nodes as rn
-
         assert 0.0 < TIMEOUT_ATTRIBUTION_MARGIN <= 1.0
         # The node reads the same constant it decides its log label with, so the
         # message and the `enforced_by` field can never disagree.
-        assert rn.TIMEOUT_ATTRIBUTION_MARGIN is TIMEOUT_ATTRIBUTION_MARGIN
+        from src.domains.agents.nodes import react_call_execution
+
+        assert react_call_execution.TIMEOUT_ATTRIBUTION_MARGIN is TIMEOUT_ATTRIBUTION_MARGIN
 
     def test_the_node_delegates_the_wording(self) -> None:
-        source = inspect.getsource(react_nodes.react_execute_tools_node)
+        from src.domains.agents.nodes import react_call_execution
+
+        source = inspect.getsource(react_call_execution._timeout)
 
         assert "tool_timeout_message(" in source
         assert "execution budget" not in source, "the wording must live with its siblings"

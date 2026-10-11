@@ -69,6 +69,7 @@ PromptVersion = str  # Accept any version string, validated at runtime
 # tests/unit/domains/agents/prompts/test_prompt_name_literal_sync.py —
 # an entry without a file (or a file without an entry) fails CI.
 PromptName = Literal[
+    "application_draft_modifier_prompt",
     "card_composition_context",
     "jev_collection_question",
     "jev_document_question",
@@ -95,6 +96,7 @@ PromptName = Literal[
     "interest_perplexity_system_prompt",
     "journal_consolidation_lines",
     "journal_portrait_source_lines",
+    "journal_portrait_review_prompt",
     "semantic_validator_lines",
     "hitl_draft_modifier_lines",
     "interest_extraction_lines",
@@ -109,6 +111,8 @@ PromptName = Literal[
     "skill_command_network_lines",
     # ADR-310: what a recovery pass tells the model after its draft declared gaps.
     "react_recovery_directive",
+    "requested_outcome_directive",
+    "requested_outcomes_directive",
     "runtime_failures_directive",
     "diagnostician_prompt",
     "response_directive_plan_rejection",

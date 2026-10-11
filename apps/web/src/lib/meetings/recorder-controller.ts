@@ -87,6 +87,8 @@ export class MeetingRecorderController {
   private onlineListener: (() => void) | null = null;
   private offlineListener: (() => void) | null = null;
   private stopping = false;
+  private lifetime = 0;
+  private pollGeneration = 0;
   private onProcessedCallback: ((detail: MeetingDetail) => void) | null = null;
 
   constructor(private readonly deps: RecorderDeps) {}
@@ -104,6 +106,7 @@ export class MeetingRecorderController {
 
   /** Open a recording: server first, then the microphone. */
   async start(): Promise<void> {
+    const lifetime = this.lifetime;
     const store = this.store;
     if (store.phase !== 'idle' && store.phase !== 'error') return;
     store.reset();
@@ -111,16 +114,21 @@ export class MeetingRecorderController {
     const choice = this.deps.chooseFormat();
     let started: MeetingStartResponse;
     try {
+      const geolocation = await this.deps.position();
+      if (lifetime !== this.lifetime) return;
       started = await this.deps.api.start({
         audio_format: choice.format,
         language: 'auto',
         timezone: this.deps.timezone(),
-        geolocation: await this.deps.position(),
+        geolocation,
       });
     } catch (error) {
-      store.fail(meetingErrorCode(error) ?? 'start_failed');
+      if (lifetime === this.lifetime) store.fail(meetingErrorCode(error) ?? 'start_failed');
       return;
     }
+    // The server may have accepted the start. Leave it for the original
+    // reconciliation flow; a late response grants neither capture nor deletion.
+    if (lifetime !== this.lifetime) return;
     const recording: PersistedRecording = {
       meetingId: started.id,
       startedAt: started.started_at,
@@ -148,8 +156,7 @@ export class MeetingRecorderController {
       return;
     }
     store.setPhase('recording');
-    const minutes =
-      store.limits?.silence_prompt_minutes ?? MEETING_DEFAULT_SILENCE_PROMPT_MINUTES;
+    const minutes = store.limits?.silence_prompt_minutes ?? MEETING_DEFAULT_SILENCE_PROMPT_MINUTES;
     await this.openCapture(capture, minutes);
   }
 
@@ -171,7 +178,10 @@ export class MeetingRecorderController {
     recording: PersistedRecording,
     silencePromptMinutes: number
   ): Promise<void> {
+    const lifetime = this.lifetime;
     const store = this.store;
+    const ownerId = store.ownerId;
+    const isCurrent = () => lifetime === this.lifetime && ownerId === this.store.ownerId;
     let stream: MediaStream;
     try {
       stream = await this.deps.getUserMedia();
@@ -179,8 +189,14 @@ export class MeetingRecorderController {
       // The meeting exists but nothing captures: the user chooses what to do
       // (resume once the microphone is allowed, finalize, discard). `fail`
       // records the code; the phase stays interrupted, not error.
-      store.fail('microphone_denied');
-      store.setPhase('interrupted');
+      if (lifetime === this.lifetime) {
+        store.fail('microphone_denied');
+        store.setPhase('interrupted');
+      }
+      return;
+    }
+    if (lifetime !== this.lifetime) {
+      stream.getTracks().forEach(track => track.stop());
       return;
     }
     this.stream = stream;
@@ -201,41 +217,65 @@ export class MeetingRecorderController {
       startSequence: recording.nextSequence,
       isOnline: this.deps.isOnline,
       onProgress: progress => {
+        if (!isCurrent()) return;
         this.store.setProgress(progress.uploaded, progress.pending);
       },
       onFatal: code => {
+        if (!isCurrent()) return;
         // The cap is a stop, not a failure: the server keeps every segment
         // before it, so the minutes are built from what exists.
         if (code === 'duration_cap_reached') void this.stop({ reason: 'max_duration' });
         else void this.abortCapture(code);
       },
     });
-    this.source = this.deps.createSource(
+    const source = this.deps.createSource(
       recording.audioFormat,
       recording.mimeType ?? undefined,
       recording.segmentSeconds,
-      {
-        onSegment: blob => this.onSegment(blob),
-        onLevel: rms => this.onLevel(rms),
-        onError: () => {
-          void this.abortCapture('capture_failed');
-        },
-      }
+      this.captureCallbacks(isCurrent)
     );
+    this.source = source;
     try {
-      await this.source.start(stream);
+      await source.start(stream);
     } catch {
+      if (lifetime !== this.lifetime) {
+        await source.stop().catch(() => undefined);
+        return;
+      }
       await this.releaseCapture();
       store.setPhase('interrupted');
       return;
     }
-    this.wakeLock = await this.deps.acquireWakeLock();
+    if (lifetime !== this.lifetime) {
+      await source.stop().catch(() => undefined);
+      return;
+    }
+    const wakeLock = await this.deps.acquireWakeLock();
+    if (lifetime !== this.lifetime) {
+      await wakeLock?.release().catch(() => undefined);
+      return;
+    }
+    this.wakeLock = wakeLock;
     this.installOnlineListeners();
     this.startTicker();
     store.setPhase(this.deps.isOnline() ? 'recording' : 'offline');
   }
 
   // -------------------------------------------------------------- capture
+
+  private captureCallbacks(isCurrent: () => boolean): AudioSourceCallbacks {
+    return {
+      onSegment: blob => {
+        if (isCurrent()) this.onSegment(blob);
+      },
+      onLevel: rms => {
+        if (isCurrent()) this.onLevel(rms);
+      },
+      onError: () => {
+        if (isCurrent()) void this.abortCapture('capture_failed');
+      },
+    };
+  }
 
   private onSegment(blob: Blob): void {
     const uploader = this.uploader;
@@ -308,19 +348,22 @@ export class MeetingRecorderController {
 
   /** Release the microphone and every capture resource; the meeting itself is untouched. */
   private async releaseCapture(): Promise<void> {
+    const ownerId = this.store.ownerId;
     this.stopTicker();
     this.removeOnlineListeners();
     const source = this.source;
+    const stream = this.stream;
+    const wakeLock = this.wakeLock;
     this.source = null;
-    if (source) await source.stop().catch(() => undefined);
-    this.stream?.getTracks().forEach(track => track.stop());
     this.stream = null;
-    if (this.wakeLock) {
-      await this.wakeLock.release().catch(() => undefined);
-      this.wakeLock = null;
-    }
+    this.wakeLock = null;
     this.watchdog = null;
-    this.store.setLevel(0);
+    if (source) await source.stop().catch(() => undefined);
+    stream?.getTracks().forEach(track => track.stop());
+    if (wakeLock) {
+      await wakeLock.release().catch(() => undefined);
+    }
+    if (ownerId === this.store.ownerId) this.store.setLevel(0);
   }
 
   /** Close the capture but keep the meeting and its queue: the user decides. */
@@ -351,6 +394,7 @@ export class MeetingRecorderController {
   async stop(
     options: { allowGaps?: boolean; reason?: 'user' | 'max_duration' } = {}
   ): Promise<StopOutcome> {
+    const lifetime = this.lifetime;
     const store = this.store;
     const recording = store.recording;
     if (!recording || this.stopping) return 'failed';
@@ -359,11 +403,14 @@ export class MeetingRecorderController {
     store.setSilencePrompt(false);
     try {
       await this.releaseCapture();
+      if (lifetime !== this.lifetime) return 'failed';
       if (!(await this.flushUploads())) {
+        if (lifetime !== this.lifetime) return 'failed';
         store.setPhase('interrupted');
         return 'offline';
       }
-      return await this.submitStop(recording.meetingId, options.allowGaps ?? false);
+      if (lifetime !== this.lifetime) return 'failed';
+      return await this.submitStop(recording.meetingId, options.allowGaps ?? false, lifetime);
     } finally {
       this.stopping = false;
     }
@@ -376,25 +423,33 @@ export class MeetingRecorderController {
    * leave, and the count declared is what the server actually received.
    */
   private async flushUploads(): Promise<boolean> {
+    const lifetime = this.lifetime;
     const uploader = this.uploader;
     if (!uploader) return true;
     if (uploader.fatalCode === null && !this.deps.isOnline() && uploader.pendingCount > 0) {
       return false;
     }
     await uploader.flush();
+    if (lifetime !== this.lifetime) return false;
     this.store.setNextSequence(uploader.settledSequenceCount);
     return uploader.fatalCode !== null || uploader.pendingCount === 0;
   }
 
   /** The stop request itself, with the server's refusals mapped to outcomes. */
-  private async submitStop(meetingId: string, allowGaps: boolean): Promise<StopOutcome> {
+  private async submitStop(
+    meetingId: string,
+    allowGaps: boolean,
+    lifetime: number
+  ): Promise<StopOutcome> {
     const store = this.store;
     const segmentCount = store.recording?.nextSequence ?? 0;
     try {
       await this.deps.api.stop(meetingId, { segment_count: segmentCount, allow_gaps: allowGaps });
     } catch (error) {
-      return this.handleStopRefusal(meetingId, error);
+      if (lifetime !== this.lifetime) return 'failed';
+      return this.handleStopRefusal(error);
     }
+    if (lifetime !== this.lifetime) return 'failed';
     this.uploader?.dispose();
     this.uploader = null;
     store.setMissingSegments(null);
@@ -403,7 +458,7 @@ export class MeetingRecorderController {
     return 'processing';
   }
 
-  private async handleStopRefusal(meetingId: string, error: unknown): Promise<StopOutcome> {
+  private async handleStopRefusal(error: unknown): Promise<StopOutcome> {
     const store = this.store;
     const code = meetingErrorCode(error);
     if (code === 'segments_missing') {
@@ -413,8 +468,7 @@ export class MeetingRecorderController {
     }
     if (code === 'no_audio') {
       // Nothing was ever captured: there are no minutes to wait for.
-      await this.deps.api.discard(meetingId).catch(() => undefined);
-      store.reset();
+      await this.discard();
       return 'failed';
     }
     store.fail(code ?? 'stop_failed');
@@ -428,13 +482,25 @@ export class MeetingRecorderController {
 
   /** Delete the meeting and everything captured. */
   async discard(): Promise<void> {
+    const lifetime = this.lifetime;
     const store = this.store;
     const recording = store.recording;
     await this.releaseCapture();
+    if (lifetime !== this.lifetime) return;
     this.uploader?.dispose();
     this.uploader = null;
     this.stopPolling();
-    if (recording) await this.deps.api.discard(recording.meetingId).catch(() => undefined);
+    if (recording) {
+      try {
+        await this.deps.api.discard(recording.meetingId);
+      } catch (error) {
+        if (lifetime !== this.lifetime) return;
+        store.fail(meetingErrorCode(error) ?? 'discard_failed');
+        store.setPhase('interrupted');
+        return;
+      }
+    }
+    if (lifetime !== this.lifetime) return;
     store.reset();
   }
 
@@ -448,14 +514,17 @@ export class MeetingRecorderController {
 
   private watchProcessing(meetingId: string): void {
     this.stopPolling();
+    const generation = this.pollGeneration;
     const poll = async () => {
       let detail: MeetingDetail;
       try {
         detail = await this.deps.api.detail(meetingId);
       } catch {
-        this.pollTimer = setTimeout(poll, this.deps.statusPollMs);
+        if (generation === this.pollGeneration)
+          this.pollTimer = setTimeout(poll, this.deps.statusPollMs);
         return;
       }
+      if (generation !== this.pollGeneration) return;
       if (detail.status === 'ready' || detail.status === 'failed') {
         this.pollTimer = null;
         (this.onProcessedCallback ?? this.deps.onProcessed)?.(detail);
@@ -468,6 +537,7 @@ export class MeetingRecorderController {
   }
 
   private stopPolling(): void {
+    this.pollGeneration++;
     if (this.pollTimer !== null) {
       clearTimeout(this.pollTimer);
       this.pollTimer = null;
@@ -484,6 +554,7 @@ export class MeetingRecorderController {
    * user started it on another device — they can finalize or discard here).
    */
   async reconcile(): Promise<void> {
+    const lifetime = this.lifetime;
     const store = this.store;
     if (store.phase === 'processing' && store.recording) {
       this.watchProcessing(store.recording.meetingId);
@@ -495,6 +566,7 @@ export class MeetingRecorderController {
     } catch {
       return;
     }
+    if (lifetime !== this.lifetime) return;
     if (live === null) {
       if (store.phase === 'interrupted') store.reset();
       return;
@@ -520,9 +592,10 @@ export class MeetingRecorderController {
 
   /** Release everything on unmount; the meeting stays as it is server-side. */
   async dispose(): Promise<void> {
+    this.lifetime++;
+    this.stopPolling();
     await this.releaseCapture();
     this.uploader?.dispose();
     this.uploader = null;
-    this.stopPolling();
   }
 }

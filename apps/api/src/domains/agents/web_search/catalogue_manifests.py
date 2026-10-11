@@ -113,11 +113,15 @@ unified_web_search_catalogue_manifest = ToolManifest(
             type="array",
             description="Brave Search web results",
         ),
-        OutputFieldSchema(path="results[].title", type="string", description="Result title"),
+        OutputFieldSchema(
+            path="results[].title", type="string", description="Result title", semantic_type="Text"
+        ),
         OutputFieldSchema(
             path="results[].url", type="string", description="URL", semantic_type="URL"
         ),
-        OutputFieldSchema(path="results[].snippet", type="string", description="Description"),
+        OutputFieldSchema(
+            path="results[].snippet", type="string", description="Description", semantic_type="Text"
+        ),
         OutputFieldSchema(path="results[].source", type="string", description="Source name"),
         OutputFieldSchema(
             path="wikipedia",
@@ -125,7 +129,9 @@ unified_web_search_catalogue_manifest = ToolManifest(
             nullable=True,
             description="Wikipedia article info",
         ),
-        OutputFieldSchema(path="wikipedia.title", type="string", description="Article title"),
+        OutputFieldSchema(
+            path="wikipedia.title", type="string", description="Article title", semantic_type="Text"
+        ),
         OutputFieldSchema(
             path="wikipedia.summary",
             type="string",

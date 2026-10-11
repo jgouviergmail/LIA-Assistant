@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "character": "lumen",
+  "total_bytes": 10454,
+  "source": "Original procedural sculpture in scripts/assets/render_companion_characters.py",
+  "render": {
+    "engine": "BLENDER_EEVEE_NEXT",
+    "samples": 48,
+    "threads": 2
+  },
+  "projection": {
+    "eye_centers": [
+      [
+        0.382353,
+        0.524066
+      ],
+      [
+        0.617647,
+        0.524066
+      ]
+    ],
+    "mouth_center": [
+      0.5,
+      0.654325
+    ],
+    "ortho_scale": 2.7200000286102295
+  },
+  "assets": {
+    "female/body": {
+      "size": 192,
+      "bytes": 5320,
+      "sha256": "a24520b46faddf5f1b0b6228f3ee56c947b3261330e7462e957ec9e0e45a5e34"
+    },
+    "male/body": {
+      "size": 192,
+      "bytes": 5134,
+      "sha256": "e8686afa4de5b1dd573560aad22a8f318298ee4bb42045350298736a38b01b28"
+    }
+  }
+}

@@ -80,6 +80,7 @@ export function queryResult<T>(over: Partial<UseApiQueryResult<T>> = {}): UseApi
     loading: false,
     error: null,
     refetch: vi.fn().mockResolvedValue(undefined),
+    refetchVerified: vi.fn().mockResolvedValue(true),
     setData: vi.fn(),
     ...over,
   };

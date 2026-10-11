@@ -7,9 +7,8 @@ import { PresentationSection } from '../PresentationSection';
 import { Tabs } from './Tabs';
 
 /**
- * "See LIA for real." — the 12 app screenshots and the 15-slide deck in one
- * tabbed gallery, the deck selected on arrival (see the `defaultTabId` note
- * below). Both tabs render the same shared carousel.
+ * Actual application workflows and the existing presentation deck in one
+ * tabbed gallery. Workflow captures are selected on arrival.
  */
 export function GallerySection() {
   const { t } = useTranslation();
@@ -18,7 +17,7 @@ export function GallerySection() {
     <section
       id="gallery"
       aria-labelledby="gallery-title"
-      className="landing-section scroll-mt-24 border-y border-border/60 bg-card py-24"
+      className="landing-section scroll-mt-24 border-y border-border/60 bg-card py-12 sm:py-20"
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <FadeInOnScroll>
@@ -32,9 +31,9 @@ export function GallerySection() {
           </div>
           <Tabs
             label={t('landing.gallery.tabs_label')}
-            // The deck opens the section: it tells the product's story in
-            // order, where the captures answer "show me a screen" on demand.
-            defaultTabId="slides"
+            // Actual workflows are the proof on arrival; the deck remains
+            // available as the visitor's second reading depth.
+            defaultTabId="screens"
             items={[
               {
                 id: 'screens',
@@ -48,6 +47,9 @@ export function GallerySection() {
               },
             ]}
           />
+          <p className="mx-auto mt-4 max-w-3xl text-center text-xs leading-6 text-muted-foreground">
+            {t('landing.gallery.provenance')}
+          </p>
         </FadeInOnScroll>
       </div>
     </section>

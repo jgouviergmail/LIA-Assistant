@@ -28,6 +28,35 @@ async def _collect(stream) -> list:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("same_identity, expected_count", [(True, 1), (False, 2)])
+async def test_confirmed_answer_stream_is_not_duplicated_by_message_reemission(
+    same_identity, expected_count
+):
+    service = StreamingService()
+    answer = "Réglages de l’application enregistrés"
+
+    async def graph_stream():
+        yield ("values", {"routing_history": []})
+        yield (
+            "messages",
+            (AIMessage(content=answer, id="confirmed"), {"langgraph_node": "response"}),
+        )
+        second_id = "confirmed" if same_identity else "another-confirmation"
+        yield (
+            "messages",
+            (AIMessage(content=answer, id=second_id), {"langgraph_node": "response"}),
+        )
+
+    chunks = await _collect(
+        service.stream_sse_chunks(graph_stream(), uuid.uuid4(), "run-confirmed")
+    )
+    assert [chunk.content for chunk, _ in chunks if chunk.type == "token"] == [
+        answer
+    ] * expected_count
+    assert "".join(fragment for _, fragment in chunks if fragment) == answer * expected_count
+
+
+@pytest.mark.asyncio
 async def test_char_content_final_replacement_chunk_emitted():
     """A ``content_final_replacement`` in the final state emits a content_replacement chunk."""
     service = StreamingService()

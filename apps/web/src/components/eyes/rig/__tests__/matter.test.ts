@@ -22,7 +22,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { createEyeRig } from '@/components/eyes/rig/runtime';
-import { EYE_STYLE_IDS } from '@/components/eyes/eye-styles';
+import { RIG_EYE_STYLE_IDS } from '@/components/eyes/eye-styles';
 
 const CSS = readFileSync(join(process.cwd(), 'src/styles/eyes.css'), 'utf8');
 
@@ -108,7 +108,7 @@ describe('catch-lights', () => {
 
 describe('per-style dosage', () => {
   it('every style states its own dose — adding one cannot forget to', () => {
-    EYE_STYLE_IDS.filter(id => id !== 'cozmo').forEach(id => {
+    RIG_EYE_STYLE_IDS.filter(id => id !== 'cozmo').forEach(id => {
       const block = styleBlock(id);
       expect(block, `style '${id}' declares no --matter`).toContain('--matter:');
       expect(block, `style '${id}' declares no --gloss`).toContain('--gloss:');

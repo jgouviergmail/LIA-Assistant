@@ -130,6 +130,11 @@ class TestSemanticTypeInitialization:
         )
         assert semantic_type.name == "my_type_with_underscores"
 
+    @pytest.mark.parametrize("name", ["my\ttype", "my\ntype", "my\r\ntype"])
+    def test_name_with_other_whitespace_is_rejected(self, name):
+        with pytest.raises(ValueError, match="cannot contain spaces"):
+            SemanticType(name=name, category=TypeCategory.IDENTITY)
+
     def test_is_frozen_dataclass(self):
         """Test that SemanticType is immutable (frozen)."""
         semantic_type = SemanticType(
@@ -206,6 +211,19 @@ class TestSemanticTypeToDict:
 
         assert result["category"] == "temporal"
         assert not isinstance(result["category"], TypeCategory)
+
+    def test_export_cannot_mutate_definition(self):
+        semantic_type = SemanticType(
+            name="contact",
+            category=TypeCategory.IDENTITY,
+            source_domains=["contact"],
+            properties={"email": "email_address"},
+        )
+        exported = semantic_type.to_dict()
+        exported["source_domains"].clear()
+        exported["properties"]["email"] = "contact_id"
+        assert semantic_type.source_domains == ["contact"]
+        assert semantic_type.properties == {"email": "email_address"}
 
 
 class TestSemanticTypeRepr:

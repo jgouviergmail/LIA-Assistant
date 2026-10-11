@@ -169,6 +169,7 @@ class PreparedShare:
     subject: str
     message: str | None
     source: StoredFile | InlineFile
+    single_attempt: bool = False
 
 
 async def resolve_route(user: User) -> ShareRoute:
@@ -330,6 +331,8 @@ async def _send_from_mailbox(
     async with open_active_client(_EMAIL_CATEGORY, user_id) as opened:
         if isinstance(opened, ClientUnavailable):
             errors.refuse(errors.UNAVAILABLE, route="mailbox")
+        if prepared.single_attempt and opened.connector_type != prepared.route.connector_type:
+            errors.refuse(errors.UNAVAILABLE, route="mailbox")
         provider = opened.connector_type.value
         try:
             await opened.client.send_email(
@@ -337,6 +340,7 @@ async def _send_from_mailbox(
                 subject=prepared.subject,
                 body=prepared.message or "",
                 attachments=[attachment],
+                **({"single_attempt": True} if prepared.single_attempt else {}),
             )
         except AuthenticationError, AppleAuthenticationError:
             errors.refuse(errors.RECONNECT, route="mailbox")

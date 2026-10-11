@@ -36,6 +36,7 @@ import shutil
 import tempfile
 import zipfile
 from collections.abc import Awaitable, Callable
+from functools import partial
 from io import BytesIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -57,6 +58,9 @@ from src.domains.skills.exceptions import (
     raise_skill_name_conflict,
     raise_skill_quota_exceeded,
 )
+from src.domains.skills.import_commit import SkillImportCompletionUnknown, commit_skill_import
+from src.domains.skills.import_disk import finish_disk_step, run_disk_step
+from src.domains.skills.import_hooks import AfterSkillCommit, BeforeSkillSwap
 from src.domains.skills.models import SkillProvenance
 from src.infrastructure.observability.logging import get_logger
 
@@ -64,6 +68,7 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from src.domains.skills.models import Skill
+    from src.domains.skills.upload_preview import SkillPackagePreview
 
 #: Called with the import's session and the registered row, BEFORE the commit:
 #: a caller that records something beside the skill (the library's provenance)
@@ -318,6 +323,9 @@ class SkillImportService:
         owner_id: UUID | None,
         is_system: bool,
         provenance: SkillProvenance = SkillProvenance.AUTHORED,
+        before_swap: BeforeSkillSwap | None = None,
+        before_commit: BeforeSkillSwap | None = None,
+        after_commit: AfterSkillCommit | None = None,
     ) -> dict[str, Any]:
         """Import from an uploaded ``SKILL.md`` or ``.zip`` archive.
 
@@ -340,16 +348,9 @@ class SkillImportService:
         from src.core.config import get_settings
 
         settings = get_settings()
-        if len(content) > SKILLS_MAX_FILE_SIZE_KB * 1024:
-            raise_skill_file_too_large(len(content), SKILLS_MAX_FILE_SIZE_KB)
-
         with tempfile.TemporaryDirectory(prefix="skill_import_") as staging_root:
             staging = Path(staging_root)
-            # Offload the blocking extraction / file writes off the event loop (CA-4).
-            if filename.endswith(".zip"):
-                name = await asyncio.to_thread(self._stage_zip, content, staging, settings)
-            else:
-                name = await asyncio.to_thread(self._stage_single_md, content, staging)
+            name = await self._stage_upload(content, filename, staging, settings)
             return await self._finalize(
                 staging / name,
                 name,
@@ -357,13 +358,43 @@ class SkillImportService:
                 is_system=is_system,
                 settings=settings,
                 provenance=provenance,
+                before_swap=before_swap,
+                before_commit=before_commit,
+                after_commit=after_commit,
             )
+
+    async def _stage_upload(
+        self, content: bytes, filename: str, staging: Path, settings: Any
+    ) -> str:
+        if len(content) > SKILLS_MAX_FILE_SIZE_KB * 1024:
+            raise_skill_file_too_large(len(content), SKILLS_MAX_FILE_SIZE_KB)
+        if filename.endswith(".zip"):
+            return await asyncio.to_thread(self._stage_zip, content, staging, settings)
+        return await asyncio.to_thread(self._stage_single_md, content, staging)
+
+    async def validate_upload(
+        self,
+        content: bytes,
+        filename: str,
+        *,
+        owner_id: UUID,
+        provenance: SkillProvenance = SkillProvenance.AUTHORED,
+    ) -> SkillPackagePreview:
+        """Preview with the original upload checks without installing live files."""
+        from src.domains.skills.upload_preview import preview_upload
+
+        return await preview_upload(
+            self, content, filename, owner_id=owner_id, provenance=provenance
+        )
 
     async def import_files(
         self,
         files: dict[str, str],
         *,
         owner_id: UUID,
+        before_swap: BeforeSkillSwap | None = None,
+        before_commit: BeforeSkillSwap | None = None,
+        after_commit: AfterSkillCommit | None = None,
     ) -> dict[str, Any]:
         """Import from an in-memory map of relative path → text content.
 
@@ -399,6 +430,9 @@ class SkillImportService:
                 settings=settings,
                 carry_over_untransportable=True,
                 provenance=None,
+                before_swap=before_swap,
+                before_commit=before_commit,
+                after_commit=after_commit,
             )
 
     async def validate_files(self, files: dict[str, str], *, owner_id: UUID) -> dict[str, Any]:
@@ -444,6 +478,9 @@ class SkillImportService:
         provenance: SkillProvenance,
         plugin_id: UUID | None = None,
         after_register: RegistrationHook | None = None,
+        before_swap: BeforeSkillSwap | None = None,
+        before_commit: BeforeSkillSwap | None = None,
+        after_commit: AfterSkillCommit | None = None,
     ) -> dict[str, Any]:
         """Import one already-staged skill directory (plugins, the skill library).
 
@@ -491,6 +528,9 @@ class SkillImportService:
                 plugin_id=plugin_id,
                 provenance=provenance,
                 after_register=after_register,
+                before_swap=before_swap,
+                before_commit=before_commit,
+                after_commit=after_commit,
             )
 
     # ------------------------------------------------------------------
@@ -641,6 +681,9 @@ class SkillImportService:
         plugin_id: UUID | None = None,
         provenance: SkillProvenance | None = SkillProvenance.AUTHORED,
         after_register: RegistrationHook | None = None,
+        before_swap: BeforeSkillSwap | None = None,
+        before_commit: BeforeSkillSwap | None = None,
+        after_commit: AfterSkillCommit | None = None,
     ) -> dict[str, Any]:
         """Validate the staged skill, then commit it to the live tree + DB.
 
@@ -665,8 +708,11 @@ class SkillImportService:
                 before the commit.
         """
         from src.domains.skills.cache import SkillsCache
-        from src.domains.skills.preference_service import SkillPreferenceService
 
+        if not is_system and owner_id is not None:
+            from src.domains.skills.lifecycle_lock import lock_skill_owner
+
+            await lock_skill_owner(self.db, owner_id)
         skill = await self._validated(
             staged_skill_dir,
             name,
@@ -676,7 +722,8 @@ class SkillImportService:
             plugin_id=plugin_id,
             provenance=provenance,
         )
-        desc = skill.get("description", "")
+        if before_swap is not None:
+            await before_swap(self.db)
 
         # Disk swap: the previous version (if any) is parked in the staging
         # root — outside the scanned skills tree, auto-cleaned with it — so a
@@ -690,42 +737,49 @@ class SkillImportService:
         target_dir = base_dir / name
         backup_dir = staged_skill_dir.parent / "__previous__"
         # Blocking disk swap → offload off the event loop (CA-4).
-        await asyncio.to_thread(self._swap_in, staged_skill_dir, target_dir, backup_dir)
-
-        if carry_over_untransportable:
-            await asyncio.to_thread(_carry_over_untransportable, backup_dir, target_dir)
+        cancelled = await finish_disk_step(
+            partial(self._swap_in, staged_skill_dir, target_dir, backup_dir)
+        )
 
         # Rebase source_path onto the live location for the response.
         skill["source_path"] = str(target_dir / "SKILL.md")
 
-        # DB register + commit. On failure the disk is rolled back to the
-        # previous version (or removed for a fresh import) — the live tree and
-        # the DB never diverge on an error path.
+        # Pre-commit failures restore the previous package. An attempted commit
+        # without acknowledgement preserves the new bytes and refuses replay.
         try:
-            svc = SkillPreferenceService(self.db)
-            row = await svc.create_skill_for_import(
+            if cancelled:
+                raise asyncio.CancelledError
+            if carry_over_untransportable:
+                await run_disk_step(partial(_carry_over_untransportable, backup_dir, target_dir))
+            row = await self._register_row(
+                skill,
                 name=name,
-                description=desc or name,
                 is_system=is_system,
                 owner_id=owner_id,
-                descriptions=skill.get("descriptions"),
                 plugin_id=plugin_id,
                 provenance=provenance,
             )
             if after_register is not None:
                 await after_register(self.db, row)
-            await self.db.commit()
-        except ValueError, IntegrityError:
+            if before_commit is not None:
+                await before_commit(self.db)
+            await commit_skill_import(self.db)
+        except SkillImportCompletionUnknown:
+            logger.warning("skill_import_commit_unknown", owner_id=str(owner_id), skill_name=name)
+            raise
+        except IntegrityError:
             # A concurrent import won the identity between our conflict check
             # and the flush: the provenance guard of create_skill_for_import,
             # or the per-scope unique index (ADR-327). Restore the disk and
             # answer the same 409 as the up-front check.
-            await asyncio.to_thread(self._roll_back_disk, target_dir, backup_dir)
+            await finish_disk_step(partial(self._roll_back_disk, target_dir, backup_dir))
             raise_skill_name_conflict(name)
-        except Exception:
-            await asyncio.to_thread(self._roll_back_disk, target_dir, backup_dir)
+        except Exception, asyncio.CancelledError:
+            await finish_disk_step(partial(self._roll_back_disk, target_dir, backup_dir))
             raise
 
+        if after_commit is not None:
+            after_commit(row)
         await SkillsCache.invalidate_and_reload()
 
         logger.info(
@@ -735,6 +789,32 @@ class SkillImportService:
             owner_id=str(owner_id) if owner_id else None,
         )
         return skill
+
+    async def _register_row(
+        self,
+        skill: dict[str, Any],
+        *,
+        name: str,
+        is_system: bool,
+        owner_id: UUID | None,
+        plugin_id: UUID | None,
+        provenance: SkillProvenance | None,
+    ) -> Skill:
+        """Only a registration identity conflict is translated to a name conflict."""
+        from src.domains.skills.preference_service import SkillPreferenceService
+
+        try:
+            return await SkillPreferenceService(self.db).create_skill_for_import(
+                name=name,
+                description=skill.get("description") or name,
+                is_system=is_system,
+                owner_id=owner_id,
+                descriptions=skill.get("descriptions"),
+                plugin_id=plugin_id,
+                provenance=provenance,
+            )
+        except ValueError:
+            raise_skill_name_conflict(name)
 
     async def _validated(
         self,

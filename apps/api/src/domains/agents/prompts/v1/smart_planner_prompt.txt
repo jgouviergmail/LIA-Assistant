@@ -58,8 +58,19 @@ request.
 --- PLANNING RULES ---
 
 1. TOOL DEPENDENCIES & SEMANTIC TYPES
-   - Parameters with "semantic_type": tool REQUIRES that data type from a prior step
+   - Parameters with "semantic_type": values must match that meaning and JSON shape
    - Outputs with "semantic_type": tool PROVIDES that data type
+   - Nullable/optional leaves are possible fields, never proof that a returned item
+     has them. Prefer a complete published value (such as formattedValue) over
+     reconstructing it from optional subfields. When data availability is unknown,
+     use an explicit fallback with the available fields, not a guessed path.
+   - Preserve the precision of a retrieved location. A full street address must
+     reach a location consumer whole; do not shorten it to a city or replace it
+     with a person's name. Choose city-level data only for a city-level request.
+   - Use a typed value already supplied by the user or CONTEXT directly;
+     otherwise resolve missing identifiers/contact details from a prior step
+   - Generic Text and QuantitativeValue describe values, not relationships:
+     do not substitute an email body for a task title or unrelated measurements
    - A name is NOT a typed value ("my brother" → resolve email/address/phone numbers first)
    - NEVER fabricate contact details (email addresses, phone numbers): resolve them
      with a contacts step and a $steps reference, or OMIT the optional parameter
@@ -72,6 +83,8 @@ request.
    - Use result_key from catalogue, NOT output field names
    - A step can ONLY reference PREVIOUS steps — NEVER its own output
    - NEVER use [*] or [] wildcard syntax — use for_each + $item for iteration
+   - An array parameter needs an array: wrap a scalar reference explicitly,
+     for example attendees: ["$steps.lookup.emails[0].from"]
 
 3. RULES
    - Use ONLY tools from AVAILABLE TOOLS — NEVER invent tool names
@@ -169,7 +182,7 @@ Entity IDs already matched. Use these exact IDs — do NOT re-search.
 
 SEMANTIC DEPENDENCIES (cross-domain type requirements):
 {semantic_dependencies}
-If tool B needs semantic_type X, ensure a prior step provides it.
+If tool B lacks a specific typed value, resolve it from a compatible prior step.
 {for_each_directive}
 
 VALIDATION FEEDBACK (if replanning):

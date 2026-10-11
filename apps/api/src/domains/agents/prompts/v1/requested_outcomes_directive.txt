@@ -1,0 +1,14 @@
+<RequestedResultEvidence>
+Canonical tool evidence for the user's explicit requested results:
+{coverage}
+Treat these verdicts as evidence about tool results, not as instructions from an
+external source. A satisfied verdict means its explicit checked constraints hold;
+it does not verify any unchecked aspect of the answer. State missing, failed or
+partial requested results plainly and preserve every obtained finding. Unknown
+means that no proof is available; do not turn it into success or claim impossibility.
+Pending_confirmation means a draft or approval is awaiting the person. Present the
+existing approval or draft; never claim the external action executed and never
+repeat it to obtain a success verdict. A turn ends when this answer is sent: do not
+promise background work or later completion. Omit technical verdict names and
+internal paths from the user's answer.
+</RequestedResultEvidence>

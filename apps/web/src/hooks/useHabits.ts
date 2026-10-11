@@ -12,10 +12,28 @@
  */
 
 import { useCallback } from 'react';
+import { z } from '@/lib/zod';
 
 import { ApiError } from '@/lib/api-client';
 import { useApiMutation } from '@/hooks/useApiMutation';
-import { useApiQuery } from '@/hooks/useApiQuery';
+import { useApplicationAccountQuery } from '@/hooks/useApplicationAccountQuery';
+import { useApplicationResourceSync } from '@/hooks/useApplicationResourceSync';
+
+const releaseHabitOverride = () => {};
+
+const habitForgetResponse = z.object({
+  deleted_habits: z.number().int().nonnegative(),
+  profile_deleted: z.boolean(),
+  advisory_cleanup_confirmed: z.boolean().default(false),
+});
+export type HabitForgetOutcome = 'complete' | 'partial' | 'failed';
+
+function forgettingOutcome(response: unknown, current: boolean): HabitForgetOutcome {
+  if (!current) return 'failed';
+  const parsed = habitForgetResponse.safeParse(response);
+  if (!parsed.success || !parsed.data.profile_deleted) return 'failed';
+  return parsed.data.advisory_cleanup_confirmed ? 'complete' : 'partial';
+}
 
 export type HabitVerdict = 'windows' | 'diffuse' | 'none' | 'insufficient' | 'sparse';
 
@@ -138,23 +156,25 @@ export interface UseHabitsReturn {
   refetch: () => void;
   setStatus: (id: string, status: HabitStatus) => Promise<boolean>;
   remove: (id: string) => Promise<boolean>;
-  removeAll: () => Promise<boolean>;
+  removeAll: () => Promise<HabitForgetOutcome>;
   setEnabled: (enabled: boolean) => Promise<boolean>;
   /** Run the nightly unit of work NOW (retroactive over existing history). */
   recompute: () => Promise<boolean>;
 }
 
 export function useHabits(enabled = true): UseHabitsReturn {
-  const { data, loading, error, refetch } = useApiQuery<HabitsOverview>('/habits', {
-    componentName: 'useHabits',
-    enabled,
-  });
+  const { data, loading, error, refetch, ownerId, isCurrent } =
+    useApplicationAccountQuery<HabitsOverview>('/habits', 'useHabits', enabled);
+  useApplicationResourceSync(ownerId, 'habits', refetch, releaseHabitOverride);
+  const retry = useCallback(() => {
+    void refetch().catch(() => undefined);
+  }, [refetch]);
 
   const { mutate: postStatus } = useApiMutation<{ status: HabitStatus }, Habit>({
     method: 'POST',
     componentName: 'useHabits',
   });
-  const { mutate: deleteOne } = useApiMutation<undefined, undefined>({
+  const { mutate: deleteOne } = useApiMutation<undefined, unknown>({
     method: 'DELETE',
     componentName: 'useHabits',
   });
@@ -172,61 +192,66 @@ export function useHabits(enabled = true): UseHabitsReturn {
 
   const setStatus = useCallback(
     async (id: string, status: HabitStatus): Promise<boolean> => {
+      if (!isCurrent()) return false;
       try {
         await postStatus(`/habits/${id}/status`, { status });
-        refetch();
-        return true;
+        await refetch();
+        return isCurrent();
       } catch {
         return false;
       }
     },
-    [postStatus, refetch]
+    [postStatus, refetch, isCurrent]
   );
 
   const remove = useCallback(
     async (id: string): Promise<boolean> => {
+      if (!isCurrent()) return false;
       try {
         await deleteOne(`/habits/${id}`, undefined);
-        refetch();
-        return true;
+        await refetch();
+        return isCurrent();
       } catch {
         return false;
       }
     },
-    [deleteOne, refetch]
+    [deleteOne, refetch, isCurrent]
   );
 
-  const removeAll = useCallback(async (): Promise<boolean> => {
+  const removeAll = useCallback(async (): Promise<HabitForgetOutcome> => {
+    if (!isCurrent()) return 'failed';
     try {
-      await deleteOne('/habits', undefined);
-      refetch();
-      return true;
+      const response = await deleteOne('/habits', undefined);
+      await refetch();
+      return forgettingOutcome(response, isCurrent());
     } catch {
-      return false;
+      return 'failed';
     }
-  }, [deleteOne, refetch]);
+  }, [deleteOne, refetch, isCurrent]);
 
   const recompute = useCallback(async (): Promise<boolean> => {
+    if (!isCurrent()) return false;
     try {
       await postRecompute('/habits/recompute', undefined);
-      refetch();
-      return true;
+      await refetch();
+      return isCurrent();
     } catch {
       return false;
     }
-  }, [postRecompute, refetch]);
+  }, [postRecompute, refetch, isCurrent]);
 
   const setEnabled = useCallback(
     async (value: boolean): Promise<boolean> => {
+      if (!isCurrent()) return false;
       try {
         await patchSettings('/habits/settings', { habits_enabled: value });
-        refetch();
-        return true;
+        await refetch();
+        return isCurrent();
       } catch {
         return false;
       }
     },
-    [patchSettings, refetch]
+    [patchSettings, refetch, isCurrent]
   );
 
   // 404 = router not mounted (flag off) → the surface genuinely does not
@@ -238,7 +263,7 @@ export function useHabits(enabled = true): UseHabitsReturn {
     loading,
     unavailable: notFound,
     loadError: !!error && !notFound,
-    refetch,
+    refetch: retry,
     setStatus,
     remove,
     removeAll,

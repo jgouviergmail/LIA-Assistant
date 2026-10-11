@@ -21,7 +21,8 @@ import type {
   LibraryUpdatePreview,
 } from '@/lib/skill-library/types';
 
-import { useApiQuery } from './useApiQuery';
+import { useApplicationAccountQuery } from './useApplicationAccountQuery';
+import { useApplicationResourceSync } from './useApplicationResourceSync';
 
 const BASE = '/skill-library';
 
@@ -32,22 +33,23 @@ export const LIBRARY_QUERY_MIN_CHARS = 2;
  * The portal's answer to a search text — read only once the text is long enough,
  * and read again when `revision` moves (an install changes what is marked installed).
  */
-export function useLibrarySearch(query: string, revision = 0) {
-  const text = query.trim();
-  return useApiQuery<LibrarySearchResponse>(`${BASE}/search`, {
-    componentName: 'SkillLibrarySearch',
-    enabled: text.length >= LIBRARY_QUERY_MIN_CHARS,
-    params: { q: text },
-    deps: [revision],
-  });
+export function useLibrarySearch(searchText: string, revision = 0) {
+  const text = searchText.trim();
+  const query = useApplicationAccountQuery<LibrarySearchResponse>(
+    `${BASE}/search`, 'SkillLibrarySearch', text.length >= LIBRARY_QUERY_MIN_CHARS,
+    undefined, { params: { q: text }, deps: [revision] }
+  );
+  useApplicationResourceSync(query.ownerId, 'skills', query.refetch);
+  return query;
 }
 
 /** The skills installed from a library, each with its update verdict. */
 export function useLibraryInstalled(enabled: boolean) {
-  return useApiQuery<LibraryInstalledResponse>(`${BASE}/installed`, {
-    componentName: 'SkillLibraryInstalled',
-    enabled,
-  });
+  const query = useApplicationAccountQuery<LibraryInstalledResponse>(
+    `${BASE}/installed`, 'SkillLibraryInstalled', enabled
+  );
+  useApplicationResourceSync(query.ownerId, 'skills', query.refetch);
+  return query;
 }
 
 /** The four acts, each one request; the caller owns its busy state. */

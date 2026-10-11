@@ -209,6 +209,7 @@ class UserSkillStateRepository:
             .join(Skill, UserSkillState.skill_id == Skill.id)
             .where(UserSkillState.user_id == user_id)
             .order_by(Skill.name)
+            .execution_options(populate_existing=True)
         )
         if system_only:
             stmt = stmt.where(Skill.is_system.is_(True))

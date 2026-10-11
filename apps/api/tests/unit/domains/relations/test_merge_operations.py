@@ -49,7 +49,7 @@ def _patched(existing=(), *, debriefs=None):
 
     @contextlib.asynccontextmanager
     async def _ctx():
-        yield SimpleNamespace()
+        yield SimpleNamespace(scalar=AsyncMock(return_value=SimpleNamespace()))
 
     return (
         patch("src.domains.relations.service.get_db_context", _ctx),
@@ -179,7 +179,7 @@ class TestUndo:
 
         @contextlib.asynccontextmanager
         async def _ctx():
-            yield SimpleNamespace()
+            yield SimpleNamespace(scalar=AsyncMock(return_value=SimpleNamespace()))
 
         with (
             patch("src.domains.relations.service.get_db_context", _ctx),

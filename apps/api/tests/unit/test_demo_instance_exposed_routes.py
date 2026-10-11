@@ -47,6 +47,25 @@ CADDYFILE = repo_root_or_skip() / "infrastructure" / "demo-instance" / "Caddyfil
 #: process's routers rather than the demonstrator's.
 EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
     {
+        # Original owned-command continuations; each disabled family still refuses.
+        "GET /api/v1/application-commands/{command_id}",
+        "GET /api/v1/application-commands/{command_id}/asset-download",
+        "GET /api/v1/application-commands/{command_id}/bookmark-download",
+        "GET /api/v1/application-commands/{command_id}/document-archive",
+        "GET /api/v1/application-commands/{command_id}/document-download",
+        "GET /api/v1/application-commands/{command_id}/download",
+        "GET /api/v1/application-commands/{command_id}/management-export",
+        "GET /api/v1/application-commands/{command_id}/meeting-pdf",
+        "GET /api/v1/application-commands/{command_id}/skill-download",
+        "POST /api/v1/application-commands/{command_id}/device/ack",
+        "POST /api/v1/application-commands/{command_id}/device/claim",
+        "POST /api/v1/application-commands/{command_id}/document-upload",
+        "POST /api/v1/application-commands/{command_id}/health-token",
+        "POST /api/v1/application-commands/{command_id}/personal-mcp",
+        "POST /api/v1/application-commands/{command_id}/personal-mcp-oauth/{stage}",
+        "POST /api/v1/application-commands/{command_id}/plugin-upload",
+        "POST /api/v1/application-commands/{command_id}/resume",
+        "POST /api/v1/application-commands/{command_id}/skill-upload",
         "POST /api/v1/account/export",
         "GET /api/v1/account/export/latest",
         "GET /api/v1/account/export/{job_id}/download",
@@ -539,7 +558,11 @@ def test_federated_sign_in_never_reaches_the_instance(path: str) -> None:
 
 def test_the_password_form_is_not_caught_by_the_refusal() -> None:
     """The refusal must not take the demonstrator's only way in with it."""
-    for path in ("/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/verify-email"):
+    for path in (
+        "/api/v1/auth/login",
+        "/api/v1/auth/register",
+        "/api/v1/auth/verify-email",
+    ):
         assert not any(regexp.match(path) for regexp in _refused_regexps()), path
 
 

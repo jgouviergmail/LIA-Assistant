@@ -39,6 +39,10 @@ from src.domains.agents.tools.tool_registry import (
 # sentinel tool per family. Feature-flagged modules (skills, sub-agents,
 # image generation, devops, health) are appended dynamically below.
 ALWAYS_ON_MODULES: dict[str, str] = {
+    "src.domains.agents.tools.application_read_tools": "get_lia_preferences_tool",
+    "src.domains.agents.tools.application_action_tools": "update_lia_preferences_tool",
+    "src.domains.agents.tools.application_layout_tools": "get_lia_layout_preferences_tool",
+    "src.domains.agents.tools.application_location_tools": "get_lia_locations_tool",
     "src.domains.agents.tools.calendar_tools": "create_event_tool",
     "src.domains.agents.tools.drive_tools": "search_files_tool",
     "src.domains.agents.tools.emails_tools": "send_email_tool",

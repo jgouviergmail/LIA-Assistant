@@ -21,6 +21,15 @@ from typing import Any
 from fastapi.responses import StreamingResponse
 
 
+def spreadsheet_safe_cell(value: Any) -> Any:
+    """Only text is escaped: numeric negative values remain numeric CSV values."""
+    if isinstance(value, str) and (
+        value.startswith(("\t", "\r", "\n")) or value.lstrip().startswith(("=", "+", "-", "@"))
+    ):
+        return "'" + value
+    return value
+
+
 def create_csv_response(
     data: list[dict[str, Any]],
     filename_prefix: str,
@@ -45,7 +54,9 @@ def create_csv_response(
     if data:
         writer = csv.DictWriter(output, fieldnames=data[0].keys())
         writer.writeheader()
-        writer.writerows(data)
+        writer.writerows(
+            {key: spreadsheet_safe_cell(value) for key, value in row.items()} for row in data
+        )
 
     csv_content = output.getvalue()
     timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")

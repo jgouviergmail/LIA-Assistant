@@ -28,6 +28,7 @@ from src.core.constants import (
 from src.core.geo_utils import haversine_distance
 from src.core.security.utils import decrypt_data, encrypt_data
 from src.domains.users.models import User
+from src.domains.users.repository import UserRepository
 from src.infrastructure.observability.metrics_heartbeat import (
     user_location_put_total,
 )
@@ -157,7 +158,8 @@ class UserLocationService:
             An ``UpdateResult`` describing the outcome (updated / throttled /
             forbidden). ``forbidden`` is set when the user has not opted in.
         """
-        if not user.use_last_known_location:
+        current = await UserRepository(self._db).get_by_id_for_preference_update(user.id)
+        if current is None or not current.use_last_known_location:
             logger.info(
                 "last_known_location_update_forbidden",
                 user_id=str(user.id),
@@ -165,6 +167,8 @@ class UserLocationService:
             )
             user_location_put_total.labels(result="forbidden").inc()
             return UpdateResult(updated=False, throttled=False, forbidden=True)
+
+        user = current
 
         now = datetime.now(UTC)
         previous = user.last_known_location_updated_at

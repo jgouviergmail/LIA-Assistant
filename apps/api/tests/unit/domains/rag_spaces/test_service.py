@@ -30,6 +30,13 @@ def service(mock_db):
     svc.doc_repo = AsyncMock()
     svc.chunk_repo = AsyncMock()
     svc.mail_source_repo = AsyncMock()
+    svc.lock_creation_owner = AsyncMock()
+    svc.space_repo.get_by_name_for_user = AsyncMock(return_value=None)
+
+    async def locked(space_id, owner_id):
+        return await svc.space_repo.get_by_id(space_id)
+
+    svc.space_repo.get_by_id_for_owner_update = AsyncMock(side_effect=locked)
     return svc
 
 
@@ -380,28 +387,22 @@ class TestDeleteSpace:
     """Tests for space deletion with cascade cleanup."""
 
     @pytest.mark.asyncio
-    @patch("src.domains.rag_spaces.service.settings")
-    @patch("src.domains.rag_spaces.service.Path")
+    @patch("src.domains.rag_spaces.space_deletion.cleanup_space_files", new_callable=AsyncMock)
     async def test_delete_space_success(
-        self, mock_path_cls, mock_settings, service, user_id, space_id, sample_space
+        self, cleanup, service, user_id, space_id, sample_space
     ) -> None:
         """Should delete chunks, space, commit, and clean up files."""
-        mock_settings.rag_spaces_storage_path = "/tmp/rag_storage"
+        cleanup.return_value = True
         service.space_repo.get_by_id = AsyncMock(return_value=sample_space)
         service.chunk_repo.delete_by_space = AsyncMock(return_value=5)
         service.space_repo.delete = AsyncMock()
-
-        # Mock the storage directory path to simulate existing directory
-        mock_storage_dir = MagicMock()
-        mock_storage_dir.exists.return_value = True
-        mock_path_cls.return_value.__truediv__ = MagicMock(return_value=mock_storage_dir)
-        mock_storage_dir.__truediv__ = MagicMock(return_value=mock_storage_dir)
 
         await service.delete_space(space_id, user_id)
 
         service.chunk_repo.delete_by_space.assert_awaited_once_with(space_id)
         service.space_repo.delete.assert_awaited_once_with(sample_space)
         service.db.commit.assert_awaited_once()
+        cleanup.assert_awaited_once_with(user_id, space_id)
 
     @pytest.mark.asyncio
     async def test_delete_space_not_found(self, service, space_id) -> None:
@@ -506,15 +507,14 @@ class TestUploadDocument:
 
     @pytest.mark.asyncio
     @patch("src.domains.rag_spaces.service.settings")
-    @patch("src.domains.rag_spaces.service.Path")
     async def test_upload_document_success(
-        self, mock_path_cls, mock_settings, service, user_id, space_id, sample_space
+        self, mock_settings, service, user_id, space_id, sample_space, tmp_path
     ) -> None:
         """Should validate, write file, and create DB record."""
         mock_settings.rag_spaces_max_docs_per_space = 50
         mock_settings.rag_spaces_allowed_types = "application/pdf,text/plain"
         mock_settings.rag_spaces_max_file_size_mb = 10
-        mock_settings.rag_spaces_storage_path = "/tmp/rag_storage"
+        mock_settings.rag_spaces_storage_path = str(tmp_path)
 
         service.space_repo.get_by_id = AsyncMock(return_value=sample_space)
         service.doc_repo.count_for_space = AsyncMock(return_value=3)
@@ -527,51 +527,13 @@ class TestUploadDocument:
         file_content = b"PDF content here"
         mock_file.read = AsyncMock(side_effect=[file_content, b""])
 
-        # Mock Path operations
-        mock_storage_dir = MagicMock()
-        mock_file_path = MagicMock()
-        mock_path_cls.return_value.__truediv__ = MagicMock(return_value=mock_storage_dir)
-        mock_storage_dir.__truediv__ = MagicMock(return_value=mock_storage_dir)
-        mock_storage_dir.mkdir = MagicMock()
-        mock_storage_dir.suffix = ".pdf"
-        # Path(original_filename).suffix should return ".pdf"
-        mock_path_cls.side_effect = lambda x: (
-            MagicMock(suffix=".pdf")
-            if x == "report.pdf"
-            else MagicMock(__truediv__=MagicMock(return_value=mock_storage_dir))
-        )
-        # Reset to handle Path for storage dir
-        mock_path_cls.side_effect = None
-        mock_path_cls.return_value = MagicMock()
-        mock_path_cls.return_value.__truediv__ = MagicMock(return_value=mock_storage_dir)
-        mock_storage_dir.__truediv__ = MagicMock(return_value=mock_file_path)
-        mock_storage_dir.mkdir = MagicMock()
-        mock_file_path.write_bytes = MagicMock()
-
         mock_doc = MagicMock()
         mock_doc.id = uuid.uuid4()
         service.doc_repo.create = AsyncMock(return_value=mock_doc)
 
-        with patch("src.domains.rag_spaces.service.Path") as path_mock:
-            # Make Path(original_filename).suffix work
-            def path_side_effect(arg):
-                m = MagicMock()
-                if arg == "report.pdf":
-                    m.suffix = ".pdf"
-                    return m
-                # Path(storage_path) chain
-                m.__truediv__ = MagicMock(return_value=mock_storage_dir)
-                return m
-
-            path_mock.side_effect = path_side_effect
-            mock_storage_dir.__truediv__ = MagicMock(return_value=mock_storage_dir)
-            mock_storage_dir.mkdir = MagicMock()
-            # final file_path from storage_dir / stored_filename
-            mock_final_path = MagicMock()
-            mock_storage_dir.__truediv__ = MagicMock(return_value=mock_final_path)
-            mock_final_path.write_bytes = MagicMock()
-
-            result = await service.upload_document(space_id, user_id, mock_file)
+        result = await service.upload_document(space_id, user_id, mock_file)
+        stored = list(tmp_path.rglob("*.pdf"))
+        assert len(stored) == 1 and stored[0].read_bytes() == file_content
 
         assert result == mock_doc
         service.doc_repo.create.assert_awaited_once()
@@ -732,13 +694,13 @@ class TestUploadDocument:
     @pytest.mark.asyncio
     @patch("src.domains.rag_spaces.service.settings")
     async def test_upload_document_octet_stream_resolved_from_extension(
-        self, mock_settings, service, user_id, space_id, sample_space
+        self, mock_settings, service, user_id, space_id, sample_space, tmp_path
     ) -> None:
         """Should resolve octet-stream to actual MIME type from file extension."""
         mock_settings.rag_spaces_max_docs_per_space = 50
         mock_settings.rag_spaces_allowed_types = "text/markdown"
         mock_settings.rag_spaces_max_file_size_mb = 10
-        mock_settings.rag_spaces_storage_path = "/tmp/rag_storage"
+        mock_settings.rag_spaces_storage_path = str(tmp_path)
         service.space_repo.get_by_id = AsyncMock(return_value=sample_space)
         service.doc_repo.count_for_space = AsyncMock(return_value=0)
 
@@ -751,26 +713,10 @@ class TestUploadDocument:
         mock_doc.id = uuid.uuid4()
         service.doc_repo.create = AsyncMock(return_value=mock_doc)
 
-        with patch("src.domains.rag_spaces.service.Path") as path_mock:
-
-            def path_side_effect(arg: object) -> MagicMock:
-                m = MagicMock()
-                if arg == "notes.md":
-                    m.suffix = ".md"
-                else:
-                    storage_dir = MagicMock()
-                    storage_dir.mkdir = MagicMock()
-                    file_path = MagicMock()
-                    file_path.write_bytes = MagicMock()
-                    storage_dir.__truediv__ = MagicMock(return_value=file_path)
-                    m.__truediv__ = MagicMock(return_value=storage_dir)
-                return m
-
-            path_mock.side_effect = path_side_effect
-
-            # Should NOT raise 415 — octet-stream resolved to text/markdown via .md ext
-            result = await service.upload_document(space_id, user_id, mock_file)
-            assert result is not None
+        result = await service.upload_document(space_id, user_id, mock_file)
+        assert result is not None
+        stored = list(tmp_path.rglob("*.md"))
+        assert len(stored) == 1 and stored[0].read_bytes() == b"# Hello"
 
     @pytest.mark.asyncio
     @patch("src.domains.rag_spaces.service.settings")

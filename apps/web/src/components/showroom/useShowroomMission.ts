@@ -51,9 +51,7 @@ export const SHOWROOM_PACING_MS = {
 } as const;
 
 /** Total pacing budget — used to display a deterministic trace duration. */
-export function missionTraceDurationMs(
-  def: Pick<ShowroomMissionDefinition, 'sources'>
-): number {
+export function missionTraceDurationMs(def: Pick<ShowroomMissionDefinition, 'sources'>): number {
   return (
     SHOWROOM_PACING_MS.sourceReveal * def.sources.length +
     SHOWROOM_PACING_MS.toPlanning +
@@ -111,9 +109,19 @@ export function useShowroomMission({
       if (next === current) return null;
       pendingRef.current = next;
       dispatch(event);
+      if (event.type === 'DECIDE') {
+        onEvent?.(`demo_hitl_${event.decision}`);
+        emitOnce('first_hitl', 'demo_first_hitl_decided');
+      }
+      // Informative missions finish through ADVANCE; approved actions finish
+      // through DECIDE. One transition boundary accounts for both, exactly once.
+      if (next.phase === 'receipt') {
+        emitOnce('completed', 'demo_completed');
+        emitOnce('completed_mission', `demo_completed_${def.id}`);
+      }
       return next;
     },
-    [reducer]
+    [def.id, emitOnce, onEvent, reducer]
   );
 
   const start = useCallback(() => {
@@ -131,16 +139,9 @@ export function useShowroomMission({
 
   const decide = useCallback(
     (index: number, decision: ShowroomDecisionKind) => {
-      const next = send({ type: 'DECIDE', index, decision });
-      if (next === null) return; // rejected/out-of-order: no phantom event
-      onEvent?.(`demo_hitl_${decision}`);
-      emitOnce('first_hitl', 'demo_first_hitl_decided');
-      if (next.phase === 'receipt') {
-        emitOnce('completed', 'demo_completed');
-        emitOnce('completed_mission', `demo_completed_${def.id}`);
-      }
+      send({ type: 'DECIDE', index, decision });
     },
-    [def.id, emitOnce, onEvent, send]
+    [send]
   );
 
   const restart = useCallback(() => {

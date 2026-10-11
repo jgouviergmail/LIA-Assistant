@@ -5,7 +5,19 @@ import { useLiveStore } from '@/stores/liveStore';
 import { recentActivity } from '../activity';
 import { NEUTRAL_CONTEXT, type ActingContext } from './direction';
 import { useCompanionEnvironmentStore } from '@/stores/companionEnvironmentStore';
-import { dayPhaseAt, weatherAt } from '../environment';
+import { dayPhaseAt, weatherAt, weatherFlagsAt } from '../environment';
+
+/** Environmental evidence has its own freshness, independent of activity and Psyche. */
+function environmentContext(
+  now: number
+): Pick<ActingContext, 'weather' | 'weatherFlags' | 'dayPhase'> {
+  const environment = useCompanionEnvironmentStore.getState().environment;
+  return {
+    weather: weatherAt(environment, now),
+    weatherFlags: weatherFlagsAt(environment, now),
+    dayPhase: environment ? dayPhaseAt(now, environment.timezone) : NEUTRAL_CONTEXT.dayPhase,
+  };
+}
 
 export function liveActingContext(now: number): ActingContext {
   const psyche = usePsycheStore.getState();
@@ -14,10 +26,8 @@ export function liveActingContext(now: number): ActingContext {
   const live = useLiveStore.getState().lastActivity;
   const record = live && live.at > (signals.lastActivity?.at ?? 0) ? live : signals.lastActivity;
   const recent = recentActivity(record, now);
-  const environment = useCompanionEnvironmentStore.getState().environment;
   const task = {
-    weather: weatherAt(environment, now),
-    dayPhase: environment ? dayPhaseAt(now, environment.timezone) : NEUTRAL_CONTEXT.dayPhase,
+    ...environmentContext(now),
     activity,
     responding: signals.liveReaction(now) !== null,
     recentFamily: recent?.family ?? null,

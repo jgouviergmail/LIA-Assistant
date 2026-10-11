@@ -12,6 +12,10 @@ from src.core.config import settings
 from src.core.constants import GOOGLE_CONTACTS_SCOPES
 from src.core.field_names import FIELD_QUERY, FIELD_RESOURCE_NAME
 from src.domains.agents.google_contacts.common_mappings import get_contacts_field_mappings
+from src.domains.agents.google_contacts.group_manifests import (
+    get_contact_group_members_catalogue_manifest,
+    list_contact_groups_catalogue_manifest,
+)
 from src.domains.agents.registry.catalogue import (
     CostProfile,
     DisplayMetadata,
@@ -21,6 +25,7 @@ from src.domains.agents.registry.catalogue import (
     PermissionProfile,
     ToolManifest,
 )
+from src.domains.agents.registry.value_contracts import SemanticFieldRole
 
 # ============================================================================
 # 1. GET CONTACTS (Unified - replaces search + list + details)
@@ -48,6 +53,8 @@ _get_contacts_desc = (
 
 get_contacts_catalogue_manifest = ToolManifest(
     name="get_contacts_tool",
+    concurrency_safe=True,
+    result_reuse_ttl_seconds=60,
     agent="contact_agent",
     description=_get_contacts_desc,
     # Discriminant phrases - Personal contact operations
@@ -160,20 +167,62 @@ get_contacts_catalogue_manifest = ToolManifest(
             type="string",
             description="Full formatted postal address (street, city, postal code, country)",
             semantic_type="physical_address",  # For cross-domain: routes.destination, places
+            semantic_role=SemanticFieldRole(
+                role="location", entity_types=("Contact",), predicates=("address",)
+            ),
         ),
         OutputFieldSchema(
             path="contacts[].organizations", type="array", description="Organizations"
         ),
         OutputFieldSchema(
+            path="contacts[].organizations[].name",
+            type="string",
+            nullable=True,
+            description="Organization name",
+            semantic_type="organization_name",
+        ),
+        OutputFieldSchema(
+            path="contacts[].addresses[].city",
+            type="string",
+            nullable=True,
+            description="City",
+            semantic_type="locality",
+        ),
+        OutputFieldSchema(
+            path="contacts[].addresses[].postalCode",
+            type="string",
+            nullable=True,
+            description="Postal code",
+            semantic_type="postal_code",
+        ),
+        OutputFieldSchema(
+            path="contacts[].addresses[].countryCode",
+            type="string",
+            nullable=True,
+            description="ISO country code",
+            semantic_type="country_code",
+        ),
+        OutputFieldSchema(
             path="contacts[].birthdays",
             type="array",
             description="Birthdays",
-            semantic_type="birthday",
+        ),
+        OutputFieldSchema(
+            path="contacts[].birthdays[].date",
+            type="object",
+            nullable=True,
+            description="Partial birthday: year (optional), month and day; not an ISO date",
         ),
         OutputFieldSchema(
             path="contacts[].biographies",
             type="array",
             description="Biographies/Notes",
+        ),
+        OutputFieldSchema(
+            path="contacts[].biographies[].value",
+            type="string",
+            nullable=True,
+            description="Biography or contact notes",
             semantic_type="biography",
         ),
         OutputFieldSchema(path="count", type="integer", description="Total count"),
@@ -243,8 +292,20 @@ create_contact_catalogue_manifest = ToolManifest(
             description="Phone",
             semantic_type="phone_number",
         ),
-        ParameterSchema(name="organization", type="string", required=False, description="Company"),
-        ParameterSchema(name="notes", type="string", required=False, description="Notes"),
+        ParameterSchema(
+            name="organization",
+            type="string",
+            required=False,
+            description="Company",
+            semantic_type="organization_name",
+        ),
+        ParameterSchema(
+            name="notes",
+            type="string",
+            required=False,
+            description="Notes",
+            semantic_type="biography",
+        ),
     ],
     outputs=[
         OutputFieldSchema(
@@ -320,8 +381,20 @@ update_contact_catalogue_manifest = ToolManifest(
             description="New Phone",
             semantic_type="phone_number",
         ),
-        ParameterSchema(name="organization", type="string", required=False, description="New Org"),
-        ParameterSchema(name="notes", type="string", required=False, description="New Notes"),
+        ParameterSchema(
+            name="organization",
+            type="string",
+            required=False,
+            description="New Org",
+            semantic_type="organization_name",
+        ),
+        ParameterSchema(
+            name="notes",
+            type="string",
+            required=False,
+            description="New Notes",
+            semantic_type="biography",
+        ),
         ParameterSchema(
             name="address",
             type="string",
@@ -408,109 +481,8 @@ delete_contact_catalogue_manifest = ToolManifest(
 )
 
 # ============================================================================
-# CONTACT GROUPS & OTHER CONTACTS (lot C, 2026-08 — Google only)
+# OTHER CONTACTS (lot C, 2026-08 — Google only)
 # ============================================================================
-
-list_contact_groups_catalogue_manifest = ToolManifest(
-    name="list_contact_groups_tool",
-    agent="contact_agent",
-    description=(
-        "**Tool: list_contact_groups_tool** - List the user's contact groups "
-        "(family, colleagues, clients, ...) with EXACT member counts. "
-        "Google Contacts only (clear unsupported message otherwise)."
-    ),
-    semantic_keywords=[
-        "list my contact groups labels",
-        "what groups of contacts do I have",
-        "show my family colleagues contact groups",
-        "contact group members count",
-    ],
-    parameters=[],
-    outputs=[
-        OutputFieldSchema(path="groups", type="array", description="User-defined groups"),
-        OutputFieldSchema(path="groups[].name", type="string", description="Group name"),
-        OutputFieldSchema(
-            path="groups[].member_count",
-            type="integer",
-            description="Exact member count (API aggregate)",
-        ),
-        OutputFieldSchema(path="total", type="integer", description="Number of groups"),
-    ],
-    cost=CostProfile(est_tokens_in=50, est_tokens_out=150, est_cost_usd=0.002, est_latency_ms=400),
-    permissions=PermissionProfile(
-        required_scopes=GOOGLE_CONTACTS_SCOPES,
-        hitl_required=False,
-        data_classification="CONFIDENTIAL",
-    ),
-    max_iterations=1,
-    supports_dry_run=True,
-    # Groups are plain structured data (no registry items) — reuse the
-    # registered "contacts" context type rather than inventing a new one.
-    context_key="contacts",
-    reference_examples=["groups[0].name", "groups[0].member_count", "total"],
-    version="1.0.0",
-    maintainer="Team Agents",
-    display=DisplayMetadata(
-        emoji="👥", i18n_key="list_contact_groups", visible=True, category="tool"
-    ),
-)
-
-get_contact_group_members_catalogue_manifest = ToolManifest(
-    name="get_contact_group_members_tool",
-    agent="contact_agent",
-    description=(
-        "**Tool: get_contact_group_members_tool** - Get the members of one "
-        "contact group with their email addresses. Use BEFORE sending an "
-        "email to a whole group ('send this to my family group'): the member "
-        "emails feed the email tool recipients. Google Contacts only."
-    ),
-    semantic_keywords=[
-        "send email to my family contact group",
-        "who is in my colleagues group",
-        "members of a contact group with emails",
-        "email everyone in a group of contacts",
-    ],
-    parameters=[
-        ParameterSchema(
-            name="group_name",
-            type="string",
-            required=True,
-            description=(
-                "Group name as the user says it (e.g. 'famille'). "
-                "Matched case-insensitively against the user's groups."
-            ),
-            constraints=[ParameterConstraint(kind="min_length", value=1)],
-        ),
-    ],
-    outputs=[
-        OutputFieldSchema(path="group", type="object", description="Resolved group"),
-        OutputFieldSchema(path="group.name", type="string", description="Resolved group name"),
-        OutputFieldSchema(path="members", type="array", description="Members"),
-        OutputFieldSchema(path="members[].name", type="string", description="Member name"),
-        OutputFieldSchema(
-            path="members[].emails",
-            type="array",
-            description="Member email addresses",
-            semantic_type="email_address",  # Cross-domain: feeds email recipients
-        ),
-        OutputFieldSchema(path="total", type="integer", description="Member count"),
-    ],
-    cost=CostProfile(est_tokens_in=80, est_tokens_out=300, est_cost_usd=0.004, est_latency_ms=800),
-    permissions=PermissionProfile(
-        required_scopes=GOOGLE_CONTACTS_SCOPES,
-        hitl_required=False,
-        data_classification="CONFIDENTIAL",
-    ),
-    max_iterations=1,
-    supports_dry_run=True,
-    context_key="contacts",
-    reference_examples=["members[0].emails", "members[0].name", "total"],
-    version="1.0.0",
-    maintainer="Team Agents",
-    display=DisplayMetadata(
-        emoji="👥", i18n_key="get_contact_group_members", visible=True, category="tool"
-    ),
-)
 
 search_other_contacts_catalogue_manifest = ToolManifest(
     name="search_other_contacts_tool",
@@ -538,7 +510,9 @@ search_other_contacts_catalogue_manifest = ToolManifest(
     ],
     outputs=[
         OutputFieldSchema(path="contacts", type="array", description="Matches"),
-        OutputFieldSchema(path="contacts[].name", type="string", description="Name"),
+        OutputFieldSchema(
+            path="contacts[].name", type="string", description="Name", semantic_type="person_name"
+        ),
         OutputFieldSchema(
             path="contacts[].emails",
             type="array",

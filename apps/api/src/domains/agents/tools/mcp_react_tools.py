@@ -32,13 +32,15 @@ from langchain_core.tools import BaseTool, InjectedToolArg, tool
 from pydantic import PrivateAttr
 
 from src.core.config import settings
-from src.domains.agents.context.runtime_context import LiaRuntimeContext
+from src.domains.agents.context.runtime_context import LiaRuntimeContext, tool_runtime_context
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.react_runner import ReactSubAgentRunner
 from src.domains.agents.tools.react_tool_wrapper import compose_tool_message
 from src.domains.agents.tools.tool_registry import get_all_tools
 from src.domains.agents.utils.rate_limiting import rate_limit
+from src.infrastructure.mcp.iterative_identity import user_tools_for_prefix
 from src.infrastructure.mcp.tool_adapter import MCPToolAdapter
+from src.infrastructure.mcp.tool_aliases import allocate_tool_aliases
 from src.infrastructure.mcp.user_tool_adapter import UserMCPToolAdapter
 from src.infrastructure.observability.decorators import track_tool_metrics
 from src.infrastructure.observability.metrics_agents import (
@@ -74,14 +76,23 @@ class _MCPReActWrapper(BaseTool):
     _inner: MCPToolAdapter | UserMCPToolAdapter = PrivateAttr()
     _accumulated_registry: dict[str, Any] = PrivateAttr(default_factory=dict)
 
-    def __init__(self, inner: MCPToolAdapter | UserMCPToolAdapter) -> None:
+    def __init__(
+        self, inner: MCPToolAdapter | UserMCPToolAdapter, *, model_alias: str | None = None
+    ) -> None:
         """Initialize wrapper from an MCPToolAdapter or UserMCPToolAdapter.
 
         Args:
             inner: The original MCP tool adapter to wrap.
         """
+        server_key = str(getattr(inner, "server_id", None) or getattr(inner, "server_name", ""))
+        name = (
+            model_alias
+            or allocate_tool_aliases({(server_key, inner.mcp_tool_name): inner.mcp_tool_name})[
+                (server_key, inner.mcp_tool_name)
+            ]
+        )
         super().__init__(
-            name=inner.mcp_tool_name,
+            name=name,
             description=inner.description,
             args_schema=inner.args_schema,
         )
@@ -160,11 +171,35 @@ class _MCPReActWrapper(BaseTool):
 # =============================================================================
 
 
+def _wrap_server_tools(
+    adapters: list[MCPToolAdapter] | list[UserMCPToolAdapter],
+) -> list[_MCPReActWrapper]:
+    preferred = {
+        (
+            str(getattr(adapter, "server_id", None) or getattr(adapter, "server_name", "")),
+            adapter.mcp_tool_name,
+        ): adapter.mcp_tool_name
+        for adapter in adapters
+    }
+    aliases = allocate_tool_aliases(preferred)
+    return [
+        _MCPReActWrapper(
+            adapter,
+            model_alias=aliases[
+                (
+                    str(getattr(adapter, "server_id", None) or getattr(adapter, "server_name", "")),
+                    adapter.mcp_tool_name,
+                )
+            ],
+        )
+        for adapter in adapters
+    ]
+
+
 def _get_mcp_server_tools_for_react(server_name: str) -> list[_MCPReActWrapper]:
     """Get MCP tools wrapped for ReAct consumption.
 
-    Filters the central tool registry for tools matching the
-    ``mcp_{server_name}_*`` naming convention and wraps them.
+    Selects the exact owning server on each actual adapter and wraps its RPCs.
 
     Args:
         server_name: MCP server name (e.g., "excalidraw").
@@ -172,23 +207,21 @@ def _get_mcp_server_tools_for_react(server_name: str) -> list[_MCPReActWrapper]:
     Returns:
         List of _MCPReActWrapper instances with short tool names.
     """
-    prefix = f"mcp_{server_name}_"
     all_tools = get_all_tools()
-    react_tools: list[_MCPReActWrapper] = []
-    for name, tool_instance in all_tools.items():
-        if name.startswith(prefix) and isinstance(tool_instance, MCPToolAdapter):
-            react_tools.append(_MCPReActWrapper(tool_instance))
-    return react_tools
+    adapters: list[MCPToolAdapter] = []
+    for tool_instance in all_tools.values():
+        if isinstance(tool_instance, MCPToolAdapter) and tool_instance.server_name == server_name:
+            adapters.append(tool_instance)
+    return _wrap_server_tools(adapters)
 
 
 def _get_user_mcp_server_tools_for_react(server_id_prefix: str) -> list[_MCPReActWrapper]:
     """Get user MCP tools from ContextVar, wrapped for ReAct consumption.
 
-    Filters the per-request UserMCPToolsContext for tools matching the
-    ``mcp_user_{server_id_prefix}_*`` naming convention and wraps them.
+    Resolves the registered prefix to one full UUID and wraps that server's tools.
 
     Args:
-        server_id_prefix: First 8 chars of the server UUID.
+        server_id_prefix: Allocated unique prefix published by the registered task.
 
     Returns:
         List of _MCPReActWrapper instances with short tool names.
@@ -199,12 +232,7 @@ def _get_user_mcp_server_tools_for_react(server_id_prefix: str) -> list[_MCPReAc
     if not user_ctx:
         return []
 
-    prefix = f"mcp_user_{server_id_prefix}_"
-    react_tools: list[_MCPReActWrapper] = []
-    for name, tool_instance in user_ctx.tool_instances.items():
-        if name.startswith(prefix) and isinstance(tool_instance, UserMCPToolAdapter):
-            react_tools.append(_MCPReActWrapper(tool_instance))
-    return react_tools
+    return _wrap_server_tools(user_tools_for_prefix(server_id_prefix, user_ctx.tool_instances))
 
 
 # =============================================================================
@@ -358,7 +386,7 @@ def _account_scoped_for_prefix(server_id_prefix: str) -> bool:
     is not.
 
     Args:
-        server_id_prefix: First 8 chars of the server UUID.
+        server_id_prefix: Allocated unique prefix published by the registered task.
 
     Returns:
         True when the server's credential is the user's own.
@@ -458,6 +486,10 @@ async def mcp_server_task_tool(
         - server_name="excalidraw", task="Create a diagram of the water cycle"
         - server_name="google_flights", task="Find cheapest flight Paris to Tokyo next week"
     """
+    from src.infrastructure.mcp.access_policy import authorize_shared_mcp
+
+    context = tool_runtime_context(runtime)
+    await authorize_shared_mcp(server_name, actor_id=context.user_id if context else None)
     server_tools = _get_mcp_server_tools_for_react(server_name)
     if not server_tools:
         logger.warning("mcp_react_no_tools", server_name=server_name)
@@ -493,7 +525,7 @@ async def mcp_server_task_tool(
     scope="user",
 )
 async def mcp_user_server_task_tool(
-    server_id_prefix: Annotated[str, "First 8 characters of the user MCP server UUID"],
+    server_id_prefix: Annotated[str, "Exact unique prefix published by this user MCP task"],
     server_name: Annotated[str, "Human-readable server name for display"],
     task: Annotated[str, "Natural language description of the task to accomplish"],
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,

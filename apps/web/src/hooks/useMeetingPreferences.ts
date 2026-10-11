@@ -5,11 +5,12 @@
  * audio retention — plus the admin ceiling the retention must respect.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useRef } from 'react';
 
-import { useStaleGuard } from '@/hooks/useStaleGuard';
-import { logger } from '@/lib/logger';
-import { meetingsApi } from '@/lib/meetings/api';
+import { useApplicationAccountQuery } from '@/hooks/useApplicationAccountQuery';
+import { useApplicationAccountState } from '@/hooks/useApplicationAccountState';
+import { useApplicationResourceSync } from '@/hooks/useApplicationResourceSync';
+import { MEETING_PREFERENCES_PATH, meetingsApi } from '@/lib/meetings/api';
 import type { MeetingPreferences, MeetingPreferencesUpdate } from '@/types/meetings';
 
 export interface UseMeetingPreferencesReturn {
@@ -21,46 +22,34 @@ export interface UseMeetingPreferencesReturn {
 }
 
 export function useMeetingPreferences(enabled = true): UseMeetingPreferencesReturn {
-  const [preferences, setPreferences] = useState<MeetingPreferences | null>(null);
-  const [isLoading, setIsLoading] = useState(enabled);
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  const guard = useStaleGuard();
-
-  useEffect(() => {
-    if (!enabled) return;
-    const isStale = guard.begin();
-    void (async () => {
-      try {
-        const current = await meetingsApi.preferences();
-        if (isStale()) return;
-        setPreferences(current);
-      } catch (err) {
-        if (isStale()) return;
-        setError(err instanceof Error ? err : new Error(String(err)));
-        logger.error('meeting_preferences_load_failed', err as Error, {
-          component: 'useMeetingPreferences',
-        });
-      } finally {
-        if (!isStale()) setIsLoading(false);
-      }
-    })();
-  }, [enabled, guard]);
+  const query = useApplicationAccountQuery<MeetingPreferences>(
+    MEETING_PREFERENCES_PATH, 'useMeetingPreferences', enabled
+  );
+  const { ownerId, lifetime, isCurrent, setData, refetch } = query;
+  const [isSaving, setIsSaving] = useApplicationAccountState(ownerId, false);
+  const [saveError, setSaveError] = useApplicationAccountState<Error | null>(ownerId, null);
+  const pending = useRef<typeof lifetime | null>(null);
+  useApplicationResourceSync(enabled ? ownerId : undefined, 'meeting_preferences', refetch);
 
   const save = useCallback(async (update: MeetingPreferencesUpdate) => {
+    if (!enabled || !isCurrent() || pending.current === lifetime) return null;
+    pending.current = lifetime;
     setIsSaving(true);
     try {
       const saved = await meetingsApi.putPreferences(update);
-      setPreferences(saved);
-      setError(null);
+      if (!isCurrent()) return null;
+      setData(saved);
+      setSaveError(null);
       return saved;
     } catch (err) {
-      setError(err instanceof Error ? err : new Error(String(err)));
+      if (isCurrent()) setSaveError(err instanceof Error ? err : new Error(String(err)));
       return null;
     } finally {
-      setIsSaving(false);
+      if (pending.current === lifetime) pending.current = null;
+      if (isCurrent()) setIsSaving(false);
     }
-  }, []);
+  }, [enabled, isCurrent, lifetime, setData, setSaveError, setIsSaving]);
 
-  return { preferences, isLoading, isSaving, error, save };
+  return { preferences: enabled ? query.data ?? null : null, isLoading: query.loading,
+    isSaving, error: saveError ?? query.error ?? null, save };
 }

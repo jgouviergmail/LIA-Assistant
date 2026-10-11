@@ -36,6 +36,7 @@ import { useBackOrigin } from '@/hooks/useBackOrigin';
 import { useLanguageParam } from '@/hooks/useLanguageParam';
 import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
 import { useMeeting } from '@/hooks/useMeetings';
+import { useAuth } from '@/hooks/useAuth';
 import { useTranslation } from '@/i18n/client';
 import { withOrigin } from '@/lib/back-origin';
 import type { MeetingDetail, MeetingReport } from '@/types/meetings';
@@ -60,6 +61,12 @@ function PageSkeleton() {
 }
 
 export default function MeetingPage({ params }: MeetingPageProps) {
+  const { user } = useAuth();
+  const { id } = use(params);
+  return <AccountMeetingPage key={`${user?.id ?? 'signed-out'}:${id}`} params={params} />;
+}
+
+function AccountMeetingPage({ params }: MeetingPageProps) {
   const { id } = use(params);
   const lng = useLanguageParam(params);
   const { t } = useTranslation(lng);

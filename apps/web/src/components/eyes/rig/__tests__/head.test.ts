@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { createEyeRig } from '../runtime';
-import { EYE_STYLE_IDS } from '../../eye-styles';
+import { RIG_EYE_STYLE_IDS } from '../../eye-styles';
 
 describe('a gaze carried by a head with weight', () => {
-  it.each(EYE_STYLE_IDS)('%s lets the eyes lead, then the head follow without a snap', styleId => {
+  it.each(RIG_EYE_STYLE_IDS)('%s lets the eyes lead, then the head follow without a snap', styleId => {
     const rig = createEyeRig({ initial: { expression: 'neutral', styleId, family: 'calm' } });
     rig.setGaze({ x: 1, y: -0.8 });
     for (let i = 0; i < 5; i++) rig.step(16);

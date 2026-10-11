@@ -39,7 +39,6 @@ import re
 from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Any
 
-import numpy as np
 from langchain_core.messages import BaseMessage
 
 from src.core.config import settings
@@ -57,23 +56,36 @@ from src.domains.agents.analysis.query_intelligence import (
     SemanticFallback,
     UserGoal,
 )
+from src.domains.agents.analysis.requested_outcomes import GoalRequirement, anchored_requirements
 from src.domains.agents.context.runtime_context import (
     runtime_language,
     runtime_timezone,
     runtime_user_id_str,
 )
-from src.domains.agents.services.analysis.domain_availability import build_available_domains
+from src.domains.agents.services.analysis.domain_availability import (
+    build_available_domains,
+)
+from src.domains.agents.services.analysis.domain_calibration import (
+    _apply_domain_softmax_calibration,
+)
+from src.domains.agents.services.analysis.domain_policy import retain_available_domains
 from src.domains.agents.services.analysis.peer_directory import (
     apply_peer_domain_correction,
     detect_mentioned_peers,
     format_peer_directory,
     load_connected_peer_names,
 )
+from src.domains.agents.services.analysis.query_context import (
+    determine_turn_type,
+    extract_conversation_history,
+)
+from src.domains.agents.services.analysis.semantic_expansion import (
+    expand_domains_for_semantic_types,
+)
 from src.domains.agents.services.analysis.skill_suppression import (
     _is_dialogue_skill,
     effective_skill_name,
 )
-from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_agents import (
     planner_semantic_filter_terms_emitted,
@@ -96,71 +108,6 @@ logger = get_logger(__name__)
 # =============================================================================
 # DOMAIN SOFTMAX CALIBRATION
 # =============================================================================
-
-
-def _apply_domain_softmax_calibration(
-    primary_domain: str | None,
-    secondary_domains: list[str],
-    confidence: float,
-    temperature: float = 0.1,
-) -> dict[str, float]:
-    """Apply softmax calibration to domain scores.
-
-    Primary domain gets full confidence, secondary domains get decreasing weights.
-    Then softmax is applied for probability-like distribution.
-
-    Pattern: Same as tool_selector.py _apply_softmax_calibration().
-
-    Args:
-        primary_domain: Main detected domain (highest priority).
-        secondary_domains: Additional domains (lower priority).
-        confidence: Base confidence from LLM analysis.
-        temperature: Softmax temperature (lower = sharper discrimination).
-
-    Returns:
-        Dict mapping domain names to calibrated scores summing to ~1.0.
-    """
-    if not primary_domain and not secondary_domains:
-        return {}
-
-    # Build domain list with weighted raw scores
-    domains: list[str] = []
-    raw_scores: list[float] = []
-
-    if primary_domain:
-        domains.append(primary_domain)
-        raw_scores.append(confidence)
-
-    for i, domain in enumerate(secondary_domains):
-        domains.append(domain)
-        # Secondary domains: decreasing weight (0.75, 0.6, 0.5, ...)
-        weight = max(0.4, 0.75 - (i * 0.15))
-        raw_scores.append(confidence * weight)
-
-    if len(domains) == 1:
-        return {domains[0]: 1.0}
-
-    # Apply softmax calibration (same pattern as tool_selector.py)
-    scores_array = np.array(raw_scores)
-
-    # Stage 1: Min-Max Stretching
-    min_score = np.min(scores_array)
-    max_score = np.max(scores_array)
-    score_range = max_score - min_score
-
-    if score_range < 1e-6:
-        # All scores identical - uniform distribution
-        return dict.fromkeys(domains, 1.0 / len(domains))
-
-    stretched = (scores_array - min_score) / score_range
-
-    # Stage 2: Softmax with temperature
-    scaled = stretched / temperature
-    scaled_shifted = scaled - np.max(scaled)  # Prevent overflow
-    exp_scores = np.exp(scaled_shifted)
-    softmax_scores = exp_scores / np.sum(exp_scores)
-
-    return {d: float(softmax_scores[i]) for i, d in enumerate(domains)}
 
 
 # =============================================================================
@@ -398,6 +345,7 @@ class QueryAnalysisResult:
     # Context reference (LLM-first, 2026-04)
     context_reference: ContextReferenceOutput = field(default_factory=ContextReferenceOutput)
     raw_output: dict[str, Any] = field(default_factory=dict)
+    requested_outcomes: tuple[GoalRequirement, ...] = ()
 
     @property
     def domains(self) -> list[str]:
@@ -499,7 +447,7 @@ async def analyze_query(
     """
     from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
     from src.core.llm_config_helper import get_llm_config_for_agent
-    from src.core.time_utils import get_current_datetime_context
+    from src.core.time_utils import get_current_datetime_context, now_in_timezone
     from src.domains.agents.prompts.prompt_loader import load_prompt
     from src.infrastructure.llm import get_llm
     from src.infrastructure.llm.structured_output import get_structured_output
@@ -542,6 +490,7 @@ async def analyze_query(
         # (ADR-231) — critical for correct date calculations
         user_timezone = runtime_timezone(DEFAULT_USER_DISPLAY_TIMEZONE)
         user_language = runtime_language()
+        request_date = now_in_timezone(user_timezone).date()
 
         # Build available skills for semantic identification.
         # skill_name is declared in QueryAnalysisOutput with default=None.
@@ -571,7 +520,7 @@ async def analyze_query(
             conversation_history=history_str,
             user_location=location_str,
             window_size=window_size,
-            user_query=query.replace("{", "{{").replace("}", "}}"),
+            user_query=query,
         )
 
         # Call LLM with structured output (provider-agnostic via helper)
@@ -614,22 +563,22 @@ async def analyze_query(
         # The LLM may hallucinate or return domains not in the provided list
         # (e.g., disabled MCP servers). Strip them to enforce activation rules.
         available_domain_names = {d["name"] for d in available_domains}
+        retained_primary, retained_secondary = retain_available_domains(
+            result.primary_domain, result.secondary_domains, available_domain_names
+        )
         if result.primary_domain and result.primary_domain not in available_domain_names:
             logger.warning(
                 "domain_not_available_stripped",
                 domain=result.primary_domain,
                 available_count=len(available_domain_names),
             )
-            result.primary_domain = None
         invalid_secondary = [d for d in result.secondary_domains if d not in available_domain_names]
         if invalid_secondary:
             logger.warning(
                 "domain_not_available_stripped",
                 domains=invalid_secondary,
             )
-            result.secondary_domains = [
-                d for d in result.secondary_domains if d in available_domain_names
-            ]
+        result.primary_domain, result.secondary_domains = retained_primary, retained_secondary
 
         return QueryAnalysisResult(
             intent=result.intent,
@@ -662,6 +611,13 @@ async def analyze_query(
             # Context reference (LLM-first, 2026-04)
             context_reference=result.context_reference,
             raw_output=result.model_dump(),
+            requested_outcomes=anchored_requirements(
+                result.requested_outcomes,
+                query,
+                available_domain_names,
+                reference_date=request_date,
+                reference_timezone=user_timezone,
+            ),
         )
 
     except Exception as e:
@@ -953,7 +909,12 @@ class QueryAnalyzerService:
             # reads THIS user's own data. Additive — "am I free to see Jerome"
             # legitimately needs both — so the tool selector still arbitrates.
             mentioned_peers = detect_mentioned_peers(
-                [original_query, query, english_query, *(memory_resolved_refs or {}).values()],
+                [
+                    original_query,
+                    query,
+                    english_query,
+                    *(memory_resolved_refs or {}).values(),
+                ],
                 connected_peers,
             )
             domains = apply_peer_domain_correction(analysis_result.domains, mentioned_peers)
@@ -1223,7 +1184,7 @@ class QueryAnalyzerService:
                 "reference_type": analysis_result.context_reference.reference_type,
                 "reference_domain": analysis_result.context_reference.reference_domain,
                 "ordinal_positions": analysis_result.context_reference.ordinal_positions,
-                "resolved_items_count": len(context_result.items) if context_result else 0,
+                "resolved_items_count": (len(context_result.items) if context_result else 0),
                 "method": context_result.method if context_result else "none",
             }
 
@@ -1347,7 +1308,7 @@ class QueryAnalyzerService:
                 resolved_context=(
                     context_result if context_result and context_result.items else None
                 ),
-                source_turn_id=context_result.source_turn_id if context_result else None,
+                source_turn_id=(context_result.source_turn_id if context_result else None),
                 source_domain=source_domain,
                 resolved_references=resolved_refs_dict,
                 anticipated_needs=[],  # Removed - was dead code
@@ -1366,7 +1327,7 @@ class QueryAnalyzerService:
                 for_each_detected=analysis_result.for_each_detected,
                 for_each_collection_key=analysis_result.for_each_collection_key,
                 cardinality_magnitude=analysis_result.cardinality_magnitude,
-                cardinality_mode="each" if analysis_result.for_each_detected else "single",
+                cardinality_mode=("each" if analysis_result.for_each_detected else "single"),
                 # Knowledge Enrichment (Brave Search)
                 encyclopedia_keywords=analysis_result.encyclopedia_keywords,
                 is_news_query=analysis_result.is_news_query,
@@ -1377,6 +1338,12 @@ class QueryAnalyzerService:
                 # Indexable vs Semantic — probabilistic hint (frozen tuple)
                 semantic_filter_terms=tuple(analysis_result.semantic_filter_terms),
                 has_temporal_reference=analysis_result.has_temporal_reference,
+                requested_outcomes=anchored_requirements(
+                    analysis_result.requested_outcomes,
+                    actual_original_query,
+                    domains,
+                    trusted_checkpoint=True,
+                ),
             )
 
         except Exception as e:
@@ -1404,14 +1371,8 @@ class QueryAnalyzerService:
         messages: list[BaseMessage],
         window_size: int = 5,
     ) -> list[dict[str, str]]:
-        """Extract conversation history for LLM context."""
-        history = []
-        for msg in messages[-window_size * 2 :]:
-            role = "user" if msg.type == "human" else "assistant"
-            content = coerce_content_to_text(getattr(msg, "content", ""))
-            if content:
-                history.append({"role": role, "content": content[:500]})
-        return history
+        """Delegate context handling without changing the service interface."""
+        return extract_conversation_history(messages, window_size)
 
     def _map_llm_intent_to_internal(
         self,
@@ -1454,14 +1415,8 @@ class QueryAnalyzerService:
         return "search"
 
     def _determine_turn_type(self, context_result: ResolvedContext | None, intent: str) -> str:
-        """Determine the turn type based on context and intent."""
-        if not context_result or not context_result.items:
-            return "ACTION"
-
-        ACTION_INTENTS = {"send", "create", "update", "delete"}
-        if intent in ACTION_INTENTS:
-            return "REFERENCE_ACTION"
-        return "REFERENCE_PURE"
+        """Delegate context handling without changing the service interface."""
+        return determine_turn_type(context_result, intent)
 
     async def _expand_domains_for_semantic_types(
         self,
@@ -1472,87 +1427,17 @@ class QueryAnalyzerService:
         expansion_reasons: list[str] | None = None,
         evidence_entities: set[str] | None = None,
     ) -> list[str]:
-        """
-        Expand domains based on semantic type requirements.
-
-        Example: "route to my brother's" → route requires physical_address +
-        person evidence (memory resolver or analyzer LLM) → add contact.
-
-        Two modes (SEMANTIC_EXPANSION_EVIDENCE_DRIVEN_ENABLED):
-        - OFF (default): historical iso-functional person→contact expansion.
-        - ON: evidence-driven expansion — every referenced entity (person,
-          event, place) whose ontology properties provide a required type
-          adds its source domains (capped). For person-only evidence the
-          outcome is identical to the iso path (Contact → contact).
-        """
-        if not domains:
-            return domains
-
-        try:
-            from src.domains.agents.registry.agent_registry import get_global_registry
-            from src.domains.agents.semantic.expansion_service import get_expansion_service
-
-            agent_registry = get_global_registry()
-            required_types = agent_registry.get_required_semantic_types_for_domains(domains)
-
-            if not required_types:
-                return domains
-
-            required_type_names = set(required_types.keys())
-            expansion_service = get_expansion_service()
-
-            if settings.semantic_expansion_evidence_driven_enabled:
-                expanded_domains = await expansion_service.expand_domains_evidence_driven(
-                    domains=domains,
-                    evidence_entities=evidence_entities or set(),
-                    required_semantic_types=required_type_names,
-                    max_added_domains=settings.semantic_expansion_max_added_domains,
-                    query="",
-                )
-            else:
-                expanded_domains = await expansion_service.expand_domains_iso_functional(
-                    domains=domains,
-                    has_person_reference=has_person_reference,
-                    required_semantic_types=required_type_names,
-                    query="",
-                )
-
-            # Build reasons list for logging
-            reasons = expansion_reasons if expansion_reasons is not None else []
-            added_domains = [d for d in expanded_domains if d not in domains]
-
-            if added_domains:
-                for added_domain in added_domains:
-                    provided_types = sorted(
-                        sem_type
-                        for sem_type in required_type_names
-                        if added_domain in expansion_service.get_providers_for_type(sem_type)
-                    )
-                    if provided_types:
-                        reasons.append(
-                            f"{added_domain} (provides {', '.join(provided_types)} "
-                            "for referenced entity)"
-                        )
-
-                logger.info(
-                    "semantic_type_domain_expansion",
-                    original_domains=domains,
-                    expanded_domains=expanded_domains,
-                    added_domains=added_domains,
-                    reasons=reasons,
-                    has_person_reference=has_person_reference,
-                )
-                reasoning_trace.append(f"Semantic type expansion: +{reasons}")
-
-            return expanded_domains
-
-        except Exception as e:
-            logger.warning(
-                "semantic_type_expansion_failed",
-                error=str(e),
-                domains=domains,
-            )
-            return domains
+        """Expand request domains through the shared semantic evidence helper."""
+        return await expand_domains_for_semantic_types(
+            domains,
+            has_person_reference,
+            reasoning_trace,
+            all_scores,
+            expansion_reasons,
+            evidence_entities,
+            configuration=settings,
+            logger=logger,
+        )
 
     def _create_fallback_intelligence(
         self,

@@ -22,6 +22,7 @@ from typing import Any
 import pytest
 
 from src.core.config import settings
+from src.core.i18n import language_scope
 from src.domains.agents.effects.labels import (
     EFFECT_LABEL_BUILDERS,
     assert_effect_label_completeness,
@@ -46,7 +47,8 @@ class TestTheLabelSaysWhatHappened:
 
     def test_a_third_party_tool_is_derived_not_declared(self) -> None:
         """A server names its own tools; the register still reads."""
-        label = build_effect_label("mcp_era_billing__cancel_subscription", {"plan": "premium"})
+        with language_scope("en"):
+            label = build_effect_label("mcp_era_billing__cancel_subscription", {"plan": "premium"})
         assert label is not None
         assert label["i18n_key"] == "effects.labels.mcp"
         assert label["values"]["tool"] == "era: billing cancel subscription"

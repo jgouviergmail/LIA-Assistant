@@ -48,6 +48,7 @@ __all__ = [
     "KeepUsage",
     "keep_generated",
     "keep_usage",
+    "lock_generated_keep_owner",
     "release_generated",
 ]
 
@@ -142,7 +143,12 @@ def _split(
 
 
 async def keep_generated(
-    db: AsyncSession, user_id: uuid.UUID, ids: list[uuid.UUID], *, language: str
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    ids: list[uuid.UUID],
+    *,
+    language: str,
+    commit: bool = True,
 ) -> tuple[list[uuid.UUID], list[uuid.UUID]]:
     """Exempt a selection of the person's generated files from the cleanup.
 
@@ -151,10 +157,11 @@ async def keep_generated(
     result nobody asked for.
 
     Args:
-        db: Session (committed here).
+        db: Session (committed here by default).
         user_id: Owner.
         ids: Candidate ids, in the caller's order (duplicates collapse).
         language: The reader's language, for a refusal.
+        commit: False lets a confirmed native command verify and commit the effect atomically.
 
     Returns:
         ``(kept, skipped)`` in the caller's order.
@@ -164,7 +171,7 @@ async def keep_generated(
             account's file or byte ceiling.
     """
     wanted = list(dict.fromkeys(ids))
-    await hold_owner_lock(db, _KEEP_LOCK_SCOPE, user_id)
+    await lock_generated_keep_owner(db, user_id)
     rows = (
         await db.execute(
             select(Attachment.id, Attachment.file_size, Attachment.expires_at).where(
@@ -184,7 +191,8 @@ async def keep_generated(
             usage.kept_files + len(newly) > usage.max_files
             or usage.kept_bytes + added_bytes > usage.max_bytes
         ):
-            await db.rollback()
+            if commit:
+                await db.rollback()
             _raise_limit(language)
 
     changed = set(already)
@@ -202,7 +210,8 @@ async def keep_generated(
             .returning(Attachment.id)
         )
         changed.update(result.scalars())
-    await db.commit()
+    if commit:
+        await db.commit()
 
     kept, skipped = _split(wanted, changed)
     logger.info("generated_assets_kept", user_id=str(user_id), kept=len(kept), skipped=len(skipped))
@@ -210,20 +219,22 @@ async def keep_generated(
 
 
 async def release_generated(
-    db: AsyncSession, user_id: uuid.UUID, ids: list[uuid.UUID]
+    db: AsyncSession, user_id: uuid.UUID, ids: list[uuid.UUID], *, commit: bool = True
 ) -> tuple[list[uuid.UUID], list[uuid.UUID]]:
     """Give kept files a deadline again — one TTL from now.
 
     Args:
-        db: Session (committed here).
+        db: Session (committed here by default).
         user_id: Owner.
         ids: Candidate ids, in the caller's order (duplicates collapse).
+        commit: False lets the caller verify and commit its exact approved change.
 
     Returns:
         ``(released, skipped)`` in the caller's order; a file that was not
         kept, or is not the caller's, is skipped.
     """
     wanted = list(dict.fromkeys(ids))
+    await lock_generated_keep_owner(db, user_id)
     deadline = datetime.now(UTC) + timedelta(hours=settings.attachments_ttl_hours)
     result = await db.execute(
         update(Attachment)
@@ -236,7 +247,8 @@ async def release_generated(
         .returning(Attachment.id)
     )
     changed = set(result.scalars())
-    await db.commit()
+    if commit:
+        await db.commit()
 
     released, skipped = _split(wanted, changed)
     logger.info(
@@ -246,3 +258,8 @@ async def release_generated(
         skipped=len(skipped),
     )
     return released, skipped
+
+
+async def lock_generated_keep_owner(db: AsyncSession, user_id: uuid.UUID) -> None:
+    """Serialize retention quota changes before taking selected attachment row locks."""
+    await hold_owner_lock(db, _KEEP_LOCK_SCOPE, user_id)

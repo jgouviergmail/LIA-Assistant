@@ -43,12 +43,18 @@ if TYPE_CHECKING:
 __all__ = [
     "PROTECTED_CATEGORIES",
     "automated_edit_refusal",
+    "initial_memory_pin",
     "is_protected_from_deletion",
 ]
 
 #: Categories no automated path may remove from the active set without filing a
 #: successor. Deliberately a frozenset of raw values: the column stores strings.
 PROTECTED_CATEGORIES: frozenset[str] = frozenset({MemoryCategory.PROCEDURAL.value})
+
+
+def initial_memory_pin(category: str) -> bool:
+    """The source's creation default, separate from protection after an explicit unpin."""
+    return category == MemoryCategory.PROCEDURAL.value
 
 
 def is_protected_from_deletion(category: str | None) -> bool:

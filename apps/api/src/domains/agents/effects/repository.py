@@ -42,6 +42,7 @@ from sqlalchemy import Select, func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.application_interaction import pending_interaction_of
 from src.core.config import settings
 from src.core.repository import BaseRepository
 from src.core.security.utils import decrypt_data, encrypt_data
@@ -183,8 +184,32 @@ class EffectLedgerRepository(BaseRepository[AgentEffect]):
             result_truncated=truncated,
         )
 
+    async def close_waiting(
+        self, effect_id: uuid.UUID, claim_token: uuid.UUID, *, result_payload: object
+    ) -> bool:
+        """Record an incomplete handoff once; never mutate it into its later completion."""
+        if pending_interaction_of(result_payload) is None:
+            raise ValueError("A waiting receipt requires an explicit bounded interaction")
+        encrypted, truncated = self._encrypted_result(result_payload)
+        if truncated:
+            # An unreadable handoff cannot support safe replay or a secure resume.
+            raise ValueError("A waiting receipt cannot be truncated")
+        return await self._close(
+            effect_id,
+            claim_token,
+            status=EffectStatus.WAITING,
+            result_digest=payload_digest(result_payload),
+            result_payload=encrypted,
+            result_truncated=False,
+        )
+
     async def close_failure(
-        self, effect_id: uuid.UUID, claim_token: uuid.UUID, *, error_code: str
+        self,
+        effect_id: uuid.UUID,
+        claim_token: uuid.UUID,
+        *,
+        error_code: str,
+        result_payload: Any = None,
     ) -> bool:
         """Mark the effect FAILED: it did not happen, or is not known to have.
 
@@ -192,12 +217,20 @@ class EffectLedgerRepository(BaseRepository[AgentEffect]):
             effect_id: Row id returned by :meth:`claim`.
             claim_token: Owner token returned by :meth:`claim`.
             error_code: Stable, non-free-text code.
+            result_payload: Explicit returned failure, encrypted and capped for exact replay.
 
         Returns:
             True when this call closed the row.
         """
+        encrypted, truncated = self._encrypted_result(result_payload)
         return await self._close(
-            effect_id, claim_token, status=EffectStatus.FAILED, error_code=error_code[:50]
+            effect_id,
+            claim_token,
+            status=EffectStatus.FAILED,
+            error_code=error_code[:50],
+            result_digest=None if result_payload is None else payload_digest(result_payload),
+            result_payload=encrypted,
+            result_truncated=truncated,
         )
 
     async def close_abandoned(

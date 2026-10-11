@@ -45,7 +45,7 @@ Migration:
 from __future__ import annotations
 
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from contextlib import suppress
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 
@@ -171,6 +171,30 @@ def _register_tool(tool_instance: BaseTool) -> None:
         )
 
 
+def _bind_mcp_task_identity(tool_instance: BaseTool) -> None:
+    """Keep a trusted task target guard outside the confirmation gate."""
+    if not isinstance(tool_instance, StructuredTool) or not tool_instance.metadata:
+        return
+    from src.infrastructure.mcp.task_identity import (
+        MCP_TASK_IDENTITY_METADATA_KEY,
+        bind_task_identity,
+    )
+
+    identity: object = tool_instance.metadata.get(MCP_TASK_IDENTITY_METADATA_KEY)
+    if identity is None:
+        return
+    if not isinstance(identity, Mapping):
+        raise ValueError("MCP task identity metadata must be a string mapping")
+    expected: dict[str, str] = {}
+    for key, value in identity.items():
+        if not isinstance(key, str) or not isinstance(value, str):
+            raise ValueError("MCP task identity metadata must be a string mapping")
+        expected[key] = value
+    bound = bind_task_identity(tool_instance, expected)
+    tool_instance.func = bound.func
+    tool_instance.coroutine = bound.coroutine
+
+
 def _install_effect_gate(tool_instance: BaseTool) -> None:
     """Wrap the tool's coroutine with the effect gate, IN PLACE (ADR-263).
 
@@ -205,13 +229,16 @@ def _install_effect_gate(tool_instance: BaseTool) -> None:
         # A gate bound to ANOTHER name falls through: ``registration.py`` makes
         # a renamed ``model_copy`` per MCP server, and a copy acting under the
         # original's identity would be policed and recorded as the wrong tool.
+        _bind_mcp_task_identity(tool_instance)
         return
     if coroutine is None:
         # Every registered tool is an async StructuredTool today (measured:
         # 119/119). A synchronous one would need its own gate rather than a
         # silent exemption, so it is refused loudly at the boot assert.
+        _bind_mcp_task_identity(tool_instance)
         return
     tool_instance.coroutine = gated(tool_instance.name, coroutine)
+    _bind_mcp_task_identity(tool_instance)
 
 
 def register_external_tool(tool_instance: BaseTool) -> None:
@@ -469,6 +496,129 @@ def _import_tool_modules() -> None:
         ("src.domains.agents.tools.automation_tools", "automation_tools"),
         # Internal Tools
         ("src.domains.agents.tools.context_tools", "context_tools"),
+        ("src.domains.agents.tools.application_read_tools", "application_read_tools"),
+        ("src.domains.agents.tools.application_action_tools", "application_action_tools"),
+        ("src.domains.agents.tools.application_memory_tools", "application_memory_tools"),
+        ("src.domains.agents.tools.application_open_loop_tools", "application_open_loop_tools"),
+        ("src.domains.agents.tools.application_habit_tools", "application_habit_tools"),
+        ("src.domains.agents.tools.application_journal_tools", "application_journal_tools"),
+        (
+            "src.domains.agents.tools.application_psyche_reset_tools",
+            "application_psyche_reset_tools",
+        ),
+        ("src.domains.agents.tools.application_psyche_tools", "application_psyche_tools"),
+        ("src.domains.agents.tools.application_health_tools", "application_health_tools"),
+        ("src.domains.agents.tools.application_relation_tools", "application_relation_tools"),
+        ("src.domains.agents.tools.application_peer_tools", "application_peer_tools"),
+        ("src.domains.agents.tools.application_workboard_tools", "application_workboard_tools"),
+        ("src.domains.agents.tools.application_space_tools", "application_space_tools"),
+        (
+            "src.domains.agents.tools.application_source_options_tools",
+            "application_source_options_tools",
+        ),
+        ("src.domains.agents.tools.application_source_link_tools", "application_source_link_tools"),
+        (
+            "src.domains.agents.tools.application_source_unlink_tools",
+            "application_source_unlink_tools",
+        ),
+        ("src.domains.agents.tools.application_source_sync_tools", "application_source_sync_tools"),
+        (
+            "src.domains.agents.tools.application_source_delete_tools",
+            "application_source_delete_tools",
+        ),
+        ("src.domains.agents.tools.application_gallery_tools", "application_gallery_tools"),
+        ("src.domains.agents.tools.application_email_share_tools", "application_email_share_tools"),
+        ("src.domains.agents.tools.application_skill_tools", "application_skill_tools"),
+        ("src.domains.agents.tools.application_plugin_tools", "application_plugin_tools"),
+        (
+            "src.domains.agents.tools.application_meeting_lifecycle_tools",
+            "application_meeting_lifecycle_tools",
+        ),
+        (
+            "src.domains.agents.tools.application_recording_device_tools",
+            "application_recording_device_tools",
+        ),
+        (
+            "src.domains.agents.tools.application_meeting_delivery_tools",
+            "application_meeting_delivery_tools",
+        ),
+        (
+            "src.domains.agents.tools.application_meeting_report_tools",
+            "application_meeting_report_tools",
+        ),
+        (
+            "src.domains.agents.tools.application_meeting_transcript_tools",
+            "application_meeting_transcript_tools",
+        ),
+        (
+            "src.domains.agents.tools.application_meeting_template_tools",
+            "application_meeting_template_tools",
+        ),
+        (
+            "src.domains.agents.tools.application_meeting_read_tools",
+            "application_meeting_read_tools",
+        ),
+        (
+            "src.domains.agents.tools.application_meeting_preference_tools",
+            "application_meeting_preference_tools",
+        ),
+        (
+            "src.domains.agents.tools.application_personal_mcp_tools",
+            "application_personal_mcp_tools",
+        ),
+        (
+            "src.domains.agents.tools.application_skill_library_tools",
+            "application_skill_library_tools",
+        ),
+        ("src.domains.agents.tools.application_bookmark_tools", "application_bookmark_tools"),
+        ("src.domains.agents.tools.application_personality_tools", "application_personality_tools"),
+        (
+            "src.domains.agents.tools.application_habit_action_tools",
+            "application_habit_action_tools",
+        ),
+        (
+            "src.domains.agents.tools.application_open_loop_action_tools",
+            "application_open_loop_action_tools",
+        ),
+        (
+            "src.domains.agents.tools.application_management_export_tools",
+            "application_management_export_tools",
+        ),
+        ("src.domains.agents.tools.application_interest_tools", "application_interest_tools"),
+        (
+            "src.domains.agents.tools.application_interest_lifecycle_tools",
+            "application_interest_lifecycle_tools",
+        ),
+        ("src.domains.agents.tools.application_layout_tools", "application_layout_tools"),
+        ("src.domains.agents.tools.application_heartbeat_tools", "application_heartbeat_tools"),
+        ("src.domains.agents.tools.application_location_tools", "application_location_tools"),
+        ("src.domains.agents.tools.application_channel_tools", "application_channel_tools"),
+        ("src.domains.agents.tools.application_connector_tools", "application_connector_tools"),
+        ("src.domains.agents.tools.application_shared_mcp_tools", "application_shared_mcp_tools"),
+        ("src.domains.agents.tools.application_connection_tools", "application_connection_tools"),
+        (
+            "src.domains.agents.tools.application_notification_tools",
+            "application_notification_tools",
+        ),
+        ("src.domains.agents.tools.application_live_tools", "application_live_tools"),
+        ("src.domains.agents.tools.application_security_tools", "application_security_tools"),
+        ("src.domains.agents.tools.application_export_tools", "application_export_tools"),
+        ("src.domains.agents.tools.application_routine_tools", "application_routine_tools"),
+        ("src.domains.agents.tools.application_reminder_tools", "application_reminder_tools"),
+        ("src.domains.agents.tools.application_session_tools", "application_session_tools"),
+        ("src.domains.agents.tools.application_phone_tools", "application_phone_tools"),
+        (
+            "src.domains.agents.tools.application_phone_history_tools",
+            "application_phone_history_tools",
+        ),
+        (
+            "src.domains.agents.tools.application_live_connector_tools",
+            "application_live_connector_tools",
+        ),
+        (
+            "src.domains.agents.tools.application_live_options_tools",
+            "application_live_options_tools",
+        ),
         ("src.domains.agents.tools.reminder_tools", "reminder_tools"),
         ("src.domains.agents.tools.local_query_tool", "local_query_tool"),
     ]
@@ -511,18 +661,17 @@ def _import_tool_modules() -> None:
             )
 
             tool_module_import_failures.labels(module=module_name).inc()
-            logger.exception(
+            logger.error(
                 "tool_module_import_failed",
                 module=module_name,
-                error=str(e),
                 error_type=type(e).__name__,
             )
             if fail_loudly:
                 raise RuntimeError(
                     f"Tool module '{module_path}' failed to import — an entire "
                     f"tool family would silently disappear from the registry. "
-                    f"Fix the module (original error: {e})."
-                ) from e
+                    f"Fix the module ({type(e).__name__})."
+                ) from None
 
 
 def _collect_tools_from_module(module: Any, module_name: str) -> None:

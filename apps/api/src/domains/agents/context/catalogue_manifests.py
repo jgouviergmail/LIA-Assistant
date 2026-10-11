@@ -75,7 +75,11 @@ resolve_reference_catalogue_manifest = ToolManifest(
         OutputFieldSchema(path="success", type="boolean", description="Resolution success"),
         OutputFieldSchema(path="item", type="object", nullable=True, description="Resolved item"),
         OutputFieldSchema(
-            path="confidence", type="number", nullable=True, description="Score 0.0-1.0"
+            path="confidence",
+            type="number",
+            nullable=True,
+            description="Score 0.0-1.0",
+            semantic_type="confidence_score",
         ),
         OutputFieldSchema(
             path="match_type", type="string", nullable=True, description="index/fuzzy/keyword"
@@ -114,7 +118,9 @@ set_current_item_catalogue_manifest = ToolManifest(
     ],
     outputs=[
         OutputFieldSchema(path="success", type="boolean", description="Success status"),
-        OutputFieldSchema(path="message", type="string", description="Result message"),
+        OutputFieldSchema(
+            path="message", type="string", description="Result message", semantic_type="Text"
+        ),
     ],
     cost=CostProfile(est_tokens_in=50, est_tokens_out=50, est_cost_usd=0.0, est_latency_ms=30),
     permissions=PermissionProfile(

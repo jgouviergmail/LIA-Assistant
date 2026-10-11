@@ -26,9 +26,13 @@ import structlog
 
 from src.core.constants import EXECUTION_MODE_REACT
 from src.core.field_names import FIELD_INJECTED_RUNTIME
-from src.domains.agents.api.run_origin import current_origin_carries_drafts, record_refusal
+from src.domains.agents.api.run_origin import (
+    current_origin_carries_drafts,
+    record_refusal,
+)
 from src.domains.agents.effects.decision_recorder import CANCELLATION_GRACE_ATTEMPTS
 from src.domains.agents.effects.digest import args_digest
+from src.domains.agents.effects.draft_approval import valid_draft_approval
 from src.domains.agents.effects.gate import (
     ERROR_CONFIRMATION_IMPOSSIBLE,
     ERROR_CONFIRMATION_MISSING,
@@ -69,6 +73,7 @@ EFFECT_GATED_ATTR: Final[str] = "__effect_gated__"
 #: (``registration.py`` makes one per MCP server) would otherwise keep the
 #: original's identity and be recorded — and policed — as another tool.
 EFFECT_GATED_NAME_ATTR: Final[str] = "__effect_gated_name__"
+_DURABLE_DRAFT_CLAIM_ATTR: Final[str] = "_requires_durable_draft_claim"
 
 _policy_cache: dict[str, str | None] = {}
 
@@ -100,7 +105,10 @@ def resolve_policy(tool_name: str) -> str | None:
         return _policy_cache[tool_name]
 
     from src.domains.agents.registry import get_global_registry
-    from src.domains.agents.registry.catalogue import MUTATION_POLICIES, ToolManifestNotFound
+    from src.domains.agents.registry.catalogue import (
+        MUTATION_POLICIES,
+        ToolManifestNotFound,
+    )
 
     try:
         policy = get_global_registry().get_tool_manifest(tool_name).mutation_policy
@@ -245,7 +253,11 @@ class _Ledger:
                 await db.commit()
                 if outcome.claimed:
                     return ClaimTicket(effect_id=outcome.effect.id, claim_token=outcome.claim_token)
-                served = EffectLedgerRepository.decrypted_result(outcome.effect)
+                served = (
+                    None
+                    if outcome.effect.result_truncated
+                    else EffectLedgerRepository.decrypted_result(outcome.effect)
+                )
                 return ClaimTicket(
                     effect_id=outcome.effect.id,
                     claim_token=None,
@@ -282,7 +294,13 @@ class _Ledger:
         try:
             async with get_db_context() as db:
                 repository = EffectLedgerRepository(db)
-                if outcome.succeeded:
+                if outcome.waiting:
+                    await repository.close_waiting(
+                        effect_id,
+                        claim_token,
+                        result_payload=outcome.payload,
+                    )
+                elif outcome.succeeded:
                     await repository.close_success(
                         effect_id,
                         claim_token,
@@ -291,7 +309,10 @@ class _Ledger:
                     )
                 else:
                     await repository.close_failure(
-                        effect_id, claim_token, error_code="tool_reported_failure"
+                        effect_id,
+                        claim_token,
+                        error_code="tool_reported_failure",
+                        result_payload=outcome.payload,
                     )
                 await db.commit()
         except Exception as exc:  # noqa: BLE001 - the effect already happened
@@ -528,6 +549,14 @@ async def _pass_through(
         succeeded=succeeded_only(result),
         duration_ms=_elapsed_ms(started),
     )
+    from src.core.application_tools import APPLICATION_TOOL_NAMES
+
+    if policy == "read" and tool_name in APPLICATION_TOOL_NAMES:
+        from src.domains.agents.application.setting_choices import (
+            with_read_setting_labels,
+        )
+
+        return with_read_setting_labels(result, tool_name=tool_name)
     return result
 
 
@@ -608,6 +637,8 @@ def _serve_lost_claim(tool_name: str, ticket: ClaimTicket) -> Any:
     Returns:
         The winner's result, or an honest statement when it has none yet.
     """
+    if isinstance(ticket.served_result, dict) and ticket.served_result.get("truncated") is True:
+        ticket = ClaimTicket(ticket.effect_id, ticket.claim_token, None, ticket.served_status)
     served = "record" if ticket.served_result is not None else "none"
     effect_already_performed_total.labels(served=served).inc()
     logger.info("effect_already_performed", tool_name=tool_name, served=served)
@@ -689,9 +720,7 @@ async def _perform_and_close(
         raise
 
     outcome = read_outcome(result)
-    effect_outcomes_total.labels(
-        policy=policy, status="succeeded" if outcome.succeeded else "failed"
-    ).inc()
+    effect_outcomes_total.labels(policy=policy, status=outcome.status).inc()
     await _settle(lambda: _LEDGER.close(ticket.effect_id, claim_token, outcome=outcome))
     return result
 
@@ -803,7 +832,9 @@ def gated(
 
     @functools.wraps(coroutine)
     async def _run_gated(*args: Any, **kwargs: Any) -> Any:
-        policy = resolve_policy(tool_name)
+        policy, refusal = await _call_effect_policy(tool_name, signature, args, kwargs)
+        if refusal is not None:
+            return refusal
         scope = current_scope()
         decision = decide_effect(policy, scope, carrier=current_origin_carries_drafts())
 
@@ -848,6 +879,25 @@ def gated(
     setattr(_run_gated, EFFECT_GATED_ATTR, True)
     setattr(_run_gated, EFFECT_GATED_NAME_ATTR, tool_name)
     return _run_gated
+
+
+async def _call_effect_policy(
+    tool_name: str,
+    signature: inspect.Signature | None,
+    args: tuple[Any, ...],
+    kwargs: dict[str, Any],
+) -> tuple[str | None, object | None]:
+    from src.core.application_tools import APPLICATION_TOOL_NAMES
+    from src.domains.agents.application.confirmation_policy import (
+        policy_for_call,
+        reversible_access_refusal,
+    )
+
+    policy = resolve_policy(tool_name)
+    if tool_name not in APPLICATION_TOOL_NAMES or policy != "draft":
+        return policy, None
+    policy = policy_for_call(tool_name, _named_arguments(signature, args, kwargs), policy)
+    return policy, (await reversible_access_refusal(tool_name) if policy == "reversible" else None)
 
 
 def assert_effect_gate_completeness() -> None:
@@ -896,7 +946,7 @@ def assert_effect_gate_completeness() -> None:
         )
 
 
-def gated_executor(draft_type: str, executor: ExecutorFnT) -> ExecutorFnT:
+def gated_executor(draft_type: str, executor: ExecutorFnT, *, strict: bool = False) -> ExecutorFnT:
     """Install the effect gate on a draft executor (ADR-263).
 
     A draft executor is where a confirmed draft becomes a real effect — the
@@ -910,11 +960,16 @@ def gated_executor(draft_type: str, executor: ExecutorFnT) -> ExecutorFnT:
     Args:
         draft_type: The draft family, used as the tool name in the ledger.
         executor: ``(draft_content, user_id, deps) -> result``.
+        strict: Require exact approval and durable claim for application commands.
 
     Returns:
         The gated executor, carrying :data:`EFFECT_GATED_ATTR`.
     """
+    # The family declaration is mandatory even if a caller omits the option.
+    strict = strict or draft_type == "application_action"
     if getattr(executor, EFFECT_GATED_ATTR, False):
+        if strict and not getattr(executor, _DURABLE_DRAFT_CLAIM_ATTR, False):
+            raise ValueError("A legacy executor gate cannot serve an application command")
         return executor
 
     @functools.wraps(executor)
@@ -922,10 +977,14 @@ def gated_executor(draft_type: str, executor: ExecutorFnT) -> ExecutorFnT:
         draft_content: dict[str, Any], user_id: uuid.UUID, deps: Any
     ) -> dict[str, Any]:
         scope = current_scope()
+        if strict and not valid_draft_approval(scope, draft_content):
+            return {"success": False, "error_code": "CONFIRMATION_MISSING"}
         request = _build_request(f"draft:{draft_type}", "draft", {"draft": draft_content}, scope)
         ticket = await _LEDGER.claim(request) if request is not None else None
         _count_claim("draft", request, ticket)
         if ticket is None:
+            if strict:
+                return {"success": False, "error_code": "DEPENDENCY_ERROR"}
             # No run context, or the ledger is down. A confirmed draft is the
             # user's explicit instruction: refusing it here would lose what
             # they asked for over OUR bookkeeping. It runs, and the gap is
@@ -940,7 +999,9 @@ def gated_executor(draft_type: str, executor: ExecutorFnT) -> ExecutorFnT:
                 detail=f"{draft_reason}:draft",
             )
             served: dict[str, Any] = await observe_activity(
-                f"draft:{draft_type}", "confirm", lambda: executor(draft_content, user_id, deps)
+                f"draft:{draft_type}",
+                "confirm",
+                lambda: executor(draft_content, user_id, deps),
             )
             return served
 
@@ -953,7 +1014,10 @@ def gated_executor(draft_type: str, executor: ExecutorFnT) -> ExecutorFnT:
                 draft_type=draft_type,
                 served_status=ticket.served_status,
             )
-            if ticket.served_result is None:
+            if ticket.served_result is None or (
+                isinstance(ticket.served_result, dict)
+                and ticket.served_result.get("truncated") is True
+            ):
                 # Nothing was recorded, so nothing is known: an empty dict here
                 # would reach the user as « done » (the caller reports success
                 # for any dict). Raise, and let the caller say so in the
@@ -965,7 +1029,9 @@ def gated_executor(draft_type: str, executor: ExecutorFnT) -> ExecutorFnT:
         performed: dict[str, Any] = await _perform_and_close(
             ticket,
             lambda: observe_activity(
-                f"draft:{draft_type}", "confirm", lambda: executor(draft_content, user_id, deps)
+                f"draft:{draft_type}",
+                "confirm",
+                lambda: executor(draft_content, user_id, deps),
             ),
             policy="draft",
         )
@@ -973,4 +1039,5 @@ def gated_executor(draft_type: str, executor: ExecutorFnT) -> ExecutorFnT:
 
     setattr(_run_gated_executor, EFFECT_GATED_ATTR, True)
     setattr(_run_gated_executor, EFFECT_GATED_NAME_ATTR, draft_type)
+    setattr(_run_gated_executor, _DURABLE_DRAFT_CLAIM_ATTR, strict)
     return _run_gated_executor

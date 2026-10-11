@@ -10,17 +10,8 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.config import settings
 from src.core.constants import (
     DEFAULT_USER_DISPLAY_TIMEZONE,
-    LIVE_DELEGATION_TOOL_NAME,
-    LIVE_DURATION_UNLIMITED,
-    LIVE_IDLE_TIMEOUT_SECONDS_MAX,
-    LIVE_IDLE_TIMEOUT_SECONDS_MIN,
-    LIVE_SESSION_BUDGET_EUR_MAX,
-    LIVE_SESSION_MAX_MINUTES_MAX,
-    LIVE_SESSION_MAX_MINUTES_MIN,
-    LIVE_TURN_TEXT_MAX_CHARS,
 )
 from src.core.dependencies import get_db
 from src.core.i18n import normalize_language
@@ -28,9 +19,8 @@ from src.core.session_dependencies import get_current_active_session
 from src.core.user_display import resolve_user_display_name
 from src.domains.feature_switches.guard import capability_dependencies
 from src.domains.feature_switches.registry import PlatformCapability
+from src.domains.live.configuration import effective_live_configuration
 from src.domains.live.connector_service import LiveConnectorService
-from src.domains.live.direct_mandate import browser_lines
-from src.domains.live.mandate import bridge_lines, tone_lines
 from src.domains.live.preferences import LivePreferences
 from src.domains.live.schemas import (
     LiveConfigResponse,
@@ -40,7 +30,6 @@ from src.domains.live.schemas import (
     LiveConnectorsResponse,
     LiveCredentialResponse,
     LiveDiscoverRequest,
-    LiveDurationBounds,
     LiveEndRequest,
     LiveEndResponse,
     LiveExtendResponse,
@@ -79,30 +68,7 @@ def _language(user: User) -> str:
 @router.get("/config", response_model=LiveConfigResponse, summary="The bounds the client honours")
 async def live_config(_: User = Depends(get_current_active_session)) -> LiveConfigResponse:
     """Every bound the browser applies, published because it is enforced (ADR-184)."""
-    return LiveConfigResponse(
-        session_max_minutes=settings.live_session_max_minutes,
-        session_max_bounds=LiveDurationBounds(
-            min=LIVE_SESSION_MAX_MINUTES_MIN, max=LIVE_SESSION_MAX_MINUTES_MAX
-        ),
-        idle_timeout_bounds=LiveDurationBounds(
-            min=LIVE_IDLE_TIMEOUT_SECONDS_MIN, max=LIVE_IDLE_TIMEOUT_SECONDS_MAX
-        ),
-        session_budget_eur_max=LIVE_SESSION_BUDGET_EUR_MAX,
-        unlimited_value=LIVE_DURATION_UNLIMITED,
-        extension_minutes=settings.live_extension_minutes,
-        extension_prompt_seconds=settings.live_extension_prompt_seconds,
-        connect_window_seconds=settings.live_connect_window_seconds,
-        idle_timeout_seconds=settings.live_idle_timeout_seconds,
-        hidden_grace_seconds=settings.live_hidden_grace_seconds,
-        standby_max_seconds=settings.live_standby_max_seconds,
-        delegation_timeout_seconds=settings.live_delegation_timeout_seconds,
-        delegation_result_max_tokens=settings.live_delegation_result_max_tokens,
-        delegation_tool_name=LIVE_DELEGATION_TOOL_NAME,
-        turn_text_max_chars=LIVE_TURN_TEXT_MAX_CHARS,
-        delegation_lines=bridge_lines(),
-        direct_lines=browser_lines(),
-        tone_lines=tone_lines(),
-    )
+    return effective_live_configuration()
 
 
 # -- connector -------------------------------------------------------------------

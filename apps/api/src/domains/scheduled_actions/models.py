@@ -23,6 +23,7 @@ from sqlalchemy import (
     SmallInteger,
     String,
     Text,
+    Uuid,
 )
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB
@@ -214,6 +215,11 @@ class ScheduledAction(BaseModel):
     )
 
     # Execution tracking
+    execution_token: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        nullable=True,
+        comment="Opaque reservation identity; a late manual job cannot consume a newer run.",
+    )
     last_executed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,

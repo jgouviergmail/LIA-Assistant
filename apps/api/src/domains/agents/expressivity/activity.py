@@ -21,11 +21,20 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from src.domains.agents.api.schemas import ChatStreamChunk
 from src.domains.agents.context.runtime_context import runtime_context_if_running
 from src.domains.agents.effects.scope import current_scope
-from src.domains.agents.registry.catalogue import ToolManifest, infer_tool_category_or_none
+from src.domains.agents.registry.catalogue import (
+    ToolManifest,
+    infer_tool_category_or_none,
+)
 from src.domains.agents.registry.manifest_resolution import resolve_tool_manifest
 
 ActivityFamily = Literal[
-    "reading", "organizing", "communicating", "calculating", "creating", "exploring", "generic"
+    "reading",
+    "organizing",
+    "communicating",
+    "calculating",
+    "creating",
+    "exploring",
+    "generic",
 ]
 ActivityOutcome = Literal["succeeded", "prepared", "failed", "cancelled", "waiting", "unknown"]
 logger = structlog.get_logger(__name__)
@@ -34,7 +43,8 @@ logger = structlog.get_logger(__name__)
 # discriminants, never inferred from a requested call or a model's wording.
 DRAFT_FAMILIES: dict[str, ActivityFamily] = {
     **dict.fromkeys(
-        ("email", "email_reply", "email_forward", "phone_call", "peer_message"), "communicating"
+        ("email", "email_reply", "email_forward", "phone_call", "peer_message"),
+        "communicating",
     ),
     **dict.fromkeys(
         (
@@ -63,6 +73,7 @@ DRAFT_FAMILIES: dict[str, ActivityFamily] = {
     "devops_task": "exploring",
     "sandbox_egress": "exploring",
     "tool_call": "generic",
+    "application_action": "generic",
 }
 
 
@@ -116,7 +127,15 @@ def activity_family(manifest: ToolManifest | None) -> ActivityFamily:
         return "communicating"
     if category in {"search", "readonly"}:
         return "reading"
-    if agent in {"event", "task", "contact", "reminder", "label", "scheduled_action", "automation"}:
+    if agent in {
+        "event",
+        "task",
+        "contact",
+        "reminder",
+        "label",
+        "scheduled_action",
+        "automation",
+    }:
         return "organizing"
     if manifest.mutation_policy == "artefact" or category == "create":
         return "creating"
@@ -152,7 +171,10 @@ def emit_activity(activity: Activity) -> None:
             ChatStreamChunk(
                 type="execution_step",
                 content="",
-                metadata={"step_type": "activity", "activity": activity.model_dump(mode="json")},
+                metadata={
+                    "step_type": "activity",
+                    "activity": activity.model_dump(mode="json"),
+                },
             )
         )
     except asyncio.QueueFull:
@@ -185,7 +207,7 @@ def _start(tool_name: str, policy: str | None) -> Activity | None:
         family=(
             DRAFT_FAMILIES.get(tool_name.removeprefix("draft:"), "generic")
             if tool_name.startswith("draft:")
-            else "reading" if tool_name == "recall_memories" else activity_family(manifest)
+            else ("reading" if tool_name == "recall_memories" else activity_family(manifest))
         ),
         intent=intent,
         phase="started",

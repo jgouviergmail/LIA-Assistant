@@ -8,9 +8,10 @@
  *  - a selection starting in a scope but leaking outside reads null.
  */
 
-import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest';
+import { renderHook, act } from '@testing-library/react';
 
-import { readScopedSelection, SELECTION_MIN_LENGTH } from '../useTextSelection';
+import { readScopedSelection, SELECTION_MIN_LENGTH, useTextSelection } from '../useTextSelection';
 
 beforeAll(() => {
   // jsdom implements Range but not its geometry — every real browser does.
@@ -42,6 +43,8 @@ beforeEach(() => {
   document.getSelection()?.removeAllRanges();
   document.body.innerHTML = '';
 });
+
+afterEach(() => vi.restoreAllMocks());
 
 describe('readScopedSelection', () => {
   it('reads a selection inside one assistant scope', () => {
@@ -96,5 +99,57 @@ describe('readScopedSelection', () => {
 
     selectAcross(text, 0, text, SELECTION_MIN_LENGTH - 1); // below the floor
     expect(readScopedSelection(document)).toBeNull();
+  });
+
+  it('anchors a long selection to the visible part of the scroll container', () => {
+    mount(
+      '<div style="overflow-y:auto"><div data-selection-scope="assistant"><p id="p">Selected passage.</p></div></div>'
+    );
+    const text = document.getElementById('p')!.firstChild!;
+    selectAcross(text, 0, text, 16);
+    vi.spyOn(Range.prototype, 'getBoundingClientRect').mockReturnValue(
+      new DOMRect(40, -200, 200, 1000)
+    );
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue(
+      new DOMRect(20, 100, 300, 300)
+    );
+    expect(readScopedSelection(document)?.rect).toEqual({
+      top: 100,
+      left: 40,
+      width: 200,
+      bottom: 400,
+    });
+  });
+
+  it('hides a selection fully clipped outside the chat scroll container', () => {
+    mount(
+      '<div style="overflow-y:auto"><div data-selection-scope="assistant"><p id="p">Selected passage.</p></div></div>'
+    );
+    const text = document.getElementById('p')!.firstChild!;
+    selectAcross(text, 0, text, 16);
+    vi.spyOn(Range.prototype, 'getBoundingClientRect').mockReturnValue(
+      new DOMRect(40, -200, 200, 30)
+    );
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue(
+      new DOMRect(20, 100, 300, 300)
+    );
+    expect(readScopedSelection(document)).toBeNull();
+  });
+
+  it('updates width and bottom on reflow even when the top-left anchor stays unchanged', () => {
+    mount('<div data-selection-scope="assistant"><p id="p">Selected passage.</p></div>');
+    const text = document.getElementById('p')!.firstChild!;
+    selectAcross(text, 0, text, 16);
+    const geometry = vi
+      .spyOn(Range.prototype, 'getBoundingClientRect')
+      .mockReturnValue(new DOMRect(40, 100, 200, 30));
+    const { result } = renderHook(useTextSelection);
+    expect(result.current?.rect.bottom).toBe(130);
+    geometry.mockReturnValue(new DOMRect(40, 100, 100, 60));
+    act(() => window.dispatchEvent(new Event('resize')));
+    expect(result.current?.rect).toEqual({ top: 100, left: 40, width: 100, bottom: 160 });
+    geometry.mockReturnValue(new DOMRect(40, 80, 100, 60));
+    act(() => document.getElementById('p')!.dispatchEvent(new Event('scroll')));
+    expect(result.current?.rect.top).toBe(80);
   });
 });

@@ -21,10 +21,16 @@ from uuid import UUID
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.constants import RAG_JOB_WORKER_ID_MAX_LENGTH
 from src.domains.rag_spaces.models import (
     RAGDocumentErrorCode,
     RAGDocumentStatus,
     RAGDriveSyncStatus,
+)
+from src.domains.rag_spaces.source_worker_lease import (
+    SourceLeaseLost,
+    current_source_worker,
+    require_source_worker,
 )
 
 DRIVE_SOURCE_TABLE = "rag_drive_sources"
@@ -38,6 +44,16 @@ def source_table(table: str) -> str:
         msg = f"not a synced-source table: {table!r}"
         raise ValueError(msg)
     return table
+
+
+def validate_source_worker_id(worker_id: str) -> None:
+    if (
+        not isinstance(worker_id, str)
+        or not 1 <= len(worker_id) <= RAG_JOB_WORKER_ID_MAX_LENGTH
+        or not worker_id.isascii()
+        or not all(character.isalnum() or character in "_-" for character in worker_id)
+    ):
+        raise ValueError("Invalid source worker identity")
 
 
 class RAGJobsRepository:
@@ -235,24 +251,47 @@ class RAGJobsRepository:
     # ------------------------------------------------------------------ #
 
     async def heartbeat_source(
-        self, source_id: UUID, lease_ttl_s: int, *, table: str = DRIVE_SOURCE_TABLE
+        self,
+        source_id: UUID,
+        lease_ttl_s: int,
+        *,
+        table: str = DRIVE_SOURCE_TABLE,
+        worker_id: str | None = None,
     ) -> bool:
         """Renew a syncing source's lease (the SYNCING status is the single-sync guard)."""
+        scope = current_source_worker()
+        if scope is not None:
+            expected_table = DRIVE_SOURCE_TABLE if scope.kind == "drive" else MAIL_SOURCE_TABLE
+            if table != expected_table or worker_id not in {None, scope.worker_id}:
+                raise SourceLeaseLost("Native heartbeat targets a different owner or source kind")
+            await require_source_worker(self.db, source_id=source_id)
+            worker_id = scope.worker_id
+        owner_clause = ""
+        if worker_id is not None:
+            validate_source_worker_id(worker_id)
+            owner_clause = " AND worker_id = :wid AND lease_expires_at > clock_timestamp()"
+        parameters: dict[str, object] = {
+            "ttl": lease_ttl_s,
+            "id": str(source_id),
+            "syncing": RAGDriveSyncStatus.SYNCING,
+        }
+        if worker_id is not None:
+            parameters["wid"] = worker_id
+        clock = "clock_timestamp()" if worker_id is not None else "now()"
         res = await self.db.execute(
             text(
                 f"UPDATE {source_table(table)} SET "
-                "lease_expires_at = now() + (:ttl * interval '1 second'), "
-                "heartbeat_at = now() "
-                "WHERE id = :id AND sync_status = :syncing"
+                f"lease_expires_at = {clock} + (:ttl * interval '1 second'), "
+                f"heartbeat_at = {clock} "
+                "WHERE id = :id AND sync_status = :syncing" + owner_clause
             ),
-            {
-                "ttl": lease_ttl_s,
-                "id": str(source_id),
-                "syncing": RAGDriveSyncStatus.SYNCING,
-            },
+            parameters,
         )
         await self.db.commit()
-        return (getattr(res, "rowcount", 0) or 0) > 0
+        renewed = (getattr(res, "rowcount", 0) or 0) > 0
+        if scope is not None and not renewed:
+            raise SourceLeaseLost("Native source heartbeat refused")
+        return renewed
 
     async def reclaim_or_fail_source(
         self,
@@ -261,6 +300,8 @@ class RAGJobsRepository:
         max_attempts: int,
         *,
         table: str = DRIVE_SOURCE_TABLE,
+        expected_worker_id: str | None = None,
+        worker_id: str | None = None,
     ) -> str:
         """Re-lease a stuck sync for another attempt, or ERROR once exhausted.
 
@@ -270,30 +311,45 @@ class RAGJobsRepository:
         expressions read the pre-update ``attempts``, so the decision and the
         increment are consistent. Returns the resulting status.
         """
+        native = expected_worker_id is not None or worker_id is not None
+        if native:
+            if expected_worker_id is None or worker_id is None or expected_worker_id == worker_id:
+                raise ValueError("Native recovery requires distinct old and new worker identities")
+            validate_source_worker_id(expected_worker_id)
+            validate_source_worker_id(worker_id)
+        clock = "clock_timestamp()" if native else "now()"
+        owner_value = ":wid" if native else "worker_id"
+        owner_clause = " AND worker_id = :expected" if native else ""
+        parameters: dict[str, object] = {
+            "max": max_attempts,
+            "error": RAGDriveSyncStatus.ERROR,
+            "syncing": RAGDriveSyncStatus.SYNCING,
+            "ttl": lease_ttl_s,
+            "msg": "recovered from stuck sync lease (worker crash)",
+            "id": str(source_id),
+        }
+        if native:
+            parameters.update(wid=worker_id, expected=expected_worker_id)
         res = await self.db.execute(
             text(
                 f"UPDATE {source_table(table)} SET "
                 "sync_status = CASE WHEN attempts >= :max THEN :error ELSE :syncing END, "
                 "lease_expires_at = CASE WHEN attempts >= :max THEN NULL "
-                "  ELSE now() + (:ttl * interval '1 second') END, "
-                "worker_id = CASE WHEN attempts >= :max THEN NULL ELSE worker_id END, "
-                "heartbeat_at = now(), attempts = attempts + 1, "
+                f"  ELSE {clock} + (:ttl * interval '1 second') END, "
+                f"worker_id = CASE WHEN attempts >= :max THEN NULL ELSE {owner_value} END, "
+                f"heartbeat_at = {clock}, attempts = attempts + 1, "
                 "error_message = :msg "
-                "WHERE id = :id "
+                "WHERE id = :id AND sync_status = :syncing "
+                f"AND (lease_expires_at IS NULL OR lease_expires_at <= {clock})"
+                + owner_clause
+                + " "
                 "RETURNING sync_status"
             ),
-            {
-                "max": max_attempts,
-                "error": RAGDriveSyncStatus.ERROR,
-                "syncing": RAGDriveSyncStatus.SYNCING,
-                "ttl": lease_ttl_s,
-                "msg": "recovered from stuck sync lease (worker crash)",
-                "id": str(source_id),
-            },
+            parameters,
         )
         row = res.first()
         await self.db.commit()
-        return str(row[0]) if row else RAGDriveSyncStatus.ERROR
+        return str(row[0]) if row else "skipped"
 
     async def fetch_recoverable_sources(
         self, limit: int, *, table: str = DRIVE_SOURCE_TABLE

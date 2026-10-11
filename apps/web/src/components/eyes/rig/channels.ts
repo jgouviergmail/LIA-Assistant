@@ -110,6 +110,28 @@ const GLOBAL_SPECS = {
   massY: { rest: 0, unit: 'em', group: 'mass', precision: 3, snap: false },
   /** Horizontal travel of the whole pair (the fear shiver). */
   massX: { rest: 0, unit: 'em', group: 'mass', precision: 3, snap: false },
+  /** Whole-character choreography is outside the head and its facial projection. */
+  bodyX: { rest: 0, unit: 'em', group: 'mass', precision: 3, snap: false },
+  bodyY: { rest: 0, unit: 'em', group: 'mass', precision: 3, snap: false },
+  bodyRoll: { rest: 0, unit: 'deg', group: 'mass', precision: 2, snap: false },
+  bodySx: { rest: 1, unit: 'num', group: 'mass', precision: 3, snap: false },
+  bodySy: { rest: 1, unit: 'num', group: 'mass', precision: 3, snap: false },
+  bodyShadowScale: {
+    rest: 1,
+    unit: 'num',
+    group: 'stretch',
+    precision: 3,
+    snap: false,
+    derived: true,
+  },
+  bodyShadowOpacity: {
+    rest: 1,
+    unit: 'num',
+    group: 'stretch',
+    precision: 3,
+    snap: false,
+    derived: true,
+  },
   /** Halo intensity multiplier — emotion reaches the light, not just the form. */
   glow: { rest: 1, unit: 'num', group: 'aura', precision: 3, snap: false },
   /** Where the CATCH-LIGHTS think the light is.

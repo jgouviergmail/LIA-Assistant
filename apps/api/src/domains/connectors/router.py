@@ -8,6 +8,7 @@ from uuid import UUID
 import structlog
 from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import RedirectResponse, StreamingResponse
+from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
@@ -17,7 +18,6 @@ from src.core.exceptions import (
     InternalServerError,
     raise_configuration_missing,
     raise_connector_not_found,
-    raise_connector_type_no_preferences,
     raise_connector_validation_errors,
     raise_external_service_connection_error,
     raise_external_service_fetch_error,
@@ -98,10 +98,13 @@ router = APIRouter(
 async def get_connectors(
     current_user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
+    fresh: bool = False,
 ) -> ConnectorListResponse:
     """Get all connectors for the current user."""
     user_id = current_user.id
     service = ConnectorService(db)
+    if fresh:
+        return await service.get_user_connectors(user_id, fresh=True)
     return await service.get_user_connectors(user_id)
 
 
@@ -327,7 +330,7 @@ async def update_connector(
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
     summary="Delete connector",
-    description="Delete a connector and revoke OAuth access.",
+    description="Delete one local connector link. External provider consent is retained.",
 )
 async def delete_connector(
     connector_id: UUID,
@@ -376,37 +379,21 @@ async def get_connector_preferences(
     db: AsyncSession = Depends(get_db),
 ) -> ConnectorPreferencesResponse:
     """Get preferences for a connector (decrypted)."""
-    from src.domains.connectors.preferences import (
-        ConnectorPreferencesService,
-        has_preferences,
+    from src.domains.connectors.preferences.commands import (
+        ConnectorPreferenceStateUnavailable,
+        connector_preference_snapshot,
+        owned_preference_connector,
     )
 
-    user_id = current_user.id
-    service = ConnectorService(db)
-
-    # Verify ownership and get connector
-    connector_response = await service.get_connector_by_id(user_id, connector_id)
-
-    # Check if this connector type supports preferences
-    connector_type_value = connector_response.connector_type.value
-    if not has_preferences(connector_type_value):
-        raise_connector_type_no_preferences(connector_type_value)
-
-    # Get connector for preferences_encrypted field
-    connector = await service.repository.get_by_id(connector_id)
-    if not connector:
-        raise_connector_not_found(connector_id)
-
-    # Decrypt preferences
-    prefs = ConnectorPreferencesService.decrypt_and_get(
-        connector_type_value,
-        connector.preferences_encrypted,
-    )
-
+    connector = await owned_preference_connector(db, current_user.id, connector_id)
+    try:
+        snapshot = connector_preference_snapshot(connector)
+    except ConnectorPreferenceStateUnavailable:
+        raise InternalServerError("Saved connector preferences unavailable") from None
     return ConnectorPreferencesResponse(
         connector_id=connector_id,
-        connector_type=connector_type_value,
-        preferences=prefs.model_dump() if prefs else {},
+        connector_type=snapshot.connector_type.value,
+        preferences=snapshot.preferences if connector.preferences_encrypted else {},
     )
 
 
@@ -426,53 +413,26 @@ async def update_connector_preferences(
     db: AsyncSession = Depends(get_db),
 ) -> ConnectorPreferencesUpdateResponse:
     """Update preferences for a connector (encrypted storage)."""
-    from src.domains.connectors.preferences import (
-        ConnectorPreferencesService,
-        has_preferences,
+    from src.domains.connectors.preferences.commands import (
+        ConnectorPreferenceStateUnavailable,
+        update_owned_connector_preferences,
     )
 
     user_id = current_user.id
-    service = ConnectorService(db)
-
-    # Verify ownership and get connector
-    connector_response = await service.get_connector_by_id(user_id, connector_id)
-
-    # Check if this connector type supports preferences
-    connector_type_value = connector_response.connector_type.value
-    if not has_preferences(connector_type_value):
-        raise_connector_type_no_preferences(connector_type_value)
-
-    # For Google Calendar: empty/null default_calendar_name is allowed
-    # The tool will fallback to user's primary Google calendar if not set
-    # (see calendar_tools.py resolve_calendar_name with fallback="primary")
-
-    # Validate, sanitize, and encrypt (convert schema to dict, excluding None values)
-    prefs_dict = preferences_data.model_dump(exclude_none=True)
-    success, encrypted, errors = ConnectorPreferencesService.validate_and_encrypt(
-        connector_type_value,
-        prefs_dict,
-    )
-
-    if not success:
-        # Convert string errors to structured format
-        structured_errors = [{"field": "preferences", "message": err} for err in errors]
-        raise_connector_validation_errors(
-            errors=structured_errors,
-            connector_type=connector_type_value,
+    try:
+        snapshot = await update_owned_connector_preferences(
+            db, user_id, connector_id, preferences_data
         )
-
-    # Get connector and update
-    connector = await service.repository.get_by_id(connector_id)
-    if not connector:
-        raise_connector_not_found(connector_id)
-
-    connector.preferences_encrypted = encrypted
-    await db.commit()
-
+    except PydanticValidationError as exc:
+        raise_connector_validation_errors(
+            [{"field": "preferences", "message": error["msg"]} for error in exc.errors()]
+        )
+    except ConnectorPreferenceStateUnavailable:
+        raise InternalServerError("Saved connector preferences unavailable") from None
     logger.info(
         "connector_preferences_updated",
         connector_id=str(connector_id),
-        connector_type=connector_type_value,
+        connector_type=snapshot.connector_type.value,
         user_id=str(user_id),
     )
 

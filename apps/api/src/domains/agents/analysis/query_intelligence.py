@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 from src.core.config import settings
 from src.core.i18n import resolve_language
+from src.domains.agents.analysis.requested_outcomes import GoalRequirement
 
 if TYPE_CHECKING:
     from src.domains.agents.services.reference_resolver import ResolvedContext
@@ -172,6 +173,7 @@ class QueryIntelligence:
     # no-time queries. Used by the validator to discard planner-hallucinated
     # end-of-range date bounds while preserving user-intended ones.
     has_temporal_reference: bool = False
+    requested_outcomes: tuple[GoalRequirement, ...] = ()
 
     # === INTELLIGENT METHODS ===
 
@@ -487,6 +489,9 @@ class QueryIntelligence:
             # Indexable vs Semantic — probabilistic planner hint
             "semantic_filter_terms": list(self.semantic_filter_terms),
             "has_temporal_reference": self.has_temporal_reference,
+            "requested_outcomes": [
+                goal.model_dump(mode="json") for goal in self.requested_outcomes
+            ],
         }
 
 

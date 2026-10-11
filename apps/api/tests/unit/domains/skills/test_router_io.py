@@ -15,10 +15,13 @@ from src.domains.skills import router as skills_router
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_download_admin_skill_zips_off_event_loop(tmp_path) -> None:
+async def test_download_admin_skill_zips_off_event_loop(tmp_path, monkeypatch) -> None:
     # Real skill directory so _create_skill_zip has files to archive.
     skill_dir = tmp_path / "demo-skill"
     skill_dir.mkdir()
+    from src.core.config import settings
+
+    monkeypatch.setattr(settings, "skills_system_path", str(tmp_path))
     (skill_dir / "SKILL.md").write_text("---\nname: demo-skill\n---\nbody", encoding="utf-8")
 
     skill = {"name": "demo-skill", "scope": "admin", "source_path": str(skill_dir / "SKILL.md")}

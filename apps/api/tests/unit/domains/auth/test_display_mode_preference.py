@@ -18,6 +18,7 @@ pytestmark = pytest.mark.unit
 async def test_supported_display_preference_is_persisted_and_returned(mode: str) -> None:
     user = User(id=uuid4(), response_display_mode="cards")
     db = MagicMock(spec=AsyncSession)
+    db.scalar.return_value = user
 
     response = await update_display_mode_preference(
         DisplayModePreferenceRequest(response_display_mode=mode), user, db

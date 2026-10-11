@@ -63,13 +63,19 @@ export interface ShowroomMissionProps {
 function MissionRequest({ t, def }: { t: TFunction; def: ShowroomMissionDefinition }) {
   if (!def.proactive) {
     return (
-      <blockquote data-testid="showroom-request" className="rounded-xl border border-border/60 bg-card/70 p-4 text-sm italic leading-relaxed text-foreground backdrop-blur-sm">
+      <blockquote
+        data-testid="showroom-request"
+        className="rounded-xl border border-border/60 bg-card/70 p-4 text-sm italic leading-relaxed text-foreground backdrop-blur-sm"
+      >
         {t(def.requestKey)}
       </blockquote>
     );
   }
   return (
-    <div data-testid="showroom-request" className="rounded-xl border border-primary/30 bg-card/70 p-4 leading-relaxed backdrop-blur-sm">
+    <div
+      data-testid="showroom-request"
+      className="rounded-xl border border-primary/30 bg-card/70 p-4 leading-relaxed backdrop-blur-sm"
+    >
       {/* A title, so its icon takes the theme colour (apps/web CLAUDE.md). */}
       <p className="flex items-center gap-2 text-xs font-semibold text-primary">
         <BellRing className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -139,7 +145,7 @@ function MissionPlanning({
       <ul className="space-y-1 text-xs text-muted-foreground">
         {def.findings.map(finding => (
           <li key={finding.labelKey}>
-            ⚠️ {t(finding.labelKey)}
+            {t(finding.labelKey)}
             {finding.time && (
               <>
                 {' '}
@@ -155,20 +161,24 @@ function MissionPlanning({
       <div className="flex flex-wrap items-center">
         <ExecutionTraceDisclosure trace={trace} />
       </div>
+      <p className="text-xs text-muted-foreground">{t('showroom.personal.trace_note')}</p>
     </div>
   );
 }
 
 /** The mission's HITL decision cards over synthetic state, in order. */
 function MissionDecisions({
+  def,
   state,
   cards,
   mission,
 }: {
+  def: ShowroomMissionDefinition;
   state: ShowroomState;
   cards: readonly HitlCardState[];
   mission: ShowroomMissionHandle;
 }) {
+  const { t } = useTranslation();
   const reached = (index: number): boolean =>
     state.phase === 'receipt' || (state.phase === 'decision' && state.decisionIndex >= index);
   return (
@@ -176,6 +186,7 @@ function MissionDecisions({
       {cards.map((card, index) => {
         if (!reached(index)) return null;
         const decided = state.decisions[index];
+        const spec = def.decisions[index];
         return (
           <div
             // Adapter cards always carry a payload; the fallback only guards
@@ -183,12 +194,20 @@ function MissionDecisions({
             key={card.payload?.messageId ?? `decision-${index}`}
             data-testid={`showroom-decision-${index}`}
           >
+            {spec.kind === 'phone_draft' && (
+              <ShowroomRichResponse html={t(spec.previewHtmlKey)} testId="showroom-phone-preview" />
+            )}
             <HitlActionCard
               hitl={decided === null ? card : resolveCard(card, decided)}
               onAction={wireAction => {
                 mission.decide(index, wireAction as ShowroomDecisionKind);
               }}
             />
+            {decided === 'edit' && (
+              <p role="note" className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                {t('showroom.personal.edit_note')}
+              </p>
+            )}
           </div>
         );
       })}
@@ -210,7 +229,10 @@ function MissionReceipt({
   mission: ShowroomMissionHandle;
   onChangeMission: () => void;
 }) {
-  const proofLinks = useMemo(() => getShowroomProofLinks(getConfiguredProofSha()), []);
+  const proofLinks = useMemo(
+    () => getShowroomProofLinks(getConfiguredProofSha(), def.id),
+    [def.id]
+  );
   const responseHtml = useMemo(
     () => buildShowroomResponseHtml(def.id, t, state.decisions),
     [def.id, t, state.decisions]
@@ -244,16 +266,18 @@ export function ShowroomMission({ def, onEvent, onChangeMission }: ShowroomMissi
   const mission = useShowroomMission({ def, paced: !stillness, onEvent });
   const { state } = mission;
   const phaseHeadingRef = useRef<HTMLHeadingElement>(null);
+  const startButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Focus intent: each new phase moves focus to its heading (skip 'ready',
-  // where the Start button is the natural target).
+  // Each replacement phase receives focus. Returning to ready unmounts the
+  // receipt's replay button, so Start also owns focus after replay/selection.
   //
   // `preventScroll`: focusing also scrolls, and it scrolls the HEADING to the
   // top — the opposite of following the content appended below it. Two scrolls
   // fighting per phase also read as a jump. The sentinel below is the single
   // authority on where the viewport goes.
   useEffect(() => {
-    if (state.phase !== 'ready') phaseHeadingRef.current?.focus({ preventScroll: true });
+    const target = state.phase === 'ready' ? startButtonRef.current : phaseHeadingRef.current;
+    target?.focus({ preventScroll: true });
   }, [state.phase, state.decisionIndex]);
 
   // What counts as "new content appeared": a phase change, one more source
@@ -313,7 +337,12 @@ export function ShowroomMission({ def, onEvent, onChangeMission }: ShowroomMissi
       </p>
 
       {!started && (
-        <Button type="button" data-testid="showroom-start" onClick={mission.start}>
+        <Button
+          ref={startButtonRef}
+          type="button"
+          data-testid="showroom-start"
+          onClick={mission.start}
+        >
           {t('showroom.start')}
         </Button>
       )}
@@ -342,7 +371,7 @@ export function ShowroomMission({ def, onEvent, onChangeMission }: ShowroomMissi
         </Button>
       )}
 
-      <MissionDecisions state={state} cards={cards} mission={mission} />
+      <MissionDecisions def={def} state={state} cards={cards} mission={mission} />
 
       {state.phase === 'receipt' && (
         <MissionReceipt

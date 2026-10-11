@@ -42,7 +42,7 @@ import {
   type ActingContext,
 } from './direction';
 import { loopValue, type LoopSpec } from '@/components/eyes/rig/loops';
-import { exaggeratePose, resolveLoops, resolvePose } from '@/components/eyes/rig/poses';
+import { calibratedLoops, exaggeratePose, resolvePose } from '@/components/eyes/rig/poses';
 import { ambientMotion } from './ambient';
 import {
   isSpringAtRest,
@@ -69,15 +69,22 @@ import { warpTapes } from '@/components/eyes/rig/choreo';
 import {
   armSketchClock,
   createSketchClock,
-  pickSketch,
   recordSketch,
   SKETCH_EXPRESSIONS,
   SKETCH_MOUTH_GRACE_MS,
   sketchDurationMs,
-  sketchTapes,
   type SketchClock,
+  type SketchName,
 } from '@/components/eyes/rig/sketches';
-import { DEFAULT_EYE_STYLE, type EyeStyleId } from '@/components/eyes/eye-styles';
+import type { BodyMotionSpace } from '../body-motion-geometry';
+import {
+  characterNeutralPose,
+  pickActingSketch,
+  resolveActingProfile,
+  type RigCharacterId,
+} from './acting-profile';
+import { actingSketchTapes, directActingTapes } from './acting-scenes';
+import { DEFAULT_RIG_EYE_STYLE, type RigEyeStyleId } from '@/components/eyes/eye-styles';
 import { clampGazeAxis } from '@/components/eyes/expression-engine';
 import type { EyeExpression, Gaze, IdleMoodFamily } from '@/components/eyes/expression-engine';
 
@@ -85,10 +92,11 @@ import type { EyeExpression, Gaze, IdleMoodFamily } from '@/components/eyes/expr
 const CONTOUR_SPRING = { frequency: 1.2, damping: 1 };
 const HEAD_SPRING = { frequency: 1.35, damping: 1 };
 const AMBIENT_SPRING = { frequency: 0.85, damping: 1 };
+const BODY_HOME_SPRING = { frequency: 2.2, damping: 1 };
 
 export interface RigPose {
   readonly expression: EyeExpression;
-  readonly styleId: EyeStyleId;
+  readonly styleId: RigEyeStyleId;
   readonly family: IdleMoodFamily;
   /**
    * How forcefully the pose should land, from how the answer was written
@@ -270,6 +278,14 @@ export interface EyeRig {
    * door for the host, the harness and the tests.
    */
   playSketch(tapes: readonly Tape[]): void;
+  /** Play a named scene through the same lifecycle as the autonomous sketches. */
+  playScene(name: SketchName): void;
+  setCharacterId(characterId?: RigCharacterId): void;
+  /** Available temporary travel; this never changes the user's saved anchor. */
+  setBodySpace(space: BodyMotionSpace): void;
+  /** Interaction takes priority over the character's spontaneous performances. */
+  setLifePaused(paused: boolean): void;
+  pauseLifeFor(ms: number): void;
   /** True while a sketch is on. */
   isPerforming(): boolean;
   /**
@@ -295,12 +311,17 @@ export interface EyeRig {
   /** Snap every channel onto its target (reduced motion, first paint). */
   settle(): void;
   setReducedMotion(reduced: boolean): void;
+  /** Calibrate the moving hold without restarting the clock, springs or performances. */
+  setIdleScale(scale?: number): void;
 }
 
 export interface RigOptions {
+  readonly characterId?: RigCharacterId;
   /** Start the rig already settled on this pose (avoids a boot animation). */
   readonly initial?: RigPose;
   readonly reducedMotion?: boolean;
+  /** Resting loop amplitude; large displays keep the same small screen-space movement. */
+  readonly idleScale?: number;
   /**
    * Entropy for arrival TIMING — two angers are never quite the same speed.
    *
@@ -334,7 +355,7 @@ const ARRIVAL_JITTER = 0.16;
 
 const DEFAULT_POSE: RigPose = {
   expression: 'neutral',
-  styleId: DEFAULT_EYE_STYLE,
+  styleId: DEFAULT_RIG_EYE_STYLE,
   family: 'calm',
 };
 
@@ -351,6 +372,9 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
    * without entropy still speaks, and always the same way. */
   const patternRandom = lifeRandom ?? createLifeRandom(PATTERN_SEED);
   let reducedMotion = options.reducedMotion ?? false;
+  let idleScale = options.idleScale;
+  let characterId = options.characterId;
+  let acting = resolveActingProfile(characterId, pose.styleId);
   let arrivalPace = 1;
   let responseWeight = pose.responseWeight ?? 1;
 
@@ -358,7 +382,7 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
    * by how emphatically the answer that caused it was written. */
   function computeTargets(
     nextExpression: EyeExpression,
-    nextStyle: EyeStyleId,
+    nextStyle: RigEyeStyleId,
     nextFamily: IdleMoodFamily,
     nextEmphasis: number
   ): ChannelValues {
@@ -372,7 +396,14 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
       for (const key of CHANNEL_KEYS)
         target[key] = rest[key] + (target[key] - rest[key]) * Math.max(0, responseWeight);
     }
-    return contextualPose(target, nextExpression, context);
+    const available = nextStyle !== 'smiley' && !context.activity && !context.responding;
+    const characterRest = characterNeutralPose(
+      target,
+      nextExpression,
+      available ? characterId : undefined,
+      context.pleasure
+    );
+    return contextualPose(characterRest, nextExpression, context, nextStyle);
   }
 
   let emphasis = pose.emphasis ?? 1;
@@ -382,13 +413,13 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
     pose.family,
     emphasis
   );
-  let loops: LoopSpec[] = resolveLoops(pose.expression, pose.family);
+  let loops: LoopSpec[] = calibratedLoops(pose.expression, pose.family, idleScale);
   let activeDynamics: Dynamics = scaleDynamics(
     DYNAMICS_FOR_EXPRESSION[pose.expression],
     pose.family
   );
   let expression: EyeExpression = pose.expression;
-  let styleId: EyeStyleId = pose.styleId;
+  let styleId: RigEyeStyleId = pose.styleId;
   let family: IdleMoodFamily = pose.family;
   let gaze: Gaze | null = null;
   let gazeSpring: SpringConfig | undefined;
@@ -415,6 +446,9 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
   /** When the current sketch ends on the rig clock (0 when none). */
   let sketchUntilMs = 0;
   let clockMs = 0;
+  let lifePaused = false;
+  let lifePausedUntilMs = 0;
+  let bodySpace: BodyMotionSpace = { minX: -0.7, maxX: 0.7, minY: -0.7, maxY: 0.7, roaming: false };
 
   /** Last stretch axis, held while the eyes are too slow for it to mean
    * anything (see STRETCH_EPSILON). */
@@ -457,25 +491,30 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
    * read as two characters. */
   function tickMouthLife(): void {
     if (!lifeRandom || reducedMotion || clockMs < mouthLifeAtMs) return;
+    if (lifePaused || clockMs < lifePausedUntilMs) return;
     if (context.activity || context.responding || clockMs < sketchUntilMs) return;
     mouthLifeAtMs = clockMs + drawMouthLifeDelayMs(lifeRandom);
     if (!MOUTH_LIFE_EXPRESSIONS.has(expression)) return;
     const draw = drawMouthMimic(lifeRandom, lastMimic, context);
     lastMimic = draw.mimic;
-    mouthBusyUntilMs = clockMs + Math.max(...draw.tapes.map(tapeDurationMs));
-    for (const tape of draw.tapes) tapes.push({ tape, elapsedMs: 0 });
+    const directed = directActingTapes(draw.tapes, acting, bodySpace);
+    mouthBusyUntilMs = clockMs + Math.max(...directed.map(tapeDurationMs));
+    for (const tape of directed) tapes.push({ tape, elapsedMs: 0 });
     lastSettling = true;
   }
 
   /** Start a scene: the tapes, the curtain time, and the face's own life
    * stood aside until a breath after the end. */
-  function playSketch(list: readonly Tape[]): void {
-    if (reducedMotion || context.activity || context.responding || list.length === 0) return;
+  function playSketch(list: readonly Tape[]): boolean {
+    if (reducedMotion || context.activity || context.responding || list.length === 0) return false;
+    if (lifePaused || clockMs < lifePausedUntilMs) return false;
+    normalizeBodyRoll();
     tapes = tapes.filter(active => CHANNELS[active.tape.channel].group === 'blink');
     sketch = list.map(tape => ({ tape, elapsedMs: 0 }));
     sketchUntilMs = clockMs + sketchDurationMs(list);
     mouthLifeAtMs = Math.max(mouthLifeAtMs, sketchUntilMs + SKETCH_MOUTH_GRACE_MS);
     lastSettling = true;
+    return true;
   }
 
   /**
@@ -486,6 +525,7 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
    */
   function tickSketchLife(dtMs: number): void {
     if (!lifeRandom || reducedMotion) return;
+    if (lifePaused || clockMs < lifePausedUntilMs) return;
     if (
       context.activity ||
       context.responding ||
@@ -495,9 +535,9 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
       return;
     sketchClock.restedMs += dtMs;
     if (sketchClock.restedMs < sketchClock.dueMs) return;
-    const name = pickSketch(lifeRandom, sketchClock.recent);
+    const name = pickActingSketch(acting, lifeRandom, sketchClock.recent);
     // Warped: the same scene twice is never the same performance.
-    playSketch(warpTapes(sketchTapes(name), lifeRandom));
+    playSketch(warpTapes(actingSketchTapes(name, acting, bodySpace, lifeRandom), lifeRandom));
     recordSketch(sketchClock, name);
     armSketchClock(sketchClock, lifeRandom);
   }
@@ -615,7 +655,12 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
       tapeSpringIn(tapes, key) ?? tapeSpringIn(sketch, key) ?? tapeSpringIn(patterns, key);
     const group = CHANNELS[key].group;
     const next =
-      beatSpring ?? (gazeSpring && group === 'gaze' ? gazeSpring : activeDynamics[group]);
+      beatSpring ??
+      (key.startsWith('body')
+        ? BODY_HOME_SPRING
+        : gazeSpring && group === 'gaze'
+          ? gazeSpring
+          : activeDynamics[group]);
     return blendedSpring(key, next, beatSpring !== null);
   }
 
@@ -718,6 +763,10 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
    */
   function writeDerived(): void {
     Object.assign(output, ambientMotion(output, clockMs, reducedMotion));
+    output.bodySx = Math.min(1.4, Math.max(0.25, output.bodySx));
+    output.bodySy = Math.min(1.4, Math.max(0.25, output.bodySy));
+    output.bodyShadowScale = Math.max(0.35, Math.min(1, 1 + Math.min(0, output.bodyY) * 0.12));
+    output.bodyShadowOpacity = Math.max(0, 1 - Math.hypot(output.bodyX, output.bodyY) * 0.25);
     const vx = springs.gazeX.velocity;
     const vy = springs.gazeY.velocity;
 
@@ -814,8 +863,11 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
       tapes = tapes.filter(active => active.elapsedMs <= tapeDurationMs(active.tape));
     }
     if (sketch.length > 0) {
+      const hadRoll = sketch.some(active => active.tape.channel === 'bodyRoll');
       for (const active of sketch) active.elapsedMs += dtMs;
       sketch = sketch.filter(active => active.elapsedMs <= tapeDurationMs(active.tape));
+      if (hadRoll && !sketch.some(active => active.tape.channel === 'bodyRoll'))
+        normalizeBodyRoll();
       if (sketch.length === 0) {
         sketchUntilMs = 0;
         if (sketchClock.scene) sketchClock.completed += 1;
@@ -858,7 +910,20 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
     }
   }
 
+  /** Equivalent angle on the return branch: preserve angular velocity and
+   * finish a revolution instead of unwinding it when its tape lets go. */
+  function normalizeBodyRoll(): void {
+    const state = springs.bodyRoll;
+    let phase = state.value % 360;
+    if (state.velocity > 0.01 && phase > 0) phase -= 360;
+    else if (state.velocity < -0.01 && phase < 0) phase += 360;
+    else if (phase > 180) phase -= 360;
+    else if (phase < -180) phase += 360;
+    springs.bodyRoll = { ...state, value: phase + 0 };
+  }
+
   function interruptPerformance(): void {
+    normalizeBodyRoll();
     tapes = tapes.filter(active => CHANNELS[active.tape.channel].group === 'blink');
     if (sketch.length && sketchClock.scene) sketchClock.interrupted += 1;
     sketchClock.scene = null;
@@ -885,7 +950,7 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
   function queueLeads(nextTargets: ChannelValues): void {
     if (reducedMotion) return;
     for (const key of CHANNEL_KEYS) {
-      if (isDerived(key)) continue;
+      if (isDerived(key) || key.startsWith('body')) continue;
       const leadMs = leadMsFor(key);
       if (leadMs <= 0) continue;
       const current = springs[key].value;
@@ -962,6 +1027,7 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
     if (DYNAMICS_FOR_EXPRESSION[expression] === 'reflex') return;
     for (const key of CHANNEL_KEYS) {
       const def = CHANNELS[key];
+      if (key.startsWith('body')) continue;
       if (def.snap || !ANTICIPATED_GROUPS.has(def.group)) continue;
       const current = springs[key].value;
       const settings = def.unit === 'deg' ? ANTICIPATION_DEG : ANTICIPATION;
@@ -1004,10 +1070,13 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
       const nextTargets = computeTargets(next.expression, next.styleId, next.family, emphasis);
       if (changedExpression) beginArrival(next, nextTargets);
       styleId = next.styleId;
+      const nextActing = resolveActingProfile(characterId, styleId);
+      if (!changedExpression && nextActing.identity !== acting.identity) interruptPerformance();
+      acting = nextActing;
       family = next.family;
       poseTargets = nextTargets;
       activeDynamics = scaleDynamics(DYNAMICS_FOR_EXPRESSION[expression], family);
-      loops = resolveLoops(expression, family);
+      loops = calibratedLoops(expression, family, idleScale);
       loopsByChannel = indexLoops(loops);
     },
 
@@ -1029,10 +1098,55 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
 
     playSketch,
 
+    playScene(name) {
+      if (!SKETCH_EXPRESSIONS.has(expression)) return;
+      if (
+        playSketch(
+          warpTapes(actingSketchTapes(name, acting, bodySpace, patternRandom), patternRandom)
+        )
+      )
+        recordSketch(sketchClock, name);
+    },
+
+    setCharacterId(next) {
+      const nextActing = resolveActingProfile(next, styleId);
+      characterId = next;
+      if (nextActing.identity === acting.identity) return;
+      interruptPerformance();
+      acting = nextActing;
+      poseTargets = computeTargets(expression, styleId, family, emphasis);
+      lastSettling = true;
+    },
+
+    setBodySpace(next) {
+      if (
+        Object.keys(next).every(
+          key => next[key as keyof BodyMotionSpace] === bodySpace[key as keyof BodyMotionSpace]
+        )
+      )
+        return;
+      if (sketch.some(active => active.tape.channel.startsWith('body'))) interruptPerformance();
+      bodySpace = { ...next };
+      lastSettling = true;
+    },
+
+    setLifePaused(paused) {
+      if (paused && !lifePaused) interruptPerformance();
+      lifePaused = paused;
+      lastSettling = true;
+    },
+
+    pauseLifeFor(ms) {
+      lifePausedUntilMs = Math.max(lifePausedUntilMs, clockMs + Math.max(0, ms));
+      interruptPerformance();
+      lastSettling = true;
+    },
+
     isPerforming: () => sketch.length > 0,
 
     answerIn(delayMs: number) {
       if (!lifeRandom || reducedMotion) return;
+      if (lifePaused || clockMs < lifePausedUntilMs) return;
       if (!MOUTH_LIFE_EXPRESSIONS.has(expression) || clockMs < sketchUntilMs) return;
       const atMs = clockMs + Math.max(0, delayMs);
       // Never on top of a mimic still playing: one face at a time.
@@ -1083,6 +1197,13 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
     isSettling: () => lastSettling,
 
     settle,
+
+    setIdleScale(scale) {
+      idleScale = scale;
+      loops = calibratedLoops(expression, family, idleScale);
+      loopsByChannel = indexLoops(loops);
+      writeOutput();
+    },
 
     setReducedMotion(reduced: boolean) {
       reducedMotion = reduced;

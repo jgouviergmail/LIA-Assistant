@@ -22,7 +22,6 @@ default of an account that never chose, upstream (``users.exchange_rhythm``).
 from __future__ import annotations
 
 from collections.abc import Iterator
-from types import SimpleNamespace
 
 import pytest
 from prometheus_client import REGISTRY
@@ -35,8 +34,8 @@ from tests.unit.domains.agents.services.test_react_tool_selector_relevance impor
     _SERVER,
     CATALOGUE,
     RANKING,
+    _add_iterative_server,
     _Harness,
-    _Tool,
 )
 
 pytestmark = pytest.mark.unit
@@ -74,13 +73,7 @@ class TestEveryTool:
         self, harness: _Harness, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr(settings, "react_mcp_expand_iterative_enabled", True)
-        harness.manifests.append(
-            SimpleNamespace(
-                name=_DOOR, agent="mcp_srv1_agent", permissions=SimpleNamespace(hitl_required=False)
-            )
-        )
-        for name in (_DOOR, *_INDIVIDUAL):
-            harness.ctx.tool_instances[name] = _Tool(name=name)
+        _add_iterative_server(harness)
         bound, _ = harness.select(domains=["event"], ranking=[f"{_SERVER}_c"], every_tool=True)
         assert bound == [*EVERY_TOOL, *_INDIVIDUAL, _DOOR]
 

@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { JOURNAL_CONSOLIDATION_TIMEOUT_MS } from '@/lib/constants';
-import { useApiQuery } from './useApiQuery';
+import { useApplicationAccountQuery } from './useApplicationAccountQuery';
+import { useApplicationResourceSync } from './useApplicationResourceSync';
 import { useApiMutation } from './useApiMutation';
 
 /**
@@ -26,9 +27,8 @@ export type JournalEntrySource = 'conversation' | 'consolidation' | 'manual' | '
 /**
  * Epistemic status of an entry — distinguishes hypothesis from validated directive.
  *
- * Set by the LLM during extraction/consolidation based on accumulated evidence
- * (see `evidence_count` and `contradiction_count`). Users can also override
- * the value manually via the settings UI.
+ * Model proposals and manual edits respect the backend's current-rule
+ * evidence clamp; historical exposure/counter totals do not certify proof.
  */
 export type JournalEntryConfidence = 'low' | 'medium' | 'high';
 
@@ -38,7 +38,7 @@ export type JournalEntryConfidence = 'low' | 'medium' | 'high';
  * - L0: raw observation (pre-directive)
  * - L1: operational directive (WHEN→DO BECAUSE — the legacy default)
  * - L2: transversal pattern (synthesis of multiple L1)
- * - L3: portrait facet (always-injected — managed by consolidation in commit 3)
+ * - L3: portrait facet, selected into a valid compiled portrait
  */
 export type JournalEntryLevel = 'L0' | 'L1' | 'L2' | 'L3';
 
@@ -61,6 +61,8 @@ export interface JournalEntry {
   confidence: JournalEntryConfidence;
   evidence_count: number;
   contradiction_count: number;
+  /** Proposition version; absent only on legacy API responses. */
+  revision?: number;
   level: JournalEntryLevel;
   created_at: string;
   updated_at: string;
@@ -134,6 +136,8 @@ export interface JournalSizeInfo {
  */
 export interface JournalSettings {
   journals_enabled: boolean;
+  /** Exact PATCH acknowledgment; absent/unknown on GET or legacy responses. */
+  portrait_invalidated?: boolean | null;
   journal_consolidation_enabled: boolean;
   journal_consolidation_with_history: boolean;
   journal_max_total_chars: number;
@@ -168,7 +172,8 @@ export interface JournalThemeInfo {
 /**
  * Compiled user-model portrait (ADR-079, commit 3).
  *
- * Produced by the consolidation LLM. Read-only on the client — to update
+ * Synthesized by the consolidation model and independently reviewed against current sources.
+ * Read-only on the client — to update
  * the portrait, the user uses one of the three levers:
  * 1. Edit/delete L3 source entries
  * 2. Submit feedback via consolidatePortraitFeedback
@@ -177,10 +182,14 @@ export interface JournalThemeInfo {
 /** What one source answered when the portrait was compiled (2026-09-16, part B). */
 export interface PortraitSourceProvenance {
   status: 'used' | 'empty' | 'disabled' | 'unavailable';
+  /** A deliberate budget omission is distinguishable from a failed source read. */
+  reason?: 'over_budget' | null;
   /** Items the prompt received from this source. */
   used: number;
   /** EXACT count over the whole set (ADR-185). */
   total: number;
+  /** Selected items withheld because no complete source proof was available. */
+  omitted_incomplete?: number;
 }
 
 /** What the portrait was compiled from — persisted WITH the portrait. */
@@ -188,6 +197,24 @@ export interface PortraitProvenance {
   version: 1;
   journal_entries: number;
   sources: Record<string, PortraitSourceProvenance>;
+  journal_revision?: number | null;
+  source_state?: Record<string, unknown> | null;
+  portrait_pending?: boolean | null;
+  portrait_review?: {
+    policy: string;
+    digest: string;
+    model: string;
+    reviewed_at: number;
+    reviewed_digest?: string;
+    approved_indices?: number[];
+    rejected?: { claim_index: number; criteria: string[] }[];
+  } | null;
+  claims?: Array<{
+    facet: 'context' | 'posture' | 'focus' | 'interaction' | 'uncertainty';
+    text: string;
+    supports: Array<{ source: string; quote: string }>;
+    in_brief: boolean;
+  }> | null;
 }
 
 export interface JournalPortrait {
@@ -206,6 +233,27 @@ export interface JournalPortraitFeedback {
   highlighted_section?: string;
 }
 
+/** The attempt outcome is independent of how many journal actions were applied. */
+export interface JournalConsolidationResult {
+  actions_applied: number;
+  duration_ms: number;
+  status?: string | null;
+}
+
+function legacyPortraitSettingsChanged(
+  changes: JournalSettingsUpdate,
+  previous: JournalSettings | undefined
+): boolean {
+  if (!previous) return false;
+  const fields: Array<keyof JournalSettingsUpdate> = [
+    'journals_enabled',
+    'journal_consolidation_with_history',
+    'journal_max_total_chars',
+    'journal_max_entry_chars',
+  ];
+  return fields.some(field => changes[field] !== undefined && changes[field] !== previous[field]);
+}
+
 /**
  * Hook for journal entry CRUD operations and settings management.
  *
@@ -220,32 +268,41 @@ export function useJournals() {
     error,
     refetch,
     setData,
-  } = useApiQuery<JournalListResponse>('/journals', {
-    componentName: 'useJournals',
-  });
+    ownerId,
+    isCurrent,
+  } = useApplicationAccountQuery<JournalListResponse>('/journals', 'useJournals');
 
   // Fetch settings
   const {
     data: settingsData,
     loading: settingsLoading,
     refetch: refetchSettings,
-  } = useApiQuery<JournalSettings>('/journals/settings', {
-    componentName: 'useJournals',
-  });
+    setData: setSettingsData,
+  } = useApplicationAccountQuery<JournalSettings>('/journals/settings', 'useJournals');
 
   // Fetch themes
-  const { data: themesData } = useApiQuery<{ themes: JournalThemeInfo[] }>('/journals/themes', {
-    componentName: 'useJournals',
-    initialData: { themes: [] },
-  });
+  const { data: themesData } = useApplicationAccountQuery<{ themes: JournalThemeInfo[] }>('/journals/themes', 'useJournals');
 
   // Fetch compiled portrait (commit 3 of ADR-079)
-  const { data: portraitData, refetch: refetchPortrait } = useApiQuery<JournalPortrait>(
-    '/journals/portrait',
-    {
-      componentName: 'useJournals',
-    }
-  );
+  const {
+    data: portraitData,
+    error: portraitError,
+    refetch: refetchPortraitStrict,
+    refetchVerified: refetchPortraitVerified,
+    setData: setPortraitData,
+  } = useApplicationAccountQuery<JournalPortrait>('/journals/portrait', 'useJournals');
+  const refetchPortrait = useCallback(async () => {
+    await refetchPortraitVerified();
+  }, [refetchPortraitVerified]);
+  const invalidatePortrait = useCallback(() => {
+    setPortraitData({ full: null, brief: null, compiled_at: null, sources: null });
+  }, [setPortraitData]);
+  const refreshJournal = useCallback(async () => {
+    invalidatePortrait();
+    await Promise.all([refetch(), refetchSettings(), refetchPortraitStrict()]);
+  }, [refetch, refetchSettings, refetchPortraitStrict, invalidatePortrait]);
+  const keepSource = useCallback(() => {}, []);
+  useApplicationResourceSync(ownerId, 'journals', refreshJournal, keepSource);
 
   // Mutations
   const { mutate: createMutate, loading: creating } = useApiMutation<
@@ -284,7 +341,7 @@ export function useJournals() {
 
   const { mutate: consolidateMutate, loading: consolidating } = useApiMutation<
     Record<string, never>,
-    { actions_applied: number; duration_ms: number }
+    JournalConsolidationResult
   >({
     method: 'POST',
     componentName: 'useJournals',
@@ -296,7 +353,7 @@ export function useJournals() {
 
   const { mutate: portraitFeedbackMutate, loading: submittingFeedback } = useApiMutation<
     JournalPortraitFeedback,
-    { actions_applied: number; duration_ms: number }
+    JournalConsolidationResult
   >({
     method: 'POST',
     componentName: 'useJournals',
@@ -308,7 +365,9 @@ export function useJournals() {
   const createEntry = useCallback(
     async (data: JournalEntryCreate) => {
       const result = await createMutate('/journals', data);
+      if (!isCurrent()) return undefined;
       if (result) {
+        invalidatePortrait();
         // Optimistic update
         setData(prev => {
           if (!prev) return prev;
@@ -319,17 +378,20 @@ export function useJournals() {
             total_chars: prev.total_chars + (result.char_count || 0),
           };
         });
+        await refetchPortrait();
       }
       return result;
     },
-    [createMutate, setData]
+    [createMutate, setData, refetchPortrait, invalidatePortrait, isCurrent]
   );
 
   // Update entry
   const updateEntry = useCallback(
     async (entryId: string, data: JournalEntryUpdate) => {
       const result = await updateMutate(`/journals/${entryId}`, data);
+      if (!isCurrent()) return undefined;
       if (result) {
+        invalidatePortrait();
         setData(prev => {
           if (!prev) return prev;
           return {
@@ -337,10 +399,11 @@ export function useJournals() {
             entries: prev.entries.map(e => (e.id === entryId ? result : e)),
           };
         });
+        await refetchPortrait();
       }
       return result;
     },
-    [updateMutate, setData]
+    [updateMutate, setData, refetchPortrait, invalidatePortrait, isCurrent]
   );
 
   // Delete entry
@@ -348,6 +411,8 @@ export function useJournals() {
     async (entryId: string) => {
       const entry = entriesData?.entries.find(e => e.id === entryId);
       await deleteMutate(`/journals/${entryId}`);
+      if (!isCurrent()) return;
+      invalidatePortrait();
       setData(prev => {
         if (!prev) return prev;
         return {
@@ -357,13 +422,16 @@ export function useJournals() {
           total_chars: Math.max(0, prev.total_chars - (entry?.char_count || 0)),
         };
       });
+      await refetchPortrait();
     },
-    [deleteMutate, setData, entriesData]
+    [deleteMutate, setData, entriesData, refetchPortrait, invalidatePortrait, isCurrent]
   );
 
   // Delete all entries (GDPR)
   const deleteAllEntries = useCallback(async () => {
     await deleteAllMutate('/journals');
+    if (!isCurrent()) return;
+    invalidatePortrait();
     setData(prev => {
       if (!prev) return prev;
       return {
@@ -375,40 +443,60 @@ export function useJournals() {
         usage_pct: 0,
       };
     });
-  }, [deleteAllMutate, setData]);
+    await refetchPortrait();
+  }, [deleteAllMutate, setData, refetchPortrait, invalidatePortrait, isCurrent]);
 
   // Update settings
   const updateSettings = useCallback(
     async (data: JournalSettingsUpdate) => {
       const result = await updateSettingsMutate('/journals/settings', data);
+      if (!isCurrent()) return undefined;
       if (result) {
-        await refetchSettings();
+        if (result.portrait_invalidated ?? legacyPortraitSettingsChanged(data, settingsData)) {
+          invalidatePortrait();
+        }
+        setSettingsData(result);
+        await Promise.all([refetchSettings(), refetchPortrait()]);
       }
       return result;
     },
-    [updateSettingsMutate, refetchSettings]
+    [
+      updateSettingsMutate,
+      refetchSettings,
+      refetchPortrait,
+      settingsData,
+      setSettingsData,
+      invalidatePortrait,
+      isCurrent,
+    ]
   );
 
   // Consolidate now (synchronous — 5-15s without history, longer with)
   const consolidateNow = useCallback(async () => {
     const result = await consolidateMutate('/journals/consolidate', {} as Record<string, never>);
+    if (!isCurrent()) return undefined;
     if (result) {
+      if (result.status === 'success' || result.actions_applied > 0) invalidatePortrait();
       // Refresh entries + settings (cost) + portrait (just recompiled)
       await Promise.all([refetch(), refetchSettings(), refetchPortrait()]);
     }
     return result;
-  }, [consolidateMutate, refetch, refetchSettings, refetchPortrait]);
+  }, [consolidateMutate, refetch, refetchSettings, refetchPortrait, invalidatePortrait, isCurrent]);
 
   // Lever 2 — signal a problem on the portrait
   const submitPortraitFeedback = useCallback(
     async (data: JournalPortraitFeedback) => {
       const result = await portraitFeedbackMutate('/journals/portrait/feedback', data);
+      if (!isCurrent()) return undefined;
       if (result) {
+        // A resolved feedback response already committed its correction,
+        // including attempts whose later compilation was refused.
+        invalidatePortrait();
         await Promise.all([refetch(), refetchSettings(), refetchPortrait()]);
       }
       return result;
     },
-    [portraitFeedbackMutate, refetch, refetchSettings, refetchPortrait]
+    [portraitFeedbackMutate, refetch, refetchSettings, refetchPortrait, invalidatePortrait, isCurrent]
   );
 
   return {
@@ -418,11 +506,13 @@ export function useJournals() {
     themes: themesData?.themes ?? [],
 
     // Loading states
-    isLoading: loading || settingsLoading,
+    isLoading:
+      (loading && entriesData === undefined) || (settingsLoading && settingsData === undefined),
     error,
 
     // Portrait
     portrait: portraitData,
+    portraitError,
     refetchPortrait,
 
     // Mutations

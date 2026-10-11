@@ -20,14 +20,20 @@ nothing, and the request that then answers 400 rolls ITS session back.
 from __future__ import annotations
 
 from time import perf_counter
-from typing import Any
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 import structlog
+from pydantic import TypeAdapter
 
 from src.core.exceptions import raise_invalid_input
 from src.core.i18n import normalize_language
 from src.domains.chat.service import TrackingContext
+from src.domains.users.models import User
+from src.domains.users.schemas import HomeLocationData, HomeLocationUpdate
+
+if TYPE_CHECKING:
+    from src.domains.connectors.clients.google_places_client import GooglePlacesClient
 
 logger = structlog.get_logger(__name__)
 
@@ -35,11 +41,19 @@ logger = structlog.get_logger(__name__)
 SECTION_GEOCODING = "geocoding"
 
 
+async def _close_owned_client(client: GooglePlacesClient) -> None:
+    try:
+        await client.close()
+    except Exception as exc:
+        # Cleanup cannot replace a lookup result or undo its persisted usage.
+        logger.warning("home_location_client_close_failed", exception_type=type(exc).__name__)
+
+
 async def resolve_home_coordinates(
     *,
     user_id: UUID,
-    user: Any,
-    location: Any,
+    user: User,
+    location: HomeLocationUpdate,
 ) -> tuple[float, float, str | None]:
     """Geocode the address when the coordinates say nothing.
 
@@ -60,6 +74,9 @@ async def resolve_home_coordinates(
     final_place_id = location.place_id
 
     if abs(location.lat) < 0.0001 and abs(location.lon) < 0.0001:
+        from src.infrastructure.llm.usage_guard import enforce_usage_limit
+
+        await enforce_usage_limit(user_id, layer="profile_geocoding")
         # Coordinates are essentially (0,0) - need geocoding
         logger.info(
             "home_location_geocoding_required",
@@ -100,19 +117,21 @@ async def resolve_home_coordinates(
                     record_surface_consultations,
                 )
 
-                record_surface_consultations(
-                    surface="profile",
-                    user_id=user_id,
-                    opened=["geocoding"],
-                    failed=["geocoding"] if _geocode_failed else (),
-                    duration_ms=int((perf_counter() - _started) * 1000),
-                )
+                try:
+                    record_surface_consultations(
+                        surface="profile",
+                        user_id=user_id,
+                        opened=["geocoding"],
+                        failed=["geocoding"] if _geocode_failed else (),
+                        duration_ms=int((perf_counter() - _started) * 1000),
+                    )
+                finally:
+                    await _close_owned_client(places_client)
 
             places = result.get("places", [])
             if not places:
                 raise_invalid_input(
-                    f"Could not find location for address: {location.address[:50]}",
-                    address=location.address,
+                    "Could not find the requested home address",
                     error="no_results",
                 )
 
@@ -120,23 +139,25 @@ async def resolve_home_coordinates(
             first_place = places[0]
             place_location = first_place.get("location", {})
 
-            if not place_location.get("latitude") or not place_location.get("longitude"):
+            if place_location.get("latitude") is None or place_location.get("longitude") is None:
                 raise_invalid_input(
-                    f"Could not geocode address: {location.address[:50]}",
-                    address=location.address,
+                    "Could not resolve home coordinates",
                     error="no_coordinates",
                 )
 
-            final_lat = place_location["latitude"]
-            final_lon = place_location["longitude"]
-            final_place_id = first_place.get("id")
+            numeric = TypeAdapter(float)
+            resolved = HomeLocationData(
+                address=location.address,
+                lat=numeric.validate_python(place_location["latitude"], strict=True),
+                lon=numeric.validate_python(place_location["longitude"], strict=True),
+                place_id=first_place.get("id"),
+            )
+            final_lat, final_lon, final_place_id = resolved.lat, resolved.lon, resolved.place_id
 
             logger.info(
                 "home_location_geocoded",
                 user_id=str(user_id),
-                lat=final_lat,
-                lon=final_lon,
-                place_id=final_place_id,
+                has_coordinates=True,
             )
 
         except Exception as e:
@@ -149,12 +170,11 @@ async def resolve_home_coordinates(
                 "home_location_geocoding_failed",
                 user_id=str(user_id),
                 has_address=bool(location.address),
-                error=str(e),
+                exception_type=type(e).__name__,
             )
             raise_invalid_input(
-                f"Failed to geocode address: {str(e)[:100]}",
-                address=location.address,
-                error=str(e),
+                "Home address resolution failed",
+                error="geocoding_failed",
             )
 
     return final_lat, final_lon, final_place_id

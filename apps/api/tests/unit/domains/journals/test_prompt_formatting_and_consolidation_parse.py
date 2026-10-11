@@ -119,12 +119,14 @@ class TestFormatMessagesForExtraction:
         # tool result can carry PII the journal must not copy.
         assert _format_messages_for_extraction([message]) == ""
 
-    def test_a_long_message_is_truncated_with_an_ellipsis(self) -> None:
+    def test_a_long_historical_message_is_truncated_with_an_ellipsis(self) -> None:
         from src.domains.journals.constants import JOURNAL_EXTRACTION_MESSAGE_MAX_CHARS
 
         long_text = "a" * (JOURNAL_EXTRACTION_MESSAGE_MAX_CHARS + 500)
 
-        text = _format_messages_for_extraction([HumanMessage(content=long_text)])
+        text = _format_messages_for_extraction(
+            [HumanMessage(content=long_text), HumanMessage(content="Latest request")]
+        ).splitlines()[0]
 
         assert text.endswith("...")
         assert len(text) == len("USER: ") + JOURNAL_EXTRACTION_MESSAGE_MAX_CHARS + 3

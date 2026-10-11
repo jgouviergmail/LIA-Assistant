@@ -1,9 +1,9 @@
 """The menu of domains the query analyzer is allowed to choose from.
 
-Extracted verbatim from ``query_analyzer_service`` (frozen at its audited size
+Extracted from ``query_analyzer_service`` (frozen at its audited size
 by the file-size ratchet, so it may only shrink). The concern is cohesive on
 its own: it answers "what can this deployment route to right now", combining
-the static taxonomy with the two deployment flags and the per-request MCP
+the static taxonomy with deployment flags and the per-request MCP
 context. It is also the single list the analyzer's output is validated against,
 which is what stops a disabled domain from re-entering through a hallucinated
 answer or through semantic expansion.
@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from typing import Final
 
+from src.core.application_tools import APPLICATION_DOMAINS, APPLICATION_TOOL_NAMES
 from src.core.config import settings
 
 # Domains whose availability is a DEPLOYMENT decision, mapped to the settings
@@ -25,6 +26,7 @@ from src.core.config import settings
 # is one line of data, and the taxonomy-coherence test reads THIS mapping
 # instead of restating it.
 FLAG_GATED_DOMAINS: Final[dict[str, str]] = {
+    "setting": "application_tools_enabled",
     "telephony": "telephony_enabled",  # ADR-127
     "document": "rag_spaces_enabled",  # P1, ADR-141
     "peer": "peers_enabled",  # ADR-180
@@ -59,13 +61,20 @@ def build_available_domains() -> list[dict[str, str]]:
     Returns:
         List of dicts with 'name' and 'description' keys.
     """
-    from src.core.context import admin_mcp_disabled_ctx, user_mcp_tools_ctx
+    from src.core.context import (
+        admin_mcp_disabled_ctx,
+        request_tool_manifests_ctx,
+        user_mcp_tools_ctx,
+    )
     from src.domains.agents.registry.domain_taxonomy import (
         DOMAIN_REGISTRY,
         collect_all_mcp_domains,
         get_routable_domains,
     )
-    from src.infrastructure.mcp.registration import get_admin_mcp_domains
+    from src.infrastructure.mcp.registration import (
+        get_admin_mcp_domains,
+        get_admin_mcp_server_domains,
+    )
 
     # NOTE: Semantic types (provides: ...) are omitted — they are only useful for the
     # planner's tool selection, not for the query analyzer's routing decision.
@@ -79,15 +88,31 @@ def build_available_domains() -> list[dict[str, str]]:
     # Deployment-flag gating (FLAG_GATED_DOMAINS) — same runtime-filtering
     # chokepoint as MCP below.
     available_domains = _withdraw_disabled_domains(available_domains)
+    offered = request_tool_manifests_ctx.get()
+    if offered is not None:
+        available_agents = {m.agent for m in offered if m.name in APPLICATION_TOOL_NAMES}
+        available_domains = [
+            item
+            for item in available_domains
+            if item["name"] not in APPLICATION_DOMAINS
+            or f"{item['name']}_agent" in available_agents
+        ]
 
     # F2.2+F2.5: Unified MCP per-server domain injection (admin + user).
     mcp_domains = collect_all_mcp_domains(
         admin_domains=get_admin_mcp_domains(),
         admin_disabled=admin_mcp_disabled_ctx.get(),
         user_ctx=user_mcp_tools_ctx.get(),
+        admin_server_domains=get_admin_mcp_server_domains(),
     )
-    if mcp_domains:
-        available_domains = [d for d in available_domains if d["name"] != "mcp"]
-        available_domains.extend(mcp_domains)
+    # The virtual base domain is not proof of a usable MCP server.
+    available_domains = [d for d in available_domains if d["name"] != "mcp"]
+    if offered is not None:
+        offered_agents = {manifest.agent for manifest in offered}
+        mcp_domains = [item for item in mcp_domains if f"{item['name']}_agent" in offered_agents]
+        if not mcp_domains and "mcp_agent" in offered_agents and not admin_mcp_disabled_ctx.get():
+            config = DOMAIN_REGISTRY["mcp"]
+            available_domains.append({"name": "mcp", "description": config.description})
+    available_domains.extend(mcp_domains)
 
     return available_domains

@@ -148,7 +148,7 @@ class TestTheInterfaceIsTold:
     async def test_features_hide_provider_sign_in_in_demo_mode(self) -> None:
         from src.domains.auth.router import auth_features
 
-        with patch("src.domains.auth.router.settings", _demo_mode(True)):
+        with patch("src.domains.auth.security_queries.settings", _demo_mode(True)):
             features = await auth_features()
 
         assert features.federated_signin_enabled is False
@@ -164,7 +164,7 @@ class TestTheInterfaceIsTold:
 
         fake = _demo_mode(True)
         fake.demo_terms_version = "2026-08-06"
-        with patch("src.domains.auth.router.settings", fake):
+        with patch("src.domains.auth.security_queries.settings", fake):
             features = await auth_features()
 
         assert features.terms_required is True
@@ -173,7 +173,7 @@ class TestTheInterfaceIsTold:
     async def test_features_ask_for_nothing_outside_demo_mode(self) -> None:
         from src.domains.auth.router import auth_features
 
-        with patch("src.domains.auth.router.settings", _demo_mode(False)):
+        with patch("src.domains.auth.security_queries.settings", _demo_mode(False)):
             features = await auth_features()
 
         assert features.terms_required is False
@@ -181,7 +181,7 @@ class TestTheInterfaceIsTold:
     async def test_features_announce_provider_sign_in_normally(self) -> None:
         from src.domains.auth.router import auth_features
 
-        with patch("src.domains.auth.router.settings", _demo_mode(False)):
+        with patch("src.domains.auth.security_queries.settings", _demo_mode(False)):
             features = await auth_features()
 
         assert features.federated_signin_enabled is True

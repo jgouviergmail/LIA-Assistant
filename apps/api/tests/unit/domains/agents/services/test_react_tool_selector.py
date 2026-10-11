@@ -9,6 +9,8 @@ manifest (the agent_registry does not know user MCP tools).
 from types import SimpleNamespace
 from uuid import UUID
 
+from langchain_core.tools import StructuredTool
+
 from src.core.config import settings
 from src.core.constants import MCP_ITERATIVE_TASK_SUFFIX, MCP_USER_TOOL_NAME_PREFIX
 from src.core.context import (
@@ -16,7 +18,14 @@ from src.core.context import (
     request_tool_manifests_ctx,
     user_mcp_tools_ctx,
 )
+from src.domains.agents.registry.catalogue import ToolManifest
 from src.domains.agents.services.react_tool_selector import ReactToolSelector
+from src.domains.agents.tools.mcp_react_tools import mcp_user_server_task_tool
+from src.infrastructure.mcp.registration import (
+    build_mcp_react_task_manifest,
+    build_mcp_tool_manifest,
+)
+from src.infrastructure.mcp.task_identity import bind_task_identity
 from src.infrastructure.mcp.user_tool_adapter import UserMCPToolAdapter
 from src.infrastructure.observability.metrics_react import (
     react_tool_selector_capped_total,
@@ -42,8 +51,55 @@ def _make_user_adapter(
     )
 
 
-def _manifest(name: str, *, hitl: bool) -> SimpleNamespace:
-    return SimpleNamespace(name=name, permissions=SimpleNamespace(hitl_required=hitl))
+def _manifest(name: str, *, hitl: bool, agent: str = "mcp_atars_agent") -> ToolManifest:
+    return build_mcp_tool_manifest(
+        name,
+        agent,
+        name,
+        "User MCP fixture contract",
+        {"type": "object", "properties": {}},
+        [],
+        hitl,
+        mcp_origin="user",
+        mcp_server_key=str(_SERVER_ID),
+    )
+
+
+def _task_manifest(*, hitl: bool) -> ToolManifest:
+    return build_mcp_react_task_manifest(
+        _TASK_TOOL_NAME,
+        "mcp_atars_agent",
+        "atars",
+        "User MCP fixture delegation",
+        [],
+        [],
+        hitl,
+        mcp_origin="user",
+        mcp_server_key=str(_SERVER_ID),
+    )
+
+
+def _task_instance(
+    *,
+    name: str = _TASK_TOOL_NAME,
+    server_id: UUID = _SERVER_ID,
+    server_name: str = "atars",
+) -> StructuredTool:
+    if not isinstance(mcp_user_server_task_tool, StructuredTool):
+        raise TypeError("MCP fixture delegation requires a StructuredTool")
+    task = mcp_user_server_task_tool.model_copy(
+        update={
+            "name": name,
+            "metadata": {
+                "mcp_origin": "user",
+                "mcp_server_key": str(server_id),
+                "mcp_server_name": server_name,
+            },
+        }
+    )
+    return bind_task_identity(
+        task, {"server_name": server_name, "server_id_prefix": str(server_id)[:8]}
+    )
 
 
 class TestReactToolSelectorUserMCP:
@@ -112,12 +168,10 @@ class TestReactIterativeExpansion:
         """A non-App iterative server: individual tools AND the task tool."""
         ind1 = _make_user_adapter("get_indicator")
         ind2 = _make_user_adapter("get_signal_summary")
-        task_manifest = _manifest(_TASK_TOOL_NAME, hitl=False)
+        task_manifest = _task_manifest(hitl=False)
 
         ctx = UserMCPToolsContext()
-        ctx.tool_instances[_TASK_TOOL_NAME] = SimpleNamespace(
-            name=_TASK_TOOL_NAME, description="Era banque: personal finance.", args_schema=None
-        )
+        ctx.tool_instances[_TASK_TOOL_NAME] = _task_instance()
         ctx.tool_instances[ind1.name] = ind1
         ctx.tool_instances[ind2.name] = ind2
         ctx.tool_manifests = [task_manifest]
@@ -137,11 +191,9 @@ class TestReactIterativeExpansion:
 
     def test_iterative_app_server_keeps_task_tool(self) -> None:
         """An MCP App iterative server keeps the task tool, individual tools hidden."""
-        from src.domains.agents.tools.mcp_react_tools import mcp_user_server_task_tool
-
         app_tool = _make_user_adapter("create_view", app_resource_uri="ui://widget")
-        task_instance = mcp_user_server_task_tool.model_copy(update={"name": _TASK_TOOL_NAME})
-        task_manifest = _manifest(_TASK_TOOL_NAME, hitl=False)
+        task_instance = _task_instance()
+        task_manifest = _task_manifest(hitl=False)
 
         ctx = UserMCPToolsContext()
         ctx.tool_instances[_TASK_TOOL_NAME] = task_instance
@@ -162,13 +214,11 @@ class TestReactIterativeExpansion:
 
     def test_expansion_disabled_keeps_task_tool(self, monkeypatch) -> None:
         """With the feature flag off, the iterative task tool is kept (no expansion)."""
-        from src.domains.agents.tools.mcp_react_tools import mcp_user_server_task_tool
-
         monkeypatch.setattr(settings, "react_mcp_expand_iterative_enabled", False)
 
         ind1 = _make_user_adapter("get_indicator")
-        task_instance = mcp_user_server_task_tool.model_copy(update={"name": _TASK_TOOL_NAME})
-        task_manifest = _manifest(_TASK_TOOL_NAME, hitl=False)
+        task_instance = _task_instance()
+        task_manifest = _task_manifest(hitl=False)
 
         ctx = UserMCPToolsContext()
         ctx.tool_instances[_TASK_TOOL_NAME] = task_instance
@@ -198,28 +248,16 @@ class TestReactToolSelectorCapPriority:
     """
 
     @staticmethod
-    def _setup_three_tools() -> tuple[list[SimpleNamespace], UserMCPToolsContext]:
+    def _setup_three_tools() -> tuple[list[ToolManifest], UserMCPToolsContext]:
         """Three resolvable tools; the DOMAIN tool (event_agent) is LAST."""
         generic_1 = _make_user_adapter("generic_alpha")
         generic_2 = _make_user_adapter("generic_beta")
         event_tool = _make_user_adapter("calendar_get_events")
 
         manifests = [
-            SimpleNamespace(
-                name=generic_1.name,
-                agent="web_search_agent",
-                permissions=SimpleNamespace(hitl_required=False),
-            ),
-            SimpleNamespace(
-                name=generic_2.name,
-                agent="wikipedia_agent",
-                permissions=SimpleNamespace(hitl_required=True),
-            ),
-            SimpleNamespace(
-                name=event_tool.name,
-                agent="event_agent",
-                permissions=SimpleNamespace(hitl_required=False),
-            ),
+            _manifest(generic_1.name, agent="web_search_agent", hitl=False),
+            _manifest(generic_2.name, agent="wikipedia_agent", hitl=True),
+            _manifest(event_tool.name, agent="event_agent", hitl=False),
         ]
         ctx = UserMCPToolsContext()
         for adapter in (generic_1, generic_2, event_tool):
@@ -306,11 +344,9 @@ class TestDestructiveHintForcesConfirmation:
         )
 
     def _select(self, adapters: list[UserMCPToolAdapter], *, server_hitl: bool) -> dict[str, bool]:
-        task_manifest = _manifest(_TASK_TOOL_NAME, hitl=server_hitl)
+        task_manifest = _task_manifest(hitl=server_hitl)
         ctx = UserMCPToolsContext()
-        ctx.tool_instances[_TASK_TOOL_NAME] = SimpleNamespace(
-            name=_TASK_TOOL_NAME, description="task tool", args_schema=None
-        )
+        ctx.tool_instances[_TASK_TOOL_NAME] = _task_instance(server_name="era")
         for adapter in adapters:
             ctx.tool_instances[adapter.name] = adapter
         ctx.tool_manifests = [task_manifest]

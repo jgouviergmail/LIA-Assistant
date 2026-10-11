@@ -35,6 +35,7 @@ from src.domains.live.schemas import (
 )
 from src.domains.live.service import LiveService
 from src.domains.live.session_store import LiveSessionRecord
+from src.domains.users.models import User
 from tests.unit.domains.live.conftest import CLOSING_ARCHIVE as _CLOSING_ARCHIVE
 
 
@@ -74,11 +75,15 @@ USER = SimpleNamespace(
     email="a@x.y",
     live_preferences=None,
     memory_enabled=True,
+    phone_disabled_domains=[],
 )
 
 
 def _connector(model: str = "gemini-3.8-live", voice: str = "Kore") -> SimpleNamespace:
     return SimpleNamespace(
+        id=uuid.uuid4(),
+        user_id=USER.id,
+        credentials_encrypted="test-encrypted-key",
         connector_type="gemini_live",
         status="active",
         connector_metadata={
@@ -144,6 +149,21 @@ def _service(
 ) -> tuple[LiveService, MagicMock, MagicMock]:
     db = MagicMock()
     db.commit = AsyncMock()
+    current_actor = User(
+        id=USER.id,
+        email=USER.email,
+        full_name=USER.full_name,
+        timezone=USER.timezone,
+        is_active=True,
+        deleted_at=None,
+        live_preferences=USER.live_preferences,
+    )
+    db.scalar = AsyncMock(
+        side_effect=lambda statement: (
+            current_actor if statement.column_descriptions[0].get("entity") is User else connector
+        )
+    )
+    db.current_actor = current_actor
     service = LiveService(db)
     service.connectors.active_connectors = AsyncMock(  # type: ignore[method-assign]
         return_value=[connector] if connector else []
@@ -833,7 +853,7 @@ async def test_update_settings_probes_the_model_and_stores_a_new_dict() -> None:
         == settings.live_idle_timeout_seconds
     )
     # Saving a connector makes it the provider the sessions open on (a NEW dict).
-    assert USER.live_preferences["provider"] == "gemini"
+    assert service.db.current_actor.live_preferences["provider"] == "gemini"
     assert response.active is True
     # The probe replays the real setup: the chosen model and level, the tool.
     inputs = provider.probe.call_args.args[1]
@@ -867,7 +887,10 @@ async def test_the_reflexes_put_keeps_the_provider_choice() -> None:
     # The four reflexes and the provider share one column; the settings panel
     # PUTs the reflexes alone and must not silently reset the choice.
     service, _, _ = _service(_connector())
-    user = SimpleNamespace(**{**USER.__dict__, "live_preferences": {"provider": "gemini"}})
+    user = User(
+        id=USER.id, is_active=True, deleted_at=None, live_preferences={"provider": "gemini"}
+    )
+    service.db.scalar = AsyncMock(return_value=user)
     saved = await service.connectors.update_preferences(user, LivePreferences(end_of_speech="calm"))
     assert saved.provider == "gemini" and saved.end_of_speech == "calm"
     assert user.live_preferences["provider"] == "gemini"

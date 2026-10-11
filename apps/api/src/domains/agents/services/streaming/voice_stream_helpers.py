@@ -140,7 +140,11 @@ async def _should_start_voice(
     Returns:
         True when voice synthesis should start.
     """
-    if not voice_listens(user_obj, live_session_id=live_session_id):
+    if user_obj is None or live_session_id is not None:
+        return False
+    from src.domains.users.voice_consent import current_voice_consent
+
+    if not await current_voice_consent(user_obj.id):
         return False
     # An administrator can switch speech synthesis off instance-wide. Checked
     # HERE because spoken answers have no route of their own: they are

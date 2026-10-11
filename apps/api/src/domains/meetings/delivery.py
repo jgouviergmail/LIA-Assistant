@@ -9,6 +9,7 @@ so the two parts can never disagree.
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -19,7 +20,7 @@ from src.core.i18n import normalize_language
 from src.core.i18n_meetings import get_header_label
 from src.domains.document_generation.context import RenderContext
 from src.domains.document_generation.renderers import render_document
-from src.domains.document_generation.schemas import DocumentType
+from src.domains.document_generation.schemas import DocumentType, SectionedContent
 from src.domains.meetings.models import Meeting
 from src.domains.meetings.render import (
     build_header,
@@ -31,6 +32,7 @@ from src.domains.meetings.render import (
 from src.domains.meetings.repository import MeetingRepository
 from src.domains.meetings.schemas import MeetingReport
 from src.infrastructure.email import get_email_service
+from src.infrastructure.meeting_email import MeetingEmailCompletionUnknown, MeetingEmailConfirmation
 
 logger = structlog.get_logger(__name__)
 
@@ -47,10 +49,16 @@ class MinutesDeliveryError(Exception):
         self.message = message
 
 
+def _pdf_content(
+    meeting: Meeting, report: MeetingReport, language: str, gaps: int
+) -> SectionedContent:
+    header = build_header(meeting, report, language=language, gaps=gaps)
+    return render_sectioned(report, header, filename_stem=minutes_filename_stem(meeting, report))
+
+
 def render_pdf(meeting: Meeting, report: MeetingReport, *, language: str, gaps: int = 0) -> bytes:
     """The minutes as a PDF (document_generation renderer)."""
-    header = build_header(meeting, report, language=language, gaps=gaps)
-    content = render_sectioned(report, header, filename_stem=minutes_filename_stem(meeting, report))
+    content = _pdf_content(meeting, report, language, gaps)
     # Minutes shape themselves and carry their own dated header, so they take
     # the craft (running head, pagination, tables) and none of the apparatus
     # (contents, numbering, a second date) — owner decision 2026-09-08.
@@ -59,6 +67,15 @@ def render_pdf(meeting: Meeting, report: MeetingReport, *, language: str, gaps: 
         content,
         RenderContext(language=normalize_language(language), structure="plain"),
     )
+
+
+async def render_pdf_async(
+    meeting: Meeting, report: MeetingReport, *, language: str, gaps: int = 0
+) -> bytes:
+    """Detach render data in the request task before a cancellable CPU worker."""
+    content = _pdf_content(meeting, report, language, gaps)
+    context = RenderContext(language=normalize_language(language), structure="plain")
+    return await asyncio.to_thread(render_document, DocumentType.PDF, content, context)
 
 
 def pdf_filename(meeting: Meeting, report: MeetingReport) -> str:
@@ -80,6 +97,7 @@ async def send_minutes_email(
     report: MeetingReport,
     language: str,
     gaps: int = 0,
+    confirmation: MeetingEmailConfirmation | None = None,
 ) -> None:
     """Email the minutes to ``recipient`` from the platform sender and record it.
 
@@ -88,16 +106,51 @@ async def send_minutes_email(
             or is unreachable (``EmailService`` answers False and logs the cause).
     """
     header = build_header(meeting, report, language=language, gaps=gaps)
-    sent = await get_email_service().send_email(
-        to_email=recipient,
-        subject=minutes_subject(report, language),
-        html_body=render_html(report, header),
-        text_body=render_markdown(report, header),
-    )
+    subject = minutes_subject(report, language)
+    html_body, text_body = render_html(report, header), render_markdown(report, header)
+    if confirmation is not None:
+        await confirmation.check()
+    try:
+        sent = await get_email_service().send_email(
+            to_email=recipient,
+            subject=subject,
+            html_body=html_body,
+            text_body=text_body,
+        )
+    except Exception, asyncio.CancelledError:
+        if confirmation is not None:
+            raise MeetingEmailCompletionUnknown() from None
+        raise
     if not sent:
+        if confirmation is not None:
+            raise MeetingEmailCompletionUnknown()
         logger.warning(
             "meeting_minutes_email_failed", meeting_id=str(meeting.id), user_id=str(user_id)
         )
         raise MinutesDeliveryError("email_send_failed", "smtp delivery refused")
-    await MeetingRepository(db).set_email_sent(meeting.id, sent_at=datetime.now(UTC))
+    if confirmation is not None:
+        confirmation.receipt.committed = True
+        confirmation.receipt.values = {
+            "meeting_email_sent": {
+                "meeting_id": str(meeting.id),
+                "provider_acknowledged": True,
+                "recipient_delivery_confirmed": False,
+                "metadata_saved": False,
+            }
+        }
+    try:
+        await MeetingRepository(db).set_email_sent(meeting.id, sent_at=datetime.now(UTC))
+    except Exception, asyncio.CancelledError:
+        if confirmation is not None:
+            raise MeetingEmailCompletionUnknown() from None
+        raise
+    if confirmation is not None:
+        confirmation.receipt.values = {
+            "meeting_email_sent": {
+                "meeting_id": str(meeting.id),
+                "provider_acknowledged": True,
+                "recipient_delivery_confirmed": False,
+                "metadata_saved": True,
+            }
+        }
     logger.info("meeting_minutes_emailed", meeting_id=str(meeting.id), user_id=str(user_id))

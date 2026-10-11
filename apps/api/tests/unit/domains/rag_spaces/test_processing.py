@@ -1097,6 +1097,35 @@ class TestExtractText:
 class TestProcessDocument:
     """Tests for the async process_document background pipeline."""
 
+    @pytest.mark.asyncio
+    @pytest.mark.unit
+    @pytest.mark.parametrize("status", ["processing", "ready", "error", "reindexing"])
+    async def test_durable_upload_launcher_never_reembeds_an_already_claimed_or_completed_job(
+        self, ids, mock_document, mock_db_context, status
+    ):
+        mock_document.status = status
+        context, _db = mock_db_context
+        repository = MagicMock()
+        repository.get_by_id = AsyncMock(return_value=mock_document)
+        with (
+            patch("src.domains.rag_spaces.processing.get_db_context", return_value=context),
+            patch(
+                "src.domains.rag_spaces.processing.RAGDocumentRepository", return_value=repository
+            ),
+            patch("src.domains.rag_spaces.processing.get_rag_embeddings") as embedder,
+        ):
+            from src.domains.rag_spaces.processing import process_document
+
+            result = await process_document(
+                **ids,
+                filename="controlled.txt",
+                original_filename="Controlled",
+                content_type="text/plain",
+                durable_upload=True,
+            )
+        assert result is False
+        embedder.assert_not_called()
+
     @pytest.fixture
     def ids(self):
         """Generate fresh UUIDs for each test."""

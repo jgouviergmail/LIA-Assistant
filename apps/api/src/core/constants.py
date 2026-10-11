@@ -1358,6 +1358,9 @@ RATE_LIMIT_EFFECTS_READ_PER_MINUTE = 60
 # Device sessions (D2): coarse activity tracking + display identifiers
 SESSION_LAST_SEEN_COARSE_SECONDS = 900  # min gap between last_seen_at rewrites (PII-bounded)
 SESSION_DISPLAY_ID_LENGTH = 16  # sha256(session_id) hex prefix shown to the UI (never the raw id)
+APPLICATION_SESSION_INDEX_MAX_ENTRIES = (
+    1000  # Bound native session metadata work before payload reads.
+)
 
 # Step-up re-authentication (sensitive actions re-verify a recent factor)
 STEP_UP_WINDOW_SECONDS_DEFAULT = 300  # freshness window after a successful step-up
@@ -3518,6 +3521,7 @@ MCP_REFERENCE_CONTENT_MAX_CHARS_DEFAULT = 30000  # Max chars of read_me content 
 # Each user can declare their own MCP servers with per-user credentials.
 # Reference: infrastructure/mcp/user_pool.py, domains/user_mcp/
 MCP_USER_TOOL_NAME_PREFIX = "mcp_user"
+MCP_MODEL_TOOL_NAME_MAX_LENGTH = 64  # Conservative function-name compatibility policy
 MCP_ITERATIVE_TASK_SUFFIX = "_task"  # Suffix for per-server iterative ReAct task tools
 MCP_USER_DEFAULT_API_KEY_HEADER = "X-API-Key"
 MCP_USER_MAX_SERVERS_PER_USER_DEFAULT = 20
@@ -3559,7 +3563,6 @@ SCHEDULER_JOB_USER_MCP_EVICTION = "user_mcp_pool_eviction"
 # Reference: domains/agents/registry/domain_taxonomy.py:auto_generate_server_description()
 # Note: user MCP uses LLM-based generation (service._llm_generate_description) as primary;
 # these constants are used only by the algorithmic fallback and admin MCP registration.
-MCP_DESCRIPTION_MAX_TOOLS = 5  # Max number of tool descriptions to include
 MCP_DESCRIPTION_MAX_SENTENCE_LENGTH = 60  # Max chars per tool sentence
 MCP_DESCRIPTION_MAX_TOTAL_LENGTH = 400  # Max chars for algorithmic fallback description
 
@@ -4757,6 +4760,7 @@ EMAIL_SHARE_RECIPIENT_QUERY_MIN_CHARS: Final = 2
 EMAIL_SHARE_RECIPIENT_QUERY_MAX_CHARS: Final = 100
 #: A cold read of a large book takes a few pages; past this the field offers nothing.
 EMAIL_SHARE_DIRECTORY_READ_TIMEOUT_SECONDS: Final = 15
+PLATFORM_SMTP_TIMEOUT_SECONDS: Final = 30
 #: Projected directory entries one worker keeps (≈ 400 bytes each).
 EMAIL_SHARE_RECIPIENT_PROJECTION_MEMO_MAX_ENTRIES: Final = 20_000
 # Per-account window on the suggestion route: one request per pause in typing.
@@ -4893,6 +4897,9 @@ RAG_MAIL_DOCUMENT_EXTENSION = ".md"
 RAG_DOCUMENT_NAME_MAX_CHARS: int = 200
 RAG_MAIL_HISTORY_TYPES: tuple[str, ...] = ("messageAdded", "labelAdded", "labelRemoved")
 RAG_DRIVE_MAX_FILES_PER_SYNC = 500
+# Cursor buffer for complete document-identity witnesses; it never caps the scan.
+RAG_SOURCE_IDENTITY_BATCH_ROWS = 500
+RAG_JOB_WORKER_ID_MAX_LENGTH = 64
 # A linked folder is walked WITH its sub-folders (one Drive call lists one level).
 # The walk is bounded twice — files above, folders here — and a walk that hits
 # either bound says so (``truncated``) rather than passing a cut for a count.
@@ -5110,11 +5117,6 @@ SKILLS_SCRIPT_SANDBOX_NAME_PREFIX = "lia-skill-"
 # Budget for that force-removal. It runs on the timeout path, so it must be
 # short enough not to stack on top of an already-exhausted budget.
 SKILLS_SCRIPT_SANDBOX_CLEANUP_TIMEOUT_SECONDS = 10
-
-# `docker run` exit code meaning the daemon/CLI refused to START the container
-# (missing image, bad flag, daemon down) — as opposed to a script that ran and
-# failed. Distinguishing it keeps daemon internals out of the LLM's context.
-SKILLS_SCRIPT_SANDBOX_DAEMON_ERROR_CODE = 125
 
 SKILLS_SCRIPT_UNPRIVILEGED_UID = 65534  # nobody
 SKILLS_SCRIPT_UNPRIVILEGED_GID = 65534  # nogroup

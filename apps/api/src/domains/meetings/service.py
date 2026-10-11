@@ -29,7 +29,7 @@ from src.domains.meetings.audio_store import (
 from src.domains.meetings.delivery import (
     MinutesDeliveryError,
     pdf_filename,
-    render_pdf,
+    render_pdf_async,
     send_minutes_email,
 )
 from src.domains.meetings.engine import ResolvedEngine, resolve_engine
@@ -65,9 +65,15 @@ from src.domains.meetings.schemas import (
 from src.domains.meetings.template_service import MeetingTemplateService, ResolvedTemplate
 from src.domains.meetings.templates import parse_sections
 from src.domains.usage_limits.service import UsageLimitService
+from src.infrastructure.meeting_deletions import MeetingDeletionConfirmation
+from src.infrastructure.meeting_email import MeetingEmailConfirmation
+from src.infrastructure.meeting_regeneration import MeetingRegenerationConfirmation
+from src.infrastructure.meeting_report_updates import ReportPatchConfirmation
+from src.infrastructure.meeting_reports import ReportWriteConfirmation
+from src.infrastructure.meeting_retry import MeetingRetryConfirmation
+from src.infrastructure.meeting_transcripts import TranscriptWriteConfirmation
 from src.infrastructure.observability.metrics_meetings import (
     meeting_segments_received_total,
-    meetings_total,
 )
 from src.infrastructure.rate_limiting.redis_limiter import get_rate_limiter
 
@@ -306,7 +312,7 @@ class MeetingService:
         self, user_id: uuid.UUID, meeting_id: uuid.UUID, *, sequence: int, body: bytes
     ) -> MeetingSegmentAck:
         """Store one segment; every bound is checked before a byte touches the disk."""
-        meeting = await self._owned(meeting_id, user_id)
+        meeting = await self._owned(meeting_id, user_id, lock=True)
         if meeting.status not in LIVE_STATUSES:
             raise_meeting_conflict("meeting_not_recording", status=meeting.status.value)
         if not body:
@@ -356,7 +362,7 @@ class MeetingService:
         Missing segments are refused with their list so the client retries;
         ``allow_gaps`` finalizes anyway — the gap is a fact the minutes state.
         """
-        meeting = await self._owned(meeting_id, user_id)
+        meeting = await self._owned(meeting_id, user_id, lock=True)
         if meeting.status not in LIVE_STATUSES:
             raise_meeting_conflict("meeting_not_recording", status=meeting.status.value)
         expected = max(request.segment_count, meeting.segment_count)
@@ -388,30 +394,29 @@ class MeetingService:
             raise_meeting_conflict("meeting_not_interrupted", status=meeting.status.value)
         return await self._fresh(meeting_id, user_id)
 
-    async def retry(self, user_id: uuid.UUID, meeting_id: uuid.UUID) -> Meeting:
+    async def retry(
+        self,
+        user_id: uuid.UUID,
+        meeting_id: uuid.UUID,
+        *,
+        confirmation: MeetingRetryConfirmation | None = None,
+    ) -> Meeting:
         """Requeue a stopped or failed meeting whose audio still exists."""
-        meeting = await self._owned(meeting_id, user_id)
-        if meeting.status not in (MeetingStatus.STOPPED, MeetingStatus.FAILED):
-            raise_meeting_conflict("meeting_not_retryable", status=meeting.status.value)
-        if meeting.audio_purged_at is not None or not (
-            meeting.audio_path or await self.store.list_sequences(user_id, meeting_id)
-        ):
-            raise_meeting_conflict("audio_unavailable")
-        await self.repo.requeue_for_retry(
-            meeting_id, from_statuses=(MeetingStatus.STOPPED, MeetingStatus.FAILED)
-        )
-        return await self._fresh(meeting_id, user_id)
+        from src.domains.meetings.retry_commands import retry_meeting
 
-    async def regenerate(self, user_id: uuid.UUID, meeting_id: uuid.UUID) -> Meeting:
+        return await retry_meeting(self, user_id, meeting_id, confirmation)
+
+    async def regenerate(
+        self,
+        user_id: uuid.UUID,
+        meeting_id: uuid.UUID,
+        *,
+        confirmation: MeetingRegenerationConfirmation | None = None,
+    ) -> Meeting:
         """Rebuild the minutes from the stored transcript with the CURRENT template."""
-        meeting = await self._owned(meeting_id, user_id)
-        if meeting.status is not MeetingStatus.READY:
-            raise_meeting_conflict("report_not_ready", status=meeting.status.value)
-        if not meeting.transcript_encrypted:
-            raise_meeting_conflict("transcript_unavailable")
-        if not await self.repo.begin_regenerate(meeting_id):
-            raise_meeting_conflict("regeneration_in_progress")
-        return await self._fresh(meeting_id, user_id)
+        from src.domains.meetings.regeneration_commands import queue_regeneration
+
+        return await queue_regeneration(self, user_id, meeting_id, confirmation)
 
     # ----------------------------------------------------------------- reads
 
@@ -541,109 +546,64 @@ class MeetingService:
         meeting_id: uuid.UUID,
         request: MeetingPatchRequest,
         language: str | None = None,
+        *,
+        confirmation: ReportPatchConfirmation | None = None,
     ) -> Meeting:
-        """Edit the minutes (structured). Re-indexing is the caller's follow-up.
+        from src.domains.meetings.minutes_commands import patch_report
 
-        ``template_ref`` (ADR-259) is accepted only while the meeting is live or
-        queued: once processing started the template is the job's, and a READY
-        meeting changes format through ``reformat``.
-        """
-        meeting = await self._owned(meeting_id, user_id)
-        if request.template_ref is not None:
-            await self._apply_template_choice(meeting, request.template_ref, language)
-            if not request.touches_report:
-                return await self._fresh(meeting_id, user_id)
-        report = self._report_or_none(meeting.report_current)
-        if report is None and (request.title or request.participants or request.sections):
-            raise_meeting_conflict("report_not_ready", status=meeting.status.value)
-        if report is not None:
-            updated = report.model_copy(
-                update={
-                    key: value
-                    for key, value in (
-                        ("title", request.title),
-                        ("participants", request.participants),
-                        ("sections", request.sections),
-                    )
-                    if value is not None
-                }
-            )
-            MeetingReport.model_validate(updated.model_dump())
-            report = updated
-        await self.repo.set_report_current(
-            meeting_id,
-            report=report.model_dump(mode="json") if report else meeting.report_current,
-            edited_at=datetime.now(UTC),
-            location_label=request.location_label,
-            touch_location=request.location_label is not None,
+        return await patch_report(
+            self, user_id, meeting_id, request, language, confirmation=confirmation
         )
-        return await self._fresh(meeting_id, user_id)
 
-    async def reset_report(self, user_id: uuid.UUID, meeting_id: uuid.UUID) -> Meeting:
-        """``report_current ← report_generated`` (the model's version is immutable)."""
-        meeting = await self._owned(meeting_id, user_id)
-        if not meeting.report_generated:
-            raise_meeting_conflict("report_not_ready", status=meeting.status.value)
-        await self.repo.set_report_current(
-            meeting_id,
-            report=meeting.report_generated,
-            edited_at=datetime.now(UTC),
-            location_label=None,
-            touch_location=False,
-        )
-        return await self._fresh(meeting_id, user_id)
+    async def reset_report(
+        self,
+        user_id: uuid.UUID,
+        meeting_id: uuid.UUID,
+        *,
+        confirmation: ReportWriteConfirmation | None = None,
+    ) -> Meeting:
+        from src.domains.meetings.minutes_commands import reset_report
 
-    async def delete_transcript(self, user_id: uuid.UUID, meeting_id: uuid.UUID) -> Meeting:
-        """Purge the transcript, keep the minutes."""
-        meeting = await self._owned(meeting_id, user_id)
-        if meeting.status in LIVE_STATUSES or meeting.status is MeetingStatus.PROCESSING:
-            raise_meeting_conflict("meeting_in_progress", status=meeting.status.value)
-        await self.repo.delete_transcript(meeting_id, deleted_at=datetime.now(UTC))
-        return await self._fresh(meeting_id, user_id)
+        return await reset_report(self, user_id, meeting_id, confirmation=confirmation)
+
+    async def report_for_restoration(
+        self, user_id: uuid.UUID, meeting_id: uuid.UUID, *, lock: bool = False
+    ) -> Meeting:
+        from src.domains.meetings.minutes_commands import report_for_restoration
+
+        return await report_for_restoration(self, user_id, meeting_id, lock=lock)
+
+    async def delete_transcript(
+        self,
+        user_id: uuid.UUID,
+        meeting_id: uuid.UUID,
+        *,
+        confirmation: TranscriptWriteConfirmation | None = None,
+    ) -> Meeting:
+        from src.domains.meetings.minutes_commands import delete_transcript
+
+        return await delete_transcript(self, user_id, meeting_id, confirmation=confirmation)
+
+    async def transcript_for_deletion(
+        self, user_id: uuid.UUID, meeting_id: uuid.UUID, *, lock: bool = False
+    ) -> Meeting:
+        from src.domains.meetings.minutes_commands import transcript_for_deletion
+
+        return await transcript_for_deletion(self, user_id, meeting_id, lock=lock)
 
     # ----------------------------------------------------------------- delete
 
-    async def delete(self, user_id: uuid.UUID, meeting_id: uuid.UUID) -> None:
-        """Everything: the knowledge-space projection first, then the row, then the files.
+    async def delete(
+        self,
+        user_id: uuid.UUID,
+        meeting_id: uuid.UUID,
+        *,
+        confirmation: MeetingDeletionConfirmation | None = None,
+    ) -> None:
+        """Remove meeting and projection rows atomically, then clean their files."""
+        from src.domains.meetings.deletion import delete_meeting
 
-        The RAG document is a projection of the minutes, never a copy that may
-        outlive them: it goes (chunks, row, file) before the meeting row does,
-        so a failure there leaves the meeting in place for a retry rather than
-        an orphaned transcript-derived document in the user's space (the third
-        runtime proof found three such orphans behind three deleted meetings).
-        """
-        meeting = await self._owned(meeting_id, user_id)
-        if meeting.status is MeetingStatus.PROCESSING and not worker_stale(meeting):
-            raise_meeting_conflict("meeting_in_progress", status=meeting.status.value)
-        was_live = meeting.status in LIVE_STATUSES
-        await self._delete_projection(meeting)
-        # The database decides with its own clock: a claim that raced this
-        # delete keeps the row (a processing row never has a projection yet).
-        if not await self.repo.delete_unless_leased(meeting_id):
-            raise_meeting_conflict("meeting_in_progress", status=meeting.status.value)
-        await self.db.commit()
-        await self.store.purge_meeting(user_id, meeting_id)
-        meetings_total.labels(status="discarded" if was_live else "deleted").inc()
-        logger.info("meeting_deleted", meeting_id=str(meeting_id), user_id=str(user_id))
-
-    async def _delete_projection(self, meeting: Meeting) -> None:
-        """Remove the meeting's RAG document with its chunks and file, if it has one."""
-        if meeting.rag_document_id is None:
-            return
-        from src.domains.rag_spaces.repository import RAGDocumentRepository
-        from src.domains.rag_spaces.service import RAGSpaceService
-
-        document = await RAGDocumentRepository(self.db).get_by_id(meeting.rag_document_id)
-        if document is None:
-            return  # already gone (deleted from the space by hand): nothing to project away
-        await RAGSpaceService(self.db).delete_document(
-            document.space_id, document.id, meeting.user_id
-        )
-        logger.info(
-            "meeting_projection_deleted",
-            meeting_id=str(meeting.id),
-            document_id=str(document.id),
-        )
+        await delete_meeting(self, user_id, meeting_id, confirmation=confirmation)
 
     # ------------------------------------------------------------ preferences
 
@@ -659,36 +619,17 @@ class MeetingService:
         A ``default_template_ref`` reaches the row only once resolved (built-in
         key or owned row): a bad reference never becomes a stored default.
         """
-        keep_hours = min(request.keep_audio_hours, settings.meetings_audio_retention_hours_max)
-        if request.default_template_ref is not None:
-            await MeetingTemplateService(self.db).resolve(
-                user_id, request.default_template_ref, language
-            )
-        payload = {
-            "stt_engine": request.stt_engine,
-            "language": request.language,
-            "auto_email": request.auto_email,
-            "keep_audio_hours": keep_hours,
-            "default_template_ref": request.default_template_ref,
-        }
-        row = await self.preference_repo.get_for_user(user_id)
-        if row is None:
-            row = await self.preference_repo.create({"user_id": user_id, **payload})
-        else:
-            row = await self.preference_repo.update(row, payload)
-        await self.db.commit()
-        return self._preferences_response(row)
+        from src.domains.meetings.preference_commands import replace_meeting_preferences
+
+        return await replace_meeting_preferences(
+            self.db, user_id, request, language, repository=self.preference_repo
+        )
 
     @staticmethod
     def _preferences_response(row: MeetingPreference | None) -> MeetingPreferencesResponse:
-        return MeetingPreferencesResponse(
-            stt_engine=row.stt_engine if row else MeetingSttEnginePreference.AUTO,
-            language=row.language if row else "auto",
-            auto_email=row.auto_email if row else False,
-            keep_audio_hours=row.keep_audio_hours if row else 0,
-            default_template_ref=row.default_template_ref if row else None,
-            keep_audio_hours_max=settings.meetings_audio_retention_hours_max,
-        )
+        from src.domains.meetings.preference_commands import preference_response
+
+        return preference_response(row)
 
     # ---------------------------------------------------------------- delivery
 
@@ -707,11 +648,19 @@ class MeetingService:
         """The current minutes as PDF bytes plus their download filename."""
         meeting, report = await self._ready_with_report(user_id, meeting_id)
         return (
-            render_pdf(meeting, report, language=language or "", gaps=meeting.audio_gaps),
+            await render_pdf_async(
+                meeting, report, language=language or "", gaps=meeting.audio_gaps
+            ),
             pdf_filename(meeting, report),
         )
 
-    async def email(self, user: Any, meeting_id: uuid.UUID) -> Meeting:
+    async def email(
+        self,
+        user: Any,
+        meeting_id: uuid.UUID,
+        *,
+        confirmation: MeetingEmailConfirmation | None = None,
+    ) -> Meeting:
         """Email the current minutes to the user's own address from the platform sender."""
         meeting, report = await self._ready_with_report(user.id, meeting_id)
         try:
@@ -723,6 +672,7 @@ class MeetingService:
                 report=report,
                 language=str(user.language or ""),
                 gaps=meeting.audio_gaps,
+                confirmation=confirmation,
             )
         except MinutesDeliveryError as exc:
             raise_meeting_delivery_failed(exc.code)
@@ -731,14 +681,16 @@ class MeetingService:
     # ----------------------------------------------------------------- helpers
 
     async def _apply_template_choice(
-        self, meeting: Meeting, ref: str, language: str | None
+        self, meeting: Meeting, ref: str, language: str | None, *, commit: bool = True
     ) -> None:
         """Remember the template for a meeting that has not been processed yet (ADR-259)."""
         if meeting.status not in (*LIVE_STATUSES, MeetingStatus.STOPPED):
             raise_meeting_conflict("template_locked", status=meeting.status.value)
         template = await self._resolved_template(meeting.user_id, ref, language)
         assert template is not None  # ref is not None here
-        await self.repo.set_template(meeting.id, ref=str(template.ref), name=template.name)
+        await self.repo.set_template(
+            meeting.id, ref=str(template.ref), name=template.name, commit=commit
+        )
 
     async def _resolved_template(
         self, user_id: uuid.UUID, ref: str | None, language: str | None
@@ -756,8 +708,14 @@ class MeetingService:
         derived = await self.repo.count_derived(meeting_id)
         return self.to_detail(meeting, include_transcript=include_transcript, derived_count=derived)
 
-    async def _owned(self, meeting_id: uuid.UUID, user_id: uuid.UUID) -> Meeting:
-        meeting = await self.repo.get_for_user(meeting_id, user_id)
+    async def _owned(
+        self, meeting_id: uuid.UUID, user_id: uuid.UUID, *, lock: bool = False
+    ) -> Meeting:
+        meeting = (
+            await self.repo.get_for_user(meeting_id, user_id, lock=True)
+            if lock
+            else await self.repo.get_for_user(meeting_id, user_id)
+        )
         if meeting is None:
             raise_meeting_not_found(meeting_id)
         return meeting

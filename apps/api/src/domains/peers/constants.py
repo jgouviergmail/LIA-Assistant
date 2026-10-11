@@ -25,6 +25,9 @@ from typing import Final
 
 from src.core.constants import PROACTIVE_MESSAGE_TYPE_PREFIX
 
+# Bounded transparency window offered by the source UI/API and native readers.
+PEER_ACCESS_LOG_MAX_ENTRIES: Final = 200
+
 #: Proactive task type of a RELAYED message delivered to its recipient.
 #: ``NotificationDispatcher`` derives the archived metadata ``type`` from it.
 PEER_MESSAGE_TASK_TYPE = "peer_message"

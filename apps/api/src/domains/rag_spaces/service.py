@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import asyncio
 import os
-import shutil
 import uuid
 from pathlib import Path
 from typing import NoReturn
@@ -22,13 +21,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
-from src.core.exceptions import BaseAPIException
+from src.core.exceptions import BaseAPIException, raise_not_found_or_unauthorized
+from src.domains.rag_spaces import space_creation, space_deletion
 from src.domains.rag_spaces.document_access import (
-    UNDELETABLE_DOCUMENT_KINDS,
     document_file_path,
     owned_document,
-    raise_document_managed,
+    require_deletable_document,
 )
+from src.domains.rag_spaces.document_deletion import delete_selected_document_rows
 from src.domains.rag_spaces.models import (
     RAGDocument,
     RAGDocumentStatus,
@@ -43,12 +43,12 @@ from src.domains.rag_spaces.repository import (
     RAGMailSourceRepository,
     RAGSpaceRepository,
 )
+from src.domains.rag_spaces.space_creation import SpaceCreationScope
+from src.domains.rag_spaces.space_mutation import publish_activation, source_update_values
+from src.domains.rag_spaces.upload_storage import write_uploaded_file
+from src.domains.users.repository import UserRepository
 from src.infrastructure.observability.logging import get_logger
-from src.infrastructure.observability.metrics_rag_spaces import (
-    rag_documents_total_count,
-    rag_spaces_active_count,
-    rag_spaces_total_count,
-)
+from src.infrastructure.observability.metrics_rag_spaces import rag_documents_total_count
 
 logger = get_logger(__name__)
 
@@ -196,30 +196,47 @@ class RAGSpaceService:
             )
         return result
 
+    async def lock_creation_owner(self, user_id: uuid.UUID) -> None:
+        """All source creators serialize the account quota with current active ownership."""
+        if await UserRepository(self.db).get_by_id_for_preference_update(user_id) is None:
+            raise_not_found_or_unauthorized("account", user_id)
+
+    async def validate_creation(
+        self, user_id: uuid.UUID, name: str, description: str | None = None
+    ) -> SpaceCreationScope:
+        request = space_creation.normalize_creation(name, description)
+        count = await self.space_repo.count_for_user(user_id)
+        if count >= settings.rag_spaces_max_spaces_per_user:
+            raise_space_limit_exceeded(settings.rag_spaces_max_spaces_per_user)
+        existing = await self.space_repo.get_by_name_for_user(user_id, request.name)
+        if existing is not None:
+            raise BaseAPIException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="A space with this name already exists",
+                log_event="rag_space_duplicate_name",
+            )
+        return SpaceCreationScope(request, count, settings.rag_spaces_max_spaces_per_user)
+
     async def create_space(
         self,
         user_id: uuid.UUID,
         name: str,
         description: str | None = None,
+        *,
+        commit: bool = True,
+        space_id: uuid.UUID | None = None,
     ) -> RAGSpace:
         """Create a new RAG space with limit enforcement."""
-        # Check space limit
-        count = await self.space_repo.count_for_user(user_id)
-        if count >= settings.rag_spaces_max_spaces_per_user:
-            raise_space_limit_exceeded(settings.rag_spaces_max_spaces_per_user)
-
+        await self.lock_creation_owner(user_id)
+        scope = await self.validate_creation(user_id, name, description)
         try:
-            space = await self.space_repo.create(
-                {
-                    "user_id": user_id,
-                    "name": name.strip(),
-                    "description": description.strip() if description else None,
-                }
+            space = await space_creation.create_space_row(
+                self.space_repo, user_id, scope.request, space_id=space_id
             )
+            if not commit:
+                return space
             await self.db.commit()
-
-            rag_spaces_total_count.inc()
-            rag_spaces_active_count.inc()  # New spaces are active by default
+            space_creation.publish_space_creation()
 
             logger.info(
                 "rag_space_created",
@@ -237,9 +254,15 @@ class RAGSpaceService:
                 name=name,
             ) from None
 
-    async def get_space(self, space_id: uuid.UUID, user_id: uuid.UUID) -> RAGSpace:
+    async def get_space(
+        self, space_id: uuid.UUID, user_id: uuid.UUID, *, for_update: bool = False
+    ) -> RAGSpace:
         """Get a space with ownership verification."""
-        space = await self.space_repo.get_by_id(space_id)
+        space = (
+            await self.space_repo.get_by_id_for_owner_update(space_id, user_id)
+            if for_update
+            else await self.space_repo.get_by_id(space_id)
+        )
         if not space or space.user_id != user_id:
             raise_space_not_found(space_id)
         return space
@@ -265,22 +288,21 @@ class RAGSpaceService:
         user_id: uuid.UUID,
         name: str | None = None,
         description: str | None = None,
+        *,
+        commit: bool = True,
     ) -> RAGSpace:
         """Update a space (partial update)."""
-        space = await self.get_space(space_id, user_id)
+        space = await self.get_space(space_id, user_id, for_update=True)
         if space.is_system:
             raise_system_space_protected(space_id, "update")
 
-        update_data: dict[str, str | None] = {}
-        if name is not None:
-            update_data["name"] = name.strip()
-        if description is not None:
-            update_data["description"] = description.strip() if description else None
+        update_data = source_update_values(name, description)
 
         if update_data:
             try:
                 space = await self.space_repo.update(space, update_data)
-                await self.db.commit()
+                if commit:
+                    await self.db.commit()
             except IntegrityError:
                 await self.db.rollback()
                 raise BaseAPIException(
@@ -310,7 +332,9 @@ class RAGSpaceService:
         stats = await self.doc_repo.get_space_stats(space_id)
         return {**space.dict(), **stats}
 
-    async def delete_space(self, space_id: uuid.UUID, user_id: uuid.UUID) -> None:
+    async def delete_space(
+        self, space_id: uuid.UUID, user_id: uuid.UUID, *, commit: bool = True
+    ) -> None:
         """Delete a space with all its documents, chunks, and files.
 
         A space another domain manages by role (meetings, kept answers) is
@@ -318,7 +342,7 @@ class RAGSpaceService:
         deletion would be undone in silence (2026-09-16 design, amending
         ADR-258). Renaming and switching it off stay open.
         """
-        space = await self.get_space(space_id, user_id)
+        space = await self.get_space(space_id, user_id, for_update=True)
         if space.is_system:
             raise_system_space_protected(space_id, "delete")
         if space.kind is not None:
@@ -326,22 +350,19 @@ class RAGSpaceService:
 
         # Snapshot document statuses BEFORE cascade delete (for gauge updates)
         documents = await self.doc_repo.get_all_for_space(space_id)
+        active, statuses = space.is_active, tuple(doc.status for doc in documents)
 
         # DB operations in a single transaction: bulk-delete chunks, then cascade space → docs
         await self.chunk_repo.delete_by_space(space_id)
         await self.space_repo.delete(space)
+        if not commit:
+            return
         await self.db.commit()
 
         # Physical files cleaned up AFTER successful DB commit (best-effort)
-        storage_dir = Path(settings.rag_spaces_storage_path) / str(user_id) / str(space_id)
-        if storage_dir.exists():
-            shutil.rmtree(storage_dir, ignore_errors=True)
-
-        rag_spaces_total_count.dec()
-        if space.is_active:
-            rag_spaces_active_count.dec()
-        for doc in documents:
-            rag_documents_total_count.labels(status=doc.status).dec()
+        if not await space_deletion.cleanup_space_files(user_id, space_id):
+            logger.warning("rag_space_file_cleanup_pending", space_id=str(space_id))
+        space_deletion.publish_space_deletion(active, statuses)
 
         logger.info(
             "rag_space_deleted",
@@ -351,16 +372,24 @@ class RAGSpaceService:
 
     async def toggle_space(self, space_id: uuid.UUID, user_id: uuid.UUID) -> RAGSpace:
         """Toggle space activation."""
-        space = await self.get_space(space_id, user_id)
+        space = await self.get_space(space_id, user_id, for_update=True)
+        return await self.set_space_activation(space_id, user_id, not space.is_active)
+
+    async def set_space_activation(
+        self, space_id: uuid.UUID, user_id: uuid.UUID, active: bool, *, commit: bool = True
+    ) -> RAGSpace:
+        """Source desired activation, used by the GUI toggle and confirmed native changes."""
+        space = await self.get_space(space_id, user_id, for_update=True)
         if space.is_system:
             raise_system_space_protected(space_id, "toggle")
-        space = await self.space_repo.update(space, {"is_active": not space.is_active})
+        if space.is_active == active:
+            return space
+        space = await self.space_repo.update(space, {"is_active": active})
+        if not commit:
+            return space
         await self.db.commit()
 
-        if space.is_active:
-            rag_spaces_active_count.inc()
-        else:
-            rag_spaces_active_count.dec()
+        publish_activation(space.is_active)
 
         logger.info(
             "rag_space_toggled",
@@ -378,15 +407,20 @@ class RAGSpaceService:
         space_id: uuid.UUID,
         user_id: uuid.UUID,
         file: UploadFile,
+        *,
+        commit: bool = True,
+        document_id: uuid.UUID | None = None,
     ) -> RAGDocument:
         """
         Upload a document to a space.
 
         Validates format/size, writes to disk, creates DB record with
-        status=processing, and returns the document. The caller is
+        status=pending, and returns the document. The caller is
         responsible for launching the background processing task.
+        With commit=False the caller owns commit acknowledgment, rollback
+        cleanup and post-ACK telemetry; files are retained until that decision.
         """
-        space = await self.get_space(space_id, user_id)  # Verify ownership
+        space = await self.get_space(space_id, user_id, for_update=True)  # Own upload/quota fence
         if space.is_system:
             raise_system_space_protected(space_id, "upload")
 
@@ -445,12 +479,15 @@ class RAGSpaceService:
         file_path = storage_dir / stored_filename
         # Offload the (potentially multi-MB) disk write so the event loop stays
         # free for concurrent requests (CA-4).
-        await asyncio.to_thread(file_path.write_bytes, content)
+        await write_uploaded_file(file_path, content)
 
-        # Create DB record — clean up file on failure to avoid orphans
+        # Row creation failure has a known rollback; a lost commit ACK does
+        # not. Never remove a file a committed durable job may already own.
+        committing = False
         try:
             document = await self.doc_repo.create(
                 {
+                    **({"id": document_id} if document_id is not None else {}),
                     "space_id": space_id,
                     "user_id": user_id,
                     "filename": stored_filename,
@@ -463,12 +500,16 @@ class RAGSpaceService:
                     "status": RAGDocumentStatus.PENDING,
                 }
             )
+            if not commit:
+                return document
+            committing = True
             await self.db.commit()
-        except Exception:
+        except Exception, asyncio.CancelledError:
             # Rollback DB and remove orphan file on failure
-            await self.db.rollback()
-            if file_path.exists():
-                os.remove(file_path)
+            if not committing:
+                await self.db.rollback()
+                if file_path.exists():
+                    os.remove(file_path)
             raise
 
         rag_documents_total_count.labels(status="processing").inc()
@@ -487,19 +528,24 @@ class RAGSpaceService:
         space_id: uuid.UUID,
         document_id: uuid.UUID,
         user_id: uuid.UUID,
+        *,
+        commit: bool = True,
     ) -> None:
         """Delete a document with its chunks and physical file.
 
         A kept answer's projection is refused: the bookmark is the record, and
         its document goes with the bookmark (2026-09-16 design, part A).
+        With ``commit=False``, only transactional rows are removed; the caller
+        owns verification, commit acknowledgment, file cleanup and telemetry.
         """
         document = await owned_document(self, space_id, document_id, user_id)
-        if document.source_type in UNDELETABLE_DOCUMENT_KINDS:
-            raise_document_managed(document.source_type)
+        require_deletable_document(document)
 
         # DB operations in a single transaction: chunks + document record
         await self.chunk_repo.delete_by_document(document_id)
         await self.doc_repo.delete(document)
+        if not commit:
+            return
         await self.db.commit()
 
         # Physical file cleaned up AFTER successful DB commit (best-effort)
@@ -515,6 +561,12 @@ class RAGSpaceService:
             document_id=str(document_id),
             space_id=str(space_id),
         )
+
+    async def delete_selected_document_rows(
+        self, space_id: uuid.UUID, document_ids: tuple[uuid.UUID, ...], user_id: uuid.UUID
+    ) -> None:
+        """Remove the exact batch in the caller's transaction, without commit or file effects."""
+        await delete_selected_document_rows(self.db, space_id, document_ids, user_id)
 
     async def get_document_status(
         self,

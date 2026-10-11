@@ -48,7 +48,7 @@ def sample_types():
             parent="Contact",
             category=TypeCategory.IDENTITY,
             description="Email address",
-            related_types=["phone_number", "person_name"],
+            related_types=["phone_number"],
             source_domains=["contact", "email"],
             used_in_tools=["get_contact_tool", "send_email_tool"],
         ),
@@ -172,6 +172,78 @@ class TestTypeRegistryValidation:
         errors = registry.validate_hierarchy()
         assert len(errors) == 1
         assert "nonexistent_parent" in errors[0]
+
+    def test_conflicting_definition_is_rejected(self, registry):
+        registry.register(SemanticType(name="email_address", category=TypeCategory.IDENTITY))
+        with pytest.raises(ValueError, match="Conflicting semantic type definition"):
+            registry.register(SemanticType(name="email_address", category=TypeCategory.RESOURCE_ID))
+        assert registry.get("email_address").category == TypeCategory.IDENTITY
+
+    def test_domain_lookup_cannot_corrupt_registry(self, populated_registry):
+        returned_types = populated_registry.get_by_domain("contact")
+        returned_types.clear()
+        assert "Contact" in populated_registry.get_by_domain("contact")
+
+    def test_root_is_counted_in_hierarchy(self, registry):
+        registry.register(SemanticType(name="root", category=TypeCategory.IDENTITY))
+        assert registry.get_stats()["hierarchy_nodes"] == 1
+
+    def test_cycles_are_reported(self, registry):
+        registry.register(SemanticType(name="a", parent="b", category=TypeCategory.IDENTITY))
+        registry.register(SemanticType(name="b", parent="a", category=TypeCategory.IDENTITY))
+        assert any("cycles" in error for error in registry.validate_hierarchy())
+
+    def test_property_ranges_allow_primitives_and_registered_types(self, registry):
+        registry.register(
+            SemanticType(
+                name="point",
+                category=TypeCategory.LOCATION,
+                properties={"latitude": "float", "label": "str", "self": "point"},
+            )
+        )
+        assert registry.validate_hierarchy() == []
+
+    def test_unknown_property_range_is_reported(self, registry):
+        registry.register(
+            SemanticType(
+                name="contact",
+                category=TypeCategory.IDENTITY,
+                properties={"email": "emali_address"},
+            )
+        )
+        assert "unknown range 'emali_address'" in registry.validate_hierarchy()[0]
+
+    @pytest.mark.parametrize(
+        "relation", ["children", "related_types", "broader_types", "narrower_types"]
+    )
+    def test_unknown_relation_target_is_reported(self, registry, relation):
+        registry.register(
+            SemanticType(name="a", category=TypeCategory.IDENTITY, **{relation: ["missing"]})
+        )
+        assert any("unknown type 'missing'" in error for error in registry.validate_hierarchy())
+
+    @pytest.mark.parametrize(
+        ("relation", "inverse"),
+        [
+            ("children", "parent"),
+            ("related_types", "related_types"),
+            ("broader_types", "narrower_types"),
+            ("narrower_types", "broader_types"),
+        ],
+    )
+    def test_missing_relation_inverse_is_reported(self, registry, relation, inverse):
+        registry.register(
+            SemanticType(name="a", category=TypeCategory.IDENTITY, **{relation: ["b"]})
+        )
+        registry.register(SemanticType(name="b", category=TypeCategory.IDENTITY))
+        assert any(
+            f"missing inverse '{inverse}'" in error for error in registry.validate_hierarchy()
+        )
+
+    def test_explicit_child_parent_inverse_is_valid(self, registry):
+        registry.register(SemanticType(name="a", category=TypeCategory.IDENTITY, children=["b"]))
+        registry.register(SemanticType(name="b", parent="a", category=TypeCategory.IDENTITY))
+        assert registry.validate_hierarchy() == []
 
 
 class TestTypeRegistryStats:

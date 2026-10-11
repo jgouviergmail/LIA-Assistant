@@ -18,7 +18,11 @@ import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.constants import SCHEDULED_ACTIONS_MAX_PER_USER
-from src.core.exceptions import ResourceNotFoundError, ValidationError
+from src.core.exceptions import (
+    ResourceNotFoundError,
+    ValidationError,
+    raise_scheduled_action_already_executing,
+)
 from src.core.recurrence import RecurrenceSpec
 from src.core.time_utils import now_utc
 from src.domains.scheduled_actions.models import (
@@ -59,6 +63,14 @@ def _refuse_a_past_last_day(condition_config: Mapping[str, Any] | None, timezone
     until = condition_until(condition_config)
     if until is not None and until < now_utc().astimezone(ZoneInfo(timezone)).date():
         raise ValidationError("until cannot be a day that is already over")
+
+
+def validate_routine_creation(data: ScheduledActionCreate, timezone: str) -> None:
+    """The same timezone and watch deadline are validated for UI writes and previews."""
+    ZoneInfo(timezone)
+    _refuse_a_past_last_day(
+        data.condition_config.stored() if data.condition_config else None, timezone
+    )
 
 
 def _fact_space(condition_config: Mapping[str, Any] | None) -> dict[str, Any]:
@@ -137,6 +149,10 @@ def _trigger_edit(
 _CLOCK_FIELDS: frozenset[str] = frozenset({"trigger_kind", "recurrence", "condition_config"})
 
 
+def _revives(action: ScheduledAction, next_trigger_at: datetime | None) -> bool:
+    return next_trigger_at is not None and action.status == ScheduledActionStatus.COMPLETED.value
+
+
 def _serialised(data: ScheduledActionUpdate, values: dict[str, Any]) -> dict[str, Any]:
     """The update's values in the columns' own types, as NEW objects (JSONB rule)."""
     values = dict(values)
@@ -181,6 +197,22 @@ class ScheduledActionService:
         self.repository = ScheduledActionRepository(db)
         self.run_repository = ScheduledActionRunRepository(db)
 
+    @staticmethod
+    def preview_configuration(
+        action: ScheduledAction, data: ScheduledActionUpdate
+    ) -> ScheduledActionCreate:
+        """Validate the resulting clock using the exact update rule, without a write."""
+        edit = _trigger_edit(action, data, data.model_dump(exclude_unset=True))
+        values = {name: getattr(action, name) for name in ScheduledActionCreate.model_fields}
+        values.update({name: value for name, value in edit.values.items() if name in values})
+        return ScheduledActionCreate.model_validate(values)
+
+    @staticmethod
+    def preview_enabled(action: ScheduledAction, data: ScheduledActionUpdate) -> bool:
+        """Expose the same completed-routine revival that the source writer applies."""
+        edit = _trigger_edit(action, data, data.model_dump(exclude_unset=True))
+        return action.is_enabled or (edit.rearm and _revives(action, edit.plan.first(now_utc())))
+
     async def get_with_ownership_check(
         self,
         action_id: UUID,
@@ -197,11 +229,30 @@ class ScheduledActionService:
             raise ResourceNotFoundError("scheduled_action", str(action_id))
         return action
 
+    async def reserve_manual_execution(
+        self, action_id: UUID, user_id: UUID, *, execution_token: UUID | None = None
+    ) -> ScheduledAction:
+        """UI and native launches serialize with each other and the scheduler."""
+        action = await self.repository.lock_owned(action_id, user_id)
+        if action is None:
+            raise ResourceNotFoundError("scheduled_action", str(action_id))
+        if action.status == ScheduledActionStatus.EXECUTING.value:
+            raise_scheduled_action_already_executing(action_id)
+        return await self.repository.update(
+            action,
+            {
+                "status": ScheduledActionStatus.EXECUTING.value,
+                "execution_token": execution_token or uuid4(),
+            },
+        )
+
     async def create(
         self,
         user_id: UUID,
         data: ScheduledActionCreate,
         user_timezone: str,
+        *,
+        action_id: UUID | None = None,
     ) -> ScheduledAction:
         """
         Create a new scheduled action.
@@ -214,7 +265,8 @@ class ScheduledActionService:
             ValidationError: If user has reached the maximum limit, or a watch
                 is set to end on a day already over.
         """
-        # Enforce per-user limit
+        # UI and assistant creations serialize on the same owner row.
+        await self.repository.lock_creation_owner(user_id)
         count = await self.repository.count_for_user(user_id)
         if count >= SCHEDULED_ACTIONS_MAX_PER_USER:
             raise ValidationError(
@@ -222,8 +274,8 @@ class ScheduledActionService:
             )
 
         condition_config = data.condition_config.stored() if data.condition_config else None
-        _refuse_a_past_last_day(condition_config, user_timezone)
-        action_id = uuid4()
+        validate_routine_creation(data, user_timezone)
+        action_id = action_id or uuid4()
         # The first armed instant, from the plan the executor re-arms with.
         next_trigger_at = TriggerPlan(
             action_id=action_id,
@@ -304,9 +356,7 @@ class ScheduledActionService:
             #
             # The rule is about WHO closed it: a PAUSE is the person's own
             # decision, and an edit is not a request to resume.
-            if next_trigger_at is not None and action.status == (
-                ScheduledActionStatus.COMPLETED.value
-            ):
+            if _revives(action, next_trigger_at):
                 revived["is_enabled"] = True
                 revived["status"] = ScheduledActionStatus.ACTIVE.value
             action = await self.repository.update(action, revived)
@@ -354,10 +404,19 @@ class ScheduledActionService:
         """
         action = await self.get_with_ownership_check(action_id, user_id)
 
-        new_enabled = not action.is_enabled
-        update_data: dict = {"is_enabled": new_enabled}
+        return await self._write_enabled(action, not action.is_enabled)
 
-        if new_enabled:
+    async def set_enabled(self, action_id: UUID, user_id: UUID, enabled: bool) -> ScheduledAction:
+        """Apply a desired state once; an unchanged state preserves the scheduler clock."""
+        action = await self.get_with_ownership_check(action_id, user_id)
+        return await self._write_enabled(action, enabled)
+
+    async def _write_enabled(self, action: ScheduledAction, enabled: bool) -> ScheduledAction:
+        if action.is_enabled == enabled:
+            return action
+        update_data: dict[str, Any] = {"is_enabled": enabled}
+
+        if enabled and action.status != ScheduledActionStatus.EXECUTING.value:
             # Re-enabling: recalculate next trigger and reset error state
             update_data["next_trigger_at"] = TriggerPlan.of(action).first(now_utc())
             update_data["status"] = ScheduledActionStatus.ACTIVE.value
@@ -368,9 +427,9 @@ class ScheduledActionService:
 
         logger.info(
             "scheduled_action_toggled",
-            action_id=str(action_id),
-            user_id=str(user_id),
-            is_enabled=new_enabled,
+            action_id=str(action.id),
+            user_id=str(action.user_id),
+            is_enabled=enabled,
         )
 
         return action
@@ -380,7 +439,7 @@ class ScheduledActionService:
         return await self.repository.get_all_for_user(user_id)
 
     async def week_for_user(
-        self, user_id: UUID, *, now: datetime | None = None
+        self, user_id: UUID, *, now: datetime | None = None, action_ids: list[UUID] | None = None
     ) -> list[ActionWeek]:
         """The current week of every routine of a user (ADR-265).
 
@@ -395,7 +454,11 @@ class ScheduledActionService:
         Returns:
             One entry per routine, paused ones included, in list order.
         """
-        actions = await self.repository.get_all_for_user(user_id)
+        actions = (
+            await self.repository.get_all_for_user(user_id, action_ids=action_ids)
+            if action_ids is not None
+            else await self.repository.get_all_for_user(user_id)
+        )
         since = week_read_lower_bound(actions, now=now)
         runs = await self.run_repository.list_since(user_id, since) if since else []
         return build_week(actions, runs, now=now)

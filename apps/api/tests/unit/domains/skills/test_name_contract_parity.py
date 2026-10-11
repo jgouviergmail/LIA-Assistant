@@ -50,6 +50,10 @@ GENERATOR_EXCLUDED_AGENTS = frozenset(
         # program — a generated skill is text a model wrote, and this surface
         # is too young to be handed to one. Revisit deliberately.
         "ticket_agent",
+        # Account configuration includes consent and layout changes. Keep the
+        # setting surface outside generated templates until a bounded permission
+        # review deliberately defines its exposure; interactive runtime is unchanged.
+        "setting_agent",
     }
 )
 
@@ -119,3 +123,34 @@ class TestValidAgentsParity:
             f"{sorted(unclassified)} — add them to validate_skill.py VALID_AGENTS "
             f"(and tool-catalogue.md) or to GENERATOR_EXCLUDED_AGENTS in this test"
         )
+
+    @pytest.mark.parametrize(
+        ("agent", "tool", "valid"),
+        [
+            ("setting_agent", "update_lia_preferences_tool", False),
+            ("contact_agent", "get_contacts_tool", True),
+        ],
+    )
+    def test_generated_templates_keep_account_configuration_out_of_the_tool_offer(
+        self,
+        agent: str,
+        tool: str,
+        valid: bool,
+    ) -> None:
+        validator = _load_validator_module()
+        content = f"""---
+name: configuration-oracle
+description: Checks the reviewed generated-template tool scope.
+plan_template:
+  steps:
+    - step_id: step_1
+      step_type: TOOL
+      agent_name: {agent}
+      tool_name: {tool}
+---
+Perform the declared step.
+"""
+        result = validator.validate_skill(content)
+        assert result["valid"] is valid
+        if not valid:
+            assert any("setting_agent" in error for error in result["errors"])

@@ -34,6 +34,7 @@ from typing import Any
 from langgraph.runtime import get_runtime
 from langgraph.store.base import BaseStore
 
+from src.core.application_origin import ApplicationOrigin
 from src.core.constants import (
     DEFAULT_TIMEZONE,
     EXECUTION_MODE_PIPELINE,
@@ -104,6 +105,9 @@ class LiaRuntimeContext:
         language: The user's language, backend-canonical (``zh-CN``, not ``zh``).
         display_name: The user's name, used as a sender identity by
             content-generating tools such as email signatures.
+        application_origin: Live transport session reader, never a model parameter,
+            checkpoint, metadata field or remembered approval. Sensitive commands bind
+            its opaque identity and recheck authority at execution.
     """
 
     user_id: uuid.UUID
@@ -113,6 +117,7 @@ class LiaRuntimeContext:
     store: BaseStore | None = None
 
     memory_enabled: bool = False
+    extraction_revision: int | None = None
     journals_enabled: bool = False
     psyche_enabled: bool = False
     voice_enabled: bool = False
@@ -129,6 +134,7 @@ class LiaRuntimeContext:
     browser_context: Any = None
     user_message: str = ""
     side_channel_queue: asyncio.Queue | None = None
+    application_origin: ApplicationOrigin | None = field(default=None, repr=False)
 
     @classmethod
     def for_conversation(

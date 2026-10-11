@@ -43,8 +43,25 @@ function hook(over: Partial<PsycheHook> = {}) {
 beforeEach(() => vi.clearAllMocks());
 
 describe('PsycheSettings', () => {
-  it('enabling the psyche engine persists it and toasts success', async () => {
+  it('reports an unattested update as failed instead of announcing success', async () => {
     const updateSettings = vi.fn().mockResolvedValue(undefined);
+    usePsyche.mockReturnValue(hook({ updateSettings }));
+    const { user } = renderPsyche();
+    await user.click(screen.getAllByRole('switch')[0]);
+    await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(1));
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it('does not announce success for an obsolete account callback', async () => {
+    const updateSettings = vi.fn().mockResolvedValue(null);
+    usePsyche.mockReturnValue(hook({ updateSettings }));
+    const { user } = renderPsyche();
+    await user.click(screen.getAllByRole('switch')[0]);
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it('enabling the psyche engine persists it and toasts success', async () => {
+    const updateSettings = vi.fn().mockResolvedValue({ psyche_enabled: true });
     usePsyche.mockReturnValue(hook({ updateSettings }));
     const { user } = renderPsyche();
     await user.click(screen.getAllByRole('switch')[0]);

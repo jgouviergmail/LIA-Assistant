@@ -15,7 +15,8 @@
 
 import { useCallback, useState } from 'react';
 import apiClient from '@/lib/api-client';
-import { useApiQuery } from '@/hooks/useApiQuery';
+import { useApplicationAccountQuery } from '@/hooks/useApplicationAccountQuery';
+import { useApplicationResourceSync } from '@/hooks/useApplicationResourceSync';
 import type {
   BriefingResponse,
   BriefingWindows,
@@ -65,45 +66,51 @@ const ENDPOINT_CARDS = '/briefing/cards';
 const ENDPOINT_SYNTHESIS = '/briefing/synthesis';
 const ENDPOINT_REFRESH = '/briefing/refresh';
 const ENDPOINT_REFRESH_CARDS = '/briefing/refresh-cards';
+const releaseReminderOverride = () => {};
 
 export function useBriefing(): UseBriefingResult {
-  const cardsQuery = useApiQuery<CardsResponse>(ENDPOINT_CARDS, {
-    componentName: 'TodayBriefing.cards',
-  });
-  const synthesisQuery = useApiQuery<SynthesisResponse>(ENDPOINT_SYNTHESIS, {
-    componentName: 'TodayBriefing.synthesis',
-  });
+  const cardsQuery = useApplicationAccountQuery<CardsResponse>(ENDPOINT_CARDS, 'TodayBriefing.cards');
+  const synthesisQuery = useApplicationAccountQuery<SynthesisResponse>(ENDPOINT_SYNTHESIS, 'TodayBriefing.synthesis');
+  const { ownerId, lifetime, isCurrent, refetch: refetchCards } = cardsQuery;
+  // Reminder cards are always live at the source; rereading them calls no LLM.
+  useApplicationResourceSync(ownerId, 'reminders', refetchCards, releaseReminderOverride);
 
-  const [refreshingSections, setRefreshing] = useState<Set<RefreshScope>>(new Set());
+  const [refreshing, setRefreshing] = useState({ lifetime, sections: new Set<RefreshScope>() });
+  const refreshingSections = refreshing.lifetime === lifetime ? refreshing.sections : new Set<RefreshScope>();
 
   const refetchSection = useCallback(
     async (section: RefreshScope) => {
+      if (!isCurrent()) return;
       setRefreshing(prev => {
-        const next = new Set(prev);
+        const next = new Set(prev.lifetime === lifetime ? prev.sections : []);
         next.add(section);
-        return next;
+        return { lifetime, sections: next };
       });
       try {
         const payload: RefreshRequest = { sections: [section] };
         if (section === 'all') {
           // Global refresh: the LLM texts summarize the cards, regenerate both.
           const fresh = await apiClient.post<BriefingResponse>(ENDPOINT_REFRESH, payload);
+          if (!isCurrent()) return;
           cardsQuery.setData({ cards: fresh.cards, windows: fresh.windows });
           synthesisQuery.setData({ greeting: fresh.greeting, synthesis: fresh.synthesis });
         } else {
           // D-04: a per-card retry must not pay two LLM calls — cards only.
           const fresh = await apiClient.post<CardsResponse>(ENDPOINT_REFRESH_CARDS, payload);
+          if (!isCurrent()) return;
           cardsQuery.setData({ cards: fresh.cards, windows: fresh.windows });
         }
       } finally {
-        setRefreshing(prev => {
-          const next = new Set(prev);
-          next.delete(section);
-          return next;
-        });
+        if (isCurrent()) {
+          setRefreshing(prev => {
+            const next = new Set(prev.lifetime === lifetime ? prev.sections : []);
+            next.delete(section);
+            return { lifetime, sections: next };
+          });
+        }
       }
     },
-    [cardsQuery, synthesisQuery]
+    [cardsQuery, synthesisQuery, isCurrent, lifetime]
   );
 
   const refetchAll = useCallback(async () => {

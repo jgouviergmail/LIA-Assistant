@@ -40,6 +40,11 @@ from src.core.constants import (
 from src.core.i18n import normalize_language
 from src.core.llm_usage import LLMUsage
 from src.core.time_utils import resolve_user_timezone
+from src.domains.relations.debrief.controls import (
+    DebriefControlRefused,
+    check_debrief_boundary,
+    note_debrief_commit,
+)
 from src.domains.relations.debrief.llm import DebriefAuthor, write_debrief
 from src.domains.relations.debrief.models import DebriefState, RelationDebrief
 from src.domains.relations.debrief.repository import RelationDebriefRepository
@@ -59,6 +64,7 @@ from src.domains.relations.overview_scope import OverviewSection, RelationOvervi
 from src.domains.relations.repository import RelationAliasRepository
 from src.domains.shared.consultation_sink import consultation_collector
 from src.domains.users.models import User
+from src.domains.users.repository import UserRepository
 from src.infrastructure.database.session import get_db_context
 from src.infrastructure.observability.metrics_relation_debrief import (
     relation_debrief_build_duration_seconds,
@@ -337,11 +343,14 @@ class RelationDebriefService:
             already there.
         """
         async with get_db_context() as db:
-            user = await db.get(User, self.user_id)
+            # Resolve identity only after concurrent grouping/setting writes finish.
+            # The claim commits below, before any provider or LLM request.
+            user = await UserRepository(db).get_by_id_for_preference_update(self.user_id)
             if user is None:
                 return RelationDebriefRead(status=DebriefStatus.ABSENT, person=name.strip())
             if not await self._enabled(user):
                 return RelationDebriefRead(status=DebriefStatus.DISABLED, person=name.strip())
+            await check_debrief_boundary(self.user_id, "claim", db)
             key = await self._identity_key(db, name)
             if not key:
                 return RelationDebriefRead(status=DebriefStatus.ABSENT, person=name.strip())
@@ -370,24 +379,36 @@ class RelationDebriefService:
                 force=force,
             )
             await db.commit()
+            if owner is not None:
+                note_debrief_commit(self.user_id, "claimed")
 
         if owner is None:
             # Somebody else owns this build, or today's is already settled.
             relation_debrief_builds_total.labels(outcome="declined").inc()
             return await self.read(name)
 
-        return await self._run_build(
-            author=author,
-            name=name,
-            key=key,
-            owner=owner,
-            scope=scope,
-            language=language,
-            local_date=local_date,
-            # The shortcut below may only reuse a text written under the SAME
-            # settings, so the claim's own comparison keys travel with it.
-            previous=_Previous.of(previous, language=language, scope_digest=scope_digest),
-        )
+        try:
+            return await self._run_build(
+                author=author,
+                name=name,
+                key=key,
+                owner=owner,
+                scope=scope,
+                language=language,
+                local_date=local_date,
+                previous=_Previous.of(previous, language=language, scope_digest=scope_digest),
+            )
+        except DebriefControlRefused:
+            # Release only this claim; preserve previous words and paid accounting.
+            # Cleanup does not require revoked authority to start fresh work.
+            async with get_db_context() as db:
+                changed = await RelationDebriefRepository(db).settle_failed(
+                    self.user_id, name_key=key, owner=owner, held_until=datetime.now(UTC)
+                )
+                await db.commit()
+                if changed:
+                    note_debrief_commit(self.user_id, "cancelled")
+            raise
 
     async def _run_build(
         self,
@@ -476,6 +497,7 @@ class RelationDebriefService:
             The debrief as the reader will see it.
         """
         started = perf_counter()
+        await check_debrief_boundary(self.user_id, "work")
         try:
             evidence = await build_overview_evidence(self.user_id, name, scope)
         except OverviewEvidenceUnavailable:
@@ -502,6 +524,7 @@ class RelationDebriefService:
         # ONE resolution of the spelling, used for the prompt AND stored: the
         # card's own "properest" name, never whatever the request carried.
         person = evidence.detail.display_name or name.strip()
+        await check_debrief_boundary(self.user_id, "work")
         try:
             body, usage = await write_debrief(
                 author=author,
@@ -512,6 +535,8 @@ class RelationDebriefService:
                 run_id=run_id,
                 target_id=hashlib.sha256(key.encode("utf-8")).hexdigest()[:16],
             )
+        except DebriefControlRefused:
+            raise
         except Exception as exc:  # noqa: BLE001 — a failed build is a state, not a crash
             logger.warning(
                 "relation_debrief_build_failed",
@@ -585,7 +610,8 @@ class RelationDebriefService:
     ) -> None:
         stored = StoredDebriefBody(**body.model_dump())
         async with get_db_context() as db:
-            await RelationDebriefRepository(db).settle_ready(
+            await check_debrief_boundary(self.user_id, "publish", db)
+            changed = await RelationDebriefRepository(db).settle_ready(
                 self.user_id,
                 name_key=key,
                 owner=owner,
@@ -597,37 +623,48 @@ class RelationDebriefService:
                 unavailable=list(evidence.unavailable),
                 generated_at=datetime.now(UTC),
             )
+            await check_debrief_boundary(self.user_id, "publish", db)
             await db.commit()
+            note_debrief_commit(self.user_id, "ready", changed)
 
     async def _settle_empty(self, key: str, owner: UUID, evidence: OverviewEvidence) -> None:
         async with get_db_context() as db:
-            await RelationDebriefRepository(db).settle_empty(
+            await check_debrief_boundary(self.user_id, "publish", db)
+            changed = await RelationDebriefRepository(db).settle_empty(
                 self.user_id,
                 name_key=key,
                 owner=owner,
                 sections_used=[],
                 unavailable=list(evidence.unavailable),
             )
+            await check_debrief_boundary(self.user_id, "publish", db)
             await db.commit()
+            note_debrief_commit(self.user_id, "empty", changed)
 
     async def _settle_failed(self, key: str, owner: UUID) -> None:
         cooldown = datetime.now(UTC) + timedelta(
             seconds=settings.relation_debrief_failure_cooldown_seconds
         )
         async with get_db_context() as db:
-            await RelationDebriefRepository(db).settle_failed(
+            await check_debrief_boundary(self.user_id, "publish", db)
+            changed = await RelationDebriefRepository(db).settle_failed(
                 self.user_id, name_key=key, owner=owner, held_until=cooldown
             )
+            await check_debrief_boundary(self.user_id, "publish", db)
             await db.commit()
+            note_debrief_commit(self.user_id, "failed", changed)
 
     async def _carry_forward(
         self, key: str, owner: UUID, local_date: date, state: DebriefState
     ) -> None:
         async with get_db_context() as db:
-            await RelationDebriefRepository(db).carry_forward(
+            await check_debrief_boundary(self.user_id, "publish", db)
+            changed = await RelationDebriefRepository(db).carry_forward(
                 self.user_id, name_key=key, owner=owner, local_date=local_date, state=state
             )
+            await check_debrief_boundary(self.user_id, "publish", db)
             await db.commit()
+            note_debrief_commit(self.user_id, "unchanged", changed)
 
     async def _track(self, usage: Any, key: str, run_id: str) -> None:
         """Bill the call through the SAME path as every other non-chat call.

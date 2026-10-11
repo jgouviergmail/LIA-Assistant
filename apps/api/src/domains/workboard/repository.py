@@ -49,6 +49,7 @@ from src.core.time_utils import now_utc
 from src.domains.chat.models import MessageTokenSummary, TokenUsageLog
 from src.domains.conversations.models import ConversationMessage
 from src.domains.shared.text_normalization import fold_name
+from src.domains.workboard import detail_queries
 from src.domains.workboard.board_queries import (
     BoardFilters,
     apply_assignee,
@@ -67,6 +68,7 @@ from src.domains.workboard.constants import (
     TicketStatus,
 )
 from src.domains.workboard.models import WorkboardComment, WorkboardTicket, WorkboardTicketEvent
+from src.domains.workboard.mutation_fence import lock_mutation_ticket
 
 logger = structlog.get_logger(__name__)
 
@@ -208,7 +210,15 @@ class WorkboardRepository(BaseRepository[WorkboardTicket]):
             The rows, and the count over the same filter.
         """
         stmt = self._board_stmt(user_id, filters)
-        rows = (await self.db.execute(stmt.limit(limit).offset(offset))).scalars().all()
+        rows = (
+            (
+                await self.db.execute(
+                    stmt.limit(limit).offset(offset).execution_options(populate_existing=True)
+                )
+            )
+            .scalars()
+            .all()
+        )
         total_stmt = select(func.count()).select_from(
             self.filtered_stmt(user_id, filters).order_by(None).subquery()
         )
@@ -234,7 +244,18 @@ class WorkboardRepository(BaseRepository[WorkboardTicket]):
             counts[str(status)] = int(count)
         return counts
 
-    async def get_visible(self, ticket_id: UUID, user_id: UUID) -> WorkboardTicket | None:
+    async def count_visible(self, ticket_ids: list[UUID], user_id: UUID) -> int:
+        """Recheck a bounded observed page through the source visibility predicate."""
+        return await detail_queries.count_visible(self.db, ticket_ids, user_id)
+
+    async def get_visible(
+        self,
+        ticket_id: UUID,
+        user_id: UUID,
+        *,
+        for_update: bool = False,
+        prospective_holder: UUID | None = None,
+    ) -> WorkboardTicket | None:
         """The ticket, if it is on this user's board.
 
         Args:
@@ -245,10 +266,9 @@ class WorkboardRepository(BaseRepository[WorkboardTicket]):
             The row, or None — which the service turns into a neutral 404 so a
             stranger cannot probe whether an id exists.
         """
-        stmt = select(WorkboardTicket).where(
-            WorkboardTicket.id == ticket_id, visible_predicate(user_id)
-        )
-        return (await self.db.execute(stmt)).scalar_one_or_none()
+        if for_update:
+            return await lock_mutation_ticket(self.db, user_id, ticket_id, prospective_holder)
+        return await detail_queries.read_visible(self.db, ticket_id, user_id)
 
     async def count_owned(self, user_id: UUID) -> int:
         """How many tickets this account owns.
@@ -282,7 +302,9 @@ class WorkboardRepository(BaseRepository[WorkboardTicket]):
         )
         return int((await self.db.execute(stmt)).scalar() or 0)
 
-    async def list_children(self, ticket_id: UUID) -> list[WorkboardTicket]:
+    async def list_children(
+        self, ticket_id: UUID, *, limit: int | None = None, offset: int = 0
+    ) -> list[WorkboardTicket]:
         """The sub-tickets of a ticket, in board order.
 
         Args:
@@ -291,14 +313,11 @@ class WorkboardRepository(BaseRepository[WorkboardTicket]):
         Returns:
             The children.
         """
-        stmt = (
-            select(WorkboardTicket)
-            .where(WorkboardTicket.parent_id == ticket_id)
-            .order_by(WorkboardTicket.position.asc(), WorkboardTicket.id.asc())
-        )
-        return list((await self.db.execute(stmt)).scalars().all())
+        return await detail_queries.read_children(self.db, ticket_id, limit=limit, offset=offset)
 
-    async def list_comments(self, ticket_id: UUID) -> list[WorkboardComment]:
+    async def list_comments(
+        self, ticket_id: UUID, *, limit: int | None = None, offset: int = 0
+    ) -> list[WorkboardComment]:
         """The comment thread of a ticket, oldest first.
 
         Args:
@@ -307,12 +326,7 @@ class WorkboardRepository(BaseRepository[WorkboardTicket]):
         Returns:
             The comments.
         """
-        stmt = (
-            select(WorkboardComment)
-            .where(WorkboardComment.ticket_id == ticket_id)
-            .order_by(WorkboardComment.created_at.asc(), WorkboardComment.id.asc())
-        )
-        return list((await self.db.execute(stmt)).scalars().all())
+        return await detail_queries.read_comments(self.db, ticket_id, limit=limit, offset=offset)
 
     async def owner_notes_since(
         self, ticket_id: UUID, owner_user_id: UUID, *, since: datetime | None, limit: int
@@ -348,7 +362,9 @@ class WorkboardRepository(BaseRepository[WorkboardTicket]):
         latest.reverse()
         return latest
 
-    async def list_events(self, ticket_id: UUID) -> list[WorkboardTicketEvent]:
+    async def list_events(
+        self, ticket_id: UUID, *, limit: int | None = None, offset: int = 0
+    ) -> list[WorkboardTicketEvent]:
         """The history of a ticket, oldest first.
 
         Args:
@@ -357,12 +373,7 @@ class WorkboardRepository(BaseRepository[WorkboardTicket]):
         Returns:
             The events.
         """
-        stmt = (
-            select(WorkboardTicketEvent)
-            .where(WorkboardTicketEvent.ticket_id == ticket_id)
-            .order_by(WorkboardTicketEvent.created_at.asc(), WorkboardTicketEvent.id.asc())
-        )
-        return list((await self.db.execute(stmt)).scalars().all())
+        return await detail_queries.read_events(self.db, ticket_id, limit=limit, offset=offset)
 
     async def find_by_title(self, user_id: UUID, title: str) -> list[WorkboardTicket]:
         """Visible tickets whose FOLDED title equals the folded needle.
@@ -1110,6 +1121,7 @@ class WorkboardRepository(BaseRepository[WorkboardTicket]):
         author_user_id: UUID | None,
         body: str,
         run_id: str | None = None,
+        comment_id: UUID | None = None,
     ) -> WorkboardComment:
         """Append one comment to a ticket.
 
@@ -1129,6 +1141,7 @@ class WorkboardRepository(BaseRepository[WorkboardTicket]):
             author_user_id=author_user_id,
             body=body,
             run_id=run_id,
+            **({"id": comment_id} if comment_id is not None else {}),
         )
         self.db.add(comment)
         await self.db.flush()

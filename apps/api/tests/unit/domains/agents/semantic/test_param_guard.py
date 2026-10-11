@@ -5,13 +5,18 @@ turn on a parameter whose manifest declares an address/email semantic type,
 BEFORE the paid API call. Fail-open everywhere else.
 """
 
-from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from src.core.field_names import FIELD_RESOLVED_PERSON_NAMES
 from src.domains.agents.registry.agent_registry import ToolManifestNotFound
+from src.domains.agents.registry.catalogue import (
+    CostProfile,
+    ParameterSchema,
+    PermissionProfile,
+    ToolManifest,
+)
 from src.domains.agents.semantic.param_guard import (
     SemanticParamViolation,
     check_semantic_params,
@@ -28,17 +33,30 @@ NAMES = frozenset({"marc lemoine"})
 def _manifest(
     params: list[tuple[str, str | None]],
     required: frozenset[str] = frozenset(),
-) -> SimpleNamespace:
+) -> ToolManifest:
     """Build a fake tool manifest with (name, semantic_type) parameters."""
-    return SimpleNamespace(
+    return ToolManifest(
+        name="get_route_tool",
+        agent="route_agent",
+        description="Read-only guard fixture",
         parameters=[
-            SimpleNamespace(name=name, semantic_type=semantic_type, required=name in required)
+            ParameterSchema(
+                name=name,
+                type="string",
+                description="Typed value",
+                semantic_type=semantic_type,
+                required=name in required,
+            )
             for name, semantic_type in params
-        ]
+        ],
+        outputs=[],
+        cost=CostProfile(),
+        permissions=PermissionProfile(),
+        mutation_policy="read",
     )
 
 
-def _registry_with(manifest: SimpleNamespace) -> MagicMock:
+def _registry_with(manifest: ToolManifest) -> MagicMock:
     registry = MagicMock()
     registry.get_tool_manifest = MagicMock(return_value=manifest)
     return registry
@@ -192,7 +210,7 @@ class TestStripPlaceholderArguments:
 
     LOC = [("location", "physical_address"), ("date", "event_start_datetime")]
 
-    def _run(self, args: dict, manifest: SimpleNamespace | None = None) -> dict:
+    def _run(self, args: dict, manifest: ToolManifest | None = None) -> dict:
         manifest = manifest or _manifest(self.LOC)
         with patch(
             "src.domains.agents.registry.get_global_registry",

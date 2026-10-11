@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTheme } from 'next-themes';
 
 const LIA_GENDER_COOKIE = 'lia_gender';
+const LIA_GENDER_CHANGE_EVENT = 'lia-gender-change';
 
 /**
  * Hook to manage LIA's gender preference (masculine/feminine)
@@ -17,13 +18,21 @@ export function useLiaGender() {
 
   useEffect(() => {
     setMounted(true);
-    // Read gender preference from cookie
-    const cookies = document.cookie.split(';');
-    const genderCookie = cookies.find(c => c.trim().startsWith(`${LIA_GENDER_COOKIE}=`));
-    if (genderCookie) {
-      const value = genderCookie.split('=')[1];
-      setIsMale(value === 'male');
-    }
+    const syncGender = () => {
+      const prefix = `${LIA_GENDER_COOKIE}=`;
+      const genderCookie = document.cookie.split(';').find(c => c.trim().startsWith(prefix));
+      setIsMale(genderCookie?.trim().slice(prefix.length) === 'male');
+    };
+
+    syncGender();
+    // Cookie writes do not emit storage events. Notify mounted consumers in
+    // this tab, and reread on focus for a choice made in another tab.
+    window.addEventListener(LIA_GENDER_CHANGE_EVENT, syncGender);
+    window.addEventListener('focus', syncGender);
+    return () => {
+      window.removeEventListener(LIA_GENDER_CHANGE_EVENT, syncGender);
+      window.removeEventListener('focus', syncGender);
+    };
   }, []);
 
   /**
@@ -44,6 +53,7 @@ export function useLiaGender() {
     // drop the cookie on a plain-HTTP dev origin, silently breaking the toggle.
     const secure = window.location.protocol === 'https:' ? '; Secure' : '';
     document.cookie = `${LIA_GENDER_COOKIE}=${male ? 'male' : 'female'}; expires=${expires.toUTCString()}; path=/; SameSite=Lax${secure}`;
+    window.dispatchEvent(new Event(LIA_GENDER_CHANGE_EVENT));
   }, []);
 
   const toggleGender = useCallback(() => setGender(!isMale), [isMale, setGender]);

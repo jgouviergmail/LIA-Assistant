@@ -5,6 +5,7 @@ enum, display registry (boot-asserted), i18n noun/verb ×6, executor
 registration.
 """
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -15,6 +16,7 @@ from src.domains.agents.drafts.display import (
     assert_registry_completeness,
 )
 from src.domains.agents.drafts.models import DraftType
+from src.domains.users.models import User
 
 # Backend-canonical language keys (zh-CN, never zh — CLAUDE.md i18n rule).
 SUPPORTED = ("fr", "en", "es", "de", "it", "zh-CN")
@@ -65,11 +67,18 @@ class TestScheduledActionDraftExecutor:
         created.id = uuid4()
         created.title = "Revue de presse IA"
         service.create = AsyncMock(return_value=created)
+        user_id = uuid4()
+        actor = SimpleNamespace(id=user_id, is_active=True, is_deleted=False)
 
         @asynccontextmanager
         async def _db_ctx():
             session = MagicMock()
             session.commit = AsyncMock()
+            session.scalar = AsyncMock(
+                side_effect=lambda statement: (
+                    actor if statement.column_descriptions[0]["entity"] is User else None
+                )
+            )
             yield session
 
         draft_content = {
@@ -99,7 +108,7 @@ class TestScheduledActionDraftExecutor:
                 new=_db_ctx,
             ),
         ):
-            result = await execute_scheduled_action_draft(draft_content, uuid4(), MagicMock())
+            result = await execute_scheduled_action_draft(draft_content, user_id, MagicMock())
 
         assert result["success"] is True
         assert result["title"] == "Revue de presse IA"

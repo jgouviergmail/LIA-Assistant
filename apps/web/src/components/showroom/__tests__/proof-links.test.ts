@@ -13,15 +13,20 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  getConfiguredProofSha,
-  getShowroomProofLinks,
-} from '@/components/showroom/proof-links';
+import { getConfiguredProofSha, getShowroomProofLinks } from '@/components/showroom/proof-links';
 
 const SHA = 'a'.repeat(40);
 const REPO = 'https://github.com/jgouviergmail/LIA-Assistant';
 
 describe('showroom proof-links', () => {
+  it('opens the selected mission fixture rather than the first mission', () => {
+    const fixture = getShowroomProofLinks(SHA, 'daily_briefing').links.find(
+      link => link.id === 'fixture'
+    );
+    expect(fixture?.url).toBe(
+      `${REPO}/blob/${SHA}/apps/web/src/components/showroom/missions/daily-briefing.ts`
+    );
+  });
   afterEach(() => {
     vi.unstubAllEnvs();
   });
@@ -57,19 +62,12 @@ describe('showroom proof-links', () => {
   });
 
   it('covers the promised capability areas with stable ids', () => {
-    const ids = getShowroomProofLinks(SHA).links.map((l) => l.id);
-    for (const expected of [
-      'routing',
-      'planner',
-      'orchestrator',
-      'hitl',
-      'trace',
-      'fixture',
-    ]) {
+    const ids = getShowroomProofLinks(SHA).links.map(l => l.id);
+    for (const expected of ['routing', 'planner', 'orchestrator', 'hitl', 'trace', 'fixture']) {
       expect(ids).toContain(expected);
     }
     // Both evidence kinds are present.
-    const kinds = new Set(getShowroomProofLinks(SHA).links.map((l) => l.kind));
+    const kinds = new Set(getShowroomProofLinks(SHA).links.map(l => l.kind));
     expect(kinds).toEqual(new Set(['product-core', 'p0-fixture']));
   });
 

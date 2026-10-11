@@ -205,6 +205,13 @@ class TestRouterResetsTheReactTurn:
             "react_tool_seconds": 913.79,
             "react_productive_iterations": 40,
             "react_call_digests": {"digest": 3},
+            "react_read_results": {"digest": {"content": "old", "expires_at": 1.0}},
+            "react_read_observations": {"digest": {"tool_name": "old", "outcome": "failed"}},
+            "react_last_productive_message_id": "previous-generation",
+            "requested_outcome_evidence": [{"tool_name": "old", "success": True}],
+            "semantic_value_bindings": [{"source_ref": "previous-turn"}],
+            "semantic_source_observations": {"previous-turn": {"value": "old"}},
+            "semantic_source_valid_after": "2026-10-05T10:00:00+00:00",
             "react_scripts": [{"purpose": "last turn's script", "code": "print(1)"}],
             # ADR-310: a pass of the previous turn would forbid this turn's own.
             "react_recovery_passes": [{"anchor_id": "t9", "draft": "old", "unresolved": ["A"]}],

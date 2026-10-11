@@ -30,6 +30,11 @@ def _fresh_module_logger():
     yield from fresh_module_logger(drive_sync)
 
 
+@pytest.fixture(autouse=True)
+def isolate_fake_consultation_persistence(monkeypatch):
+    monkeypatch.setattr("src.domains.shared.consultation_sink._collector_factory", None)
+
+
 @contextlib.asynccontextmanager
 async def _fake_db_context():
     db = AsyncMock()

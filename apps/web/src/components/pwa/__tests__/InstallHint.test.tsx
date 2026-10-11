@@ -7,7 +7,7 @@
 import { describe, it, expect } from 'vitest';
 
 import { isInstallHintVisible } from '../InstallHint';
-import { composeShareDraft } from '@/app/[lng]/share/page';
+import { composeShareDraft } from '@/lib/share-draft';
 import { CHAT_INPUT_MAX_LENGTH, PWA_INSTALL_HINT_MIN_VISITS } from '@/lib/constants';
 
 describe('isInstallHintVisible', () => {

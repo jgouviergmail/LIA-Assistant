@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>LIA isolated renderer characterization</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#f3f0e9;color:#344052;font:14px system-ui}
+    header{height:54px;display:flex;align-items:center;gap:16px;padding:12px 16px}
+    button,input{font:inherit;padding:7px;border:1px solid #d4d8de;border-radius:7px}
+    main{height:calc(100dvh - 54px);position:relative;overflow:hidden}canvas{display:block}
+    #status{position:absolute;top:10px;left:10px;background:#ffffffdf;padding:8px;border-radius:7px;max-width:calc(100% - 175px)}
+    #mapControls{position:absolute;top:10px;right:10px;width:144px;background:#ffffffdf;border-radius:7px;padding:7px}
+    #map{width:128px;height:128px;touch-action:none}#cameraButtons{display:flex;gap:2px}#cameraButtons button{min-width:42px;min-height:44px;padding:4px;font-size:12px}
+    @media(max-width:600px){header{font-size:12px;gap:8px}input{width:110px}button{padding:6px}}
+  </style>
+</head>
+<body>
+  <header><strong>Renderer probe</strong><button id="five">5 avatars</button><button id="ten">10 avatars</button><input aria-label="Private text" placeholder="Typing pauses movement"></header>
+  <main id="view"><div id="status">Starting…</div><aside id="mapControls" aria-label="World map"><canvas id="map" width="128" height="128" aria-label="Click to explore the map"></canvas><div id="cameraButtons"><button id="zoomIn" aria-label="Zoom in">+</button><button id="zoomOut" aria-label="Zoom out">−</button><button id="follow" aria-label="Follow avatar">Me</button></div></aside></main>
+  <script src="pixi.min.js"></script>
+  <script>
+  (async()=>{
+    const app=new PIXI.Application();
+    await app.init({resizeTo:document.querySelector('#view'),background:'#ddd8c9',preference:'webgl',resolution:Math.min(devicePixelRatio,2),autoDensity:true,antialias:false,sharedTicker:false});
+    document.querySelector('#view').appendChild(app.canvas);
+    const scene=new PIXI.Container(); app.stage.addChild(scene);
+    const tileGraphic=new PIXI.Graphics().poly([0,-12,24,0,0,12,-24,0]).fill('#cfccbc').stroke({color:'#bfbcae',width:1});
+    const tileTexture=app.renderer.generateTexture(tileGraphic); tileGraphic.destroy();
+    const propGraphic=new PIXI.Graphics().roundRect(-9,-27,18,23,4).fill('#628572').rect(-11,-7,22,7).fill('#9d7958');
+    const propTexture=app.renderer.generateTexture(propGraphic); propGraphic.destroy();
+    const personGraphic=new PIXI.Graphics().roundRect(-7,-25,14,20,4).fill('#5383b8').circle(0,-30,7).fill('#ddae86').rect(-6,-5,5,7).fill('#364052').rect(1,-5,5,7).fill('#364052');
+    const personTexture=app.renderer.generateTexture(personGraphic); personGraphic.destroy();
+    const floors=new PIXI.Container(),props=new PIXI.Container(),actors=new PIXI.Container(); scene.addChild(floors,props,actors);
+    const project=(x,y)=>({x:(x-y)*24,y:(x+y)*12});
+    const unproject=(x,y)=>({x:x/48+y/24,y:y/24-x/48});
+    for(let x=0;x<32;x++)for(let y=0;y<32;y++){const s=new PIXI.Sprite(tileTexture);s.anchor.set(.5);Object.assign(s,project(x,y));floors.addChild(s);}
+    for(let i=0;i<200;i++){const s=new PIXI.Sprite(propTexture);s.anchor.set(.5,1);Object.assign(s,project((i*7)%32,(i*13)%32));props.addChild(s);}
+    const avatars=[];for(let i=0;i<10;i++){const s=new PIXI.Sprite(personTexture);s.anchor.set(.5,1);s.tint=[0xffffff,0xfbd99c,0x83c7c4,0xf9b6bc][i%4];actors.addChild(s);avatars.push(s);}
+    const bipTexture=await PIXI.Assets.load('bip.webp'); const bip=new PIXI.Sprite(bipTexture);bip.anchor.set(.5,1);bip.width=38;bip.height=38;actors.addChild(bip);
+    let count=5,steps=0,pressed=new Set(),angle=0,frames=[],previousFrame=performance.now();
+    const camera={zoom:1,mode:'follow',x:14,y:14},clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+    const map=document.querySelector('#map'),mapContext=map.getContext('2d');
+    document.querySelector('#zoomIn').onclick=()=>camera.zoom=clamp(camera.zoom*1.2,.5,2.5);
+    document.querySelector('#zoomOut').onclick=()=>camera.zoom=clamp(camera.zoom/1.2,.5,2.5);
+    document.querySelector('#follow').onclick=()=>camera.mode='follow';
+    map.onpointerdown=e=>{const r=map.getBoundingClientRect();camera.x=clamp((e.clientX-r.left)/r.width*32,0,31);camera.y=clamp((e.clientY-r.top)/r.height*32,0,31);camera.mode='free';};
+    let cameraDrag=null;
+    app.canvas.addEventListener('pointerdown',e=>{cameraDrag={x:e.clientX,y:e.clientY};camera.mode='free';app.canvas.setPointerCapture(e.pointerId);});
+    app.canvas.addEventListener('pointermove',e=>{if(!cameraDrag)return;const shift=unproject((e.clientX-cameraDrag.x)/scene.scale.x,(e.clientY-cameraDrag.y)/scene.scale.y);camera.x=clamp(camera.x-shift.x,0,31);camera.y=clamp(camera.y-shift.y,0,31);cameraDrag={x:e.clientX,y:e.clientY};});
+    app.canvas.addEventListener('pointerup',()=>cameraDrag=null);app.canvas.addEventListener('pointercancel',()=>cameraDrag=null);
+    app.canvas.addEventListener('wheel',e=>{if(typing())return;e.preventDefault();camera.zoom=clamp(camera.zoom*Math.exp(-e.deltaY*.001),.5,2.5);},{passive:false});
+    app.canvas.style.touchAction='none';
+    const setCount=n=>{count=n;avatars.forEach((a,i)=>a.visible=i<n)};setCount(5);
+    document.querySelector('#five').onclick=()=>setCount(5);document.querySelector('#ten').onclick=()=>setCount(10);
+    const typing=()=>['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)||document.activeElement?.isContentEditable;
+    addEventListener('keydown',e=>{if(!typing()&&['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','a','s','d','z','q'].includes(e.key)){pressed.add(e.key);e.preventDefault()}});
+    addEventListener('keyup',e=>pressed.delete(e.key));addEventListener('blur',()=>pressed.clear());
+    document.addEventListener('focusin',()=>{if(typing())pressed.clear()});
+    document.addEventListener('visibilitychange',()=>{pressed.clear();document.hidden?app.stop():app.start()});
+    app.ticker.add(t=>{
+      const frameNow=performance.now();frames.push(frameNow-previousFrame);previousFrame=frameNow;
+      angle+=Math.min(t.deltaMS,50)*.00035;if(frames.length>10000)frames.shift();
+      if(pressed.size&&!typing())steps++;
+      if(camera.mode==='follow'){camera.x+=(14+Math.sin(angle)*8-camera.x)*.12;camera.y+=(14+Math.cos(angle)*8-camera.y)*.12;}
+      const cameraProjected=project(camera.x,camera.y),scale=Math.min(1,app.screen.width/650)*camera.zoom;
+      scene.scale.set(scale);scene.position.set(app.screen.width/2-cameraProjected.x*scale,app.screen.height*.5-cameraProjected.y*scale);
+      for(let i=0;i<count;i++){const p=project(14+Math.sin(angle+i)*8,14+Math.cos(angle+i)*8);avatars[i].position.set(p.x,p.y);}
+      const p=project(14+Math.sin(angle+.3)*7,14+Math.cos(angle+.3)*7);bip.position.set(p.x,p.y);
+      actors.children.sort((a,b)=>a.y-b.y);
+      mapContext.fillStyle='#e6e5d9';mapContext.fillRect(0,0,128,128);mapContext.strokeStyle='#b5c3b8';mapContext.lineWidth=5;mapContext.beginPath();mapContext.moveTo(0,64);mapContext.lineTo(128,64);mapContext.moveTo(64,0);mapContext.lineTo(64,128);mapContext.stroke();
+      mapContext.fillStyle='#5383b8';mapContext.beginPath();mapContext.arc((14+Math.sin(angle)*8)*4,(14+Math.cos(angle)*8)*4,4,0,Math.PI*2);mapContext.fill();mapContext.strokeStyle='#344052';mapContext.lineWidth=1;mapContext.strokeRect(camera.x*4-10,camera.y*4-10,20,20);
+    });
+    const gl=app.renderer.gl;const ext=gl.getExtension('WEBGL_debug_renderer_info');
+    const gpu=ext?gl.getParameter(ext.UNMASKED_RENDERER_WEBGL):'unavailable';
+    document.querySelector('#status').textContent=`Pixi ${PIXI.VERSION} · 1024 tiles · 200 props · 5/10 avatars + BIP`;
+    window.probe={version:PIXI.VERSION,gpu,setCount,project,unproject,get camera(){return {...camera}},get avatarPosition(){return {x:avatars[0].x,y:avatars[0].y}},get steps(){return steps},get moving(){return pressed.size},get textures(){return 4},get sceneObjects(){return 1235},get size(){return {width:app.screen.width,height:app.screen.height,dpr:app.renderer.resolution}}};
+    window.benchmark=async(n,milliseconds=6000)=>{setCount(n);frames=[];await new Promise(r=>setTimeout(r,milliseconds));const f=frames.slice(5).sort((a,b)=>a-b);return {avatars:n,frames:f.length,medianMs:f[Math.floor(f.length*.5)],p95Ms:f[Math.floor(f.length*.95)],p99Ms:f[Math.floor(f.length*.99)],meanMs:f.reduce((a,b)=>a+b,0)/f.length,gpu,version:PIXI.VERSION,size:window.probe.size,visibility:document.visibilityState};};
+    window.baseline=async(milliseconds=6000)=>{app.stop();const f=[];let last=performance.now(),end=last+milliseconds;await new Promise(resolve=>{const step=now=>{f.push(now-last);last=now;now>=end?resolve():requestAnimationFrame(step)};requestAnimationFrame(step)});app.start();const s=f.slice(5).sort((a,b)=>a-b);return {frames:s.length,medianMs:s[Math.floor(s.length*.5)],p95Ms:s[Math.floor(s.length*.95)],meanMs:s.reduce((a,b)=>a+b,0)/s.length,rendererStopped:true};};
+    window.probe.ready=true;
+  })().catch(e=>{document.querySelector('#status').textContent=String(e);window.probeError=String(e)});
+  </script>
+</body>
+</html>

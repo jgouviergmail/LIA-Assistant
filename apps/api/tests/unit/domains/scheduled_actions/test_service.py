@@ -92,6 +92,31 @@ def _service(actions: list[SimpleNamespace]) -> tuple[ScheduledActionService, Ma
 
 
 class TestTimezoneMove:
+    @pytest.mark.parametrize("enabled", [True, False])
+    async def test_setting_the_same_enabled_state_does_not_rearm_or_clear_errors(
+        self, enabled: bool
+    ) -> None:
+        action = _action(is_enabled=enabled, consecutive_failures=3, last_error="source-error")
+        service = _editing(action)
+        result = await service.set_enabled(action.id, action.user_id, enabled)
+        assert result is action and result.consecutive_failures == 3
+        assert result.next_trigger_at == PARIS_MORNING and result.last_error == "source-error"
+        service.repository.update.assert_not_awaited()
+
+    async def test_enabling_a_running_routine_preserves_the_scheduler_reservation(self) -> None:
+        action = _action(is_enabled=False, status="executing")
+        service = _editing(action)
+        result = await service.set_enabled(action.id, action.user_id, True)
+        assert result.is_enabled is True and result.status == "executing"
+        assert result.next_trigger_at == PARIS_MORNING
+
+    async def test_disabling_a_routine_does_not_rewrite_its_saved_schedule(self) -> None:
+        action = _action(is_enabled=True)
+        service = _editing(action)
+        result = await service.set_enabled(action.id, action.user_id, False)
+        assert result.is_enabled is False and result.next_trigger_at == PARIS_MORNING
+        assert result.recurrence_spec == _EVERY_DAY_AT_EIGHT
+
     async def test_a_paused_routine_follows_the_move_like_an_active_one(self) -> None:
         active, paused = _action(), _action(is_enabled=False)
         service, repo = _service([active, paused])
@@ -269,6 +294,7 @@ class TestCreatingAWatch:
     async def test_it_stores_no_schedule_and_arms_its_first_check(self) -> None:
         service = ScheduledActionService(MagicMock())
         service.repository = MagicMock()
+        service.repository.lock_creation_owner = AsyncMock()
         service.repository.count_for_user = AsyncMock(return_value=0)
         service.repository.create = AsyncMock(side_effect=lambda data: SimpleNamespace(**data))
         before = datetime.now(UTC)
@@ -301,6 +327,7 @@ class TestCreatingAWatch:
     async def test_a_last_day_already_over_is_refused(self) -> None:
         service = ScheduledActionService(MagicMock())
         service.repository = MagicMock()
+        service.repository.lock_creation_owner = AsyncMock()
         service.repository.count_for_user = AsyncMock(return_value=0)
 
         with pytest.raises(ValidationError, match="until"):

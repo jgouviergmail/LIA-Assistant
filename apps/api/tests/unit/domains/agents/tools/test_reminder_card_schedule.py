@@ -35,6 +35,8 @@ async def _list_rows(rows: list[Reminder], language: str = "en") -> UnifiedToolO
     with (
         patch("src.infrastructure.database.session.get_db_context", session),
         patch("src.domains.reminders.service.ReminderService") as service,
+        patch("src.domains.agents.application.authorization.load_actor", AsyncMock()),
+        patch("src.domains.agents.application.availability.require_application_tools", AsyncMock()),
         patch(
             "src.domains.agents.tools.runtime_helpers.get_user_preferences",
             AsyncMock(return_value=("Europe/Paris", language, language)),

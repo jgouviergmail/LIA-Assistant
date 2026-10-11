@@ -160,6 +160,7 @@ EFFECT_LABEL_BUILDERS: dict[str, LabelValuesBuilder] = {
     # ADR-327 lot 3: a skill's command that reached hosts — a network act of its own.
     "skill_command_network": _target("hosts"),
     # --- confirmed drafts ---------------------------------------------------
+    "draft:application_action": _nothing,
     "draft:email": _draft("to", "recipient", key="recipient"),
     "draft:email_reply": _draft("to", "recipient", key="recipient"),
     "draft:email_forward": _draft("to", "recipient", key="recipient"),
@@ -190,6 +191,43 @@ EFFECT_LABEL_BUILDERS: dict[str, LabelValuesBuilder] = {
 }
 
 
+def _application_label(arguments: dict[str, Any]) -> dict[str, Any] | None:
+    """Name a registered confirmed operation without copying its payload.
+
+    Keep the legacy key for old rows and malformed payloads. The existing
+    operation registry is the authority; read operations cannot claim an act.
+    Reuse the confirmation's existing capability humaniser. Native card titles
+    can be generic, so they cannot distinguish the action. Nothing from title,
+    intent, proofs or before/after enters the label.
+    """
+    from src.domains.agents.application.operation_spec import OperationKind
+    from src.domains.agents.application.registry import APPLICATION_OPERATIONS
+    from src.domains.agents.effects.confirmation import readable_tool_name
+
+    content = arguments.get("draft")
+    if not isinstance(content, dict):
+        return None
+    if isinstance(content.get("content"), dict):
+        content = content["content"]
+    operation = content.get("operation_id")
+    title = content.get("title")
+    if not isinstance(operation, str) or not isinstance(title, str) or not title.strip():
+        return None
+    try:
+        spec = APPLICATION_OPERATIONS.get(operation)
+    except KeyError:
+        return None
+    if spec.kind == OperationKind.READ:
+        return None
+    return {
+        "i18n_key": "effects.labels.draft.application_action_named",
+        "values": {
+            "target": _text(readable_tool_name(spec.tool_name)),
+            "operation": spec.operation_id,
+        },
+    }
+
+
 def build_effect_label(tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     """The stored label of one effect.
 
@@ -212,6 +250,10 @@ def build_effect_label(tool_name: str, arguments: dict[str, Any]) -> dict[str, A
             else f"effects.labels.{tool_name}"
         )
         try:
+            if tool_name == "draft:application_action":
+                named = _application_label(arguments)
+                if named is not None:
+                    return named
             return {"i18n_key": key, "values": builder(arguments)}
         except Exception:  # noqa: BLE001 - a wording must never break an effect
             return {"i18n_key": key, "values": {}}

@@ -27,6 +27,11 @@ pytestmark = pytest.mark.unit
 FOLDER = GOOGLE_DRIVE_FOLDER_MIME
 
 
+@pytest.fixture(autouse=True)
+def isolate_fake_consultation_persistence(monkeypatch):
+    monkeypatch.setattr("src.domains.shared.consultation_sink._collector_factory", None)
+
+
 @contextlib.asynccontextmanager
 async def _fake_db_context():
     db = AsyncMock()
@@ -34,7 +39,13 @@ async def _fake_db_context():
     yield db
 
 
-async def _run_sync(tmp_path, client: FakeDriveClient) -> tuple[list[dict], list[dict]]:
+async def _run_sync(
+    tmp_path,
+    client: FakeDriveClient,
+    *,
+    indexed: set[str] | None = None,
+    remove: AsyncMock | None = None,
+) -> tuple[list[dict], list[dict]]:
     """Drive one sync against the fake Drive; returns (source updates, created documents)."""
     space_id, source_id, user_id = uuid4(), uuid4(), uuid4()
     created: list[dict] = []
@@ -51,6 +62,7 @@ async def _run_sync(tmp_path, client: FakeDriveClient) -> tuple[list[dict], list
 
     source = MagicMock()
     source.folder_id = "root"
+    source.folder_ids = ["root", "previously-known"]
     source_repo = AsyncMock()
     source_repo.get_by_id = AsyncMock(return_value=source)
     source_repo.update = AsyncMock(side_effect=fake_update)
@@ -58,7 +70,7 @@ async def _run_sync(tmp_path, client: FakeDriveClient) -> tuple[list[dict], list
     doc_repo = AsyncMock()
     doc_repo.get_by_drive_file_id = AsyncMock(return_value=None)
     doc_repo.count_for_space = AsyncMock(return_value=0)
-    doc_repo.get_drive_file_ids_for_source = AsyncMock(return_value=set())
+    doc_repo.get_drive_file_ids_for_source = AsyncMock(return_value=indexed or set())
     doc_repo.create = AsyncMock(side_effect=make_doc)
 
     connector_service = AsyncMock()
@@ -87,6 +99,7 @@ async def _run_sync(tmp_path, client: FakeDriveClient) -> tuple[list[dict], list
         ),
         patch.object(drive_sync, "GoogleDriveClient", return_value=client),
         patch.object(drive_sync, "process_document", side_effect=fake_process),
+        patch.object(drive_sync, "remove_drive_document", remove or AsyncMock()),
         patch.object(drive_sync, "settings", settings_mock),
         patch.object(drive_ingest, "settings", settings_mock),
         # The stored path is built by storage_paths (ADR-326): patch where it is read.
@@ -94,6 +107,26 @@ async def _run_sync(tmp_path, client: FakeDriveClient) -> tuple[list[dict], list
     ):
         await drive_sync.sync_folder_background(space_id, source_id, user_id)
     return updates, created
+
+
+@pytest.mark.parametrize("incomplete", ["truncated", "unreadable"])
+async def test_incomplete_tree_never_deletes_unseen_indexed_files(tmp_path, incomplete):
+    client = FakeDriveClient(
+        {
+            "root": [drive_file("visible"), drive_file("child", FOLDER)],
+            "child": [drive_file("hidden")],
+        },
+        unreadable={"child"} if incomplete == "unreadable" else set(),
+    )
+    remove = AsyncMock()
+    with patch.object(
+        drive_sync, "RAG_DRIVE_MAX_FILES_PER_SYNC", 1 if incomplete == "truncated" else 100
+    ):
+        updates, _ = await _run_sync(tmp_path, client, indexed={"visible", "hidden"}, remove=remove)
+    remove.assert_not_awaited()
+    final = updates[-1]
+    assert final["sync_status"] == "error" and final["error_message"]
+    assert final["folder_ids"][0] == "root" and "previously-known" in final["folder_ids"]
 
 
 @pytest.mark.asyncio

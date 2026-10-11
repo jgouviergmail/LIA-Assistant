@@ -62,7 +62,10 @@ local_query_engine_catalogue_manifest = ToolManifest(
     ],
     outputs=[
         OutputFieldSchema(
-            path="summary_for_llm", type="string", description="Natural language summary"
+            path="summary_for_llm",
+            type="string",
+            description="Natural language summary",
+            semantic_type="Text",
         ),
         OutputFieldSchema(path="registry_updates", type="object", description="Result items map"),
         OutputFieldSchema(

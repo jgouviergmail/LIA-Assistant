@@ -11,6 +11,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 
 const { useAdminMCPServers } = vi.hoisted(() => ({ useAdminMCPServers: vi.fn() }));
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'current-account' } }) }));
 vi.mock('@/hooks/useAdminMCPServers', () => ({ useAdminMCPServers }));
 const { toast } = vi.hoisted(() => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('sonner', () => ({ toast }));
@@ -72,6 +73,14 @@ describe('AdminMCPServersSettings', () => {
     useAdminMCPServers.mockReturnValue(hook({ toggleServer }));
     const { user } = renderSection();
     await user.click(screen.getByRole('switch', { name: 'settings.admin_mcp.toggle_server' }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(1));
+  });
+
+  it('reports a failed authoritative retry without an unhandled rejection', async () => {
+    const refetch = vi.fn().mockRejectedValue(new Error('offline'));
+    useAdminMCPServers.mockReturnValue(hook({ servers: [], error: new Error('offline'), refetch }));
+    const { user } = renderSection();
+    await user.click(screen.getByRole('button', { name: 'common.retry' }));
     await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(1));
   });
 });

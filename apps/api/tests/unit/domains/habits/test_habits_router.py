@@ -95,6 +95,24 @@ def client(monkeypatch: pytest.MonkeyPatch, candidates_mock: AsyncMock) -> TestC
     import src.domains.habits.service as service_module
 
     monkeypatch.setattr(service_module, "HabitsRepository", _StubRepo)
+
+    class EmptyRedis:
+        async def get(self, key):
+            return None
+
+        async def set(self, *args, **kwargs):
+            return True
+
+        async def delete(self, *keys):
+            return 0
+
+        async def scan_iter(self, match):
+            for key in ():
+                yield key
+
+    monkeypatch.setattr(
+        "src.infrastructure.cache.redis.get_redis_cache", AsyncMock(return_value=EmptyRedis())
+    )
     _StubRepo.profile = None
     _StubRepo.habits = []
     _StubRepo.activity_dates = []
@@ -104,10 +122,46 @@ def client(monkeypatch: pytest.MonkeyPatch, candidates_mock: AsyncMock) -> TestC
 
     db = MagicMock()
     db.commit = AsyncMock()
+    db.flush = AsyncMock()
     db.refresh = AsyncMock()
     db.add = MagicMock()
 
-    user = SimpleNamespace(id=uuid.uuid4(), habits_enabled=True)
+    async def forget(db, owner):
+        from src.domains.habits.forgetting import clear_habit_advisory_state
+        from src.domains.habits.schemas import HabitsDeleteAllResponse
+
+        repo = _StubRepo(db)
+        deleted = await repo.delete_all(owner)
+        await repo.delete_profile(owner)
+        await repo.delete_activity_rollup(owner)
+        await db.commit()
+        cleaned = await clear_habit_advisory_state(owner)
+        return HabitsDeleteAllResponse(
+            deleted_habits=deleted, profile_deleted=True, advisory_cleanup_confirmed=cleaned
+        )
+
+    monkeypatch.setattr("src.domains.habits.router.forget_habit_data", forget)
+
+    user = SimpleNamespace(id=uuid.uuid4(), habits_enabled=True, is_active=True, deleted_at=None)
+
+    async def change_managed(db, owner, habit_id, change):
+        from src.domains.habits.management_commands import ManagedHabit
+
+        if _StubRepo.owned is None:
+            raise ResourceNotFoundError("habit", str(habit_id))
+        if change is None:
+            await _StubRepo(db).delete_habit(_StubRepo.owned)
+            await db.commit()
+            return None
+        await _StubRepo(db).set_status(_StubRepo.owned, change.status)
+        await db.commit()
+        return ManagedHabit.model_validate(_StubRepo.owned)
+
+    monkeypatch.setattr("src.domains.habits.router.change_managed_habit", change_managed)
+    monkeypatch.setattr(
+        "src.domains.users.repository.UserRepository.get_by_id_for_preference_update",
+        AsyncMock(return_value=user),
+    )
 
     app = FastAPI()
     app.include_router(router)
@@ -225,7 +279,7 @@ def test_explanation_of_a_recurring_habit_carries_real_observed_days(
 ) -> None:
     """Honest provenance: the ledger's REAL occurrence dates — the exact
     basis of the lock — never fabricated conversation references."""
-    import src.domains.habits.router as router_module
+    import src.domains.habits.management_explanation as explanation_module
 
     row = _habit_row()
     row.kind = "recurring_request"
@@ -233,7 +287,7 @@ def test_explanation_of_a_recurring_habit_carries_real_observed_days(
     row.payload = {"version": 1, "shape": "weekly", "trigger_hour": 9.0, "days_of_week": [0]}
     _StubRepo.owned = row
     days_mock = AsyncMock(return_value=["2026-08-03", "2026-07-27", "2026-07-20"])
-    monkeypatch.setattr(router_module, "observed_days_for_signature", days_mock)
+    monkeypatch.setattr(explanation_module, "observed_days_for_signature", days_mock)
 
     resp = client.get(f"/habits/{row.id}/explanation")
     assert resp.status_code == 200
@@ -244,12 +298,12 @@ def test_explanation_of_a_recurring_habit_carries_real_observed_days(
 def test_explanation_of_a_window_habit_reads_no_ledger(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import src.domains.habits.router as router_module
+    import src.domains.habits.management_explanation as explanation_module
 
     row = _habit_row()  # kind=active_window
     _StubRepo.owned = row
     days_mock = AsyncMock(return_value=["2026-08-03"])
-    monkeypatch.setattr(router_module, "observed_days_for_signature", days_mock)
+    monkeypatch.setattr(explanation_module, "observed_days_for_signature", days_mock)
 
     resp = client.get(f"/habits/{row.id}/explanation")
     assert resp.status_code == 200
@@ -276,9 +330,11 @@ def test_explanation_thresholds_match_the_kind(
     the lock evaluation never applies (ADR-184 violation surfaced by the
     provenance UI, code-review catch): each kind publishes ITS detector's
     thresholds, never the other's."""
-    import src.domains.habits.router as router_module
+    import src.domains.habits.management_explanation as explanation_module
 
-    monkeypatch.setattr(router_module, "observed_days_for_signature", AsyncMock(return_value=[]))
+    monkeypatch.setattr(
+        explanation_module, "observed_days_for_signature", AsyncMock(return_value=[])
+    )
     row = _habit_row()
     row.kind = "recurring_request"
     row.key = "email"
@@ -370,6 +426,8 @@ def test_delete_all_survives_a_redis_outage(client: TestClient) -> None:
     ):
         resp = client.delete("/habits")
     assert resp.status_code == 200
+    assert resp.json()["profile_deleted"] is True
+    assert resp.json()["advisory_cleanup_confirmed"] is False
 
 
 def test_settings_toggle_round_trips(client: TestClient) -> None:

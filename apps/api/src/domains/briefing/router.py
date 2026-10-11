@@ -180,13 +180,20 @@ async def put_briefing_preferences(
     Validation is strict (unknown/duplicate names → 422). The write is a
     plain NEW-dict assignment — the JSONB new-dict rule.
     """
-    current_user.briefing_preferences = {
-        "hidden": list(payload.hidden),
-        "order": list(payload.order),
-    }
-    db.add(current_user)
-    await db.commit()
-    return sanitize_briefing_preferences(current_user.briefing_preferences)
+    # The package exports this router eagerly; the shared owner also reads its schemas.
+    from src.infrastructure.account_preferences import (
+        LayoutPreferencePatch,
+        update_layout_preferences,
+    )
+
+    actor = await update_layout_preferences(
+        db,
+        current_user.id,
+        LayoutPreferencePatch.model_validate(
+            {"briefing_preferences": payload.model_dump(mode="json")}
+        ),
+    )
+    return sanitize_briefing_preferences(actor.briefing_preferences)
 
 
 class SynthesisAudioRequest(BaseModel):

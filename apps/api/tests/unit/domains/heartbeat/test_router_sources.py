@@ -15,28 +15,36 @@ readable by whoever produces the value (ADR-184).
 from __future__ import annotations
 
 import uuid
-from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi import HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.heartbeat.router import get_heartbeat_settings, update_heartbeat_settings
 from src.domains.heartbeat.schemas import HeartbeatSettingsUpdate
 from src.domains.heartbeat.source_policy import HEARTBEAT_SOURCE_ORDER
+from src.domains.users.models import User
 
 pytestmark = pytest.mark.unit
 
 
-def _user(disabled: list[str] | None = None) -> SimpleNamespace:
-    return SimpleNamespace(
+def _user(disabled: list[str] | None = None) -> User:
+    return User(
         id=uuid.uuid4(),
         language="fr",
+        is_active=True,
         heartbeat_enabled=True,
         heartbeat_notify_start_hour=8,
         heartbeat_notify_end_hour=22,
         heartbeat_disabled_sources=disabled,
     )
+
+
+def _db(user: User) -> AsyncMock:
+    db = AsyncMock(spec=AsyncSession)
+    db.scalar.return_value = user
+    return db
 
 
 def _patch_availability() -> object:
@@ -73,7 +81,7 @@ class TestReading:
 class TestWriting:
     async def test_stores_the_canonical_refusal_list(self) -> None:
         user = _user(None)
-        db = AsyncMock()
+        db = _db(user)
 
         with _patch_availability():
             response = await update_heartbeat_settings(
@@ -95,7 +103,7 @@ class TestWriting:
             await update_heartbeat_settings(
                 data=HeartbeatSettingsUpdate(heartbeat_disabled_sources=[]),
                 user=user,
-                db=AsyncMock(),
+                db=_db(user),
             )
 
         assert user.heartbeat_disabled_sources == []
@@ -124,7 +132,7 @@ class TestWriting:
             await update_heartbeat_settings(
                 data=HeartbeatSettingsUpdate(heartbeat_enabled=False),
                 user=user,
-                db=AsyncMock(),
+                db=_db(user),
             )
 
         assert user.heartbeat_disabled_sources == ["journals"]

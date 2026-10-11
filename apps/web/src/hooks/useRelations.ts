@@ -10,11 +10,14 @@
  * doctrine: verbs return `{ ok }`, never leave state to a post-await read).
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 import { apiClient } from '@/lib/api-client';
 import { useApiMutation } from '@/hooks/useApiMutation';
-import { useApiQuery } from '@/hooks/useApiQuery';
+import { useApplicationAccountQuery } from '@/hooks/useApplicationAccountQuery';
+import { useApplicationAccountState } from '@/hooks/useApplicationAccountState';
+import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
+import { useApplicationResourceSync } from '@/hooks/useApplicationResourceSync';
 import type { LLMUsage } from '@/types/llm-usage';
 
 /** How the relationship key was matched — honesty over false precision. */
@@ -140,17 +143,22 @@ export function useRelationsOverview() {
   // load from a refetch, and starring refetches. Seeded with an empty bundle,
   // the two were indistinguishable and the page swapped the whole list for a
   // spinner on every star — wiping the toolbar the user was typing in.
-  const { data, loading, error, refetch } = useApiQuery<RelationsOverview>('/relations', {
-    componentName: 'RelationsOverview',
-  });
+  const { data, loading, error, refetch, ownerId, isCurrent } =
+    useApplicationAccountQuery<RelationsOverview>('/relations', 'RelationsOverview');
   // Optimistic star state: name -> flipped value, cleared on refetch/failure.
-  const [overrides, setOverrides] = useState<Record<string, boolean>>({});
+  const [overrides, setOverrides] = useApplicationAccountState<Record<string, boolean>>(
+    ownerId,
+    {}
+  );
+  const refreshGeneration = useRef(0);
   const put = useApiMutation({ method: 'PUT', componentName: 'RelationsFavorite' });
   const del = useApiMutation({ method: 'DELETE', componentName: 'RelationsFavorite' });
 
   const toggleFavorite = useCallback(
     async (name: string, nextValue: boolean): Promise<{ ok: boolean }> => {
-      setOverrides(prev => ({ ...prev, [name]: nextValue }));
+      if (!isCurrent()) return { ok: false };
+      const generation = refreshGeneration.current;
+      setOverrides(previous => ({ ...previous, [name]: nextValue }));
       try {
         const endpoint = `/relations/favorites/${encodeURIComponent(name)}`;
         if (nextValue) {
@@ -161,30 +169,45 @@ export function useRelationsOverview() {
         // Reconcile: once the fresh overview lands it carries the server
         // truth — dropping the override then lets any LATER server-side
         // change (another tab, another device) show through again.
-        void Promise.resolve(refetch()).then(() =>
-          setOverrides(prev => {
-            const next = { ...prev };
-            delete next[name];
-            return next;
+        void refetch()
+          .then(() => {
+            if (isCurrent() && generation === refreshGeneration.current) {
+              setOverrides(previous => {
+                const next = { ...previous };
+                delete next[name];
+                return next;
+              });
+            }
           })
-        );
+          .catch(() => {});
         return { ok: true };
       } catch {
         // Roll the optimistic flip back — the server said no.
-        setOverrides(prev => {
-          const next = { ...prev };
-          delete next[name];
-          return next;
-        });
+        if (isCurrent() && generation === refreshGeneration.current) {
+          setOverrides(previous => {
+            const next = { ...previous };
+            delete next[name];
+            return next;
+          });
+        }
         return { ok: false };
       }
     },
-    [put, del, refetch]
+    [put, del, refetch, isCurrent, setOverrides]
   );
 
   // Optimistic switch state, same doctrine as the star: it flips locally at
   // once and rolls back when the server says no.
-  const [debriefOverride, setDebriefOverride] = useState<boolean | null>(null);
+  const [debriefOverride, setDebriefOverride] = useApplicationAccountState<boolean | null>(
+    ownerId,
+    null
+  );
+  const releaseOverrides = useCallback(() => {
+    refreshGeneration.current += 1;
+    setOverrides({});
+    setDebriefOverride(null);
+  }, [setOverrides, setDebriefOverride]);
+  useApplicationResourceSync(ownerId, 'relations', refetch, releaseOverrides);
   const patchSettings = useApiMutation<{ debrief_enabled: boolean }, { debrief_enabled: boolean }>({
     method: 'PATCH',
     componentName: 'RelationSettings',
@@ -192,6 +215,8 @@ export function useRelationsOverview() {
 
   const setDebriefEnabled = useCallback(
     async (nextValue: boolean): Promise<{ ok: boolean }> => {
+      if (!isCurrent()) return { ok: false };
+      const generation = refreshGeneration.current;
       setDebriefOverride(nextValue);
       try {
         const stored = await patchSettings.mutate('/relations/settings', {
@@ -199,14 +224,15 @@ export function useRelationsOverview() {
         });
         // Adopt what the server STORED, not what was sent: a value it refused
         // must show through rather than be painted over locally.
-        if (stored) setDebriefOverride(stored.debrief_enabled);
+        if (stored && isCurrent() && generation === refreshGeneration.current)
+          setDebriefOverride(stored.debrief_enabled);
         return { ok: true };
       } catch {
-        setDebriefOverride(null);
+        if (isCurrent() && generation === refreshGeneration.current) setDebriefOverride(null);
         return { ok: false };
       }
     },
-    [patchSettings]
+    [patchSettings, isCurrent, setDebriefOverride]
   );
 
   const relations = (data?.relations ?? []).map(relation =>
@@ -340,14 +366,25 @@ export interface RelationContext {
  */
 export function useRelationContext(name: string | null) {
   const endpoint = name ? `/relations/${encodeURIComponent(name)}/context` : '';
-  const { data, loading, error, setData } = useApiQuery<RelationContext>(endpoint, {
-    componentName: 'RelationContext',
-    enabled: !!name,
-  });
+  const { data, loading, error, setData, refetch, ownerId, isCurrent } =
+    useApplicationAccountQuery<RelationContext>(endpoint, 'RelationContext', !!name);
+  const { lifetime: targetLifetime, isCurrent: isTargetCurrent } = useApplicationAccountLifetime(
+    ownerId && endpoint ? `${ownerId}:${endpoint}` : undefined
+  );
   // WHICH sections are being re-read, not merely "something is". Three
   // spinners turning because the reader pressed one of them claims work that
   // is not happening.
-  const [refreshing, setRefreshing] = useState<string[]>([]);
+  const [refreshing, setRefreshing] = useApplicationAccountState<string[]>(
+    targetLifetime.ownerId,
+    []
+  );
+  const refreshGeneration = useRef(0);
+  const rereadCached = useCallback(async () => {
+    refreshGeneration.current += 1;
+    await refetch();
+  }, [refetch]);
+  const release = useCallback(() => {}, []);
+  useApplicationResourceSync(ownerId, 'relations', rereadCached, release);
 
   /**
    * Ask the server to look again, for the given sections.
@@ -360,13 +397,15 @@ export function useRelationContext(name: string | null) {
    */
   const refreshSections = useCallback(
     async (sections: string[]) => {
-      if (!endpoint || sections.length === 0) return;
+      if (!endpoint || sections.length === 0 || !isCurrent() || !isTargetCurrent()) return;
+      const generation = refreshGeneration.current;
       setRefreshing(sections);
       try {
         const fresh = await apiClient.get<RelationContext>(
           `${endpoint}?refresh=${sections.join(',')}`
         );
-        setData(fresh);
+        if (isCurrent() && isTargetCurrent() && generation === refreshGeneration.current)
+          setData(fresh);
       } catch {
         // A failed refresh leaves the current answer standing: replacing it
         // with nothing would turn "could not look again" into "found nothing".
@@ -374,11 +413,11 @@ export function useRelationContext(name: string | null) {
         setRefreshing([]);
       }
     },
-    [endpoint, setData]
+    [endpoint, isCurrent, isTargetCurrent, setData, setRefreshing]
   );
 
   return {
-    context: data ?? null,
+    context: name ? (data ?? null) : null,
     loading: loading || refreshing.length > 0,
     /** The sections currently being re-read — never "something, somewhere". */
     refreshing,
@@ -388,10 +427,13 @@ export function useRelationContext(name: string | null) {
 }
 
 export function useRelationDetail(name: string | null) {
-  const { data, loading, error, refetch } = useApiQuery<RelationDetail>(
+  const { data, loading, error, refetch, ownerId } = useApplicationAccountQuery<RelationDetail>(
     name ? `/relations/${encodeURIComponent(name)}` : '',
-    { componentName: 'RelationDetail', enabled: !!name }
+    'RelationDetail',
+    !!name
   );
+  const release = useCallback(() => {}, []);
+  useApplicationResourceSync(ownerId, 'relations', refetch, release);
   // No `initialLoading` here, deliberately: this query is KEYED ON A PERSON,
   // and `useApiQuery` keeps the previous `data` while the next one loads. A
   // monotone first-load flag would therefore render the PREVIOUS person's
@@ -494,10 +536,16 @@ export interface RelationOverviewScope {
  * fire-and-forget write would race the tool that reads it.
  */
 export function useOverviewScope() {
-  const { data, loading, setData } = useApiQuery<RelationOverviewScope>(
-    '/relations/overview-scope',
-    { componentName: 'RelationOverviewScope' }
-  );
+  const { data, loading, setData, ownerId, isCurrent, refetch } =
+    useApplicationAccountQuery<RelationOverviewScope>(
+      '/relations/overview-scope',
+      'RelationOverviewScope'
+    );
+  const refreshGeneration = useRef(0);
+  const release = useCallback(() => {
+    refreshGeneration.current += 1;
+  }, []);
+  useApplicationResourceSync(ownerId, 'relations', refetch, release);
   const { mutate, loading: saving } = useApiMutation<RelationOverviewScope, RelationOverviewScope>({
     method: 'PUT',
     componentName: 'RelationOverviewScope',
@@ -505,14 +553,16 @@ export function useOverviewScope() {
 
   const save = useCallback(
     async (scope: RelationOverviewScope): Promise<boolean> => {
+      if (!isCurrent()) return false;
+      const generation = refreshGeneration.current;
       const saved = await mutate('/relations/overview-scope', scope);
-      if (!saved) return false;
+      if (!saved || !isCurrent() || generation !== refreshGeneration.current) return false;
       // The server echoes what it stored; adopting THAT rather than what was
       // sent means a value it clamped is what the panel shows next time.
       setData(saved);
       return true;
     },
-    [mutate, setData]
+    [mutate, setData, isCurrent]
   );
 
   return { scope: data ?? null, loading, saving, save };
@@ -523,13 +573,7 @@ export function useOverviewScope() {
 // =============================================================================
 
 /** What the API says about one relationship's debrief. */
-export type DebriefStatus =
-  | 'absent'
-  | 'building'
-  | 'ready'
-  | 'failed'
-  | 'empty'
-  | 'disabled';
+export type DebriefStatus = 'absent' | 'building' | 'ready' | 'failed' | 'empty' | 'disabled';
 
 /** The synthesis itself, written by the model in the reader's language. */
 export interface DebriefBody {
@@ -587,24 +631,28 @@ export function useRelationDebrief(
   { enabled, providerReady }: { enabled: boolean; providerReady: boolean }
 ) {
   const endpoint = name ? `/relations/${encodeURIComponent(name)}/debrief` : '';
-  const { data, loading, setData } = useApiQuery<RelationDebrief>(endpoint, {
-    componentName: 'RelationDebrief',
-    enabled: !!name && enabled,
-  });
-  const [building, setBuilding] = useState(false);
+  const { data, loading, setData, refetch, ownerId, isCurrent, lifetime } =
+    useApplicationAccountQuery<RelationDebrief>(endpoint, 'RelationDebrief', !!name && enabled);
+  const { lifetime: targetLifetime, isCurrent: isTargetCurrent } = useApplicationAccountLifetime(
+    ownerId && endpoint ? `${ownerId}:${endpoint}` : undefined
+  );
+  const [building, setBuilding] = useApplicationAccountState(targetLifetime.ownerId, false);
   // One automatic attempt per person, ever: a re-render, a refetch or a failed
   // build must not each buy another LLM call.
   const attempted = useRef<string | null>(null);
+  const refreshGeneration = useRef(0);
 
   const run = useCallback(
     async (force: boolean) => {
-      if (!endpoint) return;
+      if (!endpoint || !enabled || !isCurrent() || !isTargetCurrent()) return;
+      const generation = refreshGeneration.current;
       setBuilding(true);
       try {
         const fresh = await apiClient.post<RelationDebrief>(
           force ? `${endpoint}?force=true` : endpoint
         );
-        setData(fresh);
+        if (isCurrent() && isTargetCurrent() && generation === refreshGeneration.current)
+          setData(fresh);
       } catch {
         // A failed build leaves the current answer standing: replacing it with
         // nothing would turn "could not build" into "there is nothing".
@@ -612,7 +660,7 @@ export function useRelationDebrief(
         setBuilding(false);
       }
     },
-    [endpoint, setData]
+    [endpoint, enabled, isCurrent, isTargetCurrent, setData, setBuilding]
   );
 
   // Whether the read for THIS name has been seen to run at all.
@@ -633,7 +681,16 @@ export function useRelationDebrief(
   useEffect(() => {
     sawLoad.current = false;
     attempted.current = null;
-  }, [name]);
+  }, [name, lifetime]);
+
+  const rereadStored = useCallback(async () => {
+    // A native grouping/settings/build hint is a read, never a new paid attempt.
+    attempted.current = name;
+    refreshGeneration.current += 1;
+    await refetch();
+  }, [name, refetch]);
+  const release = useCallback(() => {}, []);
+  useApplicationResourceSync(ownerId, 'relations', rereadStored, release);
 
   useEffect(() => {
     if (loading) sawLoad.current = true;
@@ -645,7 +702,13 @@ export function useRelationDebrief(
     if (data.status !== 'absent') return;
     if (attempted.current === name) return;
     attempted.current = name;
-    void run(false);
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) void run(false);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [name, enabled, providerReady, loading, data, run]);
 
   return {

@@ -9,6 +9,7 @@ Created: 2026-02-28
 """
 
 import json
+from collections.abc import Awaitable, Callable
 from typing import Any
 from uuid import UUID
 
@@ -18,6 +19,7 @@ from src.core.config import settings
 from src.core.constants import MCP_USER_DEFAULT_API_KEY_HEADER
 from src.core.exceptions import ResourceNotFoundError, ValidationError
 from src.core.security.utils import decrypt_data, encrypt_data
+from src.domains.user_mcp.connection_embeddings import build_connection_embeddings
 from src.domains.user_mcp.description_generation import generate_domain_description
 from src.domains.user_mcp.models import (
     UserMCPAuthType,
@@ -66,6 +68,7 @@ class UserMCPServerService:
         *,
         plugin_id: UUID | None = None,
         extra_headers: dict[str, str] | None = None,
+        before_write: Callable[[AsyncSession], Awaitable[None]] | None = None,
     ) -> UserMCPServer:
         """
         Create a new user MCP server.
@@ -83,16 +86,7 @@ class UserMCPServerService:
         Raises:
             ValidationError: If user has reached the maximum limit or URL is invalid.
         """
-        # Enforce per-user limit
-        max_servers = settings.mcp_user_max_servers_per_user
-        count = await self.repository.count_for_user(user_id)
-        if count >= max_servers:
-            raise ValidationError(f"Maximum of {max_servers} MCP servers per user")
-
-        # Check name uniqueness
-        existing = await self.repository.get_by_name_for_user(user_id, data.name)
-        if existing:
-            raise ValidationError(f"An MCP server named '{data.name}' already exists")
+        await self._check_creation_constraints(user_id, data.name)
 
         # SSRF prevention: validate URL
         is_valid, error_msg = await validate_http_endpoint(data.url)
@@ -114,6 +108,12 @@ class UserMCPServerService:
         if data.auth_type == UserMCPAuthType.OAUTH2 and data.oauth_scopes:
             oauth_metadata = {"requested_scopes": data.oauth_scopes}
 
+        # DNS/network validation precedes the shared account lock. The early
+        # checks above are only a fast refusal, never the final quota decision.
+        await self.repository.lock_owner_for_creation(user_id)
+        if before_write is not None:
+            await before_write(self.db)
+        await self._check_creation_constraints(user_id, data.name)
         server = await self.repository.create(
             {
                 "user_id": user_id,
@@ -144,11 +144,20 @@ class UserMCPServerService:
 
         return server
 
+    async def _check_creation_constraints(self, user_id: UUID, name: str) -> None:
+        maximum = settings.mcp_user_max_servers_per_user
+        if await self.repository.count_for_user(user_id) >= maximum:
+            raise ValidationError(f"Maximum of {maximum} MCP servers per user")
+        if await self.repository.get_by_name_for_user(user_id, name):
+            raise ValidationError(f"An MCP server named '{name}' already exists")
+
     async def update_server(
         self,
         server_id: UUID,
         user_id: UUID,
         data: UserMCPServerUpdate,
+        *,
+        before_write: Callable[[AsyncSession], Awaitable[None]] | None = None,
     ) -> UserMCPServer:
         """
         Update a user MCP server.
@@ -227,6 +236,8 @@ class UserMCPServerService:
         ):
             update_data.pop(field, None)
 
+        if before_write is not None:
+            await before_write(self.db)
         server = await self.repository.update(server, update_data)
 
         # Disconnect from pool if connection-affecting fields changed
@@ -249,6 +260,7 @@ class UserMCPServerService:
         user_id: UUID,
         *,
         allow_plugin_owned: bool = False,
+        before_write: Callable[[AsyncSession], Awaitable[None]] | None = None,
     ) -> None:
         """
         Delete a user MCP server.
@@ -280,6 +292,8 @@ class UserMCPServerService:
         # Disconnect from pool first (releases MCP session)
         await self._disconnect_from_pool(user_id, server_id)
 
+        if before_write is not None:
+            await before_write(self.db)
         await self.repository.delete(server)
 
         logger.info(
@@ -292,6 +306,9 @@ class UserMCPServerService:
         self,
         server_id: UUID,
         user_id: UUID,
+        *,
+        enabled: bool | None = None,
+        before_write: Callable[[AsyncSession], Awaitable[None]] | None = None,
     ) -> UserMCPServer:
         """
         Toggle is_enabled for an MCP server.
@@ -303,13 +320,15 @@ class UserMCPServerService:
         """
         server = await self.get_with_ownership_check(server_id, user_id)
 
-        new_enabled = not server.is_enabled
+        new_enabled = not server.is_enabled if enabled is None else enabled
         update_data: dict = {"is_enabled": new_enabled}
 
         if not new_enabled:
             # Disabling: disconnect from pool
             await self._disconnect_from_pool(user_id, server_id)
 
+        if before_write is not None:
+            await before_write(self.db)
         server = await self.repository.update(server, update_data)
 
         logger.info(
@@ -325,6 +344,8 @@ class UserMCPServerService:
         self,
         server_id: UUID,
         user_id: UUID,
+        *,
+        before_write: Callable[[AsyncSession], Awaitable[None]] | None = None,
     ) -> UserMCPServer:
         """
         Disconnect OAuth: purge tokens while preserving client credentials.
@@ -352,6 +373,8 @@ class UserMCPServerService:
         # Re-encrypt with only client credentials (or None if no client creds)
         credentials_encrypted = encrypt_data(json.dumps(client_creds)) if client_creds else None
 
+        if before_write is not None:
+            await before_write(self.db)
         server = await self.repository.update(
             server,
             {
@@ -361,7 +384,7 @@ class UserMCPServerService:
         )
 
         # Disconnect from pool to invalidate cached sessions
-        await self._disconnect_from_pool(user_id, server_id)
+        await self._disconnect_from_pool(user_id, server_id, strict=before_write is not None)
 
         logger.info(
             "user_mcp_oauth_disconnected",
@@ -376,6 +399,9 @@ class UserMCPServerService:
         self,
         server_id: UUID,
         user_id: UUID,
+        *,
+        before_connect: Callable[[AsyncSession], Awaitable[None]] | None = None,
+        before_write: Callable[[AsyncSession], Awaitable[None]] | None = None,
     ) -> dict:
         """Test connection to a user MCP server and discover tools.
 
@@ -402,6 +428,9 @@ class UserMCPServerService:
                 "error": "MCP user pool not initialized",
             }
 
+        if before_connect is not None:
+            await before_connect(self.db)
+
         try:
             auth = build_auth_for_server(server)
             entry = await pool.get_or_connect(
@@ -411,6 +440,7 @@ class UserMCPServerService:
                 auth=auth,
                 timeout_seconds=server.timeout_seconds,
                 extra_headers=server.extra_headers,
+                force_refresh=True,
             )
 
             # Build single update dict (avoids multiple flush/refresh roundtrips)
@@ -440,23 +470,24 @@ class UserMCPServerService:
                 )
                 from src.domains.agents.services.tool_selector import compute_tool_embeddings
 
-                tool_embeddings = await compute_tool_embeddings(
-                    tool_metadata=entry.tools,
-                    server_name=server.name,
+                tool_embeddings = await build_connection_embeddings(
+                    user_id,
+                    server.name,
+                    entry.tools,
+                    compute_tool_embeddings,
                 )
                 if tool_embeddings:
                     # The model that wrote the vectors travels with them: a
                     # cache of another width scored every tool 0 in silence.
-                    update_data["tool_embeddings_cache"] = wrap_server_cache(tool_embeddings)
+                    update_data["tool_embeddings_cache"] = wrap_server_cache(
+                        tool_embeddings, tool_metadata=entry.tools
+                    )
             except Exception:
                 logger.warning(
                     "user_mcp_embedding_computation_failed",
                     server_id=str(server_id),
                     exc_info=True,
                 )
-
-            # Single DB update (skip ownership check — already verified)
-            await self.repository.update(server, update_data)
 
             logger.info(
                 "user_mcp_server_test_success",
@@ -465,7 +496,7 @@ class UserMCPServerService:
                 tool_count=len(entry.tools),
             )
 
-            return {
+            result = {
                 "success": True,
                 "tools": entry.tools,
                 "tool_count": len(entry.tools),
@@ -476,41 +507,49 @@ class UserMCPServerService:
             }
 
         except Exception as e:
-            # Best-effort: update error status in DB (session may be dirty)
-            try:
-                await self.repository.update(
-                    server,
-                    {
-                        "status": UserMCPServerStatus.ERROR.value,
-                        "last_error": str(e),
-                    },
-                )
-            except Exception as status_err:
-                logger.debug(
-                    "user_mcp_error_status_update_failed",
-                    server_id=str(server_id),
-                    error=str(status_err),
-                )
-
+            update_data = {
+                "status": UserMCPServerStatus.ERROR.value,
+                "last_error": str(e),
+            }
             logger.warning(
                 "user_mcp_server_test_failed",
                 user_id=str(user_id),
                 server_id=str(server_id),
-                error=str(e),
+                error_type=type(e).__name__,
             )
 
             # Sanitize: only expose exception type, not internal details
-            return {
+            result = {
                 "success": False,
                 "tools": [],
                 "tool_count": 0,
                 "error": f"Connection failed: {type(e).__name__}",
             }
 
+        # Fresh authority/CAS failures must propagate, including failed probes.
+        if before_write is not None:
+            await before_write(self.db)
+        try:
+            await self.repository.update(server, update_data)
+        except Exception as error:
+            if before_write is not None:
+                raise
+            logger.warning("user_mcp_probe_persistence_failed", server_id=str(server_id))
+            return {
+                "success": False,
+                "tools": [],
+                "tool_count": 0,
+                "error": f"Connection failed: {type(error).__name__}",
+            }
+        return result
+
     async def generate_description(
         self,
         server_id: UUID,
         user_id: UUID,
+        *,
+        before_generate: Callable[[AsyncSession], Awaitable[None]] | None = None,
+        before_write: Callable[[AsyncSession], Awaitable[None]] | None = None,
     ) -> dict:
         """Force-(re)generate domain_description from cached discovered tools.
 
@@ -537,14 +576,23 @@ class UserMCPServerService:
         if not tool_list:
             raise ValidationError("No tools discovered yet — test connection first")
 
+        server_name, account_scoped, server_owner = (
+            server.name,
+            server.auth_type != UserMCPAuthType.NONE.value,
+            server.user_id,
+        )
+        if before_generate is not None:
+            await before_generate(self.db)
         generated_desc = await self._llm_generate_description(
             tool_list=tool_list,
-            server_name=server.name,
-            account_scoped=server.auth_type != UserMCPAuthType.NONE.value,
-            user_id=server.user_id,
+            server_name=server_name,
+            account_scoped=account_scoped,
+            user_id=server_owner,
         )
 
         # Persist (overwrite any existing description)
+        if before_write is not None:
+            await before_write(self.db)
         await self.repository.update(server, {"domain_description": generated_desc})
 
         logger.info(
@@ -606,6 +654,23 @@ class UserMCPServerService:
         server = await self.get_with_ownership_check(server_id, user_id)
         await self.repository.update(server, {"tool_embeddings_cache": embeddings})
 
+    async def set_owned_oauth_credentials(
+        self,
+        server_id: UUID,
+        user_id: UUID,
+        encrypted_creds: str,
+        *,
+        before_write: Callable[[AsyncSession], Awaitable[None]] | None = None,
+    ) -> UserMCPServer:
+        """Persist under the caller's transaction and optional fresh authority/CAS guard."""
+        from src.domains.user_mcp.oauth_credentials import persist_oauth_credentials
+
+        server = await self.get_with_ownership_check(server_id, user_id)
+        if before_write is not None:
+            await before_write(self.db)
+        await persist_oauth_credentials(self.repository, server, encrypted_creds)
+        return server
+
     @staticmethod
     async def update_oauth_credentials(
         server_id: UUID,
@@ -616,25 +681,15 @@ class UserMCPServerService:
 
         Uses its own DB session (not request-scoped) for async OAuth callbacks.
         """
+        from src.domains.user_mcp.oauth_credentials import persist_oauth_credentials
         from src.infrastructure.database.session import get_db_context
 
         async with get_db_context() as db:
             repo = UserMCPServerRepository(db)
             server = await repo.get_by_id(server_id)
             if server:
-                await repo.update(
-                    server,
-                    {
-                        "credentials_encrypted": encrypted_creds,
-                        "status": UserMCPServerStatus.ACTIVE.value,
-                    },
-                )
+                await persist_oauth_credentials(repo, server, encrypted_creds)
                 # Note: no explicit commit — get_db_context() auto-commits on exit
-
-                logger.info(
-                    "user_mcp_oauth_credentials_updated",
-                    server_id=str(server_id),
-                )
 
     @staticmethod
     async def mark_auth_required(server_id: UUID) -> None:
@@ -790,7 +845,9 @@ class UserMCPServerService:
         return server.credentials_encrypted
 
     @staticmethod
-    async def _disconnect_from_pool(user_id: UUID, server_id: UUID) -> None:
+    async def _disconnect_from_pool(
+        user_id: UUID, server_id: UUID, *, strict: bool = False
+    ) -> None:
         """Disconnect a server from the user MCP pool (if pool exists)."""
         try:
             from src.infrastructure.mcp.user_pool import get_user_mcp_pool
@@ -799,6 +856,8 @@ class UserMCPServerService:
             if pool:
                 await pool.disconnect(user_id, server_id)
         except Exception:
+            if strict:
+                raise
             # Pool may not be initialized — non-critical
             logger.warning(
                 "user_mcp_pool_disconnect_skipped",

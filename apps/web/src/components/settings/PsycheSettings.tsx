@@ -76,7 +76,9 @@ export function PsycheSettings({ lng }: PsycheSettingsProps) {
   const handleToggle = useCallback(
     async (field: 'psyche_enabled' | 'psyche_display_avatar', value: boolean) => {
       try {
-        await updateSettings({ [field]: value });
+        const result = await updateSettings({ [field]: value });
+        if (result === null) return;
+        if (!result) throw new Error('Psyche settings update was not acknowledged');
         toast.success(t('psyche.settingsUpdated', 'Settings updated'));
       } catch {
         toast.error(t('psyche.settingsError', 'Failed to update settings'));
@@ -88,7 +90,9 @@ export function PsycheSettings({ lng }: PsycheSettingsProps) {
   const handleSliderCommit = useCallback(
     async (field: 'psyche_sensitivity' | 'psyche_stability', value: number) => {
       try {
-        await updateSettings({ [field]: value });
+        const result = await updateSettings({ [field]: value });
+        if (result === null) return;
+        if (!result) throw new Error('Psyche settings update was not acknowledged');
         toast.success(t('psyche.settingsUpdated', 'Settings updated'));
       } catch {
         toast.error(t('psyche.settingsError', 'Failed to update settings'));
@@ -100,7 +104,9 @@ export function PsycheSettings({ lng }: PsycheSettingsProps) {
   const handleReset = useCallback(
     async (level: 'soft' | 'full') => {
       try {
-        await resetPsyche(level);
+        const result = await resetPsyche(level);
+        if (result === null) return;
+        if (!result) throw new Error('Psyche reset was not acknowledged');
         toast.success(t('psyche.resetSuccess', 'Psyche state reset successfully'));
       } catch {
         toast.error(t('psyche.resetError', 'Failed to reset psyche state'));

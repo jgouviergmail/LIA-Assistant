@@ -27,8 +27,11 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from src.core.date_contract import UnreadableDateError, unreadable_date_message
+from src.core.date_quotes import parse_localized_date
 from src.core.time_utils import now_in_timezone, parse_datetime
 from src.domains.agents.tools.common import ToolErrorCode
+
+_IN_N_DAYS = re.compile(r"in\s+(\d+)\s+days?")
 
 __all__ = [
     "calculate_target_date",
@@ -36,99 +39,27 @@ __all__ = [
     "unreadable_date_result",
 ]
 
-# Month name mappings for localized date parsing (FR, EN, DE, ES, IT)
-_MONTH_NAMES: dict[str, int] = {
-    # French
-    "janvier": 1,
-    "février": 2,
-    "fevrier": 2,
-    "mars": 3,
-    "avril": 4,
-    "mai": 5,
-    "juin": 6,
-    "juillet": 7,
-    "août": 8,
-    "aout": 8,
-    "septembre": 9,
-    "octobre": 10,
-    "novembre": 11,
-    "décembre": 12,
-    "decembre": 12,
-    # English
-    "january": 1,
-    "february": 2,
-    "march": 3,
-    "april": 4,
-    "may": 5,
-    "june": 6,
-    "july": 7,
-    "august": 8,
-    "september": 9,
-    "october": 10,
-    "november": 11,
-    "december": 12,
-    # German
-    "januar": 1,
-    "februar": 2,
-    "märz": 3,
-    "marz": 3,
-    "juni": 6,
-    "juli": 7,
-    "oktober": 10,
-    "dezember": 12,
-    # Spanish
-    "enero": 1,
-    "febrero": 2,
-    "marzo": 3,
-    "mayo": 5,
-    "junio": 6,
-    "julio": 7,
-    "agosto": 8,
-    "septiembre": 9,
-    "octubre": 10,
-    "noviembre": 11,
-    "diciembre": 12,
-    # Italian
-    "gennaio": 1,
-    "febbraio": 2,
-    "aprile": 4,
-    "maggio": 5,
-    "giugno": 6,
-    "luglio": 7,
-    "settembre": 9,
-    "ottobre": 10,
-    "dicembre": 12,
-}
 
-# Pattern: optional day-of-week, then DD month YYYY (e.g., "jeudi 09 avril 2026", "9 avril 2026")
-_LOCALIZED_DATE_PATTERN = re.compile(r"(?:\w+\s+)?(\d{1,2})\s+(\w+)\s+(\d{4})", re.IGNORECASE)
-_IN_N_DAYS = re.compile(r"in\s+(\d+)\s+days?")
-
-
-def parse_localized_date(ref: str) -> date | None:
-    """Parse a date written in words, like 'jeudi 09 avril 2026' or '9 April 2026'.
-
-    Supports French, English, German, Spanish, and Italian month names, day first.
-
-    Args:
-        ref: Date string to parse.
-
-    Returns:
-        Parsed date or None if not recognized.
-    """
-    match = _LOCALIZED_DATE_PATTERN.match(ref.strip())
-    if not match:
+def _civil_date_reference(reference: str) -> date | None:
+    """An ISO calendar date has no timezone and must not shift to another day."""
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", reference):
         return None
-
-    day_str, month_str, year_str = match.groups()
-    month = _MONTH_NAMES.get(month_str.lower())
-    if month is None:
-        return None
-
     try:
-        return date(int(year_str), month, int(day_str))
+        return date.fromisoformat(reference)
     except ValueError:
         return None
+
+
+def _instant_date_reference(reference: str, user_timezone: str) -> date | None:
+    """An offset datetime chooses its day after conversion to the user's zone."""
+    parsed = parse_datetime(reference)
+    if parsed is None:
+        return None
+    try:
+        localized = parsed.astimezone(ZoneInfo(user_timezone))
+    except KeyError, ValueError:
+        localized = parsed.astimezone(UTC)
+    return localized.date()
 
 
 def unreadable_date_result(reference: str, user_timezone: str) -> dict[str, Any]:
@@ -183,13 +114,8 @@ def calculate_target_date(
     ref_lower = ref.lower()
 
     # ISO date/datetime: "2026-01-22", "2026-01-22T14:00:00+01:00", "2026-01-22T14:00:00Z"
-    parsed_dt = parse_datetime(ref)
-    if parsed_dt is not None:
-        try:
-            parsed_local = parsed_dt.astimezone(ZoneInfo(user_timezone))
-        except KeyError, ValueError:
-            parsed_local = parsed_dt.astimezone(UTC)
-        target_date = parsed_local.date()
+    target_date = _civil_date_reference(ref) or _instant_date_reference(ref, user_timezone)
+    if target_date is not None:
         return target_date.isoformat(), max(0, (target_date - today_date).days), True
 
     # English words the pipeline planner may emit after the semantic pivot.

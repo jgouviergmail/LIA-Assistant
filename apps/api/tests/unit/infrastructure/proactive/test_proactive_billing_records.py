@@ -345,7 +345,17 @@ async def test_runner_dispatch_failure_settles_known_result_once(error_type) -> 
         patch("src.infrastructure.proactive.runner.track_proactive_tokens", AsyncMock()) as tracked,
         pytest.raises(error_type) as caught,
     ):
-        await service._serve_user(owner, SimpleNamespace(), RunnerStats(), "sweep-run")
+        with (
+            patch(
+                "src.domains.heartbeat.delivery_guard.heartbeat_delivery_stamp",
+                AsyncMock(return_value="stable-synthetic-delivery-settings"),
+            ),
+            patch(
+                "src.domains.heartbeat.delivery_guard.heartbeat_delivery_current",
+                AsyncMock(return_value=True),
+            ),
+        ):
+            await service._serve_user(owner, SimpleNamespace(), RunnerStats(), "sweep-run")
     assert caught.value is failure
     assert tracked.await_count == 1
     assert tracked.await_args.kwargs["billing_records"] == records

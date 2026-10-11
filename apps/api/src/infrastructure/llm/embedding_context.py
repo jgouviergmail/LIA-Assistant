@@ -151,6 +151,11 @@ def clear_embedding_context() -> None:
     logger.debug("embedding_context_cleared")
 
 
+def restore_embedding_context(previous: EmbeddingTrackingContext | None) -> None:
+    """A nested source run restores the exact caller object, including future context fields."""
+    _embedding_context.set(previous)
+
+
 async def persist_embedding_tokens(
     model_name: str,
     token_count: int,

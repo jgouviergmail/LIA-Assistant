@@ -66,6 +66,7 @@ PRESERVED_FIELDS: dict[str, list[str]] = {
 # FIX 2026-01-11: Added recipient fields to allow modification with contact_context
 # FIX 2026-01-11: Added all modifiable fields for contacts and tasks
 CONTENT_FIELDS: dict[str, list[str]] = {
+    "application_action": ["intent", "remove_fields"],
     # Email types
     "email": ["to", "cc", "bcc", "subject", "body"],
     "email_reply": ["to", "body"],  # no cc/bcc/subject: reply protocol doesn't support them
@@ -176,6 +177,10 @@ class DraftModificationService:
         )
 
         # Get fields configuration for this draft type
+        if draft_type == "application_action":
+            from src.domains.agents.application.command_service import validate_pending_proposal
+
+            await validate_pending_proposal(original_draft, run_id)
         content_fields = CONTENT_FIELDS.get(draft_type, [])
 
         # Build the prompt
@@ -195,7 +200,11 @@ class DraftModificationService:
             "draft_modification_prompt_built",
             run_id=run_id,
             system_prompt_preview=system_content[:800],
-            instructions=instructions[:200],
+            **(
+                {"instructions_length": len(instructions)}
+                if draft_type == "application_action"
+                else {"instructions": instructions[:200]}
+            ),
         )
 
         # Create instrumented config
@@ -218,12 +227,19 @@ class DraftModificationService:
             logger.debug(
                 "draft_modification_llm_raw_response",
                 run_id=run_id,
-                response_preview=content[:500],
+                **(
+                    {"response_length": len(content)}
+                    if draft_type == "application_action"
+                    else {"response_preview": content[:500]}
+                ),
             )
 
             # Parse the response
             modified_content = self._parse_modification_response(
-                content, content_fields, original_draft
+                content,
+                content_fields,
+                original_draft,
+                sensitive=draft_type == "application_action",
             )
 
             # Post-processing: if the LLM didn't change recipient fields but the
@@ -240,6 +256,10 @@ class DraftModificationService:
             modified_draft = preserve_composition_binding(
                 original_draft, {**original_draft, **modified_content}
             )
+            if draft_type == "application_action":
+                from src.domains.agents.application.draft_editing import rebuild_application_draft
+
+                modified_draft = await rebuild_application_draft(original_draft, modified_content)
 
             # Log actual changes for debugging
             actual_changes = {
@@ -262,7 +282,11 @@ class DraftModificationService:
                 "draft_modification_failed",
                 run_id=run_id,
                 draft_type=draft_type,
-                error=str(e),
+                **(
+                    {"error_type": type(e).__name__}
+                    if draft_type == "application_action"
+                    else {"error": str(e)}
+                ),
             )
             raise
 
@@ -291,6 +315,10 @@ class DraftModificationService:
         Returns:
             List of message dicts for LLM
         """
+        if draft_type == "application_action":
+            from src.domains.agents.application.prompts import build_application_edit_prompt
+
+            return build_application_edit_prompt(original_draft, instructions)
         # Extract current content for the modifiable fields
         current_content = {
             field: original_draft.get(field, "")
@@ -487,6 +515,8 @@ class DraftModificationService:
         response: str,
         content_fields: list[str],
         original_draft: dict[str, Any],
+        *,
+        sensitive: bool = False,
     ) -> dict[str, Any]:
         """
         Parse LLM response to extract modified content.
@@ -531,20 +561,34 @@ class DraftModificationService:
 
             # If no fields were extracted, log warning and return empty
             if not result:
-                log_unreadable_text(
-                    logger,
-                    "draft_modification_no_fields_extracted",
-                    response,
-                    expected_fields=content_fields,
-                )
+                if sensitive:
+                    logger.warning(
+                        "draft_modification_no_fields_extracted",
+                        text_length=len(response),
+                        expected_fields=content_fields,
+                    )
+                else:
+                    log_unreadable_text(
+                        logger,
+                        "draft_modification_no_fields_extracted",
+                        response,
+                        expected_fields=content_fields,
+                    )
                 return {}
 
             return result
 
         except json.JSONDecodeError as e:
-            log_unreadable_text(
-                logger, "draft_modification_json_parse_error", response, error=str(e)
-            )
+            if sensitive:
+                logger.warning(
+                    "draft_modification_json_parse_error",
+                    text_length=len(response),
+                    error_type=type(e).__name__,
+                )
+            else:
+                log_unreadable_text(
+                    logger, "draft_modification_json_parse_error", response, error=str(e)
+                )
 
             # Fallback: try to extract content heuristically
             # For email, the response might just be the new body text

@@ -1,6 +1,8 @@
 import { FeatureExplorer } from './FeatureExplorer';
 import { FEATURE_SCENES } from './FeatureScenes';
 
+const HOME_DESCRIPTION_OVERRIDES = new Set(['meetings', 'live_voice', 'telephony']);
+
 /**
  * Server-side translate function shape shared by the editorial sections.
  * `options` carries interpolation values (a derived `count`, never a number
@@ -25,8 +27,14 @@ export function FeatureCatalog({
       items={featureKeys.map((key, index) => ({
         id: key,
         title: t(`landing.features.${key}.title`),
-        description: t(`landing.features.${key}.description`),
+        description: t(
+          HOME_DESCRIPTION_OVERRIDES.has(key)
+            ? `landing.home_feature_descriptions.${key}`
+            : `landing.features.${key}.description`
+        ),
         sceneLabel: t(`landing.catalog_explorer.scenes.${FEATURE_SCENES[key]}`),
+        exampleRequest: t(`landing.catalog_explorer.feature_examples.${key}.request`),
+        exampleResult: t(`landing.catalog_explorer.feature_examples.${key}.result`),
         positionLabel: t('landing.catalog_explorer.position', {
           current: index + 1,
           total: featureKeys.length,
@@ -37,6 +45,8 @@ export function FeatureCatalog({
         hint: t('landing.catalog_explorer.hint'),
         previous: t('landing.catalog_explorer.previous'),
         next: t('landing.catalog_explorer.next'),
+        example: t('landing.catalog_explorer.example_label'),
+        result: t('landing.catalog_explorer.result_label'),
       }}
     />
   );

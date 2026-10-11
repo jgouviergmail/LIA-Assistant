@@ -1,12 +1,11 @@
 /**
- * AssistantAvatar — mood smiley avatar for chat messages.
+ * AssistantAvatar — selected companion portrait with message-specific emotion.
  *
- * Displays the mood smiley with colored ring at full avatar size.
+ * Displays the mood portrait with colored ring at full avatar size.
  * Rich tooltip on hover shows psyche state: mood, emotions, drives.
- * On the latest assistant message (``animateEmoji``) the smiley is an
- * animated, self-hosted Noto WebP rendered via ``AnimatedEmoji`` — static
- * Unicode glyph everywhere else, on asset load failure, and under
- * prefers-reduced-motion (spec D-5/D-6). History snapshots wake up while
+ * On the latest assistant message (``animateEmoji``) the portrait can play
+ * while visible. Frozen native poses (or Spirit WebPs) serve history rows,
+ * asset failures and reduced motion. History snapshots wake up while
  * hovered (transient loop), and a mood change on the live avatar plays a
  * one-shot ring ping (micro-interactions batch I1/I6).
  * No store access — receives all data via props (local state covers hover
@@ -21,28 +20,26 @@ import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';
 import { prefersReducedMotion } from '@/lib/utils/motion';
-import { AnimatedEmoji } from '@/components/ui/animated-emoji';
+import { SelectedCompanionPortrait } from './SelectedCompanionPortrait';
+import type { EyeStyleId } from '@/components/eyes/eye-styles';
+import { spiritExpressionForMood, type SpiritVariant } from '@/components/spirit/catalogue';
 import { getMoodColor } from '@/lib/psyche-colors';
 import type { PsycheStateSummary } from '@/types/psyche';
-
-export interface AvatarTooltipLine {
-  label: string;
-  value: string;
-  /** Optional PAD values for colored display. */
-  pad?: { p: number; a: number; d: number };
-}
 
 export interface AssistantAvatarProps {
   /** Psyche state snapshot from message metadata (null if psyche disabled). */
   psycheState?: PsycheStateSummary | null;
-  /** Structured tooltip lines (translated by parent). */
-  tooltipLines?: AvatarTooltipLine[];
   /** Show a subtle pulse animation (first message, streaming). */
   animate?: boolean;
-  /** True only for the latest assistant message — gates the animated emoji (spec D-5). */
+  /** True only for the latest assistant message — permits ongoing portrait playback. */
   animateEmoji?: boolean;
   /** One-shot attention wobble when a proactive notification just arrived (F4). */
   ring?: boolean;
+  /** Current identity selection; the emotional snapshot remains message-specific. */
+  variant?: SpiritVariant;
+  styleId?: EyeStyleId;
+  /** The identity preference has been read, so playback can start. */
+  animationReady?: boolean;
 }
 
 /** Color a PAD percentage: green if positive, red if negative, gray if zero. */
@@ -106,12 +103,27 @@ const EMOTION_BAR_COLORS: Record<string, string> = {
   resolve: 'bg-slate-500',
 };
 
+/** Cached v1 summaries carry one emotion; newer message snapshots carry their own list. */
+function snapshotEmotions(state: PsycheStateSummary): Array<{ name: string; intensity: number }> {
+  if (state.active_emotions?.length) return state.active_emotions;
+  return state.active_emotion
+    ? [{ name: state.active_emotion, intensity: state.emotion_intensity }]
+    : [];
+}
+
+/** Normalize optional snapshot drives once for their visibility and percentages. */
+function driveLevels(state: PsycheStateSummary) {
+  return { curiosity: state.drive_curiosity ?? 0, engagement: state.drive_engagement ?? 0 };
+}
+
 export function AssistantAvatar({
   psycheState,
-  tooltipLines,
   animate,
   animateEmoji,
   ring,
+  variant = 'female',
+  styleId = 'spirit',
+  animationReady = true,
 }: AssistantAvatarProps) {
   const { t } = useTranslation();
   // Hover-wake (I1): history snapshots animate while hovered — transient,
@@ -149,7 +161,7 @@ export function AssistantAvatar({
     setBurstGlyph(glyph);
   }, [activeEmotion, emotionIntensity, animateEmoji]);
 
-  // Fallback: psyche disabled or no data — show classic "LIA" avatar
+  // The selected identity remains visible even without an emotional snapshot.
   if (!psycheState) {
     return (
       <div
@@ -158,24 +170,23 @@ export function AssistantAvatar({
           ring && 'animate-bell-ring'
         )}
       >
-        LIA
+        <SelectedCompanionPortrait
+          styleId={styleId}
+          variant={variant}
+          expression="neutral"
+          animate={animationReady && Boolean(animateEmoji || hovered)}
+        />
       </div>
     );
   }
 
   const moodConfig = getMoodColor(psycheState.mood_label);
-  const hasV2Data = psycheState.active_emotions && psycheState.active_emotions.length > 0;
-
-  // Resolve emotions: v2 multi-emotion list, fallback to single
-  const emotions: Array<{ name: string; intensity: number }> = hasV2Data
-    ? psycheState.active_emotions!
-    : psycheState.active_emotion
-      ? [{ name: psycheState.active_emotion, intensity: psycheState.emotion_intensity }]
-      : [];
+  const emotions = snapshotEmotions(psycheState);
 
   // Drives — only show when significant (> 60%)
-  const showCuriosity = (psycheState.drive_curiosity ?? 0) > 0.6;
-  const showEngagement = (psycheState.drive_engagement ?? 0) > 0.6;
+  const drives = driveLevels(psycheState);
+  const showCuriosity = drives.curiosity > 0.6;
+  const showEngagement = drives.engagement > 0.6;
   const showDrives = showCuriosity || showEngagement;
 
   return (
@@ -193,21 +204,19 @@ export function AssistantAvatar({
           'motion-safe:transition-all motion-safe:duration-500',
           moodConfig.ringClass,
           moodConfig.bgClass,
-          animate && 'animate-pulse',
+          animate && 'motion-safe:animate-pulse',
           pinging && 'animate-mood-ping'
         )}
         onAnimationEnd={e => {
           if (e.animationName === 'mood-ping') setPinging(false);
         }}
       >
-        {/* Animated only for the live message (spec D-5); AnimatedEmoji handles
-            reduced-motion and asset-failure fallbacks (spec D-6). */}
-        <AnimatedEmoji
-          glyph={moodConfig.icon}
-          codepoint={moodConfig.codepoint}
-          animate={animateEmoji || hovered}
-          imgClassName="w-6 h-6"
-          spanClassName="text-xl leading-none"
+        {/* The identity follows the current choice; historical moods stay frozen. */}
+        <SelectedCompanionPortrait
+          styleId={styleId}
+          variant={variant}
+          expression={spiritExpressionForMood(psycheState.mood_label)}
+          animate={animationReady && Boolean(animateEmoji || hovered)}
         />
       </div>
 
@@ -234,108 +243,106 @@ export function AssistantAvatar({
       )}
 
       {/* Rich tooltip on hover (desktop only) */}
-      {(tooltipLines || psycheState) && (
-        <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-50 pointer-events-none">
-          <div className="bg-popover/95 backdrop-blur-sm border border-border rounded-lg shadow-lg text-xs whitespace-nowrap min-w-[180px]">
-            {/* Header: Relationship stage */}
-            <div className="px-3 pt-2 pb-1.5 border-b border-border/30">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground text-px-10 uppercase tracking-wider">
-                  {t('psyche.relationshipStage', 'Relationship')}
+      <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-50 pointer-events-none">
+        <div className="bg-popover/95 backdrop-blur-sm border border-border rounded-lg shadow-lg text-xs whitespace-nowrap min-w-[180px]">
+          {/* Header: Relationship stage */}
+          <div className="px-3 pt-2 pb-1.5 border-b border-border/30">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground text-px-10 uppercase tracking-wider">
+                {t('psyche.relationshipStage', 'Relationship')}
+              </span>
+              <span className="text-foreground font-medium text-px-11">
+                {t(
+                  `psyche.stages.${psycheState.relationship_stage}`,
+                  psycheState.relationship_stage
+                )}
+              </span>
+            </div>
+          </div>
+
+          {/* Mood + PAD */}
+          <div className="px-3 py-1.5 border-b border-border/30">
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground text-px-10 uppercase tracking-wider w-12 shrink-0">
+                {t('psyche.tooltip.mood', 'Mood')}
+              </span>
+              <span className="text-foreground font-semibold">
+                {t(`psyche.moods.${psycheState.mood_label}`, psycheState.mood_label)}
+              </span>
+              {psycheState.mood_intensity && psycheState.mood_intensity !== 'slightly' && (
+                <span className="text-muted-foreground text-px-10 italic">
+                  {psycheState.mood_intensity}
                 </span>
-                <span className="text-foreground font-medium text-px-11">
-                  {t(
-                    `psyche.stages.${psycheState.relationship_stage}`,
-                    psycheState.relationship_stage
-                  )}
-                </span>
+              )}
+            </div>
+            <div className="flex gap-2 mt-0.5 text-px-10 font-mono">
+              <span className={padColor(Math.round(psycheState.mood_pleasure * 100))}>
+                P:{Math.round(psycheState.mood_pleasure * 100)}%
+              </span>
+              <span className={padColor(Math.round(psycheState.mood_arousal * 100))}>
+                A:{Math.round(psycheState.mood_arousal * 100)}%
+              </span>
+              <span className={padColor(Math.round(psycheState.mood_dominance * 100))}>
+                D:{Math.round(psycheState.mood_dominance * 100)}%
+              </span>
+            </div>
+          </div>
+
+          {/* Emotions with mini intensity bars */}
+          {emotions.length > 0 && (
+            <div className="px-3 py-1.5 border-b border-border/30">
+              <div className="text-muted-foreground text-px-10 uppercase tracking-wider mb-1">
+                {emotions.length === 1
+                  ? t('psyche.tooltip.emotion', 'Emotion')
+                  : t('psyche.tooltip.emotions', 'Emotions')}
+              </div>
+              <div className="space-y-0.5">
+                {emotions.map(emo => (
+                  <div key={emo.name} className="flex items-center gap-1.5">
+                    <div
+                      className={cn(
+                        'h-1.5 rounded-full shrink-0',
+                        intensityBarWidth(emo.intensity),
+                        EMOTION_BAR_COLORS[emo.name] ?? 'bg-muted-foreground'
+                      )}
+                    />
+                    <span className="text-foreground font-medium text-px-11">
+                      {t(`psyche.emotions.${emo.name}`, emo.name)}
+                    </span>
+                    <span className="text-muted-foreground text-px-10 ml-auto tabular-nums">
+                      {Math.round(emo.intensity * 100)}%
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
+          )}
 
-            {/* Mood + PAD */}
-            <div className="px-3 py-1.5 border-b border-border/30">
-              <div className="flex items-center gap-2">
-                <span className="text-muted-foreground text-px-10 uppercase tracking-wider w-12 shrink-0">
-                  {t('psyche.tooltip.mood', 'Mood')}
-                </span>
-                <span className="text-foreground font-semibold">
-                  {t(`psyche.moods.${psycheState.mood_label}`, psycheState.mood_label)}
-                </span>
-                {psycheState.mood_intensity && psycheState.mood_intensity !== 'slightly' && (
-                  <span className="text-muted-foreground text-px-10 italic">
-                    {psycheState.mood_intensity}
-                  </span>
+          {/* Drives — only when significant */}
+          {showDrives && (
+            <div className="px-3 py-1.5">
+              <div className="flex items-center gap-3">
+                {showCuriosity && (
+                  <div className="flex items-center gap-1 text-px-10">
+                    <span className="text-violet-400">⟳</span>
+                    <span className="text-muted-foreground">
+                      {Math.round(drives.curiosity * 100)}%
+                    </span>
+                  </div>
+                )}
+                {showEngagement && (
+                  <div className="flex items-center gap-1 text-px-10">
+                    <span className="text-amber-400">⚡</span>
+                    <span className="text-muted-foreground">
+                      {Math.round(drives.engagement * 100)}%
+                    </span>
+                  </div>
                 )}
               </div>
-              <div className="flex gap-2 mt-0.5 text-px-10 font-mono">
-                <span className={padColor(Math.round(psycheState.mood_pleasure * 100))}>
-                  P:{Math.round(psycheState.mood_pleasure * 100)}%
-                </span>
-                <span className={padColor(Math.round(psycheState.mood_arousal * 100))}>
-                  A:{Math.round(psycheState.mood_arousal * 100)}%
-                </span>
-                <span className={padColor(Math.round(psycheState.mood_dominance * 100))}>
-                  D:{Math.round(psycheState.mood_dominance * 100)}%
-                </span>
-              </div>
             </div>
-
-            {/* Emotions with mini intensity bars */}
-            {emotions.length > 0 && (
-              <div className="px-3 py-1.5 border-b border-border/30">
-                <div className="text-muted-foreground text-px-10 uppercase tracking-wider mb-1">
-                  {emotions.length === 1
-                    ? t('psyche.tooltip.emotion', 'Emotion')
-                    : t('psyche.tooltip.emotions', 'Emotions')}
-                </div>
-                <div className="space-y-0.5">
-                  {emotions.map(emo => (
-                    <div key={emo.name} className="flex items-center gap-1.5">
-                      <div
-                        className={cn(
-                          'h-1.5 rounded-full shrink-0',
-                          intensityBarWidth(emo.intensity),
-                          EMOTION_BAR_COLORS[emo.name] ?? 'bg-muted-foreground'
-                        )}
-                      />
-                      <span className="text-foreground font-medium text-px-11">
-                        {t(`psyche.emotions.${emo.name}`, emo.name)}
-                      </span>
-                      <span className="text-muted-foreground text-px-10 ml-auto tabular-nums">
-                        {Math.round(emo.intensity * 100)}%
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Drives — only when significant */}
-            {showDrives && (
-              <div className="px-3 py-1.5">
-                <div className="flex items-center gap-3">
-                  {showCuriosity && (
-                    <div className="flex items-center gap-1 text-px-10">
-                      <span className="text-violet-400">⟳</span>
-                      <span className="text-muted-foreground">
-                        {Math.round((psycheState.drive_curiosity ?? 0) * 100)}%
-                      </span>
-                    </div>
-                  )}
-                  {showEngagement && (
-                    <div className="flex items-center gap-1 text-px-10">
-                      <span className="text-amber-400">⚡</span>
-                      <span className="text-muted-foreground">
-                        {Math.round((psycheState.drive_engagement ?? 0) * 100)}%
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

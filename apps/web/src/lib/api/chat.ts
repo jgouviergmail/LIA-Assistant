@@ -7,6 +7,8 @@ import { ChatStreamChunk, ChatRequest } from '@/types/chat';
 import apiClient, { redirectToLogin } from '@/lib/api-client';
 import { logger } from '@/lib/logger';
 import { CHAT_SSE_STALL_TIMEOUT_MS } from '@/lib/constants';
+import { applicationDeviceHeaders } from '@/lib/application-device-identity';
+import { recordingDeviceSnapshot } from '@/lib/application-recording-device';
 
 // `??`, not `||`: empty string = same-origin relative URLs (see api-config.ts).
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
@@ -199,9 +201,13 @@ export class ChatSSEClient {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...applicationDeviceHeaders('/agents/chat/stream'),
         },
         credentials: 'include', // Important: send session cookie
-        body: JSON.stringify(request),
+        body: JSON.stringify({
+          ...request,
+          recording_device: recordingDeviceSnapshot(request.user_id),
+        }),
         signal: this.abortController.signal, // Enable cancellation
       });
 

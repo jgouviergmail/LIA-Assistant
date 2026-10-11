@@ -52,6 +52,7 @@ export function useThemeMode(): UseThemeMode {
   const [oled, setOled] = useState(false);
   const [mounted, setMounted] = useState(false);
   const { user, refreshUser } = useAuth();
+  const lastAccountTheme = useRef<{ id: string; theme: string } | null>(null);
 
   const { mutate: updateTheme } = useApiMutation<{ theme: string }, User>({
     method: 'PATCH',
@@ -66,29 +67,32 @@ export function useThemeMode(): UseThemeMode {
     setMounted(true);
   }, []);
 
-  // One-way sync, server → local. Keyed on the persisted value ALONE: adding
+  // One-way sync, server → local. Keyed on the owner and persisted value: adding
   // the local state to the deps would re-run this after every toggle and undo
   // the user's own click before they saw it.
   useEffect(() => {
     if (!user?.theme) return;
+    const hadAccountValue = lastAccountTheme.current?.id === user.id;
+    const changedAccount = lastAccountTheme.current !== null && !hadAccountValue;
+    lastAccountTheme.current = { id: user.id, theme: user.theme };
     const stored = fromPersistedTheme(user.theme);
     // Compared against the CHOSEN mode, never the resolved one. A record saying
     // "dark" for a user sitting on `system` that happens to resolve dark looks
     // identical on screen but is a different setting — leaving it unapplied
     // makes Settings show "System" while the server says "Dark".
-    if (stored.mode !== 'system' && stored.mode !== theme) setTheme(stored.mode);
+    if ((stored.mode !== 'system' || hadAccountValue || changedAccount) && stored.mode !== theme) setTheme(stored.mode);
     if (stored.oled !== readStoredOled()) {
       setOled(stored.oled);
       writeStoredOled(stored.oled);
       applyOledAttribute(stored.oled);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.theme]);
+  }, [user?.id, user?.theme]);
 
   // Latest value the user has asked for, and whether a write loop is draining.
   // Refs, not state: they must be readable and writable synchronously from
   // inside a single event, before React has re-rendered anything.
-  const desiredRef = useRef<string | null>(null);
+  const desiredRef = useRef<{ userId: string; value: string } | null>(null);
   const writingRef = useRef(false);
 
   /**
@@ -103,7 +107,7 @@ export function useThemeMode(): UseThemeMode {
    */
   const persist = useCallback(
     async (userId: string, value: string) => {
-      desiredRef.current = value;
+      desiredRef.current = { userId, value };
       if (writingRef.current) return;
 
       writingRef.current = true;
@@ -111,14 +115,13 @@ export function useThemeMode(): UseThemeMode {
         while (desiredRef.current !== null) {
           const pending = desiredRef.current;
           desiredRef.current = null;
-          await updateTheme(`/users/${userId}`, { theme: pending });
+          try {
+            await updateTheme(`/users/${pending.userId}`, { theme: pending.value });
+          } catch {
+            // Keep the local choice; the mutation reports the failed request.
+            // A queued newer choice still gets its own single attempt.
+          }
         }
-      } catch {
-        // A theme preference is best-effort. `useApiMutation` has already
-        // logged the failure with its status and payload; rethrowing here would
-        // only surface as an unhandled rejection from an onClick handler, and
-        // would cost the user nothing but the local change they can see worked.
-        desiredRef.current = null;
       } finally {
         writingRef.current = false;
       }

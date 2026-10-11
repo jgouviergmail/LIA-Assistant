@@ -70,7 +70,9 @@ search_wikipedia_catalogue_manifest = ToolManifest(
     ],
     outputs=[
         OutputFieldSchema(path="wikipedias", type="array", description="Found articles"),
-        OutputFieldSchema(path="wikipedias[].title", type="string", description="Title"),
+        OutputFieldSchema(
+            path="wikipedias[].title", type="string", description="Title", semantic_type="Text"
+        ),
         OutputFieldSchema(
             path="wikipedias[].snippet", type="string", description="Snippet", semantic_type="Text"
         ),
@@ -118,7 +120,11 @@ get_wikipedia_summary_catalogue_manifest = ToolManifest(
     ],
     parameters=[
         ParameterSchema(
-            name="title", type="string", required=True, description="Exact article title"
+            name="title",
+            type="string",
+            required=True,
+            description="Exact article title",
+            semantic_type="Text",
         ),
         _LANG_PARAM,
     ],
@@ -126,7 +132,9 @@ get_wikipedia_summary_catalogue_manifest = ToolManifest(
         # Registry-backed: the article hangs off the `wikipedias` context key,
         # never the top level. `thumbnail` was advertised but never produced.
         OutputFieldSchema(path="wikipedias", type="array", description="Article summary entry"),
-        OutputFieldSchema(path="wikipedias[].title", type="string", description="Title"),
+        OutputFieldSchema(
+            path="wikipedias[].title", type="string", description="Title", semantic_type="Text"
+        ),
         OutputFieldSchema(
             path="wikipedias[].summary", type="string", description="Text", semantic_type="Text"
         ),
@@ -172,7 +180,11 @@ get_wikipedia_article_catalogue_manifest = ToolManifest(
     ],
     parameters=[
         ParameterSchema(
-            name="title", type="string", required=True, description="Exact article title"
+            name="title",
+            type="string",
+            required=True,
+            description="Exact article title",
+            semantic_type="Text",
         ),
         ParameterSchema(
             name="sections",
@@ -191,7 +203,9 @@ get_wikipedia_article_catalogue_manifest = ToolManifest(
     ],
     outputs=[
         OutputFieldSchema(path="wikipedias", type="array", description="Article entry"),
-        OutputFieldSchema(path="wikipedias[].title", type="string", description="Title"),
+        OutputFieldSchema(
+            path="wikipedias[].title", type="string", description="Title", semantic_type="Text"
+        ),
         OutputFieldSchema(
             path="wikipedias[].content",
             type="string",
@@ -232,7 +246,13 @@ get_wikipedia_related_catalogue_manifest = ToolManifest(
     agent="wikipedia_agent",
     description=_related_desc,
     parameters=[
-        ParameterSchema(name="title", type="string", required=True, description="Source title"),
+        ParameterSchema(
+            name="title",
+            type="string",
+            required=True,
+            description="Source title",
+            semantic_type="Text",
+        ),
         ParameterSchema(
             name="max_results",
             type="integer",
@@ -248,9 +268,17 @@ get_wikipedia_related_catalogue_manifest = ToolManifest(
         # Each related article is its own `wikipedias` entry; the source article
         # it was derived from is carried per entry, not at the top level.
         OutputFieldSchema(path="wikipedias", type="array", description="Linked articles"),
-        OutputFieldSchema(path="wikipedias[].title", type="string", description="Article title"),
         OutputFieldSchema(
-            path="wikipedias[].source_article", type="string", description="Source article"
+            path="wikipedias[].title",
+            type="string",
+            description="Article title",
+            semantic_type="Text",
+        ),
+        OutputFieldSchema(
+            path="wikipedias[].source_article",
+            type="string",
+            description="Source article",
+            semantic_type="Text",
         ),
         OutputFieldSchema(
             path="wikipedias[].url", type="string", description="URL", semantic_type="URL"

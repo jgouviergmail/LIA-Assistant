@@ -9,6 +9,18 @@ import pytest
 from src.core.exceptions import ResourceConflictError, ResourceNotFoundError
 from src.domains.interests.models import InterestStatus, UserInterest
 from src.domains.interests.router import reactivate_interest
+from src.domains.users.models import User
+
+
+def _source_selector(db: AsyncMock, user: MagicMock, interest: UserInterest) -> None:
+    async def select(statement):
+        if statement.column_descriptions[0]["entity"] is User:
+            return user
+        values = statement.compile().params.values()
+        assert user.id in values and interest.id in values
+        return interest if interest.user_id == user.id else None
+
+    db.scalar.side_effect = select
 
 
 def _interest(status: str, owner_id: uuid.UUID) -> UserInterest:
@@ -31,6 +43,7 @@ async def test_reactivate_rejects_non_dormant_with_conflict() -> None:
     user.id = uuid.uuid4()
     db = AsyncMock()
     interest = _interest(InterestStatus.ACTIVE.value, user.id)
+    _source_selector(db, user, interest)
 
     with patch("src.domains.interests.router.InterestRepository") as mock_repo_cls:
         repo = mock_repo_cls.return_value
@@ -45,6 +58,7 @@ async def test_reactivate_rejects_foreign_interest_with_not_found() -> None:
     user.id = uuid.uuid4()
     db = AsyncMock()
     interest = _interest(InterestStatus.DORMANT.value, owner_id=uuid.uuid4())
+    _source_selector(db, user, interest)
 
     with patch("src.domains.interests.router.InterestRepository") as mock_repo_cls:
         repo = mock_repo_cls.return_value

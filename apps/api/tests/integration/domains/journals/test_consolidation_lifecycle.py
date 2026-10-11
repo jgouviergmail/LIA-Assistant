@@ -25,6 +25,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
 from langchain_core.messages import AIMessage
@@ -32,7 +33,12 @@ from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.conversations.models import Conversation, ConversationMessage
-from src.domains.journals import consolidation_service
+from src.domains.journals import (
+    consolidation_lifecycle,
+    consolidation_service,
+    consolidation_settlement,
+    maintenance_actions,
+)
 from src.domains.journals.models import JournalEntry, JournalTheme
 from src.domains.journals.repository import (
     JournalEntryRepository,
@@ -43,6 +49,18 @@ from src.domains.users.models import User
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
 
+@pytest.fixture(autouse=True)
+def _offline_consolidation(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep provider work offline while exercising the real SQL settlement."""
+    monkeypatch.setattr(consolidation_service.settings, "journals_enabled", True)
+    monkeypatch.setattr(
+        consolidation_lifecycle, "is_capability_enabled", AsyncMock(return_value=True)
+    )
+    monkeypatch.setattr(
+        maintenance_actions, "prepare_embeddings", AsyncMock(return_value=(None, None))
+    )
+
+
 @pytest.fixture
 def _redirect_db_context(async_session: AsyncSession, monkeypatch: pytest.MonkeyPatch) -> None:
     """Route ``get_db_context()`` to the test session.
@@ -51,11 +69,14 @@ def _redirect_db_context(async_session: AsyncSession, monkeypatch: pytest.Monkey
     detached from any request. That makes it invisible to the per-test
     transaction, so a naive test asserts on a row the service never saw.
 
-    Both import spellings must be patched at their SOURCE module, not on
-    ``consolidation_service``: the service imports ``get_db_context`` inside the
-    functions, so the name is resolved at call time and a module-attribute patch
-    on the caller would never be consulted.
+    Patch both source spellings and the lifecycle/source modules that bind the
+    function at import time. Each sequential phase must see the fixture's rows,
+    including source gates before the lease's first commit.
     """
+    from src.domains.habits import portrait_source as habits_source
+    from src.domains.interests import portrait_source as interests_source
+    from src.domains.memories import portrait_source as memories_source
+    from src.domains.relations.debrief import portrait_source as debriefs_source
     from src.infrastructure import database
     from src.infrastructure.database import session as database_session
 
@@ -65,6 +86,15 @@ def _redirect_db_context(async_session: AsyncSession, monkeypatch: pytest.Monkey
 
     monkeypatch.setattr(database, "get_db_context", _fake_ctx)
     monkeypatch.setattr(database_session, "get_db_context", _fake_ctx)
+    for module in (
+        consolidation_lifecycle,
+        consolidation_settlement,
+        habits_source,
+        interests_source,
+        memories_source,
+        debriefs_source,
+    ):
+        monkeypatch.setattr(module, "get_db_context", _fake_ctx)
 
 
 async def _make_user(session: AsyncSession, **overrides: Any) -> User:
@@ -85,8 +115,7 @@ async def _make_user(session: AsyncSession, **overrides: Any) -> User:
 
 def _fake_llm(
     actions: list[dict[str, Any]] | None = None,
-    portrait_full: str = "",
-    portrait_brief: str = "",
+    portrait_claims: list[dict[str, Any]] | None = None,
 ) -> Any:
     """Build a stand-in for ``invoke_with_instrumentation``.
 
@@ -98,12 +127,31 @@ def _fake_llm(
     payload = json.dumps(
         {
             "actions": actions or [],
-            "portrait_full": portrait_full,
-            "portrait_brief": portrait_brief,
+            "portrait_claims": portrait_claims,
         }
     )
 
-    async def _call(**_kwargs: Any) -> AIMessage:
+    async def _call(**kwargs: Any) -> AIMessage:
+        messages = kwargs.get("messages", [])
+        last_content = messages[-1].content if isinstance(messages, list) and messages else ""
+        try:
+            candidate = json.loads(last_content) if isinstance(last_content, str) else None
+        except ValueError:
+            candidate = None
+        if isinstance(candidate, dict) and isinstance(candidate.get("facets"), list):
+            verdict = {
+                "reviews": [
+                    {
+                        "index": item["index"],
+                        "supported": True,
+                        "scope_preserved": True,
+                        "uncertainty_preserved": True,
+                        "synthesized": True,
+                    }
+                    for item in candidate["facets"]
+                ]
+            }
+            return AIMessage(content=json.dumps(verdict))
         return AIMessage(content=payload)
 
     return _call
@@ -169,7 +217,11 @@ class TestPortraitSources:
         await _make_entry(async_session, user, JournalTheme.LEARNINGS.value)
         bundle = PortraitSourceBundle(
             sections={
-                "memories": "## LONG-TERM MEMORIES (2 of 2)\n- [personal] [NEUTRE] x (2026-09-01)",
+                "memories": (
+                    "## LONG-TERM MEMORIES (2 of 2)\n"
+                    "- [personal] [NEUTRE] Prefers comparing options before deciding (2026-09-01)"
+                    "\n- [personal] [NEUTRE] Asks for concise responses (2026-09-02)"
+                ),
                 "interests": "",
                 "habits": "## LEARNED HABITS\n- Usual activity: weekdays 08:00-10:00",
                 "relation_debriefs": "",
@@ -191,7 +243,34 @@ class TestPortraitSources:
 
         monkeypatch.setattr(consolidation_service, "build_portrait_source_sections", _sections)
         prompts: list[str] = []
-        fake = _fake_llm(portrait_full="Portrait complet.", portrait_brief="Bref.")
+        claims = [
+            {
+                "facet": "posture",
+                "text": (
+                    "Je comprends que tu privilégies une décision éclairée par les alternatives. "
+                    "Je dois donc rendre les options faciles à comparer dans nos échanges."
+                ),
+                "supports": [
+                    {
+                        "source": "memories",
+                        "quote": (
+                            "- [personal] [NEUTRE] Prefers comparing options before deciding "
+                            "(2026-09-01)"
+                        ),
+                    }
+                ],
+                "in_brief": True,
+            },
+            {
+                "facet": "context",
+                "text": "Ton activité se concentre généralement en début de matinée les jours travaillés.",
+                "supports": [
+                    {"source": "habits", "quote": "- Usual activity: weekdays 08:00-10:00"}
+                ],
+                "in_brief": False,
+            },
+        ]
+        fake = _fake_llm(portrait_claims=claims)
 
         async def _capture(**kwargs: Any) -> AIMessage:
             prompts.append(str(kwargs["messages"]))
@@ -206,15 +285,29 @@ class TestPortraitSources:
             user_language="fr",
         )
 
-        assert len(prompts) == 1
+        assert len(prompts) == 2  # Generation and independent semantic review.
         assert "## LONG-TERM MEMORIES (2 of 2)" in prompts[0]
         assert "## LEARNED HABITS" in prompts[0]
         assert "## INTERESTS" not in prompts[0] and "## RELATIONSHIP DEBRIEFS" not in prompts[0]
         await async_session.refresh(user)
-        assert user.journal_portrait_full == "Portrait complet."
-        assert user.journal_portrait_sources == bundle.provenance
+        assert "facets" in prompts[1] and "scope_preserved" in prompts[1]
+        assert user.journal_portrait_full == "\n\n".join(claim["text"] for claim in claims)
+        assert user.journal_portrait_brief == claims[0]["text"]
+        assert "[personal]" not in user.journal_portrait_full
+        assert "08:00" not in user.journal_portrait_full
+        assert user.journal_portrait_sources is not None
+        for key, value in bundle.provenance.items():
+            assert user.journal_portrait_sources[key] == value
+        assert user.journal_portrait_sources["journal_revision"] == user.journal_revision
+        assert user.journal_portrait_sources["claims"] == claims
+        assert user.journal_portrait_sources["portrait_review"]["digest"]
+        from src.domains.journals.source_state import portrait_source_state
 
-    async def test_no_portrait_leaves_the_previous_words_and_their_provenance(
+        assert user.journal_portrait_sources["source_state"] == await portrait_source_state(
+            async_session, user
+        )
+
+    async def test_no_portrait_invalidates_unverifiable_previous_words(
         self,
         async_session: AsyncSession,
         monkeypatch: pytest.MonkeyPatch,
@@ -250,8 +343,285 @@ class TestPortraitSources:
         )
 
         await async_session.refresh(user)
-        assert user.journal_portrait_full == "Ancien portrait."
+        assert user.journal_portrait_full is None
+        assert user.journal_portrait_brief is None
+        assert user.journal_portrait_compiled_at is None
+        assert user.journal_portrait_sources is not None
+        assert user.journal_portrait_sources["journal_revision"] == user.journal_revision
+        assert user.journal_portrait_sources["source_state"] is not None
+
+    async def test_no_portrait_preserves_already_current_words_and_their_provenance(
+        self,
+        async_session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+        _redirect_db_context: None,
+    ) -> None:
+        from src.domains.journals.source_state import portrait_source_state
+
+        user = await _make_user(async_session)
+        entry = await _make_entry(async_session, user, JournalTheme.LEARNINGS.value)
+        compiled_at = datetime.now(UTC)
+        previous = {
+            "version": 1,
+            "journal_entries": 1,
+            "sources": {},
+            "journal_revision": user.journal_revision,
+            "source_state": await portrait_source_state(async_session, user),
+            "portrait_pending": False,
+            "claims": [
+                {
+                    "facet": "interaction",
+                    "text": "Une synthèse déjà approuvée.",
+                    "supports": [{"source": f"journal:{entry.id}", "quote": entry.content}],
+                    "in_brief": True,
+                }
+            ],
+        }
+        user.journal_portrait_full = user.journal_portrait_brief = "Une synthèse déjà approuvée."
+        user.journal_portrait_compiled_at = compiled_at
+        user.journal_portrait_sources = previous
+        await async_session.flush()
+        monkeypatch.setattr(consolidation_service, "invoke_with_instrumentation", _fake_llm())
+
+        applied = await consolidation_service.consolidate_journals_for_user(
+            user_id=user.id,
+            personality_instruction=None,
+            personality_code=None,
+            user_language="fr",
+        )
+
+        assert applied == 0
+        await async_session.refresh(user)
+        assert user.journal_portrait_full == "Une synthèse déjà approuvée."
+        assert user.journal_portrait_brief == "Une synthèse déjà approuvée."
+        assert user.journal_portrait_compiled_at == compiled_at
         assert user.journal_portrait_sources == previous
+
+
+class TestPortraitFollowUp:
+    """Maintenance nominates one paced synthesis pass without self-citation or churn."""
+
+    async def test_actual_mutation_needs_follow_up_then_stable_portrait_consumes_it(
+        self,
+        async_session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+        _redirect_db_context: None,
+    ) -> None:
+        user = await _make_user(async_session)
+        entry = await _make_entry(async_session, user, JournalTheme.LEARNINGS.value)
+        corrected = "WHEN deleting email -> DO verify the selected identifiers before deletion."
+        monkeypatch.setattr(
+            consolidation_service,
+            "invoke_with_instrumentation",
+            _fake_llm(
+                actions=[{"action": "update", "entry_id": str(entry.id), "content": corrected}]
+            ),
+        )
+
+        arguments = {
+            "user_id": user.id,
+            "personality_instruction": None,
+            "personality_code": None,
+            "user_language": "fr",
+            "manual": True,
+        }
+        assert await consolidation_service.consolidate_journals_for_user(**arguments) == 1
+        await async_session.refresh(user)
+        await async_session.refresh(entry)
+        assert entry.content == corrected
+        assert user.journal_consolidated_revision == user.journal_revision
+        assert user.journal_portrait_sources["portrait_pending"] is True
+        assert await consolidation_lifecycle.consolidation_needed(async_session, user) is True
+
+        claims = [
+            {
+                "facet": "interaction",
+                "text": (
+                    "Pour les suppressions de courriels, je dois vérifier précisément "
+                    "la sélection concernée avant de passer à l’action."
+                ),
+                "supports": [{"source": f"journal:{entry.id}", "quote": corrected}],
+                "in_brief": True,
+            }
+        ]
+        monkeypatch.setattr(
+            consolidation_service, "invoke_with_instrumentation", _fake_llm(portrait_claims=claims)
+        )
+        assert await consolidation_service.consolidate_journals_for_user(**arguments) == 0
+        await async_session.refresh(user)
+        assert user.journal_portrait_full == claims[0]["text"]
+        assert user.journal_portrait_sources["portrait_review"]["digest"]
+        assert user.journal_portrait_sources["portrait_pending"] is False
+        assert await consolidation_lifecycle.consolidation_needed(async_session, user) is False
+
+        stable_revision = user.journal_revision
+        stable_full, stable_brief = user.journal_portrait_full, user.journal_portrait_brief
+        stable_compiled_at = user.journal_portrait_compiled_at
+        monkeypatch.setattr(
+            consolidation_service,
+            "invoke_with_instrumentation",
+            _fake_llm(
+                actions=[{"action": "update", "entry_id": str(entry.id), "title": entry.title}]
+            ),
+        )
+        assert await consolidation_service.consolidate_journals_for_user(**arguments) == 0
+        await async_session.refresh(user)
+        assert user.journal_revision == stable_revision
+        assert user.journal_portrait_full == stable_full
+        assert user.journal_portrait_brief == stable_brief
+        assert user.journal_portrait_compiled_at == stable_compiled_at
+        assert user.journal_portrait_sources["portrait_pending"] is False
+        assert await consolidation_lifecycle.consolidation_needed(async_session, user) is False
+
+    async def test_omitted_portrait_keeps_actual_maintenance_pending(
+        self,
+        async_session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+        _redirect_db_context: None,
+    ) -> None:
+        user = await _make_user(async_session)
+        entry = await _make_entry(async_session, user, JournalTheme.LEARNINGS.value)
+        arguments = {
+            "user_id": user.id,
+            "personality_instruction": None,
+            "personality_code": None,
+            "user_language": "fr",
+            "manual": True,
+        }
+        monkeypatch.setattr(
+            consolidation_service,
+            "invoke_with_instrumentation",
+            _fake_llm(
+                actions=[{"action": "update", "entry_id": str(entry.id), "content": "New rule."}]
+            ),
+        )
+        assert await consolidation_service.consolidate_journals_for_user(**arguments) == 1
+        await async_session.refresh(user)
+        assert user.journal_portrait_sources["portrait_pending"] is True
+
+        monkeypatch.setattr(consolidation_service, "invoke_with_instrumentation", _fake_llm())
+        assert await consolidation_service.consolidate_journals_for_user(**arguments) == 0
+        await async_session.refresh(user)
+        assert user.journal_consolidated_revision == user.journal_revision
+        assert user.journal_portrait_sources["portrait_pending"] is True
+        assert await consolidation_lifecycle.consolidation_needed(async_session, user) is True
+
+    async def test_old_extractive_policy_is_not_current_and_no_output_cannot_bless_it(
+        self,
+        async_session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+        _redirect_db_context: None,
+    ) -> None:
+        from src.domains.journals.lifecycle import portrait_is_current
+        from src.domains.journals.source_state import portrait_source_state
+
+        user = await _make_user(async_session)
+        await _make_entry(async_session, user, JournalTheme.LEARNINGS.value)
+        old_state = await portrait_source_state(async_session, user)
+        old_state["_rendering"]["portrait_policy"] = "extractive-before-natural-review"
+        user.journal_portrait_full = "[memories] [personal] A copied fact."
+        user.journal_portrait_brief = "[learnings] WHEN deleting email -> DO verify identifiers."
+        user.journal_portrait_compiled_at = datetime.now(UTC)
+        user.journal_consolidated_revision = user.journal_revision
+        user.journal_portrait_sources = {
+            "version": 1,
+            "journal_entries": 1,
+            "sources": {},
+            "journal_revision": user.journal_revision,
+            "source_state": old_state,
+            "portrait_pending": False,
+        }
+        await async_session.flush()
+        assert await portrait_is_current(async_session, user) is False
+        assert await consolidation_lifecycle.consolidation_needed(async_session, user) is True
+
+        monkeypatch.setattr(consolidation_service, "invoke_with_instrumentation", _fake_llm())
+        assert (
+            await consolidation_service.consolidate_journals_for_user(
+                user.id,
+                personality_instruction=None,
+                personality_code=None,
+                user_language="fr",
+                manual=True,
+            )
+            == 0
+        )
+        await async_session.refresh(user)
+        assert user.journal_portrait_full is None
+        assert user.journal_portrait_brief is None
+        assert user.journal_portrait_compiled_at is None
+        assert user.journal_portrait_sources["source_state"] != old_state
+        assert user.journal_portrait_sources["portrait_pending"] is True
+        assert await consolidation_lifecycle.consolidation_needed(async_session, user) is True
+
+        monkeypatch.setattr(
+            consolidation_service, "invoke_with_instrumentation", _fake_llm(portrait_claims=[])
+        )
+        assert (
+            await consolidation_service.consolidate_journals_for_user(
+                user.id,
+                personality_instruction=None,
+                personality_code=None,
+                user_language="fr",
+                manual=True,
+            )
+            == 0
+        )
+        await async_session.refresh(user)
+        assert user.journal_portrait_sources["portrait_pending"] is False
+        assert await consolidation_lifecycle.consolidation_needed(async_session, user) is False
+
+
+class TestExecutionPreferences:
+    """Stale caller arguments cannot reopen an opted-out history or old limits."""
+
+    async def test_current_account_preferences_override_stale_caller_arguments(
+        self,
+        async_session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+        _redirect_db_context: None,
+    ) -> None:
+        user = await _make_user(
+            async_session,
+            language="en",
+            journal_consolidation_with_history=False,
+            journal_max_total_chars=4000,
+            journal_max_entry_chars=200,
+        )
+        await _make_entry(async_session, user, JournalTheme.LEARNINGS.value)
+        history = AsyncMock(side_effect=AssertionError("Opted-out history must not be read"))
+        conversation = AsyncMock(wraps=consolidation_service._conversation_section)
+        monkeypatch.setattr(consolidation_service, "_load_conversation_history", history)
+        monkeypatch.setattr(consolidation_service, "_conversation_section", conversation)
+        prompts: list[str] = []
+        fake = _fake_llm()
+
+        async def capture(**kwargs: Any) -> AIMessage:
+            prompts.append(str(kwargs["messages"]))
+            return await fake(**kwargs)
+
+        monkeypatch.setattr(consolidation_service, "invoke_with_instrumentation", capture)
+        assert (
+            await consolidation_service.consolidate_journals_for_user(
+                user.id,
+                personality_instruction=None,
+                personality_code=None,
+                user_language="fr",
+                consolidation_with_history=True,
+                max_total_chars=5000,
+                max_entry_chars=500,
+                last_consolidated_at=datetime.now(UTC) - timedelta(days=200),
+                manual=True,
+            )
+            == 0
+        )
+        history.assert_not_awaited()
+        conversation.assert_awaited_once_with(user.id, None, enabled=False)
+        assert len(prompts) == 1
+        assert "Write in English." in prompts[0]
+        assert "Write in French." not in prompts[0]
+        assert "max 200 chars" in prompts[0] and "max 500 chars" not in prompts[0]
+        assert "/ 4000 characters used." in prompts[0]
 
 
 class TestSourceFreshness:

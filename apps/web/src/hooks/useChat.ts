@@ -31,6 +31,7 @@ import {
 import { validateReducerAction } from '@/reducers/chat-reducer-errors';
 import { cancelActiveRun, chatSSEClient, ChatStreamError, fetchActiveRun } from '@/lib/api/chat';
 import { useAuth } from '@/hooks/useAuth';
+import { useApplicationStateSync } from '@/hooks/useApplicationStateSync';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { useLiaGender } from '@/hooks/useLiaGender';
 import { useVoicePlayback } from '@/hooks/useVoicePlayback';
@@ -238,6 +239,7 @@ export const useChat = ({
   debugPanelVisible = false,
 }: { debugPanelVisible?: boolean } = {}): UseChatReturn => {
   const { user } = useAuth();
+  const { handleChange: handleApplicationStateChange, completeStream: completeApplicationStream } = useApplicationStateSync();
   const { withContext } = useLoggingContext();
   const { t, i18n } = useTranslation();
 
@@ -422,6 +424,7 @@ export const useChat = ({
               t,
               withContext,
               handleVoiceChunk,
+              handleApplicationStateChange,
               beginVoiceRun,
               endVoiceRun,
               hitlQuestionBuffer,
@@ -459,6 +462,7 @@ export const useChat = ({
           },
           () => {
             dispatch({ type: 'SSE_DISCONNECTED' });
+            completeApplicationStream();
           },
           () => {
             replayDone = true;
@@ -477,6 +481,8 @@ export const useChat = ({
       withContext,
       stopPlayback,
       handleVoiceChunk,
+      handleApplicationStateChange,
+      completeApplicationStream,
       beginVoiceRun,
       endVoiceRun,
       resolveStreamErrorMessage,
@@ -701,6 +707,7 @@ export const useChat = ({
               t,
               withContext,
               handleVoiceChunk,
+              handleApplicationStateChange,
               beginVoiceRun,
               endVoiceRun,
               hitlQuestionBuffer,
@@ -791,6 +798,7 @@ export const useChat = ({
 
             // Ensure we're in idle state
             dispatch({ type: 'SSE_DISCONNECTED' });
+            completeApplicationStream();
           }
         );
       } catch (error) {
@@ -824,6 +832,8 @@ export const useChat = ({
       checkAndResumeActiveRun,
       stopPlayback,
       handleVoiceChunk,
+      handleApplicationStateChange,
+      completeApplicationStream,
       beginVoiceRun,
       endVoiceRun,
       warmupAudio,

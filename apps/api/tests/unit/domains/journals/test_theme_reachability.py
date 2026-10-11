@@ -266,12 +266,12 @@ class TestNoHardcodedThemeAtWriteSites:
         )
 
 
-class TestActionLoopsKeepTheirSavepoint:
-    """Both maintenance loops isolate each action, or neither is resilient."""
+class TestJournalSettlementBoundaries:
+    """Extraction isolates actions; consolidation publishes one coherent result."""
 
     @pytest.mark.parametrize(
         "module",
-        ["domains/journals/extraction_service.py", "domains/journals/consolidation_service.py"],
+        ["domains/journals/extraction_settlement.py"],
     )
     def test_action_loop_wraps_each_action_in_a_savepoint(self, module: str) -> None:
         """The per-action ``try/except ... continue`` needs a SAVEPOINT to mean anything.
@@ -289,6 +289,34 @@ class TestActionLoopsKeepTheirSavepoint:
             "action will take the whole batch down while pretending to skip it."
         )
 
+    def test_consolidation_rolls_back_the_entire_result_on_any_action_failure(self) -> None:
+        source = (_SRC_ROOT / "domains/journals/consolidation_settlement.py").read_text(
+            encoding="utf-8"
+        )
+        tree = ast.parse(source)
+        settlement = next(
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "settle_maintenance"
+        )
+        calls = {
+            node.func.attr
+            for node in ast.walk(settlement)
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+        }
+        assert "rollback" in calls
+        assert any(
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "commit_consolidation"
+            for node in ast.walk(settlement)
+        ), "The effect commit must use the caller authority/observed-receipt seam"
+        assert not any(isinstance(node, ast.Continue) for node in ast.walk(settlement))
+        caller = (_SRC_ROOT / "domains/journals/consolidation_service.py").read_text(
+            encoding="utf-8"
+        )
+        assert "await settle_maintenance(" in caller
+
 
 class TestFeedbackFeedstockThemes:
     """User-correction entries must not squat a theme they do not belong to."""
@@ -302,7 +330,10 @@ class TestFeedbackFeedstockThemes:
         "module,expected_constant",
         [
             ("domains/journals/feedback_hooks.py", "JOURNAL_RESPONSE_FEEDBACK_THEME"),
-            ("domains/journals/router.py", "JOURNAL_PORTRAIT_FEEDBACK_THEME"),
+            (
+                "domains/journals/portrait_feedback_configuration.py",
+                "JOURNAL_PORTRAIT_FEEDBACK_THEME",
+            ),
         ],
     )
     def test_each_lever_wires_its_own_constant(self, module: str, expected_constant: str) -> None:

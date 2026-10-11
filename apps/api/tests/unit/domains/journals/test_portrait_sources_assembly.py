@@ -104,14 +104,19 @@ async def test_the_provenance_says_what_each_source_answered(registry: dict[str,
 async def test_a_section_that_breaks_the_global_cap_is_dropped_whole_and_reported(
     registry: dict[str, Any], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(assembly.settings, "journal_consolidation_sources_max_chars", 30)
+    from src.domains.journals.portrait_catalogue import render_catalogue_sections
+
+    memory = "## LONG-TERM MEMORIES\n- a"
+    cap = len(render_catalogue_sections({"memories": memory})["memories"])
+    monkeypatch.setattr(assembly.settings, "journal_consolidation_sources_max_chars", cap)
     bundle = await build_portrait_source_sections(uuid.uuid4(), "fr", journal_entries=0)
-    # The memories section (28 chars) fits; the interests one would exceed 30.
+    # The complete rendered memory with its reference fits; the next section cannot.
     assert bundle.sections["memories"] and bundle.sections["interests"] == ""
     assert bundle.provenance["sources"]["interests"] == {
         "status": "unavailable",
         "used": 0,
         "total": 2,
+        "reason": "over_budget",
     }
     assert "\n- b"[:1] not in bundle.sections["interests"]
 
@@ -138,3 +143,31 @@ async def test_readers_run_one_at_a_time(
     monkeypatch.setattr(seam, "_REGISTRY", {k: (_slow(k), PROBE) for k in PORTRAIT_SOURCE_KEYS})
     await build_portrait_source_sections(uuid.uuid4(), "fr", journal_entries=0)
     assert peak == 1
+
+
+async def test_reference_overhead_counts_against_the_whole_section_budget(
+    registry: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The original source fits exactly; the IDs sent to the model do not.
+    raw = "## LONG-TERM MEMORIES\n- a"
+    monkeypatch.setattr(assembly.settings, "journal_consolidation_sources_max_chars", len(raw))
+    bundle = await build_portrait_source_sections(uuid.uuid4(), "fr", journal_entries=0)
+    assert bundle.sections["memories"] == ""
+    assert bundle.provenance["sources"]["memories"]["reason"] == "over_budget"
+
+
+async def test_source_with_only_incomplete_items_is_not_reported_as_used(
+    registry: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    reader = _reader(
+        "relation_debriefs", text="## RELATIONSHIP DEBRIEFS\n- A clipped description…", total=2
+    )
+    monkeypatch.setitem(seam._REGISTRY, "relation_debriefs", (reader, PROBE))
+    bundle = await build_portrait_source_sections(uuid.uuid4(), "fr", journal_entries=0)
+    assert bundle.sections["relation_debriefs"] == ""
+    assert bundle.provenance["sources"]["relation_debriefs"] == {
+        "status": "empty",
+        "used": 0,
+        "total": 2,
+        "omitted_incomplete": 1,
+    }

@@ -23,12 +23,41 @@ from collections.abc import Awaitable, Callable, Sequence
 
 import structlog
 from fastapi import Depends, params
+from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.config import settings
 from src.core.constants import CAPABILITY_DISABLED_ERROR_CODE
 from src.core.exceptions import AuthorizationError
-from src.domains.feature_switches.registry import PlatformCapability, is_capability_enabled
+from src.domains.feature_switches.registry import (
+    CAPABILITY_SPECS,
+    PlatformCapability,
+    is_capability_enabled,
+)
+from src.domains.system_settings.models import SystemSetting
+from src.domains.system_settings.registry import decode_bool
 
 logger = structlog.get_logger(__name__)
+
+
+async def require_capability_fresh(db: AsyncSession, capability: PlatformCapability) -> None:
+    """Management reads and confirmed writes refuse on unavailable operator authority."""
+    spec = CAPABILITY_SPECS[capability]
+    if not bool(getattr(settings, spec.env_flag, False)):
+        raise AuthorizationError(
+            detail={"error_code": "CAPABILITY_DISABLED", "capability": capability.value}
+        )
+    try:
+        raw: str | None = await db.scalar(
+            select(SystemSetting.value).where(SystemSetting.key == spec.setting_key)
+        )
+    except SQLAlchemyError as exc:
+        raise AuthorizationError(detail={"error_code": "SERVICE_UNAVAILABLE"}) from exc
+    if raw is not None and not decode_bool(raw):
+        raise AuthorizationError(
+            detail={"error_code": "CAPABILITY_DISABLED", "capability": capability.value}
+        )
 
 
 def require_capability(

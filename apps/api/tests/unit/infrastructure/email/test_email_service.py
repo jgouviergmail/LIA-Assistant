@@ -70,7 +70,11 @@ class TestSendEmail:
         )
 
         assert result is True
-        mock_smtp_class.assert_called_once_with("smtp.example.com", 587)
+        from src.core.constants import PLATFORM_SMTP_TIMEOUT_SECONDS
+
+        mock_smtp_class.assert_called_once_with(
+            "smtp.example.com", 587, timeout=PLATFORM_SMTP_TIMEOUT_SECONDS
+        )
         mock_server.starttls.assert_called_once()
         mock_server.login.assert_called_once_with("user@example.com", "password123")
         mock_server.sendmail.assert_called_once()

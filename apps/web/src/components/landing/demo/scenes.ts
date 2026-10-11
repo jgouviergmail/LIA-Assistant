@@ -13,6 +13,7 @@ const SCENE_DEFINITIONS = [
 export type ProductSceneId = (typeof SCENE_DEFINITIONS)[number]['id'];
 export type ProductScenePhase = 0 | 1 | 2;
 export const PRODUCT_DEMO_KEY = 'landing.product_demo';
+export const HOME_PRODUCT_DEMO_KEY = 'landing.home_product_demo';
 export const PRODUCT_SCENES = SCENE_DEFINITIONS.map(scene => ({
   ...scene,
   titleKey: `${PRODUCT_DEMO_KEY}.scenes.${scene.id}.title`,

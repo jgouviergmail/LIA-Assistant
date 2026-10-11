@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
-import { useApiQuery } from './useApiQuery';
+import { useApplicationAccountQuery } from './useApplicationAccountQuery';
+import { useApplicationResourceSync } from './useApplicationResourceSync';
 import { useApiMutation } from './useApiMutation';
 
 /**
@@ -84,26 +85,32 @@ export interface HealthMetricsDeleteResponse {
  */
 export function useHealthMetrics(period: HealthMetricsPeriod = 'day') {
   // Aggregated chart data
+  const aggregateQuery = useApplicationAccountQuery<HealthMetricsAggregateResponse>(
+    `/health-metrics/aggregate?period=${period}`, 'useHealthMetrics');
   const {
     data: aggregate,
     loading: aggregateLoading,
     error: aggregateError,
     refetch: refetchAggregate,
-  } = useApiQuery<HealthMetricsAggregateResponse>('/health-metrics/aggregate', {
-    componentName: 'useHealthMetrics',
-    params: { period },
-    deps: [period],
-  });
+    ownerId, isCurrent, setData: setAggregate,
+  } = aggregateQuery;
 
   // Token listing
+  const tokenQuery = useApplicationAccountQuery<HealthMetricsTokenListResponse>(
+    '/health-metrics/tokens', 'useHealthMetrics');
   const {
     data: tokensData,
     loading: tokensLoading,
     refetch: refetchTokens,
-  } = useApiQuery<HealthMetricsTokenListResponse>('/health-metrics/tokens', {
-    componentName: 'useHealthMetrics',
-    initialData: { tokens: [] },
-  });
+    setData: setTokens,
+  } = tokenQuery;
+  const refreshHealth = useCallback(async () => {
+    setAggregate(undefined);
+    setTokens(undefined);
+    await Promise.all([refetchAggregate(), refetchTokens()]);
+  }, [setAggregate, setTokens, refetchAggregate, refetchTokens]);
+  const releaseHealth = useCallback(() => {}, []);
+  useApplicationResourceSync(ownerId, 'health_metrics', refreshHealth, releaseHealth);
 
   const { mutate: createTokenMutate, loading: creatingToken } = useApiMutation<
     { label?: string },
@@ -146,45 +153,57 @@ export function useHealthMetrics(period: HealthMetricsPeriod = 'day') {
 
   const createToken = useCallback(
     async (label?: string): Promise<HealthMetricsTokenCreateResponse | null> => {
+      if (!isCurrent()) return null;
       const result = await createTokenMutate('/health-metrics/tokens', { label });
+      if (!isCurrent()) return null;
       if (result) {
         await refetchTokens();
       }
-      return result ?? null;
+      return isCurrent() ? result ?? null : null;
     },
-    [createTokenMutate, refetchTokens]
+    [createTokenMutate, refetchTokens, isCurrent]
   );
 
   const revokeToken = useCallback(
     async (tokenId: string) => {
+      if (!isCurrent()) return;
       await revokeTokenMutate(`/health-metrics/tokens/${tokenId}`);
+      if (!isCurrent()) return;
+      setTokens(undefined);
       await refetchTokens();
     },
-    [revokeTokenMutate, refetchTokens]
+    [revokeTokenMutate, refetchTokens, isCurrent, setTokens]
   );
 
   const deleteKind = useCallback(
     async (kind: HealthMetricsKind) => {
+      if (!isCurrent()) return;
       const result = await deleteKindMutate(`/health-metrics?kind=${kind}`);
+      if (!isCurrent()) return;
+      if (result) setAggregate(undefined);
       await refetchAggregate();
       return result;
     },
-    [deleteKindMutate, refetchAggregate]
+    [deleteKindMutate, refetchAggregate, isCurrent, setAggregate]
   );
 
   const deleteAll = useCallback(async () => {
+    if (!isCurrent()) return;
     const result = await deleteAllMutate('/health-metrics/all');
+    if (!isCurrent()) return;
+    if (result) setAggregate(undefined);
     await refetchAggregate();
     return result;
-  }, [deleteAllMutate, refetchAggregate]);
+  }, [deleteAllMutate, refetchAggregate, isCurrent, setAggregate]);
 
   const updateAgentsEnabled = useCallback(
     async (enabled: boolean) => {
+      if (!isCurrent()) return;
       return updateAgentsPreferenceMutate('/auth/me/health-metrics-agents-preference', {
         health_metrics_agents_enabled: enabled,
       });
     },
-    [updateAgentsPreferenceMutate]
+    [updateAgentsPreferenceMutate, isCurrent]
   );
 
   return {

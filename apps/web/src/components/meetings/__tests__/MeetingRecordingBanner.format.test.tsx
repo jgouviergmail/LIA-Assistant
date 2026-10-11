@@ -60,6 +60,7 @@ const RECORDING: PersistedRecording = {
 
 function recorder(over: Partial<UseMeetingRecorderReturn> = {}): UseMeetingRecorderReturn {
   return {
+    ownerId: null,
     phase: 'recording',
     recording: RECORDING,
     engine: null,

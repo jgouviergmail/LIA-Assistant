@@ -1,14 +1,10 @@
 """
 Semantic Type System - Core Type Definitions
 
-This module defines the semantic type system inspired by:
-- schema.org for hierarchy and properties
-- RDF (Resource Description Framework) for relations
-- SKOS (Simple Knowledge Organization System) for broader/narrower/related
-- OWL (Web Ontology Language) for subsumption
-
-Professional architecture to replace hardcoded patterns
-with a structured and exploitable type system.
+Schema.org-inspired hierarchy/properties and RDF/SKOS relation metadata.
+Runtime uses properties/provenance for evidence and tool linking; the registry
+validates relations as data. This module performs no OWL subsumption or value
+conversion (ADR-233).
 """
 
 from dataclasses import dataclass, field
@@ -16,12 +12,21 @@ from enum import Enum
 from typing import Any
 
 
+def is_semantic_pivot(type_name: str) -> bool:
+    """Generic value classes describe shape, not interchangeable domain values.
+
+    A task title and an email body are both Text; that does not make one a
+    source for the other. Specialized types still support explicit linking.
+    """
+    return type_name not in {"Text", "QuantitativeValue"}
+
+
 class TypeCategory(Enum):
     """
     Primary categories of semantic types.
 
     Inspired by schema.org Thing and its main subclasses.
-    Groups the 96+ types identified in the codebase.
+    Groups the registered semantic vocabulary.
     """
 
     IDENTITY = "identity"
@@ -79,7 +84,7 @@ class SemanticType:
     Complete semantic type with rich metadata.
 
     This class is at the core of the semantic type system.
-    It models the 96+ types identified with:
+    It models registered types with:
     - Hierarchy (parent/children)
     - Semantic relations (related, broader, narrower)
     - Typed properties
@@ -117,7 +122,7 @@ class SemanticType:
         ...     description="Email address (RFC 5322)",
         ...     format_pattern=r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
         ...     related_types=["contact_id", "person_name"],
-        ...     source_domains=["contacts", "emails", "calendar"],
+        ...     source_domains=["contact", "email", "event"],
         ...     used_in_tools=["get_contacts_tool", "send_email_tool"]
         ... )
     """
@@ -143,7 +148,8 @@ class SemanticType:
     children: list[str] = field(default_factory=list)
     """List of direct subtypes.
 
-    Inverse of parent. Automatically computed by TypeRegistry.
+    Optional explicit inverse of parent. TypeRegistry's hierarchy graph
+    derives its edges from parent, and validates children when declared.
     """
 
     # ===== Description =====
@@ -197,7 +203,7 @@ class SemanticType:
     """Domains providing this semantic type.
 
     Indicates which domains can provide values of this type.
-    Example: physical_address is provided by ["contacts", "places", "calendar", "routes"]
+    Example: physical_address is provided by ["contact", "place", "event", "route"]
 
     CRUCIAL for iso-functional semantic expansion.
     """
@@ -230,7 +236,7 @@ class SemanticType:
             raise ValueError("SemanticType name cannot be empty")
 
         # Validate that name doesn't contain spaces (use underscores)
-        if " " in self.name:
+        if any(char.isspace() for char in self.name):
             raise ValueError(
                 f"SemanticType name '{self.name}' cannot contain spaces (use underscores)"
             )
@@ -249,17 +255,17 @@ class SemanticType:
             "category": self.category.value,
             "uri": self.uri,
             "parent": self.parent,
-            "children": self.children,
+            "children": list(self.children),
             "description": self.description,
-            "examples": self.examples,
-            "properties": self.properties,
-            "related_types": self.related_types,
-            "broader_types": self.broader_types,
-            "narrower_types": self.narrower_types,
-            "source_domains": self.source_domains,
-            "used_in_tools": self.used_in_tools,
+            "examples": list(self.examples),
+            "properties": dict(self.properties),
+            "related_types": list(self.related_types),
+            "broader_types": list(self.broader_types),
+            "narrower_types": list(self.narrower_types),
+            "source_domains": list(self.source_domains),
+            "used_in_tools": list(self.used_in_tools),
             "format_pattern": self.format_pattern,
-            "validation_rules": self.validation_rules,
+            "validation_rules": list(self.validation_rules),
         }
 
     def __repr__(self) -> str:

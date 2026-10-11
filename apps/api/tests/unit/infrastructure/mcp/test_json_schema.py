@@ -85,14 +85,17 @@ class TestSanitizeArrayItems:
 
     def test_union_item_type_is_normalized(self):
         assert sanitize_array_items({"type": "array", "items": {"type": ["string", "null"]}}) == {
-            "type": "string"
+            "anyOf": [{"type": "string"}, {"type": "null"}]
         }
 
     def test_union_nested_array_items_stay_typed(self):
         out = sanitize_array_items(
             {"type": "array", "items": {"type": ["array", "null"], "items": {"type": "integer"}}}
         )
-        assert out == {"type": "array", "items": {"type": "integer"}}
+        assert out == {
+            "anyOf": [{"type": "array"}, {"type": "null"}],
+            "items": {"type": "integer"},
+        }
 
     @pytest.mark.parametrize(
         "field_spec",
@@ -115,7 +118,11 @@ class TestSanitizeArrayItems:
                 "items": {"type": ["string", "null"], "enum": ["a", "b"], "description": "d"},
             }
         )
-        assert out == {"type": "string", "enum": ["a", "b"], "description": "d"}
+        assert out == {
+            "anyOf": [{"type": "string"}, {"type": "null"}],
+            "enum": ["a", "b"],
+            "description": "d",
+        }
 
 
 class TestArrayPythonType:
@@ -464,10 +471,11 @@ class TestObjectStructureIsPublished:
     def test_nested_properties_and_required_are_declared(self):
         assert declaration_for("object", self.BOOKING_COORDINATES) == {
             "type": "object",
+            "additionalProperties": False,
             "properties": {
-                "latitude": {"type": "number"},
-                "longitude": {"type": "number"},
-                "radius": {"type": "number"},
+                "latitude": {"type": "number", "minimum": -90, "maximum": 90},
+                "longitude": {"type": "number", "minimum": -180, "maximum": 180},
+                "radius": {"type": "number", "exclusiveMinimum": 0, "maximum": 200},
             },
             "required": ["latitude", "longitude", "radius"],
         }
@@ -522,20 +530,14 @@ class TestArraySizeBoundsSurviveCompaction:
         assert compact_schema({"type": "array", "maxItems": True}) == {"type": "array"}
 
 
-class TestDocumentedReductionLimits:
-    """Two reductions are partial ON PURPOSE. Pinned so they stay decisions.
+class TestConjunctiveDeclarations:
+    """Reference siblings and later allOf constraints are jointly authoritative."""
 
-    Neither shape appears in any of the seven live MCP servers this was measured
-    against; widening them would be speculation, and an undocumented limit is a
-    trap for whoever meets it first.
-    """
-
-    def test_a_ref_resolves_to_its_target_not_to_its_siblings(self):
-        root = {"$defs": {"T": {"type": "string", "enum": ["a"]}}}
-        resolved = resolve_property({"$ref": "#/$defs/T", "enum": ["z"]}, root)
+    def test_a_ref_intersects_its_target_and_sibling_enums(self):
+        root = {"$defs": {"T": {"type": "string", "enum": ["a", "b"]}}}
+        resolved = resolve_property({"$ref": "#/$defs/T", "enum": ["b", "c"]}, root)
         assert resolved.name == "string"
-        # The TARGET's enum, not the sibling's.
-        assert constraints_of(resolved.spec) == {"enum": ["a"]}
+        assert constraints_of(resolved.spec) == {"enum": ["b"]}
 
     def test_the_description_and_default_of_a_ref_site_are_recovered_downstream(self):
         """The field builder reads both specs, which is why these two survive."""
@@ -554,11 +556,10 @@ class TestDocumentedReductionLimits:
         assert field["description"] == "At the site"
         assert field["default"] == "d"
 
-    def test_allof_keeps_the_type_of_its_first_member_not_the_union_of_bounds(self):
+    def test_allof_keeps_later_member_bounds(self):
         resolved = resolve_property({"allOf": [{"type": "string"}, {"maxLength": 10}]}, {})
         assert resolved.name == "string"
-        # The later member's bound is not published — the stated limit.
-        assert constraints_of(resolved.spec) == {}
+        assert constraints_of(resolved.spec) == {"max_length": 10}
 
 
 class TestHostileCompositionAndReferences:

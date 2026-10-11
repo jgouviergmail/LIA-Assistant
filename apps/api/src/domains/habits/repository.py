@@ -26,6 +26,7 @@ from src.domains.habits.models import (
     UserHabit,
     UserHabitProfile,
 )
+from src.domains.users.models import User
 
 logger = structlog.get_logger(__name__)
 
@@ -377,7 +378,9 @@ class HabitsRepository:
     async def get_profile(self, user_id: UUID) -> UserHabitProfile | None:
         """The user's rhythm profile row, or None before the first compute."""
         result = await self.db.execute(
-            select(UserHabitProfile).where(UserHabitProfile.user_id == user_id)
+            select(UserHabitProfile)
+            .where(UserHabitProfile.user_id == user_id)
+            .execution_options(populate_existing=True)
         )
         return result.scalar_one_or_none()
 
@@ -425,7 +428,9 @@ class HabitsRepository:
     async def get_owned(self, habit_id: UUID, user_id: UUID) -> UserHabit | None:
         """One habit, scoped to its owner (ownership check at the query)."""
         result = await self.db.execute(
-            select(UserHabit).where(UserHabit.id == habit_id, UserHabit.user_id == user_id)
+            select(UserHabit)
+            .where(UserHabit.id == habit_id, UserHabit.user_id == user_id)
+            .execution_options(populate_existing=True)
         )
         return result.scalar_one_or_none()
 
@@ -462,12 +467,16 @@ class HabitsRepository:
         Returns:
             ``"created"`` | ``"updated"`` | ``"blocked"`` (skipped).
         """
+        await self.lock_learning_owner(user_id)
         existing = await self.db.execute(
-            select(UserHabit).where(
+            select(UserHabit)
+            .where(
                 UserHabit.user_id == user_id,
                 UserHabit.kind == kind,
                 UserHabit.key == key,
             )
+            .with_for_update()
+            .execution_options(populate_existing=True)
         )
         row = existing.scalar_one_or_none()
         if row is None:
@@ -490,14 +499,26 @@ class HabitsRepository:
             row.muted_until_reproof = False
         return "updated"
 
-    async def touch_habit(self, habit: UserHabit, last_observed_at: datetime) -> None:
+    async def touch_habit(self, habit: UserHabit, last_observed_at: datetime) -> bool:
         """Refresh when the behaviour was last seen, nothing else.
 
         The nightly sync's answer to a lock that wavers while its evidence
         remains: the payload keeps the last proven shape, the date says the
         request is still alive.
         """
-        habit.last_observed_at = last_observed_at
+        await self.lock_learning_owner(habit.user_id)
+        result = await self.db.execute(
+            update(UserHabit)
+            .where(
+                UserHabit.id == habit.id,
+                UserHabit.user_id == habit.user_id,
+                UserHabit.status != HabitStatus.BLOCKED.value,
+            )
+            .values(last_observed_at=last_observed_at)
+            .returning(UserHabit.id),
+            execution_options={"synchronize_session": False},
+        )
+        return result.scalar_one_or_none() is not None
 
     async def remove_stale_active_habits(
         self, user_id: UUID, kind: str, live_keys: set[str]
@@ -526,6 +547,27 @@ class HabitsRepository:
     async def set_status(self, habit: UserHabit, status: str) -> None:
         """Set a habit's user-controlled status."""
         habit.status = status
+
+    async def delete_stale_active_habit(self, habit: UserHabit) -> bool:
+        """Demote only a still-active row, never an older cached user decision."""
+        await self.lock_learning_owner(habit.user_id)
+        result = await self.db.execute(
+            delete(UserHabit)
+            .where(
+                UserHabit.id == habit.id,
+                UserHabit.user_id == habit.user_id,
+                UserHabit.status == HabitStatus.ACTIVE.value,
+            )
+            .returning(UserHabit.id),
+            execution_options={"synchronize_session": False},
+        )
+        return result.scalar_one_or_none() is not None
+
+    async def lock_learning_owner(self, user_id: UUID) -> None:
+        """FK-compatible owner fence before child locks; no parent/child deadlock."""
+        await self.db.execute(
+            select(User.id).where(User.id == user_id).with_for_update(read=True, key_share=True)
+        )
 
     async def delete_habit(self, habit: UserHabit) -> None:
         """Delete one habit row."""

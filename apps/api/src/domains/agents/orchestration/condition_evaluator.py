@@ -389,37 +389,39 @@ class ReferenceResolver:
         Returns:
             Arguments with resolved values
         """
-        resolved = {}
-        for key, value in args.items():
-            # Check for comma-separated references FIRST (before single reference check)
-            # e.g., "$steps.step_1.contacts[0].email,$steps.step_2.contacts[0].email"
-            if self._is_comma_separated_references(value):
-                resolved[key] = self._resolve_comma_separated_references(
-                    value, completed_steps, context, registry
-                )
-            elif self.is_reference(value):
-                resolved[key] = self.resolve(value, completed_steps, context, registry)
-            elif isinstance(value, str) and self._has_embedded_reference(value):
-                # Handle embedded references like "from:($steps.X.Y) to:me"
-                resolved[key] = self._resolve_embedded_references(value, completed_steps, context)
-            elif isinstance(value, dict):
-                resolved[key] = self.resolve_args(value, completed_steps, context, registry)
-            elif isinstance(value, list):
-                resolved[key] = [
-                    (
-                        self.resolve(item, completed_steps, context, registry)
-                        if self.is_reference(item)
-                        else (
-                            self._resolve_embedded_references(item, completed_steps, context)
-                            if isinstance(item, str) and self._has_embedded_reference(item)
-                            else item
-                        )
-                    )
-                    for item in value
-                ]
-            else:
-                resolved[key] = value
-        return resolved
+        return {
+            key: self._resolve_argument_value(value, completed_steps, context, registry)
+            for key, value in args.items()
+        }
+
+    def _resolve_argument_value(
+        self,
+        value: object,
+        completed_steps: dict[str, dict[str, object]],
+        context: dict[str, object] | None,
+        registry: dict[str, dict[str, object]] | None,
+    ) -> object:
+        """Resolve a JSON argument tree, including objects inside batch arrays.
+
+        A reference's resolved payload is data: it is returned whole rather
+        than interpreted again as instructions or another reference tree.
+        """
+        if self._is_comma_separated_references(value):
+            return self._resolve_comma_separated_references(
+                value, completed_steps, context, registry
+            )
+        if self.is_reference(value):
+            return self.resolve(value, completed_steps, context, registry)
+        if isinstance(value, str) and self._has_embedded_reference(value):
+            return self._resolve_embedded_references(value, completed_steps, context)
+        if isinstance(value, dict):
+            return self.resolve_args(value, completed_steps, context, registry)
+        if isinstance(value, list):
+            return [
+                self._resolve_argument_value(item, completed_steps, context, registry)
+                for item in value
+            ]
+        return value
 
     def _has_embedded_reference(self, value: str) -> bool:
         """Check if a string contains embedded references.

@@ -19,13 +19,24 @@ Domain vocabulary is SINGULAR throughout (contact, place, event, route),
 matching DOMAIN_REGISTRY and the ontology's source_domains.
 """
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from src.domains.agents.semantic.core_types import load_core_types
+from src.domains.agents.semantic.manifest_semantics import (
+    available_manifest,
+    available_manifests,
+    output_reference_path,
+    parameter_reference,
+    parameter_semantic_types,
+)
+from src.domains.agents.semantic.semantic_type import is_semantic_pivot
 from src.domains.agents.semantic.type_registry import TypeRegistry, get_registry
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
+
+if TYPE_CHECKING:
+    from src.domains.agents.registry.catalogue import ToolManifest
 
 
 class SemanticExpansionService:
@@ -71,7 +82,7 @@ class SemanticExpansionService:
         Args:
             registry: Type registry (if None, uses the global one)
         """
-        self.registry = registry or get_registry()
+        self.registry = registry if registry is not None else get_registry()
 
         # Ensure core types are loaded
         if len(self.registry) == 0:
@@ -433,34 +444,6 @@ class SemanticExpansionService:
             )
         return expanded_domains
 
-    def _get_primary_type_for_domain(self, domain: str) -> str:
-        """
-        Get the primary semantic type for a domain.
-
-        Used for Wu & Palmer distance calculation.
-
-        Args:
-            domain: Domain name (e.g., "contacts", "emails")
-
-        Returns:
-            Primary semantic type name (e.g., "person_name", "message_id")
-        """
-        # Mapping of domains to their primary types (most representative)
-        domain_primary_types = {
-            "contact": "person_name",
-            "email": "message_id",
-            "event": "event_id",
-            "task": "task_id",
-            "file": "file_id",
-            "place": "place_id",
-            "route": "physical_address",
-            "weather": "coordinate",
-            "wikipedia": "text",
-            "perplexity": "text",
-            "reminder": "reminder_id",
-        }
-        return domain_primary_types.get(domain, "text")
-
 
 # =============================================================================
 # EVIDENCE ENTITY TYPES (evidence-driven expansion)
@@ -543,13 +526,17 @@ def reset_expansion_service() -> None:
     """
     global _global_expansion_service
     _global_expansion_service = None
-    logger.debug("global_expansion_service_reset", message="Global SemanticExpansionService reset")
+    logger.debug(
+        "global_expansion_service_reset",
+        message="Global SemanticExpansionService reset",
+    )
 
 
 def _get_output_paths_by_semantic_type(
     semantic_type: str,
     domains: list[str],
     max_paths: int = 2,
+    manifests: list[ToolManifest] | None = None,
 ) -> list[tuple[str, str]]:
     """
     Find output paths in catalogue manifests that provide a given semantic_type.
@@ -575,7 +562,7 @@ def _get_output_paths_by_semantic_type(
     paths: list[tuple[str, str]] = []
 
     try:
-        all_manifests = get_request_tool_manifests()
+        all_manifests = get_request_tool_manifests() if manifests is None else manifests
 
         for manifest in all_manifests:
             # Filter by domain - extract domain from agent name
@@ -588,7 +575,9 @@ def _get_output_paths_by_semantic_type(
             for output in manifest.outputs:
                 if output.semantic_type == semantic_type:
                     # Convert array notation: contacts[] → contacts[0]
-                    output_path = output.path.replace("[]", "[0]")
+                    output_path = output_reference_path(output)
+                    if output_path is None:
+                        continue
                     paths.append((manifest.name, output_path))
 
                     if len(paths) >= max_paths:
@@ -623,8 +612,7 @@ def collect_manifest_param_consumers(manifests: list[Any]) -> dict[str, set[str]
     consumers: dict[str, set[str]] = {}
     for manifest in manifests:
         for param in getattr(manifest, "parameters", None) or []:
-            semantic_type = getattr(param, "semantic_type", None)
-            if semantic_type:
+            for semantic_type in parameter_semantic_types(param):
                 consumers.setdefault(semantic_type, set()).add(manifest.name)
     return consumers
 
@@ -659,9 +647,22 @@ def collect_manifest_output_providers(manifests: list[Any]) -> dict[str, set[str
     return providers
 
 
+def _semantic_contract_scope(
+    manifests: list[ToolManifest] | None,
+) -> tuple[list[ToolManifest], set[str] | None]:
+    """Explicit catalogues and active requests constrain both ends of a link."""
+    from src.core.context import get_request_tool_manifests, request_tool_manifests_ctx
+
+    scoped = manifests is not None or request_tool_manifests_ctx.get() is not None
+    contracts = get_request_tool_manifests() if manifests is None else manifests
+    return contracts, {manifest.name for manifest in contracts} if scoped else None
+
+
 def generate_semantic_dependencies_for_prompt(
     domains: list[str],
     include_jinja2_patterns: bool = True,
+    *,
+    manifests: list[ToolManifest] | None = None,
 ) -> str:
     """
     Generate dynamic semantic dependencies section for planner prompt.
@@ -676,6 +677,7 @@ def generate_semantic_dependencies_for_prompt(
     Args:
         domains: List of domain names (e.g., ["email", "contact"])
         include_jinja2_patterns: Whether to include Jinja2 reference examples
+        manifests: Exact bound catalogue, when selection further narrows the request.
 
     Returns:
         Formatted string for prompt injection describing semantic dependencies.
@@ -701,7 +703,8 @@ def generate_semantic_dependencies_for_prompt(
 
     if not domains:
         logger.debug(
-            "semantic_deps_no_domains", message="No domains provided for semantic dependencies"
+            "semantic_deps_no_domains",
+            message="No domains provided for semantic dependencies",
         )
         return SEMANTIC_DEPS_NO_DOMAINS
 
@@ -714,9 +717,7 @@ def generate_semantic_dependencies_for_prompt(
         # drift on every tool added (measured 2026-07-31: ~70 types with an
         # incomplete used_in_tools). Empty outside a request lifecycle — the
         # section then degrades to the ontology-only behaviour.
-        from src.core.context import get_request_tool_manifests
-
-        request_manifests = get_request_tool_manifests()
+        request_manifests, available_names = _semantic_contract_scope(manifests)
         manifest_consumers = collect_manifest_param_consumers(request_manifests)
         manifest_providers = collect_manifest_output_providers(request_manifests)
 
@@ -752,18 +753,28 @@ def generate_semantic_dependencies_for_prompt(
 
         # Focus on cross-domain types (provided by one domain, used by tools in another)
         for type_name in sorted(all_types):
+            if not is_semantic_pivot(type_name):
+                continue
             type_def = registry.get(type_name)
 
             # Only include types that are:
             # 1. Provided by at least one of the selected domains
             # 2. Used by tools (have consumers)
-            declared_domains = set(getattr(type_def, "source_domains", None) or ())
+            declared_domains = (
+                set(getattr(type_def, "source_domains", None) or ())
+                if available_names is None
+                else set()
+            )
             provider_domains = declared_domains | manifest_providers.get(type_name, set())
             providers = sorted(provider_domains & active)
-            consumers = sorted(
+            consumer_names = (
                 set(getattr(type_def, "used_in_tools", None) or ())
-                | manifest_consumers.get(type_name, set())
-            )
+                if available_names is None
+                else set()
+            ) | manifest_consumers.get(type_name, set())
+            if available_names is not None:
+                consumer_names &= available_names
+            consumers = sorted(consumer_names)
             if not providers or not consumers:
                 continue
 
@@ -781,6 +792,7 @@ def generate_semantic_dependencies_for_prompt(
                     type_name,
                     providers,  # Search in provider domains
                     max_paths=1,
+                    manifests=request_manifests,
                 )
                 if output_paths:
                     tool_name, path = output_paths[0]
@@ -820,6 +832,19 @@ def generate_semantic_dependencies_for_prompt(
         return SEMANTIC_DEPS_NO_CROSS_DOMAIN
 
 
+def _consumer_domains_for_manifests(manifests: list[ToolManifest]) -> dict[str, set[str]]:
+    """Index each explicit semantic pivot by its actual consuming domains."""
+    consumer_domains: dict[str, set[str]] = {}
+    for manifest in manifests:
+        for parameter in manifest.parameters:
+            for type_name in parameter_semantic_types(parameter):
+                if is_semantic_pivot(type_name):
+                    consumer_domains.setdefault(type_name, set()).add(
+                        manifest.agent.removesuffix("_agent")
+                    )
+    return consumer_domains
+
+
 def get_semantic_provider_tool_names(domains: list[str]) -> set[str]:
     """
     Get tool names that provide cross-domain semantic types for the given domains.
@@ -847,34 +872,29 @@ def get_semantic_provider_tool_names(domains: list[str]) -> set[str]:
         return set()  # Single domain = no cross-domain dependencies
 
     try:
-        service = get_expansion_service()
-        registry = service.registry
+        from src.core.context import get_request_tool_manifests
+        from src.domains.agents.registry.catalogue import is_read_only_tool
 
-        # Collect all semantic types for active domains
-        all_types: set[str] = set()
-        for domain in domains:
-            all_types.update(registry.get_by_domain(domain))
+        active = set(domains)
+        manifests = [
+            manifest
+            for manifest in get_request_tool_manifests()
+            if manifest.agent.removesuffix("_agent") in active
+        ]
+        consumer_domains = _consumer_domains_for_manifests(manifests)
 
-        provider_tools: set[str] = set()
-
-        for type_name in all_types:
-            type_def = registry.get(type_name)
-            if not type_def or not type_def.used_in_tools:
-                continue
-
-            # Only include types provided by at least one active domain
-            providers = [d for d in type_def.source_domains if d in domains]
-            if not providers:
-                continue
-
-            # Find actual provider tool names from manifests
-            output_paths = _get_output_paths_by_semantic_type(
-                type_name,
-                providers,
-                max_paths=3,
-            )
-            for tool_name, _ in output_paths:
-                provider_tools.add(tool_name)
+        # Protect real read-only sources for an available consumer in ANOTHER
+        # domain. Editorial links cannot gate new native/MCP types; a mutation
+        # is never a lookup, and a path count cap must never remove a provider.
+        provider_tools = {
+            manifest.name
+            for manifest in manifests
+            if is_read_only_tool(manifest)
+            for output in manifest.outputs
+            if output.semantic_type
+            and consumer_domains.get(output.semantic_type, set())
+            - {manifest.agent.removesuffix("_agent")}
+        }
 
         if provider_tools:
             logger.debug(
@@ -935,19 +955,13 @@ def generate_jinja2_suggestions(
         ["$steps.search_contacts.contacts[0].addresses[0].formattedValue",
          "$steps.fetch_events.events[0].location"]
     """
-    from src.core.context import get_request_tool_manifests
-    from src.domains.agents.registry import get_global_registry
-    from src.domains.agents.registry.agent_registry import ToolManifestNotFound
-
     suggestions: list[str] = []
 
     try:
-        registry = get_global_registry()
+        manifests = {manifest.name: manifest for manifest in available_manifests()}
 
-        # Get the target parameter's semantic_type
-        try:
-            target_manifest = registry.get_tool_manifest(target_tool)
-        except ToolManifestNotFound:
+        target_manifest = manifests.get(target_tool)
+        if target_manifest is None:
             logger.debug(
                 "jinja2_suggestions_tool_not_found",
                 target_tool=target_tool,
@@ -972,6 +986,8 @@ def generate_jinja2_suggestions(
             return []
 
         target_semantic_type = target_param_schema.semantic_type
+        if not is_semantic_pivot(target_semantic_type):
+            return []
 
         # Search for matching outputs in available steps
         for step_id in available_step_ids:
@@ -983,8 +999,7 @@ def generate_jinja2_suggestions(
                 step_tool_name = step_tool_mapping[step_id]
             else:
                 # Fallback: heuristic matching (step_id often contains tool name or vice versa)
-                all_manifests = get_request_tool_manifests()
-                for manifest in all_manifests:
+                for manifest in manifests.values():
                     tool_name = manifest.name
                     # Convention: step_id often matches tool_name pattern
                     # e.g., step_id="get_contacts" matches tool_name="get_contacts_tool"
@@ -1003,18 +1018,18 @@ def generate_jinja2_suggestions(
                 continue
 
             # Get manifest for this step's tool
-            try:
-                step_manifest = registry.get_tool_manifest(step_tool_name)
-            except ToolManifestNotFound:
+            step_manifest = manifests.get(step_tool_name)
+            if step_manifest is None:
                 continue
 
             # Search outputs for matching semantic_type
             for output in step_manifest.outputs:
-                if output.semantic_type == target_semantic_type:
+                if output.semantic_type in parameter_semantic_types(target_param_schema):
                     # Build Jinja2 reference
                     # Handle array paths: contacts[].email → contacts[0].email
-                    output_path = output.path.replace("[]", "[0]")
-                    jinja2_ref = f"$steps.{step_id}.{output_path}"
+                    jinja2_ref = parameter_reference(step_id, output, target_param_schema)
+                    if jinja2_ref is None:
+                        continue
 
                     if jinja2_ref not in suggestions:
                         suggestions.append(jinja2_ref)
@@ -1058,7 +1073,7 @@ def generate_jinja2_suggestions(
 
 
 def generate_linking_hints_for_plan(
-    plan_steps: list[dict],
+    plan_steps: list[dict[str, object]],
     max_suggestions_per_param: int = 3,
 ) -> dict[str, list[str]]:
     """
@@ -1083,14 +1098,9 @@ def generate_linking_hints_for_plan(
         >>> hints
         {"send_message.to": ["$steps.search_contacts.contacts[0].emailAddresses[0].value"]}
     """
-    from src.domains.agents.registry import get_global_registry
-    from src.domains.agents.registry.agent_registry import ToolManifestNotFound
-
     hints: dict[str, list[str]] = {}
 
     try:
-        registry = get_global_registry()
-
         # Build mapping of step_id → tool_name for precise matching
         step_tool_mapping: dict[str, str] = {}
         preceding_step_ids: list[str] = []
@@ -1099,6 +1109,8 @@ def generate_linking_hints_for_plan(
             step_id = step.get("step_id", "")
             tool_name = step.get("tool_name", "")
 
+            if not isinstance(step_id, str) or not isinstance(tool_name, str):
+                continue
             if not tool_name:
                 preceding_step_ids.append(step_id)
                 continue
@@ -1106,9 +1118,8 @@ def generate_linking_hints_for_plan(
             # Build mapping for precise matching in generate_jinja2_suggestions
             step_tool_mapping[step_id] = tool_name
 
-            try:
-                manifest = registry.get_tool_manifest(tool_name)
-            except ToolManifestNotFound:
+            manifest = available_manifest(tool_name)
+            if manifest is None:
                 preceding_step_ids.append(step_id)
                 continue
 

@@ -3,6 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
+from src.domains.journals.constants import JOURNAL_ENTRY_CONTENT_ABSOLUTE_MAX_LENGTH
 from src.domains.journals.schemas import (
     ExtractedJournalEntry,
     JournalEntryCreate,
@@ -47,13 +48,19 @@ class TestJournalEntryCreate:
             )
 
     def test_content_too_long(self) -> None:
-        """Content exceeding max entry chars (800) is rejected."""
+        """The API ceiling admits the largest supported user limit, never more."""
         with pytest.raises(ValidationError):
             JournalEntryCreate(
                 theme="learnings",
                 title="Title",
-                content="x" * 801,
+                content="x" * (JOURNAL_ENTRY_CONTENT_ABSOLUTE_MAX_LENGTH + 1),
             )
+
+    def test_user_limit_above_default_is_representable(self) -> None:
+        assert (
+            len(JournalEntryCreate(theme="learnings", title="Rule", content="x" * 1200).content)
+            == 1200
+        )
 
     def test_empty_title_rejected(self) -> None:
         """Empty title is rejected."""

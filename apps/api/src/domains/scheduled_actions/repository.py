@@ -5,16 +5,18 @@ Includes anti-concurrence locking (FOR UPDATE SKIP LOCKED) for the scheduler,
 stale execution recovery, and batch timezone recalculation.
 """
 
+from collections.abc import Sequence
 from datetime import datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import structlog
-from sqlalchemy import select, update
+from sqlalchemy import Result, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.repository import BaseRepository
 from src.core.time_utils import now_utc
 from src.domains.scheduled_actions.models import ScheduledAction, ScheduledActionStatus
+from src.domains.users.models import User
 
 logger = structlog.get_logger(__name__)
 
@@ -25,10 +27,29 @@ class ScheduledActionRepository(BaseRepository[ScheduledAction]):
     def __init__(self, db: AsyncSession) -> None:
         super().__init__(db, ScheduledAction)
 
+    async def lock_creation_owner(self, user_id: UUID) -> None:
+        """Hold one account reservation while counting and inserting its routines."""
+        await self.db.execute(select(User.id).where(User.id == user_id).with_for_update())
+
+    async def lock_owned(self, action_id: UUID, user_id: UUID) -> ScheduledAction | None:
+        """Refresh and lock the exact owned row before reserving a manual run."""
+        result: Result[tuple[ScheduledAction]] = await self.db.execute(
+            select(ScheduledAction)
+            .where(
+                ScheduledAction.id == action_id,
+                ScheduledAction.user_id == user_id,
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        return result.scalar_one_or_none()
+
     async def get_all_for_user(
         self,
         user_id: UUID,
         limit: int = 50,
+        *,
+        action_ids: Sequence[UUID] | None = None,
     ) -> list[ScheduledAction]:
         """Get all scheduled actions for a user, ordered by next trigger."""
         stmt = (
@@ -40,8 +61,41 @@ class ScheduledActionRepository(BaseRepository[ScheduledAction]):
             .order_by(ScheduledAction.next_trigger_at.asc().nullslast())
             .limit(limit)
         )
+        if action_ids is not None:
+            stmt = stmt.where(ScheduledAction.id.in_(action_ids))
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
+
+    async def release_manual_execution(self, action_id: UUID, user_id: UUID, token: UUID) -> bool:
+        """Cancel only this reservation, preserving the current configuration and clock."""
+        result: Result[tuple[UUID]] = await self.db.execute(
+            update(ScheduledAction)
+            .where(
+                ScheduledAction.id == action_id,
+                ScheduledAction.user_id == user_id,
+                ScheduledAction.status == ScheduledActionStatus.EXECUTING.value,
+                ScheduledAction.execution_token == token,
+            )
+            .values(status=ScheduledActionStatus.ACTIVE.value, execution_token=None)
+            .returning(ScheduledAction.id)
+        )
+        return result.scalar_one_or_none() is not None
+
+    async def page_for_user(
+        self, user_id: UUID, *, after_id: UUID | None, limit: int
+    ) -> list[ScheduledAction]:
+        """Owned rows in stable primary-key order, with one look-ahead row."""
+        if not 1 <= limit <= 50:
+            raise ValueError("Invalid routine page limit")
+        stmt = (
+            select(ScheduledAction)
+            .where(ScheduledAction.user_id == user_id)
+            .order_by(ScheduledAction.id.asc())
+            .limit(limit + 1)
+        )
+        if after_id is not None:
+            stmt = stmt.where(ScheduledAction.id > after_id)
+        return list((await self.db.execute(stmt)).scalars().all())
 
     async def count_for_user(self, user_id: UUID) -> int:
         """Count scheduled actions for a user (for limit enforcement)."""
@@ -129,6 +183,7 @@ class ScheduledActionRepository(BaseRepository[ScheduledAction]):
         # Immediately transition to EXECUTING
         for action in actions:
             action.status = ScheduledActionStatus.EXECUTING.value
+            action.execution_token = uuid4()
 
         await self.db.flush()
 
@@ -159,7 +214,7 @@ class ScheduledActionRepository(BaseRepository[ScheduledAction]):
             update(ScheduledAction)
             .where(ScheduledAction.status == ScheduledActionStatus.EXECUTING.value)
             .where(ScheduledAction.updated_at < cutoff)
-            .values(status=ScheduledActionStatus.ACTIVE.value)
+            .values(status=ScheduledActionStatus.ACTIVE.value, execution_token=None)
             .returning(ScheduledAction.id)
         )
 
@@ -191,6 +246,7 @@ class ScheduledActionRepository(BaseRepository[ScheduledAction]):
         full NEW-dict replacement when provided (JSONB rule).
         """
         action.status = ScheduledActionStatus.ACTIVE.value
+        action.execution_token = None
         action.next_trigger_at = next_trigger_at
         if condition_state is not None:
             action.condition_state = condition_state
@@ -210,6 +266,7 @@ class ScheduledActionRepository(BaseRepository[ScheduledAction]):
         as the success — a full NEW-dict replacement (JSONB rule).
         """
         action.status = ScheduledActionStatus.ACTIVE.value
+        action.execution_token = None
         action.last_executed_at = now_utc()
         action.execution_count += 1
         action.consecutive_failures = 0
@@ -247,6 +304,7 @@ class ScheduledActionRepository(BaseRepository[ScheduledAction]):
         new — as a full NEW-dict replacement (JSONB rule).
         """
         action.consecutive_failures += 1
+        action.execution_token = None
         action.last_error = error[:2000]  # Truncate error message
         action.next_trigger_at = next_trigger_at
         if condition_state is not None:

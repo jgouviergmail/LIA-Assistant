@@ -22,6 +22,13 @@ from src.core.exceptions import (
     raise_unprocessable_entity,
 )
 from src.core.session_dependencies import get_current_active_session
+from src.domains.heartbeat.preference_commands import (
+    heartbeat_settings_response as _settings_response,
+)
+from src.domains.heartbeat.preference_commands import (
+    normalize_heartbeat_patch,
+    update_heartbeat_preferences,
+)
 from src.domains.heartbeat.repository import HeartbeatNotificationRepository
 from src.domains.heartbeat.schemas import (
     HeartbeatFeedbackRequest,
@@ -31,18 +38,6 @@ from src.domains.heartbeat.schemas import (
     HeartbeatSettingsUpdate,
 )
 from src.domains.heartbeat.source_availability import compute_available_sources
-from src.domains.heartbeat.source_policy import (
-    HEARTBEAT_SOURCE_DEPENDENCIES,
-    HEARTBEAT_SOURCE_ORDER,
-    disabled_sources_for,
-    sanitize_disabled_sources,
-)
-from src.domains.moments.preferences import (
-    MOMENT_KIND_ORDER,
-    disabled_kinds_for,
-    sanitize_disabled_kinds,
-    unmet_kind_dependencies,
-)
 from src.domains.users.models import User
 from src.infrastructure.observability.logging import get_logger
 
@@ -68,41 +63,6 @@ router = APIRouter(
 # ---------------------------------------------------------------------------
 # Settings endpoints
 # ---------------------------------------------------------------------------
-
-
-def _settings_response(user: User, available_sources: list[str]) -> HeartbeatSettingsResponse:
-    """Assemble the settings payload — the ONE place that shape is decided.
-
-    Both routes returned a byte-identical literal, so every field added since
-    had to be written twice; a third vocabulary (the moment kinds) would have
-    made that three chances for the read and the write to disagree about the
-    same panel.
-
-    Args:
-        user: The account row, after any update was applied.
-        available_sources: Connector categories this account actually has.
-
-    Returns:
-        The payload, carrying what is enforced so whoever produces a value can
-        read the bound (ADR-184).
-    """
-    return HeartbeatSettingsResponse(
-        heartbeat_enabled=user.heartbeat_enabled,
-        heartbeat_notify_start_hour=user.heartbeat_notify_start_hour,
-        heartbeat_notify_end_hour=user.heartbeat_notify_end_hour,
-        available_sources=available_sources,
-        disabled_sources=sorted(disabled_sources_for(user)),
-        all_sources=list(HEARTBEAT_SOURCE_ORDER),
-        source_dependencies={k: list(v) for k, v in HEARTBEAT_SOURCE_DEPENDENCIES.items()},
-        moment_kinds_disabled=sorted(disabled_kinds_for(user)),
-        all_moment_kinds=list(MOMENT_KIND_ORDER),
-        moment_kind_dependencies={
-            kind: list(requires)
-            for kind, requires in unmet_kind_dependencies(
-                available=frozenset(available_sources)
-            ).items()
-        },
-    )
 
 
 @router.get(
@@ -134,41 +94,17 @@ async def update_heartbeat_settings(
 ) -> HeartbeatSettingsResponse:
     """Update user's heartbeat notification settings."""
     try:
-        update_data = data.model_dump(exclude_unset=True)
+        try:
+            update_data = normalize_heartbeat_patch(data)
+            user = await update_heartbeat_preferences(db, user.id, data)
+        except ValueError as exc:
+            raise_unprocessable_entity(str(exc))
 
-        # Refusals are validated BEFORE anything is written: an unknown key
-        # silently dropped would be a preference the reader believes they set.
-        # Canonical (sorted, de-duplicated) so two equivalent requests leave
-        # one row state, and a NEW list — never a mutation of the stored one
-        # (JSONB in-place changes are skipped by SQLAlchemy).
-        if update_data.get("heartbeat_disabled_sources") is not None:
-            try:
-                update_data["heartbeat_disabled_sources"] = sanitize_disabled_sources(
-                    update_data["heartbeat_disabled_sources"]
-                )
-            except ValueError as exc:
-                raise_unprocessable_entity(str(exc))
-
-        # Same doctrine, second vocabulary: a NEW list, canonical, and unknown
-        # kinds DROPPED rather than refused — a renamed kind must not block a
-        # save, nor stay stored where no switch could ever lift it again.
-        if update_data.get("moment_kinds_disabled") is not None:
-            update_data["moment_kinds_disabled"] = sanitize_disabled_kinds(
-                update_data["moment_kinds_disabled"]
-            )
-
-        if update_data:
-            for field_name, value in update_data.items():
-                setattr(user, field_name, value)
-
-            await db.commit()
-            await db.refresh(user)
-
-            logger.info(
-                "heartbeat_settings_updated",
-                user_id=str(user.id),
-                updated_fields=list(update_data.keys()),
-            )
+        logger.info(
+            "heartbeat_settings_updated",
+            user_id=str(user.id),
+            updated_fields=list(update_data),
+        )
 
         available_sources = await compute_available_sources(user, db)
 

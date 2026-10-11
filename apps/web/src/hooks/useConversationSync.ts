@@ -19,6 +19,7 @@ import { useCallback, useEffect, useRef } from 'react';
 
 import { ChatSyncController, type SyncReason } from '@/lib/chat-sync';
 import type { Message } from '@/types/chat';
+import { subscribeApplicationResource } from '@/lib/application-resources';
 
 /**
  * Whether the reader is in the middle of a gesture a re-render could disturb:
@@ -36,6 +37,8 @@ export function readerBusy(doc: Document = document): boolean {
 }
 
 export interface UseConversationSyncOptions<Page extends { messages: Message[] }> {
+  /** Account lifetime; replacing it retires every in-flight page. */
+  ownerId?: string;
   /** Whether syncing makes sense at all (signed in, API reachable). */
   enabled: boolean;
   /** Whether the thread must not be touched now (streaming, past page, paginating). */
@@ -62,6 +65,7 @@ export interface UseConversationSyncReturn {
 export function useConversationSync<Page extends { messages: Message[] }>(
   options: UseConversationSyncOptions<Page>
 ): UseConversationSyncReturn {
+  const { ownerId } = options;
   const latest = useRef(options);
   useEffect(() => {
     latest.current = options;
@@ -86,7 +90,7 @@ export function useConversationSync<Page extends { messages: Message[] }>(
       controller.dispose();
       controllerRef.current = null;
     };
-  }, []);
+  }, [ownerId]);
 
   const requestSync = useCallback((reason: SyncReason) => {
     controllerRef.current?.request(reason);
@@ -94,6 +98,11 @@ export function useConversationSync<Page extends { messages: Message[] }>(
   const requestReset = useCallback(() => {
     controllerRef.current?.requestReset();
   }, []);
+
+  useEffect(() => {
+    if (!ownerId) return;
+    return subscribeApplicationResource(ownerId, 'interests', () => requestSync('signal'));
+  }, [ownerId, requestSync]);
 
   // What was asked while the thread was busy runs once it is free.
   const { enabled, blocked } = options;

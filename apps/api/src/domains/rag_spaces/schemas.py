@@ -8,12 +8,17 @@ Created: 2026-03-14
 """
 
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
 
 from src.core.constants import RAG_SPACES_BULK_MAX
+
+
+def _trim_space_name(value: object) -> object:
+    return value.strip() if isinstance(value, str) else value
+
 
 # ============================================================================
 # Space Schemas
@@ -23,7 +28,7 @@ from src.core.constants import RAG_SPACES_BULK_MAX
 class RAGSpaceCreate(BaseModel):
     """Create a new RAG space."""
 
-    name: str = Field(
+    name: Annotated[str, BeforeValidator(_trim_space_name)] = Field(
         min_length=2,
         max_length=200,
         description="Space name (unique per user)",
@@ -38,7 +43,7 @@ class RAGSpaceCreate(BaseModel):
 class RAGSpaceUpdate(BaseModel):
     """Update an existing RAG space (partial update)."""
 
-    name: str | None = Field(
+    name: Annotated[str | None, BeforeValidator(_trim_space_name)] = Field(
         None,
         min_length=2,
         max_length=200,

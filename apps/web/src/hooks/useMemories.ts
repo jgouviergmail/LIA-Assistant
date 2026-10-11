@@ -1,6 +1,10 @@
 import { useState, useCallback } from 'react';
 import { useApiQuery } from './useApiQuery';
 import { useApiMutation } from './useApiMutation';
+import { useApplicationAccountQuery } from './useApplicationAccountQuery';
+import { useApplicationResourceSync } from './useApplicationResourceSync';
+
+const releaseMemoryOverride = () => {};
 
 /**
  * Memory category types matching backend schema.
@@ -104,17 +108,17 @@ export function useMemories() {
 
   // Fetch memories
   const {
+    ownerId,
+    isCurrent,
     data: memoriesData,
     loading,
     error,
     refetch,
     setData,
-  } = useApiQuery<MemoryListResponse>('/memories', {
-    componentName: 'useMemories',
-    initialData: { items: [], total: 0, by_category: {} },
-    params: categoryFilter ? { category: categoryFilter } : undefined,
-    deps: [categoryFilter],
-  });
+  } = useApplicationAccountQuery<MemoryListResponse>(
+    categoryFilter ? `/memories?category=${categoryFilter}` : '/memories', 'useMemories'
+  );
+  useApplicationResourceSync(ownerId, 'memories', refetch, releaseMemoryOverride);
 
   // Fetch categories
   const { data: categoriesData } = useApiQuery<{ categories: MemoryCategoryInfo[] }>(
@@ -165,7 +169,9 @@ export function useMemories() {
    */
   const createMemory = useCallback(
     async (data: MemoryCreate): Promise<Memory | undefined> => {
+      if (!isCurrent()) return;
       const result = await createMutate('/memories', data);
+      if (!isCurrent()) return;
 
       if (result) {
         // Optimistic update: add the new memory to local state
@@ -183,7 +189,7 @@ export function useMemories() {
 
       return result;
     },
-    [createMutate, setData, recalculateByCategory]
+    [createMutate, setData, recalculateByCategory, isCurrent]
   );
 
   /**
@@ -191,7 +197,9 @@ export function useMemories() {
    */
   const deleteMemory = useCallback(
     async (memoryId: string) => {
+      if (!isCurrent()) return;
       await deleteMutate(`/memories/${memoryId}`);
+      if (!isCurrent()) return;
 
       // Optimistic update: remove from local state
       setData(prev => {
@@ -205,7 +213,7 @@ export function useMemories() {
         };
       });
     },
-    [deleteMutate, setData, recalculateByCategory]
+    [deleteMutate, setData, recalculateByCategory, isCurrent]
   );
 
   /**
@@ -213,7 +221,9 @@ export function useMemories() {
    */
   const updateMemory = useCallback(
     async (memoryId: string, data: MemoryUpdate) => {
+      if (!isCurrent()) return;
       await updateMutate(`/memories/${memoryId}`, data);
+      if (!isCurrent()) return;
 
       // Optimistic update: update in local state
       setData(prev => {
@@ -228,7 +238,7 @@ export function useMemories() {
         };
       });
     },
-    [updateMutate, setData, recalculateByCategory]
+    [updateMutate, setData, recalculateByCategory, isCurrent]
   );
 
   /**
@@ -236,8 +246,10 @@ export function useMemories() {
    */
   const deleteAllMemories = useCallback(
     async (preservePinned: boolean = false) => {
+      if (!isCurrent()) return;
       const url = preservePinned ? '/memories?preserve_pinned=true' : '/memories';
       await deleteAllMutate(url);
+      if (!isCurrent()) return;
 
       // Optimistic update: clear or keep only pinned
       setData(prev => {
@@ -251,7 +263,7 @@ export function useMemories() {
         };
       });
     },
-    [deleteAllMutate, setData, recalculateByCategory]
+    [deleteAllMutate, setData, recalculateByCategory, isCurrent]
   );
 
   /**
@@ -259,7 +271,9 @@ export function useMemories() {
    */
   const togglePin = useCallback(
     async (memoryId: string, pinned: boolean) => {
+      if (!isCurrent()) return;
       await updateMutate(`/memories/${memoryId}/pin`, { pinned });
+      if (!isCurrent()) return;
 
       // Optimistic update: toggle pin in local state
       setData(prev => {
@@ -271,7 +285,7 @@ export function useMemories() {
         };
       });
     },
-    [updateMutate, setData]
+    [updateMutate, setData, isCurrent]
   );
 
   return {
@@ -279,7 +293,7 @@ export function useMemories() {
     total: memoriesData?.total ?? 0,
     byCategory: memoriesData?.by_category ?? {},
     categories: categoriesData?.categories ?? [],
-    loading,
+    loading: memoriesData === undefined && loading,
     error,
     creating,
     deleting,

@@ -64,7 +64,9 @@ brave_search_catalogue_manifest = ToolManifest(
     ],
     outputs=[
         OutputFieldSchema(path="braves", type="array", description="Search results"),
-        OutputFieldSchema(path="braves[].title", type="string", description="Result title"),
+        OutputFieldSchema(
+            path="braves[].title", type="string", description="Result title", semantic_type="Text"
+        ),
         OutputFieldSchema(
             path="braves[].url",
             type="string",
@@ -151,7 +153,9 @@ brave_news_catalogue_manifest = ToolManifest(
     ],
     outputs=[
         OutputFieldSchema(path="braves", type="array", description="News articles"),
-        OutputFieldSchema(path="braves[].title", type="string", description="Article title"),
+        OutputFieldSchema(
+            path="braves[].title", type="string", description="Article title", semantic_type="Text"
+        ),
         OutputFieldSchema(
             path="braves[].url",
             type="string",
@@ -162,6 +166,7 @@ brave_news_catalogue_manifest = ToolManifest(
             path="braves[].description",
             type="string",
             description="Article snippet",
+            semantic_type="Text",
         ),
         OutputFieldSchema(
             path="braves[].age",

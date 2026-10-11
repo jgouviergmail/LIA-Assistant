@@ -14,29 +14,18 @@ from uuid import UUID
 
 import structlog
 
+from src.domains.user_mcp.description_prompt import (
+    MCP_DESCRIPTION_INPUT_MAX_TOKENS,
+    description_input_cost,
+    public_tool_excerpts,
+)
+from src.domains.user_mcp.description_prompt import (
+    build_description_prompt as _description_prompt,
+)
 from src.infrastructure.cache.pricing_cache import PricingCacheData, capture_pricing_snapshot
 from src.infrastructure.llm.token_capture import TokenCaptureHandler
 
 logger = structlog.get_logger(__name__)
-
-
-def _description_prompt(tool_list: list[dict], server_name: str, account_scoped: bool) -> str:
-    """Keep the discovered tool summary and authentication scope in one prompt."""
-    tool_lines = []
-    for tool in tool_list:
-        name = tool.get("name", "")
-        description = tool.get("description", "")
-        if name:
-            tool_lines.append(f"- {name}: {description}" if description else f"- {name}")
-    auth_line = (
-        "Authentication: calls are authenticated with the user's own account "
-        "credentials - capabilities operate on the user's own data, never "
-        "describe this server as public-only."
-        if account_scoped
-        else "Authentication: none - the server serves public or anonymous data."
-    )
-    tools_text = "\n".join(tool_lines)
-    return f"Server name: {server_name}\n{auth_line}\n\nAvailable tools:\n{tools_text}"
 
 
 async def _account_description_spend(
@@ -157,10 +146,22 @@ async def generate_domain_description(
         from src.domains.agents.prompts import load_prompt
         from src.infrastructure.llm import get_llm
 
-        llm = get_llm("mcp_description")
-
         system_prompt = load_prompt("mcp_description_prompt")
-        user_prompt = _description_prompt(tool_list, server_name, account_scoped)
+        from src.core.config import settings
+        from src.core.llm_config_helper import (
+            get_effective_context_window_for_slot,
+            get_llm_config_for_agent,
+        )
+
+        config = get_llm_config_for_agent(settings, "mcp_description")
+        window = get_effective_context_window_for_slot("mcp_description")
+        output_reserve = config.max_tokens or min(1024, window // 4)
+        budget = min(
+            MCP_DESCRIPTION_INPUT_MAX_TOKENS,
+            window - output_reserve - description_input_cost(system_prompt) - 64,
+        )
+        user_prompt = _description_prompt(tool_list, server_name, account_scoped, max_tokens=budget)
+        llm = get_llm("mcp_description")
 
         from src.infrastructure.llm.invoke_helpers import (
             enrich_config_with_node_metadata,
@@ -219,7 +220,7 @@ async def generate_domain_description(
                 server_name=server_name,
                 description_length=len(generated),
             )
-            return generated
+            return generated[:500]
 
     except Exception:
         logger.warning(
@@ -248,8 +249,9 @@ def _algorithmic_description(*, server_name: str, tool_list: list[dict]) -> str:
         auto_generate_server_description,
     )
 
+    excerpts = public_tool_excerpts(tool_list)
     return auto_generate_server_description(
-        tool_descriptions=[t.get("description", "") for t in tool_list],
-        server_name=server_name,
-        tool_names=[t.get("name", "") for t in tool_list],
-    )
+        tool_descriptions=[t["description"] for t in excerpts],
+        server_name=server_name[:100],
+        tool_names=[t["name"] for t in excerpts],
+    )[:500]

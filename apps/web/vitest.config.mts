@@ -67,6 +67,10 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
+        // Re-measured 2026-10-11 on the complete suite: statements 86.64 /
+        // branches 80.65 / functions 84.27 / lines 88.14. The established
+        // floor(measured - 2) rule keeps global floors at 84/78/82/86.
+        // Reducers retain their separate 100% thresholds.
         // Re-measured 2026-09-30 after the Markdown export of HTML answers
         // (ADR-177 amendment 2026-09-30): statements 83.38 / branches 78.21 /
         // functions 80.97 / lines 84.29. `statements` rises 80 -> 81,
@@ -400,10 +404,12 @@ export default defineConfig({
         // Re-measured 2026-10-03 after the card display, source previews and
         // shared HTTP reader qualification: 85.14 / 79.54 / 82.66 / 86.26.
         // Raise each axis to floor(measured - 2), retaining the same margin rule.
-        statements: 83,
-        branches: 77,
-        functions: 80,
-        lines: 84,
+        // Full-suite measurement 2026-10-11: 86.68 / 80.74 / 84.26 / 88.15.
+        // Lock floor(measured - 2), preserving the existing shrink-only rule.
+        statements: 84,
+        branches: 78,
+        functions: 82,
+        lines: 86,
         // Continuous avatar PCM and exclusive phrase routing, measured inline:
         // 99.24 / 95.45 / 100 / 100; retain a two-point margin on each axis.
         'src/lib/voice-output/*.ts': {

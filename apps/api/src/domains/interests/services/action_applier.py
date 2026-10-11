@@ -24,6 +24,7 @@ commits.
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from contextlib import suppress
 from typing import TYPE_CHECKING
 from uuid import UUID
@@ -46,11 +47,22 @@ logger = get_logger(__name__)
 
 KIND_INTERESTS = "interests"
 REASON_BLOCKED = "blocked_interest"
+EmbeddingResolver = Callable[[str], Awaitable[list[float] | None]]
+
+
+async def _embedding(topic: str, resolver: EmbeddingResolver | None) -> list[float] | None:
+    if resolver is not None:
+        return await resolver(topic)
+    from src.domains.interests.helpers import generate_interest_embedding
+
+    return await generate_interest_embedding(topic)
 
 
 async def find_similar_interest(
     topic: str,
     existing_interests: list[UserInterest],
+    *,
+    embedding_resolver: EmbeddingResolver | None = None,
 ) -> tuple[bool, UserInterest | None]:
     """Find whether a semantically equivalent interest already exists.
 
@@ -69,9 +81,7 @@ async def find_similar_interest(
         ``(is_similar, matching_interest)``; the match is the best one above
         the configured threshold.
     """
-    from src.domains.interests.helpers import generate_interest_embedding
-
-    topic_embedding = await generate_interest_embedding(topic)
+    topic_embedding = await _embedding(topic, embedding_resolver)
 
     best_match: UserInterest | None = None
     best_similarity: float = 0.0
@@ -210,6 +220,7 @@ async def _apply_update(
     extracted: ExtractedInterest,
     user_id: str,
     known_ids: set[str],
+    embedding_resolver: EmbeddingResolver | None = None,
 ) -> int:
     """Refine an existing interest and count the mention.
 
@@ -243,12 +254,10 @@ async def _apply_update(
             )
             return 1
 
-        from src.domains.interests.helpers import generate_interest_embedding
-
         interest.topic = extracted.topic
         # Subject is derived from the topic: relabel on the next stale scan (ADR-131).
         interest.subject = None
-        interest.embedding = await generate_interest_embedding(extracted.topic)
+        interest.embedding = await _embedding(extracted.topic, embedding_resolver)
 
     if extracted.category:
         interest.category = extracted.category.value
@@ -267,6 +276,7 @@ async def _apply_create(
     user_id: str,
     existing_interests: list[UserInterest],
     conversation_id: str | None = None,
+    embedding_resolver: EmbeddingResolver | None = None,
 ) -> int:
     """Create a new interest, or consolidate the one it duplicates.
 
@@ -286,7 +296,9 @@ async def _apply_create(
     if not extracted.topic or not extracted.category:
         return 0
 
-    is_similar, existing = await find_similar_interest(extracted.topic, existing_interests)
+    is_similar, existing = await find_similar_interest(
+        extracted.topic, existing_interests, embedding_resolver=embedding_resolver
+    )
 
     if is_similar and existing:
         if _is_blocked(existing):
@@ -303,13 +315,11 @@ async def _apply_create(
         )
         return 1
 
-    from src.domains.interests.helpers import generate_interest_embedding
-
     new_interest = await repo.create(
         user_id=UUID(user_id),
         topic=extracted.topic,
         category=extracted.category.value,
-        embedding=await generate_interest_embedding(extracted.topic),
+        embedding=await _embedding(extracted.topic, embedding_resolver),
     )
     # Join the candidate set so a second creation in the SAME batch is
     # deduplicated against this one: the list was snapshotted before the loop,
@@ -342,6 +352,7 @@ async def apply_interest_actions(
     actions: list[ExtractedInterest],
     existing_interests: list[UserInterest],
     conversation_id: str | None = None,
+    embedding_resolver: EmbeddingResolver | None = None,
 ) -> int:
     """Apply every action an extraction proposed, guarded.
 
@@ -375,10 +386,17 @@ async def apply_interest_actions(
             if extracted.action == "delete":
                 applied += await _apply_delete(repo, extracted, user_id, known_ids)
             elif extracted.action == "update":
-                applied += await _apply_update(repo, extracted, user_id, known_ids)
+                applied += await _apply_update(
+                    repo, extracted, user_id, known_ids, embedding_resolver
+                )
             else:
                 applied += await _apply_create(
-                    repo, extracted, user_id, existing_interests, conversation_id
+                    repo,
+                    extracted,
+                    user_id,
+                    existing_interests,
+                    conversation_id,
+                    embedding_resolver,
                 )
         except Exception as e:
             logger.warning(

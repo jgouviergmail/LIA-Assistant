@@ -32,12 +32,13 @@ classification-parity proof against the legacy raw raise (see
 """
 
 import json
+from contextlib import asynccontextmanager
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.testclient import TestClient
 
 from src.core.config import settings
@@ -69,6 +70,17 @@ from src.core.exceptions import (
 )
 from src.core.i18n_api_messages import APIMessages
 from src.core.reasoning_intent import ReasoningIntent
+from src.domains.users.models import User
+
+
+def _authorized_db(user: SimpleNamespace) -> AsyncMock:
+    def scalar(statement):
+        return user if statement.column_descriptions[0]["entity"] is User else None
+
+    db = AsyncMock()
+    db.scalar.side_effect = scalar
+    return db
+
 
 # =============================================================================
 # 1. llm_config/reasoning_validation.py — 7 sites (422, structured detail)
@@ -92,7 +104,9 @@ class TestReasoningValidationContract:
     """
 
     def _validate(self, caps, value, provider="openai"):
-        from src.domains.llm_config.reasoning_validation import validate_reasoning_effort
+        from src.domains.llm_config.reasoning_validation import (
+            validate_reasoning_effort,
+        )
 
         with pytest.raises(StructuredValidationError) as exc_info:
             validate_reasoning_effort(caps, value, provider)
@@ -109,7 +123,11 @@ class TestReasoningValidationContract:
                 "Model gpt-4.1 does not accept a reasoning override. "
                 "Set reasoning_effort to null."
             ),
-            "input": {"level": "low", "budget_tokens": None, "exclude_from_output": False},
+            "input": {
+                "level": "low",
+                "budget_tokens": None,
+                "exclude_from_output": False,
+            },
             "ctx": {"model": "gpt-4.1", "family": "none"},
         }
 
@@ -129,26 +147,34 @@ class TestReasoningValidationContract:
 
     def test_a_budget_outside_the_family_range_is_rejected(self):
         exc = self._validate(
-            _caps("claude-opus-4-5"), ReasoningIntent(budget_tokens=999_999), "anthropic"
+            _caps("claude-opus-4-5"),
+            ReasoningIntent(budget_tokens=999_999),
+            "anthropic",
         )
         assert exc.status_code == 422
         assert exc.detail["type"] == "invalid_reasoning_budget"
         assert exc.detail["ctx"]["max"] == 128000
 
     def test_none_is_valid_for_every_model(self):
-        from src.domains.llm_config.reasoning_validation import validate_reasoning_effort
+        from src.domains.llm_config.reasoning_validation import (
+            validate_reasoning_effort,
+        )
 
         for model, provider in (("gpt-4.1", "openai"), ("gpt-5.2", "openai")):
             validate_reasoning_effort(_caps(model), None, provider)  # must not raise
 
     def test_provider_default_is_valid_on_any_reasoning_model(self):
-        from src.domains.llm_config.reasoning_validation import validate_reasoning_effort
+        from src.domains.llm_config.reasoning_validation import (
+            validate_reasoning_effort,
+        )
 
         validate_reasoning_effort(_caps("gpt-5.2"), ReasoningIntent(), "openai")
 
     def test_an_unknown_provider_rejects_nothing(self):
         """Absence of evidence is not a rejection: the family cannot be derived."""
-        from src.domains.llm_config.reasoning_validation import validate_reasoning_effort
+        from src.domains.llm_config.reasoning_validation import (
+            validate_reasoning_effort,
+        )
 
         validate_reasoning_effort(_caps("some-model"), ReasoningIntent(level="high"), None)
 
@@ -393,7 +419,10 @@ class TestHealthIngestContract:
 
         max_samples = settings.health_metrics_max_samples_per_request
         oversized = max_samples + 1
-        sample = {"date_start": "2026-07-10T00:00:00Z", "date_end": "2026-07-10T01:00:00Z"}
+        sample = {
+            "date_start": "2026-07-10T00:00:00Z",
+            "date_end": "2026-07-10T01:00:00Z",
+        }
         raw = json.dumps([sample] * oversized).encode()
 
         request = Mock()
@@ -420,13 +449,15 @@ class TestUserMcpAdminRouterContract:
         """Site: PATCH /{server_key}/toggle with unknown key -> 404."""
         from src.domains.user_mcp.admin_router import toggle_admin_server
 
-        user = SimpleNamespace(id=uuid4(), admin_mcp_disabled_servers=[])
+        user = SimpleNamespace(
+            id=uuid4(), admin_mcp_disabled_servers=[], is_active=True, is_deleted=False
+        )
         with patch(
             "src.infrastructure.mcp.client_manager.get_mcp_client_manager",
             return_value=None,
         ):
             with pytest.raises(ResourceNotFoundError) as exc_info:
-                await toggle_admin_server(server_key="ghost", user=user, db=Mock())
+                await toggle_admin_server(server_key="ghost", user=user, db=_authorized_db(user))
 
         assert exc_info.value.status_code == 404
         assert exc_info.value.detail == "Admin MCP server 'ghost' not found"
@@ -436,10 +467,20 @@ class TestUserMcpAdminRouterContract:
         """Site: POST /{server_key}/app/call-tool with unknown key -> 404."""
         from src.domains.user_mcp.admin_router import admin_app_proxy_call_tool
 
-        user = SimpleNamespace(id=uuid4(), admin_mcp_disabled_servers=[])
-        with patch(
-            "src.infrastructure.mcp.client_manager.get_mcp_client_manager",
-            return_value=None,
+        user = SimpleNamespace(
+            id=uuid4(), admin_mcp_disabled_servers=[], is_active=True, is_deleted=False
+        )
+
+        @asynccontextmanager
+        async def session():
+            yield _authorized_db(user)
+
+        with (
+            patch(
+                "src.infrastructure.mcp.client_manager.get_mcp_client_manager",
+                return_value=None,
+            ),
+            patch("src.domains.user_mcp.shared_access.get_db_context", session),
         ):
             with pytest.raises(ResourceNotFoundError) as exc_info:
                 await admin_app_proxy_call_tool(server_key="ghost", request=Mock(), user=user)
@@ -452,10 +493,20 @@ class TestUserMcpAdminRouterContract:
         """Site: POST /{server_key}/app/read-resource with unknown key -> 404."""
         from src.domains.user_mcp.admin_router import admin_app_proxy_read_resource
 
-        user = SimpleNamespace(id=uuid4(), admin_mcp_disabled_servers=[])
-        with patch(
-            "src.infrastructure.mcp.client_manager.get_mcp_client_manager",
-            return_value=None,
+        user = SimpleNamespace(
+            id=uuid4(), admin_mcp_disabled_servers=[], is_active=True, is_deleted=False
+        )
+
+        @asynccontextmanager
+        async def session():
+            yield _authorized_db(user)
+
+        with (
+            patch(
+                "src.infrastructure.mcp.client_manager.get_mcp_client_manager",
+                return_value=None,
+            ),
+            patch("src.domains.user_mcp.shared_access.get_db_context", session),
         ):
             with pytest.raises(ResourceNotFoundError) as exc_info:
                 await admin_app_proxy_read_resource(server_key="ghost", request=Mock(), user=user)
@@ -517,10 +568,12 @@ class TestHeartbeatRouterContract:
 
         db = AsyncMock()
         db.commit = AsyncMock(side_effect=RuntimeError("db down"))
+        user = _heartbeat_user()
+        db.scalar.return_value = user
         with pytest.raises(InternalServerError) as exc_info:
             await update_heartbeat_settings(
                 data=HeartbeatSettingsUpdate(heartbeat_notify_start_hour=8),
-                user=_heartbeat_user(),
+                user=user,
                 db=db,
             )
 
@@ -590,7 +643,7 @@ class TestAgentsRunLockContract:
         ):
             with pytest.raises(ResourceConflictError) as exc_info:
                 await stream_chat(
-                    http_request=Mock(),
+                    http_request=Request({"type": "http", "headers": []}),
                     request=request,
                     current_user=current_user,
                 )
@@ -670,7 +723,7 @@ class TestHitlRateLimitContract:
             ),
         ):
             response = await stream_chat(
-                http_request=Mock(),
+                http_request=Request({"type": "http", "headers": []}),
                 request=request,
                 current_user=current_user,
             )
@@ -783,8 +836,11 @@ class TestUserMcpOAuthContract:
         handler_cm.__aexit__ = AsyncMock(return_value=False)
 
         with (
-            patch("src.domains.user_mcp.router.UserMCPServerService") as service_cls,
-            patch("src.domains.user_mcp.router.MCPOAuthFlowHandler", return_value=handler_cm),
+            patch("src.domains.user_mcp.authorization.UserMCPServerService") as service_cls,
+            patch(
+                "src.domains.user_mcp.authorization.MCPOAuthFlowHandler",
+                return_value=handler_cm,
+            ),
         ):
             service = service_cls.return_value
             service.get_with_ownership_check = AsyncMock(return_value=server)
@@ -900,7 +956,11 @@ class TestSingleSiteContracts:
 
         action = SimpleNamespace(id=uuid4(), status=ScheduledActionStatus.EXECUTING.value)
         with patch("src.domains.scheduled_actions.router.ScheduledActionService") as service_cls:
-            service_cls.return_value.get_with_ownership_check = AsyncMock(return_value=action)
+            service_cls.return_value.reserve_manual_execution = AsyncMock(
+                side_effect=ResourceConflictError(
+                    "scheduled_action", detail="Action is already executing"
+                )
+            )
             with pytest.raises(ResourceConflictError) as exc_info:
                 await execute_scheduled_action(
                     action_id=action.id,

@@ -18,11 +18,14 @@
  * stale frame on a key change, and a save in that frame would pair one
  * provider's model with another's voice.
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useRef } from 'react';
 
 import { getApiErrorDetail } from '@/lib/api-error';
 import { useApiMutation } from '@/hooks/useApiMutation';
-import { useApiQuery } from '@/hooks/useApiQuery';
+import { useApplicationAccountQuery } from '@/hooks/useApplicationAccountQuery';
+import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
+import { useApplicationAccountState } from '@/hooks/useApplicationAccountState';
+import { useApplicationResourceSync } from '@/hooks/useApplicationResourceSync';
 import type {
   LiveConfigResponse,
   LiveConnectorResponse,
@@ -60,37 +63,37 @@ export function useLiveConnectorSettings(
   enabled = true,
   editedProvider: string | null = null
 ): UseLiveConnectorSettingsReturn {
-  const connectorsQuery = useApiQuery<LiveConnectorsResponse>('/live/connectors', {
-    componentName: 'useLiveConnectorSettings',
-    enabled,
-  });
+  const connectorsQuery = useApplicationAccountQuery<LiveConnectorsResponse>('/live/connectors', 'useLiveConnectorSettings', enabled);
+  const { ownerId, refetch } = connectorsQuery;
+  const { lifetime, isCurrent } = useApplicationAccountLifetime(ownerId);
+  const queues = useRef(new Map<typeof lifetime, Promise<boolean>>());
+  const release = useCallback(() => {}, []);
+  useApplicationResourceSync(ownerId, 'live_connectors', refetch, release);
   const hasConnector = enabled && (connectorsQuery.data?.connectors.length ?? 0) > 0;
-  const configQuery = useApiQuery<LiveConfigResponse>('/live/config', {
-    componentName: 'useLiveConnectorSettings',
-    enabled: hasConnector,
-  });
-  const modelsQuery = useApiQuery<LiveModelsResponse>('/live/models', {
-    componentName: 'useLiveConnectorSettings',
-    enabled: hasConnector,
-  });
+  const configQuery = useApplicationAccountQuery<LiveConfigResponse>('/live/config', 'useLiveConnectorSettings', hasConnector);
+  const modelsQuery = useApplicationAccountQuery<LiveModelsResponse>('/live/models', 'useLiveConnectorSettings', hasConnector);
   const voicesProvider = editedProvider ?? activeLiveConnector(connectorsQuery.data)?.provider;
-  const voicesQuery = useApiQuery<LiveVoicesResponse>(
+  const voicesQuery = useApplicationAccountQuery<LiveVoicesResponse>(
     `/live/voices?provider=${encodeURIComponent(voicesProvider ?? '')}`,
-    { componentName: 'useLiveConnectorSettings', enabled: hasConnector && !!voicesProvider }
+    'useLiveConnectorSettings', hasConnector && !!voicesProvider
   );
-  const { mutate, loading: saving } = useApiMutation<LiveConnectorSettings, LiveConnectorResponse>({
+  const { mutate } = useApiMutation<LiveConnectorSettings, LiveConnectorResponse>({
     method: 'PUT',
     componentName: 'useLiveConnectorSettings',
   });
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useApplicationAccountState<string | null>(ownerId, null);
+  const [saving, setSaving] = useApplicationAccountState(ownerId, false);
   const { setData: setConnectors } = connectorsQuery;
 
-  const save = useCallback(
+  const write = useCallback(
     async (provider: string, settings: LiveConnectorSettings): Promise<boolean> => {
+      if (!isCurrent()) return false;
       setSaveError(null);
+      setSaving(true);
       try {
         const saved = await mutate(`/live/connectors/${encodeURIComponent(provider)}`, settings);
-        if (saved) {
+        if (!isCurrent() || !saved) return false;
+        {
           // The saved connector is now the one the sessions open on.
           setConnectors(current =>
             current
@@ -106,12 +109,27 @@ export function useLiveConnectorSettings(
         }
         return true;
       } catch (error) {
-        setSaveError(getApiErrorDetail(error) ?? (error instanceof Error ? error.message : ''));
+        if (isCurrent()) setSaveError(getApiErrorDetail(error) ?? (error instanceof Error ? error.message : ''));
         return false;
       }
     },
-    [mutate, setConnectors]
+    [mutate, setConnectors, isCurrent, setSaveError, setSaving]
   );
+
+  const save = useCallback(async (provider: string, settings: LiveConnectorSettings) => {
+    if (!isCurrent()) return false;
+    setSaving(true);
+    const pending = queues.current.get(lifetime) ?? Promise.resolve(false);
+    const writing = pending.then(() => write(provider, settings));
+    queues.current.set(lifetime, writing);
+    try { return await writing; }
+    finally {
+      if (queues.current.get(lifetime) === writing) {
+        queues.current.delete(lifetime);
+        if (isCurrent()) setSaving(false);
+      }
+    }
+  }, [isCurrent, lifetime, write, setSaving]);
 
   const voices = voicesQuery.data;
   return {

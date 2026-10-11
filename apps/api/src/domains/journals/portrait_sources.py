@@ -23,13 +23,14 @@ Three rules:
 from __future__ import annotations
 
 from contextlib import suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 from uuid import UUID
 
 import structlog
 
 from src.core.config import settings
+from src.domains.journals.portrait_catalogue import eligible_source_items, render_catalogue_sections
 from src.domains.shared.portrait_sources import (
     ITEMS_BOUNDED_BY_SOURCE,
     PORTRAIT_SOURCE_KEYS,
@@ -76,17 +77,24 @@ def _count(section: PortraitSourceSection) -> None:
         journal_portrait_sources_total.labels(source=section.key, status=section.status).inc()
 
 
-def _over_cap(section: PortraitSourceSection, spent: int) -> PortraitSourceSection:
+def _over_cap(
+    section: PortraitSourceSection, spent: int, rendered_chars: int
+) -> PortraitSourceSection:
     """The section as reported when it would break the global cap."""
     logger.warning(
         "portrait_source_dropped_over_cap",
         source=section.key,
-        section_chars=len(section.text),
+        section_chars=rendered_chars,
         spent_chars=spent,
         cap=settings.journal_consolidation_sources_max_chars,
     )
     return PortraitSourceSection(
-        key=section.key, status="unavailable", text="", used=0, total=section.total
+        key=section.key,
+        status="unavailable",
+        text="",
+        used=0,
+        total=section.total,
+        reason="over_budget",
     )
 
 
@@ -110,13 +118,27 @@ async def build_portrait_source_sections(
     spent = 0
     for key, (reader, _probe) in installed_portrait_sources().items():
         section = await reader(user_id=user_id, language=language, budget=_budget_for(key))
-        if section.text and spent + len(section.text) > cap:
-            section = _over_cap(section, spent)
+        eligible = eligible_source_items(key, section.text)
+        omitted = max(section.used - len(eligible), 0)
+        rendered = render_catalogue_sections({key: section.text})[key]
+        if section.status == "used":
+            section = replace(
+                section,
+                status="used" if eligible else "empty",
+                text=section.text if eligible else "",
+                used=len(eligible),
+            )
+        if rendered and spent + len(rendered) > cap:
+            section = _over_cap(section, spent, len(rendered))
         _count(section)
         if section.text:
             sections[key] = section.text
-            spent += len(section.text)
+            spent += len(rendered)
         provenance[key] = {"status": section.status, "used": section.used, "total": section.total}
+        if omitted:
+            provenance[key]["omitted_incomplete"] = omitted
+        if section.reason:
+            provenance[key]["reason"] = section.reason
     logger.info(
         "portrait_sources_assembled",
         user_id=str(user_id),

@@ -297,7 +297,6 @@ OWNER_PINNED_POLICIES: dict[str, str] = {
     "apply_labels_tool": "reversible",
     "remove_labels_tool": "reversible",
     "complete_task_tool": "reversible",
-    "toggle_scheduled_action_tool": "reversible",
     "browser_task_tool": "reversible",
     # Local artefacts.
     "generate_image": "artefact",
@@ -309,6 +308,16 @@ OWNER_PINNED_POLICIES: dict[str, str] = {
     "send_email_tool": "draft",
     "delete_event_tool": "draft",
     "claude_server_task_tool": "draft",
+    # Application actions now require the owner's mandatory HITL, including
+    # the existing automation alias; its draft replaces immediate inversion.
+    "toggle_scheduled_action_tool": "draft",
+    "set_lia_personal_mcp_server_enabled_tool": "draft",
+    "update_lia_personal_mcp_server_settings_tool": "draft",
+    "delete_lia_personal_mcp_server_tool": "draft",
+    "regenerate_lia_personal_mcp_description_tool": "draft",
+    "test_lia_personal_mcp_connection_tool": "draft",
+    "disconnect_lia_personal_mcp_oauth_tool": "draft",
+    "configure_lia_personal_mcp_server_tool": "draft",
     # ADR-327 (owner arbitration 2026-09-30): the chat proposes a skill, the
     # card's click installs it — the card IS the confirmation.
     "import_user_skill": "draft",
@@ -317,6 +326,7 @@ OWNER_PINNED_POLICIES: dict[str, str] = {
     # Genuine readers sitting on the inference fallback.
     "get_current_weather_tool": "read",
     "resolve_reference": "read",
+    "get_lia_personal_mcp_servers_tool": "read",
 }
 
 
@@ -333,7 +343,7 @@ class TestTheRealCatalogue:
         assert catalogue.get_tool_manifest(tool_name).mutation_policy == policy
 
     def test_no_native_tool_asks_for_a_pre_execution_card(self, catalogue: AgentRegistry) -> None:
-        """No native tool is ``confirm``: the 25 draft tools already ask.
+        """No native tool is ``confirm``: draft-based native tools already ask.
 
         Only a third-party MCP tool whose owner turned confirmation on reaches
         that policy, and it does so by DERIVATION, never by declaration.

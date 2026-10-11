@@ -58,7 +58,9 @@ class EffectEntry(BaseModel):
     values: dict[str, Any] = Field(default_factory=dict, description="Values of the wording")
     tool_name: str = Field(..., description="Capability that acted")
     mutation_policy: str = Field(..., description="Declared policy under which it acted")
-    status: str = Field(..., description="succeeded | failed | refused | claimed | abandoned")
+    status: str = Field(
+        ..., description="succeeded | failed | refused | claimed | abandoned | waiting"
+    )
     source: str = Field(..., description="user | scheduled | subagent")
     execution_mode: str = Field(..., description="pipeline | react")
     approval_kind: str | None = Field(default=None, description="How the user authorised it")

@@ -71,11 +71,11 @@ from src.domains.agents.nodes.initiative_schemas import (
 from src.domains.agents.nodes.initiative_schemas import (
     InitiativeDecision,
 )
+from src.domains.agents.nodes.initiative_semantic_bridges import build_semantic_candidate_lines
 from src.domains.agents.nodes.jev_initiative import choose_empty_initiative
 from src.domains.agents.nodes.jev_initiative_context import (
     InitiativeSemanticContext,
     canonical_initiative_context,
-    semantic_bridge_line,
 )
 from src.domains.agents.nodes.jev_initiative_evidence import (
     InitiativeEvidence,
@@ -299,7 +299,6 @@ def _build_semantic_context(
     evidence = InitiativeEvidence.for_optional(evidence)
     try:
         from src.domains.agents.semantic.expansion_service import (
-            collect_manifest_param_consumers,
             generate_semantic_dependencies_for_prompt,
             get_expansion_service,
         )
@@ -311,31 +310,9 @@ def _build_semantic_context(
         )
 
         registry = get_expansion_service().registry
-        adjacent_tool_names = {m.name for m in adjacent_manifests}
-        executed_set = set(executed_domains)
-
-        # Manifest-declared consumers (live source of truth), unioned below
-        # with the ontology's editorial used_in_tools links.
-        manifest_consumers = collect_manifest_param_consumers(adjacent_manifests)
-
-        produced_types: set[str] = set()
-        for domain in executed_domains:
-            produced_types |= registry.get_by_domain(domain)
-
-        lines: list[str] = []
-        for type_name in sorted(produced_types):
-            type_def = registry.get(type_name)
-            if not type_def:
-                native.complete = False
-                continue
-            consumers = sorted(
-                (set(type_def.used_in_tools) | manifest_consumers.get(type_name, set()))
-                & adjacent_tool_names
-            )
-            if not consumers:
-                continue
-            providers = [d for d in type_def.source_domains if d in executed_set]
-            lines.append(semantic_bridge_line(type_name, providers, consumers, evidence, native))
+        lines = build_semantic_candidate_lines(
+            registry, executed_domains, adjacent_manifests, evidence, native
+        )
         if len(lines) > SEMANTIC_CANDIDATES_MAX_LINES:
             dropped = len(lines) - SEMANTIC_CANDIDATES_MAX_LINES
             evidence.omit("semantic_bridges_omitted", dropped)

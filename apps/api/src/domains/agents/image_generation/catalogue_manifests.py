@@ -71,6 +71,7 @@ generate_image_catalogue_manifest = ToolManifest(
                 "Be specific about style, content, colors, and composition. "
                 "Quality and size are controlled by the user's preferences."
             ),
+            semantic_type="Text",
         ),
     ],
     outputs=[
@@ -78,6 +79,7 @@ generate_image_catalogue_manifest = ToolManifest(
             path="message",
             type="string",
             description="Confirmation message with prompt summary",
+            semantic_type="Text",
         ),
     ],
     cost=CostProfile(
@@ -138,6 +140,7 @@ edit_image_catalogue_manifest = ToolManifest(
                 "Detailed text description of the desired modification. "
                 "Be specific about what to change, add, or remove."
             ),
+            semantic_type="Text",
         ),
         ParameterSchema(
             name="source_attachment_id",
@@ -154,6 +157,7 @@ edit_image_catalogue_manifest = ToolManifest(
             path="message",
             type="string",
             description="Confirmation message",
+            semantic_type="Text",
         ),
     ],
     cost=CostProfile(

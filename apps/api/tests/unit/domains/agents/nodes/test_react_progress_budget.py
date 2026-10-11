@@ -105,9 +105,9 @@ class TestProductivityIsCounted:
     def test_the_execute_node_carries_the_counter(self) -> None:
         import inspect
 
-        from src.domains.agents.nodes import react_nodes
+        from src.domains.agents.nodes import react_execution
 
-        source = inspect.getsource(react_nodes.react_execute_tools_node)
+        source = inspect.getsource(react_execution._progress_update)
         assert "react_productive_iterations" in source
 
     def test_the_counter_is_declared_in_the_state(self) -> None:

@@ -2,10 +2,11 @@ import type { DayPhase, WeatherFeeling } from '../environment';
 import type { ChannelKey, ChannelValues } from './channels';
 
 type WeatherChannel = Extract<ChannelKey, `weather${string}`>;
+export const WEATHER_COLD_MAX = 0.65;
 const WEATHER: Record<WeatherFeeling, Partial<Record<WeatherChannel, number>>> = {
   rain: { weatherRain: 0.7 },
   storm: { weatherStorm: 1 },
-  cold: { weatherCold: 0.65 },
+  cold: { weatherCold: WEATHER_COLD_MAX },
   freezing: { weatherFreezing: 1 },
   snow: { weatherSnow: 1 },
   hot: { weatherHot: 0.85 },
@@ -22,14 +23,15 @@ const LIGHT: Record<DayPhase, readonly [number, number]> = {
   night: [0, 1],
 };
 
-/** One ornament at a time. Light remains; props yield to the conversation. */
+/** Independent verified conditions compose; tasks and facial acting never hide a worn prop. */
 export function ambientChannels(
   weather: WeatherFeeling | null,
   phase: DayPhase,
-  available: boolean
+  enabled: boolean,
+  weatherFlags?: readonly WeatherFeeling[]
 ) {
   const [lightWarm, lightCool] = LIGHT[phase];
-  return {
+  const channels = {
     weatherRain: 0,
     weatherStorm: 0,
     weatherCold: 0,
@@ -39,14 +41,16 @@ export function ambientChannels(
     weatherHeat: 0,
     weatherFog: 0,
     weatherWind: 0,
-    weatherNight: available && !weather && phase === 'night' ? 0.7 : 0,
+    weatherNight: enabled && phase === 'night' ? 0.7 : 0,
     lightWarm,
     lightCool,
-    ...(available && weather ? WEATHER[weather] : {}),
   };
+  const conditions = weatherFlags?.length ? weatherFlags : weather ? [weather] : [];
+  if (enabled) for (const condition of conditions) Object.assign(channels, WEATHER[condition]);
+  return channels;
 }
 
-/** One rig clock, no independent CSS timer. Particles disappear at wraparound. */
+/** One rig clock, no independent CSS timer. Props retain their visible coverage. */
 export function ambientMotion(values: Readonly<ChannelValues>, now: number, reduced: boolean) {
   const weight = Math.max(
     values.weatherRain,

@@ -30,12 +30,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.constants import SKILL_PROPOSAL_CLAIM_KEY_PREFIX, SKILL_PROPOSAL_CLAIM_TTL_SECONDS
-from src.core.exceptions import BaseAPIException
+from src.core.exceptions import AuthorizationError, BaseAPIException
+from src.domains.agents.application.skill_read import require_skill_access
 from src.domains.shared.action_sink import SKILL_PROPOSAL_INSTALL_CAPABILITY, recorded_action
 from src.domains.skills.exceptions import ImportRefusalKind, import_refusal_kind
 from src.domains.skills.import_service import SkillImportService
+from src.domains.skills.proposal_attempt import begin_proposal_attempt, execute_proposal_attempt
 from src.domains.skills.proposal_errors import (
     BUSY,
+    COMPLETION_UNKNOWN,
     DISABLED,
     INVALID,
     NAME_TAKEN,
@@ -114,6 +117,7 @@ async def propose(
     """
     now = now or datetime.now(UTC)
     async with get_db_context() as db:
+        await require_skill_access(db, owner_id)
         skill = await SkillImportService(db).validate_files(files, owner_id=owner_id)
     name = str(skill["name"])
     current = await _installed_package(str(owner_id), name)
@@ -217,10 +221,17 @@ async def install(
     """
     if not settings.skills_chat_import_enabled:
         raise ProposalRefusal(DISABLED)
+    # End the fresh authority read before taking a Redis claim. The route's
+    # import session is used only after that claim, with final checks below.
+    async with get_db_context() as authority_db:
+        await require_skill_access(authority_db, owner_id)
+    await db.commit()
     client = redis if redis is not None else await get_redis_cache()
     proposal = await read(owner_id, proposal_id, redis=client)
     if proposal.status == "installed":
         return proposal
+    if proposal.status in {"installing", "unknown"}:
+        raise ProposalRefusal(COMPLETION_UNKNOWN)
 
     owner = str(owner_id)
     token = uuid.uuid4().hex
@@ -237,6 +248,8 @@ async def install(
         proposal = await read(owner_id, proposal_id, redis=client)
         if proposal.status == "installed":
             return proposal
+        if proposal.status in {"installing", "unknown"}:
+            raise ProposalRefusal(COMPLETION_UNKNOWN)
         return await _install_claimed(db, owner_id, proposal, ProposalStore(client))
     finally:
         await release_claim(client, key, token)
@@ -258,19 +271,42 @@ async def _install_claimed(
         raise ProposalRefusal(_INSTALL_REFUSALS[import_refusal_kind(exc)]) from exc
 
     started = time.perf_counter()
+    await db.commit()
+    attempt = await begin_proposal_attempt(store, proposal)
+
+    async def before_swap(session: AsyncSession) -> None:
+        await require_skill_access(session, owner_id)
+        if not settings.skills_chat_import_enabled:
+            raise ProposalRefusal(DISABLED)
+        if await _already_installed(proposal):
+            raise ProposalRefusal(STALE)
+
+    async def before_commit(session: AsyncSession) -> None:
+        await require_skill_access(session, owner_id)
+        if not settings.skills_chat_import_enabled:
+            raise ProposalRefusal(DISABLED)
+
     async with recorded_action(
         user_id=owner_id,
         capability=SKILL_PROPOSAL_INSTALL_CAPABILITY,
         arguments={"target": proposal.name},
     ) as act:
         try:
-            await service.import_files(proposal.files, owner_id=owner_id)
+            installed = await execute_proposal_attempt(
+                service,
+                attempt,
+                owner_id=owner_id,
+                before_swap=before_swap,
+                before_commit=before_commit,
+            )
+        except AuthorizationError:
+            raise
         except BaseAPIException as exc:
             # Lost to a concurrent change between the check and the write.
             raise ProposalRefusal(_INSTALL_REFUSALS[import_refusal_kind(exc)]) from exc
-        act.succeeded = True
+        finally:
+            act.succeeded = attempt.committed
 
-    await _mark(store, proposal)
     logger.info(
         "skill_proposal_installed",
         proposal_id=proposal.id,
@@ -278,7 +314,7 @@ async def _install_claimed(
         replaced=proposal.replaces is not None,
         duration_ms=round((time.perf_counter() - started) * 1000),
     )
-    return proposal.installed()
+    return installed
 
 
 async def _mark(store: ProposalStore, proposal: SkillProposal) -> None:

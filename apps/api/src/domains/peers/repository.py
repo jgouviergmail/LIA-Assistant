@@ -76,12 +76,33 @@ class PeersRepository(BaseRepository[PeerConnection]):
             The pair row or None.
         """
         user_a, user_b = canonical_pair(u1, u2)
-        stmt = select(PeerConnection).where(
-            PeerConnection.user_a_id == user_a,
-            PeerConnection.user_b_id == user_b,
+        stmt = (
+            select(PeerConnection)
+            .where(
+                PeerConnection.user_a_id == user_a,
+                PeerConnection.user_b_id == user_b,
+            )
+            .execution_options(populate_existing=True)
         )
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def get_by_id(
+        self, id: UUID, include_inactive: bool = False, *, for_update: bool = False
+    ) -> PeerConnection | None:
+        """Load current pair state, optionally fencing all writes to its shares.
+
+        Connections have no inactive flag; lifecycle status is validated by the service.
+        A pair lock protects both existing and absent child-share rows.
+        """
+        statement = (
+            select(PeerConnection)
+            .where(PeerConnection.id == id)
+            .execution_options(populate_existing=True)
+        )
+        if for_update:
+            statement = statement.with_for_update()
+        return (await self.db.execute(statement)).scalar_one_or_none()
 
     async def _get_fresh(self, connection_id: UUID) -> PeerConnection | None:
         """Re-SELECT a pair row bypassing stale identity-map attributes.
@@ -89,13 +110,7 @@ class PeersRepository(BaseRepository[PeerConnection]):
         Conditional UPDATEs below bypass the ORM; a previously loaded instance
         would otherwise be returned with its pre-transition attributes.
         """
-        stmt = (
-            select(PeerConnection)
-            .where(PeerConnection.id == connection_id)
-            .execution_options(populate_existing=True)
-        )
-        result = await self.db.execute(stmt)
-        return result.scalar_one_or_none()
+        return await self.get_by_id(connection_id)
 
     async def insert_pair_request(
         self,
@@ -242,7 +257,8 @@ class PeersRepository(BaseRepository[PeerConnection]):
                     PeerConnection.user_b_id == user_id,
                 ),
             )
-            .order_by(PeerConnection.requested_at.desc())
+            .order_by(PeerConnection.requested_at.desc(), PeerConnection.id.desc())
+            .execution_options(populate_existing=True)
         )
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
@@ -265,7 +281,8 @@ class PeersRepository(BaseRepository[PeerConnection]):
                     PeerConnection.user_b_id == user_id,
                 ),
             )
-            .order_by(PeerConnection.responded_at.desc())
+            .order_by(PeerConnection.responded_at.desc(), PeerConnection.id.desc())
+            .execution_options(populate_existing=True)
         )
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
@@ -442,7 +459,7 @@ class PeersRepository(BaseRepository[PeerConnection]):
         stmt = (
             select(PeerBlock)
             .where(PeerBlock.blocker_id == blocker_id)
-            .order_by(PeerBlock.created_at.desc())
+            .order_by(PeerBlock.created_at.desc(), PeerBlock.id.desc())
         )
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
@@ -531,6 +548,20 @@ class PeersRepository(BaseRepository[PeerConnection]):
         stmt = select(PeerDomainShare).where(PeerDomainShare.connection_id == connection_id)
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
+
+    async def list_shares_for_connections(
+        self, connection_ids: list[UUID]
+    ) -> list[PeerDomainShare]:
+        """Read both directions for already-authorized pair cards in one query."""
+        if not connection_ids:
+            return []
+        stmt = (
+            select(PeerDomainShare)
+            .where(PeerDomainShare.connection_id.in_(connection_ids))
+            .order_by(PeerDomainShare.id)
+            .execution_options(populate_existing=True)
+        )
+        return list((await self.db.execute(stmt)).scalars().all())
 
     # ------------------------------------------------------------------
     # Messages (delivery ledger — Lot 4 consumes the pending queue)
@@ -1016,7 +1047,7 @@ class PeersRepository(BaseRepository[PeerConnection]):
         stmt = (
             select(PeerAccessLog)
             .where(PeerAccessLog.owner_id == owner_id)
-            .order_by(PeerAccessLog.created_at.desc())
+            .order_by(PeerAccessLog.created_at.desc(), PeerAccessLog.id.desc())
             .limit(limit)
         )
         result = await self.db.execute(stmt)

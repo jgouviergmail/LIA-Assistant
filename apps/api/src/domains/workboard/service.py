@@ -37,14 +37,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.exceptions import raise_invalid_input, raise_not_found_or_unauthorized
-from src.core.i18n import normalize_language
 from src.core.time_utils import now_utc
 from src.domains.shared.text_normalization import fold_name
 from src.domains.users.models import User
 from src.domains.workboard.answers import Answer, classify_answer
+from src.domains.workboard.assignment_notifications import (
+    AssignmentNotice,
+    collect_assignment_notices,
+    dispatch_assignment_notices,
+)
 from src.domains.workboard.board_queries import BoardFilters
 from src.domains.workboard.constants import (
-    NOTIFICATION_TASK_TYPE,
     ActorKind,
     AssigneeKind,
     TicketEventKind,
@@ -52,16 +55,8 @@ from src.domains.workboard.constants import (
     TicketStatus,
     WorkboardError,
 )
+from src.domains.workboard.creation_fence import lock_creation_scope
 from src.domains.workboard.models import WorkboardComment, WorkboardTicket, WorkboardTicketEvent
-from src.domains.workboard.notifications import (
-    WorkboardEvent,
-    board_url,
-    event_run_id,
-    notification_body,
-    notification_metadata,
-    recipients_for,
-    ticket_url,
-)
 from src.domains.workboard.repository import WorkboardRepository
 from src.domains.workboard.schemas import BoardSummary, CommentCreate, TicketCreate, TicketUpdate
 from src.domains.workboard.summary_queries import read_board_summary
@@ -92,9 +87,17 @@ class TicketBundle:
 class WorkboardService:
     """Business rules of the board."""
 
-    def __init__(self, db: AsyncSession) -> None:
+    def __init__(
+        self,
+        db: AsyncSession,
+        *,
+        assignment_notices: list[AssignmentNotice] | None = None,
+        mutation_events: list[WorkboardTicketEvent] | None = None,
+    ) -> None:
         self.db = db
         self.repo = WorkboardRepository(db)
+        self.assignment_notices = assignment_notices
+        self.mutation_events = mutation_events
 
     # ---------------------------------------------------------------- helpers
 
@@ -124,7 +127,14 @@ class WorkboardService:
             user_b in (connection.user_a_id, connection.user_b_id) for connection in connections
         )
 
-    async def _visible_or_404(self, ticket_id: UUID, user_id: UUID) -> WorkboardTicket:
+    async def _visible_or_404(
+        self,
+        ticket_id: UUID,
+        user_id: UUID,
+        *,
+        for_update: bool = False,
+        prospective_holder: UUID | None = None,
+    ) -> WorkboardTicket:
         """The ticket, if it is on this user's board.
 
         Args:
@@ -138,7 +148,13 @@ class WorkboardService:
             ResourceNotFoundError: When it does not exist, or is not theirs —
                 the same answer for both, so an id cannot be probed.
         """
-        ticket = await self.repo.get_visible(ticket_id, user_id)
+        ticket = (
+            await self.repo.get_visible(
+                ticket_id, user_id, for_update=True, prospective_holder=prospective_holder
+            )
+            if for_update
+            else await self.repo.get_visible(ticket_id, user_id)
+        )
         if ticket is None:
             raise_not_found_or_unauthorized("ticket", ticket_id)
         return ticket
@@ -333,7 +349,7 @@ class WorkboardService:
         Returns:
             The flushed event row, whose id names the act.
         """
-        return await self.repo.add_event(
+        event = await self.repo.add_event(
             ticket_id=ticket.id,
             actor_kind=(
                 ActorKind.LIA.value if actor is None else self._actor_kind(ticket, actor.id)
@@ -342,10 +358,44 @@ class WorkboardService:
             kind=kind.value,
             payload=payload,
         )
+        if self.mutation_events is not None:
+            self.mutation_events.append(event)
+        return event
 
     # ----------------------------------------------------------------- create
 
-    async def create(self, actor: User, data: TicketCreate) -> WorkboardTicket:
+    async def validate_creation(
+        self, actor: User, data: TicketCreate
+    ) -> tuple[TicketCreate, str, UUID | None]:
+        """Return source-normalized values and assignment, with no insert or notification."""
+        title = self._clean_title(data.title)
+        description = self._clean_description(data.description)
+        status = self._valid_status(data.status)
+        priority = self._valid_priority(data.priority)
+        self._check_dates(data.start_at, data.due_at)
+        if await self.repo.count_owned(actor.id) >= settings.workboard_max_tickets_per_user:
+            raise_invalid_input(WorkboardError.TOO_MANY_TICKETS.value)
+        if data.parent_id is not None:
+            await self._check_parent(actor, data.parent_id)
+        kind, holder = await self._resolve_assignment(
+            actor.id, data.assignee, data.assignee_user_id
+        )
+        return (
+            data.model_copy(
+                update={
+                    "title": title,
+                    "description": description,
+                    "status": status,
+                    "priority": priority,
+                }
+            ),
+            kind,
+            holder,
+        )
+
+    async def create(
+        self, actor: User, data: TicketCreate, *, ticket_id: UUID | None = None
+    ) -> WorkboardTicket:
         """Create a ticket on the caller's board.
 
         Args:
@@ -359,41 +409,30 @@ class WorkboardService:
             ValidationError: Any bound or assignment rule.
             ResourceNotFoundError: An unknown or invisible parent.
         """
-        title = self._clean_title(data.title)
-        description = self._clean_description(data.description)
-        status = self._valid_status(data.status)
-        priority = self._valid_priority(data.priority)
-        self._check_dates(data.start_at, data.due_at)
-
-        if await self.repo.count_owned(actor.id) >= settings.workboard_max_tickets_per_user:
-            raise_invalid_input(WorkboardError.TOO_MANY_TICKETS.value)
-
-        if data.parent_id is not None:
-            await self._check_parent(actor, data.parent_id)
-
-        kind, holder = await self._resolve_assignment(
-            actor.id, data.assignee, data.assignee_user_id
-        )
-        ticket = await self.repo.create(
-            {
-                "owner_user_id": actor.id,
-                "parent_id": data.parent_id,
-                "title": title,
-                "description": description,
-                "status": status,
-                "priority": priority,
-                "start_at": data.start_at,
-                "due_at": data.due_at,
-                "assignee_kind": kind,
-                "assignee_user_id": holder,
-                "execution_mode": data.execution_mode,
-                "position": await self.repo.next_position(actor.id, status),
-                "follow_owner": data.follow,
-                "follow_assignee": False,
-                "created_by": ActorKind.USER.value,
-                "status_changed_at": now_utc(),
-            }
-        )
+        await lock_creation_scope(self.db, actor.id, data)
+        data, kind, holder = await self.validate_creation(actor, data)
+        status = data.status
+        values: dict[str, object] = {
+            "owner_user_id": actor.id,
+            "parent_id": data.parent_id,
+            "title": data.title,
+            "description": data.description,
+            "status": status,
+            "priority": data.priority,
+            "start_at": data.start_at,
+            "due_at": data.due_at,
+            "assignee_kind": kind,
+            "assignee_user_id": holder,
+            "execution_mode": data.execution_mode,
+            "position": await self.repo.next_position(actor.id, status),
+            "follow_owner": data.follow,
+            "follow_assignee": False,
+            "created_by": ActorKind.USER.value,
+            "status_changed_at": now_utc(),
+        }
+        if ticket_id is not None:
+            values["id"] = ticket_id
+        ticket = await self.repo.create(values)
         await self._event(ticket, actor, TicketEventKind.CREATED, {"status": status})
         logger.info(
             "workboard_ticket_created",
@@ -522,7 +561,9 @@ class WorkboardService:
             ValidationError: A bound, a right, or an assignment rule.
             ResourceNotFoundError: Unknown or not on their board.
         """
-        ticket = await self._visible_or_404(ticket_id, actor.id)
+        ticket = await self._visible_or_404(
+            ticket_id, actor.id, for_update=True, prospective_holder=data.assignee_user_id
+        )
         is_owner = ticket.owner_user_id == actor.id
 
         self._apply_words(ticket, data, is_owner=is_owner)
@@ -703,15 +744,13 @@ class WorkboardService:
         Raises:
             ValidationError: The ticket has no runs left to spend.
         """
-        answer = classify_answer(text)
+        answer = self.validate_answer(ticket, text)
         pending = ticket.pending_action or {}
         if answer is Answer.REFUSE:
             # « Terminé », not « Annulé » (which no longer exists): the ticket
             # is closed, and the history's ``reason`` says the person refused.
             await self._transition(ticket, actor, TicketStatus.DONE.value, reason=answer.value)
         else:
-            if ticket.run_count >= settings.workboard_max_runs_per_ticket:
-                raise_invalid_input(WorkboardError.MAX_RUNS_REACHED.value)
             await self._transition(ticket, actor, TicketStatus.TODO.value, reason=answer.value)
             if answer is Answer.APPROVE and pending:
                 # A NEW dict (the JSONB rule): the transition cleared the column
@@ -795,41 +834,22 @@ class WorkboardService:
         importing the dispatcher: ``agents`` imports this package, and the
         dispatcher imports ``agents``.
 
-        Best-effort by contract, and OUTSIDE the transaction's success: a
-        notification that could not leave must not undo an assignment the
-        person asked for and the board already holds.
+        Native callers collect immutable notices and dispatch them after
+        acknowledged commit on their own session. The default GUI path keeps
+        its existing direct dispatch. A reported delivery failure does not
+        change the assignment; SQL failures still belong to the caller's
+        transaction.
 
         Args:
             ticket: The reassigned row.
             actor: Who reassigned it.
             event_id: The ASSIGNED event — the run the register row is filed under.
         """
-        from src.domains.shared.proactive_sink import send_proactive_notification
-
-        recipients = recipients_for(WorkboardEvent.ASSIGNED, ticket, actor_user_id=actor.id)
-        for user_id in recipients:
-            recipient = await self.db.get(User, user_id)
-            if recipient is None:
-                continue
-            language = normalize_language(getattr(recipient, "language", None))
-            await send_proactive_notification(
-                db=self.db,
-                user=recipient,
-                content=notification_body(WorkboardEvent.ASSIGNED, ticket, language=language),
-                task_type=NOTIFICATION_TASK_TYPE,
-                target_id=str(ticket.id),
-                metadata=notification_metadata(
-                    WorkboardEvent.ASSIGNED,
-                    ticket,
-                    board_url=board_url(),
-                    ticket_url=ticket_url(ticket),
-                ),
-                # The act's own run: the ASSIGNED event that caused this
-                # notification, a row anyone can join. A second handover is a
-                # second event, so it is never lost as a replay of the first.
-                run_id=event_run_id(event_id),
-                occurrence=WorkboardEvent.ASSIGNED.value,
-            )
+        notices = await collect_assignment_notices(self.db, ticket, actor.id, event_id)
+        if self.assignment_notices is not None:
+            self.assignment_notices.extend(notices)
+        else:
+            await dispatch_assignment_notices(self.db, notices)
 
     async def _transition(
         self,
@@ -891,7 +911,7 @@ class WorkboardService:
             ValidationError: An unknown column.
             ResourceNotFoundError: Unknown or not on their board.
         """
-        ticket = await self._visible_or_404(ticket_id, actor.id)
+        ticket = await self._visible_or_404(ticket_id, actor.id, for_update=True)
         status = self._valid_status(status)
         if ticket.status != status:
             await self._transition(ticket, actor, status)
@@ -920,7 +940,7 @@ class WorkboardService:
             ValidationError: Not assigned to LIA, or past the runs cap.
             ResourceNotFoundError: Unknown or not on their board.
         """
-        ticket = await self._visible_or_404(ticket_id, actor.id)
+        ticket = await self._visible_or_404(ticket_id, actor.id, for_update=True)
         if ticket.assignee_kind != AssigneeKind.LIA.value:
             raise_invalid_input(WorkboardError.RUN_NOW_REQUIRES_LIA.value)
         if ticket.run_count >= settings.workboard_max_runs_per_ticket:
@@ -936,7 +956,43 @@ class WorkboardService:
         logger.info("workboard_run_requested", ticket_id=str(ticket.id))
         return ticket
 
-    async def comment(self, actor: User, ticket_id: UUID, data: CommentCreate) -> WorkboardComment:
+    @staticmethod
+    def validate_answer(ticket: WorkboardTicket, text: str) -> Answer:
+        """Source answer classification and run limit, shared by preparation and both answer doors."""
+        answer = classify_answer(text)
+        if (
+            answer is not Answer.REFUSE
+            and ticket.run_count >= settings.workboard_max_runs_per_ticket
+        ):
+            raise_invalid_input(WorkboardError.MAX_RUNS_REACHED.value)
+        return answer
+
+    def comment_answer(self, ticket: WorkboardTicket, actor: User, body: str) -> Answer | None:
+        """Return the source comment consequence, refusing impossible delegation before a write."""
+        if (
+            ticket.status != TicketStatus.CONFIRMING.value
+            or not ticket.pending_action
+            or ticket.owner_user_id != actor.id
+        ):
+            return None
+        answer = self.validate_answer(ticket, body)
+        if answer is not Answer.REFUSE and ticket.assignee_user_id is not None:
+            raise_invalid_input(WorkboardError.CROSS_ACCOUNT_DELEGATION.value)
+        return answer
+
+    @staticmethod
+    def clean_comment(body: str) -> str:
+        """Publish source normalization and bounds for writes and confirmation preparation."""
+        body = body.strip()
+        if not body:
+            raise_invalid_input(WorkboardError.COMMENT_REQUIRED.value)
+        if len(body) > settings.workboard_comment_max_chars:
+            raise_invalid_input(WorkboardError.COMMENT_TOO_LONG.value)
+        return body
+
+    async def comment(
+        self, actor: User, ticket_id: UUID, data: CommentCreate, *, comment_id: UUID | None = None
+    ) -> WorkboardComment:
         """Append a comment to a ticket.
 
         Args:
@@ -951,17 +1007,15 @@ class WorkboardService:
             ValidationError: Blank, or over the published bound.
             ResourceNotFoundError: Unknown or not on their board.
         """
-        ticket = await self._visible_or_404(ticket_id, actor.id)
-        body = data.body.strip()
-        if not body:
-            raise_invalid_input(WorkboardError.COMMENT_REQUIRED.value)
-        if len(body) > settings.workboard_comment_max_chars:
-            raise_invalid_input(WorkboardError.COMMENT_TOO_LONG.value)
+        ticket = await self._visible_or_404(ticket_id, actor.id, for_update=True)
+        body = self.clean_comment(data.body)
+        self.comment_answer(ticket, actor, body)
         comment = await self.repo.add_comment(
             ticket_id=ticket.id,
             author_kind=self._actor_kind(ticket, actor.id),
             author_user_id=actor.id,
             body=body,
+            comment_id=comment_id,
         )
         await self._answer_by_comment(ticket, actor, body)
         return comment
@@ -1032,6 +1086,7 @@ class WorkboardService:
             ValidationError: A holder trying to delete somebody else's ticket.
             ResourceNotFoundError: Unknown or not on their board.
         """
+        await self._visible_or_404(ticket_id, actor.id, for_update=True)
         ticket, children = await self.deletable(actor, ticket_id)
         await self.repo.delete(ticket)
         logger.info("workboard_ticket_deleted", ticket_id=str(ticket.id), children=children)

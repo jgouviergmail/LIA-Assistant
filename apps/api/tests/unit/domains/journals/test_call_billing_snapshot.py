@@ -37,7 +37,17 @@ def _response(model: str | None = None) -> AIMessage:
 @pytest.fixture
 def fake_journal_dependencies(monkeypatch):
     db = MagicMock()
-    db.execute = AsyncMock(return_value=MagicMock(scalar_one_or_none=lambda: None))
+    user = SimpleNamespace(
+        id=USER,
+        journal_max_total_chars=40000,
+        journal_max_entry_chars=2000,
+        journals_enabled=True,
+        personality_id=None,
+        extraction_revision=0,
+        journal_revision=0,
+    )
+    db.execute = AsyncMock(return_value=MagicMock(scalar_one_or_none=lambda: user))
+    db.scalar = AsyncMock(return_value=0)
     db.commit = AsyncMock()
 
     @asynccontextmanager
@@ -53,6 +63,8 @@ def fake_journal_dependencies(monkeypatch):
         get_all_active=AsyncMock(return_value=[]),
     )
     monkeypatch.setattr("src.domains.journals.service.JournalService", lambda _: service)
+    monkeypatch.setattr(extraction_service, "is_capability_enabled", AsyncMock(return_value=True))
+    monkeypatch.setattr(extraction_service, "runtime_context_if_running", lambda: None)
     return db
 
 
@@ -151,7 +163,7 @@ async def test_completed_call_ignores_later_hot_switch(
         if kind == "extraction":
             monkeypatch.setattr(
                 module,
-                "_parse_journal_extraction_result",
+                "_parse_extraction_output",
                 MagicMock(side_effect=RuntimeError("processing")),
             )
         else:
@@ -183,6 +195,21 @@ async def test_completed_call_ignores_later_hot_switch(
             str(USER), [HumanMessage(content="A synthetic message")], "synthetic-session"
         )
     else:
+        from src.domains.journals.consolidation_lifecycle import ConsolidationSnapshot
+
+        snapshot = ConsolidationSnapshot(
+            owner=uuid4(),
+            journal_revision=0,
+            consent_revision=0,
+            captured_at=datetime.fromtimestamp(START, UTC),
+            sources={},
+        )
+        monkeypatch.setattr(module, "claim_consolidation", AsyncMock(return_value=snapshot))
+        monkeypatch.setattr(
+            module, "current_snapshot", AsyncMock(return_value=SimpleNamespace(id=USER))
+        )
+        monkeypatch.setattr(module, "finish_attempt", AsyncMock())
+        monkeypatch.setattr(module, "settle_maintenance", AsyncMock(return_value=(0, "no_op")))
         monkeypatch.setattr(module, "_build_usage_patterns_section", AsyncMock(return_value=""))
         monkeypatch.setattr(
             module, "_maybe_build_health_signals_section", AsyncMock(return_value="")
@@ -200,7 +227,6 @@ async def test_completed_call_ignores_later_hot_switch(
             ),
         )
         monkeypatch.setattr(module, "build_consolidation_prompt", lambda **_: "synthetic prompt")
-        monkeypatch.setattr(module, "_stamp_last_consolidated", AsyncMock())
         monkeypatch.setattr(module, "_file_consolidation", AsyncMock())
         operation = module.consolidate_journals_for_user(USER, None, None, "en")
 
@@ -226,8 +252,22 @@ async def test_completed_call_ignores_later_hot_switch(
         )
         assert update.await_args.kwargs["started_at"] == START
         assert update.await_args.args[2] == (reported_model or "requested-before-call")
+    elif kind == "consolidation" and failure in {"paid_error", "paid_cancel"}:
+        update.assert_awaited_once()
+        assert update.await_args.args[1] is None
+        assert update.await_args.kwargs["capture"] is captured
+        assert update.await_args.kwargs["started_at"] == START
+        assert update.await_args.args[2] == "requested-before-call"
     else:
         update.assert_not_awaited()
+    if kind == "consolidation":
+        if failure == "before_response":
+            module._file_consolidation.assert_not_awaited()
+        else:
+            module._file_consolidation.assert_awaited_once()
+            filed = module._file_consolidation.await_args
+            assert filed.args[1] == persist.await_args.kwargs["parent_run_id"]
+            assert filed.kwargs["failed"] is (failure is not None)
 
 
 @pytest.mark.parametrize("failed", [False, True])
@@ -285,8 +325,9 @@ async def test_capture_persists_frozen_price_and_fx_once_even_with_no_final_repl
     assert float(bill["usd_to_eur_rate"]) == 0.8
 
 
+@pytest.mark.parametrize("missing_message", [False, True])
 async def test_settings_cost_keeps_callback_bill_when_final_message_has_no_usage(
-    monkeypatch, fake_journal_dependencies
+    monkeypatch, fake_journal_dependencies, missing_message
 ):
     user = SimpleNamespace()
     fake_journal_dependencies.execute.return_value.scalar_one_or_none = lambda: user
@@ -310,7 +351,10 @@ async def test_settings_cost_keeps_callback_bill_when_final_message_has_no_usage
     pricing = MagicMock(side_effect=AssertionError("must not reprice the completed bill"))
     monkeypatch.setattr("src.infrastructure.cache.pricing_cache.get_cached_cost_usd_eur", pricing)
     await extraction_service._update_user_last_cost(
-        str(USER), AIMessage(content="[]"), "requested-model", capture=capture
+        str(USER),
+        None if missing_message else AIMessage(content="[]"),
+        "requested-model",
+        capture=capture,
     )
     assert user.journal_last_cost_tokens_in == 100
     assert user.journal_last_cost_tokens_out == 0

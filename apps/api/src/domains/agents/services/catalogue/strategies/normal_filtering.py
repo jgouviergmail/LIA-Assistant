@@ -21,6 +21,7 @@ Architecture:
 - Uses ToolFilter from QueryIntelligence for filtering criteria
 """
 
+from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any
 
 from src.core.constants import CATALOGUE_DOMAIN_COVERAGE_TOP_N
@@ -30,6 +31,7 @@ from src.infrastructure.observability.metrics_agents import planner_catalogue_si
 
 if TYPE_CHECKING:
     from src.domains.agents.analysis.query_intelligence import QueryIntelligence
+    from src.domains.agents.registry.catalogue import ToolManifest
     from src.domains.agents.services.smart_catalogue_service import (
         FilteredCatalogue,
         SmartCatalogueService,
@@ -387,7 +389,7 @@ class NormalFilteringStrategy:
             )
             return filtered_tools
         if not result:
-            return filtered_tools
+            return self._annotate_source_gaps(filtered_tools, by_name, candidates)
 
         untouchable = protected | result.consumers | set(result.additions)
         # Placement domain, not home domain: eviction reasons about which bucket
@@ -421,7 +423,34 @@ class NormalFilteringStrategy:
                 max_tools=tool_filter.max_tools,
                 message="max_tools saturated by protected tools — catalogue stays open",
             )
-        return filtered_tools
+        return self._annotate_source_gaps(filtered_tools, by_name, candidates)
+
+    @staticmethod
+    def _annotate_source_gaps(
+        tools: list[dict[str, object]],
+        by_name: Mapping[str, ToolManifest],
+        candidates: Sequence[ToolManifest],
+    ) -> list[dict[str, object]]:
+        """Expose unavailable source paths, including cycles and cap-lost ancestors."""
+        from src.domains.agents.services.catalogue.closure import catalogue_source_gaps
+
+        kept = [
+            by_name[name]
+            for tool in tools
+            if isinstance(name := tool.get("name"), str) and name in by_name
+        ]
+        gaps = catalogue_source_gaps(kept, candidates)
+        for tool in tools:
+            if missing := gaps.get(str(tool["name"])):
+                tool["semantic_source_gaps"] = sorted(missing)
+            else:
+                tool.pop("semantic_source_gaps", None)
+        if gaps:
+            logger.warning(
+                "catalogue_source_gaps",
+                unresolved={name: sorted(types) for name, types in gaps.items()},
+            )
+        return tools
 
     def _placement_index(self, manifests: list[Any], tool_filter: ToolFilter) -> dict[str, str]:
         """Tool name -> the bucket it occupies in THIS catalogue ("" when none).

@@ -10,11 +10,12 @@
  * creation: the ledger's value is being automatic (extraction-fed).
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState, type SetStateAction } from 'react';
 
 import { ApiError } from '@/lib/api-client';
 import { useApiMutation } from '@/hooks/useApiMutation';
-import { useApiQuery } from '@/hooks/useApiQuery';
+import { useApplicationAccountQuery } from '@/hooks/useApplicationAccountQuery';
+import { useApplicationResourceSync } from '@/hooks/useApplicationResourceSync';
 
 export interface OpenLoop {
   id: string;
@@ -36,7 +37,9 @@ export interface OpenLoopPatch {
   clear_due_hint?: boolean;
 }
 
-/** Direction groups, preserving the server order (due first, then age). */
+const EMPTY_EDITS: Readonly<Record<string, OpenLoopPatch>> = {};
+
+/** Direction groups, preserving the server order (newest first). */
 export function groupLoops(loops: OpenLoop[]): {
   owed: OpenLoop[];
   waiting: OpenLoop[];
@@ -67,15 +70,53 @@ export interface UseOpenLoopsReturn {
 }
 
 export function useOpenLoops(enabled = true): UseOpenLoopsReturn {
-  const { data, loading, error, refetch } = useApiQuery<{ items: OpenLoop[]; total: number }>(
-    '/open-loops?status=open',
-    { componentName: 'useOpenLoops', enabled }
-  );
+  const { data, loading, error, refetch, ownerId, lifetime, isCurrent } =
+    useApplicationAccountQuery<{ items: OpenLoop[]; total: number }>(
+      '/open-loops?status=open',
+      'useOpenLoops',
+      enabled
+    );
   // Optimistic removals (closed ids) — derived-with-override, no sync effect.
-  const [removedIds, setRemovedIds] = useState<ReadonlySet<string>>(new Set());
+  const [savedRemovals, saveRemovals] = useState({ lifetime, value: new Set<string>() });
+  const removedIds = savedRemovals.lifetime === lifetime ? savedRemovals.value : new Set<string>();
+  const setRemovedIds = useCallback(
+    (action: SetStateAction<Set<string>>) => {
+      if (!isCurrent()) return;
+      saveRemovals(previous => {
+        const value = previous.lifetime === lifetime ? previous.value : new Set<string>();
+        return { lifetime, value: typeof action === 'function' ? action(value) : action };
+      });
+    },
+    [isCurrent, lifetime]
+  );
   // Same doctrine for edits: the server's row wins on the next fetch, but the
   // user sees their correction immediately instead of a value they just changed.
-  const [edits, setEdits] = useState<Readonly<Record<string, OpenLoopPatch>>>({});
+  const [savedEdits, saveEdits] = useState<{
+    lifetime: typeof lifetime;
+    value: Readonly<Record<string, OpenLoopPatch>>;
+  }>({ lifetime, value: {} });
+  const edits = savedEdits.lifetime === lifetime ? savedEdits.value : EMPTY_EDITS;
+  const setEdits = useCallback(
+    (action: SetStateAction<Readonly<Record<string, OpenLoopPatch>>>) => {
+      if (!isCurrent()) return;
+      saveEdits(previous => {
+        const value = previous.lifetime === lifetime ? previous.value : {};
+        return { lifetime, value: typeof action === 'function' ? action(value) : action };
+      });
+    },
+    [isCurrent, lifetime]
+  );
+  const refreshGeneration = useRef(0);
+  const releaseOverrides = useCallback(() => {
+    refreshGeneration.current += 1;
+    setRemovedIds(new Set());
+    setEdits({});
+  }, [setRemovedIds, setEdits]);
+  const reread = useCallback(async () => {
+    await refetch();
+    if (isCurrent()) releaseOverrides();
+  }, [refetch, isCurrent, releaseOverrides]);
+  useApplicationResourceSync(ownerId, 'open_loops', refetch, releaseOverrides);
   const loops = (data?.items ?? [])
     .filter(l => !removedIds.has(l.id))
     .map(l => {
@@ -103,11 +144,14 @@ export function useOpenLoops(enabled = true): UseOpenLoopsReturn {
 
   const close = useCallback(
     async (id: string, action: CloseLoopAction): Promise<boolean> => {
+      if (!isCurrent()) return false;
+      const generation = refreshGeneration.current;
       setRemovedIds(prev => new Set([...prev, id]));
       try {
         await mutate(`/open-loops/${id}/close`, { action });
-        return true;
+        return isCurrent();
       } catch {
+        if (generation !== refreshGeneration.current) return false;
         setRemovedIds(prev => {
           const next = new Set(prev);
           next.delete(id);
@@ -116,17 +160,20 @@ export function useOpenLoops(enabled = true): UseOpenLoopsReturn {
         return false;
       }
     },
-    [mutate]
+    [mutate, isCurrent, setRemovedIds]
   );
 
   const update = useCallback(
     async (id: string, patch: OpenLoopPatch): Promise<boolean> => {
+      if (!isCurrent()) return false;
+      const generation = refreshGeneration.current;
       const previous = edits[id];
       setEdits(prev => ({ ...prev, [id]: { ...prev[id], ...patch } }));
       try {
         await patchLoop(`/open-loops/${id}`, patch);
-        return true;
+        return isCurrent();
       } catch {
+        if (generation !== refreshGeneration.current) return false;
         // Put the row back the way it was: showing an edit the server refused
         // is worse than showing none — the user would believe it was saved.
         setEdits(prev => {
@@ -138,7 +185,7 @@ export function useOpenLoops(enabled = true): UseOpenLoopsReturn {
         return false;
       }
     },
-    [edits, patchLoop]
+    [edits, patchLoop, isCurrent, setEdits]
   );
 
   // 404 = the router is not mounted on this instance (flag off) → the
@@ -151,7 +198,7 @@ export function useOpenLoops(enabled = true): UseOpenLoopsReturn {
     loading,
     unavailable: notFound,
     loadError: !!error && !notFound,
-    refetch,
+    refetch: reread,
     close,
     update,
   };

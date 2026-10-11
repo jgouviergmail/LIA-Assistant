@@ -55,6 +55,7 @@ function server(over: Partial<UserMCPServer> = {}): UserMCPServer {
 
 function hook(over: Partial<McpHook> = {}) {
   return {
+    ownerId: 'owner',
     servers: [],
     total: 0,
     loading: false,

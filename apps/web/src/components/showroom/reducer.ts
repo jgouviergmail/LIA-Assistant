@@ -18,9 +18,7 @@ import type {
 } from '@/components/showroom/types';
 
 /** Fresh pre-run state for a mission (one null slot per decision). */
-export function initialStateFor(
-  def: Pick<ShowroomMissionDefinition, 'decisions'>
-): ShowroomState {
+export function initialStateFor(def: Pick<ShowroomMissionDefinition, 'decisions'>): ShowroomState {
   return {
     phase: 'ready',
     runId: 0,
@@ -30,16 +28,35 @@ export function initialStateFor(
   };
 }
 
+/** Advance informative phases; an approval can only advance through DECIDE. */
+function advanceReadingAndPlanning(
+  state: ShowroomState,
+  sourceCount: number,
+  decisionCount: number
+): ShowroomState {
+  if (state.phase === 'reading_sources') {
+    if (state.sourcesRead < sourceCount) {
+      return { ...state, sourcesRead: state.sourcesRead + 1 };
+    }
+    return { ...state, phase: 'planning' };
+  }
+  if (state.phase === 'planning') {
+    return {
+      ...state,
+      phase: decisionCount === 0 ? 'receipt' : 'decision',
+      decisionIndex: 0,
+    };
+  }
+  return state;
+}
+
 /** Build the mission's pure reducer; unknown/out-of-order events are identity. */
 export function makeShowroomReducer(
   def: Pick<ShowroomMissionDefinition, 'sources' | 'decisions'>
 ): (state: ShowroomState, event: ShowroomEvent) => ShowroomState {
   const sourceCount = def.sources.length;
 
-  return function showroomReducer(
-    state: ShowroomState,
-    event: ShowroomEvent
-  ): ShowroomState {
+  return function showroomReducer(state: ShowroomState, event: ShowroomEvent): ShowroomState {
     switch (event.type) {
       case 'START':
         if (state.phase !== 'ready') return state;
@@ -50,26 +67,14 @@ export function makeShowroomReducer(
         };
 
       case 'ADVANCE':
-        if (state.phase === 'reading_sources') {
-          if (state.sourcesRead < sourceCount) {
-            return { ...state, sourcesRead: state.sourcesRead + 1 };
-          }
-          return { ...state, phase: 'planning' };
-        }
-        if (state.phase === 'planning') {
-          return { ...state, phase: 'decision', decisionIndex: 0 };
-        }
-        // ready / decision / receipt: ADVANCE never skips a decision.
-        return state;
+        return advanceReadingAndPlanning(state, sourceCount, def.decisions.length);
 
       case 'DECIDE': {
         if (state.phase !== 'decision') return state;
         if (event.index !== state.decisionIndex) return state;
         const spec = def.decisions[event.index];
         if (!spec || !spec.allowed.includes(event.decision)) return state;
-        const decisions = state.decisions.map((d, i) =>
-          i === event.index ? event.decision : d
-        );
+        const decisions = state.decisions.map((d, i) => (i === event.index ? event.decision : d));
         if (event.index === def.decisions.length - 1) {
           return { ...state, phase: 'receipt', decisions };
         }

@@ -38,14 +38,57 @@ it('borrows fresh weather without replacing Psyche, then releases it at expiry',
   psyche.setState({ enabled: true, moodPleasure: 0.8 });
   expect(liveActingContext(now)).toMatchObject({
     weather: 'rain',
+    weatherFlags: ['rain', 'cold'],
     dayPhase: 'night',
     pleasure: 0.8,
   });
   expect(liveActingContext(now + 1000)).toMatchObject({
     weather: null,
+    weatherFlags: [],
     dayPhase: 'night',
     pleasure: 0.8,
   });
+});
+
+it('keeps concurrent environment evidence during real work and answer states independently of Psyche', () => {
+  const now = Date.parse('2026-09-21T12:00:00Z');
+  const observed = {
+    timezone: 'Pacific/Auckland',
+    weather: {
+      temperature_c: 8,
+      condition_code: 'Rain',
+      wind_speed_kmh: 45,
+      observed_at: new Date(now - 1000).toISOString(),
+      expires_at: new Date(now + 1000).toISOString(),
+    },
+  };
+  environment.getState().setEnvironment(observed);
+  signals.getState().beginTurn('answer');
+  signals
+    .getState()
+    .recordActivity({ ...event, phase: 'started', outcome: null }, 'answer', false, now);
+  signals.getState().setReaction('joy', 1, 'none', now);
+  const first = liveActingContext(now);
+  expect(first).toMatchObject({
+    activity: 'reading',
+    responding: true,
+    weather: 'rain',
+    weatherFlags: ['rain', 'wind', 'cold'],
+    dayPhase: 'night',
+    pleasure: 0,
+  });
+  psyche.setState({ enabled: true, moodPleasure: 0.8 });
+  const next = liveActingContext(now + 100);
+  expect(next.weatherFlags).toBe(first.weatherFlags);
+  expect(next.pleasure).toBe(0.8);
+  expect(liveActingContext(now + 1000)).toMatchObject({
+    weather: null,
+    weatherFlags: [],
+    dayPhase: 'night',
+    activity: 'reading',
+    responding: true,
+  });
+  expect(environment.getState().environment).toBe(observed);
 });
 
 it('uses neutral temperament when Psyche is disabled and expires answer release', () => {

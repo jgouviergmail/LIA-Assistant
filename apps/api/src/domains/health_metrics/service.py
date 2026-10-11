@@ -67,12 +67,14 @@ from src.domains.health_metrics.constants import (
     UPSERT_OPERATION_INSERT,
     UPSERT_OPERATION_UPDATE,
 )
+from src.domains.health_metrics.ingestion_authority import require_ingestion_authority
 from src.domains.health_metrics.kinds import (
     HEALTH_KINDS,
     AggregationMethod,
     get_active_bounds,
     get_spec,
 )
+from src.domains.health_metrics.management_lock import lock_health_manager
 from src.domains.health_metrics.models import HealthMetricToken
 from src.domains.health_metrics.repository import (
     HealthMetricTokenRepository,
@@ -341,6 +343,7 @@ class HealthMetricsService:
                 allowed=list(HEALTH_METRICS_KINDS),
             )
 
+        await require_ingestion_authority(self.db, token_record)
         valid_payloads: list[dict[str, Any]] = []
         rejected: list[HealthIngestRejectedItem] = []
 
@@ -522,7 +525,7 @@ class HealthMetricsService:
     # =========================================================================
 
     async def create_token(
-        self, user_id: UUID, label: str | None = None
+        self, user_id: UUID, label: str | None = None, *, token_id: UUID | None = None
     ) -> HealthMetricTokenCreateResponse:
         """Issue a new ingestion token for a user.
 
@@ -540,6 +543,8 @@ class HealthMetricsService:
             token_prefix=prefix,
             label=label,
         )
+        if token_id is not None:
+            record.id = token_id
         await self.token_repo.create_token(record)
 
         logger.info(
@@ -579,6 +584,7 @@ class HealthMetricsService:
         Returns:
             True if the token was revoked, False if already revoked or missing.
         """
+        await lock_health_manager(self.db, user_id)
         ok = await self.token_repo.revoke_token(token_id, user_id, datetime.now(UTC))
         if ok:
             logger.info(

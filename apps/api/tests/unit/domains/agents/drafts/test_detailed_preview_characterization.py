@@ -107,6 +107,7 @@ _EMAIL_FULL_CONTENT: dict[str, Any] = {
 }
 
 CASES: tuple[PreviewCase, ...] = (
+    PreviewCase("application_invalid_en", DraftType.APPLICATION_ACTION, {}, language="en"),
     # ------------------------------------------------------------- Email send
     PreviewCase("email_full_fr", DraftType.EMAIL, _EMAIL_FULL_CONTENT),
     PreviewCase(
@@ -904,6 +905,7 @@ CASES: tuple[PreviewCase, ...] = (
 # attachments row landing AFTER the body block, and the leading break every
 # single preview opened with.
 EXPECTED: dict[str, str] = {
+    "application_invalid_en": "- This proposal is invalid. Request a new preview.",
     "email_full_fr": "- **Destinataire**\xa0: alice&#64;example.com\n- **Cc**\xa0: bob&#64;example.com\n- **Cci**\xa0: carol&#64;example.com\n- **Objet**\xa0: Projet LIA — point d'étape\n\n**Message**\n\nBonjour Alice,&#60;br/&#62;voici le point d'étape.",
     "email_minimal_en": "- **To**: dave&#64;example.com\n- **Subject**: Quick sync\n\n**Message**\n\nSee you at 10.",
     "email_labels_en": "- **To**: alice&#64;example.com\n- **Cc**: bob&#64;example.com\n- **Bcc**: carol&#64;example.com\n- **Subject**: Projet LIA — point d'étape\n\n**Message**\n\nBonjour Alice,&#60;br/&#62;voici le point d'étape.",

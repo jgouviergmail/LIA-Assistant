@@ -30,6 +30,7 @@ import structlog
 from langgraph.errors import GraphInterrupt
 from prometheus_client import Counter, Histogram
 
+from src.core.application_interaction import pending_interaction_of
 from src.core.tool_outcome import error_code_of, explicit_success
 
 P = ParamSpec("P")
@@ -325,13 +326,14 @@ def _record_returned_outcome(
         func_name: The wrapped function, for the debug trace.
     """
     succeeded = explicit_success(result)
+    waiting = pending_interaction_of(result) is not None
     duration_ms = int((time.time() - started_at) * 1000)
 
     if counter_metric:
         counter_metric.labels(
             tool_name=tool_name,
             agent_name=agent_name,
-            success="true" if succeeded else "false",
+            success="waiting" if waiting else "true" if succeeded else "false",
         ).inc()
 
     if usage_counter is not None:
@@ -339,10 +341,18 @@ def _record_returned_outcome(
         usage_counter.labels(
             agent_type=agent_type,
             tool_name=tool_name,
-            outcome=map_success_to_outcome(success=succeeded),
+            outcome="waiting" if waiting else map_success_to_outcome(success=succeeded),
         ).inc()
 
-    if not succeeded:
+    if waiting:
+        if log_execution:
+            logger.debug(
+                "tool_waiting_for_interaction",
+                tool_name=tool_name,
+                agent_name=agent_name,
+                duration_ms=duration_ms,
+            )
+    elif not succeeded:
         logger.warning(
             "tool_returned_failure",
             tool_name=tool_name,

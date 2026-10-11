@@ -38,6 +38,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { VoicesProvenance } from '@/components/live/VoicesProvenance';
 import { Switch } from '@/components/ui/switch';
 import { useAppConfig } from '@/hooks/useAppConfig';
+import { useAuth } from '@/hooks/useAuth';
+import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
 import { activeLiveConnector, useLiveConnectorSettings } from '@/hooks/useLiveConnectorSettings';
 import { modelKey, useLiveConnectorDraft } from '@/hooks/useLiveConnectorDraft';
 import { LiveBudgetField } from '@/components/settings/LiveBudgetField';
@@ -61,6 +63,11 @@ import { settingsSectionHref } from '@/lib/settings-sections';
 import type { BaseSettingsProps } from '@/types/settings';
 
 export function LiveModeSettings({ lng }: BaseSettingsProps) {
+  const { user } = useAuth();
+  return <AccountLiveModeSettings key={user?.id ?? 'anonymous'} lng={lng} />;
+}
+
+function AccountLiveModeSettings({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   const { config } = useAppConfig();
   const flagOn = !!config?.features?.live_enabled;
@@ -105,7 +112,7 @@ function ConnectorPanel({
 }) {
   const { t } = useTranslation(lng);
   const active = activeLiveConnector(state.connectors);
-  if (state.connectors === undefined || state.loading) {
+  if (state.connectors === undefined) {
     return <Skeleton className="h-24 w-full" />;
   }
   if (!active) {
@@ -124,11 +131,9 @@ function ConnectorPanel({
   if (!state.config) {
     return <Skeleton className="h-24 w-full" />;
   }
-  const draftKey = `${active.provider}|${active.settings.model}|${active.settings.voice}|${active.settings.thinking_level ?? ''}|${active.settings.idle_timeout_seconds}|${active.settings.session_max_minutes}|${active.settings.session_budget_eur ?? ''}`;
   const connectors = state.connectors.connectors;
   return (
     <ConnectorForm
-      key={draftKey}
       lng={lng}
       connector={active}
       config={state.config}
@@ -176,6 +181,8 @@ function ConnectorForm({
   onProviderChange: (provider: string) => void;
 }) {
   const { t } = useTranslation(lng);
+  const { user } = useAuth();
+  const { isCurrent } = useApplicationAccountLifetime(user?.id);
   const state = useLiveConnectorDraft(
     connector,
     models?.models ?? [],
@@ -196,13 +203,14 @@ function ConnectorForm({
   );
 
   const submit = async () => {
-    if (saving || !state.dirty || !state.toSave) return;
+    if (!isCurrent() || saving || !state.dirty || !state.toSave) return;
     const ok = await onSave(state.draft.provider, state.toSave);
-    if (ok) toast.success(t('settings.live_mode.saved'));
+    if (isCurrent() && ok) toast.success(t('settings.live_mode.saved'));
   };
 
   return (
     <div className="space-y-4">
+      <SavedSettingsChangedNotice lng={lng} state={state} saving={saving} />
       <ModelSelect
         lng={lng}
         state={state}
@@ -219,27 +227,7 @@ function ConnectorForm({
       ) : (
         <VoiceSelect lng={lng} state={state} voices={voices} disabled={saving} />
       )}
-      {state.levels.length > 0 && (
-        <div className="space-y-3">
-          <Label htmlFor="live-thinking">{t('settings.live_mode.thinking')}</Label>
-          <Select
-            value={state.draft.thinking_level ?? state.levels[0]}
-            onValueChange={state.chooseLevel}
-            disabled={saving}
-          >
-            <SelectTrigger id="live-thinking" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {state.levels.map(level => (
-                <SelectItem key={level} value={level}>
-                  {level}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
+      <LiveThinkingSelect lng={lng} state={state} saving={saving} />
 
       <LiveDurationFields
         // A model switched to brings its own numbers: whatever was being typed goes.
@@ -290,6 +278,35 @@ function ConnectorForm({
         className="aria-disabled:cursor-not-allowed aria-disabled:opacity-60"
       >
         {t('settings.live_mode.save')}
+      </Button>
+    </div>
+  );
+}
+
+function LiveThinkingSelect({ lng, state, saving }: { lng: Language; state: DraftState; saving: boolean }) {
+  const { t } = useTranslation(lng);
+  if (state.levels.length === 0) return null;
+  return (
+    <div className="space-y-3">
+      <Label htmlFor="live-thinking">{t('settings.live_mode.thinking')}</Label>
+      <Select value={state.draft.thinking_level ?? state.levels[0]} onValueChange={state.chooseLevel} disabled={saving}>
+        <SelectTrigger id="live-thinking" className="w-full"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          {state.levels.map(level => <SelectItem key={level} value={level}>{level}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+function SavedSettingsChangedNotice({ lng, state, saving }: { lng: Language; state: DraftState; saving: boolean }) {
+  const { t } = useTranslation(lng);
+  if (!state.sourceChanged) return null;
+  return (
+    <div className="space-y-2 text-sm" role="status">
+      <p>{t('settings.live_mode.settings_changed')}</p>
+      <Button type="button" variant="outline" size="sm" onClick={state.resetToSaved} disabled={saving}>
+        {t('settings.live_mode.reload_saved')}
       </Button>
     </div>
   );
@@ -446,11 +463,14 @@ function PreferencesPanel({
 }) {
   const { t } = useTranslation(lng);
   const { preferences, loading, saving, save } = state;
+  const { user } = useAuth();
+  const { isCurrent } = useApplicationAccountLifetime(user?.id);
   if (loading || !preferences) return <Skeleton className="h-40 w-full" />;
 
   const change = async (patch: Partial<LivePreferences>) => {
+    if (!isCurrent()) return;
     const ok = await save(patch);
-    if (!ok) toast.error(t('settings.live_mode.preferences_error'));
+    if (isCurrent() && !ok) toast.error(t('settings.live_mode.preferences_error'));
   };
 
   return (

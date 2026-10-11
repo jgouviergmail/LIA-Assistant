@@ -15,6 +15,8 @@ import { SettingsSection } from '@/components/settings/SettingsSection';
 import { HourWindow } from '@/components/settings/FrequencyControls';
 import { useHeartbeatHistory } from '@/hooks/useHeartbeatHistory';
 import { useHeartbeatSettings } from '@/hooks/useHeartbeatSettings';
+import { useAuth } from '@/hooks/useAuth';
+import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
 import { HeartbeatHistory } from '@/components/settings/HeartbeatHistory';
 import { HeartbeatSourceSwitches } from '@/components/settings/HeartbeatSourceSwitches';
 import { MomentKindsSection } from '@/components/settings/MomentKindSwitches';
@@ -43,6 +45,8 @@ import type { BaseSettingsProps } from '@/types/settings';
 export function HeartbeatSettings({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   const { settings, loading, updating, updateSettings } = useHeartbeatSettings();
+  const { user } = useAuth();
+  const { isCurrent } = useApplicationAccountLifetime(user?.id);
   const intlLocale = getIntlLocale(lng);
   // Called BEFORE the early return below — hooks may not sit behind a
   // conditional. Fetching is gated by the argument instead: the history block
@@ -60,6 +64,7 @@ export function HeartbeatSettings({ lng }: BaseSettingsProps) {
   const handleToggleEnabled = async () => {
     const newValue = !settings.heartbeat_enabled;
     const result = await updateSettings({ heartbeat_enabled: newValue });
+    if (!isCurrent()) return;
     if (result) {
       toast.success(newValue ? t('heartbeat.enabled_success') : t('heartbeat.disabled_success'));
     } else {
@@ -75,6 +80,7 @@ export function HeartbeatSettings({ lng }: BaseSettingsProps) {
    */
   const handleSourcesChange = async (disabled: string[]) => {
     const result = await updateSettings({ heartbeat_disabled_sources: disabled });
+    if (!isCurrent()) return;
     if (result) {
       toast.success(t('heartbeat.settings_updated'));
     } else {
@@ -84,6 +90,7 @@ export function HeartbeatSettings({ lng }: BaseSettingsProps) {
 
   const handleMomentKindsChange = async (disabled: string[]) => {
     const result = await updateSettings({ moment_kinds_disabled: disabled });
+    if (!isCurrent()) return;
     if (result) {
       toast.success(t('heartbeat.settings_updated'));
     } else {
@@ -97,6 +104,7 @@ export function HeartbeatSettings({ lng }: BaseSettingsProps) {
         ? { heartbeat_notify_start_hour: value }
         : { heartbeat_notify_end_hour: value };
     const result = await updateSettings(update);
+    if (!isCurrent()) return;
     if (result) {
       toast.success(t('heartbeat.settings_updated'));
     } else {

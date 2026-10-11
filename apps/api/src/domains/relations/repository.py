@@ -12,7 +12,7 @@ alias — which is what lets every read resolve an identity in one lookup.
 
 from uuid import UUID
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -43,6 +43,7 @@ class RelationFavoriteRepository:
             select(RelationFavorite)
             .where(RelationFavorite.user_id == user_id)
             .order_by(RelationFavorite.name_key)
+            .execution_options(populate_existing=True)
         )
         return list(result.scalars().all())
 
@@ -83,6 +84,23 @@ class RelationFavoriteRepository:
         await self.db.flush()
         return bool(getattr(result, "rowcount", 0))
 
+    async def remove_identity(self, user_id: UUID, *, canonical_key: str) -> bool:
+        """Remove every star on the displayed identity, including merged-away spellings."""
+        alias_keys = select(RelationAlias.alias_key).where(
+            RelationAlias.user_id == user_id, RelationAlias.canonical_key == canonical_key
+        )
+        result = await self.db.execute(
+            delete(RelationFavorite).where(
+                RelationFavorite.user_id == user_id,
+                or_(
+                    RelationFavorite.name_key == canonical_key,
+                    RelationFavorite.name_key.in_(alias_keys),
+                ),
+            )
+        )
+        await self.db.flush()
+        return bool(getattr(result, "rowcount", 0))
+
 
 class RelationAliasRepository:
     """Data access for ``relation_aliases`` (one merge per row).
@@ -98,11 +116,9 @@ class RelationAliasRepository:
       ``IdentityResolver``. Passing a key that is itself an alias would create
       the one chain nothing here can prevent.
 
-    Two concurrent merges by the same user can still interleave into a chain
-    (A→B committed while B→C was being computed). The effect is bounded and
-    self-healing: a read resolves one hop, so the two identities show as two
-    cards until the merge is redone — never a cycle, never a lost row. Serial
-    use is the real-world case: the UI holds a single busy control.
+    The source service serializes merges/splits and favorites on the account
+    row before resolving identity. Direct repository callers must retain that
+    same owner lock: path compression alone cannot prevent concurrent chains.
     """
 
     def __init__(self, db: AsyncSession) -> None:
@@ -126,6 +142,7 @@ class RelationAliasRepository:
             select(RelationAlias)
             .where(RelationAlias.user_id == user_id)
             .order_by(RelationAlias.alias_key)
+            .execution_options(populate_existing=True)
         )
         return list(result.scalars().all())
 

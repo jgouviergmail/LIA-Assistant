@@ -20,14 +20,13 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
 
-from src.core.config import settings
 from src.core.constants import SKILL_LIBRARY_QUERY_MAX_CHARS
 from src.core.session_dependencies import get_current_active_session_for_stream
-from src.domains.auth.dependencies import create_user_rate_limiter
 from src.domains.feature_switches.guard import capability_dependencies
 from src.domains.feature_switches.registry import PlatformCapability
 from src.domains.skill_library import service
 from src.domains.skill_library.errors import LibraryRefusal, refuse
+from src.domains.skill_library.rate_limits import rate_limit_library
 from src.domains.skill_library.schemas import (
     LibraryInstalledResponse,
     LibraryInstallRequest,
@@ -47,15 +46,6 @@ router = APIRouter(
         *capability_dependencies(PlatformCapability.SKILLS),
         *capability_dependencies(PlatformCapability.SKILL_LIBRARY),
     ],
-)
-
-# Read once at import, like every settings-driven module constant: each call
-# reaches a portal or GitHub, whose anonymous allowance the instance shares.
-rate_limit_library = create_user_rate_limiter(
-    "skill_library",
-    max_calls=settings.skill_library_rate_limit_calls,
-    window_seconds=settings.skill_library_rate_limit_window_seconds,
-    authenticate=get_current_active_session_for_stream,
 )
 
 _OK: Final = "ok"

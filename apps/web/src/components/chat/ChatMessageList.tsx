@@ -8,6 +8,7 @@ import { BrowserScreenshotOverlay } from './BrowserScreenshotOverlay';
 import { ScrollToBottomButton } from './ScrollToBottomButton';
 import { TypingIndicator } from './TypingIndicator';
 import { AnimatedEmoji } from '@/components/ui/animated-emoji';
+import { useLiaGender } from '@/hooks/useLiaGender';
 import { MessageSquare } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { usePsyche } from '@/hooks/usePsyche';
@@ -24,6 +25,7 @@ import { logger } from '@/lib/logger';
 import { composeStarterRail } from '@/lib/chat-starters';
 import type { ChatSuggestion } from '@/hooks/useChatSuggestions';
 import { cn } from '@/lib/utils';
+import { useEyesWidgetStore } from '@/stores/eyesWidgetStore';
 
 export interface ChatMessageListProps {
   messages: Message[];
@@ -100,9 +102,8 @@ export function greetingForHour(hour: number): TimeGreeting {
 }
 
 /**
- * Id of the last assistant message — only that row animates its psyche emoji
- * (older rows are static mood snapshots; keeps at most one looping WebP on
- * screen, spec D-5).
+ * Id of the last assistant message — only that portrait may loop permanently.
+ * Older rows retain their mood snapshots and can wake briefly on hover.
  */
 export function getLastAssistantMessageId(messages: Message[]): string | null {
   for (let i = messages.length - 1; i >= 0; i--) {
@@ -408,6 +409,8 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   scrollUiSlot = null,
 }) => {
   const { t } = useTranslation();
+  const { isMale, mounted: identityReady } = useLiaGender();
+  const avatarStyle = useEyesWidgetStore(state => state.style);
 
   // `messages` crosses an API/state boundary, and the defensive branch further
   // down renders an error card when it is not an array. That guard is a
@@ -851,6 +854,9 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
               message={message}
               isUser={message.role === 'user'}
               isLatestAssistant={message.id === lastAssistantId}
+              spiritVariant={isMale ? 'male' : 'female'}
+              avatarStyle={avatarStyle}
+              identityReady={identityReady}
               isActiveStream={message.id === activeStreamId}
               streamPhase={streamPhase}
               searchHighlight={searchHighlight}

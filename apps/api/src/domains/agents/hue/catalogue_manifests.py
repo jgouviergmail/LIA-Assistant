@@ -115,8 +115,15 @@ list_hue_lights_catalogue_manifest = ToolManifest(
         # A "lights[0].name" reference resolved to nothing (ADR-121: never
         # declare an output without checking the real payload).
         OutputFieldSchema(path="hues", type="array", description="List of lights"),
-        OutputFieldSchema(path="hues[].light_id", type="string", description="Light id"),
-        OutputFieldSchema(path="hues[].name", type="string", description="Light name"),
+        OutputFieldSchema(
+            path="hues[].light_id",
+            type="string",
+            description="Light id",
+            semantic_type="hue_light_id",
+        ),
+        OutputFieldSchema(
+            path="hues[].name", type="string", description="Light name", semantic_type="Text"
+        ),
         OutputFieldSchema(path="hues[].is_on", type="boolean", description="On/off state"),
         OutputFieldSchema(path="hues[].brightness", type="number", description="Brightness %"),
     ],
@@ -154,7 +161,9 @@ control_hue_light_catalogue_manifest = ToolManifest(
     ],
     parameters=[_LIGHT_NAME_PARAM, _ON_PARAM, _BRIGHTNESS_PARAM, _COLOR_PARAM],
     outputs=[
-        OutputFieldSchema(path="name", type="string", description="Light name"),
+        OutputFieldSchema(
+            path="name", type="string", description="Light name", semantic_type="Text"
+        ),
         OutputFieldSchema(path="on", type="boolean", description="New state"),
         OutputFieldSchema(path="brightness", type="number", description="New brightness"),
     ],
@@ -197,7 +206,9 @@ list_hue_rooms_catalogue_manifest = ToolManifest(
     parameters=[],
     outputs=[
         OutputFieldSchema(path="rooms", type="array", description="List of rooms"),
-        OutputFieldSchema(path="rooms[].name", type="string", description="Room name"),
+        OutputFieldSchema(
+            path="rooms[].name", type="string", description="Room name", semantic_type="Text"
+        ),
     ],
     cost=CostProfile(est_tokens_in=50, est_tokens_out=300, est_cost_usd=0.001, est_latency_ms=300),
     permissions=PermissionProfile(
@@ -233,7 +244,9 @@ control_hue_room_catalogue_manifest = ToolManifest(
     ],
     parameters=[_ROOM_NAME_PARAM, _ON_PARAM, _BRIGHTNESS_PARAM],
     outputs=[
-        OutputFieldSchema(path="name", type="string", description="Room name"),
+        OutputFieldSchema(
+            path="name", type="string", description="Room name", semantic_type="Text"
+        ),
         OutputFieldSchema(path="on", type="boolean", description="New state"),
         OutputFieldSchema(path="brightness", type="number", description="New brightness"),
     ],
@@ -272,7 +285,9 @@ list_hue_scenes_catalogue_manifest = ToolManifest(
     parameters=[],
     outputs=[
         OutputFieldSchema(path="scenes", type="array", description="List of scenes"),
-        OutputFieldSchema(path="scenes[].name", type="string", description="Scene name"),
+        OutputFieldSchema(
+            path="scenes[].name", type="string", description="Scene name", semantic_type="Text"
+        ),
     ],
     cost=CostProfile(est_tokens_in=50, est_tokens_out=300, est_cost_usd=0.001, est_latency_ms=300),
     permissions=PermissionProfile(
@@ -308,7 +323,9 @@ activate_hue_scene_catalogue_manifest = ToolManifest(
     ],
     parameters=[_SCENE_NAME_PARAM],
     outputs=[
-        OutputFieldSchema(path="name", type="string", description="Activated scene name"),
+        OutputFieldSchema(
+            path="name", type="string", description="Activated scene name", semantic_type="Text"
+        ),
     ],
     cost=CostProfile(est_tokens_in=80, est_tokens_out=150, est_cost_usd=0.001, est_latency_ms=400),
     permissions=PermissionProfile(

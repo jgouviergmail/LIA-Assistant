@@ -17,7 +17,28 @@ const { useApiQuery, refetch } = vi.hoisted(() => ({
   useApiQuery: vi.fn(),
   refetch: vi.fn(),
 }));
-vi.mock('@/hooks/useApiQuery', () => ({ useApiQuery }));
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'account-one' } }) }));
+vi.mock('@/hooks/useApiQuery', async () => {
+  const { useEffect } = await import('react');
+  return {
+    useApiQuery: (endpoint: string, options: { onSuccess?: (data: unknown) => void }) => {
+      const response = useApiQuery(endpoint, options);
+      const observed = response.data;
+      const notify = options?.onSuccess;
+      useEffect(() => {
+        if (observed !== undefined) notify?.(observed);
+      }, [observed, notify]);
+      return {
+        ...response,
+        refetchVerified: async () => {
+          await response.refetch();
+          return true;
+        },
+        setData: response.setData ?? vi.fn(),
+      };
+    },
+  };
+});
 
 const { apiGet } = vi.hoisted(() => ({ apiGet: vi.fn() }));
 vi.mock('@/lib/api-client', () => ({
@@ -476,7 +497,6 @@ describe('useRelationMerge', () => {
     expect(verdict).toEqual({ ok: false });
   });
 });
-
 
 describe('the daily debrief switch', () => {
   beforeEach(() => {

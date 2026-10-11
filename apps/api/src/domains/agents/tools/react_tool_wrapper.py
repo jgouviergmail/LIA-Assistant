@@ -27,7 +27,7 @@ a cut to the model and counts it per tool.
 import asyncio
 import json
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 import structlog
@@ -196,6 +196,74 @@ def render_data_block(data: dict[str, Any], budget_tokens: int) -> DataBlock:
     )
 
 
+@dataclass
+class _MCPDataProjection:
+    """A model-only view whose row boundaries leave the canonical result untouched."""
+
+    display_items: object
+    display_path: object
+    rows: list[dict[str, object]] = field(default_factory=list)
+    counts: dict[str, int] = field(default_factory=dict)
+    omitted: object = field(default_factory=object)
+
+    def collect(self, value: object, path: str, depth: int = 0) -> object:
+        if _is_item_list(value) and isinstance(value, list):
+            self.counts[path] = len(value)
+            for index, item in enumerate(value):
+                if (
+                    path == self.display_path
+                    and isinstance(self.display_items, list)
+                    and index < len(self.display_items)
+                    and isinstance(self.display_items[index], dict)
+                ):
+                    item = self.display_items[index]
+                self.rows.append({"source_path": path, "source_index": index, "item": item})
+            return self.omitted
+        if isinstance(value, dict) and depth < 8:
+            return {
+                key: projected
+                for key, child in value.items()
+                if (projected := self.collect(child, f"{path}.{key}", depth + 1))
+                is not self.omitted
+            }
+        if isinstance(value, list) and depth < 8:
+            return self._collect_sequence(value, path, depth)
+        return value
+
+    def _collect_sequence(self, values: list[object], path: str, depth: int) -> object:
+        projected = [
+            projected
+            for index, child in enumerate(values)
+            if (projected := self.collect(child, f"{path}[{index}]", depth + 1)) is not self.omitted
+        ]
+        return self.omitted if len(projected) < len(values) else projected
+
+
+def _project_mcp_data(data: dict[str, object], metadata: dict[str, object]) -> dict[str, object]:
+    """Page received MCP rows once while keeping the execution result untouched."""
+    display_key = metadata.get("mcp_display_collection_key")
+    display_items = data.get(display_key) if isinstance(display_key, str) else None
+    projection = _MCPDataProjection(display_items, metadata.get("mcp_result_collection_path"))
+    projected = {key: value for key, value in data.items() if key != display_key}
+    result = projection.collect(data.get("result"), "result")
+    if not projection.rows:
+        return projected
+    if result is projection.omitted:
+        projected.pop("result", None)
+    else:
+        projected["result"] = result
+    projected["mcp_rows"] = projection.rows
+    projected["mcp_row_counts"] = projection.counts
+    return projected
+
+
+def _prepare_model_data(data: dict[str, object], result: object) -> dict[str, object]:
+    metadata = getattr(result, "metadata", None)
+    if isinstance(metadata, dict) and metadata.get("mcp_result_projection") is True:
+        return _project_mcp_data(data, metadata)
+    return data
+
+
 def extract_data_block(
     result: Any,
     budget_tokens: int,
@@ -242,12 +310,28 @@ def extract_data_block(
 
     if not data:
         return None
+    data = _prepare_model_data(data, result)
     if reshape is not None:
         data = reshape(data)
     try:
-        return render_data_block(data, budget_tokens)
+        return _with_visible_connector_cursor(result, render_data_block(data, budget_tokens))
     except TypeError, ValueError:
         return None
+
+
+def _with_visible_connector_cursor(result: object, block: DataBlock) -> DataBlock:
+    from src.domains.agents.tools.connector_cursor_projection import visible_connector_cursor
+    from src.domains.agents.utils.token_utils import count_tokens
+
+    text = visible_connector_cursor(
+        block.text,
+        getattr(result, "metadata", None),
+        key=block.key,
+        truncated=block.truncated,
+    )
+    if text == block.text:
+        return block
+    return replace(block, text=text, used_tokens=count_tokens(text))
 
 
 def _default_budget() -> int:
@@ -272,6 +356,27 @@ def extract_data_for_llm(result: Any, budget_tokens: int | None = None) -> str:
     return block.text if block is not None else ""
 
 
+def _budget_note(result: object, block: DataBlock) -> str:
+    from src.domains.agents.utils.react_budget import tool_result_budget_note
+
+    metadata = getattr(result, "metadata", None)
+    if (
+        isinstance(metadata, dict)
+        and metadata.get("mcp_result_projection") is True
+        and block.key is not None
+    ):
+        return (
+            f"[Budget] {block.shown} of {block.total} MCP items shown "
+            f"(tool result budget: {block.budget_tokens} tokens). "
+            "This view omits received data. Rows carry source_path and source_index; "
+            "use narrower filters, pagination or specific ids to query the source. "
+            "Never report omitted data as missing."
+        )
+    return tool_result_budget_note(
+        shown=block.shown, total=block.total, key=block.key, budget_tokens=block.budget_tokens
+    )
+
+
 def compose_tool_message(result: Any, *, tool_name: str, budget_tokens: int | None = None) -> str:
     """Build the ToolMessage body: message, Data block, budget note.
 
@@ -291,7 +396,6 @@ def compose_tool_message(result: Any, *, tool_name: str, budget_tokens: int | No
     Returns:
         The ToolMessage body.
     """
-    from src.domains.agents.utils.react_budget import tool_result_budget_note
     from src.infrastructure.observability.metrics_react import (
         react_tool_result_truncated_total,
     )
@@ -312,9 +416,7 @@ def compose_tool_message(result: Any, *, tool_name: str, budget_tokens: int | No
         used_tokens=block.used_tokens,
         budget_tokens=block.budget_tokens,
     )
-    note = tool_result_budget_note(
-        shown=block.shown, total=block.total, key=block.key, budget_tokens=block.budget_tokens
-    )
+    note = _budget_note(result, block)
     return f"{text}\n{note}"
 
 

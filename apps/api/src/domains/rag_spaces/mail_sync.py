@@ -24,7 +24,9 @@ no Redis cache, no log line carrying a subject or an address.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import UTC, datetime
+from functools import partial
 from typing import Any
 from uuid import UUID
 
@@ -52,10 +54,19 @@ from src.domains.rag_spaces.mail_source_service import (
 )
 from src.domains.rag_spaces.models import (
     RAGDocumentSourceType,
+    RAGDocumentStatus,
     RAGMailSource,
     RAGSourceSyncStatus,
 )
+from src.domains.rag_spaces.native_job_abandonment import record_source_failure
 from src.domains.rag_spaces.repository import RAGDocumentRepository, RAGMailSourceRepository
+from src.domains.rag_spaces.source_worker_lease import (
+    SourceLeaseLost,
+    current_source_worker,
+    native_source_limit,
+    require_source_worker,
+)
+from src.domains.rag_spaces.source_worker_runtime import source_worker_external
 from src.infrastructure.database.session import get_db_context
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_rag_spaces import (
@@ -108,20 +119,28 @@ async def ingest_thread(
     doc_repo = RAGDocumentRepository(db)
     try:
         if thread is None:
-            thread = await client.get_thread(thread_id)
+            fetched: dict[str, Any] = await source_worker_external(
+                lambda: client.get_thread(thread_id)
+            )
+            thread = fetched
         rendered = render_thread(thread, max_chars=settings.rag_mail_max_thread_chars)
         existing = await doc_repo.get_by_mail_thread_id(space_id, thread_id)
         if existing is not None:
             unchanged = (
-                existing.mail_last_message_at is not None
+                existing.status == RAGDocumentStatus.READY
+                and existing.mail_last_message_at is not None
                 and rendered.last_message_at is not None
                 and existing.mail_last_message_at >= rendered.last_message_at
             )
             if unchanged:
                 rag_mail_sync_threads_total.labels(result="skipped").inc()
                 return IngestResult("skipped")
-            await discard_document(db, existing, user_id=user_id, space_id=space_id)
-        if await doc_repo.count_for_space(space_id) >= settings.rag_spaces_max_docs_per_space:
+            if current_source_worker() is None:
+                await discard_document(db, existing, user_id=user_id, space_id=space_id)
+        if (
+            existing is None
+            and await doc_repo.count_for_space(space_id) >= settings.rag_spaces_max_docs_per_space
+        ):
             logger.warning("rag_mail_sync_doc_limit", space_id=str(space_id))
             return IngestResult("skipped")
         kwargs = await create_pending_document(
@@ -138,9 +157,12 @@ async def ingest_thread(
                 "mail_thread_id": thread_id,
                 "mail_last_message_at": rendered.last_message_at,
             },
+            replaces=existing if current_source_worker() is not None else None,
         )
         return IngestResult("queued", kwargs)
     except Exception:
+        if current_source_worker() is not None:
+            raise
         rag_mail_sync_threads_total.labels(result="failed").inc()
         logger.exception("rag_mail_sync_thread_error", thread_id=thread_id)
         return IngestResult("failed")
@@ -163,6 +185,8 @@ async def remove_thread_document(
         rag_mail_sync_threads_total.labels(result="deleted").inc()
         return True
     except Exception:
+        if current_source_worker() is not None:
+            raise
         logger.exception("rag_mail_sync_delete_error", thread_id=thread_id)
         return False
 
@@ -179,9 +203,15 @@ def _history_id(value: object) -> int | None:
         return None
 
 
-async def _complete_source(db: AsyncSession, source: RAGMailSource, **fields: Any) -> None:
+async def _complete_source(
+    db: AsyncSession, source: RAGMailSource, *, ready_count: int | None = None, **fields: Any
+) -> None:
     """COMPLETED with the lease released; ``fields`` carry the run's counts."""
-    ready = await RAGDocumentRepository(db).count_ready_mail_documents(source.id)
+    ready = (
+        ready_count
+        if ready_count is not None
+        else await RAGDocumentRepository(db).count_ready_mail_documents(source.id)
+    )
     await RAGMailSourceRepository(db).update(
         source,
         {
@@ -218,28 +248,49 @@ async def _fail_source(db: AsyncSession, source: RAGMailSource, message: str) ->
 # ============================================================================
 
 
-async def _list_label_threads(client: Any, label_id: str, max_threads: int) -> list[str]:
-    """Thread ids under the label, paginated and bounded."""
+@dataclass(frozen=True, slots=True)
+class MailThreadListing:
+    ids: tuple[str, ...]
+    complete: bool
+
+
+async def _list_label_threads(client: Any, label_id: str, max_threads: int) -> MailThreadListing:
+    """Unique thread ids with an explicit census-completeness verdict."""
     ids: list[str] = []
+    seen: set[str] = set()
     token: str | None = None
+    overflow = False
     for _ in range(_MAX_PAGES):
         if len(ids) >= max_threads:
             break
-        page = await client.list_threads(
-            label_ids=[label_id],
-            max_results=min(100, max_threads - len(ids)),
-            page_token=token,
+        page = await source_worker_external(
+            partial(
+                client.list_threads,
+                label_ids=[label_id],
+                max_results=min(100, max_threads - len(ids)),
+                page_token=token,
+            )
         )
-        ids.extend(str(item["id"]) for item in page.get("threads", []) if item.get("id"))
+        for item in page.get("threads", []):
+            identity = item.get("id")
+            if not isinstance(identity, str) or not identity:
+                raise ValueError("Provider returned an invalid thread identity")
+            if identity in seen:
+                continue
+            if len(ids) >= max_threads:
+                overflow = True
+                break
+            ids.append(identity)
+            seen.add(identity)
         token = page.get("nextPageToken")
         if not token:
             break
-    return ids
+    return MailThreadListing(tuple(ids), not token and not overflow)
 
 
 async def sync_source(
     db: AsyncSession, client: Any, source: RAGMailSource, *, user_id: UUID
-) -> None:
+) -> bool:
     """The full sync body: the caller holds the SYNCING lock and owns db/client.
 
     Anchors the history id BEFORE listing (a message arriving during the
@@ -253,11 +304,12 @@ async def sync_source(
     # The caller's reads end before Gmail is asked (ADR-304); every thread
     # read below follows a lease heartbeat, which commits.
     await db.commit()
-    profile = await client.get_profile()
+    profile = await source_worker_external(client.get_profile)
     anchor = _history_id(profile.get("historyId"))
-    max_threads = settings.rag_mail_max_threads_per_sync
-    thread_ids = await _list_label_threads(client, source.label_id, max_threads)
-    if len(thread_ids) >= max_threads:
+    max_threads = native_source_limit(settings.rag_mail_max_threads_per_sync, "max_items")
+    listing = await _list_label_threads(client, source.label_id, max_threads)
+    thread_ids = listing.ids
+    if not listing.complete:
         logger.warning(
             "rag_mail_sync_pagination_cap", source_id=str(source.id), thread_count=len(thread_ids)
         )
@@ -284,7 +336,7 @@ async def sync_source(
         else:
             skipped += 1
     existing = await doc_repo.get_mail_thread_ids_for_source(source.id)
-    removed = existing - set(thread_ids)
+    removed = existing - set(thread_ids) if listing.complete else set()
     for thread_id in removed:
         await remove_thread_document(
             db,
@@ -297,11 +349,9 @@ async def sync_source(
     # each document embeds on a session of its own, for seconds to minutes.
     await db.commit()
     synced, embed_failed = await process_queued(queued, counter=rag_mail_sync_threads_total)
-    await _complete_source(
-        db, source, thread_count=len(thread_ids), last_history_id=anchor or source.last_history_id
-    )
+    completed = await _finish_full_sync(db, source, len(thread_ids), listing.complete, anchor)
     logger.info(
-        "rag_mail_sync_complete",
+        "rag_mail_sync_complete" if completed else "rag_mail_sync_partial",
         source_id=str(source.id),
         threads=len(thread_ids),
         synced=synced,
@@ -310,6 +360,42 @@ async def sync_source(
         skipped=skipped,
         removed=len(removed),
     )
+    return completed
+
+
+async def _finish_full_sync(
+    db: AsyncSession,
+    source: RAGMailSource,
+    thread_count: int,
+    complete_listing: bool,
+    anchor: int | None,
+) -> bool:
+    ready_count: int | None = None
+    if current_source_worker() is not None:
+        await require_source_worker(db)
+        ready_count = await RAGDocumentRepository(db).count_ready_mail_documents(source.id)
+    completed = complete_listing and (ready_count is None or ready_count == thread_count)
+    if completed:
+        await _complete_source(
+            db,
+            source,
+            thread_count=thread_count,
+            last_history_id=anchor or source.last_history_id,
+            ready_count=ready_count,
+        )
+    else:
+        if ready_count is not None:
+            await RAGMailSourceRepository(db).update(source, {"synced_thread_count": ready_count})
+        await _fail_source(
+            db,
+            source,
+            (
+                "Source listing incomplete; unseen documents and the previous history anchor were retained."
+                if not complete_listing
+                else "Synchronization incomplete; consult document states and confirm a new synchronization to retry."
+            ),
+        )
+    return completed
 
 
 async def sync_label_background(source_id: UUID, user_id: UUID) -> None:
@@ -322,10 +408,14 @@ async def sync_label_background(source_id: UUID, user_id: UUID) -> None:
     rag_mail_sync_runs_total.labels(status="started").inc()
     try:
         async with get_db_context() as db:
+            if current_source_worker() is not None:
+                await require_source_worker(db, source_id=source_id, kind="mail", actor_id=user_id)
+                await db.commit()
             source = await RAGMailSourceRepository(db).get_by_id(source_id)
             if source is None:
                 logger.warning("rag_mail_sync_source_not_found", source_id=str(source_id))
                 return
+            await db.commit()
             client = await gmail_client_or_none(db, user_id)
             if client is None:
                 await _fail_source(db, source, "Gmail connector not active")
@@ -335,10 +425,13 @@ async def sync_label_background(source_id: UUID, user_id: UUID) -> None:
                 # ONE consultation for the act: the person asked for this label
                 # to be kept indexed, and honouring it opens their mailbox.
                 async with space_read(user_id=user_id, section=SECTION_MAIL):
-                    await sync_source(db, client, source, user_id=user_id)
+                    completed = await sync_source(db, client, source, user_id=user_id)
             finally:
                 await client.close()
-        rag_mail_sync_runs_total.labels(status="completed").inc()
+        rag_mail_sync_runs_total.labels(status="completed" if completed else "error").inc()
+    except SourceLeaseLost:
+        rag_mail_sync_runs_total.labels(status="error").inc()
+        logger.warning("rag_mail_sync_lease_lost", source_id=str(source_id))
     except Exception as exc:
         logger.exception("rag_mail_sync_fatal", source_id=str(source_id))
         rag_mail_sync_runs_total.labels(status="error").inc()
@@ -346,7 +439,7 @@ async def sync_label_background(source_id: UUID, user_id: UUID) -> None:
             async with get_db_context() as db:
                 source = await RAGMailSourceRepository(db).get_by_id(source_id)
                 if source is not None:
-                    await _fail_source(db, source, f"Sync failed: {exc}")
+                    await record_source_failure(db, source, exc)
         except Exception:
             logger.exception("rag_mail_sync_error_update_failed", source_id=str(source_id))
 
@@ -485,8 +578,8 @@ async def _serve_source(
     try:
         result = await apply_history(db, client, source, user_id=user_id)
         if result in {"no_anchor", "expired"}:
-            await sync_source(db, client, source, user_id=user_id)
-            return "resynced"
+            completed = await sync_source(db, client, source, user_id=user_id)
+            return "resynced" if completed else "error"
         return result
     except Exception as exc:  # noqa: BLE001 — the source must not stay locked
         await _fail_source(db, source, str(exc))

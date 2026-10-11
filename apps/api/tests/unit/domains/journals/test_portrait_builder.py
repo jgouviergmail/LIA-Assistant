@@ -15,8 +15,10 @@ Coverage targets:
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
+from types import SimpleNamespace
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -24,6 +26,19 @@ import pytest
 from src.domains.journals.portrait_builder import build_journal_user_model_block
 
 pytestmark = pytest.mark.unit
+
+
+@pytest.fixture(autouse=True)
+def _portrait_policy():
+    """Keep tests isolated from the operator store and source probes."""
+    with (
+        patch(
+            "src.domains.journals.portrait_builder.is_capability_enabled",
+            AsyncMock(return_value=True),
+        ),
+        patch("src.domains.journals.lifecycle.portrait_is_current", AsyncMock(return_value=True)),
+    ):
+        yield
 
 
 # -----------------------------------------------------------------------------
@@ -43,7 +58,18 @@ def _make_db_context(row: tuple[bool, str | None, str | None] | None) -> Any:
     @asynccontextmanager
     async def _ctx():
         result_obj = MagicMock(name="Result")
-        result_obj.one_or_none.return_value = row
+        result_obj.scalar_one_or_none.return_value = (
+            SimpleNamespace(
+                journals_enabled=row[0],
+                journal_portrait_full=row[1],
+                journal_portrait_brief=row[2],
+                is_active=True,
+                deleted_at=None,
+                journal_portrait_compiled_at=datetime.now(UTC),
+            )
+            if row is not None
+            else None
+        )
 
         session = MagicMock(name="AsyncSession")
 
@@ -110,6 +136,28 @@ class TestPortraitBuilderFeatureFlags:
         ):
             result = await build_journal_user_model_block(uuid4(), format="brief")
         assert result == ""
+
+    async def test_operator_off_does_not_open_the_user_record(self) -> None:
+        with (
+            _patch_settings(system_enabled=True),
+            patch(
+                "src.domains.journals.portrait_builder.is_capability_enabled",
+                AsyncMock(return_value=False),
+            ),
+            patch("src.domains.journals.portrait_builder.get_db_context") as db,
+        ):
+            assert await build_journal_user_model_block(uuid4()) == ""
+        db.assert_not_called()
+
+    async def test_invalidated_portrait_is_not_diffused(self) -> None:
+        with (
+            _patch_settings(system_enabled=True),
+            _patch_db_context_factory((True, "OLD FULL", "OLD BRIEF")),
+            patch(
+                "src.domains.journals.lifecycle.portrait_is_current", AsyncMock(return_value=False)
+            ),
+        ):
+            assert await build_journal_user_model_block(uuid4()) == ""
 
 
 # -----------------------------------------------------------------------------
@@ -227,6 +275,19 @@ class TestPortraitBuilderMetrics:
 
         assert result.startswith("<UserModelContext>")
         assert "PORTRAIT" in result
+
+    async def test_a_native_budget_never_counts_an_omitted_fragment(self) -> None:
+        counter = MagicMock()
+        with (
+            _patch_settings(system_enabled=True),
+            _patch_db_context_factory((True, "FULL", "COMPLETE BRIEF")),
+            patch("src.domains.journals.portrait_builder.journal_portrait_present_total", counter),
+        ):
+            result = await build_journal_user_model_block(
+                uuid4(), max_tokens=1, budget_prefix="EXISTING FRAME"
+            )
+        assert result == ""
+        counter.labels.assert_not_called()
 
 
 # -----------------------------------------------------------------------------

@@ -176,6 +176,8 @@ export class LiveSessionController {
   private chat: LiveChatBindings;
   private transport: LiveTransport | null = null;
   private player: LivePlayer | null = null;
+  /** Output activity is independent of delayed captions and tool progress. */
+  private outputSpeaking = false;
   private mic: MicCapture | null = null;
   private bridge: DelegationBridge | null = null;
   private clock: ActivityClock | null = null;
@@ -358,8 +360,12 @@ export class LiveSessionController {
     const session = this.session;
     if (!session || this.ending || this.store.getState().status !== 'standby') return;
     // Resume during the button's gesture, before the credential/network await.
-    try { await this.player?.warmup(); }
-    catch { await this.end('error', null, 'live_audio_resume_failed'); return; }
+    try {
+      await this.player?.warmup();
+    } catch {
+      await this.end('error', null, 'live_audio_resume_failed');
+      return;
+    }
     await this.sleeper.wake(session.session_id, 'manual');
   }
 
@@ -390,6 +396,7 @@ export class LiveSessionController {
     await this.mic?.stop().catch(() => undefined);
     const audioDiagnostics = this.player?.diagnostics?.() ?? null;
     this.player?.dispose();
+    this.setSpeaking(false);
     await this.archiveTurn();
     await this.closeBooks(session, outcome, detail ?? error, audioDiagnostics ?? null);
     this.store.getState().finish(outcome, error, detail);
@@ -444,6 +451,7 @@ export class LiveSessionController {
     await this.mic?.stop().catch(() => undefined);
     this.mic = null;
     this.player?.flush();
+    this.setSpeaking(false);
     await this.archiveTurn();
     return !this.ending && this.session === session;
   }
@@ -531,19 +539,29 @@ export class LiveSessionController {
   }
 
   private bindPlayer(player: LivePlayer): void {
-    player.onSpeakingChange(speaking => this.setSpeaking(speaking));
+    player.onSpeakingChange(speaking => {
+      if (this.player === player && !this.ending) this.setSpeaking(speaking);
+    });
   }
 
   /** The provider's voice started or stopped — from the player or a native transport. */
   private setSpeaking(speaking: boolean): void {
-    const state = this.store.getState();
+    const wasSpeaking = this.outputSpeaking;
+    this.outputSpeaking = speaking;
     if (speaking) {
-      state.setVoiceState('speaking');
       this.clock?.hold('speaking');
     } else {
-      if (state.voiceState === 'speaking') state.setVoiceState('idle');
       this.clock?.release('speaking');
     }
+    // An idle output callback must not erase the person's current recording.
+    if (speaking || wasSpeaking) {
+      this.setVoiceState(this.store.getState().delegating ? 'processing' : 'idle');
+    }
+  }
+
+  /** Audible speech owns the face until output stops, even if a caption arrives late. */
+  private setVoiceState(state: 'idle' | 'recording' | 'processing'): void {
+    this.store.getState().setVoiceState(this.outputSpeaking ? 'speaking' : state);
   }
 
   private buildBridge(session: LiveSessionStart): DelegationBridge {
@@ -584,7 +602,7 @@ export class LiveSessionController {
         // response went out: the banner must stop saying LIA is working.
         const state = this.store.getState();
         state.setDelegating(false);
-        if (state.voiceState === 'processing') state.setVoiceState('idle');
+        if (state.voiceState === 'processing') this.setVoiceState('idle');
         this.clock?.release('delegating');
       },
     });
@@ -646,8 +664,12 @@ export class LiveSessionController {
           if (!fresh()) return;
           this.player?.enqueue(pcm, transport.audio.outputRate);
         },
-        ...(this.player?.attachRemoteStream ? { onRemoteStream: (stream: MediaStream) =>
-          fresh() ? this.player?.attachRemoteStream?.(stream) ?? (() => {}) : () => {} } : {}),
+        ...(this.player?.attachRemoteStream
+          ? {
+              onRemoteStream: (stream: MediaStream) =>
+                fresh() ? (this.player?.attachRemoteStream?.(stream) ?? (() => {})) : () => {},
+            }
+          : {}),
         onSpeakingChange: speaking => {
           if (!fresh()) return;
           if (this.player?.nativeSpeaking) this.player.nativeSpeaking(speaking);
@@ -668,7 +690,8 @@ export class LiveSessionController {
         onInterrupted: () => {
           if (!fresh()) return;
           this.player?.flush();
-          this.store.getState().setVoiceState('recording');
+          this.setSpeaking(false);
+          this.setVoiceState('recording');
         },
         onDelegation: delegations => (fresh() ? this.onDelegation(delegations) : undefined),
         onDelegationCancelled: ids => {
@@ -717,6 +740,8 @@ export class LiveSessionController {
     this.generation += 1;
     if (this.transport?.audio.ownership === 'managed') {
       await this.transport.close().catch(() => undefined);
+      // SDK-only output has no local tail; the old wire's callbacks are stale.
+      if (!this.player) this.setSpeaking(false);
     } else {
       void this.transport?.close().catch(() => undefined);
     }
@@ -742,7 +767,7 @@ export class LiveSessionController {
     if (role === 'user') {
       this.player?.prepareNativeResponse?.();
       this.turn.user += text;
-      if (!this.store.getState().delegating) this.store.getState().setVoiceState('recording');
+      if (!this.store.getState().delegating) this.setVoiceState('recording');
     } else {
       this.turn.assistant += text;
     }
@@ -765,7 +790,7 @@ export class LiveSessionController {
     if (status === 'in_progress') {
       const state = this.store.getState();
       if (state.voiceState === 'idle' || state.voiceState === 'recording') {
-        state.setVoiceState('processing');
+        this.setVoiceState('processing');
       }
       this.clock?.hold('provider');
       return;
@@ -777,8 +802,8 @@ export class LiveSessionController {
 
   /** Nothing is being said or done: the face rests. */
   private settleVoiceState(): void {
-    if (!this.player?.isSpeaking && !this.store.getState().delegating) {
-      this.store.getState().setVoiceState('idle');
+    if (!this.outputSpeaking && !this.player?.isSpeaking && !this.store.getState().delegating) {
+      this.setVoiceState('idle');
     }
   }
 
@@ -790,7 +815,7 @@ export class LiveSessionController {
       this.turn.delegated = true;
       const spoken = this.turn.user.trim() || null;
       this.store.getState().setDelegating(true);
-      this.store.getState().setVoiceState('processing');
+      this.setVoiceState('processing');
       this.clock?.hold('delegating');
       const result = await bridge.handle(delegation, spoken);
       this.store.getState().setDelegating(bridge.busy);
@@ -815,7 +840,7 @@ export class LiveSessionController {
     for (const delegation of delegations) {
       if (!delegation.call) continue;
       this.store.getState().setDelegating(true);
-      this.store.getState().setVoiceState('processing');
+      this.setVoiceState('processing');
       this.clock?.hold('delegating');
       const text = await this.runLookup(session, delegation.call.name, delegation.call.args);
       this.store.getState().setDelegating(false);
@@ -1010,6 +1035,7 @@ export class LiveSessionController {
     this.transport = null;
     this.mic = null;
     this.player = null;
+    this.outputSpeaking = false;
     this.bridge = null;
     this.clock = null;
     this.session = null;

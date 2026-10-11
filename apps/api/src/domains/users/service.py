@@ -2,6 +2,7 @@
 Users service containing business logic for user management.
 """
 
+from collections.abc import Mapping
 from contextlib import suppress
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -13,6 +14,7 @@ if TYPE_CHECKING:
     from src.domains.chat.models import UserStatistics
 
 from fastapi import Request
+from pydantic import JsonValue
 from sqlalchemy import func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,11 +26,15 @@ from src.core.exceptions import (
 from src.core.field_names import FIELD_IS_ACTIVE, FIELD_USER_ID
 from src.core.i18n import _, normalize_language
 from src.core.sql_search import LIKE_ESCAPE, escape_like
-from src.domains.users.admin_columns import admin_user_switches
 from src.domains.users.models import User
+from src.domains.users.preference_cas import (
+    PreferenceWriteReceipt,
+    check_expected_preferences,
+    verified_preference_noop,
+)
+from src.domains.users.profile_projection import build_user_profile, build_user_profile_with_stats
 from src.domains.users.repository import UserRepository
 from src.domains.users.schemas import (
-    HomeLocationData,
     HomeLocationResponse,
     HomeLocationUpdate,
     UserActivationResponse,
@@ -103,19 +109,7 @@ class UserService:
         Returns:
             UserProfile with all fields populated
         """
-        # Extract home_address from encrypted field
-        home_address = None
-        if user.home_location_encrypted:
-            # If decryption fails, leave home_address as None
-            with suppress(Exception):
-                from src.core.security.utils import decrypt_data
-
-                decrypted_json = decrypt_data(user.home_location_encrypted)
-                location_data = HomeLocationData.model_validate_json(decrypted_json)
-                home_address = location_data.address
-
-        profile = UserProfile.model_validate(user)
-        return profile.model_copy(update={"home_address": home_address})
+        return build_user_profile(user)
 
     async def get_all_users(
         self,
@@ -170,7 +164,14 @@ class UserService:
             total_pages=total_pages,
         )
 
-    async def update_user(self, user_id: UUID, data: UserUpdate) -> UserProfile:
+    async def update_user(
+        self,
+        user_id: UUID,
+        data: UserUpdate,
+        *,
+        expected_preferences: Mapping[str, JsonValue] | None = None,
+        receipt: PreferenceWriteReceipt | None = None,
+    ) -> UserProfile:
         """
         Update user profile.
 
@@ -184,13 +185,27 @@ class UserService:
         Raises:
             HTTPException: If user not found
         """
-        user = await self.repository.get_by_id(user_id)
+        user = (
+            await self.repository.get_by_id(user_id)
+            if expected_preferences is None
+            else await self.repository.get_by_id_for_preference_update(user_id)
+        )
 
         if not user:
             raise_user_not_found(user_id)
 
         # Type narrowing: user is User (not None) after exception check
         assert user is not None
+
+        if expected_preferences is not None:
+            check_expected_preferences(user, data, expected_preferences)
+            if verified_preference_noop(data, expected_preferences, receipt):
+                return self._build_user_profile(user)
+
+        if "personality_id" in data.model_fields_set:
+            from src.infrastructure.personalization import require_selectable_personality
+
+            await require_selectable_personality(self.db, data.personality_id, lock=True)
 
         # Track timezone and language changes for special logging
         timezone_changed = False
@@ -216,6 +231,8 @@ class UserService:
         # Update user
         user = await self.repository.update(user, update_data)
         await self.db.commit()
+        if receipt is not None:
+            receipt.committed = True
 
         # Drop the per-worker tool preferences cache so tools pick up the new
         # timezone/language immediately (other workers converge via TTL)
@@ -358,152 +375,60 @@ class UserService:
     # ========== HOME LOCATION METHODS ==========
 
     async def get_home_location(self, user_id: UUID) -> HomeLocationResponse | None:
-        """
-        Get user's home location (decrypted).
+        """Read the UI home value; corrupted legacy data retains its empty UI fallback."""
+        from src.domains.users.home_location_commands import read_home_location
 
-        Args:
-            user_id: User UUID
-
-        Returns:
-            HomeLocationResponse or None if not set
-        """
         user = await self.repository.get_by_id(user_id)
-
-        if not user:
+        if user is None:
             raise_user_not_found(user_id)
-
-        if not user.home_location_encrypted:
-            return None
-
-        # Decrypt location data
-        from src.core.security.utils import decrypt_data
-
         try:
-            decrypted_json = decrypt_data(user.home_location_encrypted)
-            location_data = HomeLocationData.model_validate_json(decrypted_json)
-            return HomeLocationResponse(
-                address=location_data.address,
-                lat=location_data.lat,
-                lon=location_data.lon,
-                place_id=location_data.place_id,
-            )
-        except Exception as e:
-            logger.error(
-                "home_location_decrypt_failed",
-                user_id=str(user_id),
-                error=str(e),
-            )
+            data = read_home_location(user)
+        except ValueError:
+            logger.warning("home_location_decrypt_failed", user_id=str(user_id))
             return None
+        return HomeLocationResponse.model_validate(data.model_dump()) if data else None
 
     async def set_home_location(
         self,
         user_id: UUID,
         location: HomeLocationUpdate,
+        *,
+        resolved: bool = False,
+        expected_locations: Mapping[str, JsonValue] | None = None,
+        receipt: PreferenceWriteReceipt | None = None,
     ) -> HomeLocationResponse:
-        """
-        Set user's home location (encrypted).
+        """Reuse the location owner; confirmed commands carry their frozen resolution."""
+        from src.domains.users.home_location_commands import set_home_location
 
-        Requires Google Places connector to be active for the user.
-        If coordinates are invalid (0,0), will geocode the address using Google Places.
-
-        Args:
-            user_id: User UUID
-            location: Location data to set
-
-        Returns:
-            HomeLocationResponse with saved location
-
-        Raises:
-            HTTPException: If user not found, Google Places not active, or geocoding fails
-        """
-        from src.core.exceptions import raise_permission_denied
-        from src.core.security.utils import encrypt_data
-        from src.domains.connectors.service import ConnectorService
-
-        user = await self.repository.get_by_id(user_id)
-
-        if not user:
-            raise_user_not_found(user_id)
-
-        # Verify Google Places connector is enabled for this user
-        connector_service = ConnectorService(self.db)
-        if not await connector_service.is_places_enabled(user_id):
-            raise_permission_denied(
-                action="set home location",
-                resource_type="home_location",
-                details="Google Places connector must be enabled to set home location",
-            )
-
-        from src.domains.users.geocoding import resolve_home_coordinates
-
-        final_lat, final_lon, final_place_id = await resolve_home_coordinates(
-            user_id=user_id, user=user, location=location
+        result = await set_home_location(
+            self.db,
+            user_id,
+            location,
+            resolved=resolved,
+            expected=expected_locations,
+            receipt=receipt,
         )
+        logger.info("home_location_set", user_id=str(user_id))
+        return result
 
-        # Encrypt location data with geocoded coordinates
-        location_data = HomeLocationData(
-            address=location.address,
-            lat=final_lat,
-            lon=final_lon,
-            place_id=final_place_id,
+    async def clear_home_location(
+        self,
+        user_id: UUID,
+        *,
+        expected_locations: Mapping[str, JsonValue] | None = None,
+        receipt: PreferenceWriteReceipt | None = None,
+    ) -> bool:
+        """Clear home and remembered position together; retain the UI's home-cleared bool."""
+        from src.domains.users.home_location_commands import clear_home_location
+
+        cleared = await clear_home_location(
+            self.db,
+            user_id,
+            expected=expected_locations,
+            receipt=receipt,
         )
-        encrypted = encrypt_data(location_data.model_dump_json())
-
-        # Update user
-        await self.repository.update(user, {"home_location_encrypted": encrypted})
-        await self.db.commit()
-
-        logger.info(
-            "home_location_set",
-            user_id=str(user_id),
-            has_address=bool(location.address),
-            has_coordinates=final_lat is not None and final_lon is not None,
-        )
-
-        return HomeLocationResponse(
-            address=location.address,
-            lat=final_lat,
-            lon=final_lon,
-            place_id=final_place_id,
-        )
-
-    async def clear_home_location(self, user_id: UUID) -> bool:
-        """
-        Clear user's home location.
-
-        Also wipes the last-known location (Phase 3): without a home as
-        baseline, the proactive cascade can no longer evaluate distance,
-        so keeping a persisted position would be meaningless.
-
-        Args:
-            user_id: User UUID
-
-        Returns:
-            True if cleared, False if was already empty
-
-        Raises:
-            HTTPException: If user not found
-        """
-        from src.domains.users.user_location_service import UserLocationService
-
-        user = await self.repository.get_by_id(user_id)
-
-        if not user:
-            raise_user_not_found(user_id)
-
-        if not user.home_location_encrypted:
-            return False
-
-        # Clear location
-        await self.repository.update(user, {"home_location_encrypted": None})
-        await self.db.commit()
-
-        # Cascade wipe: last-known location is meaningless without home
-        await UserLocationService(self.db).wipe_last_known_location(user)
-
-        logger.info("home_location_cleared", user_id=str(user_id))
-
-        return True
+        logger.info("home_location_cleared", user_id=str(user_id), cleared=cleared)
+        return cleared
 
     # ========== ADMIN METHODS ==========
 
@@ -692,93 +617,20 @@ class UserService:
         rag_spaces_count: int = 0,
         is_usage_blocked: bool = False,
     ) -> UserProfileWithStats:
-        """
-        Build UserProfileWithStats from User and UserStatistics models.
-
-        Args:
-            user: User model instance
-            stats: UserStatistics model instance (can be None)
-            active_connectors_count: Number of active connectors for this user
-            last_message_at: Timestamp of last message sent
-            memories_count: Number of memories stored for this user
-            interests_count: Number of interests for this user
-            skills_count: Number of user-imported skills
-            mcp_servers_count: Number of user MCP servers
-            scheduled_actions_count: Number of scheduled actions
-            rag_spaces_count: Number of RAG knowledge spaces
-            is_usage_blocked: Whether user is usage-blocked by admin
-
-        Returns:
-            UserProfileWithStats with all fields populated
-        """
-        # Get base profile data
-        base_profile = self._build_user_profile(user)
-
-        # Calculate statistics - Lifetime totals
-        tokens_in = stats.total_prompt_tokens if stats else 0
-        tokens_out = stats.total_completion_tokens if stats else 0
-        tokens_cache = stats.total_cached_tokens if stats else 0
-        total_tokens = tokens_in + tokens_out + tokens_cache
-        total_messages = stats.total_messages if stats else 0
-        # Consolidate all costs (LLM + Google API + Image Generation) into totals
-        total_cost_eur = (
-            (
-                float(stats.total_cost_eur)
-                + float(getattr(stats, "total_google_api_cost_eur", 0) or 0)
-                + float(getattr(stats, "total_image_generation_cost_eur", 0) or 0)
-            )
-            if stats
-            else 0.0
-        )
-        total_google_api_requests = stats.total_google_api_requests if stats else 0
-
-        # Calculate statistics - Current billing cycle
-        cycle_prompt = stats.cycle_prompt_tokens if stats else 0
-        cycle_completion = stats.cycle_completion_tokens if stats else 0
-        cycle_cache = stats.cycle_cached_tokens if stats else 0
-        cycle_tokens = cycle_prompt + cycle_completion + cycle_cache
-        cycle_messages = stats.cycle_messages if stats else 0
-        cycle_google_api_requests = stats.cycle_google_api_requests if stats else 0
-        cycle_cost_eur = (
-            (
-                float(stats.cycle_cost_eur)
-                + float(getattr(stats, "cycle_google_api_cost_eur", 0) or 0)
-                + float(getattr(stats, "cycle_image_generation_cost_eur", 0) or 0)
-            )
-            if stats
-            else 0.0
-        )
-
-        return UserProfileWithStats(
-            # Base profile fields, spread rather than named: the list this
-            # replaces had drifted the same way its sibling had, dropping the
-            # very preferences the base profile has just been careful to read.
-            # The table's switches are merged over it, a few being in both.
-            **{**base_profile.model_dump(), **admin_user_switches(user)},
-            # Statistics fields - Lifetime totals
-            last_login=user.last_login,
-            last_message_at=last_message_at,
-            total_messages=total_messages,
-            total_tokens=total_tokens,
-            tokens_in=tokens_in,
-            tokens_out=tokens_out,
-            tokens_cache=tokens_cache,
-            total_cost_eur=total_cost_eur,
-            total_google_api_requests=total_google_api_requests,
-            # Statistics fields - Current billing cycle
-            cycle_messages=cycle_messages,
-            cycle_tokens=cycle_tokens,
-            cycle_google_api_requests=cycle_google_api_requests,
-            cycle_cost_eur=cycle_cost_eur,
-            # Other stats
-            active_connectors_count=active_connectors_count,
-            memories_count=memories_count,
-            interests_count=interests_count,
-            skills_count=skills_count,
-            mcp_servers_count=mcp_servers_count,
-            scheduled_actions_count=scheduled_actions_count,
-            rag_spaces_count=rag_spaces_count,
-            is_usage_blocked=is_usage_blocked,
+        """Project the same complete profile and administered usage totals."""
+        return build_user_profile_with_stats(
+            self._build_user_profile(user),
+            user,
+            stats,
+            active_connectors_count,
+            last_message_at,
+            memories_count,
+            interests_count,
+            skills_count,
+            mcp_servers_count,
+            scheduled_actions_count,
+            rag_spaces_count,
+            is_usage_blocked,
         )
 
     async def update_user_activation(

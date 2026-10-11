@@ -154,6 +154,7 @@ export type SSEChunkType =
   // LARS: Registry-First Architecture (side-channel data)
   | 'registry_update'
   | 'result_preview'
+  | 'application_state_changed'
   // Debug Panel: Scoring metrics for threshold tuning (DEBUG=true only)
   | 'debug_metrics'
   | 'debug_metrics_update'
@@ -224,6 +225,7 @@ export interface DoneMetadata {
   generated_documents?: GeneratedDocument[];
   // Skills proposed in the chat (ADR-327)
   skill_proposals?: SkillProposalCard[];
+  application_interactions?: unknown;
   // Browser screenshot card
   browser_screenshot?: { url: string; alt: string };
   /** Expressivity (ADR-253): the register the answering model declared

@@ -716,15 +716,20 @@ class HeartbeatProactiveTask:
 
         # 2. Store summary in LangGraph Store for conversational continuity
         try:
-            from src.domains.agents.context.store import get_tool_context_store
+            from pydantic import JsonValue, TypeAdapter
 
-            store = await get_tool_context_store()
-            await store.aput(
-                (str(user_id), "heartbeat_context"),
-                key="last_heartbeat",
-                value={
+            from src.infrastructure.proactive.context_sink import write_heartbeat_context
+
+            # Validated as strings, then re-listed as JSON values: a list is invariant,
+            # so list[str] is not a list[JsonValue] even though every item is one.
+            sources: list[JsonValue] = [
+                *TypeAdapter(list[str]).validate_python(result.metadata.get("sources_used", []))
+            ]
+            await write_heartbeat_context(
+                user_id,
+                {
                     "content": (result.content or "")[:200],
-                    "sources": result.metadata.get("sources_used", []),
+                    "sources": sources,
                     "sent_at": datetime.now(UTC).isoformat(),
                 },
             )

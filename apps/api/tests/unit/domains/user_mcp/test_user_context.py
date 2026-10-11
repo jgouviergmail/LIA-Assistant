@@ -199,7 +199,9 @@ class TestSetupUserMCPTools:
             ctx = user_mcp_tools_ctx.get()
             assert ctx is not None
             assert "HuggingFace" in ctx.server_descriptions
-            assert ctx.server_descriptions["HuggingFace"] == "Search ML models on HuggingFace Hub"
+            description = ctx.server_descriptions["HuggingFace"]
+            assert description.startswith("Search ML models on HuggingFace Hub")
+            assert "hub_search" in description
         finally:
             cleanup_user_mcp_tools(token)
 
@@ -228,7 +230,8 @@ class TestSetupUserMCPTools:
         from src.domains.agents.services.tool_embeddings_envelope import wrap_server_cache
 
         server.tool_embeddings_cache = wrap_server_cache(
-            {"hub_search": {"description": [0.1, 0.2], "keywords": [[0.3, 0.4]]}}
+            {"hub_search": {"description": [0.1, 0.2], "keywords": [[0.3, 0.4]]}},
+            tool_metadata=[{"name": "hub_search", "description": "Search", "input_schema": {}}],
         )
 
         mock_repo = AsyncMock()
@@ -301,7 +304,7 @@ class TestSetupUserMCPTools:
         the ranking — measured 2026-09-20, 384-d rows scored 0 against 1 536-d
         queries in silence — it is recomputed from the tools just fetched and
         persisted in the envelope, so the row heals on the person's next turn."""
-        from src.domains.agents.services.tool_embeddings_envelope import embedding_model_key
+        from src.domains.agents.services.tool_embeddings_envelope import wrap_server_cache
 
         mock_settings.mcp_user_enabled = True
         mock_settings.mcp_hitl_required = True
@@ -345,7 +348,7 @@ class TestSetupUserMCPTools:
         mock_compute.assert_awaited_once_with(tool_metadata=entry.tools, server_name="TestServer")
         mock_repo.update.assert_awaited_once_with(
             server,
-            {"tool_embeddings_cache": {"embedding_model": embedding_model_key(), "tools": fresh}},
+            {"tool_embeddings_cache": wrap_server_cache(fresh, tool_metadata=entry.tools)},
         )
 
     @pytest.mark.unit

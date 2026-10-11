@@ -34,12 +34,21 @@ import {
   type OTPGenerateResponse,
 } from '@/hooks/useChannelBindings';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
+import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
 
 interface ChannelSettingsProps {
   lng: Language;
 }
 
-export function ChannelSettings({ lng }: ChannelSettingsProps) {
+export function ChannelSettings(props: ChannelSettingsProps) {
+  const { user } = useAuth();
+  const ownerId = user?.id;
+  return <ChannelSettingsContent key={ownerId ?? 'anonymous'} ownerId={ownerId} {...props} />;
+}
+
+function ChannelSettingsContent({ lng, ownerId }: ChannelSettingsProps & { ownerId: string | undefined }) {
+  const { isCurrent } = useApplicationAccountLifetime(ownerId);
   const { t } = useTranslation(lng);
   const {
     bindings,
@@ -81,6 +90,7 @@ export function ChannelSettings({ lng }: ChannelSettingsProps) {
   const handleGenerateOtp = useCallback(async () => {
     try {
       const result = await generateOtp('telegram');
+      if (!isCurrent()) return;
       if (result) {
         setOtpData(result);
         setShowOtpDialog(true);
@@ -99,33 +109,37 @@ export function ChannelSettings({ lng }: ChannelSettingsProps) {
         }, 1000);
       }
     } catch (err) {
+      if (!isCurrent()) return;
       toast.error(err instanceof Error ? err.message : t('common.error'));
     }
-  }, [generateOtp, t]);
+  }, [generateOtp, isCurrent, t]);
 
   // Copy /start command to clipboard
   const handleCopyCommand = useCallback(async () => {
-    if (!otpData) return;
+    if (!otpData || !isCurrent()) return;
     try {
       await navigator.clipboard.writeText(`/start ${otpData.code}`);
+      if (!isCurrent()) return;
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => { if (isCurrent()) setCopied(false); }, 2000);
     } catch {
       // Fallback
     }
-  }, [otpData]);
+  }, [otpData, isCurrent]);
 
   // Toggle binding active/inactive
   const handleToggle = useCallback(
     async (binding: ChannelBinding) => {
       try {
         await toggleBinding(binding.id);
+        if (!isCurrent()) return;
         toast.success(t('settings.channels.toggle_success'));
       } catch (err) {
+        if (!isCurrent()) return;
         toast.error(err instanceof Error ? err.message : t('common.error'));
       }
     },
-    [toggleBinding, t]
+    [toggleBinding, isCurrent, t]
   );
 
   // Unlink binding
@@ -133,12 +147,14 @@ export function ChannelSettings({ lng }: ChannelSettingsProps) {
     if (!unlinkingBindingId) return;
     try {
       await unlinkBinding(unlinkingBindingId);
+      if (!isCurrent()) return;
       toast.success(t('settings.channels.unlink_success'));
       setUnlinkingBindingId(null);
     } catch (err) {
+      if (!isCurrent()) return;
       toast.error(err instanceof Error ? err.message : t('common.error'));
     }
-  }, [unlinkingBindingId, unlinkBinding, t]);
+  }, [unlinkingBindingId, unlinkBinding, isCurrent, t]);
 
   // Format countdown display
   const formatCountdown = (seconds: number) => {

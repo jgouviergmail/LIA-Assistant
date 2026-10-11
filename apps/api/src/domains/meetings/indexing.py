@@ -37,6 +37,7 @@ from src.domains.rag_spaces.models import (
     RAGSpace,
 )
 from src.domains.rag_spaces.repository import RAGDocumentRepository, RAGSpaceRepository
+from src.domains.users.repository import UserRepository
 from src.infrastructure.async_utils import safe_fire_and_forget
 from src.infrastructure.database import get_db_context
 
@@ -114,6 +115,7 @@ async def _upsert_document(
     space: RAGSpace,
     markdown: str,
     original_filename: str,
+    commit: bool = True,
 ) -> RAGDocument:
     """Create the meeting's RAG document or rewrite it and requeue it."""
     doc_repo = RAGDocumentRepository(db)
@@ -152,8 +154,31 @@ async def _upsert_document(
                 "error_message": None,
             },
         )
-    await db.commit()
+    if commit:
+        await db.commit()
     return document
+
+
+async def _owned_index_source(
+    db: AsyncSession,
+    meeting: Meeting,
+    language: str,
+) -> tuple[Meeting, RAGSpace] | None:
+    """Keep account/meeting fences until document and projection link commit together."""
+    owner_id, meeting_id = meeting.user_id, meeting.id
+    actor = await UserRepository(db).get_by_id_for_preference_update(owner_id)
+    if actor is None or not actor.is_active:
+        return None
+    space = await ensure_meetings_space(db, owner_id, language)
+    # First-use space creation can commit. Reacquire the account fence and
+    # reread the meeting before creating a document from any old observation.
+    actor = await UserRepository(db).get_by_id_for_preference_update(owner_id)
+    if actor is None or not actor.is_active:
+        return None
+    current = await MeetingRepository(db).get_for_user(meeting_id, owner_id, lock=True)
+    if current is None or not current.report_current:
+        return None
+    return current, space
 
 
 async def index_minutes(meeting_id: UUID) -> bool:
@@ -163,7 +188,6 @@ async def index_minutes(meeting_id: UUID) -> bool:
     failure is recorded on the meeting and returns False.
     """
     from src.domains.rag_spaces.processing import process_document
-    from src.domains.users.repository import UserRepository
 
     async with get_db_context() as db:
         repo = MeetingRepository(db)
@@ -181,8 +205,11 @@ async def index_minutes(meeting_id: UUID) -> bool:
         user = await UserRepository(db).get_by_id(meeting.user_id)
         language = normalize_language(getattr(user, "language", None))
         try:
+            owned = await _owned_index_source(db, meeting, language)
+            if owned is None:
+                return False
+            meeting, space = owned
             report = MeetingReport.model_validate(meeting.report_current)
-            space = await ensure_meetings_space(db, meeting.user_id, language)
             _header, markdown = render_all(meeting, report, language=language)
             document = await _upsert_document(
                 db,
@@ -190,6 +217,7 @@ async def index_minutes(meeting_id: UUID) -> bool:
                 space=space,
                 markdown=markdown,
                 original_filename=f"{minutes_filename_stem(meeting, report)}.md",
+                commit=False,
             )
             await repo.set_index_state(
                 meeting_id,
@@ -199,7 +227,9 @@ async def index_minutes(meeting_id: UUID) -> bool:
             )
         except (OSError, RuntimeError, IntegrityError, ValueError) as exc:
             logger.warning(
-                "meeting_index_prepare_failed", meeting_id=str(meeting_id), error=str(exc)
+                "meeting_index_prepare_failed",
+                meeting_id=str(meeting_id),
+                error_type=type(exc).__name__,
             )
             await repo.set_index_state(
                 meeting_id,

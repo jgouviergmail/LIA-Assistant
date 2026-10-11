@@ -90,45 +90,18 @@ class TestImportFromUrl:
 
 
 class TestListPlugins:
-    async def test_listing_composes_component_counts(self) -> None:
-        plugin_id = uuid4()
-        row = MagicMock(
-            id=plugin_id,
-            version="1.0.0",
-            description="d",
-            spec_version="1.0.0",
-            created_at=None,
-            updated_at=None,
-        )
-        row.name = "p"
-        svc = MagicMock()
-        svc.list_plugins = AsyncMock(return_value=[row])
-        skill = MagicMock()
-        skill.name = "alpha"
-        server = MagicMock()
-        server.name = "p:api"
-        skill_repo = MagicMock()
-        skill_repo.get_by_plugin_id = AsyncMock(return_value=[skill])
-        mcp_repo = MagicMock()
-        mcp_repo.get_by_plugin_id = AsyncMock(return_value=[server])
+    async def test_listing_uses_shared_owned_ui_projection(self) -> None:
+        from src.domains.plugins.schemas import PluginListResponse
 
-        with (
-            patch(
-                "src.domains.plugins.import_service.PluginImportService",
-                return_value=svc,
-            ),
-            patch("src.domains.skills.repository.SkillRepository", return_value=skill_repo),
-            patch(
-                "src.domains.user_mcp.repository.UserMCPServerRepository",
-                return_value=mcp_repo,
-            ),
-        ):
-            result = await list_plugins(user=_user(), db=MagicMock())
-
-        [item] = result.plugins
-        assert item.name == "p"
-        assert item.skill_names == ["alpha"]
-        assert item.server_names == ["p:api"]
+        user = _user()
+        db = MagicMock()
+        report = PluginListResponse()
+        with patch(
+            "src.domains.plugins.projection.list_plugin_projection", AsyncMock(return_value=report)
+        ) as project:
+            result = await list_plugins(user=user, db=db)
+        assert result is report
+        project.assert_awaited_once_with(db, user.id)
 
 
 class TestDeletePlugin:

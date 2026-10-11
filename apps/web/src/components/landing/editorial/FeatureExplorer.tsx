@@ -1,10 +1,9 @@
 'use client';
 
 import { useId, useRef, useState, type KeyboardEvent } from 'react';
-import { ArrowLeft, ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, MessageSquareText, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FEATURE_ICONS } from './chapters-data';
-import { FeatureIllustration } from './FeatureIllustration';
 
 export interface FeatureExplorerItem {
   id: string;
@@ -12,11 +11,20 @@ export interface FeatureExplorerItem {
   description: string;
   sceneLabel: string;
   positionLabel: string;
+  exampleRequest: string;
+  exampleResult: string;
 }
 
 export interface FeatureExplorerProps {
   items: readonly FeatureExplorerItem[];
-  labels: { browse: string; hint: string; previous: string; next: string };
+  labels: {
+    browse: string;
+    hint: string;
+    previous: string;
+    next: string;
+    example: string;
+    result: string;
+  };
 }
 
 /**
@@ -127,8 +135,21 @@ export function FeatureExplorer({ items, labels }: FeatureExplorerProps) {
                 tabIndex={0}
                 className="flex-1 p-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:p-7"
               >
-                {index === active && <FeatureIllustration featureKey={item.id} />}
-                <p className="mt-3 text-xs font-medium text-primary">{item.sceneLabel}</p>
+                <div className="space-y-3 rounded-xl border border-border bg-background p-4">
+                  <p className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                    <MessageSquareText className="size-4 text-primary" aria-hidden="true" />
+                    {labels.example}
+                  </p>
+                  <p className="text-sm leading-6">{item.exampleRequest}</p>
+                  <div className="border-t border-border pt-3">
+                    <p className="flex items-center gap-2 text-xs font-semibold text-primary">
+                      <Check className="size-4" aria-hidden="true" />
+                      {labels.result}
+                    </p>
+                    <p className="mt-2 text-sm leading-6">{item.exampleResult}</p>
+                  </div>
+                </div>
+                <p className="mt-4 text-xs font-medium text-primary">{item.sceneLabel}</p>
                 <h4 className="mt-3 flex items-start gap-2.5 text-lg font-semibold leading-7 tracking-tight">
                   <Icon aria-hidden="true" className="mt-1 h-5 w-5 shrink-0 text-primary" />
                   {item.title}

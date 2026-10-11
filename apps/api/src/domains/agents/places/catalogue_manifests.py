@@ -26,6 +26,7 @@ from src.domains.agents.registry.catalogue import (
     PermissionProfile,
     ToolManifest,
 )
+from src.domains.agents.registry.value_contracts import SemanticFieldRole
 
 # ============================================================================
 # 1. GET PLACES (Unified - replaces search + details)
@@ -299,7 +300,10 @@ get_places_catalogue_manifest = ToolManifest(
     outputs=[
         # Full place outputs (merged from search + details)
         OutputFieldSchema(
-            path="places", type="array", description="List of places with full details"
+            path="places",
+            type="array",
+            description="List of places with full details",
+            semantic_type="Place",
         ),
         OutputFieldSchema(
             path="places[].place_id",
@@ -307,12 +311,17 @@ get_places_catalogue_manifest = ToolManifest(
             description="Place ID",
             semantic_type="place_id",
         ),
-        OutputFieldSchema(path="places[].name", type="string", description="Name"),
+        OutputFieldSchema(
+            path="places[].name", type="string", description="Name", semantic_type="Text"
+        ),
         OutputFieldSchema(
             path="places[].address",
             type="string",
             description="Address",
             semantic_type="physical_address",  # Cross-domain: can be used as routes.destination
+            semantic_role=SemanticFieldRole(
+                role="location", entity_types=("Place",), predicates=("address",)
+            ),
         ),
         OutputFieldSchema(
             path="places[].phone",
@@ -372,12 +381,49 @@ get_places_catalogue_manifest = ToolManifest(
                 "Only present when the place is NOT operational "
                 "(CLOSED_PERMANENTLY or CLOSED_TEMPORARILY)"
             ),
+            semantic_type="business_status",
         ),
         OutputFieldSchema(
             path="places[].primary_type",
             type="string",
             nullable=True,
             description="Localized primary type label (e.g. 'Pizza restaurant')",
+            semantic_type="Text",
+        ),
+        OutputFieldSchema(
+            path="places[].types",
+            type="array",
+            description="Raw Google Places type codes",
+        ),
+        OutputFieldSchema(
+            path="places[].types[]",
+            type="string",
+            description="Raw type code (restaurant, cafe, ...)",
+            semantic_type="place_type",
+        ),
+        OutputFieldSchema(
+            path="places[].location", type="object", nullable=True, description="Place coordinates"
+        ),
+        OutputFieldSchema(
+            path="places[].location.lat",
+            type="number",
+            nullable=True,
+            description="Latitude in degrees",
+            semantic_type="latitude",
+        ),
+        OutputFieldSchema(
+            path="places[].location.lon",
+            type="number",
+            nullable=True,
+            description="Longitude in degrees",
+            semantic_type="longitude",
+        ),
+        OutputFieldSchema(
+            path="places[].google_maps_url",
+            type="string",
+            nullable=True,
+            description="Google Maps place link",
+            semantic_type="google_maps_url",
         ),
         OutputFieldSchema(
             path="places[].price_range",
@@ -457,13 +503,15 @@ get_current_location_catalogue_manifest = ToolManifest(
             nullable=True,
             description="City",
             semantic_type="locality",
+            semantic_role=SemanticFieldRole(
+                role="location", entity_types=("Place",), predicates=("locality",)
+            ),
         ),
         OutputFieldSchema(
             path="locations[].country",
             type="string",
             nullable=True,
             description="Country",
-            semantic_type="country_code",
         ),
         OutputFieldSchema(
             path="locations[].postal_code",
@@ -476,19 +524,20 @@ get_current_location_catalogue_manifest = ToolManifest(
             path="locations[].latitude",
             type="number",
             description="Latitude",
-            semantic_type="coordinate",  # Cross-domain: can be used for geo queries
+            semantic_type="latitude",
         ),
         OutputFieldSchema(
             path="locations[].longitude",
             type="number",
             description="Longitude",
-            semantic_type="coordinate",  # Cross-domain: can be used for geo queries
+            semantic_type="longitude",
         ),
         OutputFieldSchema(
-            path="locations[].source",
+            path="locations[].street_view_url",
             type="string",
-            description="Location source",
-            semantic_type="location_source",
+            nullable=True,
+            description="Street-view link",
+            semantic_type="google_maps_url",
         ),
     ],
     cost=CostProfile(est_tokens_in=50, est_tokens_out=200, est_cost_usd=0.002, est_latency_ms=400),

@@ -75,7 +75,7 @@ agent_success_rate_total = Counter(
     ["agent_type", "outcome"],
     # agent_type: the turn's execution mode (pipeline, react); generic without one
     # (a failed calculation judges no agent, so it is never counted here)
-    # outcome: success, failure, partial_success — judged on the CURRENT
+    # outcome: success, failure, partial_success, waiting — judged on the CURRENT
     # turn's own evidence: the planner's verdict, the agents' results, the
     # ReAct loop's result, the drafts the person confirmed; a turn that left
     # no agent execution to read is not counted (business_metrics.OUTCOME_NO_AGENT)

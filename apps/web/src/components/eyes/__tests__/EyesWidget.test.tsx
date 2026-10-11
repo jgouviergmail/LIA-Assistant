@@ -10,6 +10,8 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
+import { createInstance } from 'i18next';
+import * as reactI18next from 'react-i18next';
 
 import { EyesWidget } from '../EyesWidget';
 import { anchoredPosition } from '../useEyesAnchor';
@@ -58,6 +60,7 @@ function renderWidget(
 ): ReturnType<typeof render> {
   const result = render(
     <EyesWidget
+      {...props}
       chatStatus={props.chatStatus ?? 'idle'}
       streamPhase={props.streamPhase ?? 'answer'}
       hitlAwaiting={props.hitlAwaiting ?? false}
@@ -122,6 +125,10 @@ beforeEach(() => {
   vi.setSystemTime(new Date('2026-08-20T14:00:00'));
   localStorage.removeItem(EYES_WIDGET_PREFS_KEY);
   useEyesWidgetStore.getState().reset();
+  // This suite exercises a native look and responsive sizing, independently
+  // of the application's chosen default character and explicit XL preset.
+  useEyesWidgetStore.getState().setStyle('cozmo');
+  useEyesWidgetStore.getState().setSize('auto');
   useEyesSignalsStore.getState().reset();
   usePsycheStore.getState().reset();
   useCompanionEnvironmentStore.getState().reset();
@@ -139,7 +146,8 @@ describe('EyesWidget — chrome & preferences', () => {
     renderWidget();
     const group = screen.getByRole('group', { name: 'eyes.widget_label' });
     expect(group.tabIndex).toBe(0);
-    expect(document.querySelectorAll('.lia-eye')).toHaveLength(2);
+    expect(document.querySelectorAll('.lia-eye-shape')).toHaveLength(2);
+    expect(document.querySelectorAll('.lia-eye-blink')).toHaveLength(2);
   });
 
   it('hide → restore dot → show again, with the preference persisted', () => {
@@ -157,9 +165,13 @@ describe('EyesWidget — chrome & preferences', () => {
     renderWidget();
     // Global matchMedia mock answers false → not desktop → auto resolves sm.
     expect(eyesRoot().classList.contains('lia-eyes--sm')).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: 'eyes.cycle_size' }));
-    expect(eyesRoot().classList.contains('lia-eyes--md')).toBe(true);
-    expect(useEyesWidgetStore.getState().size).toBe('md');
+    const button = screen.getByRole('button', { name: 'eyes.cycle_size' });
+    for (const size of ['md', 'lg', 'xl', 'sm', 'md'] as const) {
+      fireEvent.click(button);
+      expect(eyesRoot()).toHaveClass(`lia-eyes--${size}`);
+      expect(useEyesWidgetStore.getState().size).toBe(size);
+      expect(button).toHaveAttribute('title', `eyes.sizes.${size}`);
+    }
   });
 
   it('anchoredPosition clamp priority: clearing the delete button outranks centering', () => {
@@ -231,6 +243,49 @@ describe('EyesWidget — chrome & preferences', () => {
     expect(pos).not.toBeNull();
     expect(pos!.xPct).toBeGreaterThanOrEqual(0);
     expect(pos!.yPct).toBeGreaterThanOrEqual(0);
+  });
+
+  it('disabling the chat dock immediately drops its previous position and stops landmark measurements', () => {
+    const start = document.createElement('div'),
+      end = document.createElement('span');
+    start.dataset.eyesAnchorStart = '';
+    end.dataset.eyesAnchorEnd = '';
+    document.body.append(start, end);
+    const readStart = vi
+        .spyOn(start, 'getBoundingClientRect')
+        .mockReturnValue(new DOMRect(300, 100, 100, 40)),
+      readEnd = vi
+        .spyOn(end, 'getBoundingClientRect')
+        .mockReturnValue(new DOMRect(700, 100, 120, 40));
+    const { rerender, unmount } = renderWidget();
+    try {
+      act(() => vi.advanceTimersByTime(30));
+      const group = screen.getByRole('group', { name: 'eyes.widget_label' });
+      expect(group.style.left).toBe('550px');
+      expect(group.style.top).toBe('120px');
+      readStart.mockClear();
+      readEnd.mockClear();
+      rerender(
+        <EyesWidget
+          chatStatus="idle"
+          streamPhase="answer"
+          hitlAwaiting={false}
+          dockToChat={false}
+        />
+      );
+      expect(group.style.left).toBe('');
+      expect(group.style.top).toBe('');
+      expect(group).toHaveClass('bottom-32', 'right-6');
+      fireEvent(window, new Event('resize'));
+      act(() => vi.advanceTimersByTime(1500));
+      expect(readStart).not.toHaveBeenCalled();
+      expect(readEnd).not.toHaveBeenCalled();
+      expect(useEyesWidgetStore.getState().position).toBeNull();
+    } finally {
+      unmount();
+      start.remove();
+      end.remove();
+    }
   });
 
   it('a drag beyond the threshold commits a position; a micro-move does not', () => {
@@ -340,6 +395,35 @@ describe('EyesWidget — accessible names exist in the real locales (en + fr)', 
       expect(en).toBeTruthy();
       expect(fr).toBeTruthy();
       expect(en).not.toBe(fr);
+    }
+  );
+
+  it.each(['en', 'fr'] as const)(
+    'names the size control and its current preset in %s',
+    async locale => {
+      const actual = await vi.importActual<typeof import('react-i18next')>('react-i18next');
+      const dictionary = locale === 'en' ? enTranslations : frTranslations;
+      const i18n = createInstance();
+      await i18n.init({
+        lng: locale,
+        fallbackLng: locale,
+        resources: { [locale]: { translation: dictionary } },
+      });
+      vi.spyOn(reactI18next, 'useTranslation').mockImplementation(actual.useTranslation);
+      render(
+        <actual.I18nextProvider i18n={i18n}>
+          <EyesWidget chatStatus="idle" streamPhase="answer" hitlAwaiting={false} />
+        </actual.I18nextProvider>
+      );
+      act(() => vi.advanceTimersByTime(1));
+      const button = screen.getByRole('button', { name: dictionary.eyes.cycle_size });
+      expect(button).toHaveAttribute('title', dictionary.eyes.sizes.sm);
+      for (const size of ['md', 'lg', 'xl', 'sm', 'md'] as const) {
+        fireEvent.click(button);
+        expect(button).toHaveAttribute('title', dictionary.eyes.sizes[size]);
+        expect(eyesRoot()).toHaveClass(`lia-eyes--${size}`);
+        expect(useEyesWidgetStore.getState().size).toBe(size);
+      }
     }
   );
 });

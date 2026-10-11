@@ -24,11 +24,45 @@ from src.core.config import settings
 from src.domains.shared import action_sink
 from src.domains.skills import proposal_service
 from src.domains.skills.cache import SkillsCache
+from src.domains.skills.import_commit import SkillImportCompletionUnknown, commit_skill_import
 from src.domains.skills.models import Skill
 from src.domains.skills.proposal_errors import STALE, ProposalRefusal
 from tests.fixtures.factories import UserFactory
 
 pytestmark = pytest.mark.integration
+
+
+async def test_lost_import_acknowledgement_never_replays_the_original_proposal(
+    one_session,
+    skill_dirs,
+    redis_client,
+    recorder,
+    monkeypatch,
+) -> None:
+    actor = await _user(one_session)
+    proposal, _ = await proposal_service.propose(
+        {"SKILL.md": _manifest("Controlled instructions.")},
+        owner_id=actor,
+        conversation_id="controlled",
+        redis=redis_client,
+    )
+    commits = 0
+
+    async def lost_ack(db):
+        nonlocal commits
+        commits += 1
+        await commit_skill_import(db)
+        raise SkillImportCompletionUnknown()
+
+    monkeypatch.setattr("src.domains.skills.import_service.commit_skill_import", lost_ack)
+    for _ in range(2):
+        with pytest.raises(ProposalRefusal) as error:
+            await proposal_service.install(one_session, actor, proposal.id, redis=redis_client)
+        assert error.value.code == "skill_proposal_completion_unknown"
+    saved = await proposal_service.read(actor, proposal.id, redis=redis_client)
+    assert saved.status == "unknown" and commits == 1
+    assert (skill_dirs / "users" / str(actor) / "chat-made" / "SKILL.md").is_file()
+    assert recorder.settled == [False]
 
 
 def _manifest(body: str) -> str:

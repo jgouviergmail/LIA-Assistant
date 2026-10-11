@@ -52,6 +52,7 @@ export function proactiveToastPresentation(metadata?: Record<string, unknown>): 
 }
 
 export interface UseChatServerSyncOptions {
+  owner: { readonly id: string } | null;
   /** An account is signed in. */
   signedIn: boolean;
   /** Authentication is still resolving: the channel waits (no 401 loop). */
@@ -85,6 +86,7 @@ export interface UseChatServerSyncOptions {
 
 export function useChatServerSync(options: UseChatServerSyncOptions): void {
   const {
+    owner,
     signedIn,
     authLoading,
     apiAvailable,
@@ -127,6 +129,7 @@ export function useChatServerSync(options: UseChatServerSyncOptions): void {
   // Nothing is touched while a turn streams, a past page is shown or older
   // messages load: what is asked meanwhile runs once the thread is free.
   const { requestSync, requestReset } = useConversationSync({
+    ownerId: owner?.id,
     enabled: signedIn && apiAvailable,
     blocked: isTyping || historyView || isLoadingOlder,
     messages,

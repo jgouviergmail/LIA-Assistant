@@ -67,12 +67,19 @@ async def put_chat_shortcuts(
             f"Too many shortcuts (max {settings.chat_shortcuts_max_count})",
             max_count=settings.chat_shortcuts_max_count,
         )
-    current_user.chat_shortcuts = [
-        {"id": shortcut.id, "text": shortcut.text} for shortcut in payload.shortcuts
-    ]
-    db.add(current_user)
-    await db.commit()
-    sanitized = sanitize_chat_shortcuts(current_user.chat_shortcuts)
+    from src.infrastructure.account_preferences import (
+        LayoutPreferencePatch,
+        update_layout_preferences,
+    )
+
+    actor = await update_layout_preferences(
+        db,
+        current_user.id,
+        LayoutPreferencePatch.model_validate(
+            {"chat_shortcuts": payload.model_dump(mode="json")["shortcuts"]}
+        ),
+    )
+    sanitized = sanitize_chat_shortcuts(actor.chat_shortcuts)
     return ChatShortcutsResponse(
         shortcuts=sanitized.shortcuts,
         max_count=settings.chat_shortcuts_max_count,

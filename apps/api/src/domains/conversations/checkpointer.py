@@ -94,6 +94,9 @@ _CHECKPOINT_ALLOWED_MODULES: list[tuple[str, str]] = [
     ("src.domains.agents.data_registry.models", "RegistryItem"),
     ("src.domains.agents.data_registry.models", "RegistryItemType"),
     ("src.domains.agents.services.reference_resolver", "ResolvedContext"),
+    # --- Graph state: exact within-turn native read reuse ---
+    ("src.domains.agents.utils.react_execution_contracts", "CachedRead"),
+    ("src.domains.agents.utils.react_execution_contracts", "ReadObservation"),
 ]
 
 logger = get_logger(__name__)

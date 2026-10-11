@@ -123,7 +123,11 @@ class TestProcessMeeting:
                 "provider_rate_limited",
                 True,
             ),
-            (TranscriptionError("no_speech", "silence", transient=False), "no_speech", False),
+            (
+                TranscriptionError("no_speech", "silence", transient=False),
+                "no_speech",
+                False,
+            ),
             (
                 StructuredOutputError("bad json", "openai", "MeetingReport"),
                 processing.ERROR_SYNTHESIS,
@@ -168,7 +172,9 @@ class TestProcessMeeting:
         self, db_context: MagicMock, repo: AsyncMock, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """2026-09-05: ``_fail`` itself raised and the coroutine died with a one-line log."""
-        from src.infrastructure.observability.metrics_meetings import meeting_failures_total
+        from src.infrastructure.observability.metrics_meetings import (
+            meeting_failures_total,
+        )
 
         repo.claim_stopped.return_value = True
         repo.get_by_id.return_value = _meeting()
@@ -213,6 +219,14 @@ def regenerate_world(
     monkeypatch: pytest.MonkeyPatch, db_context: MagicMock, repo: AsyncMock
 ) -> dict[str, Any]:
     """Template repo, user repo, transcript and reindex are doubles; the LLM is scripted."""
+
+    async def claim(_meeting_id, *, worker_id, ttl_seconds):
+        meeting = repo.get_by_id.return_value
+        if meeting is not None:
+            meeting.worker_id = worker_id
+        return True
+
+    repo.claim_regeneration.side_effect = claim
     decision = TemplateDecision(
         sections=[],
         ref=TemplateRef.builtin("default_minutes"),
@@ -243,9 +257,15 @@ def regenerate_world(
     tracked = AsyncMock(return_value="run-1")
     monkeypatch.setattr("src.infrastructure.proactive.tracking.track_proactive_tokens", tracked)
     monkeypatch.setattr(
-        "src.domains.meetings.costs.get_cached_cost_usd_eur", lambda **kwargs: (0.002, 0.0017)
+        "src.domains.meetings.costs.get_cached_cost_usd_eur",
+        lambda **kwargs: (0.002, 0.0017),
     )
-    return {"repo": repo, "reindex": reindex, "synthesize": synthesize, "tracked": tracked}
+    return {
+        "repo": repo,
+        "reindex": reindex,
+        "synthesize": synthesize,
+        "tracked": tracked,
+    }
 
 
 class TestRegenerateMinutes:
@@ -264,7 +284,11 @@ class TestRegenerateMinutes:
         regenerate_world["tracked"].assert_awaited_once()
         assert regenerate_world["tracked"].await_args.kwargs["tokens_in"] == 1
         spend = repo.finish_regenerate.await_args.kwargs
-        assert (spend["tokens_in"], spend["tokens_out"], spend["tokens_cache"]) == (1, 1, 0)
+        assert (spend["tokens_in"], spend["tokens_out"], spend["tokens_cache"]) == (
+            1,
+            1,
+            0,
+        )
         assert spend["cost_eur"] == 0.0017 and values["synthesis_model"] == "m"
         # The meeting's own template (ADR-259) wrote the rebuild, and the row says so.
         assert values["template_ref"] == "builtin:default_minutes"
@@ -321,10 +345,17 @@ class TestAfterReadyGuard:
         """The row is READY once ``complete`` returned; a notification or indexing
         failure is logged, not turned into a failed meeting."""
         monkeypatch.setattr(
-            processing, "_after_ready", AsyncMock(side_effect=RuntimeError("notifier down"))
+            processing,
+            "_after_ready",
+            AsyncMock(side_effect=RuntimeError("notifier down")),
         )
         await processing._after_ready_guarded(
-            uuid.uuid4(), synthesis=None, outcome=None, preference=None, language="fr", gaps=0
+            uuid.uuid4(),
+            synthesis=None,
+            outcome=None,
+            preference=None,
+            language="fr",
+            gaps=0,
         )
 
     async def test_the_effects_run_with_the_arguments_given(
@@ -382,6 +413,10 @@ class TestNotifyReady:
         kwargs = dispatcher.dispatch.await_args.kwargs
         assert kwargs["run_id"] == run_id
         meta = kwargs["metadata"]
-        assert (meta["tokens_in"], meta["tokens_out"], meta["model_name"]) == (1, 1, "m")
+        assert (meta["tokens_in"], meta["tokens_out"], meta["model_name"]) == (
+            1,
+            1,
+            "m",
+        )
         assert meta["stt_cost_eur"] == 0.0046 and meta["llm_cost_eur"] == 0.0121
         assert meta["cost_eur"] == 0.0167 and meta["stt_audio_duration_seconds"] == 53.3

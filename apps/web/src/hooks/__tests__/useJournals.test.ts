@@ -22,6 +22,13 @@ import {
 
 const { useApiQuery } = vi.hoisted(() => ({ useApiQuery: vi.fn() }));
 vi.mock('@/hooks/useApiQuery', () => ({ useApiQuery }));
+// This source-cache suite isolates the account-query boundary; transport/account
+// behavior is exercised by the real-hook transport and application suites.
+vi.mock('@/hooks/useApplicationAccountQuery', () => ({
+  useApplicationAccountQuery: (endpoint: string, componentName: string) => ({
+    ...useApiQuery(endpoint, { componentName }), ownerId: 'owned-journal-user', isCurrent: () => true,
+  }),
+}));
 const { useApiMutation } = vi.hoisted(() => ({ useApiMutation: vi.fn() }));
 vi.mock('@/hooks/useApiMutation', () => ({ useApiMutation }));
 
@@ -98,7 +105,14 @@ function setupWith(data: JournalListResponse | undefined) {
       return queryResult({ data: { journals_enabled: true }, refetch: refetchSettings });
     }
     if (endpoint === '/journals/portrait') {
-      return queryResult({ data: { portrait: 'texte' }, refetch: refetchPortrait });
+      return queryResult({
+        data: { portrait: 'texte' },
+        refetch: refetchPortrait,
+        refetchVerified: async () => {
+          await refetchPortrait();
+          return true;
+        },
+      });
     }
     return queryResult({ data: { themes: [] } });
   });
@@ -167,6 +181,7 @@ describe('useJournals — writing entries', () => {
     expect(next?.entries.map(e => e.id)).toEqual(['j2', 'j1']);
     expect(next?.total).toBe(2);
     expect(next?.total_chars).toBe(142);
+    expect(refetchPortrait).toHaveBeenCalledTimes(1);
   });
 
   it('counts a characterless entry as zero rather than NaN', async () => {
@@ -192,6 +207,7 @@ describe('useJournals — writing entries', () => {
     expect(mutate.update).toHaveBeenCalledWith('/journals/j1', { title: 'Titre corrigé' });
     const next = applyUpdater(cache({ entries: [entry(), entry({ id: 'j2' })], total: 2 }));
     expect(next?.entries).toEqual([updated, entry({ id: 'j2' })]);
+    expect(refetchPortrait).toHaveBeenCalledTimes(1);
   });
 
   it('gives the deleted entry its characters back', async () => {
@@ -206,6 +222,7 @@ describe('useJournals — writing entries', () => {
     expect(next?.entries).toEqual([]);
     expect(next?.total).toBe(0);
     expect(next?.total_chars).toBe(100);
+    expect(refetchPortrait).toHaveBeenCalledTimes(1);
   });
 
   it('never drives the counters below zero', async () => {
@@ -235,6 +252,7 @@ describe('useJournals — writing entries', () => {
       total_chars: 0,
       usage_pct: 0,
     });
+    expect(refetchPortrait).toHaveBeenCalledTimes(1);
   });
 
   it.each([
@@ -248,6 +266,7 @@ describe('useJournals — writing entries', () => {
     });
 
     expect(setData).not.toHaveBeenCalled();
+    expect(refetchPortrait).not.toHaveBeenCalled();
   });
 });
 
@@ -264,6 +283,7 @@ describe('useJournals — settings', () => {
       journals_enabled: false,
     });
     expect(refetchSettings).toHaveBeenCalledTimes(1);
+    expect(refetchPortrait).toHaveBeenCalledTimes(1);
   });
 
   it('does not reload when the change was refused', async () => {
@@ -278,6 +298,25 @@ describe('useJournals — settings', () => {
 });
 
 describe('useJournals — LLM-bound operations', () => {
+  it.each(['failed', 'invalid_output', 'stale', 'busy'])(
+    'preserves the %s attempt result while refreshing invalidated portrait state',
+    async status => {
+      const attempt = { actions_applied: 0, duration_ms: 1500, status };
+      mutate.consolidate.mockResolvedValue(attempt);
+      const { result } = setup();
+      let received;
+
+      await act(async () => {
+        received = await result.current.consolidateNow();
+      });
+
+      expect(received).toEqual(attempt);
+      expect(refetch).toHaveBeenCalledTimes(1);
+      expect(refetchSettings).toHaveBeenCalledTimes(1);
+      expect(refetchPortrait).toHaveBeenCalledTimes(1);
+    }
+  );
+
   it('refreshes entries, settings and portrait after a consolidation', async () => {
     mutate.consolidate.mockResolvedValue({ actions_applied: 3, duration_ms: 9000 });
     const { result } = setup();

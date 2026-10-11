@@ -84,6 +84,11 @@ class _FakeIdentityService:
         self.db = db
         self.calls: list[tuple[str, object]] = []
 
+    async def update_preferences(self, user_id, patch, *, language):  # noqa: ANN001
+        if patch.rich_context_enabled is not None:
+            return await self.set_rich_context(user_id, patch.rich_context_enabled)
+        return await self.set_call_mode(user_id, patch.call_mode, language=language)
+
     async def get_identity(self, user_id):  # noqa: ANN001
         from src.domains.telephony.identity import PhoneIdentity
 
@@ -213,9 +218,11 @@ async def test_the_calls_list_sums_a_live_calls_delegated_runs(monkeypatch):
     from src.domains.telephony.models import CallKind, PhoneCallStatus
 
     live_id, direct_id = uuid4(), uuid4()
+    owner = _user()
 
     def _row(call_id, kind, mode):  # noqa: ANN001
         return SimpleNamespace(
+            user_id=owner.id,
             id=call_id,
             callee_display="Alex",
             objective="o",
@@ -263,7 +270,8 @@ async def test_the_calls_list_sums_a_live_calls_delegated_runs(monkeypatch):
         def __init__(self, _db) -> None:  # noqa: ANN001
             pass
 
-        async def get_token_summaries_by_run_ids(self, run_ids):  # noqa: ANN001
+        async def get_token_summaries_by_run_ids(self, run_ids, *, user_id):  # noqa: ANN001
+            assert user_id == owner.id
             assert set(run_ids) == {
                 f"phone_call_{live_id.hex}",
                 f"phone_call_{direct_id.hex}",
@@ -277,11 +285,13 @@ async def test_the_calls_list_sums_a_live_calls_delegated_runs(monkeypatch):
             }
 
     monkeypatch.setattr(rmod, "TelephonyRepository", _Repo)
-    monkeypatch.setattr(rmod, "ConversationService", _Conversations)
-    monkeypatch.setattr(rmod, "session_run_ids_by_key", _by_key)
-    monkeypatch.setattr(rmod, "ChatRepository", _Chat)
+    from src.domains.telephony import history_queries
 
-    listed = await rmod.list_calls(user=_user(), db=None, limit=20)
+    monkeypatch.setattr(history_queries, "ConversationService", _Conversations)
+    monkeypatch.setattr(history_queries, "session_run_ids_by_key", _by_key)
+    monkeypatch.setattr(history_queries, "ChatRepository", _Chat)
+
+    listed = await rmod.list_calls(user=owner, db=None, limit=20)
     live, direct = listed
     assert live.call_mode == "delegated"
     assert live.usage is not None and live.usage.tokens_in == 150

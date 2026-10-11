@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import DateTime, ForeignKey, Numeric, String, Text
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -33,6 +33,7 @@ from src.core.constants import (
 )
 from src.domains.users.display_preferences_columns import DisplayPreferencesColumns
 from src.domains.users.image_generation_columns import ImageGenerationColumns
+from src.domains.users.journal_lifecycle_columns import JournalLifecycleColumns
 from src.domains.users.live_preferences_columns import LivePreferencesColumns
 from src.domains.users.phone_identity_columns import PhoneIdentityColumns
 from src.domains.users.turn_preferences_columns import TurnPreferencesColumns
@@ -53,6 +54,7 @@ if TYPE_CHECKING:
 
 
 class User(
+    JournalLifecycleColumns,
     DisplayPreferencesColumns,
     ImageGenerationColumns,
     LivePreferencesColumns,
@@ -187,6 +189,13 @@ class User(
     )
 
     # Long-term memory preference
+    extraction_revision: Mapped[int] = mapped_column(
+        BigInteger,
+        default=0,
+        server_default="0",
+        nullable=False,
+        comment="Fences background learning after explicit consent or personal-data management changes.",
+    )
     memory_enabled: Mapped[bool] = mapped_column(
         default=True,
         nullable=False,

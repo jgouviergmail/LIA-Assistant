@@ -1,0 +1,178 @@
+{
+  "revision": "635f17217f5f26ed",
+  "capturedAt": "2026-10-10T03:05:12.416Z",
+  "fixtureTime": "2026-10-10T07:30:00Z",
+  "locale": "en",
+  "theme": "light",
+  "viewport": {
+    "width": 1440,
+    "height": 960
+  },
+  "avatar": {
+    "style": "bip",
+    "variant": "male",
+    "bodyAsset": "/avatars/bip/v1/male/body.webp",
+    "reducedMotion": true,
+    "preferences": "Isolated browser localStorage and lia_gender cookie; native reduced-motion media preference verified; real rendered character, variant, hybrid renderer and body asset checked before every capture.",
+    "paintedBodyGuaranteedEveryScene": false,
+    "visualQualification": "The isolated browser preference and real rendered DOM select BIP male on all nine routes. DOM bounds do not certify a painted body in the PNG. A painted body was not established by every reviewer for Relations, Meetings and Radio; no alternative LIA avatar was identified, and no product/CSS or avatar position was altered to force one."
+  },
+  "data": "Real frontend routes, handwritten fictional demonstration data. No account, backend, model or external action was exercised. Radio playback used only a local silent WAV; no generated voice was heard.",
+  "sourceCommit": "39152fad2f26d23ecd21121a43c3eac1056edd70",
+  "sourceIncludesLocalChanges": true,
+  "browser": {
+    "engine": "Chromium headless shell",
+    "directory": "chromium_headless_shell-1243",
+    "backgroundNetworkingDisabled": true
+  },
+  "transportGuard": {
+    "blockedRequests": []
+  },
+  "converter": {
+    "source": "data/skills/system/unit-converter/scripts/render_converter.py",
+    "sourceSha256": "9c29a72c38cc8406fcf76cbee83e85c9c846245abb8540a271a834f833363936",
+    "emittedAspectRatio": 0.85,
+    "emittedHtmlSha256": "f9e6f9ef04edec88871e7c5755578342e1513a96208d5f53f6a272c1e8687ec1"
+  },
+  "images": [
+    {
+      "file": "dossier.png",
+      "sha256": "4301d3f11c9bc255a573586a647eb8047a2236aee960fcd91a31ed236bbaf8c5",
+      "width": 1440,
+      "height": 960
+    },
+    {
+      "file": "approval.png",
+      "sha256": "2cb5ac5765fbf67f09d0f1cdd20e4c45682595dc579c13269b0ad7f545e8806e",
+      "width": 1440,
+      "height": 960
+    },
+    {
+      "file": "knowledge.png",
+      "sha256": "ba737cd2908186cea1d93aafe14955b4949bd08d5870e9d999da30a4ca91728b",
+      "width": 1440,
+      "height": 960
+    },
+    {
+      "file": "skill.png",
+      "sha256": "1ff9def9afe91fcf806401781383106f75e81aac895aaebf7192c174dca6575f",
+      "width": 1440,
+      "height": 960
+    },
+    {
+      "file": "memory.png",
+      "sha256": "082c8a7c91686b4a019ebb8b2a425df072d1b7e2076a249b16357ee0de6ba028",
+      "width": 1440,
+      "height": 960
+    },
+    {
+      "file": "administration.png",
+      "sha256": "0337f04b6bfd66ff8890122b0af8575fdd25a4ed8aa7538d6b195068698fdc25",
+      "width": 1440,
+      "height": 960
+    },
+    {
+      "file": "relations.png",
+      "sha256": "c9ef2516e4c7fd38c98820748f0189937e88f1c616a7ce36834007b354510e02",
+      "width": 1440,
+      "height": 960
+    },
+    {
+      "file": "meetings.png",
+      "sha256": "b7dda7d9bea12410490767147a3777f9d8c634227e3adfa29837a5a4c2ffd5a4",
+      "width": 1440,
+      "height": 960
+    },
+    {
+      "file": "radio.png",
+      "sha256": "bcb23eb881be754f33e7f00c68f30fcd7ae48c2ee81d08b9c9577a7960250814",
+      "width": 1440,
+      "height": 960
+    }
+  ],
+  "scenes": [
+    {
+      "name": "dossier",
+      "route": "/en/dashboard/chat",
+      "exercised": ["real chat route, rich HTML renderer and active-space indicator"],
+      "illustrated": [
+        "cross-source analysis, source contents and suggested next steps; no inference performed"
+      ],
+      "avatarDomBoundsInViewport": 2
+    },
+    {
+      "name": "approval",
+      "route": "/en/dashboard/chat",
+      "exercised": [
+        "pending interrupt rehydration and real HITL draft preview, confirm/edit/cancel controls"
+      ],
+      "illustrated": ["draft contents; no decision submitted, no email sent"],
+      "avatarDomBoundsInViewport": 2
+    },
+    {
+      "name": "knowledge",
+      "route": "/en/dashboard/spaces/00000000-0000-4000-8000-000000000ad1",
+      "exercised": ["real space detail, source lists and indexed-document rows"],
+      "illustrated": [
+        "document contents, completed synchronization and embedding costs; no indexing performed"
+      ],
+      "avatarDomBoundsInViewport": 1
+    },
+    {
+      "name": "skill",
+      "route": "/en/dashboard/chat",
+      "exercised": [
+        "real SkillAppWidget iframe; existing unit-converter script and its emitted title/HTML/aspect ratio; 2.5m to 250cm conversion; chat scrolled to the request"
+      ],
+      "illustrated": ["assistant introduction; no skill invocation or provider call"],
+      "avatarDomBoundsInViewport": 2
+    },
+    {
+      "name": "memory",
+      "route": "/en/dashboard/settings?section=memories",
+      "exercised": ["real memory list, opening its edit dialog and editing the content field"],
+      "illustrated": ["existing remembered preferences and metadata; changes not saved"],
+      "avatarDomBoundsInViewport": 1
+    },
+    {
+      "name": "administration",
+      "route": "/en/dashboard/settings?section=admin-usage-limits",
+      "exercised": ["real administration section, instance ceiling and three users’ quota gauges"],
+      "illustrated": ["all usage, account and budget values are fictional; no quota saved"],
+      "avatarDomBoundsInViewport": 1
+    },
+    {
+      "name": "relations",
+      "route": "/en/dashboard/relations",
+      "exercised": [
+        "real Relations overview and person detail; opening commitments and exchanged-email sections; real debrief, scope and contact/peer affordances"
+      ],
+      "illustrated": [
+        "all identity, relationship context, commitments, messages and debrief are fictional; no connector lookup, inference, call or relay"
+      ],
+      "avatarDomBoundsInViewport": 1
+    },
+    {
+      "name": "meetings",
+      "route": "/en/dashboard/meetings/00000000-0000-4000-8000-000000000ad2",
+      "exercised": [
+        "real ready-meeting route, participants, structured decisions/actions, edit/export/reformat affordances"
+      ],
+      "illustrated": [
+        "report, transcript availability, local engine, indexing and cost metadata are fictional; no audio recording, transcription, synthesis, export or email"
+      ],
+      "avatarDomBoundsInViewport": 1
+    },
+    {
+      "name": "radio",
+      "route": "/en/dashboard/radio",
+      "exercised": [
+        "real radio start and pause controls, programme player, transcript, per-line sources, next programme and cited-article list; only a local silent WAV was decoded"
+      ],
+      "illustrated": [
+        "programme, sources, articles and cost estimates are fictional; no news verification, voice generation, personal-data fetch or provider access"
+      ],
+      "avatarDomBoundsInViewport": 1
+    }
+  ]
+}

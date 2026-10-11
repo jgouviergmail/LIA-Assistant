@@ -48,9 +48,10 @@ from src.core.constants import (
 )
 from src.core.i18n import normalize_language
 from src.core.i18n_bookmarks import get_document_labels, get_space_description, get_space_name
+from src.core.markup_detection import looks_like_html
 from src.core.time_utils import format_datetime_for_display, resolve_user_timezone
-from src.domains.agents.display.plain_text import looks_like_html
 from src.domains.bookmarks.models import BookmarkIndexState, MessageBookmark
+from src.domains.bookmarks.projection_deletion import require_owned_projection
 from src.domains.bookmarks.repository import BookmarkRepository
 from src.domains.feature_switches.registry import PlatformCapability, is_capability_enabled
 from src.domains.rag_spaces.document_access import document_file_path
@@ -282,12 +283,17 @@ async def _prepare(bookmark_id: UUID) -> dict[str, Any] | None:
         if bookmark is None:
             return None
         user_id = bookmark.user_id
+        user = await UserRepository(db).get_by_id(user_id)
+        if user is None or not user.is_active or user.is_deleted:
+            await db.rollback()
+            await _settle(bookmark_id, BookmarkIndexState.DISABLED)
+            _count("disabled")
+            return None
         if await spend_blocked(user_id):
             await _settle(bookmark_id, BookmarkIndexState.DEFERRED)
             _count("deferred")
             logger.info("bookmark_index_skipped", bookmark_id=str(bookmark_id), reason="quota")
             return None
-        user = await UserRepository(db).get_by_id(user_id)
         language = normalize_language(getattr(user, "language", None))
         zone = resolve_user_timezone(user).key
         # Rendered BEFORE the space is resolved: a name clash with a space the
@@ -399,6 +405,7 @@ async def discard_index(db: AsyncSession, bookmark: MessageBookmark) -> Path | N
     )
     if document is None:
         return None
+    await require_owned_projection(db, bookmark, document)
     path = document_file_path(document)
     await RAGChunkRepository(db).delete_by_document(document.id)
     await RAGDocumentRepository(db).delete(document)

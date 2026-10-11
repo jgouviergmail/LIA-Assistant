@@ -73,6 +73,8 @@ _get_events_desc = (
 
 get_events_catalogue_manifest = ToolManifest(
     name="get_events_tool",
+    concurrency_safe=True,
+    result_reuse_ttl_seconds=30,
     agent="event_agent",
     description=_get_events_desc,
     # Discriminant phrases - Calendar event operations
@@ -163,16 +165,32 @@ get_events_catalogue_manifest = ToolManifest(
     outputs=[
         # Full event outputs (merged from search + details)
         OutputFieldSchema(
-            path="events", type="array", description="List of events with full details"
+            path="events",
+            type="array",
+            description="List of events with full details",
+            semantic_type="CalendarEvent",
         ),
         OutputFieldSchema(
             path="events[].id", type="string", description="Event ID", semantic_type="event_id"
         ),
-        OutputFieldSchema(path="events[].summary", type="string", description="Title"),
         OutputFieldSchema(
-            path="events[].description", type="string", nullable=True, description="Description"
+            path="events[].summary", type="string", description="Title", semantic_type="Text"
+        ),
+        OutputFieldSchema(
+            path="events[].description",
+            type="string",
+            nullable=True,
+            description="Description",
+            semantic_type="Text",
         ),
         OutputFieldSchema(path="events[].start", type="object", description="Start time object"),
+        OutputFieldSchema(
+            path="events[].start.dateTime",
+            type="string",
+            nullable=True,
+            description="Start instant (ISO 8601)",
+            semantic_type="event_start_datetime",
+        ),
         OutputFieldSchema(
             path="events[].date",
             type="string",
@@ -180,6 +198,13 @@ get_events_catalogue_manifest = ToolManifest(
             semantic_type="event_start_datetime",  # Cross-domain binding by name match
         ),
         OutputFieldSchema(path="events[].end", type="object", description="End time object"),
+        OutputFieldSchema(
+            path="events[].end.dateTime",
+            type="string",
+            nullable=True,
+            description="End instant (ISO 8601)",
+            semantic_type="datetime",
+        ),
         OutputFieldSchema(
             path="events[].location",
             type="string",
@@ -273,6 +298,7 @@ create_event_catalogue_manifest = ToolManifest(
             required=True,
             description="Title",
             constraints=[ParameterConstraint(kind="min_length", value=1)],
+            semantic_type="Text",
         ),
         ParameterSchema(
             name="start_datetime",
@@ -297,7 +323,11 @@ create_event_catalogue_manifest = ToolManifest(
         ),
         _CALENDAR_ID_PARAM,
         ParameterSchema(
-            name="description", type="string", required=False, description="Description"
+            name="description",
+            type="string",
+            required=False,
+            description="Description",
+            semantic_type="Text",
         ),
         ParameterSchema(
             name="location",
@@ -329,7 +359,7 @@ create_event_catalogue_manifest = ToolManifest(
             path="event_id", type="string", description="Created ID", semantic_type="event_id"
         ),
         OutputFieldSchema(path="html_link", type="string", description="Link", semantic_type="URL"),
-        OutputFieldSchema(path="summary", type="string", description="Title"),
+        OutputFieldSchema(path="summary", type="string", description="Title", semantic_type="Text"),
         OutputFieldSchema(
             path="conference_link",
             type="string",
@@ -394,7 +424,13 @@ update_event_catalogue_manifest = ToolManifest(
             constraints=[ParameterConstraint(kind="min_length", value=1)],
             semantic_type="event_id",
         ),
-        ParameterSchema(name="summary", type="string", required=False, description="New title"),
+        ParameterSchema(
+            name="summary",
+            type="string",
+            required=False,
+            description="New title",
+            semantic_type="Text",
+        ),
         ParameterSchema(
             name="start_datetime",
             type="string",
@@ -417,7 +453,11 @@ update_event_catalogue_manifest = ToolManifest(
             semantic_type="timezone",
         ),
         ParameterSchema(
-            name="description", type="string", required=False, description="New description"
+            name="description",
+            type="string",
+            required=False,
+            description="New description",
+            semantic_type="Text",
         ),
         ParameterSchema(
             name="location",
@@ -440,7 +480,7 @@ update_event_catalogue_manifest = ToolManifest(
             path="event_id", type="string", description="Updated ID", semantic_type="event_id"
         ),
         OutputFieldSchema(path="html_link", type="string", description="Link", semantic_type="URL"),
-        OutputFieldSchema(path="summary", type="string", description="Title"),
+        OutputFieldSchema(path="summary", type="string", description="Title", semantic_type="Text"),
     ],
     cost=CostProfile(est_tokens_in=200, est_tokens_out=100, est_cost_usd=0.01, est_latency_ms=600),
     permissions=PermissionProfile(
@@ -566,7 +606,9 @@ list_calendars_catalogue_manifest = ToolManifest(
             description="Calendar ID",
             semantic_type="calendar_id",
         ),
-        OutputFieldSchema(path="calendars[].summary", type="string", description="Name"),
+        OutputFieldSchema(
+            path="calendars[].summary", type="string", description="Name", semantic_type="Text"
+        ),
         OutputFieldSchema(
             path="calendars[].accessRole",
             type="string",

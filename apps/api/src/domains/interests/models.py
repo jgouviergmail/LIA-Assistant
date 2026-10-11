@@ -145,7 +145,9 @@ class UserInterest(BaseModel):
     user: Mapped[User] = relationship(back_populates="interests")
     notifications: Mapped[list[InterestNotification]] = relationship(
         back_populates="interest",
-        cascade="all, delete-orphan",
+        # Delivered audit rows outlive a topic. Let its SET NULL FK handle even
+        # preloaded or malformed legacy links without deleting another owner's data.
+        passive_deletes="all",
     )
 
     # Constraints: topic uniqueness is per category (same topic can exist in different categories)

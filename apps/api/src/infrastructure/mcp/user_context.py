@@ -20,13 +20,15 @@ Created: 2026-02-28
 
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Mapping
 from contextlib import asynccontextmanager
 from contextvars import Token
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import structlog
+from langchain_core.tools import StructuredTool
+from pydantic import JsonValue
 
 from src.core.config import settings
 from src.core.constants import (
@@ -37,8 +39,14 @@ from src.core.constants import (
 from src.core.context import UserMCPToolsContext, user_mcp_tools_ctx
 from src.domains.agents.registry.domain_taxonomy import deduplicate_mcp_slugs
 from src.infrastructure.mcp.auth import build_auth_for_server
-from src.infrastructure.mcp.registration import record_tool_registration_failure
-from src.infrastructure.mcp.user_pool import PoolEntry, get_user_mcp_pool
+from src.infrastructure.mcp.registration import (
+    get_admin_mcp_domains,
+    record_tool_registration_failure,
+)
+from src.infrastructure.mcp.task_identity import bind_task_identity
+from src.infrastructure.mcp.tool_aliases import allocate_user_prefixes, user_tool_aliases
+from src.infrastructure.mcp.user_catalogue import describe_user_server, publish_user_server
+from src.infrastructure.mcp.user_pool import PoolEntry, UserMCPClientPool, get_user_mcp_pool
 from src.infrastructure.mcp.user_tool_adapter import UserMCPToolAdapter
 from src.infrastructure.mcp.utils import is_app_only
 
@@ -77,7 +85,9 @@ async def _usable_tool_embeddings(
         wrap_server_cache,
     )
 
-    vectors, stale = read_server_cache(getattr(server, "tool_embeddings_cache", None))
+    vectors, stale = read_server_cache(
+        getattr(server, "tool_embeddings_cache", None), tool_metadata=tools
+    )
     if stale is None or not tools:
         return vectors
     try:
@@ -93,7 +103,10 @@ async def _usable_tool_embeddings(
             repo = UserMCPServerRepository(db)
             row = await repo.get_by_id(server.id)
             if row is not None:
-                await repo.update(row, {"tool_embeddings_cache": wrap_server_cache(recomputed)})
+                await repo.update(
+                    row,
+                    {"tool_embeddings_cache": wrap_server_cache(recomputed, tool_metadata=tools)},
+                )
         logger.info(
             "user_mcp_tool_embeddings_refreshed",
             server_id=str(server.id),
@@ -155,136 +168,14 @@ async def setup_user_mcp_tools(user_id: UUID) -> Token | None:
     # Build tools context (resilient: individual server failures are logged and skipped)
     ctx = UserMCPToolsContext()
     # F2.2: Per-server domain slugs for targeted domain routing
-    ctx.server_domains = deduplicate_mcp_slugs([s.name for s in servers])
-    global_hitl = getattr(settings, "mcp_hitl_required", True)
+    domains = deduplicate_mcp_slugs([s.name for s in servers], reserved=get_admin_mcp_domains())
+    from src.domains.agents.tools.tool_registry import list_tool_names
 
-    # ADR-062: Check if ReAct iterative mode is globally enabled
-    react_enabled = getattr(settings, "mcp_react_enabled", False)
-
+    prefixes = allocate_user_prefixes([s.id for s in servers], reserved=list_tool_names())
     for server in servers:
-        try:
-            # Build auth handler from encrypted credentials
-            auth = build_auth_for_server(server)
-
-            # Get or create pooled connection
-            entry = await pool.get_or_connect(
-                user_id=user_id,
-                server_id=server.id,
-                url=server.url,
-                auth=auth,
-                timeout_seconds=server.timeout_seconds,
-                extra_headers=server.extra_headers,
-            )
-
-            # Resolve HITL: per-server override > global setting
-            hitl_required = (
-                server.hitl_required if server.hitl_required is not None else global_hitl
-            )
-
-            # Load server-level data for pipeline integration
-            if server.domain_description:
-                ctx.server_descriptions[server.name] = server.domain_description
-
-            # Cache auto-fetched read_me content for planner prompt injection
-            if entry.reference_content:
-                ctx.server_reference_content[server.name] = entry.reference_content
-
-            # Pre-load embeddings cache for re-keying inside tool loop — the
-            # vectors of THIS model only; a stale cache is recomputed from the
-            # tools just fetched and persisted, so the row heals on the
-            # person's next turn (measured 2026-09-20: 384-dimension rows
-            # scored 0 against 1 536-dimension queries, in silence).
-            embeddings_cache = await _usable_tool_embeddings(server, entry.tools)
-
-            # ADR-062: Iterative mode — delegate to ReAct sub-agent
-            is_iterative = react_enabled and getattr(server, "iterative_mode", False)
-
-            if is_iterative:
-                _register_user_iterative_server(
-                    server=server,
-                    entry=entry,
-                    user_id=user_id,
-                    ctx=ctx,
-                    hitl_required=hitl_required,
-                    embeddings_cache=embeddings_cache,
-                )
-                continue
-
-            # Standard mode: register individual tools in catalogue
-            for tool_data in entry.tools:
-                # MCP Apps: app-only tools are iframe-only → skip LLM catalogue.
-                # Proxy endpoints call pool directly, no adapter needed.
-                if is_app_only(tool_data.get("app_visibility")):
-                    logger.debug(
-                        "user_mcp_tool_app_only_skipped",
-                        server_name=server.name,
-                        tool_name=tool_data.get("name", "unknown"),
-                    )
-                    continue
-
-                # Skip reference-only tools whose content was auto-injected
-                # into the planner context (e.g., read_me for Excalidraw format).
-                if tool_data["name"] == MCP_REFERENCE_TOOL_NAME and entry.reference_content:
-                    logger.debug(
-                        "user_mcp_tool_reference_skipped",
-                        server_name=server.name,
-                        tool_name=MCP_REFERENCE_TOOL_NAME,
-                    )
-                    continue
-
-                try:
-                    adapter = UserMCPToolAdapter.from_discovered_tool(
-                        server_id=server.id,
-                        user_id=user_id,
-                        server_name=server.name,
-                        tool_name=tool_data["name"],
-                        description=tool_data.get("description", ""),
-                        input_schema=tool_data.get("input_schema", {}),
-                        timeout_seconds=server.timeout_seconds,
-                        app_resource_uri=tool_data.get("app_resource_uri"),
-                        annotations=tool_data.get("annotations"),
-                        server_url=server.url,
-                    )
-
-                    manifest = _build_user_tool_manifest(
-                        adapter_name=adapter.name,
-                        tool_name=tool_data["name"],
-                        description=tool_data.get("description", ""),
-                        input_schema=tool_data.get("input_schema", {}),
-                        server_name=server.name,
-                        server_domain=ctx.server_domains.get(server.name, "mcp_unnamed"),
-                        hitl_required=hitl_required,
-                        annotations=tool_data.get("annotations"),
-                    )
-
-                    ctx.tool_manifests.append(manifest)
-                    ctx.tool_instances[adapter.name] = adapter
-
-                    # Re-key pre-computed embeddings: raw MCP name → adapter name
-                    # DB stores by raw name ("hub_search"), but select_tools() uses
-                    # adapter name ("mcp_user_37e4468e_hub_search"). Re-key here
-                    # where both names are available.
-                    raw_tool_name = tool_data["name"]
-                    if raw_tool_name in embeddings_cache:
-                        ctx.tool_embeddings[adapter.name] = embeddings_cache[raw_tool_name]
-
-                except Exception as exc:
-                    record_tool_registration_failure(
-                        scope="user_standard",
-                        server=str(server.id),
-                        tool_name=str(tool_data.get("name", "unknown")),
-                        exc=exc,
-                        user_id=str(user_id),
-                    )
-
-        except Exception:
-            logger.warning(
-                "user_mcp_server_connect_failed",
-                user_id=str(user_id),
-                server_id=str(server.id),
-                server_name=server.name,
-                exc_info=True,
-            )
+        await _register_user_server(
+            server, user_id, pool, ctx, domains[server.name], prefixes[server.id]
+        )
 
     # Set ContextVar only if we have at least one tool
     if not ctx.tool_instances:
@@ -306,6 +197,123 @@ async def setup_user_mcp_tools(user_id: UUID) -> Token | None:
     )
 
     return token
+
+
+async def _register_user_server(
+    server: UserMCPServer,
+    user_id: UUID,
+    pool: UserMCPClientPool,
+    ctx: UserMCPToolsContext,
+    domain: str,
+    server_prefix: str | None = None,
+) -> None:
+    """Discover one server and publish it only after usable registration succeeds."""
+    try:
+        entry = await pool.get_or_connect(
+            user_id=user_id,
+            server_id=server.id,
+            url=server.url,
+            auth=build_auth_for_server(server),
+            timeout_seconds=server.timeout_seconds,
+            extra_headers=server.extra_headers,
+        )
+        hitl_required = (
+            server.hitl_required
+            if server.hitl_required is not None
+            else getattr(settings, "mcp_hitl_required", True)
+        )
+        embeddings = await _usable_tool_embeddings(server, entry.tools)
+        register = (
+            _register_user_iterative_server
+            if settings.mcp_react_enabled and server.iterative_mode
+            else _register_user_standard_server
+        )
+        register(server, entry, user_id, ctx, hitl_required, embeddings, domain, server_prefix)
+    except Exception:
+        logger.warning(
+            "user_mcp_server_connect_failed",
+            user_id=str(user_id),
+            server_id=str(server.id),
+            server_name=server.name,
+            exc_info=True,
+        )
+
+
+def _register_user_standard_server(
+    server: UserMCPServer,
+    entry: PoolEntry,
+    user_id: UUID,
+    ctx: UserMCPToolsContext,
+    hitl_required: bool,
+    embeddings_cache: Mapping[str, dict[str, JsonValue]],
+    domain: str,
+    server_prefix: str | None = None,
+) -> None:
+    """Register usable individuals and describe exactly those current capabilities."""
+    registered: list[Mapping[str, object]] = []
+    from src.domains.agents.tools.tool_registry import list_tool_names
+
+    aliases = user_tool_aliases(
+        server.id,
+        [str(tool.get("name", "")) for tool in entry.tools],
+        server_prefix=server_prefix,
+        reserved=list_tool_names(),
+    )
+    for tool_data in entry.tools:
+        if is_app_only(tool_data.get("app_visibility")):
+            continue
+        if tool_data["name"] == MCP_REFERENCE_TOOL_NAME and entry.reference_content:
+            continue
+        try:
+            adapter = UserMCPToolAdapter.from_discovered_tool(
+                server_id=server.id,
+                user_id=user_id,
+                server_name=server.name,
+                tool_name=tool_data["name"],
+                description=tool_data.get("description", ""),
+                input_schema=tool_data.get("input_schema", {}),
+                timeout_seconds=server.timeout_seconds,
+                app_resource_uri=tool_data.get("app_resource_uri"),
+                annotations=tool_data.get("annotations"),
+                server_url=server.url,
+                output_schema=tool_data.get("output_schema"),
+                server_prefix=server_prefix,
+                tool_alias=aliases[str(tool_data["name"])],
+            )
+            manifest = _build_user_tool_manifest(
+                adapter_name=adapter.name,
+                tool_name=tool_data["name"],
+                description=tool_data.get("description", ""),
+                input_schema=tool_data.get("input_schema", {}),
+                server_name=server.name,
+                server_domain=domain,
+                hitl_required=hitl_required,
+                annotations=tool_data.get("annotations"),
+                output_schema=tool_data.get("output_schema"),
+                server_key=str(server.id),
+            )
+            ctx.tool_manifests.append(manifest)
+            ctx.tool_instances[adapter.name] = adapter
+            registered.append(tool_data)
+            raw_name = tool_data["name"]
+            if raw_name in embeddings_cache:
+                ctx.tool_embeddings[adapter.name] = embeddings_cache[raw_name]
+        except Exception as exc:
+            record_tool_registration_failure(
+                scope="user_standard",
+                server=str(server.id),
+                tool_name=str(tool_data.get("name", "unknown")),
+                exc=exc,
+                user_id=str(user_id),
+            )
+    if registered:
+        publish_user_server(
+            ctx,
+            server.name,
+            domain,
+            describe_user_server(server.name, server.domain_description, registered),
+            entry.reference_content,
+        )
 
 
 def cleanup_user_mcp_tools(token: Token | None) -> None:
@@ -348,13 +356,22 @@ async def user_mcp_session(user_id: UUID) -> AsyncGenerator[None]:
 # ============================================================================
 
 
+def _count_user_tool_instances(ctx: UserMCPToolsContext, server_id: UUID) -> int:
+    return sum(
+        isinstance(instance, UserMCPToolAdapter) and instance.server_id == server_id
+        for instance in ctx.tool_instances.values()
+    )
+
+
 def _register_user_iterative_server(
     server: UserMCPServer,
     entry: PoolEntry,
     user_id: UUID,
     ctx: UserMCPToolsContext,
     hitl_required: bool,
-    embeddings_cache: dict[str, dict],
+    embeddings_cache: Mapping[str, dict[str, JsonValue]],
+    domain: str | None = None,
+    server_prefix: str | None = None,
 ) -> None:
     """Register a user MCP server in iterative (ReAct) mode.
 
@@ -376,7 +393,8 @@ def _register_user_iterative_server(
     )
     from src.domains.user_mcp.models import UserMCPAuthType
 
-    server_id_prefix = str(server.id)[:8]
+    domain = domain or ctx.server_domains.get(server.name, "mcp_unnamed")
+    server_id_prefix = server_prefix or str(server.id)[:8]
 
     # A user server's credential is the USER'S OWN (oauth2 grant, personal
     # bearer/API key): its calls are account-scoped, and the model must read
@@ -384,10 +402,19 @@ def _register_user_iterative_server(
     # never asserted in a prompt, which would be false for 'none' servers
     # (2026-09-02: "my repos" ended in a hallucinated username for lack of it).
     account_scoped = server.auth_type != UserMCPAuthType.NONE.value
-    if account_scoped:
-        ctx.account_scoped_prefixes.add(server_id_prefix)
-
     # 1. Register individual tools in ctx (ReAct agent needs them)
+    registered: list[Mapping[str, object]] = []
+    from src.domains.agents.tools.tool_registry import list_tool_names
+
+    aliases = user_tool_aliases(
+        server.id,
+        [str(tool.get("name", "")) for tool in entry.tools],
+        server_prefix=server_id_prefix,
+        reserved=[
+            *list_tool_names(),
+            f"{MCP_USER_TOOL_NAME_PREFIX}_{server_id_prefix}{MCP_ITERATIVE_TASK_SUFFIX}",
+        ],
+    )
     for tool_data in entry.tools:
         if is_app_only(tool_data.get("app_visibility")):
             continue
@@ -404,8 +431,28 @@ def _register_user_iterative_server(
                 app_resource_uri=tool_data.get("app_resource_uri"),
                 annotations=tool_data.get("annotations"),
                 server_url=server.url,
+                output_schema=tool_data.get("output_schema"),
+                server_prefix=server_id_prefix,
+                tool_alias=aliases[str(tool_data["name"])],
+                reserved_aliases=(
+                    f"{MCP_USER_TOOL_NAME_PREFIX}_{server_id_prefix}{MCP_ITERATIVE_TASK_SUFFIX}",
+                ),
+            )
+            manifest = _build_user_tool_manifest(
+                adapter_name=adapter.name,
+                tool_name=tool_data["name"],
+                description=tool_data.get("description") or tool_data["name"],
+                input_schema=tool_data.get("input_schema", {}),
+                output_schema=tool_data.get("output_schema"),
+                server_name=server.name,
+                server_domain=domain,
+                hitl_required=hitl_required,
+                annotations=tool_data.get("annotations"),
+                server_key=str(server.id),
             )
             ctx.tool_instances[adapter.name] = adapter
+            ctx.reactive_tool_manifests[adapter.name] = manifest
+            registered.append(tool_data)
 
             # Re-key embeddings for individual tools
             raw_tool_name = tool_data["name"]
@@ -421,41 +468,58 @@ def _register_user_iterative_server(
                 user_id=str(user_id),
             )
 
+    if not registered:
+        return
+    catalogue = describe_user_server(server.name, server.domain_description, registered)
+
     # 2. Create per-server task tool instance (named copy of the generic tool).
     # The description must speak the SERVER'S domain: bind_tools serializes
     # the instance, not the manifest, so a name-only copy left the model
     # staring at "Execute a multi-step task on a user MCP server" for the
     # user's bank (2026-09-02 — ReAct refused what the pipeline could plan).
     task_tool_name = f"{MCP_USER_TOOL_NAME_PREFIX}_{server_id_prefix}{MCP_ITERATIVE_TASK_SUFFIX}"
+    if not isinstance(mcp_user_server_task_tool, StructuredTool):
+        raise TypeError("MCP task delegation requires a StructuredTool")
     named_task_tool = mcp_user_server_task_tool.model_copy(
         update={
             "name": task_tool_name,
+            "metadata": {
+                "mcp_origin": "user",
+                "mcp_server_key": str(server.id),
+                "mcp_server_name": server.name,
+            },
             "description": iterative_task_tool_description(
                 server.name,
-                server.domain_description or server.name,
+                catalogue.description,
                 server_id_prefix=server_id_prefix,
                 account_scoped=account_scoped,
             ),
         },
     )
-    ctx.tool_instances[task_tool_name] = named_task_tool
-
+    named_task_tool = bind_task_identity(
+        named_task_tool, {"server_name": server.name, "server_id_prefix": server_id_prefix}
+    )
     # 3. Build task tool manifest (planner sees only this). The manifest is
     # the planner's whole knowledge of the server, so the account-scope fact
     # travels here too — a routing surface that says "public" while the
     # instance says "your account" is two authorities on one question.
-    manifest_description = server.domain_description or server.name
+    manifest_description = catalogue.description
     if account_scoped:
         manifest_description = f"{manifest_description} {account_scope_note(server.name)}"
     task_manifest = _build_user_iterative_task_manifest(
         task_tool_name=task_tool_name,
         server_id_prefix=server_id_prefix,
         server_name=server.name,
-        server_domain=ctx.server_domains.get(server.name, "mcp_unnamed"),
+        server_domain=domain,
         description=manifest_description,
         hitl_required=hitl_required,
+        server_key=str(server.id),
     )
     ctx.tool_manifests.append(task_manifest)
+    ctx.tool_instances[task_tool_name] = named_task_tool
+    publish_user_server(ctx, server.name, domain, catalogue, entry.reference_content)
+    if account_scoped:
+        ctx.account_scoped_prefixes.add(server_id_prefix)
 
     # Track iterative servers for reference_content skip in planner
     ctx.iterative_servers.add(server.name.lower())
@@ -465,11 +529,7 @@ def _register_user_iterative_server(
         server_id=str(server.id),
         server_name=server.name,
         task_tool=task_tool_name,
-        individual_tools=sum(
-            1
-            for k in ctx.tool_instances
-            if k.startswith(f"mcp_user_{server_id_prefix}_") and k != task_tool_name
-        ),
+        individual_tools=_count_user_tool_instances(ctx, server.id),
     )
 
 
@@ -480,6 +540,7 @@ def _build_user_iterative_task_manifest(
     server_domain: str,
     description: str,
     hitl_required: bool,
+    server_key: str | None = None,
 ) -> ToolManifest:
     """Build a ToolManifest for the user MCP ReAct task tool.
 
@@ -488,7 +549,7 @@ def _build_user_iterative_task_manifest(
 
     Args:
         task_tool_name: Per-server tool name (e.g., "mcp_user_37e4468e_task").
-        server_id_prefix: First 8 chars of server UUID.
+        server_id_prefix: Allocated unique UUID prefix for this request's registered server.
         server_name: Human-readable server name.
         server_domain: Domain slug for agent routing.
         description: Server description for LLM context.
@@ -536,6 +597,8 @@ def _build_user_iterative_task_manifest(
         ],
         semantic_keywords=[server_name, server_domain, "task", "iterative", "react"],
         hitl_required=hitl_required,
+        mcp_origin="user",
+        mcp_server_key=server_key,
     )
 
 
@@ -553,6 +616,8 @@ def _build_user_tool_manifest(
     server_domain: str,
     hitl_required: bool,
     annotations: dict | None = None,
+    output_schema: dict | None = None,
+    server_key: str | None = None,
 ) -> ToolManifest:
     """Build a ToolManifest for a user MCP tool.
 
@@ -586,4 +651,7 @@ def _build_user_tool_manifest(
         semantic_keywords=semantic_keywords,
         hitl_required=hitl_required,
         annotations=annotations,
+        output_schema=output_schema,
+        mcp_origin="user",
+        mcp_server_key=server_key,
     )

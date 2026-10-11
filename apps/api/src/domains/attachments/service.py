@@ -635,7 +635,7 @@ class AttachmentService:
         return await self.repo.list_generated(user_id, filters)
 
     async def delete_generated_batch(
-        self, user_id: uuid.UUID, ids: list[uuid.UUID]
+        self, user_id: uuid.UUID, ids: list[uuid.UUID], *, commit: bool = True
     ) -> tuple[list[uuid.UUID], list[uuid.UUID]]:
         """Remove a selection of the person's generated files.
 
@@ -647,6 +647,7 @@ class AttachmentService:
         Args:
             user_id: Owner.
             ids: Candidate ids.
+            commit: False defers commit, physical cleanup and deletion metrics to the caller.
 
         Returns:
             ``(deleted, skipped)``.
@@ -677,9 +678,14 @@ class AttachmentService:
         if deleted:
             # Rows first, files once they are committed (see
             # `delete_for_user_single`).
-            await self.db.commit()
-            await self._remove_files_off_loop(paths)
-            attachments_cleanup_deleted_total.labels(reason=DELETION_REASON_USER).inc(len(deleted))
+            if commit:
+                await self.db.commit()
+                await self._remove_files_off_loop(paths)
+                attachments_cleanup_deleted_total.labels(reason=DELETION_REASON_USER).inc(
+                    len(deleted)
+                )
+            else:
+                await self.db.flush()
 
         removed = set(deleted)
         skipped = [candidate for candidate in wanted if candidate not in removed]

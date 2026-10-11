@@ -356,8 +356,7 @@ class TestDeleteConnector:
     """Tests for delete_connector with revocation and cache invalidation."""
 
     @pytest.mark.asyncio
-    @patch("src.core.security.authorization.check_resource_ownership_by_user_id")
-    async def test_delete_connector_success(self, mock_check_ownership):
+    async def test_delete_connector_success(self):
         """Test delete_connector deletes and invalidates cache (Lines 234-264)."""
         mock_db = AsyncMock()
         service = ConnectorService(mock_db)
@@ -373,7 +372,13 @@ class TestDeleteConnector:
             status=ConnectorStatus.ACTIVE,
             scopes=[],
         )
-        service.repository.get_by_id = AsyncMock(return_value=mock_connector)
+        from src.domains.users.models import User
+
+        mock_db.scalar.side_effect = [
+            User(id=user_id, is_active=True, deleted_at=None),
+            mock_connector,
+            mock_connector,
+        ]
         service.repository.delete = AsyncMock()
         service._revoke_oauth_token = AsyncMock()
         service._invalidate_user_connectors_cache = AsyncMock()

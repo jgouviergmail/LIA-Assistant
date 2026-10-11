@@ -133,9 +133,10 @@ export function HabitsSettings({ lng }: BaseSettingsProps) {
     });
     if (!confirmed) return;
     setForgetting(true);
-    const ok = await removeAll();
+    const outcome = await removeAll();
     setForgetting(false);
-    if (ok) toast.success(t('settings.habits.forget_all_done'));
+    if (outcome === 'complete') toast.success(t('settings.habits.forget_all_done'));
+    else if (outcome === 'partial') toast.warning(t('settings.habits.forget_all_partial'));
     else toast.error(t('common.error'));
   };
 
@@ -329,18 +330,16 @@ function HabitsOverviewBody({
           <RefreshCw className="mr-1.5 h-4 w-4" aria-hidden="true" />
           {t('settings.habits.recompute_label')}
         </Button>
-        {(overview.habits.length > 0 || overview.profile.computed_at) && (
-          <Button
-            type="button"
-            variant="destructive"
-            size="sm"
-            isLoading={forgetting}
-            onClick={onForgetAll}
-          >
-            <Trash2 className="mr-1.5 h-4 w-4" aria-hidden="true" />
-            {t('settings.habits.forget_all_label')}
-          </Button>
-        )}
+        <Button
+          type="button"
+          variant="destructive"
+          size="sm"
+          isLoading={forgetting}
+          onClick={onForgetAll}
+        >
+          <Trash2 className="mr-1.5 h-4 w-4" aria-hidden="true" />
+          {t('settings.habits.forget_all_label')}
+        </Button>
       </div>
     </>
   );

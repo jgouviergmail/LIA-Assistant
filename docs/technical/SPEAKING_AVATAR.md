@@ -10,6 +10,11 @@ outside this first integration: its different voices require a separate cast
 and playback design. No additional LLM call, prompt, TTS synthesis or LangGraph
 state is introduced.
 
+The local opalescent portrait used beside assistant bubbles and offered in
+the floating companion's Eye style settings is documented separately in
+[LIA Spirit avatar](SPIRIT_AVATAR.md), including its original offline 3D source,
+precomputed expressions and playback resource limits.
+
 ## Activation and ownership
 
 The authenticated dashboard owns one engine and one floating window per account.

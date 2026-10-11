@@ -18,6 +18,15 @@ from __future__ import annotations
 
 from prometheus_client import Counter, Gauge, Histogram
 
+mcp_catalogue_cache_total = Counter(
+    "mcp_catalogue_cache_total", "MCP catalogue reuse or bounded rediscovery", ["result"]
+)
+mcp_semantic_unusable_values_total = Counter(
+    "mcp_semantic_unusable_values_total",
+    "Received MCP values unusable under declared known formats",
+    ["reason"],
+)
+
 mcp_tool_invocations_total = Counter(
     "mcp_tool_invocations_total",
     "Total MCP tool invocations",

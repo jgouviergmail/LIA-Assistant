@@ -2,7 +2,8 @@ import type { RecurrenceSpec } from '@/types/recurrence';
 import { useCallback, useEffect, useMemo } from 'react';
 
 import type { ExecutionMode } from '@/types/workboard';
-import { useApiQuery } from './useApiQuery';
+import { useApplicationAccountQuery } from './useApplicationAccountQuery';
+import { useApplicationResourceSync } from './useApplicationResourceSync';
 import { useApiMutation } from './useApiMutation';
 
 /** Polling interval when no action is executing (ms). */
@@ -247,6 +248,7 @@ export interface WeatherConditionRule {
 
 const ENDPOINT = '/scheduled-actions';
 export const WEEK_ENDPOINT = `${ENDPOINT}/week`;
+const releaseRoutineOverride = () => {};
 
 /**
  * Whether a payload is the week contract.
@@ -269,23 +271,23 @@ export function isWeekResponse(payload: unknown): payload is ScheduledActionWeek
 export function useScheduledActions() {
   // Query: list all
   const {
+    ownerId,
+    isCurrent,
     data: listData,
     loading,
     error,
     refetch,
     setData,
-  } = useApiQuery<ScheduledActionListResponse>(ENDPOINT, {
-    componentName: 'ScheduledActions',
-  });
+  } = useApplicationAccountQuery<ScheduledActionListResponse>(ENDPOINT, 'ScheduledActions');
 
   // The week states (ADR-265), polled on the same cadence as the list and
   // refetched after every mutation, since a change moves the slots.
-  const { data: weekData, refetch: refetchWeek } = useApiQuery<ScheduledActionWeekResponse>(
-    WEEK_ENDPOINT,
-    {
-      componentName: 'ScheduledActions',
-    }
-  );
+  const { data: weekData, refetch: refetchWeek } =
+    useApplicationAccountQuery<ScheduledActionWeekResponse>(WEEK_ENDPOINT, 'ScheduledActions');
+  const refreshRoutineState = useCallback(async () => {
+    await Promise.all([refetch(), refetchWeek()]);
+  }, [refetch, refetchWeek]);
+  useApplicationResourceSync(ownerId, 'routines', refreshRoutineState, releaseRoutineOverride);
 
   const actions = listData?.scheduled_actions ?? [];
   const total = listData?.total ?? 0;
@@ -328,7 +330,9 @@ export function useScheduledActions() {
   // Handlers
   const createAction = useCallback(
     async (data: ScheduledActionCreate) => {
+      if (!isCurrent()) return;
       const result = await createMutation.mutate(ENDPOINT, data);
+      if (!isCurrent()) return;
       if (result) {
         // Optimistic: add to list — the rest of the payload (the published
         // clock of condition routines) is kept, not dropped until the next poll.
@@ -344,12 +348,14 @@ export function useScheduledActions() {
       }
       return result;
     },
-    [createMutation, setData, refetchWeek]
+    [createMutation, setData, refetchWeek, isCurrent]
   );
 
   const updateAction = useCallback(
     async (actionId: string, data: ScheduledActionUpdate) => {
+      if (!isCurrent()) return;
       const result = await updateMutation.mutate(`${ENDPOINT}/${actionId}`, data);
+      if (!isCurrent()) return;
       if (result) {
         // Optimistic: update in list
         setData(prev => {
@@ -363,12 +369,14 @@ export function useScheduledActions() {
       }
       return result;
     },
-    [updateMutation, setData, refetchWeek]
+    [updateMutation, setData, refetchWeek, isCurrent]
   );
 
   const deleteAction = useCallback(
     async (actionId: string) => {
+      if (!isCurrent()) return;
       await deleteMutation.mutate(`${ENDPOINT}/${actionId}`);
+      if (!isCurrent()) return;
       // Optimistic: remove from list
       setData(prev => {
         if (!prev) return prev;
@@ -380,12 +388,14 @@ export function useScheduledActions() {
       });
       void refetchWeek();
     },
-    [deleteMutation, setData, refetchWeek]
+    [deleteMutation, setData, refetchWeek, isCurrent]
   );
 
   const toggleAction = useCallback(
     async (actionId: string) => {
+      if (!isCurrent()) return;
       const result = await toggleMutation.mutate(`${ENDPOINT}/${actionId}/toggle`);
+      if (!isCurrent()) return;
       if (result) {
         // Optimistic: update in list
         setData(prev => {
@@ -399,12 +409,14 @@ export function useScheduledActions() {
       }
       return result;
     },
-    [toggleMutation, setData, refetchWeek]
+    [toggleMutation, setData, refetchWeek, isCurrent]
   );
 
   const executeAction = useCallback(
     async (actionId: string) => {
+      if (!isCurrent()) return;
       const result = await executeMutation.mutate(`${ENDPOINT}/${actionId}/execute`);
+      if (!isCurrent()) return;
       if (result) {
         // Optimistic: mark as executing so faster polling kicks in immediately
         setData(prev => {
@@ -419,7 +431,7 @@ export function useScheduledActions() {
       }
       return result;
     },
-    [executeMutation, setData]
+    [executeMutation, setData, isCurrent]
   );
 
   // Auto-refresh: faster when actions are executing, slower otherwise

@@ -59,6 +59,9 @@ class EffectStatus(str, Enum):
     FAILED = "failed"
     ABANDONED = "abandoned"
     REFUSED = "refused"
+    # Terminal handoff receipt. Completion is a separate authorized event so
+    # the notarized outcome is never rewritten while a browser/user is awaited.
+    WAITING = "waiting"
 
 
 class EffectSource(str, Enum):

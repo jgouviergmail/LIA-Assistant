@@ -13,6 +13,7 @@ from email.mime.text import MIMEText
 import structlog
 
 from src.core.config import settings
+from src.core.constants import PLATFORM_SMTP_TIMEOUT_SECONDS
 from src.core.i18n import _, normalize_language
 from src.core.i18n_drafts import label_separator
 from src.infrastructure.email.outgoing import OutgoingAttachment, with_attachments
@@ -73,7 +74,9 @@ class EmailService:
         2026-08-06). Where credentials exist, the exchange is unchanged:
         encrypted then authenticated, never one without the other.
         """
-        with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
+        with smtplib.SMTP(
+            self.smtp_host, self.smtp_port, timeout=PLATFORM_SMTP_TIMEOUT_SECONDS
+        ) as server:
             if self.smtp_user and self.smtp_password:
                 server.starttls()
                 server.login(self.smtp_user, self.smtp_password)
@@ -123,7 +126,7 @@ class EmailService:
             return True
 
         except Exception as e:
-            logger.error("email_send_failed", error=str(e), error_type=e.__class__.__name__)
+            logger.error("email_send_failed", error_type=type(e).__name__)
             logger.debug("email_send_failed_detail", to_email=to_email, subject=subject)
             return False
 

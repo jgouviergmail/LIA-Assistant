@@ -20,7 +20,6 @@
 
 import { useRef, useState } from 'react';
 import { Plus } from 'lucide-react';
-import { toast } from 'sonner';
 
 import { MeetingTemplateForm } from '@/components/meetings/MeetingTemplateForm';
 import { MeetingTemplateLibrary } from '@/components/meetings/MeetingTemplateLibrary';
@@ -30,6 +29,9 @@ import { LoadingAnnouncement } from '@/components/ui/loading-announcement';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useConfirm } from '@/components/ui/use-confirm';
 import type { UseMeetingTemplatesReturn } from '@/hooks/useMeetingTemplates';
+import { useAuth } from '@/hooks/useAuth';
+import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
+import { useApplicationAccountToast } from '@/hooks/useApplicationAccountToast';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { skippedSentence, type Translate } from '@/lib/batch-report';
@@ -87,10 +89,13 @@ function LibrarySkeleton() {
 }
 
 /** The batches, with their toasts, out of the render function. */
-function useLibraryBatches(library: UseMeetingTemplatesReturn, t: Translate) {
+function useLibraryBatches(library: UseMeetingTemplatesReturn, t: Translate, ownerId: string | undefined) {
   const { confirm, confirmDialog } = useConfirm();
+  const { isCurrent } = useApplicationAccountLifetime(ownerId);
+  const toast = useApplicationAccountToast(ownerId);
 
   const addToMine = async (refs: string[]) => {
+    if (!isCurrent()) return;
     const result = await library.bulkDuplicate(refs);
     if (result === null) {
       toast.error(t('meetings.templates.save_failed'));
@@ -105,13 +110,14 @@ function useLibraryBatches(library: UseMeetingTemplatesReturn, t: Translate) {
   };
 
   const remove = async (refs: string[]) => {
+    if (!isCurrent()) return;
     const name = library.templates.find(item => item.ref === refs[0])?.name ?? '';
     const ok = await confirm({
       title: t('meetings.templates.confirm_delete_title', { count: refs.length }),
       description: t('meetings.templates.confirm_delete_description', { count: refs.length, name }),
       confirmLabel: t('meetings.templates.delete_selected', { count: refs.length }),
     });
-    if (!ok) return;
+    if (!ok || !isCurrent()) return;
     const result = await library.bulkDelete(refs);
     if (result === null) {
       toast.error(t('meetings.templates.delete_failed'));
@@ -129,13 +135,21 @@ function useLibraryBatches(library: UseMeetingTemplatesReturn, t: Translate) {
   return { addToMine, remove, confirmDialog };
 }
 
-export function MeetingTemplateManager({
+export function MeetingTemplateManager(props: MeetingTemplateManagerProps) {
+  const { user } = useAuth();
+  return <MeetingTemplateManagerForAccount key={user?.id ?? 'signed-out'} {...props} ownerId={user?.id} />;
+}
+
+function MeetingTemplateManagerForAccount({
   lng,
   library,
   nested = false,
-}: MeetingTemplateManagerProps) {
+  ownerId,
+}: MeetingTemplateManagerProps & { ownerId: string | undefined }) {
   const { t } = useTranslation(lng);
-  const { addToMine, remove, confirmDialog } = useLibraryBatches(library, t);
+  const { addToMine, remove, confirmDialog } = useLibraryBatches(library, t, ownerId);
+  const { isCurrent } = useApplicationAccountLifetime(ownerId);
+  const toast = useApplicationAccountToast(ownerId);
   const [view, setView] = useState<View>({ kind: 'list' });
   const [capNotice, setCapNotice] = useState(false);
   const [busyRef, setBusyRef] = useState<string | null>(null);
@@ -145,16 +159,18 @@ export function MeetingTemplateManager({
   const atCap = library.maxUserTemplates > 0 && ownCount >= library.maxUserTemplates;
 
   const withTemplate = async (ref: string, next: (template: MeetingTemplate) => View) => {
+    if (!isCurrent()) return;
     setBusyRef(ref);
     try {
       const template = await library.load(ref);
+      if (!isCurrent()) return;
       if (template === null) {
         toast.error(t('meetings.templates.load_failed'));
         return;
       }
       setView(next(template));
     } finally {
-      setBusyRef(null);
+      if (isCurrent()) setBusyRef(null);
     }
   };
 
@@ -171,10 +187,12 @@ export function MeetingTemplateManager({
     formView: Extract<View, { kind: 'form' }>,
     values: MeetingTemplateUpdate
   ) => {
+    if (!isCurrent()) return;
     const saved =
       formView.intent === 'edit'
         ? await library.update(formView.source.ref, values)
         : await library.create({ ...values, sections: rederiveSectionKeys(values.sections) });
+    if (!isCurrent()) return;
     if (saved === null) {
       toast.error(t('meetings.templates.save_failed'));
       return;
@@ -188,7 +206,7 @@ export function MeetingTemplateManager({
       {confirmDialog}
 
       {view.kind === 'list' && (
-        <div className={nested ? 'space-y-4' : 'space-y-6'}>
+        <div className={nested ? 'space-y-4' : 'space-y-6'} aria-busy={library.isLoading}>
           <SectionToolbar
             count=""
             menuLabel={t('common.more_actions')}
@@ -205,7 +223,7 @@ export function MeetingTemplateManager({
               {t('meetings.templates.limit_reached', { count: library.maxUserTemplates })}
             </p>
           )}
-          {library.isLoading ? (
+          {library.isLoading && library.templates.length === 0 ? (
             <LibrarySkeleton />
           ) : (
             <MeetingTemplateLibrary

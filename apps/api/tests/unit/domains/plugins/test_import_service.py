@@ -124,7 +124,18 @@ def scaffold(tmp_path: Path):
     cache = MagicMock()
     cache.invalidate_and_reload = AsyncMock()
 
+    async def owned_group(_db, owner_id, plugin_id):
+        from src.domains.plugins.group_scope import PluginGroup
+
+        existing = svc.plugin_repo.get_by_name_for_user.return_value
+        return PluginGroup(
+            existing,
+            tuple(await skill_repo.get_by_plugin_id(plugin_id)),
+            tuple(await mcp_service.repository.get_by_plugin_id(plugin_id)),
+        )
+
     patches = (
+        patch("src.domains.plugins.group_scope.load_plugin_group", side_effect=owned_group),
         patch("src.core.config.get_settings", return_value=settings),
         patch(
             "src.domains.skills.import_service.SkillImportService",
@@ -450,39 +461,20 @@ class TestUpdateFlowEdgeCases:
 
 class TestUninstall:
     @pytest.mark.asyncio
-    async def test_uninstall_removes_components_rows_and_disk(self, scaffold) -> None:
-        plugin_row = MagicMock(id=_PLUGIN_ROW_ID, user_id=_OWNER)
-        plugin_row.name = "my-plugin"
-        scaffold.svc.plugin_repo.get_by_id = AsyncMock(return_value=plugin_row)
-
-        skill = MagicMock(id=uuid4())
-        skill.name = "alpha"
-        scaffold.skill_repo.get_by_plugin_id = AsyncMock(return_value=[skill])
-        server = MagicMock(id=uuid4())
-        scaffold.mcp_service.repository.get_by_plugin_id = AsyncMock(return_value=[server])
-
-        # Materialize disk trees the uninstall must remove
-        skill_dir = Path(scaffold.settings.skills_users_path) / str(_OWNER) / "alpha"
-        skill_dir.mkdir(parents=True)
-        (skill_dir / "SKILL.md").write_text("x", encoding="utf-8")
-        plugin_root = Path(scaffold.settings.plugins_users_path) / str(_OWNER) / "my-plugin"
-        plugin_root.mkdir(parents=True)
-        (plugin_root / "plugin.json").write_text("{}", encoding="utf-8")
-
-        await _run(scaffold, lambda: scaffold.svc.uninstall(_PLUGIN_ROW_ID, owner_id=_OWNER))
-
-        scaffold.pref.delete_skill.assert_awaited_once_with(skill.id)
-        scaffold.mcp_service.delete_server.assert_awaited_once()
-        assert scaffold.mcp_service.delete_server.await_args.kwargs["allow_plugin_owned"] is True
-        scaffold.svc.plugin_repo.delete.assert_awaited_once_with(plugin_row)
-        assert not skill_dir.exists()
-        assert not plugin_root.exists()
-        scaffold.db.commit.assert_awaited()
+    async def test_uninstall_uses_shared_group_commit_boundary(self, scaffold) -> None:
+        with patch("src.domains.plugins.removal.remove_plugin", AsyncMock()) as remove:
+            await _run(scaffold, lambda: scaffold.svc.uninstall(_PLUGIN_ROW_ID, owner_id=_OWNER))
+        remove.assert_awaited_once_with(scaffold.db, _OWNER, _PLUGIN_ROW_ID)
 
     @pytest.mark.asyncio
-    async def test_uninstall_wrong_owner_is_not_found(self, scaffold) -> None:
-        plugin_row = MagicMock(id=_PLUGIN_ROW_ID, user_id=uuid4())
-        scaffold.svc.plugin_repo.get_by_id = AsyncMock(return_value=plugin_row)
+    async def test_uninstall_preserves_original_not_found(self, scaffold) -> None:
+        from src.domains.plugins.exceptions import raise_plugin_not_found
 
-        with pytest.raises(BaseAPIException):
+        async def refuse(*args: object, **kwargs: object) -> None:
+            raise_plugin_not_found(str(_PLUGIN_ROW_ID))
+
+        with (
+            patch("src.domains.plugins.removal.remove_plugin", refuse),
+            pytest.raises(BaseAPIException),
+        ):
             await _run(scaffold, lambda: scaffold.svc.uninstall(_PLUGIN_ROW_ID, owner_id=_OWNER))

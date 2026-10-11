@@ -247,17 +247,10 @@ class TestBoundsAndDegenerateInputs:
 
         result = resolve_closure_additions([REPLY_EMAIL], [REPLY_EMAIL, level_one, level_two])
 
-        assert result.additions == ["level_one_tool", "level_two_tool"]
+        assert result.additions == ["level_two_tool", "level_one_tool"]
 
     def test_a_mutual_dependency_terminates_without_looping(self) -> None:
-        """Two tools each requiring what the other provides.
-
-        The closure guarantees that a declared source is PRESENT, not that an
-        execution order exists: it adds the partner (a legitimate source, since
-        it does not require the type it yields) and stops. Detecting the
-        deadlock would need a topological pass over the catalogue — no manifest
-        exhibits one today, and the round bound keeps this terminating.
-        """
+        """Two unseeded readers cannot discover each other's starting values."""
         left = _read(
             "left_tool",
             params=[_Param("p", "right_type", required=True)],
@@ -271,11 +264,12 @@ class TestBoundsAndDegenerateInputs:
 
         result = resolve_closure_additions([left], [left, right])
 
-        assert result.additions == ["right_tool"]
+        assert result.additions == []
         assert result.consumers == {"left_tool"}
+        assert result.unresolved == {"left_tool": {"right_type"}}
 
-    def test_the_round_bound_caps_a_dependency_chain(self) -> None:
-        """A chain longer than the bound stops rather than resolving forever."""
+    def test_a_chain_without_a_starting_source_reports_the_gap(self) -> None:
+        """A finite bound never disguises a missing leaf as a usable source."""
         chain = [
             _read(
                 f"chain_{index}_tool",
@@ -292,7 +286,8 @@ class TestBoundsAndDegenerateInputs:
 
         result = resolve_closure_additions([head], [head, *chain])
 
-        assert len(result.additions) <= MAX_CLOSURE_ROUNDS
+        assert result.additions == []
+        assert result.unresolved == {"head_tool": {"type_0"}}
 
     def test_an_empty_catalogue_is_already_closed(self) -> None:
         assert not resolve_closure_additions([], EMAIL_POOL).additions

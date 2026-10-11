@@ -10,6 +10,21 @@ from __future__ import annotations
 from src.domains.agents.registry.domain_taxonomy import DomainConfig
 
 PROGRAM_DOMAIN_CONFIGS: dict[str, DomainConfig] = {
+    "setting": DomainConfig(
+        name="setting",
+        display_name="Application settings",
+        description=(
+            "The user's own LIA application settings: saved font size, theme, "
+            "language, timezone, personality and feature preferences."
+        ),
+        agent_names=["setting_agent"],
+        result_key="preferences",
+        metadata={
+            "provider": "internal",
+            "requires_oauth": False,
+            "feature_flag": "application_tools_enabled",
+        },
+    ),
     # Peers program: connections between USERS of this instance (relay
     # messages assistant-to-assistant, read shared calendars/tasks).
     "peer": DomainConfig(

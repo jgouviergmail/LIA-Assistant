@@ -54,6 +54,8 @@ export interface UseApiQueryResult<T> {
   error: Error | null;
   /** Function to manually refetch */
   refetch: () => Promise<void>;
+  /** Whether an authenticated reread applied a current response. */
+  refetchVerified: () => Promise<boolean>;
   /** Function to update data directly */
   setData: React.Dispatch<React.SetStateAction<T | undefined>>;
 }
@@ -126,8 +128,8 @@ export function useApiQuery<T = unknown>(
   const stableConfig = useMemo(() => config, [configKey, callerSignal]);
 
   const fetchData = useCallback(
-    async (lifetime: AbortSignal) => {
-      if (!enabled || lifetime.aborted) return;
+    async (lifetime: AbortSignal): Promise<boolean> => {
+      if (!enabled || lifetime.aborted) return false;
 
       activeRequest.current?.abort();
       const request = new AbortController();
@@ -146,20 +148,22 @@ export function useApiQuery<T = unknown>(
           signal,
         });
 
-        if (signal.aborted) return;
+        if (signal.aborted) return false;
         setData(response);
         onSuccessRef.current?.(response);
+        return true;
       } catch (err) {
         const error = err as Error;
 
         // Don't set error for aborted requests
         if (signal.aborted || error.name === 'AbortError') {
-          return;
+          return false;
         }
 
         const errorObj = reportQueryFailure(error, endpoint, componentName, stableParams);
         setError(errorObj);
         onErrorRef.current?.(errorObj);
+        return false;
       } finally {
         // An old request's completion must not hide a newer request's spinner.
         if (activeRequest.current === request) {
@@ -198,16 +202,18 @@ export function useApiQuery<T = unknown>(
 
   // A mutation may retain this callback across a navigation or an unmount.
   // It must not restart the old query or cancel the new screen's read.
-  const refetch = useCallback(() => {
+  const refetchVerified = useCallback(() => {
     const effect = activeEffect.current;
-    return effect?.read === fetchData ? fetchData(effect.controller.signal) : Promise.resolve();
+    return effect?.read === fetchData ? fetchData(effect.controller.signal) : Promise.resolve(false);
   }, [fetchData]);
+  const refetch = useCallback(async () => { await refetchVerified(); }, [refetchVerified]);
 
   return {
     data,
     loading: enabled && loading,
     error,
     refetch,
+    refetchVerified,
     setData,
   };
 }

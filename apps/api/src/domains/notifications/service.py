@@ -16,6 +16,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.constants import FCM_WEBPUSH_ICON_PATH, PUSH_RELAY_HANDLE_PREFIX
+from src.domains.notifications.device_commands import (
+    NotificationDeviceSnapshot,
+    delete_notification_device,
+)
 from src.domains.notifications.models import UserFCMToken
 from src.domains.notifications.repository import FCMTokenRepository
 from src.infrastructure.external.push_relay_client import PushRelayClient
@@ -221,6 +225,8 @@ class FCMNotificationService:
         self,
         token_id: UUID,
         user_id: UUID,
+        *,
+        expected: NotificationDeviceSnapshot | None = None,
     ) -> bool:
         """
         Delete a token by ID (with user ownership check).
@@ -232,10 +238,7 @@ class FCMNotificationService:
         Returns:
             True if token was deleted
         """
-        result = await self.repository.delete_token_by_id(
-            token_id=token_id,
-            user_id=user_id,
-        )
+        result = await delete_notification_device(self.db, user_id, token_id, expected=expected)
 
         if result:
             logger.info(

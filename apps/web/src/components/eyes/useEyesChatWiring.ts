@@ -72,7 +72,20 @@ export function useEyesChatWiring(
   const previousAnswerRef = useRef<string | null>(null);
   const reactedId = useRef<string | null>(null);
   const completedId = useEyesSignalsStore(state => state.completedAnswerId);
-  useEffect(() => () => useEyesSignalsStore.getState().reset(), []);
+  useEffect(
+    () => () => {
+      // The avatar outlives the page. Leaving chat closes its activity, while
+      // actual audio playback and the delivered answer's held tone continue.
+      useEyesSignalsStore.getState().endTurn();
+      useEyesSignalsStore.setState({
+        typingAt: null,
+        completedAnswerId: null,
+        answerId: null,
+        activityRunId: null,
+      });
+    },
+    []
+  );
 
   useEffect(() => {
     const prev = prevStatusRef.current;

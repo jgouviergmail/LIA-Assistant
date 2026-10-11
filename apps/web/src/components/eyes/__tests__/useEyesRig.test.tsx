@@ -37,6 +37,8 @@ vi.mock('@/components/eyes/rig/runtime', async importOriginal => {
 });
 
 import { ExpressiveEyes } from '../ExpressiveEyes';
+import { useEyesRig } from '../useEyesRig';
+import { DEFAULT_RIG_EYE_STYLE } from '../eye-styles';
 import { blinkTapes, maskBlinkTapes } from '@/components/eyes/rig/gestures';
 import type { Tape } from '@/components/eyes/rig/tape';
 
@@ -45,7 +47,26 @@ beforeEach(() => {
   seen.played = [];
 });
 
+function NativeDefaultHost() {
+  const ref = useEyesRig({
+    expression: 'neutral',
+    gaze: null,
+    life: false,
+    motionEnabled: false,
+  });
+  return <span ref={ref} data-style={DEFAULT_RIG_EYE_STYLE} />;
+}
+
 describe('useEyesRig — the sketch clock', () => {
+  it('constructs a valid native rig when its style is omitted', () => {
+    const face = render(<NativeDefaultHost />);
+    expect(seen.options).toHaveLength(1);
+    expect(seen.options[0].initial?.styleId).toBe('smiley');
+    expect(face.container.firstElementChild?.getAttribute('style')).toContain('--rig-r-top-l:');
+    expect(activeFrameSubscribers()).toBe(0);
+    face.unmount();
+  });
+
   it('unsubscribes an offscreen face and resumes only when it becomes visible', () => {
     let notify: ((visible: boolean) => void) | undefined;
     const subscription = vi

@@ -11,8 +11,8 @@
 
 import type { ChannelValues } from '@/components/eyes/rig/channels';
 
-/** Font sizes of the three widget presets (`.lia-eyes--sm/md/lg`). */
-export const SIZE_PX = { sm: 20, md: 30, lg: 44 } as const;
+/** Font sizes of the four widget presets (`.lia-eyes--sm/md/lg/xl`). */
+export const SIZE_PX = { sm: 20, md: 30, lg: 44, xl: 64 } as const;
 
 /** What the mouth and the brows draw, in pixels, for one frame. */
 export interface FaceMetrics {

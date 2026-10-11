@@ -24,10 +24,12 @@ inner call would be mistaken for a replay and never run at all.
 from __future__ import annotations
 
 import uuid
+from collections.abc import Mapping
 from typing import Any
 
 import structlog
 
+from src.core.i18n_drafts import label_separator
 from src.domains.agents.drafts.models import DraftType
 from src.domains.agents.effects.scope import EffectScope, current_scope, effect_scope
 
@@ -62,7 +64,7 @@ def confirmation_draft(tool_name: str, tool_args: dict[str, Any]) -> Any:
     )
 
 
-def readable_tool_name(tool_name: str) -> str:
+def readable_tool_name(tool_name: str, *, language: str | None = None) -> str:
     """Turn a registered tool name into something a person can read.
 
     Public because three surfaces now need the SAME rendering of a capability:
@@ -72,6 +74,7 @@ def readable_tool_name(tool_name: str) -> str:
 
     Args:
         tool_name: e.g. ``mcp_era_cancel_subscription`` or ``delete_event_tool``.
+        language: Reader's language; the declared language when omitted.
 
     Returns:
         e.g. ``era: cancel subscription`` / ``delete event``. Cosmetic only: the
@@ -81,9 +84,29 @@ def readable_tool_name(tool_name: str) -> str:
 
     name = tool_name.removesuffix("_tool")
     if name.startswith(f"{MCP_TOOL_NAME_PREFIX}_"):
+        separator = label_separator(language)
+        exact_label = _readable_mcp_tool(tool_name, separator)
+        if exact_label is not None:
+            return exact_label
         server, _, rest = name[len(MCP_TOOL_NAME_PREFIX) + 1 :].partition("_")
-        return f"{server}: {_spaced(rest)}" if rest else server
+        return f"{server}{separator}{_spaced(rest)}" if rest else server
     return _spaced(name)
+
+
+def _readable_mcp_tool(tool_name: str, separator: str) -> str | None:
+    from src.domains.agents.tools.tool_resolution import resolve_tool_instance
+
+    tool = resolve_tool_instance(tool_name)
+    rpc: object = getattr(tool, "mcp_tool_name", None)
+    server: object = getattr(tool, "server_display_name", None) or getattr(
+        tool, "server_name", None
+    )
+    if isinstance(rpc, str) and isinstance(server, str):
+        return f"{server}{separator}{_spaced(rpc)}"
+    metadata: object = getattr(tool, "metadata", None)
+    if isinstance(metadata, Mapping) and isinstance(metadata.get("mcp_server_name"), str):
+        return f"{metadata['mcp_server_name']}{separator}task"
+    return None
 
 
 def _spaced(name: str) -> str:
@@ -115,13 +138,13 @@ async def execute_tool_call_draft(
     Returns:
         The tool's own result, or a failure payload naming what went wrong.
     """
-    from src.domains.agents.tools.tool_registry import get_tool
+    from src.domains.agents.tools.tool_resolution import resolve_tool_instance
 
     tool_name = str(draft_content.get("tool_name") or "")
     tool_args = draft_content.get("tool_args") or {}
     draft_id = str(draft_content.get("draft_id") or uuid.uuid4().hex)
 
-    tool = get_tool(tool_name)
+    tool = resolve_tool_instance(tool_name)
     coroutine = getattr(tool, "coroutine", None)
     if tool is None or coroutine is None:
         # The catalogue changed between the question and the answer: say so

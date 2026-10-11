@@ -20,7 +20,6 @@ import pytest
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.domains.agents.web_fetch import url_validator
 from src.domains.skill_library import cache, service
 from src.domains.skill_library.errors import NAME_TAKEN, LibraryRefusal
 from src.domains.skill_library.models import SkillLibrarySource
@@ -29,6 +28,7 @@ from src.domains.skill_library.schemas import LibraryInstallRequest
 from src.domains.skills.cache import SkillsCache
 from src.domains.skills.models import Skill
 from src.domains.skills.preference_service import SkillPreferenceService
+from src.infrastructure.utils import url_validation as url_validator
 from tests.fixtures.factories import UserFactory
 from tests.unit.domains.skill_library.fakes import FakeHub, manifest
 

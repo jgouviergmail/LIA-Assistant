@@ -2409,3 +2409,20 @@ tasks:
       - task: format
       - task: lint
       - task: test:backend:unit:fast
+
+  semantic:audit:
+    desc: Inventory all native semantic contracts without services or MCP connections
+    cmds:
+      - cmd: apps/api/.venv/Scripts/python scripts/audit/semantic_contracts.py --output .tmp/semantic-contracts.json
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/audit/semantic_contracts.py --output .tmp/semantic-contracts.json
+        platforms: [linux, darwin]
+
+  semantic:simulate:
+    desc: Run semantic business scenarios and model-harness guards without provider calls
+    dir: apps/api
+    cmds:
+      - cmd: .venv/Scripts/pytest tests/unit/domains/agents/semantic/test_semantic_native_scenarios.py tests/unit/domains/agents/semantic/test_semantic_reasoning_scenarios.py tests/unit/domains/agents/semantic/test_semantic_batch_execution.py tests/unit/infrastructure/mcp/test_mcp_semantic_scenarios.py tests/unit/semantic -q --no-cov {{.CLI_ARGS}}
+        platforms: [windows]
+      - cmd: .venv/bin/pytest tests/unit/domains/agents/semantic/test_semantic_native_scenarios.py tests/unit/domains/agents/semantic/test_semantic_reasoning_scenarios.py tests/unit/domains/agents/semantic/test_semantic_batch_execution.py tests/unit/infrastructure/mcp/test_mcp_semantic_scenarios.py tests/unit/semantic -q --no-cov {{.CLI_ARGS}}
+        platforms: [linux, darwin]

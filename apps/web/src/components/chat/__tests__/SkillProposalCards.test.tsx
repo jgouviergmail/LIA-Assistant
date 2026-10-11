@@ -35,6 +35,7 @@ const { api, ApiError } = vi.hoisted(() => {
   return { api: { get: vi.fn(), post: vi.fn() }, ApiError: HoistedApiError };
 });
 vi.mock('@/lib/api-client', () => ({ default: api, ApiError }));
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'owner' } }) }));
 
 // The real English bundle, interpolated: the names asserted below are the
 // words a reader meets, and a missing key reads as the key itself.
@@ -159,7 +160,7 @@ describe('SkillProposalCards', () => {
     expect(useRevisionStore.getState().revisions.skills).toBe(0);
   });
 
-  it('names a refusal it has no sentence for with its own', async () => {
+  it('keeps an unclassified network result uncertain and focuses its status', async () => {
     api.get.mockResolvedValue(read());
     api.post.mockRejectedValue(new Error('network'));
     const user = userEvent.setup();
@@ -169,9 +170,9 @@ describe('SkillProposalCards', () => {
     await waitFor(() => expect(install).toHaveAttribute('aria-disabled', 'false'));
     await user.click(install);
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'The skill could not be installed. Try again.'
-    );
+    const result = await screen.findByText('The import result needs checking. This proposal will not be installed again automatically.');
+    expect(result).toHaveFocus();
+    expect(screen.queryByRole('button', { name: /Install the skill/ })).not.toBeInTheDocument();
   });
 
   it('offers nothing for a proposal that expired', async () => {
@@ -223,6 +224,18 @@ describe('SkillProposalCards', () => {
 
     expect(done.closest('p')).not.toHaveFocus();
     expect(screen.queryByRole('button', { name: /Install the skill/ })).not.toBeInTheDocument();
+  });
+
+  it('never offers another install after an uncertain server or network result', async () => {
+    api.get.mockResolvedValue(read());
+    api.post.mockRejectedValue(refused(409, 'skill_proposal_completion_unknown'));
+    const user = userEvent.setup();
+    renderWithProviders(<SkillProposalCards proposals={[card()]} />);
+    await user.click(await screen.findByRole('button', { name: 'Install the skill ma-skill' }));
+    expect(await screen.findByText('The import result needs checking. This proposal will not be installed again automatically.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Install the skill/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Check result' }));
+    expect(api.post).toHaveBeenCalledOnce();
   });
 
   it('states what a replacement adds, changes and loses', async () => {

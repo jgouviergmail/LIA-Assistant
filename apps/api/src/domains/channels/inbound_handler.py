@@ -24,8 +24,12 @@ from src.core.field_names import (
     FIELD_RUN_ID,
     FIELD_TYPE,
 )
-from src.core.i18n import resolve_language
 from src.domains.channels.abstractions import ChannelInboundMessage
+from src.infrastructure.channels.assistant_gateway import (
+    ChannelAgentRequest,
+    ChannelStreamChunk,
+    get_channel_gateway,
+)
 from src.infrastructure.channels.telegram.formatter import strip_html_cards
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_channels import (
@@ -35,7 +39,6 @@ from src.infrastructure.observability.metrics_channels import (
 )
 
 if TYPE_CHECKING:
-    from src.domains.agents.api.schemas import ChatStreamChunk
     from src.domains.channels.abstractions import BaseChannelSender
 
 logger = get_logger(__name__)
@@ -106,7 +109,7 @@ class _ChannelTurn:
     question: str = ""
     error_code: str | None = None
 
-    def feed(self, chunk: ChatStreamChunk) -> None:
+    def feed(self, chunk: ChannelStreamChunk) -> None:
         """Read one chunk.
 
         Args:
@@ -350,33 +353,26 @@ class InboundMessageHandler:
         Returns:
             What the stream said.
         """
-        from src.domains.agents.api.run_origin import plain_surface_ctx
-        from src.domains.agents.api.service import AgentService
-
-        agent_service = AgentService()
         turn = _ChannelTurn()
 
         # ADR-289: a channel renders no card — the draft question and the
         # execution result are drawn as text for the WHOLE stream; the
         # strip below stays the safety net for data cards, not the contract.
-        surface_token = plain_surface_ctx.set(True)
-        try:
-            async for chunk in agent_service.stream_chat_response(
-                user_message=user_message,
-                user_id=user_id,
-                session_id=session_id,
-                user_timezone=user_timezone,
-                user_language=user_language,
-                user_display_name=user_display_name,
-                original_run_id=original_run_id,
-                user_memory_enabled=user_memory_enabled,
-                user_journals_enabled=user_journals_enabled,
-                user_psyche_enabled=user_psyche_enabled,
-                hitl_decision=dict(hitl_decision) if hitl_decision is not None else None,
-            ):
-                turn.feed(chunk)
-        finally:
-            plain_surface_ctx.reset(surface_token)
+        request = ChannelAgentRequest(
+            user_message=user_message,
+            user_id=user_id,
+            session_id=session_id,
+            user_timezone=user_timezone,
+            user_language=user_language,
+            user_display_name=user_display_name,
+            original_run_id=original_run_id,
+            user_memory_enabled=user_memory_enabled,
+            user_journals_enabled=user_journals_enabled,
+            user_psyche_enabled=user_psyche_enabled,
+            hitl_decision=dict(hitl_decision) if hitl_decision is not None else None,
+        )
+        async for chunk in get_channel_gateway().stream(request):
+            turn.feed(chunk)
 
         if turn.error_code is not None:
             # The code, never the content: some refusals carry technical text.
@@ -414,7 +410,7 @@ class InboundMessageHandler:
             conversation_id: The person's conversation (None when none).
             user_language: The person's language.
         """
-        from src.domains.agents.api.hitl_pending import HITL_DECISION_STALE_ERROR_CODE
+        from src.core.stream_codes import HITL_DECISION_STALE_ERROR_CODE
         from src.domains.channels.abstractions import ChannelOutboundMessage
         from src.infrastructure.channels.telegram.formatter import (
             get_bot_message,
@@ -470,16 +466,13 @@ class InboundMessageHandler:
             conversation_id: The person's conversation (None when none).
             user_language: The person's language.
         """
-        from src.domains.agents.api.error_messages import SSEErrorMessages
         from src.domains.channels.abstractions import ChannelOutboundMessage
         from src.infrastructure.channels.telegram.formatter import markdown_to_telegram_html
         from src.infrastructure.channels.telegram.hitl_keyboard import build_hitl_keyboard
 
         asked = turn.asked or {}
         hitl_type = interaction_type_of(asked)
-        question = turn.question_text or SSEErrorMessages.confirmation_required(
-            language=resolve_language(user_language)
-        )
+        question = turn.question_text or get_channel_gateway().confirmation_text(user_language)
         question_id = _text_of(asked.get(_QUESTION_MESSAGE_ID))
 
         keyboard: dict = {}

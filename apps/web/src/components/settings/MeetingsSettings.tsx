@@ -14,7 +14,7 @@
  * keeps the content mounted (`aria-busy`), so a typed value survives.
  */
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { ClipboardList, ExternalLink, LibraryBig, Save, Wand2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -36,6 +36,8 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { useAppConfig } from '@/hooks/useAppConfig';
+import { useAuth } from '@/hooks/useAuth';
+import { useApplicationAccountState } from '@/hooks/useApplicationAccountState';
 import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
 import { useMeetingList } from '@/hooks/useMeetings';
 import { useMeetingPreferences } from '@/hooks/useMeetingPreferences';
@@ -121,11 +123,12 @@ function PreferencesForm({
 }) {
   const { t } = useTranslation(lng);
   const { preferences, isLoading, isSaving, save } = useMeetingPreferences();
+  const { user } = useAuth();
   // The draft is DERIVED during render: null means "what the server holds";
   // an edit materialises it, a save clears it (no setState inside an effect).
-  const [draft, setDraft] = useState<MeetingPreferencesUpdate | null>(null);
+  const [draft, setDraft] = useApplicationAccountState<MeetingPreferencesUpdate | null>(user?.id, null);
 
-  if (isLoading || preferences === null) {
+  if (preferences === null) {
     return <Skeleton className="h-40 w-full" />;
   }
   const saved = preferencesDraft(preferences);
@@ -146,7 +149,7 @@ function PreferencesForm({
   };
 
   return (
-    <div className="space-y-4" aria-busy={isSaving}>
+    <div className="space-y-4" aria-busy={isSaving || isLoading}>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-3">
           <Label htmlFor="meeting-engine">{t('meetings.settings.engine_label')}</Label>

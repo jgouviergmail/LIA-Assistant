@@ -52,6 +52,25 @@ class _FakeRedis:
     async def exists(self, key: str) -> int:
         return int(key in self.store)
 
+    async def eval(
+        self,
+        script: str,
+        key_count: int,
+        code_key: str,
+        attempts_key: str,
+        expected: str,
+        ttl: int | None = None,
+    ) -> int:
+        assert key_count == 2
+        if self.store.get(code_key) != expected:
+            return 0
+        if ttl is not None:
+            attempts = await self.incr(attempts_key)
+            await self.expire(attempts_key, ttl)
+            return attempts
+        await self.delete(code_key, attempts_key)
+        return 1
+
 
 class _FakeIdentity:
     def __init__(self, number: str | None) -> None:
@@ -66,7 +85,12 @@ class _FakeIdentity:
             rich_context_enabled=True,
         )
 
-    async def mark_verified(self, user_id, *, language: str = "en"):  # noqa: ANN001
+    async def mark_verified(
+        self, user_id, *, language: str = "en", expected_number=None, check=None
+    ):  # noqa: ANN001
+        assert expected_number == self.number
+        if check is not None:
+            await check()
         self.verified = True
         return await self.get_identity(user_id)
 
@@ -114,6 +138,19 @@ async def test_start_draws_a_code_stores_it_with_a_ttl_and_places_the_call() -> 
     assert redis.ttls[key] == settings.telephony_verification_code_ttl_seconds
     assert started.expires_in_seconds == settings.telephony_verification_code_ttl_seconds
     assert await service.pending(user_id) is True
+
+
+@pytest.mark.unit
+async def test_read_only_pending_check_does_not_forget_a_code_bound_to_an_old_number() -> None:
+    service, redis, _, calls = _service()
+    user_id = uuid4()
+    key = service._code_key(user_id)
+    redis.store[key] = "+33600000000|123456"
+    assert await service.pending(user_id, cleanup=False) is False
+    assert redis.store[key] == "+33600000000|123456"
+    assert calls.kwargs is None
+    assert await service.pending(user_id) is False
+    assert key not in redis.store
 
 
 @pytest.mark.unit

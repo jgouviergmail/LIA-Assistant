@@ -75,6 +75,7 @@ class DraftType(str, Enum):
     SPREADSHEET_WRITE = "spreadsheet_write"  # Sheets range update / row append (lot F)
     DOCUMENT_APPEND = "document_append"  # Docs text append (lot F)
     TICKET_DELETE = "ticket_delete"  # Workboard ticket delete draft (ADR-276)
+    APPLICATION_ACTION = "application_action"  # Confirmed application command
 
 
 class DraftStatus(str, Enum):

@@ -23,6 +23,7 @@ def register_program_manifests(registry: AgentRegistry) -> None:
         ACTIVITY_AGENT_MANIFEST,
         get_my_activity_catalogue_manifest,
     )
+    from src.domains.agents.application.catalogue_registration import register_application_manifests
     from src.domains.agents.automation.catalogue_registration import (
         register_automation_manifests,
     )
@@ -51,6 +52,7 @@ def register_program_manifests(registry: AgentRegistry) -> None:
         search_memories_catalogue_manifest,
     )
 
+    register_application_manifests(registry)
     register_automation_manifests(registry)
     registry.register_agent_manifest(DOCUMENT_AGENT_MANIFEST)
     registry.register_tool_manifest(search_user_documents_catalogue_manifest)

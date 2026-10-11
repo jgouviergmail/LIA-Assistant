@@ -84,9 +84,7 @@ function hook(over: Partial<JournalsHook> = {}) {
 }
 
 function render() {
-  return renderWithProviders(
-    <JournalsSettings lng="en" />
-  );
+  return renderWithProviders(<JournalsSettings lng="en" />);
 }
 
 beforeEach(() => vi.clearAllMocks());
@@ -100,13 +98,31 @@ describe('JournalsSettings', () => {
 });
 
 describe('JournalsSettings — manual consolidation', () => {
-  it('says nothing changed when the run applied no action', async () => {
-    const consolidateNow = vi.fn().mockResolvedValue({ actions_applied: 0, duration_ms: 1500 });
+  it.each(['no_op', undefined])('says nothing changed for a %s result', async status => {
+    const consolidateNow = vi.fn().mockResolvedValue({
+      actions_applied: 0,
+      duration_ms: 1500,
+      status,
+    });
     useJournals.mockReturnValue(hook({ consolidateNow }));
     const { user } = render();
     await user.click(await screen.findByRole('button', { name: CONSOLIDATE }));
     await waitFor(() => expect(consolidateNow).toHaveBeenCalledTimes(1));
     expect(toast.success).toHaveBeenCalledWith('journals.consolidatedNoop');
+  });
+
+  it('announces completed consolidation when only the portrait changed', async () => {
+    const consolidateNow = vi.fn().mockResolvedValue({
+      actions_applied: 0,
+      duration_ms: 1500,
+      status: 'success',
+    });
+    useJournals.mockReturnValue(hook({ consolidateNow }));
+    const { user } = render();
+    await user.click(await screen.findByRole('button', { name: CONSOLIDATE }));
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('journals.consolidatedSuccess'));
+    expect(toast.success).not.toHaveBeenCalledWith('journals.consolidatedNoop');
+    expect(toast.error).not.toHaveBeenCalled();
   });
 
   it('reports how many changes were applied', async () => {
@@ -116,6 +132,22 @@ describe('JournalsSettings — manual consolidation', () => {
     await user.click(await screen.findByRole('button', { name: CONSOLIDATE }));
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith('journals.consolidatedSuccess'));
   });
+
+  it.each(['failed', 'invalid_output', 'stale', 'busy'])(
+    'does not announce a successful no-op for a %s attempt',
+    async status => {
+      const consolidateNow = vi.fn().mockResolvedValue({
+        actions_applied: 0,
+        duration_ms: 1500,
+        status,
+      });
+      useJournals.mockReturnValue(hook({ consolidateNow }));
+      const { user } = render();
+      await user.click(await screen.findByRole('button', { name: CONSOLIDATE }));
+      await waitFor(() => expect(toast.error).toHaveBeenCalledWith('journals.consolidatedError'));
+      expect(toast.success).not.toHaveBeenCalled();
+    }
+  );
 
   it('distinguishes an LLM quota refusal (429) from a generic failure', async () => {
     const consolidateNow = vi.fn().mockRejectedValue({ status: 429 });
@@ -162,6 +194,52 @@ describe('JournalsSettings — settings toggles', () => {
     await user.click(await screen.findByText('journals.configuration'));
     await user.click(await screen.findByRole('switch', { name: 'journals.consolidation' }));
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('journals.settingsError'));
+  });
+});
+
+describe('JournalsSettings — portrait feedback outcome', () => {
+  it('announces a portrait read failure while retaining current cached prose', async () => {
+    useJournals.mockReturnValue(
+      hook({
+        portraitError: new Error('Simulated portrait read failure'),
+        portrait: {
+          full: 'A current supported synthesis.',
+          brief: 'A supported brief.',
+          compiled_at: '2026-10-07T08:00:00Z',
+          sources: null,
+        },
+      })
+    );
+    render();
+    expect(await screen.findByRole('alert')).toHaveTextContent('journals.portraitLoadError');
+    expect(screen.getByText('A current supported synthesis.')).toBeVisible();
+  });
+
+  it('keeps a failed correction visible without announcing a recompiled portrait', async () => {
+    const submitPortraitFeedback = vi.fn().mockResolvedValue({
+      actions_applied: 0,
+      duration_ms: 1500,
+      status: 'invalid_output',
+    });
+    useJournals.mockReturnValue(
+      hook({
+        submitPortraitFeedback,
+        portrait: {
+          full: '[user_observations] Current source passage',
+          brief: 'Current source passage',
+          compiled_at: '2026-10-06T12:00:00Z',
+          sources: null,
+        },
+      })
+    );
+    const { user } = render();
+    await user.click(await screen.findByRole('button', { name: 'journals.portraitFeedbackButton' }));
+    const correction = await screen.findByLabelText('journals.portraitFeedbackCommentLabel');
+    await user.type(correction, 'This passage is outdated.');
+    await user.click(screen.getByRole('button', { name: 'journals.portraitFeedbackSubmit' }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('journals.portraitFeedbackError'));
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(correction).toHaveValue('This passage is outdated.');
   });
 });
 

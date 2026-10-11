@@ -16,6 +16,7 @@ from src.domains.agents.analysis.query_intelligence import QueryIntelligence, Us
 from src.domains.agents.analysis.query_intelligence_helpers import (
     reconstruct_query_intelligence,
 )
+from src.domains.agents.analysis.requested_outcomes import GoalRequirement
 
 
 def _make_full_query_intelligence() -> QueryIntelligence:
@@ -65,6 +66,15 @@ def _make_full_query_intelligence() -> QueryIntelligence:
         detected_skill_name="email_triage",
         semantic_filter_terms=("medical", "urgent"),
         has_temporal_reference=True,
+        requested_outcomes=(
+            GoalRequirement(
+                domain="email",
+                label="requested emails",
+                source_quote="trouve mes emails",
+                kind="read",
+                collection_key="emails",
+            ),
+        ),
     )
 
 

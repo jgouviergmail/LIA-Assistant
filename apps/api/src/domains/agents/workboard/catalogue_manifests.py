@@ -22,9 +22,11 @@ rights, the bounds and the transitions, and a tool that decided any of them
 again would be a second authority.
 """
 
+from dataclasses import replace
 from datetime import UTC, datetime
 
 from src.core.config import settings
+from src.domains.agents.application.workboard_update_schemas import WorkboardUpdateInput
 from src.domains.agents.constants import CONTEXT_DOMAIN_TICKETS
 from src.domains.agents.registry.catalogue import (
     AgentManifest,
@@ -35,6 +37,9 @@ from src.domains.agents.registry.catalogue import (
     ParameterSchema,
     PermissionProfile,
     ToolManifest,
+)
+from src.domains.agents.workboard.creation_manifest import (
+    create_ticket_catalogue_manifest as create_ticket_catalogue_manifest,
 )
 
 #: Every column of the board, spelled for a model that must pick one. Derived
@@ -94,153 +99,51 @@ _TICKET_REFERENCE = ParameterSchema(
 )
 
 
-create_ticket_catalogue_manifest = ToolManifest(
-    name="create_ticket_tool",
-    mutation_policy="reversible",
-    mutation_policy_reason=(
-        "A ticket is a note on the person's own board: it acts on nothing outside it, and deleting it is one click away."
-    ),
-    agent="ticket_agent",
-    description=(
-        "Creates a ticket on the user's workboard. Use when they want to keep "
-        "track of something to do, note an idea, or ask LIA to take a task on "
-        "('put this on my board', 'create a ticket for…', 'note that I have "
-        "to…', 'take care of…'). Set assignee='lia' when they ask LIA to DO it "
-        "— LIA then runs it on its own and comments the result on the ticket. "
-        "To break a complex task down, create the parent first and call this "
-        "again with parent_ticket for each step. NOT for a provider to-do "
-        "(use task), a timed notification (use reminder) or a recurring job "
-        "(use automation)."
-    ),
-    parameters=[
-        ParameterSchema(
-            name="title",
+def _ticket_outputs(prefix: str) -> list[OutputFieldSchema]:
+    """Expose the same summary leaves every workboard tool actually produces."""
+    return [
+        OutputFieldSchema(
+            path=f"{prefix}.id",
             type="string",
-            required=True,
-            description="What the ticket is, in the user's own words.",
-            constraints=[
-                ParameterConstraint(kind="min_length", value=1),
-                ParameterConstraint(kind="max_length", value=settings.workboard_title_max_chars),
-            ],
+            description="Ticket UUID",
+            semantic_type="ticket_id",
         ),
-        ParameterSchema(
-            name="description",
+        OutputFieldSchema(
+            path=f"{prefix}.title", type="string", description="Ticket title", semantic_type="Text"
+        ),
+        OutputFieldSchema(
+            path=f"{prefix}.status",
             type="string",
-            required=False,
-            description=(
-                "What the ticket is about, in the user's own words. When "
-                "assignee='lia' this IS the brief LIA will run, so keep "
-                "everything it needs — and nothing it should not do."
-            ),
-            constraints=[
-                ParameterConstraint(
-                    kind="max_length", value=settings.workboard_description_max_chars
-                )
-            ],
+            description="Workboard column",
+            semantic_type="ticket_status",
         ),
-        ParameterSchema(
-            name="priority",
+        OutputFieldSchema(
+            path=f"{prefix}.priority",
             type="string",
-            required=False,
-            description="low | medium | high | urgent. Defaults to medium.",
-            constraints=[
-                ParameterConstraint(kind="enum", value=["low", "medium", "high", "urgent"])
-            ],
+            description="Priority",
+            semantic_type="ticket_priority",
         ),
-        ParameterSchema(
-            name="status",
+        OutputFieldSchema(
+            path=f"{prefix}.start_at",
             type="string",
-            required=False,
-            description=(
-                f"The column to create it in: {_COLUMNS}. Defaults to todo. "
-                "Use idea for something merely noted — a ticket in idea is "
-                "never run."
-            ),
-            constraints=[ParameterConstraint(kind="enum", value=_COLUMNS.split(", "))],
+            nullable=True,
+            description="Start instant (ISO 8601)",
+            semantic_type="datetime",
         ),
-        ParameterSchema(
-            name="start_at",
+        OutputFieldSchema(
+            path=f"{prefix}.due_at",
             type="string",
-            required=False,
-            description=(
-                "When work may start, as the user's LOCAL date and time "
-                "(ISO 8601). A ticket assigned to LIA is not run before it."
-            ),
+            nullable=True,
+            description="Due instant (ISO 8601)",
+            semantic_type="datetime",
         ),
-        ParameterSchema(
-            name="due_at",
-            type="string",
-            required=False,
-            description="When it is due, as the user's LOCAL date and time (ISO 8601).",
-        ),
-        ParameterSchema(
-            name="assignee",
-            type="string",
-            required=False,
-            description=(
-                "Who holds it: 'me' (the user, default), 'lia' (LIA runs it "
-                "alone and comments the result), or the exact NAME of a "
-                "connected user to hand it to."
-            ),
-            constraints=[
-                ParameterConstraint(kind="max_length", value=255),
-            ],
-        ),
-        ParameterSchema(
-            name="parent_ticket",
-            type="string",
-            required=False,
-            description=(
-                "The ticket this one is a step of, by id or exact title. ONE "
-                "level only: a step never has steps of its own."
-            ),
-            constraints=[
-                ParameterConstraint(kind="max_length", value=settings.workboard_title_max_chars)
-            ],
-        ),
-        ParameterSchema(
-            name="follow",
-            type="boolean",
-            required=False,
-            description=(
-                "Whether to be told in the chat about what happens to this "
-                "ticket. Off by default — a board that talks about every "
-                "ticket teaches the user to ignore it."
-            ),
-        ),
-    ],
-    outputs=[
-        OutputFieldSchema(path="success", type="boolean", description="Whether it was created"),
-        OutputFieldSchema(path="ticket", type="object", description="The new ticket"),
-        OutputFieldSchema(path="ticket.id", type="string", description="The new ticket's id"),
-        OutputFieldSchema(path="ticket.title", type="string", description="Its title"),
-        OutputFieldSchema(path="ticket.status", type="string", description="Its column"),
-    ],
-    cost=CostProfile(est_tokens_in=80, est_tokens_out=60, est_cost_usd=0.0001, est_latency_ms=120),
-    permissions=PermissionProfile(
-        required_scopes=[], data_classification="CONFIDENTIAL", hitl_required=False
-    ),
-    semantic_keywords=[
-        "add a ticket to my board",
-        "put this on my workboard",
-        "note this down as something to do",
-        "ask LIA to take care of this task",
-        "break this task into steps on the board",
-    ],
-    reference_examples=[],
-    display=DisplayMetadata(emoji="🗂️", i18n_key="create_ticket", visible=True, category="tool"),
-    tool_category="create",
-    version="1.0.0",
-    updated_at=datetime.now(UTC),
-)
+    ]
 
 
 update_ticket_catalogue_manifest = ToolManifest(
     name="update_ticket_tool",
-    mutation_policy="reversible",
-    mutation_policy_reason=(
-        "Every field it touches is on the person's own board and can be set back, and the ticket's history records who changed what."
-    ),
+    mutation_policy="draft",
+    initiative_eligible=False,
     agent="ticket_agent",
     description=(
         "Changes a ticket on the workboard: its column, priority, dates, "
@@ -249,15 +152,29 @@ update_ticket_catalogue_manifest = ToolManifest(
         "Thursday', 'give this ticket to Marie', 'hand this to LIA'. Set run_now=true to "
         "ask LIA to run a ticket it holds right away instead of waiting for "
         "the sweep. Only the fields given are changed."
+        " Preparation produces mandatory native human confirmation, without persisting a change or "
+        "sending notifications. Use request for the full current source UI schema, including clearing "
+        "dates, execution mode, move with position, and run_now; it is exclusive with legacy fields. "
+        "Source rights and actual predicted consequences are shown. A changed ticket, peer relationship, "
+        "answer note or affected column requires a new proposal. LIA work remains subject to normal "
+        "quotas and costs; requesting a run never claims its completion. Assignment notices follow commit."
     ),
     parameters=[
-        _TICKET_REFERENCE,
+        replace(_TICKET_REFERENCE, required=False),
+        ParameterSchema(
+            name="request",
+            type="object",
+            required=False,
+            description="Full current UI update, exclusive with legacy fields",
+            schema=WorkboardUpdateInput.model_json_schema(),
+        ),
         ParameterSchema(
             name="status",
             type="string",
             required=False,
             description=f"Move it to this column: {_COLUMNS}.",
             constraints=[ParameterConstraint(kind="enum", value=_COLUMNS.split(", "))],
+            semantic_type="ticket_status",
         ),
         ParameterSchema(
             name="priority",
@@ -267,6 +184,7 @@ update_ticket_catalogue_manifest = ToolManifest(
             constraints=[
                 ParameterConstraint(kind="enum", value=["low", "medium", "high", "urgent"])
             ],
+            semantic_type="ticket_priority",
         ),
         ParameterSchema(
             name="title",
@@ -276,6 +194,7 @@ update_ticket_catalogue_manifest = ToolManifest(
             constraints=[
                 ParameterConstraint(kind="max_length", value=settings.workboard_title_max_chars)
             ],
+            semantic_type="Text",
         ),
         ParameterSchema(
             name="description",
@@ -287,18 +206,21 @@ update_ticket_catalogue_manifest = ToolManifest(
                     kind="max_length", value=settings.workboard_description_max_chars
                 )
             ],
+            semantic_type="Text",
         ),
         ParameterSchema(
             name="start_at",
             type="string",
             required=False,
             description="A new start date, as the user's LOCAL date and time (ISO 8601).",
+            semantic_type="datetime",
         ),
         ParameterSchema(
             name="due_at",
             type="string",
             required=False,
             description="A new due date, as the user's LOCAL date and time (ISO 8601).",
+            semantic_type="datetime",
         ),
         ParameterSchema(
             name="assignee",
@@ -327,10 +249,14 @@ update_ticket_catalogue_manifest = ToolManifest(
         ),
     ],
     outputs=[
-        OutputFieldSchema(path="success", type="boolean", description="Whether it was changed"),
-        OutputFieldSchema(path="ticket", type="object", description="The ticket as it now stands"),
-        OutputFieldSchema(path="ticket.id", type="string", description="The ticket's id"),
-        OutputFieldSchema(path="ticket.status", type="string", description="Its column now"),
+        OutputFieldSchema(
+            path="success", type="boolean", description="Whether exact confirmation was prepared"
+        ),
+        OutputFieldSchema(
+            path="draft",
+            type="object",
+            description="Native source update confirmation; no change saved yet",
+        ),
     ],
     cost=CostProfile(est_tokens_in=80, est_tokens_out=50, est_cost_usd=0.0001, est_latency_ms=120),
     permissions=PermissionProfile(
@@ -353,15 +279,16 @@ update_ticket_catalogue_manifest = ToolManifest(
 
 comment_ticket_catalogue_manifest = ToolManifest(
     name="comment_ticket_tool",
-    mutation_policy="reversible",
-    mutation_policy_reason=(
-        "A comment is text on the person's own board; it leaves nothing outside LIA and the thread shows who wrote it."
-    ),
+    mutation_policy="draft",
+    initiative_eligible=False,
     agent="ticket_agent",
     description=(
-        "Adds a comment to a ticket — plain text, kept on the ticket's thread "
-        "where both sides read it. Use when the user wants to record where "
-        "something stands, or say something to whoever else holds the ticket."
+        "Prepare mandatory human confirmation for an exact literal comment. Preparation posts nothing. "
+        "The current source ticket and pending action are pinned. On an owner-held confirming ticket, "
+        "the source classifies the complete comment: pure approval authorizes the stored action and returns "
+        "the ticket to LIA; refusal closes it; amendment discards the old action and allows a fresh run. "
+        "The source pending preview and consequences are shown. Changed ticket/pending action requires "
+        "a new proposal. No network or model is called by commenting; subsequent LIA runs keep normal quotas/costs."
     ),
     parameters=[
         _TICKET_REFERENCE,
@@ -374,12 +301,16 @@ comment_ticket_catalogue_manifest = ToolManifest(
                 ParameterConstraint(kind="min_length", value=1),
                 ParameterConstraint(kind="max_length", value=settings.workboard_comment_max_chars),
             ],
+            semantic_type="Text",
         ),
     ],
     outputs=[
-        OutputFieldSchema(path="success", type="boolean", description="Whether it was added"),
-        OutputFieldSchema(path="comment", type="object", description="The new comment"),
-        OutputFieldSchema(path="comment.id", type="string", description="The comment's id"),
+        OutputFieldSchema(
+            path="success", type="boolean", description="Whether exact confirmation was prepared"
+        ),
+        OutputFieldSchema(
+            path="draft", type="object", description="Native comment confirmation; no write yet"
+        ),
     ],
     cost=CostProfile(est_tokens_in=60, est_tokens_out=30, est_cost_usd=0.0001, est_latency_ms=100),
     permissions=PermissionProfile(
@@ -418,6 +349,7 @@ list_tickets_catalogue_manifest = ToolManifest(
             required=False,
             description=f"Only this column: {_COLUMNS}.",
             constraints=[ParameterConstraint(kind="enum", value=_COLUMNS.split(", "))],
+            semantic_type="ticket_status",
         ),
         ParameterSchema(
             name="assignee",
@@ -437,6 +369,7 @@ list_tickets_catalogue_manifest = ToolManifest(
             constraints=[
                 ParameterConstraint(kind="enum", value=["low", "medium", "high", "urgent"])
             ],
+            semantic_type="ticket_priority",
         ),
         ParameterSchema(
             name="overdue",
@@ -466,6 +399,7 @@ list_tickets_catalogue_manifest = ToolManifest(
     ],
     outputs=[
         OutputFieldSchema(path="tickets", type="array", description="The page of tickets"),
+        *_ticket_outputs("tickets[]"),
         OutputFieldSchema(
             path="total",
             type="integer",
@@ -508,10 +442,32 @@ get_ticket_catalogue_manifest = ToolManifest(
     parameters=[_TICKET_REFERENCE],
     outputs=[
         OutputFieldSchema(path="ticket", type="object", description="The ticket itself"),
+        *_ticket_outputs("ticket"),
+        OutputFieldSchema(
+            path="ticket.description",
+            type="string",
+            nullable=True,
+            description="Ticket brief",
+            semantic_type="Text",
+        ),
         OutputFieldSchema(path="children", type="array", description="Its steps, when it has any"),
+        *_ticket_outputs("children[]"),
         OutputFieldSchema(path="comments", type="array", description="The thread, oldest first"),
         OutputFieldSchema(
+            path="comments[].body",
+            type="string",
+            description="Comment content",
+            semantic_type="Text",
+        ),
+        OutputFieldSchema(
             path="last_run", type="object", description="Outcome, cost and error of the last run"
+        ),
+        OutputFieldSchema(
+            path="last_run.at",
+            type="string",
+            nullable=True,
+            description="Last run instant (ISO 8601)",
+            semantic_type="datetime",
         ),
     ],
     cost=CostProfile(est_tokens_in=40, est_tokens_out=250, est_cost_usd=0.0002, est_latency_ms=120),
@@ -535,6 +491,7 @@ get_ticket_catalogue_manifest = ToolManifest(
 delete_ticket_catalogue_manifest = ToolManifest(
     name="delete_ticket_tool",
     mutation_policy="draft",
+    initiative_eligible=False,
     agent="ticket_agent",
     description=(
         "Deletes a ticket from the workboard, with its steps, its comments "
@@ -542,12 +499,20 @@ delete_ticket_catalogue_manifest = ToolManifest(
         "deletes nothing until the user accepts it. "
         "A ticket can be deleted from any column. Only its OWNER may delete "
         "it — somebody merely holding it cannot."
+        " The exact subtree titles, counts and active runs are frozen; any change requires "
+        "a new proposal. Native application and Workboard capabilities are rechecked before "
+        "the write. Source deletion and acknowledged persistence are verified. Existing "
+        "in-flight actions may continue; deleting a ticket does not cancel them."
     ),
     parameters=[_TICKET_REFERENCE],
     outputs=[
-        OutputFieldSchema(path="success", type="boolean", description="Whether it was deleted"),
         OutputFieldSchema(
-            path="deleted", type="integer", description="Rows removed, the steps included"
+            path="success", type="boolean", description="Whether exact confirmation was prepared"
+        ),
+        OutputFieldSchema(
+            path="draft",
+            type="object",
+            description="Exact native subtree deletion confirmation; no removal yet",
         ),
     ],
     cost=CostProfile(est_tokens_in=40, est_tokens_out=30, est_cost_usd=0.0001, est_latency_ms=100),

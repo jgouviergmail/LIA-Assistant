@@ -41,10 +41,14 @@ export function ChapterSection({
     >
       {ghost}
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        {/* min-w-0 on both grid items: a chip row's or truncated pill's
-            intrinsic width must never widen the track past the viewport */}
-        <div className="grid items-center gap-8 lg:grid-cols-[1fr_1.1fr] lg:gap-12">
-          <FadeInOnScroll className={cn('min-w-0', reverse && 'lg:order-2')}>
+        {/* One reading and keyboard order: introduction, proof, explanation.
+            The desktop proof spans both text rows to retain the alternating
+            columns. A max-content heading row prevents a taller proof from
+            opening an artificial gap before its benefits. */}
+        <div className="grid gap-6 lg:grid-cols-[1fr_1.1fr] lg:grid-rows-[max-content_1fr] lg:gap-x-12">
+          <FadeInOnScroll
+            className={cn('min-w-0 lg:row-start-1', reverse ? 'lg:col-start-2' : 'lg:col-start-1')}
+          >
             <p className={cn('text-xs font-medium', tone.text)}>
               {t('landing.chapters.eyebrow')} {chapter.num}
             </p>
@@ -55,7 +59,24 @@ export function ChapterSection({
               {k('title')}
             </h2>
             <p className="mt-3 max-w-[48ch] text-muted-foreground">{k('sub')}</p>
-            <ul className="mt-6 grid gap-4">
+          </FadeInOnScroll>
+
+          <FadeInOnScroll
+            className={cn(
+              'min-w-0 lg:row-span-2 lg:row-start-1 lg:self-center',
+              reverse ? 'lg:col-start-1' : 'lg:col-start-2'
+            )}
+          >
+            {visual}
+          </FadeInOnScroll>
+
+          <FadeInOnScroll
+            className={cn(
+              'min-w-0 lg:row-start-2 lg:self-start',
+              reverse ? 'lg:col-start-2' : 'lg:col-start-1'
+            )}
+          >
+            <ul className="grid gap-4">
               {benefitIndexes.map(i => (
                 <li key={i} className={cn('border-l-2 pl-4 text-sm leading-relaxed', tone.border)}>
                   <strong className="block font-semibold">{k(`b${i}_t`)}</strong>
@@ -79,10 +100,6 @@ export function ChapterSection({
                 {k('how')}
               </p>
             </details>
-          </FadeInOnScroll>
-
-          <FadeInOnScroll className={cn('min-w-0', reverse && 'lg:order-1')}>
-            {visual}
           </FadeInOnScroll>
         </div>
 

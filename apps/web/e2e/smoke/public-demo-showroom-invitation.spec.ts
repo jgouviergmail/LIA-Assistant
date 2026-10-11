@@ -3,8 +3,8 @@
  * link (guided build, `task test:e2e:showroom`).
  *
  * What must hold:
- * - the page makes ONE request, the public link, and the demonstrator's
- *   capabilities travel with it — a second read to the demonstrator's origin
+ * - the page makes ONE API read, fulfilled by a local public-link mock, and
+ *   the demonstrator's capabilities travel with it — a second read to its origin
  *   is what the document's CSP refuses (measured here on 2026-09-12, the
  *   first version of this spec: the fetch was blocked and the lists never
  *   drew);
@@ -14,9 +14,10 @@
  *   "switched off" column is never left empty — and the link itself stays;
  * - the block has no blocking accessibility violation.
  */
-import { expect, test, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
 import { scanPage } from '../a11y/scan';
+import { expect, test } from '../fixtures';
 
 test.use({ locale: 'fr-FR' });
 
@@ -30,9 +31,9 @@ const DEMO_CAPABILITIES = {
 };
 
 /**
- * Publish a link, with or without the relayed block. Everything else under
- * /api/v1 is refused: the showroom oracle stays zero-API for the visitor
- * beyond this one read.
+ * Publish a mocked link, with or without the relayed block. This handler is
+ * registered after the fixture's isolation routes, so it wins in LIFO order.
+ * Everything else under /api/v1 is refused; no backend is contacted.
  */
 async function installRoutes(
   page: Page,

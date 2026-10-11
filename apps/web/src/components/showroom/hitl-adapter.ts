@@ -19,15 +19,14 @@ import type { ExecutionTrace } from '@/types/execution-trace';
 import type { HitlCardState } from '@/types/hitl';
 
 /** Action rows per decision kind (style mirrors the chat card contract). */
-const ACTION_STYLE: Record<ShowroomDecisionKind, 'primary' | 'ghost' | 'secondary'> =
-  {
-    confirm: 'primary',
-    edit: 'ghost',
-    cancel: 'secondary',
-  };
+const ACTION_STYLE: Record<ShowroomDecisionKind, 'primary' | 'ghost' | 'secondary'> = {
+  confirm: 'primary',
+  edit: 'ghost',
+  cancel: 'secondary',
+};
 
 function actionsFor(spec: ShowroomDecisionSpec) {
-  return spec.allowed.map((action) => ({
+  return spec.allowed.map(action => ({
     action,
     label: action,
     style: ACTION_STYLE[action],
@@ -50,6 +49,25 @@ export function buildDecisionCard(
   t: TFunction
 ): HitlCardState {
   const messageId = `showroom-${missionId}-${spec.id}-${runId}`;
+  if (spec.kind === 'phone_draft') {
+    return {
+      status: 'awaiting',
+      resolution: null,
+      submittedAction: null,
+      payload: {
+        messageId,
+        kind: 'draft_critique',
+        actions: actionsFor(spec),
+        draftId: `showroom-draft-${missionId}-${spec.id}-${runId}`,
+        draftType: 'phone_call',
+        draftContent: {
+          callee_name: t(spec.calleeNameKey),
+          callee_phone: spec.calleePhone,
+          objective: t(spec.objectiveKey),
+        },
+      },
+    };
+  }
   if (spec.kind === 'draft') {
     return {
       status: 'awaiting',
@@ -79,10 +97,7 @@ export function buildDecisionCard(
       actions: actionsFor(spec),
       toolName: t(spec.toolNameKey),
       toolArgs: Object.fromEntries(
-        spec.args.map((arg) => [
-          t(arg.labelKey),
-          arg.value ?? (arg.valueKey ? t(arg.valueKey) : ''),
-        ])
+        spec.args.map(arg => [t(arg.labelKey), arg.value ?? (arg.valueKey ? t(arg.valueKey) : '')])
       ),
     },
   };
@@ -91,20 +106,16 @@ export function buildDecisionCard(
 /**
  * Map a visitor decision onto the existing card lifecycle.
  *
- * An applied edit renders as a confirmed resolution: the bounded 'edit'
- * marker lives in the showroom reducer, and `HitlCardState.submittedAction`
- * stays inside its `'confirm' | 'cancel' | null` contract (never widened).
+ * An edit is an illustrated instruction, not an approved effect. It resolves
+ * via text, without a submitted confirmation or a claim of regeneration.
  */
-export function resolveCard(
-  card: HitlCardState,
-  decision: ShowroomDecisionKind
-): HitlCardState {
-  const confirmed = decision !== 'cancel';
+export function resolveCard(card: HitlCardState, decision: ShowroomDecisionKind): HitlCardState {
+  const confirmed = decision === 'confirm';
   return {
     ...card,
     status: 'resolved',
-    resolution: confirmed ? 'confirmed' : 'cancelled',
-    submittedAction: confirmed ? 'confirm' : 'cancel',
+    resolution: decision === 'edit' ? 'via_text' : confirmed ? 'confirmed' : 'cancelled',
+    submittedAction: decision === 'edit' ? null : confirmed ? 'confirm' : 'cancel',
   };
 }
 
@@ -126,9 +137,7 @@ export function buildShowroomTrace(
   durationMs: number
 ): ExecutionTrace {
   if (stepLabels.length < TRACE_SLOTS.length) {
-    throw new Error(
-      `showroom trace needs ${TRACE_SLOTS.length} labels, got ${stepLabels.length}`
-    );
+    throw new Error(`showroom trace needs ${TRACE_SLOTS.length} labels, got ${stepLabels.length}`);
   }
   return {
     steps: TRACE_SLOTS.map((slot, i) => ({

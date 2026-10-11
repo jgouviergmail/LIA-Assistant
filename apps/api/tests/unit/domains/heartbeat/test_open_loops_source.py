@@ -183,10 +183,9 @@ def _patch_db():
 
 
 def _patch_store():
-    store = AsyncMock()
     return patch(
-        "src.domains.agents.context.store.get_tool_context_store",
-        new=AsyncMock(return_value=store),
+        "src.infrastructure.proactive.context_sink.write_heartbeat_context",
+        new=AsyncMock(),
     )
 
 

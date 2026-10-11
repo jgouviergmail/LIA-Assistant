@@ -47,6 +47,9 @@ def _ledger_side_neutralised():
 class _StubRepo:
     """In-memory repository double capturing every call."""
 
+    async def lock_learning_owner(self, user_id: uuid.UUID) -> None:
+        pass
+
     def __init__(self) -> None:
         self.bounds: tuple[datetime | None, datetime | None] = (None, None)
         self.profile: Any = None
@@ -555,6 +558,7 @@ class TestPresenceOnlyAccount:
     async def test_an_empty_rollup_with_no_bounds_still_skips(self) -> None:
         service = HabitsService(AsyncMock())
         service.repository = MagicMock()
+        service.repository.lock_learning_owner = AsyncMock()
         service.repository.fetch_activity_bounds = AsyncMock(return_value=(None, None))
         service.repository.fetch_activity_rollup = AsyncMock(return_value={})
         service.repository.get_profile = AsyncMock()
@@ -565,6 +569,7 @@ class TestPresenceOnlyAccount:
     async def test_presence_hours_alone_are_enough_to_compute(self) -> None:
         service = HabitsService(AsyncMock())
         service.repository = MagicMock()
+        service.repository.lock_learning_owner = AsyncMock()
         service.repository.fetch_activity_bounds = AsyncMock(return_value=(None, None))
         today = datetime.now(UTC).date()
         rollup = {today - timedelta(days=n): {8: 1} for n in range(1, 15)}

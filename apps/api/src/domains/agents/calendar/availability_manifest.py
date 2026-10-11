@@ -68,6 +68,7 @@ find_availability_catalogue_manifest = ToolManifest(
             type="integer",
             required=False,
             description="Minimum slot duration in minutes (default 30)",
+            semantic_type="duration_minutes",
             constraints=[
                 ParameterConstraint(kind="minimum", value=AVAILABILITY_DURATION_MIN_MINUTES),
                 ParameterConstraint(kind="maximum", value=AVAILABILITY_DURATION_MAX_MINUTES),

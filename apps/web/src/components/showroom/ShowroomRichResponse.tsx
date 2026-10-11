@@ -18,29 +18,28 @@ import { Bot } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 const MarkdownContent = dynamic(
-  () => import('@/components/chat/MarkdownContent').then((m) => m.MarkdownContent),
+  () => import('@/components/chat/MarkdownContent').then(m => m.MarkdownContent),
   {
     ssr: false,
-    loading: () => (
-      <div
-        aria-hidden="true"
-        className="h-24 animate-pulse rounded-xl bg-muted/40"
-      />
-    ),
+    loading: () => <div aria-hidden="true" className="h-24 animate-pulse rounded-xl bg-muted/40" />,
   }
 );
 
 export interface ShowroomRichResponseProps {
   html: string;
+  testId?: string;
 }
 
-export function ShowroomRichResponse({ html }: ShowroomRichResponseProps) {
+export function ShowroomRichResponse({
+  html,
+  testId = 'showroom-rich-response',
+}: ShowroomRichResponseProps) {
   const { t } = useTranslation();
   return (
     <section
       aria-label={t('showroom.response.title')}
-      data-testid="showroom-rich-response"
-      className="rounded-2xl border border-border/60 bg-card/70 p-4 backdrop-blur-sm"
+      data-testid={testId}
+      className="rounded-2xl border border-border/60 bg-card/70 p-4 backdrop-blur-sm [--lia-text-secondary:var(--lia-text)]"
     >
       <p className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold text-foreground">
         <Bot className="h-4 w-4 text-primary" aria-hidden="true" />

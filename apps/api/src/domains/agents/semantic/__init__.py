@@ -3,17 +3,16 @@ Semantic Type System Module
 
 The complete semantic type system of LIA.
 
-Replaces hardcoded patterns by a structured system inspired by:
-- schema.org (class hierarchy)
-- RDF (semantic relations)
-- SKOS (broader/narrower/related)
-- OWL (subsumption reasoning)
+Uses a schema.org-inspired hierarchy, validated relation metadata and explicit
+tool contracts. Runtime linking matches exact semantic types and JSON shapes
+within the account's available catalogue; it does not perform OWL reasoning.
 
 Components:
 - SemanticType: dataclass defining a semantic type
 - TypeCategory: enum of the type categories
 - TypeRegistry: central registry with hierarchy and lookups
-- core_types: catalogue of the 96+ identified types
+- core_types, entity_types, native_types: the declared ontology
+- manifest_semantics: available contracts and reference compatibility
 - expansion_service: semantic expansion service
 
 Usage:
@@ -22,7 +21,7 @@ Usage:
     >>> load_core_types(registry)
     >>> email_type = registry.get("email_address")
     >>> email_type.source_domains
-    ['contacts', 'emails', 'calendar']
+    ['contact', 'email', 'event']
 """
 
 from src.domains.agents.semantic.core_types import load_core_types

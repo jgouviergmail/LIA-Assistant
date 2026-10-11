@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from src.core.config import settings
 from src.domains.agents.prompts.prompt_loader import load_prompt
+from src.domains.journals.portrait_catalogue import render_catalogue_sections
 
 # The persona is appended after the consolidation template, separated by a blank line.
 _PERSONA_SEPARATOR = "\n\n"
@@ -206,6 +207,14 @@ def render_consolidation_prompt(
     Returns:
         The complete prompt string sent to the consolidation LLM.
     """
+    sources = render_catalogue_sections(
+        {
+            "memories": memories_section,
+            "interests": interests_section,
+            "habits": habits_section,
+            "relation_debriefs": debriefs_section,
+        }
+    )
     prompt = template.format(
         all_entries=all_entries,
         current_chars=current_chars,
@@ -218,10 +227,10 @@ def render_consolidation_prompt(
         max_entry_chars=max_entry_chars,
         size_management_instruction=size_management_instruction,
         health_signals_section=health_signals_section,
-        memories_section=memories_section,
-        interests_section=interests_section,
-        habits_section=habits_section,
-        debriefs_section=debriefs_section,
+        memories_section=sources["memories"],
+        interests_section=sources["interests"],
+        habits_section=sources["habits"],
+        debriefs_section=sources["relation_debriefs"],
         portrait_full_tokens=portrait_full_tokens,
         portrait_brief_tokens=portrait_brief_tokens,
     )

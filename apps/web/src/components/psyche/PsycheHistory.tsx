@@ -25,7 +25,8 @@ import {
   YAxis,
 } from 'recharts';
 
-import { useApiQuery } from '@/hooks/useApiQuery';
+import { useApplicationAccountQuery } from '@/hooks/useApplicationAccountQuery';
+import { useApplicationResourceSync } from '@/hooks/useApplicationResourceSync';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import type { PsycheHistoryEntry } from '@/types/psyche';
@@ -37,6 +38,7 @@ interface PsycheHistoryProps {
 }
 
 type TimeRange = '24h' | '7d' | '30d' | '90d';
+const releaseHistoryOverride = () => {};
 
 /** Stable color per emotion — positive=green tones, negative=red tones, neutral=blue/gray. */
 const EMOTION_COLORS: Record<string, string> = {
@@ -88,13 +90,11 @@ export function PsycheHistory({ lng, isOpen }: PsycheHistoryProps) {
   const [activeRange, setActiveRange] = useState<TimeRange>('7d');
   const [activeTab, setActiveTab] = useState<ChartTab>('pad');
 
-  const { data, loading } = useApiQuery<PsycheHistoryEntry[]>(
+  const { data, loading, refetch, ownerId } = useApplicationAccountQuery<PsycheHistoryEntry[]>(
     `/psyche/history?limit=${RANGE_LIMITS[activeRange]}&hours=${RANGE_HOURS[activeRange]}`,
-    {
-      componentName: 'PsycheHistory',
-      enabled: isOpen,
-    }
+    'PsycheHistory', isOpen
   );
+  useApplicationResourceSync(isOpen ? ownerId : undefined, 'psyche', refetch, releaseHistoryOverride);
 
   // Extract reset markers (vertical reference lines on charts)
   const resetMarkers = useMemo(() => {

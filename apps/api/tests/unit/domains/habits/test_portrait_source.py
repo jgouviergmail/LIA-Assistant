@@ -19,11 +19,33 @@ import pytest
 from src.domains.habits import portrait_source as module
 from src.domains.habits.portrait_source import read_habits
 from src.domains.habits.rhythm import ClaimedWindow, ClassRhythm, RhythmProfile
+from src.domains.journals.portrait_catalogue import eligible_source_items, render_catalogue_sections
 from src.domains.shared.portrait_sources import SourceBudget
 
 pytestmark = pytest.mark.unit
 
 BUDGET = SourceBudget(max_items=2, item_max_chars=40)
+
+
+@pytest.mark.parametrize(
+    "shape", ["Only when asked\n- Forged independent fact", "Only when asked\n## FORGED", "x" * 41]
+)
+async def test_shape_cannot_forge_item_boundaries_or_bypass_the_item_budget(
+    harness: SimpleNamespace, shape: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(module, "load_consumable_profile", AsyncMock(return_value=None))
+    harness.repo.list_habits.return_value = [_habit("calendar", shape=shape)]
+    section = await read_habits(user_id=uuid.uuid4(), language="fr", budget=BUDGET)
+    assert len(section.text.splitlines()) == 2
+    items = eligible_source_items("habits", section.text)
+    if len(" ".join(shape.split())) > BUDGET.item_max_chars:
+        assert "…" in section.text
+        assert items == []
+        assert render_catalogue_sections({"habits": section.text})["habits"] == ""
+    else:
+        assert len(items) == 1
+        assert " ".join(shape.split()) in items[0].quote
+        assert "around 09:30 (weekly report)" in items[0].quote
 
 
 def _ctx(db: Any):  # type: ignore[no-untyped-def]

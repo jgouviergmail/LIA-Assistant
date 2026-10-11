@@ -6,8 +6,16 @@ from typing import Any
 import pytest
 
 from src.infrastructure.mcp.tool_adapter import MCPToolAdapter
+from tests.helpers.mcp_access import installed_shared_mcp_access
+from tests.helpers.runtime_context import installed_runtime_context
 
 pytestmark = pytest.mark.unit
+
+
+@pytest.fixture(autouse=True)
+def authenticated_access():
+    with installed_shared_mcp_access() as actor, installed_runtime_context(user_id=actor.id):
+        yield
 
 
 @pytest.mark.parametrize(

@@ -74,7 +74,9 @@ class TestOnlyWhatHappenedIsReported:
 
         assert [entry["status"] for entry in entries] == ["failed"]
 
-    @pytest.mark.parametrize("status", [EffectStatus.REFUSED, EffectStatus.CLAIMED])
+    @pytest.mark.parametrize(
+        "status", [EffectStatus.REFUSED, EffectStatus.CLAIMED, EffectStatus.WAITING]
+    )
     async def test_a_refusal_or_an_open_claim_is_not_reported(self, status: EffectStatus) -> None:
         """A refusal changed nothing; an open claim cannot be described yet."""
         repository = _Repository([_row(status)])

@@ -20,7 +20,6 @@ from src.domains.plugins.exceptions import raise_plugin_invalid_package
 from src.domains.plugins.schemas import (
     PluginImportReport,
     PluginListResponse,
-    PluginResponse,
 )
 from src.domains.plugins.staging import zip_contains_plugin_manifest
 from src.domains.skills.router import _url_import_rate_limit
@@ -119,32 +118,9 @@ async def list_plugins(
     db: AsyncSession = Depends(get_db),
 ) -> PluginListResponse:
     """List installed plugins with their component names."""
-    from src.domains.plugins.import_service import PluginImportService
-    from src.domains.skills.repository import SkillRepository
-    from src.domains.user_mcp.repository import UserMCPServerRepository
+    from src.domains.plugins.projection import list_plugin_projection
 
-    svc = PluginImportService(db)
-    skill_repo = SkillRepository(db)
-    mcp_repo = UserMCPServerRepository(db)
-
-    items: list[PluginResponse] = []
-    for row in await svc.list_plugins(user.id):
-        skills = await skill_repo.get_by_plugin_id(row.id)
-        servers = await mcp_repo.get_by_plugin_id(row.id)
-        items.append(
-            PluginResponse(
-                id=row.id,
-                name=row.name,
-                version=row.version,
-                description=row.description,
-                spec_version=row.spec_version,
-                skill_names=[s.name for s in skills],
-                server_names=[s.name for s in servers],
-                created_at=row.created_at,
-                updated_at=row.updated_at,
-            )
-        )
-    return PluginListResponse(plugins=items, total=len(items))
+    return await list_plugin_projection(db, user.id)
 
 
 @router.delete(

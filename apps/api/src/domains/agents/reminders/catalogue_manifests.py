@@ -59,21 +59,11 @@ REMINDER_AGENT_MANIFEST = AgentManifest(
 
 create_reminder_catalogue_manifest = ToolManifest(
     name="create_reminder_tool",
-    # `reversible`, not `draft`: this tool WRITES and commits. `draft` is
-    # pass-through in the effect gate, precisely because a draft only builds
-    # the confirmation someone will answer — so declaring it here meant a
-    # reminder created by conversation was neither asked for nor recorded,
-    # on a tool whose declaration said the opposite (ADR-263, fixed 2026-09-06).
-    # Creating a reminder is deliberately not gated: it is anodyne and already
-    # undoable, and DELETING one already asks.
-    mutation_policy="reversible",
-    mutation_policy_reason=(
-        "Writes a reminder the reader can delete at any time; the deletion is "
-        "the step that asks."
-    ),
+    # Compatibility temporal parsing produces the same exact native HITL draft.
+    mutation_policy="draft",
     agent="reminder_agent",
     description=(
-        "Creates a reminder for the user. "
+        "Prepares exact human confirmation to create a reminder. No reminder is written before approval. "
         "The reminder will be sent as a push notification (FCM) "
         "and recorded in conversation history at the scheduled time. "
         "Use trigger_datetime for fixed times, or relative_trigger for FOR_EACH "
@@ -93,6 +83,7 @@ create_reminder_catalogue_manifest = ToolManifest(
                 ParameterConstraint(kind="min_length", value=1),
                 ParameterConstraint(kind="max_length", value=500),
             ],
+            semantic_type="Text",
         ),
         ParameterSchema(
             name="trigger_datetime",
@@ -137,6 +128,7 @@ create_reminder_catalogue_manifest = ToolManifest(
             constraints=[
                 ParameterConstraint(kind="min_length", value=1),
             ],
+            semantic_type="Text",
         ),
         # The spoken recurrence vocabulary, bounded by what a REMINDER allows
         # (48 firings a day where a routine gets 12). `repeat` is optional
@@ -146,26 +138,8 @@ create_reminder_catalogue_manifest = ToolManifest(
     ],
     outputs=[
         OutputFieldSchema(
-            path="reminder_id",
-            type="string",
-            description="UUID of the created reminder",
-            semantic_type="reminder_id",
-        ),
-        OutputFieldSchema(
-            path="trigger_at_formatted",
-            type="string",
-            description="Date/time formatted in user's timezone",
-            semantic_type="trigger_datetime",
-        ),
-        OutputFieldSchema(
-            path="schedule_human",
-            type="string",
-            nullable=True,
-            description=(
-                "The schedule in the reader's own words, when the reminder "
-                "repeats; null for a single firing."
-            ),
-        ),
+            path="draft", type="object", description="Pending exact creation confirmation"
+        )
     ],
     cost=CostProfile(
         est_tokens_in=50,
@@ -191,10 +165,7 @@ create_reminder_catalogue_manifest = ToolManifest(
         "reminder me about something at future time",
         "don't let me forget to do this",
     ],
-    reference_examples=[
-        "reminder_id",
-        "trigger_at_formatted",
-    ],
+    reference_examples=["draft.id", "draft.type"],
     display=DisplayMetadata(
         emoji="➕",
         i18n_key="create_reminder",
@@ -215,9 +186,10 @@ list_reminders_catalogue_manifest = ToolManifest(
     name="list_reminders_tool",
     agent="reminder_agent",
     description=(
-        "Lists user's pending reminders. "
-        "Returns all reminders with 'pending' status, "
-        "sorted by trigger time ascending."
+        "Lists a compact, source-bounded page of the user's pending reminders, "
+        "sorted by trigger time ascending. This page is not notification history "
+        "and must not be called exhaustive. For full management settings and "
+        "continuation use get_lia_reminders_tool."
     ),
     parameters=[],  # No parameters needed
     outputs=[
@@ -242,7 +214,19 @@ list_reminders_catalogue_manifest = ToolManifest(
             path="reminders[].trigger_at_formatted",
             type="string",
             description="Formatted date/time",
+            semantic_type="formatted_time",
+        ),
+        OutputFieldSchema(
+            path="reminders[].trigger_at",
+            type="string",
+            description="Scheduled trigger instant (ISO 8601)",
             semantic_type="trigger_datetime",
+        ),
+        OutputFieldSchema(
+            path="reminders[].created_at",
+            type="string",
+            description="Creation instant (ISO 8601)",
+            semantic_type="datetime",
         ),
     ],
     cost=CostProfile(
@@ -289,7 +273,7 @@ cancel_reminder_catalogue_manifest = ToolManifest(
     mutation_policy="draft",
     agent="reminder_agent",
     description=(
-        "Cancels a pending reminder. "
+        "Prepares exact human confirmation to delete a pending reminder and all remaining occurrences. "
         "Can identify reminder by direct UUID or natural reference "
         "('next', 'the next one')."
     ),
@@ -298,7 +282,6 @@ cancel_reminder_catalogue_manifest = ToolManifest(
             name="reminder_identifier",
             type="string",
             required=True,
-            semantic_type="reminder_id",
             description=(
                 "Reminder ID (UUID) or natural reference "
                 "('next' for the next scheduled reminder)"
@@ -310,27 +293,8 @@ cancel_reminder_catalogue_manifest = ToolManifest(
     ],
     outputs=[
         OutputFieldSchema(
-            path="success",
-            type="boolean",
-            description="Whether cancellation succeeded",
-        ),
-        OutputFieldSchema(
-            path="reminder_id",
-            type="string",
-            description="UUID of cancelled reminder",
-            semantic_type="reminder_id",
-        ),
-        OutputFieldSchema(
-            path="content",
-            type="string",
-            description="Content of cancelled reminder",
-            semantic_type="Text",
-        ),
-        OutputFieldSchema(
-            path="message",
-            type="string",
-            description="Confirmation message",
-        ),
+            path="draft", type="object", description="Pending exact deletion confirmation"
+        )
     ],
     cost=CostProfile(
         est_tokens_in=40,
@@ -342,7 +306,7 @@ cancel_reminder_catalogue_manifest = ToolManifest(
         required_scopes=[],  # Internal tool, no OAuth
         data_classification="CONFIDENTIAL",
         # Draft-based: cancel_reminder_tool returns requires_confirmation=True
-        # (reminder_delete draft) → draft_critique, like delete_contact/delete_task.
+        # (application_action draft) → draft_critique.
         # hitl_required stays False (see test_hitl_required_consistency.py): the flag
         # only drives ReAct's pre-execution interrupt, redundant AND unrendered for a
         # draft tool (silent hang).
@@ -356,10 +320,7 @@ cancel_reminder_catalogue_manifest = ToolManifest(
         "stop upcoming reminder alert",
         "dismiss reminder I don't need it",
     ],
-    reference_examples=[
-        "reminder_id",
-        "content",
-    ],
+    reference_examples=["draft.id", "draft.type"],
     display=DisplayMetadata(
         emoji="❌",
         i18n_key="cancel_reminder",

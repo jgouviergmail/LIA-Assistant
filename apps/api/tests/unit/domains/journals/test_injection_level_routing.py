@@ -39,6 +39,11 @@ def _entry(content: str, level: str = "L1") -> SimpleNamespace:
         search_hints=[],
         char_count=len(content),
         level=level,
+        source="conversation",
+        confidence="medium",
+        evidence_count=0,
+        contradiction_count=0,
+        revision=1,
     )
 
 
@@ -47,7 +52,22 @@ def _user() -> SimpleNamespace:
         journals_enabled=True,
         journal_context_max_chars=3000,
         journal_context_max_results=5,
+        is_active=True,
+        deleted_at=None,
     )
+
+
+@pytest.fixture(autouse=True)
+def _offline_injection_dependencies():
+    """Exercise rendering and policy without consulting operator/Redis stores."""
+    from src.domains.journals import context_builder
+
+    with (
+        patch.object(context_builder, "is_capability_enabled", AsyncMock(return_value=True)),
+        patch.object(context_builder, "effective_threshold", AsyncMock(return_value=0.63)),
+        patch.object(context_builder, "observe_score", AsyncMock()),
+    ):
+        yield
 
 
 @pytest.mark.unit
@@ -76,6 +96,7 @@ class TestOperationalInjectionLevelRouting:
             )
 
         assert repo.search_by_relevance.await_args.kwargs["exclude_levels"] == ["L0", "L3"]
+        assert repo.search_by_relevance.await_args.kwargs["operational_only"] is True
 
     async def test_explicit_empty_override_injects_all_levels(self) -> None:
         """An explicit ``exclude_levels=[]`` disables the filter (extraction-style)."""
@@ -129,3 +150,93 @@ class TestOperationalInjectionLevelRouting:
         assert long_a in result and long_b in result and long_c in result
         assert "..." not in result
         assert len(ids) == 3
+
+    async def test_operator_off_opens_neither_user_nor_semantic_search(self) -> None:
+        from src.domains.journals import context_builder
+
+        db = _make_db(_user())
+        with patch.object(context_builder, "is_capability_enabled", AsyncMock(return_value=False)):
+            assert await context_builder.build_journal_context(uuid4(), "q", db) == (None, None, [])
+        db.execute.assert_not_awaited()
+
+    @pytest.mark.parametrize("budget", [200, 500, 600, 700])
+    async def test_insufficient_budget_omits_the_whole_directive(self, budget: int) -> None:
+        from src.domains.journals import context_builder
+
+        user = _user()
+        user.journal_context_max_chars = budget
+        content = "WHEN preparing a report, " + "verify facts; " * 20 + "DO ask before publishing."
+        repo = MagicMock(search_by_relevance=AsyncMock(return_value=[(_entry(content), 0.9)]))
+        with (
+            patch.object(context_builder, "JournalEntryRepository", return_value=repo),
+            patch.object(context_builder, "track_injected_entries") as track,
+        ):
+            block, debug, ids = await context_builder.build_journal_context(
+                uuid4(),
+                "report",
+                _make_db(user),
+                query_embedding=[0.1] * 1536,
+                include_debug=True,
+            )
+        assert block is None and ids == []
+        assert debug["entries_injected"] == 0
+        assert debug["total_chars_injected"] == 0
+        track.assert_not_called()
+
+    async def test_exact_rendered_boundary_keeps_full_action_and_revision(self) -> None:
+        from src.domains.journals import context_builder
+
+        user = _user()
+        item = _entry("WHEN producing a report DO cite the source.")
+        item.revision = 7
+        repo = MagicMock(search_by_relevance=AsyncMock(return_value=[(item, 0.9)]))
+        with (
+            patch.object(context_builder, "JournalEntryRepository", return_value=repo),
+            patch.object(context_builder, "track_injected_entries"),
+        ):
+            whole, _, _ = await context_builder.build_journal_context(
+                uuid4(),
+                "report",
+                _make_db(user),
+                query_embedding=[0.1] * 1536,
+            )
+            user.journal_context_max_chars = len(whole)
+            block, _, ids = await context_builder.build_journal_context(
+                uuid4(),
+                "report",
+                _make_db(user),
+                query_embedding=[0.1] * 1536,
+            )
+            user.journal_context_max_chars -= 1
+            absent, _, absent_ids = await context_builder.build_journal_context(
+                uuid4(),
+                "report",
+                _make_db(user),
+                query_embedding=[0.1] * 1536,
+            )
+        assert block == whole and item.content in block
+        assert "confidence=medium" in block and "revision=7" in block
+        assert ids == [str(item.id)]
+        assert absent is None and absent_ids == []
+
+    async def test_incompatible_shared_vector_is_recomputed_by_journal_model(self) -> None:
+        from src.core.config import settings
+        from src.domains.journals import context_builder
+
+        shared, correct = [0.1] * 1536, [0.2] * 1536
+        repo = MagicMock(search_by_relevance=AsyncMock(return_value=[]))
+        embedding = MagicMock(aembed_query=AsyncMock(return_value=correct))
+        with (
+            patch.object(settings, "memory_embedding_model", "models/gemini-embedding-2"),
+            patch.object(settings, "journal_embedding_model", "models/gemini-embedding-001"),
+            patch.object(context_builder, "JournalEntryRepository", return_value=repo),
+            patch("src.domains.journals.embedding.get_journal_embeddings", return_value=embedding),
+        ):
+            await context_builder.build_journal_context(
+                uuid4(),
+                "report",
+                _make_db(_user()),
+                query_embedding=shared,
+            )
+        embedding.aembed_query.assert_awaited_once_with("report")
+        assert repo.search_by_relevance.await_args.kwargs["query_embedding"] is correct

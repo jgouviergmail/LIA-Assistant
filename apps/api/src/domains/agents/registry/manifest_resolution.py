@@ -2,19 +2,23 @@
 
 from contextlib import suppress
 
-from src.core.context import strip_hallucinated_mcp_suffix, user_mcp_tools_ctx
+from src.core.context import (
+    request_tool_manifests_ctx,
+    strip_hallucinated_mcp_suffix,
+    user_mcp_tools_ctx,
+)
 from src.domains.agents.registry.agent_registry import get_global_registry
 from src.domains.agents.registry.catalogue import ToolManifest, ToolManifestNotFound
+from src.domains.agents.registry.request_tool_identity import offered_manifest_named
 
 
 def resolve_tool_manifest_named(name: str) -> tuple[ToolManifest | None, str]:
     """Resolve a tool name to its ``ToolManifest`` AND its canonical name.
 
-    Manifest counterpart of :func:`resolve_tool_instance_named`. Resolution order:
-        1. Global ``AgentRegistry`` — exact (native tools + admin MCP).
-        2. Global ``AgentRegistry`` — with the hallucinated suffix stripped.
-        3. Per-request ``user_mcp_tools_ctx`` — fuzzy resolve (the returned
-           manifest's ``name`` is the canonical name).
+    A bound request snapshot is authoritative, including an explicitly empty
+    catalogue. It admits iterative individuals by exact task/server identity.
+    Outside a request, diagnostics retain global exact/suffix lookup followed
+    by the user context. The returned name is always the canonical alias.
 
     Args:
         name: Tool name to resolve.
@@ -22,6 +26,9 @@ def resolve_tool_manifest_named(name: str) -> tuple[ToolManifest | None, str]:
     Returns:
         ``(manifest, canonical_name)`` when found, or ``(None, name)`` otherwise.
     """
+    offered = request_tool_manifests_ctx.get()
+    if offered is not None:
+        return offered_manifest_named(name, offered, user_mcp_tools_ctx.get())
     registry = get_global_registry()
     manifest: ToolManifest | None
 

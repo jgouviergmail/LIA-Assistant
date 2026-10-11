@@ -13,12 +13,15 @@ Background extraction/consolidation services also use this service
 for consistent char_count + embedding handling (DRY).
 """
 
-from contextlib import suppress
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.domains.journals.consolidation_controls import check_consolidation_embedding
 from src.domains.journals.constants import JOURNAL_ENTRY_CONTENT_MAX_LENGTH
+from src.domains.journals.evidence import apply_update, clamp_confidence, stale_rule
+from src.domains.journals.lifecycle import lock_journal_owner, mark_journal_changed
 from src.domains.journals.models import (
     JournalEntry,
     JournalEntryConfidence,
@@ -30,45 +33,13 @@ from src.domains.journals.models import (
 from src.domains.journals.repository import JournalEntryRepository
 from src.domains.journals.schemas import JournalCostInfo, JournalSizeInfo
 from src.infrastructure.observability.logging import get_logger
-from src.infrastructure.observability.metrics_journals import (
-    journal_confidence_clamped_total,
-    journal_consolidation_promotions_total,
-    journal_evidence_total,
-)
 
 logger = get_logger(__name__)
 
+JournalEmbeddings = tuple[list[float] | None, list[float] | None]
 
-def _clamp_confidence(confidence: str, level: str, evidence_count: int, source: str) -> str:
-    """Epistemic clamp (B-06, 2026-08-19): make the confidence contract true.
 
-    ``high`` means "confirmed by repeated evidence" — an L0/L1 directive
-    cannot hold it while its ``evidence_count`` is zero (prod held 6/6
-    entries at high with zero evidence). L2/L3 stay free: their evidence is
-    cross-entry convergence, not a reaction counter. Mechanically repairable
-    → repaired (never reported as an error to the LLM), per the ADR-184
-    doctrine.
-
-    Args:
-        confidence: Requested confidence value.
-        level: The entry's FINAL abstraction level for this action.
-        evidence_count: Current system-managed evidence counter.
-        source: Metric label — ``create`` or ``update``.
-
-    Returns:
-        The confidence to store (demoted to ``medium`` when clamped).
-    """
-    if (
-        confidence == JournalEntryConfidence.HIGH.value
-        and level in (JournalEntryLevel.L0.value, JournalEntryLevel.L1.value)
-        and evidence_count == 0
-    ):
-        # metrics never break writes
-        with suppress(Exception):
-            journal_confidence_clamped_total.labels(source=source).inc()
-        logger.info("journal_confidence_clamped", level=level, source=source)
-        return JournalEntryConfidence.MEDIUM.value
-    return confidence
+_clamp_confidence = clamp_confidence
 
 
 async def _generate_document_embedding(text: str) -> list[float] | None:
@@ -85,6 +56,7 @@ async def _generate_document_embedding(text: str) -> list[float] | None:
     Returns:
         1536-dim float vector, or None on error.
     """
+    await check_consolidation_embedding()
     try:
         from src.domains.journals.embedding import get_journal_embeddings
 
@@ -136,6 +108,13 @@ async def _generate_dual_embeddings(
     return content_embedding, keyword_embedding
 
 
+async def prepare_embeddings(
+    title: str, content: str, search_hints: list[str] | None = None
+) -> JournalEmbeddings:
+    """Prepare a write outside the caller's atomic settlement lock."""
+    return await _generate_dual_embeddings(title, content, search_hints)
+
+
 class JournalService:
     """
     Business logic for journal entry management.
@@ -168,6 +147,8 @@ class JournalService:
         search_hints: list[str] | None = None,
         confidence: str = JournalEntryConfidence.MEDIUM.value,
         level: str = JournalEntryLevel.L1.value,
+        precomputed_embeddings: JournalEmbeddings | None = None,
+        entry_id: UUID | None = None,
     ) -> JournalEntry:
         """
         Create a new journal entry with char_count and embedding.
@@ -192,24 +173,25 @@ class JournalService:
         Returns:
             Created JournalEntry with ID, char_count, and embedding
         """
-        # Truncate content if exceeding max (safety net for LLM output)
         if len(content) > max_entry_chars:
-            original_length = len(content)
-            content = content[:max_entry_chars]
-            logger.warning(
-                "journal_entry_content_truncated",
-                user_id=str(user_id),
-                original_length=original_length,
-                max_length=max_entry_chars,
-            )
+            raise ValueError("Journal content exceeds the configured entry limit")
+        if source == JournalEntrySource.CONVERSATION.value and level not in ("L0", "L1"):
+            raise ValueError("Conversation extraction cannot create consolidated journal levels")
 
         char_count = len(content)
 
         # Epistemic clamp: a fresh L0/L1 has zero evidence by definition (B-06).
         confidence = _clamp_confidence(confidence, level, evidence_count=0, source="create")
+        if source == JournalEntrySource.CONSOLIDATION.value and confidence == "high":
+            # Converging supports authorize a synthesis, not its validation.
+            confidence = "medium"
 
         # Generate dual embeddings: title+content + search_hints separately
-        embedding, keyword_embedding = await _generate_dual_embeddings(title, content, search_hints)
+        embedding, keyword_embedding = (
+            precomputed_embeddings
+            if precomputed_embeddings is not None
+            else await _generate_dual_embeddings(title, content, search_hints)
+        )
 
         entry = JournalEntry(
             user_id=user_id,
@@ -228,8 +210,13 @@ class JournalService:
             confidence=confidence,
             level=level,
         )
+        if entry_id is not None:
+            entry.id = entry_id
 
-        return await self.repo.create(entry)
+        await lock_journal_owner(self.db, user_id)
+        created = await self.repo.create(entry)
+        await mark_journal_changed(self.db, user_id)
+        return created
 
     # =========================================================================
     # Update
@@ -247,104 +234,142 @@ class JournalService:
         evidence_outcome: str | None = None,
         level: str | None = None,
         theme: str | None = None,
+        event_key: str | None = None,
+        evidence_source: str | None = None,
+        expected_revision: int | None = None,
+        precomputed_embeddings: JournalEmbeddings | None = None,
     ) -> JournalEntry:
+        """Apply a revision-checked update and one distinct reaction event.
+
+        Different content is a new proposition: its revision advances and its
+        validation resets. Title/hint edits retain validation. Embeddings are
+        prepared before the owner/entry locks; no provider call holds them.
+        An outcome about replaced words cannot validate the new proposition.
         """
-        Update an existing journal entry.
-
-        Recalculates char_count and regenerates embedding if content changes.
-
-        Args:
-            entry: Existing JournalEntry instance
-            title: New title (None = keep current)
-            content: New content (None = keep current)
-            mood: New mood (None = keep current)
-            max_entry_chars: Max content length (safety net for LLM output)
-            search_hints: New search hints (None = keep current)
-            confidence: New epistemic status (None = keep current). The LLM may
-                promote/demote based on evidence accumulation; the user may also
-                override manually via the API.
-            evidence_outcome: Deferred self-evaluation signal — "evidence" or
-                "contradiction". When set, atomically increments the corresponding
-                counter on the entry. The LLM only signals the outcome; the absolute
-                counts are system-managed to prevent hallucination.
-            level: New abstraction level (L0/L1/L2/L3). When the level differs
-                from the current one, the consolidation_promotions Prometheus
-                counter is incremented.
-            theme: New theme — used by the consolidation reclassification audit
-                to fix systematic misclassifications (e.g. moving a directive
-                from `user_observations` to `learnings` when its BECAUSE clause
-                cites a specific past correction event).
-
-        Returns:
-            Updated JournalEntry
-        """
-        content_changed = False
-
-        if title is not None:
-            entry.title = title
-            content_changed = True
-
+        if content is not None and len(content) > max_entry_chars:
+            raise ValueError("Journal content exceeds the configured entry limit")
+        changes: dict[str, Any] = {
+            key: value
+            for key, value in {
+                "title": title,
+                "content": content,
+                "mood": mood,
+                "search_hints": search_hints,
+                "level": level,
+                "theme": theme,
+            }.items()
+            if value is not None
+        }
         if content is not None:
-            if len(content) > max_entry_chars:
-                content = content[:max_entry_chars]
-            entry.content = content
-            entry.char_count = len(content)
-            content_changed = True
+            changes["char_count"] = len(content)
+        if any(
+            value is not None and value != getattr(entry, key)
+            for key, value in (
+                ("title", title),
+                ("content", content),
+                ("search_hints", search_hints),
+            )
+        ):
+            embedding, keyword_embedding = (
+                precomputed_embeddings
+                if precomputed_embeddings is not None
+                else await _generate_dual_embeddings(
+                    title if title is not None else entry.title,
+                    content if content is not None else entry.content,
+                    search_hints if search_hints is not None else entry.search_hints,
+                )
+            )
+            changes["embedding"], changes["keyword_embedding"] = embedding, keyword_embedding
+        updated = await apply_update(
+            self.db,
+            entry,
+            changes,
+            confidence=confidence,
+            evidence_outcome=evidence_outcome,
+            event_key=event_key,
+            evidence_source=evidence_source,
+            expected_revision=expected_revision,
+        )
+        return await self.repo.update(updated)
 
-        if mood is not None:
-            entry.mood = mood
+    async def merge_entries(
+        self,
+        winner: JournalEntry,
+        source_ids: list[UUID],
+        expected_revisions: dict[str, int],
+        precomputed_embeddings: JournalEmbeddings | None = None,
+    ) -> JournalEntry:
+        """Merge equivalent propositions with deterministic source-event union."""
+        from src.domains.journals.merging import merge_entries, union_hints
 
-        if theme is not None:
-            entry.theme = theme
-
-        if search_hints is not None:
-            entry.search_hints = search_hints
-            content_changed = True  # Hints affect embedding text
-
-        # Evidence signal FIRST: a confirming outcome in the same update
-        # legitimately raises the counter the confidence clamp reads (B-06).
-        if evidence_outcome == "evidence":
-            entry.evidence_count = entry.evidence_count + 1
-            with suppress(Exception):
-                journal_evidence_total.labels(outcome="evidence").inc()
-        elif evidence_outcome == "contradiction":
-            entry.contradiction_count = entry.contradiction_count + 1
-            with suppress(Exception):
-                journal_evidence_total.labels(outcome="contradiction").inc()
-
-        if level is not None and level != entry.level:
-            # metrics never break writes
-            with suppress(Exception):
-                journal_consolidation_promotions_total.labels(
-                    from_level=entry.level, to_level=level
-                ).inc()
-            entry.level = level
-
-        if confidence is not None:
-            # Clamp against the FINAL level and the post-signal counter (B-06).
-            entry.confidence = _clamp_confidence(
-                confidence, entry.level, entry.evidence_count, source="update"
+        sources = [
+            await self.repo.get_by_id_for_user(identifier, winner.user_id)
+            for identifier in sorted(set(source_ids) - {winner.id})
+        ]
+        if any(source is None for source in sources):
+            raise stale_rule()
+        prepared_hints = union_hints(
+            [winner, *[source for source in sources if source is not None]]
+        )
+        keyword_embedding = winner.keyword_embedding
+        if precomputed_embeddings is not None:
+            keyword_embedding = precomputed_embeddings[1]
+        elif prepared_hints != (winner.search_hints or []):
+            keyword_embedding = (
+                await _generate_document_embedding(" ".join(prepared_hints))
+                if prepared_hints
+                else None
             )
 
-        # Regenerate dual embeddings if title, content, or search_hints changed
-        if content_changed:
-            entry.embedding, entry.keyword_embedding = await _generate_dual_embeddings(
-                entry.title, entry.content, entry.search_hints
-            )
+        return await merge_entries(
+            self.db,
+            winner,
+            source_ids,
+            expected_revisions,
+            prepared_hints=prepared_hints,
+            keyword_embedding=keyword_embedding,
+        )
 
-        return await self.repo.update(entry)
+    async def prepare_merge_embeddings(
+        self, winner: JournalEntry, sources: list[JournalEntry]
+    ) -> JournalEmbeddings:
+        """Prepare merged vocabulary before taking any journal write lock."""
+        from src.domains.journals.merging import union_hints
+
+        hints = union_hints([winner, *sources])
+        keyword = winner.keyword_embedding
+        if hints != (winner.search_hints or []):
+            keyword = await _generate_document_embedding(" ".join(hints)) if hints else None
+        return winner.embedding, keyword
 
     # =========================================================================
     # Delete
     # =========================================================================
 
-    async def delete_entry(self, entry: JournalEntry) -> None:
+    async def delete_entry(self, entry: JournalEntry, expected_revision: int | None = None) -> None:
         """Delete a single journal entry."""
+        await lock_journal_owner(self.db, entry.user_id)
+        if expected_revision is not None:
+            from sqlalchemy import select
+
+            revision = (
+                await self.db.execute(
+                    select(JournalEntry.revision)
+                    .where(JournalEntry.id == entry.id, JournalEntry.user_id == entry.user_id)
+                    .with_for_update()
+                )
+            ).scalar_one_or_none()
+            if revision != expected_revision:
+                raise stale_rule()
         await self.repo.delete_entry(entry)
+        await mark_journal_changed(self.db, entry.user_id)
 
     async def delete_all_for_user(self, user_id: UUID) -> int:
         """Delete all journal entries for a user (GDPR)."""
-        return await self.repo.delete_all_for_user(user_id)
+        await lock_journal_owner(self.db, user_id)
+        deleted = await self.repo.delete_all_for_user(user_id)
+        await mark_journal_changed(self.db, user_id)
+        return deleted
 
     # =========================================================================
     # Read / Query

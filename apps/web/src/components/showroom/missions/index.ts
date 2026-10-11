@@ -1,8 +1,9 @@
 /**
  * Ordered registry of the guided showroom missions.
  *
- * The canonical order is the picker order: the original orchestration
- * mission first, then one mission per differentiating mechanism. The id
+ * The picker connects six everyday situations around one personal context.
+ * Historical ids stay internal to preserve the bounded telemetry contract;
+ * fixture versions distinguish the refreshed stories. The id
  * list mirrors `SHOWROOM_MISSION_IDS` in `lib/product-telemetry` (and the
  * backend vocabulary) — completeness is guarded by fixtures.test.ts, so a
  * mission cannot exist without its two bounded per-mission funnel events.

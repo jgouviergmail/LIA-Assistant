@@ -63,6 +63,12 @@ def raise_document_not_found(document_id: uuid.UUID) -> NoReturn:
     )
 
 
+def require_deletable_document(document: RAGDocument) -> None:
+    """One source rule for single and exact batch deletion of domain projections."""
+    if document.source_type in UNDELETABLE_DOCUMENT_KINDS:
+        raise_document_managed(document.source_type)
+
+
 def document_file_path(document: RAGDocument) -> Path:
     """The on-disk path of a document's stored file.
 

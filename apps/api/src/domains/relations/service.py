@@ -44,6 +44,11 @@ from src.domains.relations.peer_messages import (
     fetch_peer_message_activity,
     fetch_peer_messages_for,
 )
+from src.domains.relations.preference_commands import (
+    RelationPreferencePatch,
+    lock_relation_owner,
+    update_relation_preferences,
+)
 from src.domains.relations.repository import (
     RelationAliasRepository,
     RelationFavoriteRepository,
@@ -269,13 +274,9 @@ class RelationsService:
             scope: The validated selection.
         """
         async with get_db_context() as db:
-            user = await db.get(User, self.user_id)
-            if user is None:  # defensive — the session dependency resolved them
-                return
-            # A NEW dict, never an in-place mutation: SQLAlchemy skips the
-            # UPDATE when a JSONB column is mutated in place (CLAUDE.md).
-            user.relation_overview_scope = scope.model_dump(mode="json")
-            await db.commit()
+            await update_relation_preferences(
+                db, self.user_id, RelationPreferencePatch(relation_overview_scope=scope)
+            )
         logger.info(
             "relations_overview_scope_saved",
             user_id=str(self.user_id),
@@ -290,14 +291,12 @@ class RelationsService:
             enabled: What the reader asked for.
 
         Returns:
-            The stored value (unchanged when the user vanished mid-request).
+            The acknowledged stored value. An inactive or vanished account refuses.
         """
         async with get_db_context() as db:
-            user = await db.get(User, self.user_id)
-            if user is None:  # defensive — the session dependency resolved them
-                return enabled
-            user.relation_debrief_enabled = enabled
-            await db.commit()
+            await update_relation_preferences(
+                db, self.user_id, RelationPreferencePatch(relation_debrief_enabled=enabled)
+            )
         logger.info("relation_debrief_preference_set", user_id=str(self.user_id), enabled=enabled)
         return enabled
 
@@ -598,6 +597,13 @@ class RelationsService:
             ValueError: When either side is blank, or both fold to the same
                 identity (there would be nothing to merge).
         """
+        async with get_db_context() as db:
+            canonical = await self.merge_in_session(db, source=source, target=target)
+        logger.info("relation_merged", user_id=str(self.user_id))
+        return canonical
+
+    async def merge_in_session(self, db: AsyncSession, *, source: str, target: str) -> str:
+        """Apply the source merge within the caller-owned transaction; do not commit."""
         source_display = source.strip()
         source_key = _normalize_name(source_display)
         target_key = _normalize_name(target)
@@ -608,30 +614,30 @@ class RelationsService:
         if source_key == target_key:
             raise ValueError("source and target are the same relationship")
 
-        async with get_db_context() as db:
-            repo = RelationAliasRepository(db)
-            resolver = await self._load_identity_resolver(db)
-            canonical = resolver.canonical(target_key)
-            # Two DIFFERENT cards that already form one identity: nothing to
-            # write. Not an error — the user is asking for a state that holds.
-            # This is also what makes a cycle impossible: merging back the
-            # other way lands here instead of writing B→A over A→B.
-            if resolver.canonical(source_key) == canonical:
-                return canonical
-            await repo.merge(
-                self.user_id,
-                alias_key=source_key,
-                canonical_key=canonical,
-                alias_display_name=source_display,
-            )
-            # Both halves' debriefs describe an identity that no longer exists
-            # as such. Deleting is the only honest repair — the next card open
-            # writes one for the identity that DOES exist. Same transaction as
-            # the merge: a debrief surviving a committed merge would describe
-            # the wrong person until somebody noticed.
-            await self._forget_debriefs(db, [source_key, canonical])
-        # No PII at INFO: that a merge happened, never who with whom.
-        logger.info("relation_merged", user_id=str(self.user_id))
+        repo = RelationAliasRepository(db)
+        await lock_relation_owner(db, self.user_id)
+        resolver = await self._load_identity_resolver(db)
+        canonical = resolver.canonical(target_key)
+        # Two DIFFERENT cards that already form one identity: nothing to
+        # write. Not an error — the user is asking for a state that holds.
+        # This is also what makes a cycle impossible: merging back the
+        # other way lands here instead of writing B→A over A→B.
+        if resolver.canonical(source_key) == canonical:
+            return canonical
+        await repo.merge(
+            self.user_id,
+            alias_key=source_key,
+            canonical_key=canonical,
+            alias_display_name=source_display,
+        )
+        # Both halves' debriefs describe an identity that no longer exists
+        # as such. Deleting is the only honest repair — the next card open
+        # writes one for the identity that DOES exist. Same transaction as
+        # the merge: a debrief surviving a committed merge would describe
+        # the wrong person until somebody noticed.
+        await self._forget_debriefs(
+            db, list(dict.fromkeys([source_key, resolver.canonical(source_key), canonical]))
+        )
         return canonical
 
     async def split_relation(self, name: str) -> bool:
@@ -646,18 +652,24 @@ class RelationsService:
         Raises:
             ValueError: When the name is blank.
         """
+        async with get_db_context() as db:
+            undone = await self.split_in_session(db, name)
+        logger.info("relation_split", user_id=str(self.user_id), undone=undone)
+        return undone
+
+    async def split_in_session(self, db: AsyncSession, name: str) -> bool:
+        """Apply the source split within the caller-owned transaction; do not commit."""
         key = _normalize_name(name)
         if not key:
             raise ValueError("a name is required to split a merge")
-        async with get_db_context() as db:
-            resolver = await self._load_identity_resolver(db)
-            # Read BEFORE the split: afterwards the alias resolves to itself
-            # and the canonical card's debrief would keep the merged content.
-            canonical = resolver.canonical(key)
-            undone = await RelationAliasRepository(db).split(self.user_id, alias_key=key)
-            if undone:
-                await self._forget_debriefs(db, [key, canonical])
-        logger.info("relation_split", user_id=str(self.user_id), undone=undone)
+        await lock_relation_owner(db, self.user_id)
+        resolver = await self._load_identity_resolver(db)
+        # Read BEFORE the split: afterwards the alias resolves to itself
+        # and the canonical card's debrief would keep the merged content.
+        canonical = resolver.canonical(key)
+        undone = await RelationAliasRepository(db).split(self.user_id, alias_key=key)
+        if undone:
+            await self._forget_debriefs(db, [key, canonical])
         return undone
 
     async def _forget_debriefs(self, db: AsyncSession, keys: list[str]) -> None:
@@ -687,6 +699,7 @@ class RelationsService:
         if not key:
             return
         async with get_db_context() as db:
+            await lock_relation_owner(db, self.user_id)
             await RelationFavoriteRepository(db).add(
                 self.user_id, name_key=key, display_name=display
             )
@@ -705,7 +718,11 @@ class RelationsService:
         if not key:
             return False
         async with get_db_context() as db:
-            removed = await RelationFavoriteRepository(db).remove(self.user_id, name_key=key)
+            await lock_relation_owner(db, self.user_id)
+            resolver = await self._load_identity_resolver(db)
+            removed = await RelationFavoriteRepository(db).remove_identity(
+                self.user_id, canonical_key=resolver.canonical(key)
+            )
         logger.info("relation_favorite_removed", user_id=str(self.user_id), removed=removed)
         return removed
 

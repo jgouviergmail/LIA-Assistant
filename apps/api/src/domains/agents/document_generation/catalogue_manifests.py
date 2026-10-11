@@ -77,6 +77,7 @@ generate_document_catalogue_manifest = ToolManifest(
             description=(
                 "What the document must contain: subject, structure, level of " "detail, audience."
             ),
+            semantic_type="Text",
         ),
         ParameterSchema(
             name="doc_type",
@@ -93,12 +94,14 @@ generate_document_catalogue_manifest = ToolManifest(
                 "Raw material to ground the document in — typically the result "
                 "of earlier research steps (e.g. $steps.step_1.web_searches)."
             ),
+            semantic_type="Text",
         ),
         ParameterSchema(
             name="filename",
             type="string",
             required=False,
             description="Filename requested by the user, without extension.",
+            semantic_type="file_name",
         ),
     ],
     outputs=[
@@ -106,6 +109,7 @@ generate_document_catalogue_manifest = ToolManifest(
             path="message",
             type="string",
             description="Confirmation with the generated filename",
+            semantic_type="Text",
         ),
     ],
     # Measured 2026-09-08 (tiktoken o200k_base) after ADR-274: the prompt is

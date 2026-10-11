@@ -17,14 +17,14 @@ import { persist } from 'zustand/middleware';
 import { EYES_WIDGET_PREFS_KEY } from '@/lib/constants';
 import { DEFAULT_EYE_STYLE, isValidEyeStyle, type EyeStyleId } from '@/components/eyes/eye-styles';
 
-export type EyesSize = 'sm' | 'md' | 'lg';
+export type EyesSize = 'sm' | 'md' | 'lg' | 'xl';
 
-/** Persisted size setting: a preset, or 'auto' (responsive default —
+/** Persisted size setting: a preset, or 'auto' (responsive sizing —
  * small on phones, large on desktop; resolved by the widget). */
 export type EyesSizeSetting = EyesSize | 'auto';
 
 /** Ordered size presets the size button cycles through. */
-export const EYES_SIZES: readonly EyesSize[] = ['sm', 'md', 'lg'];
+export const EYES_SIZES: readonly EyesSize[] = ['sm', 'md', 'lg', 'xl'];
 
 /** Widget anchor position as percentages of the viewport (top-left corner). */
 export interface EyesPosition {
@@ -63,7 +63,7 @@ export interface EyesWidgetStore {
 
 const DEFAULTS = {
   visible: true,
-  size: 'auto' as EyesSizeSetting,
+  size: 'xl' as EyesSizeSetting,
   style: DEFAULT_EYE_STYLE,
   position: null as EyesPosition | null,
   landingPosition: null as EyesPosition | null,

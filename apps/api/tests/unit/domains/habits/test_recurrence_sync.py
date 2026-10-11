@@ -103,6 +103,12 @@ class _FakeRepo:
         self.upserts: list[dict[str, Any]] = []
         self.deleted: list[str] = []
 
+    async def delete_stale_active_habit(self, row: Any) -> bool:
+        if row.status != HabitStatus.ACTIVE.value:
+            return False
+        await self.delete_habit(row)
+        return True
+
     async def list_habits(self, user_id: uuid.UUID, kind: str | None = None) -> list[Any]:
         return [r for r in self.rows if kind is None or r.kind == kind]
 
@@ -139,8 +145,9 @@ class _FakeRepo:
         self.rows.append(_row(key, payload=payload, last_observed_at=last_observed_at))
         return "created"
 
-    async def touch_habit(self, habit: Any, last_observed_at: datetime) -> None:
+    async def touch_habit(self, habit: Any, last_observed_at: datetime) -> bool:
         habit.last_observed_at = last_observed_at
+        return True
 
     async def delete_habit(self, habit: Any) -> None:
         self.deleted.append(habit.key)

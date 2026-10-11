@@ -21,7 +21,7 @@ from uuid import uuid4
 
 import pytest
 
-from src.core.recurrence import rearm_after
+from src.core.recurrence import describe, rearm_after
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.reminder_tools import create_reminder_tool
 from tests.helpers.runtime_context import make_tool_runtime
@@ -51,42 +51,23 @@ def _runtime() -> MagicMock:
 
 @contextmanager
 def _capture_created() -> Iterator[dict[str, Any]]:
-    """Capture what the tool asks the SERVICE to store.
+    """Capture the configuration handed to the shared proposal adapter.
 
-    The tool returns a draft id; the row is built one layer down. Asserting
-    there is asserting on what the reminder will actually be, with no database
-    in a unit test.
+    Real PostgreSQL/HITL tests prove this adapter never inserts before approval;
+    these units keep the established relative and recurring time-parser oracle.
     """
     captured: dict[str, Any] = {}
 
-    class _Service:
-        def __init__(self, db: Any) -> None:  # noqa: D107 - test double
-            pass
+    async def propose(actor_id: object, data: object, language: str) -> UnifiedToolOutput:
+        captured["data"] = data
+        return UnifiedToolOutput.data_success(
+            message="Pending confirmation",
+            structured_data={"draft": {"id": str(uuid4()), "type": "application_action"}},
+            metadata={"requires_confirmation": True},
+        )
 
-        async def create_reminder(self, user_id: Any, data: Any, user_timezone: str) -> Any:
-            captured["data"] = data
-            captured["timezone"] = user_timezone
-            return MagicMock(
-                id=uuid4(),
-                content=data.content,
-                trigger_at=datetime(2099, 1, 15, 9, 0, tzinfo=UTC),
-            )
-
-    class _Session:
-        async def __aenter__(self) -> Any:
-            # The tool commits its own session: a bare MagicMock returns a
-            # MagicMock from `commit()` and `await` on it explodes, which the
-            # tool then reports as a creation failure (F028's cousin).
-            session = MagicMock()
-            session.commit = AsyncMock()
-            return session
-
-        async def __aexit__(self, *_: Any) -> bool:
-            return False
-
-    with (
-        patch("src.domains.reminders.service.ReminderService", _Service),
-        patch("src.infrastructure.database.session.get_db_context", lambda: _Session()),
+    with patch(
+        "src.domains.agents.tools.application_reminder_tools.reminder_creation_proposal", propose
     ):
         yield captured
 
@@ -201,15 +182,15 @@ class TestASpokenScheduleIsConfirmedAsASchedule:
 
         assert result.success is True
         assert created["data"].recurrence is not None
-        # The schedule, not the next instant.
-        assert "Tous les jours" in result.message
-        assert result.structured_data["schedule_human"]
+        # The exact pending proposal carries the repeating rule, never a success claim.
+        assert describe(created["data"].recurrence, "fr").startswith("Tous les jours")
+        assert result.metadata["requires_confirmation"]
 
     @pytest.mark.asyncio
     async def test_a_single_instant_keeps_the_wording_it_always_had(
         self, _runtime: MagicMock
     ) -> None:
-        with _capture_created():
+        with _capture_created() as created:
             result = await create_reminder_tool.coroutine(  # type: ignore[misc]
                 content="appeler le medecin",
                 original_message="rappelle-moi d'appeler le medecin demain a 9h",
@@ -220,7 +201,8 @@ class TestASpokenScheduleIsConfirmedAsASchedule:
             )
 
         assert result.success is True
-        assert result.structured_data["schedule_human"] is None
+        assert created["data"].recurrence is None
+        assert result.metadata["requires_confirmation"]
 
     @pytest.mark.asyncio
     async def test_two_ways_of_saying_when_are_refused(self, _runtime: MagicMock) -> None:
@@ -330,4 +312,5 @@ class TestAnImpossibleScheduleIsAnswered:
         assert stored.byweekday == (1, 2, 3, 4, 5)
         # ...and what the reader is TOLD says so, rather than "every day".
         assert result.structured_data is not None
-        assert result.structured_data["schedule_human"] == "En semaine, à 08:00"
+        assert describe(stored, "fr") == "En semaine, à 08:00"
+        assert result.metadata["requires_confirmation"]

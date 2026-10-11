@@ -13,11 +13,13 @@ const query = vi.hoisted(() => ({
 const mutate = vi.hoisted(() => vi.fn<(endpoint: string, body?: unknown) => Promise<unknown>>());
 const refreshUser = vi.hoisted(() => vi.fn(async () => {}));
 
-vi.mock('@/hooks/useApiQuery', () => ({ useApiQuery: () => query }));
+vi.mock('@/hooks/useApplicationAccountQuery', () => ({
+  useApplicationAccountQuery: () => ({ ...query, ownerId: 'one', refetch: vi.fn(async () => {}) }),
+}));
 vi.mock('@/hooks/useApiMutation', () => ({
   useApiMutation: () => ({ mutate, loading: false }),
 }));
-vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ refreshUser }) }));
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ refreshUser, user: { id: 'one' } }) }));
 
 import { knownShortcutTokens, useSettingsShortcuts } from '@/hooks/useSettingsShortcuts';
 
@@ -58,12 +60,19 @@ describe('useSettingsShortcuts', () => {
   });
 
   it('saves optimistically, then refreshes the signed-in user so every screen follows', async () => {
-    const { result } = renderHook(() => useSettingsShortcuts());
+    mutate.mockImplementationOnce(async () => {
+      query.data = { shortcuts: ['theme'], max_count: 5 };
+      return query.data;
+    });
+    const { result, rerender } = renderHook(() => useSettingsShortcuts());
 
     let ok = false;
     await act(async () => {
       ok = await result.current.save(['theme']);
     });
+    // The real owner query publishes its reply through React state.
+    // This stub's externally held reply needs the corresponding rerender.
+    rerender();
 
     expect(ok).toBe(true);
     expect(mutate).toHaveBeenCalledWith('/users/me/settings-shortcuts', { shortcuts: ['theme'] });

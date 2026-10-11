@@ -14,6 +14,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { readerBusy, useConversationSync } from '@/hooks/useConversationSync';
 import type { Message } from '@/types/chat';
+import { publishApplicationResources } from '@/lib/application-resources';
 
 const row: Message = {
   id: 'a',
@@ -109,6 +110,45 @@ describe('useConversationSync — StrictMode', () => {
     act(() => result.current.requestSync('signal'));
 
     await waitFor(() => expect(opts.mergeServerPage).toHaveBeenCalledTimes(1));
+  });
+});
+
+describe('application interest feedback synchronization', () => {
+  it('rereads once after an owned change and keeps the streaming turn untouched', async () => {
+    const updated = { ...row, metadata: { ...row.metadata, feedback_submitted: true, feedback_value: 'thumbs_down' } };
+    const opts = { ...options({ blocked: true, readNewestPage: vi.fn(async () => ({ messages: [updated] })) }), ownerId: 'owner-a' };
+    const { rerender } = renderHook(props => useConversationSync(props), { initialProps: opts });
+    act(() => publishApplicationResources('owner-a', new Set(['interests'])));
+    expect(opts.readNewestPage).not.toHaveBeenCalled();
+    rerender({ ...opts, blocked: false });
+    await waitFor(() => expect(opts.mergeServerPage).toHaveBeenCalledWith([updated]));
+    expect(opts.readNewestPage).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores another account and unrelated resources', () => {
+    const opts = { ...options(), ownerId: 'owner-a' };
+    renderHook(() => useConversationSync(opts));
+    act(() => {
+      publishApplicationResources('owner-b', new Set(['interests']));
+      publishApplicationResources('owner-a', new Set(['memories']));
+    });
+    expect(opts.readNewestPage).not.toHaveBeenCalled();
+  });
+
+  it('discards an in-flight page after the account changes', async () => {
+    let resolve!: (page: { messages: Message[] }) => void;
+    const first = { ...options({ readNewestPage: vi.fn(() => new Promise<{ messages: Message[] }>(done => { resolve = done; })) }), ownerId: 'owner-a' };
+    const { result, rerender } = renderHook(props => useConversationSync(props), { initialProps: first });
+    act(() => result.current.requestSync('signal'));
+    const second = { ...options(), ownerId: 'owner-b' };
+    rerender(second);
+    await act(async () => resolve({ messages: [row] }));
+    expect(first.mergeServerPage).not.toHaveBeenCalled();
+    expect(second.mergeServerPage).not.toHaveBeenCalled();
+    act(() => publishApplicationResources('owner-a', new Set(['interests'])));
+    expect(second.readNewestPage).not.toHaveBeenCalled();
+    act(() => publishApplicationResources('owner-b', new Set(['interests'])));
+    await waitFor(() => expect(second.mergeServerPage).toHaveBeenCalledTimes(1));
   });
 });
 

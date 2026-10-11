@@ -12,7 +12,7 @@ import { renderHook, act } from '@testing-library/react';
 import { ApiError } from '@/lib/api-client';
 
 const { useApiQuery } = vi.hoisted(() => ({ useApiQuery: vi.fn() }));
-vi.mock('@/hooks/useApiQuery', () => ({ useApiQuery }));
+vi.mock('@/hooks/useApplicationAccountQuery', () => ({ useApplicationAccountQuery: useApiQuery }));
 const { useApiMutation } = vi.hoisted(() => ({ useApiMutation: vi.fn() }));
 vi.mock('@/hooks/useApiMutation', () => ({ useApiMutation }));
 
@@ -27,7 +27,13 @@ interface QueryStub {
 }
 
 function queryStub(data: unknown): QueryStub {
-  return { data, loading: false, error: null, refetch: vi.fn(), setData: vi.fn() };
+  return {
+    data,
+    loading: false,
+    error: null,
+    refetch: vi.fn().mockResolvedValue(undefined),
+    setData: vi.fn(),
+  };
 }
 
 const stubs: Record<string, QueryStub> = {};
@@ -40,7 +46,11 @@ beforeEach(() => {
   stubs['/peers/connections'] = queryStub([]);
   stubs['/peers/blocks'] = queryStub([]);
   stubs['/peers/access-log'] = queryStub([]);
-  useApiQuery.mockImplementation((url: string) => stubs[url]);
+  useApiQuery.mockImplementation((url: string) => ({
+    ...stubs[url],
+    ownerId: 'one',
+    isCurrent: () => true,
+  }));
 
   mutateByMethod['POST'] = vi.fn().mockResolvedValue({});
   mutateByMethod['PUT'] = vi.fn().mockResolvedValue({});

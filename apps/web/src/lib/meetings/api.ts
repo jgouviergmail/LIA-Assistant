@@ -30,6 +30,7 @@ import type {
 } from '@/types/meetings';
 
 const BASE = '/meetings';
+export const MEETING_PREFERENCES_PATH = `${BASE}/preferences`;
 
 export const meetingsApi = {
   start: (request: MeetingStartRequest) => apiClient.post<MeetingStartResponse>(BASE, request),
@@ -98,10 +99,10 @@ export const meetingsApi = {
   bulkDeleteTemplates: (request: TemplateRefsRequest) =>
     apiClient.post<MeetingTemplateBulkDeleteResponse>(`${BASE}/templates/bulk-delete`, request),
 
-  preferences: () => apiClient.get<MeetingPreferences>(`${BASE}/preferences`),
+  preferences: () => apiClient.get<MeetingPreferences>(MEETING_PREFERENCES_PATH),
 
   putPreferences: (request: MeetingPreferencesUpdate) =>
-    apiClient.put<MeetingPreferences>(`${BASE}/preferences`, request),
+    apiClient.put<MeetingPreferences>(MEETING_PREFERENCES_PATH, request),
 };
 
 /** Relative endpoint of the PDF, for the browser to follow as a top-level GET. */

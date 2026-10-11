@@ -9,6 +9,7 @@ import pytest
 from src.core.config import settings
 from src.domains.channels.models import ChannelType
 from src.domains.channels.service import ChannelService, OtpAttemptsExhaustedError
+from src.domains.users.models import User
 
 
 @pytest.fixture
@@ -266,25 +267,31 @@ class TestToggleBinding:
     async def test_toggle_active_to_inactive(self, service, sample_binding) -> None:
         """Should toggle active binding to inactive."""
         sample_binding.is_active = True
-        service.repository.get_by_id = AsyncMock(return_value=sample_binding)
-
-        toggled = MagicMock()
-        toggled.is_active = False
-        service.repository.update = AsyncMock(return_value=toggled)
+        service.db.scalar.side_effect = [
+            User(id=sample_binding.user_id, is_active=True, deleted_at=None),
+            sample_binding,
+        ]
 
         result = await service.toggle_binding(sample_binding.id, sample_binding.user_id)
         assert result.is_active is False
-        service.repository.update.assert_called_once_with(sample_binding, {"is_active": False})
+        assert result is sample_binding
+        service.db.commit.assert_awaited_once()
+        service.db.refresh.assert_awaited_once_with(sample_binding)
 
     @pytest.mark.asyncio
     async def test_toggle_wrong_user_raises(self, service, sample_binding) -> None:
         """Should raise ResourceNotFoundError for wrong user."""
-        service.repository.get_by_id = AsyncMock(return_value=sample_binding)
+        caller = uuid4()
+        service.db.scalar.side_effect = [
+            User(id=caller, is_active=True, deleted_at=None),
+            sample_binding,
+        ]
 
         from src.core.exceptions import ResourceNotFoundError
 
         with pytest.raises(ResourceNotFoundError):
-            await service.toggle_binding(sample_binding.id, uuid4())
+            await service.toggle_binding(sample_binding.id, caller)
+        service.db.commit.assert_not_awaited()
 
 
 class TestDeleteBinding:
@@ -293,28 +300,38 @@ class TestDeleteBinding:
     @pytest.mark.asyncio
     async def test_delete_binding_success(self, service, sample_binding) -> None:
         """Should delete binding when ownership is valid."""
-        service.repository.get_by_id = AsyncMock(return_value=sample_binding)
-        service.repository.delete = AsyncMock()
+        service.db.scalar.side_effect = [
+            User(id=sample_binding.user_id, is_active=True, deleted_at=None),
+            sample_binding,
+        ]
 
         await service.delete_binding(sample_binding.id, sample_binding.user_id)
-        service.repository.delete.assert_called_once_with(sample_binding)
+        service.db.delete.assert_awaited_once_with(sample_binding)
+        service.db.commit.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_delete_wrong_user_raises(self, service, sample_binding) -> None:
         """Should raise ResourceNotFoundError for wrong user."""
-        service.repository.get_by_id = AsyncMock(return_value=sample_binding)
+        caller = uuid4()
+        service.db.scalar.side_effect = [
+            User(id=caller, is_active=True, deleted_at=None),
+            sample_binding,
+        ]
 
         from src.core.exceptions import ResourceNotFoundError
 
         with pytest.raises(ResourceNotFoundError):
-            await service.delete_binding(sample_binding.id, uuid4())
+            await service.delete_binding(sample_binding.id, caller)
+        service.db.delete.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_delete_nonexistent_raises(self, service) -> None:
         """Should raise ResourceNotFoundError for non-existent binding."""
-        service.repository.get_by_id = AsyncMock(return_value=None)
+        caller = uuid4()
+        service.db.scalar.side_effect = [User(id=caller, is_active=True, deleted_at=None), None]
 
         from src.core.exceptions import ResourceNotFoundError
 
         with pytest.raises(ResourceNotFoundError):
-            await service.delete_binding(uuid4(), uuid4())
+            await service.delete_binding(uuid4(), caller)
+        service.db.delete.assert_not_awaited()

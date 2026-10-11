@@ -80,6 +80,7 @@ function applyDoneMetadata(m: Message, metadata: StreamDoneMetadata): Message {
     // badge for live and reload.
     metadata: {
       ...m.metadata,
+      application_interactions: metadata.application_interactions,
       psyche_state: metadata.psyche_state,
       // Expressivity (ADR-253): the register the answering model declared for
       // THIS answer — read by the live bridge as the voice's delivery note. Live
@@ -141,9 +142,10 @@ function applyDoneToMessages(
 ): Message[] {
   const existingIndex = messages.findIndex(m => m.id === messageId);
   if (existingIndex >= 0) {
-    return messages.map(m =>
+    const updated = messages.map(m =>
       m.id === messageId ? withCardActionDoneMetadata(applyDoneMetadata(m, metadata), metadata) : m
     );
+    return reconcileCompletedAnswer(updated, messageId, metadata.archived_message_id);
   }
 
   // Message doesn't exist - find last assistant message and update it.
@@ -157,6 +159,22 @@ function applyDoneToMessages(
 
   return messages.map((m, index) =>
     index === lastAssistantIndex ? applyFallbackDoneMetadata(m, metadata) : m
+  );
+}
+
+/** A history read may arrive before done names the live bubble's archived row.
+ * Keep the live identity and remove only another copy of that EXACT row. */
+function reconcileCompletedAnswer(
+  messages: Message[],
+  messageId: string,
+  rowId?: string
+): Message[] {
+  if (!rowId) return messages;
+  return messages.filter(
+    message =>
+      message.id === messageId ||
+      message.role !== 'assistant' ||
+      (message.id !== rowId && message.metadata?.message_db_id !== rowId)
   );
 }
 

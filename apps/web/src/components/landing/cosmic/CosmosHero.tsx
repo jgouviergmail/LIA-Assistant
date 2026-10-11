@@ -1,24 +1,22 @@
 /**
- * The landing hero — SAME content contract as the retired `HeroSection` (same
- * i18n keys, badges, stats, links, interactive chat mockup) reskinned with
- * the validated identity: orchestrated entrance, signature gradient on the
- * title highlight, and the feature planetarium orbiting the chat mockup.
+ * The homepage promise and concrete personal-assistant examples, within
+ * the existing cosmic identity. The optional planetarium and guided-demo
+ * link retain their deployment switches; the copy is specific to this page.
  */
 
 import Link from 'next/link';
 import { initI18next } from '@/i18n';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, PlayCircle, ShieldCheck } from 'lucide-react';
+import { ChevronDown, PlayCircle, ShieldCheck, Users, MapPin } from 'lucide-react';
 import { GithubIcon } from '@/components/icons/GithubIcon';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import { getPublicShowroomVariant } from '@/lib/showroom-config';
 import type { Language } from '@/i18n/settings';
 import { InteractiveChatMockup } from '../InteractiveChatMockup';
-import { LANDING_PLANETARIUM_ENABLED, LANDING_STATS } from '../constants';
+import { LANDING_PLANETARIUM_ENABLED } from '../constants';
 import { APP_VERSION, LAST_UPDATED } from '@/lib/version';
 import { Planetarium } from './Planetarium';
-import { TrustStat } from './TrustStat';
 
 const HERO_DATE_LOCALES: Record<string, string> = {
   fr: 'fr-FR',
@@ -80,21 +78,21 @@ export async function CosmosHero({
   );
 
   const trustItems = [
-    { value: LANDING_STATS.agents, suffix: '+', label: t('landing.hero.trust_agents') },
-    { value: LANDING_STATS.providers, suffix: '', label: t('landing.hero.trust_providers') },
-    { value: LANDING_STATS.voiceLanguages, suffix: '+', label: t('landing.hero.trust_voices') },
+    { icon: MapPin, label: t('landing.hero.proof_origin') },
+    { icon: Users, label: t('landing.hero.proof_accounts') },
+    { icon: ShieldCheck, label: t('landing.hero.proof_control') },
   ];
 
   return (
     <section className="relative min-h-screen flex items-center overflow-clip">
-      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-10 sm:pb-12">
-        <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-12 lg:gap-16 items-center">
+      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 lg:pt-28 pb-24">
+        <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:grid-rows-[max-content_1fr] lg:gap-x-16 lg:gap-y-6 items-center">
           {/* Copy column — min-w-0 so no child's intrinsic width can widen the
               grid track past the viewport on mobile */}
-          <div className="min-w-0 text-center lg:text-left">
+          <div className="min-w-0 text-center lg:col-start-1 lg:row-start-1 lg:text-left">
             <div
               {...rise(RISE_DELAYS.badges)}
-              className="cosmos-rise flex flex-wrap items-center gap-3 justify-center lg:justify-start mb-6"
+              className="cosmos-rise flex flex-wrap items-center gap-3 justify-center lg:justify-start mb-3 sm:mb-6"
             >
               {/* dark:text-red-300: the badge base variant paints an OPAQUE
                   dark:bg-red-900 pill — red-400 on it is 3.48:1 (fails AA),
@@ -117,14 +115,14 @@ export async function CosmosHero({
                   {t('landing.hero.badge_opensource')}
                 </Badge>
               </a>
-              <span className="text-xs text-muted-foreground whitespace-nowrap">
+              <span className="hidden text-xs text-muted-foreground whitespace-nowrap sm:inline">
                 v{APP_VERSION} · {t('landing.footer.last_updated', { date: formattedDate })}
               </span>
             </div>
 
             <h1
               {...rise(RISE_DELAYS.title)}
-              className="cosmos-rise cosmos-hero-title text-4xl sm:text-5xl mobile:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.08] mb-6"
+              className="cosmos-rise cosmos-hero-title text-3xl mobile:text-4xl sm:text-5xl xl:text-6xl font-extrabold tracking-tight leading-[1.08] mb-4 sm:mb-6"
             >
               <span className="block">{t('landing.hero.title_line1')}</span>
               <span className="block">
@@ -143,62 +141,19 @@ export async function CosmosHero({
             </p>
             <p
               {...rise(RISE_DELAYS.sub)}
-              className="cosmos-rise text-sm mobile:text-base text-foreground/80 max-w-2xl mx-auto lg:mx-0 leading-relaxed mb-8"
+              className="cosmos-rise text-sm mobile:text-base text-foreground/80 max-w-2xl mx-auto lg:mx-0 leading-relaxed"
             >
-              {t('landing.hero.subtitle_line1')} <br className="hidden mobile:inline" />
-              {t('landing.hero.subtitle_line2')} <br className="hidden mobile:inline" />
-              {t('landing.hero.subtitle_line3')}
+              {t('landing.hero.home_value')}
             </p>
-
-            <div
-              {...rise(RISE_DELAYS.cta)}
-              className="cosmos-rise flex flex-col sm:flex-row sm:flex-wrap gap-3 justify-center lg:justify-start mb-8"
-            >
-              <Button asChild size="lg" className="text-base px-6">
-                <Link href={registerHref}>{t('landing.hero.cta_primary')}</Link>
-              </Button>
-              {showsGuidedDemo && (
-                <Button asChild variant="outline" size="lg" className="text-base px-5 gap-2">
-                  <Link href={demoHref} data-testid="hero-cta-demo">
-                    <PlayCircle className="w-5 h-5" aria-hidden="true" />
-                    {t('landing.hero.cta_demo')}
-                  </Link>
-                </Button>
-              )}
-              <Button asChild variant="outline" size="lg" className="text-base px-5 gap-2">
-                <a href={GITHUB_REPO_URL} target="_blank" rel="noopener noreferrer">
-                  <GithubIcon className="w-5 h-5" />
-                  {t('landing.hero.cta_github')}
-                </a>
-              </Button>
-            </div>
-
-            <div
-              {...rise(RISE_DELAYS.trust)}
-              className="cosmos-rise flex flex-wrap items-center gap-x-4 gap-y-2 justify-center lg:justify-start text-sm text-muted-foreground"
-            >
-              {trustItems.map(({ value, suffix, label }) => (
-                <TrustStat key={label} value={value} suffix={suffix} label={label} locale={lng} />
-              ))}
-              <span className="flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-primary" aria-hidden="true" />
-                {t('landing.hero.trust_gdpr')}
-              </span>
-            </div>
           </div>
 
-          {/* The planetarium: LIA's chat at the center, her features in orbit —
-              when the landing switch draws it; otherwise the mockup alone, in a
-              plain centred box so no orbit height is reserved for nothing.
-              min-w-0 on the orbit-zone grid item: without it a single
-              unbreakable line inside a mockup act sets the implicit track's
-              min-content and silently widens the hero past a phone viewport
-              (the historical hero-overflow mechanism, one level up). */}
-          <div {...rise(RISE_DELAYS.mockup)} className="cosmos-rise w-full min-w-0">
+          {/* On phones, show the usable result before asking the visitor to join. */}
+          <div
+            {...rise(RISE_DELAYS.mockup)}
+            className="cosmos-rise w-full min-w-0 lg:col-start-2 lg:row-start-1 lg:row-span-2"
+          >
             <div className={planetarium ? 'cosmos-orbit-zone' : 'grid place-items-center'}>
               {planetarium && <Planetarium />}
-              {/* The backing hides the orbits behind the mockup; with no planetarium
-                  there is nothing to hide, so nothing is drawn. */}
               <div
                 className={
                   planetarium
@@ -206,16 +161,66 @@ export async function CosmosHero({
                     : 'relative z-10 w-full min-w-0'
                 }
               >
-                <InteractiveChatMockup lng={lng} withCta={false} />
+                <InteractiveChatMockup lng={lng} withCta={false} home />
               </div>
+            </div>
+          </div>
+
+          <div className="min-w-0 text-center lg:col-start-1 lg:row-start-2 lg:self-start lg:text-left">
+            <div
+              {...rise(RISE_DELAYS.cta)}
+              className="cosmos-rise flex flex-col sm:flex-row sm:flex-wrap gap-3 justify-center lg:justify-start mb-3"
+            >
+              {showsGuidedDemo && (
+                <Button asChild size="lg" className="text-base px-5 gap-2">
+                  <Link href={demoHref} data-testid="hero-cta-demo">
+                    <PlayCircle className="w-5 h-5" aria-hidden="true" />
+                    {t('landing.hero.home_cta_demo')}
+                  </Link>
+                </Button>
+              )}
+              <Button
+                asChild
+                variant={showsGuidedDemo ? 'outline' : 'default'}
+                size="lg"
+                className="text-base px-6"
+              >
+                <Link href={registerHref}>{t('landing.hero.home_cta_primary')}</Link>
+              </Button>
+            </div>
+
+            <a
+              href={GITHUB_REPO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mb-3 inline-flex min-h-11 items-center gap-2 rounded-sm text-sm font-medium text-primary underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <GithubIcon className="size-4" aria-hidden="true" />
+              {t('landing.hero.home_code_link')}
+            </a>
+
+            <p className="mb-5 text-xs leading-5 text-muted-foreground">
+              {t('landing.hero.home_access_note')}
+            </p>
+
+            <div
+              {...rise(RISE_DELAYS.trust)}
+              className="cosmos-rise flex flex-wrap items-center gap-x-4 gap-y-2 justify-center lg:justify-start text-sm text-muted-foreground"
+            >
+              {trustItems.map(({ icon: Icon, label }) => (
+                <span key={label} className="flex items-center gap-1.5">
+                  <Icon className="w-4 h-4 shrink-0 text-primary" aria-hidden="true" />
+                  {label}
+                </span>
+              ))}
             </div>
           </div>
         </div>
       </div>
 
       <a
-        href="#features"
-        className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+        href="#gallery"
+        className="absolute bottom-6 left-1/2 -translate-x-1/2 flex min-h-11 flex-col items-center gap-2 rounded-md px-3 text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         aria-label={t('landing.hero.scroll_hint')}
       >
         <span className="text-xs">{t('landing.hero.scroll_hint')}</span>

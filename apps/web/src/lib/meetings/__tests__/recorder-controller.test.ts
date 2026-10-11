@@ -192,8 +192,17 @@ async function settle(): Promise<void> {
   for (let i = 0; i < 20; i++) await Promise.resolve();
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>(done => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
 beforeEach(() => {
   vi.useFakeTimers();
+  useMeetingRecorderStore.getState().setOwner('recorder-test-owner');
   useMeetingRecorderStore.getState().reset();
 });
 
@@ -202,6 +211,151 @@ afterEach(() => {
 });
 
 describe('MeetingRecorderController.start', () => {
+  it('ignores old capture callbacks after a different account becomes owner', async () => {
+    const h = harness();
+    await h.controller.start();
+    const callbacks = h.sources[0].callbacks;
+    await h.controller.dispose();
+    const store = useMeetingRecorderStore.getState();
+    store.setOwner('another-account');
+    store.setPhase('recording');
+    callbacks.onLevel(0.5);
+    callbacks.onError(new Error('old source'));
+    await settle();
+    expect(useMeetingRecorderStore.getState().level).toBe(0);
+    expect(useMeetingRecorderStore.getState().phase).toBe('recording');
+  });
+  it('does not restore old processing state after a stop reply crosses disposal', async () => {
+    const response = deferred<MeetingActionResponse>();
+    const h = harness();
+    await h.controller.start();
+    h.api.stop.mockImplementation(() => response.promise);
+    const stopping = h.controller.stop();
+    await settle();
+    await h.controller.dispose();
+    useMeetingRecorderStore.getState().setOwner('new-account');
+    response.resolve({ id: 'm1', status: 'stopped', stage: null, detail: null });
+    await stopping;
+    expect(useMeetingRecorderStore.getState().phase).toBe('idle');
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('does not clear another account recording after a late discard reply', async () => {
+    const response = deferred<void>();
+    const h = harness();
+    await h.controller.start();
+    h.api.discard.mockImplementation(() => response.promise);
+    const discarding = h.controller.discard();
+    await settle();
+    await h.controller.dispose();
+    const store = useMeetingRecorderStore.getState();
+    store.setOwner('new-account');
+    store.begin(
+      {
+        meetingId: 'new-account-recording',
+        startedAt: '2026-09-02T10:00:00Z',
+        audioFormat: 'pcm_s16le_16',
+        mimeType: null,
+        segmentSeconds: 30,
+        nextSequence: 0,
+      },
+      null,
+      null
+    );
+    response.resolve();
+    await discarding;
+    expect(useMeetingRecorderStore.getState().recording?.meetingId).toBe('new-account-recording');
+  });
+  it('does not create a meeting after disposal while waiting for location', async () => {
+    const position = deferred<null>();
+    const h = harness({ position: () => position.promise });
+    const opening = h.controller.start();
+    await h.controller.dispose();
+    useMeetingRecorderStore.getState().reset();
+    position.resolve(null);
+    await opening;
+    expect(h.api.start).not.toHaveBeenCalled();
+    expect(h.deps.getUserMedia).not.toHaveBeenCalled();
+    expect(useMeetingRecorderStore.getState().phase).toBe('idle');
+  });
+
+  it('does not open capture or replace state after a late start response', async () => {
+    const response = deferred<MeetingStartResponse>();
+    const h = harness();
+    h.api.start.mockImplementation(() => response.promise);
+    const opening = h.controller.start();
+    await settle();
+    await h.controller.dispose();
+    useMeetingRecorderStore.getState().reset();
+    response.resolve({
+      id: 'late',
+      status: 'recording',
+      started_at: '2026-09-02T10:00:00Z',
+      engine: ENGINE,
+      limits: LIMITS,
+    });
+    await opening;
+    expect(h.deps.getUserMedia).not.toHaveBeenCalled();
+    expect(useMeetingRecorderStore.getState().recording).toBeNull();
+    expect(h.api.discard).not.toHaveBeenCalled();
+  });
+
+  it('stops a microphone acquired after disposal without starting its source', async () => {
+    const microphone = deferred<MediaStream>();
+    const h = harness({ getUserMedia: () => microphone.promise });
+    const opening = h.controller.start();
+    await settle();
+    await h.controller.dispose();
+    useMeetingRecorderStore.getState().reset();
+    const stream = fakeStream();
+    microphone.resolve(stream);
+    await opening;
+    expect(stream.track.stop).toHaveBeenCalledOnce();
+    expect(h.sources).toHaveLength(0);
+    expect(useMeetingRecorderStore.getState().phase).toBe('idle');
+  });
+
+  it('releases a source that finishes opening after disposal', async () => {
+    const openingSource = deferred<void>();
+    const stopped = vi.fn(async () => undefined);
+    const h = harness({
+      createSource: () => ({ start: () => openingSource.promise, stop: stopped }),
+      acquireWakeLock: vi.fn(async () => null),
+    });
+    const opening = h.controller.start();
+    await settle();
+    await h.controller.dispose();
+    openingSource.resolve();
+    await opening;
+    expect(stopped).toHaveBeenCalledTimes(2);
+    expect(h.deps.acquireWakeLock).not.toHaveBeenCalled();
+  });
+
+  it('does not adopt an old account response after disposal', async () => {
+    const response = deferred<MeetingDetail | null>();
+    const h = harness();
+    h.api.active.mockImplementation(() => response.promise);
+    const reconcile = h.controller.reconcile();
+    await h.controller.dispose();
+    useMeetingRecorderStore.getState().reset();
+    response.resolve(detail({ id: 'foreign-late', status: 'recording' }));
+    await reconcile;
+    expect(useMeetingRecorderStore.getState().recording).toBeNull();
+  });
+
+  it('does not notify or reschedule a processing response after disposal', async () => {
+    const response = deferred<MeetingDetail>();
+    const h = harness();
+    await h.controller.start();
+    await h.controller.stop();
+    h.api.detail.mockImplementation(() => response.promise);
+    await vi.advanceTimersByTimeAsync(1000);
+    await h.controller.dispose();
+    response.resolve(detail({ status: 'ready' }));
+    await settle();
+    expect(h.processed).toHaveLength(0);
+    expect(vi.getTimerCount()).toBe(0);
+  });
   it('creates the meeting server-side, then opens the capture and records', async () => {
     const h = harness();
     await h.controller.start();
@@ -359,6 +513,25 @@ describe('stop', () => {
     expect(useMeetingRecorderStore.getState().phase).toBe('idle');
   });
 
+  it('retains an empty recording when the server refuses its automatic deletion', async () => {
+    const h = harness();
+    h.api.stop.mockRejectedValueOnce(
+      new ApiError('conflict', 409, { detail: { code: 'no_audio' } })
+    );
+    h.api.discard.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    await h.controller.start();
+    expect(await h.controller.stop()).toBe('failed');
+    expect(h.sources[0].stopped).toBe(true);
+    expect(useMeetingRecorderStore.getState()).toMatchObject({
+      phase: 'interrupted',
+      errorCode: 'discard_failed',
+      recording: { meetingId: 'm1' },
+    });
+    await h.controller.discard();
+    expect(h.api.discard).toHaveBeenCalledTimes(2);
+    expect(useMeetingRecorderStore.getState().phase).toBe('idle');
+  });
+
   it('finalizes by itself at the maximum duration', async () => {
     const h = harness();
     await h.controller.start();
@@ -431,6 +604,24 @@ describe('processing watch and reconcile', () => {
     expect(h.api.discard).toHaveBeenCalledWith('m1');
     expect(h.sources[0].stopped).toBe(true);
     expect(useMeetingRecorderStore.getState().phase).toBe('idle');
+  });
+
+  it('releases capture but retains a refused deletion for explicit retry', async () => {
+    const h = harness();
+    h.api.discard.mockRejectedValueOnce(
+      new ApiError('conflict', 409, { detail: { code: 'processing_in_progress' } })
+    );
+    await h.controller.start();
+    await h.controller.discard();
+    expect(h.sources[0].stopped).toBe(true);
+    expect(useMeetingRecorderStore.getState()).toMatchObject({
+      phase: 'interrupted',
+      errorCode: 'processing_in_progress',
+      recording: { meetingId: 'm1' },
+    });
+    await h.controller.discard();
+    expect(h.api.discard).toHaveBeenCalledTimes(2);
+    expect(useMeetingRecorderStore.getState().recording).toBeNull();
   });
 });
 

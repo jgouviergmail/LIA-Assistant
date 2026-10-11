@@ -12,6 +12,7 @@ from src.domains.agents.registry.catalogue import (
     PermissionProfile,
     ToolManifest,
 )
+from src.domains.agents.registry.value_contracts import SemanticFieldRole
 
 # ============================================================================
 # Shared Parameters
@@ -27,7 +28,19 @@ _LOC_PARAM = ParameterSchema(
         "NEVER ask user for location - use auto-detection if not specified. "
         "For weather at a CALENDAR EVENT, use the event's location field."
     ),
-    semantic_type="physical_address",  # Cross-domain: can use events[].location
+    semantic_type="locality",
+    semantic_role=SemanticFieldRole(
+        role="location",
+        accepted_types=("physical_address",),
+        entity_types=("Place", "Contact", "CalendarEvent"),
+        predicates=("address", "locality", "location"),
+        entity_predicates=(
+            ("Place", "address"),
+            ("Place", "locality"),
+            ("Contact", "address"),
+            ("CalendarEvent", "location"),
+        ),
+    ),
 )
 _UNIT_PARAM = ParameterSchema(
     name="units",
@@ -65,6 +78,8 @@ _current_desc = (
 )
 get_current_weather_catalogue_manifest = ToolManifest(
     name="get_current_weather_tool",
+    concurrency_safe=True,
+    result_reuse_ttl_seconds=30,
     mutation_policy="read",
     agent="weather_agent",
     description=_current_desc,
@@ -102,30 +117,35 @@ get_current_weather_catalogue_manifest = ToolManifest(
         ),
         OutputFieldSchema(
             path="weathers[].temperature",
-            type="number",
+            type="string",
             description="Temp",
             semantic_type="temperature",
         ),
         OutputFieldSchema(
             path="weathers[].feels_like",
-            type="number",
+            type="string",
             description="Feels like",
             semantic_type="temperature",
         ),
         OutputFieldSchema(
             path="weathers[].humidity",
-            type="integer",
+            type="string",
             description="Humidity %",
             semantic_type="humidity",
         ),
-        OutputFieldSchema(path="weathers[].description", type="string", description="Condition"),
+        OutputFieldSchema(
+            path="weathers[].description",
+            type="string",
+            description="Condition",
+            semantic_type="Text",
+        ),
         OutputFieldSchema(
             path="weathers[].wind_speed",
-            type="number",
+            type="string",
             description="Wind",
             semantic_type="wind_speed",
         ),
-        OutputFieldSchema(path="weathers[].pressure", type="integer", description="Pressure hPa"),
+        OutputFieldSchema(path="weathers[].pressure", type="string", description="Pressure hPa"),
     ],
     cost=CostProfile(est_tokens_in=100, est_tokens_out=200, est_cost_usd=0.001, est_latency_ms=500),
     permissions=PermissionProfile(
@@ -160,6 +180,8 @@ _forecast_desc = (
 )
 get_weather_forecast_catalogue_manifest = ToolManifest(
     name="get_weather_forecast_tool",
+    concurrency_safe=True,
+    result_reuse_ttl_seconds=30,
     mutation_policy="read",
     agent="weather_agent",
     description=_forecast_desc,
@@ -215,36 +237,41 @@ get_weather_forecast_catalogue_manifest = ToolManifest(
             path="forecasts[].date",
             type="string",
             description="Day (ISO date)",
-            semantic_type="datetime",
+            semantic_type="Date",
         ),
         OutputFieldSchema(
             path="forecasts[].temp_min",
-            type="number",
+            type="string",
             description="Min temp",
             semantic_type="temperature",
         ),
         OutputFieldSchema(
             path="forecasts[].temp_max",
-            type="number",
+            type="string",
             description="Max temp",
             semantic_type="temperature",
         ),
         OutputFieldSchema(
             path="forecasts[].temp_avg",
-            type="number",
+            type="string",
             description="Average temp",
             semantic_type="temperature",
         ),
-        OutputFieldSchema(path="forecasts[].description", type="string", description="Condition"),
+        OutputFieldSchema(
+            path="forecasts[].description",
+            type="string",
+            description="Condition",
+            semantic_type="Text",
+        ),
         OutputFieldSchema(
             path="forecasts[].humidity",
-            type="integer",
+            type="string",
             description="Humidity %",
             semantic_type="humidity",
         ),
         OutputFieldSchema(
             path="forecasts[].wind_speed",
-            type="number",
+            type="string",
             description="Wind",
             semantic_type="wind_speed",
         ),
@@ -314,7 +341,18 @@ get_hourly_forecast_catalogue_manifest = ToolManifest(
             path="weathers[].location",
             type="object",
             description="Location",
+        ),
+        OutputFieldSchema(
+            path="weathers[].location.name",
+            type="string",
+            description="Location name",
             semantic_type="locality",
+        ),
+        OutputFieldSchema(
+            path="weathers[].location.country",
+            type="string",
+            description="ISO country code",
+            semantic_type="country_code",
         ),
         OutputFieldSchema(
             path="weathers[].interval", type="string", description="Slot interval (e.g. '3 hours')"
@@ -322,26 +360,27 @@ get_hourly_forecast_catalogue_manifest = ToolManifest(
         OutputFieldSchema(path="weathers[].hourly", type="array", description="3-hour slots"),
         OutputFieldSchema(
             path="weathers[].hourly[].datetime",
-            type="string",
+            type="integer",
             description="UTC epoch (datetime_text is the local wall clock)",
-            semantic_type="datetime",
+            semantic_type="unix_timestamp",
         ),
         OutputFieldSchema(
             path="weathers[].hourly[].datetime_text",
             type="string",
             description="Local wall-clock time of the slot (YYYY-MM-DD HH:MM:SS, user timezone)",
-            semantic_type="datetime",
+            semantic_type="formatted_time",
         ),
         OutputFieldSchema(
-            # Measured a float, not a string — the manifest had it wrong before
-            # the path prefix was fixed too.
             path="weathers[].hourly[].temp",
-            type="number",
+            type="string",
             description="Temp",
             semantic_type="temperature",
         ),
         OutputFieldSchema(
-            path="weathers[].hourly[].description", type="string", description="Condition"
+            path="weathers[].hourly[].description",
+            type="string",
+            description="Condition",
+            semantic_type="Text",
         ),
     ],
     cost=CostProfile(est_tokens_in=100, est_tokens_out=600, est_cost_usd=0.002, est_latency_ms=600),
@@ -435,7 +474,9 @@ get_pollen_forecast_catalogue_manifest = ToolManifest(
     ],
     outputs=[
         OutputFieldSchema(path="days", type="array", description="Per-day pollen forecast"),
-        OutputFieldSchema(path="days[].date", type="string", description="Date (YYYY-MM-DD)"),
+        OutputFieldSchema(
+            path="days[].date", type="string", description="Date (YYYY-MM-DD)", semantic_type="Date"
+        ),
         OutputFieldSchema(path="days[].types", type="array", description="Pollen types"),
         OutputFieldSchema(
             path="days[].types[].index_value",

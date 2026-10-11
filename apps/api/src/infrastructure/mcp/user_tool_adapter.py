@@ -14,7 +14,8 @@ from __future__ import annotations
 
 import json
 import time
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Collection
+from copy import deepcopy
 from typing import Any
 from uuid import UUID
 
@@ -40,8 +41,18 @@ from src.domains.agents.data_registry.models import (
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.infrastructure.mcp.gated_tool import EffectGatedMCPTool
 from src.infrastructure.mcp.rate_limit import MCPRateLimitError, MCPToolExecutionError
-from src.infrastructure.mcp.tool_adapter import build_args_schema
-from src.infrastructure.mcp.utils import build_mcp_app_output, drop_none_values
+from src.infrastructure.mcp.semantic_observations import (
+    observation_notice,
+    semantic_observation_data,
+)
+from src.infrastructure.mcp.tool_adapter import build_args_schema, nullable_parameter_names
+from src.infrastructure.mcp.tool_aliases import allocate_tool_aliases
+from src.infrastructure.mcp.utils import (
+    build_mcp_app_output,
+    decode_mcp_result,
+    drop_none_values,
+    result_text_data,
+)
 from src.infrastructure.observability.metrics_mcp import (
     mcp_connection_errors_total,
     mcp_tool_duration_seconds,
@@ -136,6 +147,8 @@ class UserMCPToolAdapter(EffectGatedMCPTool, BaseTool):
     name: str = ""
     # ADR-263: memoises the gated call built by ``EffectGatedMCPTool``.
     _gated_call: Callable[..., Awaitable[Any]] | None = PrivateAttr(default=None)
+    _nullable_arguments: frozenset[str] = PrivateAttr(default_factory=frozenset)
+    _output_schema: dict[str, object] | None = PrivateAttr(default=None)
     description: str = ""
     server_id: UUID = Field(default=UUID(int=0))
     user_id: UUID = Field(default=UUID(int=0))
@@ -163,6 +176,11 @@ class UserMCPToolAdapter(EffectGatedMCPTool, BaseTool):
         app_resource_uri: str | None = None,
         annotations: dict[str, Any] | None = None,
         server_url: str = "",
+        output_schema: dict[str, object] | None = None,
+        *,
+        server_prefix: str | None = None,
+        reserved_aliases: Collection[str] = (),
+        tool_alias: str | None = None,
     ) -> UserMCPToolAdapter:
         """
         Create a UserMCPToolAdapter from discovered tool data.
@@ -170,11 +188,22 @@ class UserMCPToolAdapter(EffectGatedMCPTool, BaseTool):
         Reuses build_args_schema() from the admin MCP tool_adapter.
         """
         # Prefix ensures uniqueness and identification as user MCP tool
-        server_prefix = str(server_id)[:8]
-        prefixed_name = f"{MCP_USER_TOOL_NAME_PREFIX}_{server_prefix}_{tool_name}"
+        server_prefix = server_prefix or str(server_id)[:8]
+        prefixed_name = (
+            tool_alias
+            or allocate_tool_aliases(
+                {
+                    (
+                        str(server_id),
+                        tool_name,
+                    ): f"{MCP_USER_TOOL_NAME_PREFIX}_{server_prefix}_{tool_name}"
+                },
+                reserved=reserved_aliases,
+            )[(str(server_id), tool_name)]
+        )
         args_model = build_args_schema(input_schema)
 
-        return cls(
+        adapter = cls(
             name=prefixed_name,
             description=description,
             server_id=server_id,
@@ -188,6 +217,9 @@ class UserMCPToolAdapter(EffectGatedMCPTool, BaseTool):
             app_resource_uri=app_resource_uri,
             annotations=annotations,
         )
+        adapter._nullable_arguments = nullable_parameter_names(input_schema)
+        adapter._output_schema = deepcopy(output_schema)
+        return adapter
 
     async def _call_server(self, **kwargs: Any) -> UnifiedToolOutput:
         """
@@ -201,7 +233,7 @@ class UserMCPToolAdapter(EffectGatedMCPTool, BaseTool):
 
         # Omit unset optional params (materialised as None by the args schema) so
         # strictly-typed MCP servers don't reject them as null.
-        arguments = drop_none_values(kwargs)
+        arguments = drop_none_values(kwargs, keep_nullable=self._nullable_arguments)
 
         start = time.perf_counter()
         try:
@@ -215,6 +247,9 @@ class UserMCPToolAdapter(EffectGatedMCPTool, BaseTool):
                 tool_name=self.mcp_tool_name,
                 arguments=arguments,
                 timeout_seconds=self.timeout_seconds,
+            )
+            observations = semantic_observation_data(
+                decode_mcp_result(raw_result), self._output_schema
             )
 
             mcp_tool_invocations_total.labels(
@@ -250,6 +285,7 @@ class UserMCPToolAdapter(EffectGatedMCPTool, BaseTool):
                         source_label=self.server_name_label,
                         tool_arguments=arguments,
                         tool_input_schema=input_schema,
+                        semantic_observations=observations,
                     )
 
             # ---------------------------------------------------------------
@@ -267,6 +303,10 @@ class UserMCPToolAdapter(EffectGatedMCPTool, BaseTool):
             if parsed is not None:
                 items_list, detected_key = parsed
                 collection_key = detected_key or _derive_collection_key(self.mcp_tool_name)
+                # ``result`` is the canonical schema path, so a server's own
+                # collection named "result" keeps that name INSIDE the root.
+                if collection_key == "result":
+                    collection_key = _derive_collection_key(self.mcp_tool_name)
 
                 # Cap items to prevent registry explosion (e.g., list_commits
                 # returning 100+ items per page × N repos in a for_each).
@@ -307,10 +347,20 @@ class UserMCPToolAdapter(EffectGatedMCPTool, BaseTool):
                     f"{len(items_list)} item(s) returned"
                 )
                 return UnifiedToolOutput.data_success(
-                    message=summary,
+                    message=summary + observation_notice(observations),
                     registry_updates=registry_updates,
                     structured_data={
+                        "result": decode_mcp_result(raw_result),
+                        **result_text_data(raw_result),
+                        **observations,
                         collection_key: structured_items,
+                    },
+                    metadata={
+                        "mcp_result_projection": True,
+                        "mcp_display_collection_key": collection_key,
+                        "mcp_result_collection_path": (
+                            f"result.{detected_key}" if detected_key is not None else "result"
+                        ),
                     },
                 )
 
@@ -342,9 +392,12 @@ class UserMCPToolAdapter(EffectGatedMCPTool, BaseTool):
                 f"'{self.server_display_name}': result received"
             )
             return UnifiedToolOutput.data_success(
-                message=summary,
+                message=summary + observation_notice(observations),
                 registry_updates={item_id: registry_item},
                 structured_data={
+                    "result": decode_mcp_result(raw_result),
+                    **result_text_data(raw_result),
+                    **observations,
                     CONTEXT_DOMAIN_MCP: [
                         {
                             "tool_name": self.mcp_tool_name,
@@ -352,6 +405,10 @@ class UserMCPToolAdapter(EffectGatedMCPTool, BaseTool):
                             "result": raw_result,
                         }
                     ],
+                },
+                metadata={
+                    "mcp_result_projection": True,
+                    "mcp_display_collection_key": CONTEXT_DOMAIN_MCP,
                 },
             )
 

@@ -24,6 +24,12 @@ export function FontPreferencesSync() {
   const accountSize = user?.font_size;
   const appliedFamily = useRef<string | undefined>(undefined);
   const appliedSize = useRef<number | undefined>(undefined);
+  const ownerId = user?.id;
+
+  useEffect(() => {
+    appliedFamily.current = undefined;
+    appliedSize.current = undefined;
+  }, [ownerId]);
 
   useEffect(() => {
     if (accountFamily === appliedFamily.current) return;
@@ -31,7 +37,7 @@ export function FontPreferencesSync() {
     if (accountFamily && isValidFontFamily(accountFamily) && accountFamily !== fontFamily) {
       setFontFamily(accountFamily);
     }
-  }, [accountFamily, fontFamily, setFontFamily]);
+  }, [ownerId, accountFamily, fontFamily, setFontFamily]);
 
   useEffect(() => {
     if (accountSize === appliedSize.current) return;
@@ -39,7 +45,7 @@ export function FontPreferencesSync() {
     if (isValidFontSize(accountSize) && accountSize !== fontSize) {
       setFontSize(accountSize);
     }
-  }, [accountSize, fontSize, setFontSize]);
+  }, [ownerId, accountSize, fontSize, setFontSize]);
 
   return null;
 }

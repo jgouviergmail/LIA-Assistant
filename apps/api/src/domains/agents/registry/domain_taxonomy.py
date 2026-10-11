@@ -21,15 +21,29 @@ Usage Example:
     >>> print(contacts_config.display_name)  # "Google Contacts"
 """
 
-import re
 from contextlib import suppress
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from src.domains.agents.constants import MCP_DOMAIN_PREFIX
-
-if TYPE_CHECKING:
-    from src.domains.agents.registry.catalogue import ToolManifest
+from src.domains.agents.registry.mcp_domain_descriptions import (
+    auto_generate_server_description as auto_generate_server_description,
+)
+from src.domains.agents.registry.mcp_domains import (
+    collect_all_mcp_domains as collect_all_mcp_domains,
+)
+from src.domains.agents.registry.mcp_domains import (
+    deduplicate_mcp_slugs as deduplicate_mcp_slugs,
+)
+from src.domains.agents.registry.mcp_domains import (
+    filter_admin_mcp_disabled_manifests as filter_admin_mcp_disabled_manifests,
+)
+from src.domains.agents.registry.mcp_domains import (
+    is_mcp_domain as is_mcp_domain,
+)
+from src.domains.agents.registry.mcp_domains import (
+    slugify_mcp_server_name as slugify_mcp_server_name,
+)
 
 
 @dataclass(frozen=True)
@@ -184,7 +198,7 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         ),
         agent_names=["file_agent"],
         result_key="files",  # $steps.step_N.files
-        related_domains=["contact"],  # Files shared via email, owned by contacts
+        related_domains=["contact", "event"],  # Owners' email addresses can supply attendees
         # requires_hitl False: reading files needs no approval.
         metadata={**_GOOGLE_OAUTH, "api_version": "v3", "requires_hitl": False},
     ),
@@ -501,7 +515,8 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         description=(
             "Generate images from text descriptions using AI. "
             "Create illustrations, logos, art, designs from natural language prompts. "
-            "NOT for editing existing images or photos."
+            "Edit existing images or photos: change backgrounds, add or remove elements, "
+            "or transform their style. Uses a selected image or the user's latest image."
         ),
         agent_names=["image_generation_agent"],
         result_key="image_generations",
@@ -603,110 +618,6 @@ from src.domains.agents.registry.program_domain_configs import (  # noqa: E402
 )
 
 DOMAIN_REGISTRY.update(PROGRAM_DOMAIN_CONFIGS)
-
-
-def slugify_mcp_server_name(name: str) -> str:
-    """Slugify an MCP server name into a domain identifier.
-
-    Produces ``mcp_<slug>`` where slug is lowercase alphanumeric with underscores,
-    collapsed, stripped, and truncated to 40 chars max.
-
-    Args:
-        name: Raw MCP server name (e.g., "HuggingFace Hub").
-
-    Returns:
-        Slugified domain name (e.g., "mcp_huggingface_hub").
-    """
-    slug = re.sub(r"_+", "_", re.sub(r"[^a-z0-9]", "_", name.lower())).strip("_")[:40]
-    if not slug:
-        return "mcp_unnamed"
-    return f"{MCP_DOMAIN_PREFIX}{slug}"
-
-
-def deduplicate_mcp_slugs(server_names: list[str]) -> dict[str, str]:
-    """Build a mapping of server names to unique domain slugs.
-
-    When two servers produce the same slug, appends ``_2``, ``_3``, etc.
-
-    Args:
-        server_names: List of raw MCP server names.
-
-    Returns:
-        Dict mapping original server_name → unique domain slug.
-    """
-    result: dict[str, str] = {}
-    slug_counts: dict[str, int] = {}
-    for name in server_names:
-        slug = slugify_mcp_server_name(name)
-        count = slug_counts.get(slug, 0) + 1
-        slug_counts[slug] = count
-        if count > 1:
-            result[name] = f"{slug}_{count}"
-        else:
-            result[name] = slug
-    return result
-
-
-def is_mcp_domain(domain_name: str) -> bool:
-    """Check whether a domain name is a per-server MCP domain.
-
-    The base ``"mcp"`` domain (admin/fallback) returns False.
-
-    Args:
-        domain_name: Domain identifier to check.
-
-    Returns:
-        True if the domain is a per-server MCP domain (``mcp_*``).
-    """
-    return domain_name.startswith(MCP_DOMAIN_PREFIX)
-
-
-def filter_admin_mcp_disabled_manifests(
-    manifests: list[ToolManifest],
-    admin_disabled: set[str] | None = None,
-) -> list[ToolManifest]:
-    """Filter out tool manifests belonging to admin MCP servers disabled by the user.
-
-    Extracts the server key from each manifest's agent field (e.g. ``mcp_excalidraw_agent``
-    → ``excalidraw``) and removes it if the key is in ``admin_disabled``.
-
-    If ``admin_disabled`` is None, reads from ``admin_mcp_disabled_ctx`` ContextVar.
-
-    Args:
-        manifests: List of ToolManifest objects.
-        admin_disabled: Set of disabled server keys. If None, reads from ContextVar.
-
-    Returns:
-        Filtered list with disabled admin MCP tool manifests removed.
-    """
-    if admin_disabled is None:
-        from src.core.context import admin_mcp_disabled_ctx
-
-        admin_disabled = admin_mcp_disabled_ctx.get()
-
-    if not admin_disabled:
-        return manifests
-
-    def _is_disabled(manifest: ToolManifest) -> bool:
-        # Extract domain from agent field: "mcp_excalidraw_agent" → "mcp_excalidraw"
-        agent = getattr(manifest, "agent", None) or ""
-        domain = agent.removesuffix("_agent") if agent else ""
-        if not domain:
-            # Fallback: extract from tool name "mcp_excalidraw_create_view" → "mcp_excalidraw"
-            name = getattr(manifest, "name", "") or ""
-            if name.startswith(MCP_DOMAIN_PREFIX):
-                # Split after "mcp_" and take server key (first segment)
-                rest = name[len(MCP_DOMAIN_PREFIX) :]
-                parts = rest.split("_")
-                # Server key can be multi-segment (e.g. "google_flights")
-                # Use agent field preferentially; fallback heuristic: longest prefix match
-                domain = MCP_DOMAIN_PREFIX + parts[0] if parts else ""
-        if domain.startswith(MCP_DOMAIN_PREFIX):
-            server_key = domain[len(MCP_DOMAIN_PREFIX) :]
-            return server_key in admin_disabled
-        return False
-
-    return [m for m in manifests if not _is_disabled(m)]
 
 
 def get_domain_config(domain_name: str) -> DomainConfig | None:
@@ -917,7 +828,7 @@ def validate_domain_registry() -> list[str]:
         - All domain names are unique (implicit via dict keys)
         - All agent_names are unique across domains
         - Related domains exist in registry
-        - No circular dependencies in related_domains
+        - No duplicate reciprocal declarations of the same product adjacency
 
     Example:
         >>> errors = validate_domain_registry()
@@ -944,7 +855,7 @@ def validate_domain_registry() -> list[str]:
                     f"Domain '{domain_name}' references non-existent related domain '{related}'"
                 )
 
-    # Check for circular dependencies (basic check)
+    # Adjacency is not an execution DAG. Reject redundant reciprocal declarations only.
     for domain_name, config in DOMAIN_REGISTRY.items():
         for related in config.related_domains:
             related_config = DOMAIN_REGISTRY.get(related)
@@ -955,112 +866,6 @@ def validate_domain_registry() -> list[str]:
 
 
 # Validate registry on module import
-
-
-def auto_generate_server_description(
-    tool_descriptions: list[str | None],
-    server_name: str,
-    tool_names: list[str] | None = None,
-) -> str:
-    """Auto-generate a domain description from MCP tool descriptions.
-
-    Builds a structured description optimized for LLM domain selection:
-    - Starts with server identity prefix
-    - Lists key capabilities extracted from first sentence of each tool description
-    - Stays under MCP_DESCRIPTION_MAX_TOTAL_LENGTH chars for token efficiency
-
-    Shared between admin MCP (registration.py) and user MCP (service.py).
-
-    Args:
-        tool_descriptions: Raw descriptions from discovered MCP tools.
-        server_name: Fallback server name if no descriptions are available.
-        tool_names: Optional tool names for richer context when descriptions
-            are unavailable.
-
-    Returns:
-        Structured description string for LLM routing.
-    """
-    from src.core.constants import (
-        MCP_DESCRIPTION_MAX_SENTENCE_LENGTH,
-        MCP_DESCRIPTION_MAX_TOOLS,
-        MCP_DESCRIPTION_MAX_TOTAL_LENGTH,
-    )
-
-    descs = [d.strip() for d in tool_descriptions if d and d.strip()]
-    if not descs:
-        if tool_names:
-            names = ", ".join(tool_names[:MCP_DESCRIPTION_MAX_TOOLS])
-            return f"MCP server {server_name}: {names}"
-        return f"MCP server {server_name}"
-
-    # Take first sentence (up to first period) of each description
-    short_descs: list[str] = []
-    for d in descs[:MCP_DESCRIPTION_MAX_TOOLS]:
-        sentence = d.split(".")[0].strip()
-        short_descs.append(sentence[:MCP_DESCRIPTION_MAX_SENTENCE_LENGTH])
-
-    capabilities = "; ".join(short_descs)
-
-    # Cap total length, truncate at last complete capability boundary
-    result = f"MCP {server_name}: {capabilities}"
-    if len(result) > MCP_DESCRIPTION_MAX_TOTAL_LENGTH:
-        safe_cut = MCP_DESCRIPTION_MAX_TOTAL_LENGTH - 3  # room for "..."
-        cut = result[:safe_cut].rfind("; ")
-        result = (result[:cut] + "...") if cut > 0 else result[:safe_cut] + "..."
-    return result
-
-
-def collect_all_mcp_domains(
-    admin_domains: dict[str, str],
-    admin_disabled: set[str] | None,
-    user_ctx: Any | None,
-) -> list[dict[str, str]]:
-    """Unified collection of all MCP per-server domains for query routing.
-
-    Merges admin MCP (from startup registration) and user MCP (from per-request
-    ContextVar) into a single list, filtering out admin servers disabled by the user.
-
-    DRY: Single code path for both admin and user MCP domain injection into
-    the query analyzer prompt. Replaces separate admin/user injection blocks.
-
-    Args:
-        admin_domains: slug → description from get_admin_mcp_domains().
-        admin_disabled: Server keys disabled by user (from admin_mcp_disabled_ctx).
-            None means no filtering.
-        user_ctx: Per-request UserMCPToolsContext (may be None).
-
-    Returns:
-        List of {"name": domain_slug, "description": desc} dicts.
-    """
-    result: list[dict[str, str]] = []
-    disabled = admin_disabled or set()
-
-    # 1. Admin MCP domains (filtered by user preference)
-    for slug, desc in admin_domains.items():
-        # Extract server key from slug: "mcp_google_flights" → "google_flights"
-        server_key = slug.removeprefix(MCP_DOMAIN_PREFIX)
-        if server_key not in disabled:
-            result.append({"name": slug, "description": desc})
-
-    # 2. User MCP domains (from per-request ContextVar)
-    if (
-        user_ctx
-        and getattr(user_ctx, "tool_manifests", None)
-        and getattr(user_ctx, "server_domains", None)
-    ):
-        for srv_name, slug in user_ctx.server_domains.items():
-            desc = user_ctx.server_descriptions.get(srv_name)
-            if not desc:
-                # Auto-generate from discovered tool descriptions
-                server_tool_descs = [
-                    m.description[:80] if m.description else m.name
-                    for m in user_ctx.tool_manifests
-                    if m.semantic_keywords and srv_name in m.semantic_keywords
-                ]
-                desc = auto_generate_server_description(server_tool_descs, srv_name)
-            result.append({"name": slug, "description": desc})
-
-    return result
 
 
 _validation_errors = validate_domain_registry()

@@ -33,8 +33,10 @@ import structlog
 from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg
 from pydantic import ValidationError
+from sqlalchemy.exc import SQLAlchemyError
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, RECURRENCE_REMINDER_LIMITS
+from src.core.exceptions import AuthorizationError
 from src.core.i18n import resolve_language
 from src.core.i18n_api_messages import APIMessages
 from src.core.i18n_cards import card_label
@@ -58,7 +60,6 @@ from src.domains.agents.tools.runtime_helpers import (
     parse_user_id,
     validate_runtime_config,
 )
-from src.domains.reminders.schemas import ReminderCreate
 
 if TYPE_CHECKING:
     from src.domains.reminders.models import Reminder
@@ -272,8 +273,8 @@ async def create_reminder_tool(
         can relay.
     """
     locale = resolve_language(locale)
-    from src.domains.reminders.service import ReminderService
-    from src.infrastructure.database.session import get_db_context
+    from src.domains.agents.application.reminder_create_schemas import ReminderCreateRequest
+    from src.domains.agents.tools.application_reminder_tools import reminder_creation_proposal
 
     # Validate runtime config
     config = validate_runtime_config(runtime, "create_reminder_tool")
@@ -366,65 +367,23 @@ async def create_reminder_tool(
             # it. Nothing here computes a second one.
             final_trigger_datetime = None
 
-        async with get_db_context() as db:
-            service = ReminderService(db)
-
-            reminder = await service.create_reminder(
-                user_id=user_id,
-                data=ReminderCreate(
-                    content=content,
-                    # EITHER an instant OR a schedule — the schema refuses both.
-                    trigger_at=final_trigger_datetime,
-                    recurrence=recurrence,
-                    original_message=original_message,
-                ),
-                user_timezone=user_timezone,
-            )
-
-            await db.commit()
-
-            formatted_time = format_datetime_for_display(
-                reminder.trigger_at,
-                user_timezone=user_timezone,
-                locale=locale,
-            )
-
-            logger.info(
-                "create_reminder_tool_success",
-                reminder_id=str(reminder.id),
-                user_id=str(user_id),
-                trigger_at=reminder.trigger_at.isoformat(),
-                used_relative_trigger=bool(relative_trigger),
-            )
-
-            # A SCHEDULE is confirmed as a schedule. Naming only its next
-            # instant reads as a one-off, and the reader who said "every
-            # morning at 8" would have no sign the rest was understood.
-            schedule_human = describe(recurrence, locale) if recurrence else None
-            return UnifiedToolOutput.action_success(
-                message=(
-                    APIMessages.reminder_created_recurring(schedule_human, locale)
-                    if schedule_human
-                    else APIMessages.reminder_created(formatted_time, locale)
-                ),
-                structured_data={
-                    "reminder_id": str(reminder.id),
-                    "content": content,
-                    "trigger_at_formatted": formatted_time,
-                    "schedule_human": schedule_human,
-                },
-            )
-
-    except Exception as e:
-        logger.error(
-            "create_reminder_tool_error",
-            error=str(e),
-            error_type=type(e).__name__,
-            exc_info=True,
+        request = ReminderCreateRequest.model_validate(
+            {
+                "content": content,
+                "original_message": original_message,
+                "trigger_at": final_trigger_datetime,
+                "recurrence": recurrence.model_dump(mode="json") if recurrence else None,
+            }
         )
+        return await reminder_creation_proposal(user_id, request, locale)
+    except ValidationError, ValueError:
         return UnifiedToolOutput.failure(
-            message=APIMessages.reminder_creation_error(str(e)),
-            error_code="reminder_creation_failed",
+            message="Invalid reminder configuration.", error_code="INVALID_INPUT"
+        )
+    except Exception as exc:
+        logger.error("create_reminder_tool_error", error_type=type(exc).__name__)
+        return UnifiedToolOutput.failure(
+            message="Reminder proposal unavailable.", error_code="DEPENDENCY_ERROR"
         )
 
 
@@ -437,8 +396,8 @@ async def list_reminders_tool(
 ) -> UnifiedToolOutput:
     """List pending reminders for the user.
 
-    Returns all reminders with "pending" status,
-    sorted by trigger date in ascending order.
+    Returns the source-bounded compact pending page, soonest first.
+    Use get_lia_reminders_tool for management settings and pagination.
 
     Args:
         runtime: LangChain tool runtime.
@@ -449,6 +408,8 @@ async def list_reminders_tool(
         UnifiedToolOutput with reminders list and formatted message
     """
     locale = resolve_language(locale)
+    from src.domains.agents.application.authorization import load_actor
+    from src.domains.agents.application.availability import require_application_tools
     from src.domains.reminders.service import ReminderService
     from src.infrastructure.database.session import get_db_context
 
@@ -462,7 +423,11 @@ async def list_reminders_tool(
 
         async with get_db_context() as db:
             service = ReminderService(db)
+            await require_application_tools(db)
+            await load_actor(db, user_id)
             reminders = await service.list_pending_for_user(user_id)
+            await require_application_tools(db)
+            await load_actor(db, user_id)
 
             if not reminders:
                 # `total` used to be set HERE and nowhere else: the key existed
@@ -539,6 +504,16 @@ async def list_reminders_tool(
                 },
             )
 
+    except AuthorizationError as exc:
+        from src.domains.agents.application.availability import application_access_error_code
+
+        return UnifiedToolOutput.failure(
+            message="Reminder access refused.", error_code=application_access_error_code(exc)
+        )
+    except SQLAlchemyError:
+        return UnifiedToolOutput.failure(
+            message="Reminder data unavailable.", error_code="DEPENDENCY_ERROR"
+        )
     except Exception as e:
         logger.error(
             "list_reminders_tool_error",
@@ -578,67 +553,14 @@ async def cancel_reminder_tool(
         UnifiedToolOutput with DRAFT RegistryItem (requires_confirmation=True)
     """
     locale = resolve_language(locale)
-    from src.core.exceptions import ResourceConflictError, ResourceNotFoundError
-    from src.domains.agents.drafts import create_reminder_delete_draft
-    from src.domains.reminders.service import ReminderService
-    from src.infrastructure.database.session import get_db_context
+    from src.domains.agents.tools.application_reminder_tools import reminder_removal_proposal
 
-    # Validate runtime config
     config = validate_runtime_config(runtime, "cancel_reminder_tool")
     if isinstance(config, UnifiedToolOutput):
         return config
-
-    try:
-        user_id = parse_user_id(config.user_id)
-
-        async with get_db_context() as db:
-            service = ReminderService(db)
-
-            # Resolve the reminder (find by ID or natural reference) WITHOUT cancelling
-            reminder = await service.resolve_reminder(
-                user_id=user_id,
-                identifier=reminder_identifier,
-            )
-
-            logger.info(
-                "cancel_reminder_draft_prepared",
-                reminder_id=str(reminder.id),
-                user_id=str(user_id),
-                content_length=len(reminder.content or ""),
-            )
-
-            # Create draft for user confirmation (actual cancellation after HITL)
-            return create_reminder_delete_draft(
-                reminder_id=str(reminder.id),
-                content=reminder.content or "",
-                trigger_at=reminder.trigger_at.isoformat() if reminder.trigger_at else "",
-                source_tool="cancel_reminder_tool",
-                user_language=locale,
-            )
-
-    except ResourceNotFoundError:
-        return UnifiedToolOutput.failure(
-            message=APIMessages.reminder_not_found(reminder_identifier, locale),
-            error_code="not_found",
-        )
-
-    except ResourceConflictError as e:
-        return UnifiedToolOutput.failure(
-            message=str(e),
-            error_code="conflict",
-        )
-
-    except Exception as e:
-        logger.error(
-            "cancel_reminder_tool_error",
-            error=str(e),
-            error_type=type(e).__name__,
-            exc_info=True,
-        )
-        return UnifiedToolOutput.failure(
-            message=APIMessages.reminder_cancel_error(str(e)),
-            error_code="reminder_cancel_failed",
-        )
+    return await reminder_removal_proposal(
+        parse_user_id(config.user_id), reminder_identifier, locale
+    )
 
 
 # =============================================================================
@@ -647,51 +569,10 @@ async def cancel_reminder_tool(
 
 
 async def execute_reminder_delete_draft(
-    draft_content: dict[str, Any],
-    user_id: UUID,
-    deps: Any,
+    draft_content: dict[str, Any], user_id: UUID, deps: Any
 ) -> dict[str, Any]:
-    """Execute a reminder delete draft: actually cancel the reminder.
-
-    Called by DraftCritiqueInteraction.process_draft_action() when user confirms.
-
-    Args:
-        draft_content: Draft content with reminder_id, content, trigger_at.
-        user_id: User UUID.
-        deps: ToolDependencies (unused for internal reminders).
-
-    Returns:
-        Result dict with success status and message.
-    """
-    from src.domains.agents.services.card_composition_service import draft_composition_scope
-    from src.domains.reminders.service import ReminderService
-    from src.infrastructure.database.session import get_db_context
-
-    reminder_id_str = draft_content["reminder_id"]
-    content = draft_content.get("content", "")
-
-    async with (
-        draft_composition_scope(draft_content, user_id, deps, "cancel_reminder"),
-        get_db_context() as db,
-    ):
-        service = ReminderService(db)
-        await service.cancel_reminder(
-            user_id=user_id,
-            reminder_id=UUID(reminder_id_str),
-        )
-        await db.commit()
-
-    logger.info(
-        "reminder_delete_draft_executed",
-        user_id=str(user_id),
-        reminder_id=reminder_id_str,
-    )
-
-    return {
-        "success": True,
-        "reminder_id": reminder_id_str,
-        "message": APIMessages.reminder_cancelled(content),
-    }
+    """An old draft has no full source snapshot; require a new native confirmation."""
+    return {"success": False, "error_code": "SCHEMA_CHANGED"}
 
 
 # =============================================================================

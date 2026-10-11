@@ -19,9 +19,10 @@ const h = vi.hoisted(() => ({
   mutate: vi.fn(),
 }));
 
-vi.mock('@/hooks/useApiQuery', () => ({
-  useApiQuery: (url: string, options: { enabled: boolean }) => {
-    h.reads.push([url, options.enabled]);
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'live-hook-account' } }) }));
+vi.mock('@/hooks/useApplicationAccountQuery', () => ({
+  useApplicationAccountQuery: (url: string, _component: string, enabled: boolean) => {
+    h.reads.push([url, enabled]);
     const [override, setOverride] = useState<unknown>(undefined);
     const served = override ?? h.table[url];
     const setData = (update: unknown) =>
@@ -29,10 +30,11 @@ vi.mock('@/hooks/useApiQuery', () => ({
         typeof update === 'function' ? update(previous ?? h.table[url]) : update
       );
     return {
-      data: options.enabled ? served : undefined,
+      ownerId: 'live-hook-account',
+      data: enabled ? served : undefined,
       loading: false,
       error: null,
-      refetch: vi.fn(),
+      refetch: vi.fn(async () => {}),
       setData,
     };
   },

@@ -34,6 +34,11 @@ from src.domains.agents.orchestration.condition_evaluator import ReferenceResolv
 from src.domains.agents.registry.catalogue import ToolManifest
 from src.domains.agents.tools.mixins import ToolOutputMixin
 from src.domains.agents.tools.output import UnifiedToolOutput
+from src.domains.agents.tools.weather_formatting import (
+    _format_current_weather_response,
+    _format_forecast_response,
+    _format_hourly_response,
+)
 from tests.unit.domains.agents.registry.reference_harness import (
     completed_step,
     root_key,
@@ -106,38 +111,55 @@ _PLACE = {
 # production — the client's parsed response — so the derivation stays real.
 # --------------------------------------------------------------------------
 _PARIS = {"name": "Paris", "country": "FR", "lat": 48.85, "lon": 2.35}
-_CURRENT_WEATHER = {
-    "temperature": 21.5,
-    "feels_like": 21.0,
-    "description": "ciel dégagé",
-    "humidity": 55,
-    "pressure": 1015,
-    "wind": {"speed": 3.2, "deg": 180},
-    "clouds": 5,
-    "icon": "01d",
-    "main": "Clear",
-}
-_DAILY_FORECAST = {
-    "date": "2026-08-03",
-    "datetime": "2026-08-03T12:00:00Z",
-    "temperature": 20.0,
-    "temp_min": 14.0,
-    "temp_max": 25.0,
-    "description": "ensoleillé",
-    "humidity": 50,
-    "wind_speed": 3.0,
-    "icon": "01d",
-}
-_HOURLY_FORECAST = {
-    "datetime": "2026-08-02T15:00:00Z",
-    "datetime_text": "15:00",
-    "temp": 22.0,
-    "description": "clair",
-    "humidity": 48,
-    "wind_speed": 2.5,
-    "icon": "01d",
-    "pop": 0.1,
-}
+# Raw provider measurements go through the production formatters. Previously
+# the fixtures hand-wrote numerical "parsed" weather while every real tool
+# formats measures with their units, so the guard certified obsolete types.
+_CURRENT_DATA = _format_current_weather_response(
+    {
+        "main": {"temp": 21.5, "feels_like": 21.0, "humidity": 55, "pressure": 1015},
+        "wind": {"speed": 3.2, "deg": 180},
+        "weather": [{"description": "ciel dégagé", "icon": "01d", "main": "Clear"}],
+    },
+    "Paris",
+    "FR",
+    48.85,
+    2.35,
+    "metric",
+)["data"]
+_DAILY_DATA = _format_forecast_response(
+    [
+        {
+            "date": "2026-08-03",
+            "temp_min": 14.0,
+            "temp_max": 25.0,
+            "temp_avg": 20.0,
+            "condition": "ensoleillé",
+            "humidity_avg": 50,
+            "wind_speed_avg": 3.0,
+        }
+    ],
+    "Paris",
+    "FR",
+    1,
+    "metric",
+    "2026-08-03",
+)["data"]
+_HOURLY_DATA = _format_hourly_response(
+    {
+        "list": [
+            {
+                "dt": 1785682800,
+                "main": {"temp": 22.0, "humidity": 48},
+                "wind": {"speed": 2.5},
+                "weather": [{"description": "clair", "icon": "01d"}],
+            }
+        ]
+    },
+    "Paris",
+    "FR",
+    1,
+    "metric",
+)["data"]
 
 
 _LABELS_RESULT = {
@@ -328,19 +350,19 @@ def _formatter_builders() -> dict[str, Any]:
             GetCurrentWeatherTool,
             "get_current_weather_tool",
             "current",
-            {"location": dict(_PARIS), "weather": dict(_CURRENT_WEATHER)},
+            dict(_CURRENT_DATA),
         ),
         "get_weather_forecast_tool": lambda: _fmt(
             GetWeatherForecastTool,
             "get_weather_forecast_tool",
             "forecast",
-            {"location": dict(_PARIS), "daily": [dict(_DAILY_FORECAST), dict(_DAILY_FORECAST)]},
+            dict(_DAILY_DATA),
         ),
         "get_hourly_forecast_tool": lambda: _fmt(
             GetHourlyForecastTool,
             "get_hourly_forecast_tool",
             "hourly",
-            {"location": dict(_PARIS), "hourly": [dict(_HOURLY_FORECAST), dict(_HOURLY_FORECAST)]},
+            dict(_HOURLY_DATA),
         ),
     }
 

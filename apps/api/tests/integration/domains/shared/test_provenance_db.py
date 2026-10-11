@@ -69,6 +69,51 @@ async def context(async_session: AsyncSession):
 
 
 class TestTheReferenceIsBoundedAndScoped:
+    @pytest.mark.parametrize(
+        "source", ["foreign_conversation", "mismatched_message", "soft_deleted"]
+    )
+    async def test_live_source_ownership_and_message_membership_are_rechecked(
+        self, async_session: AsyncSession, context, source: str
+    ):
+        """A malformed legacy pointer cannot disclose another account's source."""
+        from src.domains.users.models import User
+
+        user, own_conversation, own_message, entry = context
+        foreign = User(email=f"foreign-{uuid.uuid4()}@test.local", is_active=True)
+        async_session.add(foreign)
+        await async_session.flush()
+        conversation = Conversation(
+            user_id=foreign.id, title="Foreign", message_count=0, total_tokens=0
+        )
+        async_session.add(conversation)
+        await async_session.flush()
+        message = ConversationMessage(
+            conversation_id=conversation.id, role="user", content="Foreign private signal"
+        )
+        async_session.add(message)
+        await async_session.flush()
+        if source == "soft_deleted":
+            own_conversation.deleted_at = datetime.now(UTC)
+        async_session.add(
+            ProvenanceReference(
+                user_id=user.id,
+                journal_entry_id=entry.id,
+                conversation_id=(
+                    conversation.id if source == "foreign_conversation" else own_conversation.id
+                ),
+                message_id=own_message.id if source == "soft_deleted" else message.id,
+                outcome=ProvenanceOutcome.ORIGIN.value,
+            )
+        )
+        await async_session.commit()
+        [resolved] = await ProvenanceRepository(async_session).resolve_for(
+            user_id=user.id, journal_entry_id=entry.id
+        )
+        assert resolved.excerpt is None
+        assert resolved.conversation_id != conversation.id
+        if source in {"foreign_conversation", "soft_deleted"}:
+            assert resolved.is_tombstone and resolved.conversation_id is None
+
     async def test_it_stores_a_pointer_and_resolves_the_live_source(
         self, async_session: AsyncSession, context
     ):

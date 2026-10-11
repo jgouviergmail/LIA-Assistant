@@ -1,3 +1,4 @@
+import { userMCPServer as server } from './user-mcp-fixture';
 /**
  * useUserMCPServers — the CRUD layer for the user's own MCP servers, mocked out
  * by the settings-panel tests and therefore only pinned here.
@@ -19,42 +20,15 @@ import {
   takeUpdater,
 } from '@/__tests__/api-mocks';
 
-const { useApiQuery } = vi.hoisted(() => ({ useApiQuery: vi.fn() }));
-vi.mock('@/hooks/useApiQuery', () => ({ useApiQuery }));
+const { useApplicationAccountQuery } = vi.hoisted(() => ({ useApplicationAccountQuery: vi.fn() }));
+vi.mock('@/hooks/useApplicationAccountQuery', () => ({ useApplicationAccountQuery }));
 const { useApiMutation } = vi.hoisted(() => ({ useApiMutation: vi.fn() }));
 vi.mock('@/hooks/useApiMutation', () => ({ useApiMutation }));
 
 import { useUserMCPServers } from '../useUserMCPServers';
-import type { UserMCPServer, UserMCPServerListResponse } from '@/hooks/useUserMCPServers';
+import type { UserMCPServerListResponse } from '@/hooks/useUserMCPServers';
 
 const ENDPOINT = '/mcp/servers';
-
-function server(over: Partial<UserMCPServer> = {}): UserMCPServer {
-  return {
-    id: 's1',
-    name: 'Weather MCP',
-    url: 'https://mcp.example.com/sse',
-    plugin_id: null,
-    auth_type: 'none',
-    status: 'active',
-    is_enabled: true,
-    domain_description: null,
-    timeout_seconds: 30,
-    hitl_required: null,
-    iterative_mode: false,
-    header_name: null,
-    has_credentials: false,
-    has_oauth_credentials: false,
-    oauth_scopes: null,
-    tool_count: 2,
-    tools: [],
-    last_connected_at: null,
-    last_error: null,
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z',
-    ...over,
-  };
-}
 
 /** The eight mutations, in the order the hook declares them. */
 const mutate = {
@@ -86,7 +60,7 @@ function cache(over: Partial<UserMCPServerListResponse> = {}): UserMCPServerList
 }
 
 function setupWith(data: UserMCPServerListResponse | undefined) {
-  useApiQuery.mockReturnValue(queryResult<UserMCPServerListResponse>({ data, setData, refetch }));
+  useApplicationAccountQuery.mockReturnValue({ ...queryResult<UserMCPServerListResponse>({ data, setData, refetch }), ownerId: "owner", isCurrent: () => true });
   return renderHook(() => useUserMCPServers());
 }
 
@@ -121,7 +95,7 @@ describe('useUserMCPServers — reading', () => {
   it('reads the collection and exposes it', () => {
     const { result } = setup();
 
-    expect(useApiQuery).toHaveBeenCalledWith(ENDPOINT, expect.objectContaining({}));
+    expect(useApplicationAccountQuery).toHaveBeenCalledWith(ENDPOINT, expect.objectContaining({}));
     expect(result.current.servers).toHaveLength(1);
     expect(result.current.total).toBe(1);
   });

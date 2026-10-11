@@ -10,9 +10,13 @@
  * Every action re-reads the row from the response so the page never guesses.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 import { useStaleGuard } from '@/hooks/useStaleGuard';
+import { useAuth } from '@/hooks/useAuth';
+import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
+import { useApplicationAccountState } from '@/hooks/useApplicationAccountState';
+import { useApplicationResourceSync } from '@/hooks/useApplicationResourceSync';
 import { ApiError } from '@/lib/api-client';
 import { MEETING_STATUS_POLL_MS } from '@/lib/constants';
 import { logger } from '@/lib/logger';
@@ -51,54 +55,70 @@ export function isMeetingInFlight(meeting: Pick<MeetingDetail, 'status' | 'stage
 }
 
 export function useMeetingList(limit: number, offset = 0, enabled = true): UseMeetingListReturn {
-  const [meetings, setMeetings] = useState<MeetingSummary[]>([]);
-  const [total, setTotal] = useState(0);
-  const [isLoading, setIsLoading] = useState(enabled);
-  const [isUnavailable, setIsUnavailable] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const { user } = useAuth();
+  const ownerId = user?.id;
+  const scopeId = enabled && ownerId ? `${ownerId}:${limit}:${offset}` : undefined;
+  const { lifetime, isCurrent } = useApplicationAccountLifetime(scopeId);
+  const [meetings, setMeetings] = useApplicationAccountState<MeetingSummary[]>(scopeId, []);
+  const [total, setTotal] = useApplicationAccountState(scopeId, 0);
+  const [isLoading, setIsLoading] = useApplicationAccountState(scopeId, !!scopeId);
+  const [isUnavailable, setIsUnavailable] = useApplicationAccountState(scopeId, false);
+  const [error, setError] = useApplicationAccountState<Error | null>(scopeId, null);
+  const [isDeleting, setIsDeleting] = useApplicationAccountState(scopeId, false);
+  const pending = useRef<typeof lifetime | null>(null);
   const guard = useStaleGuard();
 
-  const refetch = useCallback(async () => {
-    if (!enabled) return;
+  const read = useCallback(async () => {
+    if (!enabled || !isCurrent()) return false;
     const isStale = guard.begin();
     try {
       const page = await meetingsApi.list(limit, offset);
-      if (isStale()) return;
+      if (isStale() || !isCurrent()) return false;
       setMeetings(page.items);
       setTotal(page.total);
       setError(null);
+      setIsUnavailable(false);
+      return true;
     } catch (err) {
-      if (isStale()) return;
+      if (isStale() || !isCurrent()) return false;
       if (err instanceof ApiError && err.status === 404) {
         setIsUnavailable(true);
         setMeetings([]);
-        return;
+        return false;
       }
       setError(err instanceof Error ? err : new Error(String(err)));
       logger.error('meetings_list_failed', err as Error, { component: 'useMeetingList' });
+      return false;
     } finally {
-      if (!isStale()) setIsLoading(false);
+      if (!isStale() && isCurrent()) setIsLoading(false);
     }
-  }, [enabled, guard, limit, offset]);
+  }, [enabled, guard, limit, offset, isCurrent, setMeetings, setTotal, setError, setIsUnavailable, setIsLoading]);
+  const refetch = useCallback(async () => { await read(); }, [read]);
+  const refetchVerified = useCallback(async () => { if (!await read()) throw new Error('Meeting list refresh failed'); }, [read]);
+  useApplicationResourceSync(scopeId ? ownerId : undefined, 'meetings', refetchVerified);
 
   useEffect(() => {
     void refetch();
   }, [refetch]);
 
   const bulkDelete = useCallback(async (ids: string[]) => {
+    if (!isCurrent() || pending.current === lifetime) throw new Error('Meeting list action is unavailable');
+    pending.current = lifetime;
     setIsDeleting(true);
     try {
-      return await meetingsApi.bulkDelete(ids);
+      const result = await meetingsApi.bulkDelete(ids);
+      if (!isCurrent()) throw new Error('Meeting list action is obsolete');
+      return result;
     } catch (err) {
-      logger.error('meetings_bulk_delete_failed', err as Error, { component: 'useMeetingList' });
+      if (isCurrent()) logger.error('meetings_bulk_delete_failed', err as Error, { component: 'useMeetingList' });
       throw err;
     } finally {
-      setIsDeleting(false);
+      if (pending.current === lifetime) pending.current = null;
+      if (isCurrent()) setIsDeleting(false);
     }
-  }, []);
+  }, [isCurrent, lifetime, setIsDeleting]);
 
-  return { meetings, total, isLoading, isUnavailable, error, refetch, isDeleting, bulkDelete };
+  return { meetings, total, isLoading: !!scopeId && isLoading, isUnavailable, error, refetch, isDeleting, bulkDelete };
 }
 
 export interface UseMeetingReturn {
@@ -125,11 +145,17 @@ export interface UseMeetingReturn {
 }
 
 export function useMeeting(id: string | null, includeTranscript = false): UseMeetingReturn {
-  const [meeting, setMeeting] = useState<MeetingDetail | null>(null);
-  const [isLoading, setIsLoading] = useState(id !== null);
-  const [isNotFound, setIsNotFound] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  const [isActing, setIsActing] = useState(false);
+  const { user } = useAuth();
+  const ownerId = user?.id;
+  const scopeId = ownerId && id ? `${ownerId}:${id}:${includeTranscript}` : undefined;
+  const { lifetime, isCurrent } = useApplicationAccountLifetime(scopeId);
+  const [meeting, setMeeting] = useApplicationAccountState<MeetingDetail | null>(scopeId, null);
+  const [isLoading, setIsLoading] = useApplicationAccountState(scopeId, !!scopeId);
+  const [isNotFound, setIsNotFound] = useApplicationAccountState(scopeId, false);
+  const [error, setError] = useApplicationAccountState<Error | null>(scopeId, null);
+  const [isActing, setIsActing] = useApplicationAccountState(scopeId, false);
+  const [pollTick, setPollTick] = useApplicationAccountState(scopeId, 0);
+  const pending = useRef<typeof lifetime | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const guard = useStaleGuard();
 
@@ -140,26 +166,35 @@ export function useMeeting(id: string | null, includeTranscript = false): UseMee
     }
   }, []);
 
-  const refetch = useCallback(async () => {
-    if (id === null) return;
+  const read = useCallback(async () => {
+    if (id === null || !isCurrent()) return false;
     const isStale = guard.begin();
     try {
       const detail = await meetingsApi.detail(id, includeTranscript);
-      if (isStale()) return;
+      if (isStale() || !isCurrent()) return false;
       setMeeting(detail);
       setError(null);
       setIsNotFound(false);
+      return true;
     } catch (err) {
-      if (isStale()) return;
+      if (isStale() || !isCurrent()) return false;
       if (err instanceof ApiError && err.status === 404) {
         setIsNotFound(true);
-        return;
+        setMeeting(null);
+        return false;
       }
       setError(err instanceof Error ? err : new Error(String(err)));
+      return false;
     } finally {
-      if (!isStale()) setIsLoading(false);
+      if (!isStale() && isCurrent()) {
+        setIsLoading(false);
+        setPollTick(current => current + 1);
+      }
     }
-  }, [guard, id, includeTranscript]);
+  }, [guard, id, includeTranscript, isCurrent, setMeeting, setError, setIsNotFound, setIsLoading, setPollTick]);
+  const refetch = useCallback(async () => { await read(); }, [read]);
+  const refetchVerified = useCallback(async () => { if (!await read()) throw new Error('Meeting detail refresh failed'); }, [read]);
+  useApplicationResourceSync(scopeId ? ownerId : undefined, 'meetings', refetchVerified);
 
   // Poll while the server is still working on the meeting; stop as soon as it
   // is not. The refetch after an action re-arms this through `meeting`.
@@ -169,25 +204,33 @@ export function useMeeting(id: string | null, includeTranscript = false): UseMee
       timerRef.current = setTimeout(() => void refetch(), MEETING_STATUS_POLL_MS);
     }
     return clearTimer;
-  }, [meeting, refetch, clearTimer]);
+  }, [meeting, refetch, clearTimer, pollTick]);
 
   useEffect(() => {
     void refetch();
   }, [refetch]);
 
   const act = useCallback(async <T>(operation: () => Promise<T>): Promise<T | null> => {
+    if (!isCurrent() || pending.current === lifetime) return null;
+    pending.current = lifetime;
     setIsActing(true);
     try {
-      return await operation();
+      const result = await operation();
+      return isCurrent() ? result : null;
+    } catch (err) {
+      if (isCurrent()) throw err;
+      return null;
     } finally {
-      setIsActing(false);
+      if (pending.current === lifetime) pending.current = null;
+      if (isCurrent()) setIsActing(false);
     }
-  }, []);
+  }, [isCurrent, lifetime, setIsActing]);
 
   const applyDetail = useCallback((detail: MeetingDetail) => {
+    if (!isCurrent()) return null;
     setMeeting(detail);
     return detail;
-  }, []);
+  }, [isCurrent, setMeeting]);
 
   const patch = useCallback(
     (request: MeetingPatchRequest) =>
@@ -253,7 +296,7 @@ export function useMeeting(id: string | null, includeTranscript = false): UseMee
 
   return {
     meeting,
-    isLoading,
+    isLoading: !!scopeId && isLoading,
     isNotFound,
     error,
     isActing,

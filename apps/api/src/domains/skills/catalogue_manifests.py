@@ -62,6 +62,7 @@ activate_skill_catalogue_manifest = ToolManifest(
             type="string",
             required=False,
             description=ACTIVATION_REQUEST_DESCRIPTION,
+            semantic_type="Text",
         ),
     ],
     outputs=[
@@ -69,6 +70,7 @@ activate_skill_catalogue_manifest = ToolManifest(
             path="message",
             type="string",
             description="Skill instructions with structured wrapping",
+            semantic_type="Text",
         ),
     ],
     cost=CostProfile(
@@ -133,6 +135,7 @@ read_skill_resource_catalogue_manifest = ToolManifest(
             path="message",
             type="string",
             description="File content as text",
+            semantic_type="file_content",
         ),
     ],
     cost=CostProfile(
@@ -188,6 +191,7 @@ import_user_skill_catalogue_manifest = ToolManifest(
             path="message",
             type="string",
             description="What was proposed, and that the user installs it from the card",
+            semantic_type="Text",
         ),
     ],
     cost=CostProfile(
@@ -263,6 +267,7 @@ run_skill_script_catalogue_manifest = ToolManifest(
             path="message",
             type="string",
             description="Text response (always present — from SkillScriptOutput.text)",
+            semantic_type="Text",
         ),
         # Rich outputs (v1.16.8, ADR-075): emitted only when the script returns
         # a SkillScriptOutput JSON with frame or image. The SKILL_APP registry
@@ -298,6 +303,7 @@ run_skill_script_catalogue_manifest = ToolManifest(
             type="string",
             description="Display title (frame header / image alt fallback)",
             nullable=True,
+            semantic_type="Text",
         ),
     ],
     cost=CostProfile(
@@ -376,6 +382,7 @@ run_skill_command_catalogue_manifest = ToolManifest(
             path="message",
             type="string",
             description="Exit code, standard output and error, and the files handed back",
+            semantic_type="Text",
         ),
         OutputFieldSchema(
             path="exit_code",
@@ -387,6 +394,7 @@ run_skill_command_catalogue_manifest = ToolManifest(
             path="files",
             type="array",
             description="Names of the files handed to the user",
+            semantic_type="file_name",
         ),
     ],
     cost=CostProfile(

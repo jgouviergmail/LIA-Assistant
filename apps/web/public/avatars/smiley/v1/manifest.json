@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "total_bytes": 17052,
+  "render": {
+    "engine": "CYCLES",
+    "samples": 64,
+    "threads": 2
+  },
+  "source": "Original procedural Blender sculpt in scripts/assets/render_smiley_avatar.py",
+  "assets": {
+    "body": {
+      "size": 192,
+      "bytes": 5634,
+      "sha256": "3fe68050aa60e439c7feefa154c5b9c87677e5a3299299aa7ee05e8b726b61de"
+    },
+    "eye": {
+      "size": 128,
+      "bytes": 3430,
+      "sha256": "85c7291c92c7be2f1f2d7eb9cea305d0d48ce98b7130ba0c318d09beb0934def"
+    },
+    "iris": {
+      "size": 128,
+      "bytes": 1804,
+      "sha256": "6aeb1471894e94cd198ed3c0f57469c1490a0d307275187fde244cd1f6984915"
+    },
+    "sclera-mask": {
+      "size": 128,
+      "bytes": 2970,
+      "sha256": "6afef61270c5bdaf368993ef85cf59634506ca0ca96c896267c035d0631f323b"
+    },
+    "bow": {
+      "size": 128,
+      "bytes": 3214,
+      "sha256": "e747d2c6139bee00db3e4a9df3e3cf2514cae80b4b2a37a0b4d9e78bdd950544"
+    }
+  }
+}

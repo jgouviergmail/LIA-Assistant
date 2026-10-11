@@ -17,10 +17,7 @@ import { describe, expect, it } from 'vitest';
 import { SHOWROOM_MISSIONS } from '@/components/showroom/missions';
 import { OVERLOADED_MORNING } from '@/components/showroom/missions/overloaded-morning';
 import { PHONE_BOOKING } from '@/components/showroom/missions/phone-booking';
-import {
-  initialStateFor,
-  makeShowroomReducer,
-} from '@/components/showroom/reducer';
+import { initialStateFor, makeShowroomReducer } from '@/components/showroom/reducer';
 import type {
   ShowroomDecisionKind,
   ShowroomEvent,
@@ -46,16 +43,14 @@ function toFirstDecision(def: ShowroomMissionDefinition): ShowroomEvent[] {
 }
 
 /** Every combination of allowed kinds across the mission's decisions. */
-function decisionCombinations(
-  def: ShowroomMissionDefinition
-): ShowroomDecisionKind[][] {
+function decisionCombinations(def: ShowroomMissionDefinition): ShowroomDecisionKind[][] {
   return def.decisions.reduce<ShowroomDecisionKind[][]>(
-    (acc, spec) => acc.flatMap((prefix) => spec.allowed.map((k) => [...prefix, k])),
+    (acc, spec) => acc.flatMap(prefix => spec.allowed.map(k => [...prefix, k])),
     [[]]
   );
 }
 
-describe.each(SHOWROOM_MISSIONS.map((m) => [m.id, m] as const))(
+describe.each(SHOWROOM_MISSIONS.map(m => [m.id, m] as const))(
   'showroomReducer — %s',
   (_id, def) => {
     const { reducer, run } = runner(def);
@@ -77,11 +72,11 @@ describe.each(SHOWROOM_MISSIONS.map((m) => [m.id, m] as const))(
       state = reducer(state, { type: 'ADVANCE' });
       expect(state.phase).toBe('planning');
       state = reducer(state, { type: 'ADVANCE' });
-      expect(state.phase).toBe('decision');
+      expect(state.phase).toBe(def.decisions.length ? 'decision' : 'receipt');
       expect(state.decisionIndex).toBe(0);
     });
 
-    it.each(decisionCombinations(def).map((c) => [c.join('+'), c] as const))(
+    it.each(decisionCombinations(def).map(c => [c.join('+'), c] as const))(
       'reaches a truthful receipt for %s',
       (_label, combo) => {
         const state = run([
@@ -102,38 +97,30 @@ describe.each(SHOWROOM_MISSIONS.map((m) => [m.id, m] as const))(
     it('ignores a decision kind the step does not allow', () => {
       const at = run(toFirstDecision(def));
       for (const kind of ['confirm', 'edit', 'cancel'] as const) {
-        if (def.decisions[0].allowed.includes(kind)) continue;
+        if (def.decisions[0]?.allowed.includes(kind)) continue;
         expect(reducer(at, { type: 'DECIDE', index: 0, decision: kind })).toBe(at);
       }
     });
 
     it('ignores out-of-order, duplicate and unknown events (same reference)', () => {
       const ready = initialStateFor(def);
-      expect(
-        reducer(ready, { type: 'DECIDE', index: 0, decision: 'confirm' })
-      ).toBe(ready);
+      expect(reducer(ready, { type: 'DECIDE', index: 0, decision: 'confirm' })).toBe(ready);
       expect(reducer(ready, { type: 'ADVANCE' })).toBe(ready);
 
       const atFirst = run(toFirstDecision(def));
       // ADVANCE cannot skip a pending decision.
       expect(reducer(atFirst, { type: 'ADVANCE' })).toBe(atFirst);
       // A later decision while the first one is pending.
-      expect(
-        reducer(atFirst, { type: 'DECIDE', index: 1, decision: 'confirm' })
-      ).toBe(atFirst);
+      expect(reducer(atFirst, { type: 'DECIDE', index: 1, decision: 'confirm' })).toBe(atFirst);
       // Duplicate decision on an already-decided index.
       const after = reducer(atFirst, {
         type: 'DECIDE',
         index: 0,
         decision: 'cancel',
       });
-      expect(reducer(after, { type: 'DECIDE', index: 0, decision: 'confirm' })).toBe(
-        after
-      );
+      expect(reducer(after, { type: 'DECIDE', index: 0, decision: 'confirm' })).toBe(after);
       // Unknown event type (hostile cast).
-      expect(reducer(after, { type: 'NOPE' } as unknown as ShowroomEvent)).toBe(
-        after
-      );
+      expect(reducer(after, { type: 'NOPE' } as unknown as ShowroomEvent)).toBe(after);
     });
 
     it('restarts from every phase and increments runId on the next start', () => {
@@ -156,7 +143,7 @@ describe.each(SHOWROOM_MISSIONS.map((m) => [m.id, m] as const))(
         const after = reducer(before, { type: 'RESTART' });
         expect(after.phase).toBe('ready');
         expect(after.runId).toBe(before.runId);
-        expect(after.decisions.every((d) => d === null)).toBe(true);
+        expect(after.decisions.every(d => d === null)).toBe(true);
         const restarted = reducer(after, { type: 'START' });
         expect(restarted.runId).toBe(before.runId + 1);
       }
@@ -187,9 +174,7 @@ describe('showroomReducer — cross-mission specifics', () => {
     ]);
     expect(atCalendar.phase).toBe('decision');
     expect(atCalendar.decisionIndex).toBe(1);
-    expect(
-      reducer(atCalendar, { type: 'DECIDE', index: 1, decision: 'edit' })
-    ).toBe(atCalendar);
+    expect(reducer(atCalendar, { type: 'DECIDE', index: 1, decision: 'edit' })).toBe(atCalendar);
   });
 
   it('a single-decision mission goes straight from decision to receipt', () => {

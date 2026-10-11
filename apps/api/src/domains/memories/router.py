@@ -22,23 +22,26 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.config import settings
 from src.core.dependencies import get_db
 from src.core.exceptions import (
+    AuthorizationError,
     ResourceNotFoundError,
     raise_memory_not_found,
     raise_memory_store_error,
 )
-from src.core.export_utils import create_csv_response
 from src.core.i18n_api_messages import APIMessages
+from src.core.management_export_file import prepare_management_export_file
+from src.core.management_export_response import ManagementExportResponse
 from src.core.session_dependencies import get_current_active_session
 from src.domains.agents.tools.memory_tools import get_memory_categories
-from src.domains.memories.models import Memory
+from src.domains.memories.management_commands import lock_active_owned_memory, set_locked_memory_pin
+from src.domains.memories.management_export import MemoryCSVExportRecord, memory_export_rows
+from src.domains.memories.read_models import build_retention_config as _build_retention_config
+from src.domains.memories.read_models import memory_to_response as _memory_to_response
 from src.domains.memories.repository import MemoryRepository
-from src.domains.memories.retention import RetentionConfig, classify_purge_risk
 from src.domains.memories.schemas import (
     MemoryCategoriesResponse,
     MemoryCategoryInfo,
     MemoryCreate,
     MemoryDeleteAllResponse,
-    MemoryExportResponse,
     MemoryListResponse,
     MemoryPinRequest,
     MemoryPinResponse,
@@ -54,62 +57,6 @@ from src.infrastructure.observability.logging import get_logger
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/memories", tags=["Memories"])
-
-
-def _build_retention_config() -> RetentionConfig:
-    """Snapshot the current retention settings for risk classification.
-
-    Returns:
-        A frozen ``RetentionConfig`` built from the current settings.
-    """
-    return RetentionConfig(
-        min_age_for_cleanup_days=settings.memory_min_age_for_cleanup_days,
-        recency_decay_days=settings.memory_recency_decay_days,
-        usage_penalty_age_days=settings.memory_usage_penalty_age_days,
-        usage_penalty_factor=settings.memory_usage_penalty_factor,
-        purge_threshold=settings.memory_purge_threshold,
-        at_risk_margin=settings.memory_purge_at_risk_margin,
-        weight_importance=settings.memory_retention_weight_importance,
-        weight_recency=settings.memory_retention_weight_recency,
-    )
-
-
-def _memory_to_response(
-    memory: Memory,
-    now: datetime | None = None,
-    config: RetentionConfig | None = None,
-) -> MemoryResponse:
-    """Convert a Memory ORM object to MemoryResponse (with computed purge risk).
-
-    Args:
-        memory: Memory ORM instance.
-        now: Current datetime (one snapshot per request; defaults to UTC now).
-        config: Retention configuration snapshot (defaults to current settings).
-            Pass a shared instance when converting a list to avoid rebuilding it
-            per item.
-
-    Returns:
-        MemoryResponse with all fields, including read-only purge-risk data.
-    """
-    now = now or datetime.now(UTC)
-    config = config or _build_retention_config()
-    purge_risk, retention_score = classify_purge_risk(memory, now, config)
-    return MemoryResponse(
-        id=str(memory.id),
-        content=memory.content or "",
-        category=memory.category or "personal",
-        emotional_weight=memory.emotional_weight or 0,
-        trigger_topic=memory.trigger_topic or "",
-        usage_nuance=memory.usage_nuance or "",
-        importance=memory.importance or 0.7,
-        created_at=memory.created_at,
-        updated_at=memory.updated_at,
-        pinned=memory.pinned or False,
-        usage_count=memory.usage_count or 0,
-        last_accessed_at=memory.last_accessed_at,
-        purge_risk=purge_risk,
-        retention_score=retention_score,
-    )
 
 
 @router.get(
@@ -138,50 +85,27 @@ async def export_memories(
     ),
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
-) -> MemoryExportResponse | StreamingResponse:
+) -> StreamingResponse:
     """Export all memories for GDPR data portability."""
     try:
-        repo = MemoryRepository(db)
-        all_memories = await repo.get_all_for_user(user.id)
         now = datetime.now(UTC)
-        config = _build_retention_config()
-        memories = [_memory_to_response(m, now, config) for m in all_memories]
-
+        reader = await prepare_management_export_file(
+            memory_export_rows(db, user.id, export_format, now),
+            format=export_format,
+            fieldnames=tuple(MemoryCSVExportRecord.model_fields),
+            collection="memories",
+            metadata={"user_id": str(user.id), "exported_at": now.isoformat()},
+            count_key="total_memories",
+            max_bytes=settings.account_export_max_bytes,
+        )
         logger.info(
             "memories_exported",
             user_id=str(user.id),
-            total=len(memories),
+            file_size_bytes=reader.file_size_bytes,
             export_format=export_format,
         )
 
-        if export_format == "csv":
-            export_data = [
-                {
-                    "id": memory.id,
-                    "content": memory.content,
-                    "category": memory.category,
-                    "emotional_weight": memory.emotional_weight,
-                    "trigger_topic": memory.trigger_topic or "",
-                    "usage_nuance": memory.usage_nuance or "",
-                    "importance": memory.importance,
-                    "pinned": str(memory.pinned),
-                    "usage_count": memory.usage_count,
-                    "last_accessed_at": (
-                        memory.last_accessed_at.isoformat() if memory.last_accessed_at else ""
-                    ),
-                    "created_at": memory.created_at.isoformat() if memory.created_at else "",
-                    "updated_at": memory.updated_at.isoformat() if memory.updated_at else "",
-                }
-                for memory in memories
-            ]
-            return create_csv_response(data=export_data, filename_prefix="memories")
-
-        return MemoryExportResponse(
-            user_id=str(user.id),
-            exported_at=datetime.now(UTC),
-            total_memories=len(memories),
-            memories=memories,
-        )
+        return ManagementExportResponse(reader, collection="memories", format=export_format)
 
     except Exception as e:
         logger.error(
@@ -314,15 +238,7 @@ async def create_memory(
     """Create a new memory."""
     try:
         service = MemoryService(db)
-        memory = await service.create_memory(
-            user_id=user.id,
-            content=data.content,
-            category=data.category,
-            emotional_weight=data.emotional_weight,
-            trigger_topic=data.trigger_topic,
-            usage_nuance=data.usage_nuance,
-            importance=data.importance,
-        )
+        memory = await service.create_from_management(user.id, data)
         await db.commit()
 
         logger.info(
@@ -367,15 +283,7 @@ async def update_memory(
             raise_memory_not_found(memory_id)
 
         service = MemoryService(db)
-        updated = await service.update_memory(
-            memory=memory,
-            content=data.content,
-            category=data.category,
-            emotional_weight=data.emotional_weight,
-            trigger_topic=data.trigger_topic,
-            usage_nuance=data.usage_nuance,
-            importance=data.importance,
-        )
+        updated = await service.update_from_management(memory, data)
         await db.commit()
 
         logger.info(
@@ -419,14 +327,8 @@ async def toggle_pin_memory(
 ) -> MemoryPinResponse:
     """Toggle the pinned state of a memory."""
     try:
-        repo = MemoryRepository(db)
-        memory = await repo.get_by_id_for_user(UUID(memory_id), user.id)
-
-        if not memory:
-            raise_memory_not_found(memory_id)
-
-        memory.pinned = data.pinned
-        await repo.update(memory)
+        memory = await lock_active_owned_memory(db, user.id, UUID(memory_id))
+        await set_locked_memory_pin(db, memory, data.pinned)
         await db.commit()
 
         logger.info(
@@ -438,7 +340,7 @@ async def toggle_pin_memory(
 
         return MemoryPinResponse(id=str(memory.id), pinned=data.pinned)
 
-    except ResourceNotFoundError:
+    except AuthorizationError, ResourceNotFoundError:
         raise
     except ValueError, AttributeError:
         raise_memory_not_found(memory_id)

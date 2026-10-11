@@ -224,14 +224,17 @@ class TokenCaptureHandler(BaseCallbackHandler):
         model_name: str,
         started_at: float,
         snapshot: PricingCacheData,
+        known_calls_before: int = 0,
     ) -> None:
-        """Seed a direct reply only when callbacks reported no paid usage.
+        """Seed a reply only when this call's callbacks reported no paid usage.
 
         Some clients (and test fakes) return an AIMessage without firing the
-        attached callbacks. Never add its reading on top of callback usage.
+        attached callbacks. Sequential calls sharing a capture pass the known
+        record count before each call. Never add a direct reply on top of that
+        call's callback usage. The default preserves single-operation callers.
         """
         with self._lock:
-            if self._calls:
+            if len(self._calls) > known_calls_before:
                 return
             usage = tokens_from_response(response)
             if usage.is_empty:

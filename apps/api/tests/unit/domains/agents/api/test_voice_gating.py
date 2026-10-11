@@ -12,6 +12,7 @@ extraction (ADR-122) — formerly ``AgentService._should_start_voice``.
 from __future__ import annotations
 
 from unittest.mock import MagicMock
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -21,10 +22,24 @@ from src.domains.agents.services.streaming.voice_stream_helpers import (
     voice_preference_of,
 )
 
+_SAVED_CONSENT: dict[UUID, bool] = {}
+
+
+@pytest.fixture(autouse=True)
+def saved_voice_consent(monkeypatch: pytest.MonkeyPatch) -> None:
+    _SAVED_CONSENT.clear()
+
+    async def read(user_id: UUID) -> bool:
+        return _SAVED_CONSENT[user_id]
+
+    monkeypatch.setattr("src.domains.users.voice_consent.current_voice_consent", read)
+
 
 def _user(voice_enabled: bool = True) -> MagicMock:
     user = MagicMock()
+    user.id = uuid4()
     user.voice_enabled = voice_enabled
+    _SAVED_CONSENT[user.id] = voice_enabled
     return user
 
 

@@ -3,11 +3,9 @@
 /**
  * SelectionActions — act on a selected passage of an assistant answer (C-02).
  *
- * Desktop: a small toolbar floats above the selection. Mobile (no hover, no
- * comfortable floating UI): a bottom sheet — home-made on purpose (arbitration
- * A2: no `vaul` dependency) and NON-modal in spirit: plain fixed positioning,
- * no scroll lock, no overlay — a modal Radix surface would re-break the sticky
- * header (ADR-171).
+ * A measured, body-portaled toolbar stays beside the visible selection at
+ * every screen size, outside the chat panel's filtered/clipping ancestors.
+ * No scroll lock or overlay (ADR-171).
  *
  * Two safety rules learned elsewhere in this program:
  *  - the QUOTE comes from the React snapshot, never from `getSelection()` at
@@ -21,6 +19,7 @@
  */
 
 import { useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   BookOpenText,
   Brain,
@@ -36,6 +35,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useTextSelection } from '@/hooks/useTextSelection';
+import { useSelectionMenuPosition } from '@/hooks/useSelectionMenuPosition';
 import { SELECTION_QUOTE_MAX_LENGTH } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 
@@ -76,6 +76,7 @@ export function SelectionActions({ onExecute, onPrefill }: SelectionActionsProps
   const { t } = useTranslation();
   const isNarrow = useMediaQuery('(max-width: 639px)');
   const snapshot = useTextSelection();
+  const menuRef = useSelectionMenuPosition(snapshot);
 
   // The quote is FROZEN from the snapshot the moment the menu rendered.
   const quote = useMemo(() => (snapshot ? clampQuote(snapshot.text) : ''), [snapshot]);
@@ -100,7 +101,7 @@ export function SelectionActions({ onExecute, onPrefill }: SelectionActionsProps
       onMouseDown={event => event.preventDefault()}
       onClick={() => runAction(action)}
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-md border border-border/40 bg-background/90',
+        'inline-flex min-w-0 items-center gap-1.5 rounded-md border border-border/40 bg-background/90 [overflow-wrap:anywhere]',
         'px-2 py-1.5 text-xs font-medium text-foreground/90 hover:bg-muted/70 hover:text-primary',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors',
         isNarrow && 'w-full justify-start px-3 py-2 text-sm'
@@ -111,41 +112,28 @@ export function SelectionActions({ onExecute, onPrefill }: SelectionActionsProps
     </button>
   ));
 
-  if (isNarrow) {
-    // Bottom sheet — fixed, no scroll lock, no overlay (ADR-171 doctrine).
-    return (
-      <div
-        role="toolbar"
-        aria-label={t('chat.selection.aria')}
-        className="fixed inset-x-0 bottom-0 z-50 rounded-t-2xl border-t border-x border-border/60 bg-popover p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-2xl motion-safe:animate-in motion-safe:slide-in-from-bottom-4 motion-safe:duration-200"
-      >
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <p className="min-w-0 truncate text-xs italic text-muted-foreground">“{quote}”</p>
-          <button
-            type="button"
-            onClick={clearNativeSelection}
-            aria-label={t('chat.selection.close')}
-            className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <X className="h-4 w-4" aria-hidden="true" />
-          </button>
-        </div>
-        <div className="grid grid-cols-2 gap-1.5">{buttons}</div>
-      </div>
-    );
-  }
-
-  // Desktop: float above the selection, clamped to the viewport.
-  const top = Math.max(8, snapshot.rect.top - 44);
-  const left = Math.max(8, Math.min(snapshot.rect.left, window.innerWidth - 560));
-  return (
+  return createPortal(
     <div
+      ref={menuRef}
       role="toolbar"
       aria-label={t('chat.selection.aria')}
-      style={{ top, left }}
-      className="fixed z-50 flex items-center gap-1 rounded-lg border border-border/60 bg-popover p-1 shadow-xl motion-safe:animate-in motion-safe:fade-in motion-safe:duration-150"
+      style={{ visibility: 'hidden' }}
+      className={cn(
+        'fixed z-50 max-w-[calc(100vw-1rem)] overflow-auto overscroll-contain rounded-lg border border-border/60 bg-popover p-1 shadow-xl',
+        isNarrow ? 'grid w-[22rem] grid-cols-2 gap-1.5' : 'flex w-max flex-wrap items-center gap-1'
+      )}
     >
       {buttons}
-    </div>
+      <button
+        type="button"
+        onMouseDown={event => event.preventDefault()}
+        onClick={clearNativeSelection}
+        aria-label={t('chat.selection.close')}
+        className="min-w-0 rounded-md p-1.5 text-muted-foreground hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <X className="h-4 w-4" aria-hidden="true" />
+      </button>
+    </div>,
+    document.body
   );
 }

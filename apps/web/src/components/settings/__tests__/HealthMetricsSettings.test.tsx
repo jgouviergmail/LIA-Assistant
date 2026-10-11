@@ -5,7 +5,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { renderWithProviders, screen } from '@/__tests__/test-utils';
+import { act, renderWithProviders, screen } from '@/__tests__/test-utils';
 
 const { useHealthMetrics } = vi.hoisted(() => ({ useHealthMetrics: vi.fn() }));
 vi.mock('@/hooks/useHealthMetrics', () => ({ useHealthMetrics }));
@@ -44,11 +44,57 @@ beforeEach(() => {
 });
 
 describe('HealthMetricsSettings', () => {
+  it('discards a displayed ingestion secret across account lifetimes, including return', async () => {
+    const secret = 'hm_private-owner-one';
+    useHealthMetrics.mockReturnValue(
+      hook({ createToken: vi.fn().mockResolvedValue({ token: secret }) })
+    );
+    const { user, rerender } = renderWithProviders(<HealthMetricsSettings lng="en" />);
+    await user.click(screen.getByRole('button', { name: 'healthMetrics.ingestion.title' }));
+    await user.click(screen.getByRole('button', { name: 'healthMetrics.tokens.generate' }));
+    expect(screen.getByDisplayValue(secret)).toBeInTheDocument();
+    useAuth.mockReturnValue({
+      user: { id: 'u2', health_metrics_enabled: true },
+      refreshUser: vi.fn(),
+    });
+    rerender(<HealthMetricsSettings lng="en" />);
+    expect(screen.queryByDisplayValue(secret)).not.toBeInTheDocument();
+    useAuth.mockReturnValue({
+      user: { id: 'u1', health_metrics_enabled: true },
+      refreshUser: vi.fn(),
+    });
+    rerender(<HealthMetricsSettings lng="en" />);
+    expect(screen.queryByDisplayValue(secret)).not.toBeInTheDocument();
+  });
+
+  it('discards a late secret from a former account lifetime', async () => {
+    let resolve!: (result: { token: string }) => void;
+    const pending = new Promise<{ token: string }>(done => {
+      resolve = done;
+    });
+    useHealthMetrics.mockReturnValue(hook({ createToken: vi.fn().mockReturnValue(pending) }));
+    const { user, rerender } = renderWithProviders(<HealthMetricsSettings lng="en" />);
+    await user.click(screen.getByRole('button', { name: 'healthMetrics.ingestion.title' }));
+    await user.click(screen.getByRole('button', { name: 'healthMetrics.tokens.generate' }));
+    useAuth.mockReturnValue({
+      user: { id: 'u2', health_metrics_enabled: true },
+      refreshUser: vi.fn(),
+    });
+    rerender(<HealthMetricsSettings lng="en" />);
+    useAuth.mockReturnValue({
+      user: { id: 'u1', health_metrics_enabled: true },
+      refreshUser: vi.fn(),
+    });
+    rerender(<HealthMetricsSettings lng="en" />);
+    await act(async () => {
+      resolve({ token: 'hm_late-private' });
+    });
+    expect(screen.queryByDisplayValue('hm_late-private')).not.toBeInTheDocument();
+  });
+
   it('shows a loading indicator while metrics load', () => {
     useHealthMetrics.mockReturnValue(hook({ isLoading: true }));
-    renderWithProviders(
-      <HealthMetricsSettings lng="en" />
-    );
+    renderWithProviders(<HealthMetricsSettings lng="en" />);
     expect(screen.getAllByText('common.loading').length).toBeGreaterThan(0);
   });
 });

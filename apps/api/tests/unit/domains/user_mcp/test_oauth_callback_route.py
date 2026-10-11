@@ -10,7 +10,7 @@ so it can be validated against the recorded issuer.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
@@ -69,6 +69,18 @@ class TestCallbackErrorPaths:
         assert response.status_code == 302
         assert "mcp_oauth=error" in response.headers["location"]
 
+    async def test_exchange_failure_never_logs_private_provider_text(self, monkeypatch):
+        handler = AsyncMock()
+        handler.__aenter__.return_value = handler
+        handler.handle_callback.side_effect = RuntimeError("private-token")
+        monkeypatch.setattr(router_module, "MCPOAuthFlowHandler", lambda: handler)
+        log = MagicMock()
+        monkeypatch.setattr(router_module, "logger", log)
+        response = await oauth_callback(code="private-code", state="state", is_native=False)
+        assert "oauth_failed" in response.headers["location"]
+        assert "private-token" not in repr(log.error.call_args)
+        assert log.error.call_args.kwargs["error_type"] == "RuntimeError"
+
 
 class TestAuthorizeWiring:
     """``oauth_authorize`` must forward the stored issuer to the flow handler,
@@ -76,6 +88,7 @@ class TestAuthorizeWiring:
 
     @pytest.mark.asyncio
     async def test_authorize_passes_stored_issuer(self, monkeypatch):
+        from src.domains.user_mcp import authorization
         from src.domains.user_mcp.models import UserMCPAuthType
         from src.domains.user_mcp.router import oauth_authorize
 
@@ -118,8 +131,8 @@ class TestAuthorizeWiring:
 
             initiate_flow = initiate_flow_mock
 
-        monkeypatch.setattr(router_module, "UserMCPServerService", _FakeService)
-        monkeypatch.setattr(router_module, "MCPOAuthFlowHandler", _FakeHandler)
+        monkeypatch.setattr(authorization, "UserMCPServerService", _FakeService)
+        monkeypatch.setattr(authorization, "MCPOAuthFlowHandler", _FakeHandler)
 
         user = type("U", (), {"id": uuid4()})()
         await oauth_authorize(server_id=server.id, user=user, db=AsyncMock())
@@ -136,6 +149,8 @@ class TestCallbackNominalPath:
         handle_callback_mock = AsyncMock(return_value=(server_id, user_id, "encrypted-creds"))
 
         class _FakeHandler:
+            application_command_id = None
+
             async def __aenter__(self):
                 return self
 

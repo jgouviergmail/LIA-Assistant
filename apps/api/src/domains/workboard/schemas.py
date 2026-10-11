@@ -110,6 +110,19 @@ class TicketUpdate(BaseModel):
         default=None, description="The CALLER's own follow flag, never the other side's."
     )
 
+    @model_validator(mode="before")
+    @classmethod
+    def explicit_null_returns_to_owner(cls, value: object) -> object:
+        """The UI's explicit null holder means return to the owner; absent stays unchanged."""
+        if (
+            isinstance(value, dict)
+            and "assignee_user_id" in value
+            and value["assignee_user_id"] is None
+            and value.get("assignee") is None
+        ):
+            return {**value, "assignee": "me"}
+        return value
+
     @model_validator(mode="after")
     def a_date_is_set_or_cleared_never_both(self) -> TicketUpdate:
         """Refuse setting and clearing the same date in one request.

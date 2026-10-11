@@ -32,7 +32,7 @@ logger = structlog.get_logger(__name__)
 KEY = "interests"
 
 
-async def _allowed() -> bool:
+async def _allowed(user_id: UUID | None = None) -> bool:
     return bool(settings.interest_extraction_enabled) and await is_capability_enabled(
         PlatformCapability.INTERESTS
     )
@@ -69,7 +69,9 @@ async def read_interests(
             lines["interests_item"].format(
                 topic=clamp_item(row.topic or "", budget.item_max_chars),
                 category=row.category or "other",
-                subject=f", {row.subject}" if row.subject else "",
+                subject=(
+                    f", {clamp_item(row.subject, budget.item_max_chars)}" if row.subject else ""
+                ),
                 weight=f"{int(row.positive_signals or 0) - int(row.negative_signals or 0):+d}",
                 last_mentioned=f"{row.last_mentioned_at:%Y-%m-%d}" if row.last_mentioned_at else "",
             )
@@ -85,7 +87,21 @@ async def read_interests(
 
 
 #: Where this source's freshness is read (the consolidation's eligibility).
-FRESHNESS = FreshnessProbe(table="user_interests", user_column="user_id", stamp_column="updated_at")
+FRESHNESS = FreshnessProbe(
+    table="user_interests",
+    user_column="user_id",
+    stamp_column="updated_at",
+    allowed=_allowed,
+    semantic_columns=(
+        "topic",
+        "category",
+        "subject",
+        "status",
+        "positive_signals",
+        "negative_signals",
+        "last_mentioned_at",
+    ),
+)
 
 # Installed at import for every path that does not go through the boot; the
 # boot INSTALLS explicitly too, because an already-imported module wires

@@ -8,32 +8,30 @@ Key design decisions:
 - Targeted analysis: only last user message + 4 context messages (not full conversation)
 - Loads a subset of existing entries for context (not all — consolidation handles full review)
 - Uses JournalService for CRUD (ensures char_count + embedding consistency)
-- Robust JSON parsing with fallback (same pattern as memory_extractor)
+- Complete JSON batch validation before any mutation (no partial recovery)
 - Token tracking via TrackingContext (real costs, integrated into dashboard)
 """
 
 from __future__ import annotations
 
 from contextlib import suppress
-from typing import TYPE_CHECKING, Any
+from typing import Any
 from uuid import UUID
 
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
-
-if TYPE_CHECKING:
-
-    from src.domains.journals.models import JournalEntry
+from langchain_core.messages import BaseMessage
 
 from src.core.config import settings
 from src.core.i18n import get_language_name, resolve_language
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.core.prompt_layout import single_call_messages
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
+from src.domains.agents.context.runtime_context import runtime_context_if_running
 from src.domains.agents.services.jev_extraction_observer import (
     observe_extractor,
     start_extraction_observation,
 )
 from src.domains.agents.utils.json_parser import extract_json_from_llm_response
+from src.domains.feature_switches.registry import PlatformCapability, is_capability_enabled
 from src.domains.journals.billing import (
     _persist_journal_tokens,
     _update_user_last_cost,
@@ -46,11 +44,40 @@ from src.domains.journals.constants import (
     JOURNAL_EXTRACTION_RECENT_LIMIT,
     JOURNAL_EXTRACTION_SEMANTIC_LIMIT,
 )
+from src.domains.journals.extraction_actions import (
+    extraction_event_key,
+    validate_extraction_actions,
+)
+from src.domains.journals.extraction_context import (
+    _build_previous_turn_directives_section as _build_previous_turn_directives_section,
+)
+from src.domains.journals.extraction_context import (
+    _format_existing_entries_for_context as _format_existing_entries_for_context,
+)
+from src.domains.journals.extraction_context import (
+    _format_messages_for_extraction as _format_messages_for_extraction,
+)
+from src.domains.journals.extraction_context import (
+    _maybe_build_health_context as _maybe_build_health_context,
+)
+from src.domains.journals.extraction_context import (
+    _maybe_build_inner_state_section as _maybe_build_inner_state_section,
+)
 from src.domains.journals.extraction_debug_store import (
     pop_extraction_debug,
     store_extraction_debug,
 )
-from src.domains.journals.models import JournalEntryMood, JournalEntrySource
+from src.domains.journals.extraction_output import (
+    parse_extraction_output as _parse_extraction_output,
+)
+from src.domains.journals.extraction_preparation import (
+    load_embedding_inputs,
+    prepare_embedding_inputs,
+)
+from src.domains.journals.extraction_settlement import (
+    ExtractionSettlement,
+    apply_extraction_actions,
+)
 from src.domains.journals.prompt_builders import build_introspection_prompt
 from src.domains.journals.schemas import ConsolidationParseResult, ExtractedJournalEntry
 from src.domains.journals.self_eval import (
@@ -60,11 +87,12 @@ from src.domains.journals.self_eval import (
 from src.domains.llm_config.jev_registry import JevUsage
 from src.domains.shared.extraction_targets import (
     find_last_user_message,
-    is_synthetic_message,
 )
 from src.domains.shared.provenance_capture import record_origin
+from src.domains.users.extraction_consent import ExtractionKind, snapshot_extraction_consent
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
+from src.infrastructure.llm.output_truncation import is_output_truncated
 from src.infrastructure.llm.token_capture import TokenCaptureHandler
 from src.infrastructure.llm.usage_metadata import (
     model_name_of,
@@ -77,277 +105,6 @@ from src.infrastructure.observability.metrics_journals import (
 from src.infrastructure.proactive.tracking import settle_known_billing
 
 logger = get_logger(__name__)
-
-
-async def _maybe_build_inner_state_section(user_id: str) -> str:
-    """Build the 'inner state' section from the assistant's psyche (ADR-079, commit 3).
-
-    Reads ``PsycheState.last_appraisal`` (a JSONB blob holding valence, arousal,
-    mood_label, dominant emotions, quality, resonance) and renders it as a
-    compact prompt section so the journal LLM can ground its directives in
-    LIA's own affective state at the turn that just ended.
-
-    Returns an empty string when:
-    - Psyche feature is disabled (system or user level)
-    - The user has no psyche state yet (first interactions)
-    - Any error occurs (graceful degradation)
-
-    Args:
-        user_id: Owner user UUID as string.
-
-    Returns:
-        A "## YOUR INNER STATE THIS TURN" section or an empty string.
-    """
-    if not getattr(settings, "psyche_enabled", False):
-        return ""
-    try:
-        from sqlalchemy import select
-
-        from src.domains.psyche.models import PsycheState
-        from src.infrastructure.database.session import get_db_context
-
-        async with get_db_context() as db:
-            from src.domains.users.models import User
-
-            user_result = await db.execute(
-                select(User.psyche_enabled).where(User.id == UUID(user_id))
-            )
-            user_psyche_enabled = user_result.scalar_one_or_none()
-            if not user_psyche_enabled:
-                return ""
-
-            state_result = await db.execute(
-                select(PsycheState.last_appraisal).where(PsycheState.user_id == UUID(user_id))
-            )
-            appraisal = state_result.scalar_one_or_none()
-
-        if not appraisal or not isinstance(appraisal, dict):
-            return ""
-
-        valence = appraisal.get("valence")
-        arousal = appraisal.get("arousal")
-        mood_label = appraisal.get("mood_label")
-        emotions = appraisal.get("emotions") or []
-        quality = appraisal.get("quality")
-        resonance = appraisal.get("resonance")
-
-        # Compact line — never reproduce raw values verbatim, just summarize
-        parts: list[str] = []
-        if mood_label:
-            parts.append(f"mood: {mood_label}")
-        if isinstance(valence, int | float):
-            parts.append(f"valence: {valence:+.2f}")
-        if isinstance(arousal, int | float):
-            parts.append(f"arousal: {arousal:+.2f}")
-        if isinstance(quality, int | float):
-            parts.append(f"self-quality: {quality:.2f}")
-        if isinstance(resonance, int | float):
-            parts.append(f"resonance: {resonance:.2f}")
-        emo_str = ""
-        if isinstance(emotions, list) and emotions:
-            emo_str = " | emotions: " + ", ".join(str(e) for e in emotions[:5])
-
-        if not parts and not emo_str:
-            return ""
-
-        return (
-            "## YOUR INNER STATE THIS TURN (your own psyche, not the user's)\n"
-            f"{' | '.join(parts)}{emo_str}\n"
-            "Use this to write situated reflections (e.g. 'I noticed I felt frustration "
-            "and may have been sharper than I intended — be more patient when this returns'). "
-            "Never attribute these states to the user. Never reference them in your reply."
-        )
-    except Exception as exc:  # pragma: no cover - defensive
-        logger.warning(
-            "journal_inner_state_load_failed",
-            user_id=user_id,
-            error=str(exc),
-        )
-        return ""
-
-
-async def _build_previous_turn_directives_section(
-    user_id: str,
-    previous_turn_injected_ids: list[str],
-) -> tuple[str, set[str]]:
-    """Build the deferred self-evaluation section for the extraction prompt.
-
-    Loads the entries that were injected at turn T-1 and renders them as a
-    block the LLM can use to observe the user's reaction at turn T (visible
-    in the conversation excerpt) and signal `evidence_outcome` accordingly.
-
-    Returns:
-        ``(section, verified_ids)`` — the rendered block (empty string when
-        there is nothing to evaluate: conversation reset, first turn, or all
-        IDs disappeared between T-1 and T) and the ownership-verified entry
-        ids it lists. The caller feeds these ids to the hallucinated-id
-        filter: without them, an evidence signal targeting a T-1 directive
-        outside the semantic/recent prefilter was silently dropped as
-        hallucinated (audit B-01, 2026-08-19 — latent while journals hold
-        ≤3 entries, structural beyond).
-    """
-    if not previous_turn_injected_ids:
-        return "", set()
-
-    try:
-        from src.infrastructure.database import get_db_context
-
-        async with get_db_context() as db:
-            from src.domains.journals.service import JournalService
-
-            service = JournalService(db)
-            entries = []
-            for entry_id_str in previous_turn_injected_ids:
-                try:
-                    entry_uuid = UUID(entry_id_str)
-                except ValueError:
-                    continue
-                entry = await service.repo.get_by_id(entry_uuid)
-                if entry and str(entry.user_id) == user_id:
-                    entries.append(entry)
-
-        if not entries:
-            return "", set()
-
-        # Prose scaffolding lives in the versioned prompt file (rule 16 /
-        # lot 6); entry lines below are data rendering, not prose. The
-        # historical inline block was one wrapped paragraph — normalize the
-        # file's hard-wrapped intro back to the exact same bytes.
-        from src.domains.agents.prompts.prompt_loader import load_prompt
-
-        scaffolding = load_prompt("journal_self_eval_directives_section").rstrip()
-        lines = [scaffolding, ""]
-        for entry in entries:
-            hints_str = f" | hints: {', '.join(entry.search_hints)}" if entry.search_hints else ""
-            lines.append(
-                f"[id={entry.id} | conf={entry.confidence} "
-                f"| ev={entry.evidence_count}/co={entry.contradiction_count} "
-                f"| {entry.theme}{hints_str}] **{entry.title}** — {entry.content}"
-            )
-        return "\n".join(lines), {str(entry.id) for entry in entries}
-    except Exception as exc:  # pragma: no cover — defensive
-        logger.warning(
-            "journal_previous_turn_directives_load_failed",
-            user_id=user_id,
-            error=str(exc),
-        )
-        return "", set()
-
-
-async def _maybe_build_health_context(user_id: str) -> str:
-    """Return the Health Metrics context block for the journal prompt.
-
-    Mirror of the memory extractor helper — empty string when the global
-    feature flag is off, the user has not opted in, or health data is
-    unavailable. The prompt template includes a ``{health_context}``
-    placeholder flagged ``(optional)``.
-    """
-    from src.core.config import settings as global_settings
-    from src.core.constants import HEALTH_METRICS_USER_TOGGLE_ATTR
-
-    if not getattr(global_settings, "health_metrics_enabled", False):
-        return ""
-
-    try:
-        from src.infrastructure.database.session import get_db_context
-
-        async with get_db_context() as db:
-            from src.domains.health_metrics.service import HealthMetricsService
-            from src.domains.users.repository import UserRepository
-
-            user = await UserRepository(db).get_by_id(UUID(user_id))
-            if user is None or not getattr(user, HEALTH_METRICS_USER_TOGGLE_ATTR, False):
-                return ""
-            service = HealthMetricsService(db)
-            return await service.build_health_context_for_prompt(UUID(user_id))
-    except Exception as exc:  # pragma: no cover - defensive
-        logger.warning(
-            "journal_extraction_health_context_failed",
-            user_id=user_id,
-            error=str(exc),
-        )
-        return ""
-
-
-def _format_messages_for_extraction(messages: list[BaseMessage]) -> str:
-    """Format messages for the extraction prompt context.
-
-    Converts LangChain messages to readable conversation format.
-    Truncates very long messages.
-
-    Args:
-        messages: List of conversation messages
-
-    Returns:
-        Formatted conversation string
-    """
-    lines = []
-    max_chars = JOURNAL_EXTRACTION_MESSAGE_MAX_CHARS
-
-    for msg in messages:
-        if isinstance(msg, HumanMessage):
-            # System-fabricated HITL scaffolding is not conversation.
-            if is_synthetic_message(msg):
-                continue
-            prefix = "USER"
-        elif isinstance(msg, AIMessage):
-            # Skip proactive notifications (interest/heartbeat) — not meaningful for journals
-            if msg.additional_kwargs.get("proactive_notification"):
-                continue
-            prefix = "ASSISTANT"
-        else:
-            continue  # Skip tool messages, system messages
-
-        content = str(msg.text)
-        if len(content) > max_chars:
-            content = content[:max_chars] + "..."
-
-        lines.append(f"{prefix}: {content}")
-
-    return "\n".join(lines)
-
-
-def _format_existing_entries_for_context(entries: list[JournalEntry]) -> str:
-    """Format existing journal entries for the extraction prompt.
-
-    After semantic pre-filter, we have ~13 entries max (10 semantic + 3 recent).
-    All entries are shown in full with IDs in headers and the full epistemic
-    metadata so the LLM can reason about which directives have been validated,
-    contradicted, or never injected — and update them accordingly.
-
-    The metadata exposed:
-        - created: when the entry was first written
-        - last_inj: when it was last used in a prompt (or "never")
-        - uses: how many times it has been injected
-        - conf: epistemic status (low/medium/high)
-        - ev/co: evidence and contradiction counters from deferred self-evaluation
-
-    Args:
-        entries: Pre-filtered entries (semantic + recent, deduplicated)
-
-    Returns:
-        Formatted entries string for prompt injection
-    """
-    if not entries:
-        return "No existing entries yet."
-
-    entry_lines = []
-    for entry in entries:
-        created_str = entry.created_at.strftime("%Y-%m-%d")
-        last_inj_str = (
-            entry.last_injected_at.strftime("%Y-%m-%d") if entry.last_injected_at else "never"
-        )
-        hints_str = f" | hints: {', '.join(entry.search_hints)}" if entry.search_hints else ""
-        entry_lines.append(
-            f"[id={entry.id} | created={created_str} | last_inj={last_inj_str} "
-            f"| uses={entry.injection_count} | conf={entry.confidence} "
-            f"| ev={entry.evidence_count}/co={entry.contradiction_count} "
-            f"| level={entry.level} "
-            f"| {entry.theme} | {entry.mood}{hints_str}] "
-            f"**{entry.title}** — {entry.content}"
-        )
-
-    return "\n".join(entry_lines)
 
 
 def _parse_consolidation_result(result_text: str) -> ConsolidationParseResult:
@@ -394,7 +151,8 @@ def _parse_consolidation_result(result_text: str) -> ConsolidationParseResult:
 def _parse_journal_extraction_result(result_text: str) -> list[ExtractedJournalEntry]:
     """Parse LLM extraction result into ExtractedJournalEntry objects.
 
-    Robust JSON parsing with fallback (same pattern as memory_extractor).
+    Legacy diagnostic parser; runtime settlement uses extraction_output instead.
+    Keeps tolerant recovery for historical diagnostic callers and fixtures.
     Supports BOTH formats:
     - Bare JSON array of action objects (legacy / extraction prompt).
     - JSON object ``{actions: [...], ...}`` (consolidation enriched format
@@ -467,13 +225,14 @@ async def extract_journal_entry_background(
     assistant_response: str | None = None,
     query_embedding: list[float] | None = None,
     previous_turn_injected_ids: list[str] | None = None,
+    previous_turn_injected_revisions: dict[str, int] | None = None,
 ) -> int:
     """
     Background journal extraction from conversation.
 
     Analyzes the LAST user message + context to determine if
-    a journal entry should be written. The LLM decides freely
-    how many entries to create/update/delete.
+    a journal entry should be written. Deterministic validation bounds the
+    model's proposals before settlement.
 
     Non-blocking: executed via safe_fire_and_forget.
 
@@ -493,6 +252,8 @@ async def extract_journal_entry_background(
             the LLM observes how the user reacted in this conversation and
             signals `evidence_outcome=evidence|contradiction` on the relevant
             entries. Empty/None on conversation reset (gracefully skipped).
+        previous_turn_injected_revisions: Exact revisions exposed at T-1;
+            an absent or changed revision cannot receive a reaction signal.
 
     Returns:
         Number of actions applied (create/update/delete)
@@ -501,6 +262,8 @@ async def extract_journal_entry_background(
         # Guard: system feature flag
         if not settings.journals_enabled or not settings.journal_extraction_enabled:
             logger.debug("journal_extraction_disabled", user_id=user_id)
+            return 0
+        if not await is_capability_enabled(PlatformCapability.JOURNALS):
             return 0
 
         # Guard: minimum messages
@@ -519,6 +282,20 @@ async def extract_journal_entry_background(
         if not last_human_message:
             logger.debug("journal_extraction_skipped_no_human_message", user_id=user_id)
             return 0
+        from src.infrastructure.database import get_db_context
+
+        run_context = runtime_context_if_running()
+        if run_context is not None and run_context.extraction_revision is None:
+            return 0
+        async with get_db_context() as db:
+            extraction_revision = await snapshot_extraction_consent(
+                db,
+                UUID(user_id),
+                ExtractionKind.JOURNAL,
+                expected_revision=run_context.extraction_revision if run_context else None,
+            )
+        if extraction_revision is None:
+            return 0
 
         # Get context messages around last user message
         context_start = max(0, last_human_index - JOURNAL_EXTRACTION_CONTEXT_MESSAGES)
@@ -533,8 +310,6 @@ async def extract_journal_entry_background(
             conversation += f"\nASSISTANT: {truncated_response}"
 
         # Load existing entries for context (recent full + older summary)
-        from src.infrastructure.database import get_db_context
-
         # Load existing entries via semantic pre-filter (replaces get_all_active)
         async with get_db_context() as db:
             from src.domains.journals.service import JournalService
@@ -632,12 +407,18 @@ async def extract_journal_entry_background(
         # Lists the directives that were injected at the PREVIOUS turn so the LLM
         # can observe how the user reacted (in the conversation it now sees) and
         # signal `evidence_outcome=evidence|contradiction` on update actions.
+        previous_entry_revisions: dict[str, int] = {}
+        entry_levels = {str(e.id): e.level for e in existing_entries}
+        loaded_revisions = {str(e.id): e.revision for e in existing_entries}
         (
             previous_turn_directives_section,
             previous_turn_verified_ids,
         ) = await _build_previous_turn_directives_section(
             user_id=user_id,
             previous_turn_injected_ids=previous_turn_injected_ids or [],
+            expected_revisions=previous_turn_injected_revisions or {},
+            entry_revisions=previous_entry_revisions,
+            entry_levels=entry_levels,
         )
         record_self_eval_funnel(previous_turn_injected_ids or [], previous_turn_directives_section)
 
@@ -658,6 +439,16 @@ async def extract_journal_entry_background(
         )
 
         # Call LLM
+        if not await is_capability_enabled(PlatformCapability.JOURNALS):
+            return 0
+        async with get_db_context() as db:
+            if (
+                await snapshot_extraction_consent(
+                    db, UUID(user_id), ExtractionKind.JOURNAL, expected_revision=extraction_revision
+                )
+                is None
+            ):
+                return 0
         import time as _time
 
         requested_model = get_llm_config_for_agent(settings, "journal_extraction").model
@@ -721,8 +512,12 @@ async def extract_journal_entry_background(
             user_id, result, model_name, source="extraction", started_at=_llm_start, capture=capture
         )
 
+        if is_output_truncated(result):
+            logger.warning("journal_extraction_output_truncated", user_id=user_id)
+            return 0
+
         # Parse result
-        actions = _parse_journal_extraction_result(result_content)
+        actions = _parse_extraction_output(result_content, max_entry_chars=max_entry_chars)
         # Funnel: signals counted BEFORE the hallucinated-id filter below, so
         # a dropped signal stays visible as a signaled-vs-applied gap.
         count_evidence_signals(actions)
@@ -744,29 +539,17 @@ async def extract_journal_entry_background(
         # prefiltered entries AND the ownership-verified T-1 directives: an
         # evidence signal on a directive outside the prefilter must not be
         # dropped as hallucinated (audit B-01, 2026-08-19).
-        known_ids = {str(e.id) for e in existing_entries} | previous_turn_verified_ids
-        valid_actions = []
-        for action in actions:
-            if action.action in ("update", "delete") and action.entry_id:
-                if action.entry_id not in known_ids:
-                    logger.warning(
-                        "journal_extraction_unknown_entry_id",
-                        user_id=user_id,
-                        action=action.action,
-                        entry_id=action.entry_id,
-                    )
-                    continue
-            valid_actions.append(action)
-
-        if len(valid_actions) < len(actions):
-            logger.info(
-                "journal_extraction_filtered_hallucinated_ids",
-                user_id=user_id,
-                original_count=len(actions),
-                valid_count=len(valid_actions),
-                filtered_count=len(actions) - len(valid_actions),
-            )
-        actions = valid_actions
+        known_ids = set(loaded_revisions) | previous_turn_verified_ids
+        actions = validate_extraction_actions(
+            actions,
+            known_ids=known_ids,
+            previous_verified_ids=previous_turn_verified_ids,
+            entry_levels=entry_levels,
+            max_entry_chars=max_entry_chars,
+        )
+        if not actions:
+            return 0
+        event_key = extraction_event_key(user_id, session_id, last_human_message, parent_run_id)
 
         # NOTE: Semantic dedup guard removed (v1.14.0) — the LLM now sees existing
         # entries with IDs via semantic pre-filter and can directly update/delete.
@@ -788,92 +571,67 @@ async def extract_journal_entry_background(
 
         applied_count = 0
         try:
+            settlement_context = ExtractionSettlement(
+                user_id=user_id,
+                session_id=session_id,
+                personality_code=personality_code,
+                max_entry_chars=max_entry_chars,
+                event_key=event_key,
+                known_ids=known_ids,
+                previous_verified_ids=previous_turn_verified_ids,
+                loaded_revisions=loaded_revisions,
+                previous_revisions=previous_entry_revisions,
+            )
             async with get_db_context() as db:
+                if not await is_capability_enabled(PlatformCapability.JOURNALS):
+                    return 0
+                if (
+                    await snapshot_extraction_consent(
+                        db,
+                        UUID(user_id),
+                        ExtractionKind.JOURNAL,
+                        expected_revision=extraction_revision,
+                    )
+                    is None
+                ):
+                    return 0
+                inputs = await load_embedding_inputs(
+                    JournalService(db), actions, settlement_context
+                )
+            settlement_context.prepared_inputs.update(
+                {
+                    action.entry_id: item
+                    for action, item in zip(actions, inputs, strict=True)
+                    if action.action == "update" and action.entry_id
+                }
+            )
+            # The read session has closed. No connection or owner lock is held
+            # while the provider prepares embeddings under this run's attribution.
+            prepared = await prepare_embedding_inputs(inputs)
+            async with get_db_context() as db:
+                if not await is_capability_enabled(PlatformCapability.JOURNALS):
+                    return 0
+                if (
+                    await snapshot_extraction_consent(
+                        db,
+                        UUID(user_id),
+                        ExtractionKind.JOURNAL,
+                        expected_revision=extraction_revision,
+                        lock=True,
+                    )
+                    is None
+                ):
+                    return 0
                 service = JournalService(db)
 
-                for action in actions:
-                    # One SAVEPOINT per action — see the same guard in
-                    # consolidation_service: without it the first DB-level error
-                    # poisons the transaction and every later action fails on the
-                    # aborted session, so this `except ... continue` degrades into
-                    # all-or-nothing instead of skipping the bad action.
-                    try:
-                        async with db.begin_nested():
-                            if (
-                                action.action == "create"
-                                and action.theme
-                                and action.title
-                                and action.content
-                            ):
-                                created = await service.create_entry(
-                                    user_id=UUID(user_id),
-                                    theme=action.theme.value,
-                                    title=action.title,
-                                    content=action.content,
-                                    mood=(
-                                        action.mood.value
-                                        if action.mood
-                                        else JournalEntryMood.REFLECTIVE.value
-                                    ),
-                                    source=JournalEntrySource.CONVERSATION.value,
-                                    session_id=session_id,
-                                    personality_code=personality_code,
-                                    max_entry_chars=max_entry_chars,
-                                    search_hints=action.search_hints,
-                                    confidence=(
-                                        action.confidence.value if action.confidence else "medium"
-                                    ),
-                                    level=(action.level.value if action.level else "L1"),
-                                )
-                                # Where this belief came from, as a BOUNDED
-                                # pointer (never a copy of the turn): the
-                                # entry could state a conclusion and never
-                                # what produced it, which is precisely what
-                                # makes a wrong one uncorrectable. The
-                                # conversation is nulled if the user later
-                                # deletes it, leaving a dated tombstone
-                                # instead of resurrected content.
-                                await record_origin(
-                                    db,
-                                    user_id=UUID(user_id),
-                                    source=session_id,
-                                    journal_entry_id=created.id,
-                                )
-                                applied_count += 1
-
-                            elif action.action == "update" and action.entry_id:
-                                entry = await service.repo.get_by_id(UUID(action.entry_id))
-                                if entry and str(entry.user_id) == user_id:
-                                    await service.update_entry(
-                                        entry=entry,
-                                        title=action.title,
-                                        content=action.content,
-                                        mood=(action.mood.value if action.mood else None),
-                                        max_entry_chars=max_entry_chars,
-                                        search_hints=action.search_hints,
-                                        confidence=(
-                                            action.confidence.value if action.confidence else None
-                                        ),
-                                        evidence_outcome=action.evidence_outcome,
-                                        level=(action.level.value if action.level else None),
-                                        theme=(action.theme.value if action.theme else None),
-                                    )
-                                    applied_count += 1
-
-                            elif action.action == "delete" and action.entry_id:
-                                entry = await service.repo.get_by_id(UUID(action.entry_id))
-                                if entry and str(entry.user_id) == user_id:
-                                    await service.delete_entry(entry)
-                                    applied_count += 1
-
-                    except Exception as e:
-                        logger.warning(
-                            "journal_extraction_action_failed",
-                            user_id=user_id,
-                            action=action.action,
-                            error=str(e),
-                        )
-                        continue
+                applied_count = await apply_extraction_actions(
+                    db,
+                    service,
+                    actions,
+                    settlement_context,
+                    record_origin,
+                    prepared,
+                )
 
                 await db.commit()
         finally:

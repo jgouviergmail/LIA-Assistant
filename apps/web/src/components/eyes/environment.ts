@@ -58,22 +58,73 @@ const CONDITIONS: Readonly<Record<string, WeatherFeeling>> = {
   Tornado: 'wind',
 };
 
+function freshWeatherAt(context: CompanionEnvironment | null, now: number) {
+  const weather = context?.weather;
+  if (!weather || !Number.isFinite(now)) return null;
+  return now >= Date.parse(weather.observed_at) && now < Date.parse(weather.expires_at)
+    ? weather
+    : null;
+}
+
+function temperatureFeeling(temperature: number): WeatherFeeling | null {
+  if (temperature < 0) return 'freezing';
+  if (temperature < 10) return 'cold';
+  if (temperature > 30) return 'heat';
+  return temperature > 26 ? 'hot' : null;
+}
+
+// A bounded vocabulary gives at most 2^9 masks. Stable readonly arrays avoid
+// retargeting the native rig merely because its context was sampled again.
+const WEATHER_ORDER: readonly WeatherFeeling[] = [
+  'rain',
+  'storm',
+  'snow',
+  'fog',
+  'wind',
+  'cold',
+  'freezing',
+  'hot',
+  'heat',
+];
+const weatherFlags = new Map<number, readonly WeatherFeeling[]>([[0, Object.freeze([])]]);
+const weatherBit = (feeling: WeatherFeeling | null) =>
+  feeling ? 1 << WEATHER_ORDER.indexOf(feeling) : 0;
+
+function temperatureBits(temperature: number): number {
+  const feeling = temperatureFeeling(temperature);
+  const accompanying = feeling === 'freezing' ? 'cold' : feeling === 'heat' ? 'hot' : null;
+  return weatherBit(feeling) | weatherBit(accompanying);
+}
+
+/** Independent evidence from one current observation; no forecast or invented climate. */
+export function weatherFlagsAt(
+  context: CompanionEnvironment | null,
+  now: number
+): readonly WeatherFeeling[] {
+  const weather = freshWeatherAt(context, now);
+  if (!weather) return weatherFlags.get(0)!;
+  const condition = Object.hasOwn(CONDITIONS, weather.condition_code)
+    ? CONDITIONS[weather.condition_code]
+    : null;
+  const wind = weather.wind_speed_kmh !== null && weather.wind_speed_kmh >= 40 ? 'wind' : null;
+  const mask = weatherBit(condition) | weatherBit(wind) | temperatureBits(weather.temperature_c);
+  const cached = weatherFlags.get(mask);
+  if (cached) return cached;
+  const flags = Object.freeze(WEATHER_ORDER.filter((_, index) => mask & (1 << index)));
+  weatherFlags.set(mask, flags);
+  return flags;
+}
+
+/** Legacy dominant intention retains condition → wind → temperature precedence. */
 export function weatherAt(
   context: CompanionEnvironment | null,
   now: number
 ): WeatherFeeling | null {
-  const weather = context?.weather;
-  if (!weather || now < Date.parse(weather.observed_at) || now >= Date.parse(weather.expires_at))
-    return null;
-  const condition = Object.hasOwn(CONDITIONS, weather.condition_code)
-    ? CONDITIONS[weather.condition_code]
-    : null;
-  if (condition) return condition;
-  if (weather.wind_speed_kmh !== null && weather.wind_speed_kmh >= 40) return 'wind';
-  if (weather.temperature_c < 0) return 'freezing';
-  if (weather.temperature_c < 10) return 'cold';
-  if (weather.temperature_c > 30) return 'heat';
-  return weather.temperature_c > 26 ? 'hot' : null;
+  const flags = weatherFlagsAt(context, now);
+  const dominant = flags[0] ?? null;
+  if (dominant === 'cold' && flags.includes('freezing')) return 'freezing';
+  if (dominant === 'hot' && flags.includes('heat')) return 'heat';
+  return dominant;
 }
 
 // One cached formatter/result, not an unbounded timezone registry or an Intl

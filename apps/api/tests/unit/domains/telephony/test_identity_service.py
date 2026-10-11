@@ -31,6 +31,9 @@ class _FakeUsers:
     async def get_by_id(self, user_id, include_inactive: bool = False):  # noqa: ANN001
         return self.user if self.user is not None and self.user.id == user_id else None
 
+    async def get_by_id_for_preference_update(self, user_id):  # noqa: ANN001
+        return await self.get_by_id(user_id)
+
     async def update(self, instance, data):  # noqa: ANN001
         self.updates.append(dict(data))
         for key, value in data.items():
@@ -49,6 +52,8 @@ class _FakeDb:
 def _user(**overrides: Any) -> SimpleNamespace:
     base: dict[str, Any] = {
         "id": uuid4(),
+        "is_active": True,
+        "is_deleted": False,
         "phone_number_encrypted": None,
         "phone_number_verified_at": None,
         "phone_rich_context_enabled": True,
@@ -167,6 +172,16 @@ async def test_verified_number_is_handed_out_only_when_verified() -> None:
     )
     service, _, _ = _service(verified)
     assert await service.verified_number(verified.id) == "+33612345678"
+
+
+@pytest.mark.unit
+async def test_unreadable_saved_number_is_never_offered_as_a_verified_identity() -> None:
+    user = _user(
+        phone_number_encrypted=encrypt_data("invalid saved value"),
+        phone_number_verified_at=datetime.now(UTC),
+    )
+    service, _, _ = _service(user)
+    assert await service.verified_number(user.id) is None
 
 
 @pytest.mark.unit

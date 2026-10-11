@@ -14,7 +14,8 @@ vi.mock('sonner', () => ({ toast }));
 // Kept although the weather-location block moved to the Google Places
 // connector (2026-08-16): child blocks inside the enabled panel may read the
 // auth context, and the stub keeps the panel mountable in isolation.
-vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: null, isLoading: false }) }));
+const { auth } = vi.hoisted(() => ({ auth: { id: 'one' } }));
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: auth.id }, isLoading: false }) }));
 
 // The history hook is spied rather than stubbed away: whether it is called
 // with `enabled: false` while the block is shut is the property under test,
@@ -62,9 +63,22 @@ function hook(over: Partial<HeartbeatHook> = {}) {
   };
 }
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => { vi.clearAllMocks(); auth.id = 'one'; });
 
 describe('HeartbeatSettings', () => {
+  it('does not announce the old account result after switching accounts', async () => {
+    let complete: ((value: HeartbeatHook['settings']) => void) | undefined;
+    const updateSettings = vi.fn(() => new Promise<HeartbeatHook['settings']>(done => { complete = done; }));
+    useHeartbeatSettings.mockReturnValue(hook({ updateSettings }));
+    const { user, rerender } = renderWithProviders(<HeartbeatSettings lng="en" />);
+    await user.click(screen.getAllByRole('switch')[0]);
+    auth.id = 'two';
+    rerender(<HeartbeatSettings lng="en" />);
+    complete?.({ ...hook().settings, heartbeat_enabled: true });
+    await waitFor(() => expect(updateSettings).toHaveBeenCalledOnce());
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalled();
+  });
   it('enabling the heartbeat persists it and toasts success', async () => {
     const updateSettings = vi.fn().mockResolvedValue({ ok: true });
     useHeartbeatSettings.mockReturnValue(hook({ updateSettings }));

@@ -22,6 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Disclosure } from '@/components/ui/disclosure';
 import { useSkillProposal, useSkillProposalActions } from '@/hooks/useSkillProposal';
+import { useApplicationAccountState } from '@/hooks/useApplicationAccountState';
 import { formatFileSize } from '@/lib/format';
 import { settingsSectionHref } from '@/lib/settings-sections';
 import { isProposalGone, proposalRefusalKey } from '@/lib/skill-proposals/errors';
@@ -152,11 +153,12 @@ function isPast(expiresAt: string): boolean {
 }
 
 /** What the card's foot shows, decided once from the read and the click. */
-type FootState = 'installed' | 'gone' | 'failed' | 'pending';
+type FootState = 'installed' | 'gone' | 'failed' | 'pending' | 'unknown';
 
 /** The foot's state — pure, so the card's own render stays branch-light. */
-function footStateOf(read: { data?: SkillProposal; error: unknown }, expired: boolean): FootState {
+function footStateOf(read: { data?: SkillProposal; error: unknown }, expired: boolean, uncertain: boolean): FootState {
   if (read.data?.status === 'installed') return 'installed';
+  if (uncertain || read.data?.status === 'installing' || read.data?.status === 'unknown') return 'unknown';
   if (read.data) return 'pending';
   if (expired || isProposalGone(read.error)) return 'gone';
   return read.error ? 'failed' : 'pending';
@@ -245,30 +247,37 @@ function ProposalCard({ card }: { card: SkillProposalCard }) {
   const expired = isPast(card.expires_at);
   const read = useSkillProposal(card.id, !expired);
   const { install } = useSkillProposalActions();
-  const [busy, setBusy] = useState(false);
-  const [refusal, setRefusal] = useState<string | null>(null);
-  const [justInstalled, setJustInstalled] = useState(false);
+  const accountScope = read.ownerId ? `${read.ownerId}:${card.id}` : undefined;
+  const [busy, setBusy] = useApplicationAccountState(accountScope, false);
+  const [refusal, setRefusal] = useApplicationAccountState<string | null>(accountScope, null);
+  const [justInstalled, setJustInstalled] = useApplicationAccountState(accountScope, false);
+  const [uncertain, setUncertain] = useApplicationAccountState(accountScope, false);
   const doneRef = useRef<HTMLParagraphElement>(null);
-  const foot = footStateOf(read, expired);
+  const foot = footStateOf(read, expired, uncertain);
 
   // The button the person clicked disappears with the install: the focus goes
   // to the sentence that replaces it, never to <body>.
   useEffect(() => {
-    if (justInstalled) doneRef.current?.focus();
-  }, [justInstalled]);
+    if (justInstalled || uncertain) doneRef.current?.focus();
+  }, [justInstalled, uncertain]);
 
   const onInstall = async () => {
     // The guard, not the attribute, prevents a second install (frontend rule).
-    if (busy || foot !== 'pending' || !read.data) return;
+    if (busy || foot !== 'pending' || !read.data || !read.isCurrent()) return;
     setBusy(true);
     setRefusal(null);
     try {
-      read.setData(await install(card.id));
+      const installed = await install(card.id);
+      if (!read.isCurrent()) return;
+      read.setData(installed);
       setJustInstalled(true);
       // The chat's own skill shortcuts and the settings list read it again.
       bumpRevision('skills');
     } catch (error) {
-      setRefusal(proposalRefusalKey(error) ?? `${PREFIX}.install_failed`);
+      const refusalKey = proposalRefusalKey(error);
+      setRefusal(refusalKey ?? `${PREFIX}.install_failed`);
+      if (refusalKey === `${PREFIX}.errors.skill_proposal_completion_unknown` || refusalKey === null)
+        setUncertain(true);
     } finally {
       setBusy(false);
     }
@@ -298,6 +307,11 @@ function ProposalCard({ card }: { card: SkillProposalCard }) {
       <FileList card={card} read={read.data} t={t} />
 
       {foot === 'installed' && <InstalledFoot focusRef={doneRef} t={t} lng={i18n.language} />}
+      {foot === 'installed' && read.data?.cache_refresh_pending && <p role="status" className="text-sm text-muted-foreground">{t(`${PREFIX}.cache_pending`)}</p>}
+      {foot === 'unknown' && <div className="space-y-2">
+        <p ref={doneRef} tabIndex={-1} role="status" className="text-sm text-muted-foreground">{t(`${PREFIX}.unknown`)}</p>
+        <Button variant="outline" size="sm" onClick={() => { void read.refetch(); }}>{t(`${PREFIX}.check_result`)}</Button>
+      </div>}
       {foot === 'gone' && <p className="text-sm text-muted-foreground">{t(`${PREFIX}.closed`)}</p>}
       {foot === 'failed' && (
         <div className="flex flex-wrap items-center gap-2">

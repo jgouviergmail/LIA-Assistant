@@ -7,11 +7,14 @@ Created: 2026-02-28
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
+from src.core.exceptions import ResourceNotFoundError
 from src.core.repository import BaseRepository
 from src.domains.user_mcp.models import UserMCPServer, UserMCPServerStatus
+from src.domains.users.models import User
 
 
 class UserMCPServerRepository(BaseRepository[UserMCPServer]):
@@ -19,6 +22,35 @@ class UserMCPServerRepository(BaseRepository[UserMCPServer]):
 
     def __init__(self, db: AsyncSession) -> None:
         super().__init__(db, UserMCPServer)
+
+    async def lock_owner_for_creation(self, user_id: UUID) -> None:
+        """All creation paths serialize the final per-account quota/name decision."""
+        owner = await self.db.scalar(select(User.id).where(User.id == user_id).with_for_update())
+        if owner is None:
+            raise ResourceNotFoundError("user", str(user_id))
+
+    async def get_page_for_user(
+        self, user_id: UUID, *, server_id: UUID | None, offset: int, limit: int
+    ) -> tuple[list[UserMCPServer], int]:
+        """One snapshot and predicate owns both the exact total and stable page."""
+        base = select(UserMCPServer).where(UserMCPServer.user_id == user_id)
+        if server_id is not None:
+            base = base.where(UserMCPServer.id == server_id)
+        count = select(func.count().label("total")).select_from(base.subquery()).cte("mcp_count")
+        page = (
+            base.order_by(UserMCPServer.name, UserMCPServer.id)
+            .offset(offset)
+            .limit(limit)
+            .cte("mcp_page")
+        )
+        server = aliased(UserMCPServer, page)
+        statement = (
+            select(server, count.c.total)
+            .select_from(count.outerjoin(page, true()))
+            .execution_options(populate_existing=True)
+        )
+        rows = (await self.db.execute(statement)).tuples().all()
+        return [row for row, _ in rows if row is not None], int(rows[0][1])
 
     async def get_all_for_user(
         self,

@@ -30,6 +30,9 @@ from src.core.field_names import (
 )
 from src.core.i18n import resolve_language
 from src.domains.agents.api.schemas import ChatStreamChunk
+from src.domains.agents.application.interaction_metadata import (
+    with_application_interaction_metadata,
+)
 from src.domains.agents.data_registry.message_widgets import (
     extract_persistable_widgets,
 )
@@ -277,6 +280,7 @@ class StreamingService:
         # seen — preserving the non-streaming path where the complete message is all we get.
         self.card_action_metadata: dict[str, object] = {}
         self._response_deltas_streamed = False
+        self._response_message_ids: set[str] = set()
         # Store the generated HITL question for archiving by service.py
         # This ensures the question appears in conversation history on reload
         self.hitl_generated_question: str | None = None
@@ -670,7 +674,9 @@ class StreamingService:
                     yield (fallback_chunk, content_fragment)
 
             # Track total duration and tokens
-            self.card_action_metadata = with_card_action_metadata({}, state, run_id)
+            self.card_action_metadata = await with_application_interaction_metadata(
+                with_card_action_metadata({}, state, run_id), run_id, self.user_id
+            )
             duration = time.time() - start_time
             sse_streaming_duration_seconds.labels(intention=intention_label).observe(duration)
             sse_tokens_generated_total.labels(intention=intention_label, node_name="response").inc(
@@ -1859,6 +1865,12 @@ class StreamingService:
                     return sse_chunks  # Nothing but tag fragments in this token.
 
                 token_chunk = self.format_token_chunk(content)
+                # Completed draft fast paths may publish the same AIMessage twice.
+                # Identity, never equal text, distinguishes a replay from another answer.
+                if not isinstance(message, AIMessageChunk) and message.id:
+                    if message.id in self._response_message_ids:
+                        return sse_chunks
+                    self._response_message_ids.add(message.id)
                 sse_chunks.append((token_chunk, content))
 
         return sse_chunks

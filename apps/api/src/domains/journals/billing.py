@@ -175,7 +175,7 @@ async def _persist_journal_tokens(
 
 
 def _journal_cost_projection(
-    result: AIMessage,
+    result: AIMessage | None,
     model_name: str,
     started_at: float | None,
     capture: TokenCaptureHandler | None,
@@ -207,7 +207,7 @@ def _journal_cost_projection(
 
 async def _update_user_last_cost(
     user_id: str,
-    result: AIMessage,
+    result: AIMessage | None,
     model_name: str,
     source: str = "extraction",
     started_at: float | None = None,

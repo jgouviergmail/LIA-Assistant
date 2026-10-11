@@ -1,21 +1,11 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
+import { useApplicationAccountState } from '@/hooks/useApplicationAccountState';
 import { AlertTriangle, Plug, Plus, Server, Sparkles, Zap } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -40,50 +30,22 @@ import { SettingsSection } from '@/components/settings/SettingsSection';
 import {
   useUserMCPServers,
   type UserMCPServer,
-  type UserMCPServerCreate,
-  type UserMCPServerUpdate,
-  type UserMCPAuthType,
   type TestConnectionResponse,
   type MCPDiscoveredTool,
 } from '@/hooks/useUserMCPServers';
-import { toast } from 'sonner';
+import { useApplicationAccountToast } from '@/hooks/useApplicationAccountToast';
 
 import { MCPServerCard } from './MCPServerCard';
 import { ToolDisplayName } from './ToolDisplayName';
+import { MCPServerFormFields } from './MCPServerFormFields';
+import { emptyMCPServerForm, editMCPServerForm, isMCPServerFormValid, mcpServerFormValues, type MCPServerFormState } from '@/lib/mcp-server-form';
 
 interface MCPServersSettingsProps {
   lng: Language;
 }
 
-interface FormState {
-  name: string;
-  url: string;
-  auth_type: UserMCPAuthType;
-  api_key: string;
-  header_name: string;
-  bearer_token: string;
-  oauth_client_id: string;
-  oauth_client_secret: string;
-  oauth_scopes: string;
-  domain_description: string;
-  timeout_seconds: number;
-  iterative_mode: boolean;
-}
 
-const EMPTY_FORM: FormState = {
-  name: '',
-  url: '',
-  auth_type: 'none',
-  api_key: '',
-  header_name: 'X-API-Key',
-  bearer_token: '',
-  oauth_client_id: '',
-  oauth_client_secret: '',
-  oauth_scopes: '',
-  domain_description: '',
-  timeout_seconds: 30,
-  iterative_mode: false,
-};
+const EMPTY_FORM = emptyMCPServerForm();
 
 /**
  * The tools a server reported, as the connection test returned them.
@@ -147,19 +109,34 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
     testing,
     disconnecting,
     generatingDescription,
+    ownerId,
   } = useUserMCPServers();
+  const toast = useApplicationAccountToast(ownerId);
 
   // Dialog state
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [editingServer, setEditingServer] = useState<UserMCPServer | null>(null);
-  const [deletingServerId, setDeletingServerId] = useState<string | null>(null);
-  const [form, setForm] = useState<FormState>(EMPTY_FORM);
-  const [testResult, setTestResult] = useState<TestConnectionResponse | null>(null);
+  const [showCreateDialog, setShowCreateDialog] = useApplicationAccountState(ownerId, false);
+  const [editingServer, setEditingServer] = useApplicationAccountState<UserMCPServer | null>(
+    ownerId,
+    null
+  );
+  const [deletingServerId, setDeletingServerId] = useApplicationAccountState<string | null>(
+    ownerId,
+    null
+  );
+  const [form, setForm] = useApplicationAccountState<MCPServerFormState>(ownerId, EMPTY_FORM);
+  const [testResult, setTestResult] = useApplicationAccountState<TestConnectionResponse | null>(
+    ownerId,
+    null
+  );
 
   // List-level test state
-  const [testingServerId, setTestingServerId] = useState<string | null>(null);
-  const [listTestResult, setListTestResult] = useState<TestConnectionResponse | null>(null);
-  const [listTestServerName, setListTestServerName] = useState('');
+  const [testingServerId, setTestingServerId] = useApplicationAccountState<string | null>(
+    ownerId,
+    null
+  );
+  const [listTestResult, setListTestResult] =
+    useApplicationAccountState<TestConnectionResponse | null>(ownerId, null);
+  const [listTestServerName, setListTestServerName] = useApplicationAccountState(ownerId, '');
 
   // ADR-225 arbitrage F: a plugin's server leaves through the plugin
   // uninstall — the guard (not a disabled attribute) prevents the action and
@@ -172,65 +149,30 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
       }
       setDeletingServerId(server.id);
     },
-    [t]
+    [t, toast, setDeletingServerId]
   );
 
   // Open create dialog
   const handleOpenCreate = useCallback(() => {
     setForm(EMPTY_FORM);
     setShowCreateDialog(true);
-  }, []);
+  }, [setShowCreateDialog, setForm]);
 
   // Open edit dialog
-  const handleOpenEdit = useCallback((server: UserMCPServer) => {
-    setForm({
-      name: server.name,
-      url: server.url,
-      auth_type: server.auth_type,
-      api_key: '',
-      header_name: server.header_name || 'X-API-Key',
-      bearer_token: '',
-      oauth_client_id: '',
-      oauth_client_secret: '',
-      oauth_scopes: server.oauth_scopes ?? '',
-      domain_description: server.domain_description ?? '',
-      timeout_seconds: server.timeout_seconds,
-      iterative_mode: server.iterative_mode ?? false,
-    });
-    setEditingServer(server);
-    setTestResult(null);
-  }, []);
+  const handleOpenEdit = useCallback(
+    (server: UserMCPServer) => {
+      setForm(editMCPServerForm(server));
+      setEditingServer(server);
+      setTestResult(null);
+    },
+    [setEditingServer, setForm, setTestResult]
+  );
 
   // Save (create or update)
   const handleSave = useCallback(async () => {
     try {
       if (editingServer) {
-        // Update — only send changed fields
-        const update: Partial<UserMCPServerUpdate> = {};
-        if (form.name !== editingServer.name) update.name = form.name;
-        if (form.url !== editingServer.url) update.url = form.url;
-        if (form.auth_type !== editingServer.auth_type) update.auth_type = form.auth_type;
-        if (form.timeout_seconds !== editingServer.timeout_seconds)
-          update.timeout_seconds = form.timeout_seconds;
-        // Use || undefined to allow clearing domain_description (empty string → undefined)
-        if (form.domain_description !== (editingServer.domain_description ?? ''))
-          update.domain_description = form.domain_description || undefined;
-        // Credentials are always sent if provided (they can't be compared — encrypted in DB)
-        if (form.api_key) update.api_key = form.api_key;
-        if (form.auth_type === 'api_key') {
-          // Always send header_name when auth is api_key so backend can merge correctly
-          const savedHeaderName = editingServer.header_name || 'X-API-Key';
-          if (form.header_name !== savedHeaderName) {
-            update.header_name = form.header_name;
-          }
-        }
-        if (form.bearer_token) update.bearer_token = form.bearer_token;
-        if (form.oauth_client_id) update.oauth_client_id = form.oauth_client_id;
-        if (form.oauth_client_secret) update.oauth_client_secret = form.oauth_client_secret;
-        if (form.oauth_scopes !== (editingServer.oauth_scopes ?? ''))
-          update.oauth_scopes = form.oauth_scopes;
-        if (form.iterative_mode !== (editingServer.iterative_mode ?? false))
-          update.iterative_mode = form.iterative_mode;
+        const update = mcpServerFormValues(form, editingServer);
 
         if (Object.keys(update).length === 0) {
           setEditingServer(null);
@@ -243,25 +185,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
           setEditingServer(null);
         }
       } else {
-        // Create
-        const payload: UserMCPServerCreate = {
-          name: form.name,
-          url: form.url,
-          auth_type: form.auth_type,
-          timeout_seconds: form.timeout_seconds,
-          iterative_mode: form.iterative_mode,
-          ...(form.domain_description && { domain_description: form.domain_description }),
-        };
-        if (form.auth_type === 'api_key') {
-          payload.api_key = form.api_key;
-          payload.header_name = form.header_name;
-        } else if (form.auth_type === 'bearer') {
-          payload.bearer_token = form.bearer_token;
-        } else if (form.auth_type === 'oauth2') {
-          if (form.oauth_client_id) payload.oauth_client_id = form.oauth_client_id;
-          if (form.oauth_client_secret) payload.oauth_client_secret = form.oauth_client_secret;
-          if (form.oauth_scopes) payload.oauth_scopes = form.oauth_scopes;
-        }
+        const payload = mcpServerFormValues(form);
 
         const result = await createServer(payload);
         if (result) {
@@ -272,7 +196,16 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('common.error'));
     }
-  }, [form, editingServer, createServer, updateServer, t]);
+  }, [
+    form,
+    editingServer,
+    createServer,
+    updateServer,
+    t,
+    toast,
+    setShowCreateDialog,
+    setEditingServer,
+  ]);
 
   // Delete
   const handleDelete = useCallback(async () => {
@@ -284,7 +217,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('common.error'));
     }
-  }, [deletingServerId, deleteServer, t]);
+  }, [deletingServerId, deleteServer, t, toast, setDeletingServerId]);
 
   // Toggle
   const handleToggle = useCallback(
@@ -295,7 +228,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
         toast.error(err instanceof Error ? err.message : t('common.error'));
       }
     },
-    [toggleServer, t]
+    [toggleServer, t, toast]
   );
 
   // Test connection (in edit dialog)
@@ -312,7 +245,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('settings.mcp.test_failed'));
     }
-  }, [editingServer, testConnection, t]);
+  }, [editingServer, testConnection, t, toast, setTestResult]);
 
   // Test connection (from list view)
   const handleTestFromList = useCallback(
@@ -336,7 +269,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
         setTestingServerId(null);
       }
     },
-    [testConnection, t]
+    [testConnection, t, toast, setTestingServerId, setListTestResult, setListTestServerName]
   );
 
   // OAuth
@@ -348,7 +281,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
         toast.error(err instanceof Error ? err.message : t('settings.mcp.oauth_error'));
       }
     },
-    [initiateOAuth, t]
+    [initiateOAuth, t, toast]
   );
 
   // Disconnect OAuth
@@ -361,7 +294,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
         toast.error(err instanceof Error ? err.message : t('common.error'));
       }
     },
-    [disconnectOAuth, t]
+    [disconnectOAuth, t, toast]
   );
 
   // Generate description
@@ -378,14 +311,10 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
         err instanceof Error ? err.message : t('settings.mcp.generate_description_no_tools')
       );
     }
-  }, [editingServer, generateDescription, t]);
+  }, [editingServer, generateDescription, t, toast, setForm]);
 
   // Check if form is valid for save
-  const isFormValid =
-    form.name.trim() !== '' &&
-    form.url.trim() !== '' &&
-    (form.auth_type !== 'api_key' || form.api_key.trim() !== '' || !!editingServer) &&
-    (form.auth_type !== 'bearer' || form.bearer_token.trim() !== '' || !!editingServer);
+  const isFormValid = isMCPServerFormValid(form, !!editingServer);
 
   // Form dialog (shared for create and edit)
   const formDialog = (isOpen: boolean, onClose: () => void, titleKey: string) => (
@@ -396,245 +325,14 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
           <DialogDescription>{t('settings.mcp.form_description')}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
-          {/* Name */}
-          <div className="space-y-3">
-            <Label htmlFor="mcp-name">{t('settings.mcp.field_name')}</Label>
-            <Input
-              id="mcp-name"
-              value={form.name}
-              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              placeholder={t('settings.mcp.field_name_placeholder')}
-              maxLength={100}
-            />
-          </div>
-
-          {/* URL */}
-          <div className="space-y-3">
-            <Label htmlFor="mcp-url">{t('settings.mcp.field_url')}</Label>
-            <Input
-              id="mcp-url"
-              value={form.url}
-              onChange={e => setForm(f => ({ ...f, url: e.target.value }))}
-              placeholder="https://mcp-server.example.com/mcp"
-              type="url"
-            />
-          </div>
-
-          {/* Domain Description */}
-          <div className="space-y-3">
-            <Label htmlFor="mcp-domain-description">
-              {t('settings.mcp.field_domain_description')}{' '}
-              <span className="text-xs text-muted-foreground">({t('common.optional')})</span>
-            </Label>
-            <Textarea
-              id="mcp-domain-description"
-              value={form.domain_description}
-              onChange={e => setForm(f => ({ ...f, domain_description: e.target.value }))}
-              placeholder={t('settings.mcp.field_domain_description_placeholder')}
-              maxLength={500}
-              rows={2}
-              className="resize-none"
-            />
-            <div className="flex items-center gap-2">
-              <p className="text-xs text-muted-foreground flex-1">
-                {t('settings.mcp.field_domain_description_help')}
-              </p>
-              {editingServer && editingServer.tool_count > 0 && (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleGenerateDescription}
-                  disabled={generatingDescription}
-                  className="shrink-0 h-6 px-2 text-xs"
-                >
-                  {generatingDescription ? (
-                    <LoadingSpinner className="h-3 w-3 mr-1" />
-                  ) : (
-                    <Sparkles className="h-3 w-3 mr-1" />
-                  )}
-                  {t('settings.mcp.generate_description')}
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {/* Auth Type */}
-          <div className="space-y-3">
-            <Label>{t('settings.mcp.field_auth_type')}</Label>
-            <Select
-              value={form.auth_type}
-              onValueChange={v => setForm(f => ({ ...f, auth_type: v as UserMCPAuthType }))}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">{t('settings.mcp.auth_none')}</SelectItem>
-                <SelectItem value="api_key">{t('settings.mcp.auth_api_key')}</SelectItem>
-                <SelectItem value="bearer">{t('settings.mcp.auth_bearer')}</SelectItem>
-                <SelectItem value="oauth2">{t('settings.mcp.auth_oauth2')}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Conditional credential fields */}
-          {form.auth_type === 'api_key' && (
-            <>
-              <div className="space-y-3">
-                <Label htmlFor="mcp-api-key">{t('settings.mcp.field_api_key')}</Label>
-                <Input
-                  id="mcp-api-key"
-                  value={form.api_key}
-                  onChange={e => setForm(f => ({ ...f, api_key: e.target.value }))}
-                  type="password"
-                  placeholder={
-                    editingServer?.has_credentials
-                      ? t('settings.mcp.field_credentials_saved')
-                      : editingServer
-                        ? t('settings.mcp.field_keep_existing')
-                        : ''
-                  }
-                />
-                {editingServer?.has_credentials && !form.api_key && (
-                  <p className="text-xs text-muted-foreground">
-                    {t('settings.mcp.field_credentials_hint')}
-                  </p>
-                )}
-              </div>
-              <div className="space-y-3">
-                <Label htmlFor="mcp-header-name">{t('settings.mcp.field_header_name')}</Label>
-                <Input
-                  id="mcp-header-name"
-                  value={form.header_name}
-                  onChange={e => setForm(f => ({ ...f, header_name: e.target.value }))}
-                  placeholder="X-API-Key"
-                />
-              </div>
-            </>
-          )}
-
-          {form.auth_type === 'bearer' && (
-            <div className="space-y-3">
-              <Label htmlFor="mcp-bearer-token">{t('settings.mcp.field_bearer_token')}</Label>
-              <Input
-                id="mcp-bearer-token"
-                value={form.bearer_token}
-                onChange={e => setForm(f => ({ ...f, bearer_token: e.target.value }))}
-                type="password"
-                placeholder={
-                  editingServer?.has_credentials
-                    ? t('settings.mcp.field_credentials_saved')
-                    : editingServer
-                      ? t('settings.mcp.field_keep_existing')
-                      : ''
-                }
-              />
-              {editingServer?.has_credentials && !form.bearer_token && (
-                <p className="text-xs text-muted-foreground">
-                  {t('settings.mcp.field_credentials_hint')}
-                </p>
-              )}
-            </div>
-          )}
-
-          {form.auth_type === 'oauth2' && (
-            <>
-              <div className="space-y-3">
-                <Label htmlFor="mcp-oauth-client-id">
-                  {t('settings.mcp.field_oauth_client_id')}{' '}
-                  <span className="text-xs text-muted-foreground">({t('common.optional')})</span>
-                </Label>
-                <Input
-                  id="mcp-oauth-client-id"
-                  value={form.oauth_client_id}
-                  onChange={e => setForm(f => ({ ...f, oauth_client_id: e.target.value }))}
-                  placeholder={
-                    editingServer?.has_oauth_credentials
-                      ? t('settings.mcp.field_credentials_saved')
-                      : ''
-                  }
-                />
-                {editingServer?.has_oauth_credentials && !form.oauth_client_id && (
-                  <p className="text-xs text-muted-foreground">
-                    {t('settings.mcp.field_credentials_hint')}
-                  </p>
-                )}
-              </div>
-              <div className="space-y-3">
-                <Label htmlFor="mcp-oauth-client-secret">
-                  {t('settings.mcp.field_oauth_client_secret')}{' '}
-                  <span className="text-xs text-muted-foreground">({t('common.optional')})</span>
-                </Label>
-                <Input
-                  id="mcp-oauth-client-secret"
-                  value={form.oauth_client_secret}
-                  onChange={e => setForm(f => ({ ...f, oauth_client_secret: e.target.value }))}
-                  type="password"
-                  placeholder={
-                    editingServer?.has_oauth_credentials
-                      ? t('settings.mcp.field_credentials_saved')
-                      : ''
-                  }
-                />
-                {editingServer?.has_oauth_credentials && !form.oauth_client_secret && (
-                  <p className="text-xs text-muted-foreground">
-                    {t('settings.mcp.field_credentials_hint')}
-                  </p>
-                )}
-              </div>
-              <div className="space-y-3">
-                <Label htmlFor="mcp-oauth-scopes">
-                  {t('settings.mcp.field_oauth_scopes')}{' '}
-                  <span className="text-xs text-muted-foreground">({t('common.optional')})</span>
-                </Label>
-                <Input
-                  id="mcp-oauth-scopes"
-                  value={form.oauth_scopes}
-                  onChange={e => setForm(f => ({ ...f, oauth_scopes: e.target.value }))}
-                  placeholder={t('settings.mcp.field_oauth_scopes_placeholder')}
-                />
-                <p className="text-xs text-muted-foreground">
-                  {t('settings.mcp.field_oauth_scopes_help')}
-                </p>
-              </div>
-            </>
-          )}
-
-          {/* Timeout */}
-          <div className="space-y-3">
-            <Label htmlFor="mcp-timeout">{t('settings.mcp.field_timeout')}</Label>
-            <Input
-              id="mcp-timeout"
-              value={form.timeout_seconds}
-              onChange={e =>
-                setForm(f => ({
-                  ...f,
-                  timeout_seconds: Math.max(5, Math.min(120, Number(e.target.value) || 30)),
-                }))
-              }
-              type="number"
-              min={5}
-              max={120}
-            />
-          </div>
-
-          {/* Iterative Mode (ADR-062) */}
-          <div className="flex items-center justify-between py-2">
-            <div className="space-y-0.5">
-              <Label htmlFor="mcp-iterative-mode" className="text-sm font-medium">
-                {t('settings.mcp.field_iterative_mode')}
-              </Label>
-              <p className="text-xs text-muted-foreground">
-                {t('settings.mcp.field_iterative_mode_help')}
-              </p>
-            </div>
-            <Switch
-              id="mcp-iterative-mode"
-              checked={form.iterative_mode}
-              onCheckedChange={checked => setForm(f => ({ ...f, iterative_mode: checked }))}
-            />
-          </div>
+          <MCPServerFormFields form={form} setForm={setForm} editingServer={editingServer} t={t}
+            descriptionAction={editingServer && editingServer.tool_count > 0 ? (
+              <Button type="button" size="sm" variant="ghost" onClick={() => { if (!generatingDescription) void handleGenerateDescription(); }}
+                aria-disabled={generatingDescription} className="shrink-0 h-6 px-2 text-xs">
+                {generatingDescription ? <LoadingSpinner className="h-3 w-3 mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
+                {t('settings.mcp.generate_description')}
+              </Button>
+            ) : undefined} />
 
           {/* Test Connection (edit mode only) */}
           {editingServer && (
@@ -688,7 +386,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
           <Button variant="outline" onClick={onClose}>
             {t('common.cancel')}
           </Button>
-          <Button onClick={handleSave} disabled={!isFormValid || creating || updating}>
+          <Button onClick={() => { if (isFormValid && !creating && !updating) void handleSave(); }} disabled={!isFormValid && !creating && !updating} aria-disabled={creating || updating}>
             {(creating || updating) && <LoadingSpinner className="mr-2 h-4 w-4" />}
             {t('common.save')}
           </Button>

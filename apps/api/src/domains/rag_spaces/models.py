@@ -32,7 +32,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.core.constants import RAG_SPACES_EMBEDDING_DIMENSIONS_DEFAULT
+from src.core.constants import RAG_JOB_WORKER_ID_MAX_LENGTH, RAG_SPACES_EMBEDDING_DIMENSIONS_DEFAULT
 from src.infrastructure.database.models import BaseModel
 
 # --- Domain constants (str, not Enum — avoids _CHECKPOINT_ALLOWED_MODULES registration) ---
@@ -333,7 +333,7 @@ class RAGDriveSource(BaseModel):
         server_default="0",
     )
     worker_id: Mapped[str | None] = mapped_column(
-        String(64),
+        String(RAG_JOB_WORKER_ID_MAX_LENGTH),
         nullable=True,
         default=None,
     )
@@ -445,7 +445,9 @@ class RAGMailSource(BaseModel):
         default=0,
         server_default="0",
     )
-    worker_id: Mapped[str | None] = mapped_column(String(64), nullable=True, default=None)
+    worker_id: Mapped[str | None] = mapped_column(
+        String(RAG_JOB_WORKER_ID_MAX_LENGTH), nullable=True, default=None
+    )
 
     # Relationships
     space: Mapped[RAGSpace] = relationship("RAGSpace", back_populates="mail_sources")
@@ -628,7 +630,7 @@ class RAGDocument(BaseModel):
         server_default="0",
     )
     worker_id: Mapped[str | None] = mapped_column(
-        String(64),
+        String(RAG_JOB_WORKER_ID_MAX_LENGTH),
         nullable=True,
         default=None,
     )

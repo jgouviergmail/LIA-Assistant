@@ -23,6 +23,7 @@ pytestmark = pytest.mark.unit
 
 @pytest.fixture
 def service(monkeypatch: pytest.MonkeyPatch) -> RAGMailSyncService:
+    monkeypatch.setattr("src.domains.shared.consultation_sink._collector_factory", None)
     monkeypatch.setattr(
         mail_source_service,
         "settings",

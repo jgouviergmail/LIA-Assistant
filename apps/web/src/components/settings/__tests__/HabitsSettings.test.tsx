@@ -15,7 +15,7 @@ import { formatWindow } from '@/hooks/useHabits';
 
 const setStatus = vi.fn(async () => true);
 const remove = vi.fn(async () => true);
-const removeAll = vi.fn(async () => true);
+const removeAll = vi.fn(async () => 'complete' as const);
 const setEnabled = vi.fn(async () => true);
 const recompute = vi.fn(async () => true);
 const refetch = vi.fn();
@@ -357,8 +357,8 @@ describe('HabitsSettings', () => {
     });
     renderSection();
     expect(screen.getByRole('button', { name: /recompute_label/ })).toBeInTheDocument();
-    // Nothing learned yet → nothing to forget: the destructive button is absent.
-    expect(screen.queryByRole('button', { name: /forget_all_label/ })).not.toBeInTheDocument();
+    // Temporary candidates/partial cleanup may remain without any persisted row.
+    expect(screen.getByRole('button', { name: /forget_all_label/ })).toBeInTheDocument();
   });
 
   it('says when the chat will not offer automations on this instance', () => {

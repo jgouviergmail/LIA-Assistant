@@ -19,11 +19,13 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.config import settings
 from src.core.constants import EMAIL_SHARE_RECIPIENT_QUERY_MAX_CHARS
 from src.core.dependencies import get_db
 from src.core.session_dependencies import get_current_active_session
-from src.domains.auth.dependencies import create_user_rate_limiter
+from src.domains.email_share.rate_limits import (
+    rate_limit_email_share,
+    rate_limit_recipient_suggestions,
+)
 from src.domains.email_share.recipients import suggest_recipients, suggestions_available
 from src.domains.email_share.schemas import (
     EmailShareOptions,
@@ -46,20 +48,6 @@ router = APIRouter(
     prefix="/email-share",
     tags=["Email share"],
     dependencies=capability_dependencies(PlatformCapability.EMAIL_SHARE),
-)
-
-# Read once at import, like every settings-driven module constant: the limiter
-# counts one account's sends, whatever road they take.
-rate_limit_email_share = create_user_rate_limiter(
-    "email_share",
-    max_calls=settings.email_share_rate_limit_calls,
-    window_seconds=settings.email_share_rate_limit_window_seconds,
-)
-# One request per pause in typing: its own, wider window, never the send's.
-rate_limit_recipient_suggestions = create_user_rate_limiter(
-    "email_share_recipients",
-    max_calls=settings.email_share_suggest_rate_limit_calls,
-    window_seconds=settings.email_share_suggest_rate_limit_window_seconds,
 )
 
 

@@ -33,12 +33,24 @@ export function GuidedShowroom({ lng }: { lng: string }) {
   const { t } = useTranslation();
   const [missionId, setMissionId] = useState<ShowroomMissionId | null>(null);
   const viewedRef = useRef(false);
+  const pickerTitleRef = useRef<HTMLHeadingElement>(null);
+  const returningToPickerRef = useRef(false);
 
   useEffect(() => {
     if (viewedRef.current) return;
     viewedRef.current = true;
     trackShowroomEvent('demo_viewed');
   }, []);
+
+  useEffect(() => {
+    if (missionId !== null) {
+      returningToPickerRef.current = true;
+      return;
+    }
+    if (!returningToPickerRef.current) return;
+    returningToPickerRef.current = false;
+    pickerTitleRef.current?.focus({ preventScroll: true });
+  }, [missionId]);
 
   if (missionId !== null) {
     return (
@@ -54,7 +66,13 @@ export function GuidedShowroom({ lng }: { lng: string }) {
   return (
     <div className="mx-auto w-full max-w-5xl space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold text-foreground">{t('showroom.title')}</h2>
+        <h2
+          ref={pickerTitleRef}
+          tabIndex={-1}
+          className="rounded-md text-lg font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {t('showroom.title')}
+        </h2>
         {/* Plain <a>, not <Link>: /demo skips auth hydration (lib/auth.tsx),
             so leaving it must be a full navigation — a client-side transition
             would carry the unhydrated null session onto the landing. */}

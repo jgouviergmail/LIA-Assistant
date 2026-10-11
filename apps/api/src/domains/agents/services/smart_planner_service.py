@@ -46,8 +46,14 @@ from src.domains.agents.prompts import (
 from src.domains.agents.semantic.expansion_service import (
     generate_semantic_dependencies_for_prompt,
 )
-from src.domains.agents.services.planner.human_message import build_planner_human_message
-from src.domains.agents.services.planner.parameter_bounds import clamp_parameters_to_manifest
+from src.domains.agents.semantic.planner_links import dependencies_with_plan_sources
+from src.domains.agents.services.planner.human_message import (
+    build_planner_human_message,
+)
+from src.domains.agents.services.planner.mcp_reference import build_mcp_reference
+from src.domains.agents.services.planner.parameter_bounds import (
+    clamp_parameters_to_manifest,
+)
 from src.domains.agents.services.planner.parameter_restoration import (
     preserved_parameters_for_prompt,
     restore_and_report,
@@ -63,8 +69,13 @@ from src.infrastructure.observability.metrics_agents import (
 )
 
 if TYPE_CHECKING:
-    from src.domains.agents.orchestration.plan_schemas import ExecutionPlan, ExecutionStep
-    from src.domains.agents.services.planner.strategies.base_strategy import PlanningStrategy
+    from src.domains.agents.orchestration.plan_schemas import (
+        ExecutionPlan,
+        ExecutionStep,
+    )
+    from src.domains.agents.services.planner.strategies.base_strategy import (
+        PlanningStrategy,
+    )
 
 logger = get_logger(__name__)
 
@@ -233,7 +244,9 @@ class SmartPlannerService:
         # F6: Post-filter excluded tools (e.g., sub-agent delegation after user rejection)
         apply_tool_exclusions(filtered, exclude_tools)
 
-        from src.domains.agents.services.planner.jev_consultation import try_consultation_plan
+        from src.domains.agents.services.planner.jev_consultation import (
+            try_consultation_plan,
+        )
 
         if not (
             validation_feedback or clarification_response or clarification_field or existing_plan
@@ -438,7 +451,7 @@ class SmartPlannerService:
             HumanMessage(
                 content=build_planner_human_message(
                     intelligence,
-                    existing_plan=existing_plan if clarification_response is None else None,
+                    existing_plan=(existing_plan if clarification_response is None else None),
                     validation_feedback=validation_feedback,
                 )
             ),
@@ -608,7 +621,7 @@ class SmartPlannerService:
             HumanMessage(
                 content=build_planner_human_message(
                     intelligence,
-                    existing_plan=existing_plan if clarification_response is None else None,
+                    existing_plan=(existing_plan if clarification_response is None else None),
                     validation_feedback=validation_feedback,
                 )
             ),
@@ -864,105 +877,13 @@ class SmartPlannerService:
 
     @staticmethod
     def _build_mcp_reference(selected_domains: list[str] | None = None) -> str:
-        """Build MCP reference documentation for planner prompt injection.
-
-        Collects read_me content from admin MCP and per-user MCP, but ONLY
-        for servers whose domain is among ``selected_domains``.  This avoids
-        injecting large reference content into every planner call.
-
-        Admin MCP takes priority; user MCP only adds servers not already
-        present from admin (case-insensitive dedup by server key).
-
-        Args:
-            selected_domains: Domain slugs from the query analyzer
-                (e.g. ``["mcp_excalidraw", "weather"]``).  Only MCP domains
-                (prefixed ``mcp_``) are considered.
-
-        Returns:
-            Formatted reference string, or empty string if no relevant content.
-        """
-        from src.core.config import get_settings
-        from src.core.context import user_mcp_tools_ctx
-        from src.domains.agents.constants import MCP_DOMAIN_PREFIX
-
-        if not selected_domains:
-            return ""
-
-        # Extract server keys from selected MCP domains (e.g. "mcp_excalidraw" → "excalidraw")
-        mcp_server_keys = {
-            d.removeprefix(MCP_DOMAIN_PREFIX).lower()
-            for d in selected_domains
-            if d.startswith(MCP_DOMAIN_PREFIX)
-        }
-        if not mcp_server_keys:
-            return ""
-
-        _settings = get_settings()
-        max_ref_chars = _settings.mcp_reference_content_max_chars
-        if max_ref_chars <= 0:
-            return ""
-
-        # Collect from admin MCP first, then user MCP (admin wins on conflict)
-        all_references: dict[str, str] = {}
-
-        from src.infrastructure.mcp.client_manager import get_mcp_client_manager
-
-        admin_manager = get_mcp_client_manager()
-        admin_keys_lower: set[str] = set()
-        if admin_manager:
-            admin_ref = admin_manager.reference_content
-            admin_keys_lower = {k.lower() for k in admin_ref}
-            # ADR-062: Skip reference_content for iterative_mode servers
-            # (the ReAct agent calls read_me itself — always gets fresh content)
-            iterative_servers: set[str] = set()
-            if _settings.mcp_react_enabled:
-                for sname, sconfig in admin_manager.server_configs.items():
-                    if getattr(sconfig, "iterative_mode", False):
-                        iterative_servers.add(sname.lower())
-            for name, content in admin_ref.items():
-                if name.lower() in iterative_servers:
-                    continue
-                if name.lower() in mcp_server_keys:
-                    all_references[name.lower()] = content
-
-        mcp_ctx = user_mcp_tools_ctx.get()
-        if mcp_ctx and mcp_ctx.server_reference_content:
-            # ADR-062: Skip reference_content for user MCP iterative_mode servers
-            # (the ReAct agent calls read_me itself — always gets fresh content)
-            user_iterative = mcp_ctx.iterative_servers
-            for name, content in mcp_ctx.server_reference_content.items():
-                if name.lower() in user_iterative:
-                    continue
-                if name.lower() in mcp_server_keys and name.lower() not in all_references:
-                    all_references[name.lower()] = content
-
-        if not all_references:
-            return ""
-
-        sections: list[str] = []
-        for server_name, ref_content in all_references.items():
-            logger.info(
-                "mcp_reference_content_stats",
-                server_name=server_name,
-                source="admin" if server_name in admin_keys_lower else "user",
-                content_length=len(ref_content),
-                max_ref_chars=max_ref_chars,
-                will_truncate=len(ref_content) > max_ref_chars,
-            )
-            # Line-aware truncation: cut at last complete line boundary
-            if len(ref_content) > max_ref_chars:
-                cut_pos = ref_content.rfind("\n", 0, max_ref_chars)
-                if cut_pos <= 0:
-                    cut_pos = max_ref_chars
-                truncated = ref_content[:cut_pos] + "\n" + _planner_lines()["mcp_truncated_marker"]
-            else:
-                truncated = ref_content
-
-            sections.append(
-                SmartPlannerService._render_mcp_format_reference(server_name, truncated)
-            )
-
-        return "\n".join(sections)
+        """Keep the historical facade for selected MCP reference collection."""
+        return build_mcp_reference(
+            selected_domains,
+            truncated_marker=lambda: _planner_lines()["mcp_truncated_marker"],
+            render_reference=SmartPlannerService._render_mcp_format_reference,
+            logger=logger,
+        )
 
     @staticmethod
     def _render_preserved_parameters(preserved_params: dict[str, Any]) -> str:
@@ -1159,6 +1080,8 @@ class SmartPlannerService:
         else:
             semantic_deps = ""
 
+        semantic_deps = dependencies_with_plan_sources(semantic_deps, existing_plan)
+
         # Get learned patterns for this context (async, with timeout fallback)
         learned_patterns = await get_learned_patterns_prompt(
             domains=intelligence.domains,
@@ -1210,7 +1133,9 @@ class SmartPlannerService:
         # F6: Sub-agents delegation section (empty if disabled)
         sub_agents_section = self._build_sub_agents_section()
 
-        from src.domains.agents.services.card_composition_prompt import build_card_composition_block
+        from src.domains.agents.services.card_composition_prompt import (
+            build_card_composition_block,
+        )
 
         context = "\n\n".join(part for part in (context, build_card_composition_block()) if part)
         return get_smart_planner_prompt(
@@ -1301,7 +1226,10 @@ class SmartPlannerService:
                 parameters the previous plan no longer speaks for.
         """
         from src.core.config import get_settings
-        from src.domains.agents.orchestration.plan_schemas import ExecutionStep, StepType
+        from src.domains.agents.orchestration.plan_schemas import (
+            ExecutionStep,
+            StepType,
+        )
 
         settings = get_settings()
 

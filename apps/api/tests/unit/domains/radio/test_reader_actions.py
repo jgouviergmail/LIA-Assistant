@@ -28,7 +28,10 @@ def test_an_action_names_the_capability_and_what_its_label_names() -> None:
             values={"target": "Quarterly report"},
         ),
         ActionLine(
-            id=UUID(int=2), tool_name="run_python_tool", at=NOW + timedelta(minutes=5), values={}
+            id=UUID(int=2),
+            tool_name="run_python_tool",
+            at=NOW + timedelta(minutes=5),
+            values={},
         ),
         ActionLine(
             id=UUID(int=3),
@@ -41,7 +44,7 @@ def test_an_action_names_the_capability_and_what_its_label_names() -> None:
     assert [d.text for d in drafts] == [
         'LIA did "send email to me" (target: Quarterly report) on Saturday 2026-09-26, 10:12',
         'LIA did "run python" on Saturday 2026-09-26, 10:17',
-        'LIA did "era: cancel subscription" on Saturday 2026-09-26, 10:21',
+        'LIA did "era : cancel subscription" on Saturday 2026-09-26, 10:21',
     ]
     assert {d.kind for d in drafts} == {FactKind.ACTION}
     assert {d.sensitivity for d in drafts} == {Sensitivity.PERSONAL}
@@ -66,11 +69,16 @@ def test_a_row_whose_label_cannot_be_read_still_names_the_tool(
     from src.domains.radio.readers import actions as module
 
     monkeypatch.setattr(
-        module, "readable_label", lambda row: ("effects.labels.generic", {"tool": row.tool_name})
+        module,
+        "readable_label",
+        lambda row: ("effects.labels.generic", {"tool": row.tool_name}),
     )
     line = action_line(EffectRow(id=UUID(int=7), tool_name="delete_event_tool", claimed_at=NOW))
     assert line == ActionLine(
-        id=UUID(int=7), tool_name="delete_event_tool", at=NOW, values={"tool": "delete_event_tool"}
+        id=UUID(int=7),
+        tool_name="delete_event_tool",
+        at=NOW,
+        values={"tool": "delete_event_tool"},
     )
     [draft] = action_drafts([line], tz=UTC)
     assert draft.text == 'LIA did "delete event" on Saturday 2026-09-26, 08:12'

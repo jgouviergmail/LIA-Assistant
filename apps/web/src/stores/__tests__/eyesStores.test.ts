@@ -127,12 +127,13 @@ describe('eyesWidgetStore', () => {
     useEyesWidgetStore.getState().reset();
   });
 
-  it('defaults: visible, responsive auto size, no custom position', () => {
+  it('defaults to visible extra-large Bip without custom positions', () => {
     const s = useEyesWidgetStore.getState();
     expect(s.visible).toBe(true);
-    expect(s.size).toBe('auto');
-    expect(s.style).toBe('smiley');
+    expect(s.size).toBe('xl');
+    expect(s.style).toBe('bip');
     expect(s.position).toBeNull();
+    expect(s.landingPosition).toBeNull();
   });
 
   it('setVisible toggles and persists', () => {
@@ -142,19 +143,38 @@ describe('eyesWidgetStore', () => {
     expect(raw).toContain('"visible":false');
   });
 
-  it('cycleSize leaves auto onto md, then walks md → lg → sm → md', () => {
+  it('cycleSize leaves auto onto md, then walks md → lg → xl → sm → md', () => {
+    useEyesWidgetStore.getState().setSize('auto');
     useEyesWidgetStore.getState().cycleSize();
     expect(useEyesWidgetStore.getState().size).toBe('md');
     useEyesWidgetStore.getState().cycleSize();
     expect(useEyesWidgetStore.getState().size).toBe('lg');
+    useEyesWidgetStore.getState().cycleSize();
+    expect(useEyesWidgetStore.getState().size).toBe('xl');
     useEyesWidgetStore.getState().cycleSize();
     expect(useEyesWidgetStore.getState().size).toBe('sm');
     useEyesWidgetStore.getState().cycleSize();
     expect(useEyesWidgetStore.getState().size).toBe('md');
   });
 
-  it('EYES_SIZES exposes the three ordered presets', () => {
-    expect(EYES_SIZES).toEqual(['sm', 'md', 'lg']);
+  it('cycles the new extra-large default to small without changing the selected avatar', () => {
+    useEyesWidgetStore.getState().cycleSize();
+    expect(useEyesWidgetStore.getState().size).toBe('sm');
+    expect(useEyesWidgetStore.getState().style).toBe('bip');
+  });
+
+  it('EYES_SIZES exposes the four ordered presets', () => {
+    expect(EYES_SIZES).toEqual(['sm', 'md', 'lg', 'xl']);
+  });
+
+  it('persists the extra-large choice and restores it on rehydration', async () => {
+    useEyesWidgetStore.getState().setSize('xl');
+    const persisted = localStorage.getItem(EYES_WIDGET_PREFS_KEY);
+    expect(persisted).toContain('"size":"xl"');
+    useEyesWidgetStore.getState().reset();
+    localStorage.setItem(EYES_WIDGET_PREFS_KEY, persisted!);
+    await useEyesWidgetStore.persist.rehydrate();
+    expect(useEyesWidgetStore.getState().size).toBe('xl');
   });
 
   it('setPosition stores viewport percentages clamped to [0, 100]', () => {
@@ -193,8 +213,8 @@ describe('eyesWidgetStore', () => {
     useEyesWidgetStore.getState().reset();
     const after = useEyesWidgetStore.getState();
     expect(after.visible).toBe(true);
-    expect(after.size).toBe('auto');
-    expect(after.style).toBe('smiley');
+    expect(after.size).toBe('xl');
+    expect(after.style).toBe('bip');
     expect(after.position).toBeNull();
     expect(after.landingPosition).toBeNull();
   });
@@ -224,7 +244,33 @@ describe('eyesWidgetStore', () => {
     );
     await useEyesWidgetStore.persist.rehydrate();
     expect(useEyesWidgetStore.getState().style).toBe('cozmo');
+    expect(useEyesWidgetStore.getState().size).toBe('md');
   });
+
+  it.each(['smiley', 'oscar'] as const)(
+    'preserves saved %s, automatic size, visibility and both positions',
+    async style => {
+      localStorage.setItem(
+        EYES_WIDGET_PREFS_KEY,
+        JSON.stringify({
+          state: {
+            visible: false,
+            size: 'auto',
+            style,
+            position: { xPct: 15, yPct: 25 },
+            landingPosition: { xPct: 65, yPct: 75 },
+          },
+        })
+      );
+      await useEyesWidgetStore.persist.rehydrate();
+      const state = useEyesWidgetStore.getState();
+      expect(state.visible).toBe(false);
+      expect(state.style).toBe(style);
+      expect(state.size).toBe('auto');
+      expect(state.position).toEqual({ xPct: 15, yPct: 25 });
+      expect(state.landingPosition).toEqual({ xPct: 65, yPct: 75 });
+    }
+  );
 
   it('rehydrating a stale persisted style falls back to the default', async () => {
     localStorage.setItem(
@@ -234,14 +280,15 @@ describe('eyesWidgetStore', () => {
       })
     );
     await useEyesWidgetStore.persist.rehydrate();
-    expect(useEyesWidgetStore.getState().style).toBe('smiley');
+    expect(useEyesWidgetStore.getState().style).toBe('bip');
+    expect(useEyesWidgetStore.getState().size).toBe('md');
   });
 
   it('rehydrating with nothing persisted keeps the defaults (merge undefined branch)', async () => {
     localStorage.removeItem(EYES_WIDGET_PREFS_KEY);
     await useEyesWidgetStore.persist.rehydrate();
-    expect(useEyesWidgetStore.getState().style).toBe('smiley');
-    expect(useEyesWidgetStore.getState().size).toBe('auto');
+    expect(useEyesWidgetStore.getState().style).toBe('bip');
+    expect(useEyesWidgetStore.getState().size).toBe('xl');
   });
 });
 

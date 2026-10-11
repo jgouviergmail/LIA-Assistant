@@ -1,5 +1,7 @@
 import type { NextConfig } from 'next';
 import screenshotManifest from './public/screenshots/manifest.json';
+import applicationProof from './public/screenshots/proof/manifest.json';
+import monitoringProof from './public/screenshots/proof/grafana-manifest.json';
 
 import {
   APP_HEADERS_SOURCE,
@@ -9,13 +11,6 @@ import {
   buildWidgetFrameCsp,
   resolveCoepMode,
 } from './src/lib/csp';
-
-// Allow self-signed certificates for internal Docker HTTPS communication
-// Required because API uses HTTPS for Google OAuth callbacks (redirect URI)
-// This must be set before any HTTPS requests are made by Next.js rewrites
-if (process.env.NODE_ENV === 'development') {
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-}
 
 // Allowed dev origins for cross-origin requests in development
 // Must include patterns for local network access
@@ -56,6 +51,12 @@ const nextConfig: NextConfig = {
       // Permit only the gallery's current content revision, keeping other
       // query-bearing image URLs outside the optimizer's allowlist.
       { pathname: '/screenshots/*.png', search: `?v=${screenshotManifest.revision}` },
+      ...[applicationProof, monitoringProof].flatMap(proof =>
+        proof.images.map(image => ({
+          pathname: `/screenshots/proof/${image.file}`,
+          search: `?v=${proof.revision}`,
+        }))
+      ),
     ],
   },
 
@@ -230,11 +231,10 @@ const nextConfig: NextConfig = {
   // This enables cross-port cookie sharing (SameSite=Lax) in development
   // In production: Use reverse proxy (nginx/Traefik) instead
   async rewrites() {
-    // Use HTTP for rewrites to avoid self-signed cert issues
-    // Next.js rewrites don't honor NODE_TLS_REJECT_UNAUTHORIZED
-    // API_URL_SERVER_HTTP is HTTP variant, API_URL_SERVER may be HTTPS
+    // Match the configured API listener. A legacy HTTP alias may coexist with
+    // an HTTPS-only dev API; choosing the alias makes every proxy call reset.
     const apiUrl =
-      process.env.API_URL_SERVER_HTTP || process.env.API_URL_SERVER || 'http://api:8000';
+      process.env.API_URL_SERVER || process.env.API_URL_SERVER_HTTP || 'http://api:8000';
 
     return [
       {

@@ -1,9 +1,10 @@
 """Document operations on a knowledge space (ADR-259): download, archive, move, bulk delete.
 
-A batch never fails as a whole for one document: every id is reported as done
-or skipped with a stable reason. A move commits the row and its chunks BEFORE
-touching the disk, then moves the file; a rename that fails reverts both and
-reports ``document_move_failed`` for that document only. The archive is built
+A batch reports domain/file refusals per document. A move stages an exclusive
+destination under owner/space/document fences BEFORE committing the row and
+its chunks; originals remain on uncertain ACK, then cleanup follows known
+success. File preparation failure reports ``document_move_failed`` without
+moving rows. The archive is built
 off the event loop and handed to the router as a temporary file it deletes
 after sending.
 """
@@ -24,11 +25,18 @@ from fastapi import status
 from src.core.config import settings
 from src.core.constants import RAG_SPACES_ARCHIVE_MISSING_MEMBER
 from src.core.exceptions import BaseAPIException
+from src.domains.rag_spaces.archive_names import archive_name_reservations, unique_archive_name
 from src.domains.rag_spaces.document_access import (
     document_file_path,
     managed_document_code,
     owned_document,
     raise_document_not_found,
+)
+from src.domains.rag_spaces.document_deletion_cleanup import cleanup_deleted_document_file
+from src.domains.rag_spaces.document_move_files import (
+    StagedDocumentFile,
+    rollback_staged_file,
+    stage_document_file,
 )
 from src.domains.rag_spaces.models import is_terminal_document_status
 from src.domains.rag_spaces.reindex import get_reindex_status
@@ -38,6 +46,7 @@ from src.domains.rag_spaces.schemas import (
     RAGDocumentMoveRequest,
 )
 from src.domains.rag_spaces.service import raise_system_space_protected
+from src.infrastructure.file_transfer import LocalFileRead
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
@@ -51,7 +60,9 @@ __all__ = [
     "bulk_delete_documents",
     "document_file_path",
     "download_document",
+    "document_move_refusal",
     "move_documents",
+    "relocate_document_rows",
     "owned_document",
     "raise_document_not_found",
 ]
@@ -119,20 +130,6 @@ async def download_document(
 # ---------------------------------------------------------------------------
 
 
-def _unique_member_name(original: str, taken: set[str]) -> str:
-    """``report.pdf`` → ``report (2).pdf`` while the name is already a member."""
-    if original not in taken:
-        taken.add(original)
-        return original
-    stem, suffix = os.path.splitext(original)
-    counter = 2
-    while f"{stem} ({counter}){suffix}" in taken:
-        counter += 1
-    name = f"{stem} ({counter}){suffix}"
-    taken.add(name)
-    return name
-
-
 def _write_archive(members: list[tuple[str, Path]], missing: list[str]) -> str:
     """Write the zip to a temporary file (blocking: runs in a thread)."""
     handle = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
@@ -181,13 +178,14 @@ async def build_archive(
 
     members: list[tuple[str, Path]] = []
     missing: list[str] = []
-    taken: set[str] = set()
+    taken = archive_name_reservations()
     for doc in documents:
         path = document_file_path(doc)
+        name = unique_archive_name(doc.original_filename, taken)
         if await asyncio.to_thread(path.is_file):
-            members.append((_unique_member_name(doc.original_filename, taken), path))
+            members.append((name, path))
         else:
-            missing.append(doc.original_filename)
+            missing.append(name)
 
     archive_path = await asyncio.to_thread(_write_archive, members, missing)
     logger.info(
@@ -204,7 +202,7 @@ async def build_archive(
 # ---------------------------------------------------------------------------
 
 
-def _move_refusal(document: RAGDocument, source: RAGSpace, target: RAGSpace) -> str | None:
+def document_move_refusal(document: RAGDocument, source: RAGSpace, target: RAGSpace) -> str | None:
     """The reason a document cannot move, or None."""
     if document.space_id != source.id or document.user_id != source.user_id:
         return "document_not_found"
@@ -218,25 +216,18 @@ def _move_refusal(document: RAGDocument, source: RAGSpace, target: RAGSpace) -> 
     return None
 
 
-def _rename(old_path: Path, new_path: Path) -> None:
-    """Move the file into the target space directory (blocking: runs in a thread).
+async def relocate_document_rows(
+    service: RAGSpaceService, document: RAGDocument, space_id: uuid.UUID, *, commit: bool = True
+) -> None:
+    """Point a validated document and its chunks at the target in one transaction.
 
-    A file already gone from the disk is not an obstacle: the index is what
-    retrieval reads, the file only serves downloads — the row moves, and the
-    download will say ``document_file_missing`` as it did before the move.
+    With commit=False, the caller owns validation/fences, acknowledgment and
+    subsequent physical transfer; the original GUI retains its default commit.
     """
-    if not old_path.is_file():
-        logger.warning("rag_document_file_missing_on_move", path=old_path.name)
-        return
-    new_path.parent.mkdir(parents=True, exist_ok=True)
-    os.replace(old_path, new_path)
-
-
-async def _relocate(service: RAGSpaceService, document: RAGDocument, space_id: uuid.UUID) -> None:
-    """Point the row and its chunks at ``space_id`` and commit."""
     await service.doc_repo.update(document, {"space_id": space_id})
     await service.chunk_repo.move_to_space(document.id, space_id)
-    await service.db.commit()
+    if commit:
+        await service.db.commit()
 
 
 async def _move_one(
@@ -247,32 +238,73 @@ async def _move_one(
     room_left: int,
 ) -> str | None:
     """Move one document; None when done, else the skip reason."""
+    owner_id = source.user_id
+    if owner_id is None:
+        return "document_not_found"
+    locked = {}
+    for space_id in sorted((source.id, target.id)):
+        locked[space_id] = await service.get_space(space_id, owner_id, for_update=True)
+    source, target = locked[source.id], locked[target.id]
     document = await service.doc_repo.get_by_id(document_id)
     if document is None:
         return "document_not_found"
-    refusal = _move_refusal(document, source, target)
+    await service.db.refresh(document, with_for_update=True)
+    refusal = document_move_refusal(document, source, target)
     if refusal is not None:
         return refusal
-    if room_left <= 0:
+    current_room = settings.rag_spaces_max_docs_per_space - await service.doc_repo.count_for_space(
+        target.id
+    )
+    if min(room_left, current_room) <= 0:
         return "document_limit_exceeded"
-
-    old_path = document_file_path(document)
-    await _relocate(service, document, target.id)
-    new_path = document_file_path(document)
     try:
-        await asyncio.to_thread(_rename, old_path, new_path)
+        staged, digest = await _stage_gui_file(document, target.id, owner_id)
     except OSError as exc:
-        # The row already points at the target: put it back so the file and
-        # the row agree, then report — the batch goes on.
         logger.warning(
             "rag_document_move_failed",
             document_id=str(document_id),
             target_space_id=str(target.id),
-            error=str(exc),
+            error_type=type(exc).__name__,
         )
-        await _relocate(service, document, source.id)
         return "document_move_failed"
+    filename, source_id = document.filename, source.id
+    committing = False
+    try:
+        await relocate_document_rows(service, document, target.id, commit=False)
+        committing = True
+        await service.db.commit()
+    except BaseException:
+        if not committing:
+            await service.db.rollback()
+            if staged is not None:
+                await rollback_staged_file(staged)
+        # Unknown ACK keeps source and prepared destination available.
+        raise
+    await cleanup_deleted_document_file(owner_id, source_id, filename, digest)
     return None
+
+
+async def _stage_gui_file(
+    document: RAGDocument, target_id: uuid.UUID, owner_id: uuid.UUID
+) -> tuple[StagedDocumentFile | None, str | None]:
+    try:
+        reader = LocalFileRead.open(document_file_path(document))
+    except FileNotFoundError:
+        digest = None
+    else:
+        try:
+            digest = reader.identity_digest
+        finally:
+            await reader.close()
+    staged = await stage_document_file(
+        owner_id,
+        document.space_id,
+        target_id,
+        document.filename,
+        digest,
+        document.file_size,
+    )
+    return staged, digest
 
 
 async def move_documents(

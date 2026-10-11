@@ -1,6 +1,10 @@
 import { useCallback } from 'react';
-import { useApiQuery } from './useApiQuery';
 import { useApiMutation } from './useApiMutation';
+import { useApplicationAccountQuery } from './useApplicationAccountQuery';
+import { useApplicationAccountLifetime } from './useApplicationAccountLifetime';
+import { useApplicationResourceSync } from './useApplicationResourceSync';
+import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 
 /**
  * Channel binding from the API.
@@ -48,17 +52,21 @@ const ENDPOINT = '/channels';
  * Hook for channel bindings CRUD operations (Telegram, etc.).
  */
 export function useChannelBindings() {
-  // Query: list all bindings
+  const { t } = useTranslation();
   const {
     data: listData,
     loading,
     error,
     refetch,
-    setData,
-  } = useApiQuery<ChannelBindingListResponse>(ENDPOINT, {
-    componentName: 'ChannelBindings',
-    initialData: { bindings: [], total: 0, telegram_bot_username: null },
-  });
+    ownerId,
+  } = useApplicationAccountQuery<ChannelBindingListResponse>(ENDPOINT, 'ChannelBindings');
+  const { isCurrent } = useApplicationAccountLifetime(ownerId);
+  const release = useCallback(() => {}, []);
+  useApplicationResourceSync(ownerId, 'channels', refetch, release);
+  const refreshSaved = useCallback(async () => {
+    try { await refetch(); }
+    catch { if (isCurrent()) toast.error(t('settings.application_tools.sync_failed')); }
+  }, [refetch, isCurrent, t]);
 
   const bindings = listData?.bindings ?? [];
   const total = listData?.total ?? 0;
@@ -83,46 +91,33 @@ export function useChannelBindings() {
   // Handlers
   const generateOtp = useCallback(
     async (channelType: string = 'telegram') => {
+      if (!isCurrent()) return undefined;
       const result = await generateOtpMutation.mutate(
-        `${ENDPOINT}/otp/generate?channel_type=${channelType}`
+        `${ENDPOINT}/otp/generate?channel_type=${encodeURIComponent(channelType)}`
       );
-      return result;
+      return isCurrent() ? result : undefined;
     },
-    [generateOtpMutation]
+    [generateOtpMutation, isCurrent]
   );
 
   const toggleBinding = useCallback(
     async (bindingId: string) => {
+      if (!isCurrent()) return undefined;
       const result = await toggleMutation.mutate(`${ENDPOINT}/${bindingId}/toggle`);
-      if (result) {
-        setData(prev => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            bindings: prev.bindings.map(b =>
-              b.id === bindingId ? { ...b, is_active: result.is_active } : b
-            ),
-          };
-        });
-      }
-      return result;
+      if (!isCurrent()) return undefined;
+      if (result) await refreshSaved();
+      return isCurrent() ? result : undefined;
     },
-    [toggleMutation, setData]
+    [toggleMutation, isCurrent, refreshSaved]
   );
 
   const unlinkBinding = useCallback(
     async (bindingId: string) => {
+      if (!isCurrent()) return;
       await deleteMutation.mutate(`${ENDPOINT}/${bindingId}`);
-      setData(prev => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          bindings: prev.bindings.filter(b => b.id !== bindingId),
-          total: prev.total - 1,
-        };
-      });
+      if (isCurrent()) await refreshSaved();
     },
-    [deleteMutation, setData]
+    [deleteMutation, isCurrent, refreshSaved]
   );
 
   return {

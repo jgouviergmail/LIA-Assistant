@@ -13,6 +13,7 @@ import { act, render } from '@testing-library/react';
 
 import { ExpressiveEyes } from '../ExpressiveEyes';
 import { EYE_EXPRESSIONS } from '../expression-engine';
+import { DEFAULT_RIG_EYE_STYLE } from '../eye-styles';
 import { resolvePose } from '../rig/poses';
 
 function eyesRoot(container: HTMLElement): HTMLElement {
@@ -33,12 +34,25 @@ afterEach(() => {
 });
 
 describe('ExpressiveEyes — declared state', () => {
+  it('keeps the native Smiley fallback when the selected avatar default is hybrid', () => {
+    const { container } = render(
+      <ExpressiveEyes expression="neutral" gaze={null} size="sm" staticPose />
+    );
+    const root = eyesRoot(container);
+    expect(root.dataset.style).toBe('smiley');
+    const nativePose = resolvePose('neutral', 'smiley');
+    expect(root.style.getPropertyValue('--rig-r-top-l')).toBe(`${nativePose.rTopL}em`);
+    expect(root.style.getPropertyValue('--rig-r-top-r')).toBe(`${nativePose.rTopR}em`);
+    expect(container.querySelector('canvas')).toBeNull();
+  });
+
   it('renders two eyes, decorative (aria-hidden), with the expression as data attribute', () => {
     const { container } = render(<ExpressiveEyes expression="joy" gaze={null} size="md" />);
     const root = eyesRoot(container);
     expect(root.getAttribute('aria-hidden')).toBe('true');
     expect(root.dataset.expression).toBe('joy');
-    expect(container.querySelectorAll('.lia-eye')).toHaveLength(2);
+    expect(container.querySelectorAll('.lia-eye-shape')).toHaveLength(2);
+    expect(container.querySelectorAll('.lia-eye-blink')).toHaveLength(2);
     expect(container.querySelector('.lia-eye--left')).not.toBeNull();
     expect(container.querySelector('.lia-eye--right')).not.toBeNull();
   });
@@ -50,6 +64,9 @@ describe('ExpressiveEyes — declared state', () => {
     expect(eyesRoot(container).classList.contains('lia-eyes--sm')).toBe(true);
     rerender(<ExpressiveEyes expression="neutral" gaze={null} size="lg" />);
     expect(eyesRoot(container).classList.contains('lia-eyes--lg')).toBe(true);
+    rerender(<ExpressiveEyes expression="neutral" gaze={null} size="xl" />);
+    expect(eyesRoot(container).classList.contains('lia-eyes--xl')).toBe(true);
+    expect(eyesRoot(container).classList.contains('lia-eyes--lg')).toBe(false);
   });
 
   it('publishes the gaze aim, clamped to [-1, 1]', () => {
@@ -125,9 +142,7 @@ describe('ExpressiveEyes — declared state', () => {
     const brow = container.querySelector('.lia-eye-brow');
     expect(brow?.parentElement?.classList.contains('lia-eye')).toBe(true);
     // The pupil sits INSIDE the shape, so the lids cover it like everything else.
-    expect(
-      container.querySelector('.lia-eye-pupil')?.parentElement?.classList.contains('lia-eye-shape')
-    ).toBe(true);
+    expect(container.querySelector('.lia-eye-pupil')?.closest('.lia-eye-shape')).not.toBeNull();
   });
 
   it('lives on its own by default, and declares it when the host turns that off', () => {
@@ -161,8 +176,9 @@ describe('ExpressiveEyes — the rig on the DOM', () => {
   it('paints the first frame already settled on its pose (no boot animation)', () => {
     const { container } = render(<ExpressiveEyes expression="sad" gaze={null} size="md" />);
     const root = eyesRoot(container);
-    expect(root.style.getPropertyValue('--rig-sy-l')).toBe(String(resolvePose('sad', 'cozmo').syL));
-    expect(root.style.getPropertyValue('--rig-oy-l')).toBe('100%');
+    const pose = resolvePose('sad', DEFAULT_RIG_EYE_STYLE);
+    expect(root.style.getPropertyValue('--rig-sy-l')).toBe(String(pose.syL));
+    expect(root.style.getPropertyValue('--rig-oy-l')).toBe(`${pose.oyL}%`);
   });
 
   it('renders each style with ITS silhouette, never the default one', () => {
@@ -181,9 +197,13 @@ describe('ExpressiveEyes — the rig on the DOM', () => {
     rerender(<ExpressiveEyes expression="anger" gaze={null} size="md" />);
     runFrames(2);
     const midway = Number(root.style.getPropertyValue('--rig-rot-l').replace('deg', ''));
-    expect(midway).toBeLessThan(7);
+    const target = resolvePose('anger', DEFAULT_RIG_EYE_STYLE).rotL;
+    expect(midway).toBeLessThan(target);
     runFrames(90);
-    expect(Number(root.style.getPropertyValue('--rig-rot-l').replace('deg', ''))).toBeCloseTo(7, 1);
+    expect(Number(root.style.getPropertyValue('--rig-rot-l').replace('deg', ''))).toBeCloseTo(
+      target,
+      1
+    );
   });
 
   it('closes the lid when the host announces a blink', () => {

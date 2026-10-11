@@ -46,6 +46,7 @@ def _row(**over):
 def service() -> MeetingTemplateService:
     db = MagicMock()
     db.commit = AsyncMock()
+    db.scalar = AsyncMock(return_value=SimpleNamespace(id=USER, is_active=True))
     svc = MeetingTemplateService(db)
     svc.repo = AsyncMock()
     svc.repo.list_for_user.return_value = []

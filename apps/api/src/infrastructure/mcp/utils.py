@@ -16,7 +16,10 @@ Created: 2026-03-04
 
 from __future__ import annotations
 
+import json
 import time
+from collections.abc import Container
+from contextlib import suppress
 from typing import Any
 
 import httpx2
@@ -37,6 +40,79 @@ from src.domains.agents.data_registry.models import (
     generate_registry_id,
 )
 from src.domains.agents.tools.output import UnifiedToolOutput
+from src.infrastructure.mcp.semantic_observations import observation_notice
+
+
+def extract_output_schema(tool: object) -> dict[str, Any] | None:
+    """Keep the SDK's declared output contract, if it is an actual schema object."""
+    declared = getattr(tool, "output_schema", None)
+    return declared if isinstance(declared, dict) else None
+
+
+class MCPResultText(str):
+    """The compatible text transport, retaining auxiliary SDK text alongside JSON.
+
+    MCP servers may return structuredContent AND human-readable caveats. The
+    adapters copy those caveats into their model data before this transient
+    transport value crosses any serialisation boundary.
+    """
+
+    text_content: str
+
+    def __new__(cls, value: str, *, text_content: str = "") -> MCPResultText:
+        instance = super().__new__(cls, value)
+        instance.text_content = text_content
+        return instance
+
+
+def result_text_data(raw_result: str) -> dict[str, str]:
+    """Publish received auxiliary notes; ordinary text results already carry theirs."""
+    if isinstance(raw_result, MCPResultText) and raw_result.text_content:
+        return {"mcp_text": raw_result.text_content}
+    return {}
+
+
+def structured_result_text(result: object) -> str | None:
+    """Preserve MCP structuredContent through the existing text transport seam."""
+    structured = getattr(result, "structured_content", None)
+    if not isinstance(structured, dict):
+        return None
+    try:
+        serialized = json.dumps(structured, ensure_ascii=False)
+    except TypeError, ValueError:
+        return None
+    notes: list[str] = []
+    content = getattr(result, "content", None)
+    for block in content if isinstance(content, list) else []:
+        text = getattr(block, "text", None)
+        if not isinstance(text, str) or not text:
+            continue
+        with suppress(ValueError, TypeError):
+            # The backwards-compatible text copy is often exactly the same
+            # structuredContent JSON; it is the same facts, not a caveat.
+            if json.loads(text) == structured:
+                continue
+        notes.append(text)
+    return MCPResultText(serialized, text_content="\n".join(notes))
+
+
+def decode_mcp_result(raw_result: str) -> object:
+    """Expose received JSON objects/lists as data; retain other text verbatim."""
+    try:
+        decoded = json.loads(raw_result)
+    except ValueError, TypeError:
+        return raw_result
+    return decoded if isinstance(decoded, dict | list) else raw_result
+
+
+def mcp_result_text(result: object) -> str:
+    """The user pool's text result, preferring complete structured content."""
+    structured_text = structured_result_text(result)
+    if structured_text is not None:
+        return structured_text
+    return "\n".join(
+        block.text for block in getattr(result, "content", []) if hasattr(block, "text")
+    )
 
 
 class MCPAuthRequiredError(RuntimeError):
@@ -134,7 +210,9 @@ def build_client_info() -> Implementation:
     return Implementation(name=MCP_CLIENT_INFO_NAME, version=settings.app_version)
 
 
-def drop_none_values(arguments: dict[str, Any]) -> dict[str, Any]:
+def drop_none_values(
+    arguments: dict[str, Any], *, keep_nullable: Container[str] = ()
+) -> dict[str, Any]:
     """Drop top-level keys whose value is ``None`` from MCP tool arguments.
 
     Optional MCP parameters left unset are materialised as ``None`` by the
@@ -143,16 +221,20 @@ def drop_none_values(arguments: dict[str, Any]) -> dict[str, Any]:
     ``parameter X is not of type string, is <nil>``. Per the MCP/JSON-RPC
     convention an unset optional must be omitted, not sent as ``null``.
 
-    Only ``None`` is removed — falsy-but-valid values (``False``, ``0``, ``""``,
+    Explicitly nullable fields retain null, including required cursors. Other
+    ``None`` values are removed — falsy-but-valid values (``False``, ``0``, ``""``,
     ``[]``) are preserved. Non-recursive by design: nested objects pass as-is.
 
     Args:
         arguments: Tool arguments mapping (keyword args from the LLM/schema).
+        keep_nullable: Wire names whose server contract explicitly admits null.
 
     Returns:
         A new dict without ``None``-valued keys.
     """
-    return {key: value for key, value in arguments.items() if value is not None}
+    return {
+        key: value for key, value in arguments.items() if value is not None or key in keep_nullable
+    }
 
 
 def extract_app_meta(tool: Any) -> tuple[str | None, list[str] | None]:
@@ -213,6 +295,7 @@ def build_mcp_app_output(
     source_label: str,
     tool_arguments: dict[str, object] | None = None,
     tool_input_schema: dict[str, object] | None = None,
+    semantic_observations: dict[str, object] | None = None,
 ) -> UnifiedToolOutput:
     """Build a UnifiedToolOutput for an MCP Apps interactive widget.
 
@@ -272,9 +355,12 @@ def build_mcp_app_output(
     )
 
     return UnifiedToolOutput.data_success(
-        message=summary,
+        message=summary + observation_notice(semantic_observations or {}),
         registry_updates={rid: registry_item},
         structured_data={
+            "result": decode_mcp_result(raw_result),
+            **result_text_data(raw_result),
+            **(semantic_observations or {}),
             CONTEXT_DOMAIN_MCP_APPS: [
                 {
                     "tool_name": tool_name,
@@ -283,6 +369,7 @@ def build_mcp_app_output(
                 }
             ],
         },
+        metadata={"mcp_result_projection": True},
     )
 
 

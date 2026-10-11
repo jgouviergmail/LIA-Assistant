@@ -74,11 +74,13 @@ fetch_web_page_catalogue_manifest = ToolManifest(
             path="title",
             type="string",
             description="Page title",
+            semantic_type="Text",
         ),
         OutputFieldSchema(
             path="content",
             type="string",
             description="Extracted page content as Markdown",
+            semantic_type="Text",
         ),
         OutputFieldSchema(
             path="url",
@@ -107,6 +109,7 @@ fetch_web_page_catalogue_manifest = ToolManifest(
             path="web_fetchs[].title",
             type="string",
             description="Page title",
+            semantic_type="Text",
         ),
         OutputFieldSchema(
             path="web_fetchs[].url",

@@ -261,10 +261,15 @@ async def put_settings_shortcuts(
     cap = settings.settings_shortcuts_max_count
     if len(payload.shortcuts) > cap:
         raise_invalid_input(f"Too many settings shortcuts (max {cap})", max_count=cap)
-    current_user.settings_shortcuts = list(payload.shortcuts)
-    db.add(current_user)
-    await db.commit()
-    return _settings_shortcuts_response(current_user)
+    from src.infrastructure.account_preferences import (
+        LayoutPreferencePatch,
+        update_layout_preferences,
+    )
+
+    actor = await update_layout_preferences(
+        db, current_user.id, LayoutPreferencePatch(settings_shortcuts=list(payload.shortcuts))
+    )
+    return _settings_shortcuts_response(actor)
 
 
 # ========== ADMIN ENDPOINTS ==========

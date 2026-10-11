@@ -615,6 +615,8 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailSendMixin, GmailThreadsMixin
         bcc: str | None = None,
         is_html: bool = False,
         attachments: Sequence[OutgoingAttachment] = (),
+        *,
+        single_attempt: bool = False,
     ) -> dict[str, Any]:
         """
         Send an email via Gmail API.
@@ -659,7 +661,9 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailSendMixin, GmailThreadsMixin
         if bcc:
             message["Bcc"] = self._encode_email_header(bcc)
 
-        response = await self._send_message(message, with_files=bool(attachments))
+        response = await self._send_message(
+            message, with_files=bool(attachments), single_attempt=single_attempt
+        )
 
         logger.info(
             "gmail_email_sent",

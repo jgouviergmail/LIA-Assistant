@@ -66,7 +66,7 @@ describe('CosmosHero — guided demo CTA', () => {
     const link = getByTestId('hero-cta-demo');
     expect(link).toBeInTheDocument();
     expect(link.getAttribute('href')).toContain('/demo');
-    expect(link).toHaveTextContent('landing.hero.cta_demo');
+    expect(link).toHaveTextContent('landing.hero.home_cta_demo');
   });
 
   it('renders no demo link at all under the legacy variant', async () => {

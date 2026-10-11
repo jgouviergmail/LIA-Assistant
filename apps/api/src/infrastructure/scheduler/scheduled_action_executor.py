@@ -27,6 +27,7 @@ import asyncio
 import json
 import time
 import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -34,6 +35,7 @@ from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
 import structlog
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.constants import (
@@ -73,6 +75,7 @@ from src.infrastructure.scheduler.out_of_turn_run import (
 )
 
 logger = structlog.get_logger(__name__)
+ExecutionGuard = Callable[[AsyncSession, ScheduledAction], Awaitable[bool]]
 
 
 def _get_localized_title(language: str) -> str:
@@ -359,7 +362,7 @@ async def _load_tick(
     from src.domains.users.service import UserService
 
     action = await repo.get_by_id(action_id)
-    if not action:
+    if not action or action.user_id != user_id:
         logger.warning("scheduled_action_execute_not_found", action_id=str(action_id))
         return None
 
@@ -392,9 +395,28 @@ async def _load_tick(
     return action, user
 
 
+async def _execution_is_authorized(
+    db: AsyncSession,
+    action: ScheduledAction,
+    guard: ExecutionGuard | None,
+    *,
+    before_inference: bool = False,
+) -> bool:
+    if guard is None:
+        return True
+    if not await guard(db, action):
+        return False
+    if before_inference:
+        # Current authorization was read; hold no transaction during inference.
+        await db.commit()
+    return True
+
+
 async def execute_single_action(
     action_id: uuid.UUID,
     user_id: uuid.UUID,
+    *,
+    execution_guard: ExecutionGuard | None = None,
 ) -> str:
     """
     Execute a single scheduled action through the agent pipeline.
@@ -418,6 +440,8 @@ async def execute_single_action(
         if loaded is None:
             return ""
         action, user = loaded
+        if not await _execution_is_authorized(db, action, execution_guard):
+            return ""
 
         # ADR-265: the run history needs the instant the tick started and the
         # slot it was due for, both read BEFORE any branch re-arms the row.
@@ -446,6 +470,8 @@ async def execute_single_action(
             )
             await db.commit()
 
+        if not await _execution_is_authorized(db, action, execution_guard):
+            return ""
         if action.requires_approval:
             # Propose-first: the run belongs to the CHAT (?intent= — ADR-173),
             # so it flows through the normal pipeline + HITL when the user
@@ -489,6 +515,8 @@ async def execute_single_action(
 
         # The probe's reads are done: nothing is held while the model runs.
         await db.commit()
+        if not await _execution_is_authorized(db, action, execution_guard, before_inference=True):
+            return ""
         response_content = await _run_pipeline(
             db,
             repo,

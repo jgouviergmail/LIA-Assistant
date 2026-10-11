@@ -8,6 +8,8 @@ import { ProductScene } from '../demo/ProductScene';
 import { PRODUCT_DEMO_KEY as KEY, PRODUCT_SCENES } from '../demo/scenes';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 
+const HOME_KEY = 'landing.home_product_demo';
+
 const locale = vi.hoisted(() => ({ language: 'keys' }));
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -184,7 +186,7 @@ describe('InteractiveChatMockup', () => {
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 
-  it('provides the register CTA on the dedicated demo and opt-in explanations', () => {
+  it('preserves the register CTA and opt-in explanations outside the homepage', () => {
     render(<InteractiveChatMockup lng="fr" />);
     expect(screen.getByRole('link', { name: 'landing.hero.cta_primary' })).toHaveAttribute(
       'href',
@@ -193,6 +195,73 @@ describe('InteractiveChatMockup', () => {
     expect(screen.getByText(`${KEY}.scenes.decision.difference`)).not.toBeVisible();
     fireEvent.click(screen.getByText(`${KEY}.difference`));
     expect(screen.getByText(`${KEY}.scenes.decision.difference`)).toBeVisible();
+  });
+
+  it('keeps the homepage workflow benefit visible and resets a fictional approval when changing scenes', () => {
+    motion = true;
+    render(<InteractiveChatMockup lng="fr" home withCta={false} />);
+    expect(screen.getByText(`${HOME_KEY}.scenes.decision.difference`)).toBeVisible();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: `${HOME_KEY}.scenes.call.title` }));
+    expect(screen.getByText(`${HOME_KEY}.scenes.call.difference`)).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'chat.hitl.actions.confirm' }));
+    expect(screen.getByRole('status')).toHaveTextContent(`${HOME_KEY}.approval_confirmed`);
+
+    fireEvent.click(screen.getByRole('button', { name: `${HOME_KEY}.scenes.decision.title` }));
+    expect(screen.getByText(`${HOME_KEY}.scenes.decision.difference`)).toBeVisible();
+    expect(screen.queryByText(`${HOME_KEY}.approval_confirmed`)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: `${HOME_KEY}.scenes.call.title` }));
+    expect(screen.getByRole('button', { name: 'chat.hitl.actions.confirm' })).toBeVisible();
+    expect(screen.getByRole('status')).toBeEmptyDOMElement();
+  });
+
+  it.each([false, true])(
+    'lets the homepage reader explore every step without automatic changes (reduced motion: %s)',
+    reduced => {
+      motion = reduced;
+      render(<InteractiveChatMockup lng="fr" home withCta={false} />);
+      expect(screen.getByText(`${HOME_KEY}.scenes.decision.result_title`)).toBeVisible();
+      const request = screen.getByRole('button', { name: `${HOME_KEY}.steps_request` });
+      request.focus();
+      fireEvent.click(request);
+      advance(60000);
+      expect(request).toHaveFocus();
+      expect(request).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByText(`${HOME_KEY}.context`)).not.toBeVisible();
+      expect(screen.getByText(`${HOME_KEY}.scenes.decision.result_title`)).not.toBeVisible();
+
+      const context = screen.getByRole('button', { name: `${HOME_KEY}.steps_context` });
+      context.focus();
+      fireEvent.click(context);
+      expect(context).toHaveFocus();
+      expect(screen.getByText(`${HOME_KEY}.context`)).toBeVisible();
+      expect(screen.getByText(`${HOME_KEY}.scenes.decision.result_title`)).not.toBeVisible();
+
+      const result = screen.getByRole('button', { name: `${HOME_KEY}.steps_result` });
+      result.focus();
+      fireEvent.click(result);
+      expect(result).toHaveFocus();
+      expect(result).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByText(`${HOME_KEY}.scenes.decision.result_title`)).toBeVisible();
+      expect(screen.queryByRole('button', { name: `${HOME_KEY}.play` })).not.toBeInTheDocument();
+      advance(60000);
+      expect(result).toHaveFocus();
+      expect(screen.getByText(`${HOME_KEY}.scenes.decision.result_title`)).toBeVisible();
+    }
+  );
+
+  it('keeps the locally reviewed call available when the reader revisits another step', () => {
+    render(<InteractiveChatMockup lng="fr" home withCta={false} />);
+    fireEvent.click(screen.getByRole('button', { name: `${HOME_KEY}.scenes.call.title` }));
+    fireEvent.click(screen.getByRole('button', { name: 'chat.hitl.actions.confirm' }));
+    fireEvent.click(screen.getByRole('button', { name: `${HOME_KEY}.steps_request` }));
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: `${HOME_KEY}.steps_result` }));
+    expect(screen.getByRole('status')).toHaveTextContent(`${HOME_KEY}.approval_confirmed`);
+    expect(
+      screen.queryByRole('button', { name: 'chat.hitl.actions.confirm' })
+    ).not.toBeInTheDocument();
   });
 
   it.each([
@@ -209,7 +278,7 @@ describe('InteractiveChatMockup', () => {
 
 describe('ProductScene', () => {
   it.each(PRODUCT_SCENES)(
-    'uses the same completed scene for the $id chapter illustration',
+    'preserves the completed $id illustration outside the homepage',
     scene => {
       render(<ProductScene sceneId={scene.id} />);
       expect(screen.getByText(`${KEY}.scenes.${scene.id}.request`)).toBeVisible();
@@ -218,4 +287,28 @@ describe('ProductScene', () => {
       expect(screen.queryByRole('button')).not.toBeInTheDocument();
     }
   );
+
+  it('offers the real approval card only for the completed homepage call illustration', () => {
+    const { rerender } = render(<ProductScene sceneId="call" home phase={0} />);
+    expect(
+      screen.queryByRole('button', { name: 'chat.hitl.actions.confirm' })
+    ).not.toBeInTheDocument();
+
+    rerender(<ProductScene sceneId="call" home />);
+    expect(screen.getByRole('button', { name: 'chat.hitl.actions.confirm' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'chat.hitl.actions.cancel' })).toBeVisible();
+    expect(screen.getByText(`${HOME_KEY}.approval_hint`)).toBeVisible();
+    expect(screen.getByText(`${HOME_KEY}.illustrative`)).toBeVisible();
+  });
+
+  it('shows meeting evidence on the homepage while preserving the legacy research sources', () => {
+    const { rerender } = render(<ProductScene sceneId="research" />);
+    expect(screen.getByText(`${KEY}.sources.web`)).toBeVisible();
+    rerender(<ProductScene sceneId="research" home />);
+    expect(screen.getByText(`${HOME_KEY}.sources.transcript`)).toBeVisible();
+    expect(screen.getByText(`${HOME_KEY}.sources.notes`)).toBeVisible();
+    expect(screen.queryByText(`${HOME_KEY}.sources.web`)).not.toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
 });

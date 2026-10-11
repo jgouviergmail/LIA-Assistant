@@ -12,7 +12,6 @@
 
 import { useState } from 'react';
 import { ClipboardList, LibraryBig, MessageSquare, Mic } from 'lucide-react';
-import { toast } from 'sonner';
 
 import { useMeetingRecorderContext } from '@/components/meetings/MeetingRecorderProvider';
 import { BackLink } from '@/components/ui/back-link';
@@ -29,6 +28,9 @@ import { useBackOrigin } from '@/hooks/useBackOrigin';
 import { useLanguageParam } from '@/hooks/useLanguageParam';
 import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
 import { useMeetingList, type UseMeetingListReturn } from '@/hooks/useMeetings';
+import { useAuth } from '@/hooks/useAuth';
+import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
+import { useApplicationAccountToast } from '@/hooks/useApplicationAccountToast';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { backDestination } from '@/lib/back-origin';
@@ -118,6 +120,9 @@ function MeetingRows({
   const { t } = useTranslation(lng);
   const router = useLocalizedRouter();
   const { confirm, confirmDialog } = useConfirm();
+  const { user } = useAuth();
+  const { isCurrent } = useApplicationAccountLifetime(user?.id);
+  const toast = useApplicationAccountToast(user?.id);
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
   const { meetings } = list;
 
@@ -126,17 +131,17 @@ function MeetingRows({
   const pageState = pageSelectionState(selectableIds, selected);
 
   const remove = async () => {
-    if (chosen.length === 0 || list.isDeleting) return;
+    if (!isCurrent() || chosen.length === 0 || list.isDeleting) return;
     const ok = await confirm({
       title: t('meetings.list.confirm_bulk_delete_title'),
       description: t('meetings.list.confirm_bulk_delete_description', { count: chosen.length }),
       confirmLabel: t('meetings.list.delete_selected', { count: chosen.length }),
       destructive: true,
     });
-    if (!ok) return;
+    if (!ok || !isCurrent()) return;
     try {
       const result = await list.bulkDelete(chosen);
-      if (result === null) return;
+      if (result === null || !isCurrent()) return;
       setSelected(new Set());
       if (result.deleted.length > 0) {
         toast.success(t('meetings.list.bulk_deleted', { count: result.deleted.length }));
@@ -208,6 +213,11 @@ function useToolbarActions(
 }
 
 export default function MeetingsPage({ params }: MeetingsPageProps) {
+  const { user } = useAuth();
+  return <AccountMeetingsPage key={user?.id ?? 'signed-out'} params={params} />;
+}
+
+function AccountMeetingsPage({ params }: MeetingsPageProps) {
   const lng = useLanguageParam(params);
   const { t } = useTranslation(lng);
   const router = useLocalizedRouter();

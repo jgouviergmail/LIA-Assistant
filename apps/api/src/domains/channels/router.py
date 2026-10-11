@@ -31,7 +31,6 @@ from src.domains.channels.models import ChannelType
 from src.domains.channels.preferences import resolve_channel_preferences
 from src.domains.channels.schemas import (
     ChannelBindingListResponse,
-    ChannelBindingResponse,
     ChannelBindingToggleResponse,
     OTPGenerateResponse,
 )
@@ -130,11 +129,9 @@ async def list_bindings(
     service = ChannelService(db)
     bindings = await service.list_bindings(user.id)
 
-    return ChannelBindingListResponse(
-        bindings=[ChannelBindingResponse.model_validate(b) for b in bindings],
-        total=len(bindings),
-        telegram_bot_username=_get_telegram_bot_username(),
-    )
+    from src.domains.channels.read_projection import channel_bindings_response
+
+    return channel_bindings_response(bindings)
 
 
 # =============================================================================

@@ -10,8 +10,10 @@ import { useCallback } from 'react';
 
 import apiClient from '@/lib/api-client';
 import type { SkillProposal } from '@/lib/skill-proposals/types';
+import { useAuth } from './useAuth';
+import { useApplicationAccountLifetime } from './useApplicationAccountLifetime';
 
-import { useApiQuery } from './useApiQuery';
+import { useApplicationAccountQuery } from './useApplicationAccountQuery';
 
 const BASE = '/skill-proposals';
 
@@ -23,18 +25,20 @@ const BASE = '/skill-proposals';
  *   deadline passed): a history page may hold many, and none is worth a call.
  */
 export function useSkillProposal(proposalId: string, enabled = true) {
-  return useApiQuery<SkillProposal>(`${BASE}/${encodeURIComponent(proposalId)}`, {
-    componentName: 'SkillProposal',
-    enabled,
-  });
+  const query = useApplicationAccountQuery<SkillProposal>(`${BASE}/${encodeURIComponent(proposalId)}`, 'SkillProposal', enabled);
+  return { ...query, refetch: query.refetchVerified };
 }
 
 /** The card's one act: install the proposal. The caller owns its busy state. */
 export function useSkillProposalActions() {
+  const { user } = useAuth();
+  const { isCurrent } = useApplicationAccountLifetime(user?.id);
   const install = useCallback(
-    (proposalId: string) =>
-      apiClient.post<SkillProposal>(`${BASE}/${encodeURIComponent(proposalId)}/install`),
-    []
+    async (proposalId: string) => {
+      if (!isCurrent()) throw new Error('Skill proposal account is no longer current');
+      return apiClient.post<SkillProposal>(`${BASE}/${encodeURIComponent(proposalId)}/install`);
+    },
+    [isCurrent]
   );
   return { install };
 }

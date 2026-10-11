@@ -26,13 +26,16 @@ the person keeps reading, which is the class of defect ADR-280 measured.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Final, Literal, Protocol
+from typing import TYPE_CHECKING, Any, Final, Literal, Protocol
 from uuid import UUID
 
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
+
+if TYPE_CHECKING:
+    from sqlalchemy import Select
 
 #: One ellipsis, never a cut that pretends to be the whole.
 _ELLIPSIS: Final[str] = "…"
@@ -87,6 +90,7 @@ class PortraitSourceSection:
     text: str
     used: int
     total: int
+    reason: Literal["over_budget"] | None = None
 
 
 class PortraitSourceReader(Protocol):
@@ -115,11 +119,21 @@ class FreshnessProbe:
         table: The table name on ``Base.metadata``.
         user_column: The owner column.
         stamp_column: The column that moves when the record changes.
+        semantic_columns: Qualified content/selection fields, or JSON paths.
+            When supplied, bookkeeping timestamps are excluded from identity.
+        selection_query: Optional ordered page of IDs, executed by the caller's
+            session. It captures selection changes caused by usage ranking.
+        related_probes: Additional tables consumed by the same source.
     """
 
     table: str
     user_column: str
     stamp_column: str
+    allowed: Callable[[UUID], Awaitable[bool]] | None = None
+    expires_daily: bool = False
+    semantic_columns: tuple[str | tuple[str, ...], ...] | None = None
+    selection_query: Callable[[UUID, SourceBudget], Select[Any]] | None = None
+    related_probes: tuple[FreshnessProbe, ...] = ()
 
 
 _REGISTRY: dict[str, tuple[PortraitSourceReader, FreshnessProbe]] = {}

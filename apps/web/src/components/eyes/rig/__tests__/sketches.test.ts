@@ -70,8 +70,8 @@ function firstOnsetMs(rig: EyeRig, ms: number): number {
 }
 
 describe('the catalogue', () => {
-  it('holds ten scenes, each three to five seconds long', () => {
-    expect(SKETCHES).toHaveLength(10);
+  it('holds nineteen scenes including the courteous bow, each three to five seconds long', () => {
+    expect(SKETCHES).toHaveLength(19);
     SKETCHES.forEach(name => {
       const duration = sketchDurationMs(sketchTapes(name));
       expect({ name, inRange: duration >= SKETCH_MIN_MS && duration <= SKETCH_MAX_MS }).toEqual({
@@ -121,12 +121,13 @@ describe('the catalogue', () => {
   });
 
   it('brings every ABSOLUTE tape back to rest before it ends — the gaze comes home, the lids reopen', () => {
-    SKETCHES.forEach(name =>
-      sketchTapes(name)
+    SKETCHES.forEach(name => {
+      const tapes = sketchTapes(name);
+      tapes
         .filter(tape => !tape.relative)
         .forEach(tape => {
           const rest = CHANNELS[tape.channel].rest;
-          const lastOnChannel = sketchTapes(name)
+          const lastOnChannel = tapes
             .filter(other => other.channel === tape.channel && !other.relative)
             .sort((a, b) => tapeDurationMs(b) - tapeDurationMs(a))[0];
           // Only the last tape on a channel has to land on rest: earlier ones
@@ -135,10 +136,13 @@ describe('the catalogue', () => {
           expect({
             name,
             channel: tape.channel,
-            last: tape.keys[tape.keys.length - 1].value,
+            last:
+              tape.channel === 'bodyRoll'
+                ? (tape.keys[tape.keys.length - 1].value % 360) + 0
+                : tape.keys[tape.keys.length - 1].value,
           }).toEqual({ name, channel: tape.channel, last: rest });
-        })
-    );
+        });
+    });
   });
 
   it('leaves the face exactly where it was when the curtain falls', () => {

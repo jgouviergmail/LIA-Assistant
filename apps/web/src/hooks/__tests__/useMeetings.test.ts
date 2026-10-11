@@ -9,6 +9,10 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { ApiError } from '@/lib/api-client';
 import { MEETING_STATUS_POLL_MS } from '@/lib/constants';
 import type { MeetingDetail, MeetingListResponse } from '@/types/meetings';
+import { publishApplicationResources } from '@/lib/application-resources';
+
+const auth = vi.hoisted(() => ({ owner: 'one' }));
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: auth.owner } }) }));
 
 const api = vi.hoisted(() => ({
   get: vi.fn(),
@@ -29,62 +33,10 @@ vi.mock('@/lib/logger', () => ({
 
 import { isMeetingInFlight, useMeeting, useMeetingList } from '../useMeetings';
 
-function detail(over: Partial<MeetingDetail> = {}): MeetingDetail {
-  return {
-    id: 'm1',
-    status: 'ready',
-    stage: null,
-    started_at: '2026-09-02T10:00:00Z',
-    stopped_at: '2026-09-02T11:00:00Z',
-    last_segment_at: null,
-    client_timezone: 'Europe/Paris',
-    audio_format: 'webm_opus',
-    segment_count: 120,
-    audio_duration_seconds: 3600,
-    audio_gaps: 0,
-    audio_kept_until: null,
-    audio_purged_at: null,
-    location_lat: null,
-    location_lon: null,
-    location_label: null,
-    calendar_event_id: null,
-    stt_provider: 'elevenlabs',
-    stt_model: 'scribe_v2',
-    stt_detected_language: 'fr',
-    stt_diarized: true,
-    stt_cost_eur: 0.2,
-    synthesis_model: null,
-    synthesis_tokens_in: 0,
-    synthesis_tokens_out: 0,
-    synthesis_tokens_cache: 0,
-    synthesis_cost_eur: null,
-    template_selection_usage: [],
-    total_cost_eur: 0.2,
-    has_transcript: true,
-    report: { title: 'Point projet', participants: [], sections: [] },
-    report_is_edited: false,
-    report_edited_at: null,
-    template_snapshot: null,
-    index_state: 'indexed',
-    indexed_at: null,
-    email_sent_at: null,
-    last_error_code: null,
-    last_error_message: null,
-    attempts: 1,
-    max_attempts: 3,
-    worker_stale: false,
-    template_ref: null,
-    template_name: null,
-    template_selection: null,
-    template_selection_reason: null,
-    source_meeting_id: null,
-    derived_count: 0,
-    transcript: null,
-    ...over,
-  };
-}
+import { meetingDetail as detail } from '@/__tests__/fixtures/meeting-detail';
 
 beforeEach(() => {
+  auth.owner = 'one';
   // `shouldAdvanceTime`: `waitFor` polls on real time while the hook's own
   // poll timer stays controllable (the telephony hook test's recipe).
   vi.useFakeTimers({ shouldAdvanceTime: true });
@@ -164,5 +116,87 @@ describe('useMeetingList', () => {
     const { result } = renderHook(() => useMeetingList(20));
     await waitFor(() => expect(result.current.isUnavailable).toBe(true));
     expect(result.current.error).toBeNull();
+  });
+});
+
+describe('native meeting changes and account ownership', () => {
+  it('refreshes only the addressed account after a native mutation', async () => {
+    api.get.mockResolvedValue(detail());
+    const { result } = renderHook(() => useMeeting('m1', true));
+    await waitFor(() => expect(result.current.meeting?.has_transcript).toBe(true));
+    act(() => publishApplicationResources('two', new Set(['meetings'])));
+    expect(api.get).toHaveBeenCalledTimes(1);
+    api.get.mockResolvedValueOnce(detail({ has_transcript: false }));
+    act(() => publishApplicationResources('one', new Set(['meetings'])));
+    await waitFor(() => expect(result.current.meeting?.has_transcript).toBe(false));
+    expect(api.delete).not.toHaveBeenCalled();
+  });
+
+  it('refuses an obsolete mutation callback before sending', async () => {
+    api.get.mockResolvedValue(detail());
+    const { result, rerender } = renderHook(() => useMeeting('m1'));
+    await waitFor(() => expect(result.current.meeting).not.toBeNull());
+    const obsolete = result.current.deleteTranscript;
+    auth.owner = 'two';
+    rerender();
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2));
+    await act(async () => expect(await obsolete()).toBeNull());
+    expect(api.delete).not.toHaveBeenCalled();
+  });
+
+  it('hides old account detail immediately and ignores its delayed response', async () => {
+    const pending = Promise.withResolvers<MeetingDetail>();
+    api.get.mockReturnValueOnce(pending.promise).mockImplementation(() => new Promise(() => {}));
+    const { result, rerender } = renderHook(() => useMeeting('m1'));
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(1));
+    auth.owner = 'two';
+    rerender();
+    await act(async () => pending.resolve(detail()));
+    expect(result.current.meeting).toBeNull();
+  });
+
+  it('does not apply a late mutation to another account or selected meeting', async () => {
+    const pending = Promise.withResolvers<MeetingDetail>();
+    api.get.mockResolvedValue(detail());
+    api.delete.mockReturnValue(pending.promise);
+    const { result, rerender } = renderHook(({ id }) => useMeeting(id), { initialProps: { id: 'm1' } });
+    await waitFor(() => expect(result.current.meeting).not.toBeNull());
+    let writing: Promise<MeetingDetail | null> | undefined;
+    act(() => { writing = result.current.deleteTranscript(); });
+    await waitFor(() => expect(api.delete).toHaveBeenCalledTimes(1));
+    api.get.mockResolvedValue(detail({ id: 'm2' }));
+    rerender({ id: 'm2' });
+    await waitFor(() => expect(result.current.meeting?.id).toBe('m2'));
+    await act(async () => { pending.resolve(detail({ has_transcript: false })); expect(await writing).toBeNull(); });
+    expect(result.current.meeting?.id).toBe('m2');
+    expect(result.current.isActing).toBe(false);
+  });
+
+  it('keeps polling known processing state through successive network failures', async () => {
+    const failure = new Error('offline');
+    api.get.mockResolvedValueOnce(detail({ status: 'processing', stage: 'synthesizing' }))
+      .mockRejectedValueOnce(failure).mockRejectedValueOnce(failure).mockResolvedValue(detail());
+    const { result } = renderHook(() => useMeeting('m1'));
+    await waitFor(() => expect(result.current.meeting?.status).toBe('processing'));
+    for (let pass = 0; pass < 3; pass += 1) {
+      await act(async () => vi.advanceTimersByTime(MEETING_STATUS_POLL_MS));
+    }
+    await waitFor(() => expect(result.current.meeting?.status).toBe('ready'));
+    expect(api.get).toHaveBeenCalledTimes(4);
+  });
+
+  it('rereads a native list change without bulk deletion and clears old account totals', async () => {
+    api.get.mockResolvedValue({ items: [], total: 42, limit: 20, offset: 0 });
+    const { result, rerender } = renderHook(() => useMeetingList(20));
+    await waitFor(() => expect(result.current.total).toBe(42));
+    api.get.mockResolvedValueOnce({ items: [], total: 41, limit: 20, offset: 0 });
+    act(() => publishApplicationResources('one', new Set(['meetings'])));
+    await waitFor(() => expect(result.current.total).toBe(41));
+    api.get.mockImplementationOnce(() => new Promise(() => {}));
+    auth.owner = 'two';
+    rerender();
+    expect(result.current.meetings).toEqual([]);
+    expect(result.current.total).toBe(0);
+    expect(api.post).not.toHaveBeenCalled();
   });
 });

@@ -21,6 +21,7 @@ installed SDK to the property instead of holding a mock to a belief.
 from __future__ import annotations
 
 import asyncio
+import json
 import socket
 import threading
 import time
@@ -171,7 +172,7 @@ async def test_a_reference_inside_the_schema_still_validates() -> None:
         result = await UserMCPClientPool._execute_call_ephemeral(
             f"{base_url}/mcp", None, "probe", {}, _CALL_TIMEOUT_SECONDS
         )
-    assert result == "1"
+    assert json.loads(result) == {"x": 1}
 
 
 async def test_a_connection_is_not_redirected_to_another_origin() -> None:
@@ -204,6 +205,6 @@ async def test_a_redirect_within_the_origin_is_still_followed() -> None:
         result = await UserMCPClientPool._execute_call_ephemeral(
             f"{base_url}/mcp/", None, "probe", {}, _CALL_TIMEOUT_SECONDS
         )
-    assert result == "1"
+    assert json.loads(result) == {"x": 1}
     assert "/mcp/" in seen
     assert "/mcp" in seen

@@ -63,9 +63,13 @@ class TypeRegistry:
             type_def: Semantic type definition
 
         Raises:
-            ValueError: If the type already exists or if the parent does not exist
+            ValueError: If a different definition already owns the type name.
+                Identical registrations are idempotent; forward references are
+                checked by validate_hierarchy after the catalogue is loaded.
         """
         if type_def.name in self._types:
+            if self._types[type_def.name] != type_def:
+                raise ValueError(f"Conflicting semantic type definition: '{type_def.name}'")
             logger.warning(
                 "type_already_registered",
                 type_name=type_def.name,
@@ -88,6 +92,7 @@ class TypeRegistry:
         self._types[type_def.name] = type_def
 
         # Build hierarchy
+        self._hierarchy.add_node(type_def.name)
         if type_def.parent:
             self._hierarchy.add_edge(type_def.parent, type_def.name)
 
@@ -128,12 +133,12 @@ class TypeRegistry:
         Retrieve types provided by a domain.
 
         Args:
-            domain: Domain name (e.g., "contacts", "places")
+            domain: Singular domain name (e.g., "contact", "place")
 
         Returns:
             Set of type names provided by this domain
         """
-        return self._by_domain.get(domain, set())
+        return set(self._by_domain.get(domain, set()))
 
     def _update_indexes(self, type_def: SemanticType) -> None:
         """
@@ -164,7 +169,8 @@ class TypeRegistry:
         Checks:
         - No cycles (DAG)
         - Parents exist
-        - Consistent bidirectional relations
+        - Declared children, property ranges and semantic references exist
+        - Explicit SKOS relations have their inverse
 
         Returns:
             List of validation errors (empty if OK)
@@ -173,14 +179,57 @@ class TypeRegistry:
 
         # Check for cycles
         if not nx.is_directed_acyclic_graph(self._hierarchy):
-            cycles = list(nx.simple_cycles(self._hierarchy))
-            errors.append(f"Hierarchy contains cycles: {cycles}")
+            errors.append(f"Hierarchy contains cycles: {nx.find_cycle(self._hierarchy)}")
 
         # Verify that all parents exist
         for type_name, type_def in self._types.items():
             if type_def.parent and type_def.parent not in self._types:
                 errors.append(f"Type '{type_name}' has non-existent parent '{type_def.parent}'")
+            errors.extend(self._validate_references(type_def))
 
+        return errors
+
+    def _validate_references(self, type_def: SemanticType) -> list[str]:
+        """Validate data relations without turning them into value compatibility.
+
+        A contact id may be related to an email address while remaining a
+        completely different value. These checks only protect catalogue data.
+        """
+        errors: list[str] = []
+        for property_name, range_name in type_def.properties.items():
+            if range_name not in self._types and range_name not in {
+                "str",
+                "float",
+                "int",
+                "bool",
+            }:
+                errors.append(
+                    f"Type '{type_def.name}' property '{property_name}' has unknown range '{range_name}'"
+                )
+        relations = (
+            ("children", "parent"),
+            ("related_types", "related_types"),
+            ("broader_types", "narrower_types"),
+            ("narrower_types", "broader_types"),
+        )
+        for relation, inverse in relations:
+            for target_name in getattr(type_def, relation):
+                target = self.get(target_name)
+                if target is None:
+                    errors.append(
+                        f"Type '{type_def.name}' {relation} references unknown type '{target_name}'"
+                    )
+                    continue
+                back_reference = getattr(target, inverse)
+                matches = (
+                    back_reference == type_def.name
+                    if inverse == "parent"
+                    else type_def.name in back_reference
+                )
+                if not matches:
+                    errors.append(
+                        f"Type '{type_def.name}' {relation} '{target_name}' is missing inverse '{inverse}'"
+                    )
         return errors
 
     def get_stats(self) -> dict:

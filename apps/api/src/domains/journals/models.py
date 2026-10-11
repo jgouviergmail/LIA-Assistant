@@ -17,7 +17,7 @@ from enum import Enum
 from typing import TYPE_CHECKING
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -135,6 +135,10 @@ class JournalEntry(BaseModel):
     """
 
     __tablename__ = "journal_entries"
+
+    revision: Mapped[int] = mapped_column(
+        BigInteger(), nullable=False, default=1, server_default="1"
+    )
 
     # Foreign key
     user_id: Mapped[uuid.UUID] = mapped_column(

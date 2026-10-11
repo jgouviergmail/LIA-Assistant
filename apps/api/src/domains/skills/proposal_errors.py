@@ -31,6 +31,7 @@ QUOTA_REACHED: Final = "skill_proposal_quota_reached"
 INVALID: Final = "skill_proposal_invalid"
 #: The proposals could not be read (the cache is unreachable).
 UNAVAILABLE: Final = "skill_proposal_unavailable"
+COMPLETION_UNKNOWN: Final = "skill_proposal_completion_unknown"
 
 #: What each refusal answers.
 STATUSES: Final[dict[str, int]] = {
@@ -42,6 +43,7 @@ STATUSES: Final[dict[str, int]] = {
     QUOTA_REACHED: status.HTTP_409_CONFLICT,
     INVALID: status.HTTP_422_UNPROCESSABLE_CONTENT,
     UNAVAILABLE: status.HTTP_503_SERVICE_UNAVAILABLE,
+    COMPLETION_UNKNOWN: status.HTTP_409_CONFLICT,
 }
 
 

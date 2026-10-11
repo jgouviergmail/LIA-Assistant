@@ -835,6 +835,8 @@ async def build_graph(
         NODE_REACT_EXECUTE_TOOLS,
         route_from_react_execute_tools,
         {
+            NODE_REACT_EXECUTE_TOOLS: NODE_REACT_EXECUTE_TOOLS,  # Checkpoint each safe segment
+            NODE_REACT_FINALIZE: NODE_REACT_FINALIZE,  # Budget exhausted between segments
             NODE_REACT_CALL_MODEL: NODE_REACT_CALL_MODEL,  # Loop back (no draft)
             NODE_DRAFT_CRITIQUE: NODE_DRAFT_CRITIQUE,  # Draft → shared HITL dispatch
         },

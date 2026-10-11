@@ -11,8 +11,8 @@ Three tools:
   user confirms in the HITL card.
 - ``list_scheduled_actions_tool`` — read-only listing (exposes real ids so
   toggle can target them).
-- ``toggle_scheduled_action_tool`` — direct reversible switch (no draft:
-  toggling back is one message away; creation is the committing act).
+- ``toggle_scheduled_action_tool`` — compatibility proposal that resolves the
+  opposite state once and requires exact human confirmation before any write.
 
 Deletion stays UI-only in v1 (toggle-off covers the need reversibly) —
 recorded in ADR-140.
@@ -21,9 +21,9 @@ N-07 (ADR-175) boundary: this chat tool creates ``time`` routines only. The
 schema fields it omits (``trigger_kind``, ``condition_config``,
 ``requires_approval``) are additive with time defaults, so a chat-created
 routine and a studio-created one are the SAME object — the studio is simply
-where condition triggers and propose-first mode are configured. Growing this
-tool's signature to author conditions in chat is deferred (the natural-language
-surface for "run X only when a task is overdue" is a whole design of its own).
+where the legacy time routine can be edited. The native `create_lia_routine_tool`
+now authors both clocks through the Studio's strict configuration contract;
+this compatibility signature retains its time-only recurrence transcription.
 
 The LISTING reads both kinds (ADR-322): a condition routine has no schedule,
 so it is described by the system's check cadence and carries no next run — its
@@ -41,8 +41,10 @@ import structlog
 from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from sqlalchemy.exc import SQLAlchemyError
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, RECURRENCE_ROUTINE_LIMITS
+from src.core.exceptions import AuthorizationError
 from src.core.i18n import resolve_language
 from src.core.recurrence import (
     RecurrenceError,
@@ -51,6 +53,11 @@ from src.core.recurrence import (
     recurrence_from_parameters,
 )
 from src.core.time_utils import now_utc
+from src.domains.agents.application.authorization import load_actor
+from src.domains.agents.application.availability import (
+    application_access_error_code,
+    require_application_tools,
+)
 from src.domains.agents.constants import AGENT_AUTOMATION
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.drafts.models import DraftType
@@ -67,6 +74,13 @@ from src.domains.scheduled_actions.trigger import TriggerPlan, schedule_sentence
 from src.infrastructure.database.session import get_db_context
 
 logger = structlog.get_logger(__name__)
+
+
+async def require_automation_account(actor_id: UUID) -> None:
+    """Legacy proposals use the same current operator and account authority."""
+    async with get_db_context() as db:
+        await require_application_tools(db)
+        await load_actor(db, actor_id)
 
 
 class ScheduledActionDraftInput(BaseModel):
@@ -143,6 +157,16 @@ async def create_scheduled_action_tool(
     config = validate_runtime_config(runtime, "create_scheduled_action_tool")
     if isinstance(config, UnifiedToolOutput):
         return config
+    try:
+        await require_automation_account(parse_user_id(config.user_id))
+    except AuthorizationError as exc:
+        return UnifiedToolOutput.failure(
+            message="Routine access refused.", error_code=application_access_error_code(exc)
+        )
+    except SQLAlchemyError:
+        return UnifiedToolOutput.failure(
+            message="Routine proposal unavailable.", error_code="DEPENDENCY_ERROR"
+        )
 
     try:
         recurrence = recurrence_from_parameters(
@@ -216,9 +240,22 @@ async def list_scheduled_actions_tool(
 
     from src.domains.scheduled_actions.service import ScheduledActionService
 
-    async with get_db_context() as db:
-        actions = await ScheduledActionService(db).list_for_user(user_id)
-        items = [_listed(action, locale or resolve_language()) for action in actions]
+    try:
+        async with get_db_context() as db:
+            await require_application_tools(db)
+            await load_actor(db, user_id)
+            actions = await ScheduledActionService(db).list_for_user(user_id)
+            items = [_listed(action, locale or resolve_language()) for action in actions]
+            await require_application_tools(db)
+            await load_actor(db, user_id)
+    except AuthorizationError as exc:
+        return UnifiedToolOutput.failure(
+            message="Routine access refused.", error_code=application_access_error_code(exc)
+        )
+    except SQLAlchemyError:
+        return UnifiedToolOutput.failure(
+            message="Routine data unavailable.", error_code="DEPENDENCY_ERROR"
+        )
 
     return UnifiedToolOutput.data_success(
         message=f"{len(items)} automation(s) found",
@@ -261,7 +298,7 @@ async def toggle_scheduled_action_tool(
     user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
     locale: str | None = None,
 ) -> UnifiedToolOutput:
-    """Enable/disable an automation (direct — reversible, no draft).
+    """Prepare exact confirmation to invert the routine's currently observed state.
 
     Args:
         action_id: Automation UUID (from the listing tool).
@@ -270,7 +307,7 @@ async def toggle_scheduled_action_tool(
         locale: User language (injected).
 
     Returns:
-        UnifiedToolOutput with the new state, or a not-found failure.
+        Pending proposal only; the source state changes after human confirmation.
     """
     config = validate_runtime_config(runtime, "toggle_scheduled_action_tool")
     if isinstance(config, UnifiedToolOutput):
@@ -282,25 +319,9 @@ async def toggle_scheduled_action_tool(
     except ValueError:
         return UnifiedToolOutput.failure(message="invalid automation id", error_code="invalid_id")
 
-    from src.core.exceptions import ResourceNotFoundError
-    from src.domains.scheduled_actions.service import ScheduledActionService
+    from src.domains.agents.tools.application_routine_tools import routine_state_proposal
 
-    try:
-        async with get_db_context() as db:
-            action = await ScheduledActionService(db).toggle(target, user_id)
-            payload = {
-                "id": str(action.id),
-                "title": action.title,
-                "is_enabled": action.is_enabled,
-            }
-    except ResourceNotFoundError:
-        return UnifiedToolOutput.failure(message="automation not found", error_code="not_found")
-
-    state = "enabled" if payload["is_enabled"] else "disabled"
-    return UnifiedToolOutput.action_success(
-        message=f"automation '{payload['title']}' is now {state}",
-        structured_data=payload,
-    )
+    return await routine_state_proposal(user_id, target, None, locale or resolve_language())
 
 
 async def execute_scheduled_action_draft(
@@ -333,12 +354,16 @@ async def execute_scheduled_action_draft(
     user_timezone = draft_content.get("user_timezone") or DEFAULT_USER_DISPLAY_TIMEZONE
 
     async with get_db_context() as db:
+        await require_application_tools(db)
+        await load_actor(db, user_id)
         service = ScheduledActionService(db)
         action = await service.create(
             user_id=user_id,
             data=data,
             user_timezone=user_timezone,
         )
+        await require_application_tools(db)
+        await load_actor(db, user_id)
         await db.commit()
 
     logger.info(

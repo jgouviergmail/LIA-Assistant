@@ -1,14 +1,16 @@
 /**
  * Hook for RAG Spaces CRUD operations.
  *
- * Follows the useSkills pattern: useApiQuery + useApiMutation + optimistic updates.
+ * Account-owned queries and resource refresh share the native application boundary.
+ * Mutations retain source optimistic updates and reject retired account callbacks.
  *
  * Phase: evolution — RAG Spaces (User Knowledge Documents)
  * Created: 2026-03-14
  */
 
 import { useCallback } from 'react';
-import { useApiQuery } from './useApiQuery';
+import { useApplicationAccountQuery } from './useApplicationAccountQuery';
+import { useApplicationResourceSync } from './useApplicationResourceSync';
 import { useApiMutation } from './useApiMutation';
 import type {
   RAGSpace,
@@ -20,6 +22,7 @@ import type {
 } from '@/types/rag-spaces';
 
 const ENDPOINT = '/rag-spaces';
+const releaseSpaceOverride = () => {};
 
 /**
  * Hook for managing RAG Spaces (list, create, update, delete, toggle).
@@ -31,10 +34,10 @@ export function useSpaces() {
     error,
     refetch,
     setData,
-  } = useApiQuery<RAGSpaceListResponse>(ENDPOINT, {
-    componentName: 'Spaces',
-    initialData: { spaces: [], total: 0 },
-  });
+    ownerId,
+    isCurrent,
+  } = useApplicationAccountQuery<RAGSpaceListResponse>(ENDPOINT, 'Spaces');
+  useApplicationResourceSync(ownerId, 'spaces', refetch, releaseSpaceOverride);
 
   const spaces = listData?.spaces ?? [];
   const total = listData?.total ?? 0;
@@ -63,7 +66,9 @@ export function useSpaces() {
 
   const createSpace = useCallback(
     async (payload: RAGSpaceCreatePayload) => {
+      if (!isCurrent()) return;
       const result = await createMutation.mutate(ENDPOINT, payload);
+      if (!isCurrent()) return;
       if (result) {
         // Optimistic: add to list
         setData(prev => {
@@ -82,12 +87,14 @@ export function useSpaces() {
       }
       return result;
     },
-    [createMutation, setData]
+    [createMutation, setData, isCurrent]
   );
 
   const updateSpace = useCallback(
     async (spaceId: string, payload: RAGSpaceUpdatePayload) => {
+      if (!isCurrent()) return;
       const result = await updateMutation.mutate(`${ENDPOINT}/${spaceId}`, payload);
+      if (!isCurrent()) return;
       if (result) {
         setData(prev => {
           if (!prev) return prev;
@@ -101,13 +108,15 @@ export function useSpaces() {
       }
       return result;
     },
-    [updateMutation, setData]
+    [updateMutation, setData, isCurrent]
   );
 
   const deleteSpace = useCallback(
     async (spaceId: string) => {
+      if (!isCurrent()) return;
       // Mutation throws on failure — only update UI on success
       await deleteMutation.mutate(`${ENDPOINT}/${spaceId}`);
+      if (!isCurrent()) return;
       setData(prev => {
         if (!prev) return prev;
         return {
@@ -116,12 +125,14 @@ export function useSpaces() {
         };
       });
     },
-    [deleteMutation, setData]
+    [deleteMutation, setData, isCurrent]
   );
 
   const toggleSpace = useCallback(
     async (spaceId: string) => {
+      if (!isCurrent()) return;
       const result = await toggleMutation.mutate(`${ENDPOINT}/${spaceId}/toggle`);
+      if (!isCurrent()) return;
       if (result) {
         setData(prev => {
           if (!prev) return prev;
@@ -135,7 +146,7 @@ export function useSpaces() {
       }
       return result;
     },
-    [toggleMutation, setData]
+    [toggleMutation, setData, isCurrent]
   );
 
   return {
@@ -143,7 +154,7 @@ export function useSpaces() {
     spaces,
     total,
     activeCount,
-    loading,
+    loading: loading && listData === undefined,
     error,
     refetch,
 
@@ -165,25 +176,33 @@ export function useSpaces() {
  * Hook for fetching a single space detail (with documents).
  */
 export function useSpaceDetail(spaceId: string | null) {
-  const { data, loading, error, refetch, setData } = useApiQuery<RAGSpaceDetail>(
-    spaceId ? `${ENDPOINT}/${spaceId}` : '',
-    {
-      componentName: 'SpaceDetail',
-      enabled: !!spaceId,
-    }
+  const { data, loading, error, refetch, setData, ownerId } =
+    useApplicationAccountQuery<RAGSpaceDetail>(
+      spaceId ? `${ENDPOINT}/${spaceId}` : '',
+      'SpaceDetail',
+      !!spaceId
+    );
+  useApplicationResourceSync(
+    spaceId ? ownerId : undefined,
+    'spaces',
+    refetch,
+    releaseSpaceOverride
   );
 
-  return { space: data ?? null, loading, error, refetch, setData };
+  return { space: data?.id === spaceId ? data : null, loading, error, refetch, setData };
 }
 
 /**
  * Hook for fetching active spaces count (lightweight, for chat indicator).
  */
 export function useActiveSpaces() {
-  const { data: listData, loading } = useApiQuery<RAGSpaceListResponse>(ENDPOINT, {
-    componentName: 'ActiveSpaces',
-    initialData: { spaces: [], total: 0 },
-  });
+  const {
+    data: listData,
+    loading,
+    refetch,
+    ownerId,
+  } = useApplicationAccountQuery<RAGSpaceListResponse>(ENDPOINT, 'ActiveSpaces');
+  useApplicationResourceSync(ownerId, 'spaces', refetch, releaseSpaceOverride);
 
   const activeSpaces = (listData?.spaces ?? []).filter(s => s.is_active);
 

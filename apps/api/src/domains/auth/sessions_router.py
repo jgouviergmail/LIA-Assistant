@@ -19,7 +19,7 @@ from src.core.session_dependencies import (
     require_recent_step_up,
 )
 from src.domains.auth.schemas import DeviceSessionResponse, RevokeOthersResponse
-from src.domains.notifications.repository import FCMTokenRepository
+from src.domains.auth.session_queries import device_names_by_token_id, session_metadata
 from src.domains.users.models import User
 from src.infrastructure.cache.session_store import SessionStore, UserSession
 from src.infrastructure.observability.metrics_mfa import session_revocations_total
@@ -31,9 +31,7 @@ router = APIRouter(prefix="/auth/sessions", tags=["Authentication"])
 
 async def _device_names_by_token_id(db: AsyncSession, user: User) -> dict[str, str]:
     """Map FCM token row ids → device names for attested sessions (A4)."""
-    repository = FCMTokenRepository(db)
-    tokens = await repository.get_all_tokens_for_user(user.id)
-    return {str(token.id): token.device_name for token in tokens if token.device_name}
+    return await device_names_by_token_id(db, user)
 
 
 def _to_response(
@@ -43,15 +41,8 @@ def _to_response(
 ) -> DeviceSessionResponse:
     """Build the bounded API row for one session."""
     return DeviceSessionResponse(
-        id=session.display_id,
+        **session_metadata(session, device_names).model_dump(),
         current=session.session_id == current_session_id,
-        ua_family=session.ua_family,
-        os_family=session.os_family,
-        ip_trunc=session.ip_trunc,
-        auth_methods=session.auth_methods,
-        created_at=session.created_at,
-        last_seen_at=session.last_seen_at,
-        device_name=(device_names.get(session.fcm_token_id) if session.fcm_token_id else None),
     )
 
 

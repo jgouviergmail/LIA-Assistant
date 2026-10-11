@@ -94,6 +94,37 @@ const ROUTES: MockRoute[] = [
 ];
 
 test.describe('habits settings panel', () => {
+  for (const width of [1280, 320]) {
+    test(`partial forgetting is reported and remains retryable at ${width}px`, async ({ page, authenticate, mockApi }) => {
+      await authenticate({ language: 'en' });
+      await mockApi(ROUTES);
+      let writes = 0;
+      await page.route('**/api/v1/habits', async route => {
+        if (route.request().method() === 'DELETE') {
+          writes += 1;
+          await route.fulfill({ json: { deleted_habits: writes === 1 ? 1 : 0, profile_deleted: true, advisory_cleanup_confirmed: writes > 1 } });
+        } else {
+          await route.fulfill({ json: writes === 0 ? OVERVIEW : { ...OVERVIEW, habits: [], candidates: [], profile: { ...OVERVIEW.profile, computed_at: null } } });
+        }
+      });
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto('/en/dashboard/settings?section=habits');
+      await awaitStyledPage(page, `habit forgetting @${width}px`);
+      const forget = page.getByRole('button', { name: 'Forget everything', exact: true });
+      await expect(forget).toBeVisible({ timeout: 20_000 });
+      await forget.click();
+      expect(writes).toBe(0);
+      await page.getByRole('alertdialog').getByRole('button', { name: 'Forget everything', exact: true }).click();
+      await expect(page.getByText(/Habits and rhythm were erased, but cleanup/)).toBeVisible();
+      await expect.poll(() => writes).toBe(1);
+      await expect(forget).toBeVisible();
+      await forget.click();
+      await page.getByRole('alertdialog').getByRole('button', { name: 'Forget everything', exact: true }).click();
+      await expect.poll(() => writes).toBe(2);
+      await expectNoOverflow(page, `habit forgetting retry @${width}px`);
+    });
+  }
+
   test('what was learned reads in the vocabulary of the person, with the instance limits stated', async ({
     page,
     authenticate,

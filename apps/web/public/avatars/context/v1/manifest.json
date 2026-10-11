@@ -1,0 +1,124 @@
+{
+  "version": 1,
+  "total_bytes": 46836,
+  "source": "Original contextual art directed with image generation; native rig supplies all motion",
+  "delivery": {
+    "codec": "WebP",
+    "quality": 94,
+    "animation": false
+  },
+  "artwork": {
+    "rain": {
+      "file": "exec-9639bda7-cb54-40b0-8ca6-6d6c484fcfe2.png",
+      "sha256": "c7b3932b21d758b04e1864dda8dabb79e12f861baa08e6f10a77431410119915",
+      "prompt_sha256": "be271f7c841ea0931d013e48632c7eb0c3fdf222d2fe66cc6940a233b8ab8b23"
+    },
+    "storm": {
+      "file": "exec-2beb87e9-8f29-4722-8aff-e28a6f3bd0c7.png",
+      "sha256": "692fb88f195d5cf746cac659da6761f38263cad7f0f69d6065666286e127e5c8",
+      "prompt_sha256": "e1fbd591b70dbbcec21dbbf8225af5a178b305137e284c7aaba4cfa6c2ddde6b"
+    },
+    "cold": {
+      "file": "exec-2d7bd29f-20f9-4a49-bcaf-2ab0c4717a61.png",
+      "sha256": "970bd1f27928f3a30801d90fc9a89209a2407e49b91734535d655b58c99467e2",
+      "prompt_sha256": "d4d3d6bf30e17fc4a9f89a08b880d7c5515d2a401ecf3bde061d71e7640a7407"
+    },
+    "freezing": {
+      "file": "exec-1fd21feb-6ba9-41af-bdf3-1d6edf1a04fd.png",
+      "sha256": "f7fe82bfe5e25c667c78e9ba9a458c46ea6fdb87a34fa3e97a34e24cae3ca52f",
+      "prompt_sha256": "331b516db68d38d7b83a9c36c8edfc3cb4dc9f84b6cfd21d5023808f202c132a"
+    },
+    "snow": {
+      "file": "exec-6ffce4c8-4f93-4b41-b3a8-8a80d8b9a856.png",
+      "sha256": "d7e452d7bc31912d5455043225444be013151a5cd8f834a5e138bb044781026d",
+      "prompt_sha256": "c919c9311b0f57380f90debe545c145112ba420320ed4be4edb8d9ab772d9018"
+    },
+    "hot": {
+      "file": "exec-5dbf5641-38fc-4723-8cb6-cdc05102a514.png",
+      "sha256": "99406f65be37ebb0b2b725b763f4ed762aba4c8b096dc361adbd72f1356447ba",
+      "prompt_sha256": "b7d2e0c84f33d6f4a5aa61bf4b53be4ff9ce3c8f975f440c6d044b0eb7bf2b25"
+    },
+    "heat": {
+      "file": "exec-3230674f-9c20-49e5-8420-5dc127352b5e.png",
+      "sha256": "10510769634787386e812b49bf97dc4d8a8baadd12329ec47267e405c26fdf70",
+      "prompt_sha256": "509376eff29e990988dd39d8720f9e2ad520ebc2393238b250bc91d180d1a4d6"
+    },
+    "fog": {
+      "file": "exec-72d0c8ed-7de5-42f2-8527-a9015fd0c36c.png",
+      "sha256": "b9d50743cf0493ebd0f80c61cc35109ed82cb0be860050326d86fc266c263654",
+      "prompt_sha256": "556b21b712bbf9b1e0102e962b597c7042c1d61ee1759a10bec72c7a95749547"
+    },
+    "wind": {
+      "file": "exec-f1385e3b-ab5e-471f-9284-c65fafd43b33.png",
+      "sha256": "48e38322bbf9ae4d913b3183275d97038aaa0df7cf57bc0937c86b804c9ef713",
+      "prompt_sha256": "1d313ee7c362e7bbd3b096bcd09c17d52ded45a574f523e1f9bed4d2ac588afd"
+    },
+    "night": {
+      "file": "exec-68f74fe6-a1a1-4ce2-855b-5e7f5e353ea0.png",
+      "sha256": "41ab3c3ce6d78748057d482843da8db4633166ecfc38231044c09ac5d2df47f4",
+      "prompt_sha256": "e1feb42ee7f0791ef1dc03a5dbafd9abc5305b9b65988732ca6c3e805f4daf22"
+    }
+  },
+  "assets": {
+    "rain": {
+      "width": 128,
+      "height": 128,
+      "bytes": 5122,
+      "sha256": "979ce7ee34c9dcf18c09ac3e21b8cdada691278415a0ad978fa595eea3fc8b96"
+    },
+    "storm": {
+      "width": 96,
+      "height": 96,
+      "bytes": 3784,
+      "sha256": "ec1696e21a5198a8b1627228e1e9c5bb1b9938242622104391a7e31af4ce0e38"
+    },
+    "cold": {
+      "width": 192,
+      "height": 96,
+      "bytes": 9816,
+      "sha256": "e42d35f52f22da9d38e849334c3e52289efddfef068b70dd8131226ccca9a4c0"
+    },
+    "freezing": {
+      "width": 128,
+      "height": 128,
+      "bytes": 5438,
+      "sha256": "4146b39fce25fc460fc4049ced64ba57a40a6525ee6b82f0904fadc3996abd06"
+    },
+    "snow": {
+      "width": 64,
+      "height": 64,
+      "bytes": 3830,
+      "sha256": "1bb41c87a272913694920a31648408d9196a21e33a56b2193536eb9534ad84a2"
+    },
+    "hot": {
+      "width": 96,
+      "height": 96,
+      "bytes": 4020,
+      "sha256": "8fdacca3b1f50c5a8079e94ea31c285c59cac73d29545096b0e08e698266cce4"
+    },
+    "heat": {
+      "width": 64,
+      "height": 64,
+      "bytes": 2260,
+      "sha256": "f14a392c5721d540791be7df0f30010cd4580641c0bec57c30f004370b2a52d3"
+    },
+    "fog": {
+      "width": 128,
+      "height": 128,
+      "bytes": 5320,
+      "sha256": "f6d7915900b175ff362b7704244ac6a63141ce779ca6917d25969517bd25bddb"
+    },
+    "wind": {
+      "width": 96,
+      "height": 96,
+      "bytes": 2884,
+      "sha256": "febc9865b804c4762ebad01b237674fa72484caeeeb474bb717849f0fe208969"
+    },
+    "night": {
+      "width": 96,
+      "height": 96,
+      "bytes": 4362,
+      "sha256": "77f62ddbc180dac722cec7c44ea381f11b8b11d2fe04b79739043dd1cf2dc383"
+    }
+  }
+}

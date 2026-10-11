@@ -51,6 +51,21 @@ reference_domain uses domain names from AVAILABLE DOMAINS (singular): contact, e
 
 3. Select primary_domain and secondary_domains based on the TYPE of information requested. If no domain seems to match, check if the request implies one logically.
 
+Select the smallest set of available domains that can fulfill the CURRENT requested
+operations and resolve their missing inputs. The primary domain represents the
+requested final result or action; prerequisite lookups belong in secondary_domains.
+For independent requested results, choose one as primary and retain every other
+required domain as secondary.
+
+A specifically named provider, interactive browser, or MCP server selects the
+execution source for that result. Similar capabilities do not require another
+domain: add an alternative or aggregate source only for a separate requested
+result or an explicit comparison across sources. Keep genuine cross-domain input
+dependencies. For a recurring automation, the future instruction is stored now;
+its data-source domains are needed in this turn only if the user also asks to run
+that instruction now. A domain mentioned only to exclude it is never a requested
+operation.
+
 ## ITERATION & RISK DETECTION
 
 - **is_mutation_intent**: true if user intends to CREATE, UPDATE, DELETE, or SEND data.
@@ -60,6 +75,31 @@ reference_domain uses domain names from AVAILABLE DOMAINS (singular): contact, e
 - **cardinality_magnitude**: null (unspecified), 999 (explicit "all"), or N (explicit number).
 
 ## KNOWLEDGE & APP HELP
+
+## EXPLICIT REQUESTED RESULTS
+
+Populate requested_outcomes only with results explicitly requested by the CURRENT
+user message. Never turn an anticipated need, a history fact, a lookup needed only
+as a dependency, or your own cross-check into a requested result. If intent is
+conversation, leave this list empty. Each source_quote must be a literal substring
+of the current message in its original language. Preserve each distinct requested
+result in a composite request.
+
+For each result, use its available domain, a short label, kind "read" or "action",
+and its exact source_quote. For actions, operation is create/update/delete/send;
+for reads it is null. collection_key is a published result collection path
+when known, otherwise null. min_count is an explicit requested count or null; zero
+means that an empty list can answer the request. Only emit a positive min_count
+when its numeral appears literally in source_quote; otherwise keep it null.
+requires_complete is true ONLY for
+an explicit exhaustive request (all/every/entire). Do not infer completeness from
+the absence of pagination. expected_fields contains ONLY explicit literal
+constraints with published field paths when known, otherwise leave it empty.
+For each field, provide its source_quote, expected_value as a string, and operator
+"equals" or "on_date" (YYYY-MM-DD resolved using the current local datetime).
+Preserve titles and content literally, without translation. Unknown fields stay
+empty; never invent a provider column or a value. Draft creation is not proof that
+the requested external action executed.
 
 - **encyclopedia_keywords**: 1-3 encyclopedic keywords in user's ORIGINAL LANGUAGE for web enrichment. Empty if purely conversational/personal.
 - **is_news_query**: true ONLY if user explicitly asks for news/recent information.

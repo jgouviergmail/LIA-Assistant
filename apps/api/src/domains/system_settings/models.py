@@ -60,6 +60,7 @@ class SystemSettingKey(str, enum.Enum):
     # undeclared key. Value is "true"/"false"; absent = enabled, so a fresh
     # instance behaves exactly as before any switch existed.
     CAPABILITY_STT_ENABLED = "capability_stt_enabled"
+    CAPABILITY_APPLICATION_TOOLS_ENABLED = "capability_application_tools_enabled"
     CAPABILITY_TTS_ENABLED = "capability_tts_enabled"
     CAPABILITY_IMAGE_GENERATION_ENABLED = "capability_image_generation_enabled"
     CAPABILITY_DOCUMENT_GENERATION_ENABLED = "capability_document_generation_enabled"

@@ -241,7 +241,11 @@ class _Harness:
         self.bookmarks.get_by_id.return_value = bookmark
         self.users = AsyncMock()
         self.users.get_by_id.return_value = SimpleNamespace(
-            id=bookmark.user_id, language="fr", timezone="Europe/Paris"
+            id=bookmark.user_id,
+            language="fr",
+            timezone="Europe/Paris",
+            is_active=True,
+            is_deleted=False,
         )
         self.space = SimpleNamespace(id=uuid.uuid4(), kind=BOOKMARKS_SPACE_KIND)
         self.spaces = AsyncMock()
@@ -315,6 +319,13 @@ async def test_a_blocked_spend_settles_deferred_and_embeds_nothing(harness: _Har
     harness.spend_blocked.return_value = True
     assert await index_bookmark(harness.bookmark.id) is False
     assert harness.settled_state() == BookmarkIndexState.DEFERRED.value
+    harness.create_pending.assert_not_awaited()
+    harness.process.assert_not_awaited()
+
+
+async def test_an_unavailable_account_cannot_start_automatic_projection(harness: _Harness) -> None:
+    harness.users.get_by_id.return_value = None
+    assert await index_bookmark(harness.bookmark.id) is False
     harness.create_pending.assert_not_awaited()
     harness.process.assert_not_awaited()
 
@@ -441,7 +452,11 @@ async def test_discarding_deletes_the_chunks_and_the_row_and_hands_back_the_path
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     document = SimpleNamespace(
-        id=uuid.uuid4(), user_id=uuid.uuid4(), space_id=uuid.uuid4(), filename="doc.md"
+        id=uuid.uuid4(),
+        user_id=uuid.uuid4(),
+        space_id=uuid.uuid4(),
+        filename="doc.md",
+        source_type="bookmark",
     )
     documents = AsyncMock()
     documents.get_by_id.return_value = document
@@ -450,8 +465,9 @@ async def test_discarding_deletes_the_chunks_and_the_row_and_hands_back_the_path
     monkeypatch.setattr(indexing, "RAGChunkRepository", lambda db: chunks)
     monkeypatch.setattr(indexing.settings, "rag_spaces_storage_path", str(tmp_path))
     db = AsyncMock()
+    db.scalar.side_effect = [document.user_id, 0, 0, 0]
 
-    path = await discard_index(db, _bookmark(rag_document_id=document.id))
+    path = await discard_index(db, _bookmark(user_id=document.user_id, rag_document_id=document.id))
 
     chunks.delete_by_document.assert_awaited_once_with(document.id)
     documents.delete.assert_awaited_once_with(document)

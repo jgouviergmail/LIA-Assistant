@@ -58,6 +58,7 @@ CONTENTS: dict[DraftType, dict[str, object]] = {
     DraftType.SPREADSHEET_WRITE: {"spreadsheet_title": "Budget", "sheet_name": "Dépenses"},
     DraftType.DOCUMENT_APPEND: {"document_title": "Compte-rendu"},
     DraftType.TICKET_DELETE: {"title": "Réserver la salle"},
+    DraftType.APPLICATION_ACTION: {"title": "Application preferences"},
 }
 
 

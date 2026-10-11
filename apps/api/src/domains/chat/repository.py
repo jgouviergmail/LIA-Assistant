@@ -312,6 +312,8 @@ class ChatRepository(BaseRepository[MessageTokenSummary]):
     async def get_token_summaries_by_run_ids(
         self,
         run_ids: list[str],
+        *,
+        user_id: UUID | None = None,
     ) -> dict[str, MessageTokenSummary]:
         """
         Get token summaries by multiple run IDs (batch query).
@@ -320,6 +322,7 @@ class ChatRepository(BaseRepository[MessageTokenSummary]):
 
         Args:
             run_ids: List of run ID strings
+            user_id: Restrict a user-facing consumption projection to this owner.
 
         Returns:
             Dictionary mapping run_id -> MessageTokenSummary
@@ -334,6 +337,8 @@ class ChatRepository(BaseRepository[MessageTokenSummary]):
                 return {}
 
             stmt = select(MessageTokenSummary).where(MessageTokenSummary.run_id.in_(run_ids))
+            if user_id is not None:
+                stmt = stmt.where(MessageTokenSummary.user_id == user_id)
 
             result = await self.db.execute(stmt)
             summaries = result.scalars().all()

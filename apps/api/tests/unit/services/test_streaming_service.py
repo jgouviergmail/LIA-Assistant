@@ -25,6 +25,27 @@ def conversation_id():
     return uuid.uuid4()
 
 
+def test_confirmation_message_identity_is_emitted_once(streaming_service):
+    """A repeated completed message is one confirmation, not another token delta."""
+    answer = AIMessage(id="settings-confirmation", content="Settings saved.")
+    event = (answer, {"langgraph_node": "response"})
+    assert len(streaming_service._process_messages_chunk(event, {}, None)) == 1
+    assert streaming_service._process_messages_chunk(event, {}, None) == []
+
+
+def test_equal_answers_with_distinct_identities_are_preserved(streaming_service):
+    node = {"langgraph_node": "response"}
+    for identity in ("first-confirmation", "second-confirmation"):
+        assert (
+            len(
+                streaming_service._process_messages_chunk(
+                    (AIMessage(id=identity, content="Settings saved."), node), {}, None
+                )
+            )
+            == 1
+        )
+
+
 @pytest.fixture
 def run_id():
     """Generate test run ID."""

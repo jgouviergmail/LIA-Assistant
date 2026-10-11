@@ -45,11 +45,29 @@ get_gmail_settings_catalogue_manifest = ToolManifest(
     outputs=[
         OutputFieldSchema(path="vacation_responder", type="object", description="Auto-reply state"),
         OutputFieldSchema(
+            path="vacation_responder.body",
+            type="string",
+            description="Auto-reply text body",
+            semantic_type="email_body",
+        ),
+        OutputFieldSchema(
             path="vacation_responder.enabled", type="boolean", description="Auto-reply on/off"
         ),
         OutputFieldSchema(path="filters", type="array", description="Gmail filters"),
         OutputFieldSchema(path="filter_count", type="integer", description="Exact filter count"),
         OutputFieldSchema(path="send_as", type="array", description="Send-as aliases"),
+        OutputFieldSchema(
+            path="send_as[].email",
+            type="string",
+            description="Send-as email address",
+            semantic_type="email_address",
+        ),
+        OutputFieldSchema(
+            path="send_as[].display_name",
+            type="string",
+            description="Alias display name, possibly a team or organization",
+            semantic_type="Text",
+        ),
         OutputFieldSchema(path="send_as_count", type="integer", description="Exact alias count"),
     ],
     cost=CostProfile(est_tokens_in=80, est_tokens_out=200, est_cost_usd=0.002, est_latency_ms=600),
@@ -109,26 +127,29 @@ set_vacation_responder_catalogue_manifest = ToolManifest(
             type="string",
             required=False,
             description="Auto-reply subject (when enabling)",
+            semantic_type="Text",
         ),
         ParameterSchema(
             name="body",
             type="string",
             required=False,
             description="Auto-reply message body, sent verbatim. Required when enabling.",
+            semantic_type="email_body",
         ),
-        # Plain YYYY-MM-DD strings — no registered temporal semantic_type fits
-        # (the "datetime" core type is ISO 8601 datetime, not a bare date).
+        # Bare calendar dates remain distinct from instants and provider epoch milliseconds.
         ParameterSchema(
             name="start_date",
             type="string",
             required=False,
             description="First active day, YYYY-MM-DD (user timezone)",
+            semantic_type="Date",
         ),
         ParameterSchema(
             name="end_date",
             type="string",
             required=False,
             description="Last active day INCLUSIVE, YYYY-MM-DD (user timezone)",
+            semantic_type="Date",
         ),
     ],
     outputs=[
@@ -188,7 +209,6 @@ create_email_filter_catalogue_manifest = ToolManifest(
             type="string",
             required=False,
             description="Match mail from this sender (address or domain)",
-            semantic_type="email_address",
         ),
         ParameterSchema(
             name="subject_contains",

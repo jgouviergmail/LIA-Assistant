@@ -99,6 +99,7 @@ send_peer_message_catalogue_manifest = ToolManifest(
                 # trust a stale limit after a .env change.
                 ParameterConstraint(kind="max_length", value=settings.peers_message_max_chars),
             ],
+            semantic_type="Text",
         ),
     ],
     outputs=[
@@ -111,6 +112,7 @@ send_peer_message_catalogue_manifest = ToolManifest(
             path="message",
             type="string",
             description="Draft confirmation message shown to the user",
+            semantic_type="Text",
         ),
     ],
     cost=CostProfile(
@@ -162,6 +164,19 @@ list_peer_connections_catalogue_manifest = ToolManifest(
             path="connections",
             type="array",
             description="Connections: name, since, i_share, they_share",
+        ),
+        OutputFieldSchema(
+            path="connections[].name",
+            type="string",
+            description="Connected person's display name",
+            semantic_type="person_name",
+        ),
+        OutputFieldSchema(
+            path="connections[].since",
+            type="string",
+            nullable=True,
+            description="Connection acceptance instant (ISO 8601)",
+            semantic_type="datetime",
         ),
     ],
     cost=CostProfile(
@@ -226,6 +241,7 @@ get_peer_availability_catalogue_manifest = ToolManifest(
                 "Peer's IANA timezone. Only for inter-step references — the "
                 "returned summary is already in the ASKING user's timezone"
             ),
+            semantic_type="timezone",
         ),
     ],
     cost=CostProfile(

@@ -20,27 +20,21 @@ from src.core.session_dependencies import get_current_active_session
 from src.domains.user_mcp.schemas import (
     AdminMCPServerResponse,
     AdminMCPToggleResponse,
-    AdminMCPToolInfo,
     McpAppCallToolRequest,
     McpAppCallToolResponse,
     McpAppReadResourceRequest,
     McpAppReadResourceResponse,
+)
+from src.domains.user_mcp.shared_access import require_shared_mcp_access
+from src.domains.user_mcp.shared_preference_commands import (
+    list_shared_server_settings,
+    toggle_shared_mcp_enabled,
 )
 from src.domains.users.models import User
 
 logger = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/mcp/admin-servers", tags=["mcp-admin"])
-
-
-def _humanize_server_key(key: str) -> str:
-    """Convert a server key to a human-readable display name.
-
-    Examples:
-        "google_flights" → "Google Flights"
-        "huggingface_hub" → "Huggingface Hub"
-    """
-    return key.replace("_", " ").title()
 
 
 @router.get(
@@ -53,43 +47,7 @@ async def list_admin_servers(
     user: User = Depends(get_current_active_session),
 ) -> list[AdminMCPServerResponse]:
     """List all admin MCP servers with their tools and user enable/disable status."""
-    from src.infrastructure.mcp.client_manager import get_mcp_client_manager
-    from src.infrastructure.mcp.registration import get_admin_mcp_domains
-
-    manager = get_mcp_client_manager()
-    if not manager:
-        return []
-
-    disabled_servers: list[str] = getattr(user, "admin_mcp_disabled_servers", None) or []
-    disabled_set = set(disabled_servers)
-    admin_domains = get_admin_mcp_domains()
-    discovered = manager.discovered_tools
-
-    from src.domains.agents.registry.domain_taxonomy import slugify_mcp_server_name
-
-    result: list[AdminMCPServerResponse] = []
-    for server_key, tools in discovered.items():
-        # Description from domain store (populated at startup by registration.py)
-        domain_slug = slugify_mcp_server_name(server_key)
-        description = admin_domains.get(domain_slug)
-
-        tool_infos = [
-            AdminMCPToolInfo(name=t.tool_name, description=t.description, title=t.title)
-            for t in tools
-        ]
-
-        result.append(
-            AdminMCPServerResponse(
-                server_key=server_key,
-                name=_humanize_server_key(server_key),
-                description=description,
-                tools_count=len(tools),
-                tools=tool_infos,
-                enabled_for_user=server_key not in disabled_set,
-            )
-        )
-
-    return result
+    return list_shared_server_settings(user)
 
 
 @router.patch(
@@ -107,28 +65,8 @@ async def toggle_admin_server(
 
     Adds or removes the server_key from user.admin_mcp_disabled_servers.
     """
-    from src.infrastructure.mcp.client_manager import get_mcp_client_manager
-
-    # Validate server_key exists
-    manager = get_mcp_client_manager()
-    if not manager or server_key not in manager.discovered_tools:
-        raise_admin_mcp_server_not_found(server_key)
-
-    disabled_servers: list[str] = list(getattr(user, "admin_mcp_disabled_servers", None) or [])
-
-    if server_key in disabled_servers:
-        # Re-enable: remove from disabled list
-        disabled_servers.remove(server_key)
-        enabled_for_user = True
-    else:
-        # Disable: add to disabled list
-        disabled_servers.append(server_key)
-        enabled_for_user = False
-
-    user.admin_mcp_disabled_servers = disabled_servers
-    db.add(user)
-    await db.commit()
-
+    saved = await toggle_shared_mcp_enabled(db, user.id, server_key)
+    enabled_for_user = saved.enabled_for_user
     logger.info(
         "admin_mcp_server_toggled",
         server_key=server_key,
@@ -159,17 +97,9 @@ async def admin_app_proxy_call_tool(
     user: User = Depends(get_current_active_session),
 ) -> McpAppCallToolResponse:
     """Proxy a tool call from an MCP App iframe to an admin MCP server."""
-    from src.core.exceptions import raise_permission_denied
     from src.infrastructure.mcp.client_manager import get_mcp_client_manager
 
-    # Block if user has disabled this admin MCP server
-    disabled_servers: list[str] = getattr(user, "admin_mcp_disabled_servers", None) or []
-    if server_key in disabled_servers:
-        raise_permission_denied(
-            action="call_tool",
-            resource_type="admin_mcp_server",
-            details=f"Admin MCP server '{server_key}' is disabled for this user",
-        )
+    await require_shared_mcp_access(server_key, actor_id=user.id)
 
     manager = get_mcp_client_manager()
     if not manager or server_key not in manager.discovered_tools:
@@ -187,7 +117,7 @@ async def admin_app_proxy_call_tool(
             "admin_mcp_app_proxy_call_tool_failed",
             server_key=server_key,
             tool_name=request.tool_name,
-            error=str(e),
+            exception_type=type(e).__name__,
         )
         return McpAppCallToolResponse(success=False, error=f"Tool call failed: {type(e).__name__}")
 
@@ -204,17 +134,9 @@ async def admin_app_proxy_read_resource(
     user: User = Depends(get_current_active_session),
 ) -> McpAppReadResourceResponse:
     """Proxy a resource read from an MCP App iframe to an admin MCP server."""
-    from src.core.exceptions import raise_permission_denied
     from src.infrastructure.mcp.client_manager import get_mcp_client_manager
 
-    # Block if user has disabled this admin MCP server
-    disabled_servers: list[str] = getattr(user, "admin_mcp_disabled_servers", None) or []
-    if server_key in disabled_servers:
-        raise_permission_denied(
-            action="read_resource",
-            resource_type="admin_mcp_server",
-            details=f"Admin MCP server '{server_key}' is disabled for this user",
-        )
+    await require_shared_mcp_access(server_key, actor_id=user.id)
 
     manager = get_mcp_client_manager()
     if not manager or server_key not in manager.discovered_tools:
@@ -234,8 +156,7 @@ async def admin_app_proxy_read_resource(
         logger.warning(
             "admin_mcp_app_proxy_read_resource_failed",
             server_key=server_key,
-            uri=request.uri,
-            error=str(e),
+            exception_type=type(e).__name__,
         )
         return McpAppReadResourceResponse(
             success=False, error=f"Resource read failed: {type(e).__name__}"

@@ -519,7 +519,7 @@ class PersonalityService:
         if user_personality_id:
             try:
                 personality = await self.get_by_id(user_personality_id)
-            except Exception:
+            except ResourceNotFoundError:
                 personality = await self.get_default()
         else:
             personality = await self.get_default()

@@ -8,9 +8,11 @@ accepts and Redis refuses cannot stay green.
 
 from __future__ import annotations
 
+import asyncio
 import time
 import uuid
 from collections.abc import AsyncIterator
+from dataclasses import replace
 
 import pytest
 from redis.asyncio import Redis
@@ -19,6 +21,30 @@ from src.core.config import settings
 from src.domains.skills.proposals import ProposalStore, SkillProposal, index_key, proposal_key
 
 pytestmark = pytest.mark.integration
+
+
+async def test_attempt_transition_is_atomic_owned_and_preserves_the_original_ttl(
+    redis_client, owner
+):
+    store = ProposalStore(redis_client)
+    proposal = _proposal(owner, uuid.uuid4().hex)
+    await store.save(proposal, ttl_seconds=600, max_per_owner=2, now=time.time())
+    key = proposal_key(owner, proposal.id)
+    before = await redis_client.ttl(key)
+    attempts = [
+        replace(proposal, status="installing", attempt_id=uuid.uuid4().hex) for _ in range(2)
+    ]
+    results = await asyncio.gather(*(store.transition(proposal, attempt) for attempt in attempts))
+    assert results.count(True) == 1
+    winner = attempts[results.index(True)]
+    loser = attempts[results.index(False)]
+    assert not await store.transition(loser, replace(loser, status="unknown"))
+    assert await store.transition(winner, replace(winner, status="unknown"))
+    saved = await store.load(owner, proposal.id)
+    assert saved and saved.status == "unknown" and saved.attempt_id == winner.attempt_id
+    assert 0 < await redis_client.ttl(key) <= before
+    with pytest.raises(ValueError):
+        await store.transition(winner, replace(winner, owner_id=str(uuid.uuid4())))
 
 
 @pytest.fixture

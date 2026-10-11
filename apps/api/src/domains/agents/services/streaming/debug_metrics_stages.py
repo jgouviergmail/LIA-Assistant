@@ -446,12 +446,13 @@ def add_memory_detection(debug_metrics: dict[str, Any], run_id: str) -> None:
 
         memory_detection = get_memory_extraction_debug(run_id)
         if memory_detection:
+            extracted = memory_detection.get("extracted_memories")
             debug_metrics["memory_detection"] = memory_detection
             logger.debug(
                 "debug_metrics_memory_detection_added",
                 run_id=run_id,
                 enabled=memory_detection.get("enabled", False),
-                extracted_count=len(memory_detection.get("extracted_memories", [])),
+                extracted_count=len(extracted) if isinstance(extracted, list) else 0,
             )
     except (ImportError, ValueError, RuntimeError) as mem_det_err:
         logger.debug(

@@ -335,12 +335,48 @@ def build_override(
     }
 
 
+async def append_owner_portrait(
+    override: dict[str, Any] | None,
+    *,
+    user: Any,
+    kind: CallKind,
+    user_context: str,
+    rich_context_allowed: bool,
+) -> dict[str, Any] | None:
+    """Add a current portrait only to an owner's private per-call override.
+
+    The compiled block is retained whole within the existing dynamic-context
+    budget. Third-party and verification calls never open the journal.
+    """
+    if override is None or kind is not CallKind.SELF or user is None:
+        return override
+    if not rich_context_allowed or not getattr(user, "phone_rich_context_enabled", False):
+        return override
+    if "journal" in (user.phone_disabled_domains or ()):
+        return override
+    from src.core.config import settings
+    from src.domains.journals.portrait_builder import build_journal_user_model_block
+
+    portrait = await build_journal_user_model_block(
+        user.id,
+        format="brief",
+        flow="phone",
+        max_tokens=settings.telephony_self_context_max_tokens,
+        budget_prefix=user_context,
+        require_phone_context=True,
+    )
+    if portrait:
+        override["agent"]["prompt"]["prompt"] += "\n\n" + neutralise_vendor_syntax(portrait)
+    return override
+
+
 __all__ = [
     "MANDATES",
     "CallMandate",
     "MandateInputs",
     "assert_mandate_completeness",
     "build_override",
+    "append_owner_portrait",
     "mandate_for",
     "neutralise_vendor_syntax",
     "spoken_digits",

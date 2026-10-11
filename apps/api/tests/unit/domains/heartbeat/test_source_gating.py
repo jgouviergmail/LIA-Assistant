@@ -16,11 +16,12 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
 
+from src.core.config import get_settings
 from src.domains.heartbeat.context_aggregator import ContextAggregator
 
 pytestmark = pytest.mark.unit
@@ -32,6 +33,7 @@ def _user(disabled: list[str] | None = None) -> SimpleNamespace:
         timezone="Europe/Paris",
         language="fr",
         heartbeat_disabled_sources=disabled,
+        journals_enabled=True,
     )
 
 
@@ -65,6 +67,11 @@ async def _run(disabled: list[str] | None) -> set[str]:
     user = _user(disabled)
 
     with (
+        patch.object(get_settings(), "journals_enabled", True),
+        patch(
+            "src.domains.heartbeat.context_aggregator.is_capability_enabled",
+            new=AsyncMock(return_value=True),
+        ),
         patch.object(ContextAggregator, "_fetch_calendar", new=_spy("calendar")),
         patch.object(ContextAggregator, "_fetch_tasks", new=_spy("tasks")),
         patch.object(ContextAggregator, "_fetch_emails", new=_spy("emails")),

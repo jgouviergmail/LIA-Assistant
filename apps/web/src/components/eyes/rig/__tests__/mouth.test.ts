@@ -267,8 +267,10 @@ describe('the speech bubble', () => {
     const block = CSS.slice(CSS.indexOf('.lia-emote {'));
     const rule = block.slice(0, block.indexOf('\n}'));
     expect(rule).toContain('border-radius');
-    expect(rule).toContain('background: var(--color-background)');
-    expect(rule).toContain('border: 0.11em solid var(--eyes-color)');
+    // The ceramic finish is filled independently of the page's dark/light
+    // background; its solid outline and tail still enclose the readable glyph.
+    expect(rule).toMatch(/background:\s*linear-gradient\([^;]+\);/);
+    expect(rule).toMatch(/border:\s*0\.11em solid [^;]+;/);
     expect(CSS).toContain('.lia-emote::after');
   });
 

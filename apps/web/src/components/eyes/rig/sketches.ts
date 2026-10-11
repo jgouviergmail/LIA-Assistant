@@ -26,6 +26,13 @@ import { absolute, bothSides, mirrored, relative, type Keys } from '@/components
 import type { SpringConfig } from '@/components/eyes/rig/spring';
 import type { Tape } from '@/components/eyes/rig/tape';
 import type { EyeExpression } from '@/components/eyes/expression-engine';
+import type { BodyMotionSpace } from '@/components/eyes/body-motion-geometry';
+import {
+  BODY_SKETCHES,
+  bodySketchTapes,
+  isBodySketchName,
+  type BodySketchName,
+} from '@/components/eyes/rig/body-sketches';
 
 /** The resting expressions a sketch may interrupt — the ones that breathe,
  * minus a thought in progress (a face working a problem is not idle). */
@@ -197,7 +204,7 @@ function circle(fromMs: number, turns: number, periodMs: number, amp: number, st
   return { x, y };
 }
 
-export type SketchName =
+type FacialSketchName =
   | 'fly'
   | 'double-take'
   | 'sneeze'
@@ -208,6 +215,8 @@ export type SketchName =
   | 'doze-and-snap'
   | 'brow-groove'
   | 'suspicious';
+
+export type SketchName = FacialSketchName | BodySketchName;
 
 export const SKETCHES: readonly SketchName[] = [
   'fly',
@@ -220,6 +229,7 @@ export const SKETCHES: readonly SketchName[] = [
   'doze-and-snap',
   'brow-groove',
   'suspicious',
+  ...BODY_SKETCHES,
 ];
 
 /**
@@ -227,7 +237,15 @@ export const SKETCHES: readonly SketchName[] = [
  * timing — and note that later cues on a channel simply come later in the
  * list: the rig lets the last tape with something to say win.
  */
-export function sketchTapes(name: SketchName): Tape[] {
+export function sketchTapes(
+  name: SketchName,
+  space?: BodyMotionSpace,
+  random?: () => number
+): Tape[] {
+  return isBodySketchName(name) ? bodySketchTapes(name, space, random) : facialSketchTapes(name);
+}
+
+function facialSketchTapes(name: FacialSketchName): Tape[] {
   switch (name) {
     case 'fly':
       // A fly. The eyes chase it in zigzags, the head follows, the brows

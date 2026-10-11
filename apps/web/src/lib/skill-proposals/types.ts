@@ -39,7 +39,8 @@ export interface SkillProposalCard {
 
 /** A proposal as the card reads it (`GET /skill-proposals/{id}`). */
 export interface SkillProposal extends Omit<SkillProposalCard, 'files'> {
-  status: 'pending' | 'installed';
+  status: 'pending' | 'installing' | 'unknown' | 'installed';
+  cache_refresh_pending?: boolean;
   /** Each file, with its text while the proposal is pending (null once installed). */
   files: Array<SkillProposalFile & { content: string | null }>;
 }

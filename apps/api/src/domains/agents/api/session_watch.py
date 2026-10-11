@@ -12,7 +12,7 @@ from contextlib import suppress
 import structlog
 
 from src.infrastructure.cache.redis import get_redis_session
-from src.infrastructure.cache.session_store import SessionStore
+from src.infrastructure.cache.session_store import SessionStore, session_display_id
 
 logger = structlog.get_logger(__name__)
 
@@ -39,6 +39,6 @@ async def session_still_valid(session_id: str | None) -> bool:
         redis = await get_redis_session()
         session = await SessionStore(redis).get_session(session_id)
         if session is None:
-            logger.info("sse_session_revoked_detected", session_id=session_id)
+            logger.info("sse_session_revoked_detected", display_id=session_display_id(session_id))
             return False
     return True

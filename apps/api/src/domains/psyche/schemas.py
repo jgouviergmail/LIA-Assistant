@@ -14,7 +14,7 @@ from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class PsycheStateSummary(BaseModel):
@@ -136,6 +136,16 @@ class PsycheSettingsResponse(BaseModel):
 class PsycheSettingsUpdate(BaseModel):
     """Partial update for user psyche preferences."""
 
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    @model_validator(mode="after")
+    def require_explicit_values(self) -> PsycheSettingsUpdate:
+        if not self.model_fields_set or any(
+            getattr(self, name) is None for name in self.model_fields_set
+        ):
+            raise ValueError("Name at least one psyche preference with an explicit non-null value")
+        return self
+
     psyche_enabled: bool | None = Field(None, description="Enable/disable psyche engine.")
     psyche_display_avatar: bool | None = Field(
         None,
@@ -161,8 +171,8 @@ class PsycheResetRequest(BaseModel):
     level: Literal["soft", "full", "purge"] = Field(
         description=(
             "Reset level: "
-            "soft = reset mood + emotions only; "
-            "full = reset everything except relationship; "
+            "soft = reset mood, emotions, last appraisal and drives; "
+            "full = reset relationship, drives, efficacy and narrative while preserving Big Five traits; "
             "purge = delete entire state (GDPR)."
         ),
     )

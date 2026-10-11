@@ -81,6 +81,9 @@ export interface UseLiveConnectorDraftReturn {
   /** The chosen model's ladder (empty: no level to choose). */
   levels: readonly string[];
   dirty: boolean;
+  /** Stored settings changed while an unsaved local draft was being edited. */
+  sourceChanged: boolean;
+  resetToSaved: () => void;
   /** Each duration as the API would take it; a refused one is shown, never sent. */
   idleAllowed: boolean;
   sessionAllowed: boolean;
@@ -141,6 +144,25 @@ export function isDraftDirty(
   );
 }
 
+interface DraftEditing {
+  source: LiveConnectorResponse;
+  draft: LiveConnectorDraft;
+  sourceChanged: boolean;
+}
+
+function editingAfterSavedUpdate(editing: DraftEditing, connector: LiveConnectorResponse): DraftEditing {
+  const dirtyBeforeUpdate = isDraftDirty(editing.draft, editing.draft.voice, editing.source);
+  return {
+    source: connector,
+    draft: dirtyBeforeUpdate ? editing.draft : { ...connector.settings, provider: connector.provider },
+    sourceChanged: dirtyBeforeUpdate && isDraftDirty(editing.draft, editing.draft.voice, connector),
+  };
+}
+
+function savedSettingsChanged(before: LiveConnectorResponse, after: LiveConnectorResponse): boolean {
+  return isDraftDirty({ ...before.settings, provider: before.provider }, before.settings.voice, after);
+}
+
 export function useLiveConnectorDraft(
   connector: LiveConnectorResponse,
   models: readonly LiveModel[],
@@ -151,9 +173,19 @@ export function useLiveConnectorDraft(
   /** The stored ceiling of a provider's connector — the ceiling is the connector's, not a model's. */
   budgetOf: (provider: string) => number | null = () => null
 ): UseLiveConnectorDraftReturn {
-  const [draft, setDraft] = useState<LiveConnectorDraft>({
-    ...connector.settings,
-    provider: connector.provider,
+  const [editing, setEditing] = useState<DraftEditing>(() => ({
+    source: connector,
+    draft: { ...connector.settings, provider: connector.provider },
+    sourceChanged: false,
+  }));
+  const { draft } = editing;
+  if (savedSettingsChanged(editing.source, connector)) {
+    setEditing(editingAfterSavedUpdate(editing, connector));
+  }
+  const resetToSaved = () => setEditing({
+    source: connector,
+    draft: { ...connector.settings, provider: connector.provider },
+    sourceChanged: false,
   });
   const findModel = (provider: string, name: string) =>
     models.find(m => m.provider === provider && m.name === name);
@@ -162,10 +194,10 @@ export function useLiveConnectorDraft(
   const voice = draft.voice || voices?.voices[0]?.name || '';
 
   const choose = (patch: Partial<LiveConnectorDraft>) =>
-    setDraft(previous => {
-      const next = { ...previous, ...patch };
+    setEditing(previous => {
+      const next = { ...previous.draft, ...patch };
       const ladder = findModel(next.provider, next.model)?.thinking_levels ?? [];
-      return { ...next, thinking_level: levelFor(ladder, next.thinking_level) };
+      return { ...previous, draft: { ...next, thinking_level: levelFor(ladder, next.thinking_level) } };
     });
 
   /** A model comes back with what its connector remembers of it, else the defaults. */
@@ -198,6 +230,8 @@ export function useLiveConnectorDraft(
     selectedModel,
     levels,
     dirty,
+    sourceChanged: editing.sourceChanged,
+    resetToSaved,
     idleAllowed,
     sessionAllowed,
     budgetAllowed: budgetOk,

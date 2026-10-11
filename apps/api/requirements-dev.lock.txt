@@ -3902,6 +3902,7 @@ pydantic-core==2.46.4 \
     --hash=sha256:fd8b3d9fd264be37976686c7f65cd52a83f5e84f4bfd2adf9c1d469676bbb6ae
     # via
     #   -c requirements.lock.txt
+    #   -r requirements.txt
     #   pydantic
 pydantic-settings==2.14.2 \
     --hash=sha256:a20c97b37910b6550d5ea50fbcc2d4187defe58cd57070b73863d069419c9440 \

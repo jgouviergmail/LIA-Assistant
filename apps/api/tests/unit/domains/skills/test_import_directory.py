@@ -97,6 +97,8 @@ class TestImportDirectory:
     ) -> tuple[SkillImportService, MagicMock, MagicMock, MagicMock]:
         db = MagicMock()
         db.commit = AsyncMock()
+        db.execute = AsyncMock()
+        db.scalar = AsyncMock(return_value=MagicMock(id=_OWNER))
         svc = SkillImportService(db=db)
         svc.skill_repo = MagicMock()
         svc.skill_repo.get_system = AsyncMock(return_value=None)
@@ -129,7 +131,10 @@ class TestImportDirectory:
             ),
         ):
             result = await svc.import_directory(
-                source, owner_id=_OWNER, provenance=SkillProvenance.PLUGIN, plugin_id=_PLUGIN
+                source,
+                owner_id=_OWNER,
+                provenance=SkillProvenance.PLUGIN,
+                plugin_id=_PLUGIN,
             )
 
         assert result["name"] == "alpha"
@@ -152,7 +157,10 @@ class TestImportDirectory:
         with patch("src.core.config.get_settings", return_value=settings):
             with pytest.raises(ValidationError):
                 await svc.import_directory(
-                    source, owner_id=_OWNER, provenance=SkillProvenance.PLUGIN, plugin_id=_PLUGIN
+                    source,
+                    owner_id=_OWNER,
+                    provenance=SkillProvenance.PLUGIN,
+                    plugin_id=_PLUGIN,
                 )
 
     @pytest.mark.asyncio
@@ -167,7 +175,10 @@ class TestImportDirectory:
         with patch("src.core.config.get_settings", return_value=settings):
             with pytest.raises(ValidationError):
                 await svc.import_directory(
-                    source, owner_id=_OWNER, provenance=SkillProvenance.PLUGIN, plugin_id=_PLUGIN
+                    source,
+                    owner_id=_OWNER,
+                    provenance=SkillProvenance.PLUGIN,
+                    plugin_id=_PLUGIN,
                 )
 
 

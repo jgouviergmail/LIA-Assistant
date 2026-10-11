@@ -2329,6 +2329,104 @@
      }
     }
    ]
+  },
+  {
+   "id": 57,
+   "type": "row",
+   "title": "MCP Catalogue & Semantic Quality",
+   "collapsed": true,
+   "gridPos": {
+    "h": 1,
+    "w": 24,
+    "x": 0,
+    "y": 149
+   },
+   "panels": [
+    {
+     "id": 58,
+     "type": "timeseries",
+     "title": "Catalogue Cache Decisions",
+     "description": "User MCP catalogue lookups by decision: hit reuses the current snapshot; miss discovers a new account/server; age, configuration and forced request rediscovery. These count lookup decisions, not successful discoveries. Schema age is separate from idle eviction. All accounts and servers are aggregated: the bounded metric has no server_name label and is independent of the MCP server selector.",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "$datasource"
+     },
+     "gridPos": {
+      "h": 8,
+      "w": 12,
+      "x": 0,
+      "y": 150
+     },
+     "targets": [
+      {
+       "expr": "sum by (result) (rate(mcp_catalogue_cache_total[$__rate_interval])) or vector(0)",
+       "legendFormat": "{{result}}",
+       "refId": "A"
+      }
+     ],
+     "fieldConfig": {
+      "defaults": {
+       "unit": "ops",
+       "noValue": "0",
+       "custom": {
+        "fillOpacity": 10
+       }
+      },
+      "overrides": []
+     },
+     "options": {
+      "tooltip": {
+       "mode": "multi"
+      },
+      "legend": {
+       "displayMode": "list",
+       "placement": "bottom"
+      }
+     }
+    },
+    {
+     "id": 59,
+     "type": "timeseries",
+     "title": "Unusable Declared Semantic Values",
+     "description": "Received MCP scalar values incompatible with a known declared email, calendar date, timezone datetime or URI format. invalid_type means the received scalar has the wrong type; invalid_format means its text cannot be used under that format. Counts are values, not failed calls. Canonical results remain intact and unusable paths are published beside them. All servers/accounts are aggregated; this bounded metric does not follow the MCP server selector. A flat zero is the healthy state, including when no invalid value has exposed a labelled series.",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "$datasource"
+     },
+     "gridPos": {
+      "h": 8,
+      "w": 12,
+      "x": 12,
+      "y": 150
+     },
+     "targets": [
+      {
+       "expr": "sum by (reason) (rate(mcp_semantic_unusable_values_total[$__rate_interval])) or vector(0)",
+       "legendFormat": "{{reason}}",
+       "refId": "A"
+      }
+     ],
+     "fieldConfig": {
+      "defaults": {
+       "unit": "ops",
+       "noValue": "0",
+       "custom": {
+        "fillOpacity": 10
+       }
+      },
+      "overrides": []
+     },
+     "options": {
+      "tooltip": {
+       "mode": "multi"
+      },
+      "legend": {
+       "displayMode": "list",
+       "placement": "bottom"
+      }
+     }
+    }
+   ]
   }
  ]
 }

@@ -1,6 +1,7 @@
 # Semantic Type System
 
-Complete semantic typing system for LIA, inspired by schema.org, RDF, SKOS and OWL.
+Semantic contracts for LIA, with a schema.org-inspired hierarchy and validated
+RDF/SKOS relation metadata. Runtime linking uses exact types and JSON shapes.
 
 ## 📋 Overview
 
@@ -18,7 +19,7 @@ runtime mechanisms:
 
 ### Key Characteristics
 
-- **101 semantic types** catalogued (hierarchy kept as validated data)
+- **Validated vocabulary** — use `task semantic:audit` for the current inventory
 - **Fast lookups** O(1) by name and by source domain — the runtime surface
 - **Singular domain vocabulary** throughout (contact, email, event, place,
   route...), matching `DOMAIN_REGISTRY`
@@ -26,9 +27,9 @@ runtime mechanisms:
 ADR-233 (2026-08-19): the transitive-subsumption API, Wu & Palmer distance,
 SKOS relation graph and category/tool getters had zero runtime consumers and
 were removed (doctrine: unwired capability is deleted, not kept "for later").
-The SKOS-style relation fields on `SemanticType` (related/broader/narrower)
-remain as dated debt recorded in the ADR; its `labels` field, read by no code,
-went with ADR-323.
+The SKOS-style fields on `SemanticType` (related/broader/narrower) are validated
+metadata, not permission to substitute values. Its unused `labels` field went
+with ADR-323.
 
 ## 🏗️ Architecture
 
@@ -37,7 +38,11 @@ semantic/
 ├── __init__.py              # Public exports
 ├── semantic_type.py         # SemanticType dataclass + TypeCategory enum
 ├── type_registry.py         # TypeRegistry with hierarchy and lookups
-├── core_types.py            # Catalogue of the 96+ types (ontology)
+├── core_types.py            # Core value vocabulary and catalogue loading
+├── entity_types.py          # Entity properties used as expansion evidence
+├── native_types.py          # Verified native values and resource identifiers
+├── manifest_semantics.py    # Account availability, leaf types, reference shapes
+├── planner_links.py         # Concrete sources for plan revisions
 ├── expansion_service.py     # Domain expansion (iso-functional + evidence-driven)
 └── param_guard.py           # Runtime semantic parameter guard
 ```
@@ -147,13 +152,33 @@ violation = check_semantic_params("get_route_tool", {"destination": "Marc Lemoin
 | `Place` | physical_address, phone_number, coordinate | place |
 | `EmailMessage` | email_address (sender), thread_id, message_id | email |
 
-### Manifest annotation coverage (ADR-121 back-fill, 2026-07)
+### Current manifest coverage
 
-Parameters: **120/224 typed (53 %)** — outputs: **137/338 typed (40 %)** —
-**72/100 ontology types consumed** by at least one manifest. The remaining
-untyped fields are deliberate (booleans, counters, free text, containers
-whose leaves are typed). Rule for outputs: never annotate a path without
-verifying it against the real tool payload (Jinja references execute on it).
+Run `task semantic:audit` from the repository root. It scans optional and split
+native manifest modules without connecting to services, and writes the complete
+field inventory to `.tmp/semantic-contracts.json`: annotated and untyped fields,
+JSON shapes, producers, consumers and integrity errors. The annotation floors
+are enforced by `test_identity_bridge_coverage.py`.
+
+See the [2026-10-06 review](../../../../../../docs/technical/SEMANTIC_CONTRACT_REVIEW.md)
+for the measured changes and limits. Booleans, counters, generic queries,
+ambiguous identifiers and arbitrary result objects may intentionally remain
+unannotated. An output path must be verified against the real payload.
+
+Generic `Text` and `QuantitativeValue` describe a value, without establishing a
+cross-domain pivot. Similar or related types never authorize substituting an
+email address for a message id, a local timestamp for an ISO instant, or an
+array/object for a scalar parameter.
+
+### User MCP contracts
+
+MCP tools are discovered per account. Declared `inputSchema`, `outputSchema`,
+known semantic extensions (`x-semantic-type` / `semantic_type`) and unambiguous
+formats provide the available contract. Field names alone never establish a
+semantic type. Missing output schemas remain unknown. The SDK's
+`structuredContent` is kept for exact inter-step references; the ReAct view
+pages whole items under its existing budget. Schema discovery does not prove
+that every remote server always returns valid values.
 
 ### Hierarchy Example
 
@@ -199,7 +224,6 @@ pytest tests/unit/domains/agents/semantic/ tests/unit/semantic/ -v
 
 - [schema.org](https://schema.org): class hierarchy
 - [RDF](https://www.w3.org/RDF/) / [SKOS](https://www.w3.org/2004/02/skos/) / [OWL](https://www.w3.org/OWL/)
-- [Wu & Palmer (1994)](https://aclanthology.org/P94-1019/): semantic distance algorithm
 
 ## 📄 License
 

@@ -12,6 +12,7 @@
 import { useCallback } from 'react';
 import apiClient from '@/lib/api-client';
 import { useApiQuery } from '@/hooks/useApiQuery';
+import { usePublicApiRecovery } from '@/hooks/usePublicApiRecovery';
 import {
   parseCreationOptions,
   parseRequestOptions,
@@ -55,10 +56,11 @@ interface AuthUserResponse {
 
 /** Instance-level strong-auth availability (public endpoint, always mounted). */
 export function useAuthFeatures(): { features: AuthFeatures | undefined; loading: boolean } {
-  const { data, loading } = useApiQuery<AuthFeatures>('/auth/features', {
+  const query = useApiQuery<AuthFeatures>('/auth/features', {
     componentName: 'useAuthFeatures',
   });
-  return { features: data, loading };
+  usePublicApiRecovery({ ...query, hasData: query.data !== undefined });
+  return { features: query.data, loading: query.loading };
 }
 
 /** Browser-ceremony drivers (enrollment + login). */

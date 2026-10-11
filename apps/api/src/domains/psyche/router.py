@@ -18,7 +18,10 @@ from src.core.i18n import normalize_language
 from src.core.session_dependencies import get_current_active_session
 from src.domains.feature_switches.guard import capability_dependencies
 from src.domains.feature_switches.registry import PlatformCapability
-from src.domains.psyche.engine import PsycheEngine
+from src.domains.psyche.management_projection import project_psyche_state
+from src.domains.psyche.models import PsycheState
+from src.domains.psyche.preference_commands import update_psyche_preferences
+from src.domains.psyche.reset_commands import reset_managed_psyche
 from src.domains.psyche.schemas import (
     PsycheExpressionResponse,
     PsycheHistoryEntry,
@@ -49,35 +52,30 @@ router = APIRouter(
 # =============================================================================
 
 
-@router.get("/state", response_model=PsycheStateResponse)
+@router.get("/state", response_model=PsycheStateResponse | None)
 async def get_psyche_state(
     current_user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
-) -> PsycheStateResponse:
+    initialize: bool = Query(
+        True, description="Initialize an absent state; false is observational."
+    ),
+) -> PsycheStateResponse | None:
     """Get current psyche state for the authenticated user.
 
     Returns the full dynamic state including mood, emotions, relationship,
     traits, self-efficacy, and computed mood label/color.
     """
     service = PsycheService(db)
-    state = await service.get_or_create_state(current_user.id)
-    await db.commit()
+    state: PsycheState | None
+    if initialize:
+        state = await service.get_or_create_state(current_user.id)
+        await db.commit()
+    else:
+        state = await service.repo.get_by_user_id(current_user.id)
+    if state is None:
+        return None
 
-    # Compute mood label and color
-    profile = PsycheEngine.compile_expression_profile(
-        mood_p=state.mood_pleasure,
-        mood_a=state.mood_arousal,
-        mood_d=state.mood_dominance,
-        emotions=state.active_emotions or [],
-        stage=state.relationship_stage,
-        warmth=state.relationship_warmth_active,
-        drive_curiosity=state.drive_curiosity,
-        drive_engagement=state.drive_engagement,
-    )
-
-    response = PsycheStateResponse.model_validate(state)
-    response.mood_label = profile.mood_label
-    response.mood_color = PsycheEngine.mood_to_color(profile.mood_label)
+    response, _ = project_psyche_state(state)
     return response
 
 
@@ -126,28 +124,8 @@ async def get_expression_profile(
     state = await service.get_or_create_state(current_user.id)
     await db.commit()
 
-    profile = PsycheEngine.compile_expression_profile(
-        mood_p=state.mood_pleasure,
-        mood_a=state.mood_arousal,
-        mood_d=state.mood_dominance,
-        emotions=state.active_emotions or [],
-        stage=state.relationship_stage,
-        warmth=state.relationship_warmth_active,
-        drive_curiosity=state.drive_curiosity,
-        drive_engagement=state.drive_engagement,
-    )
-
-    return PsycheExpressionResponse(
-        mood_label=profile.mood_label,
-        mood_intensity=profile.mood_intensity,
-        active_emotions=[
-            {"name": name, "intensity": intensity} for name, intensity in profile.active_emotions
-        ],
-        relationship_stage=profile.relationship_stage,
-        warmth_label=profile.warmth_label,
-        drive_curiosity=profile.drive_curiosity,
-        drive_engagement=profile.drive_engagement,
-    )
+    _, expression = project_psyche_state(state)
+    return expression
 
 
 # =============================================================================
@@ -175,24 +153,19 @@ async def update_psyche_settings(
     db: AsyncSession = Depends(get_db),
 ) -> PsycheSettingsResponse:
     """Update user psyche preferences."""
-    update_data = update.model_dump(exclude_unset=True)
-    for field_name, value in update_data.items():
-        setattr(current_user, field_name, value)
-
-    await db.flush()
-    await db.commit()
+    saved = await update_psyche_preferences(db, current_user.id, update)
 
     logger.info(
         "psyche_settings_updated",
         user_id=str(current_user.id),
-        updated_fields=list(update_data.keys()),
+        updated_fields=list(update.model_fields_set),
     )
 
     return PsycheSettingsResponse(
-        psyche_enabled=current_user.psyche_enabled,
-        psyche_display_avatar=current_user.psyche_display_avatar,
-        psyche_sensitivity=current_user.psyche_sensitivity,
-        psyche_stability=current_user.psyche_stability,
+        psyche_enabled=saved.psyche_enabled,
+        psyche_display_avatar=saved.psyche_display_avatar,
+        psyche_sensitivity=saved.psyche_sensitivity,
+        psyche_stability=saved.psyche_stability,
     )
 
 
@@ -209,13 +182,11 @@ async def reset_psyche_state(
 ) -> PsycheResetResponse:
     """Reset psyche state at specified level.
 
-    - soft: Reset mood and emotions only. Relationship and traits preserved.
+    - soft: Reset mood, emotions, last appraisal and drives; retain relationship and traits.
     - full: Reset everything except Big Five traits (which are per-personality).
     - purge: Delete entire psyche state (GDPR).
     """
-    service = PsycheService(db)
-    await service.reset_state(current_user.id, request.level)
-    await db.commit()
+    result = await reset_managed_psyche(db, current_user.id, request)
 
     logger.info(
         "psyche_state_reset_by_user",
@@ -223,7 +194,7 @@ async def reset_psyche_state(
         level=request.level,
     )
 
-    return PsycheResetResponse(status="reset", level=request.level)
+    return result
 
 
 # =============================================================================

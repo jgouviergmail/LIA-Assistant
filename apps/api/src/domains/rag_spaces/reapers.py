@@ -27,6 +27,10 @@ from src.domains.rag_spaces.models import (
     RAGDriveSyncStatus,
     RAGMailSource,
 )
+from src.domains.rag_spaces.native_job_abandonment import (
+    stop_abandoned_native_document,
+    stop_abandoned_native_source,
+)
 from src.infrastructure.database.session import get_db_context
 from src.infrastructure.observability.metrics_rag_spaces import rag_jobs_recovered_total
 
@@ -110,6 +114,9 @@ async def _recover_one(doc_id: UUID, semaphore: asyncio.Semaphore) -> str:
                 # user_id is None only for system-space documents, which are owned
                 # by the system indexer, not this reaper.
                 return "skipped"
+            native = await stop_abandoned_native_document(db, doc)
+            if native is not None:
+                return native
             # Snapshot the processing args (typed) before the session closes.
             space_id = doc.space_id
             user_id = doc.user_id
@@ -137,6 +144,7 @@ async def _recover_one(doc_id: UUID, semaphore: asyncio.Semaphore) -> str:
             filename=filename,
             original_filename=original_filename,
             content_type=content_type,
+            durable_upload=True,
         )
         return "requeued"
 
@@ -153,6 +161,9 @@ async def _recover_source(source_id: UUID, semaphore: asyncio.Semaphore) -> str:
             source = await db.get(RAGDriveSource, source_id)
             if source is None or source.user_id is None:
                 return "skipped"
+            native = await stop_abandoned_native_source(db, source)
+            if native is not None:
+                return native
             space_id = source.space_id
             user_id = source.user_id
             new_status = await RAGJobsRepository(db).reclaim_or_fail_source(
@@ -161,6 +172,8 @@ async def _recover_source(source_id: UUID, semaphore: asyncio.Semaphore) -> str:
                 settings.rag_job_max_attempts,
             )
 
+        if new_status == "skipped":
+            return "skipped"
         if new_status == RAGDriveSyncStatus.ERROR:
             logger.warning("rag_sync_dead_lettered", source_id=str(source_id))
             return "failed"
@@ -208,6 +221,9 @@ async def _recover_mail_source(source_id: UUID, semaphore: asyncio.Semaphore) ->
             source = await db.get(RAGMailSource, source_id)
             if source is None or source.user_id is None:
                 return "skipped"
+            native = await stop_abandoned_native_source(db, source)
+            if native is not None:
+                return native
             user_id = source.user_id
             new_status = await RAGJobsRepository(db).reclaim_or_fail_source(
                 source_id,
@@ -216,6 +232,8 @@ async def _recover_mail_source(source_id: UUID, semaphore: asyncio.Semaphore) ->
                 table=MAIL_SOURCE_TABLE,
             )
 
+        if new_status == "skipped":
+            return "skipped"
         if new_status == RAGDriveSyncStatus.ERROR:
             logger.warning("rag_mail_sync_dead_lettered", source_id=str(source_id))
             return "failed"

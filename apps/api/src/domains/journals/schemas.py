@@ -17,10 +17,18 @@ from decimal import Decimal
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StrictBool,
+    StrictInt,
+    ValidationError,
+    field_validator,
+)
 
 from src.domains.journals.constants import (
-    JOURNAL_ENTRY_CONTENT_MAX_LENGTH,
+    JOURNAL_ENTRY_CONTENT_ABSOLUTE_MAX_LENGTH,
     JOURNAL_ENTRY_TITLE_MAX_LENGTH,
 )
 from src.domains.journals.models import (
@@ -70,10 +78,13 @@ class JournalEntryResponse(BaseModel):
         description="Epistemic status: low (hypothesis), medium (default), high (validated)",
     )
     evidence_count: int = Field(
-        description="Times this entry was confirmed by deferred self-evaluation",
+        description="Distinct positive reactions/receptions; only rule-specific outcomes can certify confidence.",
     )
     contradiction_count: int = Field(
         description="Times this entry was contradicted by deferred self-evaluation",
+    )
+    revision: int = Field(
+        default=1, ge=1, description="Exact rule version qualified by reaction events."
     )
     level: JournalEntryLevel = Field(
         description=(
@@ -98,7 +109,7 @@ class JournalEntryCreate(BaseModel):
     )
     content: str = Field(
         min_length=1,
-        max_length=JOURNAL_ENTRY_CONTENT_MAX_LENGTH,
+        max_length=JOURNAL_ENTRY_CONTENT_ABSOLUTE_MAX_LENGTH,
         description="Full entry content",
     )
     mood: JournalEntryMood = Field(
@@ -123,7 +134,7 @@ class JournalEntryUpdate(BaseModel):
     content: str | None = Field(
         None,
         min_length=1,
-        max_length=JOURNAL_ENTRY_CONTENT_MAX_LENGTH,
+        max_length=JOURNAL_ENTRY_CONTENT_ABSOLUTE_MAX_LENGTH,
         description="Full entry content (triggers embedding regeneration)",
     )
     mood: JournalEntryMood | None = Field(
@@ -200,6 +211,10 @@ class JournalSettingsResponse(BaseModel):
     """User journal settings with size and cost info."""
 
     journals_enabled: bool = Field(description="Whether journals feature is enabled for this user")
+    portrait_invalidated: StrictBool | None = Field(
+        None,
+        description="Caller-local PATCH acknowledgment of portrait invalidation; unknown on GET.",
+    )
     journal_consolidation_enabled: bool = Field(
         description="Whether background consolidation is enabled"
     )
@@ -247,7 +262,7 @@ class JournalSettingsUpdate(BaseModel):
     journal_max_entry_chars: int | None = Field(
         None,
         ge=100,
-        le=2000,
+        le=JOURNAL_ENTRY_CONTENT_ABSOLUTE_MAX_LENGTH,
         description="Max characters per individual journal entry.",
     )
     journal_context_max_results: int | None = Field(
@@ -279,6 +294,10 @@ class JournalConsolidationResponse(BaseModel):
     duration_ms: int = Field(
         description="Total duration of the consolidation run in milliseconds",
     )
+    status: str | None = Field(
+        None,
+        description="Last attempt outcome, independently of the last successful consolidation.",
+    )
 
 
 class PortraitSourceProvenance(BaseModel):
@@ -289,6 +308,31 @@ class PortraitSourceProvenance(BaseModel):
     )
     used: int = Field(ge=0, description="Items the prompt received from this source.")
     total: int = Field(ge=0, description="EXACT count over the whole set (ADR-185).")
+    reason: Literal["over_budget"] | None = None
+    omitted_incomplete: int = Field(
+        0,
+        ge=0,
+        exclude_if=lambda value: value == 0,
+        description="Selected items omitted because complete evidence was unavailable.",
+    )
+
+
+class PortraitReviewProvenance(BaseModel):
+    """The exact publication receipt's portable diagnostic fields."""
+
+    policy: str = Field(min_length=1)
+    digest: str = Field(pattern=r"^[0-9a-f]{64}$")
+    model: str = Field(min_length=1)
+    reviewed_at: float = Field(ge=0, allow_inf_nan=False)
+    reviewed_digest: str | None = Field(
+        None, pattern=r"^[0-9a-f]{64}$", exclude_if=lambda value: value is None
+    )
+    approved_indices: list[StrictInt] | None = Field(
+        None, min_length=1, max_length=32, exclude_if=lambda value: value is None
+    )
+    rejected: list[dict[str, Any]] | None = Field(
+        None, max_length=32, exclude_if=lambda value: value is None
+    )
 
 
 class PortraitProvenance(BaseModel):
@@ -299,6 +343,11 @@ class PortraitProvenance(BaseModel):
     sources: dict[str, PortraitSourceProvenance] = Field(
         description="Per source key (memories, interests, habits, relation_debriefs)."
     )
+    journal_revision: int | None = None
+    source_state: dict[str, Any] | None = None
+    claims: list[dict[str, Any]] | None = None
+    portrait_pending: StrictBool | None = None
+    portrait_review: PortraitReviewProvenance | None = None
 
 
 def provenance_of(stored: Any) -> PortraitProvenance | None:
@@ -379,16 +428,13 @@ class JournalThemesResponse(BaseModel):
 # =============================================================================
 
 
-class ExtractedJournalEntry(BaseModel):
+class JournalActionFields(BaseModel):
     """Internal schema for LLM extraction/consolidation results.
 
     Used to parse and validate JSON output from the introspection
     and consolidation prompts.
     """
 
-    action: Literal["create", "update", "delete"] = Field(
-        description="Action to perform on the journal",
-    )
     entry_id: str | None = Field(
         None,
         description="Existing entry ID (required for update/delete, null for create)",
@@ -401,10 +447,10 @@ class ExtractedJournalEntry(BaseModel):
         if v is None:
             return v
         try:
-            UUID(str(v))
+            parsed = UUID(str(v))
         except (ValueError, AttributeError) as err:
             raise ValueError(f"Invalid UUID for entry_id: {v!r}") from err
-        return str(v)
+        return str(parsed)
 
     theme: JournalTheme | None = Field(
         None,
@@ -417,7 +463,7 @@ class ExtractedJournalEntry(BaseModel):
     )
     content: str | None = Field(
         None,
-        max_length=JOURNAL_ENTRY_CONTENT_MAX_LENGTH,
+        max_length=JOURNAL_ENTRY_CONTENT_ABSOLUTE_MAX_LENGTH,
         description="Entry content (required for create, optional for update)",
     )
     mood: JournalEntryMood | None = Field(
@@ -459,6 +505,14 @@ class ExtractedJournalEntry(BaseModel):
             "default is L1. On update, you may promote (L0→L1, L1→L2, L2→L3) when the "
             "evidence supports it, or demote when a synthesis loses its grounding."
         ),
+    )
+
+
+class ExtractedJournalEntry(JournalActionFields):
+    """Actions admitted by the conversation extraction path."""
+
+    action: Literal["create", "update", "delete"] = Field(
+        description="Action to perform on the journal"
     )
 
 

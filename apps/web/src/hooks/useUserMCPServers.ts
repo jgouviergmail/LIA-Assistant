@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
-import { useApiQuery } from './useApiQuery';
+import { useApplicationAccountQuery } from './useApplicationAccountQuery';
+import { useApplicationResourceSync } from './useApplicationResourceSync';
 import { useApiMutation } from './useApiMutation';
 import { navigateToAuthorizationUrl } from '@/lib/safe-navigation';
 
@@ -88,7 +89,7 @@ export interface UserMCPServerUpdate {
   oauth_client_id?: string;
   oauth_client_secret?: string;
   oauth_scopes?: string;
-  domain_description?: string;
+  domain_description?: string | null;
   timeout_seconds?: number;
   hitl_required?: boolean | null;
   iterative_mode?: boolean;
@@ -141,10 +142,19 @@ export function useUserMCPServers() {
     error,
     refetch,
     setData,
-  } = useApiQuery<UserMCPServerListResponse>(ENDPOINT, {
-    componentName: 'UserMCPServers',
-    initialData: { servers: [], total: 0 },
-  });
+    ownerId,
+    isCurrent,
+  } = useApplicationAccountQuery<UserMCPServerListResponse>(ENDPOINT, 'UserMCPServers');
+  useApplicationResourceSync(ownerId, 'user_mcp', refetch);
+
+  const inAccount = useCallback(
+    async <T>(perform: () => Promise<T>) => {
+      if (!isCurrent()) throw new Error('Application account changed');
+      const result = await perform();
+      return isCurrent() ? result : undefined;
+    },
+    [isCurrent]
+  );
 
   const servers = listData?.servers ?? [];
   const total = listData?.total ?? 0;
@@ -193,7 +203,7 @@ export function useUserMCPServers() {
   // Handlers
   const createServer = useCallback(
     async (data: UserMCPServerCreate) => {
-      const result = await createMutation.mutate(ENDPOINT, data);
+      const result = await inAccount(() => createMutation.mutate(ENDPOINT, data));
       if (result) {
         setData(prev => {
           if (!prev) return prev;
@@ -205,12 +215,12 @@ export function useUserMCPServers() {
       }
       return result;
     },
-    [createMutation, setData]
+    [inAccount, createMutation, setData]
   );
 
   const updateServer = useCallback(
     async (serverId: string, data: UserMCPServerUpdate) => {
-      const result = await updateMutation.mutate(`${ENDPOINT}/${serverId}`, data);
+      const result = await inAccount(() => updateMutation.mutate(`${ENDPOINT}/${serverId}`, data));
       if (result) {
         setData(prev => {
           if (!prev) return prev;
@@ -222,12 +232,12 @@ export function useUserMCPServers() {
       }
       return result;
     },
-    [updateMutation, setData]
+    [inAccount, updateMutation, setData]
   );
 
   const deleteServer = useCallback(
     async (serverId: string) => {
-      await deleteMutation.mutate(`${ENDPOINT}/${serverId}`);
+      await inAccount(() => deleteMutation.mutate(`${ENDPOINT}/${serverId}`));
       setData(prev => {
         if (!prev) return prev;
         return {
@@ -236,12 +246,12 @@ export function useUserMCPServers() {
         };
       });
     },
-    [deleteMutation, setData]
+    [inAccount, deleteMutation, setData]
   );
 
   const toggleServer = useCallback(
     async (serverId: string) => {
-      const result = await toggleMutation.mutate(`${ENDPOINT}/${serverId}/toggle`);
+      const result = await inAccount(() => toggleMutation.mutate(`${ENDPOINT}/${serverId}/toggle`));
       if (result) {
         setData(prev => {
           if (!prev) return prev;
@@ -253,37 +263,39 @@ export function useUserMCPServers() {
       }
       return result;
     },
-    [toggleMutation, setData]
+    [inAccount, toggleMutation, setData]
   );
 
   const testConnection = useCallback(
     async (serverId: string) => {
-      const result = await testMutation.mutate(`${ENDPOINT}/${serverId}/test`);
+      const result = await inAccount(() => testMutation.mutate(`${ENDPOINT}/${serverId}/test`));
       if (result?.success) {
         // Refresh to get updated tools cache and status
         refetch();
       }
       return result;
     },
-    [testMutation, refetch]
+    [inAccount, testMutation, refetch]
   );
 
   const initiateOAuth = useCallback(
     async (serverId: string) => {
-      const result = await oauthMutation.mutate(`${ENDPOINT}/${serverId}/oauth/authorize`);
+      const result = await inAccount(() =>
+        oauthMutation.mutate(`${ENDPOINT}/${serverId}/oauth/authorize`)
+      );
       if (result?.authorization_url) {
         // Redirect to OAuth authorization server
         navigateToAuthorizationUrl(result.authorization_url, 'mcp-oauth');
       }
       return result;
     },
-    [oauthMutation]
+    [inAccount, oauthMutation]
   );
 
   const disconnectOAuth = useCallback(
     async (serverId: string) => {
-      const result = await oauthDisconnectMutation.mutate(
-        `${ENDPOINT}/${serverId}/oauth/disconnect`
+      const result = await inAccount(() =>
+        oauthDisconnectMutation.mutate(`${ENDPOINT}/${serverId}/oauth/disconnect`)
       );
       if (result) {
         setData(prev => {
@@ -296,13 +308,13 @@ export function useUserMCPServers() {
       }
       return result;
     },
-    [oauthDisconnectMutation, setData]
+    [inAccount, oauthDisconnectMutation, setData]
   );
 
   const generateDescription = useCallback(
     async (serverId: string) => {
-      const result = await generateDescriptionMutation.mutate(
-        `${ENDPOINT}/${serverId}/generate-description`
+      const result = await inAccount(() =>
+        generateDescriptionMutation.mutate(`${ENDPOINT}/${serverId}/generate-description`)
       );
       if (result) {
         // Update server in local state with new description
@@ -318,10 +330,11 @@ export function useUserMCPServers() {
       }
       return result;
     },
-    [generateDescriptionMutation, setData]
+    [inAccount, generateDescriptionMutation, setData]
   );
 
   return {
+    ownerId,
     // Data
     servers,
     total,

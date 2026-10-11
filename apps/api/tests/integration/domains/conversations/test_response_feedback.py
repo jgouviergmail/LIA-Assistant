@@ -11,6 +11,7 @@ Locks the module contract against the real database:
 
 from __future__ import annotations
 
+from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
@@ -18,11 +19,16 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
-from src.core.field_names import FIELD_INJECTED_JOURNAL_IDS, FIELD_RESPONSE_FEEDBACK
+from src.core.field_names import (
+    FIELD_INJECTED_JOURNAL_IDS,
+    FIELD_INJECTED_JOURNAL_REVISIONS,
+    FIELD_RESPONSE_FEEDBACK,
+)
 from src.domains.conversations.models import Conversation, ConversationMessage
 from src.domains.conversations.response_feedback import (
     apply_verdict_to_journals,
     get_assistant_message_for_user,
+    lock_feedback_owner,
     persist_verdict,
     record_comment_as_correction,
 )
@@ -33,12 +39,19 @@ pytestmark = pytest.mark.integration
 
 
 @pytest.fixture(autouse=True)
-def _register_journal_hooks() -> None:
+def _register_journal_hooks(monkeypatch) -> None:
     """Wire the real journals implementation into the port (startup mirror)."""
     from src.domains.conversations.response_feedback import register_journal_feedback_hooks
     from src.domains.journals.feedback_hooks import JournalResponseFeedbackHooks
 
     register_journal_feedback_hooks(JournalResponseFeedbackHooks())
+    monkeypatch.setattr(
+        "src.domains.journals.service._generate_dual_embeddings",
+        AsyncMock(return_value=(None, None)),
+    )
+    monkeypatch.setattr(
+        "src.domains.journals.feedback_hooks.is_capability_enabled", AsyncMock(return_value=True)
+    )
 
 
 async def _make_user(async_session: AsyncSession, email: str):
@@ -84,7 +97,10 @@ async def feedback_setup(async_session: AsyncSession):
         conversation_id=conversation.id,
         role="assistant",
         content="Voici ma réponse.",
-        message_metadata={FIELD_INJECTED_JOURNAL_IDS: [str(entry.id)]},
+        message_metadata={
+            FIELD_INJECTED_JOURNAL_IDS: [str(entry.id)],
+            FIELD_INJECTED_JOURNAL_REVISIONS: {str(entry.id): entry.revision},
+        },
     )
     async_session.add(message)
     await async_session.commit()
@@ -97,19 +113,61 @@ async def _submit(
     db: AsyncSession, user_id: UUID, message_id: UUID, verdict, comment: str | None = None
 ) -> None:
     """Replicate the router flow (read → first-verdict gate → persist)."""
+    await lock_feedback_owner(db, user_id)
     row = await get_assistant_message_for_user(db, user_id, message_id)
     assert row is not None
     metadata = dict(row.message_metadata or {})
     first_verdict = not isinstance(metadata.get(FIELD_RESPONSE_FEEDBACK), dict)
     await persist_verdict(db, user_id, message_id, verdict, comment)
     if first_verdict:
-        await apply_verdict_to_journals(db, user_id, metadata, verdict)
+        await apply_verdict_to_journals(
+            db,
+            user_id,
+            metadata,
+            verdict,
+            message_id=message_id,
+            conversation_id=row.conversation_id,
+        )
     if comment and verdict == "thumbs_down":
         await record_comment_as_correction(db, user_id, comment)
     await db.commit()
 
 
 class TestResponseFeedback:
+    async def test_old_response_does_not_reinforce_an_edited_rule(
+        self, async_session: AsyncSession, feedback_setup, monkeypatch
+    ) -> None:
+        from src.domains.journals.service import JournalService
+
+        monkeypatch.setattr(settings, "journals_enabled", True)
+        user, message, entry = feedback_setup
+        original_revision = entry.revision
+        await JournalService(async_session).update_entry(
+            entry,
+            content="A changed rule with a different condition.",
+            expected_revision=original_revision,
+        )
+        await async_session.commit()
+        await _submit(async_session, user.id, message.id, "thumbs_up")
+        await async_session.refresh(entry)
+        await async_session.refresh(message)
+        assert entry.revision == original_revision + 1
+        assert entry.evidence_count == 0
+        assert message.message_metadata[FIELD_RESPONSE_FEEDBACK]["verdict"] == "thumbs_up"
+
+    async def test_legacy_message_without_versions_preserves_verdict_without_evidence(
+        self, async_session: AsyncSession, feedback_setup, monkeypatch
+    ) -> None:
+        monkeypatch.setattr(settings, "journals_enabled", True)
+        user, message, entry = feedback_setup
+        message.message_metadata = {FIELD_INJECTED_JOURNAL_IDS: [str(entry.id)]}
+        await async_session.commit()
+        await _submit(async_session, user.id, message.id, "thumbs_up")
+        await async_session.refresh(entry)
+        await async_session.refresh(message)
+        assert entry.evidence_count == 0
+        assert message.message_metadata[FIELD_RESPONSE_FEEDBACK]["verdict"] == "thumbs_up"
+
     async def test_thumbs_up_persists_verdict_and_feeds_evidence(
         self, async_session: AsyncSession, feedback_setup, monkeypatch
     ) -> None:
@@ -211,7 +269,7 @@ class TestResponseFeedback:
         self, async_session: AsyncSession, feedback_setup, monkeypatch
     ) -> None:
         monkeypatch.setattr(settings, "journals_enabled", True)
-        user, _, entry = feedback_setup
+        user, message, entry = feedback_setup
         stranger = await _make_user(async_session, "stranger2@test.local")
         foreign_entry = await _make_journal_entry(async_session, stranger.id)
 
@@ -224,9 +282,15 @@ class TestResponseFeedback:
                     str(uuid4()),  # vanished
                     str(foreign_entry.id),  # not this user's
                     "not-a-uuid",
-                ]
+                ],
+                FIELD_INJECTED_JOURNAL_REVISIONS: {
+                    str(entry.id): entry.revision,
+                    str(foreign_entry.id): foreign_entry.revision,
+                },
             },
             "thumbs_up",
+            message_id=message.id,
+            conversation_id=message.conversation_id,
         )
         await async_session.commit()
 

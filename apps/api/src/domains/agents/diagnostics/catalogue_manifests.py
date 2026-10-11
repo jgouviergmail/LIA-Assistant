@@ -222,6 +222,7 @@ platform_incidents_catalogue_manifest = ToolManifest(
             name="incident_id",
             type="string",
             required=False,
+            semantic_type="incident_id",
             description="Incident UUID for the detail view; empty lists incidents instead.",
         ),
         ParameterSchema(
@@ -232,10 +233,55 @@ platform_incidents_catalogue_manifest = ToolManifest(
         ),
     ],
     outputs=[
-        OutputFieldSchema(path="incidents", type="array", description="Incident summaries"),
-        OutputFieldSchema(path="total", type="integer", description="Exact total count"),
         OutputFieldSchema(
-            path="diagnosis", type="object", description="Stored diagnosis (detail view)"
+            path="incidents",
+            type="array",
+            description="Incident summaries (list view)",
+            nullable=True,
+        ),
+        OutputFieldSchema(
+            path="incidents[].id",
+            type="string",
+            description="Incident UUID (list view)",
+            semantic_type="incident_id",
+            nullable=True,
+        ),
+        OutputFieldSchema(
+            path="incidents[].opened_at",
+            type="string",
+            description="ISO instant the incident opened (list view)",
+            semantic_type="datetime",
+            nullable=True,
+        ),
+        OutputFieldSchema(
+            path="total", type="integer", description="Exact total count (list view)", nullable=True
+        ),
+        OutputFieldSchema(
+            path="id",
+            type="string",
+            description="Incident UUID (detail view)",
+            semantic_type="incident_id",
+            nullable=True,
+        ),
+        OutputFieldSchema(
+            path="opened_at",
+            type="string",
+            description="ISO instant the incident opened (detail view)",
+            semantic_type="datetime",
+            nullable=True,
+        ),
+        OutputFieldSchema(
+            path="last_seen_at",
+            type="string",
+            description="ISO instant the incident last recurred (detail view)",
+            semantic_type="datetime",
+            nullable=True,
+        ),
+        OutputFieldSchema(
+            path="diagnosis",
+            type="object",
+            description="Stored diagnosis (detail view, absent until diagnosed)",
+            nullable=True,
         ),
     ],
     cost=_cost(600),

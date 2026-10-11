@@ -7,10 +7,12 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
+import { renderWithProviders, screen, waitFor, act } from '@/__tests__/test-utils';
 import type { UseFCMTokenReturn, RegisteredToken } from '@/hooks/useFCMToken';
 
 const { useFCMToken } = vi.hoisted(() => ({ useFCMToken: vi.fn() }));
+const { useAuth } = vi.hoisted(() => ({ useAuth: vi.fn() }));
+vi.mock('@/hooks/useAuth', () => ({ useAuth }));
 vi.mock('@/hooks/useFCMToken', () => ({ useFCMToken }));
 // The component resolves the "current device" via getDeviceType(); pin it to web.
 vi.mock('@/lib/firebase', () => ({ getDeviceType: () => 'web' }));
@@ -58,7 +60,10 @@ function renderNotifications() {
   );
 }
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  useAuth.mockReturnValue({ user: { id: 'one' } });
+});
 
 describe('NotificationSettings — gating', () => {
   it('warns and disables the switch when Firebase is not configured', () => {
@@ -129,4 +134,19 @@ describe('NotificationSettings — enabling', () => {
     await user.click(screen.getByRole('switch'));
     expect(screen.getByText('prompt-open')).toBeInTheDocument();
   });
+});
+
+it('does not toast a completed removal into a different account', async () => {
+  let finish: () => void = () => {};
+  const unregisterToken = vi.fn(() => new Promise<void>(done => { finish = done; }));
+  useFCMToken.mockReturnValue(fcm({ registeredTokens: [token()], unregisterToken }));
+  const view = renderNotifications();
+  await view.user.click(screen.getByRole('button', { name: 'settings.notifications.remove_device_title' }));
+  await view.user.click(await screen.findByRole('button', { name: 'common.delete' }));
+  await waitFor(() => expect(unregisterToken).toHaveBeenCalledOnce());
+  useAuth.mockReturnValue({ user: { id: 'two' } });
+  view.rerender(<NotificationSettings lng="en" />);
+  await act(async () => { finish(); });
+  expect(toast.success).not.toHaveBeenCalled();
+  expect(toast.error).not.toHaveBeenCalled();
 });

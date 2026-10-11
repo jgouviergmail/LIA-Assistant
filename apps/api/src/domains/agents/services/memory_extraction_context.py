@@ -1,7 +1,9 @@
 """Prepare memory-extraction context without changing the source messages or memories."""
 
 from typing import TYPE_CHECKING
+from uuid import UUID
 
+import structlog
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
 from src.core.config import settings
@@ -74,3 +76,48 @@ def format_existing_memories_with_ids(
         )
 
     return "\n".join(lines)
+
+
+logger = structlog.get_logger(__name__)
+
+
+async def _maybe_build_health_context(user_id: str) -> str:
+    """Return the Health Metrics context block for the extraction prompt.
+
+    Returns an empty string when the global feature flag is off, the user
+    has not opted into Health Metrics assistant integrations, or when
+    their health history is empty. The prompt template includes a
+    ``{health_context}`` placeholder flagged ``(optional)`` so the LLM
+    handles the empty case transparently.
+
+    Args:
+        user_id: Owner user ID (string form from the extractor plumbing).
+
+    Returns:
+        A short textual block (``""`` if none).
+    """
+    from src.core.config import settings as global_settings
+    from src.core.constants import HEALTH_METRICS_USER_TOGGLE_ATTR
+
+    if not getattr(global_settings, "health_metrics_enabled", False):
+        return ""
+
+    try:
+        from src.infrastructure.database.session import get_db_context
+
+        async with get_db_context() as db:
+            from src.domains.health_metrics.service import HealthMetricsService
+            from src.domains.users.repository import UserRepository
+
+            user = await UserRepository(db).get_by_id(UUID(user_id))
+            if user is None or not getattr(user, HEALTH_METRICS_USER_TOGGLE_ATTR, False):
+                return ""
+            service = HealthMetricsService(db)
+            return await service.build_health_context_for_prompt(UUID(user_id))
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning(
+            "memory_extractor_health_context_failed",
+            user_id=user_id,
+            error_type=type(exc).__name__,
+        )
+        return ""

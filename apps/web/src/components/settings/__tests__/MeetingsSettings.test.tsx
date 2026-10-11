@@ -11,6 +11,8 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderWithProviders, screen, waitFor, within } from '@/__tests__/test-utils';
 import type { MeetingPreferences, MeetingSummary, MeetingTemplateSummary } from '@/types/meetings';
 
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'meeting-settings-owner' } }) }));
+
 const flags = vi.hoisted(() => ({ enabled: true, loading: false }));
 vi.mock('@/hooks/useAppConfig', () => ({
   useAppConfig: () => ({

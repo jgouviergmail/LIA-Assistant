@@ -20,9 +20,11 @@ from __future__ import annotations
 import asyncio
 import math
 import os
+import shutil
 import uuid
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
+from typing import TypeVar
 
 import structlog
 
@@ -44,6 +46,28 @@ PCM_SAMPLE_RATE = 16000
 
 class AudioStorageError(RuntimeError):
     """A disk or ffmpeg operation failed; the caller decides retry vs fail."""
+
+
+TStorageResult = TypeVar("TStorageResult")
+
+
+async def _complete_storage_work(write: Callable[[], TStorageResult]) -> TStorageResult:
+    """Keep the caller's row lock until the uninterruptible disk effect ends."""
+    task = asyncio.create_task(asyncio.to_thread(write))
+    cancelled = False
+    while not task.done():
+        try:
+            await asyncio.shield(task)
+        except asyncio.CancelledError:
+            cancelled = True
+        except OSError:
+            if cancelled:
+                raise asyncio.CancelledError() from None
+            raise
+    if cancelled:
+        task.exception()
+        raise asyncio.CancelledError()
+    return task.result()
 
 
 def opus_bitrate_kbps(
@@ -152,7 +176,7 @@ class MeetingAudioStore:
             return len(data) - (previous or 0), previous is not None
 
         try:
-            return await asyncio.to_thread(_write)
+            return await _complete_storage_work(_write)
         except OSError as exc:
             raise AudioStorageError(f"segment write failed: {exc.__class__.__name__}") from exc
 
@@ -335,21 +359,20 @@ class MeetingAudioStore:
         except OSError as exc:
             raise AudioStorageError(f"segment purge failed: {exc.__class__.__name__}") from exc
 
-    async def purge_meeting(self, user_id: uuid.UUID, meeting_id: uuid.UUID) -> None:
-        """Delete everything the meeting owns on disk (best effort, logged)."""
-        directory = self.meeting_dir(user_id, meeting_id)
+    async def purge_meeting(self, user_id: uuid.UUID, meeting_id: uuid.UUID) -> bool:
+        """Remove only the exact owned directory after its database commit."""
+        expected = self.root / str(user_id) / str(meeting_id)
 
-        def _purge() -> None:
-            if not directory.exists():
-                return
-            for entry in sorted(directory.rglob("*"), key=lambda p: len(p.parts), reverse=True):
-                if entry.is_file():
-                    entry.unlink(missing_ok=True)
-                elif entry.is_dir():
-                    entry.rmdir()
-            directory.rmdir()
+        def purge() -> bool:
+            directory = expected.resolve()
+            if directory != expected or expected.is_symlink():
+                return False
+            if directory.exists():
+                shutil.rmtree(directory)
+            return not directory.exists()
 
         try:
-            await asyncio.to_thread(_purge)
-        except OSError as exc:
-            logger.warning("meeting_audio_purge_failed", meeting_id=str(meeting_id), error=str(exc))
+            return await _complete_storage_work(purge)
+        except OSError:
+            logger.warning("meeting_audio_purge_failed", meeting_id=str(meeting_id))
+            return False

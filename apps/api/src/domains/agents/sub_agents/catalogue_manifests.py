@@ -116,6 +116,7 @@ delegate_to_sub_agent_catalogue_manifest = ToolManifest(
                 ParameterConstraint(kind="min_length", value=5),
                 ParameterConstraint(kind="max_length", value=2000),
             ],
+            semantic_type="Text",
         ),
         ParameterSchema(
             name="instruction",
@@ -137,6 +138,7 @@ delegate_to_sub_agent_catalogue_manifest = ToolManifest(
                 ParameterConstraint(kind="min_length", value=10),
                 ParameterConstraint(kind="max_length", value=5000),
             ],
+            semantic_type="Text",
         ),
     ],
     outputs=[
@@ -144,6 +146,7 @@ delegate_to_sub_agent_catalogue_manifest = ToolManifest(
             path="analysis",
             type="string",
             description="Sub-agent's complete analysis result text",
+            semantic_type="Text",
         ),
     ],
     # ADR-083 — realistic estimate post-rewrite onto ReactSubAgentRunner:

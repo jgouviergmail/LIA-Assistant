@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "size": 192,
+  "bytes": 4130,
+  "quality": 92,
+  "render": {
+    "engine": "CYCLES",
+    "samples": 96,
+    "threads": 2
+  },
+  "sha256": "9dfb08c59b22a288755457b0fc3494f3d5e1c8cc3ece3dec23e4e29024fc7d8c",
+  "screen": {
+    "x": 0.15964912280701754,
+    "y": 0.22280701754385962,
+    "width": 0.6807017543859649,
+    "height": 0.3859649122807018,
+    "radius": 0.031578947368421054
+  },
+  "source": "Original procedural Blender monitor in scripts/assets/spirit/monitor.py"
+}

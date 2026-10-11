@@ -21,7 +21,8 @@ import { cn } from '@/lib/utils';
  * - What letterboxing remains is filled by an out-of-focus copy of the same
  *   picture. Served at 32 px (~1 KB) it also arrives first, so it doubles as
  *   the progressive placeholder while the full image decodes.
- * - Controls are ALWAYS visible: the previous arrows were `opacity-0
+ * - Navigation is shown when there is more than one view. Those controls are
+ *   always visible: the previous arrows were `opacity-0
  *   group-hover:opacity-100`, i.e. permanently invisible on touch devices
  *   (audit F038, the half that survived the dot fix).
  * - Thumbnails are ratio-matched and scroll on one snapping rail instead of
@@ -42,9 +43,11 @@ export interface CarouselSlide {
    * region, so this is what a screen reader hears when the view changes.
    */
   caption: string;
+  /** Native ratio for a full-page capture, kept readable in a narrower frame. */
+  aspectRatio?: number;
 }
 
-export type CarouselVariant = 'portrait' | 'wide';
+export type CarouselVariant = 'portrait' | 'wide' | 'application';
 
 interface Frame {
   /** Stage ratio — the asset's own. */
@@ -63,6 +66,13 @@ interface Frame {
  * frame with ambient bands. The presentation uses a wide frame.
  */
 const FRAMES: Record<CarouselVariant, Frame> = {
+  application: {
+    aspect: 'aspect-[3/2]',
+    max: 'max-w-6xl',
+    sizes: '(max-width: 1152px) 100vw, 1152px',
+    thumb: 'h-14 w-20 mobile:h-16 mobile:w-24',
+    thumbSizes: '96px',
+  },
   portrait: {
     aspect: 'aspect-[7/8]',
     max: 'max-w-[34rem]',
@@ -98,6 +108,114 @@ export interface LandingCarouselProps {
   zoomable?: boolean;
 }
 
+/** Selection stays above the variable-height image in a mixed gallery. */
+function CarouselThumbnailRail({
+  slides,
+  index,
+  frame,
+  variant,
+  mixedFormats,
+  railRef,
+  thumbRefs,
+  onSelect,
+}: {
+  slides: readonly CarouselSlide[];
+  index: number;
+  frame: Frame;
+  variant: CarouselVariant;
+  mixedFormats: boolean;
+  railRef: React.RefObject<HTMLDivElement | null>;
+  thumbRefs: React.RefObject<(HTMLButtonElement | null)[]>;
+  onSelect: (index: number) => void;
+}) {
+  if (slides.length < 2) return null;
+  return (
+    <div
+      ref={railRef}
+      className={cn(
+        'scrollbar-hide relative mx-auto flex snap-x gap-2.5 overflow-x-auto',
+        'scroll-smooth py-1 motion-reduce:scroll-auto',
+        mixedFormats ? 'mb-4' : 'mt-6',
+        frame.max
+      )}
+    >
+      {slides.map((slide, i) => (
+        <button
+          key={slide.key}
+          ref={el => {
+            thumbRefs.current[i] = el;
+          }}
+          type="button"
+          onClick={() => onSelect(i)}
+          aria-label={slide.label}
+          aria-current={i === index ? 'true' : undefined}
+          className={cn(
+            'relative shrink-0 snap-center overflow-hidden rounded-lg border-2 transition',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+            'motion-reduce:transition-none',
+            frame.thumb,
+            i === index
+              ? 'border-primary opacity-100 shadow-md'
+              : 'border-border/40 opacity-55 hover:border-border hover:opacity-90'
+          )}
+        >
+          <Image
+            src={slide.src}
+            unoptimized={variant === 'application'}
+            alt=""
+            fill
+            sizes={frame.thumbSizes}
+            className="object-cover object-top"
+          />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Both arrow positions stay fixed when full-page and viewport captures alternate. */
+function CarouselNavigation({
+  total,
+  index,
+  inline,
+  onPrevious,
+  onNext,
+}: {
+  total: number;
+  index: number;
+  inline: boolean;
+  onPrevious: () => void;
+  onNext: () => void;
+}) {
+  const { t } = useTranslation();
+  if (total < 2) return null;
+  return (
+    <div className={inline ? 'mb-3 flex items-center justify-center gap-4' : 'contents'}>
+      <button
+        type="button"
+        onClick={onPrevious}
+        aria-label={t('common.previous')}
+        className={cn(ARROW_CLASS, inline ? 'static translate-y-0' : 'left-3')}
+      >
+        <ChevronLeft aria-hidden="true" className="h-5 w-5" />
+      </button>
+      {inline && (
+        <p aria-hidden="true" className="text-xs font-semibold tabular-nums text-muted-foreground">
+          {String(index + 1).padStart(2, '0')} / {String(total).padStart(2, '0')}
+        </p>
+      )}
+      <button
+        type="button"
+        onClick={onNext}
+        aria-label={t('common.next')}
+        className={cn(ARROW_CLASS, inline ? 'static translate-y-0' : 'right-3')}
+      >
+        <ChevronRight aria-hidden="true" className="h-5 w-5" />
+      </button>
+    </div>
+  );
+}
+
 export function LandingCarousel({
   slides,
   variant,
@@ -115,6 +233,10 @@ export function LandingCarousel({
   const frame = FRAMES[variant];
   const total = slides.length;
   const active = slides[index];
+  const portrait = active?.aspectRatio !== undefined && active.aspectRatio < 1;
+  const mixedFormats = slides.some(
+    slide => slide.aspectRatio !== undefined && slide.aspectRatio < 1
+  );
 
   const goTo = useCallback((next: number) => setIndex((next + total) % total), [total]);
 
@@ -130,6 +252,7 @@ export function LandingCarousel({
   }, [index]);
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (total < 2) return;
     switch (event.key) {
       case 'ArrowLeft':
         event.preventDefault();
@@ -176,6 +299,19 @@ export function LandingCarousel({
   // whole PUBLIC page down on `active.src`.
   if (total === 0) return null;
 
+  const thumbnailRail = (
+    <CarouselThumbnailRail
+      slides={slides}
+      index={index}
+      frame={frame}
+      variant={variant}
+      mixedFormats={mixedFormats}
+      railRef={railRef}
+      thumbRefs={thumbRefs}
+      onSelect={setIndex}
+    />
+  );
+
   return (
     <div className="w-full">
       {/* Stage. The focusable group is the keyboard and swipe surface (same
@@ -184,11 +320,8 @@ export function LandingCarousel({
       <div
         role="group"
         aria-label={label}
-        tabIndex={0}
+        tabIndex={total > 1 ? 0 : undefined}
         onKeyDown={handleKeyDown}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
         className={cn(
           'relative mx-auto w-full rounded-2xl focus-visible:outline-none',
           'focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-4',
@@ -196,17 +329,32 @@ export function LandingCarousel({
           frame.max
         )}
       >
+        {mixedFormats && thumbnailRail}
+        <CarouselNavigation
+          total={total}
+          index={index}
+          inline={mixedFormats}
+          onPrevious={() => goTo(index - 1)}
+          onNext={() => goTo(index + 1)}
+        />
         <div
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
           className={cn(
-            'relative w-full overflow-hidden rounded-2xl border border-border/70 bg-card/50',
-            frame.aspect
+            'relative mx-auto w-full overflow-hidden rounded-2xl border border-border/70 bg-card/50',
+            frame.aspect,
+            portrait && 'max-w-[34rem]'
           )}
+          style={active.aspectRatio ? { aspectRatio: active.aspectRatio } : undefined}
         >
-          {/* Ambient: the picture's own light, out of focus, fills whatever the
-              frame does not. 32 px source — it lands before the sharp one. */}
+          {/* Ambient light fills the frame. Application proofs use their
+              revisioned originals, shared by the browser cache with the
+              sharp image; decks retain the small optimized source. */}
           <Image
             key={`${active.src}#ambient`}
             src={active.src}
+            unoptimized={variant === 'application'}
             alt=""
             aria-hidden="true"
             fill
@@ -217,37 +365,23 @@ export function LandingCarousel({
           <Image
             key={active.src}
             src={active.src}
+            unoptimized={variant === 'application'}
             alt={active.label}
             fill
             sizes={frame.sizes}
             className="object-contain"
           />
 
-          <button
-            type="button"
-            onClick={() => goTo(index - 1)}
-            aria-label={t('common.previous')}
-            className={cn(ARROW_CLASS, 'left-3')}
-          >
-            <ChevronLeft aria-hidden="true" className="h-5 w-5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => goTo(index + 1)}
-            aria-label={t('common.next')}
-            className={cn(ARROW_CLASS, 'right-3')}
-          >
-            <ChevronRight aria-hidden="true" className="h-5 w-5" />
-          </button>
-
           {/* Position, as a chip on the stage. Decorative on purpose: the
               caption below is the live region that announces the change. */}
-          <p
-            aria-hidden="true"
-            className="absolute bottom-3 left-3 z-10 rounded-full border border-border/60 bg-background/75 px-3 py-1 text-xs font-semibold tabular-nums text-muted-foreground backdrop-blur-md"
-          >
-            {String(index + 1).padStart(2, '0')} / {String(total).padStart(2, '0')}
-          </p>
+          {total > 1 && !mixedFormats && (
+            <p
+              aria-hidden="true"
+              className="absolute bottom-3 left-3 z-10 rounded-full border border-border/60 bg-background/75 px-3 py-1 text-xs font-semibold tabular-nums text-muted-foreground backdrop-blur-md"
+            >
+              {String(index + 1).padStart(2, '0')} / {String(total).padStart(2, '0')}
+            </p>
+          )}
 
           {zoomable && (
             <button
@@ -271,49 +405,7 @@ export function LandingCarousel({
         {active.caption}
       </p>
 
-      {/* Thumbnail rail: one snapping row that scrolls, instead of rows of
-          wrapped crops. Capped to the stage width so the two align; `relative`
-          makes it the offsetParent the centring effect measures against; the
-          scrollbar is hidden (`scrollbar-hide`, the shared utility) because
-          the cropped thumbnail at the edge already says there is more. */}
-      <div
-        ref={railRef}
-        className={cn(
-          'scrollbar-hide relative mx-auto mt-6 flex snap-x gap-2.5 overflow-x-auto',
-          'scroll-smooth py-1 motion-reduce:scroll-auto',
-          frame.max
-        )}
-      >
-        {slides.map((slide, i) => (
-          <button
-            key={slide.key}
-            ref={el => {
-              thumbRefs.current[i] = el;
-            }}
-            type="button"
-            onClick={() => setIndex(i)}
-            aria-label={slide.label}
-            aria-current={i === index ? 'true' : undefined}
-            className={cn(
-              'relative shrink-0 snap-center overflow-hidden rounded-lg border-2 transition',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-              'motion-reduce:transition-none',
-              frame.thumb,
-              i === index
-                ? 'border-primary opacity-100 shadow-md'
-                : 'border-border/40 opacity-55 hover:border-border hover:opacity-90'
-            )}
-          >
-            <Image
-              src={slide.src}
-              alt=""
-              fill
-              sizes={frame.thumbSizes}
-              className="object-cover object-top"
-            />
-          </button>
-        ))}
-      </div>
+      {!mixedFormats && thumbnailRail}
 
       {/* Landing scroll effects can make a fixed descendant relative to the
           section. Mount the viewer outside that hierarchy to fill the screen. */}

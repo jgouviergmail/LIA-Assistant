@@ -6,6 +6,7 @@ the locale files (never pre-translated strings baked into payloads).
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
@@ -121,7 +122,7 @@ class HabitsOverviewResponse(BaseModel):
     streak: HabitsStreakSchema = Field(
         description="Activity streaks + milestone positions (ledger-derived, display only)."
     )
-    habits: list[HabitResponse] = Field(default_factory=list)
+    habits: Sequence[HabitResponse] = Field(default_factory=list)
     candidates: list[HabitsCandidateSchema] = Field(
         default_factory=list,
         description="Recurrence signatures under observation (capped).",
@@ -183,6 +184,8 @@ class HabitsDeleteAllResponse(BaseModel):
 
     deleted_habits: int = Field(ge=0)
     profile_deleted: bool
+    deleted_activity_days: int = Field(default=0, ge=0)
+    advisory_cleanup_confirmed: bool = True
 
 
 class HabitsRecomputeResponse(BaseModel):

@@ -30,7 +30,7 @@ import {
 } from '@/__tests__/api-mocks';
 
 const { useApiQuery } = vi.hoisted(() => ({ useApiQuery: vi.fn() }));
-vi.mock('@/hooks/useApiQuery', () => ({ useApiQuery }));
+vi.mock('@/hooks/useApplicationAccountQuery', () => ({ useApplicationAccountQuery: useApiQuery }));
 const { useApiMutation } = vi.hoisted(() => ({ useApiMutation: vi.fn() }));
 vi.mock('@/hooks/useApiMutation', () => ({ useApiMutation }));
 
@@ -101,16 +101,17 @@ function setupWith(
 ) {
   // Two queries, one hook: the double answers by endpoint, so the list and
   // the week never share a payload or a refetch spy.
-  useApiQuery.mockImplementation((endpoint: string) =>
-    endpoint === WEEK_ENDPOINT
+  useApiQuery.mockImplementation((endpoint: string) => ({
+    isCurrent: () => true,
+    ...(endpoint === WEEK_ENDPOINT
       ? queryResult({ data: options.week, refetch: refetchWeek })
       : queryResult<ScheduledActionListResponse>({
           data,
           loading: options.loading ?? false,
           setData,
           refetch,
-        })
-  );
+        }))
+  }));
   return renderHook(() => useScheduledActions());
 }
 
@@ -138,7 +139,7 @@ describe('useScheduledActions — reading the list', () => {
   it('asks for the collection and exposes what it returns', () => {
     const { result } = setup();
 
-    expect(useApiQuery).toHaveBeenCalledWith(ENDPOINT, expect.objectContaining({}));
+    expect(useApiQuery).toHaveBeenCalledWith(ENDPOINT, 'ScheduledActions');
     expect(result.current.actions).toHaveLength(1);
     expect(result.current.total).toBe(1);
   });
@@ -358,7 +359,7 @@ describe('useScheduledActions — the week (ADR-265)', () => {
   it('asks for the week and exposes it when the payload has its shape', () => {
     const { result } = setupWith(cache(), { week: weekPayload() });
 
-    expect(useApiQuery).toHaveBeenCalledWith(WEEK_ENDPOINT, expect.objectContaining({}));
+    expect(useApiQuery).toHaveBeenCalledWith(WEEK_ENDPOINT, 'ScheduledActions');
     expect(result.current.week?.actions[0]?.cells[0]?.outcome).toBe('success');
   });
 

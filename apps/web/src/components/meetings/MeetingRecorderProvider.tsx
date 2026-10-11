@@ -46,7 +46,7 @@ import type { MeetingDetail } from '@/types/meetings';
  */
 export type MeetingRecorderContextValue = Omit<
   UseMeetingRecorderReturn,
-  'level' | 'elapsedSeconds' | 'uploadedSegments' | 'pendingSegments'
+  'level' | 'elapsedSeconds' | 'uploadedSegments' | 'pendingSegments' | 'ownerId'
 >;
 
 const MeetingRecorderContext = createContext<MeetingRecorderContextValue | null>(null);
@@ -68,13 +68,22 @@ export function useMeetingRecorderContext(): MeetingRecorderContextValue | null 
 }
 
 interface MeetingRecorderProviderProps {
+  ownerId?: string;
   lng: Language;
   /** The instance flag: a disabled feature mounts nothing and starts nothing. */
   enabled: boolean;
   children: ReactNode;
 }
 
-function RecorderShell({ lng, children }: { lng: Language; children: ReactNode }) {
+function RecorderShell({
+  lng,
+  children,
+  ownerId,
+}: {
+  lng: Language;
+  children: ReactNode;
+  ownerId?: string;
+}) {
   const { t } = useTranslation(lng);
   const router = useLocalizedRouter();
   // The banner and its toasts float over EVERY page, so the way back is
@@ -109,7 +118,7 @@ function RecorderShell({ lng, children }: { lng: Language; children: ReactNode }
     [origin, router, t]
   );
 
-  const recorder = useMeetingRecorder(onProcessed);
+  const recorder = useMeetingRecorder(onProcessed, ownerId);
   const {
     phase,
     recording,
@@ -171,15 +180,26 @@ function RecorderShell({ lng, children }: { lng: Language; children: ReactNode }
   );
 
   return (
-    <MeetingRecorderContext.Provider value={contextValue}>
+    <MeetingRecorderContext.Provider
+      value={ownerId && recorder.ownerId !== ownerId ? null : contextValue}
+    >
       {children}
     </MeetingRecorderContext.Provider>
   );
 }
 
-export function MeetingRecorderProvider({ lng, enabled, children }: MeetingRecorderProviderProps) {
+export function MeetingRecorderProvider({
+  lng,
+  enabled,
+  children,
+  ownerId,
+}: MeetingRecorderProviderProps) {
   if (!enabled) return <>{children}</>;
-  return <RecorderShell lng={lng}>{children}</RecorderShell>;
+  return (
+    <RecorderShell key={ownerId} lng={lng} ownerId={ownerId}>
+      {children}
+    </RecorderShell>
+  );
 }
 
 /**
@@ -217,6 +237,7 @@ export function MeetingRecorderBannerSlot({ lng }: { lng: Language }) {
   if (context === null || !visible) return null;
   const recorder: UseMeetingRecorderReturn = {
     ...context,
+    ownerId: state.ownerId,
     level: state.level,
     elapsedSeconds: state.elapsedSeconds,
     uploadedSegments: state.uploadedSegments,

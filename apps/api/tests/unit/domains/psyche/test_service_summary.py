@@ -93,6 +93,26 @@ def _make_service_with_mocked_repo(user_id: UUID, state: MagicMock) -> Any:
 class TestGenerateSummary:
     """Tests for PsycheService.generate_summary()."""
 
+    async def test_caller_refusal_is_not_degraded_to_template_summary(self):
+        from src.core.exceptions import AuthorizationError
+        from src.domains.psyche.service import PsycheService
+
+        owner = uuid4()
+        service = PsycheService(AsyncMock())
+        service.get_or_create_state = AsyncMock(return_value=_make_state(user_id=owner))
+        service._load_personality_name = AsyncMock(return_value="Default")
+        check = AsyncMock(side_effect=AuthorizationError())
+        with (
+            patch("src.infrastructure.llm.get_llm", return_value=MagicMock()),
+            patch(
+                "src.infrastructure.llm.invoke_helpers.invoke_with_instrumentation",
+                new_callable=AsyncMock,
+            ) as model,
+        ):
+            with pytest.raises(AuthorizationError):
+                await service.generate_summary(owner, "fr", before_model=check)
+            model.assert_not_called()
+
     async def test_summary_returns_llm_content(self):
         """generate_summary() should return LLM-generated text."""
         from src.domains.psyche.service import PsycheService

@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "character": "boulon",
+  "total_bytes": 28426,
+  "source": "Original art directed with image generation; native rig supplies the complete live face",
+  "delivery": {
+    "size": 192,
+    "codec": "WebP",
+    "quality": 94,
+    "animation": false
+  },
+  "artwork": {
+    "male": {
+      "file": "exec-3df42b8c-a235-40c9-9011-1d003794fa13.png",
+      "sha256": "1c8383e60aa257571451571c3bb691e1b3dd4ea54689a339af3ba87191ec7000",
+      "prompt_sha256": "f19f995fb3739301fae23dbb359625f2782fdd2f1b98b142edd6df7eb6626965"
+    },
+    "female": {
+      "file": "exec-65eec323-fb9e-4a62-838c-33b39cacaf4f.png",
+      "sha256": "209567bd30afa7f575a9fa7de629aba29bf1522d446805f5201d84f59aac8fce",
+      "prompt_sha256": "929ce22f9eddfb2378c3260d16235fb5a64535f257a613bc5a8882affcc1f520"
+    }
+  },
+  "assets": {
+    "male/body": {
+      "size": 192,
+      "bytes": 15190,
+      "sha256": "b1b1112ad05aab219a69e255efda2eeb06bebfa94576e96daf707388fd8c6a82"
+    },
+    "female/body": {
+      "size": 192,
+      "bytes": 13236,
+      "sha256": "1ce77ae6d3747e1790491aab7f6a606696b344d3d41ad75c0a3ffa40c92f8efb"
+    }
+  }
+}

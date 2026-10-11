@@ -17,9 +17,29 @@ from src.domains.rag_spaces.jobs_repository import (
     MAIL_SOURCE_TABLE,
     RAGJobsRepository,
     source_table,
+    validate_source_worker_id,
 )
 
 pytestmark = pytest.mark.unit
+
+
+@pytest.mark.parametrize("identity", ["", "x" * 65, "non ascii é", "worker; sql"])
+def test_invalid_worker_identity_cannot_reach_a_source_claim(identity):
+    with pytest.raises(ValueError):
+        validate_source_worker_id(identity)
+
+
+@pytest.mark.parametrize("kind", ["drive", "mail"])
+async def test_deferred_source_claim_requires_an_explicit_owner_before_sql(kind):
+    from src.domains.rag_spaces.drive_sync import RAGDriveSyncService
+    from src.domains.rag_spaces.mail_source_service import RAGMailSyncService
+
+    db = AsyncMock()
+    service = RAGDriveSyncService(db) if kind == "drive" else RAGMailSyncService(db)
+    with pytest.raises(ValueError, match="require a unique"):
+        await service.try_acquire_sync_lock(uuid.uuid4(), commit=False)
+    db.execute.assert_not_awaited()
+    db.commit.assert_not_awaited()
 
 
 def _repo() -> tuple[RAGJobsRepository, AsyncMock]:

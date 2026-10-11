@@ -30,6 +30,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from src.core.i18n import resolve_language
+from src.domains.agents.analysis.requested_outcomes import anchored_requirements, parse_requirements
 from src.domains.agents.constants import INTENTION_ACTION, STATE_KEY_ROUTING_HISTORY
 
 if TYPE_CHECKING:
@@ -222,6 +223,12 @@ def reconstruct_query_intelligence(data: dict[str, Any]) -> QueryIntelligence:
         # Indexable vs Semantic hint - CRITICAL for semantic_validator leak detection
         semantic_filter_terms=tuple(data.get("semantic_filter_terms", ())),
         has_temporal_reference=bool(data.get("has_temporal_reference", False)),
+        requested_outcomes=anchored_requirements(
+            parse_requirements(data.get("requested_outcomes")),
+            data.get("original_query", ""),
+            data.get("domains", []),
+            trusted_checkpoint=True,
+        ),
     )
 
 

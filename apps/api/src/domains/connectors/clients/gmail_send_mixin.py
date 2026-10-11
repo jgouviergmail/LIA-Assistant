@@ -45,7 +45,7 @@ class GmailSendMixin:
     """The one door a new Gmail message leaves through."""
 
     async def _send_message(
-        self: _GmailSendHost, message: Message, *, with_files: bool
+        self: _GmailSendHost, message: Message, *, with_files: bool, single_attempt: bool = False
     ) -> dict[str, Any]:
         """Send a built message through the door its size needs.
 
@@ -56,6 +56,7 @@ class GmailSendMixin:
         Returns:
             Gmail's answer (``id``, ``threadId``, ``labelIds``).
         """
+        retry_options = {"max_retries": 1} if single_attempt else {}
         if with_files:
             return await self._make_request(
                 "POST",
@@ -64,6 +65,9 @@ class GmailSendMixin:
                 extra_headers={"Content-Type": "message/rfc822"},
                 content=message.as_bytes(),
                 base_url=GOOGLE_GMAIL_UPLOAD_BASE_URL,
+                **retry_options,
             )
         raw = self._encode_base64url(message.as_string())
-        return await self._make_request("POST", _SEND_ENDPOINT, json_data={"raw": raw})
+        return await self._make_request(
+            "POST", _SEND_ENDPOINT, json_data={"raw": raw}, **retry_options
+        )

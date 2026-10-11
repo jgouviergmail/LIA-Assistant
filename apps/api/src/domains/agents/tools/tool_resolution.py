@@ -20,11 +20,16 @@ from typing import TYPE_CHECKING
 
 import structlog
 
-from src.core.context import strip_hallucinated_mcp_suffix, user_mcp_tools_ctx
+from src.core.context import (
+    request_tool_manifests_ctx,
+    strip_hallucinated_mcp_suffix,
+    user_mcp_tools_ctx,
+)
 from src.domains.agents.registry.manifest_resolution import (
     resolve_tool_manifest,
     resolve_tool_manifest_named,
 )
+from src.domains.agents.registry.request_tool_identity import callable_matches_manifest
 from src.domains.agents.tools.tool_registry import get_tool
 
 logger = structlog.get_logger(__name__)
@@ -48,16 +53,29 @@ __all__ = [
 UNRESOLVED_TOOL_REASONS: tuple[str, ...] = ("not_selected", "unknown")
 
 
+def _offered_instance_named(name: str) -> tuple[BaseTool | None, str]:
+    manifest, canonical = resolve_tool_manifest_named(name)
+    if manifest is None:
+        return None, name
+    ctx = user_mcp_tools_ctx.get()
+    from_user = manifest.mcp_origin == "user" or (
+        ctx is not None and any(candidate is manifest for candidate in ctx.tool_manifests)
+    )
+    instance = (
+        ctx.tool_instances.get(canonical) if from_user and ctx is not None else get_tool(canonical)
+    )
+    if instance is None or not callable_matches_manifest(manifest, instance):
+        return None, name
+    return instance, canonical
+
+
 def resolve_tool_instance_named(name: str) -> tuple[BaseTool | None, str]:
     """Resolve a tool name to its instance AND its canonical name.
 
-    Single source of truth for tool resolution across the pipeline executor and
-    the ReAct loop. Resolution order:
-        1. Global ``tool_registry`` — exact (native tools + admin MCP).
-        2. Global ``tool_registry`` — with the LLM-hallucinated suffix stripped
-           (e.g. ``..._tool`` → ``...``), for admin MCP tools.
-        3. Per-request ``user_mcp_tools_ctx`` — exact instance-key match (covers
-           iterative individual tools that have no manifest), then fuzzy resolve.
+    A bound request's offered manifest chooses the store and exact MCP owner;
+    an ambiguous, absent or mismatched contract never falls back to another
+    callable. Outside a request, diagnostics retain global exact/suffix lookup
+    followed by the user context, including iterative individuals.
 
     The canonical name lets callers that track the tool name (e.g. the pipeline
     mutating ``step.tool_name`` for display/registry correlation) stay in sync
@@ -69,7 +87,9 @@ def resolve_tool_instance_named(name: str) -> tuple[BaseTool | None, str]:
     Returns:
         ``(instance, canonical_name)`` when found, or ``(None, name)`` otherwise.
     """
-    # 1. Global registry — exact (native tools + admin MCP).
+    if request_tool_manifests_ctx.get() is not None:
+        return _offered_instance_named(name)
+    # Outside a bound request, diagnostics retain the legacy lookup order.
     tool = get_tool(name)
     if tool is not None:
         return tool, name

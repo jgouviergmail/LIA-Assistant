@@ -18,83 +18,45 @@ from uuid import uuid4
 import pytest
 
 from src.domains.journals.models import (
-    JournalEntry,
     JournalEntryConfidence,
-    JournalEntryLevel,
 )
-from src.domains.journals.service import JournalService
+from src.domains.journals.service import JournalService, _clamp_confidence
 
 pytestmark = pytest.mark.unit
-
-
-def _make_entry(
-    *,
-    level: str = JournalEntryLevel.L1.value,
-    confidence: str = JournalEntryConfidence.MEDIUM.value,
-    evidence_count: int = 0,
-) -> JournalEntry:
-    entry = JournalEntry(
-        user_id=uuid4(),
-        theme="user_observations",
-        title="Test entry",
-        content="Test content body",
-        mood="reflective",
-        status="active",
-        source="conversation",
-        char_count=len("Test content body"),
-        level=level,
-        confidence=confidence,
-        evidence_count=evidence_count,
-        contradiction_count=0,
-    )
-    entry.id = uuid4()
-    return entry
 
 
 def _service() -> JournalService:
     service = JournalService(MagicMock())
     service.repo = MagicMock()
-    service.repo.update = AsyncMock(side_effect=lambda e: e)
     service.repo.create = AsyncMock(side_effect=lambda e: e)
     return service
 
 
 class TestUpdateClamp:
-    async def test_l1_high_without_evidence_is_demoted(self) -> None:
-        entry = _make_entry(evidence_count=0)
-        await _service().update_entry(entry, confidence="high")
-        assert entry.confidence == JournalEntryConfidence.MEDIUM.value
+    def test_l1_high_without_evidence_is_demoted(self) -> None:
+        assert _clamp_confidence("high", "L1", 0, "update") == "medium"
 
-    async def test_l1_high_with_evidence_is_accepted(self) -> None:
-        entry = _make_entry(evidence_count=2)
-        await _service().update_entry(entry, confidence="high")
-        assert entry.confidence == JournalEntryConfidence.HIGH.value
+    def test_l1_high_with_repeated_evidence_is_accepted(self) -> None:
+        assert _clamp_confidence("high", "L1", 2, "update") == "high"
 
-    async def test_same_update_evidence_signal_counts_toward_the_clamp(self) -> None:
-        """A confirming signal in the SAME update legitimises the promotion:
-        the increment is applied before the clamp reads the counter."""
-        entry = _make_entry(evidence_count=0)
-        await _service().update_entry(entry, confidence="high", evidence_outcome="evidence")
-        assert entry.evidence_count == 1
-        assert entry.confidence == JournalEntryConfidence.HIGH.value
+    def test_first_reaction_cannot_certify_repeated_evidence(self) -> None:
+        assert _clamp_confidence("high", "L1", 1, "update") == "medium"
 
-    async def test_l2_high_without_evidence_is_accepted(self) -> None:
-        """L2 patterns earn high through cross-entry convergence."""
-        entry = _make_entry(level=JournalEntryLevel.L2.value, evidence_count=0)
-        await _service().update_entry(entry, confidence="high")
-        assert entry.confidence == JournalEntryConfidence.HIGH.value
+    def test_contradicted_rule_is_low_even_after_positive_evidence(self) -> None:
+        assert _clamp_confidence("high", "L1", 10, "update", contradiction_count=1) == "low"
 
-    async def test_promotion_to_l2_in_same_update_is_accepted(self) -> None:
-        """The clamp judges the FINAL level: an L1 merged into an L2 pattern
-        by consolidation may carry high on the same action."""
-        entry = _make_entry(evidence_count=0)
-        await _service().update_entry(entry, confidence="high", level="L2")
-        assert entry.confidence == JournalEntryConfidence.HIGH.value
+    def test_l2_high_without_reactions_is_accepted(self) -> None:
+        assert _clamp_confidence("high", "L2", 0, "update") == "high"
 
-    async def test_low_and_medium_pass_through(self) -> None:
-        entry = _make_entry(evidence_count=0)
-        await _service().update_entry(entry, confidence="low")
-        assert entry.confidence == JournalEntryConfidence.LOW.value
+    def test_low_and_medium_pass_through_without_contradictions(self) -> None:
+        assert _clamp_confidence("low", "L1", 0, "update") == "low"
+        assert _clamp_confidence("medium", "L1", 0, "update") == "medium"
+
+
+@pytest.fixture(autouse=True)
+def stub_persistence_lifecycle(monkeypatch):
+    monkeypatch.setattr("src.domains.journals.service.lock_journal_owner", AsyncMock())
+    monkeypatch.setattr("src.domains.journals.service.mark_journal_changed", AsyncMock())
 
 
 class TestCreateClamp:

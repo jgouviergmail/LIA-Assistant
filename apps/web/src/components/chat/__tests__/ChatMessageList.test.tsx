@@ -51,8 +51,13 @@ class FakeIntersectionObserver {
     this.observed.push(element);
   }
 
+  unobserve(element: Element) {
+    this.observed = this.observed.filter(target => target !== element);
+  }
+
   disconnect() {
     this.disconnected = true;
+    this.observed = [];
   }
 
   /** Simulates the sentinel entering (or leaving) the viewport. */
@@ -61,8 +66,15 @@ class FakeIntersectionObserver {
   }
 }
 
-const lastObserver = () =>
-  FakeIntersectionObserver.instances[FakeIntersectionObserver.instances.length - 1];
+/** Avatar visibility shares this fixture; pagination watches an explicit scroller. */
+const paginationObservers = () =>
+  FakeIntersectionObserver.instances.filter(observer => observer.options?.root != null);
+
+const lastObserver = () => {
+  const observer = paginationObservers().at(-1);
+  if (!observer) throw new Error('The older-history sentinel has no pagination observer');
+  return observer;
+};
 
 async function render(props: Partial<ChatMessageListProps> = {}) {
   // usePsyche starts its initial reads in microtasks. Keep their completion in
@@ -209,13 +221,13 @@ describe('ChatMessageList — loading older history', () => {
   it('does not watch for older history when there is none', async () => {
     await render({ messages, onLoadOlder: vi.fn(), hasMoreOlder: false });
 
-    expect(FakeIntersectionObserver.instances).toHaveLength(0);
+    expect(paginationObservers()).toHaveLength(0);
   });
 
   it('does not watch when the parent offers no loader', async () => {
     await render({ messages, hasMoreOlder: true });
 
-    expect(FakeIntersectionObserver.instances).toHaveLength(0);
+    expect(paginationObservers()).toHaveLength(0);
   });
 
   it('asks for older messages when the top of the list comes into view', async () => {
@@ -269,6 +281,7 @@ describe('ChatMessageList — loading older history', () => {
     unmount();
 
     expect(observer.disconnected).toBe(true);
+    expect(observer.observed).toEqual([]);
   });
 
   it('stops watching once the history is exhausted', async () => {
@@ -281,6 +294,7 @@ describe('ChatMessageList — loading older history', () => {
     );
 
     expect(observer.disconnected).toBe(true);
+    expect(observer.observed).toEqual([]);
   });
 });
 

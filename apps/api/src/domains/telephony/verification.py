@@ -25,7 +25,7 @@ make LIA ring any number it declares.
 from __future__ import annotations
 
 import secrets
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -64,6 +64,28 @@ _NBSP = chr(0xA0)
 _NOT_A_DIGIT = str.maketrans("", "", " -." + _NBSP)
 #: Separates the number a code was spoken to from the code, in the stored value.
 _BOUND_SEPARATOR = "|"
+
+_CONSUME_BOUND_CODE = """
+if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end
+redis.call('DEL', KEYS[1], KEYS[2])
+return 1
+"""
+
+_REGISTER_BOUND_ATTEMPT = """
+if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end
+local attempts = redis.call('INCR', KEYS[2])
+redis.call('EXPIRE', KEYS[2], ARGV[2])
+return attempts
+"""
+
+
+@dataclass(frozen=True)
+class BoundVerificationCode:
+    number: str
+    code: str = field(repr=False)
+
+    def stored_value(self) -> str:
+        return f"{self.number}{_BOUND_SEPARATOR}{self.code}"
 
 
 @dataclass(frozen=True)
@@ -109,7 +131,9 @@ class TelephonyVerificationService:
             secrets.choice("0123456789") for _ in range(settings.telephony_verification_code_length)
         )
 
-    async def _bound_code(self, user_id: UUID) -> str | None:
+    async def _bound_code(
+        self, user_id: UUID, *, cleanup: bool = True
+    ) -> BoundVerificationCode | None:
         """The pending code, if it was spoken to the number declared NOW.
 
         A code spoken to another number (the person changed or cleared it
@@ -119,8 +143,10 @@ class TelephonyVerificationService:
         Args:
             user_id: Whose.
 
+            cleanup: Discard stale codes when true; false is a strictly read-only status check.
+
         Returns:
-            The code, or None when nothing valid is pending.
+            The private number/code pair, or None when nothing valid is pending.
         """
         stored = await self._redis.get(self._code_key(user_id))
         if stored is None:
@@ -130,24 +156,51 @@ class TelephonyVerificationService:
         number, _, code = str(stored).partition(_BOUND_SEPARATOR)
         identity = await self._identity.get_identity(user_id)
         if not code or identity.phone_number != number:
-            await self._forget(user_id)
-            logger.info("phone_verification_code_voided", user_id=str(user_id))
+            if cleanup:
+                await self._forget_if_current(user_id, str(stored))
+                logger.info("phone_verification_code_voided", user_id=str(user_id))
             return None
-        return code
+        return BoundVerificationCode(number, code)
 
-    async def pending(self, user_id: UUID) -> bool:
+    async def pending(self, user_id: UUID, *, cleanup: bool = True) -> bool:
         """Whether a spoken code is still waiting to be typed for the declared number.
 
         Args:
             user_id: Whose.
+            cleanup: Whether stale code bookkeeping may be removed; false never writes.
 
         Returns:
             True while a code bound to the current number lives.
         """
-        return await self._bound_code(user_id) is not None
+        return await self._bound_code(user_id, cleanup=cleanup) is not None
 
     async def _forget(self, user_id: UUID) -> None:
         await self._redis.delete(self._code_key(user_id), self._attempts_key(user_id))
+
+    async def _forget_if_current(self, user_id: UUID, stored: str) -> bool:
+        removed: object = await self._redis.eval(
+            _CONSUME_BOUND_CODE,
+            2,
+            self._code_key(user_id),
+            self._attempts_key(user_id),
+            stored,
+        )
+        return type(removed) is int and removed == 1
+
+    async def _register_attempt(
+        self, user_id: UUID, expected: BoundVerificationCode, language: str
+    ) -> int:
+        attempts: object = await self._redis.eval(
+            _REGISTER_BOUND_ATTEMPT,
+            2,
+            self._code_key(user_id),
+            self._attempts_key(user_id),
+            expected.stored_value(),
+            settings.telephony_verification_code_ttl_seconds,
+        )
+        if type(attempts) is not int or attempts <= 0:
+            raise_phone_verification_not_pending(language)
+        return attempts
 
     async def _admit_start(self, user_id: UUID, *, language: str) -> None:
         """Count one verification call against the account's hourly cap.
@@ -242,29 +295,31 @@ class TelephonyVerificationService:
         if expected is None:
             raise_phone_verification_not_pending(language)
 
-        attempts = int(await self._redis.incr(self._attempts_key(user_id)))
-        await self._redis.expire(
-            self._attempts_key(user_id), settings.telephony_verification_code_ttl_seconds
-        )
+        attempts = await self._register_attempt(user_id, expected, language)
         max_attempts = settings.telephony_verification_max_attempts
         if attempts > max_attempts:
-            await self._forget(user_id)
+            await self._forget_if_current(user_id, expected.stored_value())
             logger.info("phone_verification_locked", user_id=str(user_id))
             raise_phone_verification_locked(language)
 
         candidate = typed.translate(_NOT_A_DIGIT)
         # Bytes, not str: ``compare_digest`` refuses a non-ASCII str, and a
         # mobile keyboard can type digits from another script.
-        if not secrets.compare_digest(candidate.encode("utf-8"), expected.encode("utf-8")):
+        if not secrets.compare_digest(candidate.encode("utf-8"), expected.code.encode("utf-8")):
             attempts_left = max_attempts - attempts
             if attempts_left <= 0:
-                await self._forget(user_id)
+                await self._forget_if_current(user_id, expected.stored_value())
                 logger.info("phone_verification_locked", user_id=str(user_id))
                 raise_phone_verification_locked(language)
             raise_phone_verification_code_wrong(attempts_left, language)
 
-        await self._forget(user_id)
-        return await self._identity.mark_verified(user_id, language=language)
+        async def consume_current_code() -> None:
+            if not await self._forget_if_current(user_id, expected.stored_value()):
+                raise_phone_verification_not_pending(language)
+
+        return await self._identity.mark_verified(
+            user_id, language=language, expected_number=expected.number, check=consume_current_code
+        )
 
 
 __all__ = ["TelephonyVerificationService", "VerificationStart"]

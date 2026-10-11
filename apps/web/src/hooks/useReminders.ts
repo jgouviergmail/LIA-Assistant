@@ -10,7 +10,7 @@
  * last instant — so what comes back is always what is still coming. There is
  * no "past reminders" endpoint to add later; there is nothing behind them.
  *
- * The shape mirrors `useScheduledActions` deliberately: one `useApiQuery`, one
+ * The shape mirrors `useScheduledActions` deliberately: one account query, one
  * mutation per verb, optimistic list updates, and an `initialLoading` that is
  * monotone so a poll never unmounts the section (the `PeerConnectionsSettings`
  * defect, `apps/web/CLAUDE.md`).
@@ -21,10 +21,12 @@ import { useCallback } from 'react';
 import type { RecurrenceSpec } from '@/types/recurrence';
 
 import { useApiMutation } from './useApiMutation';
-import { useApiQuery } from './useApiQuery';
+import { useApplicationAccountQuery } from './useApplicationAccountQuery';
+import { useApplicationResourceSync } from './useApplicationResourceSync';
 
 const ENDPOINT = '/reminders';
 const DETAIL_ENDPOINT = '/reminders/detail';
+const releaseReminderOverride = () => {};
 
 /**
  * The page the screen asks for — the API maximum.
@@ -82,12 +84,12 @@ export interface ReminderUpdate {
 }
 
 export function useReminders() {
-  const { data, loading, error, refetch, setData } = useApiQuery<ReminderListResponse>(
-    `${DETAIL_ENDPOINT}?limit=${REMINDERS_PAGE_SIZE}`,
-    {
-      componentName: 'Reminders',
-    }
-  );
+  const { ownerId, isCurrent, data, loading, error, refetch, setData } =
+    useApplicationAccountQuery<ReminderListResponse>(
+      `${DETAIL_ENDPOINT}?limit=${REMINDERS_PAGE_SIZE}`,
+      'Reminders'
+    );
+  useApplicationResourceSync(ownerId, 'reminders', refetch, releaseReminderOverride);
 
   const reminders = data?.reminders ?? [];
   const total = data?.total ?? 0;
@@ -111,7 +113,9 @@ export function useReminders() {
 
   const createReminder = useCallback(
     async (payload: ReminderCreate) => {
+      if (!isCurrent()) return;
       const created = await createMutation.mutate(ENDPOINT, payload);
+      if (!isCurrent()) return;
       if (created) {
         setData(prev =>
           prev ? { reminders: [...prev.reminders, created], total: prev.total + 1 } : prev
@@ -119,12 +123,14 @@ export function useReminders() {
       }
       return created;
     },
-    [createMutation, setData]
+    [createMutation, setData, isCurrent]
   );
 
   const updateReminder = useCallback(
     async (reminderId: string, payload: ReminderUpdate) => {
+      if (!isCurrent()) return;
       const updated = await updateMutation.mutate(`${ENDPOINT}/${reminderId}`, payload);
+      if (!isCurrent()) return;
       if (updated) {
         setData(prev =>
           prev
@@ -137,12 +143,14 @@ export function useReminders() {
       }
       return updated;
     },
-    [updateMutation, setData]
+    [updateMutation, setData, isCurrent]
   );
 
   const deleteReminder = useCallback(
     async (reminderId: string) => {
+      if (!isCurrent()) return;
       await deleteMutation.mutate(`${ENDPOINT}/${reminderId}`);
+      if (!isCurrent()) return;
       setData(prev =>
         prev
           ? {
@@ -152,7 +160,7 @@ export function useReminders() {
           : prev
       );
     },
-    [deleteMutation, setData]
+    [deleteMutation, setData, isCurrent]
   );
 
   return {

@@ -20,7 +20,7 @@ from uuid import UUID, uuid4
 import pytest
 from langchain.tools import ToolRuntime
 
-from src.core.exceptions import ValidationError
+from src.core.exceptions import AuthorizationError, ValidationError
 from src.domains.skills.proposals import SkillProposal
 from src.domains.skills.tools import _coerce_files, import_user_skill
 from tests.helpers.runtime_context import make_tool_runtime
@@ -106,6 +106,24 @@ def _proposal() -> SkillProposal:
 
 
 class TestImportUserSkillTool:
+    @pytest.mark.parametrize("code", ["CAPABILITY_DISABLED", "FORBIDDEN"])
+    async def test_current_authority_refusal_is_finite_and_never_leaks_diagnostics(self, code):
+        settings = MagicMock(skills_chat_import_enabled=True)
+        propose = AsyncMock(
+            side_effect=AuthorizationError(
+                detail={"error_code": code, "private": "PRIVATE_DIAGNOSTIC"}
+            )
+        )
+        with (
+            patch("src.core.config.get_settings", return_value=settings),
+            patch("src.domains.skills.proposal_service.propose", propose),
+        ):
+            result = await import_user_skill.coroutine(
+                files={"SKILL.md": _VALID_SKILL_MD}, runtime=_runtime()
+            )
+        assert not result.success and result.error_code == code
+        assert "PRIVATE_DIAGNOSTIC" not in result.message
+
     @pytest.mark.asyncio
     async def test_feature_flag_disabled_returns_failure(self) -> None:
         settings = MagicMock(skills_chat_import_enabled=False)

@@ -15,6 +15,7 @@ import {
   CircleSlash,
   ListChecks,
   Mail,
+  PencilLine,
   Phone,
   Settings2,
   ShieldCheck,
@@ -32,10 +33,7 @@ export interface ExecutionReceiptProps {
   decisions: readonly (ShowroomDecisionKind | null)[];
 }
 
-const DECISION_ICONS: Record<
-  ShowroomDecisionIcon,
-  typeof Mail
-> = {
+const DECISION_ICONS: Record<ShowroomDecisionIcon, typeof Mail> = {
   mail: Mail,
   calendar: CalendarClock,
   phone: Phone,
@@ -46,7 +44,7 @@ const DECISION_ICONS: Record<
 
 export function ExecutionReceipt({ def, decisions }: ExecutionReceiptProps) {
   const { t } = useTranslation();
-  const refusalRespected = decisions.some((d) => d === 'cancel');
+  const refusalRespected = decisions.some(d => d === 'cancel');
 
   return (
     <section
@@ -58,17 +56,19 @@ export function ExecutionReceipt({ def, decisions }: ExecutionReceiptProps) {
         {t('showroom.receipt.title')}
       </h4>
       <dl className="mt-3 space-y-2 text-sm">
-        <div className="flex items-start gap-2">
+        <div className="flex flex-col items-start gap-1 sm:flex-row sm:gap-2">
           <dt className="shrink-0 font-medium text-muted-foreground">
             {t('showroom.receipt.reads_label')}
           </dt>
-          <dd>{t(def.receipt.readsKey)}</dd>
+          <dd className="min-w-0 max-w-full [overflow-wrap:anywhere]">{t(def.receipt.readsKey)}</dd>
         </div>
-        <div className="flex items-start gap-2">
+        <div className="flex flex-col items-start gap-1 sm:flex-row sm:gap-2">
           <dt className="shrink-0 font-medium text-muted-foreground">
             {t('showroom.receipt.proposed_label')}
           </dt>
-          <dd>{t(def.receipt.proposedKey)}</dd>
+          <dd className="min-w-0 max-w-full [overflow-wrap:anywhere]">
+            {t(def.receipt.proposedKey)}
+          </dd>
         </div>
         {def.decisions.map((spec, index) => {
           const decision = decisions[index];
@@ -81,41 +81,47 @@ export function ExecutionReceipt({ def, decisions }: ExecutionReceiptProps) {
                 ? (spec.outcome.edit ?? spec.outcome.confirm)
                 : spec.outcome.confirm;
           return (
-            <div key={spec.id} className="flex items-start gap-2">
+            <div key={spec.id} className="flex flex-col items-start gap-1 sm:flex-row sm:gap-2">
               <dt className="flex shrink-0 items-center gap-1.5 font-medium text-muted-foreground">
                 <Icon className="h-3.5 w-3.5" aria-hidden="true" />
                 {t(spec.receiptLabelKey)}
               </dt>
-              <dd className="flex items-start gap-1.5">
+              <dd className="flex min-w-0 max-w-full items-start gap-1.5 [overflow-wrap:anywhere]">
                 {decision === 'cancel' ? (
                   <CircleSlash
                     className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground"
                     aria-hidden="true"
                   />
-                ) : (
-                  <Check
-                    className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary"
+                ) : decision === 'edit' ? (
+                  <PencilLine
+                    className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground"
                     aria-hidden="true"
                   />
+                ) : (
+                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
                 )}
-                {t(outcomeKey)}
+                <span className="min-w-0">{t(outcomeKey)}</span>
               </dd>
             </div>
           );
         })}
         {refusalRespected && (
-          <div className="flex items-start gap-2">
+          <div className="flex flex-col items-start gap-1 sm:flex-row sm:gap-2">
             <dt className="shrink-0 font-medium text-muted-foreground">
               {t('showroom.receipt.refusal_label')}
             </dt>
-            <dd>{t('showroom.receipt.refusal_respected')}</dd>
+            <dd className="min-w-0 max-w-full [overflow-wrap:anywhere]">
+              {t('showroom.receipt.refusal_respected')}
+            </dd>
           </div>
         )}
-        <div className="flex items-start gap-2">
+        <div className="flex flex-col items-start gap-1 sm:flex-row sm:gap-2">
           <dt className="shrink-0 font-medium text-muted-foreground">
             {t('showroom.receipt.external_label')}
           </dt>
-          <dd>{t('showroom.receipt.no_external')}</dd>
+          <dd className="min-w-0 max-w-full [overflow-wrap:anywhere]">
+            {t('showroom.receipt.no_external')}
+          </dd>
         </div>
       </dl>
     </section>

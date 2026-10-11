@@ -35,13 +35,17 @@ import { flipTapes, warpTapes } from '@/components/eyes/rig/choreo';
 import { createLifeRandom } from '@/components/eyes/rig/life';
 import { createSketchClock } from '@/components/eyes/rig/sketches';
 import { createRigWriter } from '@/components/eyes/rig/apply';
+import { bindBodyMotion } from './rig/body-motion-binding';
+import { bindStaticPortrait } from './rig/static-portrait';
+import { setBodyVolumeVisibility, setBodyVolumeReducedMotion } from './volume/volume-binding';
+import type { RigCharacterId } from './rig/acting-profile';
 import {
   releaseFrames,
   requestFrames,
   type FrameSubscriber,
 } from '@/components/eyes/rig/scheduler';
 import { createEyeRig, type EyeRig } from '@/components/eyes/rig/runtime';
-import { DEFAULT_EYE_STYLE, type EyeStyleId } from '@/components/eyes/eye-styles';
+import { DEFAULT_RIG_EYE_STYLE, type RigEyeStyleId } from '@/components/eyes/eye-styles';
 import { prefersReducedMotion } from '@/lib/utils/motion';
 import type { SpringConfig } from '@/components/eyes/rig/spring';
 import type {
@@ -89,8 +93,9 @@ function gazeSpringFor(travelMs: number | undefined): SpringConfig | undefined {
 }
 
 export interface UseEyesRigOptions {
+  characterId?: RigCharacterId;
   expression: EyeExpression;
-  styleId?: EyeStyleId;
+  styleId?: RigEyeStyleId;
   family?: IdleMoodFamily;
   gaze: Gaze | null;
   /** Travel time hint from the host (saccade jump vs eased return). */
@@ -112,6 +117,14 @@ export interface UseEyesRigOptions {
    * The breath and the moving hold stay: they are the pose, not a beat.
    */
   life?: boolean;
+  /** Pauses this face locally without changing the user's reduced-motion preference. */
+  motionEnabled?: boolean;
+  /** Immutable message portrait: no live stores, observers, timers or frames. */
+  staticPose?: boolean;
+  /** Larger faces retain the same quiet moving hold without shrinking reactions. */
+  idleScale?: number;
+  /** A material/attachment change reuses this rig and requests its existing writer once. */
+  appearanceKey?: string;
 }
 
 /**
@@ -123,7 +136,7 @@ export interface UseEyesRigOptions {
 export function useEyesRig(options: UseEyesRigOptions) {
   const {
     expression,
-    styleId = DEFAULT_EYE_STYLE,
+    styleId = DEFAULT_RIG_EYE_STYLE,
     family = 'calm',
     gaze,
     gazeDurationMs,
@@ -133,6 +146,8 @@ export function useEyesRig(options: UseEyesRigOptions) {
     emphasis = 1,
     responseWeight = 1,
     life = true,
+    motionEnabled = true,
+    staticPose = false,
   } = options;
 
   const elementRef = useRef<HTMLSpanElement | null>(null);
@@ -140,12 +155,48 @@ export function useEyesRig(options: UseEyesRigOptions) {
   const lifeRandomRef = useRef<(() => number) | null>(null);
   const wakeRef = useRef<(() => void) | null>(null);
   // Props the loop must read without re-creating itself.
-  const initialRef = useRef({ pose: { expression, styleId, family }, life });
+  const initialRef = useRef({
+    pose: { expression, styleId, family, emphasis, responseWeight },
+    life,
+    idleScale: options.idleScale,
+    characterId: options.characterId,
+  });
+
+  // Keep the last committed pose before constructing a static/live replacement.
+  // The life choice stays fixed for this mount; a wake never replays an old face.
+  useEffect(() => {
+    initialRef.current.pose = { expression, styleId, family, emphasis, responseWeight };
+    initialRef.current.idleScale = options.idleScale;
+    initialRef.current.characterId = options.characterId;
+  }, [
+    expression,
+    styleId,
+    family,
+    emphasis,
+    responseWeight,
+    options.idleScale,
+    options.characterId,
+  ]);
 
   // --- The loop. Declared first so every sync effect below finds a live rig.
   useEffect(() => {
     const element = elementRef.current;
     if (!element) return;
+    element.dataset.rigVisible = 'false';
+    if (staticPose) {
+      const portrait = bindStaticPortrait(
+        element,
+        initialRef.current.pose,
+        initialRef.current.characterId
+      );
+      rigRef.current = portrait.rig;
+      wakeRef.current = portrait.wake;
+      return () => {
+        portrait.dispose();
+        rigRef.current = null;
+        wakeRef.current = null;
+      };
+    }
 
     // The life's own stream, seeded once per mount (a salt keeps simultaneous
     // previews mounted in the same millisecond from miming in unison). It
@@ -156,7 +207,9 @@ export function useEyesRig(options: UseEyesRigOptions) {
       : null;
     const rig = createEyeRig({
       initial: initialRef.current.pose,
-      reducedMotion: prefersReducedMotion(),
+      idleScale: initialRef.current.idleScale,
+      characterId: initialRef.current.characterId,
+      reducedMotion: !motionEnabled || prefersReducedMotion(),
       // The one caller that hands the rig real entropy: two angers must never
       // land at exactly the same speed. Tests build rigs without it and stay
       // perfectly deterministic.
@@ -167,7 +220,7 @@ export function useEyesRig(options: UseEyesRigOptions) {
     let contextTimer: ReturnType<typeof setTimeout> | null = null;
     let visible = !document.hidden;
     const syncContext = () => {
-      if (!initialRef.current.life || !visible) return;
+      if (!initialRef.current.life || !visible || !motionEnabled) return;
       const context = liveActingContext(Date.now());
       rig.setContext(context);
       element.dataset.activity = context.activity ?? '';
@@ -208,11 +261,20 @@ export function useEyesRig(options: UseEyesRigOptions) {
       return rig.isSettling() ? 'active' : 'idle';
     };
     const wake = () => {
+      if (!motionEnabled) {
+        rig.settle();
+        writer.write(rig.values());
+        releaseFrames(step);
+        return;
+      }
       if (visible) requestFrames(step);
     };
     const stopVisibility = observeRigVisibility(element, nextVisible => {
       visible = nextVisible;
+      element.dataset.rigVisible = String(nextVisible);
+      setBodyVolumeVisibility(element, nextVisible);
       if (!visible) {
+        rig.pauseLifeFor(1500);
         releaseFrames(step);
         if (contextTimer) clearTimeout(contextTimer);
         contextTimer = null;
@@ -222,6 +284,7 @@ export function useEyesRig(options: UseEyesRigOptions) {
       }
     });
     wakeRef.current = wake;
+    const unbindBodyMotion = motionEnabled ? bindBodyMotion(element, rig, writer, wake) : () => {};
     wake();
 
     const media =
@@ -229,26 +292,47 @@ export function useEyesRig(options: UseEyesRigOptions) {
         ? window.matchMedia('(prefers-reduced-motion: reduce)')
         : null;
     const onMotionPreference = (event: MediaQueryListEvent) => {
-      rig.setReducedMotion(event.matches);
+      rig.setReducedMotion(!motionEnabled || event.matches);
+      setBodyVolumeReducedMotion(element, !motionEnabled || event.matches);
       wake();
     };
     media?.addEventListener('change', onMotionPreference);
 
     return () => {
+      element.dataset.rigVisible = 'false';
+      setBodyVolumeVisibility(element, false);
       media?.removeEventListener('change', onMotionPreference);
       stopVisibility();
+      unbindBodyMotion();
       unsubscribePsyche();
       unsubscribeSignals();
       unsubscribeLive();
       unsubscribeEnvironment();
       if (contextTimer) clearTimeout(contextTimer);
       releaseFrames(step);
+      writer.dispose();
       wakeRef.current = null;
       rigRef.current = null;
     };
-  }, []);
+  }, [motionEnabled, staticPose]);
 
   // --- Pose: expression, style and mood family.
+  useEffect(() => {
+    rigRef.current?.setIdleScale(options.idleScale);
+    wakeRef.current?.();
+  }, [options.idleScale, motionEnabled, staticPose]);
+
+  useEffect(() => {
+    wakeRef.current?.();
+  }, [options.appearanceKey]);
+
+  // Identity yields the old performance before a simultaneous new expression
+  // authors its arrival; it must not erase the new reaction after setPose.
+  useEffect(() => {
+    rigRef.current?.setCharacterId(options.characterId);
+    wakeRef.current?.();
+  }, [options.characterId, motionEnabled, staticPose]);
+
   useEffect(() => {
     rigRef.current?.setPose({
       expression,
@@ -258,7 +342,7 @@ export function useEyesRig(options: UseEyesRigOptions) {
       responseWeight,
     });
     wakeRef.current?.();
-  }, [expression, styleId, family, emphasis, responseWeight]);
+  }, [expression, styleId, family, emphasis, responseWeight, motionEnabled, staticPose]);
 
   // --- Gaze aim, with the host's travel-time intent turned into physics.
   // Depends on the COORDINATES, never on the object: the host rebuilds its
@@ -270,7 +354,7 @@ export function useEyesRig(options: UseEyesRigOptions) {
     const aim = gazeX === null || gazeY === null ? null : { x: gazeX, y: gazeY };
     rigRef.current?.setGaze(aim, gazeSpringFor(gazeDurationMs));
     wakeRef.current?.();
-  }, [gazeX, gazeY, gazeDurationMs]);
+  }, [gazeX, gazeY, gazeDurationMs, motionEnabled, staticPose]);
 
   // --- Blink: the RISING edge plays one cycle — the mask blink when the
   // host is swapping the face under it, the spontaneous one otherwise. The
@@ -289,7 +373,7 @@ export function useEyesRig(options: UseEyesRigOptions) {
     if (!rising && !maskRising) return;
     rigRef.current?.play(...(blinkMask ? maskBlinkTapes() : blinkTapes()));
     wakeRef.current?.();
-  }, [blinking, blinkMask]);
+  }, [blinking, blinkMask, motionEnabled]);
 
   // --- Gestures: each new one plays its beats once — at a size drawn for
   // the occasion, on a side drawn for it, WARPED in pace and per channel,
@@ -314,7 +398,7 @@ export function useEyesRig(options: UseEyesRigOptions) {
       rig?.answerIn(GESTURE_ANSWER_MIN_MS + draw() * GESTURE_ANSWER_SPAN_MS);
     }
     wakeRef.current?.();
-  }, [gesture]);
+  }, [gesture, motionEnabled]);
 
   return elementRef;
 }

@@ -26,40 +26,34 @@ from langchain_core.messages import (
     ToolMessage,
 )
 from langchain_core.runnables import RunnableConfig
-from langgraph.errors import GraphInterrupt
 from langgraph.types import interrupt
 
 from src.core.config import settings
-from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
-from src.core.i18n import resolve_language
 from src.domains.agents.analysis.query_intelligence_helpers import (
     get_qi_attr,
     get_query_intelligence_from_state,
 )
 from src.domains.agents.constants import STATE_KEY_CURRENT_TURN_ID
-from src.domains.agents.effects.scope import effect_scope, react_call_scope
 from src.domains.agents.models import MessagesState, count_messages_tokens_cached
 from src.domains.agents.nodes import react_context
+from src.domains.agents.nodes.react_call_execution import CallPorts, execute_call
 from src.domains.agents.nodes.react_drafts import extract_draft_info as _extract_draft_info
 from src.domains.agents.nodes.react_egress_question import invoke_with_settlement
+from src.domains.agents.nodes.react_execution import (
+    execute_checkpointed_batch,
+    latest_answered_calls,
+)
 from src.domains.agents.nodes.react_history import (
     window_messages_for_react as _window_messages_for_react,
 )
+from src.domains.agents.nodes.react_observed_gaps import (
+    proven_final_content,
+    requested_final_report,
+    requested_outcome_block,
+)
 from src.domains.agents.nodes.react_output_guard import model_call_update
-from src.domains.agents.nodes.react_prompt import (
-    build_system_prompt,
-    network_available,
-    sandbox_available,
-)
+from src.domains.agents.nodes.react_prompt import build_bound_system_prompt
 from src.domains.agents.nodes.react_recovery import recovery_report, with_recovery_directives
-from src.domains.agents.nodes.react_result_reading import (
-    activated_skill_of,
-    is_productive_result,
-    tool_message_status,
-)
-from src.domains.agents.nodes.react_result_reading import (
-    call_artifact as call_artifact_of,
-)
 from src.domains.agents.nodes.react_turn_layout import (
     compose_turn_messages,
     frequent_exchanges,
@@ -67,32 +61,19 @@ from src.domains.agents.nodes.react_turn_layout import (
 )
 from src.domains.agents.nodes.router_tool_scoring import GLOBAL_RANKING_KEY
 from src.domains.agents.orchestration.step_timeouts import compute_step_timeout
-from src.domains.agents.services.connector_error_notice import (
-    emit_connector_notice_for_exception,
-)
-from src.domains.agents.services.hitl.protocols import HitlInteractionType
 from src.domains.agents.services.react_tool_selector import (
     ReactToolSelector,
     bound_tool_tokens,
 )
 from src.domains.agents.tools.react_tool_wrapper import ReactToolWrapper
 from src.domains.agents.tools.tool_resolution import (
-    classify_unresolved_tool_call,
     resolve_tool_instance,
 )
-from src.domains.agents.utils.loop_guard import (
-    compute_call_digest,
-    register_call,
-    repeated_call_message,
-)
-from src.domains.agents.utils.message_filters import tool_call_not_run
 from src.domains.agents.utils.react_budget import (
-    TIMEOUT_ATTRIBUTION_MARGIN,
     abandoned_call_message,
     effective_react_budget,
     loop_cut_reason,
     tool_result_token_budget,
-    tool_timeout_message,
 )
 from src.domains.agents.utils.react_budget import (
     loop_compute_seconds as _loop_compute_seconds,
@@ -108,20 +89,14 @@ from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.decorators import track_metrics
 from src.infrastructure.observability.metrics_agents import (
     agent_node_duration_seconds,
-    semantic_param_guard_blocks_total,
 )
 from src.infrastructure.observability.metrics_react import (
     react_agent_duration_seconds,
     react_agent_executions_total,
-    react_agent_hitl_interrupts_total,
     react_agent_iterations,
-    react_agent_tools_called_total,
     react_bound_tool_tokens,
     react_context_window_utilization,
     react_delivered_context_tokens,
-    react_repeated_calls_total,
-    react_tool_executions_before_interrupt_total,
-    react_unknown_tool_calls_total,
 )
 from src.infrastructure.observability.tracing import trace_node
 
@@ -238,9 +213,7 @@ async def react_setup_node(
 
     # Build system prompt — it promises only what this turn can actually run,
     # and about the network only what this ACCOUNT may reach (ADR-298).
-    computation = await sandbox_available(tool_names)
-    network = await network_available(tool_names) if computation else None
-    system_prompt = build_system_prompt(state, computation=computation, network=network)
+    system_prompt = await build_bound_system_prompt(state, tool_names)
 
     # Context blocks, in injection ORDER (react_context.build_setup_blocks).
     setup_blocks = await react_context.build_setup_blocks(state, config, intelligence)
@@ -402,8 +375,12 @@ async def react_call_model_node(
     # instead, in the shape its provider takes, so the static prompt alone
     # leads, and the history drops by blocks.
     cross_turn = frequent_exchanges(state)
+    system_blocks = list(state.get("react_system_blocks") or [])
+    coverage_block = requested_outcome_block(state)
+    if coverage_block:
+        system_blocks.append(coverage_block)
     messages = compose_turn_messages(
-        state.get("react_system_blocks") or [],
+        system_blocks,
         _window_messages_for_react(
             state["messages"], turn_id=state.get(STATE_KEY_CURRENT_TURN_ID), blocks=cross_turn
         ),
@@ -485,456 +462,35 @@ async def react_call_model_node(
 async def react_execute_tools_node(
     state: MessagesState,
     config: RunnableConfig,
-) -> dict[str, Any]:
-    """Execute tools from the last AIMessage, with HITL for mutations.
+) -> dict[str, object]:
+    """Execute one checkpointed segment before the next interruptible call."""
+    return await execute_checkpointed_batch(state, config, _execute_react_calls)
 
-    Idempotence, and its documented limit: a tool_call is skipped when a
-    ToolMessage for it already exists **in state**. That covers previous node
-    executions, NOT the current one — an interrupted node never returns, so the
-    ToolMessages it produced before the interrupt are never persisted, and every
-    call preceding the interrupt is replayed on resume (double quota, double
-    latency, and an approval decided on data that may have changed since). The
-    replay is counted by ``react_tool_executions_before_interrupt_total`` so the
-    real blast radius
-    can be measured before the node is restructured; it is bounded by the single
-    tool allowed to interrupt here (see ``test_hitl_required_consistency``).
 
-    HITL: Mutation tools (hitl_required=True) trigger interrupt() which pauses
-    the graph and waits for user approval. On resume, previously-matched
-    interrupts return their resume value immediately (LangGraph index matching).
-
-    IMPORTANT: Tool calls are processed in the EXACT order from AIMessage.tool_calls.
-    Never reorder — interrupt() matching is index-based.
-
-    Args:
-        state: Current graph state with messages and tool metadata.
-        config: RunnableConfig (thread plumbing); tool dependencies travel on the run context.
-
-    Returns:
-        State update with ToolMessages and collected registry items.
-    """
-    # Get the last AIMessage (must have tool_calls)
-    last_message = state["messages"][-1]
-    if not isinstance(last_message, AIMessage) or not last_message.tool_calls:
-        return {}
-
-    hitl_map = state.get("react_hitl_map", {})
-    tool_names = state.get("react_tool_names", [])
-
-    # IDEMPOTENCE: find tool_calls already resolved (have a ToolMessage in state)
-    existing_tool_msg_ids: set[str] = {
-        m.tool_call_id for m in state["messages"] if isinstance(m, ToolMessage) and m.tool_call_id
-    }
-
-    # Rebuild tools for execution
-    wrapped_tools = _rebuild_wrapped_tools(tool_names, hitl_map)
-    tool_by_name: dict[str, ReactToolWrapper] = {t.name: t for t in wrapped_tools}
-
-    # Pre-load ToolRuntime dependencies (outside loop for efficiency)
+async def _execute_react_calls(
+    state: MessagesState,
+    config: RunnableConfig,
+) -> dict[str, object]:
+    """Assemble runtime ports for the isolated, typed singleton executor."""
     from src.domains.agents.context.store import get_tool_context_store
     from src.domains.agents.orchestration.parallel_executor import _build_tool_runtime
-    from src.domains.agents.semantic.param_guard import (
-        check_semantic_params,
-        collect_resolved_person_names,
-        strip_placeholder_arguments,
+
+    ports = CallPorts(
+        wrappers=_rebuild_wrapped_tools,
+        invoke=invoke_with_settlement,
+        runtime=_build_tool_runtime,
+        interrupt=interrupt,
+        timeout=compute_step_timeout,
+        draft=_extract_draft_info,
+        result_budget=_tool_result_budget(),
+        store=await get_tool_context_store(),
     )
-
-    store = await get_tool_context_store()
-
-    # Runtime semantic contract guard (parity with the parallel executor):
-    # person names resolved for this turn must not reach address/email-typed
-    # params — the API would geocode/send arbitrarily. Recoverable ToolMessage
-    # instead, so the ReAct loop fetches the real value and retries.
-    guard_person_names = collect_resolved_person_names(state.get("resolved_references"))
-
-    new_messages: list[ToolMessage] = []
-    collected_registry: dict[str, Any] = {}
-    productive_calls = 0
-    activated_skills: list[str] = []
-    # ADR-256: the delegated half of the turn. Accumulated here and
-    # returned to state, because the ContextVars do not survive the node.
-    tool_seconds_spent = 0.0
-    # ADR-286: one budget per node pass, read from the slot's own window.
-    result_budget = _tool_result_budget()
-
-    # ADR-249: load this invocation's script budget and data from STATE.
-    from src.domains.agents.tools.python_sandbox_tools import runs_spent, seed_turn
-
-    seed_turn(
-        runs_spent=int(state.get("react_script_runs") or 0),
-        items=dict(state.get("current_turn_registry") or {}),
-    )
-    pending_drafts: list[dict[str, Any]] = []
-    call_digests: dict[str, int] = dict(state.get("react_call_digests") or {})
-    no_progress = False
-
-    # Index of the first call that will interrupt. Every call BEFORE it runs in
-    # an execution that cannot return, so its result is discarded and the call
-    # runs again on resume.
-    #
-    # What the counter measures, precisely: executions that sit before an
-    # interrupt — NOT redundant executions. Nothing in state distinguishes the
-    # first pass from the resume (the interrupted pass persisted nothing), so
-    # one interrupt yields TWO samples for one wasted execution. Read it as
-    # `samples − distinct calls = redundant executions`. Naming it "replayed"
-    # would have overstated the waste by a factor of two.
-    first_hitl_index = next(
-        (
-            index
-            for index, call in enumerate(last_message.tool_calls)
-            if hitl_map.get(call["name"], False)
-        ),
-        len(last_message.tool_calls),
-    )
-
-    for call_index, tool_call in enumerate(last_message.tool_calls):
-        tc_id: str = tool_call["id"]
-        tc_name: str = tool_call["name"]
-        tc_args: dict[str, Any] = tool_call.get("args", {})
-
-        # IDEMPOTENCE: skip if already executed
-        if tc_id in existing_tool_msg_ids:
-            continue
-
-        # This execution sits before an interrupt, so it cannot be persisted
-        # (see the node docstring). Measured, not yet prevented.
-        if call_index < first_hitl_index:
-            react_tool_executions_before_interrupt_total.labels(tool_name=tc_name).inc()
-
-        # Parity with the parallel executor: a textual "no value" ("null",
-        # "none", ...) on an optional typed parameter means "not provided".
-        # Deterministic, so re-executing after an interrupt is stable.
-        tc_args = strip_placeholder_arguments(tc_name, tc_args)
-
-        # NO-PROGRESS GUARD (ADR-170) — placed AFTER the idempotence skip on
-        # purpose: that is what makes it replay-safe. An interrupted execution
-        # never returns, so its increments are discarded with the rest of its
-        # partial work; on resume, only the calls that still lack a ToolMessage
-        # are counted, exactly once. Counting before the skip would charge a
-        # resumed turn twice and could block a legitimate call.
-        call_digests, verdict = register_call(
-            call_digests,
-            compute_call_digest(tc_name, tc_args, settings.secret_key),
-            block_threshold=settings.react_repeated_call_block_threshold,
-            terminal_threshold=settings.react_repeated_call_terminal_threshold,
+    result = await execute_call(state, config, ports)
+    if result.get("pending_draft_critique"):
+        _record_react_metrics(
+            state.get("react_iteration", 0), _loop_compute_seconds(state), "draft"
         )
-        if verdict != "allow":
-            # No PII: the arguments are the user's own data, only the tool name
-            # and the verdict are recorded.
-            logger.warning(
-                "react_repeated_call_blocked",
-                tool_name=tc_name,
-                verdict=verdict,
-                iteration=state.get("react_iteration", 0),
-            )
-            react_repeated_calls_total.labels(tool_name=tc_name, verdict=verdict).inc()
-            # Deliberately NOT status="error" (ADR-303): the loop repeating
-            # itself is a progress signal for the model, not a capability that
-            # broke. Marking it would put « the tool failed » in the honesty
-            # directive about a tool that never ran and never failed.
-            new_messages.append(tool_call_not_run(repeated_call_message(verdict), tc_id, tc_name))
-            no_progress = no_progress or verdict == "terminal"
-            continue
-
-        # Semantic guard BEFORE the HITL interrupt: never ask the user to
-        # approve a call that would be blocked anyway. Deterministic across
-        # interrupt re-executions (state mappings and args are stable).
-        if guard_person_names:
-            violation = check_semantic_params(tc_name, tc_args, guard_person_names)
-            if violation is not None:
-                semantic_param_guard_blocks_total.labels(
-                    tool_name=tc_name,
-                    semantic_type=violation.semantic_type,
-                    execution_mode="react",
-                ).inc()
-                # No PII at WARNING: the offending value is a person name.
-                logger.warning(
-                    "semantic_param_guard_blocked",
-                    tool_name=tc_name,
-                    param_name=violation.param_name,
-                    semantic_type=violation.semantic_type,
-                )
-                new_messages.append(
-                    ToolMessage(
-                        content=f"ERROR: {violation.llm_message()}",
-                        tool_call_id=tc_id,
-                        name=tc_name,
-                        status="error",
-                    )
-                )
-                continue
-
-        # HITL for mutation tools (non-draft) — route through the SHARED
-        # tool_confirmation contract, the SAME interaction the pipeline uses via
-        # hitl_dispatch. A type-tagged action_request makes the streaming service
-        # render a real confirmation (question + buttons) AND persist it in Redis,
-        # and the resume flows through _parse_approval_decision → {"action": ...}.
-        # The legacy bare "react_tool_approval" value had no action_requests, so it
-        # was never rendered nor resumable (silent hang, #3). Draft-based mutation
-        # tools are hitl_required=False and confirm via the draft_critique handoff
-        # below (invariant enforced by test_hitl_required_consistency.py).
-        is_mutation = hitl_map.get(tc_name, False)
-        if is_mutation:
-            # interrupt() halts on first call, returns the resume value on re-execution
-            decision = interrupt(
-                {
-                    "action_requests": [
-                        {
-                            "type": "tool_confirmation",
-                            "tool_name": tc_name,
-                            "tool_args": tc_args,
-                        }
-                    ],
-                    "generate_question_streaming": True,
-                    "user_language": resolve_language(state.get("user_language")),
-                    "user_timezone": state.get("user_timezone", DEFAULT_USER_DISPLAY_TIMEZONE),
-                    "hitl_type": HitlInteractionType.TOOL_CONFIRMATION.value,
-                }
-            )
-            # Execute ONLY on an explicit confirmation. Anything else (cancel,
-            # reject, ambiguous, or a malformed resume) declines — the safe default
-            # for a mutation gated behind HITL.
-            decision_action = decision.get("action") if isinstance(decision, dict) else None
-            if decision_action not in ("confirm", "approve"):
-                # A refusal is a DECISION, never a failure (ADR-303/ADR-263):
-                # reported as a breakdown it would call the person's choice a bug.
-                declined = f"Action '{tc_name}' was declined by the user."
-                new_messages.append(tool_call_not_run(declined, tc_id, tc_name))
-                react_agent_hitl_interrupts_total.labels(tool_name=tc_name, decision="reject").inc()
-                logger.info(
-                    "react_hitl_rejected",
-                    tool_name=tc_name,
-                    decision_action=decision_action,
-                )
-                continue
-
-            react_agent_hitl_interrupts_total.labels(tool_name=tc_name, decision="approve").inc()
-            logger.info(
-                "react_hitl_approved",
-                tool_name=tc_name,
-            )
-
-        # Execute tool: call ORIGINAL tool via ainvoke with config (for ToolRuntime injection),
-        # then process result through wrapper for string conversion + registry collection.
-        wrapper = tool_by_name.get(tc_name)
-        if wrapper is None:
-            # ADR-256: this branch used to be silent. `not_selected` means the
-            # cap or the per-request filtering dropped a real tool; `unknown`
-            # means the model invented the name. Opposite fixes, so they are
-            # counted apart — and the NAME stays out of the label set, since it
-            # comes from a model and its cardinality is unbounded.
-            reason = classify_unresolved_tool_call(tc_name)
-            react_unknown_tool_calls_total.labels(reason=reason).inc()
-            logger.warning(
-                "react_tool_call_unresolved",
-                tool_name=tc_name,
-                reason=reason,
-                bound_tools=len(tool_by_name),
-            )
-            new_messages.append(
-                ToolMessage(
-                    content=f"Tool '{tc_name}' not found.",
-                    tool_call_id=tc_id,
-                    name=tc_name,
-                    status="error",
-                )
-            )
-            continue
-
-        # ADR-256: the pipeline bounds every tool family through this exact
-        # policy; ReAct bounded none, so the same delegating tool ran capped at
-        # 300 s in one mode and unbounded in the other. One policy, two callers.
-        tool_timeout = compute_step_timeout(tc_name, None)
-        tool_started = time.perf_counter()
-        # Defensive default: every branch below sets it, and a branch added
-        # later must not silently publish a failure as a success.
-        tool_status = "success"
-        # Set with the call's books, last: a failure — raised before its answer,
-        # or after a refusal came back — never carries the mark.
-        call_artifact: str | None = None
-        try:
-            # Inject ToolRuntime into args (required by ConnectorTools).
-            # LangChain's InjectedToolArg is normally injected by ToolNode,
-            # but we call tools directly — so we must build ToolRuntime manually.
-            # Pattern: parallel_executor._build_tool_runtime()
-            injected_args = _build_tool_runtime(wrapper._original_tool, tc_args, config, store)
-            # ADR-263: the authority. ``tc_id`` is the key that makes one
-            # approval one execution, and ``is_mutation`` is True only past the
-            # interrupt above — so it IS the user's confirmation.
-            with effect_scope(react_call_scope(config, tc_id, approved=is_mutation)):
-                raw_result = await invoke_with_settlement(
-                    wrapper, injected_args, timeout=tool_timeout, state=state, tool_name=tc_name
-                )
-            # Process through wrapper for string conversion + registry collection,
-            # this call's alone: an earlier call of the same tool that failed
-            # after its answer left its items in the wrapper.
-            wrapper._accumulated_registry.clear()
-            content = wrapper._process_result(raw_result, budget_tokens=result_budget)
-            tool_status = tool_message_status(raw_result)
-            # Draft detection: a mutation tool (create/update/delete) returns
-            # requires_confirmation=True — it prepared a DRAFT, not the real
-            # action. Collect it for the HITL handoff (see return below).
-            draft_info = _extract_draft_info(raw_result, tc_name)
-            # The call's books, once nothing of it can fail any more: a call
-            # that RAISED buys no iteration (ADR-256), holds no draft, hands on
-            # no registry item and never carries the « never run » mark. One
-            # that declared its failure by returning buys no iteration either,
-            # and hands on the items it returned, as the pipeline does.
-            productive_calls += is_productive_result(raw_result)
-            if (activated := activated_skill_of(raw_result)) is not None:
-                activated_skills.append(activated)
-            if draft_info is not None:
-                pending_drafts.append(draft_info)
-            collected_registry.update(wrapper._accumulated_registry)
-            call_artifact = call_artifact_of(raw_result)
-        except GraphInterrupt:
-            # A question raised from INSIDE the call (the egress question,
-            # ADR-298) is a bubble-up, never a tool error: the net below
-            # swallowed it once (measured 2026-09-18) and the loop went on.
-            raise
-        except TimeoutError:
-            # Recoverable, like the pipeline's failed StepResult: the model is
-            # told what happened and can choose another route. Killing the node
-            # would discard the tool results that DID come back this iteration.
-            # The wording lives with its two siblings in ``react_budget`` and
-            # decides for itself WHICH timeout fired — see that function.
-            elapsed = time.perf_counter() - tool_started
-            content = tool_timeout_message(tc_name, bound_s=tool_timeout, elapsed_s=elapsed)
-            tool_status = "error"
-            logger.warning(
-                "react_execute_tools_timeout",
-                tool_name=tc_name,
-                timeout_seconds=tool_timeout,
-                elapsed_seconds=round(elapsed, 1),
-                enforced_by=(
-                    "react_budget"
-                    if elapsed >= tool_timeout * TIMEOUT_ATTRIBUTION_MARGIN
-                    else "tool"
-                ),
-            )
-        except Exception as exc:
-            content = f"Error executing {tc_name}: {exc!s}"
-            tool_status = "error"
-            logger.warning(
-                "react_execute_tools_error",
-                tool_name=tc_name,
-                error=str(exc),
-                error_type=type(exc).__name__,
-            )
-            # Lot 3 P3 (ADR-134): safety net for tools that don't route their
-            # exceptions through handle_tool_exception (ConnectorToolBase does;
-            # this covers direct-coroutine tools). Best-effort, deduped
-            # frontend-side.
-            emit_connector_notice_for_exception(exc, tool_name=tc_name)
-
-        # Charged whatever the outcome: a call that failed or timed out still
-        # spent the time. Placed outside the try so no branch can forget it.
-        tool_seconds_spent += time.perf_counter() - tool_started
-
-        new_messages.append(
-            ToolMessage(
-                content=content,
-                tool_call_id=tc_id,
-                name=tc_name,
-                status=tool_status,
-                artifact=call_artifact,
-            )
-        )
-        react_agent_tools_called_total.labels(tool_name=tc_name).inc()
-
-    logger.info(
-        "react_execute_tools_complete",
-        tools_executed=len(new_messages),
-        registry_items=len(collected_registry),
-        pending_drafts=len(pending_drafts),
-    )
-
-    result: dict[str, Any] = {"messages": new_messages, "react_call_digests": call_digests}
-    if tool_seconds_spent:
-        # Cumulative across the turn's iterations: the budget bounds the
-        # WHOLE turn, not one node execution.
-        result["react_tool_seconds"] = (
-            float(state.get("react_tool_seconds") or 0.0) + tool_seconds_spent
-        )
-
-    # ADR-249: what the sandbox ran (admin debug panel only) and what it spent,
-    # both returned to STATE — the ContextVars do not survive the next node.
-    from src.domains.agents.tools.python_sandbox_tools import drain_turn_scripts
-
-    scripts = drain_turn_scripts()
-    if scripts:
-        result["react_scripts"] = list(state.get("react_scripts") or []) + scripts
-    if activated_skills:
-        # ADR-327: the response node must not run the runner for a skill the
-        # loop already ran — appended per turn, reset by the router.
-        result["react_activated_skills"] = [
-            *(state.get("react_activated_skills") or []),
-            *activated_skills,
-        ]
-    result["react_script_runs"] = runs_spent()
-    if productive_calls:
-        # ADR-248: one PRODUCTIVE iteration, whatever the number of calls in it.
-        result["react_productive_iterations"] = (
-            int(state.get("react_productive_iterations", 0) or 0) + 1
-        )
-    if no_progress:
-        # Terminal repetition: hand the loop its own iteration ceiling so the
-        # NEXT routing finalises. Cutting the edge here instead would skip
-        # react_finalize, and the response node reads its result contract.
-        result["react_iteration"] = settings.react_agent_max_iterations
-    if collected_registry:
-        result["registry"] = collected_registry
-        # Merge with existing current_turn_registry from previous iterations.
-        # current_turn_registry has NO reducer (overwrite semantics), so each node
-        # return replaces the previous value. We must manually accumulate items
-        # across ReAct iterations to preserve data cards from earlier tool calls.
-        # Example: iteration 1 → events, iteration 2 → contacts → both must be
-        # present for response_node to generate all HTML cards.
-        existing_turn_registry = dict(state.get("current_turn_registry") or {})
-        existing_turn_registry.update(collected_registry)
-        result["current_turn_registry"] = existing_turn_registry
-
-    # Draft HITL handoff (parity with the pipeline draft_critique flow).
-    # When a mutation tool prepared a draft, hand it off to the shared
-    # hitl_dispatch → draft_critique → response flow via pending_draft_critique
-    # instead of looping back to the LLM (which would hallucinate "done" without
-    # ever executing the action). route_from_react_execute_tools routes on this.
-    # We ALWAYS set these keys (None / [] when no draft) so a stale value from a
-    # previous turn can never mis-route the loop — the router does not reset them.
-    result["pending_draft_critique"] = pending_drafts[0] if pending_drafts else None
-    result["pending_drafts_queue"] = pending_drafts[1:] if len(pending_drafts) > 1 else []
-    # ADR-288: several tool calls of one iteration are independent drafts,
-    # each asked on its own — never a pre-approved lot.
-    result["pending_drafts_grouped"] = False
-    result["confirmed_drafts"] = []
-
-    if pending_drafts:
-        # The draft handoff short-circuits the loop before react_finalize, so emit
-        # the ReAct completion metrics here to keep the dashboards accurate.
-        iteration = state.get("react_iteration", 0)
-        _record_react_metrics(iteration, _loop_compute_seconds(state), "draft")
-        # Minimal metadata for debug/observability. final_message is intentionally
-        # empty so response_node uses the draft execution result (not a passthrough,
-        # which is guarded by `if react_result.get("final_message")`).
-        result["react_agent_result"] = {
-            "final_message": "",
-            "iteration_count": iteration,
-            "mode": "react",
-        }
-        logger.info(
-            "react_draft_handoff",
-            draft_count=len(pending_drafts),
-            primary_draft_id=pending_drafts[0].get("draft_id"),
-            primary_draft_type=pending_drafts[0].get("draft_type"),
-            iteration=iteration,
-        )
-
     return result
-
-
-# ---------------------------------------------------------------------------
-# Node 4: react_finalize
-# ---------------------------------------------------------------------------
 
 
 def _abandoned_tool_outputs(
@@ -964,11 +520,7 @@ def _abandoned_tool_outputs(
         checkpoint round-trip and a post-construction append bypasses the
         check entirely (both measured 2026-09-02).
     """
-    answered = {
-        m.tool_call_id
-        for m in messages
-        if isinstance(m, ToolMessage) and getattr(m, "tool_call_id", None)
-    }
+    answered = latest_answered_calls(messages)
     body = abandoned_call_message(reason)
     return [
         ToolMessage(
@@ -1018,7 +570,11 @@ async def react_finalize_node(
 
     # Resolved ONCE: the banner the user reads and the result the model is given
     # must name the same stop condition (ADR-248).
-    reason = loop_cut_reason(state, last_message)
+    from src.domains.agents.nodes.react_execution import pending_calls
+
+    pending_request, pending = pending_calls(state)
+    unfinished = pending_request if pending else last_message
+    reason = loop_cut_reason(state, unfinished)
     truncation: dict[str, Any] | None = None
     abandoned: list[ToolMessage] = []
     if reason is not None:
@@ -1035,7 +591,7 @@ async def react_finalize_node(
         # it silently re-derive the same work next turn. The turn-start repair
         # stays the safety net for what no node can close — a hard kill. (A cut
         # output leaves none: its calls never entered the thread.)
-        abandoned = _abandoned_tool_outputs(state["messages"], last_message, reason)
+        abandoned = _abandoned_tool_outputs(state["messages"], unfinished, reason)
 
     # Prometheus metrics (shared helper — also used by the draft handoff path).
     # COMPUTE time, not wall clock: a turn that waited on a HITL approval would
@@ -1046,7 +602,7 @@ async def react_finalize_node(
     # ADR-310: what the recovery passes achieved — and, when a pass left no usable
     # answer, the last draft it had taken off the thread, which IS the answer.
     recovery = recovery_report(state, last_message, cut=reason is not None)
-    final_content = recovery.pop("final_message", final_content)
+    final_content = proven_final_content(state, recovery.pop("final_message", final_content))
     _record_react_metrics(iteration, compute_s, "success" if final_content else "empty")
 
     logger.info(
@@ -1073,6 +629,7 @@ async def react_finalize_node(
     if truncation is not None:
         react_result["truncation"] = truncation
     react_result.update(recovery)
+    react_result.update(requested_final_report(state))
     if abandoned:
         # The same list the log line carries, where a person reading the debug
         # panel can see it: which capabilities the turn asked for and never got

@@ -22,6 +22,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings
 
+from src.core.application_tools import APPLICATION_COMMAND_TTL_SECONDS
 from src.core.constants import (
     ADAPTIVE_REPLANNING_EMPTY_THRESHOLD_DEFAULT,
     ADAPTIVE_REPLANNING_MAX_ATTEMPTS_DEFAULT,
@@ -384,6 +385,21 @@ from src.core.constants import (
 
 class AgentsSettings(BaseSettings):
     """Agent orchestration and LLM interaction settings."""
+
+    application_command_ttl_seconds: int = Field(
+        default=APPLICATION_COMMAND_TTL_SECONDS,
+        ge=30,
+        le=86400,
+        description="Validity of a prepared application command before human confirmation.",
+    )
+
+    application_tools_enabled: bool = Field(
+        default=True,
+        description=(
+            "Deployment ceiling for LIA application-management tools; the "
+            "administrator's Platform Capabilities switch can disable them at runtime."
+        ),
+    )
 
     # ========================================================================
     # SSE (Server-Sent Events) Configuration

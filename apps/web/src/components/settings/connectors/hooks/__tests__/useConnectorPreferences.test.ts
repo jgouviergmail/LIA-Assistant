@@ -14,6 +14,8 @@ import { makeConnector } from '@/__tests__/factories';
 import type { ConnectorPreferences } from '@/components/settings/connectors/types';
 
 const { get, patch } = vi.hoisted(() => ({ get: vi.fn(), patch: vi.fn() }));
+const { account } = vi.hoisted(() => ({ account: { id: 'account-a' } }));
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: account }) }));
 // The default export is stubbed, but `ApiError` stays the REAL class: the
 // rejection shape is the contract under test here, and a hand-rolled stand-in
 // would let the production read drift away from what the client actually throws.
@@ -63,9 +65,13 @@ function deferredGet() {
 }
 
 beforeEach(() => {
+  account.id = 'account-a';
   vi.clearAllMocks();
   get.mockResolvedValue({ preferences: {} });
-  patch.mockResolvedValue({});
+  patch.mockImplementation(async (_url: string, preferences: ConnectorPreferences) => {
+    get.mockResolvedValue({ preferences });
+    return {};
+  });
 });
 
 describe('useConnectorPreferences — loading', () => {
@@ -111,7 +117,7 @@ describe('useConnectorPreferences — saving', () => {
   });
 
   it('maps a task connector onto its own field', async () => {
-    const { result } = setup();
+    const { result } = setup([makeConnector({ id: 'c1', connector_type: 'google_tasks', status: 'active' })]);
     await act(async () => {
       await result.current.selectPreference('c1', 'google_tasks', 'Inbox');
     });
@@ -256,5 +262,68 @@ describe('useConnectorPreferences — load racing a local write', () => {
     });
 
     expect(result.current.savedPrefs.c1).toEqual({ default_calendar_name: 'Server' });
+  });
+});
+
+describe('useConnectorPreferences — application scope', () => {
+  it('serializes writes and keeps the later preview while verifying the earlier commit', async () => {
+    get.mockResolvedValueOnce({ preferences: { default_calendar_name: 'Before' } })
+      .mockResolvedValueOnce({ preferences: { default_calendar_name: 'First' } })
+      .mockResolvedValue({ preferences: { default_calendar_name: 'Second' } });
+    let settleFirst!: () => void;
+    let settleSecond!: () => void;
+    patch.mockReturnValueOnce(new Promise<void>(resolve => { settleFirst = resolve; }))
+      .mockReturnValueOnce(new Promise<void>(resolve => { settleSecond = resolve; }));
+    const { result } = setup();
+    await waitFor(() => expect(result.current.savedPrefs.c1?.default_calendar_name).toBe('Before'));
+    let first!: Promise<void>;
+    let second!: Promise<void>;
+    act(() => {
+      first = result.current.selectPreference('c1', 'google_calendar', 'First');
+      second = result.current.selectPreference('c1', 'google_calendar', 'Second');
+    });
+    await waitFor(() => expect(patch).toHaveBeenCalledTimes(1));
+    await act(async () => { settleFirst(); await first; });
+    expect(result.current.savedPrefs.c1?.default_calendar_name).toBe('Second');
+    expect(patch).toHaveBeenCalledTimes(2);
+    await act(async () => { settleSecond(); await second; });
+    expect(result.current.savedPrefs.c1?.default_calendar_name).toBe('Second');
+  });
+
+  it('rereads a native change only for the addressed account', async () => {
+    const { publishApplicationResources } = await import('@/lib/application-resources');
+    get.mockResolvedValue({ preferences: { default_calendar_name: 'Before' } });
+    const { result } = setup();
+    await waitFor(() => expect(result.current.savedPrefs.c1?.default_calendar_name).toBe('Before'));
+    get.mockResolvedValue({ preferences: { default_calendar_name: 'Native' } });
+    act(() => publishApplicationResources('account-b', new Set(['connector_preferences'])));
+    expect(get).toHaveBeenCalledTimes(1);
+    act(() => publishApplicationResources('account-a', new Set(['connector_preferences'])));
+    await waitFor(() => expect(result.current.savedPrefs.c1?.default_calendar_name).toBe('Native'));
+  });
+
+  it('refuses an obsolete save callback before HTTP and hides the old account values', async () => {
+    get.mockResolvedValue({ preferences: { default_calendar_name: 'Private A' } });
+    const { result, rerender } = setup();
+    await waitFor(() => expect(result.current.savedPrefs.c1?.default_calendar_name).toBe('Private A'));
+    const oldSave = result.current.selectPreference;
+    account.id = 'account-b';
+    get.mockResolvedValue({ preferences: {} });
+    rerender();
+    expect(result.current.savedPrefs.c1).toBeUndefined();
+    await act(() => oldSave('c1', 'google_calendar', 'Old edit'));
+    expect(patch).not.toHaveBeenCalled();
+    account.id = 'account-a';
+  });
+
+  it('preserves the last saved value and reports a failed native reread', async () => {
+    const { publishApplicationResources } = await import('@/lib/application-resources');
+    get.mockResolvedValue({ preferences: { default_calendar_name: 'Before' } });
+    const { result } = setup();
+    await waitFor(() => expect(result.current.savedPrefs.c1?.default_calendar_name).toBe('Before'));
+    get.mockRejectedValue(new Error('offline'));
+    act(() => publishApplicationResources('account-a', new Set(['connector_preferences'])));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('settings.application_tools.sync_failed'));
+    expect(result.current.savedPrefs.c1?.default_calendar_name).toBe('Before');
   });
 });

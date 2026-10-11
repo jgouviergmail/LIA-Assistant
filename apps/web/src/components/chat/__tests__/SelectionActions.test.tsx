@@ -8,10 +8,10 @@
  *  - the quote is ellipsized beyond the cap (a 4-page quote is noise);
  *  - the quote comes from the SNAPSHOT, never from getSelection() at click
  *    time (iOS clears the selection when the sheet is tapped);
- *  - mobile renders the same actions as a bottom sheet with a close button.
+ *  - mobile anchors the same actions beside the selection, with a close button.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
 import { SELECTION_QUOTE_MAX_LENGTH } from '@/lib/constants';
@@ -44,6 +44,16 @@ function renderMenu() {
 beforeEach(() => {
   vi.clearAllMocks();
   useMediaQuery.mockReturnValue(false); // desktop by default
+  vi.stubGlobal('innerWidth', 800);
+  vi.stubGlobal('innerHeight', 600);
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(
+    () => new DOMRect(0, 0, 720, 56)
+  );
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe('clampQuote', () => {
@@ -116,7 +126,7 @@ describe('SelectionActions', () => {
     }
   });
 
-  it('renders the mobile sheet with the same actions and a close button', () => {
+  it('renders the narrow menu with the same actions and a close button', () => {
     useMediaQuery.mockReturnValue(true);
     useTextSelection.mockReturnValue(snapshot());
     renderMenu();
@@ -125,5 +135,68 @@ describe('SelectionActions', () => {
     expect(
       screen.getByRole('button', { name: 'chat.selection.actions.explain' })
     ).toBeInTheDocument();
+  });
+
+  it('escapes the filtered chat panel through a body portal', () => {
+    useTextSelection.mockReturnValue(snapshot());
+    const { container } = renderMenu();
+    const toolbar = screen.getByRole('toolbar');
+    expect(container.contains(toolbar)).toBe(false);
+    expect(toolbar.parentElement).toBe(document.body);
+  });
+
+  it('keeps the measured toolbar width within the right edge', () => {
+    useTextSelection.mockReturnValue({
+      text: 'A passage near the right edge',
+      rect: { top: 200, left: 650, width: 120, bottom: 220 },
+    });
+    renderMenu();
+    const toolbar = screen.getByRole('toolbar');
+    expect(Number.parseFloat(toolbar.style.left) + 720).toBeLessThanOrEqual(792);
+  });
+
+  it('moves below a selection near the top instead of covering it', () => {
+    useTextSelection.mockReturnValue({
+      text: 'A passage near the top',
+      rect: { top: 12, left: 40, width: 120, bottom: 32 },
+    });
+    renderMenu();
+    expect(Number.parseFloat(screen.getByRole('toolbar').style.top)).toBeGreaterThanOrEqual(40);
+  });
+
+  it('anchors the narrow menu next to the selection instead of the screen bottom', () => {
+    useMediaQuery.mockReturnValue(true);
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
+      new DOMRect(0, 0, 280, 180)
+    );
+    useTextSelection.mockReturnValue(snapshot());
+    renderMenu();
+    const toolbar = screen.getByRole('toolbar');
+    expect(Number.parseFloat(toolbar.style.top) + 180).toBeLessThanOrEqual(192);
+  });
+
+  it('stays inside an offset visual viewport after zoom or keyboard resize', () => {
+    vi.stubGlobal(
+      'visualViewport',
+      Object.assign(new EventTarget(), {
+        offsetLeft: 100,
+        offsetTop: 150,
+        width: 500,
+        height: 300,
+      })
+    );
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
+      new DOMRect(0, 0, 280, 56)
+    );
+    useTextSelection.mockReturnValue({
+      text: 'A zoomed passage',
+      rect: { top: 160, left: 540, width: 40, bottom: 180 },
+    });
+    renderMenu();
+    const toolbar = screen.getByRole('toolbar');
+    expect(Number.parseFloat(toolbar.style.left)).toBeGreaterThanOrEqual(108);
+    expect(Number.parseFloat(toolbar.style.left) + 280).toBeLessThanOrEqual(592);
+    expect(Number.parseFloat(toolbar.style.top)).toBeGreaterThanOrEqual(188);
+    expect(Number.parseFloat(toolbar.style.top) + 56).toBeLessThanOrEqual(442);
   });
 });

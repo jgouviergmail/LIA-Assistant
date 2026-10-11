@@ -16,31 +16,39 @@ fields would be a second authority on the same panel.
 from __future__ import annotations
 
 import uuid
-from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.heartbeat.router import get_heartbeat_settings, update_heartbeat_settings
 from src.domains.heartbeat.schemas import HeartbeatSettingsUpdate
 from src.domains.moments.models import MomentKind
 from src.domains.moments.preferences import MOMENT_KIND_ORDER
+from src.domains.users.models import User
 
 pytestmark = pytest.mark.unit
 
 FOLLOWUP = MomentKind.EVENT_FOLLOWUP.value
 
 
-def _user(kinds_disabled: list[str] | None = None) -> SimpleNamespace:
-    return SimpleNamespace(
+def _user(kinds_disabled: list[str] | None = None) -> User:
+    return User(
         id=uuid.uuid4(),
         language="fr",
+        is_active=True,
         heartbeat_enabled=True,
         heartbeat_notify_start_hour=8,
         heartbeat_notify_end_hour=22,
         heartbeat_disabled_sources=None,
         moment_kinds_disabled=kinds_disabled,
     )
+
+
+def _db(user: User) -> AsyncMock:
+    db = AsyncMock(spec=AsyncSession)
+    db.scalar.return_value = user
+    return db
 
 
 def _patch_availability(sources: list[str] | None = None) -> object:
@@ -87,7 +95,7 @@ class TestWriting:
     async def test_the_refusal_set_is_replaced_in_full(self) -> None:
         """A partial diff would make two clients disagree about the set."""
         user = _user([FOLLOWUP])
-        db = AsyncMock()
+        db = _db(user)
 
         with _patch_availability():
             response = await update_heartbeat_settings(
@@ -108,7 +116,7 @@ class TestWriting:
             await update_heartbeat_settings(
                 data=HeartbeatSettingsUpdate(moment_kinds_disabled=["ghost_kind", FOLLOWUP]),
                 user=user,
-                db=AsyncMock(),
+                db=_db(user),
             )
 
         assert user.moment_kinds_disabled == [FOLLOWUP]
@@ -121,7 +129,7 @@ class TestWriting:
             await update_heartbeat_settings(
                 data=HeartbeatSettingsUpdate(heartbeat_notify_start_hour=8),
                 user=user,
-                db=AsyncMock(),
+                db=_db(user),
             )
 
         assert user.moment_kinds_disabled == [FOLLOWUP]

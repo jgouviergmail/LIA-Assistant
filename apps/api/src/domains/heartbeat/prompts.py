@@ -21,7 +21,6 @@ from src.core.config import get_settings
 from src.core.i18n import get_language_name
 from src.core.llm_usage import LLMBillingRecord
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
-from src.domains.agents.prompts import load_prompt
 from src.domains.heartbeat.schemas import HeartbeatContext, HeartbeatDecision
 from src.infrastructure.cache.pricing_cache import capture_pricing_snapshot
 from src.infrastructure.llm.token_capture import TokenCaptureHandler
@@ -43,7 +42,7 @@ def build_decision_user_prompt(context: HeartbeatContext) -> str:
     # other proactive surfaces — P10); an empty summary reads as the store's
     # « none » line rather than a blank the model could misread.
     none = _heartbeat_lines()["none_sent_recently"]
-    return load_prompt("heartbeat_decision_user_prompt").format(
+    return read_prompt_file("heartbeat_decision_user_prompt").format(
         context=context.to_prompt_context(),
         recent_heartbeats=context.recent_heartbeats_summary or none,
         recent_interests=context.recent_interest_notifications_summary or none,
@@ -60,7 +59,7 @@ def render_verified_facts(facts_block: str) -> str:
     Returns:
         The block from ``heartbeat_verified_facts_prompt``.
     """
-    return load_prompt("heartbeat_verified_facts_prompt").format(facts_block=facts_block)
+    return read_prompt_file("heartbeat_verified_facts_prompt").format(facts_block=facts_block)
 
 
 @lru_cache(maxsize=1)
@@ -102,7 +101,7 @@ async def get_heartbeat_decision(
     # Resolve provider for structured output (needs provider-specific logic)
     config = get_llm_config_for_agent(get_settings(), "heartbeat_decision")
 
-    system_prompt = load_prompt("heartbeat_decision_prompt").format(
+    system_prompt = read_prompt_file("heartbeat_decision_prompt").format(
         user_language=language_name,
     )
 
@@ -242,7 +241,7 @@ async def generate_heartbeat_message(
                 user_id=user_id, format="brief", flow="heartbeat"
             )
 
-    system_prompt = load_prompt("heartbeat_message_prompt").format(
+    system_prompt = read_prompt_file("heartbeat_message_prompt").format(
         personality_instruction=personality_instruction or default_personality_prompt(),
         language=language_name,
         current_datetime=current_dt,

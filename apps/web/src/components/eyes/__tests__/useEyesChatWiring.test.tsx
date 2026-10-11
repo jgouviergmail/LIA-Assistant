@@ -43,6 +43,28 @@ afterEach(() => {
 });
 
 describe('useEyesChatWiring', () => {
+  it('leaving chat releases page signals without clearing audio, notifications or held tone', () => {
+    const { unmount } = render(<Probe status="streaming" messages={[]} />);
+    act(() => {
+      const signals = useEyesSignalsStore.getState();
+      signals.beginTurn('a1');
+      signals.completeTurn('a1');
+      signals.recordTyping();
+      signals.recordNotification();
+      signals.setAudioPlaying(true);
+      signals.setReaction('joy');
+    });
+    const before = useEyesSignalsStore.getState();
+    unmount();
+    const after = useEyesSignalsStore.getState();
+    expect(after.turnOpen).toBe(false);
+    expect(after.typingAt).toBeNull();
+    expect(after.completedAnswerId).toBeNull();
+    expect(after.answerId).toBeNull();
+    expect(after.audioPlaying).toBe(true);
+    expect(after.notificationAt).toBe(before.notificationAt);
+    expect(after.reaction).toBe(before.reaction);
+  });
   it('releases running activity immediately when the stream fails without done', () => {
     const { rerender } = render(<Probe status="idle" messages={[]} />);
     rerender(<Probe status="sending" messages={[]} />);

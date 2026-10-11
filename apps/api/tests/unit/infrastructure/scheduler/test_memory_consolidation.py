@@ -143,24 +143,21 @@ class TestShouldSkip:
 
 @pytest.mark.unit
 class TestApplyMerge:
-    """The merge SUPERSEDES the loser (Lot 2-B1) — it never deletes."""
+    """Invalid pair identities are refused before any SQL; PG tests cover writes."""
 
-    async def test_loser_is_superseded_never_deleted(self):
+    @pytest.mark.parametrize("same_owner", [True, False])
+    async def test_same_memory_or_foreign_owner_cannot_be_merged(self, same_owner):
         from unittest.mock import AsyncMock, MagicMock
+        from uuid import uuid4
 
         from src.infrastructure.scheduler.memory_consolidation import _apply_merge
 
         repo = MagicMock()
-        repo.update = AsyncMock(side_effect=lambda m: m)
-        repo.delete = AsyncMock()
-        survivor = MagicMock()
-        loser = MagicMock()
-        loser.invalidated_at = None
-        loser.superseded_by_id = None
-
-        await _apply_merge(repo, survivor, loser)
-
-        assert loser.invalidated_at is not None
-        assert loser.superseded_by_id == survivor.id
-        repo.update.assert_awaited_once_with(loser)
-        repo.delete.assert_not_awaited()
+        repo.db.execute = AsyncMock()
+        survivor = MagicMock(id=uuid4(), user_id=uuid4())
+        loser = MagicMock(
+            id=survivor.id if same_owner else uuid4(),
+            user_id=survivor.user_id if same_owner else uuid4(),
+        )
+        assert await _apply_merge(repo, survivor, loser) is False
+        repo.db.execute.assert_not_awaited()

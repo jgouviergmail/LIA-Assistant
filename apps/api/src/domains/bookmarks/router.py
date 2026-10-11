@@ -15,7 +15,6 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.config import settings
 from src.core.constants import (
     BOOKMARKS_PAGE_DEFAULT_LIMIT,
     BOOKMARKS_PAGE_MAX_LIMIT,
@@ -32,6 +31,7 @@ from src.domains.bookmarks.schemas import (
     BookmarkStateResponse,
 )
 from src.domains.bookmarks.service import BookmarkService
+from src.domains.bookmarks.ui_projection import BOOKMARK_QUERY_MAX_LENGTH, read_bookmark_page
 from src.domains.feature_switches.guard import capability_dependencies
 from src.domains.feature_switches.registry import PlatformCapability
 from src.domains.users.models import User
@@ -87,7 +87,7 @@ async def keep_bookmark(
 async def list_bookmarks(
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
-    q: Annotated[str | None, Query(max_length=200)] = None,
+    q: Annotated[str | None, Query(max_length=BOOKMARK_QUERY_MAX_LENGTH)] = None,
     limit: Annotated[
         int, Query(ge=BOOKMARKS_PAGE_MIN_LIMIT, le=BOOKMARKS_PAGE_MAX_LIMIT)
     ] = BOOKMARKS_PAGE_DEFAULT_LIMIT,
@@ -107,18 +107,7 @@ async def list_bookmarks(
         (ADR-184).
     """
     filters = BookmarkFilters(query=q, limit=limit, offset=offset)
-    service = BookmarkService(db)
-    rows, total = await service.list_page(user.id, filters)
-    documents = await service.documents_of(rows)
-    summaries = await service.answer_costs_of(rows)
-    return BookmarkListResponse(
-        items=[BookmarkResponse.from_row(row, documents, summaries) for row in rows],
-        total=total,
-        limit=limit,
-        offset=offset,
-        max_limit=BOOKMARKS_PAGE_MAX_LIMIT,
-        max_per_user=settings.bookmarks_max_per_user,
-    )
+    return await read_bookmark_page(db, user.id, filters)
 
 
 @router.get(

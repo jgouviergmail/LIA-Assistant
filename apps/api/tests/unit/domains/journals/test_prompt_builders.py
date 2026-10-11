@@ -180,14 +180,21 @@ class TestConsolidationPrompt:
         prompt = build_consolidation_prompt(personality_code=None, **CONSOLIDATION_FIELDS)  # type: ignore[arg-type]
         assert "ANALYST PERSONA" in prompt
 
-    def test_the_portrait_budgets_come_from_the_settings_never_from_prose(self) -> None:
+    def test_the_portrait_budgets_come_from_the_settings_never_from_prose(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """ADR-184 applied to the portrait: the numbers the model reads are the
         numbers the settings hold, and the old prose figures are gone."""
         from src.core.config import settings
 
+        full_budget, brief_budget = 129, 37
+        monkeypatch.setattr(settings, "journal_portrait_full_max_tokens", full_budget)
+        monkeypatch.setattr(settings, "journal_portrait_brief_max_tokens", brief_budget)
         prompt = build_consolidation_prompt(personality_code=None, **CONSOLIDATION_FIELDS)  # type: ignore[arg-type]
-        assert f"about {settings.journal_portrait_full_max_tokens} tokens" in prompt
-        assert f"about {settings.journal_portrait_brief_max_tokens} tokens" in prompt
+        full_section = prompt.split("The FULL portrait", 1)[1].split("The BRIEF portrait", 1)[0]
+        brief_section = prompt.split("The BRIEF portrait", 1)[1].split("RULES:", 1)[0]
+        assert str(full_budget) in full_section and str(brief_budget) not in full_section
+        assert str(brief_budget) in brief_section and str(full_budget) not in brief_section
         assert "150-220" not in prompt and "50-70" not in prompt
 
     def test_the_four_source_sections_render_where_they_are_given(self) -> None:

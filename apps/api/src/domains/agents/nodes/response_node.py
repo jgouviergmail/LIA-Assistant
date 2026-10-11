@@ -3187,6 +3187,9 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         # overwrite them at end of node — used for deferred self-evaluation
         # by the next extraction (ADR-079).
         previous_journal_injected_ids: list[str] = list(state.get("injected_journal_ids") or [])
+        previous_journal_injected_revisions: dict[str, int] = dict(
+            state.get("injected_journal_revisions") or {}
+        )
 
         # Get timezone-aware prompt with personality and memory injection
         # V3 Architecture: LLM generates conversational response only
@@ -3337,6 +3340,8 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                     STATE_KEY_MESSAGES: [result_message],
                     STATE_KEY_DRAFT_ACTION_RESULT: None,
                     "current_turn_registry": current_turn_registry,
+                    "injected_journal_ids": [],
+                    "injected_journal_revisions": {},
                 }
                 # The turn ENDS here — the first half stopped on the question.
                 await _instrument_business_metrics(state, config, run_id, draft_execution_result)
@@ -3360,6 +3365,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                     user_language=user_language,
                     final_content=short_response,
                     previous_journal_injected_ids=previous_journal_injected_ids,
+                    previous_journal_injected_revisions=previous_journal_injected_revisions,
                     psyche_appraisal=None,
                 )
                 return draft_state_update
@@ -3535,6 +3541,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         # (T → T+1, ADR-079). Reset on conversation reset is gracefully handled:
         # absent ids → extraction skips the deferred-eval section silently.
         state_update["injected_journal_ids"] = context_bundle.journal_injected_ids
+        state_update["injected_journal_revisions"] = context_bundle.journal_injected_revisions
         # F5 — persistence by contract (not by shared-reference side effect):
         # the ReAct passthrough merge and the skill sub-agent registry items
         # are returned explicitly. agent_results has no reducer (overwrite:
@@ -3563,6 +3570,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             user_language=user_language,
             final_content=content_for_model(result),
             previous_journal_injected_ids=previous_journal_injected_ids,
+            previous_journal_injected_revisions=previous_journal_injected_revisions,
             psyche_appraisal=psyche_appraisal,
         )
 

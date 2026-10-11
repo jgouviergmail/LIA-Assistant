@@ -45,7 +45,8 @@ export interface UseMeetingRecorderReturn extends MeetingRecorderState {
  *   terminal state (the provider toasts and links to the minutes).
  */
 export function useMeetingRecorder(
-  onProcessed?: (detail: MeetingDetail) => void
+  onProcessed?: (detail: MeetingDetail) => void,
+  ownerId?: string
 ): UseMeetingRecorderReturn {
   const state = useMeetingRecorderStore();
   const controller = useMemo(() => new MeetingRecorderController(createRecorderDeps()), []);
@@ -57,11 +58,12 @@ export function useMeetingRecorder(
   }, [controller, onProcessed]);
 
   useEffect(() => {
+    if (ownerId) useMeetingRecorderStore.getState().setOwner(ownerId);
     void controller.reconcile();
     return () => {
       void controller.dispose();
     };
-  }, [controller]);
+  }, [controller, ownerId]);
 
   const start = useCallback(() => controller.start(), [controller]);
   const stop = useCallback(() => controller.stop({ reason: 'user' }), [controller]);

@@ -141,6 +141,16 @@ class UserRepository(BaseRepository[User]):
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
+    async def get_by_id_for_preference_update(self, user_id: UUID) -> User | None:
+        """Fresh row lock for comparing the exact state a human approved."""
+        user: User | None = await self.db.scalar(
+            select(User)
+            .where(User.id == user_id, User.is_active, User.deleted_at.is_(None))
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        return user
+
     async def get_user_minimal_for_session(self, user_id: UUID) -> User | None:
         """
         Get user with minimal fields for session authentication (OPTIMIZED).

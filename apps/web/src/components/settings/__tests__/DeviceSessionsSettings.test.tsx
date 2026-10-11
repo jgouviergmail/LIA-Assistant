@@ -15,13 +15,14 @@ const { setEnabled, refreshUser } = vi.hoisted(() => ({
   setEnabled: vi.fn(),
   refreshUser: vi.fn(),
 }));
+const account = vi.hoisted(() => ({ id: 'one' }));
 vi.mock('@/hooks/useSessions', () => ({
   useSessions,
   useLoginNotificationsPreference: () => ({ setEnabled }),
 }));
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
-    user: { login_notifications_enabled: true },
+    user: { id: account.id, login_notifications_enabled: true },
     refreshUser,
   }),
 }));
@@ -63,6 +64,7 @@ function sessionsHook(over: Record<string, unknown> = {}) {
 }
 
 beforeEach(() => {
+  account.id = 'one';
   vi.clearAllMocks();
   setEnabled.mockResolvedValue(undefined);
   refreshUser.mockResolvedValue(undefined);
@@ -73,6 +75,21 @@ beforeEach(() => {
     onVerified: vi.fn(),
     onCancel: vi.fn(),
   });
+});
+
+it('closes an old account confirmation across account changes including A-to-B-to-A', async () => {
+  const user = userEvent.setup();
+  useSessions.mockReturnValue(sessionsHook({ sessions: [session({ id: 's2', current: false })] }));
+  const { rerender } = renderWithProviders(<DeviceSessionsSettings />);
+  await user.click(screen.getByRole('button', { name: 'settings.security.devices.revoke_aria' }));
+  expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+  account.id = 'two';
+  useSessions.mockReturnValue(sessionsHook());
+  rerender(<DeviceSessionsSettings />);
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  account.id = 'one';
+  rerender(<DeviceSessionsSettings />);
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
 });
 
 describe('DeviceSessionsSettings — list', () => {

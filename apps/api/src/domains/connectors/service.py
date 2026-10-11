@@ -40,6 +40,7 @@ from src.core.security import (
 from src.core.security.authorization import check_resource_ownership_by_user_id
 from src.domains.connectors.api_key_use import stamp_api_key_use
 from src.domains.connectors.keyless import is_keyless_available
+from src.domains.connectors.list_queries import read_user_connector_list
 from src.domains.connectors.models import (
     Connector,
     ConnectorGlobalConfig,
@@ -50,10 +51,13 @@ from src.domains.connectors.models import (
     get_connector_display_name,
 )
 from src.domains.connectors.oauth_bulk import bulk_reconnect_provider
-from src.domains.connectors.oauth_grant_lifecycle import delete_shared_connector
 from src.domains.connectors.oauth_grant_runtime import (
     OAuthGrantRuntime,
     invalidate_oauth_connector_cache,
+)
+from src.domains.connectors.removal_commands import (
+    ConnectorRemovalSnapshot,
+    remove_owned_connector,
 )
 from src.domains.connectors.repository import ConnectorRepository
 from src.domains.connectors.schemas import (
@@ -73,6 +77,7 @@ from src.domains.connectors.schemas import (
     HueConnectionMode,
 )
 from src.domains.users.models import User
+from src.domains.users.preference_cas import PreferenceWriteReceipt
 from src.infrastructure.cache.redis import SessionService, get_redis_session
 from src.infrastructure.email import get_email_service
 from src.infrastructure.resilience import get_circuit_breaker
@@ -87,7 +92,9 @@ class ConnectorService:
         self.db = db
         self.repository = ConnectorRepository(db)
 
-    async def get_user_connectors(self, user_id: UUID) -> ConnectorListResponse:
+    async def get_user_connectors(
+        self, user_id: UUID, *, fresh: bool = False
+    ) -> ConnectorListResponse:
         """
         Get all connectors for a user (with 5min cache).
 
@@ -100,31 +107,7 @@ class ConnectorService:
         Returns:
             ConnectorListResponse with all user connectors
         """
-        from src.infrastructure.cache.redis import get_redis_cache
-
-        cache_key = f"user_connectors:{user_id}"
-        redis = await get_redis_cache()
-
-        # Try cache first
-        cached = await redis.get(cache_key)
-        if cached:
-            logger.debug("user_connectors_cache_hit", user_id=str(user_id))
-            return ConnectorListResponse.model_validate_json(cached)
-
-        # Cache miss - query DB
-        connectors = await self.repository.get_all_by_user(user_id)
-
-        logger.info("user_connectors_fetched", user_id=str(user_id), count=len(connectors))
-
-        response = ConnectorListResponse(
-            connectors=[ConnectorResponse.model_validate(c) for c in connectors],
-            total=len(connectors),
-        )
-
-        # Cache for 5 minutes
-        await redis.set(cache_key, response.model_dump_json(), ex=300)
-
-        return response
+        return await read_user_connector_list(self.repository, user_id, fresh=fresh)
 
     async def check_connector_health(self, user_id: UUID) -> ConnectorHealthResponse:
         """
@@ -371,38 +354,25 @@ class ConnectorService:
 
         return ConnectorResponse.model_validate(connector)
 
-    async def delete_connector(self, user_id: UUID, connector_id: UUID) -> None:
-        """
-        Delete a connector.
-
-        Args:
-            user_id: User UUID
-            connector_id: Connector UUID
-
-        Raises:
-            HTTPException: If connector not found or doesn't belong to user
-        """
-        connector = await self.repository.get_by_id(connector_id)
-        check_resource_ownership_by_user_id(connector, user_id, "connector")
-        assert connector is not None  # check_resource_ownership_by_user_id raises if None
-
-        if connector.oauth_grant_id:
-            await delete_shared_connector(self.db, self.repository, connector)
-        else:
-            # Legacy per-service credentials retain their established behavior.
-            await self._revoke_oauth_token(connector)
-            await self.repository.delete(connector)
-            await self.db.commit()
-
-        logger.info(
-            "connector_deleted",
-            user_id=str(user_id),
-            connector_id=str(connector_id),
-            connector_type=connector.connector_type,
+    async def delete_connector(
+        self,
+        user_id: UUID,
+        connector_id: UUID,
+        *,
+        expected: ConnectorRemovalSnapshot | None = None,
+        receipt: PreferenceWriteReceipt | None = None,
+    ) -> None:
+        """Unlink exactly one owned local service; provider-wide consent is retained."""
+        await remove_owned_connector(
+            self.db,
+            self.repository,
+            user_id,
+            connector_id,
+            legacy_cleanup=self._revoke_oauth_token,
+            invalidate=self._invalidate_user_connectors_cache,
+            expected=expected,
+            receipt=receipt,
         )
-
-        # Invalidate cache after deletion
-        await self._invalidate_user_connectors_cache(user_id)
 
     # Gmail connector OAuth flow
 

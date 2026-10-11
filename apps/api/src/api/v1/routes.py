@@ -9,6 +9,7 @@ from src.core import constants
 from src.core.config import settings
 from src.core.field_names import FIELD_STATUS
 from src.domains.agents.api.router import router as agents_router
+from src.domains.agents.application.command_router import router as application_commands_router
 from src.domains.agents.effects.admin_router import router as effects_admin_router
 from src.domains.agents.effects.chain_router import admin_router as chain_admin_router
 from src.domains.agents.effects.chain_router import router as chain_router
@@ -72,6 +73,7 @@ api_router = APIRouter()
 api_router.include_router(auth_router)
 api_router.include_router(profile_image_router)  # Google avatar COEP proxy
 api_router.include_router(oauth_router)  # Provider sign-in + native shell handoff
+api_router.include_router(application_commands_router)
 api_router.include_router(step_up_router)  # Step-up re-auth (works without MFA flag)
 api_router.include_router(sessions_router)  # Device sessions "My devices" (D2)
 api_router.include_router(users_router)

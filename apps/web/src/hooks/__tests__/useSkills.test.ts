@@ -22,8 +22,8 @@ import {
   takeUpdater,
 } from '@/__tests__/api-mocks';
 
-const { useApiQuery } = vi.hoisted(() => ({ useApiQuery: vi.fn() }));
-vi.mock('@/hooks/useApiQuery', () => ({ useApiQuery }));
+const { useApplicationAccountQuery } = vi.hoisted(() => ({ useApplicationAccountQuery: vi.fn() }));
+vi.mock('@/hooks/useApplicationAccountQuery', () => ({ useApplicationAccountQuery }));
 const { useApiMutation } = vi.hoisted(() => ({ useApiMutation: vi.fn() }));
 vi.mock('@/hooks/useApiMutation', () => ({ useApiMutation }));
 
@@ -81,7 +81,7 @@ function cache(over: Partial<SkillListResponse> = {}): SkillListResponse {
 }
 
 function setupWith(data: SkillListResponse | undefined, adminView = false) {
-  useApiQuery.mockReturnValue(queryResult<SkillListResponse>({ data, setData, refetch }));
+  useApplicationAccountQuery.mockReturnValue({ ...queryResult<SkillListResponse>({ data, setData, refetch }), ownerId: "skills-owner" });
   return renderHook(() => useSkills(adminView));
 }
 
@@ -117,7 +117,7 @@ describe('useSkills — reading', () => {
   it('reads the user catalogue by default', () => {
     const { result } = setup();
 
-    expect(useApiQuery).toHaveBeenCalledWith(ENDPOINT, expect.objectContaining({}));
+    expect(useApplicationAccountQuery).toHaveBeenCalledWith(ENDPOINT, 'Skills');
     expect(result.current.skills).toHaveLength(1);
     expect(result.current.total).toBe(1);
   });
@@ -125,7 +125,7 @@ describe('useSkills — reading', () => {
   it('reads the admin catalogue in admin view', () => {
     setup(cache(), true);
 
-    expect(useApiQuery).toHaveBeenCalledWith(`${ENDPOINT}/admin/list`, expect.objectContaining({}));
+    expect(useApplicationAccountQuery).toHaveBeenCalledWith(`${ENDPOINT}/admin/list`, 'Skills');
   });
 
   it('degrades to an empty catalogue on a missing payload', () => {

@@ -74,7 +74,6 @@ place_phone_call_catalogue_manifest = ToolManifest(
             name="contact",
             type="string",
             required=True,
-            semantic_type="person_name",
             description=(
                 "Who to call: a contact name or a raw phone number. Pass the name "
                 "EXACTLY as known in the address book ('Marie Dupont') — never append "
@@ -100,6 +99,7 @@ place_phone_call_catalogue_manifest = ToolManifest(
                 ParameterConstraint(kind="min_length", value=1),
                 ParameterConstraint(kind="max_length", value=500),
             ],
+            semantic_type="Text",
         ),
         ParameterSchema(
             name="date_window",
@@ -122,6 +122,7 @@ place_phone_call_catalogue_manifest = ToolManifest(
             path="message",
             type="string",
             description="Confirmation / clarification message for the user.",
+            semantic_type="Text",
         ),
     ],
     cost=CostProfile(
@@ -204,6 +205,7 @@ call_me_catalogue_manifest = ToolManifest(
             constraints=[
                 ParameterConstraint(kind="max_length", value=500),
             ],
+            semantic_type="Text",
         ),
     ],
     outputs=[
@@ -216,6 +218,7 @@ call_me_catalogue_manifest = ToolManifest(
             path="message",
             type="string",
             description="Status message for the user (ringing, or why not).",
+            semantic_type="Text",
         ),
     ],
     cost=CostProfile(

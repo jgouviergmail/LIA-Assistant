@@ -96,6 +96,7 @@ EXPECTED_CAPABILITIES: frozenset[str] = frozenset(
         "skill_library",
         # A personal avatar owns provider sessions independently of Live/TTS.
         "avatar",
+        "application_tools",
     }
 )
 

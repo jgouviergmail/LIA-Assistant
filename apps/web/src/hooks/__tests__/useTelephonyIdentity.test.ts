@@ -24,8 +24,9 @@ const { apiClient } = vi.hoisted(() => ({
 
 vi.mock('@/lib/api-client', async importOriginal => {
   const actual = await importOriginal<typeof import('@/lib/api-client')>();
-  return { ...actual, apiClient };
+  return { ...actual, apiClient, default: apiClient };
 });
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'phone-owner' } }) }));
 
 import { useTelephonyIdentity } from '../useTelephonyIdentity';
 
@@ -46,7 +47,7 @@ describe('useTelephonyIdentity', () => {
     apiClient.get.mockResolvedValueOnce(identity);
     const { result } = renderHook(() => useTelephonyIdentity());
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(apiClient.get).toHaveBeenCalledWith('/telephony/identity');
+    expect(apiClient.get).toHaveBeenCalledWith('/telephony/identity', expect.any(Object));
     expect(result.current.identity?.phone_number).toBe('+33612345678');
     expect(result.current.isUnavailable).toBe(false);
   });

@@ -312,12 +312,25 @@ class FakeWakeListener implements LiveWakeListener {
 
 describe('LiveSessionController', () => {
   it('declares activation before audio warmup and prevents another start during the pending mint', async () => {
-    const h = build(); let complete = () => {};
-    h.player.warmup.mockImplementationOnce(() => new Promise<void>(resolve => { complete = resolve; }));
+    const h = build();
+    let complete = () => {};
+    h.player.warmup.mockImplementationOnce(
+      () =>
+        new Promise<void>(resolve => {
+          complete = resolve;
+        })
+    );
     const starting = h.controller.start('direct');
-    expect(useLiveStore.getState()).toMatchObject({ status: 'minting', sessionId: null, mode: 'direct' });
-    await h.controller.start(); expect(h.player.warmup).toHaveBeenCalledOnce();
-    complete(); await starting; await h.controller.end();
+    expect(useLiveStore.getState()).toMatchObject({
+      status: 'minting',
+      sessionId: null,
+      mode: 'direct',
+    });
+    await h.controller.start();
+    expect(h.player.warmup).toHaveBeenCalledOnce();
+    complete();
+    await starting;
+    await h.controller.end();
   });
   beforeEach(() => {
     vi.useFakeTimers();
@@ -623,6 +636,48 @@ describe('LiveSessionController', () => {
     } finally {
       userAgent.mockRestore();
     }
+  });
+
+  it('clears SDK-only speaking on reconnect after stale close callbacks and accepts the new voice', async () => {
+    const h = build();
+    h.transport.audio = { ownership: 'managed', inputRate: 48000, outputRate: 48000, chunkMs: 20 };
+    let completeCredential: (value: typeof START) => void = () => {};
+    const credential = new Promise<typeof START>(resolve => {
+      completeCredential = resolve;
+    });
+    const answer = h.post.getMockImplementation();
+    h.post.mockImplementation(async (url, body) =>
+      url.endsWith('/credential') ? credential : answer?.(url, body)
+    );
+    await h.controller.start();
+    expect(h.player.dispose).toHaveBeenCalledOnce();
+    expect(h.deps.startMic).not.toHaveBeenCalled();
+    const oldWire = h.transport.events;
+    oldWire.onResumption?.('resume-sdk', true);
+    oldWire.onSpeakingChange?.(true);
+    expect(useLiveStore.getState().voiceState).toBe('speaking');
+    const closeTransport = h.transport.close.bind(h.transport);
+    vi.spyOn(h.transport, 'close').mockImplementation(async () => {
+      // The SDK ends its audio as it closes, after this wire became stale.
+      oldWire.onSpeakingChange?.(false);
+      expect(useLiveStore.getState().voiceState).toBe('speaking');
+      await closeTransport();
+    });
+    oldWire.onClosed?.(1006, 'reconnect');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(useLiveStore.getState()).toMatchObject({ status: 'reconnecting', voiceState: 'idle' });
+    expect(h.transport.connects).toHaveLength(1);
+    oldWire.onSpeakingChange?.(true);
+    expect(useLiveStore.getState().voiceState).toBe('idle');
+    completeCredential({ ...START, credential: 'sdk-fresh' });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(h.transport.connects).toHaveLength(2);
+    expect(useLiveStore.getState().status).toBe('live');
+    h.transport.events.onSpeakingChange?.(true);
+    expect(useLiveStore.getState().voiceState).toBe('speaking');
+    h.transport.events.onSpeakingChange?.(false);
+    expect(useLiveStore.getState().voiceState).toBe('idle');
+    await h.controller.end();
   });
 
   it('ends as provider_closed without a handle and as resumption_failed after the attempts', async () => {
@@ -1432,7 +1487,9 @@ describe('LiveSessionController', () => {
       await h.controller.standby();
       await h.controller.wake();
       const wakePost = h.post.mock.calls.findIndex(([url]) => url.endsWith('/wake'));
-      expect(h.player.warmup.mock.invocationCallOrder[1]).toBeLessThan(h.post.mock.invocationCallOrder[wakePost]);
+      expect(h.player.warmup.mock.invocationCallOrder[1]).toBeLessThan(
+        h.post.mock.invocationCallOrder[wakePost]
+      );
       expect(h.wakeWord()?.pauses).toBe(1);
       expect(h.post).toHaveBeenCalledWith(`/live/sessions/${SESSION}/wake`, { reason: 'manual' });
       expect(h.deps.startMic).toHaveBeenCalledTimes(2);

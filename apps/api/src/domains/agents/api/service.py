@@ -18,14 +18,13 @@ from langgraph.errors import GraphInterrupt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.application_origin import ApplicationOrigin
 from src.core.config import settings
 from src.core.constants import (
     DEFAULT_USER_DISPLAY_TIMEZONE,
-    RESPONSE_FEEDBACK_JOURNAL_IDS_MAX,
 )
 from src.core.field_names import (
     FIELD_ERROR_TYPE,
-    FIELD_INJECTED_JOURNAL_IDS,
     FIELD_RUN_ID,
 )
 from src.core.i18n import normalize_language, resolve_language
@@ -38,6 +37,7 @@ from src.domains.agents.api.archive_metadata import (
     build_assistant_metadata,
     build_hitl_question_metadata,
     persist_psyche_snapshot,
+    with_injected_journal_versions,
 )
 from src.domains.agents.api.attachments_injection import inject_attachments_into_state
 from src.domains.agents.api.error_messages import SSEErrorMessages
@@ -408,6 +408,7 @@ class AgentService(
         client_user_agent: str | None = None,
         live_session_id: str | None = None,
         spoken_text: str | None = None,
+        application_origin: ApplicationOrigin | None = None,
     ) -> AsyncGenerator[ChatStreamChunk]:
         """
         Stream chat response with SSE chunks and conversation persistence.
@@ -495,6 +496,7 @@ class AgentService(
             client_user_agent=client_user_agent,
             live_session_id=live_session_id,
             spoken_text=spoken_text,
+            application_origin=application_origin,
         ):
             yield chunk
 
@@ -529,6 +531,7 @@ class AgentService(
         client_user_agent: str | None = None,
         live_session_id: str | None = None,
         spoken_text: str | None = None,
+        application_origin: ApplicationOrigin | None = None,
     ) -> AsyncGenerator[ChatStreamChunk]:
         """
         Stream agent response using service-oriented architecture (Phase 3.3).
@@ -760,10 +763,15 @@ class AgentService(
                     _user_mcp_token = await setup_user_mcp_tools(user_id)
 
                     # === Build per-request filtered tool manifests (centralized) ===
+                    from src.domains.agents.application.discovery import (
+                        filter_application_manifests,
+                    )
                     from src.domains.agents.registry import get_global_registry
 
                     _manifests_token = request_tool_manifests_ctx.set(
-                        build_request_tool_manifests(get_global_registry())
+                        await filter_application_manifests(
+                            build_request_tool_manifests(get_global_registry()), user_id
+                        )
                     )
 
                     # === Step 2: Load or create state using OrchestrationService ===
@@ -932,6 +940,7 @@ class AgentService(
                                 tool_deps=tool_deps,
                                 tracker=tracker,
                                 browser_context=browser_context,
+                                application_origin=application_origin,
                                 user_message=user_message,  # For location phrase detection
                                 user_memory_enabled=user_memory_enabled,  # User memory preference
                                 user_journals_enabled=user_journals_enabled,  # User journals preference
@@ -1138,11 +1147,11 @@ class AgentService(
                             # entries injected into this turn (IDs only — no
                             # content) so a later 👍/👎 can feed exactly those
                             # entries' evidence/contradiction counters.
-                            _injected_journal_ids = state.get("injected_journal_ids")
-                            if _injected_journal_ids:
-                                assistant_metadata[FIELD_INJECTED_JOURNAL_IDS] = [
-                                    str(_jid) for _jid in _injected_journal_ids
-                                ][:RESPONSE_FEEDBACK_JOURNAL_IDS_MAX]
+                            assistant_metadata = with_injected_journal_versions(
+                                assistant_metadata,
+                                state.get("injected_journal_ids"),
+                                state.get("injected_journal_revisions"),
+                            )
 
                             # The answer's cards (images, documents, skill
                             # proposals) survive a page reload — whoever queued

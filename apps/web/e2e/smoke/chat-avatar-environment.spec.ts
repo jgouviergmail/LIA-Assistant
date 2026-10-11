@@ -1,5 +1,6 @@
 /** Browser geometry and passive ambience: the real widget, with no provider calls. */
 import { test, expect, chatRoutes } from '../fixtures';
+import { expectSmileyProjection } from '../fixtures/smiley-projection';
 
 const styles = ['cozmo', 'capsules', 'billes', 'amande', 'traits', 'anneaux', 'smiley'] as const;
 
@@ -62,6 +63,12 @@ for (const climate of climates) {
     mockApi,
   }) => {
     await authenticate();
+    await page.addInitScript(() => {
+      localStorage.setItem(
+        'lia_eyes_widget_prefs',
+        JSON.stringify({ state: { visible: true, style: 'smiley', size: 'md' }, version: 0 })
+      );
+    });
     const now = Date.parse('2026-09-21T12:00:00Z');
     await page.clock.install({ time: now });
     await page.emulateMedia({ reducedMotion: 'no-preference' });
@@ -220,35 +227,71 @@ for (const style of styles) {
     await expect(avatar).toBeVisible();
     // The actual painted mouth contour, not its empty layout anchor.
     const measure = () =>
-      avatar.evaluate(root => {
+      avatar.evaluate(async root => {
         const mouth = root.querySelector('[data-rig-mouth]')!.getBoundingClientRect();
-        const eyes = [...root.querySelectorAll('.lia-eye-shape')].map(e =>
-          e.getBoundingClientRect()
+        const textured = root.classList.contains('lia-smiley');
+        const eyes = await Promise.all(
+          [...root.querySelectorAll('.lia-eye-shape')].map(async eye => {
+            const box = eye.getBoundingClientRect();
+            if (!textured) return { top: box.top, bottom: box.bottom };
+            // The sculpt lives inside a transparent canvas. Measure its painted
+            // alpha extent, not that canvas's empty lower margin (15/128px).
+            const source =
+              getComputedStyle(eye).backgroundImage.match(/^url\(["']?(.*?)["']?\)$/)?.[1];
+            if (!source) throw new Error('The real sculpted eye texture is required');
+            const image = new Image();
+            image.src = source;
+            await image.decode();
+            const canvas = document.createElement('canvas');
+            canvas.width = image.naturalWidth;
+            canvas.height = image.naturalHeight;
+            const context = canvas.getContext('2d')!;
+            context.drawImage(image, 0, 0);
+            const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+            let top = canvas.height;
+            let bottom = 0;
+            for (let y = 0; y < canvas.height; y++) {
+              for (let x = 0; x < canvas.width; x++) {
+                if (pixels[(y * canvas.width + x) * 4 + 3] <= 8) continue;
+                top = Math.min(top, y);
+                bottom = Math.max(bottom, y + 1);
+              }
+            }
+            if (bottom <= top) throw new Error('The eye artwork must contain visible alpha');
+            return {
+              top: box.top + (top / canvas.height) * box.height,
+              bottom: box.top + (bottom / canvas.height) * box.height,
+            };
+          })
         );
         const em = Number.parseFloat(getComputedStyle(root).fontSize);
         const head = root.querySelector<HTMLElement>('.lia-head')!;
         const pair = root.querySelector<HTMLElement>('.lia-eyes-gaze')!;
-        const origin = getComputedStyle(head).transformOrigin.split(' ').map(Number.parseFloat);
-        const turn = new DOMMatrix(getComputedStyle(head).transform);
         const travel = new DOMMatrix(getComputedStyle(pair).transform);
-        // The sphere's counter-rotation leaves its front plane at z=0.
-        // Every eye corner must remain in front; otherwise the far eye is sliced.
-        const depths = [...root.querySelectorAll<HTMLElement>('.lia-eye')].flatMap(eye =>
-          [0, eye.offsetWidth].flatMap(x =>
-            [0, eye.offsetHeight].map(y => {
-              const moved = travel.transformPoint(
-                new DOMPoint(x + eye.offsetLeft, y + eye.offsetTop, 0)
-              );
-              return turn.transformPoint(
-                new DOMPoint(
-                  moved.x + pair.offsetLeft - origin[0],
-                  moved.y + pair.offsetTop - origin[1],
-                  moved.z
-                )
-              ).z;
-            })
-          )
-        );
+        const jaw = new DOMMatrix(getComputedStyle(root.querySelector('.lia-mouth')!).transform);
+        const body = root.querySelector('.lia-avatar-body');
+        const boundary = root.querySelector('.lia-raster-face-mask');
+        const containment =
+          body && boundary
+            ? {
+                image: getComputedStyle(body).backgroundImage,
+                mask: getComputedStyle(boundary).maskImage,
+                maskMode: getComputedStyle(boundary).maskMode,
+                clip: getComputedStyle(boundary).clipPath,
+                sphereReady: body.getAttribute('data-sphere-ready'),
+                canvasWidth: body.querySelector('canvas')?.width,
+                canvasHeight: body.querySelector('canvas')?.height,
+                sharedHead: boundary.parentElement === head && body.parentElement === head,
+                bodyTransform: getComputedStyle(body).transform,
+                eyesInside: boundary.contains(pair),
+                mouthInside: boundary.contains(root.querySelector('.lia-mouth')),
+                browsOutside: !boundary.querySelector('[data-rig-brow]'),
+                pairX: travel.m41,
+                pairY: travel.m42,
+                mouthX: jaw.m41,
+                mouthY: jaw.m42,
+              }
+            : null;
         return {
           expression: root.getAttribute('data-expression'),
           gesture: root.getAttribute('data-gesture'),
@@ -259,7 +302,7 @@ for (const style of styles) {
           ),
           gap: (mouth.top - Math.max(...eyes.map(e => e.bottom))) / em,
           mouthHeight: mouth.height / em,
-          minEyeDepth: Math.min(...depths) / em,
+          containment,
           yaw: Number.parseFloat((root as HTMLElement).style.getPropertyValue('--rig-head-yaw')),
           transform: getComputedStyle(root.querySelector('.lia-head')!).transform,
         };
@@ -289,7 +332,8 @@ for (const style of styles) {
     await page.clock.runFor(1800);
     const looking = await measureOpen();
     expect(Math.abs(looking.yaw)).toBeGreaterThan(0.05);
-    expect(looking.transform).toMatch(/^matrix3d\(/);
+    if (style === 'smiley') await expectSmileyProjection(avatar);
+    else expect(looking.transform).toMatch(/^matrix3d\(/);
     expect(looking.gap, JSON.stringify(looking)).toBeLessThan(0.5);
     expect(looking.gap).toBeGreaterThan(0.02);
     if (style === 'smiley') {
@@ -305,7 +349,22 @@ for (const style of styles) {
       await page.clock.runFor(1300);
       const turned = await measure();
       expect(turned.yaw).toBeGreaterThan(0.9);
-      expect(turned.minEyeDepth).toBeGreaterThan(0.02);
+      // The real analytic sphere and organs share the projected head. Its
+      // exact circular silhouette replaces the fallback bitmap alpha mask.
+      expect(turned.containment).not.toBeNull();
+      expect(turned.containment!.image).toContain('radial-gradient');
+      expect(turned.containment!.sphereReady).toBe('true');
+      expect(turned.containment!.canvasWidth).toBe(78);
+      expect(turned.containment!.canvasHeight).toBe(78);
+      expect(turned.containment!.mask).toBe('none');
+      expect(turned.containment!.clip).toBe('circle(49%)');
+      expect(turned.containment!.sharedHead).toBe(true);
+      expect(turned.containment!.bodyTransform).toBe('none');
+      expect(turned.containment!.eyesInside).toBe(true);
+      expect(turned.containment!.mouthInside).toBe(true);
+      expect(turned.containment!.browsOutside).toBe(true);
+      expect(turned.containment!.pairX).toBeCloseTo(turned.containment!.mouthX, 3);
+      expect(turned.containment!.pairY).toBeCloseTo(turned.containment!.mouthY, 3);
     }
   });
 }

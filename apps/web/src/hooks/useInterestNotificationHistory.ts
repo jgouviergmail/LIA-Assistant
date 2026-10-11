@@ -1,6 +1,9 @@
 'use client';
 
-import { useApiQuery } from './useApiQuery';
+import { useApplicationAccountQuery } from './useApplicationAccountQuery';
+import { useApplicationResourceSync } from './useApplicationResourceSync';
+
+const releaseHistoryOverride = () => {};
 
 /**
  * One delivered interest notification, as the audit trail recorded it.
@@ -53,10 +56,11 @@ export const INTEREST_HISTORY_PAGE_SIZE = 10;
  *   not pay for a list nobody is looking at.
  */
 export function useInterestNotificationHistory(enabled = true) {
-  const { data, loading, error, refetch } = useApiQuery<InterestNotificationHistory>(
+  const { ownerId, data, loading, error, refetch } = useApplicationAccountQuery<InterestNotificationHistory>(
     `/interests/notifications/history?limit=${INTEREST_HISTORY_PAGE_SIZE}`,
-    { componentName: 'useInterestNotificationHistory', enabled }
+    'useInterestNotificationHistory', enabled,
   );
+  useApplicationResourceSync(enabled ? ownerId : undefined, 'interests', refetch, releaseHistoryOverride);
 
   return {
     notifications: data?.notifications,

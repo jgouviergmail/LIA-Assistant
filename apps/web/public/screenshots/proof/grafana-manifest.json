@@ -1,0 +1,48 @@
+{
+  "revision": "4d87818067552da8",
+  "providedAt": "2026-10-10T03:14:00.772Z",
+  "capturedAt": null,
+  "provenance": "Original PNG screenshots supplied by the project owner in this conversation for the homepage.",
+  "theme": "Grafana dark",
+  "imageTreatment": "Copied byte for byte. No cropping, retouching, generated graphics or raster resizing.",
+  "navigation": "No left navigation visible in either supplied image.",
+  "data": "Values shown in the supplied screenshots. No query fixtures were injected into these images. No live dashboard session, metric collection, benchmark, data provenance or capture timestamp independently verified in this campaign.",
+  "images": [
+    {
+      "file": "grafana-overview.png",
+      "providedFilename": "codex-clipboard-25508ceb-7456-4ea0-8e6f-27ead178c1f4.png",
+      "sha256": "95539d11a640c0caf763a7e58692427ef875af44d930a1df7b018f2f2e62c192",
+      "width": 1858,
+      "height": 1064
+    },
+    {
+      "file": "grafana-costs.png",
+      "providedFilename": "codex-clipboard-8d29b25a-5309-436d-888b-01ccd8f736a9.png",
+      "sha256": "7f29b1559010d60198f2328c6c3104cbb9dc96afc344f3291f35a49000ffc84e",
+      "width": 1860,
+      "height": 1103
+    }
+  ],
+  "scenes": [
+    {
+      "file": "grafana-overview.png",
+      "dashboard": "Infrastructure and host/container resources",
+      "dashboardSource": "infrastructure/observability/grafana/dashboards/03-infra-resources.json",
+      "sourceRelationship": "Corresponding dashboard implementation in this repository; the captured instance and revision were not independently verified.",
+      "exercised": [],
+      "illustrated": [
+        "Dashboard panels and values as shown in the original project-provided screenshot."
+      ]
+    },
+    {
+      "file": "grafana-costs.png",
+      "dashboard": "LLM tokens, costs and cache",
+      "dashboardSource": "infrastructure/observability/grafana/dashboards/05-llm-tokens-cost.json",
+      "sourceRelationship": "Corresponding dashboard implementation in this repository; the captured instance and revision were not independently verified.",
+      "exercised": [],
+      "illustrated": [
+        "Dashboard panels and values as shown in the original project-provided screenshot."
+      ]
+    }
+  ]
+}

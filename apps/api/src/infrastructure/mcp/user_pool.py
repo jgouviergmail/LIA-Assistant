@@ -42,6 +42,10 @@ from src.core.constants import (
     MCP_HTTP_TIMEOUT_SECONDS,
     MCP_REFERENCE_TOOL_NAME,
 )
+from src.infrastructure.mcp.catalogue_fingerprint import (
+    canonical_fingerprint,
+    connection_fingerprint,
+)
 from src.infrastructure.mcp.rate_limit import (
     MCPRateLimitError,
     MCPServerCooldown,
@@ -52,11 +56,14 @@ from src.infrastructure.mcp.utils import (
     MCPModernOnlyServerError,
     build_client_info,
     extract_app_meta,
+    extract_output_schema,
     extract_tool_annotations,
     extract_tool_title,
     is_modern_only_rejection,
+    mcp_result_text,
     unwrap_exception_group,
 )
+from src.infrastructure.observability.metrics_mcp import mcp_catalogue_cache_total
 
 logger = structlog.get_logger(__name__)
 
@@ -150,6 +157,9 @@ class PoolEntry:
     tools: list[dict[str, Any]] = field(default_factory=list)
     active_calls: int = 0  # Reference counter — prevents eviction during active tool calls
     reference_content: str | None = None  # Auto-fetched read_me content (cached per entry)
+    discovered_at: float = field(default_factory=time.monotonic)
+    catalogue_fingerprint: str = ""
+    configuration_fingerprint: str = ""
 
 
 class UserMCPClientPool:
@@ -181,6 +191,7 @@ class UserMCPClientPool:
         auth: httpx2.Auth,
         timeout_seconds: int = 30,
         extra_headers: dict[str, str] | None = None,
+        force_refresh: bool = False,
     ) -> PoolEntry:
         """
         Get existing entry or discover tools from the server.
@@ -189,9 +200,10 @@ class UserMCPClientPool:
         concurrent requests from the same user arrive simultaneously.
         """
         key = (user_id, server_id)
+        configuration = connection_fingerprint(url, auth, timeout_seconds, extra_headers)
 
         async with self._connect_locks[key]:
-            if key in self._entries:
+            if self._cache_hit(key, configuration, force_refresh):
                 # Update auth in case tokens were refreshed
                 self._entries[key].auth = auth
                 self._entries[key].extra_headers = extra_headers
@@ -202,7 +214,7 @@ class UserMCPClientPool:
 
             # Check global pool limit
             max_total = settings.mcp_user_pool_max_total
-            while len(self._entries) >= max_total:
+            while key not in self._entries and len(self._entries) >= max_total:
                 evicted = await self._evict_oldest_idle()
                 if not evicted:
                     raise RuntimeError(
@@ -228,6 +240,11 @@ class UserMCPClientPool:
                 timeout_seconds=timeout_seconds,
                 tools=tools,
                 reference_content=reference_content,
+                discovered_at=time.monotonic(),
+                catalogue_fingerprint=canonical_fingerprint(
+                    {"tools": tools, "reference": reference_content}
+                ),
+                configuration_fingerprint=configuration,
             )
             self._entries[key] = entry
 
@@ -241,6 +258,28 @@ class UserMCPClientPool:
             )
 
             return entry
+
+    def _cache_hit(self, key: tuple[UUID, UUID], configuration: str, force_refresh: bool) -> bool:
+        entry = self._entries.get(key)
+        if entry is None:
+            mcp_catalogue_cache_total.labels(result="miss").inc()
+            return False
+        reason = self._refresh_reason(entry, configuration, force_refresh)
+        if reason is None:
+            mcp_catalogue_cache_total.labels(result="hit").inc()
+            return True
+        mcp_catalogue_cache_total.labels(result=reason).inc()
+        return False
+
+    @staticmethod
+    def _refresh_reason(entry: PoolEntry, configuration: str, force_refresh: bool) -> str | None:
+        if force_refresh:
+            return "forced"
+        if entry.configuration_fingerprint and entry.configuration_fingerprint != configuration:
+            return "configuration"
+        if time.monotonic() - entry.discovered_at >= settings.mcp_user_pool_ttl_seconds:
+            return "age"
+        return None
 
     async def call_tool(
         self,
@@ -497,6 +536,7 @@ class UserMCPClientPool:
                             "name": tool.name,
                             "description": tool.description or "",
                             "input_schema": tool.input_schema or {},
+                            "output_schema": extract_output_schema(tool),
                             "title": extract_tool_title(tool),
                             "annotations": extract_tool_annotations(tool),
                             "app_resource_uri": app_resource_uri,
@@ -571,7 +611,7 @@ class UserMCPClientPool:
                     error_text = "\n".join(c.text for c in result.content if hasattr(c, "text"))
                     raise MCPToolExecutionError(f"MCP tool error: {error_text}")
 
-                result_text = "\n".join(c.text for c in result.content if hasattr(c, "text"))
+                result_text = mcp_result_text(result)
             return result_text
 
         try:

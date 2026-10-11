@@ -24,8 +24,11 @@ import pytest_asyncio
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from src.core.exceptions import ResourceConflictError
 from src.domains.reminders.models import Reminder, ReminderStatus
 from src.domains.reminders.repository import ReminderRepository
+from src.domains.reminders.schemas import ReminderCreate, ReminderUpdate
+from src.domains.reminders.service import ReminderService
 from src.domains.users.models import User
 
 pytestmark = pytest.mark.integration
@@ -163,3 +166,51 @@ async def test_an_abandoned_claim_is_released_and_a_live_one_is_kept(
     assert released == 1
     assert await _status(maker, abandoned_id) == ReminderStatus.PENDING.value
     assert await _status(maker, live_id) == ReminderStatus.PROCESSING.value
+
+
+@pytest.mark.parametrize("cancel", [False, True])
+async def test_ui_writer_refreshes_a_reminder_claimed_after_its_first_read(
+    committed: tuple[Maker, str], cancel: bool
+) -> None:
+    maker, marker = committed
+    (reminder_id,) = await _seed(maker, marker, 1)
+    async with maker() as ui, maker() as worker:
+        cached = await ui.get(Reminder, reminder_id)
+        assert cached is not None and cached.status == ReminderStatus.PENDING.value
+        owner_id = cached.user_id
+        assert await ReminderRepository(worker).claim_next_due() is not None
+        await worker.commit()
+        with pytest.raises(ResourceConflictError):
+            source = ReminderService(ui)
+            if cancel:
+                await source.cancel_reminder(reminder_id, owner_id)
+            else:
+                await source.update_reminder(
+                    reminder_id, owner_id, ReminderUpdate(content="Changed too late"), "UTC"
+                )
+        await ui.rollback()
+    assert await _status(maker, reminder_id) == ReminderStatus.PROCESSING.value
+
+
+async def test_source_creation_retains_a_confirmed_identity(committed: tuple[Maker, str]) -> None:
+    maker, marker = committed
+    identity = uuid4()
+    async with maker() as db:
+        owner = User(email=marker, hashed_password="test", is_active=True)
+        db.add(owner)
+        await db.flush()
+        reminder = await ReminderService(db).create_reminder(
+            owner.id,
+            ReminderCreate(
+                content="Confirmed reminder",
+                original_message="Remember this",
+                trigger_at=datetime.now(UTC) + timedelta(days=2),
+            ),
+            "UTC",
+            reminder_id=identity,
+        )
+        assert reminder.id == identity
+        await db.commit()
+    async with maker() as observation:
+        persisted = await observation.get(Reminder, identity)
+        assert persisted is not None and persisted.content == "Confirmed reminder"

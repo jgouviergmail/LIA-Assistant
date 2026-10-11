@@ -8,10 +8,10 @@
  *    release band used to close the row ("read the product first, its news
  *    last"); it now sits immediately after "Présentation", so the news is the
  *    second thing offered;
- *  - the release entry is EXCLUDED from the row below `lg`. The row appears at
- *    880px and is saturated there: a seventh entry ran the French row 96px past
- *    the viewport (measured). The maps entry, which opens the page links right
- *    after it (owner arbitration 2026-09-24), joins the row at `lg` for the
+ *  - the release entry is EXCLUDED from the row below `xl`. The row starts at
+ *    1024px; two extra entries previously collided with the logo there. The
+ *    maps entry, which opens the page links right after the release entry,
+ *    joins the row at `xl` for the
  *    same reason. The width itself is guarded in a real browser by
  *    `e2e/smoke/landing-nav-row.spec.ts`; what is guarded HERE is that the
  *    mechanism keeping it out — the responsive class — still exists, since
@@ -106,15 +106,15 @@ describe('LandingHeader navigation', () => {
     expect(navLabels().slice(2)).toEqual(PAGE_LINKS_IN_ORDER);
   });
 
-  it('keeps the release entry out of the row below lg', () => {
+  it('keeps the release entry out of the row below xl', () => {
     render(<LandingHeader lng="fr" />);
 
     const entry = screen.getByRole('link', { name: 'landing.nav.changelog' });
     expect(entry.className).toContain('hidden');
-    expect(entry.className).toContain('lg:block');
+    expect(entry.className).toContain('xl:block');
   });
 
-  it('keeps the maps entry out of the row below lg, right after the release entry', () => {
+  it('keeps the maps entry out of the row below xl, right after the release entry', () => {
     render(<LandingHeader lng="fr" />);
 
     const labels = navLabels();
@@ -122,11 +122,25 @@ describe('LandingHeader navigation', () => {
     const entry = screen.getByRole('link', { name: 'landing.nav.maps' });
     expect(entry).toHaveAttribute('href', '/maps');
     expect(entry.className).toContain('hidden');
-    expect(entry.className).toContain('lg:block');
+    expect(entry.className).toContain('xl:block');
     // A page without the flag stays in the row at every width.
     expect(screen.getByRole('link', { name: 'landing.nav.story' }).className).not.toContain(
-      'lg:block'
+      'xl:block'
     );
+  });
+
+  it('returns keyboard focus to the menu control when Escape closes the menu', () => {
+    render(<LandingHeader lng="fr" />);
+    const trigger = screen.getByRole('button', { name: 'common.menu' });
+    fireEvent.click(trigger);
+    const link = document.getElementById('landing-mobile-menu')?.querySelector('a');
+    expect(link).toBeTruthy();
+    link?.focus();
+    expect(link).toHaveFocus();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(document.getElementById('landing-mobile-menu')).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('points every anchor at the home document, so it works from a secondary page', () => {

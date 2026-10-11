@@ -61,6 +61,8 @@ function report(over: Partial<PluginImportReport> = {}): PluginImportReport {
 
 function hook(over: Partial<PluginsHook> = {}): PluginsHook {
   return {
+    ownerId: 'owner',
+    hasLoaded: true,
     plugins: [plugin()],
     total: 1,
     loading: false,
@@ -72,7 +74,7 @@ function hook(over: Partial<PluginsHook> = {}): PluginsHook {
     uninstallPlugin: vi.fn().mockResolvedValue(undefined),
     uninstalling: false,
     ...over,
-  } as PluginsHook;
+  };
 }
 
 function renderSection() {
@@ -84,6 +86,37 @@ function renderSection() {
 beforeEach(() => vi.clearAllMocks());
 
 describe('PluginsSettings', () => {
+  it('reports saved import with pending predecessor-file cleanup', async () => {
+    usePlugins.mockReturnValue(hook({ importFromUrl: vi.fn().mockResolvedValue(report({ file_cleanup_pending: true })) }));
+    renderSection();
+    const user = userEvent.setup();
+    await user.type(screen.getByRole('textbox', { name: 'settings.plugins.import_url' }), 'https://example.com/plugin.zip');
+    await user.click(screen.getByRole('button', { name: 'settings.plugins.import_url' }));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('settings.plugins.file_cleanup_pending'));
+  });
+  it('retires a previous account import report and typed address immediately', async () => {
+    usePlugins.mockReturnValue(hook({ ownerId: 'owner' }));
+    const { rerender } = renderSection();
+    const user = userEvent.setup();
+    await user.type(screen.getByRole('textbox', { name: 'settings.plugins.import_url' }), 'https://example.com/private.zip');
+    await user.click(screen.getByRole('button', { name: 'settings.plugins.import_url' }));
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+    usePlugins.mockReturnValue(hook({ ownerId: 'other' }));
+    rerender(<PluginsSettings lng="en" />);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'settings.plugins.import_url' })).toHaveValue('');
+  });
+
+  it('retains the plugin row while an owned refresh is in flight', async () => {
+    usePlugins.mockReturnValue(hook({ ownerId: 'owner', hasLoaded: true }));
+    const { rerender } = renderSection();
+    const action = screen.getByRole('button', { name: 'settings.plugins.uninstall_aria' });
+    action.focus();
+    usePlugins.mockReturnValue(hook({ ownerId: 'owner', hasLoaded: true, loading: true }));
+    rerender(<PluginsSettings lng="en" />);
+    expect(action).toHaveFocus();
+    expect(action).toBeInTheDocument();
+  });
   it('shows the empty state when no plugin is installed', () => {
     usePlugins.mockReturnValue(hook({ plugins: [], total: 0 }));
     renderSection();

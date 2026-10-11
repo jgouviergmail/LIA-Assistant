@@ -64,17 +64,19 @@ for (const theme of THEMES) {
       expect(blocking, `axe violations on / (${theme}):\n${summary}`).toHaveLength(0);
 
       // Second pass on the other gallery tab. A hidden panel is scanned as
-      // invisible, so the arrival tab (the deck) is all the pass above covers —
-      // and the captures carousel carries one control the deck does not (the
-      // full-screen view). Selected by position, not by label: the landing is
+      // invisible, so the arrival tab (application captures) is all the pass
+      // above covers. Select the presentation to scan both galleries.
+      // Selected by position, not by label: the landing is
       // served in the browser's negotiated locale.
-      const capturesTab = page.locator('#gallery [role="tab"]').first();
-      await capturesTab.click();
-      await expect(capturesTab).toHaveAttribute('aria-selected', 'true');
-      const captures = await scanPage(page, testInfo, `/landing-captures-${theme}`);
+      const galleryTabs = page.locator('#gallery [role="tab"]');
+      await expect(galleryTabs.first()).toHaveAttribute('aria-selected', 'true');
+      const presentationTab = galleryTabs.nth(1);
+      await presentationTab.click();
+      await expect(presentationTab).toHaveAttribute('aria-selected', 'true');
+      const presentation = await scanPage(page, testInfo, `/landing-presentation-${theme}`);
       expect(
-        captures.blocking,
-        `axe violations on the / captures tab (${theme}):\n${captures.summary}`
+        presentation.blocking,
+        `axe violations on the / presentation tab (${theme}):\n${presentation.summary}`
       ).toHaveLength(0);
     });
 

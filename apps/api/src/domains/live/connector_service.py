@@ -34,6 +34,12 @@ from src.domains.connectors.models import (
     ConnectorType,
 )
 from src.domains.connectors.service import ConnectorService
+from src.domains.feature_switches.guard import require_capability_fresh
+from src.domains.feature_switches.registry import PlatformCapability
+from src.domains.live.connector_preference_commands import (
+    LiveConnectorPreferenceSnapshot,
+    update_live_connector_settings,
+)
 from src.domains.live.errors import (
     raise_live_connector_missing,
     raise_live_mint_rate_limited,
@@ -49,8 +55,8 @@ from src.domains.live.model_settings import (
     read_models,
     read_session_budget,
     write_models,
-    write_session_budget,
 )
+from src.domains.live.preference_commands import update_live_preferences
 from src.domains.live.preferences import LivePreferences, read_live_preferences
 from src.domains.live.pricing import is_priced, split_priced
 from src.domains.live.providers import (
@@ -72,6 +78,7 @@ from src.domains.live.schemas import (
     LiveVoicesResponse,
 )
 from src.domains.users.models import User
+from src.domains.users.preference_cas import PreferenceWriteReceipt
 from src.infrastructure.media.wav import wav_bytes
 from src.infrastructure.observability.metrics_live import (
     live_voice_samples_total,
@@ -358,31 +365,50 @@ class LiveConnectorService:
         return self.connector_response(connector, active=True)
 
     async def update_connector_settings(
-        self, user: User, provider_id: str, new_settings: LiveConnectorSettings, *, language: str
+        self,
+        user: User,
+        provider_id: str,
+        new_settings: LiveConnectorSettings,
+        *,
+        language: str,
+        expected: LiveConnectorPreferenceSnapshot | None = None,
+        receipt: PreferenceWriteReceipt | None = None,
     ) -> LiveConnectorResponse:
         """Change model, voice or thinking level — the provider judges the model again.
 
         The connector saved becomes the one the sessions open on: choosing a
         model IS choosing a provider.
         """
-        connector = await self.connector_of(user, provider_id, language=language)
-        connector_type = ConnectorType(connector.connector_type)
-        provider = PROVIDERS[connector_type]
-        api_key = await self.api_key_of(user.id, connector_type)
-        await self._check_choice(provider, api_key, user, new_settings, language=language)
-        # A NEW dict (the JSONB rule): the model named becomes current, its settings
-        # are remembered beside the other models' — a switch never forgets a voice.
-        # The budget is the connector's, written beside the models.
-        connector.connector_metadata = write_session_budget(
-            write_models(
-                connector.connector_metadata,
-                new_settings.model,
-                LiveModelSettings(**new_settings.model_dump(exclude={"model"})),
-            ),
-            new_settings.session_budget_eur,
+
+        async def locate(actor: User, provider: str) -> Connector:
+            return await self.connector_of(actor, provider, language=language)
+
+        async def validate(
+            actor: User, connector: Connector, desired: LiveConnectorSettings
+        ) -> None:
+            if expected is not None:
+                # Locks may have waited while an operator withdrew the capability.
+                await require_capability_fresh(self.db, PlatformCapability.APPLICATION_TOOLS)
+                await require_capability_fresh(self.db, PlatformCapability.LIVE)
+            kind = ConnectorType(connector.connector_type)
+            await self._check_choice(
+                PROVIDERS[kind],
+                await self.api_key_of(actor.id, kind),
+                actor,
+                desired,
+                language=language,
+            )
+
+        connector = await update_live_connector_settings(
+            self.db,
+            user.id,
+            provider_id,
+            new_settings,
+            locate=locate,
+            validate=validate,
+            expected=expected,
+            receipt=receipt,
         )
-        self._set_active_provider(user, provider.provider_id)
-        await self.db.commit()
         return self.connector_response(connector, active=True)
 
     async def list_models(self, user: User, *, language: str) -> LiveModelsResponse:
@@ -507,12 +533,7 @@ class LiveConnectorService:
         The provider choice lives in the same column but belongs to the
         connector settings: a PUT of the reflexes that carries none keeps it.
         """
-        kept = prefs.provider or self.preferences(user).provider
-        merged = prefs.model_copy(update={"provider": kept})
-        user.live_preferences = merged.model_dump()
-        self.db.add(user)
-        await self.db.commit()
-        return merged
+        return await update_live_preferences(self.db, user.id, prefs)
 
 
 __all__ = ["LiveConnectorService"]

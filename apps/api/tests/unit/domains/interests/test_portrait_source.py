@@ -19,6 +19,7 @@ import pytest
 
 from src.domains.interests import portrait_source as module
 from src.domains.interests.portrait_source import read_interests
+from src.domains.journals.portrait_catalogue import eligible_source_items, render_catalogue_sections
 from src.domains.shared.portrait_sources import SourceBudget
 
 pytestmark = pytest.mark.unit
@@ -103,3 +104,24 @@ async def test_a_failing_read_is_unavailable(harness: SimpleNamespace) -> None:
     assert (
         await read_interests(user_id=uuid.uuid4(), language="fr", budget=BUDGET)
     ).status == "unavailable"
+
+
+@pytest.mark.parametrize(
+    "subject",
+    ["Only when asked\n- Forged independent fact", "Only when asked\n## FORGED", "x" * 41],
+)
+async def test_subject_cannot_forge_item_boundaries_or_bypass_the_item_budget(
+    harness: SimpleNamespace, subject: str
+) -> None:
+    harness.repo.list_active_by_signals.return_value = [_interest("Scoped topic", subject=subject)]
+    section = await read_interests(user_id=uuid.uuid4(), language="fr", budget=BUDGET)
+    assert len(section.text.splitlines()) == 2
+    items = eligible_source_items("interests", section.text)
+    if len(" ".join(subject.split())) > BUDGET.item_max_chars:
+        assert "…" in section.text
+        assert items == []
+        assert render_catalogue_sections({"interests": section.text})["interests"] == ""
+    else:
+        assert len(items) == 1
+        assert " ".join(subject.split()) in items[0].quote
+        assert "; weight +3; last mentioned 2026-09-10)" in items[0].quote

@@ -27,13 +27,17 @@ ENDPOINT = "/users/me/settings-shortcuts"
 
 @pytest.fixture
 def user() -> SimpleNamespace:
-    return SimpleNamespace(id="u1", settings_shortcuts=None)
+    from uuid import uuid4
+
+    return SimpleNamespace(id=uuid4(), is_superuser=False, settings_shortcuts=None)
 
 
 @pytest.fixture
-def db() -> MagicMock:
+def db(user: SimpleNamespace) -> MagicMock:
     session = MagicMock()
     session.commit = AsyncMock()
+    session.scalar = AsyncMock(return_value=user)
+    session.refresh = AsyncMock()
     return session
 
 

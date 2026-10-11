@@ -1,13 +1,18 @@
 /**
- * AssistantAvatar — animated emoji gating: latest-message prop, reduced motion,
- * onError fallback (spec D-5/D-6).
+ * AssistantAvatar — portrait playback: latest-message prop, reduced motion,
+ * viewport suspension and frozen historical mood.
  */
 
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, fireEvent, screen } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { act, cleanup, render, fireEvent, screen } from '@testing-library/react';
 
 import { AssistantAvatar } from '../AssistantAvatar';
 import type { PsycheStateSummary } from '@/types/psyche';
+import {
+  installSpiritBrowser,
+  SpiritIntersectionObserver,
+} from '@/components/spirit/__tests__/browser';
+import { activeFrameSubscribers } from '@/components/eyes/rig/scheduler';
 
 const PSYCHE: PsycheStateSummary = {
   mood_label: 'playful',
@@ -20,67 +25,113 @@ const PSYCHE: PsycheStateSummary = {
   relationship_stage: 'ORIENTATION',
 };
 
-/** Reinstall the setup.ts matchMedia mock with a chosen reduced-motion answer. */
+let browser: ReturnType<typeof installSpiritBrowser>;
+beforeEach(() => {
+  browser = installSpiritBrowser();
+});
 function mockReducedMotion(matches: boolean): void {
-  window.matchMedia = vi.fn().mockImplementation((query: string) => ({
-    matches: query.includes('prefers-reduced-motion') ? matches : false,
-    media: query,
-    onchange: null,
-    addListener: vi.fn(),
-    removeListener: vi.fn(),
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn(),
-  }));
+  act(() => browser.setMotion(matches));
+}
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
+function showPortrait(container: HTMLElement, visible = true) {
+  const target = container.querySelector('[data-companion-portrait]');
+  if (!target) throw new Error('Selected portrait missing');
+  const observer = SpiritIntersectionObserver.instances.find(instance =>
+    instance.targets.has(target)
+  );
+  if (!observer) throw new Error('Portrait visibility observer missing');
+  observer.notify(target, visible);
 }
 
-afterEach(() => mockReducedMotion(false));
+function expectStillPortrait(container: HTMLElement, expression = 'joy') {
+  expect(container.querySelector('.lia-eyes')).toHaveAttribute('data-expression', expression);
+  expect(container.querySelector('.lia-eyes')).toHaveAttribute('data-motion', 'off');
+  expect(container.querySelector('.lia-eyes')).toHaveAttribute('data-life', 'off');
+  expect(container.querySelectorAll('canvas, img')).toHaveLength(0);
+  expect(activeFrameSubscribers()).toBe(0);
+}
 
-describe('AssistantAvatar animated emoji', () => {
-  it('renders the animated WebP for the latest assistant message', () => {
+describe('AssistantAvatar emotional portrait', () => {
+  it('renders the current native face and wakes only a visible latest message', () => {
     const { container } = render(<AssistantAvatar psycheState={PSYCHE} animateEmoji />);
-    const img = container.querySelector('img');
-    expect(img).not.toBeNull();
-    expect(img?.getAttribute('src')).toBe('/animated-emoji/1f61c.webp');
-    expect(img?.getAttribute('alt')).toBe('');
+    expectStillPortrait(container);
+    expect(container.querySelector('[data-character="spirit"]')).toHaveStyle({
+      '--spirit-body-url': "url('/avatars/spirit/v2/female/body.webp')",
+    });
+    expect(container.querySelector('[data-rig-mouth]')?.getAttribute('d')).toBeTruthy();
+    act(() => showPortrait(container));
+    expect(container.querySelector('.lia-eyes')).not.toHaveAttribute('data-motion', 'off');
+    expect(activeFrameSubscribers()).toBe(1);
   });
 
-  it('renders the static glyph when animateEmoji is false (history rows)', () => {
+  it('renders the frozen portrait when animateEmoji is false (history rows)', () => {
     const { container } = render(<AssistantAvatar psycheState={PSYCHE} />);
-    expect(container.querySelector('img')).toBeNull();
-    expect(screen.getByText('😜')).toBeInTheDocument();
+    act(() => showPortrait(container));
+    expectStillPortrait(container);
   });
 
-  it('falls back to the static glyph when the asset fails to load', () => {
+  it('suspends the current portrait when it leaves the viewport', () => {
     const { container } = render(<AssistantAvatar psycheState={PSYCHE} animateEmoji />);
-    fireEvent.error(container.querySelector('img') as HTMLImageElement);
-    expect(container.querySelector('img')).toBeNull();
-    expect(screen.getByText('😜')).toBeInTheDocument();
+    act(() => showPortrait(container));
+    expect(activeFrameSubscribers()).toBe(1);
+    act(() => showPortrait(container, false));
+    expectStillPortrait(container);
   });
 
-  it('does not render (nor fetch) the WebP under prefers-reduced-motion', () => {
+  it('keeps the native face static under prefers-reduced-motion', () => {
     mockReducedMotion(true);
     const { container } = render(<AssistantAvatar psycheState={PSYCHE} animateEmoji />);
-    expect(container.querySelector('img')).toBeNull();
-    expect(screen.getByText('😜')).toBeInTheDocument();
+    act(() => showPortrait(container));
+    expectStillPortrait(container);
   });
 
-  it('keeps the classic LIA fallback when psyche is disabled', () => {
+  it('keeps the selected neutral portrait when psyche is disabled', () => {
     const { container } = render(<AssistantAvatar psycheState={null} animateEmoji />);
-    expect(container.querySelector('img')).toBeNull();
-    expect(screen.getByText('LIA')).toBeInTheDocument();
+    expectStillPortrait(container, 'neutral');
+    expect(screen.queryByText('LIA')).not.toBeInTheDocument();
   });
 
   it('wakes a history snapshot while hovered, sleeps on leave (I1)', () => {
     const { container } = render(<AssistantAvatar psycheState={PSYCHE} />);
     const wrapper = container.firstChild as HTMLElement;
-    expect(container.querySelector('img')).toBeNull();
+    act(() => showPortrait(container));
+    expectStillPortrait(container);
 
     fireEvent.mouseEnter(wrapper);
-    expect(container.querySelector('img')?.getAttribute('src')).toBe('/animated-emoji/1f61c.webp');
+    expect(container.querySelector('.lia-eyes')).not.toHaveAttribute('data-motion', 'off');
+    expect(activeFrameSubscribers()).toBe(1);
 
     fireEvent.mouseLeave(wrapper);
-    expect(container.querySelector('img')).toBeNull();
+    expectStillPortrait(container);
+  });
+
+  it('uses the selected masculine identity without changing the saved mood', () => {
+    const { container } = render(<AssistantAvatar psycheState={PSYCHE} variant="male" />);
+    expectStillPortrait(container);
+    expect(container.querySelector('[data-character="spirit"]')).toHaveAttribute(
+      'data-spirit-companion',
+      'male'
+    );
+    expect(container.querySelector('[data-character="spirit"]')).toHaveStyle({
+      '--spirit-body-url': "url('/avatars/spirit/v2/male/body.webp')",
+    });
+    expect(container.querySelector('[data-companion-portrait]')).toHaveClass(
+      'lia-message-portrait'
+    );
+  });
+
+  it('keeps the portrait fixed until the identity preference has hydrated', () => {
+    const { container } = render(
+      <AssistantAvatar psycheState={PSYCHE} animateEmoji animationReady={false} />
+    );
+    act(() => showPortrait(container));
+    fireEvent.mouseEnter(container.firstChild as HTMLElement);
+    expectStillPortrait(container);
   });
 });
 

@@ -54,6 +54,7 @@ from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.i18n import resolve_language
 from src.core.i18n_drafts import get_draft_preview_labels, label_separator
 from src.core.text_clip import clip_data
+from src.domains.agents.application.draft_rendering import render_application_preview
 from src.domains.agents.drafts.card_html import CardSurface, to_html_card
 from src.domains.agents.drafts.card_spec import (
     Block,
@@ -851,6 +852,7 @@ def _render_scheduled_action(
 # exhaustivity at startup and in CI.
 
 _PREVIEW_RENDERERS: dict[DraftType, _PreviewRenderer] = {
+    DraftType.APPLICATION_ACTION: render_application_preview,
     DraftType.EMAIL: _render_email_send,
     DraftType.EMAIL_REPLY: _render_email_send,
     DraftType.EMAIL_FORWARD: _render_email_forward,

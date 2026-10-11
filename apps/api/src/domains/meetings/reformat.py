@@ -19,10 +19,13 @@ import structlog
 
 from src.core.config import settings
 from src.domains.meetings.models import Meeting, MeetingStatus
+from src.domains.meetings.reformat_confirmation import confirmed_reformat_source
 from src.domains.meetings.regeneration import launch_regenerate
 from src.domains.meetings.schemas import MeetingReformatRequest, TemplateSelection
 from src.domains.meetings.service import MeetingService, raise_meeting_conflict
 from src.domains.meetings.template_service import MeetingTemplateService
+from src.infrastructure.confirmed_commit import commit_confirmed_write
+from src.infrastructure.meeting_reformat import MeetingReformatConfirmation
 
 logger = structlog.get_logger(__name__)
 
@@ -33,6 +36,8 @@ async def reformat_meeting(
     meeting_id: uuid.UUID,
     request: MeetingReformatRequest,
     language: str | None,
+    *,
+    confirmation: MeetingReformatConfirmation | None = None,
 ) -> Meeting:
     """Write the minutes again with ``request.template_ref``, in place or as new minutes.
 
@@ -45,7 +50,11 @@ async def reformat_meeting(
             ``regeneration_in_progress`` (replace while a rebuild runs), 404 /
             422 from the template reference.
     """
-    meeting = await service.get(user_id, meeting_id)
+    meeting = (
+        await confirmed_reformat_source(service, user_id, meeting_id, request, confirmation)
+        if confirmation is not None
+        else await service.get(user_id, meeting_id)
+    )
     if meeting.status is not MeetingStatus.READY:
         raise_meeting_conflict("report_not_ready", status=meeting.status.value)
     if not meeting.transcript_encrypted:
@@ -60,9 +69,11 @@ async def reformat_meeting(
         "template_selection_reason": None,
     }
     if request.mode == "replace":
-        if not await service.repo.begin_regenerate(meeting_id, values=values):
+        if not await service.repo.begin_regenerate(meeting_id, values=values, commit=False):
             raise_meeting_conflict("regeneration_in_progress")
-        launch_regenerate(meeting_id)
+        await commit_reformat(service, meeting_id, meeting_id, request, confirmation)
+        if confirmation is None:
+            launch_regenerate(meeting_id)
         logger.info(
             "meeting_reformat_replace",
             meeting_id=str(meeting_id),
@@ -70,11 +81,22 @@ async def reformat_meeting(
         )
         return await service._fresh(meeting_id, user_id)
 
-    derived = await service.repo.create_from_transcript(
-        meeting, values=values, rag_enabled=settings.rag_spaces_enabled
-    )
-    await service.db.commit()
-    launch_regenerate(derived.id)
+    if confirmation is not None:
+        derived = await service.repo.create_from_transcript(
+            meeting,
+            values=values,
+            rag_enabled=settings.rag_spaces_enabled,
+            derived_id=confirmation.destination_id,
+        )
+    else:
+        derived = await service.repo.create_from_transcript(
+            meeting,
+            values=values,
+            rag_enabled=settings.rag_spaces_enabled,
+        )
+    await commit_reformat(service, meeting_id, derived.id, request, confirmation)
+    if confirmation is None:
+        launch_regenerate(derived.id)
     logger.info(
         "meeting_reformat_new",
         meeting_id=str(meeting_id),
@@ -82,6 +104,29 @@ async def reformat_meeting(
         template_ref=values["template_ref"],
     )
     return derived
+
+
+async def commit_reformat(
+    service: MeetingService,
+    source_id: uuid.UUID,
+    destination_id: uuid.UUID,
+    request: MeetingReformatRequest,
+    confirmation: MeetingReformatConfirmation | None,
+) -> None:
+    await commit_confirmed_write(
+        service.db,
+        confirmation,
+        {
+            "meeting_reformat": {
+                "meeting_id": str(source_id),
+                "destination_id": str(destination_id),
+                "mode": request.mode,
+                "stage": "synthesizing",
+                "processing_completed": False,
+                "indexing_completed": False,
+            }
+        },
+    )
 
 
 __all__ = ["reformat_meeting"]

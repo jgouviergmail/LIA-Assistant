@@ -268,10 +268,12 @@ async def submit_response_feedback(
     from src.domains.conversations.response_feedback import (
         apply_verdict_to_journals,
         get_assistant_message_for_user,
+        lock_feedback_owner,
         persist_verdict,
         record_comment_as_correction,
     )
 
+    await lock_feedback_owner(db, current_user.id)
     row = await get_assistant_message_for_user(db, current_user.id, message_id)
     if row is None:
         raise_message_not_found(message_id)
@@ -286,7 +288,12 @@ async def submit_response_feedback(
         # Counters have no decrement path — a verdict CHANGE must never
         # re-feed them (double count), only update the stored verdict.
         entries_updated = await apply_verdict_to_journals(
-            db, current_user.id, metadata, data.verdict
+            db,
+            current_user.id,
+            metadata,
+            data.verdict,
+            message_id=message_id,
+            conversation_id=row.conversation_id,
         )
     if comment and data.verdict == "thumbs_down":
         await record_comment_as_correction(db, current_user.id, comment)

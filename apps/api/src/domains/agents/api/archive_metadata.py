@@ -38,8 +38,14 @@ from typing import Any
 import structlog
 
 from src.core.config import settings
-from src.core.constants import LIVE_SESSION_SUMMARY_MESSAGE_TYPE, LIVE_TURN_MESSAGE_TYPE
+from src.core.constants import (
+    LIVE_SESSION_SUMMARY_MESSAGE_TYPE,
+    LIVE_TURN_MESSAGE_TYPE,
+    RESPONSE_FEEDBACK_JOURNAL_IDS_MAX,
+)
 from src.core.field_names import (
+    FIELD_INJECTED_JOURNAL_IDS,
+    FIELD_INJECTED_JOURNAL_REVISIONS,
     FIELD_LIVE_SESSION_ID,
     FIELD_LIVE_SUMMARY,
     FIELD_RUN_ID,
@@ -60,6 +66,29 @@ logger = structlog.get_logger(__name__)
 #: Message-metadata key carrying what the turn actually did (ADR-263). Absent
 #: when nothing was performed — the pure-conversation common case.
 FIELD_PERFORMED_EFFECTS = "performed_effects"
+
+
+def with_injected_journal_versions(
+    metadata: dict[str, Any], entry_ids: list[str] | None, revisions: dict[str, int] | None
+) -> dict[str, Any]:
+    """Archive only versions of rules actually exposed to this response."""
+    if not entry_ids:
+        return metadata
+    exposed = list(dict.fromkeys(str(entry_id) for entry_id in entry_ids))[
+        :RESPONSE_FEEDBACK_JOURNAL_IDS_MAX
+    ]
+    versions = {
+        entry_id: revision
+        for entry_id in exposed
+        if isinstance(revision := (revisions or {}).get(entry_id), int)
+        and not isinstance(revision, bool)
+        and revision > 0
+    }
+    return {
+        **metadata,
+        FIELD_INJECTED_JOURNAL_IDS: exposed,
+        FIELD_INJECTED_JOURNAL_REVISIONS: versions,
+    }
 
 
 def with_live_stamp(

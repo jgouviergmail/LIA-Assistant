@@ -32,14 +32,17 @@ from src.core.constants import (
     INTEREST_NOTIFY_END_HOUR_DEFAULT,
     INTEREST_NOTIFY_START_HOUR_DEFAULT,
 )
+from src.core.exceptions import ResourceNotFoundError
 from src.core.i18n import get_language_name
 from src.core.llm_usage import LLMBillingRecord
 from src.domains.habits.tick_scoring import TickSurface, should_defer_tick_for_rhythm
+from src.domains.interests.management_commands import get_managed_interest, lock_interest_actor
 from src.domains.interests.models import UserInterest
 from src.domains.interests.repository import (
     InterestNotificationRepository,
     InterestRepository,
 )
+from src.domains.interests.schemas import InterestFeedbackRequest
 from src.domains.interests.selection import (
     SelectionConfig,
     select_interest_subject_rarity,
@@ -50,6 +53,7 @@ from src.domains.interests.services.content_sources import (
 )
 from src.domains.interests.sources import build_sources_block
 from src.domains.moments.busy_gate import agenda_verdict
+from src.domains.users.extraction_consent import invalidate_extractions
 from src.infrastructure.cache.pricing_cache import capture_pricing_snapshot
 from src.infrastructure.database import get_db_context
 from src.infrastructure.llm.token_capture import TokenCaptureHandler
@@ -651,9 +655,9 @@ class InterestProactiveTask:
         try:
             async with get_db_context() as db:
                 repo = InterestRepository(db)
-
-                interest = await repo.get_by_id(target.id)
-                if not interest:
+                actor = await lock_interest_actor(db, user_id)
+                interest = await repo.get_by_id(target.id, lock=True)
+                if not interest or interest.user_id != user_id:
                     logger.warning(
                         "interest_task_feedback_interest_not_found",
                         user_id=str(user_id),
@@ -661,7 +665,9 @@ class InterestProactiveTask:
                     )
                     return
 
-                await repo.apply_feedback(interest, feedback)
+                verdict = InterestFeedbackRequest.model_validate({"feedback": feedback}).feedback
+                invalidate_extractions(actor)
+                await repo.apply_feedback(interest, verdict)
                 await db.commit()
 
                 logger.info(
@@ -706,10 +712,6 @@ class InterestProactiveTask:
                 interest_repo = InterestRepository(db)
                 notif_repo = InterestNotificationRepository(db)
 
-                interest = await interest_repo.get_by_id(target.id)
-                if interest:
-                    await interest_repo.mark_notified(interest)
-
                 content_hash = ""
                 content_embedding: list[float] | None = None
 
@@ -747,9 +749,18 @@ class InterestProactiveTask:
                     result.metadata.get("run_id") or f"interest_{target.id}_{uuid.uuid4().hex[:8]}"
                 )
 
+                # Paid preparation precedes account -> interest -> notification locks.
+                # A delivered message retains its audit even if its target disappeared.
+                await lock_interest_actor(db, user_id)
+                try:
+                    interest = await get_managed_interest(db, user_id, target.id, lock=True)
+                except ResourceNotFoundError:
+                    interest = None
+                if interest is not None:
+                    await interest_repo.mark_notified(interest)
                 await notif_repo.create(
                     user_id=user_id,
-                    interest_id=target.id,
+                    interest_id=interest.id if interest is not None else None,
                     run_id=run_id,
                     content_hash=content_hash,
                     source=result.source_name,

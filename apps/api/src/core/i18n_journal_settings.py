@@ -1,0 +1,66 @@
+"""Source journal controls explain consent, retained records and portrait invalidation."""
+
+from src.core.i18n_types import Language
+
+JOURNAL_SETTINGS_COPY: dict[Language, tuple[str, str, str, str, str, str, str, str]] = {
+    "fr": (
+        "Activer les journaux",
+        "Consolidation en arrière-plan",
+        "Utiliser l’historique des conversations",
+        "Budget total (caractères)",
+        "Budget du contexte (caractères)",
+        "Taille maximale d’une entrée",
+        "Entrées du contexte",
+        "Seuls les réglages affichés changent. Les entrées sont conservées. L’activation, l’usage de l’historique et les tailles totale/par entrée invalident le portrait existant sans le régénérer. Les nouveaux budgets s’appliquent aux futurs traitements ; l’historique peut alimenter les futures consolidations payantes. Aucun appel modèle n’est lancé ici.",
+    ),
+    "en": (
+        "Enable journals",
+        "Background consolidation",
+        "Use conversation history",
+        "Total budget (characters)",
+        "Context budget (characters)",
+        "Maximum entry size",
+        "Context entries",
+        "Only displayed settings change. Entries remain stored. Enablement, history use and total/per-entry sizes invalidate the existing portrait without regenerating it. New budgets govern future processing; history may feed future paid consolidations. No model call starts here.",
+    ),
+    "de": (
+        "Journale aktivieren",
+        "Konsolidierung im Hintergrund",
+        "Gesprächsverlauf verwenden",
+        "Gesamtbudget (Zeichen)",
+        "Kontextbudget (Zeichen)",
+        "Maximale Eintragsgröße",
+        "Kontexteinträge",
+        "Nur angezeigte Einstellungen ändern sich. Einträge bleiben gespeichert. Aktivierung, Verlauf und Gesamt-/Eintragsgröße machen das Porträt ungültig, ohne es neu zu erzeugen. Neue Budgets gelten künftig; der Verlauf kann künftige kostenpflichtige Konsolidierungen speisen. Hier startet kein Modellaufruf.",
+    ),
+    "es": (
+        "Activar diarios",
+        "Consolidación en segundo plano",
+        "Usar el historial de conversaciones",
+        "Presupuesto total (caracteres)",
+        "Presupuesto del contexto (caracteres)",
+        "Tamaño máximo de entrada",
+        "Entradas del contexto",
+        "Solo cambian los ajustes mostrados. Las entradas se conservan. La activación, el historial y los tamaños total/por entrada invalidan el retrato sin regenerarlo. Los nuevos límites rigen procesos futuros; el historial puede alimentar futuras consolidaciones de pago. Aquí no se inicia ninguna llamada al modelo.",
+    ),
+    "it": (
+        "Attivare i diari",
+        "Consolidamento in background",
+        "Usare la cronologia delle conversazioni",
+        "Budget totale (caratteri)",
+        "Budget del contesto (caratteri)",
+        "Dimensione massima della voce",
+        "Voci del contesto",
+        "Cambiano solo le impostazioni mostrate. Le voci restano memorizzate. Attivazione, cronologia e dimensioni totali/per voce invalidano il ritratto senza rigenerarlo. I nuovi limiti valgono per elaborazioni future; la cronologia può alimentare futuri consolidamenti a pagamento. Qui non parte alcuna chiamata al modello.",
+    ),
+    "zh-CN": (
+        "启用日志",
+        "后台整合",
+        "使用对话历史",
+        "总预算（字符）",
+        "上下文预算（字符）",
+        "单条日志最大长度",
+        "上下文条目数",
+        "仅更改显示的设置，保留已存条目。启用状态、历史使用和总量/单条长度的更改会使现有画像失效，但不会重新生成。新预算适用于未来处理；历史可能用于未来收费整合。此操作不会调用模型。",
+    ),
+}

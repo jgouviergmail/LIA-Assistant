@@ -9,12 +9,11 @@ nobody understands is the default, never a 500 on the settings page) — the
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-EndOfSpeech = Literal["calm", "normal", "lively"]
-ResultDelivery = Literal["interrupt", "when_idle"]
+from src.infrastructure.live_preferences import EndOfSpeech, ResultDelivery
 
 
 class LivePreferences(BaseModel):

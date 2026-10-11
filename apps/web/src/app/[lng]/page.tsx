@@ -8,6 +8,8 @@ import { TrackView } from '@/components/telemetry/TelemetryBootstrap';
 import { LandingHeader } from '@/components/landing/LandingHeader';
 import { EditorialChapters } from '@/components/landing/editorial/EditorialChapters';
 import { PromiseSection } from '@/components/landing/editorial/PromiseSection';
+import { PersonalContextSection } from '@/components/landing/editorial/PersonalContextSection';
+import { PlatformSection } from '@/components/landing/editorial/PlatformSection';
 import { LandingVideoSection } from '@/components/landing/video/LandingVideoSection';
 import { BasicsBand } from '@/components/landing/editorial/BasicsBand';
 import { TransparencySection } from '@/components/landing/editorial/TransparencySection';
@@ -20,11 +22,9 @@ import { LandingFooter } from '@/components/landing/LandingFooter';
 import { LandingEyes } from '@/components/landing/LandingEyes';
 import { AttentionBackdrop } from '@/components/landing/cosmic/AttentionBackdrop';
 import { CosmicBackdrop } from '@/components/landing/cosmic/CosmicBackdrop';
-import { CosmosDarkFirst } from '@/components/landing/cosmic/CosmosDarkFirst';
 import { CosmosDay } from '@/components/landing/cosmic/CosmosDay';
 import { CosmosFinale } from '@/components/landing/cosmic/CosmosFinale';
 import { CosmosHero } from '@/components/landing/cosmic/CosmosHero';
-import { CosmosThemeDefault } from '@/components/landing/cosmic/CosmosThemeDefault';
 import { GhostWord } from '@/components/landing/cosmic/GhostWord';
 import { ScrollScrub } from '@/components/landing/cosmic/ScrollScrub';
 import { getSiteOrigin, localizedUrl } from '@/lib/site-origin';
@@ -42,8 +42,8 @@ export async function generateMetadata({ params }: HomePageProps): Promise<Metad
   const lng = validateLanguage(lngParam);
   const { t } = await initI18next(lng);
 
-  const title = t('landing.meta.title');
-  const description = t('landing.meta.description');
+  const title = t('landing.home_meta.title');
+  const description = t('landing.home_meta.description');
   const canonicalUrl = buildLangUrl('/', lng);
   const socialImage = getSiteOrigin()?.concat('/Title.png');
 
@@ -89,8 +89,8 @@ export default async function HomePage({ params }: HomePageProps) {
       {/* SEO: SoftwareApplication structured data */}
       <SoftwareApplicationJsonLd
         lng={lng}
-        title={t('landing.meta.title')}
-        description={t('landing.meta.description')}
+        title={t('landing.home_meta.title')}
+        description={t('landing.home_meta.description')}
       />
 
       {/* SEO: HowTo structured data for "How it works" section */}
@@ -124,11 +124,9 @@ export default async function HomePage({ params }: HomePageProps) {
       <TrackView event="landing_view" />
 
       <div className="landing-page cosmos cosmos-attention cosmos-home">
-        <CosmosDarkFirst />
         <CosmicBackdrop />
         {/* Animated « attention + latent space » layer, landing only. */}
         <AttentionBackdrop />
-        <CosmosThemeDefault />
 
         {/* Skip to content */}
         <a
@@ -138,7 +136,7 @@ export default async function HomePage({ params }: HomePageProps) {
           {t('landing.nav.features')}
         </a>
 
-        <LandingHeader lng={lng} />
+        <LandingHeader lng={lng} home />
         <ChapterRail />
 
         {/* Editorial narrative (ADR: the page speaks the product's language),
@@ -149,7 +147,9 @@ export default async function HomePage({ params }: HomePageProps) {
           {/* Operator-hosted video (ADR-330): mounts only when the running
               server names a media directory — nothing of it is in the build. */}
           <LandingVideoSection lng={lng} />
+          <GallerySection />
           <PromiseSection lng={lng} />
+          <PersonalContextSection lng={lng} />
           <EditorialChapters lng={lng} ghosts />
           <BasicsBand lng={lng} />
           <TransparencySection
@@ -157,7 +157,7 @@ export default async function HomePage({ params }: HomePageProps) {
             ghost={<GhostWord wordKey="landing.cosmos.ghost.transparency" direction={1} />}
           />
           <CosmosDay />
-          <GallerySection />
+          <PlatformSection lng={lng} />
           <TechSection lng={lng} />
           <ChangelogSection lng={lng} />
           <BlogPreviewSection lng={lng} />

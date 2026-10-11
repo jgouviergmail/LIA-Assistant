@@ -185,10 +185,17 @@ class TestFleetOperations:
         redis = _fleet_redis([target, other])
         store = SessionStore(redis)
 
-        deleted = await store.delete_session_by_display_id(user_id, target.display_id)
-
+        with patch(
+            "src.infrastructure.cache.session_store.revoke_selected_sessions",
+            new_callable=AsyncMock,
+            return_value=1,
+        ) as revoke:
+            deleted = await store.delete_session_by_display_id(user_id, target.display_id)
         assert deleted is True
-        redis.delete.assert_any_await(f"session:{target.session_id}")
+        revoke.assert_awaited_once()
+        args = revoke.await_args.args
+        assert args[:2] == (store, uuid.UUID(user_id))
+        assert [item.session_id for item in args[2]] == [target.session_id]
 
     async def test_delete_by_unknown_display_id_is_false(self) -> None:
         """An unknown display id deletes nothing."""
@@ -200,17 +207,25 @@ class TestFleetOperations:
     async def test_revoke_others_keeps_current(self) -> None:
         """Revoke-others deletes everything except the caller's session."""
         user_id = str(uuid.uuid4())
-        current = _stored_session(user_id)
+        current = _stored_session(user_id, step_up_at=datetime.now(UTC))
         other_a = _stored_session(user_id)
         other_b = _stored_session(user_id)
         redis = _fleet_redis([current, other_a, other_b])
         store = SessionStore(redis)
 
-        revoked = await store.delete_other_user_sessions(user_id, current.session_id)
-
+        with patch(
+            "src.infrastructure.cache.session_store.revoke_selected_sessions",
+            new_callable=AsyncMock,
+            return_value=2,
+        ) as revoke:
+            revoked = await store.delete_other_user_sessions(user_id, current.session_id)
         assert revoked == 2
-        deleted_keys = {call.args[0] for call in redis.delete.await_args_list}
-        assert f"session:{current.session_id}" not in deleted_keys
+        revoke.assert_awaited_once()
+        args, kwargs = revoke.await_args.args, revoke.await_args.kwargs
+        assert args[:2] == (store, uuid.UUID(user_id))
+        assert {item.session_id for item in args[2]} == {other_a.session_id, other_b.session_id}
+        assert kwargs["current"].session_id == current.session_id
+        assert kwargs["require_fresh_step_up"] is True
 
     async def test_touch_last_seen_is_coarse(self) -> None:
         """A recent last_seen_at is NOT rewritten (bounded write load)."""
@@ -221,6 +236,7 @@ class TestFleetOperations:
         await store.touch_last_seen(session.session_id)
 
         redis.set.assert_not_awaited()
+        redis.eval.assert_not_awaited()
 
     async def test_touch_last_seen_refreshes_stale(self) -> None:
         """A stale last_seen_at is rewritten with keepttl."""
@@ -233,7 +249,12 @@ class TestFleetOperations:
 
         await store.touch_last_seen(session.session_id)
 
-        assert redis.set.await_args.kwargs["keepttl"] is True
+        redis.eval.assert_awaited_once()
+        args = redis.eval.await_args.args
+        assert args[2:4] == (f"session:{session.session_id}", "last_seen_at")
+        assert args[-1] == session.user_id
+        assert datetime.fromisoformat(args[4]) > session.last_seen_at
+        redis.set.assert_not_awaited()
 
 
 @pytest.mark.unit

@@ -10,7 +10,10 @@
 
 import { useCallback } from 'react';
 import apiClient from '@/lib/api-client';
-import { useApiQuery } from '@/hooks/useApiQuery';
+import { useApplicationAccountQuery } from '@/hooks/useApplicationAccountQuery';
+import { useApplicationResourceSync } from '@/hooks/useApplicationResourceSync';
+
+const releaseSessionState = () => {};
 
 export interface DeviceSession {
   id: string;
@@ -25,24 +28,25 @@ export interface DeviceSession {
 }
 
 export function useSessions() {
-  const { data, loading, error, refetch } = useApiQuery<DeviceSession[]>('/auth/sessions', {
-    componentName: 'useSessions',
-    initialData: [],
-  });
+  const { ownerId, isCurrent, data, loading, error, refetch } =
+    useApplicationAccountQuery<DeviceSession[]>('/auth/sessions', 'useSessions');
+  useApplicationResourceSync(ownerId, 'device_sessions', refetch, releaseSessionState);
 
   const revokeSession = useCallback(
     async (id: string): Promise<void> => {
+      if (!isCurrent()) throw new Error('Session operation is no longer current');
       await apiClient.delete(`/auth/sessions/${id}`);
       await refetch();
     },
-    [refetch]
+    [refetch, isCurrent]
   );
 
   const revokeOthers = useCallback(async (): Promise<number> => {
+    if (!isCurrent()) throw new Error('Session operation is no longer current');
     const response = await apiClient.post<{ revoked: number }>('/auth/sessions/revoke-others');
     await refetch();
     return response.revoked;
-  }, [refetch]);
+  }, [refetch, isCurrent]);
 
   return { sessions: data ?? [], loading, error, refetch, revokeSession, revokeOthers };
 }

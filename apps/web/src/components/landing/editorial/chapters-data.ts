@@ -112,7 +112,7 @@ export const CHAPTERS: readonly ChapterConfig[] = [
     anchor: 'chapter-act',
     num: '01',
     mood: '😏',
-    benefits: 4,
+    benefits: 3,
     catalog: [
       'multi_agent',
       'telephony',

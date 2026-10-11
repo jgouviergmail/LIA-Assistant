@@ -3,7 +3,7 @@
 Covers:
 - Lifecycle counters per action and theme.
 - Extraction LLM duration.
-- Effectiveness gauge: average age in days of entries that were never injected.
+- Exposure gauge: average age in days of entries that were never injected.
 - Self-evaluation outcomes (evidence vs contradiction) — populated when the
   deferred self-evaluation mechanism (T → T+1) is wired up in commit 2.
 - Consolidation effects — promotions between levels, dedup actions.
@@ -40,13 +40,13 @@ journal_extraction_duration_seconds = Histogram(
 )
 
 # =============================================================================
-# Effectiveness gauge (the central quality indicator)
+# Exposure gauge (not a standalone measure of quality or usefulness)
 # =============================================================================
 
 journal_zero_injection_age_days = Gauge(
     "journal_zero_injection_age_days",
     "Average age (in days) of active entries that have never been injected. "
-    "High values signal ill-formulated directives accumulating without value. "
+    "Includes levels excluded from operational injection; exposure alone does not establish quality. "
     "Sampled periodically — typically by the consolidation scheduler.",
     multiprocess_mode="mostrecent",
 )

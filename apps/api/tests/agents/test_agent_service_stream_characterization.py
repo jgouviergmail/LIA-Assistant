@@ -390,6 +390,14 @@ class Harness:
 
         harness = self
 
+        async def saved_voice_consent(user_id):
+            assert user_id == USER_ID
+            return harness.voice_enabled
+
+        monkeypatch.setattr(
+            "src.domains.users.voice_consent.current_voice_consent", saved_voice_consent
+        )
+
         class FakeConversationOrchestrator:
             # `language` mirrors the production signature: the conversation's
             # default title is user-facing, so the nominal chat path forwards

@@ -17,6 +17,7 @@ import structlog
 
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, PYTHON_SANDBOX_TOOL_NAME
+from src.core.context import get_request_tool_manifests, user_mcp_tools_ctx
 from src.core.i18n import get_language_name, resolve_language
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.core.time_utils import get_prompt_datetime_formatted
@@ -30,11 +31,17 @@ from src.domains.agents.python_sandbox.egress.offer import (
     offer_for_account,
 )
 from src.domains.agents.python_sandbox.libraries import render_libraries
+from src.domains.agents.registry.catalogue import ToolManifest
 from src.domains.feature_switches.registry import PlatformCapability, is_capability_enabled
 
 logger = structlog.get_logger(__name__)
 
-__all__ = ["build_system_prompt", "network_available", "sandbox_available"]
+__all__ = [
+    "build_bound_system_prompt",
+    "build_system_prompt",
+    "network_available",
+    "sandbox_available",
+]
 
 
 async def sandbox_available(tool_names: Sequence[str]) -> bool:
@@ -147,8 +154,41 @@ def _render_computation_block(computation: bool, network: NetworkOffer | None) -
     )
 
 
+def _bound_semantic_manifests(tool_names: Sequence[str] | None) -> list[ToolManifest] | None:
+    """Publish links only for the tools the selector actually bound this turn."""
+    if tool_names is None:
+        return None
+    names = set(tool_names)
+    contracts = {manifest.name: manifest for manifest in get_request_tool_manifests()}
+    user_context = user_mcp_tools_ctx.get()
+    if user_context is not None:
+        from src.domains.agents.semantic.manifest_semantics import available_manifest
+
+        contracts.update(
+            {
+                name: manifest
+                for name in user_context.reactive_tool_manifests
+                if name in names and (manifest := available_manifest(name)) is not None
+            }
+        )
+    return [manifest for name, manifest in contracts.items() if name in names]
+
+
+async def build_bound_system_prompt(state: MessagesState, tool_names: Sequence[str]) -> str:
+    """Assemble semantic and capability promises from the same actual bound tools."""
+    computation = await sandbox_available(tool_names)
+    network = await network_available(tool_names) if computation else None
+    return build_system_prompt(
+        state, computation=computation, network=network, tool_names=tool_names
+    )
+
+
 def build_system_prompt(
-    state: MessagesState, *, computation: bool = False, network: NetworkOffer | None = None
+    state: MessagesState,
+    *,
+    computation: bool = False,
+    network: NetworkOffer | None = None,
+    tool_names: Sequence[str] | None = None,
 ) -> str:
     """Build the ReAct agent system prompt with context variables.
 
@@ -158,6 +198,7 @@ def build_system_prompt(
             promises the tool only then.
         network: What the turn may promise about the network; ignored without
             ``computation``, absent from the prompt when ``None``.
+        tool_names: The tools actually bound after relevance and capability caps.
 
     Returns:
         Formatted system prompt string.
@@ -176,7 +217,7 @@ def build_system_prompt(
 
     domains = get_qi_attr(state, "domains", default=[]) or []
     semantic_deps = generate_semantic_dependencies_for_prompt(
-        domains, include_jinja2_patterns=False
+        domains, include_jinja2_patterns=False, manifests=_bound_semantic_manifests(tool_names)
     )
 
     template = load_prompt("react_agent_prompt")

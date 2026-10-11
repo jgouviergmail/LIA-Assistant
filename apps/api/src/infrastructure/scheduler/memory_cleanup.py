@@ -22,12 +22,15 @@ Phase: v1.14.0 — Migrated from LangGraph store to PostgreSQL custom
 
 import time
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal
 
 import structlog
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.constants import SCHEDULER_JOB_MEMORY_CLEANUP
+from src.domains.memories.cleanup_commands import delete_unchanged_cleanup_candidate
+from src.domains.memories.models import Memory
 from src.domains.memories.retention import should_purge
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.locks import SchedulerLock
@@ -49,6 +52,33 @@ async def _purge_invalidated_trail() -> int:
         return await MemoryRepository(db).delete_invalidated_older_than(
             days=settings.memory_invalidated_retention_days
         )
+
+
+async def _delete_cleanup_candidate(
+    db: AsyncSession, memory: Memory, score: float, by_category: dict[str, int]
+) -> Literal["purged", "skipped_changed", "delete_failed"]:
+    """Count only an actual deletion; a withdrawn candidate is a distinct outcome."""
+    try:
+        if not await delete_unchanged_cleanup_candidate(db, memory):
+            return "skipped_changed"
+        category = memory.category or "unknown"
+        by_category[category] = by_category.get(category, 0) + 1
+        logger.debug(
+            "memory_purged",
+            user_id=str(memory.user_id),
+            memory_id=str(memory.id),
+            category=category,
+            retention_score=round(score, 3),
+        )
+        return "purged"
+    except Exception as exc:
+        logger.warning(
+            "memory_delete_failed",
+            user_id=str(memory.user_id),
+            memory_id=str(memory.id),
+            error_type=type(exc).__name__,
+        )
+        return "delete_failed"
 
 
 async def cleanup_memories() -> dict[str, Any]:
@@ -85,6 +115,8 @@ async def cleanup_memories() -> dict[str, Any]:
         "by_category": {},
         "users_processed": 0,
         "invalidated_purged": 0,
+        "skipped_changed": 0,
+        "delete_failed": 0,
     }
 
     try:
@@ -161,30 +193,10 @@ async def cleanup_memories() -> dict[str, Any]:
                     )
 
                     if should_delete:
-                        try:
-                            await repo.delete(memory)
-
-                            stats["purged"] += 1
-                            category = memory.category or "unknown"
-                            stats["by_category"][category] = (
-                                stats["by_category"].get(category, 0) + 1
-                            )
-
-                            logger.debug(
-                                "memory_purged",
-                                user_id=str(user_id),
-                                memory_id=str(memory.id),
-                                category=category,
-                                retention_score=round(score, 3),
-                                content_preview=(memory.content or "")[:50],
-                            )
-                        except Exception as e:
-                            logger.warning(
-                                "memory_delete_failed",
-                                user_id=str(user_id),
-                                memory_id=str(memory.id),
-                                error=str(e),
-                            )
+                        outcome = await _delete_cleanup_candidate(
+                            db, memory, score, stats["by_category"]
+                        )
+                        stats[outcome] += 1
                     else:
                         stats["protected"] += 1
 

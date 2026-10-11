@@ -18,6 +18,8 @@ const mockSetData = vi.fn();
 const mockRefetch = vi.fn();
 const mockMutate = vi.fn();
 
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'controlled-owner' } }) }));
+
 vi.mock('@/hooks/useApiQuery', () => ({
   useApiQuery: vi.fn(),
 }));
@@ -83,8 +85,13 @@ function setupQueryMock(data: RAGSpaceListResponse = LIST_RESPONSE) {
     loading: false,
     error: null,
     refetch: mockRefetch,
+    refetchVerified: vi.fn().mockResolvedValue(true),
     setData: mockSetData,
-  } as ReturnType<typeof useApiQuery>);
+  });
+}
+
+function acceptQuery(data: unknown = LIST_RESPONSE) {
+  act(() => mockedUseApiQuery.mock.calls.at(-1)?.[1]?.onSuccess?.(data));
 }
 
 // ---------------------------------------------------------------------------
@@ -99,6 +106,7 @@ describe('useSpaces', () => {
 
   it('returns spaces list with derived counts', () => {
     const { result } = renderHook(() => useSpaces());
+    acceptQuery();
 
     expect(result.current.spaces).toHaveLength(2);
     expect(result.current.total).toBe(2);
@@ -112,6 +120,7 @@ describe('useSpaces', () => {
     mockMutate.mockResolvedValueOnce(newSpace);
 
     const { result } = renderHook(() => useSpaces());
+    acceptQuery();
 
     await act(async () => {
       await result.current.createSpace({ name: 'New' });
@@ -134,6 +143,7 @@ describe('useSpaces', () => {
     mockMutate.mockResolvedValueOnce(undefined);
 
     const { result } = renderHook(() => useSpaces());
+    acceptQuery();
 
     await act(async () => {
       await result.current.deleteSpace('space-1');
@@ -151,6 +161,7 @@ describe('useSpaces', () => {
     mockMutate.mockResolvedValueOnce({ id: 'space-2', is_active: true });
 
     const { result } = renderHook(() => useSpaces());
+    acceptQuery();
 
     await act(async () => {
       await result.current.toggleSpace('space-2');
@@ -171,6 +182,7 @@ describe('useSpaces', () => {
     });
 
     const { result } = renderHook(() => useSpaces());
+    acceptQuery();
 
     await act(async () => {
       await result.current.updateSpace('space-1', {
@@ -207,10 +219,12 @@ describe('useSpaceDetail', () => {
       loading: false,
       error: null,
       refetch: mockRefetch,
+      refetchVerified: vi.fn().mockResolvedValue(true),
       setData: mockSetData,
-    } as ReturnType<typeof useApiQuery>);
+    });
 
     const { result } = renderHook(() => useSpaceDetail('space-1'));
+    acceptQuery(detail);
 
     expect(result.current.space).toEqual(detail);
     expect(result.current.loading).toBe(false);
@@ -226,8 +240,9 @@ describe('useSpaceDetail', () => {
       loading: false,
       error: null,
       refetch: mockRefetch,
+      refetchVerified: vi.fn().mockResolvedValue(true),
       setData: mockSetData,
-    } as ReturnType<typeof useApiQuery>);
+    });
 
     const { result } = renderHook(() => useSpaceDetail(null));
 
@@ -249,6 +264,7 @@ describe('useActiveSpaces', () => {
     setupQueryMock();
 
     const { result } = renderHook(() => useActiveSpaces());
+    acceptQuery();
 
     expect(result.current.activeSpaces).toHaveLength(1);
     expect(result.current.activeSpaces[0].id).toBe('space-1');

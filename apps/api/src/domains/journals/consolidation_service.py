@@ -20,31 +20,56 @@ Key design decisions:
 
 from __future__ import annotations
 
-from contextlib import suppress
+import asyncio
 from datetime import UTC, datetime, timedelta
 from functools import lru_cache
 from time import time
-from typing import TYPE_CHECKING, Any, Final
+from typing import Any, Final
 from uuid import UUID, uuid4
-
-if TYPE_CHECKING:
-    from src.domains.journals.models import JournalEntry
 
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
-from src.core.i18n import get_language_name
-from src.core.llm_config_helper import get_llm_config_for_agent
+from src.core.i18n import get_language_name, normalize_language
+from src.core.llm_config_helper import (
+    get_effective_context_window_for_slot,
+    get_llm_config_for_agent,
+)
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.domains.agents.effects.decision_recorder import record_decision_once
 from src.domains.agents.effects.decisions import out_of_turn_decision
 from src.domains.agents.effects.models import DecisionOutcome, EffectSource
+from src.domains.journals.consolidation_controls import (
+    ConsolidationCompletionUnknown,
+    ConsolidationControlRefused,
+)
+from src.domains.journals.consolidation_entries import format_all_entries as _format_all_entries
+from src.domains.journals.consolidation_lifecycle import (
+    ConsolidationAttempt,
+    ConsolidationSnapshot,
+    claim_consolidation,
+    current_snapshot,
+    finish_attempt,
+)
+from src.domains.journals.consolidation_output import (
+    MaintenanceOutput,
+)
+from src.domains.journals.consolidation_output import (
+    parse_maintenance_output as _parse_consolidation_result,
+)
+from src.domains.journals.consolidation_settlement import settle_maintenance, validate_maintenance
 from src.domains.journals.constants import JOURNAL_ENTRY_CONTENT_MAX_LENGTH
 from src.domains.journals.extraction_service import (
-    _parse_consolidation_result,
     _persist_journal_tokens,
     _update_user_last_cost,
 )
-from src.domains.journals.models import JournalEntryMood, JournalEntrySource
+from src.domains.journals.portrait_diagnostics import (
+    log_consolidation_failure,
+    log_consolidation_rejection,
+)
+from src.domains.journals.portrait_review import (
+    prepare_portrait_review,
+    review_portrait,
+)
 from src.domains.journals.portrait_sources import build_portrait_source_sections
 from src.domains.journals.prompt_builders import build_consolidation_prompt
 from src.infrastructure.llm.factory import get_llm
@@ -52,10 +77,6 @@ from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
 from src.infrastructure.llm.token_capture import TokenCaptureHandler
 from src.infrastructure.llm.usage_metadata import model_name_of, model_name_of_response
 from src.infrastructure.observability.logging import get_logger
-from src.infrastructure.observability.metrics_journals import (
-    journal_consolidation_deletes_total,
-    journal_portrait_compile_duration_seconds,
-)
 from src.infrastructure.proactive.tracking import settle_known_billing
 
 logger = get_logger(__name__)
@@ -343,60 +364,6 @@ async def _maybe_build_health_signals_section(user_id: UUID) -> str:
         return ""
 
 
-def _format_all_entries(entries: list[JournalEntry]) -> str:
-    """Format all active entries for the consolidation prompt.
-
-    Shows full content for every entry with the full epistemic metadata so the
-    LLM can reason about lifecycle (entries never injected, validated directives,
-    contradicted hypotheses) and act accordingly during maintenance.
-
-    The metadata exposed in each entry header:
-        - created: original creation date
-        - last_inj: last time the entry was injected into a prompt (or "never")
-        - uses: total injection count
-        - conf: epistemic status (low/medium/high)
-        - ev/co: evidence and contradiction counters from deferred self-evaluation
-        - char_count: content character count
-        - hints: search hints (or "MISSING")
-
-    Args:
-        entries: All active entries ordered by created_at desc
-
-    Returns:
-        Formatted entries string
-    """
-    if not entries:
-        return "No entries to review."
-
-    # ID reference table for easy copy-paste
-    id_lines = ["### ENTRY ID REFERENCE (copy-paste these exact IDs for update/delete):"]
-    for entry in entries:
-        id_lines.append(f"- {entry.id}  →  {entry.title}")
-
-    # Full entries with epistemic metadata
-    entry_lines = []
-    for entry in entries:
-        created_str = entry.created_at.strftime("%Y-%m-%d")
-        last_inj_str = (
-            entry.last_injected_at.strftime("%Y-%m-%d") if entry.last_injected_at else "never"
-        )
-        hints_str = (
-            f" | hints: {', '.join(entry.search_hints)}"
-            if entry.search_hints
-            else " | hints: MISSING"
-        )
-        entry_lines.append(
-            f"[id={entry.id} | created={created_str} | last_inj={last_inj_str} "
-            f"| uses={entry.injection_count} | conf={entry.confidence} "
-            f"| ev={entry.evidence_count}/co={entry.contradiction_count} "
-            f"| level={entry.level} "
-            f"| {entry.theme} | {entry.mood} | {entry.char_count} chars{hints_str}]\n"
-            f"**{entry.title}**\n{entry.content}\n"
-        )
-
-    return "\n".join(id_lines) + "\n\n---\n" + "\n---\n".join(entry_lines)
-
-
 async def _load_conversation_history(
     user_id: UUID,
     since: datetime | None,
@@ -480,7 +447,83 @@ async def _load_conversation_history(
         return ""
 
 
-async def consolidate_journals_for_user(
+def _size_directives_for(total_chars: int, max_total_chars: int) -> tuple[str, str]:
+    usage_pct = (total_chars / max_total_chars * 100) if max_total_chars > 0 else 0
+    return size_directives(usage_pct)
+
+
+async def _conversation_section(user_id: UUID, since: datetime | None, *, enabled: bool) -> str:
+    if not enabled:
+        return ""
+    history = await _load_conversation_history(
+        user_id=user_id,
+        since=since,
+        max_messages=settings.journal_consolidation_history_max_messages,
+        max_days=settings.journal_consolidation_history_max_days,
+    )
+    if not history:
+        return ""
+    return (
+        "## RECENT CONVERSATION HISTORY\n"
+        "Review these recent exchanges for insights you may have missed:\n\n" + history
+    )
+
+
+def _sources_unavailable(provenance: dict[str, Any]) -> bool:
+    return any(
+        source.get("status") == "unavailable" and source.get("reason") != "over_budget"
+        for source in provenance.get("sources", {}).values()
+    )
+
+
+def _validated_model_output(result: Any, text: str) -> MaintenanceOutput:
+    from src.infrastructure.llm.output_truncation import is_output_truncated
+
+    if is_output_truncated(result):
+        return MaintenanceOutput(error="provider output was truncated")
+    return _parse_consolidation_result(text)
+
+
+async def _finish_consolidation_attempt(
+    user_id: UUID,
+    snapshot: ConsolidationSnapshot | None,
+    status: str,
+    attempt: ConsolidationAttempt | None,
+) -> None:
+    if snapshot is None:
+        return
+    if attempt is not None:
+        attempt.status = status
+    await finish_attempt(user_id, snapshot, status)
+
+
+async def _may_review_portrait(
+    user_id: UUID, snapshot: ConsolidationSnapshot, *, manual: bool
+) -> str:
+    """Consent and spend limits are rechecked before the additional paid call."""
+    from src.domains.usage_limits.service import UsageLimitService
+    from src.infrastructure.database import get_db_context
+
+    async with get_db_context() as db:
+        if await current_snapshot(db, user_id, snapshot, manual=manual) is None:
+            return "stale"
+    if await UsageLimitService.is_user_blocked_for_llm(user_id, layer="journal_consolidation"):
+        return "failed"
+    return "ready"
+
+
+async def _current_personality_code(db: Any, user: Any) -> str | None:
+    """Resolve the personality captured by the current account preferences."""
+    from src.domains.personalities.service import PersonalityService
+
+    personality_id = getattr(user, "personality_id", None)
+    if personality_id is None:
+        return None
+    personality = await PersonalityService(db).get_by_id(personality_id)
+    return personality.code if personality else None
+
+
+async def _run_consolidation(
     user_id: UUID,
     personality_instruction: str | None,
     personality_code: str | None,
@@ -489,6 +532,9 @@ async def consolidate_journals_for_user(
     max_total_chars: int = 40000,
     max_entry_chars: int = JOURNAL_ENTRY_CONTENT_MAX_LENGTH,
     last_consolidated_at: datetime | None = None,
+    *,
+    manual: bool = False,
+    attempt: ConsolidationAttempt | None = None,
 ) -> int:
     """
     Run journal consolidation for a single user.
@@ -515,11 +561,35 @@ async def consolidate_journals_for_user(
     started_at = datetime.now(UTC)
     model_answered = False
     failed = False
+    snapshot = None
+    status = "failed"
+    result = None
+    capture = None
+    model_name = ""
+    llm_started_at = 0.0
     try:
+        snapshot = await claim_consolidation(user_id, uuid4(), manual=manual, attempt=attempt)
+        if snapshot is None:
+            return 0
         # Load all active entries
         async with get_db_context() as db:
             from src.domains.journals.service import JournalService
 
+            user = await current_snapshot(db, user_id, snapshot, manual=manual)
+            if user is None:
+                status = "stale"
+                return 0
+            # Caller preferences may already be stale when the lease is taken.
+            user_language = normalize_language(getattr(user, "language", user_language))
+            consolidation_with_history = bool(
+                getattr(user, "journal_consolidation_with_history", consolidation_with_history)
+            )
+            max_total_chars = getattr(user, "journal_max_total_chars", max_total_chars)
+            max_entry_chars = getattr(user, "journal_max_entry_chars", max_entry_chars)
+            last_consolidated_at = getattr(
+                user, "journal_last_consolidated_at", last_consolidated_at
+            )
+            personality_code = await _current_personality_code(db, user)
             service = JournalService(db)
             entries = await service.get_all_active(user_id)
             total_chars = await service.repo.get_total_chars(user_id)
@@ -528,27 +598,17 @@ async def consolidate_journals_for_user(
         all_entries_text = _format_all_entries(entries)
 
         # Size warning
-        usage_pct = (total_chars / max_total_chars * 100) if max_total_chars > 0 else 0
-        size_warning, size_management_instruction = size_directives(usage_pct)
+        size_warning, size_management_instruction = _size_directives_for(
+            total_chars, max_total_chars
+        )
 
         # Observed usage patterns (factual, lightweight — no LLM, no PII reproduction)
         usage_patterns_section = await _build_usage_patterns_section(user_id)
 
         # Optional conversation history
-        conversation_history_section = ""
-        if consolidation_with_history:
-            history = await _load_conversation_history(
-                user_id=user_id,
-                since=last_consolidated_at,
-                max_messages=settings.journal_consolidation_history_max_messages,
-                max_days=settings.journal_consolidation_history_max_days,
-            )
-            if history:
-                conversation_history_section = (
-                    "## RECENT CONVERSATION HISTORY\n"
-                    "Review these recent exchanges for insights you may have missed:\n\n"
-                    f"{history}"
-                )
+        conversation_history_section = await _conversation_section(
+            user_id, last_consolidated_at, enabled=consolidation_with_history
+        )
 
         # Current datetime
         current_datetime = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
@@ -561,6 +621,10 @@ async def consolidate_journals_for_user(
         sources = await build_portrait_source_sections(
             user_id, user_language, journal_entries=len(entries)
         )
+        if _sources_unavailable(sources.provenance):
+            failed = True
+            status = "sources_unavailable"
+            return 0
 
         # Build prompt (shared renderer — see domains/journals/prompt_builders.py)
         prompt = build_consolidation_prompt(
@@ -583,16 +647,22 @@ async def consolidate_journals_for_user(
             debriefs_section=sources.sections["relation_debriefs"],
         )
 
+        # Recheck the same consent/source snapshot immediately before paying.
+        async with get_db_context() as db:
+            if await current_snapshot(db, user_id, snapshot, manual=manual) is None:
+                status = "stale"
+                return 0
         # Call LLM
         requested_model = get_llm_config_for_agent(settings, "journal_consolidation").model
         llm = get_llm("journal_consolidation")
         configured_model = model_name_of(llm) or requested_model
+        context_window = get_effective_context_window_for_slot("journal_consolidation")
         llm_started_at = time()
         from src.infrastructure.cache.pricing_cache import capture_pricing_snapshot
 
         pricing_snapshot = capture_pricing_snapshot()
         capture = TokenCaptureHandler(configured_model)
-        result = None
+        known_calls_before = len(capture.get_billing_records(configured_model))
         try:
             result = await invoke_with_instrumentation(
                 llm=llm,
@@ -611,6 +681,7 @@ async def consolidate_journals_for_user(
                     model_name=model_name,
                     started_at=llm_started_at,
                     snapshot=pricing_snapshot,
+                    known_calls_before=known_calls_before,
                 )
             await settle_known_billing(
                 _persist_journal_tokens(
@@ -630,195 +701,142 @@ async def consolidate_journals_for_user(
             )
         result_content = result.text
 
-        # Update user's last cost
-        await _update_user_last_cost(
-            str(user_id),
-            result,
-            model_name,
-            source="consolidation",
-            started_at=llm_started_at,
-            capture=capture,
-        )
-
-        # Parse result — supports both legacy array format and the enriched
-        # object format with portrait_full + portrait_brief (commit 3+).
-        import time as _time
-
-        _portrait_compile_start = _time.time()
-        parsed = _parse_consolidation_result(result_content)
-        actions = parsed.actions
-
-        # Persist the compiled portraits if the LLM produced them. Done before
-        # applying the actions so a partial failure on actions still preserves
-        # the portrait — the two are independent products of the same call.
-        if parsed.portrait_full or parsed.portrait_brief:
-            await _persist_compiled_portrait(
-                user_id,
-                parsed.portrait_full,
-                parsed.portrait_brief,
-                provenance=sources.provenance,
-            )
-            with suppress(Exception):
-                journal_portrait_compile_duration_seconds.observe(
-                    _time.time() - _portrait_compile_start
-                )
-
-        if not actions:
-            # A run that legitimately decides "nothing to maintain" still
-            # consumed its turn — stamp the cooldown before returning.
-            await _stamp_last_consolidated(user_id)
-            logger.debug(
-                "journal_consolidation_no_actions",
-                user_id=str(user_id),
+        parsed = _validated_model_output(result, result_content)
+        if not parsed.valid:
+            failed = True
+            status = "invalid_output"
+            logger.warning(
+                "journal_consolidation_invalid_output", user_id=str(user_id), reason=parsed.error
             )
             return 0
-
-        # Filter out hallucinated entry_ids (only keep IDs that exist in loaded entries)
-        known_ids = {str(e.id) for e in entries}
-        valid_actions = []
-        for action in actions:
-            if action.action in ("update", "delete") and action.entry_id:
-                if action.entry_id not in known_ids:
-                    logger.warning(
-                        "journal_consolidation_unknown_entry_id",
-                        user_id=str(user_id),
-                        action=action.action,
-                        entry_id=action.entry_id,
-                    )
-                    continue
-            valid_actions.append(action)
-
-        if len(valid_actions) < len(actions):
-            logger.info(
-                "journal_consolidation_filtered_hallucinated_ids",
-                user_id=str(user_id),
-                original_count=len(actions),
-                valid_count=len(valid_actions),
-                filtered_count=len(actions) - len(valid_actions),
+        validate_maintenance(parsed, entries, max_entry_chars)
+        candidate = prepare_portrait_review(parsed, entries, sources)
+        review = None
+        if candidate is not None:
+            status = await _may_review_portrait(user_id, snapshot, manual=manual)
+            if status != "ready":
+                failed = True
+                return 0
+            review = await review_portrait(
+                candidate,
+                llm=llm,
+                user_id=user_id,
+                run_id=run_id,
+                configured_model=configured_model,
+                requested_model=requested_model,
+                capture=capture,
+                invoke=invoke_with_instrumentation,
+                persist=_persist_journal_tokens,
+                context_window=context_window,
             )
-        actions = valid_actions
-
-        # Apply actions (with embedding cost tracking)
+            if review.rejected:
+                logger.info(
+                    "journal_portrait_partially_approved",
+                    user_id=str(user_id),
+                    reviewed_count=len(candidate.evidence),
+                    approved_count=len(review.approved_indices or ()),
+                    rejected=list(review.rejected),
+                )
         from src.infrastructure.llm.embedding_context import (
-            clear_embedding_context,
+            get_embedding_context,
+            restore_embedding_context,
             set_embedding_context,
         )
 
+        previous_embedding_context = get_embedding_context()
         set_embedding_context(
-            user_id=str(user_id),
-            session_id="journal_consolidation",
-            run_id=run_id,
+            user_id=str(user_id), session_id="journal_consolidation", run_id=run_id
         )
-
-        applied_count = 0
         try:
-            async with get_db_context() as db:
-                service = JournalService(db)
-
-                deleted_count = 0
-                for action in actions:
-                    # One SAVEPOINT per action: without it the first DB-level
-                    # error poisons the whole transaction, every later action
-                    # fails on the aborted session and the final commit raises —
-                    # so the per-action `except ... continue` below silently
-                    # degraded into all-or-nothing.
-                    try:
-                        async with db.begin_nested():
-                            if (
-                                action.action == "create"
-                                and action.theme
-                                and action.title
-                                and action.content
-                            ):
-                                await service.create_entry(
-                                    user_id=user_id,
-                                    theme=action.theme.value,
-                                    title=action.title,
-                                    content=action.content,
-                                    mood=(
-                                        action.mood.value
-                                        if action.mood
-                                        else JournalEntryMood.REFLECTIVE.value
-                                    ),
-                                    source=JournalEntrySource.CONSOLIDATION.value,
-                                    personality_code=personality_code,
-                                    max_entry_chars=max_entry_chars,
-                                    search_hints=action.search_hints,
-                                    confidence=(
-                                        action.confidence.value if action.confidence else "medium"
-                                    ),
-                                    level=(action.level.value if action.level else "L1"),
-                                )
-                                applied_count += 1
-
-                            elif action.action == "update" and action.entry_id:
-                                entry = await service.repo.get_by_id(UUID(action.entry_id))
-                                if entry and entry.user_id == user_id:
-                                    await service.update_entry(
-                                        entry=entry,
-                                        title=action.title,
-                                        content=action.content,
-                                        mood=(action.mood.value if action.mood else None),
-                                        max_entry_chars=max_entry_chars,
-                                        search_hints=action.search_hints,
-                                        confidence=(
-                                            action.confidence.value if action.confidence else None
-                                        ),
-                                        evidence_outcome=action.evidence_outcome,
-                                        level=(action.level.value if action.level else None),
-                                        theme=(action.theme.value if action.theme else None),
-                                    )
-                                    applied_count += 1
-
-                            elif action.action == "delete" and action.entry_id:
-                                entry = await service.repo.get_by_id(UUID(action.entry_id))
-                                if entry and entry.user_id == user_id:
-                                    await service.delete_entry(entry)
-                                    applied_count += 1
-                                    deleted_count += 1
-
-                    except Exception as e:
-                        logger.warning(
-                            "journal_consolidation_action_failed",
-                            user_id=str(user_id),
-                            action=action.action,
-                            error=str(e),
-                        )
-                        continue
-
-                await db.commit()
-                # metrics never break the pipeline
-                with suppress(Exception):
-                    journal_consolidation_deletes_total.inc(deleted_count)
+            applied_count, status = await settle_maintenance(
+                user_id,
+                snapshot,
+                parsed,
+                entries,
+                sources,
+                manual=manual,
+                personality_code=personality_code,
+                max_entry_chars=max_entry_chars,
+                review=review,
+            )
         finally:
-            clear_embedding_context()
-
-        await _stamp_last_consolidated(user_id)
-
+            restore_embedding_context(previous_embedding_context)
+        failed = status not in ("success", "no_op")
         logger.info(
             "journal_consolidation_completed",
             user_id=str(user_id),
-            actions_parsed=len(actions),
             actions_applied=applied_count,
-            with_history=consolidation_with_history,
+            status=status,
         )
-
         return applied_count
 
+    except ConsolidationControlRefused, ConsolidationCompletionUnknown:
+        failed = True
+        status = "failed"
+        raise
+    except ValueError as e:
+        failed = True
+        status = "invalid_output"
+        log_consolidation_rejection(logger, user_id, e)
+        return 0
     except Exception as e:
         failed = True
-        logger.error(
-            "journal_consolidation_failed",
-            user_id=str(user_id),
-            error=str(e),
-            error_type=type(e).__name__,
-            exc_info=True,
-        )
+        status = "failed"
+        log_consolidation_failure(logger, user_id, e)
         return 0
+    except asyncio.CancelledError:
+        failed = True
+        status = "failed"
+        raise
     finally:
+        known_spend = capture is not None and bool(capture.get_billing_records(model_name))
+        if capture is not None and (result is not None or known_spend):
+            # Both sequential phases belong to this run and to its cost display.
+            await _update_user_last_cost(
+                str(user_id),
+                result,
+                model_name,
+                source="consolidation",
+                started_at=llm_started_at,
+                capture=capture,
+            )
+        await _finish_consolidation_attempt(user_id, snapshot, status, attempt)
         # No answer, no known spend: no turn (the register's own rule).
-        if model_answered:
+        if model_answered or known_spend:
             await _file_consolidation(user_id, run_id, started_at, failed=failed)
+
+
+async def consolidate_journals_for_user(
+    user_id: UUID,
+    personality_instruction: str | None,
+    personality_code: str | None,
+    user_language: str,
+    consolidation_with_history: bool = False,
+    max_total_chars: int = 40000,
+    max_entry_chars: int = JOURNAL_ENTRY_CONTENT_MAX_LENGTH,
+    last_consolidated_at: datetime | None = None,
+    *,
+    manual: bool = False,
+    attempt: ConsolidationAttempt | None = None,
+) -> int:
+    """Run bounded maintenance behind the same account lease for every caller."""
+    try:
+        async with asyncio.timeout(settings.journal_consolidation_timeout_seconds):
+            return await _run_consolidation(
+                user_id,
+                personality_instruction,
+                personality_code,
+                user_language,
+                consolidation_with_history,
+                max_total_chars,
+                max_entry_chars,
+                last_consolidated_at,
+                manual=manual,
+                attempt=attempt,
+            )
+    except TimeoutError:
+        logger.warning("journal_consolidation_timeout", user_id=str(user_id))
+        return 0
 
 
 async def _file_consolidation(

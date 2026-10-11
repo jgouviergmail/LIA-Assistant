@@ -296,6 +296,10 @@ PLATFORM_CAPABILITY_NODES: dict[PlatformCapability, str] = {
 #: column is "the ONE next step"; a capability with no per-account state and
 #: no destination would draw a star that never changes and links nowhere.
 CAPABILITIES_OFF_THE_MAP: dict[PlatformCapability, str] = {
+    PlatformCapability.APPLICATION_TOOLS: (
+        "Ambient: conversation can inspect and manage existing application "
+        "surfaces, with no separate per-account setup or count."
+    ),
     PlatformCapability.ATTACHMENTS: (
         "Ambient: the paperclip is either in the composer or not. Nothing to "
         "set up, nothing to count, and no settings section to send anyone to."

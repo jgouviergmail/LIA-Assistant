@@ -24,8 +24,8 @@ import structlog
 
 from src.core.config import settings
 from src.core.constants import SKILL_LIBRARY_MAX_REDIRECTS, SKILL_LIBRARY_RESPONSE_MAX_BYTES
-from src.domains.agents.web_fetch.url_validator import pinned_stream, validate_url
 from src.infrastructure.utils.bounded_read import BodyTooLargeError, read_bounded
+from src.infrastructure.utils.url_validation import pinned_stream, validate_url
 
 logger = structlog.get_logger(__name__)
 

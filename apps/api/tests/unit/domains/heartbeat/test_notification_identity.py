@@ -130,7 +130,9 @@ class TestNotificationIdentity:
                 new=lambda: _fake_db_ctx(),
             ),
             patch("src.domains.heartbeat.repository.HeartbeatNotificationRepository") as repo_cls,
-            patch("src.domains.agents.context.store.get_tool_context_store", new=AsyncMock()),
+            patch(
+                "src.infrastructure.proactive.context_sink.write_heartbeat_context", new=AsyncMock()
+            ),
         ):
             repo_cls.return_value.create = AsyncMock()
             await task.on_notification_sent(uuid4(), _target(), result)
@@ -156,7 +158,9 @@ class TestNotificationIdentity:
                 new=lambda: _fake_db_ctx(),
             ),
             patch("src.domains.heartbeat.repository.HeartbeatNotificationRepository") as repo_cls,
-            patch("src.domains.agents.context.store.get_tool_context_store", new=AsyncMock()),
+            patch(
+                "src.infrastructure.proactive.context_sink.write_heartbeat_context", new=AsyncMock()
+            ),
         ):
             repo_cls.return_value.create = AsyncMock()
             await task.on_notification_sent(uuid4(), _target(), result)
@@ -182,7 +186,9 @@ class TestNotificationIdentity:
                 new=lambda: _fake_db_ctx(),
             ),
             patch("src.domains.heartbeat.repository.HeartbeatNotificationRepository") as repo_cls,
-            patch("src.domains.agents.context.store.get_tool_context_store", new=AsyncMock()),
+            patch(
+                "src.infrastructure.proactive.context_sink.write_heartbeat_context", new=AsyncMock()
+            ),
         ):
             repo_cls.return_value.create = AsyncMock()
             await task.on_notification_sent(uuid4(), _target(), result)

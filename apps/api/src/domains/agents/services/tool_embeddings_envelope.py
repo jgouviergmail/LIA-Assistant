@@ -23,13 +23,14 @@ from __future__ import annotations
 from typing import Any, Final, Literal
 
 from src.core.config import settings
+from src.infrastructure.mcp.catalogue_fingerprint import canonical_fingerprint
 
 #: Key of the model that wrote the vectors.
 MODEL_KEY: Final = "embedding_model"
 #: Key of the vectors themselves, by raw MCP tool name.
 TOOLS_KEY: Final = "tools"
 
-StaleReason = Literal["legacy_shape", "model_changed"]
+StaleReason = Literal["legacy_shape", "model_changed", "catalogue_changed"]
 
 
 def embedding_model_key() -> str:
@@ -41,12 +42,17 @@ def embedding_model_key() -> str:
     return f"{settings.memory_embedding_model}:{settings.memory_embedding_dimensions}"
 
 
-def wrap_server_cache(tools: dict[str, Any]) -> dict[str, Any]:
+def wrap_server_cache(tools: dict[str, Any], *, tool_metadata: object = None) -> dict[str, Any]:
     """The envelope to persist: the current model key beside the vectors."""
-    return {MODEL_KEY: embedding_model_key(), TOOLS_KEY: tools}
+    envelope = {MODEL_KEY: embedding_model_key(), TOOLS_KEY: tools}
+    if tool_metadata is not None:
+        envelope["catalogue_fingerprint"] = canonical_fingerprint(tool_metadata)
+    return envelope
 
 
-def read_server_cache(cache: Any) -> tuple[dict[str, Any], StaleReason | None]:
+def read_server_cache(
+    cache: Any, *, tool_metadata: object = None
+) -> tuple[dict[str, Any], StaleReason | None]:
     """The vectors of a persisted cache when this model wrote them, else why not.
 
     Args:
@@ -63,5 +69,9 @@ def read_server_cache(cache: Any) -> tuple[dict[str, Any], StaleReason | None]:
         return {}, "legacy_shape"
     if cache[MODEL_KEY] != embedding_model_key():
         return {}, "model_changed"
+    if tool_metadata is not None and cache.get("catalogue_fingerprint") != canonical_fingerprint(
+        tool_metadata
+    ):
+        return {}, "catalogue_changed"
     tools = cache[TOOLS_KEY]
     return (tools if isinstance(tools, dict) else {}), None

@@ -185,7 +185,7 @@ class TestCompactJsonSchema:
         assert result == {"type": "string", "format": "date-time"}
 
     def test_verbose_fields_stripped(self):
-        """title, $schema, additionalProperties, default must be stripped."""
+        """Strip title/schema/default while preserving model-facing descriptions and bounds."""
         result = _compact_json_schema(
             {
                 "type": "string",
@@ -196,7 +196,11 @@ class TestCompactJsonSchema:
                 "description": "A description",
             }
         )
-        assert result == {"type": "string"}
+        assert result == {
+            "type": "string",
+            "additionalProperties": False,
+            "description": "A description",
+        }
 
     def test_array_with_items(self):
         result = _compact_json_schema(
@@ -507,7 +511,10 @@ class TestUnionTypeParameters:
             properties={"rule_ids": {"type": ["array", "null"], "items": {"type": "string"}}},
             required=[],
         )
-        assert params[0].schema == {"type": "array", "items": {"type": "string"}}
+        assert params[0].schema == {
+            "anyOf": [{"type": "array"}, {"type": "null"}],
+            "items": {"type": "string"},
+        }
 
     def test_nullable_object_keeps_its_properties_in_the_manifest(self):
         params = _json_schema_to_parameters(
@@ -519,7 +526,10 @@ class TestUnionTypeParameters:
             },
             required=[],
         )
-        assert params[0].schema == {"type": "object", "properties": {"lat": {"type": "number"}}}
+        assert params[0].schema == {
+            "anyOf": [{"type": "object"}, {"type": "null"}],
+            "properties": {"lat": {"anyOf": [{"type": "number"}, {"type": "null"}]}},
+        }
 
     @pytest.mark.parametrize("spec", ["string", None, 42])
     def test_a_malformed_property_spec_degrades_to_string(self, spec):
@@ -529,7 +539,7 @@ class TestUnionTypeParameters:
 
     def test_compact_schema_normalizes_a_union(self):
         assert _compact_json_schema({"type": ["string", "null"], "format": "date"}) == {
-            "type": "string",
+            "anyOf": [{"type": "string"}, {"type": "null"}],
             "format": "date",
         }
 
@@ -788,7 +798,8 @@ class TestAdapterAndManifestAgree:
         assert model is not None, label
 
         emitted = model.model_json_schema()["properties"]["p"]
-        members = emitted.get("anyOf", [emitted])
+        members = emitted.get("anyOf", emitted.get("oneOf", [emitted]))
+        members = [child for member in members for child in member.get("oneOf", [member])]
         adapter_types = {m.get("type") for m in members if m.get("type") != "null"}
 
         assert manifest.parameters[0].name == "p"

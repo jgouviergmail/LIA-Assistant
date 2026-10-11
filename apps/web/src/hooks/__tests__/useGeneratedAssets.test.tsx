@@ -12,26 +12,28 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { act } from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import type { GeneratedAssetFilters, GeneratedAssetList } from '@/types/generated-assets';
+
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'gallery-owner' } }) }));
 
 const query = vi.hoisted(() => ({
-  data: null as unknown,
+  data: undefined as GeneratedAssetList | undefined,
   loading: false,
   error: null as Error | null,
   paths: [] as string[],
   refetch: vi.fn(),
 }));
 
-vi.mock('@/hooks/useApiQuery', () => ({
-  useApiQuery: (path: string) => {
+vi.mock('@/hooks/useApplicationAccountQuery', () => ({
+  useApplicationAccountQuery: (path: string) => {
     query.paths.push(path);
-    return { ...query };
+    return { ...query, ownerId: 'gallery-owner' };
   },
 }));
 
 import { GALLERY_PAGE_SIZE, galleryPath, useGeneratedAssets } from '@/hooks/useGeneratedAssets';
-import type { GeneratedAssetFilters } from '@/types/generated-assets';
 
-function payload(total: number, items = 1) {
+function payload(total: number, items = 1): GeneratedAssetList {
   return {
     items: Array.from({ length: items }, (_, index) => ({
       id: `a1b2c3d4-0000-4000-8000-00000000000${index}`,
@@ -41,6 +43,7 @@ function payload(total: number, items = 1) {
       file_size: 10,
       origin: 'generated_image',
       conversation_id: null,
+      shared_by_name: null,
       created_at: '2026-09-10T08:00:00Z',
       expires_at: '2026-09-11T08:00:00Z',
     })),
@@ -49,12 +52,14 @@ function payload(total: number, items = 1) {
     limit: GALLERY_PAGE_SIZE,
     offset: 0,
     max_limit: 100,
+    keep: { kept_files: 0, kept_bytes: 0, max_files: 100, max_bytes: 1000 },
   };
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
-  query.data = null;
+  query.data = undefined;
+  query.loading = true;
   query.error = null;
   query.paths = [];
 });
@@ -149,7 +154,7 @@ describe('the page follows the data', () => {
   });
 
   it('is in first load only before the first payload', () => {
-    query.data = null;
+    query.data = undefined;
     const { result, rerender } = renderHook(() => useGeneratedAssets('images', {}, true));
     expect(result.current.firstLoad).toBe(true);
 

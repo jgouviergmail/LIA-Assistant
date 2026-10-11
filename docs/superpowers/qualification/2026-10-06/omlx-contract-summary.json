@@ -1,0 +1,20 @@
+{
+  "version": "v0.7.0",
+  "schema_tests_separate": {
+    "module": "test_openai_models",
+    "passed": 81,
+    "warnings": 1
+  },
+  "adapter_and_tool_tests": {
+    "total": {
+      "passed": 491,
+      "failed": 44,
+      "error": 15
+    },
+    "reasons": {
+      "ModuleNotFoundError: No module named 'mlx_lm'": 44,
+      "failed on setup with \"ModuleNotFoundError: No module named 'mlx_lm'\"": 15
+    }
+  },
+  "inference": "not_run_no_apple_silicon"
+}

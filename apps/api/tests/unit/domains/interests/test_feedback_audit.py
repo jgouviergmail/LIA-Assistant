@@ -39,19 +39,23 @@ class TestUpdateFeedbackByRunId:
         repo = InterestNotificationRepository(db)
 
         await repo.update_feedback_by_run_id(
-            run_id="interest_abc_123", user_id=uuid.uuid4(), feedback="thumbs_up"
+            run_id="interest_abc_123",
+            user_id=uuid.uuid4(),
+            interest_id=uuid.uuid4(),
+            feedback="thumbs_up",
         )
 
         statement = str(db.execute.await_args.args[0])
         assert "run_id" in statement
         assert "user_id" in statement
+        assert "interest_id" in statement
 
     async def test_it_reports_whether_a_row_was_touched(self) -> None:
         db = AsyncMock()
         db.execute.return_value = MagicMock(rowcount=1)
 
         assert await InterestNotificationRepository(db).update_feedback_by_run_id(
-            run_id="r", user_id=uuid.uuid4(), feedback="block"
+            run_id="r", user_id=uuid.uuid4(), interest_id=uuid.uuid4(), feedback="block"
         )
 
     async def test_an_unknown_run_reports_nothing_touched(self) -> None:
@@ -59,7 +63,10 @@ class TestUpdateFeedbackByRunId:
         db.execute.return_value = MagicMock(rowcount=0)
 
         assert not await InterestNotificationRepository(db).update_feedback_by_run_id(
-            run_id="does-not-exist", user_id=uuid.uuid4(), feedback="thumbs_up"
+            run_id="does-not-exist",
+            user_id=uuid.uuid4(),
+            interest_id=uuid.uuid4(),
+            feedback="thumbs_up",
         )
 
 
@@ -74,11 +81,18 @@ def _user() -> MagicMock:
     return user
 
 
-def _interest_of(owner_id: uuid.UUID) -> MagicMock:
+def _interest_of(owner_id: uuid.UUID, identity: uuid.UUID | None = None) -> MagicMock:
     interest = MagicMock()
+    interest.id = identity or uuid.uuid4()
     interest.user_id = owner_id
     interest.status = "active"
     return interest
+
+
+def _db(user: MagicMock) -> AsyncMock:
+    db = AsyncMock()
+    db.scalar.return_value = user
+    return db
 
 
 class TestSubmitFeedbackRoute:
@@ -88,10 +102,15 @@ class TestSubmitFeedbackRoute:
 
         with (
             patch("src.domains.interests.router.InterestRepository") as repo_cls,
-            patch("src.domains.interests.router.InterestNotificationRepository") as notif_cls,
-            patch("src.domains.conversations.repository.ConversationRepository") as conv_cls,
+            patch("src.domains.interests.management_feedback.InterestRepository", repo_cls),
+            patch(
+                "src.domains.interests.management_feedback.InterestNotificationRepository"
+            ) as notif_cls,
+            patch("src.domains.interests.management_feedback.ConversationRepository") as conv_cls,
         ):
-            repo_cls.return_value.get_by_id = AsyncMock(return_value=_interest_of(user.id))
+            repo_cls.return_value.get_by_id = AsyncMock(
+                return_value=_interest_of(user.id, interest_id)
+            )
             repo_cls.return_value.apply_feedback = AsyncMock()
             notif_cls.return_value.update_feedback_by_run_id = AsyncMock(return_value=True)
             conv_cls.return_value.mark_proactive_feedback_submitted = AsyncMock(return_value=1)
@@ -100,11 +119,14 @@ class TestSubmitFeedbackRoute:
                 interest_id=interest_id,
                 data=InterestFeedbackRequest(feedback="thumbs_up", run_id="interest_x_1"),
                 user=user,
-                db=AsyncMock(),
+                db=_db(user),
             )
 
             notif_cls.return_value.update_feedback_by_run_id.assert_awaited_once_with(
-                run_id="interest_x_1", user_id=user.id, feedback="thumbs_up"
+                run_id="interest_x_1",
+                user_id=user.id,
+                interest_id=interest_id,
+                feedback="thumbs_up",
             )
 
     async def test_without_a_run_id_nothing_is_attributed_by_guesswork(self) -> None:
@@ -114,8 +136,11 @@ class TestSubmitFeedbackRoute:
 
         with (
             patch("src.domains.interests.router.InterestRepository") as repo_cls,
-            patch("src.domains.interests.router.InterestNotificationRepository") as notif_cls,
-            patch("src.domains.conversations.repository.ConversationRepository") as conv_cls,
+            patch("src.domains.interests.management_feedback.InterestRepository", repo_cls),
+            patch(
+                "src.domains.interests.management_feedback.InterestNotificationRepository"
+            ) as notif_cls,
+            patch("src.domains.interests.management_feedback.ConversationRepository") as conv_cls,
         ):
             repo_cls.return_value.get_by_id = AsyncMock(return_value=_interest_of(user.id))
             repo_cls.return_value.apply_feedback = AsyncMock()
@@ -126,7 +151,7 @@ class TestSubmitFeedbackRoute:
                 interest_id=uuid.uuid4(),
                 data=InterestFeedbackRequest(feedback="block"),
                 user=user,
-                db=AsyncMock(),
+                db=_db(user),
             )
 
             notif_cls.return_value.update_feedback_by_run_id.assert_not_awaited()
@@ -139,8 +164,9 @@ class TestSubmitFeedbackRoute:
 
         with (
             patch("src.domains.interests.router.InterestRepository") as repo_cls,
-            patch("src.domains.interests.router.InterestNotificationRepository"),
-            patch("src.domains.conversations.repository.ConversationRepository") as conv_cls,
+            patch("src.domains.interests.management_feedback.InterestRepository", repo_cls),
+            patch("src.domains.interests.management_feedback.InterestNotificationRepository"),
+            patch("src.domains.interests.management_feedback.ConversationRepository") as conv_cls,
         ):
             repo_cls.return_value.get_by_id = AsyncMock(return_value=interest)
             repo_cls.return_value.apply_feedback = AsyncMock()
@@ -150,7 +176,7 @@ class TestSubmitFeedbackRoute:
                 interest_id=uuid.uuid4(),
                 data=InterestFeedbackRequest(feedback="thumbs_down"),
                 user=user,
-                db=AsyncMock(),
+                db=_db(user),
             )
 
             repo_cls.return_value.apply_feedback.assert_awaited_once_with(interest, "thumbs_down")
@@ -161,10 +187,13 @@ class TestSubmitFeedbackRoute:
 
         with (
             patch("src.domains.interests.router.InterestRepository") as repo_cls,
-            patch("src.domains.interests.router.InterestNotificationRepository"),
-            patch("src.domains.conversations.repository.ConversationRepository") as conv_cls,
+            patch("src.domains.interests.management_feedback.InterestRepository", repo_cls),
+            patch("src.domains.interests.management_feedback.InterestNotificationRepository"),
+            patch("src.domains.interests.management_feedback.ConversationRepository") as conv_cls,
         ):
-            repo_cls.return_value.get_by_id = AsyncMock(return_value=_interest_of(user.id))
+            repo_cls.return_value.get_by_id = AsyncMock(
+                return_value=_interest_of(user.id, interest_id)
+            )
             repo_cls.return_value.apply_feedback = AsyncMock()
             conv_cls.return_value.mark_proactive_feedback_submitted = AsyncMock(return_value=2)
 
@@ -172,7 +201,7 @@ class TestSubmitFeedbackRoute:
                 interest_id=interest_id,
                 data=InterestFeedbackRequest(feedback="thumbs_up"),
                 user=user,
-                db=AsyncMock(),
+                db=_db(user),
             )
 
             conv_cls.return_value.mark_proactive_feedback_submitted.assert_awaited_once_with(
@@ -199,10 +228,15 @@ class TestSubmitFeedbackRoute:
 
         with (
             patch("src.domains.interests.router.InterestRepository") as repo_cls,
-            patch("src.domains.interests.router.InterestNotificationRepository") as notif_cls,
-            patch("src.domains.conversations.repository.ConversationRepository") as conv_cls,
+            patch("src.domains.interests.management_feedback.InterestRepository", repo_cls),
+            patch(
+                "src.domains.interests.management_feedback.InterestNotificationRepository"
+            ) as notif_cls,
+            patch("src.domains.interests.management_feedback.ConversationRepository") as conv_cls,
         ):
-            repo_cls.return_value.get_by_id = AsyncMock(return_value=_interest_of(user.id))
+            repo_cls.return_value.get_by_id = AsyncMock(
+                return_value=_interest_of(user.id, interest_id)
+            )
             repo_cls.return_value.apply_feedback = AsyncMock()
             notif_cls.return_value.update_feedback_by_run_id = AsyncMock(return_value=True)
             conv_cls.return_value.mark_proactive_feedback_submitted = AsyncMock(return_value=1)
@@ -211,7 +245,7 @@ class TestSubmitFeedbackRoute:
                 interest_id=interest_id,
                 data=InterestFeedbackRequest(feedback="block", run_id="proactive_interest_a_1"),
                 user=user,
-                db=AsyncMock(),
+                db=_db(user),
             )
 
             conv_cls.return_value.mark_proactive_feedback_submitted.assert_awaited_once_with(
@@ -260,14 +294,21 @@ class TestThumbIsPresence:
         user = _user()
         interest_id = uuid.uuid4()
         recorder = AsyncMock(return_value="banked")
+        db = AsyncMock()
+        db.scalar.return_value = user
 
         with (
             patch("src.domains.interests.router.InterestRepository") as repo_cls,
-            patch("src.domains.interests.router.InterestNotificationRepository") as notif_cls,
-            patch("src.domains.conversations.repository.ConversationRepository") as conv_cls,
+            patch("src.domains.interests.management_feedback.InterestRepository", repo_cls),
+            patch(
+                "src.domains.interests.management_feedback.InterestNotificationRepository"
+            ) as notif_cls,
+            patch("src.domains.interests.management_feedback.ConversationRepository") as conv_cls,
             patch("src.domains.habits.presence.record_presence", recorder),
         ):
-            repo_cls.return_value.get_by_id = AsyncMock(return_value=_interest_of(user.id))
+            repo_cls.return_value.get_by_id = AsyncMock(
+                return_value=_interest_of(user.id, interest_id)
+            )
             repo_cls.return_value.apply_feedback = AsyncMock()
             notif_cls.return_value.update_feedback_by_run_id = AsyncMock(return_value=True)
             conv_cls.return_value.mark_proactive_feedback_submitted = AsyncMock(return_value=1)
@@ -276,7 +317,7 @@ class TestThumbIsPresence:
                 interest_id=interest_id,
                 data=InterestFeedbackRequest(feedback="thumbs_down", run_id="interest_x_2"),
                 user=user,
-                db=AsyncMock(),
+                db=db,
             )
 
         recorder.assert_awaited_once()

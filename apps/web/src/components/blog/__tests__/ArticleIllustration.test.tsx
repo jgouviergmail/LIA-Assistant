@@ -7,8 +7,37 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { ArticleIllustration } from '../ArticleIllustration';
+import { ShuffledBlogGrid } from '@/components/landing/ShuffledBlogGrid';
+import { BLOG_ARTICLES } from '@/data/blog-articles';
 
 describe('ArticleIllustration', () => {
+  it('keeps an unillustrated landing article readable and reachable without a broken image', () => {
+    const article = BLOG_ARTICLES.find(article => article.slug === 'tabular-administration');
+    if (!article) throw new Error('Missing published article fixture');
+    render(
+      <ShuffledBlogGrid
+        pinned={[article]}
+        pool={[]}
+        displayCount={1}
+        translations={{
+          [article.slug]: {
+            title: 'Manage configuration in a table',
+            excerpt: 'Review and update several entries together.',
+            category: 'Technical',
+            readTime: '6 min',
+          },
+        }}
+        lng="en"
+        illustratedSlugs={[]}
+      />
+    );
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Manage configuration in a table/ })).toHaveAttribute(
+      'href',
+      '/en/blog/tabular-administration'
+    );
+    expect(screen.getByText('Review and update several entries together.')).toBeVisible();
+  });
   it('offers every width as a candidate and defers an off-screen card', () => {
     render(
       <ArticleIllustration

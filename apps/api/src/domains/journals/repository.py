@@ -58,44 +58,16 @@ def build_consolidation_eligible_users_query(
     cooldown_threshold: datetime,
     min_entries: int,
 ) -> Any:
-    """Build the delta-driven consolidation eligibility query (B-03, 2026-08-19).
+    """Select paced candidates; source identity is checked before model work.
 
-    A user is eligible when there is WORK: at least ``min_entries`` ACTIVE
-    entries AND (never consolidated OR an active entry touched since the last
-    consolidation stamp) — OR, since the 2026-09-16 design (part B), a row of
-    one of the portrait's four sources (memories, interests, habits,
-    relationship debriefs) written since the stamp. The entries are therefore
-    OUTER-joined: an account with no entry but fresh sources still compiles a
-    portrait, and the prompt already handles « No entries to review ». The
-    historical absolute floor (3) starved every real user — consolidation
-    prunes journals toward 2 entries, which made it permanently ineligible and
-    stalled portraits for months.
-
-    No churn loop by construction: ``journal_last_consolidated_at`` is
-    stamped AFTER the run's actions commit (``consolidation_service``), so a
-    consolidation's own edits always carry ``updated_at`` strictly below the
-    stamp and never re-trigger the next cycle — and a run writes none of the
-    four source tables.
-
-    The freshness probes come from the seam (``installed_portrait_sources``),
-    read on ``Base.metadata`` by table NAME: this module imports no source
-    domain, exactly as the workboard release reads ``users`` (ADR-276). The
-    boot installs the probes; a process that never booted (a script, a narrow
-    test) builds the journal-only predicate — never MORE eligible than before
-    part B, which is the safe side of that asymmetry.
-
-    Args:
-        cooldown_threshold: Scheduler pacing bound (now - cooldown hours).
-        min_entries: Minimum ACTIVE entries for the journal to count as work
-            (env-overridable floor; the default must stay reachable by a
-            post-prune journal — pinned at 1 by test).
-
-    Returns:
-        A ``Select`` over ``User`` rows, ready for ``db.execute``.
+    Journal revision captures deletion even when no active entry survives.
+    Existing portrait provenance nominates accounts for cheap source checks,
+    so source deletion and capability changes cannot depend on surviving
+    rows' updated_at. Attempt pacing is independent of successful settlement.
     """
     from src.domains.users.models import User
 
-    work_subq = (
+    work = (
         select(
             JournalEntry.user_id,
             func.count(JournalEntry.id).label("entry_count"),
@@ -103,15 +75,9 @@ def build_consolidation_eligible_users_query(
         )
         .where(JournalEntry.status == JournalEntryStatus.ACTIVE.value)
         .group_by(JournalEntry.user_id)
-        .having(func.count(JournalEntry.id) >= min_entries)
         .subquery()
     )
-
     never = User.journal_last_consolidated_at.is_(None)
-    journal_work = never | (work_subq.c.last_touched_at > User.journal_last_consolidated_at)
-    # A source row counts when it moved since the stamp — or when there is no
-    # stamp yet: an account never consolidated, with a memory and no entry,
-    # is exactly the one whose portrait is worth compiling.
     fresh_sources = [
         exists().where(
             table.c[probe.user_column] == User.id,
@@ -120,21 +86,24 @@ def build_consolidation_eligible_users_query(
         for _key, (_reader, probe) in installed_portrait_sources().items()
         for table in (Base.metadata.tables[probe.table],)
     ]
-
+    pacing = func.coalesce(User.journal_last_attempted_at, User.journal_last_consolidated_at)
     return (
         select(User)
-        .outerjoin(work_subq, User.id == work_subq.c.user_id)
+        .outerjoin(work, User.id == work.c.user_id)
         .where(
             and_(
-                # Shared with the portrait-age gauge — see the helper's
-                # docstring for why the two must not drift apart.
                 *consolidation_eligible_user_conditions(),
-                # Cooldown: never consolidated OR last > cooldown (pacing)
-                never | (User.journal_last_consolidated_at < cooldown_threshold),
-                # Work: the journal moved (or was never consolidated and has
-                # entries), or a portrait source moved since the stamp.
+                or_(pacing.is_(None), pacing < cooldown_threshold),
                 or_(
-                    and_(work_subq.c.user_id.is_not(None), journal_work),
+                    and_(
+                        User.journal_revision > 0,
+                        User.journal_consolidated_revision.is_distinct_from(User.journal_revision),
+                    ),
+                    and_(
+                        work.c.entry_count >= min_entries,
+                        or_(never, work.c.last_touched_at > User.journal_last_consolidated_at),
+                    ),
+                    User.journal_portrait_sources.is_not(None),
                     *fresh_sources,
                 ),
             )
@@ -325,6 +294,7 @@ class JournalEntryRepository:
         min_score: float = 0.0,
         exclude_levels: list[str] | None = None,
         observed_scores: list[float] | None = None,
+        operational_only: bool = False,
     ) -> list[tuple[JournalEntry, float]]:
         """Search active entries by multi-vector semantic relevance.
 
@@ -367,6 +337,13 @@ class JournalEntryRepository:
         ]
         if exclude_levels:
             conditions.append(JournalEntry.level.not_in(exclude_levels))
+        if operational_only:
+            conditions.extend(
+                [
+                    JournalEntry.confidence != "low",
+                    JournalEntry.contradiction_count == 0,
+                ]
+            )
 
         stmt = (
             select(JournalEntry, best_distance.label("distance"))
@@ -442,6 +419,7 @@ class JournalEntryRepository:
         user_id: UUID,
         limit: int = 2,
         exclude_levels: list[str] | None = None,
+        operational_only: bool = False,
     ) -> list[JournalEntry]:
         """
         Get most recent active entries for temporal continuity injection.
@@ -466,6 +444,13 @@ class JournalEntryRepository:
         ]
         if exclude_levels:
             conditions.append(JournalEntry.level.not_in(exclude_levels))
+        if operational_only:
+            conditions.extend(
+                [
+                    JournalEntry.confidence != "low",
+                    JournalEntry.contradiction_count == 0,
+                ]
+            )
 
         result = await self.db.execute(
             select(JournalEntry)
@@ -554,9 +539,10 @@ class JournalEntryRepository:
     async def compute_zero_injection_age_days_avg(self) -> float:
         """Compute the global average age (in days) of active entries never injected.
 
-        This is the central effectiveness signal of the journal:
-        a high value means directives are accumulating without ever being used
-        in prompts — likely ill-formulated or off-topic.
+        This is an exposure diagnostic across every abstraction level, including
+        L0/L3 entries deliberately excluded from operational injection. A high
+        value alone establishes neither poor wording nor low usefulness: context
+        relevance, eligibility and configured injection budgets also affect it.
 
         Returns:
             Average age in days (float). Returns 0.0 if no such entries exist.

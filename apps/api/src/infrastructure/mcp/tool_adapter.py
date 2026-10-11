@@ -17,8 +17,10 @@ Created: 2026-02-28
 
 from __future__ import annotations
 
+import functools
 import time
 from collections.abc import Awaitable, Callable, Container
+from copy import deepcopy
 from typing import Any
 
 import structlog
@@ -35,7 +37,18 @@ from src.infrastructure.mcp.json_schema import (
     required_of,
     resolve_property,
 )
-from src.infrastructure.mcp.utils import build_mcp_app_output, drop_none_values
+from src.infrastructure.mcp.schema_projection import binding_description
+from src.infrastructure.mcp.semantic_observations import (
+    observation_notice,
+    semantic_observation_data,
+)
+from src.infrastructure.mcp.semantic_schema import normalized_schema
+from src.infrastructure.mcp.utils import (
+    build_mcp_app_output,
+    decode_mcp_result,
+    drop_none_values,
+    result_text_data,
+)
 from src.infrastructure.observability.metrics_mcp import (
     mcp_connection_errors_total,
     mcp_tool_duration_seconds,
@@ -47,7 +60,7 @@ logger = structlog.get_logger(__name__)
 
 def _python_field_name(name: str, occupied: Container[str]) -> str:
     """Keep server names as aliases when they collide with Pydantic's API."""
-    if not (hasattr(BaseModel, name) or name.startswith(("model_validate", "model_dump"))):
+    if not (hasattr(BaseModel, name) or name.startswith(("_", "model_validate", "model_dump"))):
         return name
     suffix = 0
     candidate = f"mcp_arg_{suffix}"
@@ -92,23 +105,17 @@ def build_args_schema(
     occupied = set(properties)
 
     for field_name, raw_spec in properties.items():
-        if field_name.startswith("_"):
-            # Pydantic refuses a leading-underscore field name. Skipping the
-            # parameter costs one argument; letting create_model raise costs
-            # the whole tool.
-            logger.debug("mcp_schema_underscore_field_skipped", field_name=field_name)
-            continue
-
         field_spec = as_property_spec(raw_spec)
         resolved = resolve_property(field_spec, input_schema)
         if resolved.name is None:
             python_type: Any = Any
         else:
-            python_type = annotation_for(resolved.name, resolved.spec)
+            python_type = annotation_for(resolved.name, normalized_schema(field_spec, input_schema))
 
         # A $ref'd property carries its description at the reference site; the
         # target carries it when the reference site does not.
         description = description_of(field_spec) or description_of(resolved.spec)
+        description = binding_description(description, normalized_schema(field_spec, input_schema))
 
         # A server may legitimately name an argument ``json`` or ``model_dump``.
         # Keep its wire name as an alias; shadowing BaseModel either warns or
@@ -148,6 +155,15 @@ def build_args_schema(
         return None
 
 
+def nullable_parameter_names(input_schema: object) -> frozenset[str]:
+    """Null is a wire value when the server contract explicitly admits it."""
+    return frozenset(
+        name
+        for name, spec in properties_of(input_schema).items()
+        if resolve_property(spec, input_schema).nullable
+    )
+
+
 class MCPToolAdapter(EffectGatedMCPTool, BaseTool):
     """
     LangChain BaseTool adapter for MCP tools.
@@ -161,11 +177,29 @@ class MCPToolAdapter(EffectGatedMCPTool, BaseTool):
     name: str = ""
     # ADR-263: memoises the gated call built by ``EffectGatedMCPTool``.
     _gated_call: Callable[..., Awaitable[Any]] | None = PrivateAttr(default=None)
+    _nullable_arguments: frozenset[str] = PrivateAttr(default_factory=frozenset)
+    _output_schema: dict[str, object] | None = PrivateAttr(default=None)
     description: str = ""
     server_name: str = ""
     mcp_tool_name: str = ""
     args_schema: type[BaseModel] | None = None
     app_resource_uri: str | None = None
+
+    def _effect_gated_call(self) -> Callable[..., Awaitable[object]]:
+        gated_call = super()._effect_gated_call()
+
+        @functools.wraps(gated_call)
+        async def current_access(**kwargs: object) -> object:
+            from src.domains.agents.context.runtime_context import runtime_context_if_running
+            from src.infrastructure.mcp.access_policy import authorize_shared_mcp
+
+            context = runtime_context_if_running()
+            await authorize_shared_mcp(
+                self.server_name, actor_id=context.user_id if context else None
+            )
+            return await gated_call(**kwargs)
+
+        return current_access
 
     @classmethod
     def from_mcp_tool(
@@ -175,6 +209,7 @@ class MCPToolAdapter(EffectGatedMCPTool, BaseTool):
         description: str,
         input_schema: dict[str, Any],
         app_resource_uri: str | None = None,
+        output_schema: dict[str, object] | None = None,
     ) -> MCPToolAdapter:
         """
         Create an MCPToolAdapter from MCP tool discovery data.
@@ -192,7 +227,7 @@ class MCPToolAdapter(EffectGatedMCPTool, BaseTool):
         prefixed_name = f"mcp_{server_name}_{tool_name}"
         args_model = build_args_schema(input_schema)
 
-        return cls(
+        adapter = cls(
             name=prefixed_name,
             description=description,
             server_name=server_name,
@@ -200,6 +235,9 @@ class MCPToolAdapter(EffectGatedMCPTool, BaseTool):
             args_schema=args_model,
             app_resource_uri=app_resource_uri,
         )
+        adapter._nullable_arguments = nullable_parameter_names(input_schema)
+        adapter._output_schema = deepcopy(output_schema)
+        return adapter
 
     async def _call_server(self, **kwargs: Any) -> UnifiedToolOutput:
         """
@@ -222,7 +260,7 @@ class MCPToolAdapter(EffectGatedMCPTool, BaseTool):
 
         # Omit unset optional params (materialised as None by the args schema) so
         # strictly-typed MCP servers don't reject them as null.
-        arguments = drop_none_values(kwargs)
+        arguments = drop_none_values(kwargs, keep_nullable=self._nullable_arguments)
 
         start = time.perf_counter()
         try:
@@ -243,6 +281,7 @@ class MCPToolAdapter(EffectGatedMCPTool, BaseTool):
             ).inc()
 
             # MCP Apps: fetch HTML resource if tool has an associated UI
+            observations = semantic_observation_data(decode_mcp_result(result), self._output_schema)
             if self.app_resource_uri:
                 html_content = await manager.read_resource(self.server_name, self.app_resource_uri)
                 if html_content:
@@ -262,20 +301,27 @@ class MCPToolAdapter(EffectGatedMCPTool, BaseTool):
                         source_label=self.server_name,
                         tool_arguments=arguments,
                         tool_input_schema=input_schema,
+                        semantic_observations=observations,
                     )
 
             # Return UnifiedToolOutput with a short summary for the response
             # LLM and full data in structured_data for dependent steps.
             # Returning raw result would pollute agent_results_summary with
             # potentially large content (e.g., 27KB README from read_me).
-            summary = f"[MCP] Tool '{self.mcp_tool_name}' on '{self.server_name}': result received"
+            summary = (
+                f"[MCP] Tool '{self.mcp_tool_name}' on '{self.server_name}': result received"
+                + observation_notice(observations)
+            )
             return UnifiedToolOutput.data_success(
                 message=summary,
                 structured_data={
                     "mcp_tool": self.mcp_tool_name,
                     "server_name": self.server_name,
-                    "result": result,
+                    "result": decode_mcp_result(result),
+                    **result_text_data(result),
+                    **observations,
                 },
+                metadata={"mcp_result_projection": True},
             )
 
         except Exception as exc:

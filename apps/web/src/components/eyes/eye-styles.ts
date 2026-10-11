@@ -2,16 +2,14 @@
  * Eye-style registry — single source of truth for the selectable looks of the
  * expressive-eyes widget (settings › preferences › personalization).
  *
- * Adding a style costs exactly three things, each enforced by the sibling
- * completeness test (`eye-styles.test.ts` — red until all three exist):
- *   1. its id in EYE_STYLE_IDS below;
- *   2. a scoped recipe block in `styles/eyes.css` (`[data-style='<id>'] …`);
- *   3. `eyes.styles.<id>.{name,description}` in the six locale files.
- * Everything else — expressions, idle life, gestures, emotes, blink, gaze,
- * anchoring — is style-agnostic and comes for free.
+ * Every selectable style declares its renderer and six localized labels.
+ * Native skins also declare their CSS material and complete rig geometry.
+ * Hybrid characters compose original 3D bodies with a real native facial rig.
  */
 
-export const EYE_STYLE_IDS = [
+import { COMPANION_CHARACTERS } from '@/components/spirit/companion-catalogue';
+
+export const RIG_EYE_STYLE_IDS = [
   'cozmo',
   'capsules',
   'billes',
@@ -21,11 +19,41 @@ export const EYE_STYLE_IDS = [
   'smiley',
 ] as const;
 
+export type RigEyeStyleId = (typeof RIG_EYE_STYLE_IDS)[number];
+
+export const HYBRID_EYE_STYLE_IDS = COMPANION_CHARACTERS;
+export const EYE_STYLE_IDS = [...RIG_EYE_STYLE_IDS, ...HYBRID_EYE_STYLE_IDS] as const;
+
 export type EyeStyleId = (typeof EYE_STYLE_IDS)[number];
 
-/** The initial look for visitors and new installations. The CSS base sheet
- * remains Cozmo; Smiley has its own scoped recipe. */
-export const DEFAULT_EYE_STYLE: EyeStyleId = 'smiley';
+export const EYE_STYLE_RENDERERS = {
+  cozmo: 'rig',
+  capsules: 'rig',
+  billes: 'rig',
+  amande: 'rig',
+  traits: 'rig',
+  anneaux: 'rig',
+  smiley: 'rig',
+  spirit: 'hybrid',
+  moss: 'hybrid',
+  lumen: 'hybrid',
+  nimbo: 'hybrid',
+  orbit: 'hybrid',
+  bip: 'hybrid',
+  boulon: 'hybrid',
+  oscar: 'hybrid',
+} as const satisfies Record<EyeStyleId, 'rig' | 'hybrid'>;
+
+/** The initial avatar selected for visitors and new installations. */
+export const DEFAULT_EYE_STYLE: EyeStyleId = 'bip';
+
+/** Raw rig hosts require native geometry. Hybrid selections route through EyesFace. */
+export const DEFAULT_RIG_EYE_STYLE: RigEyeStyleId = 'smiley';
+
+/** Geometry boundary: the hybrid renderer explicitly selects a real native skin. */
+export function isRigEyeStyle(value: EyeStyleId): value is RigEyeStyleId {
+  return EYE_STYLE_RENDERERS[value] === 'rig';
+}
 
 /** Strict runtime guard (persisted values, future deep links). */
 export function isValidEyeStyle(value: unknown): value is EyeStyleId {

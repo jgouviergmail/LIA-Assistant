@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "character": "moss",
+  "total_bytes": 9700,
+  "source": "Original procedural sculpture in scripts/assets/render_companion_characters.py",
+  "render": {
+    "engine": "BLENDER_EEVEE_NEXT",
+    "samples": 48,
+    "threads": 2
+  },
+  "projection": {
+    "eye_centers": [
+      [
+        0.382353,
+        0.524066
+      ],
+      [
+        0.617647,
+        0.524066
+      ]
+    ],
+    "mouth_center": [
+      0.5,
+      0.654325
+    ],
+    "ortho_scale": 2.7200000286102295
+  },
+  "assets": {
+    "female/body": {
+      "size": 192,
+      "bytes": 4950,
+      "sha256": "70949452b5cf37c517e01f3ea75c57446c91644e0540ecfc03429c61e7011ad1"
+    },
+    "male/body": {
+      "size": 192,
+      "bytes": 4750,
+      "sha256": "138eba991277678478f741695a2a14ef7e76c9d0fe0c5cde9bd5ce50c2f44e5a"
+    }
+  }
+}

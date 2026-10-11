@@ -47,6 +47,14 @@ def register_executor(draft_type: str, executor_fn: ExecutorFn) -> None:
         EXECUTOR_REGISTRY[draft_type] = executor_fn
     else:
         EXECUTOR_REGISTRY[draft_type] = gated_executor(draft_type, executor_fn)
+        if draft_type == "application_action":
+            from src.domains.agents.application.draft_execution import (
+                authorized_application_executor,
+            )
+
+            EXECUTOR_REGISTRY[draft_type] = authorized_application_executor(
+                EXECUTOR_REGISTRY[draft_type]
+            )
     logger.debug(
         "draft_executor_registered",
         draft_type=draft_type,

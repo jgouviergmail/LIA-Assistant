@@ -19,12 +19,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
-import { X } from 'lucide-react';
+import { MessageSquare, X } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { AssistantAvatar } from '@/components/psyche/AssistantAvatar';
 import { TypingIndicator } from '@/components/chat/TypingIndicator';
 import { usePsycheStore } from '@/stores/psycheStore';
+import { useEyesSignalsStore } from '@/stores/eyesSignalsStore';
 import { useNotifications, type NotificationType } from '@/hooks/useNotifications';
 import { fetchActiveRun } from '@/lib/api/chat';
 import { getLanguageFromPath, buildLocalizedPath } from '@/utils/i18n-path-utils';
@@ -79,9 +80,66 @@ export function deriveCompanionState(input: {
 interface CompanionPresenceProps {
   /** Only render/subscribe when the user is authenticated. */
   isAuthenticated: boolean;
+  /** The application widget already carries the face; retain only its chat action. */
+  renderAvatar?: boolean;
+  /** Report the off-chat background run to the application's one companion. */
+  onWorkingChange?: (working: boolean) => void;
 }
 
-export function CompanionPresence({ isAuthenticated }: CompanionPresenceProps) {
+/** Only the portrait consumes Psyche; the compact chat action has no face to update. */
+function CompanionAvatar({ working, ringing }: { working: boolean; ringing: boolean }) {
+  const psyche = usePsycheStore();
+  const psycheState: PsycheStateSummary | null =
+    psyche.enabled && psyche.displayAvatar
+      ? {
+          mood_label: psyche.moodLabel,
+          mood_color: psyche.moodColor,
+          mood_pleasure: psyche.moodPleasure,
+          mood_arousal: psyche.moodArousal,
+          mood_dominance: psyche.moodDominance,
+          active_emotion: psyche.activeEmotion,
+          emotion_intensity: psyche.emotionIntensity,
+          relationship_stage: psyche.relationshipStage,
+        }
+      : null;
+  return (
+    <AssistantAvatar psycheState={psycheState} animateEmoji animate={working} ring={ringing} />
+  );
+}
+
+/** Material and notification wobble around either the portrait or its chat-only replacement. */
+function CompanionActionVisual({
+  renderAvatar,
+  working,
+  ringing,
+}: {
+  renderAvatar: boolean;
+  working: boolean;
+  ringing: boolean;
+}) {
+  return (
+    <span
+      className={cn(
+        'block rounded-full shadow-lg ring-2 ring-background',
+        !renderAvatar && ringing && 'animate-bell-ring'
+      )}
+    >
+      {renderAvatar ? (
+        <CompanionAvatar working={working} ringing={ringing} />
+      ) : (
+        <span className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-muted-foreground">
+          <MessageSquare className="h-5 w-5" aria-hidden="true" />
+        </span>
+      )}
+    </span>
+  );
+}
+
+export function CompanionPresence({
+  isAuthenticated,
+  renderAvatar = true,
+  onWorkingChange,
+}: CompanionPresenceProps) {
   const { t } = useTranslation();
   const router = useRouter();
   const pathname = usePathname();
@@ -97,6 +155,13 @@ export function CompanionPresence({ isAuthenticated }: CompanionPresenceProps) {
   const [unread, setUnread] = useState(0);
   const [ringing, setRinging] = useState(false);
   const ringTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const workingCallback = useRef(onWorkingChange);
+
+  useEffect(() => {
+    workingCallback.current = onWorkingChange;
+    onWorkingChange?.(working);
+  }, [onWorkingChange, working]);
+  useEffect(() => () => workingCallback.current?.(false), []);
 
   const active = isAuthenticated && !onChat && !dismissed;
 
@@ -105,6 +170,7 @@ export function CompanionPresence({ isAuthenticated }: CompanionPresenceProps) {
   // reconnect storm). Uses only stable setters/refs, so [] deps are safe.
   const handleNotification = useCallback((n: { type: NotificationType }) => {
     if (!COUNTED_TYPES.has(n.type)) return;
+    useEyesSignalsStore.getState().recordNotification();
     setUnread(c => c + 1);
     setRinging(true);
     if (ringTimeout.current) clearTimeout(ringTimeout.current);
@@ -154,21 +220,6 @@ export function CompanionPresence({ isAuthenticated }: CompanionPresenceProps) {
       clearInterval(id);
     };
   }, [active]);
-
-  const psyche = usePsycheStore();
-  const psycheState: PsycheStateSummary | null =
-    psyche.enabled && psyche.displayAvatar
-      ? {
-          mood_label: psyche.moodLabel,
-          mood_color: psyche.moodColor,
-          mood_pleasure: psyche.moodPleasure,
-          mood_arousal: psyche.moodArousal,
-          mood_dominance: psyche.moodDominance,
-          active_emotion: psyche.activeEmotion,
-          emotion_intensity: psyche.emotionIntensity,
-          relationship_stage: psyche.relationshipStage,
-        }
-      : null;
 
   if (!mounted || !isAuthenticated || onChat) return null;
 
@@ -221,14 +272,11 @@ export function CompanionPresence({ isAuthenticated }: CompanionPresenceProps) {
             state.base === 'rest' && 'motion-safe:animate-greet-float'
           )}
         >
-          <span className="block rounded-full shadow-lg ring-2 ring-background">
-            <AssistantAvatar
-              psycheState={psycheState}
-              animateEmoji
-              animate={state.base === 'working'}
-              ring={ringing}
-            />
-          </span>
+          <CompanionActionVisual
+            renderAvatar={renderAvatar}
+            working={state.base === 'working'}
+            ringing={ringing}
+          />
         </button>
 
         {/* Notification count badge */}

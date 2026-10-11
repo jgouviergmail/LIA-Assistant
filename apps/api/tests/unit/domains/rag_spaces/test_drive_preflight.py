@@ -22,6 +22,7 @@ from src.core.constants import (
 )
 from src.domains.rag_spaces import drive_ingest
 from src.domains.rag_spaces.drive_sync import RAGDriveSyncService
+from src.domains.rag_spaces.models import RAGDocumentStatus
 from tests.unit.domains.rag_spaces.drive_fakes import FakeDriveClient, drive_file
 
 pytestmark = pytest.mark.unit
@@ -33,6 +34,7 @@ NEWER = "2026-09-17T10:00:00Z"
 
 def _existing(modified: str | None) -> MagicMock:
     doc = MagicMock()
+    doc.status = RAGDocumentStatus.READY
     doc.drive_modified_time = (
         datetime.fromisoformat(modified.replace("Z", "+00:00")) if modified else None
     )
@@ -85,6 +87,9 @@ async def _run_preflight(service, client, existing_by_id, *, capacity_used=0, ma
     service.doc_repo.get_by_drive_file_id = AsyncMock(
         side_effect=lambda _space, file_id: existing_by_id.get(file_id)
     )
+    for file_id, existing in existing_by_id.items():
+        existing.drive_file_id = file_id
+    service.doc_repo.get_by_drive_file_ids = AsyncMock(return_value=existing_by_id)
     service.doc_repo.count_for_space = AsyncMock(return_value=capacity_used)
     settings_mock = MagicMock()
     settings_mock.rag_spaces_drive_sync_enabled = True
@@ -161,10 +166,42 @@ async def test_preflight_counts_only_what_the_space_can_still_hold(service) -> N
 @pytest.mark.asyncio
 async def test_preflight_says_when_the_walk_was_cut(service) -> None:
     client = FakeDriveClient(
-        {"root": [drive_file(f"f{i}", modifiedTime=NEWER) for i in range(3)]}, page_size=1
+        {"root": [drive_file(f"f{i}", modifiedTime=NEWER) for i in range(3)]},
+        page_size=1,
     )
     with patch("src.domains.rag_spaces.drive_sync.RAG_DRIVE_MAX_FILES_PER_SYNC", 2):
         report = await _run_preflight(service, client, {})
     assert report.truncated is True
     assert report.to_index == 2
     assert report.max_files == 2
+
+
+async def test_preflight_currentness_reads_are_batched_for_the_whole_tree(
+    service,
+) -> None:
+    client = FakeDriveClient({"root": [drive_file(f"f{i}", modifiedTime=NEWER) for i in range(20)]})
+    report = await _run_preflight(service, client, {})
+    assert report.new == 20
+    service.doc_repo.get_by_drive_file_id.assert_not_awaited()
+    service.doc_repo.get_by_drive_file_ids.assert_awaited_once()
+
+
+async def test_preflight_observes_capacity_after_the_remote_walk(service) -> None:
+    from src.core.config import settings
+
+    space_id, owner = uuid.uuid4(), uuid.uuid4()
+    source = _source(space_id)
+    client = FakeDriveClient({"root": [drive_file("new")]})
+    service.space_repo.get_by_id.return_value = MagicMock(user_id=owner)
+    service.source_repo.get_by_id_and_space.return_value = source
+    service.doc_repo.get_by_drive_file_ids.return_value = {}
+
+    async def current_capacity(identity):
+        assert identity == space_id
+        assert client.calls, "Capacity cannot come from before the provider wait"
+        return settings.rag_spaces_max_docs_per_space
+
+    service.doc_repo.count_for_space.side_effect = current_capacity
+    with patch.object(service, "_get_drive_client", return_value=client):
+        report = await service.preflight(space_id, source.id, owner)
+    assert report.new == 1 and report.to_index == 0 and report.over_capacity == 1

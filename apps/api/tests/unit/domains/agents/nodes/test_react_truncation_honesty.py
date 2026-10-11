@@ -354,8 +354,8 @@ class TestTheAbandonedCallsAreAnswered:
             ],
         )
         state = _state(last, iteration=6, budget=6)
-        state["messages"].insert(
-            -1, ToolMessage(content="already done", tool_call_id="call_1", name="search_emails")
+        state["messages"].append(
+            ToolMessage(content="already done", tool_call_id="call_1", name="search_emails")
         )
 
         result = await react_nodes.react_finalize_node(state, {})

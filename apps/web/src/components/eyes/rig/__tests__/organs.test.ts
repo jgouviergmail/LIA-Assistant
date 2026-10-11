@@ -19,6 +19,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { POSES, resolvePose } from '@/components/eyes/rig/poses';
+import { DEFAULT_RIG_EYE_STYLE } from '@/components/eyes/eye-styles';
 import {
   BROW_SMILE_LIFT_EM,
   BROW_STRETCH_MAX,
@@ -329,7 +330,7 @@ describe('the pupil', () => {
     rig.step(16);
     rig.step(16);
     // Two frames in, the face is already moving and the pupil has not begun.
-    expect(rig.values().pupilL).toBe(1);
+    expect(rig.values().pupilL).toBe(resolvePose('neutral', DEFAULT_RIG_EYE_STYLE).pupilL);
     expect(rig.values().sxL).not.toBe(1);
     for (let frame = 0; frame < 200; frame += 1) rig.step(16);
     expect(rig.values().pupilL).toBeCloseTo(0.55, 2);

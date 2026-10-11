@@ -10,6 +10,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+GENERATED_ASSET_SELECTION_MAX = 100
+
 
 class AttachmentUploadResponse(BaseModel):
     """Response schema for a successful file upload."""
@@ -100,7 +102,7 @@ class GeneratedAssetListResponse(BaseModel):
 class GeneratedAssetsDeleteRequest(BaseModel):
     """A selection to remove."""
 
-    ids: list[uuid.UUID] = Field(min_length=1, max_length=100)
+    ids: list[uuid.UUID] = Field(min_length=1, max_length=GENERATED_ASSET_SELECTION_MAX)
 
 
 class GeneratedAssetsDeleteResponse(BaseModel):
@@ -117,7 +119,9 @@ class GeneratedAssetsDeleteResponse(BaseModel):
 class GeneratedAssetsKeepRequest(BaseModel):
     """Keep a selection past its deadline, or give it a deadline again."""
 
-    ids: list[uuid.UUID] = Field(min_length=1, max_length=100, description="The files.")
+    ids: list[uuid.UUID] = Field(
+        min_length=1, max_length=GENERATED_ASSET_SELECTION_MAX, description="The files."
+    )
     kept: bool = Field(
         description="True keeps them (no cleanup); False releases them (a TTL from now).",
     )

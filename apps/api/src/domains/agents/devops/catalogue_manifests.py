@@ -31,6 +31,7 @@ claude_server_task_catalogue_manifest = ToolManifest(
                 "Be specific: 'Check the last 100 lines of lia-api-prod logs for errors' "
                 "is better than 'check logs'."
             ),
+            semantic_type="Text",
         ),
         ParameterSchema(
             name="server",
@@ -42,6 +43,7 @@ claude_server_task_catalogue_manifest = ToolManifest(
             name="context",
             type="string",
             required=False,
+            semantic_type="Text",
             description=(
                 "Additional context or constraints for Claude CLI "
                 "(e.g. 'focus on 500 errors since 14:00')."
@@ -51,6 +53,7 @@ claude_server_task_catalogue_manifest = ToolManifest(
             name="resume_session",
             type="string",
             required=False,
+            semantic_type="devops_session_id",
             description=(
                 "Previous Claude CLI session ID to resume an investigation. "
                 "Use when the user wants to continue a previous analysis."
@@ -58,12 +61,25 @@ claude_server_task_catalogue_manifest = ToolManifest(
         ),
     ],
     outputs=[
-        OutputFieldSchema(path="result", type="string", description="Claude CLI analysis output"),
-        OutputFieldSchema(path="server", type="string", description="Server name used"),
+        OutputFieldSchema(
+            path="output",
+            type="string",
+            description="Claude CLI analysis output after draft approval",
+            semantic_type="Text",
+            nullable=True,
+        ),
+        OutputFieldSchema(
+            path="server",
+            type="string",
+            description="Server name used after approval",
+            nullable=True,
+        ),
         OutputFieldSchema(
             path="session_id",
             type="string",
             description="Claude session ID for follow-up",
+            semantic_type="devops_session_id",
+            nullable=True,
         ),
     ],
     cost=CostProfile(

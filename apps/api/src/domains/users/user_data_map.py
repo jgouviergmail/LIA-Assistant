@@ -104,6 +104,15 @@ TABLE_RULES: dict[str, TableRule] = {
     # ------------------------------------------------------------------
     "conversations": _PURGED_FULL,
     "conversation_messages": _PURGED_FULL,
+    "application_commands": TableRule(
+        data_class=TableDataClass.USER_PURGED,
+        export=ExportPolicy.EXCLUDED,
+        reason=(
+            "Transient encrypted confirmation, expiry and worker-fencing state; "
+            "the conversation and effect ledger already export the user's action record. "
+            "Explicitly purged because account deletion keeps a scrubbed users row."
+        ),
+    ),
     # ------------------------------------------------------------------
     # Peers (peer-connections program): two-sided rows — a user sits on
     # either side, so every table is explicitly purged (users-row soft
@@ -242,6 +251,12 @@ TABLE_RULES: dict[str, TableRule] = {
     ),
     "memories": _PURGED_FULL,
     "journal_entries": _PURGED_FULL,
+    "journal_evidence_events": TableRule(
+        data_class=TableDataClass.USER_PURGED,
+        export=ExportPolicy.FULL,
+        reason="Versioned journal evidence outcomes and their source references; "
+        "portable with the journal, explicitly purged before its entries.",
+    ),
     # Bounded pointers from a belief to the turn behind it — never a copy of
     # that turn (the source columns are FKs with ON DELETE SET NULL, so a
     # deleted conversation leaves a dated tombstone). Exported in full: it is

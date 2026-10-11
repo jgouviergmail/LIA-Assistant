@@ -1,6 +1,10 @@
 import { useState, useCallback } from 'react';
 import { useApiQuery } from './useApiQuery';
 import { useApiMutation } from './useApiMutation';
+import { useApplicationAccountQuery } from './useApplicationAccountQuery';
+import { useApplicationResourceSync } from './useApplicationResourceSync';
+
+const releaseInterestOverride = () => {};
 
 /**
  * Interest category types matching backend schema.
@@ -151,15 +155,14 @@ export function useInterests() {
 
   // Fetch interests
   const {
+    ownerId,
+    isCurrent,
     data: interestsData,
     loading,
     error,
     refetch,
     setData,
-  } = useApiQuery<InterestListResponse>('/interests', {
-    componentName: 'useInterests',
-    initialData: { interests: [], total: 0, active_count: 0, blocked_count: 0, dormant_count: 0 },
-  });
+  } = useApplicationAccountQuery<InterestListResponse>('/interests', 'useInterests');
 
   // Fetch categories
   const { data: categoriesData } = useApiQuery<{ categories: InterestCategoryInfo[] }>(
@@ -176,9 +179,11 @@ export function useInterests() {
     loading: settingsLoading,
     setData: setSettingsData,
     refetch: refetchSettings,
-  } = useApiQuery<InterestSettings>('/interests/settings', {
-    componentName: 'useInterests',
-  });
+  } = useApplicationAccountQuery<InterestSettings>('/interests/settings', 'useInterests');
+  const refetchManagement = useCallback(async () => {
+    await Promise.all([refetch(), refetchSettings()]);
+  }, [refetch, refetchSettings]);
+  useApplicationResourceSync(ownerId, 'interests', refetchManagement, releaseInterestOverride);
 
   // Create mutation
   const { mutate: createMutate, loading: creating } = useApiMutation<InterestCreate, Interest>({
@@ -230,7 +235,9 @@ export function useInterests() {
    */
   const createInterest = useCallback(
     async (data: InterestCreate): Promise<Interest | undefined> => {
+      if (!isCurrent()) return;
       const result = await createMutate('/interests', data);
+      if (!isCurrent()) return;
 
       if (result) {
         // Optimistic update: add the new interest to local state
@@ -247,7 +254,7 @@ export function useInterests() {
 
       return result;
     },
-    [createMutate, setData]
+    [createMutate, setData, isCurrent]
   );
 
   /**
@@ -255,10 +262,12 @@ export function useInterests() {
    */
   const deleteInterest = useCallback(
     async (interestId: string) => {
+      if (!isCurrent()) return;
       // Find the interest first to know its status
       const interest = interestsData?.interests.find(i => i.id === interestId);
 
       await deleteMutate(`/interests/${interestId}`);
+      if (!isCurrent()) return;
 
       // Optimistic update: remove from local state
       setData(prev => {
@@ -276,14 +285,16 @@ export function useInterests() {
         };
       });
     },
-    [deleteMutate, setData, interestsData]
+    [deleteMutate, setData, interestsData, isCurrent]
   );
 
   /**
    * Delete all interests.
    */
   const deleteAllInterests = useCallback(async () => {
+    if (!isCurrent()) return;
     await deleteAllMutate('/interests/all', {});
+    if (!isCurrent()) return;
 
     // Optimistic update: clear all interests
     setData(prev => {
@@ -296,14 +307,16 @@ export function useInterests() {
         blocked_count: 0,
       };
     });
-  }, [deleteAllMutate, setData]);
+  }, [deleteAllMutate, setData, isCurrent]);
 
   /**
    * Submit feedback on an interest (optimistic update).
    */
   const submitFeedback = useCallback(
     async (interestId: string, feedback: InterestFeedback) => {
+      if (!isCurrent()) return;
       await feedbackMutate(`/interests/${interestId}/feedback`, { feedback });
+      if (!isCurrent()) return;
 
       // Optimistic update based on feedback type
       setData(prev => {
@@ -339,7 +352,7 @@ export function useInterests() {
         };
       });
     },
-    [feedbackMutate, setData]
+    [feedbackMutate, setData, isCurrent]
   );
 
   /**
@@ -347,7 +360,9 @@ export function useInterests() {
    */
   const reactivateInterest = useCallback(
     async (interestId: string) => {
+      if (!isCurrent()) return;
       const result = await reactivateMutate(`/interests/${interestId}/reactivate`, {});
+      if (!isCurrent()) return;
 
       setData(prev => {
         if (!prev) return prev;
@@ -360,7 +375,7 @@ export function useInterests() {
         };
       });
     },
-    [reactivateMutate, setData]
+    [reactivateMutate, setData, isCurrent]
   );
 
   /**
@@ -368,7 +383,9 @@ export function useInterests() {
    */
   const updateInterest = useCallback(
     async (interestId: string, data: InterestUpdate): Promise<Interest | undefined> => {
+      if (!isCurrent()) return;
       const result = await updateMutate(`/interests/${interestId}`, data);
+      if (!isCurrent()) return;
 
       if (result) {
         // Optimistic update: replace the interest in local state
@@ -383,7 +400,7 @@ export function useInterests() {
 
       return result;
     },
-    [updateMutate, setData]
+    [updateMutate, setData, isCurrent]
   );
 
   /**
@@ -391,6 +408,7 @@ export function useInterests() {
    */
   const updateSettings = useCallback(
     async (data: InterestSettingsUpdate) => {
+      if (!isCurrent()) return;
       // Optimistic update
       setSettingsData(prev => {
         if (!prev) return prev;
@@ -401,10 +419,10 @@ export function useInterests() {
         await updateSettingsMutate('/interests/settings', data);
       } catch {
         // Revert on failure — refetch server state
-        refetchSettings();
+        if (isCurrent()) await refetchSettings();
       }
     },
-    [updateSettingsMutate, setSettingsData, refetchSettings]
+    [updateSettingsMutate, setSettingsData, refetchSettings, isCurrent]
   );
 
   // Filter interests client-side

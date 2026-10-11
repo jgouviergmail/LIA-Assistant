@@ -51,6 +51,8 @@ from src.core.context import get_request_tool_manifests, user_mcp_tools_ctx
 from src.domains.agents.registry.catalogue import manifests_for_mode
 from src.domains.agents.tools.react_tool_wrapper import ReactToolWrapper
 from src.domains.agents.tools.tool_resolution import resolve_tool_instance
+from src.infrastructure.mcp.catalogue_fingerprint import canonical_fingerprint
+from src.infrastructure.mcp.iterative_identity import iterative_user_instances
 from src.infrastructure.mcp.registration import declares_destructive_tool
 from src.infrastructure.observability.metrics_react import (
     react_cross_turn_cache_fallback_total,
@@ -94,9 +96,8 @@ class _Row(NamedTuple):
     unit: str | None = None
 
 
-#: Token cost of a bound tool's schema, by tool name — static per process, so
-#: measured once; a user MCP tool re-registered with a new schema keeps a
-#: stale count for a metric, which is harmless.
+#: Token cost by the canonical serialized declaration, bounded per process.
+#: Changed schemas cannot reuse a count that also governs the window fallback.
 _schema_tokens_by_name: dict[str, int] = {}
 
 
@@ -116,18 +117,22 @@ def bound_tool_tokens(tools: Sequence[BaseTool]) -> int:
     """
     total = 0
     for tool in tools:
-        cached = _schema_tokens_by_name.get(tool.name)
-        if cached is None:
-            try:
-                from langchain_core.utils.function_calling import convert_to_openai_tool
+        try:
+            from langchain_core.utils.function_calling import convert_to_openai_tool
 
-                from src.domains.agents.utils.token_utils import count_tokens
+            from src.domains.agents.utils.token_utils import count_tokens
 
-                cached = count_tokens(json.dumps(convert_to_openai_tool(tool), ensure_ascii=False))
-            except Exception as exc:  # noqa: BLE001 — a metric never breaks the turn
-                logger.debug("react_tool_schema_tokens_unmeasured", tool=tool.name, error=str(exc))
-                cached = 0
-            _schema_tokens_by_name[tool.name] = cached
+            schema = convert_to_openai_tool(tool)
+            fingerprint = canonical_fingerprint(schema)
+            cached = _schema_tokens_by_name.get(fingerprint)
+            if cached is None:
+                cached = count_tokens(json.dumps(schema, ensure_ascii=False))
+                if len(_schema_tokens_by_name) >= 2048:
+                    _schema_tokens_by_name.clear()
+                _schema_tokens_by_name[fingerprint] = cached
+        except Exception as exc:  # noqa: BLE001 — accounting must not break the turn
+            logger.debug("react_tool_schema_tokens_unmeasured", tool=tool.name, error=str(exc))
+            cached = 0
         total += cached
     return total
 
@@ -651,16 +656,12 @@ class ReactToolSelector:
         if user_ctx is None:
             return None
 
-        # Strip the "_task" suffix to get the per-server instance-name prefix.
-        prefix = tool_name[: -len(MCP_ITERATIVE_TASK_SUFFIX)]
-        individual: list[tuple[str, BaseTool]] = []
-        is_app_server = False
-        for name, instance in user_ctx.tool_instances.items():
-            if name == tool_name or not name.startswith(f"{prefix}_"):
-                continue
-            if getattr(instance, "app_resource_uri", None):
-                is_app_server = True
-            individual.append((name, instance))
+        individual = iterative_user_instances(
+            tool_name, getattr(manifest, "mcp_server_key", None), user_ctx.tool_instances
+        )
+        is_app_server = any(
+            getattr(instance, "app_resource_uri", None) for _, instance in individual
+        )
 
         # No hidden individual tools, or an MCP App server → keep the task tool
         # (return None routes back to the normal single-manifest resolution).

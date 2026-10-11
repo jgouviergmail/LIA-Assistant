@@ -46,6 +46,15 @@ class ConnectorPreferencesService:
     """
 
     @staticmethod
+    def validate_and_sanitize(
+        connector_type: str, preferences_data: object
+    ) -> BaseConnectorPreferences:
+        schema_class = get_preference_schema(connector_type)
+        if schema_class is None:
+            raise ValueError("Connector preferences are unsupported")
+        return ConnectorPreferencesService._sanitize(schema_class.model_validate(preferences_data))
+
+    @staticmethod
     def validate_and_encrypt(
         connector_type: str,
         preferences_data: dict[str, Any],
@@ -69,10 +78,9 @@ class ConnectorPreferencesService:
 
         try:
             # Validate against schema
-            validated = schema_class.model_validate(preferences_data)
-
-            # Sanitize to prevent prompt injection
-            sanitized = ConnectorPreferencesService._sanitize(validated)
+            sanitized = ConnectorPreferencesService.validate_and_sanitize(
+                connector_type, preferences_data
+            )
 
             # Encrypt like credentials
             encrypted = encrypt_data(sanitized.model_dump_json())
@@ -95,9 +103,9 @@ class ConnectorPreferencesService:
             logger.error(
                 "connector_preferences_encrypt_failed",
                 connector_type=connector_type,
-                error=str(e),
+                exception_type=type(e).__name__,
             )
-            return False, None, [f"Encryption failed: {e!s}"]
+            return False, None, ["Encryption failed"]
 
     @staticmethod
     def decrypt_and_get(
@@ -129,7 +137,7 @@ class ConnectorPreferencesService:
             logger.warning(
                 "connector_preferences_decrypt_failed",
                 connector_type=connector_type,
-                error=str(e),
+                exception_type=type(e).__name__,
             )
             return None
 

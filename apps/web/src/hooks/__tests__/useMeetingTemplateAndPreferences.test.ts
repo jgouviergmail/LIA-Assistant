@@ -14,6 +14,8 @@ import type {
   MeetingTemplateSummary,
 } from '@/types/meetings';
 
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'controlled-owner' } }) }));
+
 const api = vi.hoisted(() => ({
   get: vi.fn(),
   put: vi.fn(),

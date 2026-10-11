@@ -118,6 +118,13 @@ class UserMCPToolsContext:
     # sub-agent prompt's {auth_context} variable says so (2026-09-02 — the fact
     # was hardcoded in the prompt and therefore false for every no-auth server).
     account_scoped_prefixes: set[str] = field(default_factory=set)
+    # Iterative-server individuals are bound directly in ReAct, while the
+    # planner retains the task tool as its sole catalogue entry.
+    reactive_tool_manifests: dict[str, ToolManifest] = field(default_factory=dict)
+    # The routing description is composed from stored operator text and this
+    # request's usable discovery; neither field writes back to the server row.
+    server_catalogue_fingerprints: dict[str, str] = field(default_factory=dict)
+    server_description_sources: dict[str, str] = field(default_factory=dict)
 
     def resolve_tool_name(self, name: str) -> str | None:
         """Resolve a tool name with fuzzy matching for LLM-hallucinated suffixes.

@@ -85,6 +85,27 @@ const voicesOf = (provider: string, names: string[]) => ({
 });
 
 describe('useLiveConnectorDraft', () => {
+  it('follows confirmed settings when clean and preserves an unsaved edit when source changes', () => {
+    const { result, rerender } = renderHook(
+      ({ connector }) => useLiveConnectorDraft(connector, MODELS, voicesOf('gemini', ['Kore', 'Puck']), NOTHING_MORE, RULES, vi.fn()),
+      { initialProps: { connector: CONNECTOR } }
+    );
+    const puck = { ...CONNECTOR, settings: { ...STORED, voice: 'Puck' } };
+    rerender({ connector: puck });
+    expect(result.current.voice).toBe('Puck');
+    expect(result.current.dirty).toBe(false);
+    act(() => result.current.chooseIdleTimeout(120));
+    const remote = { ...puck, settings: { ...puck.settings, session_max_minutes: 20 } };
+    rerender({ connector: remote });
+    expect(result.current.draft.idle_timeout_seconds).toBe(120);
+    expect(result.current.draft.session_max_minutes).toBe(10);
+    expect(result.current.sourceChanged).toBe(true);
+    act(() => result.current.resetToSaved());
+    expect(result.current.draft.session_max_minutes).toBe(20);
+    expect(result.current.dirty).toBe(false);
+    expect(result.current.sourceChanged).toBe(false);
+  });
+
   it('levelFor keeps a level on the ladder, else the first, and none off an empty ladder', () => {
     expect(levelFor([], 'high')).toBeNull();
     expect(levelFor(['low', 'high'], 'high')).toBe('high');

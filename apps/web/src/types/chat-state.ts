@@ -266,6 +266,7 @@ export type ChatAction =
           run_id?: string;
           lia_card_actions?: CardActionsProjection;
           skill_proposals?: SkillProposalCard[];
+          application_interactions?: unknown;
           browser_screenshot?: { url: string; alt: string };
           /** Expressivity (ADR-253): the register the answering model declared
            * for THIS answer, for the avatar to overplay. Live-only — it is not

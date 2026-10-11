@@ -66,9 +66,16 @@ describe('GuidedShowroom', () => {
       screen.getByRole('heading', { name: 'showroom.m.memory_dinner.title' })
     ).toBeInTheDocument();
     expect(screen.queryByTestId('showroom-pick-memory_dinner')).not.toBeInTheDocument();
+    expect(screen.getByTestId('showroom-start')).toHaveFocus();
 
     await user.click(screen.getByTestId('showroom-back-to-picker'));
     expect(screen.getByTestId('showroom-pick-memory_dinner')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'showroom.title' })).toHaveFocus();
+
+    const next = screen.getByTestId('showroom-pick-daily_briefing');
+    next.focus();
+    await user.keyboard('{Enter}');
+    expect(screen.getByTestId('showroom-start')).toHaveFocus();
   });
 
   it('fires demo_viewed once per page, not per mission selection', async () => {

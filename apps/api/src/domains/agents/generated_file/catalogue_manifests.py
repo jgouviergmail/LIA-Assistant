@@ -142,19 +142,44 @@ find_generated_files_catalogue_manifest = ToolManifest(
     ],
     outputs=[
         OutputFieldSchema(path="files", type="array", description="The files, newest first"),
-        OutputFieldSchema(path="files[].title", type="string", description="What the file is"),
-        OutputFieldSchema(path="files[].family", type="string", description="Its family"),
         OutputFieldSchema(
-            path="files[].created", type="string", description="Local ISO time produced"
+            path="files[].title",
+            type="string",
+            description="What the file is",
+            semantic_type="Text",
         ),
         OutputFieldSchema(
-            path="files[].expires", type="string", description="Local ISO time it is deleted"
+            path="files[].file_name",
+            type="string",
+            description="Original file name",
+            semantic_type="file_name",
+        ),
+        OutputFieldSchema(
+            path="files[].size_bytes",
+            type="integer",
+            description="File size in bytes",
+            semantic_type="file_size",
+        ),
+        OutputFieldSchema(path="files[].family", type="string", description="Its family"),
+        OutputFieldSchema(
+            path="files[].created",
+            type="string",
+            description="Local ISO time produced",
+            semantic_type="datetime",
+        ),
+        OutputFieldSchema(
+            path="files[].expires",
+            type="string",
+            description="Local ISO time it is deleted",
+            nullable=True,
+            semantic_type="datetime",
         ),
         OutputFieldSchema(
             path="files[].shared_by",
             type="string",
             nullable=True,
             description="Who shared it, for an image a connection sent",
+            semantic_type="person_name",
         ),
         OutputFieldSchema(path="total", type="integer", description="EXACT count of matches"),
     ],

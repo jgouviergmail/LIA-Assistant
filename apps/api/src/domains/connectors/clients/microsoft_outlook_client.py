@@ -338,6 +338,8 @@ class MicrosoftOutlookClient(BaseMicrosoftClient):
         bcc: str | None = None,
         is_html: bool = False,
         attachments: Sequence[OutgoingAttachment] = (),
+        *,
+        single_attempt: bool = False,
     ) -> dict[str, Any]:
         """
         Send a new email via Microsoft Graph.
@@ -375,7 +377,12 @@ class MicrosoftOutlookClient(BaseMicrosoftClient):
                 _file_attachment(attachment) for attachment in attachments
             ]
 
-        await self._make_request("POST", "/me/sendMail", json_data=message_body)
+        await self._make_request(
+            "POST",
+            "/me/sendMail",
+            json_data=message_body,
+            **({"max_retries": 1} if single_attempt else {}),
+        )
 
         # Counts only at INFO: recipients and subject are the person's content.
         logger.info(

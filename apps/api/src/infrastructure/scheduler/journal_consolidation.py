@@ -12,10 +12,9 @@ Flow for each eligible user:
 2. Call consolidate_journals_for_user()
 3. Track metrics (duration, errors, actions)
 
-Eligibility:
-- journals_enabled = True AND journal_consolidation_enabled = True
-- At least journal_consolidation_min_entries active entries
-- Last consolidation > cooldown OR never consolidated
+Eligibility is defined by the Journals repository's
+build_consolidation_eligible_users_query and checked again when claiming
+and settling the maintenance result.
 """
 
 import time
@@ -39,17 +38,17 @@ logger = get_logger(__name__)
 
 
 async def _refresh_effectiveness_gauge() -> None:
-    """Refresh the journal effectiveness gauges after a consolidation batch.
+    """Refresh journal exposure and distribution gauges after maintenance.
 
     - ``journal_zero_injection_age_days``: average age (in days) of active entries
-      never injected into a prompt. Central effectiveness metric — high values
-      signal directives accumulating without value.
+      never injected into a prompt, including L0/L3 entries excluded by design.
+      It measures exposure; quality and usefulness require separate evidence.
     - ``journal_level_distribution{level}``: count of active entries per
-      abstraction level (L0/L1/L2/L3). Reveals the cognitive shape of the
-      journal — too many L0 means insufficient maturation, too many L1 with
-      no L2 means missing pattern synthesis.
+      abstraction level (L0/L1/L2/L3). This describes the journal's current shape;
+      it supplies no target quota or proof of insufficient maturation.
     - ``journal_theme_distribution{theme}``: count of active entries per theme.
-      A theme flat at zero is an unreachable theme, not a quiet one.
+      A zero count can reflect either an unused theme or an unreachable path;
+      attribution requires checking extraction and the user's actual context.
     - ``journal_portrait_age_hours``: age of the oldest compiled portrait —
       rises when a user's consolidation has stalled.
 
@@ -146,6 +145,11 @@ async def process_journal_consolidation() -> dict[str, Any]:
             # Process each eligible user
             for user in eligible_users:
                 try:
+                    from src.domains.journals.consolidation_lifecycle import consolidation_needed
+
+                    async with get_db_context() as db:
+                        if not await consolidation_needed(db, user):
+                            continue
                     # 0. Usage limit pre-check (skip early before any DB/LLM work)
                     from src.domains.usage_limits.service import UsageLimitService
 
@@ -208,7 +212,7 @@ async def process_journal_consolidation() -> dict[str, Any]:
         else:
             status = "completed"
 
-        # Refresh the effectiveness gauge after the batch (best-effort).
+        # Refresh exposure and distribution gauges after the batch (best-effort).
         # Captures the post-consolidation state of "stale" entries.
         await _refresh_effectiveness_gauge()
 

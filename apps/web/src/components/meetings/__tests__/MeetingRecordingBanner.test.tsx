@@ -14,6 +14,8 @@ import apiClient from '@/lib/api-client';
 
 import { MeetingRecordingBanner } from '../MeetingRecordingBanner';
 
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'recorder-owner' } }) }));
+
 beforeEach(() => {
   // The format picker reads the real library hook even in phase-only tests.
   vi.spyOn(apiClient, 'get').mockImplementation(async endpoint => {
@@ -26,6 +28,7 @@ afterEach(() => vi.restoreAllMocks());
 
 function recorder(over: Partial<UseMeetingRecorderReturn> = {}): UseMeetingRecorderReturn {
   return {
+    ownerId: null,
     phase: 'recording',
     recording: {
       meetingId: 'm1',

@@ -1,13 +1,7 @@
 /**
- * Mission: it remembers for you (persistent memory + learned habits).
- *
- * One short ask — "book a dinner with Sarah on Friday" — and LIA applies
- * three remembered preferences (Sarah's diet, the usual dinner time, the
- * free evening) without asking anything twice. Both effects stay gated:
- * an editable message draft and a calendar event confirmation.
- *
- * Same data contract as every mission fixture: i18n keys, bounded 'HH:MM'
- * literals, example.invalid addresses, deep-frozen (fixtures.test.ts).
+ * Personal-assistant showroom: memory_dinner.
+ * Historical telemetry id retained; the versioned fixture defines this story.
+ * All data is fictional, immutable and resolved through the active locale.
  */
 
 import { deepFreeze } from '@/components/showroom/missions/deep-freeze';
@@ -15,7 +9,7 @@ import type { ShowroomMissionDefinition } from '@/components/showroom/types';
 
 export const MEMORY_DINNER: ShowroomMissionDefinition = deepFreeze({
   id: 'memory_dinner',
-  fixtureVersion: 'memory_dinner-v1',
+  fixtureVersion: 'memory_dinner-v2',
   titleKey: 'showroom.m.memory_dinner.title',
   taglineKey: 'showroom.m.memory_dinner.tagline',
   mechanismKey: 'showroom.m.memory_dinner.mechanism',
@@ -24,41 +18,58 @@ export const MEMORY_DINNER: ShowroomMissionDefinition = deepFreeze({
   sources: [
     {
       id: 'memory',
-      labelKey: 'showroom.sources.memory',
+      labelKey: 'showroom.personal.memory_dinner.source_1',
       emoji: '🧠',
       items: [
-        { labelKey: 'showroom.m.memory_dinner.facts.sarah_veg' },
-        { labelKey: 'showroom.m.memory_dinner.facts.last_dinner' },
+        {
+          labelKey: 'showroom.personal.memory_dinner.fact_1',
+        },
       ],
     },
     {
-      id: 'habits',
-      labelKey: 'showroom.sources.habits',
-      emoji: '🔁',
-      items: [{ labelKey: 'showroom.m.memory_dinner.facts.dinner_time', time: '20:00' }],
+      id: 'peer',
+      labelKey: 'showroom.personal.memory_dinner.source_2',
+      emoji: '🤝',
+      items: [
+        {
+          labelKey: 'showroom.personal.memory_dinner.fact_2',
+        },
+      ],
     },
     {
       id: 'calendar',
-      labelKey: 'showroom.sources.calendar',
+      labelKey: 'showroom.personal.memory_dinner.source_3',
       emoji: '📅',
-      items: [{ labelKey: 'showroom.m.memory_dinner.facts.friday_free', time: '19:00' }],
+      items: [
+        {
+          labelKey: 'showroom.personal.memory_dinner.fact_3',
+        },
+      ],
     },
     {
-      id: 'contacts',
-      labelKey: 'showroom.sources.contacts',
-      emoji: '👥',
-      items: [{ labelKey: 'showroom.m.memory_dinner.facts.sarah_contact' }],
+      id: 'inbox',
+      labelKey: 'showroom.personal.memory_dinner.source_4',
+      emoji: '📬',
+      items: [
+        {
+          labelKey: 'showroom.personal.memory_dinner.fact_4',
+        },
+      ],
     },
   ],
   findings: [
-    { labelKey: 'showroom.m.memory_dinner.findings.prefs_applied' },
-    { labelKey: 'showroom.m.memory_dinner.findings.slot', time: '20:00' },
+    {
+      labelKey: 'showroom.personal.memory_dinner.finding_1',
+    },
+    {
+      labelKey: 'showroom.personal.memory_dinner.finding_2',
+    },
   ],
   traceKeys: [
     'showroom.trace.routing',
-    'showroom.trace.sources',
-    'showroom.m.memory_dinner.trace_recall',
-    'showroom.trace.proposals',
+    'showroom.personal.trace_context',
+    'showroom.personal.trace_compare',
+    'showroom.personal.trace_result',
   ],
   decisions: [
     {
@@ -92,7 +103,7 @@ export const MEMORY_DINNER: ShowroomMissionDefinition = deepFreeze({
         },
         {
           labelKey: 'showroom.m.memory_dinner.decisions.create_event.when',
-          value: '20:00',
+          value: '19:30',
         },
       ],
       outcome: {

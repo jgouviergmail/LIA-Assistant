@@ -1,0 +1,858 @@
+{
+  "measured_on": "2026-10-06",
+  "scope": "Deterministic structural oracles and real native components with isolated provider fixtures; no paid model or external side effect in these component checks",
+  "tests_are_not_additive": "Component suites overlap; snapshot counts must not be summed",
+  "ontology": {
+    "scope": "Deterministic structural oracles, never LLM-decision evidence",
+    "baseline_contract_note": "Weather before: physical_address from original recorded Nancy probe; after: actual current locality plus selected canonical proof",
+    "before": {
+      "oracles": [
+        {
+          "name": "unseeded_cycle_has_no_provider",
+          "expected": [],
+          "actual": [
+            "left",
+            "right"
+          ],
+          "pass": false
+        },
+        {
+          "name": "unseeded_cycle_gap_is_explicit",
+          "expected": {
+            "consumer": [
+              "contact_id"
+            ]
+          },
+          "actual": {},
+          "pass": false
+        },
+        {
+          "name": "selected_consumer_is_retained",
+          "expected": [
+            "consumer"
+          ],
+          "actual": [
+            "consumer"
+          ],
+          "pass": true
+        },
+        {
+          "name": "constructible_alternative_beats_high_ranked_cycle",
+          "expected": [
+            "fallback"
+          ],
+          "actual": [
+            "left",
+            "right"
+          ],
+          "pass": false
+        },
+        {
+          "name": "exact_parameter_seed_starts_cycle",
+          "expected": [
+            "left"
+          ],
+          "actual": [
+            "left",
+            "right"
+          ],
+          "pass": false
+        },
+        {
+          "name": "wrong_parameter_seed_never_starts_cycle",
+          "expected": [],
+          "actual": [
+            "left",
+            "right"
+          ],
+          "pass": false
+        },
+        {
+          "name": "seeded_consumer_needs_no_lookup",
+          "expected": [],
+          "actual": [
+            "fallback"
+          ],
+          "pass": false
+        },
+        {
+          "name": "no_source_gap_is_explicit",
+          "expected": {
+            "consumer": [
+              "contact_id"
+            ]
+          },
+          "actual": {},
+          "pass": false
+        },
+        {
+          "name": "mutation_is_not_a_provider",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        },
+        {
+          "name": "long_chain_all_ancestors_in_execution_order",
+          "expected": [
+            "seed",
+            "hop_1",
+            "hop_2",
+            "hop_3",
+            "hop_4"
+          ],
+          "actual": [
+            "hop_4",
+            "hop_3",
+            "hop_2"
+          ],
+          "pass": false
+        },
+        {
+          "name": "related_id_is_not_a_conversion",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        },
+        {
+          "name": "selected_canonical_city_Nancy_is_usable",
+          "expected": true,
+          "actual": false,
+          "pass": false
+        },
+        {
+          "name": "raw_daughter_Nancy_requires_actual_address",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "passed": 4,
+      "total": 13,
+      "llm_calls": 0,
+      "provider_calls": 0,
+      "db_writes": 0
+    },
+    "after": {
+      "oracles": [
+        {
+          "name": "unseeded_cycle_has_no_provider",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        },
+        {
+          "name": "unseeded_cycle_gap_is_explicit",
+          "expected": {
+            "consumer": [
+              "contact_id"
+            ]
+          },
+          "actual": {
+            "consumer": [
+              "contact_id"
+            ]
+          },
+          "pass": true
+        },
+        {
+          "name": "selected_consumer_is_retained",
+          "expected": [
+            "consumer"
+          ],
+          "actual": [
+            "consumer"
+          ],
+          "pass": true
+        },
+        {
+          "name": "constructible_alternative_beats_high_ranked_cycle",
+          "expected": [
+            "fallback"
+          ],
+          "actual": [
+            "fallback"
+          ],
+          "pass": true
+        },
+        {
+          "name": "exact_parameter_seed_starts_cycle",
+          "expected": [
+            "left"
+          ],
+          "actual": [
+            "left"
+          ],
+          "pass": true
+        },
+        {
+          "name": "wrong_parameter_seed_never_starts_cycle",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        },
+        {
+          "name": "seeded_consumer_needs_no_lookup",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        },
+        {
+          "name": "no_source_gap_is_explicit",
+          "expected": {
+            "consumer": [
+              "contact_id"
+            ]
+          },
+          "actual": {
+            "consumer": [
+              "contact_id"
+            ]
+          },
+          "pass": true
+        },
+        {
+          "name": "mutation_is_not_a_provider",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        },
+        {
+          "name": "long_chain_all_ancestors_in_execution_order",
+          "expected": [
+            "seed",
+            "hop_1",
+            "hop_2",
+            "hop_3",
+            "hop_4"
+          ],
+          "actual": [
+            "seed",
+            "hop_1",
+            "hop_2",
+            "hop_3",
+            "hop_4"
+          ],
+          "pass": true
+        },
+        {
+          "name": "related_id_is_not_a_conversion",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        },
+        {
+          "name": "selected_canonical_city_Nancy_is_usable",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "name": "raw_daughter_Nancy_requires_actual_address",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "passed": 13,
+      "total": 13,
+      "llm_calls": 0,
+      "provider_calls": 0,
+      "db_writes": 0
+    }
+  },
+  "dates": {
+    "scope": "Deterministic literal-date oracles, no model decisions",
+    "before_timezone_seam": "Before code has no trusted timezone field; after server stamps the request timezone",
+    "oracles": [
+      {
+        "case": "timestamp_wrong_prefix",
+        "timezone": "America/New_York",
+        "expected": false,
+        "before": true,
+        "after": false,
+        "before_pass": false,
+        "after_pass": true
+      },
+      {
+        "case": "timestamp_converted_day",
+        "timezone": "America/New_York",
+        "expected": true,
+        "before": false,
+        "after": true,
+        "before_pass": false,
+        "after_pass": true
+      },
+      {
+        "case": "civil_date_keeps_day",
+        "timezone": "America/New_York",
+        "expected": true,
+        "before": true,
+        "after": true,
+        "before_pass": true,
+        "after_pass": true
+      },
+      {
+        "case": "malformed_iso_prefix",
+        "timezone": "Europe/Paris",
+        "expected": false,
+        "before": true,
+        "after": false,
+        "before_pass": false,
+        "after_pass": true
+      },
+      {
+        "case": "malformed_localized_suffix",
+        "timezone": "Europe/Paris",
+        "expected": false,
+        "before": true,
+        "after": false,
+        "before_pass": false,
+        "after_pass": true
+      }
+    ],
+    "before_pass": 1,
+    "after_pass": 5,
+    "count": 5,
+    "provider_calls": 0
+  },
+  "native_execution": {
+    "scope": "Native ReAct execution components, real LangGraph state/checkpoint/router with isolated provider fixtures; no paid model or external action",
+    "observed_at_utc": "2026-10-06T21:08:29.673948+02:00",
+    "tests": {
+      "react_nodes_suite": {
+        "passed": 447,
+        "deselected": 676,
+        "warnings": 1,
+        "seconds": 16.08,
+        "log": "react-suite.log"
+      },
+      "checkpoint_truncation_budget_suite": {
+        "passed": 85,
+        "warnings": 1,
+        "seconds": 6.23,
+        "log": "checkpoint-tests.log"
+      },
+      "closing_checkpoint_status_python_guards": {
+        "passed": 119,
+        "warnings": 1,
+        "seconds": 3.85,
+        "log": "closing-guards.log"
+      },
+      "opaque_delegation_regressions_and_native_checks": {
+        "passed": 92,
+        "warnings": 1,
+        "seconds": 3.68,
+        "log": "delegation-tests.log"
+      },
+      "opaque_delegation_mypy_focused": {
+        "checked_source_files": 4,
+        "issues": 0,
+        "log": "delegation-mypy.log"
+      },
+      "mypy_follow_imports": {
+        "checked_source_files": 9,
+        "issues": 0,
+        "log": "mypy.log"
+      },
+      "mypy_local_latest": {
+        "checked_source_files": 7,
+        "issues": 0,
+        "log": "mypy-local.log"
+      }
+    },
+    "controlled_latency_observation": {
+      "comparison": "Same new native runtime, concurrency opt-in false vs true; not legacy runtime or a model end-to-end measurement",
+      "fixture_delay_seconds": 0.05,
+      "item_count": 8,
+      "serial": {
+        "seconds": 0.5138,
+        "calls": 8,
+        "maximum_concurrency": 1
+      },
+      "parallel": {
+        "seconds": 0.1714,
+        "calls": 8,
+        "maximum_concurrency": 4
+      },
+      "canonical_outputs_equal": true,
+      "interpretation": "One controlled observation; no universal production latency claim or timing threshold test"
+    },
+    "factual_counters": {
+      "independent_nine_reads": {
+        "provider_calls": 9,
+        "maximum_concurrency": 4,
+        "registry_items": 9,
+        "productive_iterations": 1
+      },
+      "two_exact_fresh_reads": {
+        "provider_calls": 1,
+        "tool_messages": 2,
+        "read_observations": 1,
+        "productive_iterations": 1
+      },
+      "checkpoint_then_hitl_fresh_worker": {
+        "total_read_calls": 2,
+        "total_write_calls": 1,
+        "read_replays_after_resume": 0
+      },
+      "budget_between_segments_five_reads": {
+        "provider_calls": 4,
+        "abandoned_calls_with_tool_message": 1
+      },
+      "error_partial_timeout_success_siblings": {
+        "registry_items_retained": 2,
+        "obtained_cache_entries": 1
+      },
+      "recovery_action": {
+        "mutation_invocations": 0,
+        "successful_read_registry_items_preserved": 2
+      }
+    },
+    "reuse_contract": {
+      "scope": [
+        "current turn reset",
+        "account",
+        "thread",
+        "timezone",
+        "language",
+        "browser context"
+      ],
+      "fingerprint": [
+        "tool name",
+        "normalized arguments",
+        "public tool schema",
+        "manifest parameters",
+        "manifest outputs"
+      ],
+      "digest": "HMAC via existing compute_call_digest, no raw values in the cache key",
+      "requires": "read-only manifest and positive explicit TTL",
+      "native_opt_ins": [
+        "get_contacts_tool",
+        "get_emails_tool",
+        "get_events_tool",
+        "get_files_tool",
+        "get_route_tool",
+        "get_current_weather_tool",
+        "get_weather_forecast_tool"
+      ],
+      "limits": {
+        "parallel_calls": 4,
+        "cache_entries": 32,
+        "serialized_cache_bytes": 512000
+      },
+      "never_cached": [
+        "failure",
+        "empty",
+        "explicit partial/truncated/paginated result"
+      ],
+      "invalidate": [
+        "expiry",
+        "refresh request",
+        "schema change",
+        "different runtime scope",
+        "mutation or unknown tool",
+        "next turn"
+      ]
+    },
+    "completion_and_provenance": {
+      "requested_goals": "Literal anchored current-QI requirements only; immutable-goal fingerprints retain compact verdicts/counts rather than payload copies",
+      "no_goal": "observe_requested_outcome returns None; no payload duplication",
+      "recovery": "Bounded read-only passes; pending/attempted/opaque writes cannot be replayed",
+      "opaque_delegation": "Actual shared MCP proxy factory remains globally classified as before; delegates_execution forbids runtime read reuse, parallel read opt-ins, started-read obligations, and recovery replay; server freshness cutoff and empty proof scope are passed to the delegate at invocation and persisted at completion",
+      "empty": "Not a gap by default; checked against an explicit minimum or same-item field constraint",
+      "unknown": "Opaque output does not prove success and does not itself force a recovery pass",
+      "started_cross_checks": "Known failed or partial reads survive a final prose omission; exact corrected read replaces its observation",
+      "source": "Actual new registry leaves plus authoritative runtime account, not inferred equality or planner-authored source labels",
+      "python_stdin": "Actual native run_python_tool through execute_source receives JSON records rather than RegistryItem repr strings; captured at isolated container boundary; two allowed runs persist to a recompiled graph, third run never starts",
+      "mutation_cutoff": "Server UTC timestamp persisted/reset in semantic_source_valid_after; both binding sidecars invalidated conservatively",
+      "reference_values": "Canonical payloads, item IDs and references are retained; no value rewriting"
+    },
+    "limitations": [
+      "These checks qualify real native execution components and provider fixtures, not model plan quality, production providers, or PostgreSQL worker deployment.",
+      "Concurrency remains explicit opt-in; unknown tools, interruptible tools, mutations and exclusive state remain serialized.",
+      "ReAct does not manufacture a selected semantic source from equal text; ambiguous person/place strings stay protected without actual selected-reference proof.",
+      "A successful read with different arguments or source does not silently erase a separately failed started cross-check without explicit canonical linkage.",
+      "No pipeline adaptive mutation recovery was added in this scope."
+    ]
+  },
+  "mcp": {
+    "scope": "Offline deterministic evidence; no live MCP/provider calls or database/model changes",
+    "baseline_initial_tests": {
+      "failed": 6,
+      "passed": 0
+    },
+    "optimization_tests_now": 20,
+    "regression_suite": {
+      "passed": 925,
+      "failed": 0,
+      "note": "MCP, user MCP, embeddings envelope, three selector suites, file-size ratchet"
+    },
+    "mypy": {
+      "source_files": 13,
+      "passed": true
+    },
+    "after": {
+      "pool": {
+        "discover_calls": 3,
+        "replacement_keys": [
+          "filter"
+        ],
+        "first_snapshot_keys": [
+          "query"
+        ],
+        "other_account_unchanged": true,
+        "fingerprint_changed": true
+      },
+      "schema_token_cache": {
+        "first_count": 68,
+        "replacement_count": 3238,
+        "independent_count": 3238,
+        "note": "Same one-arg to 100-arg mutation as regression test; historical 3539 probe additionally included descriptions."
+      },
+      "embedding_cache": {
+        "changed_contract_reason": "catalogue_changed"
+      },
+      "invalid_format": {
+        "canonical_payload": {
+          "email": "not-an-email"
+        },
+        "observations": {
+          "mcp_semantic_observations": {
+            "unusable_paths": [
+              {
+                "path": "result.email",
+                "semantic_type": "email_address",
+                "reason": "invalid_format"
+              }
+            ],
+            "unusable_count": 1,
+            "paths_truncated": false
+          }
+        }
+      },
+      "google_projection": {
+        "converted_field": {
+          "description": "Declared JSON Schema constraints (preserve these when supplying values): {\"allOf\":[{\"type\":\"string\"},{\"format\":\"email\",\"minLength\":8}],\"format\":\"email\",\"minLength\":8,\"type\":\"string\"}",
+          "type": "STRING"
+        },
+        "original_assertions_in_description": true,
+        "native_assertions_enforced": false
+      }
+    },
+    "quality": {
+      "apps/api/src/infrastructure/mcp/user_pool.py": {
+        "sha256": "e7d77986b595f1520ed7e11ad6b3df68f2c7284204ddf4b83a7ecf369395a551",
+        "changed_function_cc": {
+          "get_or_connect": 7,
+          "_cache_hit": 3,
+          "_refresh_reason": 5
+        },
+        "previous_cc_of_changed": {
+          "get_or_connect": 6
+        },
+        "sloc": 467
+      },
+      "apps/api/src/infrastructure/mcp/user_context.py": {
+        "sha256": "144a67a7ad37ef1069cb73259f60643f487dfa60c6fb13d3a3c511c4357355ab",
+        "changed_function_cc": {
+          "_usable_tool_embeddings": 7,
+          "setup_user_mcp_tools": 22,
+          "_register_user_iterative_server": 13
+        },
+        "previous_cc_of_changed": {
+          "_usable_tool_embeddings": 7,
+          "setup_user_mcp_tools": 22,
+          "_register_user_iterative_server": 13
+        },
+        "sloc": 383
+      },
+      "apps/api/src/infrastructure/mcp/tool_adapter.py": {
+        "sha256": "aa8bede8efcf53cbe4600bc70e8cc99cbdb51fb20722a2280b96a352f4057e6e",
+        "changed_function_cc": {
+          "build_args_schema": 11,
+          "from_mcp_tool": 1,
+          "_call_server": 6
+        },
+        "previous_cc_of_changed": {
+          "build_args_schema": 11,
+          "from_mcp_tool": 1,
+          "_call_server": 6
+        },
+        "sloc": 205
+      },
+      "apps/api/src/infrastructure/mcp/user_tool_adapter.py": {
+        "sha256": "1d23b742877ce85e9395dc76ae78cc06f3df551b3c1f1b461cf61eea58605c94",
+        "changed_function_cc": {
+          "from_discovered_tool": 1,
+          "_call_server": 14
+        },
+        "previous_cc_of_changed": {
+          "from_discovered_tool": 1,
+          "_call_server": 14
+        },
+        "sloc": 325
+      },
+      "apps/api/src/infrastructure/mcp/utils.py": {
+        "sha256": "71779f57e82033095814d14f5efa8f7642205452440a53dbe636ac2b565cba61",
+        "changed_function_cc": {
+          "build_mcp_app_output": 6
+        },
+        "previous_cc_of_changed": {
+          "build_mcp_app_output": 4
+        },
+        "sloc": 213
+      },
+      "apps/api/src/infrastructure/mcp/semantic_schema.py": {
+        "sha256": "7ac409caf7e4009e70ade8b2ec81657225434029847736055fa58d48441da30b",
+        "changed_function_cc": {},
+        "previous_cc_of_changed": {},
+        "sloc": 302
+      },
+      "apps/api/src/domains/agents/services/react_tool_selector.py": {
+        "sha256": "6dd72ca5728471c69800415cdee0284ea30a8e617a25b4be790c6add6955c471",
+        "changed_function_cc": {
+          "bound_tool_tokens": 5
+        },
+        "previous_cc_of_changed": {
+          "bound_tool_tokens": 4
+        },
+        "sloc": 354
+      },
+      "apps/api/src/domains/agents/services/tool_embeddings_envelope.py": {
+        "sha256": "b51165172a773b6043598575c2477067b43b1909285e0f6b389ca13d4f1b608b",
+        "changed_function_cc": {
+          "wrap_server_cache": 2,
+          "read_server_cache": 9
+        },
+        "previous_cc_of_changed": {
+          "wrap_server_cache": 1,
+          "read_server_cache": 7
+        },
+        "sloc": 29
+      },
+      "apps/api/src/domains/agents/services/tool_selector.py": {
+        "sha256": "bb8dbedb5d728df9c8becb17db96d2c4c34970ef42ee786279295ef312827069",
+        "changed_function_cc": {},
+        "previous_cc_of_changed": {},
+        "sloc": 499
+      },
+      "apps/api/src/infrastructure/observability/metrics_mcp.py": {
+        "sha256": "397d660f9ca770767fbd4a1616615829fb98aedcd7d1791f61cad48514f09230",
+        "changed_function_cc": {},
+        "previous_cc_of_changed": {},
+        "sloc": 48
+      },
+      "apps/api/src/infrastructure/mcp/catalogue_fingerprint.py": {
+        "sha256": "9f4c21f710fdcd98f0904acf049b6140abe876c6d31aaa58d0d28ffe7bcc8d23",
+        "changed_function_cc": {
+          "canonical_fingerprint": 1,
+          "connection_fingerprint": 3
+        },
+        "previous_cc_of_changed": {},
+        "sloc": 19
+      },
+      "apps/api/src/infrastructure/mcp/schema_projection.py": {
+        "sha256": "cdab21cc9d02e9915c2eb0bf15544e0fd1e8c6beac387b987720ecaf923ab37d",
+        "changed_function_cc": {
+          "_needs_contract": 9,
+          "binding_description": 4,
+          "_structure": 5,
+          "_compositions": 9,
+          "binding_schema": 3
+        },
+        "previous_cc_of_changed": {},
+        "sloc": 74
+      },
+      "apps/api/src/infrastructure/mcp/semantic_observations.py": {
+        "sha256": "2955a2dd1f350874f36034ef95c6030f5aae079538c8ca4fecea15b5ada1aad2",
+        "changed_function_cc": {
+          "_descend": 7,
+          "_path_values": 2,
+          "_child_schemas": 10,
+          "_allows_null_at_path": 5,
+          "_usable": 4,
+          "_usable_uri": 3,
+          "_usable_date": 5,
+          "semantic_observation_data": 9,
+          "observation_notice": 2,
+          "record": 4
+        },
+        "previous_cc_of_changed": {},
+        "sloc": 116
+      },
+      "apps/api/src/domains/user_mcp/service.py": {
+        "sha256": "567fa10631569ebc869a9aa86aa738a189f811b12b58fa285b32b1cc6e60448a",
+        "changed_function_cc": {
+          "test_connection": 7
+        },
+        "previous_cc_of_changed": {
+          "test_connection": 7
+        },
+        "sloc": 534
+      },
+      "apps/api/src/infrastructure/mcp/json_schema.py": {
+        "sha256": "81a6175c2288a63142f8cf1662e68983f35e58eff22e67b24ad5eca9fab3e73e",
+        "changed_function_cc": {
+          "as_property_spec": 2,
+          "description_of": 2,
+          "properties_of": 3,
+          "required_of": 5,
+          "normalize_schema_type": 7,
+          "declares_null": 2,
+          "sanitize_array_items": 8,
+          "array_python_type": 1,
+          "_json_type_of_value": 3,
+          "_is_null_schema": 5,
+          "_dereference": 9,
+          "referenced_schema": 1,
+          "_resolve": 13,
+          "_resolve_enum": 4,
+          "_resolve_declared": 2,
+          "_resolve_reference": 6,
+          "_resolve_allof": 10,
+          "_resolve_composition": 8,
+          "_composition_spec": 4,
+          "resolve_property": 1,
+          "compact_schema": 10,
+          "_compact_structure": 7,
+          "_compact_compositions": 7,
+          "_compact_type_union": 7,
+          "_compact_constraints": 7,
+          "_is_number": 2,
+          "constraint_enum": 6,
+          "publishable_enum": 4,
+          "constraints_of": 5,
+          "_publish_composition": 4,
+          "declaration_for": 11,
+          "_publish_structure": 6,
+          "annotation_for": 6,
+          "schema_type_names": 13
+        },
+        "previous_cc_of_changed": {},
+        "sloc": 354
+      },
+      "apps/api/src/infrastructure/mcp/auth.py": {
+        "sha256": "baaf498cc169ae83a0ea4bc0f3392c285ca14af3569f6dfbeb45271e38564b71",
+        "changed_function_cc": {
+          "build_auth_for_server": 14,
+          "__init__": 1,
+          "catalogue_identity": 1
+        },
+        "previous_cc_of_changed": {
+          "build_auth_for_server": 14,
+          "__init__": 1
+        },
+        "sloc": 298
+      }
+    },
+    "limits": [
+      "Admin MCP registry still discovers at startup; hot user MCP schema snapshots now refresh by schema age.",
+      "SDK per-call implicit list_tools validation cost remains; transport latency not measured.",
+      "Known email/calendar-date/timezone datetime/URI operational values only; unknown IDs never guessed.",
+      "Google unsupported assertions are visible in descriptions and retained canonical JSON Schema; model compliance is measured centrally, API-level enforcement is not asserted."
+    ]
+  },
+  "latest_verification": {
+    "measured_on": "2026-10-06",
+    "combined_targeted": {
+      "passed": 4217,
+      "failed": 1,
+      "skipped": 1,
+      "seconds": 38.22,
+      "failure": "Global file-size guard: concurrent src/domains/agents/services/memory_extractor.py, 616 logical SLOC against cap 600 in the final run",
+      "scope": "Semantic, catalogue, orchestration, nodes, MCP, user MCP, checkpoint, vocabulary, prompt registry, metrics and harness oracles"
+    },
+    "deterministic_simulation_task": {
+      "passed": 94,
+      "paid_calls": 0
+    },
+    "scoped_types": {
+      "helper_files": 7,
+      "final_delegation_sources": 8,
+      "harness_files": 8,
+      "issues": 0,
+      "imports": "follow-imports=skip, unique nonincremental cache; this is not a global backend type-check claim"
+    },
+    "changed_helper_complexity": {
+      "scope": "New root semantic helper modules, strict AST cyclomatic complexity",
+      "functions": {
+        "src/core/date_quotes.py": {
+          "parse_localized_date": 4,
+          "date_from_quote": 6,
+          "_timestamp_quote_date": 6,
+          "_relative_date_from_quote": 3
+        },
+        "src/domains/agents/analysis/requested_outcomes.py": {
+          "_quoted": 2,
+          "anchored_requirements": 6,
+          "_constraints_anchored": 10,
+          "_literal_expectation": 7,
+          "_literal_present": 2,
+          "_calendar_quote_present": 2,
+          "_literal_boundaries": 4,
+          "_stamp_reference_context": 4,
+          "_exhaustive_quote": 3,
+          "parse_requirements": 4
+        },
+        "src/domains/agents/services/outcome_evidence.py": {
+          "coverage_has_gap": 1,
+          "_object": 7,
+          "_completeness": 8,
+          "observe_requested_outcome": 12,
+          "_canonical_data": 3,
+          "_observed_kind": 3,
+          "_pending_confirmation": 4,
+          "_field": 4,
+          "_date_of": 5,
+          "_matches": 6,
+          "_items": 9,
+          "_coverage": 14,
+          "_field_coverage": 6,
+          "_action_proven": 4,
+          "_merged_completeness": 4,
+          "requested_outcome_coverage": 9,
+          "_relevant": 7,
+          "_requirement_key": 1,
+          "_compact_evidence": 4,
+          "_matching_counts": 7,
+          "_combined_status": 10,
+          "_observed_count": 3
+        },
+        "src/domains/agents/services/outcome_directive.py": {
+          "_step_field": 2,
+          "_pipeline_observations": 8,
+          "build_requested_outcomes_block": 8
+        },
+        "src/domains/agents/services/analysis/domain_calibration.py": {
+          "_apply_domain_softmax_calibration": 8
+        },
+        "src/domains/agents/services/planner/semantic_contracts.py": {
+          "semantic_role_dict": 1,
+          "output_contracts": 5
+        },
+        "src/domains/agents/orchestration/reference_strings.py": {
+          "step_reference_ids": 2,
+          "parameter_strings": 7
+        }
+      },
+      "maximum_cc": 14
+    },
+    "formatting": "Ruff and Black pass for final changed sources and focused tests",
+    "global_complexity": "293 functions at or above CC 15, below existing baseline 294; no baseline raised",
+    "shared_checkout_followups": {
+      "passed": 89,
+      "failed": 8,
+      "groups": [
+        "application draft contracts",
+        "runtime context contract",
+        "documented deployment flags",
+        "derived release counts",
+        "skill agent-name parity",
+        "dependency declarations",
+        "empty application exception handler",
+        "memory extractor file size"
+      ]
+    },
+    "documentation_preview": "Links and quoted facts pass; living-map coverage still reports the concurrent personalization infrastructure module"
+  }
+}

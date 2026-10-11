@@ -14,7 +14,7 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy import and_, delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import defer, selectinload
 
 from src.core.config import settings
 from src.core.constants import (
@@ -24,11 +24,14 @@ from src.core.constants import (
     INTEREST_INITIAL_POSITIVE_SIGNALS,
     INTEREST_USER_LIST_LIMIT,
 )
+from src.domains.interests.feedback_policy import feedback_signal_changes
+from src.domains.interests.history_queries import interest_history_count_statement
 from src.domains.interests.models import (
     InterestNotification,
     InterestStatus,
     UserInterest,
 )
+from src.domains.interests.schemas import InterestFeedbackKind
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -58,6 +61,8 @@ class InterestRepository:
         topic: str,
         category: str,
         embedding: list[float] | None = None,
+        *,
+        interest_id: UUID | None = None,
     ) -> UserInterest:
         """
         Create a new interest for a user.
@@ -72,6 +77,7 @@ class InterestRepository:
             Created UserInterest instance
         """
         interest = UserInterest(
+            id=interest_id,
             user_id=user_id,
             topic=topic,
             category=category,
@@ -93,9 +99,16 @@ class InterestRepository:
 
         return interest
 
-    async def get_by_id(self, interest_id: UUID) -> UserInterest | None:
+    async def get_by_id(self, interest_id: UUID, *, lock: bool = False) -> UserInterest | None:
         """Get interest by ID."""
-        result = await self.db.execute(select(UserInterest).where(UserInterest.id == interest_id))
+        query = (
+            select(UserInterest)
+            .where(UserInterest.id == interest_id)
+            .execution_options(populate_existing=True)
+        )
+        if lock:
+            query = query.with_for_update()
+        result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
     async def get_by_user_and_topic(self, user_id: UUID, topic: str) -> UserInterest | None:
@@ -235,7 +248,11 @@ class InterestRepository:
         if status:
             query = query.where(UserInterest.status == status)
 
-        query = query.order_by(UserInterest.created_at.desc()).limit(limit)
+        query = (
+            query.order_by(UserInterest.created_at.desc())
+            .limit(limit)
+            .execution_options(populate_existing=True)
+        )
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
@@ -482,7 +499,7 @@ class InterestRepository:
     async def apply_feedback(
         self,
         interest: UserInterest,
-        feedback: str,
+        feedback: InterestFeedbackKind,
     ) -> None:
         """
         Apply user feedback to interest.
@@ -491,12 +508,11 @@ class InterestRepository:
             interest: UserInterest instance
             feedback: "thumbs_up", "thumbs_down", or "block"
         """
-        if feedback == "thumbs_up":
-            interest.positive_signals += 2
-        elif feedback == "thumbs_down":
-            interest.negative_signals += 2
-        elif feedback == "block":
-            interest.status = InterestStatus.BLOCKED.value
+        interest.positive_signals, interest.negative_signals, interest.status = (
+            feedback_signal_changes(
+                interest.positive_signals, interest.negative_signals, interest.status, feedback
+            )
+        )
 
         logger.info(
             "interest_feedback_applied",
@@ -741,11 +757,7 @@ class InterestNotificationRepository:
         Returns:
             Exact count.
         """
-        result = await self.db.execute(
-            select(func.count())
-            .select_from(InterestNotification)
-            .where(InterestNotification.user_id == user_id)
-        )
+        result = await self.db.execute(interest_history_count_statement(user_id))
         return int(result.scalar() or 0)
 
     async def get_history(
@@ -783,11 +795,17 @@ class InterestNotificationRepository:
             # and under asyncio touching a lazy relationship after the query
             # returned raises `MissingGreenlet` — a 500 on a page that looks
             # perfectly fine in a mocked test.
-            .options(selectinload(InterestNotification.interest))
+            .options(
+                defer(InterestNotification.content_embedding),
+                selectinload(
+                    InterestNotification.interest.and_(UserInterest.user_id == user_id)
+                ).load_only(UserInterest.topic),
+            )
             .where(InterestNotification.user_id == user_id)
-            .order_by(InterestNotification.created_at.desc())
+            .order_by(InterestNotification.created_at.desc(), InterestNotification.id.desc())
             .limit(limit)
             .offset(offset)
+            .execution_options(populate_existing=True)
         )
         return list(result.scalars().all()), total
 
@@ -1000,6 +1018,7 @@ class InterestNotificationRepository:
         self,
         run_id: str,
         user_id: UUID,
+        interest_id: UUID,
         feedback: str,
     ) -> bool:
         """Record the user's verdict on the notification identified by ``run_id``.
@@ -1019,6 +1038,8 @@ class InterestNotificationRepository:
             run_id: Unique run identifier of the notification.
             user_id: Owner — scopes the write, so a forged run_id from another
                 tenant updates nothing.
+            interest_id: Selected interest — prevents attributing a verdict to
+                another notification belonging to the same account.
             feedback: One of ``thumbs_up``, ``thumbs_down``, ``block``.
 
         Returns:
@@ -1030,6 +1051,7 @@ class InterestNotificationRepository:
                 and_(
                     InterestNotification.run_id == run_id,
                     InterestNotification.user_id == user_id,
+                    InterestNotification.interest_id == interest_id,
                 )
             )
             .values(user_feedback=feedback, feedback_at=datetime.now(UTC))

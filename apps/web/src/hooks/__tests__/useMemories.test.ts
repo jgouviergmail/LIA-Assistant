@@ -8,6 +8,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { useEffect } from 'react';
 
 import { renderHook, act } from '@/__tests__/test-utils';
 import {
@@ -23,6 +24,7 @@ const { useApiQuery } = vi.hoisted(() => ({ useApiQuery: vi.fn() }));
 vi.mock('@/hooks/useApiQuery', () => ({ useApiQuery }));
 const { useApiMutation } = vi.hoisted(() => ({ useApiMutation: vi.fn() }));
 vi.mock('@/hooks/useApiMutation', () => ({ useApiMutation }));
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'owned-memory-account' } }) }));
 
 import { useMemories, getEmotionalEmoji } from '../useMemories';
 import type { Memory, MemoryListResponse } from '@/hooks/useMemories';
@@ -65,11 +67,20 @@ function cache(over: Partial<MemoryListResponse> = {}): MemoryListResponse {
 
 /** The memories query is the first `useApiQuery` call; categories the second. */
 function setupWith(data: MemoryListResponse | undefined) {
-  useApiQuery.mockImplementation((endpoint: string) =>
-    endpoint === '/memories'
+  useApiQuery.mockImplementation(function useQueryFixture(
+    endpoint: string,
+    options: { onSuccess?: (value: unknown) => void }
+  ) {
+    const collection = endpoint !== '/memories/categories';
+      const observedData = data;
+      const notify = options.onSuccess;
+    useEffect(() => {
+        if (collection && observedData !== undefined) notify?.(observedData);
+      }, [collection, observedData, notify]);
+    return collection
       ? queryResult<MemoryListResponse>({ data, setData })
-      : dataQuery({ categories: [{ category: 'preference', count: 1, label: 'Préférences' }] })
-  );
+      : dataQuery({ categories: [{ category: 'preference', count: 1, label: 'Préférences' }] });
+  });
   return renderHook(() => useMemories());
 }
 
@@ -77,12 +88,6 @@ const setup = (data: MemoryListResponse = cache()) => setupWith(data);
 
 function applyUpdater(previous: MemoryListResponse | undefined) {
   return takeUpdater<MemoryListResponse>(setData)(previous);
-}
-
-/** The options the memories query was last called with. */
-function queryOptions(): { params?: Record<string, unknown> } {
-  const call = [...useApiQuery.mock.calls].reverse().find(c => c[0] === '/memories');
-  return call?.[1] ?? {};
 }
 
 beforeEach(() => {
@@ -133,11 +138,11 @@ describe('useMemories — reading', () => {
 
   it('asks for a single category once one is selected', () => {
     const { result } = setup();
-    expect(queryOptions().params).toBeUndefined();
+    expect(useApiQuery).toHaveBeenCalledWith('/memories', expect.anything());
 
     act(() => result.current.setCategoryFilter('event'));
 
-    expect(queryOptions().params).toEqual({ category: 'event' });
+    expect(useApiQuery).toHaveBeenCalledWith('/memories?category=event', expect.anything());
     expect(result.current.categoryFilter).toBe('event');
   });
 });

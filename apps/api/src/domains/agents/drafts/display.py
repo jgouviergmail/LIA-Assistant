@@ -114,6 +114,14 @@ class DraftDisplayConfig:
 # One entry per DraftType. assert_registry_completeness() enforces exhaustivity.
 
 DRAFT_DISPLAY_REGISTRY: dict[DraftType, DraftDisplayConfig] = {
+    DraftType.APPLICATION_ACTION: DraftDisplayConfig(
+        emoji="⚙️",
+        item_label_fields=("title",),
+        item_secondary_datetime_key=None,
+        detail_fields=(),
+        noun_key="action",
+        verb_past_key="updated",
+    ),
     # ------------------------------------------------------------------ Email
     DraftType.EMAIL: DraftDisplayConfig(
         emoji="\U0001f4e7",  # 📧

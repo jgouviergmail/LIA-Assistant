@@ -141,6 +141,13 @@ async def test_a_stop_expires_the_session_before_re_reading(service: MeetingServ
 class TestDelete:
     """The knowledge-space projection never outlives the meeting."""
 
+    @pytest.fixture(autouse=True)
+    def owner_lock(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(
+            "src.domains.meetings.deletion.UserRepository.get_by_id_for_preference_update",
+            AsyncMock(return_value=SimpleNamespace(is_active=True)),
+        )
+
     async def test_the_rag_document_goes_before_the_row(
         self, service: MeetingService, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -148,21 +155,28 @@ class TestDelete:
         meeting.rag_document_id = uuid.uuid4()
         service.repo.get_for_user.return_value = meeting
         service.store.purge_meeting = AsyncMock()
-        document = SimpleNamespace(id=meeting.rag_document_id, space_id=uuid.uuid4())
+        document = SimpleNamespace(
+            id=meeting.rag_document_id,
+            space_id=uuid.uuid4(),
+            user_id=meeting.user_id,
+            filename="stored.md",
+            status="ready",
+            source_type="meeting",
+        )
         doc_repo = MagicMock()
         doc_repo.get_by_id = AsyncMock(return_value=document)
         rag_service = MagicMock()
         rag_service.delete_document = AsyncMock()
         monkeypatch.setattr(
-            "src.domains.rag_spaces.repository.RAGDocumentRepository",
+            "src.domains.meetings.deletion.RAGDocumentRepository",
             MagicMock(return_value=doc_repo),
         )
         monkeypatch.setattr(
-            "src.domains.rag_spaces.service.RAGSpaceService", MagicMock(return_value=rag_service)
+            "src.domains.meetings.deletion.RAGSpaceService", MagicMock(return_value=rag_service)
         )
         await service.delete(meeting.user_id, meeting.id)
         rag_service.delete_document.assert_awaited_once_with(
-            document.space_id, document.id, meeting.user_id
+            document.space_id, document.id, meeting.user_id, commit=False
         )
         service.repo.delete_unless_leased.assert_awaited_once_with(meeting.id)
         service.store.purge_meeting.assert_awaited_once_with(meeting.user_id, meeting.id)
@@ -174,7 +188,7 @@ class TestDelete:
         service.repo.get_for_user.return_value = meeting
         service.store.purge_meeting = AsyncMock()
         rag_service = MagicMock(return_value=MagicMock(delete_document=AsyncMock()))
-        monkeypatch.setattr("src.domains.rag_spaces.service.RAGSpaceService", rag_service)
+        monkeypatch.setattr("src.domains.meetings.deletion.RAGSpaceService", rag_service)
         await service.delete(meeting.user_id, meeting.id)
         rag_service.assert_not_called()
         service.repo.delete_unless_leased.assert_awaited_once_with(meeting.id)
@@ -236,6 +250,9 @@ class TestTemplateChoice:
         )
         fake = MagicMock()
         fake.resolve = AsyncMock(return_value=resolved)
+        monkeypatch.setattr(
+            "src.domains.meetings.minutes_commands.lock_meeting_preference_owner", AsyncMock()
+        )
         monkeypatch.setattr(service_module, "MeetingTemplateService", MagicMock(return_value=fake))
         return fake
 
@@ -250,7 +267,7 @@ class TestTemplateChoice:
         )
         templates.resolve.assert_awaited_once()
         service.repo.set_template.assert_awaited_once_with(
-            meeting.id, ref="builtin:daily_standup", name="Daily"
+            meeting.id, ref="builtin:daily_standup", name="Daily", commit=False
         )
         service.repo.set_report_current.assert_not_awaited()
 

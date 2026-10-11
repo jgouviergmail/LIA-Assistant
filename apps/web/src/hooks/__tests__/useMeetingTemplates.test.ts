@@ -21,6 +21,7 @@ vi.mock('@/lib/meetings/api', async importOriginal => {
 });
 
 import { useMeetingTemplates } from '../useMeetingTemplates';
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'controlled-owner' } }) }));
 
 function summary(over: Partial<MeetingTemplateSummary> = {}): MeetingTemplateSummary {
   return {

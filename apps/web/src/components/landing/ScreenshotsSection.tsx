@@ -2,50 +2,73 @@
 
 import { useTranslation } from 'react-i18next';
 import { LandingCarousel, type CarouselSlide } from './LandingCarousel';
-import screenshotManifest from '../../../public/screenshots/manifest.json';
+import homeProof from '../../../public/screenshots/manifest.json';
+import applicationProof from '../../../public/screenshots/proof/manifest.json';
+import monitoringProof from '../../../public/screenshots/proof/grafana-manifest.json';
 
 /**
- * The app captures of the "LIA, en vrai" gallery — real screenshots, listed
- * here and rendered by the shared {@link LandingCarousel}. The section owns
- * the content (which capture, which translated name); the carousel owns the
- * presentation.
+ * Real frontend views with fictional data and Grafana captures supplied by
+ * the project. Each campaign's provenance is recorded in its own manifest.
+ * The shared carousel provides navigation and full-screen inspection.
  */
 
-const SCREENSHOT_KEYS: ReadonlyArray<{ key: string; src: string }> = [
-  { key: 'homepage', src: '/screenshots/homepage.png' },
-  { key: 'chat', src: '/screenshots/chat.png' },
-  { key: 'chat_debug_panel', src: '/screenshots/chat-debug-panel.png' },
-  { key: 'chat_interactive_skills', src: '/screenshots/chat-interactive-skills.png' },
-  { key: 'settings_preferences', src: '/screenshots/settings-preferences.png' },
-  { key: 'settings_features', src: '/screenshots/settings-features.png' },
-  { key: 'settings_features_memory', src: '/screenshots/settings-features-memory.png' },
-  { key: 'settings_features_psyche', src: '/screenshots/settings-features-psyche.png' },
-  { key: 'settings_administration', src: '/screenshots/settings-administration.png' },
-  {
-    key: 'settings_administration_oneclick',
-    src: '/screenshots/settings-administration-oneclick.png',
-  },
-  { key: 'settings_administration_llm', src: '/screenshots/settings-administration-llm.png' },
-  { key: 'faq', src: '/screenshots/faq.png' },
-];
+const APPLICATION_VIEWS = [
+  { key: 'dashboard', file: 'homepage' },
+  { key: 'dossier', file: 'dossier' },
+  { key: 'relations', file: 'relations' },
+  { key: 'radio', file: 'radio' },
+  { key: 'meetings', file: 'meetings' },
+  { key: 'approval', file: 'approval' },
+  { key: 'knowledge', file: 'knowledge' },
+  { key: 'memory', file: 'memory' },
+  { key: 'skill', file: 'skill' },
+  { key: 'administration', file: 'administration' },
+] as const;
+const MONITORING_VIEWS = [
+  { key: 'grafana_overview', file: 'grafana-overview' },
+  { key: 'grafana_costs', file: 'grafana-costs' },
+] as const;
 
-export function ScreenshotsSection() {
+type ApplicationView = (typeof APPLICATION_VIEWS)[number]['key'];
+
+export function ScreenshotsSection({
+  monitoring = false,
+  view,
+}: {
+  monitoring?: boolean;
+  /** A chapter can inspect its actual workflow without repeating the demo. */
+  view?: ApplicationView;
+}) {
   const { t } = useTranslation();
+  const revision = monitoring ? monitoringProof.revision : applicationProof.revision;
 
-  const slides: CarouselSlide[] = SCREENSHOT_KEYS.map(({ key, src }) => {
-    const label = t(`landing.screenshots.items.${key}`);
-    // The name of the view IS the caption here: it says which screen is on
-    // screen, which is exactly what changes when the carousel moves.
-    return { key, src: `${src}?v=${screenshotManifest.revision}`, label, caption: label };
+  const views = monitoring
+    ? MONITORING_VIEWS
+    : view
+      ? APPLICATION_VIEWS.filter(item => item.key === view)
+      : APPLICATION_VIEWS;
+  const slides: CarouselSlide[] = views.map(({ key, file }) => {
+    const label = t(`landing.screenshots.proof.${key}`);
+    // The retained home capture belongs to the earlier campaign. Preserve its
+    // own revision and full-page ratio rather than attributing it to the new one.
+    if (key === 'dashboard') {
+      const capture = homeProof.images.find(image => image.file === `${file}.png`)!;
+      return {
+        key,
+        src: `/screenshots/${file}.png?v=${homeProof.revision}`,
+        label,
+        caption: label,
+        aspectRatio: capture.width / capture.height,
+      };
+    }
+    return { key, src: `/screenshots/proof/${file}.png?v=${revision}`, label, caption: label };
   });
 
   return (
     <LandingCarousel
       slides={slides}
-      variant="portrait"
-      label={t('landing.gallery.tab_screens')}
-      // Captures are dense UI shown at 544 px: full screen is where they
-      // become readable, and each asset is light enough to fetch on demand.
+      variant="application"
+      label={t(monitoring ? 'landing.platform.dashboard_title' : 'landing.gallery.tab_screens')}
       zoomable
     />
   );

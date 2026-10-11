@@ -69,12 +69,9 @@ async def read_pending_question(conversation_id: str) -> dict[str, Any] | None:
         (``HITLStore.get_pending``: flattened, ``run_id`` the run it was
         asked on), or None when nothing waits.
     """
-    from src.core.config import settings
-    from src.domains.agents.utils.hitl_store import HITLStore
-    from src.infrastructure.cache.redis import get_redis_cache
+    from src.infrastructure.channels.assistant_gateway import get_channel_gateway
 
-    store = HITLStore(await get_redis_cache(), ttl_seconds=settings.hitl_pending_data_ttl_seconds)
-    return await store.get_pending(conversation_id)
+    return await get_channel_gateway().pending(conversation_id)
 
 
 async def take_turn_claim(redis: aioredis.Redis, user_id: UUID) -> str | None:

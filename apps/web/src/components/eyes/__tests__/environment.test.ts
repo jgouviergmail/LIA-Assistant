@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dayPhaseAt, parseEnvironment, weatherAt } from '../environment';
+import { dayPhaseAt, parseEnvironment, weatherAt, weatherFlagsAt } from '../environment';
 
 const now = Date.parse('2026-09-21T12:00:00Z');
 const payload = (temperature_c = 20, condition_code = 'Clear', wind_speed_kmh = 0) => ({
@@ -82,6 +82,75 @@ describe('weather is evidence, not a randomly selected decoration', () => {
         now
       )
     ).toBe('cold');
+  });
+});
+
+describe('independent current weather conditions', () => {
+  it('publishes cumulative weather tokens from the same observed snapshot', () => {
+    expect(weatherFlagsAt).toBeTypeOf('function');
+    const context = parseEnvironment(payload(8, 'Rain', 45));
+    const flags = weatherFlagsAt(context, now);
+    expect(flags).toEqual(['rain', 'wind', 'cold']);
+    expect(Object.isFrozen(flags)).toBe(true);
+    expect(weatherAt(context, now)).toBe('rain');
+    expect(context?.weather).toEqual(payload(8, 'Rain', 45).weather);
+  });
+
+  it.each([
+    [-5, 'Thunderstorm', 80, ['storm', 'wind', 'cold', 'freezing']],
+    [32, 'Rain', 45, ['rain', 'wind', 'hot', 'heat']],
+    [28, 'Fog', 0, ['fog', 'hot']],
+    [8, 'Snow', 0, ['snow', 'cold']],
+    [8, 'Squall', 45, ['wind', 'cold']],
+    [8, '__proto__', 0, ['cold']],
+  ] as const)('retains compatible evidence at %s°C/%s', (temperature, condition, wind, flags) => {
+    expect(weatherFlagsAt(parseEnvironment(payload(temperature, condition, wind)), now)).toEqual(
+      flags
+    );
+  });
+
+  it('keeps cold and hot exclusive while retaining their additional extreme-condition props', () => {
+    expect(weatherFlagsAt(parseEnvironment(payload(-5)), now)).toEqual(['cold', 'freezing']);
+    expect(weatherAt(parseEnvironment(payload(-5)), now)).toBe('freezing');
+    expect(weatherFlagsAt(parseEnvironment(payload(32)), now)).toEqual(['hot', 'heat']);
+    expect(weatherAt(parseEnvironment(payload(32)), now)).toBe('heat');
+    expect(weatherFlagsAt(parseEnvironment(payload(20, 'Clear', 39.99)), now)).toEqual([]);
+    expect(weatherFlagsAt(parseEnvironment(payload(20, 'Clear', 40)), now)).toEqual(['wind']);
+    expect(weatherFlagsAt(parseEnvironment(payload(0)), now)).toEqual(['cold']);
+    expect(weatherFlagsAt(parseEnvironment(payload(10)), now)).toEqual([]);
+    expect(weatherFlagsAt(parseEnvironment(payload(26)), now)).toEqual([]);
+    expect(weatherFlagsAt(parseEnvironment(payload(30)), now)).toEqual(['hot']);
+    const input = payload(8, 'Rain');
+    expect(
+      weatherFlagsAt(
+        parseEnvironment({ ...input, weather: { ...input.weather, wind_speed_kmh: null } }),
+        now
+      )
+    ).toEqual(['rain', 'cold']);
+  });
+
+  it('reuses canonical arrays when evidence and timestamps change without changing conditions', () => {
+    const first = weatherFlagsAt(parseEnvironment(payload(8, 'Rain', 45)), now);
+    const another = payload(9, 'Drizzle', 50);
+    another.weather.observed_at = new Date(now - 500).toISOString();
+    expect(weatherFlagsAt(parseEnvironment(another), now + 100)).toBe(first);
+    expect(weatherFlagsAt(parseEnvironment(payload(8, 'Rain', 39)), now)).not.toBe(first);
+    expect(weatherFlagsAt(null, now)).toBe(weatherFlagsAt(parseEnvironment(payload(20)), now));
+  });
+
+  it('drops all weather together at expiry or before observation while retaining civil night', () => {
+    const context = parseEnvironment({ ...payload(8, 'Rain', 45), timezone: 'Pacific/Auckland' });
+    expect(weatherFlagsAt(context, now - 1000)).toEqual(['rain', 'wind', 'cold']);
+    expect(weatherFlagsAt(context, now - 1001)).toEqual([]);
+    expect(weatherFlagsAt(context, now + 999)).toEqual(['rain', 'wind', 'cold']);
+    expect(weatherFlagsAt(context, now + 1000)).toEqual([]);
+    expect(dayPhaseAt(now + 1000, context?.timezone ?? 'UTC')).toBe('night');
+    expect(weatherFlagsAt(null, now)).toEqual([]);
+    expect(weatherFlagsAt(parseEnvironment({ timezone: 'UTC', weather: null }), now)).toEqual([]);
+  });
+
+  it.each([NaN, Infinity, -Infinity])('rejects invalid clock %s without invented props', clock => {
+    expect(weatherFlagsAt(parseEnvironment(payload(8, 'Rain', 45)), clock)).toEqual([]);
   });
 });
 

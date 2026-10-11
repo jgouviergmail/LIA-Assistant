@@ -124,8 +124,8 @@ class TestListing:
     def test_it_publishes_the_bounds_and_the_exact_total(self, client: TestClient) -> None:
         rows = [_bookmark(), _bookmark()]
         with (
-            patch(f"{MODULE}.BookmarkService") as service_cls,
-            patch(f"{MODULE}.settings") as fake_settings,
+            patch("src.domains.bookmarks.ui_projection.BookmarkService") as service_cls,
+            patch("src.domains.bookmarks.ui_projection.settings") as fake_settings,
         ):
             fake_settings.bookmarks_max_per_user = 500
             _service(service_cls).list_page = AsyncMock(return_value=(rows, 41))
@@ -157,8 +157,8 @@ class TestListing:
             embedding_model="gemini-embedding-001",
         )
         with (
-            patch(f"{MODULE}.BookmarkService") as service_cls,
-            patch(f"{MODULE}.settings") as fake_settings,
+            patch("src.domains.bookmarks.ui_projection.BookmarkService") as service_cls,
+            patch("src.domains.bookmarks.ui_projection.settings") as fake_settings,
         ):
             fake_settings.bookmarks_max_per_user = 500
             service = _service(service_cls, {document_id: document})
@@ -190,8 +190,8 @@ class TestListing:
             billed_cost_eur=Decimal("0.004321"),
         )
         with (
-            patch(f"{MODULE}.BookmarkService") as service_cls,
-            patch(f"{MODULE}.settings") as fake_settings,
+            patch("src.domains.bookmarks.ui_projection.BookmarkService") as service_cls,
+            patch("src.domains.bookmarks.ui_projection.settings") as fake_settings,
         ):
             fake_settings.bookmarks_max_per_user = 500
             service = _service(service_cls, summaries={"run-42": summary})

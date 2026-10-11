@@ -336,9 +336,9 @@ services:
       - HOSTNAME=0.0.0.0
       # API_URL_SERVER uses Docker service name for container-to-container communication
       # HTTPS required for Google OAuth callback
-      # NODE_TLS_REJECT_UNAUTHORIZED=0 handles self-signed certs (set in next.config.ts)
+      # Trust only the shared dev certificate; rewrites verify TLS independently.
       - API_URL_SERVER=https://api:8000
-      - NODE_TLS_REJECT_UNAUTHORIZED=0
+      - NODE_EXTRA_CA_CERTS=/certs/cert.pem
       # Fast Refresh only works here in POLLING mode. The source tree reaches
       # this container through a 9p/drvfs bind-mount, and that transport does
       # not forward the host's filesystem events: measured 2026-08-23, an edit
@@ -386,7 +386,7 @@ services:
       # Shared SSL certificates from ssl-init (covers configured SSL_DOMAIN)
       - ssl_certs:/certs:ro
     # Enable HTTPS with ssl-init certificates (covers nip.io domain for LAN access)
-    command: ["pnpm", "run", "dev", "--experimental-https", "--experimental-https-key", "/certs/key.pem", "--experimental-https-cert", "/certs/cert.pem"]
+    command: ["pnpm", "run", "dev", "--experimental-https", "--experimental-https-key", "/certs/key.pem", "--experimental-https-cert", "/certs/cert.pem", "--experimental-https-ca", "/certs/cert.pem"]
     depends_on:
       api:
         condition: service_started

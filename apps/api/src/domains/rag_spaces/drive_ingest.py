@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid as uuid_mod
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -37,6 +38,7 @@ from src.core.constants import (
     RAG_DRIVE_GOOGLE_EXPORT_MAP,
     RAG_DRIVE_REGULAR_FILE_MAP,
 )
+from src.domains.rag_spaces.document_deletion_cleanup import cleanup_deleted_document_file
 from src.domains.rag_spaces.models import (
     RAGDocument,
     RAGDocumentSourceType,
@@ -47,9 +49,21 @@ from src.domains.rag_spaces.repository import (
     RAGChunkRepository,
     RAGDocumentRepository,
 )
+from src.domains.rag_spaces.source_worker_lease import (
+    SourceLeaseLost,
+    current_source_worker,
+    native_source_limit,
+    require_source_worker,
+)
+from src.domains.rag_spaces.source_worker_runtime import source_worker_external
 from src.domains.rag_spaces.storage_paths import (  # noqa: F401  (safe_storage_path re-exported for drive_sync)
     safe_storage_path,
     stored_file_path,
+)
+from src.domains.rag_spaces.synced_document_deletion import (
+    capture_native_synced_file,
+    discard_native_synced_document,
+    lock_native_replacement,
 )
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_rag_spaces import rag_drive_sync_files_total
@@ -74,7 +88,8 @@ def is_unchanged(existing: RAGDocument, drive_file: dict[str, Any]) -> bool:
     """
     drive_mod_dt = parse_rfc3339(drive_file.get("modifiedTime"))
     return (
-        existing.drive_modified_time is not None
+        existing.status == RAGDocumentStatus.READY
+        and existing.drive_modified_time is not None
         and drive_mod_dt is not None
         and existing.drive_modified_time >= drive_mod_dt
     )
@@ -122,6 +137,21 @@ async def discard_document(
 
     Disk I/O runs off the event loop; the row and chunks go in one commit.
     """
+    await require_source_worker(db)
+    scope = current_source_worker()
+    if scope is not None and (
+        document.user_id != scope.actor_id
+        or document.space_id != scope.space_id
+        or user_id != scope.actor_id
+        or space_id != scope.space_id
+    ):
+        raise SourceLeaseLost("Native deletion targets another document owner or parent")
+    if scope is not None:
+        reference = document.drive_source_id if scope.kind == "drive" else document.mail_source_id
+        if reference is not None and reference != scope.source_id:
+            raise SourceLeaseLost("Native deletion targets another linked source")
+        await discard_native_synced_document(db, document, user_id, space_id)
+        return
     await asyncio.to_thread(
         _unlink_if_exists, stored_file_path(user_id, space_id, document.filename)
     )
@@ -140,6 +170,7 @@ async def create_pending_document(
     original_name: str,
     content_type: str,
     source_fields: dict[str, Any],
+    replaces: RAGDocument | None = None,
 ) -> dict[str, Any]:
     """Store ``content`` under the space's tree and create its PENDING document.
 
@@ -162,22 +193,55 @@ async def create_pending_document(
     Returns:
         The ``process_document`` kwargs for the created document.
     """
+    await require_source_worker(db)
+    scope = current_source_worker()
+    if scope is not None and (
+        user_id != scope.actor_id
+        or space_id != scope.space_id
+        or source_fields.get("drive_source_id" if scope.kind == "drive" else "mail_source_id")
+        != scope.source_id
+    ):
+        raise SourceLeaseLost("Native creation targets another source scope")
+    previous_file: tuple[str, str | None] | None = None
+    await _require_native_capacity(db, space_id, len(content), replaces is not None)
+    if replaces is not None:
+        if scope is None:
+            raise ValueError("Atomic replacement requires a native owned worker scope")
+        await lock_native_replacement(db, replaces, user_id, space_id)
+        previous_file = await capture_native_synced_file(replaces, user_id, space_id)
     stored_filename = f"{uuid_mod.uuid4().hex}{extension}"
     file_path = stored_file_path(user_id, space_id, stored_filename)
     await asyncio.to_thread(_write_stored_file, file_path, content)
-    document = await RAGDocumentRepository(db).create(
-        {
-            "space_id": space_id,
-            "user_id": user_id,
-            "filename": stored_filename,
-            "original_filename": original_name,
-            "file_size": len(content),
-            "content_type": content_type,
-            "status": RAGDocumentStatus.PENDING,
-            **source_fields,
-        }
-    )
+    if scope is not None:
+        try:
+            await require_source_worker(db)
+        except SourceLeaseLost:
+            await asyncio.to_thread(_unlink_if_exists, file_path)
+            raise
+    try:
+        if replaces is not None:
+            await RAGChunkRepository(db).delete_by_document(replaces.id)
+            await RAGDocumentRepository(db).delete(replaces)
+        document = await RAGDocumentRepository(db).create(
+            {
+                "space_id": space_id,
+                "user_id": user_id,
+                "filename": stored_filename,
+                "original_filename": original_name,
+                "file_size": len(content),
+                "content_type": content_type,
+                "status": RAGDocumentStatus.PENDING,
+                **source_fields,
+            }
+        )
+        await require_source_worker(db)
+    except Exception, asyncio.CancelledError:
+        if scope is not None:
+            await asyncio.to_thread(_unlink_if_exists, file_path)
+        raise
     await db.commit()
+    if previous_file is not None:
+        await cleanup_deleted_document_file(user_id, space_id, previous_file[0], previous_file[1])
     return {
         "document_id": document.id,
         "space_id": space_id,
@@ -188,8 +252,27 @@ async def create_pending_document(
     }
 
 
+async def _require_native_capacity(
+    db: AsyncSession, space_id: UUID, content_size: int, replacing: bool
+) -> None:
+    if current_source_worker() is None:
+        return
+    if content_size > native_source_limit(
+        settings.rag_spaces_max_file_size_mb * 1024 * 1024, "max_file_bytes"
+    ):
+        raise RuntimeError("Native content exceeds the approved file bound")
+    if replacing:
+        return
+    count = await RAGDocumentRepository(db).count_for_space(space_id)
+    if count >= native_source_limit(settings.rag_spaces_max_docs_per_space, "max_documents"):
+        raise RuntimeError("Native destination capacity is exhausted")
+
+
 async def process_queued(
-    process_kwargs: list[dict[str, Any]], *, counter: Counter = rag_drive_sync_files_total
+    process_kwargs: list[dict[str, Any]],
+    *,
+    counter: Counter = rag_drive_sync_files_total,
+    processor: Callable[..., Awaitable[bool]] = process_document,
 ) -> tuple[int, int]:
     """Embed the queued documents (bounded concurrency); returns (synced, failed).
 
@@ -200,7 +283,7 @@ async def process_queued(
 
     async def bounded(**kwargs: object) -> bool:
         async with sem:
-            return await process_document(**kwargs)  # type: ignore[arg-type]
+            return await processor(**kwargs)
 
     results = await asyncio.gather(
         *(bounded(**kwargs) for kwargs in process_kwargs), return_exceptions=True
@@ -230,7 +313,9 @@ async def _download(client: Any, file_id: str, mime_type: str) -> tuple[bytes, s
         export_mime, ext, stored_type = RAG_DRIVE_GOOGLE_EXPORT_MAP[mime_type]
         return await client.export_google_doc(file_id, export_mime), ext, stored_type
     stored_type, ext = RAG_DRIVE_REGULAR_FILE_MAP[mime_type]
-    max_bytes = settings.rag_spaces_max_file_size_mb * 1024 * 1024
+    max_bytes = native_source_limit(
+        settings.rag_spaces_max_file_size_mb * 1024 * 1024, "max_file_bytes"
+    )
     content = await client.get_file_content(file_id, max_size_bytes=max_bytes)
     return content, ext, stored_type
 
@@ -274,19 +359,26 @@ async def ingest_drive_file(
             if is_unchanged(existing, drive_file):
                 rag_drive_sync_files_total.labels(result="skipped").inc()
                 return IngestResult("skipped")
-            await discard_document(db, existing, user_id=user_id, space_id=space_id)
 
-        if await doc_repo.count_for_space(space_id) >= settings.rag_spaces_max_docs_per_space:
+        if (
+            existing is None
+            and await doc_repo.count_for_space(space_id) >= settings.rag_spaces_max_docs_per_space
+        ):
             logger.warning("rag_drive_sync_doc_limit", space_id=str(space_id))
             return IngestResult("skipped")
 
         # The reads above decided; end their transaction before the network
         # call, so no pooled connection waits on Google (ADR-304).
         await db.commit()
-        content_bytes, ext, content_type = await _download(client, file_id, mime_type)
+        content_bytes, ext, content_type = await source_worker_external(
+            lambda: _download(client, file_id, mime_type)
+        )
         if not content_bytes:
             logger.warning("rag_drive_sync_empty_content", file_id=file_id)
             return IngestResult("skipped")
+
+        if existing is not None and current_source_worker() is None:
+            await discard_document(db, existing, user_id=user_id, space_id=space_id)
 
         kwargs = await create_pending_document(
             db,
@@ -302,9 +394,14 @@ async def ingest_drive_file(
                 "drive_file_id": file_id,
                 "drive_modified_time": drive_mod_dt,
             },
+            replaces=existing if current_source_worker() is not None else None,
         )
         return IngestResult("queued", kwargs)
+    except SourceLeaseLost:
+        raise
     except Exception:
+        if current_source_worker() is not None:
+            raise
         rag_drive_sync_files_total.labels(result="failed").inc()
         logger.exception("rag_drive_sync_file_error", file_id=file_id)
         return IngestResult("failed")
@@ -331,5 +428,7 @@ async def remove_drive_document(
         rag_drive_sync_files_total.labels(result="deleted").inc()
         return True
     except Exception:
+        if current_source_worker() is not None:
+            raise
         logger.exception("rag_drive_sync_delete_error", file_id=file_id)
         return False

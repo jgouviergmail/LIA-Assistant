@@ -10,6 +10,7 @@ from uuid import uuid4
 
 import pytest
 
+import src.domains.telephony.history_queries as hq
 import src.domains.telephony.reapers as rp
 import src.domains.telephony.router as rt
 from src.core.config import settings
@@ -188,8 +189,10 @@ async def test_notification_reaper_noop_when_nothing_pending(monkeypatch) -> Non
 
 @pytest.mark.unit
 async def test_list_calls_omits_encrypted_phone(monkeypatch) -> None:
+    actor_id = uuid4()
     call = SimpleNamespace(
         id=uuid4(),
+        user_id=actor_id,
         callee_display="Marie",
         objective="ask availability",
         status=PhoneCallStatus.COMPLETED,
@@ -220,14 +223,15 @@ async def test_list_calls_omits_encrypted_phone(monkeypatch) -> None:
         def __init__(self, db) -> None:  # noqa: ANN001
             pass
 
-        async def get_token_summaries_by_run_ids(self, run_ids):  # noqa: ANN001
+        async def get_token_summaries_by_run_ids(self, run_ids, *, user_id):  # noqa: ANN001
             assert run_ids == [phone_call_run_id(call.id)]
+            assert user_id == actor_id
             return {
                 # The REAL row shape: the bill is the row's billed total, so a
                 # stub carrying the model column alone would hide the two
                 # Places lookups' euros (they did, until 2026-09-20).
                 phone_call_run_id(call.id): MessageTokenSummary(
-                    user_id=uuid4(),
+                    user_id=actor_id,
                     session_id="phone",
                     run_id=phone_call_run_id(call.id),
                     total_prompt_tokens=1200,
@@ -240,9 +244,9 @@ async def test_list_calls_omits_encrypted_phone(monkeypatch) -> None:
                 )
             }
 
-    monkeypatch.setattr(rt, "ChatRepository", _FakeChat)
+    monkeypatch.setattr(hq, "ChatRepository", _FakeChat)
 
-    result = await rt.list_calls(user=SimpleNamespace(id=uuid4()), db=None, limit=20)
+    result = await rt.list_calls(user=SimpleNamespace(id=actor_id), db=None, limit=20)
 
     assert len(result) == 1
     dumped = result[0].model_dump(mode="json")
@@ -268,8 +272,10 @@ async def test_list_calls_omits_encrypted_phone(monkeypatch) -> None:
 async def test_list_calls_carries_no_bill_for_a_call_that_spent_nothing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    actor_id = uuid4()
     call = SimpleNamespace(
         id=uuid4(),
+        user_id=actor_id,
         callee_display="Marie",
         objective="ask",
         status=PhoneCallStatus.DIALING,
@@ -295,12 +301,13 @@ async def test_list_calls_carries_no_bill_for_a_call_that_spent_nothing(
         def __init__(self, db) -> None:  # noqa: ANN001
             pass
 
-        async def get_token_summaries_by_run_ids(self, run_ids):  # noqa: ANN001
+        async def get_token_summaries_by_run_ids(self, run_ids, *, user_id):  # noqa: ANN001
+            assert user_id == actor_id
             return {}
 
     monkeypatch.setattr(rt, "TelephonyRepository", _FakeRepo)
-    monkeypatch.setattr(rt, "ChatRepository", _FakeChat)
-    (summary,) = await rt.list_calls(user=SimpleNamespace(id=uuid4()), db=None, limit=20)
+    monkeypatch.setattr(hq, "ChatRepository", _FakeChat)
+    (summary,) = await rt.list_calls(user=SimpleNamespace(id=actor_id), db=None, limit=20)
     assert summary.usage is None
 
 

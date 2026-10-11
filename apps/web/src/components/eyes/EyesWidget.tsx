@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * EyesWidget — the floating shell around ExpressiveEyes on the chat page.
+ * EyesWidget — the floating shell around the selected companion renderer.
  *
  * Interaction contract:
  *  - drag anywhere with a pointer, arrow keys move it (useEyesDrag owns the
@@ -26,7 +26,8 @@ import { useTranslation } from 'react-i18next';
 import { useAvatarRuntime } from '@/lib/avatars/runtime';
 import { cn } from '@/lib/utils';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { ExpressiveEyes, type ExpressiveEyesProps } from '@/components/eyes/ExpressiveEyes';
+import { EyesFace, type EyesFaceProps } from '@/components/eyes/EyesFace';
+import { useLiaGender } from '@/hooks/useLiaGender';
 import {
   useEyesBehavior,
   type EyesBehaviorProps,
@@ -45,6 +46,7 @@ import {
 } from '@/stores/eyesWidgetStore';
 import type { Gaze } from '@/components/eyes/expression-engine';
 import type { EyeStyleId } from '@/components/eyes/eye-styles';
+import type { SpiritVariant } from '@/components/spirit/catalogue';
 
 /** Expressions whose gaze the cursor parallax may borrow. */
 const PARALLAX_EXPRESSIONS: ReadonlySet<string> = new Set([
@@ -110,7 +112,7 @@ function eyesDisplayProps(
   resolved: { gaze: Gaze | null; ms: number | undefined },
   size: EyesSize,
   styleId: EyeStyleId
-): ExpressiveEyesProps {
+): Omit<EyesFaceProps, 'variant'> {
   if (dragging) {
     return {
       expression: 'surprise',
@@ -144,8 +146,9 @@ function eyesDisplayProps(
 function EyesToolbar(props: {
   tapVisible: boolean;
   cycleLabel: string;
+  sizeLabel: string;
   hideLabel: string;
-  onCycleSize: () => void;
+  onCycleSize?: () => void;
   onHide: () => void;
 }) {
   const buttonClasses =
@@ -153,20 +156,23 @@ function EyesToolbar(props: {
   return (
     <div
       className={cn(
-        'absolute -top-3 left-1/2 flex -translate-x-1/2 items-center gap-1 transition-opacity',
+        'lia-eyes-toolbar absolute -top-3 left-1/2 flex -translate-x-1/2 items-center gap-1 transition-opacity',
         'group-hover:pointer-events-auto group-hover:opacity-100',
         'group-focus-within:pointer-events-auto group-focus-within:opacity-100',
         props.tapVisible ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
       )}
     >
-      <button
-        type="button"
-        onClick={props.onCycleSize}
-        aria-label={props.cycleLabel}
-        className={buttonClasses}
-      >
-        <Scaling className="h-3.5 w-3.5" />
-      </button>
+      {props.onCycleSize && (
+        <button
+          type="button"
+          onClick={props.onCycleSize}
+          aria-label={props.cycleLabel}
+          title={props.sizeLabel}
+          className={buttonClasses}
+        >
+          <Scaling className="h-3.5 w-3.5" />
+        </button>
+      )}
       <button
         type="button"
         onClick={props.onHide}
@@ -223,11 +229,32 @@ export type EyesWidgetProps = EyesBehaviorProps & {
    * Decides the persisted position slot, the dock and the fallback corner;
    * the face, its life and its preferences are the same everywhere. */
   surface?: EyesSurface;
-  /** Force a look for this mount, ignoring the persisted preference — the
-   * landing shows the smiley to every visitor; the chat keeps the user's
-   * own choice. */
+  /** Presentation overrides never overwrite application preferences. */
   styleId?: EyeStyleId;
+  size?: EyesSize;
+  variant?: SpiritVariant;
+  /** Pages without chat landmarks use the corner directly, so navigation
+   * never briefly reuses a stale header position. */
+  dockToChat?: boolean;
 };
+
+function widgetPresentation(
+  props: Pick<EyesWidgetProps, 'styleId' | 'size' | 'variant'>,
+  preference: {
+    styleId: EyeStyleId;
+    size: EyesSizeSetting;
+    variant: SpiritVariant;
+    cycleSize: () => void;
+  },
+  viewport: { isDesktop: boolean; surface: EyesSurface }
+) {
+  return {
+    styleId: props.styleId ?? preference.styleId,
+    size: props.size ?? resolveEyesSize(preference.size, viewport.isDesktop, viewport.surface),
+    variant: props.variant ?? preference.variant,
+    cycleSize: props.size ? undefined : preference.cycleSize,
+  };
+}
 
 /**
  * Memoized on purpose: the chat page re-renders on every streamed token
@@ -249,10 +276,10 @@ function useWidgetPresence(visible: boolean, surface: EyesSurface) {
 
 export const EyesWidget = memo(function EyesWidget(props: EyesWidgetProps) {
   const { t } = useTranslation();
+  const { isMale } = useLiaGender();
   const surface = props.surface ?? 'chat';
   const { visible, size, style: preferredStyle, setVisible, cycleSize } = useEyesWidgetStore();
   const { mounted, hiddenByAvatar, enabled, active } = useWidgetPresence(visible, surface);
-  const eyeStyle = props.styleId ?? preferredStyle;
   const position = useEyesWidgetStore(s =>
     surface === 'landing' ? s.landingPosition : s.position
   );
@@ -272,12 +299,17 @@ export const EyesWidget = memo(function EyesWidget(props: EyesWidgetProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const drag = useEyesDrag(rootRef, surface, active);
   const isDesktop = useMediaQuery('(min-width: 1024px)');
-  const resolvedSize = resolveEyesSize(size, isDesktop, surface);
+  const presentation = widgetPresentation(
+    props,
+    { styleId: preferredStyle, size, variant: isMale ? 'male' : 'female', cycleSize },
+    { isDesktop, surface }
+  );
 
   // Default docked spot: centered between the header's left cluster and the
   // delete button. Only measured while no custom position is stored — and
   // only on the chat: the landing has no dock, its default is a corner.
-  const anchorEnabled = surface === 'chat' && active && !position && !drag.dragPos;
+  const anchorEnabled =
+    surface === 'chat' && props.dockToChat !== false && active && !position && !drag.dragPos;
   const anchorPos = useEyesAnchor(rootRef, anchorEnabled);
 
   // Desktop cursor parallax — gated, expiring (see useEyesParallax).
@@ -344,14 +376,22 @@ export const EyesWidget = memo(function EyesWidget(props: EyesWidgetProps) {
         !placement && FALLBACK_ANCHOR_CLASSES[surface]
       )}
     >
-      <ExpressiveEyes
-        {...eyesDisplayProps(drag.dragPos !== null, behavior, resolved, resolvedSize, eyeStyle)}
+      <EyesFace
+        {...eyesDisplayProps(
+          drag.dragPos !== null,
+          behavior,
+          resolved,
+          presentation.size,
+          presentation.styleId
+        )}
+        variant={presentation.variant}
       />
       <EyesToolbar
         tapVisible={toolbarTapVisible}
         cycleLabel={t('eyes.cycle_size')}
+        sizeLabel={t(`eyes.sizes.${presentation.size}`)}
         hideLabel={t('eyes.minimize')}
-        onCycleSize={cycleSize}
+        onCycleSize={presentation.cycleSize}
         onHide={() => setVisible(false)}
       />
     </div>

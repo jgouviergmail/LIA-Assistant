@@ -39,11 +39,6 @@ class TestHeartbeatMessage:
                 "src.infrastructure.llm.invoke_helpers.invoke_with_instrumentation",
                 AsyncMock(return_value=_ai_message()),
             ),
-            patch.object(
-                heartbeat_prompts,
-                "load_prompt",
-                return_value="{personality_instruction}{language}{current_datetime}{message_draft}{psyche_context}",
-            ),
         ):
             _text, tokens_in, tokens_out, tokens_cache, _written, _records = (
                 await heartbeat_prompts.generate_heartbeat_message("draft", context, "fr")

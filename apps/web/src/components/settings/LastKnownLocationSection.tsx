@@ -14,7 +14,7 @@
 
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Info, Trash2 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
@@ -24,18 +24,8 @@ import { useGeolocation } from '@/hooks/useGeolocation';
 import apiClient from '@/lib/api-client';
 import { logger } from '@/lib/logger';
 import { toast } from 'sonner';
-
-/**
- * Last-known location view returned by GET /auth/me/last-location.
- */
-interface LastLocationView {
-  stored: boolean;
-  lat: number | null;
-  lon: number | null;
-  accuracy: number | null;
-  updated_at: string | null;
-  stale: boolean;
-}
+import { useSavedLastLocation } from '@/hooks/useSavedLastLocation';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 interface LastKnownLocationSectionProps {
   t: (key: string) => string;
@@ -48,29 +38,7 @@ export function LastKnownLocationSection({ t }: LastKnownLocationSectionProps) {
   const optedIn = user?.use_last_known_location ?? false;
 
   const [updating, setUpdating] = useState(false);
-  const [stored, setStored] = useState<LastLocationView | null>(null);
-
-  const fetchStored = useCallback(async () => {
-    if (!user) return;
-    try {
-      const data = await apiClient.get<LastLocationView>('/auth/me/last-location');
-      setStored(data);
-    } catch (err) {
-      logger.warn('last_known_location_stored_fetch_failed', {
-        component: 'LastKnownLocationSection',
-        error: String(err),
-      });
-    }
-  }, [user]);
-
-  // Initial fetch + refresh after toggle.
-  useEffect(() => {
-    if (optedIn) {
-      fetchStored();
-    } else {
-      setStored(null);
-    }
-  }, [optedIn, fetchStored]);
+  const { stored, readFailed, clearStored } = useSavedLastLocation(user, optedIn);
 
   const handleToggle = async (checked: boolean) => {
     if (!user || updating) return;
@@ -81,7 +49,7 @@ export function LastKnownLocationSection({ t }: LastKnownLocationSectionProps) {
       });
       await refreshUser();
       if (!checked) {
-        setStored(null);
+        clearStored();
       }
       toast.success(
         checked
@@ -151,7 +119,11 @@ export function LastKnownLocationSection({ t }: LastKnownLocationSectionProps) {
 
           <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
             <p className="text-xs font-medium">{t('settings.location.last_known.stored_title')}</p>
-            {stored?.stored ? (
+            {readFailed ? (
+              <p role="status" className="text-xs text-muted-foreground">{t('settings.application_tools.sync_failed')}</p>
+            ) : stored === null ? (
+              <LoadingSpinner size="sm" />
+            ) : stored.stored ? (
               <div className="space-y-1 text-xs text-muted-foreground">
                 <div className="flex justify-between gap-4">
                   <span>{t('settings.location.last_known.stored_coords')}</span>

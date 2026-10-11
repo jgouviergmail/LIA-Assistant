@@ -32,9 +32,13 @@ vi.mock('@/hooks/useMediaQuery', () => ({
 // renderer (next/dynamic over the chat pipeline) is replaced by a probe so
 // the storyboard walkthrough stays synchronous.
 vi.mock('@/components/showroom/ShowroomRichResponse', () => ({
-  ShowroomRichResponse: ({ html }: { html: string }) => (
-    <div data-testid="showroom-rich-response" data-html={html} />
-  ),
+  ShowroomRichResponse: ({
+    html,
+    testId = 'showroom-rich-response',
+  }: {
+    html: string;
+    testId?: string;
+  }) => <div data-testid={testId} data-html={html} />,
 }));
 
 const MORNING = getShowroomMission('overloaded_morning');
@@ -210,9 +214,7 @@ describe('ShowroomMission', () => {
     // LIA's reply reflects the decisions (probe carries the built HTML).
     const reply = screen.getByTestId('showroom-rich-response');
     expect(reply.getAttribute('data-html')).toContain('lia-response');
-    expect(reply.getAttribute('data-html')).toContain(
-      'showroom.m.overloaded_morning.response.chip_calendar_cancel'
-    );
+    expect(reply.getAttribute('data-html')).toContain('showroom.personal.cancel');
 
     const receipt = screen.getByRole('region', {
       name: 'showroom.receipt.title',
@@ -329,7 +331,7 @@ describe('ShowroomMission', () => {
       await user.click(screen.getByRole('button', { name: 'showroom.continue' }));
     }
     const card = screen.getByRole('region', {
-      name: 'chat.hitl.title.tool_confirmation',
+      name: 'chat.hitl.title.draft_critique',
     });
     await user.click(within(card).getByRole('button', { name: 'chat.hitl.actions.cancel' }));
     // Refusal reaches an honest receipt: no call, refusal respected.
@@ -342,6 +344,35 @@ describe('ShowroomMission', () => {
     expect(count('demo_completed_phone_booking')).toBe(1);
     expect(count('demo_mission_started_overloaded_morning')).toBe(0);
   });
+
+  it.each(['daily_briefing', 'config_tour'] as const)(
+    '%s reaches its result without a fake approval and emits completion once',
+    async id => {
+      const onEvent = vi.fn();
+      const def = getShowroomMission(id);
+      const { user } = renderMission(def, onEvent);
+      await user.click(screen.getByTestId('showroom-start'));
+      for (let i = 0; i < def.sources.length + 2; i += 1) {
+        await user.click(screen.getByTestId('showroom-continue'));
+      }
+      expect(screen.getByTestId('showroom-receipt')).toBeInTheDocument();
+      expect(screen.queryByTestId('showroom-decision-0')).not.toBeInTheDocument();
+      expect(onEvent.mock.calls.filter(([event]) => event === 'demo_completed')).toHaveLength(1);
+      expect(onEvent.mock.calls.filter(([event]) => event === `demo_completed_${id}`)).toHaveLength(
+        1
+      );
+      expect(onEvent.mock.calls.some(([event]) => String(event).startsWith('demo_hitl_'))).toBe(
+        false
+      );
+      await user.click(screen.getByTestId('showroom-restart'));
+      await user.click(screen.getByTestId('showroom-start'));
+      for (let i = 0; i < def.sources.length + 2; i += 1) {
+        await user.click(screen.getByTestId('showroom-continue'));
+      }
+      expect(onEvent.mock.calls.filter(([event]) => event === 'demo_completed')).toHaveLength(2);
+      expect(fetchSpy).not.toHaveBeenCalled();
+    }
+  );
 
   it('emits each destination-specific CTA at most once per completed run', async () => {
     const onEvent = vi.fn();
@@ -367,6 +398,17 @@ describe('ShowroomMission', () => {
     const { user } = renderMission();
     expect(screen.getAllByRole('status')).toHaveLength(1);
     await user.click(screen.getByRole('button', { name: 'showroom.start' }));
+    expect(screen.getByRole('heading', { name: 'showroom.phases.reading_sources' })).toHaveFocus();
+  });
+
+  it('replay returns focus to Start, which remains keyboard-operable', async () => {
+    const { user } = renderMission();
+    expect(screen.getByTestId('showroom-start')).toHaveFocus();
+    await completeMission(user);
+    screen.getByTestId('showroom-restart').focus();
+    await user.keyboard('{Enter}');
+    expect(screen.getByTestId('showroom-start')).toHaveFocus();
+    await user.keyboard('{Enter}');
     expect(screen.getByRole('heading', { name: 'showroom.phases.reading_sources' })).toHaveFocus();
   });
 
@@ -406,6 +448,29 @@ describe('ShowroomMission', () => {
       expect(
         screen.getByRole('region', { name: 'chat.hitl.title.draft_critique' })
       ).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('finishes an informative mission by timer without a phantom HITL event', () => {
+    mediaQueryMock.mockReturnValue(false);
+    vi.useFakeTimers();
+    try {
+      const onEvent = vi.fn();
+      renderMission(getShowroomMission('daily_briefing'), onEvent);
+      fireEvent.click(screen.getByTestId('showroom-start'));
+      for (let i = 0; i < 8; i += 1) {
+        act(() => {
+          vi.advanceTimersByTime(2_000);
+        });
+      }
+      expect(screen.getByTestId('showroom-receipt')).toBeInTheDocument();
+      expect(screen.queryByTestId('showroom-decision-0')).not.toBeInTheDocument();
+      expect(onEvent.mock.calls.filter(([event]) => event === 'demo_completed')).toHaveLength(1);
+      expect(onEvent.mock.calls.some(([event]) => String(event).startsWith('demo_hitl_'))).toBe(
+        false
+      );
     } finally {
       vi.useRealTimers();
     }

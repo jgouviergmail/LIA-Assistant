@@ -96,10 +96,6 @@ ALLOWED: dict[tuple[str, str, str], str] = {
     ): (
         "a tool's raw argument names, rendered as data (``key: value``) — never a translated label"
     ),
-    ("domains/agents/effects/confirmation.py", "readable_tool_name", "server"): (
-        "an MCP server's identifier joined to its tool's name — a technical name the card "
-        "shows as it is, like a path"
-    ),
     ("domains/meetings/synthesis.py", "render_transcript", "turn.speaker"): (
         "the transcript handed to the model (``speaker: words``) — a prompt, never read"
     ),

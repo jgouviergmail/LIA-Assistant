@@ -23,6 +23,7 @@ def import_all_models() -> None:
         return
 
     import src.domains.account_export.models  # noqa: F401
+    import src.domains.agents.application.command_models  # noqa: F401
     import src.domains.agents.effects.models  # noqa: F401
     import src.domains.agents.python_sandbox.egress.models  # noqa: F401
     import src.domains.attachments.models  # noqa: F401
@@ -39,6 +40,7 @@ def import_all_models() -> None:
     import src.domains.heartbeat.models  # noqa: F401
     import src.domains.image_generation.models  # noqa: F401
     import src.domains.interests.models  # noqa: F401
+    import src.domains.journals.evidence_models  # noqa: F401
     import src.domains.journals.models  # noqa: F401
     import src.domains.llm.models  # noqa: F401
     import src.domains.llm_config.models  # noqa: F401

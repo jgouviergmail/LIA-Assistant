@@ -101,6 +101,8 @@ const FLIP_NEGATED: ReadonlySet<ChannelKey> = new Set([
   'mouthX',
   'tilt',
   'massX',
+  'bodyX',
+  'bodyRoll',
   'gazeX',
   'hlX',
   'stretchA',
@@ -183,6 +185,9 @@ export function warpTapes(tapes: readonly Tape[], random: () => number): Tape[] 
   const pace = WARP_PACE_MIN + random() * WARP_PACE_SPAN;
   const byChannel = new Map<ChannelKey, ChannelWarp>();
   const warpFor = (channel: ChannelKey): ChannelWarp => {
+    // Translation, revolution and landing are one trajectory. Independent
+    // jitter would land the scales before the body reaches the floor.
+    if (channel.startsWith('body')) return { time: pace, size: 1 };
     const known = byChannel.get(channel);
     if (known) return known;
     const warp = {

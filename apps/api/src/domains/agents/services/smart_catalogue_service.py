@@ -295,6 +295,12 @@ class SmartCatalogueService:
             # Example: send_email_tool(to) needs email_address → get_contacts_tool provides it
             if hasattr(p, "semantic_type") and p.semantic_type:
                 param["semantic_type"] = p.semantic_type
+            if p.semantic_role is not None:
+                from src.domains.agents.services.planner.semantic_contracts import (
+                    semantic_role_dict,
+                )
+
+                param["semantic_role"] = semantic_role_dict(p.semantic_role)
             # FIX 2026-01-30: Include pattern constraints for ID format validation
             # This tells LLM that resource_name MUST match "^people/" format,
             # preventing it from using names like "Jane Smith" instead of IDs.
@@ -364,6 +370,9 @@ class SmartCatalogueService:
                     # Regular output: just path and type
                     compact_outputs.append(f"{o.path}:{o.type}")
             result["outputs"] = compact_outputs
+            from src.domains.agents.services.planner.semantic_contracts import output_contracts
+
+            result["output_contracts"] = output_contracts(manifest.outputs)
 
         # NOTE: reference_examples removed - LLM can infer syntax from outputs paths
 

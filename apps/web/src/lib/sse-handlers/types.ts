@@ -10,6 +10,7 @@ import { ChatStreamChunk, VoiceAudioChunk } from '@/types/chat';
 import type { ExecutionTraceStep } from '@/types/execution-trace';
 import { TFunction } from 'i18next';
 import type { LogContext } from '@/lib/logger';
+import type { ApplicationStateChange } from '@/types/application-state';
 
 /**
  * Context passed to all SSE handlers.
@@ -24,6 +25,7 @@ export interface SSEHandlerContext {
   withContext: (context?: LogContext) => LogContext;
   /** Voice playback callback for TTS audio chunks */
   handleVoiceChunk: (chunk: VoiceAudioChunk) => void;
+  handleApplicationStateChange?: (change: ApplicationStateChange) => void;
   /** Latch the output once per new production run; replay never acquires it. */
   beginVoiceRun?: (runId: string) => void;
   /** The run's last clip is queued (`voice_complete`); replay never ends a live one. */

@@ -43,6 +43,7 @@ from langchain_core.messages import (
 )
 from langchain_core.runnables import RunnableConfig
 
+from src.domains.agents.nodes.react_observed_gaps import observed_gaps, observed_recovery_outcome
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.agents.utils.react_budget import react_exit_reason
 from src.infrastructure.llm.message_text import coerce_content_to_text
@@ -154,7 +155,9 @@ def should_recover(state: MessagesState) -> bool:
     draft, previous = messages[-1], messages[-2]
     if not isinstance(draft, AIMessage) or draft.tool_calls:
         return False
-    if not draft.id or not previous.id or not declared_unresolved(draft):
+    if not draft.id or not previous.id:
+        return False
+    if not (declared_unresolved(draft) or observed_gaps(state)):
         return False
     # Late import: the routing tests patch ``src.core.config.settings``.
     from src.core.config import settings as _settings
@@ -179,7 +182,7 @@ async def react_recovery_node(state: MessagesState, config: RunnableConfig) -> d
     """
     messages = state["messages"]
     draft, previous = messages[-1], messages[-2]
-    unresolved = list(declared_unresolved(draft))
+    unresolved = list(dict.fromkeys((*declared_unresolved(draft), *observed_gaps(state))))
     record: dict[str, Any] = {
         "anchor_id": previous.id,
         "draft": coerce_content_to_text(draft.content),
@@ -297,7 +300,7 @@ def recovery_report(
         empty mapping.
     """
     passes = state.get("react_recovery_passes") or []
-    outcome = recovery_outcome(passes, final, cut=cut)
+    outcome = observed_recovery_outcome(state, recovery_outcome(passes, final, cut=cut))
     if outcome is None:
         return {}
     restored = cut or not _has_answer(final)

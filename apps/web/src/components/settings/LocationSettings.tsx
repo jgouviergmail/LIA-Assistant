@@ -14,7 +14,6 @@
 
 'use client';
 
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { InfoBox } from '@/components/ui/info-box';
 import { Input } from '@/components/ui/input';
@@ -24,21 +23,14 @@ import { toast } from 'sonner';
 import { Navigation, Home, MapPin, History, Info, Save, Trash2 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useGeolocation } from '@/hooks/useGeolocation';
-import { useApiQuery } from '@/hooks/useApiQuery';
-import { useApiMutation } from '@/hooks/useApiMutation';
 import { useTranslation } from '@/i18n/client';
 import { logger } from '@/lib/logger';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import type { BaseSettingsProps } from '@/types/settings';
 import { LastKnownLocationSection } from './LastKnownLocationSection';
 
-/** Home location as served by GET /users/me/home-location. */
-export interface HomeLocation {
-  address: string;
-  lat: number;
-  lon: number;
-  place_id?: string | null;
-}
+import { useHomeLocationSettings } from '@/hooks/useHomeLocationSettings';
+export type { HomeLocation } from '@/hooks/useHomeLocationSettings';
 
 export function LocationSettings({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
@@ -51,30 +43,8 @@ export function LocationSettings({ lng }: BaseSettingsProps) {
     disable,
   } = useGeolocation();
 
-  const [homeAddressInput, setHomeAddressInput] = useState('');
-
-  // Home location query
-  const { data: homeLocation, setData: setHomeLocationData } = useApiQuery<HomeLocation | null>(
-    '/users/me/home-location',
-    {
-      componentName: 'LocationSettings',
-      enabled: true,
-    }
-  );
-
-  // Home location mutations (no refetch - optimistic update)
-  const { mutate: setHomeLocationMutation, loading: savingHome } = useApiMutation<
-    { address: string; lat: number; lon: number },
-    { address: string; lat: number; lon: number }
-  >({
-    method: 'PUT',
-    componentName: 'LocationSettings',
-  });
-
-  const { mutate: clearHomeLocationMutation, loading: clearingHome } = useApiMutation<void, void>({
-    method: 'DELETE',
-    componentName: 'LocationSettings',
-  });
+  const { homeLocation, homeAddressInput, setHomeAddressInput, savingHome, clearingHome,
+    handleSaveHomeLocation, handleClearHomeLocation } = useHomeLocationSettings(lng);
 
   // Geolocation handlers
   const handleGeoToggle = async (checked: boolean) => {
@@ -94,39 +64,6 @@ export function LocationSettings({ lng }: BaseSettingsProps) {
       enabled: checked,
       permission,
     });
-  };
-
-  const handleSaveHomeLocation = async () => {
-    if (!homeAddressInput.trim()) {
-      toast.error(t('settings.location.home.address_required'));
-      return;
-    }
-    try {
-      const result = await setHomeLocationMutation('/users/me/home-location', {
-        address: homeAddressInput.trim(),
-        lat: 0,
-        lon: 0,
-      });
-      // Optimistic update: set the new home location
-      if (result) {
-        setHomeLocationData(result);
-      }
-      toast.success(t('settings.location.home.saved'));
-      setHomeAddressInput('');
-    } catch {
-      toast.error(t('settings.location.home.save_error'));
-    }
-  };
-
-  const handleClearHomeLocation = async () => {
-    try {
-      await clearHomeLocationMutation('/users/me/home-location', undefined);
-      // Optimistic update: clear the home location
-      setHomeLocationData(null);
-      toast.success(t('settings.location.home.cleared'));
-    } catch {
-      toast.error(t('settings.location.home.clear_error'));
-    }
   };
 
   return (
@@ -215,10 +152,10 @@ export function LocationSettings({ lng }: BaseSettingsProps) {
           </div>
 
           {/* If saved value exists, show it with delete button */}
-          {homeLocation ? (
+          {homeLocation && (
             <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
               <div className="flex items-center justify-between gap-4">
-                <p className="text-sm text-foreground">{homeLocation.address}</p>
+                <p className="min-w-0 flex-1 break-words text-sm text-foreground">{homeLocation.address}</p>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -235,8 +172,8 @@ export function LocationSettings({ lng }: BaseSettingsProps) {
                 </Button>
               </div>
             </div>
-          ) : (
-            /* No saved value, show input with save button */
+          )}
+          {(!homeLocation || homeAddressInput.length > 0) && (
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

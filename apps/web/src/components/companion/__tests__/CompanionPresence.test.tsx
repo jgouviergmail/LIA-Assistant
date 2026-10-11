@@ -15,6 +15,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { renderWithProviders, screen, act, waitFor } from '@/__tests__/test-utils';
 import { usePsycheStore } from '@/stores/psycheStore';
+import { useEyesSignalsStore } from '@/stores/eyesSignalsStore';
 import type { NotificationType } from '@/hooks/useNotifications';
 
 const { push, pathname } = vi.hoisted(() => ({
@@ -67,6 +68,7 @@ beforeEach(() => {
   notifications.calls = [];
   pathname.value = '/fr/dashboard';
   usePsycheStore.getState().reset();
+  useEyesSignalsStore.getState().reset();
   fetchActiveRun.mockResolvedValue({ active: false });
 });
 
@@ -101,6 +103,18 @@ describe('CompanionPresence — visibility', () => {
 });
 
 describe('CompanionPresence — notification badge', () => {
+  it('records a real notification ping for the application companion', async () => {
+    render();
+    await screen.findByRole('button', { name: AVATAR });
+    expect(useEyesSignalsStore.getState().notificationAt).toBeNull();
+
+    await notify('reminder');
+
+    expect(useEyesSignalsStore.getState().isNotificationLive(Date.now())).toBe(true);
+    await notify('system');
+    expect(screen.getByText('1')).toBeInTheDocument();
+  });
+
   it('counts a proactive notification and announces the total', async () => {
     render();
     await screen.findByRole('button', { name: AVATAR });
@@ -148,6 +162,71 @@ describe('CompanionPresence — notification badge', () => {
     await user.click(await screen.findByRole('button', { name: AVATAR }));
 
     expect(push).toHaveBeenCalledWith('/en/dashboard/chat');
+  });
+});
+
+describe('CompanionPresence — application action mode', () => {
+  it('keeps the badge and keyboard chat access without rendering a second face', async () => {
+    const { user } = renderWithProviders(
+      <CompanionPresence isAuthenticated renderAvatar={false} />
+    );
+    const button = await screen.findByRole('button', { name: AVATAR });
+    expect(button.querySelector('img')).toBeNull();
+    expect(button.querySelector('.lia-eyes')).toBeNull();
+    expect(button.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+
+    await notify('scheduled_action');
+    expect(screen.getByText('1')).toBeInTheDocument();
+    const notified = screen.getByRole('button', { name: 'companion.aria_state' });
+    notified.focus();
+    await user.keyboard('{Enter}');
+    expect(push).toHaveBeenCalledWith('/dashboard/chat');
+    expect(screen.queryByText('1')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: MINIMIZE }));
+    expect(screen.getByRole('button', { name: RESTORE })).toBeInTheDocument();
+    expect(notifications.calls.at(-1)?.enableSSE).toBe(false);
+    await user.click(screen.getByRole('button', { name: RESTORE }));
+    expect(screen.getByRole('button', { name: AVATAR }).querySelector('img')).toBeNull();
+    expect(notifications.calls.at(-1)?.enableSSE).toBe(true);
+  });
+
+  it('reports working edges and resets when the chat takes ownership', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    fetchActiveRun.mockResolvedValue({ active: true });
+    const onWorkingChange = vi.fn<(working: boolean) => void>();
+    const { rerender } = renderWithProviders(
+      <CompanionPresence isAuthenticated renderAvatar={false} onWorkingChange={onWorkingChange} />
+    );
+    await waitFor(() => expect(onWorkingChange.mock.calls).toEqual([[false], [true]]));
+
+    await act(async () => void vi.advanceTimersByTime(6_000));
+    expect(fetchActiveRun).toHaveBeenCalledTimes(2);
+    expect(onWorkingChange.mock.calls).toEqual([[false], [true]]);
+
+    pathname.value = '/fr/dashboard/chat';
+    rerender(
+      <CompanionPresence isAuthenticated renderAvatar={false} onWorkingChange={onWorkingChange} />
+    );
+    await waitFor(() => expect(onWorkingChange.mock.calls).toEqual([[false], [true], [false]]));
+    expect(notifications.calls.at(-1)?.enableSSE).toBe(false);
+  });
+
+  it('releases a working signal on unmount without leaving the poll alive', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    fetchActiveRun.mockResolvedValue({ active: true });
+    const onWorkingChange = vi.fn<(working: boolean) => void>();
+    const { unmount } = renderWithProviders(
+      <CompanionPresence isAuthenticated renderAvatar={false} onWorkingChange={onWorkingChange} />
+    );
+    await waitFor(() => expect(onWorkingChange).toHaveBeenLastCalledWith(true));
+
+    unmount();
+    expect(onWorkingChange).toHaveBeenLastCalledWith(false);
+    const calls = onWorkingChange.mock.calls.length;
+    await act(async () => void vi.advanceTimersByTime(30_000));
+    expect(fetchActiveRun).toHaveBeenCalledTimes(1);
+    expect(onWorkingChange).toHaveBeenCalledTimes(calls);
   });
 });
 

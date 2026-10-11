@@ -1,0 +1,436 @@
+{
+  "version": 1,
+  "size": 96,
+  "total_bytes": 2257854,
+  "source": "Original offline Blender meshes/materials in scripts/assets/spirit",
+  "portraits": {
+    "compact/female/neutral": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 54458,
+      "still_bytes": 3474,
+      "sha256": "7ed96c0b09311b47d2fb09576ed9b8d889bc48701d7cc0745a2a2bb21d70834e",
+      "still_sha256": "c9953a3b26aebd7feaf5c16b442ffb402440bfb249d7ad6c813a9dac2a03e6c5"
+    },
+    "compact/female/joy": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 54648,
+      "still_bytes": 3452,
+      "sha256": "0393dffc0902d5272a2a909b5e8146b4d0d8769825a723008f29dfa6a32df70d",
+      "still_sha256": "18dcd3a58659e5f57aa517e6e8fb476a621142b503a13fa04f1e3f9da25c0901"
+    },
+    "compact/female/excited": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 55372,
+      "still_bytes": 3544,
+      "sha256": "09999bcdc1ab9dd73e63994769a7786320ec64836c9e99105e7bb8b52e6cb304",
+      "still_sha256": "cd2963cc28aa2384e2e1557c37744aafc0e7e3b9adbd67eece555b8ef53fa0af"
+    },
+    "compact/female/tender": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 53762,
+      "still_bytes": 3400,
+      "sha256": "450bdd5fb43864b2c47f6f0b98202e4c177153f6322c4dbdcf682b900ce07544",
+      "still_sha256": "2195b133baff4175dd10093699a9b5dfda3239d9f8c713a2757ab2b4fb7feee7"
+    },
+    "compact/female/surprise": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 55328,
+      "still_bytes": 3516,
+      "sha256": "b6590bff622af1aef6013de607a2f6cf1ff432094f0ce0acdd5031e8f96ce2d0",
+      "still_sha256": "fd92b06afe924291e0c45a9aebfe75a68d7617b3b2f12e4b601da5c00c13e714"
+    },
+    "compact/female/fear": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 55106,
+      "still_bytes": 3482,
+      "sha256": "ed60f677ce6bbb2e635d0f0ab67a36b481cc51387b228c2940c1ac21e2ff7057",
+      "still_sha256": "9bfb73a1bee07a8f78b9e428b737b212751c036a61ef635d1bd6948eb2853fbc"
+    },
+    "compact/female/anger": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 54132,
+      "still_bytes": 3422,
+      "sha256": "0c05b04fd5620b1b6beee005d340f6a4f93376822702d600e33da2739331dc29",
+      "still_sha256": "f8ec439b4ad4080b5998e64d5300bc3f99da2ca352598e01e385f815988eb838"
+    },
+    "compact/female/sad": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 54656,
+      "still_bytes": 3418,
+      "sha256": "cc8d7ea864286b214e3422834da493275a05d65b0694c701093524e47050a1fa",
+      "still_sha256": "b74f9959275b1a12af0a789781293641ffbf85b27056858d00963f18bb5d238f"
+    },
+    "compact/female/worried": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 55346,
+      "still_bytes": 3472,
+      "sha256": "495a9c9299b69231533370e91d0238369b8fef1a13d0c0f1389092ae14f72050",
+      "still_sha256": "3d4e25d7371df32bd06968fa3b942f421f37f63940e87b6c6e98312554f79136"
+    },
+    "compact/female/question": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 52908,
+      "still_bytes": 3398,
+      "sha256": "addbcc666ded1d32f8833fe9a1099666dcb0dfa76c8c2381950924400b780a57",
+      "still_sha256": "a9fea13a47dfcab7b905dee12ce4e79c874c281d88ea41065cb6bd4478b30234"
+    },
+    "compact/female/thinking": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 51676,
+      "still_bytes": 3286,
+      "sha256": "0746365a6814b9f2fefb830239622132760a362768985e6985ea284ce4a4e62c",
+      "still_sha256": "d4ba11eea46a2f1120a8b3983d5a53a016a4806debe957fd3665720bafd1f8bb"
+    },
+    "compact/female/searching": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 54450,
+      "still_bytes": 3486,
+      "sha256": "b573f096886314ef79e28970c36a2667f938e81de0021b3b669ac4977a6b5b9d",
+      "still_sha256": "a1f548f6036284f5a11f5e5c53e50d5186a6092e58119141546b34e735c54c38"
+    },
+    "compact/female/focused": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 53228,
+      "still_bytes": 3344,
+      "sha256": "9c3be258c5f0adfbca54b017889b473f9a047d1f074032d912e7d91cad44b835",
+      "still_sha256": "9fe03b592f1a59659f899407b325711cf49beb9ff0fb4722f9a50b376b2e1dd6"
+    },
+    "compact/female/attentive": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 54350,
+      "still_bytes": 3414,
+      "sha256": "7a312e61569c21b437cc9ee0404c38b16318ba5b3eef0ddf12021dcc7151b319",
+      "still_sha256": "9d7447128fc51e34b09dcdef3bf9df681bee4b478fbddd37c98071717479f186"
+    },
+    "compact/female/speaking": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 54826,
+      "still_bytes": 3462,
+      "sha256": "ccdc5f1eeb812756363b54794e791d7fd86dbdae55e81699361c0e307d9d28ec",
+      "still_sha256": "f7b2286ced35e04c6394140fcbfa8990d1588248ebe2cbb727b786714836ddc2"
+    },
+    "compact/female/bored": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 53324,
+      "still_bytes": 3374,
+      "sha256": "c20f0ef0f484b61123efe8d96e5672d382e59a1e965e32d511985db8ad09b517",
+      "still_sha256": "57baa7dbcb3f3a066821cadc02694ab9ea3c7b085369d7705ee213b8cce32f3f"
+    },
+    "compact/female/tired": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 53460,
+      "still_bytes": 3160,
+      "sha256": "6b81275a4a9a6f275f44631c245127e022a4f336e4e436352411b229fc2398a1",
+      "still_sha256": "e117140c1712d0bd6b395405c6aa55150f38e6accbec1312e79d8cc8f1a0e644"
+    },
+    "compact/female/sleepy": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 53732,
+      "still_bytes": 3372,
+      "sha256": "e9908ce5fb3bedc2319103ede72c11a5589985b4f709bdc834d8f5257fd26b8b",
+      "still_sha256": "ec50ea641fcb99aa7938762c716bd195ad957aa0a9a4db699277d47554ee25b1"
+    },
+    "compact/female/sleep": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 53088,
+      "still_bytes": 3324,
+      "sha256": "6d2f708bb1021acbe2da3bce9b1c9e160b910fe7534d07ee53844676d69ebcd0",
+      "still_sha256": "3a45ae49183f9dcdb56d0beb7eb12a217ff57dad729ae0a71f517ecf21420722"
+    },
+    "compact/female/wink": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 54224,
+      "still_bytes": 3452,
+      "sha256": "4b7c25726415dc7a42b29fa95a373ee2248cc173d3357aa18d037d8521ccab06",
+      "still_sha256": "95bf320de3a2684526331aa437b0a95d281cc1096a191a02e6ece23d2c2adecf"
+    },
+    "compact/male/neutral": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 50260,
+      "still_bytes": 3256,
+      "sha256": "7a63569e7b6956b8488df5edb722850684cc887c3182aa0c7443634ca83b8c77",
+      "still_sha256": "463b5db6fd289828298aa1dbe9fe3ad348fbd9988b5070d8a65fbbb5b4ed2f4a"
+    },
+    "compact/male/joy": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 50434,
+      "still_bytes": 3362,
+      "sha256": "10b4c5cd28fc703a5e0f6c6e4afd28a18ee9011cf00b1a05f2152e4ad71883fc",
+      "still_sha256": "9dfb93897ef8070f76066fe3a5e5e431f68422656c682a15e7e21c8b8867c9c8"
+    },
+    "compact/male/excited": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 51306,
+      "still_bytes": 3322,
+      "sha256": "cddd1b6e44d83b90996bfe87140694baf0c5ca84e16184da0c4f2b70d645f0d7",
+      "still_sha256": "09dcf78c6d04ebf6e56c2ea195764f9f2811f67362a58c1bddb5f6860fc47a4d"
+    },
+    "compact/male/tender": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 50646,
+      "still_bytes": 3200,
+      "sha256": "9fee0e01699ecdbf945926b3ffa7f2af088d15c90aae4c5167a05aa447005de9",
+      "still_sha256": "e41c18e648420700ab9e3794ed1e117a999a82917548958b172464451252dce8"
+    },
+    "compact/male/surprise": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 50884,
+      "still_bytes": 3306,
+      "sha256": "5b4ec99bf916063b1e64532c3e7db2e6418158c328f3ca04954c3a74d18df848",
+      "still_sha256": "acc3063516e4abdaf6df168dba2966e29b8c6b532931fb302a225afbf9271a64"
+    },
+    "compact/male/fear": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 50824,
+      "still_bytes": 3236,
+      "sha256": "c1c1001fee00b7d4489f561f036c34e576a3524aa3124ae17acb3757e4bbfba0",
+      "still_sha256": "26e212b3beb218ea10190b3b117c049c222d3e2e00717050b588f99e0d3cd9fb"
+    },
+    "compact/male/anger": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 50388,
+      "still_bytes": 3236,
+      "sha256": "ee8c0d9a29b348b414c63c5d65636ab193526af286e17374990a53aa0ca6d477",
+      "still_sha256": "282f955438bd705c1a4c1e8eaa8a256a7fe67cbb8428f9a6f7d65f4115a94e91"
+    },
+    "compact/male/sad": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 50044,
+      "still_bytes": 3270,
+      "sha256": "003d7dded14addcc601c17d102d76170e23675754e8f262bbe76218fcbe6615d",
+      "still_sha256": "7a3580645506f72b59e965bc9df2665605721ddcfc75daa6d87b2c441aa46d53"
+    },
+    "compact/male/worried": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 50400,
+      "still_bytes": 3240,
+      "sha256": "466ada7506b921389f932adbc35226a387da89f021ff7a39c6ac59275e8f4d69",
+      "still_sha256": "b67fe19d5e4e3c973cc9069dbea5d7efc6125d779aaae30c4f7d62561e1d62ed"
+    },
+    "compact/male/question": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 50624,
+      "still_bytes": 3280,
+      "sha256": "42c3bb005d2ef07d761c50e062089a43c291003c5e906da46e25ff2acda56db6",
+      "still_sha256": "ddc843aff58fca18b1ae339d1cdbf006f850136a032e366c5b59042d698bfc2c"
+    },
+    "compact/male/thinking": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 50020,
+      "still_bytes": 3208,
+      "sha256": "ca34be5d28db4b77a23d80d629b22e8a6cc62cafb799e10d55cb0b6e545a8d01",
+      "still_sha256": "1564a8790c1478a9c2dde7bc7891156c36a80493399d83c947afc00024c370c2"
+    },
+    "compact/male/searching": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 50266,
+      "still_bytes": 3236,
+      "sha256": "6a797a26bd6503448d901ae0b2a2ae434f0ea8cb9a317734a43dd1cd4c1ccbb6",
+      "still_sha256": "ed6f7a58f31df034a4dacb382fcbed573a566f4a11c5a8389c15fb36b2249e1b"
+    },
+    "compact/male/focused": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 49812,
+      "still_bytes": 3184,
+      "sha256": "ce83eca18e295752420fae79b2c7bfc50ca244da6bcfc941f79662f4ea60752b",
+      "still_sha256": "c33e92045af18a06c8ff04f338c46ee6a4a95ff1ca77d1272ed70b601853772d"
+    },
+    "compact/male/attentive": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 50334,
+      "still_bytes": 3238,
+      "sha256": "19b8c754a241f4c0fba7f8c89fb210c91786d3b00d0e5d3e5b1cc31c418b9ef2",
+      "still_sha256": "99091228994157bff8872cd5d67126a422c62a0b66a3c15dbf1f6ae8bea88403"
+    },
+    "compact/male/speaking": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 50764,
+      "still_bytes": 3284,
+      "sha256": "9032399dbbdc09ad9bc5ef268123cb8bc8441baf30e00364dc52f490a075f99d",
+      "still_sha256": "4cb0f46f308a33367d5852a3be73dd927d0f2b6c3267e33c1ac7c05c3b96618b"
+    },
+    "compact/male/bored": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 49256,
+      "still_bytes": 3180,
+      "sha256": "86d9de65907304fc2a4be8344d2e02938e93a2685f463b088ad74327826c58f1",
+      "still_sha256": "8b7dab6f0432fb00e2267779a022f581c3851894ad7945a03763f908c6b9e1f0"
+    },
+    "compact/male/tired": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 49180,
+      "still_bytes": 3252,
+      "sha256": "94754dbaf536165ac43f6019948643ded5810db14d628a05aeaf3c239e2e8d27",
+      "still_sha256": "7c68c85672f9540e16ed46850d38d977d9d0c96f064b929a6d2f242268e5e548"
+    },
+    "compact/male/sleepy": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 50466,
+      "still_bytes": 3296,
+      "sha256": "72a784637157ce7a0e92195c29288542e341ac2a1e4e14feac51e726fc09754e",
+      "still_sha256": "b2b70717cf17049c2663abee222e7b6d83005f93d283580f1c497ad2880e1a20"
+    },
+    "compact/male/sleep": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 49432,
+      "still_bytes": 3138,
+      "sha256": "a0983dd2cd3ce1bdfbb84f65501b09f3b7d1ff3419439c8ce1bc09d771bce1f6",
+      "still_sha256": "4d8a5d1541db3690bd52c51731250409a092880106e85b90ae2d781ea5c90c72"
+    },
+    "compact/male/wink": {
+      "size": 96,
+      "frames": 24,
+      "duration_ms": 3200,
+      "clip_bytes": 50510,
+      "still_bytes": 3238,
+      "sha256": "39a00e252fbcff5dc763fdd63072a4a3826d148f2300f83fe94c549fcbb6317d",
+      "still_sha256": "b966a3f69613844443a9f3f9881f520137db55396fe1e6fee99b7ebdec6db9c2"
+    }
+  },
+  "bodies": {
+    "female": {
+      "size": 192,
+      "bytes": 3914,
+      "sha256": "b8e12f6d21441448028e0d4c5afd846c12ce8276147ba292cf3daec6250dcd39"
+    },
+    "male": {
+      "size": 192,
+      "bytes": 3558,
+      "sha256": "89d578198aa532eba9b91543adbba853f570b89820c1f1df2eb47a1ffcb84a85"
+    }
+  },
+  "organs": {
+    "female": {
+      "eye": {
+        "size": 128,
+        "bytes": 3298,
+        "sha256": "6fc63f9533971576eb3c473ddfd2e19cd661b5747621e95825eab7cbacf028be"
+      },
+      "eye-right": {
+        "size": 128,
+        "bytes": 3312,
+        "sha256": "c7e56b466be5a7e0167463483b9677105ca808867f9beac4653ca9843ce247dc"
+      },
+      "iris": {
+        "size": 128,
+        "bytes": 3300,
+        "sha256": "93259cb069862e0cb1ed51c2dcf1c98e0cf57fc44f4f6419d3fed2b61ba4461c"
+      },
+      "sclera-mask": {
+        "size": 128,
+        "bytes": 3090,
+        "sha256": "f00f1d76bfb171b6d3dcc57838e7af3d34d1170716cd7b45595f399e30a4b7ac"
+      },
+      "sclera-mask-right": {
+        "size": 128,
+        "bytes": 3104,
+        "sha256": "1231a1e56d0d8d51552a34dede84af3a63d60f32d4db68b8ca16681b43415cb9"
+      }
+    },
+    "male": {
+      "eye": {
+        "size": 128,
+        "bytes": 2514,
+        "sha256": "fdf902308e345cd0cfe1c0bb8021acbf5d47ee136b46963aca7f54925f33644a"
+      },
+      "eye-right": {
+        "size": 128,
+        "bytes": 2558,
+        "sha256": "1797840309e5bb5703219a6cf076398f82eebd7cc0270aa3b71f7bc44a3c4312"
+      },
+      "iris": {
+        "size": 128,
+        "bytes": 2834,
+        "sha256": "2cccc22cc4d97e3b4ea72302fd6ff98b732c1e40d60cfb0d48037e5b234d14b1"
+      },
+      "sclera-mask": {
+        "size": 128,
+        "bytes": 2622,
+        "sha256": "985686149e12ad1fd8a0902c9f06ab671faa53761591231bbe1361c23c04d669"
+      },
+      "sclera-mask-right": {
+        "size": 128,
+        "bytes": 2612,
+        "sha256": "c7a605b2d78e3dda314ee8f8105926881afacab3dd81d484019872aab033ff1b"
+      }
+    }
+  }
+}

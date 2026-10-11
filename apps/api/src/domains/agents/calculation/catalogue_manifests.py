@@ -207,13 +207,18 @@ date_time_catalogue_manifest = ToolManifest(
             constraints=[ParameterConstraint(kind="enum", value=list(DATE_UNITS))],
         ),
         ParameterSchema(
-            name="timezone", type="string", required=False, description=DATE_TIMEZONE_DESCRIPTION
+            name="timezone",
+            type="string",
+            required=False,
+            description=DATE_TIMEZONE_DESCRIPTION,
+            semantic_type="timezone",
         ),
         ParameterSchema(
             name="to_timezone",
             type="string",
             required=False,
             description=DATE_TO_TIMEZONE_DESCRIPTION,
+            semantic_type="timezone",
         ),
     ],
     outputs=[
@@ -319,6 +324,7 @@ convert_currency_catalogue_manifest = ToolManifest(
             type="string",
             nullable=True,
             description="ISO day the reference rate was published",
+            semantic_type="Date",
         ),
         OutputFieldSchema(path="from_currency", type="string", description="Source code"),
         OutputFieldSchema(path="to_currency", type="string", description="Target code"),

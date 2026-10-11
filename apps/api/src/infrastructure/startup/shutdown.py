@@ -207,6 +207,11 @@ async def shutdown_application(handles: StartupHandles) -> None:
         logger.error("agent_registry_cleanup_failed", error=str(exc))
 
     # Close MCP connections (evolution F2)
+    from src.infrastructure.mcp.access_policy import configure_shared_mcp_access
+    from src.infrastructure.mcp.preferences_gateway import configure_shared_mcp_preferences
+
+    configure_shared_mcp_access(None)
+    configure_shared_mcp_preferences(None)
     if handles.mcp_manager:
         try:
             from src.infrastructure.mcp.client_manager import cleanup_mcp_client_manager
@@ -217,6 +222,13 @@ async def shutdown_application(handles: StartupHandles) -> None:
             logger.error("mcp_shutdown_failed", error=str(exc))
 
     # Close user MCP pool connections (evolution F2.1)
+    from src.infrastructure.mcp.personal_metadata_gateway import configure_personal_mcp_metadata
+    from src.infrastructure.mcp.personal_oauth_contract import configure_application_mcp_oauth
+    from src.infrastructure.mcp.personal_state_gateway import configure_personal_mcp_state
+
+    configure_personal_mcp_metadata(None)
+    configure_personal_mcp_state(None)
+    configure_application_mcp_oauth(None)
     if getattr(settings, "mcp_user_enabled", False):
         try:
             from src.infrastructure.mcp.user_pool import cleanup_user_mcp_pool
@@ -254,6 +266,72 @@ async def shutdown_application(handles: StartupHandles) -> None:
         logger.error("checkpointer_shutdown_failed", error=str(exc))
 
     # Close tool context store connection
+    from src.infrastructure.proactive.context_sink import configure_proactive_context_writer
+
+    configure_proactive_context_writer(None)
+    from src.infrastructure.channels.assistant_gateway import configure_channel_gateway
+
+    configure_channel_gateway(None)
+    from src.infrastructure.notification_devices import configure_notification_devices
+
+    configure_notification_devices(None)
+    from src.infrastructure.live_preferences import configure_live_preferences
+
+    configure_live_preferences(None)
+    from src.infrastructure.meeting_preferences import configure_meeting_preferences
+
+    configure_meeting_preferences(None)
+    from src.infrastructure.meeting_reads import configure_meeting_reads
+
+    configure_meeting_reads(None)
+    from src.infrastructure.meeting_templates import configure_meeting_templates
+
+    configure_meeting_templates(None)
+    from src.infrastructure.meeting_transcripts import configure_meeting_transcripts
+
+    configure_meeting_transcripts(None)
+    from src.infrastructure.meeting_reports import configure_meeting_reports
+
+    configure_meeting_reports(None)
+    from src.infrastructure.meeting_report_updates import configure_meeting_report_updates
+
+    configure_meeting_report_updates(None)
+    from src.infrastructure.meeting_pdf import configure_meeting_pdf
+
+    configure_meeting_pdf(None)
+    from src.infrastructure.meeting_email import configure_meeting_email
+
+    configure_meeting_email(None)
+    from src.infrastructure.meeting_deletions import configure_meeting_deletions
+
+    configure_meeting_deletions(None)
+    from src.infrastructure.meeting_reformat import configure_meeting_reformat
+
+    configure_meeting_reformat(None)
+    from src.infrastructure.meeting_regeneration import configure_meeting_regeneration
+
+    configure_meeting_regeneration(None)
+    from src.infrastructure.meeting_retry import configure_meeting_retry
+
+    configure_meeting_retry(None)
+    from src.infrastructure.live_connector_preferences import configure_live_connector_preferences
+
+    configure_live_connector_preferences(None)
+    from src.infrastructure.account_exports import configure_account_exports
+
+    configure_account_exports(None)
+    from src.infrastructure.phone_identity import configure_phone_identity
+
+    configure_phone_identity(None)
+    from src.infrastructure.phone_history import configure_phone_history
+
+    configure_phone_history(None)
+    from src.infrastructure.phone_preferences import configure_phone_preferences
+
+    configure_phone_preferences(None)
+    from src.infrastructure.phone_number_preferences import configure_phone_number_preferences
+
+    configure_phone_number_preferences(None)
     try:
         from src.domains.agents.context import cleanup_tool_context_store
 

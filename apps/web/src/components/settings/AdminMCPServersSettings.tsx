@@ -10,6 +10,8 @@ import { type Language } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { useAdminMCPServers, type AdminMCPServer } from '@/hooks/useAdminMCPServers';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
+import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
 
 import { ToolDisplayName } from './ToolDisplayName';
 
@@ -18,14 +20,21 @@ interface AdminMCPServersSettingsProps {
 }
 
 export function AdminMCPServersSettings({ lng }: AdminMCPServersSettingsProps) {
+  const { user } = useAuth();
+  return <AccountAdminMCPServersSettings key={user?.id ?? 'signed-out'} lng={lng} />;
+}
+
+function AccountAdminMCPServersSettings({ lng }: AdminMCPServersSettingsProps) {
   const { t } = useTranslation(lng);
+  const { user } = useAuth();
+  const { isCurrent } = useApplicationAccountLifetime(user?.id);
   const { servers, loading, error, toggleServer, toggling, refetch } = useAdminMCPServers();
   const [expandedServer, setExpandedServer] = useState<string | null>(null);
 
   const handleToggle = async (server: AdminMCPServer) => {
     try {
       const result = await toggleServer(server.server_key);
-      if (result) {
+      if (result && isCurrent()) {
         toast.success(
           result.enabled_for_user
             ? t('settings.admin_mcp.enabled_toast', { name: server.name })
@@ -33,7 +42,7 @@ export function AdminMCPServersSettings({ lng }: AdminMCPServersSettingsProps) {
         );
       }
     } catch {
-      toast.error(t('settings.admin_mcp.toggle_error'));
+      if (isCurrent()) toast.error(t('settings.admin_mcp.toggle_error'));
     }
   };
 
@@ -62,7 +71,11 @@ export function AdminMCPServersSettings({ lng }: AdminMCPServersSettingsProps) {
           <p className="text-sm text-muted-foreground">{t('settings.admin_mcp.load_error')}</p>
           <button
             type="button"
-            onClick={() => refetch()}
+            onClick={() => {
+              void refetch().catch(() => {
+                if (isCurrent()) toast.error(t('settings.application_tools.sync_failed'));
+              });
+            }}
             className="text-sm text-primary hover:underline"
           >
             {t('common.retry')}

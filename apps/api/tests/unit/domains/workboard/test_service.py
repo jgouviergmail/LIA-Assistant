@@ -24,6 +24,7 @@ import pytest
 
 from src.core.config import settings
 from src.core.exceptions import BaseAPIException, ResourceNotFoundError
+from src.domains.users.models import User
 from src.domains.workboard.constants import (
     ActorKind,
     AssigneeKind,
@@ -31,6 +32,7 @@ from src.domains.workboard.constants import (
     TicketStatus,
     WorkboardError,
 )
+from src.domains.workboard.models import WorkboardTicket
 from src.domains.workboard.schemas import CommentCreate, TicketCreate, TicketUpdate
 from src.domains.workboard.service import WorkboardService
 
@@ -41,11 +43,11 @@ PEER = uuid.uuid4()
 STRANGER = uuid.uuid4()
 
 
-def _user(user_id: uuid.UUID) -> Any:
-    return SimpleNamespace(id=user_id, is_active=True)
+def _user(user_id: uuid.UUID) -> User:
+    return User(id=user_id, email=f"unit-{user_id}@example.test", is_active=True)
 
 
-def _ticket(**overrides: Any) -> Any:
+def _ticket(**overrides: Any) -> WorkboardTicket:
     """A ticket row in its simplest valid shape.
 
     Args:
@@ -77,7 +79,7 @@ def _ticket(**overrides: Any) -> Any:
         "last_run_outcome": None,
     }
     values.update(overrides)
-    return SimpleNamespace(**values)
+    return WorkboardTicket(**values)
 
 
 def _service(*, peers_enabled: bool = True, connected: bool = True) -> WorkboardService:
@@ -92,6 +94,19 @@ def _service(*, peers_enabled: bool = True, connected: bool = True) -> Workboard
     """
     service = WorkboardService(db=AsyncMock())
     service.repo = AsyncMock()
+
+    async def get_row(
+        model: type[User] | type[WorkboardTicket],
+        identity: uuid.UUID,
+        *,
+        populate_existing: bool = False,
+    ) -> User | WorkboardTicket | None:
+        if model is User:
+            return _user(identity)
+        row = service.repo.get_visible.return_value
+        return row if isinstance(row, WorkboardTicket) else None
+
+    service.db.get = AsyncMock(side_effect=get_row)
     # An event row comes back flushed, with the id the notification names.
     service.repo.add_event.return_value = SimpleNamespace(id=uuid.uuid4())
     service.repo.count_owned.return_value = 0
@@ -425,7 +440,6 @@ class TestHandingATicketOver:
         service = _service()
         ticket = _ticket()
         service.repo.get_visible.return_value = ticket
-        service.db.get = AsyncMock(return_value=SimpleNamespace(id=PEER, language="fr"))
         sent = self._sent()
 
         with (
@@ -451,7 +465,7 @@ class TestHandingATicketOver:
 
         service = _service()
         ticket = _ticket(assignee_user_id=PEER)
-        service.db.get = AsyncMock(return_value=SimpleNamespace(id=PEER, language="fr"))
+        service.repo.get_visible.return_value = ticket
         sent = self._sent()
 
         with patch("src.domains.shared.proactive_sink.send_proactive_notification", sent):
@@ -498,7 +512,6 @@ class TestHandingATicketOver:
         service = _service()
         ticket = _ticket()
         service.repo.get_visible.return_value = ticket
-        service.db.get = AsyncMock(return_value=SimpleNamespace(id=PEER, language="fr"))
 
         with (
             patch.object(service, "_has_accepted_connection", AsyncMock(return_value=True)),
@@ -962,7 +975,6 @@ class TestAnsweringOnTheTicket:
         service = _service()
         ticket = _confirming()
         service.repo.get_visible.return_value = ticket
-        service.db.get = AsyncMock(return_value=SimpleNamespace(id=PEER, language="fr"))
 
         with (
             patch("src.core.config.settings.peers_enabled", True, create=True),

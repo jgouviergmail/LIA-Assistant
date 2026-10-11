@@ -98,6 +98,7 @@ search_memories_catalogue_manifest = ToolManifest(
                 "(procedural = the standing instructions the user gave)."
             ),
             constraints=[ParameterConstraint(kind="enum", value=list(MEMORY_SEARCH_CATEGORIES))],
+            semantic_type="memory_category",
         ),
         ParameterSchema(
             name="max_results",
@@ -120,17 +121,20 @@ search_memories_catalogue_manifest = ToolManifest(
             path="memories[].content",
             type="string",
             description="What is remembered, as it was recorded",
+            semantic_type="Text",
         ),
         OutputFieldSchema(
             path="memories[].category",
             type="string",
             description="The memory's family",
+            semantic_type="memory_category",
         ),
         OutputFieldSchema(
             path="memories[].usage_nuance",
             type="string",
             nullable=True,
             description=("How the memory may be used; an OBLIGATION when 'sensitive' is true"),
+            semantic_type="Text",
         ),
         OutputFieldSchema(
             path="memories[].sensitive",
@@ -142,6 +146,7 @@ search_memories_catalogue_manifest = ToolManifest(
             type="string",
             nullable=True,
             description="ISO date the memory was recorded",
+            semantic_type="Date",
         ),
         OutputFieldSchema(
             path="count",

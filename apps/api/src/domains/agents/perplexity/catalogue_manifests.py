@@ -78,7 +78,10 @@ perplexity_search_catalogue_manifest = ToolManifest(
             semantic_type="Text",
         ),
         OutputFieldSchema(
-            path="perplexitys[].question", type="string", description="Question asked"
+            path="perplexitys[].question",
+            type="string",
+            description="Question asked",
+            semantic_type="Text",
         ),
         OutputFieldSchema(path="perplexitys[].citations", type="array", description="Sources"),
         OutputFieldSchema(
@@ -88,7 +91,10 @@ perplexity_search_catalogue_manifest = ToolManifest(
             semantic_type="citation_url",
         ),
         OutputFieldSchema(
-            path="perplexitys[].citations[].title", type="string", description="Title"
+            path="perplexitys[].citations[].title",
+            type="string",
+            description="Title",
+            semantic_type="Text",
         ),
     ],
     cost=CostProfile(est_tokens_in=150, est_tokens_out=800, est_cost_usd=0.01, est_latency_ms=3000),
@@ -144,6 +150,7 @@ perplexity_ask_catalogue_manifest = ToolManifest(
             type="string",
             required=False,
             description="Focus domain (e.g. 'medical', 'finance')",
+            semantic_type="Text",
         ),
     ],
     # Registry-backed, same shape as perplexity_search_tool. `confidence` was
@@ -158,7 +165,10 @@ perplexity_ask_catalogue_manifest = ToolManifest(
             semantic_type="Text",
         ),
         OutputFieldSchema(
-            path="perplexitys[].question", type="string", description="Question asked"
+            path="perplexitys[].question",
+            type="string",
+            description="Question asked",
+            semantic_type="Text",
         ),
         OutputFieldSchema(path="perplexitys[].citations", type="array", description="Sources"),
         OutputFieldSchema(

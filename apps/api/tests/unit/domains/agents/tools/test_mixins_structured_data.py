@@ -172,18 +172,44 @@ class TestBuildEmailsOutputDropsTheProviderTree:
             get_emails_catalogue_manifest,
         )
         from src.domains.agents.emails.detail_levels import EmailDetail, apply_detail_level
+        from src.domains.agents.orchestration.condition_evaluator import ReferenceResolver
+        from tests.unit.domains.agents.registry.reference_harness import DECLARED_TYPE_TO_PYTHON
 
         emails = [self._gmail_full()]
+        emails[0]["attachments"] = [
+            {
+                "filename": "report.pdf",
+                "attachment_id": "gmail-attachment-handle",
+                "mime_type": "application/pdf",
+                "size": 42,
+            }
+        ]
         apply_detail_level(emails, detail=EmailDetail.FULL, part=1, part_tokens=1_500)
         item = _HelperAccessor().build_emails_output(emails=emails, user_timezone="UTC")
         built = item.structured_data["emails"][0]
         published = [
-            output.path.removeprefix("emails[].")
+            output
             for output in get_emails_catalogue_manifest.outputs
             if output.path.startswith("emails[].")
         ]
         assert published, "the manifest publishes item paths"
-        missing = [path for path in published if path not in built]
+        missing = []
+        resolver = ReferenceResolver()
+        for field in published:
+            path = field.path.replace("[]", "[0]")
+            try:
+                value = resolver.resolve(
+                    f"$steps.email.{path}", {"email": {"emails": [built]}}, None
+                )
+            except KeyError, ValueError:
+                if not field.nullable:
+                    missing.append(field.path)
+                continue
+            assert (
+                value is None
+                and field.nullable
+                or isinstance(value, DECLARED_TYPE_TO_PYTHON[field.type])
+            ), field.path
         assert not missing, f"published but absent on a built item: {missing}"
 
 

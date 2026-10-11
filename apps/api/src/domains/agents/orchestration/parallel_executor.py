@@ -129,6 +129,7 @@ from src.domains.agents.semantic.param_guard import (
     person_names_from_config,
     strip_placeholder_arguments,
 )
+from src.domains.agents.semantic.value_bindings import binding_scope_from_config
 from src.domains.agents.services.connector_error_notice import (
     emit_connector_notice_for_exception,
 )
@@ -1295,6 +1296,10 @@ async def execute_plan_parallel(
     # ``settings.task_orchestrator_execution_timeout_seconds``.
     plan_start_time = time.time()
 
+    from src.domains.agents.semantic.plan_proof_scope import plan_proof_config
+
+    config = plan_proof_config(config)
+
     # Build dependency graph and calculate waves
     dep_graph = DependencyGraph(execution_plan)
 
@@ -2164,6 +2169,9 @@ async def _execute_tool_step(
     """
     start_time = time.time()
 
+    # Keep the selected identity before interpolation replaces reference expressions.
+    original_parameters = dict(step.parameters or {})
+
     # Phase 2.5 - Issue #41: Evaluate Jinja2 templates in parameters
     # This MUST happen BEFORE $steps.X resolution (templates may contain conditions)
     # Order: Jinja2 evaluation (#41) → $steps resolution → API call
@@ -2424,6 +2432,17 @@ async def _execute_tool_step(
     # INTELLIA LocalQueryEngine: Pass accumulated_registry for local_query_engine_tool injection
     # BugFix 2025-12-19: Pass turn_id for RegistryItem.meta injection
     # Correlated Display: Pass step_id for RegistryItem.meta injection
+    from src.domains.agents.semantic.reference_bindings import config_with_resolved_bindings
+
+    config = config_with_resolved_bindings(
+        config,
+        tool_name=step.tool_name,
+        original_arguments=original_parameters,
+        resolved_arguments=resolved_args,
+        completed_steps=completed_steps,
+        context=context or {},
+        registry=accumulated_registry or {},
+    )
     tool_execution_result = await _execute_tool(
         tool_name=step.tool_name,
         args=resolved_args,
@@ -2610,8 +2629,16 @@ async def _execute_tool(
     # would geocode/send it arbitrarily and the wrong result may be cached.
     # Recoverable error instead, so the planner/LLM fetches the real value.
     guard_names = person_names_from_config(config)
+    bindings, account, sources = binding_scope_from_config(config)
     if guard_names:
-        violation = check_semantic_params(tool_name, args, guard_names)
+        violation = check_semantic_params(
+            tool_name,
+            args,
+            guard_names,
+            value_bindings=bindings,
+            account_id=account,
+            known_sources=sources,
+        )
         if violation is not None:
             from src.infrastructure.observability.metrics_agents import (
                 semantic_param_guard_blocks_total,
@@ -2685,6 +2712,7 @@ async def _execute_tool(
         # UnifiedToolOutput has compatibility properties (summary_for_llm, tool_metadata)
         # so existing code continues to work.
         # ============================================================================
+        from src.domains.agents.semantic.plan_proof_scope import plan_mutation_scope
         from src.domains.agents.tools.output import StandardToolOutput, UnifiedToolOutput
 
         # Check if tool has async coroutine (StructuredTool from @tool decorator)
@@ -2720,7 +2748,8 @@ async def _execute_tool(
                     config, idempotency_key=step_effect_key(config, step_id or tool_name)
                 )
             ):
-                result = await tool.coroutine(**args)
+                with plan_mutation_scope(config, tool_name):
+                    result = await tool.coroutine(**args)
 
             logger.debug(
                 "tool_direct_coroutine_call",
@@ -2735,7 +2764,8 @@ async def _execute_tool(
                     config, idempotency_key=step_effect_key(config, step_id or tool_name)
                 )
             ):
-                result = await tool.ainvoke(tool_call, config)
+                with plan_mutation_scope(config, tool_name):
+                    result = await tool.ainvoke(tool_call, config)
 
             logger.debug(
                 "tool_ainvoke_fallback",

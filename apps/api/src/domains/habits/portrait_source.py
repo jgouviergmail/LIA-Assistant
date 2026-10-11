@@ -73,7 +73,7 @@ def _recurring_line(habit: UserHabit, lines: dict[str, str], max_chars: int) -> 
     intent = payload.get("usual_intent")
     return lines["habits_recurring"].format(
         key=clamp_item(str(habit.key), max_chars),
-        shape=str(payload.get("shape") or ""),
+        shape=clamp_item(str(payload.get("shape") or ""), max_chars),
         hour=(
             " " + lines["habits_recurring_hour"].format(hour=format_half_hour_label(float(hour)))
             if hour is not None
@@ -133,7 +133,28 @@ async def read_habits(
 
 
 #: Where this source's freshness is read (the consolidation's eligibility).
-FRESHNESS = FreshnessProbe(table="user_habits", user_column="user_id", stamp_column="updated_at")
+FRESHNESS = FreshnessProbe(
+    table="user_habits",
+    user_column="user_id",
+    stamp_column="updated_at",
+    allowed=_allowed,
+    semantic_columns=(
+        "kind",
+        "key",
+        "status",
+        ("payload", "shape"),
+        ("payload", "trigger_hour"),
+        ("payload", "usual_intent"),
+    ),
+    related_probes=(
+        FreshnessProbe(
+            table="user_habit_profiles",
+            user_column="user_id",
+            stamp_column="updated_at",
+            semantic_columns=("payload",),
+        ),
+    ),
+)
 
 # Installed at import for every path that does not go through the boot; the
 # boot INSTALLS explicitly too, because an already-imported module wires

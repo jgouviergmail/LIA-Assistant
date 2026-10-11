@@ -68,6 +68,7 @@ class ResponseContextBundle:
     journal_context: str = ""
     journal_injection_debug: dict[str, Any] | None = None
     journal_injected_ids: list[str] = field(default_factory=list)
+    journal_injected_revisions: dict[str, int] = field(default_factory=dict)
     user_model_block: str = ""
     psyche_context: str = ""
     #: Local CRM facts about a connected user named in the turn (lot 6).
@@ -631,6 +632,15 @@ async def fetch_response_context(
         _inject_psyche_and_peer(),
     )
 
+    journal_injected_revisions = {
+        entry_id: revision
+        for entry_id, revision in (journal_injection_debug or {})
+        .get("injected_revisions", {})
+        .items()
+        if isinstance(entry_id, str)
+        and isinstance(revision, int)
+        and not isinstance(revision, bool)
+    }
     return ResponseContextBundle(
         psychological_profile=psychological_profile,
         memory_injection_debug=memory_injection_debug,
@@ -641,6 +651,7 @@ async def fetch_response_context(
         journal_context=journal_context,
         journal_injection_debug=journal_injection_debug,
         journal_injected_ids=current_journal_injected_ids,
+        journal_injected_revisions=journal_injected_revisions,
         user_model_block=user_model_block,
         psyche_context=psyche_context,
         peer_context=peer_context,

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import apiClient from '@/lib/api-client';
 import { useCompanionEnvironmentStore as store } from '@/stores/companionEnvironmentStore';
 import { useCompanionEnvironment } from '../useCompanionEnvironment';
+import { liveActingContext } from '../rig/live-context';
 
 vi.mock('@/lib/api-client', () => ({ default: { get: vi.fn() } }));
 const result = { timezone: 'Europe/Paris', weather: null };
@@ -38,6 +39,46 @@ it('reads the bounded endpoint and forgets the previous account on unmount', asy
   expect(store.getState().environment).toEqual(result);
   view.unmount();
   expect(store.getState().environment).toBeNull();
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+it('retires stale combined evidence on its deadline with the same timer and no extra request', async () => {
+  const now = Date.parse('2026-09-21T12:00:00Z');
+  vi.setSystemTime(now);
+  const observed = {
+    timezone: 'Pacific/Auckland',
+    weather: {
+      temperature_c: 5,
+      condition_code: 'Rain',
+      wind_speed_kmh: 45,
+      observed_at: new Date(now - 1000).toISOString(),
+      expires_at: new Date(now + 1000).toISOString(),
+    },
+  };
+  vi.mocked(apiClient.get).mockResolvedValue(observed);
+  const view = renderHook(() => useCompanionEnvironment(true));
+  await flush();
+  expect(liveActingContext(Date.now())).toMatchObject({
+    weatherFlags: ['rain', 'wind', 'cold'],
+    weather: 'rain',
+    dayPhase: 'night',
+  });
+  expect(vi.getTimerCount()).toBe(1);
+  await act(async () => vi.advanceTimersByTime(999));
+  expect(store.getState().environment?.weather).toEqual(observed.weather);
+  await act(async () => vi.advanceTimersByTime(1));
+  expect(store.getState().environment).toEqual({ timezone: observed.timezone, weather: null });
+  expect(liveActingContext(Date.now())).toMatchObject({
+    weatherFlags: [],
+    weather: null,
+    dayPhase: 'night',
+  });
+  expect(apiClient.get).toHaveBeenCalledTimes(1);
+  expect(vi.getTimerCount()).toBe(1);
+  expect(observed.weather.condition_code).toBe('Rain');
+  await act(async () => vi.advanceTimersByTime(15 * 60_000 - 1000));
+  expect(apiClient.get).toHaveBeenCalledTimes(2);
+  view.unmount();
   expect(vi.getTimerCount()).toBe(0);
 });
 

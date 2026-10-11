@@ -179,6 +179,7 @@ FIELD_RESPONSE_FEEDBACK = "response_feedback"
 # Written at archive so a later 👍/👎 can feed the evidence/contradiction
 # counters of exactly the entries that shaped the answer.
 FIELD_INJECTED_JOURNAL_IDS = "injected_journal_ids"
+FIELD_INJECTED_JOURNAL_REVISIONS = "injected_journal_revisions"
 
 # Tappable follow-up suggestions of the Initiative node (UXR Lot 4, A2) —
 # carried in BOTH the SSE done chunk and the archived message metadata so the

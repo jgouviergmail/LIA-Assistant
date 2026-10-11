@@ -65,6 +65,12 @@ class TestTableClassificationCompleteness:
 class TestPurgeClassificationConsistency:
     """The purge statement list and the classification agree exactly."""
 
+    def test_journal_evidence_is_purged_before_rules_and_conversations(self) -> None:
+        names = [name for name, _ in build_purge_statements(uuid.uuid4())]
+        event_position = names.index("journal_evidence_events")
+        assert event_position < names.index("journal_entries")
+        assert event_position < names.index("conversations")
+
     def test_purged_tables_match_user_purged_classification(self) -> None:
         """USER_PURGED classification ⇔ an explicit DELETE in the purge."""
         purged = {name for name, _ in build_purge_statements(uuid.uuid4())}
