@@ -112,4 +112,104 @@ describe('fetchJsonCached', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ nope: true })));
     expect(await fetchJsonCached('https://m.example.org/b.json', parse)).toBeNull();
   });
+
+  it('recovers immediately from a cached outage on the first explicit refresh', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({}, 503))
+      .mockResolvedValue(jsonResponse({ ok: true }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    expect(await fetchJsonCached('https://m.example.org/a.json', parse)).toBeNull();
+    expect(await fetchJsonCached('https://m.example.org/a.json', parse, { refresh: true })).toEqual(
+      {
+        ok: true,
+      }
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(await fetchJsonCached('https://m.example.org/a.json', parse)).toEqual({ ok: true });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('replaces a cached old manifest without waiting for its normal TTL', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ ok: true, presentation: null }))
+      .mockResolvedValue(jsonResponse({ ok: true, presentation: 'full-film.mp4' }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    expect(await fetchJsonCached('https://m.example.org/a.json', parse)).toEqual({
+      ok: true,
+      presentation: null,
+    });
+    expect(await fetchJsonCached('https://m.example.org/a.json', parse, { refresh: true })).toEqual(
+      {
+        ok: true,
+        presentation: 'full-film.mp4',
+      }
+    );
+  });
+
+  it('shares an in-flight origin read across ordinary and forced callers', async () => {
+    let resolve!: (value: ReturnType<typeof jsonResponse>) => void;
+    const networkResponse = new Promise<ReturnType<typeof jsonResponse>>(done => (resolve = done));
+    const fetchMock = vi.fn(() => networkResponse);
+    vi.stubGlobal('fetch', fetchMock);
+    const requests = [
+      fetchJsonCached('https://m.example.org/a.json', parse),
+      fetchJsonCached('https://m.example.org/a.json', parse, { refresh: true }),
+      fetchJsonCached('https://m.example.org/a.json', parse),
+    ];
+    resolve(jsonResponse({ ok: true }));
+    expect(await Promise.all(requests)).toEqual([{ ok: true }, { ok: true }, { ok: true }]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('bounds repeated explicit refreshes and coalesces callers waiting for the cooldown', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ ok: true }));
+    vi.stubGlobal('fetch', fetchMock);
+    await fetchJsonCached('https://m.example.org/a.json', parse, { refresh: true });
+
+    const requests = Array.from({ length: 8 }, () =>
+      fetchJsonCached('https://m.example.org/a.json', parse, { refresh: true })
+    );
+    let completed = false;
+    void Promise.all(requests).then(() => (completed = true));
+    await vi.advanceTimersByTimeAsync(4_999);
+    expect(completed).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(await Promise.all(requests)).toEqual(Array.from({ length: 8 }, () => ({ ok: true })));
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('cuts a queued refresh at the origin timeout and shares the failure with its waiters', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({}, 503))
+      .mockImplementation(
+        (_url: string, options: RequestInit) =>
+          new Promise((_resolve, reject) => {
+            options.signal?.addEventListener(
+              'abort',
+              () => reject(new DOMException('Timeout', 'AbortError')),
+              { once: true }
+            );
+          })
+      );
+    vi.stubGlobal('fetch', fetchMock);
+    expect(
+      await fetchJsonCached('https://m.example.org/a.json', parse, { refresh: true })
+    ).toBeNull();
+    const first = fetchJsonCached('https://m.example.org/a.json', parse, { refresh: true });
+    const second = fetchJsonCached('https://m.example.org/a.json', parse, { refresh: true });
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(3_000);
+    expect(await Promise.all([first, second])).toEqual([null, null]);
+    expect(vi.getTimerCount()).toBe(0);
+    expect(await fetchJsonCached('https://m.example.org/a.json', parse)).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
 });

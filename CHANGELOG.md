@@ -83,6 +83,8 @@ together. Experimental options retain their stated qualification limits.
 
 ### Fixed
 
+- The Presentation retry explicitly refreshes unavailable or outdated metadata,
+  bypassing browser caches while coalescing and throttling origin requests.
 - Memory extraction records a consent-sensitive revision and refuses stale
   writes after a concurrent revision or deletion. Routine generation uses a
   reservation that settles the current generation without racing another tick.

@@ -149,6 +149,61 @@ describe('GET /api/landing-media', () => {
     expect(body.presentation.durationSeconds).toBe(251.4);
   });
 
+  it('recovers the full film immediately after an initial cached outage', async () => {
+    vi.stubEnv('LANDING_MEDIA_BASE_URL', BASE);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({}, 503))
+      .mockResolvedValue(jsonResponse({ ...MANIFEST, presentation: SECOND }));
+    vi.stubGlobal('fetch', fetchMock);
+    expect(await (await getMedia()).json()).toEqual({ video: null });
+
+    const refreshed = await getMedia(
+      new Request('https://lia.example.org/api/landing-media?refresh=1')
+    );
+    expect((await refreshed.json()).presentation.poster).toBe(`${BASE}/second-poster.webp`);
+    expect(refreshed.headers.get('cache-control')).toBe('no-store');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not let browsers cache an explicit refresh failure', async () => {
+    vi.stubEnv('LANDING_MEDIA_BASE_URL', BASE);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({}, 503)));
+    const response = await getMedia(
+      new Request('https://lia.example.org/api/landing-media?refresh=1')
+    );
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    expect(await response.json()).toEqual({ video: null });
+  });
+
+  it('revalidates an old manifest explicitly without exposing arbitrary bypass queries', async () => {
+    vi.stubEnv('LANDING_MEDIA_BASE_URL', BASE);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(MANIFEST))
+      .mockResolvedValue(jsonResponse({ ...MANIFEST, presentation: SECOND }));
+    vi.stubGlobal('fetch', fetchMock);
+    expect((await (await getMedia()).json()).presentation).toBeNull();
+    for (const query of ['?refresh=2', '?refresh=1&origin=https://other.example', '?nocache=1']) {
+      expect(
+        (
+          await (
+            await getMedia(new Request(`https://lia.example.org/api/landing-media${query}`))
+          ).json()
+        ).presentation
+      ).toBeNull();
+    }
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(
+      (
+        await (
+          await getMedia(new Request('https://lia.example.org/api/landing-media?refresh=1'))
+        ).json()
+      ).presentation.poster
+    ).toBe(`${BASE}/second-poster.webp`);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it('answers "no video" when the origin fails, when the manifest is invalid, and when the variable is malformed', async () => {
     vi.stubEnv('LANDING_MEDIA_BASE_URL', BASE);
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ error: 'down' }, 503)));

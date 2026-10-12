@@ -52,6 +52,9 @@ Authoring tools and large media must remain outside the deployed application.
    open, the background player is suspended, including audible playback;
    closing restores its prior eligible playback state and keyboard focus.
    Metadata requests are same-origin public UI reads, abortable and bounded.
+   Explicit Retry uses a fixed no-store refresh route; server-side singleflight
+   and a bounded cooldown protect the configured origin. Ordinary reads retain
+   their positive and negative caches; clients cannot choose another origin.
 
 ## Consequences
 

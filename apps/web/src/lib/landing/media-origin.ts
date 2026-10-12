@@ -18,6 +18,8 @@ import { type LandingMediaManifest, landingMediaManifestSchema } from './media';
 export const LANDING_MEDIA_TTL_MS = 5 * 60_000;
 export const LANDING_MEDIA_NEGATIVE_TTL_MS = 60_000;
 export const LANDING_MEDIA_FETCH_TIMEOUT_MS = 3_000;
+/** Repeated explicit refreshes share a bounded wait, rather than hammering the public origin. */
+export const LANDING_MEDIA_REFRESH_COOLDOWN_MS = 5_000;
 export const LANDING_MEDIA_MANIFEST_FILE = 'manifest.json';
 
 type Env = Record<string, string | undefined>;
@@ -55,10 +57,45 @@ interface CacheEntry {
 }
 
 const cache = new Map<string, CacheEntry>();
+const inFlight = new Map<string, Promise<unknown | null>>();
+const lastRefreshAt = new Map<string, number>();
+
+export interface LandingMediaReadOptions {
+  refresh?: boolean;
+}
 
 /** Tests only: forget every cached answer. */
 export function resetLandingMediaCache(): void {
   cache.clear();
+  inFlight.clear();
+  lastRefreshAt.clear();
+}
+
+async function waitForRefresh(url: string): Promise<void> {
+  const previous = lastRefreshAt.get(url);
+  const wait =
+    previous === undefined ? 0 : previous + LANDING_MEDIA_REFRESH_COOLDOWN_MS - Date.now();
+  if (wait > 0) await new Promise<void>(resolve => setTimeout(resolve, wait));
+  lastRefreshAt.set(url, Date.now());
+}
+
+async function fetchAndCache<T>(
+  url: string,
+  parse: (raw: unknown) => T,
+  refresh: boolean
+): Promise<T | null> {
+  try {
+    if (refresh) await waitForRefresh(url);
+    const value = await fetchJson(url, parse);
+    cache.set(url, {
+      expiresAt:
+        Date.now() + (value === null ? LANDING_MEDIA_NEGATIVE_TTL_MS : LANDING_MEDIA_TTL_MS),
+      value,
+    });
+    return value;
+  } finally {
+    inFlight.delete(url);
+  }
 }
 
 async function fetchJson<T>(url: string, parse: (raw: unknown) => T): Promise<T | null> {
@@ -87,17 +124,16 @@ async function fetchJson<T>(url: string, parse: (raw: unknown) => T): Promise<T 
  */
 export async function fetchJsonCached<T>(
   url: string,
-  parse: (raw: unknown) => T
+  parse: (raw: unknown) => T,
+  { refresh = false }: LandingMediaReadOptions = {}
 ): Promise<T | null> {
-  const now = Date.now();
+  const pending = inFlight.get(url);
+  if (pending) return pending as Promise<T | null>;
   const hit = cache.get(url);
-  if (hit && hit.expiresAt > now) return hit.value as T | null;
-  const value = await fetchJson(url, parse);
-  cache.set(url, {
-    expiresAt: now + (value === null ? LANDING_MEDIA_NEGATIVE_TTL_MS : LANDING_MEDIA_TTL_MS),
-    value,
-  });
-  return value;
+  if (!refresh && hit && hit.expiresAt > Date.now()) return hit.value as T | null;
+  const request = fetchAndCache(url, parse, refresh);
+  inFlight.set(url, request);
+  return request;
 }
 
 /**
@@ -106,14 +142,16 @@ export async function fetchJsonCached<T>(
  *
  * @throws {TypeError} when `LANDING_MEDIA_BASE_URL` is malformed.
  */
-export async function loadLandingManifest(): Promise<{
+export async function loadLandingManifest(options: LandingMediaReadOptions = {}): Promise<{
   baseUrl: string;
   manifest: LandingMediaManifest;
 } | null> {
   const baseUrl = landingMediaBaseUrl();
   if (!baseUrl) return null;
-  const manifest = await fetchJsonCached(`${baseUrl}/${LANDING_MEDIA_MANIFEST_FILE}`, raw =>
-    landingMediaManifestSchema.parse(raw)
+  const manifest = await fetchJsonCached(
+    `${baseUrl}/${LANDING_MEDIA_MANIFEST_FILE}`,
+    raw => landingMediaManifestSchema.parse(raw),
+    options
   );
   return manifest ? { baseUrl, manifest } : null;
 }

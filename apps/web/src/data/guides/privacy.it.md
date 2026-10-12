@@ -38,6 +38,7 @@ Utilizzando LIA, riconosci di aver letto e compreso questa informativa. Se non a
 LIA tratta le seguenti categorie di dati per fornire il servizio e le funzionalità opzionali che scegli di utilizzare:
 
 **Dati dell'account utente:**
+
 - Indirizzo email (identificativo univoco)
 - Nome e cognome
 - Password (sottoposta a hashing con bcrypt, mai memorizzata in chiaro)
@@ -45,6 +46,7 @@ LIA tratta le seguenti categorie di dati per fornire il servizio e le funzionali
 - Ruolo dell'utente (standard o amministratore)
 
 **Dati delle conversazioni:**
+
 - Messaggi scambiati tra te e l'assistente
 - Piani di esecuzione generati dal sistema di pianificazione
 - Risultati delle azioni eseguite dagli agenti (ricerca di email, creazione di eventi, ecc.)
@@ -52,21 +54,25 @@ LIA tratta le seguenti categorie di dati per fornire il servizio e le funzionali
 - Ricordi, preferenze, documenti e altri contenuti che fornisci per personalizzare l'assistente
 
 **Dati di connessione a servizi di terze parti:**
+
 - Token di accesso e di aggiornamento OAuth per i servizi che utilizzano OAuth, tra cui Google Workspace e Microsoft 365
 - Password specifiche per le applicazioni o altre credenziali per connettori come Apple iCloud, e chiavi API dei fornitori che configuri
 - Questi segreti memorizzati sono cifrati con Fernet (AES-128-CBC con autenticazione HMAC-SHA256)
 
 **Dati delle funzionalità opzionali:**
+
 - Un indirizzo di casa che salvi e la posizione del browser, se concedi l'autorizzazione; anche la memorizzazione dell'ultima posizione nota richiede un'attivazione volontaria. Questi campi di localizzazione sono cifrati, la posizione memorizzata sostituisce quella precedente senza creare una cronologia delle posizioni e viene cancellata quando disattivi l'opzione
 - Audio, trascrizioni ed eventuali immagini o documenti utilizzati in una richiesta vocale, una riunione o una richiesta multimodale
 - Misurazioni relative alla salute, se scegli di collegare una fonte e utilizzare le funzionalità dedicate
 
 **Dati di utilizzo:**
+
 - Metriche operative aggregate (numero di richieste, tempi di risposta) e registrazioni di utilizzo per account
 - Contatori dei token LLM consumati per sessione
 - Log di errori tecnici con controlli per oscurare segreti e contenuti personali; le tracce diagnostiche opzionali hanno un ambito distinto, descritto più avanti
 
 **Dati che LIA NON raccoglie:**
+
 - Modelli biometrici di autenticazione conservati dal tuo dispositivo quando utilizzi una passkey
 - Dati di navigazione al di fuori dell'applicazione
 - Profili pubblicitari o dati di targeting
@@ -75,14 +81,14 @@ LIA tratta le seguenti categorie di dati per fornire il servizio e le funzionali
 
 La seguente tabella indica le basi giuridiche utilizzate per il servizio ospitato ai sensi del Regolamento generale sulla protezione dei dati (GDPR):
 
-| Attività di trattamento | Base giuridica | Motivazione |
-|---|---|---|
-| Creazione e gestione dell'account | Esecuzione di un contratto (art. 6.1.b) | Necessaria per fornire il servizio |
-| Conversazioni con l'assistente | Esecuzione di un contratto (art. 6.1.b) | Funzione principale del servizio |
-| Connessioni a servizi di terze parti (Google, Apple, Microsoft) | Consenso esplicito (art. 6.1.a) | Scegli attivamente di collegare ogni servizio |
-| Invio di dati ai fornitori di LLM | Esecuzione di un contratto (art. 6.1.b) | Necessario per il funzionamento dell'assistente |
-| Log tecnici e metriche | Legittimo interesse (art. 6.1.f) | Mantenere la sicurezza e l'affidabilità del servizio |
-| Cookie di preferenza linguistica | Consenso (art. 6.1.a) | Memorizzare la tua scelta della lingua |
+| Attività di trattamento                                         | Base giuridica                          | Motivazione                                          |
+| --------------------------------------------------------------- | --------------------------------------- | ---------------------------------------------------- |
+| Creazione e gestione dell'account                               | Esecuzione di un contratto (art. 6.1.b) | Necessaria per fornire il servizio                   |
+| Conversazioni con l'assistente                                  | Esecuzione di un contratto (art. 6.1.b) | Funzione principale del servizio                     |
+| Connessioni a servizi di terze parti (Google, Apple, Microsoft) | Consenso esplicito (art. 6.1.a)         | Scegli attivamente di collegare ogni servizio        |
+| Invio di dati ai fornitori di LLM                               | Esecuzione di un contratto (art. 6.1.b) | Necessario per il funzionamento dell'assistente      |
+| Log tecnici e metriche                                          | Legittimo interesse (art. 6.1.f)        | Mantenere la sicurezza e l'affidabilità del servizio |
+| Cookie di preferenza linguistica                                | Consenso (art. 6.1.a)                   | Memorizzare la tua scelta della lingua               |
 
 Puoi revocare in qualsiasi momento il consenso per i trattamenti che si basano su di esso, senza pregiudicare la liceità del trattamento effettuato prima della revoca.
 
@@ -90,12 +96,16 @@ Puoi revocare in qualsiasi momento il consenso per i trattamenti che si basano s
 
 **Infrastruttura dell'istanza ospitata:**
 
-L'istanza ufficiale di LIA è ospitata su un server fisico amministrato dallo sviluppatore. I dati sono memorizzati in Francia.
+L'istanza ufficiale di LIA è ospitata su un server fisico amministrato dallo sviluppatore. I dati persistenti dell'applicazione, inclusi account, conversazioni e checkpoint, sono memorizzati in Francia.
 
 - **Database**: PostgreSQL per l'archiviazione persistente (account, conversazioni, checkpoint)
 - **Cache**: Redis per le sessioni e la memorizzazione temporanea nella cache
 - **Reverse proxy**: Cloudflare Tunnel per l'accesso sicuro tramite HTTPS
 - **Certificati TLS**: Gestiti automaticamente da Cloudflare
+
+**Media pubblici di presentazione:**
+
+Le immagini di anteprima e i video possono essere caricati direttamente dall'hosting statico configurato dall'operatore. Nell'istanza ufficiale, la presentazione viene pubblicata in una release pubblica di GitHub e distribuita tramite la sua infrastruttura. Il caricamento di questi file invia a tale hosting le informazioni tecniche abituali della richiesta, tra cui l'indirizzo IP e gli header del browser. Questi media mostrano esempi fittizi, distinti dai contenuti personali archiviati da LIA.
 
 **Trasferimenti internazionali di dati:**
 
@@ -111,6 +121,7 @@ LIA implementa un'architettura di sicurezza a più livelli progettata per proteg
 La sessione dell'applicazione utilizza un cookie HttpOnly, mentre le credenziali di lunga durata dei connettori e i segreti API per modelli o avatar vengono gestiti lato server. Alcune connessioni vocali e degli avatar utilizzano credenziali di sessione temporanee nel browser. Anche Google Maps interattivo riceve una chiave API per il browser dopo un'attivazione autenticata; questa chiave richiede restrizioni presso il fornitore e quote adeguate.
 
 **Cifratura dei dati sensibili:**
+
 - Le credenziali dei connettori, i segreti dei fornitori e i campi di localizzazione designati che vengono memorizzati sono cifrati con [Fernet](https://cryptography.io/en/latest/fernet/) (AES-128-CBC + autenticazione HMAC-SHA256)
 - Le password sono sottoposte a hashing con bcrypt (fattore di costo adattivo)
 - L'accesso all'applicazione ospitata avviene tramite HTTPS; la protezione delle connessioni interne e dei backup dipende dalla distribuzione
@@ -121,6 +132,7 @@ Questa cifratura a livello di campo non cifra tutte le colonne del database. Le 
 I controlli di oscuramento proteggono i log tecnici; non anonimizzano automaticamente il contesto inviato a un modello. I tuoi messaggi e i contenuti pertinenti dei servizi collegati possono contenere informazioni personali necessarie alla tua richiesta. Se il tracciamento LLM è attivo, gli strumenti diagnostici possono conservare anche input e output dei modelli e metadati associati all'account. L'operatore deve configurarne l'accesso, l'hosting e la conservazione.
 
 **Sessioni e autenticazione:**
+
 - Le sessioni degli utenti vengono memorizzate in Redis con scadenza automatica
 - L'autenticazione si basa su cookie sicuri (HttpOnly, Secure, SameSite)
 - Il JavaScript lato client non può leggere il cookie HttpOnly della sessione dell'applicazione; le credenziali temporanee per le sessioni vocali o degli avatar abilitate nel browser hanno uno scopo diverso
@@ -138,17 +150,18 @@ Chiavi, file scelti, connessioni di account e consensi del browser usano l’int
 
 LIA utilizza più fornitori di modelli linguistici di grandi dimensioni (LLM) per elaborare le tue richieste. La scelta dipende dalla configurazione della tua istanza e dal tipo di attività:
 
-| Fornitore | Sede | Utilizzo in LIA |
-|---|---|---|
-| OpenAI | Stati Uniti | Modelli GPT per conversazione e pianificazione |
-| Anthropic | Stati Uniti | Modelli Claude per conversazione e analisi |
-| Google (Gemini) | Stati Uniti | Modelli Gemini per elaborazione multimodale |
-| DeepSeek | Cina | Modelli di ragionamento avanzato |
-| Qwen (Alibaba) | Cina | Modelli di elaborazione del linguaggio |
-| Perplexity | Stati Uniti | Ricerca web potenziata |
-| Ollama | Dipende dall'endpoint configurato | Inferenza dei modelli su un server locale quando è configurato in questo modo |
+| Fornitore       | Sede                              | Utilizzo in LIA                                                               |
+| --------------- | --------------------------------- | ----------------------------------------------------------------------------- |
+| OpenAI          | Stati Uniti                       | Modelli GPT per conversazione e pianificazione                                |
+| Anthropic       | Stati Uniti                       | Modelli Claude per conversazione e analisi                                    |
+| Google (Gemini) | Stati Uniti                       | Modelli Gemini per elaborazione multimodale                                   |
+| DeepSeek        | Cina                              | Modelli di ragionamento avanzato                                              |
+| Qwen (Alibaba)  | Cina                              | Modelli di elaborazione del linguaggio                                        |
+| Perplexity      | Stati Uniti                       | Ricerca web potenziata                                                        |
+| Ollama          | Dipende dall'endpoint configurato | Inferenza dei modelli su un server locale quando è configurato in questo modo |
 
 **Cosa viene trasmesso ai fornitori di LLM:**
+
 - Il contenuto dei tuoi messaggi
 - Il contesto conversazionale necessario per la coerenza delle risposte
 - I risultati pertinenti degli strumenti (contenuto delle email, dettagli degli eventi, documenti, ecc.), che possono contenere dati personali
@@ -167,15 +180,15 @@ Scegliere un endpoint Ollama ospitato localmente mantiene l'inferenza del modell
 
 I periodi di conservazione sono definiti in base alla natura dei dati:
 
-| Tipo di dati | Periodo di conservazione | Motivazione |
-|---|---|---|
-| Account utente | I contenuti personali vengono eliminati nella fase di cancellazione; il record dell'account e le registrazioni di fatturazione restano fino alla rispettiva fase di rimozione o al termine di conservazione applicabile | Funzionamento del servizio, contabilità e obblighi di legge applicabili |
-| Cronologia delle conversazioni | Fino alla cancellazione da parte dell'utente o alla cancellazione dell'account | Continuità del servizio |
-| Credenziali cifrate dei connettori | Fino alla disconnessione del servizio o alla cancellazione dell'account | Accesso ai servizi collegati |
-| Posizione del browser memorizzata | Sostituita quando viene aggiornata e cancellata quando si disattiva la memorizzazione volontaria; la sua attualità ne limita l'utilizzo | Richieste basate sulla posizione senza una cronologia delle posizioni |
-| Sessioni Redis | Scadenza automatica secondo le impostazioni della sessione e di «Ricordami» | Sicurezza |
-| Log tecnici e tracce diagnostiche opzionali | Conservazione configurata per ciascun archivio diagnostico | Diagnostica e sicurezza |
-| Metriche di utilizzo | Conservazione configurata per l'archivio delle metriche; le registrazioni associate all'account seguono il loro ciclo di vita documentato | Contabilizzazione dell'utilizzo e funzionamento del servizio |
+| Tipo di dati                                | Periodo di conservazione                                                                                                                                                                                                | Motivazione                                                             |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Account utente                              | I contenuti personali vengono eliminati nella fase di cancellazione; il record dell'account e le registrazioni di fatturazione restano fino alla rispettiva fase di rimozione o al termine di conservazione applicabile | Funzionamento del servizio, contabilità e obblighi di legge applicabili |
+| Cronologia delle conversazioni              | Fino alla cancellazione da parte dell'utente o alla cancellazione dell'account                                                                                                                                          | Continuità del servizio                                                 |
+| Credenziali cifrate dei connettori          | Fino alla disconnessione del servizio o alla cancellazione dell'account                                                                                                                                                 | Accesso ai servizi collegati                                            |
+| Posizione del browser memorizzata           | Sostituita quando viene aggiornata e cancellata quando si disattiva la memorizzazione volontaria; la sua attualità ne limita l'utilizzo                                                                                 | Richieste basate sulla posizione senza una cronologia delle posizioni   |
+| Sessioni Redis                              | Scadenza automatica secondo le impostazioni della sessione e di «Ricordami»                                                                                                                                             | Sicurezza                                                               |
+| Log tecnici e tracce diagnostiche opzionali | Conservazione configurata per ciascun archivio diagnostico                                                                                                                                                              | Diagnostica e sicurezza                                                 |
+| Metriche di utilizzo                        | Conservazione configurata per l'archivio delle metriche; le registrazioni associate all'account seguono il loro ciclo di vita documentato                                                                               | Contabilizzazione dell'utilizzo e funzionamento del servizio            |
 
 **Cancellazione dell'account:**
 Puoi richiedere la cancellazione dell'account all'amministratore. La fase di cancellazione elimina contenuti personali come conversazioni, ricordi, documenti, checkpoint e credenziali memorizzate dei connettori, ma conserva il record dell'account, inclusi nome e indirizzo email, e le registrazioni di fatturazione. La successiva fase di rimozione definitiva elimina il record dell'account rimasto. I registri di audit, gli archivi diagnostici separati, i backup e i dati già ricevuti dai fornitori richiedono proprie procedure di conservazione e cancellazione; nessuna delle due fasi elimina immediatamente ogni copia. L'operatore deve gestire le richieste di cancellazione applicabili in tutti questi archivi.
@@ -200,12 +213,13 @@ Se ritieni che i tuoi diritti non siano rispettati, hai il diritto di presentare
 
 LIA utilizza un numero minimo di cookie, esclusivamente funzionali:
 
-| Cookie | Finalità | Durata | Tipo |
-|---|---|---|---|
-| `NEXT_LOCALE` | Memorizza la tua preferenza linguistica (fr, en, de, es, it, zh) | 1 anno | Funzionale |
-| Cookie di sessione | Mantiene la tua sessione di autenticazione | Durata della sessione | Strettamente necessario |
+| Cookie             | Finalità                                                         | Durata                | Tipo                    |
+| ------------------ | ---------------------------------------------------------------- | --------------------- | ----------------------- |
+| `NEXT_LOCALE`      | Memorizza la tua preferenza linguistica (fr, en, de, es, it, zh) | 1 anno                | Funzionale              |
+| Cookie di sessione | Mantiene la tua sessione di autenticazione                       | Durata della sessione | Strettamente necessario |
 
 **Cosa LIA NON utilizza:**
+
 - Nessun cookie di tracciamento
 - Nessun cookie pubblicitario
 - Nessun cookie di analisi di terze parti (Google Analytics, ecc.)

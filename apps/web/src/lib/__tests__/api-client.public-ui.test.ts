@@ -43,4 +43,27 @@ describe('Public UI JSON transport', () => {
     controller.abort();
     expect(signal?.aborted).toBe(true);
   });
+
+  it('revalidates browser metadata on the declared explicit refresh route', async () => {
+    const fetchMock = vi.fn(async () => new Response('{}'));
+    vi.stubGlobal('fetch', fetchMock);
+    await readPublicUiJson('/api/landing-media?refresh=1');
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/landing-media?refresh=1',
+      expect.objectContaining({ cache: 'no-store', credentials: 'omit' })
+    );
+  });
+
+  it.each([
+    '/api/landing-media?refresh=2',
+    '/api/landing-media?refresh=1&origin=other',
+    'https://other.example/api/landing-media',
+  ])('refuses an undeclared public refresh endpoint: %s', async endpoint => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(
+      readPublicUiJson(endpoint as Parameters<typeof readPublicUiJson>[0])
+    ).rejects.toBeInstanceOf(TypeError);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });

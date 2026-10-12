@@ -18,14 +18,19 @@ import { LANDING_MEDIA_TTL_MS, loadLandingManifest } from '@/lib/landing/media-o
 
 export const dynamic = 'force-dynamic';
 
-function noVideo(): NextResponse {
-  return NextResponse.json({ video: null }, { headers: { 'Cache-Control': 'public, max-age=60' } });
+function noVideo(refresh: boolean): NextResponse {
+  return NextResponse.json(
+    { video: null },
+    { headers: { 'Cache-Control': refresh ? 'no-store' : 'public, max-age=60' } }
+  );
 }
 
-export async function GET(): Promise<NextResponse> {
+export async function GET(request?: Request): Promise<NextResponse> {
+  // Only this fixed query is a refresh. The origin always comes from server configuration.
+  const refresh = request !== undefined && new URL(request.url).search === '?refresh=1';
   let loaded: Awaited<ReturnType<typeof loadLandingManifest>>;
   try {
-    loaded = await loadLandingManifest();
+    loaded = await loadLandingManifest({ refresh });
   } catch (error) {
     // A configured-but-wrong origin: say it in the server log, once per
     // request, rather than let the operator wonder why there is no video.
@@ -33,15 +38,17 @@ export async function GET(): Promise<NextResponse> {
       '[landing-media] LANDING_MEDIA_BASE_URL is not usable:',
       error instanceof Error ? error.message : String(error)
     );
-    return noVideo();
+    return noVideo(refresh);
   }
-  if (!loaded) return noVideo();
+  if (!loaded) return noVideo(refresh);
   const [video, ...next] = resolveLandingPlaylist(loaded.manifest, loaded.baseUrl);
   return NextResponse.json(
     { video, next, presentation: resolveLandingPresentation(loaded.manifest, loaded.baseUrl) },
     {
       headers: {
-        'Cache-Control': `public, max-age=${LANDING_MEDIA_TTL_MS / 1000}, stale-while-revalidate=60`,
+        'Cache-Control': refresh
+          ? 'no-store'
+          : `public, max-age=${LANDING_MEDIA_TTL_MS / 1000}, stale-while-revalidate=60`,
       },
     }
   );

@@ -95,8 +95,8 @@
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
  *   Re-measured 2026-10-12 (v3.0.0): backend 46,912 collected in 3,118 files;
- *   frontend coverage: 12,487 passed in 1,032 files, for a combined inventory
- *   of 59,399. Inventory is distinct from executing every suite at commit.
+ *   frontend coverage: 12,501 passed in 1,032 files, for a combined inventory
+ *   of 59,413. Inventory is distinct from executing every suite at commit.
  *   Re-measured 2026-10-06 (v2.6.1): backend 40,039 collected
  *   (pytest --collect-only -q --no-cov, 2,315 files) + frontend 11,066 collected
  *   (892 files, collected 2026-10-06) = 51,105 -> 51000. Coverage and runtime gates qualify the snapshot.

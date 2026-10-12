@@ -134,6 +134,44 @@ describe('Complete presentation', () => {
     ).toBeVisible();
   });
 
+  it('recovers a cached unavailable film through explicit server and browser revalidation', async () => {
+    const fetchMock = vi.fn(async (url: string) =>
+      response(url === '/api/landing-media?refresh=1' ? { presentation: FILM } : { video: null })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const user = await mount();
+    expect(await screen.findByText(fr.landing.presentation.film.unavailable)).toBeVisible();
+    await user.click(screen.getByRole('button', { name: fr.common.retry }));
+    expect(
+      await screen.findByLabelText(fr.landing.presentation.film.title, { selector: 'video' })
+    ).toBeVisible();
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      '/api/landing-media?refresh=1',
+      expect.objectContaining({ cache: 'no-store', credentials: 'omit' })
+    );
+  });
+
+  it('keeps an explicit refresh in loading and cancels it when closed', async () => {
+    let refreshSignal: AbortSignal | undefined;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string, config: RequestInit) => {
+        if (url === '/api/landing-media') return Promise.resolve(response({ video: null }));
+        refreshSignal = config.signal ?? undefined;
+        return new Promise<Response>(() => undefined);
+      })
+    );
+    const user = await mount();
+    await screen.findByText(fr.landing.presentation.film.unavailable);
+    await user.click(screen.getByRole('button', { name: fr.common.retry }));
+    expect(await screen.findByText(fr.landing.presentation.film.loading)).toBeVisible();
+    await waitFor(() => expect(refreshSignal).toBeDefined());
+    expect(screen.queryByRole('button', { name: fr.common.retry })).toBeNull();
+    await user.keyboard('{Escape}');
+    expect(refreshSignal?.aborted).toBe(true);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
   it('aborts a pending metadata read when the viewer closes', async () => {
     let signal: AbortSignal | undefined;
     vi.stubGlobal(

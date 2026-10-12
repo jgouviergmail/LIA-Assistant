@@ -140,6 +140,44 @@ test.describe('landing video — no video configured', () => {
   });
 });
 
+test('the complete presentation recovers on explicit refresh and restores its opener focus', async ({
+  page,
+}) => {
+  await mockMedia(page, null);
+  const refreshQueries: string[] = [];
+  await page.route(/\/api\/landing-media\?refresh=1$/, route => {
+    refreshQueries.push(new URL(route.request().url()).search);
+    return route.fulfill({
+      headers: { 'Cache-Control': 'no-store' },
+      json: { video: null, presentation: DESCRIPTOR },
+    });
+  });
+  await page.goto('/fr');
+  await awaitStyledPage(page, 'landing presentation before recovery');
+  const opener = page.getByTestId('hero-cta-presentation').first();
+  await expect(opener).toHaveAccessibleName('Présentation');
+  await opener.click();
+  const dialog = page.getByRole('dialog', { name: 'La présentation de LIA' });
+  await expect(dialog.getByText('La présentation est momentanément indisponible.')).toBeVisible();
+  await expect(dialog.locator('video')).toHaveCount(0);
+  expect(refreshQueries).toEqual([]);
+
+  await dialog.getByRole('button', { name: 'Réessayer', exact: true }).click();
+  const film = dialog.locator('video');
+  await expect(film).toHaveAttribute('controls', '');
+  await expect(film.locator('source')).toHaveAttribute('src', '/e2e-media/clip.mp4');
+  await expect
+    .poll(() => film.evaluate(element => (element as HTMLVideoElement).readyState))
+    .toBeGreaterThanOrEqual(2);
+  await expect
+    .poll(() => film.evaluate(element => (element as HTMLVideoElement).videoWidth))
+    .toBeGreaterThan(0);
+  expect(refreshQueries).toEqual(['?refresh=1']);
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(opener).toBeFocused();
+});
+
 /**
  * A browser's autoplay policy, emulated: sound without a user gesture is
  * refused with `NotAllowedError`, a muted start is not, and a gesture lifts

@@ -16,6 +16,7 @@ interface PresentationResponse {
 }
 
 export function useLandingPresentation(request: number): PresentationState {
+  const [initialRequest] = useState(request);
   const [snapshot, setSnapshot] = useState<{
     request: number;
     state: PresentationState;
@@ -25,7 +26,9 @@ export function useLandingPresentation(request: number): PresentationState {
     const controller = new AbortController();
     const read = async () => {
       try {
-        const body = await readPublicUiJson<PresentationResponse>(LANDING_MEDIA_ENDPOINT, {
+        const endpoint =
+          request === initialRequest ? LANDING_MEDIA_ENDPOINT : '/api/landing-media?refresh=1';
+        const body = await readPublicUiJson<PresentationResponse>(endpoint, {
           signal: controller.signal,
           timeout: 10_000,
         });
@@ -45,7 +48,7 @@ export function useLandingPresentation(request: number): PresentationState {
       if (!controller.signal.aborted) return read();
     });
     return () => controller.abort();
-  }, [request]);
+  }, [request, initialRequest]);
 
   return snapshot?.request === request ? snapshot.state : { status: 'loading' };
 }

@@ -11,18 +11,18 @@ records the authoring and exclusive playback decisions.
 
 ## Construction and ownership
 
-| Source | Responsibility |
-| --- | --- |
-| `tools/lia-motion/src/presentation-plan.ts` | Active revision, chapter story, explicit landing cut, feature focuses, source evidence and availability |
-| `tools/lia-motion/src/PresentationFilm.tsx` and `presentation-film.css` | Composition, fixed native frames, focus crops and editorial text |
-| `tools/lia-motion/src/presentation-geometry.ts` | Fixed frame geometry, declared focus bounds and crop opacity |
-| `tools/lia-motion/src/presentation-timing.ts` | Deterministic musical cut positions at each frame rate |
-| `tools/lia-motion/src/FeatureScreens.tsx`, `FaithfulUi.tsx`, `ProductStory.tsx` | Faithful native layouts with fictitious scenario data and source metadata |
-| `tools/lia-motion/src/AvatarDemonstration.tsx` and `StoryMascot.tsx` | Complete native avatar catalogue, contextual expressions and BIP's presentation acting |
-| `tools/lia-motion/src/music-v5.json` and `music-film.json` | Archived source identity, provider provenance, prepared soundtrack and measured accents |
-| `tools/lia-motion/src/Root.tsx` | Registered active and explicitly named historical compositions |
-| `tools/lia-motion/scripts/verify-presentation-geometry.mjs` | Independent DOM measurements from rendered frames |
-| `tools/lia-motion/scripts/package-media.mjs` and `verify-delivery.mjs` | Immutable delivery assets, application schemas and encoded-media measurements |
+| Source                                                                          | Responsibility                                                                                          |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `tools/lia-motion/src/presentation-plan.ts`                                     | Active revision, chapter story, explicit landing cut, feature focuses, source evidence and availability |
+| `tools/lia-motion/src/PresentationFilm.tsx` and `presentation-film.css`         | Composition, fixed native frames, focus crops and editorial text                                        |
+| `tools/lia-motion/src/presentation-geometry.ts`                                 | Fixed frame geometry, declared focus bounds and crop opacity                                            |
+| `tools/lia-motion/src/presentation-timing.ts`                                   | Deterministic musical cut positions at each frame rate                                                  |
+| `tools/lia-motion/src/FeatureScreens.tsx`, `FaithfulUi.tsx`, `ProductStory.tsx` | Faithful native layouts with fictitious scenario data and source metadata                               |
+| `tools/lia-motion/src/AvatarDemonstration.tsx` and `StoryMascot.tsx`            | Complete native avatar catalogue, contextual expressions and BIP's presentation acting                  |
+| `tools/lia-motion/src/music-v5.json` and `music-film.json`                      | Archived source identity, provider provenance, prepared soundtrack and measured accents                 |
+| `tools/lia-motion/src/Root.tsx`                                                 | Registered active and explicitly named historical compositions                                          |
+| `tools/lia-motion/scripts/verify-presentation-geometry.mjs`                     | Independent DOM measurements from rendered frames                                                       |
+| `tools/lia-motion/scripts/package-media.mjs` and `verify-delivery.mjs`          | Immutable delivery assets, application schemas and encoded-media measurements                           |
 
 The complete film, shorter landing edit and individual feature focuses have
 different editorial roles. The feature inventory is a coverage contract, not a
@@ -134,7 +134,10 @@ fullscreen accessible dialog with native controls and localized loading/error
 states. Opening suspends the background player, including audible playback;
 closing pauses the dialog media, restores keyboard focus and resumes eligible
 background playback. Server metadata is read through the bounded same-origin
-public UI transport; authenticated API transport remains distinct.
+public UI transport; authenticated API transport remains distinct. Explicit Retry
+refreshes the configured manifest through the fixed no-store public route.
+Concurrent reads share one origin request, with a bounded refresh cooldown and
+fetch timeout owned by `apps/web/src/lib/landing/media-origin.ts`.
 
 Upload every immutable asset first. Compare remote bytes/checksums, preserve
 the previous manifest, then atomically replace the active manifest last.
@@ -151,6 +154,8 @@ The README's stable film and source-archive aliases must contain the same bytes
 as the qualified delivery and checked source ZIP. A private repository or an
 unpublished release cannot serve anonymous visitors. Keep the full production
 master separately when the host's asset-size limit prevents a single-file upload.
+When changing the media host, update the deployment's public privacy information
+in all six languages to describe direct browser requests to that host.
 
 The film currently has French editorial copy. CTA, dialog and disclosure text
 are localized in six languages; the shared video is not automatically translated.

@@ -82,27 +82,27 @@ You can inspect sources, correct remembered information and review prepared draf
 
 ### Start with something that would help you
 
-| Your situation | Ask LIA, or use its dedicated view |
-| --- | --- |
-| **A discussion to prepare** | “Prepare my catch-up with Claire using the project brief, our recent emails and the last meeting notes. Highlight anything that conflicts.” |
-| **A promise to follow up** | Open **Relations** to review recent exchanges, the debrief and open commitments before contacting someone. |
-| **A message to get right** | “Draft an email to the supplier asking which delivery date they can commit to. Show me the draft before sending it.” |
-| **A meeting to keep useful** | Record it, review and correct the minutes, then export a PDF. Successfully indexed minutes can be retrieved in a later conversation. |
-| **A day to listen to** | Choose personal and news sources in **Radio**, then listen with the programme, transcript and articles beside you. |
+| Your situation                | Ask LIA, or use its dedicated view                                                                                                                                                                          |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **A discussion to prepare**   | “Prepare my catch-up with Claire using the project brief, our recent emails and the last meeting notes. Highlight anything that conflicts.”                                                                 |
+| **A promise to follow up**    | Open **Relations** to review recent exchanges, the debrief and open commitments before contacting someone.                                                                                                  |
+| **A message to get right**    | “Draft an email to the supplier asking which delivery date they can commit to. Show me the draft before sending it.”                                                                                        |
+| **A meeting to keep useful**  | Record it, review and correct the minutes, then export a PDF. Successfully indexed minutes can be retrieved in a later conversation.                                                                        |
+| **A day to listen to**        | Choose personal and news sources in **Radio**, then listen with the programme, transcript and articles beside you.                                                                                          |
 | **People to coordinate with** | “Find a time for dinner with Sam tomorrow evening using the availability shared with me. Show the invitation before sending it.” This uses an accepted connection and its permissions on the same instance. |
 
 These examples use the services and permissions enabled on your instance. Generated conclusions and documents remain yours to review.
 
 ### What LIA brings together
 
-| What matters in daily use | What LIA provides |
-| --- | --- |
-| **Relevant context, ready to reuse** | Memory, knowledge, meeting records, saved answers and Relations support relevant requests from their authorized sources. You can inspect and correct what is kept. |
+| What matters in daily use                  | What LIA provides                                                                                                                                                               |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Relevant context, ready to reuse**       | Memory, knowledge, meeting records, saved answers and Relations support relevant requests from their authorized sources. You can inspect and correct what is kept.              |
 | **Help when you ask and between requests** | Conversation, daily briefing and personal Radio, alongside reminders, scheduled work, conditional routines and proactive suggestions with their own source and timing controls. |
-| **A clear next step** | Rich results, reviewable drafts, downloadable documents and compatible skills or MCP apps present information and controls in the appropriate form. |
-| **A choice of how to work** | Pipeline builds and validates a plan before execution; ReAct explores iteratively from tool results. Chat and Live voice use documented provider and mode capabilities. |
-| **One installation for several people** | Separate accounts have their own connectors, memory and preferences. Accepted connections choose what to share and can exchange messages through their assistants. |
-| **A system you can inspect and operate** | Open code, a documented architecture, registers, model configuration, account and instance budgets, administration, Grafana dashboards and alert rules. |
+| **A clear next step**                      | Rich results, reviewable drafts, downloadable documents and compatible skills or MCP apps present information and controls in the appropriate form.                             |
+| **A choice of how to work**                | Pipeline builds and validates a plan before execution; ReAct explores iteratively from tool results. Chat and Live voice use documented provider and mode capabilities.         |
+| **One installation for several people**    | Separate accounts have their own connectors, memory and preferences. Accepted connections choose what to share and can exchange messages through their assistants.              |
+| **A system you can inspect and operate**   | Open code, a documented architecture, registers, model configuration, account and instance budgets, administration, Grafana dashboards and alert rules.                         |
 
 Cloud models and compatible local models served through native Ollama can be configured for supported processing roles. Model capabilities, host resources and enabled external services determine the available features and where information is processed. Hosting and provider services may incur costs.
 
@@ -207,8 +207,6 @@ Open any image for its full resolution. For the workflow captures below, the [ap
 </p>
 
 </details>
-
-
 
 The [Administration & Monitoring](#administration--monitoring) section below includes the three Grafana views supplied by the project.
 
@@ -612,12 +610,12 @@ Nearly **100% of this codebase was written by an AI**, under human direction: a 
 engineering rulebook, blocking automated checks, systematic review, adversarial audits.
 The result is measured, not proclaimed:
 
-|                           |                                         |                             |                                                                         |
-| ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
+|                           |                                         |                                         |                                                                         |
+| ------------------------- | --------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------- |
 | **55** functional domains | **931,000+** source lines (excl. tests) | **59,000+** inventoried automated tests | **341** ADRs                                                            |
-| **279** versions shipped  | **6 languages**, parity enforced in CI  | **618** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **279** versions shipped  | **6 languages**, parity enforced in CI  | **618** Prometheus metrics              | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
-Source-line figure: 932,860 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-10-12). Test inventory combines backend collection and the frontend suite; release qualification executes the repository's required gates. The published technical audit does not score security.
+Source-line figure: 932,910 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-10-12). Test inventory combines backend collection and the frontend suite; release qualification executes the repository's required gates. The published technical audit does not score security.
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -844,7 +842,7 @@ The model catalogue lives in the database, curated from vendored public registri
 | DeepSeek   | Cost-effective reasoning with a thinking-mode toggle (`deepseek-flash`, `deepseek-v4-pro`); tariff by UTC window                                                   |
 | Qwen       | Thinking, tools and vision through Alibaba Cloud DashScope; explicit prompt cache where the family needs it; Qwen Image 3.0; regional endpoint via `QWEN_BASE_URL` |
 | Perplexity | Web-augmented answers; endpoint via `PERPLEXITY_BASE_URL`                                                                                                          |
-| Ollama     | Compatible local models, capabilities discovered from the server, native client; `OLLAMA_BASE_URL`                                                                         |
+| Ollama     | Compatible local models, capabilities discovered from the server, native client; `OLLAMA_BASE_URL`                                                                 |
 
 ### Local Models as First-Class Models
 
