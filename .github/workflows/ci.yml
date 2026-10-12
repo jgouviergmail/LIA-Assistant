@@ -561,6 +561,7 @@ jobs:
           context: ./apps/api
           file: ./apps/api/Dockerfile.prod
           push: false
+          outputs: type=cacheonly
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -597,6 +598,7 @@ jobs:
           context: .
           file: ./apps/web/Dockerfile.prod
           push: false
+          outputs: type=cacheonly
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

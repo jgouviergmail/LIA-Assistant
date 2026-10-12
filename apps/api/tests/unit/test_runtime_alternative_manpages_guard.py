@@ -4,6 +4,8 @@ Production ARM64 builds installed the lzma/open executable alternatives while
 skipping eleven associated manpage links. A later Bash/pager restoration cannot
 repair that earlier xz-utils postinst. Check ordering and persistence of the
 dpkg exceptions; actual signed-package contents are exercised by the build proof.
+Package-configuring apt commands in every stage must explicitly select Debconf's
+noninteractive frontend; otherwise downloader builds probe unavailable TTY UIs.
 """
 
 from __future__ import annotations
@@ -31,12 +33,14 @@ _MANPAGE_TARGETS = (
 )
 
 
-def _runtime_instructions() -> list[str]:
+def _dockerfile_instructions() -> list[str]:
     text = (repo_root_or_skip() / "apps/api/Dockerfile.prod").read_text(encoding="utf-8")
     joined = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
-    instructions = [
-        line.strip() for line in joined.replace("\\\n", " ").splitlines() if line.strip()
-    ]
+    return [line.strip() for line in joined.replace("\\\n", " ").splitlines() if line.strip()]
+
+
+def _runtime_instructions() -> list[str]:
+    instructions = _dockerfile_instructions()
     final_stage = max(i for i, line in enumerate(instructions) if line.startswith("FROM "))
     return instructions[final_stage:]
 
@@ -75,3 +79,34 @@ def test_runtime_prerequisite_install_does_not_probe_interactive_debconf_fronten
     assert (
         "DEBIAN_FRONTEND=noninteractive apt-get install" in install
     ), "the non-TTY image build must choose debconf's real noninteractive frontend explicitly"
+
+
+@pytest.mark.parametrize("stage", ("model-downloader", "geoip-downloader"))
+def test_downloader_installs_explicitly_select_noninteractive_debconf(stage: str) -> None:
+    instructions = _dockerfile_instructions()
+    start = next(i for i, line in enumerate(instructions) if re.search(rf"\bAS {stage}$", line))
+    end = next(
+        (i for i in range(start + 1, len(instructions)) if instructions[i].startswith("FROM ")),
+        len(instructions),
+    )
+    installs = [line for line in instructions[start:end] if "apt-get install" in line]
+    assert installs, f"{stage} must install its downloader prerequisite"
+    assert all(
+        "DEBIAN_FRONTEND=noninteractive apt-get install" in line for line in installs
+    ), f"{stage} package postinst must not probe unavailable Dialog/Readline/Teletype frontends"
+
+
+def test_every_package_configuring_apt_command_is_individually_noninteractive() -> None:
+    mutations = 0
+    for instruction in _dockerfile_instructions():
+        if not instruction.startswith("RUN "):
+            continue
+        for command in re.finditer(
+            r"\bapt-get\s+(?:install|upgrade|dist-upgrade|full-upgrade|purge|remove|autoremove)\b",
+            instruction,
+        ):
+            mutations += 1
+            assert re.search(
+                r"DEBIAN_FRONTEND=noninteractive\s+$", instruction[: command.start()]
+            ), f"Each package-configuring command needs its own frontend selection: {command.group()}"
+    assert mutations, "the production image must exercise package-configuring commands"
