@@ -2,7 +2,13 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { publishApplicationResources } from '@/lib/application-resources';
 
-const { get, post, patch, remove, useAuth } = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), patch: vi.fn(), remove: vi.fn(), useAuth: vi.fn() }));
+const { get, post, patch, remove, useAuth } = vi.hoisted(() => ({
+  get: vi.fn(),
+  post: vi.fn(),
+  patch: vi.fn(),
+  remove: vi.fn(),
+  useAuth: vi.fn(),
+}));
 vi.mock('@/hooks/useAuth', () => ({ useAuth }));
 vi.mock('@/lib/api-client', async importOriginal => {
   const original = await importOriginal<typeof import('@/lib/api-client')>();
@@ -10,12 +16,32 @@ vi.mock('@/lib/api-client', async importOriginal => {
 });
 import { useInterests } from '../useInterests';
 
-const saved = { interests: [{ id: 'interest', topic: 'Owned topic', category: 'science', status: 'active' }], total: 1, active_count: 1, blocked_count: 0, dormant_count: 0 };
-const preferences = { interests_enabled: true, interests_notify_start_hour: 8, interests_notify_end_hour: 22, interests_notify_min_per_day: 1, interests_notify_max_per_day: 5 };
+const saved = {
+  interests: [{ id: 'interest', topic: 'Owned topic', category: 'science', status: 'active' }],
+  total: 1,
+  active_count: 1,
+  blocked_count: 0,
+  dormant_count: 0,
+};
+const preferences = {
+  interests_enabled: true,
+  interests_notify_start_hour: 8,
+  interests_notify_end_hour: 22,
+  interests_notify_min_per_day: 1,
+  interests_notify_max_per_day: 5,
+};
 beforeEach(() => {
   vi.resetAllMocks();
   useAuth.mockReturnValue({ user: { id: 'one' } });
-  get.mockImplementation((endpoint: string) => Promise.resolve(endpoint === '/interests/categories' ? { categories: [] } : endpoint === '/interests/settings' ? preferences : saved));
+  get.mockImplementation((endpoint: string) =>
+    Promise.resolve(
+      endpoint === '/interests/categories'
+        ? { categories: [] }
+        : endpoint === '/interests/settings'
+          ? preferences
+          : saved
+    )
+  );
 });
 
 describe('interest management is current and account scoped', () => {
@@ -26,7 +52,11 @@ describe('interest management is current and account scoped', () => {
     get.mockClear();
     act(() => publishApplicationResources('foreign', new Set(['interests'])));
     expect(get).not.toHaveBeenCalled();
-    get.mockImplementation((endpoint: string) => Promise.resolve(endpoint === '/interests/settings' ? { ...preferences, interests_enabled: false } : saved));
+    get.mockImplementation((endpoint: string) =>
+      Promise.resolve(
+        endpoint === '/interests/settings' ? { ...preferences, interests_enabled: false } : saved
+      )
+    );
     act(() => publishApplicationResources('one', new Set(['interests'])));
     await waitFor(() => expect(result.current.settings?.interests_enabled).toBe(false));
     expect(result.current.categoryFilter).toBe('science');

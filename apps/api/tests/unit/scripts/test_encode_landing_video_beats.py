@@ -103,3 +103,21 @@ def test_a_near_tie_marks_no_bar() -> None:
 
 def test_an_empty_map_has_no_bar() -> None:
     assert bar_flags([]) == []
+
+
+def test_a_rising_window_edge_cannot_extrapolate_and_erase_later_beats() -> None:
+    import numpy as np
+
+    # The search ends on a rising shoulder, with almost flat curvature. A
+    # parabola through its neighbours would jump beyond the next two attacks.
+    envelope = np.array([0.0, 0.9988, 1.0, 1.0011, 0.0, 2.0, 0.0, 0.0, 1.0, 0.0])
+    entries = encoder.snap_and_weight([1, 5, 8], envelope, envelope, fps=100.0, radius_ms=10.0)
+    assert [entry[0] for entry in entries] == [93, 123, 153]
+
+
+def test_an_asymmetric_local_peak_retains_subframe_refinement() -> None:
+    import numpy as np
+
+    envelope = np.array([0.0, 0.6, 1.0, 0.8, 0.0])
+    entries = encoder.snap_and_weight([2], envelope, envelope, fps=100.0, radius_ms=10.0)
+    assert [entry[0] for entry in entries] == [95]

@@ -122,13 +122,6 @@ Yes. When your usage limits are reached, scheduled actions are blocked from exec
 The push notification and the in-app toast carry the **final text of the execution** — the same one archived in your conversation, not an intermediate draft. Rich formatting (HTML layout, data cards, decorative icons) is flattened to plain text before the body is truncated, so a notification never shows markup.
 
 
-## Can I create automations directly from the chat?
-Yes — in one sentence: "give me an AI press review every weekday at 8am". LIA validates the schedule and shows a **confirmation card** (title, days, time, instruction); nothing is created until you confirm. You can also **list** your automations ("what are my automations?") and **pause/resume** one in natural language.
-
-**💡 Bonus:** when you ask the same kind of thing at the same hour on several distinct days, LIA can spontaneously offer: "Want me to turn this into a recurring automation?" (deterministic detection, one suggestion max per month per pattern, off by default — `RECURRENCE_SUGGESTION_ENABLED`).
-
-Deleting an automation remains a Settings action.
-
 ## Can LIA watch for a reply and tell me the minute it arrives?
 Yes. On the Today briefing, a mail card offers *Watch for a reply from …*: one tap creates a condition routine keyed on that **sender** (never on the subject), valid for two weeks, and LIA already checks that you are not watching that person twice.
 
@@ -172,3 +165,9 @@ change, so the run knows exactly what to check.
 routine again. During the run, LIA reads the weather with your own tools: if
 your service differs from Google Weather, the answer can say which source saw
 the change.
+
+## Can I manage scheduled actions through chat?
+
+Yes. Request your scheduled actions or prepare their creation, edit, pause, resumption or deletion among the offered operations. Changes requiring agreement use confirmation tied to the precise routine; private choices stay in the interface. The schedule and register let you check its state and outcome. Waiting for confirmation is not execution, and an old reservation must not consume a new occurrence.
+
+If recurrence suggestions are enabled on your instance, a repeated request may lead LIA to propose a routine. A suggestion creates nothing by itself: review the proposal before confirming.

@@ -1472,7 +1472,8 @@ Les tools natifs (Google, Weather, etc.) sont **compilés** dans le code source.
 **2. Per-User MCP (`UserMCPToolAdapter`)** — Serveurs configurés par l'utilisateur en DB :
 - Découverts dynamiquement par request via `ContextVar[UserMCPToolsContext]`
 - Injectés dans le catalogue par `SmartCatalogueService` (strategies normal + panic)
-- Résolus dans `parallel_executor.py` via le ContextVar en fallback
+- Résolus par le contrat offert de la requête : son manifest choisit l'instance
+  native/admin ou l'instance du compte dans le ContextVar, avec propriétaire exact
 - Domain : `"mcp_user"` (ou per-server slug `mcp_<server_name>`)
 - Naming : `mcp_user_{server_id}_{tool_name}`
 
@@ -1505,25 +1506,36 @@ Les tools MCP retournent des `UnifiedToolOutput` avec `registry_updates` :
 
 ### Pipeline d'intégration
 
-```
-User Query → Router → Planner → SmartCatalogueService
-                                       │
-                          ┌─────────────┼──────────────┐
-                          │             │              │
-                     Native Tools   Admin MCP    User MCP Tools
-                     (registry)     (registry)   (ContextVar)
-                          │             │              │
-                          └─────────────┼──────────────┘
-                                        ↓
-                              ParallelExecutor
-                                        │
-                          ┌─────────────┼──────────────┐
-                          │             │              │
-                      tool_registry  tool_registry  ContextVar
-                      .get_tool()    .get_tool()    fallback
+```text
+User Query → Router → Planner / ReAct → catalogue offert de la requête
+                                            │
+                                 manifest + identité canonique
+                                            │
+                             resolve_tool_instance_named()
+                                            │
+                         ┌──────────────────┴──────────────────┐
+                         │                                     │
+                   Native / Admin MCP                    Per-User MCP
+                   registry global                       ContextVar du compte
+                         │                                     │
+                         └───────── instance conforme ─────────┘
+                                            │
+                                  Pipeline / ReAct executor
 ```
 
-3 points d'injection dans `parallel_executor.py` résolvent les tools MCP per-user via le ContextVar quand le tool n'est pas trouvé dans le registry natif.
+Lorsque `request_tool_manifests_ctx` est lié, son snapshot est l'autorité,
+y compris s'il est vide. Le manifest offert détermine le lieu de résolution et
+le propriétaire exact du serveur MCP ; une instance absente, ambiguë ou
+incompatible avec ce contrat est refusée. La résolution ne lui substitue pas
+un autre callable trouvé dans un registre. Les individus d'un outil itératif
+doivent conserver l'identité tâche/serveur de l'outil offert.
+
+Hors requête liée, les diagnostics conservent la recherche de compatibilité
+global exact/suffixe puis le contexte utilisateur. Ce chemin ne constitue pas
+un élargissement du catalogue d'une requête. Les points communs sont
+`registry/manifest_resolution.py` et `tools/tool_resolution.py` ; voir
+[MCP_INTEGRATION.md](MCP_INTEGRATION.md) et
+[ADR-338](../architecture/ADR-338-Live-MCP-Contracts-And-Exact-Callable-Identity.md).
 
 ### Fichiers clés MCP
 
@@ -1532,6 +1544,8 @@ User Query → Router → Planner → SmartCatalogueService
 | `infrastructure/mcp/tool_adapter.py` | `MCPToolAdapter` (admin servers → BaseTool) |
 | `infrastructure/mcp/user_tool_adapter.py` | `UserMCPToolAdapter` (per-user → BaseTool + UnifiedToolOutput) |
 | `infrastructure/mcp/user_context.py` | `UserMCPToolsContext` + ContextVar + manifest builder |
+| `domains/agents/registry/manifest_resolution.py` | Manifest offert autoritaire, alias et identité MCP |
+| `domains/agents/tools/tool_resolution.py` | Résolution commune de l'instance conforme en Pipeline et ReAct |
 | `infrastructure/mcp/client_manager.py` | `MCPClientManager` (admin server lifecycle) |
 | `infrastructure/mcp/user_pool.py` | `UserMCPClientPool` (ephemeral connections, rate limiting) |
 | `infrastructure/mcp/security.py` | SSRF prevention, URL validation |

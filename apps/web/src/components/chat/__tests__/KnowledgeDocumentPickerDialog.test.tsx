@@ -186,7 +186,9 @@ describe('KnowledgeDocumentPickerDialog — a cut page is stated', () => {
   it('says how many documents the page shows out of the exact total', async () => {
     api.get.mockResolvedValue({ ...LISTING, total: 120 });
     renderDialog();
-    await waitFor(() => expect(screen.getByText('chat.knowledge_picker.more_hint')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText('chat.knowledge_picker.more_hint')).toBeInTheDocument()
+    );
   });
 
   it('says nothing about a cut when the page holds the whole set', async () => {

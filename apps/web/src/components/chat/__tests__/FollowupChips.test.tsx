@@ -88,7 +88,6 @@ describe('FollowupChips', () => {
   });
 });
 
-
 describe('initiative motivation (Lot 1-A3)', () => {
   it('renders the provenance line above the chips', () => {
     render(

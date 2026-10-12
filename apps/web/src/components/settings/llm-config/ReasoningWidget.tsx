@@ -156,9 +156,7 @@ function BudgetField({
       />
       <p
         id={errorId}
-        className={
-          outOfRange ? 'text-px-10 text-destructive' : 'text-px-10 text-muted-foreground'
-        }
+        className={outOfRange ? 'text-px-10 text-destructive' : 'text-px-10 text-muted-foreground'}
       >
         {hint}
       </p>

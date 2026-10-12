@@ -298,6 +298,7 @@ export const EyesWidget = memo(function EyesWidget(props: EyesWidgetProps) {
   const { t } = useTranslation();
   const { isMale } = useLiaGender();
   const surface = props.surface ?? 'chat';
+  const allowSleep = surface !== 'landing';
   const { visible, size, style: preferredStyle, setVisible, cycleSize } = useEyesWidgetStore();
   const { mounted, hiddenByAvatar, enabled, active } = useWidgetPresence(visible, surface);
   const position = useEyesWidgetStore(s =>
@@ -310,6 +311,7 @@ export const EyesWidget = memo(function EyesWidget(props: EyesWidgetProps) {
     streamPhase: props.streamPhase,
     hitlAwaiting: props.hitlAwaiting,
     enabled,
+    allowSleep,
   });
 
   // Client-only gate: the chat page is SSR'd once — defer to avoid any
@@ -409,6 +411,7 @@ export const EyesWidget = memo(function EyesWidget(props: EyesWidgetProps) {
           presentation.styleId
         )}
         variant={presentation.variant}
+        allowSleep={allowSleep}
       />
       <EyesToolbar
         tapVisible={toolbarTapVisible}

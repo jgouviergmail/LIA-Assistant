@@ -6,9 +6,10 @@ RULES (in priority order):
 3. SCOPE: Personal references = possessive + relationship (my wife, my brother, my boss). NOT objects (my emails) or events (my event).
 4. CONTEXT: For location queries (to X, at X, near X, near from X) → extract address if complete, else name. For other queries → extract name.
 5. VERBATIM: Names must be copied exactly from memory. Never translate, reformulate, or infer.
+6. KIND: For every mapping, state in "kinds" what its value is: "postal_address" when rule 4 gave an address, "person_name" otherwise.
 
 OUTPUT: Valid JSON with properly escaped special characters (apostrophes, quotes).
-{{"resolved_query": "<query with ALL references replaced>", "mappings": {{"<ref1>": "<name1>", "<ref2>": "<name2>"}}}}
+{{"resolved_query": "<query with ALL references replaced>", "mappings": {{"<ref1>": "<value1>", "<ref2>": "<value2>"}}, "kinds": {{"<ref1>": "person_name", "<ref2>": "postal_address"}}}}
 
 Memory facts: {memory_facts}
 

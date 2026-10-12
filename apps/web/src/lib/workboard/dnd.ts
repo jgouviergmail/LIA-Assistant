@@ -20,9 +20,7 @@ export function columnDroppableId(status: string): string {
 
 /** The column a droppable id names, or null when it names something else. */
 export function columnOfDroppable(id: string): string | null {
-  return id.startsWith(COLUMN_DROPPABLE_PREFIX)
-    ? id.slice(COLUMN_DROPPABLE_PREFIX.length)
-    : null;
+  return id.startsWith(COLUMN_DROPPABLE_PREFIX) ? id.slice(COLUMN_DROPPABLE_PREFIX.length) : null;
 }
 
 /** Where a drop lands: which column, and at which index inside it. */
@@ -99,9 +97,7 @@ export interface DragSpeech {
  * @param t - The translator.
  * @returns One function per step of a drag.
  */
-export function dragSpeech(
-  t: (key: string, values: Record<string, string>) => string
-): DragSpeech {
+export function dragSpeech(t: (key: string, values: Record<string, string>) => string): DragSpeech {
   return {
     pickedUp: (title, column) => t('workboard.dnd.picked_up', { title, column }),
     movedOver: (title, column) => t('workboard.dnd.moved_over', { title, column }),

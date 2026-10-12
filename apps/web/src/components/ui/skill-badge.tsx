@@ -32,8 +32,7 @@ const skillBadgeVariants = cva(
 );
 
 export interface SkillBadgeProps
-  extends React.HTMLAttributes<HTMLSpanElement>,
-    VariantProps<typeof skillBadgeVariants> {
+  extends React.HTMLAttributes<HTMLSpanElement>, VariantProps<typeof skillBadgeVariants> {
   /** Skill identifier, rendered after the sparkle affix. */
   name: string;
   /**

@@ -77,13 +77,7 @@ export function ConstellationSky({ outline, reducedMotion = false }: Constellati
 
       <g fill="currentColor">
         {DUST.map(star => (
-          <circle
-            key={`${star.x}-${star.y}`}
-            cx={star.x}
-            cy={star.y}
-            r={star.r}
-            opacity={star.o}
-          />
+          <circle key={`${star.x}-${star.y}`} cx={star.x} cy={star.y} r={star.r} opacity={star.o} />
         ))}
       </g>
 

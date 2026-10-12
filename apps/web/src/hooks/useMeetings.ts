@@ -92,33 +92,64 @@ export function useMeetingList(limit: number, offset = 0, enabled = true): UseMe
     } finally {
       if (!isStale() && isCurrent()) setIsLoading(false);
     }
-  }, [enabled, guard, limit, offset, isCurrent, setMeetings, setTotal, setError, setIsUnavailable, setIsLoading]);
-  const refetch = useCallback(async () => { await read(); }, [read]);
-  const refetchVerified = useCallback(async () => { if (!await read()) throw new Error('Meeting list refresh failed'); }, [read]);
+  }, [
+    enabled,
+    guard,
+    limit,
+    offset,
+    isCurrent,
+    setMeetings,
+    setTotal,
+    setError,
+    setIsUnavailable,
+    setIsLoading,
+  ]);
+  const refetch = useCallback(async () => {
+    await read();
+  }, [read]);
+  const refetchVerified = useCallback(async () => {
+    if (!(await read())) throw new Error('Meeting list refresh failed');
+  }, [read]);
   useApplicationResourceSync(scopeId ? ownerId : undefined, 'meetings', refetchVerified);
 
   useEffect(() => {
     void refetch();
   }, [refetch]);
 
-  const bulkDelete = useCallback(async (ids: string[]) => {
-    if (!isCurrent() || pending.current === lifetime) throw new Error('Meeting list action is unavailable');
-    pending.current = lifetime;
-    setIsDeleting(true);
-    try {
-      const result = await meetingsApi.bulkDelete(ids);
-      if (!isCurrent()) throw new Error('Meeting list action is obsolete');
-      return result;
-    } catch (err) {
-      if (isCurrent()) logger.error('meetings_bulk_delete_failed', err as Error, { component: 'useMeetingList' });
-      throw err;
-    } finally {
-      if (pending.current === lifetime) pending.current = null;
-      if (isCurrent()) setIsDeleting(false);
-    }
-  }, [isCurrent, lifetime, setIsDeleting]);
+  const bulkDelete = useCallback(
+    async (ids: string[]) => {
+      if (!isCurrent() || pending.current === lifetime)
+        throw new Error('Meeting list action is unavailable');
+      pending.current = lifetime;
+      setIsDeleting(true);
+      try {
+        const result = await meetingsApi.bulkDelete(ids);
+        if (!isCurrent()) throw new Error('Meeting list action is obsolete');
+        return result;
+      } catch (err) {
+        if (isCurrent())
+          logger.error('meetings_bulk_delete_failed', err as Error, {
+            component: 'useMeetingList',
+          });
+        throw err;
+      } finally {
+        if (pending.current === lifetime) pending.current = null;
+        if (isCurrent()) setIsDeleting(false);
+      }
+    },
+    [isCurrent, lifetime, setIsDeleting]
+  );
 
-  return { meetings, total, isLoading: !!scopeId && isLoading, isUnavailable, error, refetch, isDeleting, bulkDelete };
+  return {
+    meetings,
+    total,
+    isLoading: !!scopeId && isLoading,
+    isUnavailable,
+    error,
+    refetch,
+    isDeleting,
+    bulkDelete,
+  };
 }
 
 export interface UseMeetingReturn {
@@ -191,9 +222,23 @@ export function useMeeting(id: string | null, includeTranscript = false): UseMee
         setPollTick(current => current + 1);
       }
     }
-  }, [guard, id, includeTranscript, isCurrent, setMeeting, setError, setIsNotFound, setIsLoading, setPollTick]);
-  const refetch = useCallback(async () => { await read(); }, [read]);
-  const refetchVerified = useCallback(async () => { if (!await read()) throw new Error('Meeting detail refresh failed'); }, [read]);
+  }, [
+    guard,
+    id,
+    includeTranscript,
+    isCurrent,
+    setMeeting,
+    setError,
+    setIsNotFound,
+    setIsLoading,
+    setPollTick,
+  ]);
+  const refetch = useCallback(async () => {
+    await read();
+  }, [read]);
+  const refetchVerified = useCallback(async () => {
+    if (!(await read())) throw new Error('Meeting detail refresh failed');
+  }, [read]);
   useApplicationResourceSync(scopeId ? ownerId : undefined, 'meetings', refetchVerified);
 
   // Poll while the server is still working on the meeting; stop as soon as it
@@ -210,27 +255,33 @@ export function useMeeting(id: string | null, includeTranscript = false): UseMee
     void refetch();
   }, [refetch]);
 
-  const act = useCallback(async <T>(operation: () => Promise<T>): Promise<T | null> => {
-    if (!isCurrent() || pending.current === lifetime) return null;
-    pending.current = lifetime;
-    setIsActing(true);
-    try {
-      const result = await operation();
-      return isCurrent() ? result : null;
-    } catch (err) {
-      if (isCurrent()) throw err;
-      return null;
-    } finally {
-      if (pending.current === lifetime) pending.current = null;
-      if (isCurrent()) setIsActing(false);
-    }
-  }, [isCurrent, lifetime, setIsActing]);
+  const act = useCallback(
+    async <T>(operation: () => Promise<T>): Promise<T | null> => {
+      if (!isCurrent() || pending.current === lifetime) return null;
+      pending.current = lifetime;
+      setIsActing(true);
+      try {
+        const result = await operation();
+        return isCurrent() ? result : null;
+      } catch (err) {
+        if (isCurrent()) throw err;
+        return null;
+      } finally {
+        if (pending.current === lifetime) pending.current = null;
+        if (isCurrent()) setIsActing(false);
+      }
+    },
+    [isCurrent, lifetime, setIsActing]
+  );
 
-  const applyDetail = useCallback((detail: MeetingDetail) => {
-    if (!isCurrent()) return null;
-    setMeeting(detail);
-    return detail;
-  }, [isCurrent, setMeeting]);
+  const applyDetail = useCallback(
+    (detail: MeetingDetail) => {
+      if (!isCurrent()) return null;
+      setMeeting(detail);
+      return detail;
+    },
+    [isCurrent, setMeeting]
+  );
 
   const patch = useCallback(
     (request: MeetingPatchRequest) =>

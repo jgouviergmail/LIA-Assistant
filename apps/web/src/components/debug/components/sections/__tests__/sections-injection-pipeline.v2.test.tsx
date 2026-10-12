@@ -259,7 +259,10 @@ describe('LLMPipelineSection v2', () => {
     const [first, second] = DATA.calls;
     const aliased = {
       ...DATA,
-      calls: [{ ...first, model_name: 'deepseek-flash', requested_model: 'deepseek-v4-flash' }, second],
+      calls: [
+        { ...first, model_name: 'deepseek-flash', requested_model: 'deepseek-v4-flash' },
+        second,
+      ],
     };
     open(['llm_pipeline'], <LLMPipelineSection data={aliased} />);
 
@@ -461,7 +464,13 @@ describe('GoogleApiCallsSection v2', () => {
       ['google-api'],
       <GoogleApiCallsSection
         calls={[
-          { api_name: 'places', endpoint: '/places:searchText', cost_usd: 0.005, cost_eur: 0.0046, cached: false },
+          {
+            api_name: 'places',
+            endpoint: '/places:searchText',
+            cost_usd: 0.005,
+            cost_eur: 0.0046,
+            cached: false,
+          },
         ]}
         summary={{
           total_calls: 1,

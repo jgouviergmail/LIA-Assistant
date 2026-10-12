@@ -63,7 +63,11 @@ beforeEach(() => {
 describe('PsycheHistory — fetch gating', () => {
   it('rereads the current open history after a native reset and ignores another owner', async () => {
     const refetch = vi.fn().mockResolvedValue(undefined);
-    useApiQuery.mockReturnValue({ ...dataQuery<PsycheHistoryEntry[]>([]), ownerId: 'one', refetch });
+    useApiQuery.mockReturnValue({
+      ...dataQuery<PsycheHistoryEntry[]>([]),
+      ownerId: 'one',
+      refetch,
+    });
     const { unmount } = render();
     act(() => publishApplicationResources('two', new Set(['psyche'])));
     expect(refetch).not.toHaveBeenCalled();

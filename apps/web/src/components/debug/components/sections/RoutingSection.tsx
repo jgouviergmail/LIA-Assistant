@@ -81,7 +81,10 @@ export const RoutingSection = React.memo(function RoutingSection({ data }: Routi
       <div>
         <SubSectionHeader label="Decision thresholds" borderTop />
         {data.thresholds.chat_semantic_threshold && (
-          <ThresholdRow label="Chat threshold (low)" check={data.thresholds.chat_semantic_threshold} />
+          <ThresholdRow
+            label="Chat threshold (low)"
+            check={data.thresholds.chat_semantic_threshold}
+          />
         )}
         {data.thresholds.high_semantic_threshold && (
           <ThresholdRow

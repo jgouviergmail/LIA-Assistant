@@ -30,8 +30,7 @@ export function sectionProgress(
 /** Live check — evaluated per frame so OS-level toggles apply immediately. */
 export function prefersReducedMotion(): boolean {
   return (
-    typeof window !== 'undefined' &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
   );
 }
 

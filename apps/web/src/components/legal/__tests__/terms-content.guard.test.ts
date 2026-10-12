@@ -24,9 +24,7 @@ const EXPECTED_SECTION_COUNT = 12;
 function readTerms(lng: string): string {
   // Line endings are normalized: the two oldest files are CRLF and the newer
   // ones LF, and every structural check below anchors on "\n".
-  return fs
-    .readFileSync(path.join(GUIDES_DIR, `terms.${lng}.md`), 'utf-8')
-    .replace(/\r\n/g, '\n');
+  return fs.readFileSync(path.join(GUIDES_DIR, `terms.${lng}.md`), 'utf-8').replace(/\r\n/g, '\n');
 }
 
 function numberedHeadings(content: string): string[] {

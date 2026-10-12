@@ -65,6 +65,29 @@ export interface RequestConfig extends RequestInit {
   timeout?: number;
 }
 
+/** Public same-origin configuration is outside the authenticated backend API. */
+export type PublicUiEndpoint =
+  | '/api/landing-media'
+  | '/api/runtime-ui'
+  | `/api/landing-media/beats?video=${number}`;
+
+/** Anonymous JSON transport for the Next server's bounded UI configuration routes. */
+export async function readPublicUiJson<T>(
+  endpoint: PublicUiEndpoint,
+  config: Pick<RequestConfig, 'signal' | 'timeout'> = {}
+): Promise<T> {
+  if (!/^\/api\/(?:runtime-ui|landing-media(?:\/beats\?video=\d+)?)$/.test(endpoint)) {
+    throw new TypeError('Public UI configuration must use a declared same-origin route');
+  }
+  const response = await fetch(endpoint, {
+    headers: { accept: 'application/json' },
+    credentials: 'omit',
+    signal: combineSignals(createAbortSignal(config.timeout ?? API_TIMEOUT_DEFAULT), config.signal),
+  });
+  if (!response.ok) throw new ApiError(`HTTP ${response.status}`, response.status);
+  return response.json();
+}
+
 /**
  * Determine the correct API URL based on execution context.
  *

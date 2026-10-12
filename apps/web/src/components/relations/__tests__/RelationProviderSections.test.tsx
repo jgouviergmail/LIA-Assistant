@@ -473,7 +473,13 @@ describe('the one sentence unusable sections may say', () => {
 
 describe('selectedSubjects', () => {
   const emails = [
-    { id: 'm1', direction: 'received' as const, subject: 'Devis', occurred_at: null, excerpt: null },
+    {
+      id: 'm1',
+      direction: 'received' as const,
+      subject: 'Devis',
+      occurred_at: null,
+      excerpt: null,
+    },
     {
       id: 'm2',
       direction: 'sent' as const,
@@ -481,7 +487,13 @@ describe('selectedSubjects', () => {
       occurred_at: null,
       excerpt: null,
     },
-    { id: 'm3', direction: 'received' as const, subject: 'Merci', occurred_at: null, excerpt: null },
+    {
+      id: 'm3',
+      direction: 'received' as const,
+      subject: 'Merci',
+      occurred_at: null,
+      excerpt: null,
+    },
   ];
 
   it('carries ONLY what was ticked', () => {

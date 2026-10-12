@@ -75,7 +75,11 @@ describe('EmptySection', () => {
   it('accepts a contextual message', () => {
     inOpenAccordion(
       'e2',
-      <EmptySection value="e2" title="Tool Selection" message="Routed to chat — no tools involved." />
+      <EmptySection
+        value="e2"
+        title="Tool Selection"
+        message="Routed to chat — no tools involved."
+      />
     );
     expect(screen.getByText('Routed to chat — no tools involved.')).toBeInTheDocument();
   });

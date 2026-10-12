@@ -26,6 +26,7 @@ import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 
 import { LandingVideo, type LandingVideoSlotLabels } from '../LandingVideo';
 import { LandingVideoHost, type LandingVideoHostLabels } from '../LandingVideoHost';
+import { useLandingVideoRegistry } from '../landing-video-context';
 
 let pathname = '/fr';
 vi.mock('next/navigation', () => ({
@@ -169,7 +170,18 @@ function Tree({ slot }: { slot: boolean }) {
   return (
     <LandingVideoHost lng="fr" labels={HOST_LABELS}>
       {slot ? <LandingVideo labels={SLOT_LABELS} /> : null}
+      <ExclusiveControl />
     </LandingVideoHost>
+  );
+}
+
+function ExclusiveControl() {
+  const registry = useLandingVideoRegistry();
+  return (
+    <>
+      <button onClick={() => registry?.setExclusivePlayback(true)}>Open exclusive film</button>
+      <button onClick={() => registry?.setExclusivePlayback(false)}>Close exclusive film</button>
+    </>
   );
 }
 
@@ -283,6 +295,129 @@ describe('LandingVideo — without a configured video', () => {
     expect(container.querySelector('section')).toBeNull();
     expect(document.querySelector('video')).toBeNull();
     expect(player()).toBeNull();
+  });
+});
+
+describe('LandingVideo — exclusive complete presentation', () => {
+  it('pauses even audible background media and retains its position when the dialog owns playback', async () => {
+    // Native load() resets the playback position; a no-op mock hid a reload
+    // triggered by changing the suspended callback rather than the sources.
+    load.mockImplementation(function (this: HTMLMediaElement) {
+      this.currentTime = 0;
+    });
+    await startedInView();
+    const background = videoElement();
+    background.currentTime = 17;
+    const sourceLoads = load.mock.calls.length;
+    fireEvent.click(screen.getByRole('button', { name: 'Open exclusive film' }));
+    expect(pause.mock.contexts).toContain(background);
+    expect(background.closest('.landing-video-stage')).toHaveAttribute('hidden');
+    fireEvent.pause(background);
+    expect(background.currentTime).toBe(17);
+    fireEvent.click(screen.getByRole('button', { name: 'Close exclusive film' }));
+    expect(background.closest('.landing-video-stage')).not.toHaveAttribute('hidden');
+    expect(videoElement()).toBe(background);
+    await waitFor(() => expect(play).toHaveBeenCalledTimes(2));
+    expect(load).toHaveBeenCalledTimes(sourceLoads);
+    expect(background.currentTime).toBe(17);
+  });
+
+  it('resumes the chosen audible music when the background was already docked offscreen', async () => {
+    await startedInView();
+    intersect(viewObserver(), false);
+    expect(player()).toHaveAttribute('data-mode', 'docked');
+    const background = videoElement();
+    fireEvent.click(screen.getByRole('button', { name: 'Open exclusive film' }));
+    fireEvent.pause(background);
+    fireEvent.click(screen.getByRole('button', { name: 'Close exclusive film' }));
+    await waitFor(() => expect(play).toHaveBeenCalledTimes(2));
+    fireEvent.play(background);
+    expect(player()).toHaveAttribute('data-mode', 'docked');
+  });
+
+  it('does not resume a background video the visitor manually paused before opening the film', async () => {
+    await startedInView();
+    fireEvent.click(screen.getByRole('button', { name: HOST_LABELS.pause }));
+    fireEvent.pause(videoElement());
+    fireEvent.click(screen.getByRole('button', { name: 'Open exclusive film' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Close exclusive film' }));
+    await act(async () => Promise.resolve());
+    expect(play).toHaveBeenCalledOnce();
+    expect(screen.getByRole('button', { name: HOST_LABELS.play })).toBeVisible();
+  });
+
+  it('ignores a late autoplay refusal while the presentation owns playback', async () => {
+    let refuse: ((error: DOMException) => void) | undefined;
+    play.mockImplementationOnce(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          refuse = reject;
+        })
+    );
+    await renderMounted();
+    await findMounted();
+    intersect(nearObserver(), true);
+    intersect(viewObserver(), true);
+    await waitFor(() => expect(play).toHaveBeenCalledOnce());
+    fireEvent.click(screen.getByRole('button', { name: 'Open exclusive film' }));
+    await act(async () => refuse?.(new DOMException('Gesture required', 'NotAllowedError')));
+    expect(play).toHaveBeenCalledOnce();
+    expect(videoElement().muted).toBe(false);
+  });
+
+  it('does not let an older refusal mute a new playback after the presentation closes', async () => {
+    let refuse: ((error: DOMException) => void) | undefined;
+    play.mockImplementationOnce(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          refuse = reject;
+        })
+    );
+    await renderMounted();
+    await findMounted();
+    intersect(nearObserver(), true);
+    intersect(viewObserver(), true);
+    await waitFor(() => expect(play).toHaveBeenCalledOnce());
+    fireEvent.click(screen.getByRole('button', { name: 'Open exclusive film' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Close exclusive film' }));
+    await waitFor(() => expect(play).toHaveBeenCalledTimes(2));
+    await act(async () => refuse?.(new DOMException('Gesture required', 'NotAllowedError')));
+    expect(play).toHaveBeenCalledTimes(2);
+    expect(videoElement().muted).toBe(false);
+  });
+
+  it('holds muted background playback offscreen after closing, then resumes when visible', async () => {
+    await startedInView();
+    fireEvent.click(screen.getByRole('button', { name: HOST_LABELS.mute }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open exclusive film' }));
+    fireEvent.pause(videoElement());
+    intersect(viewObserver(), false);
+    fireEvent.click(screen.getByRole('button', { name: 'Close exclusive film' }));
+    await act(async () => Promise.resolve());
+    expect(play).toHaveBeenCalledOnce();
+    expect(videoElement().muted).toBe(true);
+    intersect(viewObserver(), true);
+    await waitFor(() => expect(play).toHaveBeenCalledTimes(2));
+  });
+
+  it('ignores a late autoplay refusal after the player has unmounted', async () => {
+    let refuse: ((error: DOMException) => void) | undefined;
+    play.mockImplementationOnce(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          refuse = reject;
+        })
+    );
+    const mounted = await renderMounted();
+    await findMounted();
+    intersect(nearObserver(), true);
+    intersect(viewObserver(), true);
+    await waitFor(() => expect(play).toHaveBeenCalledOnce());
+    const background = videoElement();
+    mounted.unmount();
+    await act(async () => refuse?.(new DOMException('Gesture required', 'NotAllowedError')));
+    expect(play).toHaveBeenCalledOnce();
+    expect(background.muted).toBe(false);
   });
 });
 

@@ -12,9 +12,21 @@ vi.mock('@/lib/api-client', async importOriginal => {
 import { useSkills } from '../useSkills';
 
 const saved: SkillListResponse = {
-  skills: [{ name: 'owned', description: 'Owned skill', descriptions: null,
-    scope: 'user', category: null, priority: 50, always_loaded: false,
-    has_scripts: false, has_plan_template: false, enabled_for_user: true }], total: 1,
+  skills: [
+    {
+      name: 'owned',
+      description: 'Owned skill',
+      descriptions: null,
+      scope: 'user',
+      category: null,
+      priority: 50,
+      always_loaded: false,
+      has_scripts: false,
+      has_plan_template: false,
+      enabled_for_user: true,
+    },
+  ],
+  total: 1,
 };
 beforeEach(() => {
   vi.resetAllMocks();
@@ -38,20 +50,29 @@ describe('personal skill changes and queries belong to their current account', (
     const { result, rerender } = renderHook(() => useSkills());
     await waitFor(() => expect(result.current.total).toBe(1));
     let resolve: (value: SkillListResponse) => void = () => {};
-    get.mockImplementation(() => new Promise<SkillListResponse>(accept => { resolve = accept; }));
+    get.mockImplementation(
+      () =>
+        new Promise<SkillListResponse>(accept => {
+          resolve = accept;
+        })
+    );
     useAuth.mockReturnValue({ user: { id: 'two' } });
     rerender();
     expect(result.current.total).toBe(0);
     expect(result.current.skills).toEqual([]);
     await waitFor(() => expect(get).toHaveBeenCalledTimes(2));
-    await act(async () => { resolve({ ...saved, total: 2 }); });
+    await act(async () => {
+      resolve({ ...saved, total: 2 });
+    });
     await waitFor(() => expect(result.current.total).toBe(2));
   });
 
   it('never queries an unavailable account', async () => {
     useAuth.mockReturnValue({ user: null });
     renderHook(() => useSkills());
-    await act(async () => { await Promise.resolve(); });
+    await act(async () => {
+      await Promise.resolve();
+    });
     expect(get).not.toHaveBeenCalled();
   });
 

@@ -351,15 +351,13 @@ No OAuth. Domain: `weather`.
 - `user_message` (string) — User's original message for context
 - `date` (string) — Date for weather query
 - `units` (string, default: "metric") — `"metric"` | `"imperial"`
-- `language` (string, default: "fr")
 
 ### get_weather_forecast_tool
 - `location` (string) — Location
 - `user_message` (string) — User's original message
-- `date` (string) — Start date
-- `days` (int) — Number of forecast days (1-5)
+- `date` (string) — First day returned (ISO date)
+- `days` (int) — Consecutive days from `date` (1 to the configured window); omitted with a `date`, that day alone
 - `units` (string, default: "metric")
-- `language` (string, default: "fr")
 
 ### get_hourly_forecast_tool
 - `location` (string) — Location
@@ -367,7 +365,6 @@ No OAuth. Domain: `weather`.
 - `date` (string) — Date
 - `hours` (int, default: 24) — Number of hours (1-48)
 - `units` (string, default: "metric")
-- `language` (string, default: "fr")
 
 ---
 

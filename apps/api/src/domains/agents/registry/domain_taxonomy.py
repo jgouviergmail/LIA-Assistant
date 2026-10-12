@@ -670,6 +670,32 @@ def get_all_domains() -> list[str]:
     return list(DOMAIN_REGISTRY.keys())
 
 
+def domain_of_agent(agent: str) -> str | None:
+    """The taxonomy domain a manifest's agent belongs to, or None.
+
+    An exact ``agent_names`` declaration first. An agent may also qualify its
+    family (``devops_diagnostics_agent``): the taxonomy knows ``devops`` and
+    not the qualified spelling, so the leading segment is tried before the
+    whole stem. Measured 2026-09-04: without it, the four self-diagnostics tools
+    resolved to ``devops_diagnostics``, which no domain names.
+
+    Args:
+        agent: The manifest's agent name (``contact_agent``).
+
+    Returns:
+        The domain name, or None when the taxonomy knows neither spelling.
+    """
+    for name, config in DOMAIN_REGISTRY.items():
+        if agent in config.agent_names:
+            return name
+    stem = agent.removesuffix("_agent")
+    head = stem.split("_")[0]
+    for candidate in (head, stem):
+        if candidate in DOMAIN_REGISTRY:
+            return candidate
+    return None
+
+
 def get_routable_domains() -> list[str]:
     """
     Get list of domains that can be selected by the router.

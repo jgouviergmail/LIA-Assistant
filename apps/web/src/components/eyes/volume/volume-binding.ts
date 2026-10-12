@@ -20,7 +20,7 @@ import { createClothGpu } from './cloth-gpu';
 import { readVolumeMask } from './volume-mask';
 import { bodySurfaceProfile } from './volume-distance';
 import { releaseNativeContext } from './context-lifetime';
-import { withSoftFringe } from './volume-fringe';
+import { volumeFringeMask, withSoftFringe } from './volume-fringe';
 
 interface VolumeBinding {
   paint(values: Readonly<ChannelValues>, force?: boolean): boolean;
@@ -91,6 +91,7 @@ export function bindBodyVolume(
     cloth: ReturnType<typeof createClothGpu> | null = null;
   let mask: VolumeMask | null = null,
     mesh: VolumeMesh | null = null,
+    fringe: HTMLCanvasElement | null = null,
     failed = false,
     loading = false,
     contextLost = false;
@@ -184,14 +185,18 @@ export function bindBodyVolume(
       failed = true;
       return;
     }
-    mesh ??= withSoftFringe(visibleVolumeMesh(profile, mask), profile);
+    if (!mesh) {
+      const physical = visibleVolumeMesh(profile, mask);
+      fringe = volumeFringeMask(physical, mask);
+      mesh = withSoftFringe(physical, profile);
+    }
     gpu = createMeshGpu(canvas, gl, mesh, false, 1.7, character === 'monitor');
     if (!gpu) {
       failed = true;
       return;
     }
     cloth = createClothGpu(canvas, gl, profile.collar, redraw, 1.7, profile);
-    gpu.upload(image);
+    gpu.upload(image, fringe ?? undefined);
     redraw();
   };
   const binding: VolumeBinding = {

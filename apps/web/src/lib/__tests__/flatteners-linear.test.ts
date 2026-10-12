@@ -2,9 +2,12 @@
  * Every text flattener of the browser reads a hostile text in linear time
  * (ADR-326) — the twin of the API's `test_flatteners_are_linear.py`.
  *
- * The guard measures GROWTH, never a wall-clock budget alone: each witness runs
+ * The guard measures CPU GROWTH, never a wall-clock budget alone: each witness runs
  * at n and at 4n, and a flattener may not take more than eight times longer on
- * four times the text (linear grows ×4, quadratic ×16). A floor absorbs the
+ * four times the text (linear grows ×4, quadratic ×16). Thread CPU excludes
+ * descheduling and other workers; the original wall-time ceiling remains.
+ * https://nodejs.org/docs/latest-v24.x/api/process.html#processthreadcpuusagepreviousvalue
+ * A floor absorbs the
  * jitter of a loaded runner; a ceiling catches a pattern that is linear but
  * absurdly slow. Measured before the rewrite: 40 KB of newlines cost 1.3 s in
  * `flattenForVoice`, 120 KB of « [a](http://x » 6.3 s.
@@ -72,27 +75,34 @@ const WITNESSES: Record<string, (n: number) => string> = {
   'tab-pipe pairs': n => '\t|'.repeat(n / 2),
 };
 
-function milliseconds(flatten: (text: string) => unknown, text: string): number {
-  let best = Number.POSITIVE_INFINITY;
+function durations(flatten: (text: string) => unknown, text: string) {
+  let cpuMs = Number.POSITIVE_INFINITY;
+  let wallMs = Number.POSITIVE_INFINITY;
   for (let run = 0; run < 3; run += 1) {
+    const cpuStarted = process.threadCpuUsage();
     const started = performance.now();
     flatten(text);
-    best = Math.min(best, performance.now() - started);
+    const cpu = process.threadCpuUsage(cpuStarted);
+    wallMs = Math.min(wallMs, performance.now() - started);
+    cpuMs = Math.min(cpuMs, (cpu.user + cpu.system) / 1000);
   }
-  return best;
+  return { cpuMs, wallMs };
 }
 
 describe('every flattener grows linearly on a hostile text (ADR-326)', () => {
   for (const [name, flatten] of Object.entries(FLATTENERS)) {
     for (const [witness, make] of Object.entries(WITNESSES)) {
       it(`${name} on ${witness}`, () => {
-        const small = milliseconds(flatten, make(SMALL));
-        const large = milliseconds(flatten, make(4 * SMALL));
-        expect(large, `${large.toFixed(0)} ms at ${4 * SMALL} chars`).toBeLessThan(CEILING_MS);
-        if (large < FLOOR_MS) return;
-        expect(large, `grows ×${(large / small).toFixed(1)} for ×4 the text`).toBeLessThanOrEqual(
-          MAX_GROWTH * Math.max(small, SMALL_FLOOR_MS)
+        const small = durations(flatten, make(SMALL));
+        const large = durations(flatten, make(4 * SMALL));
+        expect(large.wallMs, `${large.wallMs.toFixed(0)} ms at ${4 * SMALL} chars`).toBeLessThan(
+          CEILING_MS
         );
+        if (large.cpuMs < FLOOR_MS) return;
+        expect(
+          large.cpuMs,
+          `CPU grows ×${(large.cpuMs / small.cpuMs).toFixed(1)} for ×4 the text`
+        ).toBeLessThanOrEqual(MAX_GROWTH * Math.max(small.cpuMs, SMALL_FLOOR_MS));
       });
     }
   }
@@ -102,9 +112,16 @@ describe('every flattener grows linearly on a hostile text (ADR-326)', () => {
     // a run of empty lines before failing (quadratic, as it shipped).
     const former = (text: string) => text.replace(/^\s*[-*+•]\s+(.+)$/gm, '$1.');
     const make = WITNESSES['a run of newlines'];
-    const small = milliseconds(former, make(SMALL));
-    const large = milliseconds(former, make(4 * SMALL));
-    expect(large).toBeGreaterThanOrEqual(FLOOR_MS);
-    expect(large).toBeGreaterThan(MAX_GROWTH * Math.max(small, SMALL_FLOOR_MS));
+    const small = durations(former, make(SMALL));
+    const large = durations(former, make(4 * SMALL));
+    expect(large.cpuMs).toBeGreaterThanOrEqual(FLOOR_MS);
+    expect(large.cpuMs).toBeGreaterThan(MAX_GROWTH * Math.max(small.cpuMs, SMALL_FLOOR_MS));
+  });
+
+  it('distinguishes a descheduled thread from CPU work without discarding wall time', () => {
+    const sleeper = new Int32Array(new SharedArrayBuffer(4));
+    const measured = durations(() => Atomics.wait(sleeper, 0, 0, 10), '');
+    expect(measured.wallMs).toBeGreaterThanOrEqual(8);
+    expect(measured.cpuMs).toBeLessThan(measured.wallMs / 2);
   });
 });

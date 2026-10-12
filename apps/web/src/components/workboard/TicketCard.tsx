@@ -280,7 +280,10 @@ function RunFailureLine({ ticket, run }: { ticket: TicketRow; run: RunState }) {
   const failure = runFailure(t, ticket.last_run_error);
   if (!failure || run !== 'failed') return null;
   return (
-    <p className="mt-2 truncate text-px-11 text-destructive" title={failure.detail ?? failure.label}>
+    <p
+      className="mt-2 truncate text-px-11 text-destructive"
+      title={failure.detail ?? failure.label}
+    >
       {failure.label}
     </p>
   );

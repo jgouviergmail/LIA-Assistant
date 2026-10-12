@@ -120,7 +120,9 @@ export function LastKnownLocationSection({ t }: LastKnownLocationSectionProps) {
           <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
             <p className="text-xs font-medium">{t('settings.location.last_known.stored_title')}</p>
             {readFailed ? (
-              <p role="status" className="text-xs text-muted-foreground">{t('settings.application_tools.sync_failed')}</p>
+              <p role="status" className="text-xs text-muted-foreground">
+                {t('settings.application_tools.sync_failed')}
+              </p>
             ) : stored === null ? (
               <LoadingSpinner size="sm" />
             ) : stored.stored ? (

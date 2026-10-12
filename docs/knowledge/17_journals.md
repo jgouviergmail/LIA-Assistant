@@ -177,3 +177,7 @@ Its directives, the patterns it observed and the facets of your portrait — nev
 
 **🔒 Your settings decide:**
 If you switched journals off, nothing is searched, and LIA does not pretend there is nothing. Each search is a small similarity computation, counted in your usage like everything else.
+
+## What happens if I change journal consent?
+
+Extraction is tied to a revision and the consent authorising it. A consent change invalidates affected work: a result prepared under an old revision must not settle the new one. This does not mean all previously saved entries are erased; use journal management actions to inspect or delete them.

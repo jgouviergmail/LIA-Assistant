@@ -370,6 +370,18 @@
       "role": "Eine experimentelle Simli-Präsenz auf deinem Schlüssel für Sprachkommentare und Live. Das erreichbare Fenster in drei Größen zeigt bestätigte oder ausstehende Schließung; Standby schließt die Verbindung. Radio behält seinen Player.",
       "goal": "Ein Gesicht wählen und seinen Verbrauch kennen, auch während der Stille.",
       "src": "193ba4c65edd"
+    },
+    "f.application": {
+      "name": "LIA im Gespräch verwalten",
+      "role": "Du kannst LIAs Einstellungen und Objekte über deklarierte Operationen lesen und ändern: Präferenzen, Verbindungen, Quellen, Skills oder Administration im Rahmen deiner Rechte. Änderungen folgen den vorgesehenen Bestätigungen; private Eingaben bleiben im authentifizierten Browser. Ein wartender Befehl wird nie als abgeschlossen gemeldet.",
+      "goal": "LIA verwalten, ohne jeden Bildschirm suchen zu müssen, und dabei Änderung und Ergebnis kontrollieren.",
+      "src": "c02744de2ba8"
+    },
+    "f.nativeavatar": {
+      "name": "Animierte native Begleiter",
+      "role": "Du wählst einen Stil und seine angebotenen Varianten im nativen Katalog. Emotionen, Blick und Accessoires folgen der Aktivität und dem verfügbaren Kontext. Das Volumen ist ein angenähertes Relief der Frontalzeichnung; wenn Darstellung oder Ressourcen keine Animation zulassen, übernimmt die feste Zeichnung.",
+      "goal": "Eine eigenständige Präsenz, die LIAs Zustand ausdrückt und deine Anzeigeauswahl respektiert.",
+      "src": "798cc7462f28"
     }
   },
   "flows": {
@@ -489,6 +501,20 @@
         "Direkt danach kann LIA dich fragen, wie die Besprechung gelaufen ist."
       ],
       "src": "97ed7772581f"
+    },
+    "flow.application": {
+      "name": "Eine gewünschte Einstellung, ein geprüftes Ergebnis",
+      "summary": "Von deiner Bitte zum erneut gelesenen Zustand: deklarierte Operation, aktuelle Prüfungen, Bestätigung und bei Bedarf private Fortsetzung.",
+      "steps": [
+        "Du bittest um eine geänderte Einstellung oder die Verbindung mit einem Dienst.",
+        "LIA wählt eine deklarierte Operation, die für dein Konto und deine aktuellen Rechte verfügbar ist.",
+        "Falls erforderlich, bestätigst du die genaue Änderung vor der Ausführung.",
+        "Der Befehl behält Identität und Ablaufzeit; Berechtigung und Voraussetzungen werden beim Handeln erneut geprüft.",
+        "Private Eingabe, Datei, OAuth oder Gerät? Du setzt im authentifizierten Browser fort, ohne dem Modell ein Geheimnis zu geben.",
+        "LIA unterscheidet eine festgeschriebene Änderung von Warten, Konflikt, Fehler oder Abbruch.",
+        "Die Oberfläche lädt die betroffenen authentifizierten Daten neu, statt einen Entwurf als tatsächlichen Zustand anzuzeigen."
+      ],
+      "src": "e95b8505fbf8"
     }
   }
 }

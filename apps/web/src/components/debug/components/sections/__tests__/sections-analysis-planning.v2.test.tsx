@@ -166,7 +166,12 @@ describe('PlannerSection v2', () => {
       <PlannerSection
         data={{
           strategy: 'filtered_catalogue',
-          tokens: { used: 900, saved: 4100, full_catalogue_estimate: 5000, reduction_percentage: 82 },
+          tokens: {
+            used: 900,
+            saved: 4100,
+            full_catalogue_estimate: 5000,
+            reduction_percentage: 82,
+          },
           plan: { steps_count: 2, tools_used: ['get_contacts_tool'], estimated_cost_usd: 0.001 },
           flags: { used_template: false, used_panic_mode: false, used_generative: false },
           success: true,

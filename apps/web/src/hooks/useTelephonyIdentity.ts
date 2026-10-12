@@ -62,12 +62,20 @@ function refusalOf(error: unknown): string {
 
 export function useTelephonyIdentity(enabled = true): UseTelephonyIdentityReturn {
   const { t } = useTranslation();
-  const { data, loading, error, refetch: read, setData, ownerId } =
-    useApplicationAccountQuery<TelephonyIdentity>(ENDPOINT, 'useTelephonyIdentity', enabled);
+  const {
+    data,
+    loading,
+    error,
+    refetch: read,
+    setData,
+    ownerId,
+  } = useApplicationAccountQuery<TelephonyIdentity>(ENDPOINT, 'useTelephonyIdentity', enabled);
   const { lifetime, isCurrent } = useApplicationAccountLifetime(ownerId);
   const [isBusy, setIsBusy] = useApplicationAccountState(ownerId, false);
-  const [codeExpiresInSeconds, setCodeExpiresInSeconds] =
-    useApplicationAccountState<number | null>(ownerId, null);
+  const [codeExpiresInSeconds, setCodeExpiresInSeconds] = useApplicationAccountState<number | null>(
+    ownerId,
+    null
+  );
   const queues = useRef(new Map<typeof lifetime, Promise<string | null>>());
   const refetch = useCallback(async () => {
     if (!isCurrent()) return;
@@ -78,8 +86,9 @@ export function useTelephonyIdentity(enabled = true): UseTelephonyIdentityReturn
     });
     // Reads and writes share one queue, so an older read cannot undo a save.
     queues.current.set(lifetime, reading);
-    try { await reading; }
-    finally {
+    try {
+      await reading;
+    } finally {
       if (queues.current.get(lifetime) === reading) {
         queues.current.delete(lifetime);
         if (isCurrent()) setIsBusy(false);
@@ -92,7 +101,8 @@ export function useTelephonyIdentity(enabled = true): UseTelephonyIdentityReturn
   /** Run one action; on success adopt the identity it returns (or re-read). */
   const run = useCallback(
     async (action: () => Promise<TelephonyIdentity | undefined | void>): Promise<string | null> => {
-      if (!enabled || !ownerId || !isCurrent()) return t('settings.telephony.identity.context_changed');
+      if (!enabled || !ownerId || !isCurrent())
+        return t('settings.telephony.identity.context_changed');
       setIsBusy(true);
       const previous = (queues.current.get(lifetime) ?? Promise.resolve(null)).catch(() => null);
       const writing = previous.then(async (): Promise<string | null> => {
@@ -107,7 +117,8 @@ export function useTelephonyIdentity(enabled = true): UseTelephonyIdentityReturn
           if (!isCurrent()) return t('settings.telephony.identity.context_changed');
           const status = failure instanceof ApiError ? failure.status : undefined;
           logger.warn('Telephony identity action refused', {
-            component: 'useTelephonyIdentity', status,
+            component: 'useTelephonyIdentity',
+            status,
           });
           // Preserve the original refusal if its recovery read also fails.
           if (status === 409) await read().catch(() => {});

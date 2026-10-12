@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.infrastructure.llm.jev_debug_models import JevCallTrace
-from src.infrastructure.llm.typesafe_client import ChoiceAnswer
+from src.infrastructure.llm.typesafe_client import ChoiceAnswer, NoulAnswer
 
 
 class DecisionCharge(BaseModel):
@@ -23,10 +23,15 @@ class DecisionCharge(BaseModel):
 
 @dataclass(frozen=True)
 class DecisionAttempt:
-    """A usable answer or a fallback code, keeping even unsuccessful paid usage."""
+    """A usable answer or a fallback code, keeping even unsuccessful paid usage.
+
+    ``answer``/``answers`` hold Choice answers; ``nouls`` holds Noul answers by
+    question key (``"selection"`` for a single question).
+    """
 
     answer: ChoiceAnswer | None = None
     charge: DecisionCharge | None = None
     outcome: str = "disabled"
     diagnostic: JevCallTrace | None = None
     answers: dict[str, ChoiceAnswer] = field(default_factory=dict)
+    nouls: dict[str, NoulAnswer] = field(default_factory=dict)

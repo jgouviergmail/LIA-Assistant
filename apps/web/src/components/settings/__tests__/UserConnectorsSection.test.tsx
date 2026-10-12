@@ -55,7 +55,9 @@ vi.mock('../connectors', async importOriginal => {
 const { useApiQuery } = vi.hoisted(() => ({ useApiQuery: vi.fn() }));
 vi.mock('@/hooks/useApiQuery', () => ({ useApiQuery }));
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'current-account' } }) }));
-vi.mock('@/hooks/useApplicationConnectors', () => ({ useApplicationConnectors: () => ({ ...useApiQuery(), ownerId: 'current-account' }) }));
+vi.mock('@/hooks/useApplicationConnectors', () => ({
+  useApplicationConnectors: () => ({ ...useApiQuery(), ownerId: 'current-account' }),
+}));
 const { useApiMutation } = vi.hoisted(() => ({ useApiMutation: vi.fn() }));
 vi.mock('@/hooks/useApiMutation', () => ({ useApiMutation }));
 const { get, post, del } = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), del: vi.fn() }));
@@ -354,11 +356,18 @@ describe('UserConnectorsSection — keyless services are not the account’s', (
     const { user } = render();
     await user.click(await screen.findByRole('button', { name: EXTERNAL_FAMILY }));
     const group = within(screen.getByRole('group', { name: 'settings.connectors.simli.label' }));
-    await user.type(group.getByLabelText('settings.connectors.api_key.key_placeholder'), 'simli-personal-test-key');
+    await user.type(
+      group.getByLabelText('settings.connectors.api_key.key_placeholder'),
+      'simli-personal-test-key'
+    );
     await user.click(group.getByTitle('settings.connectors.api_key.activate'));
-    await waitFor(() => expect(post).toHaveBeenCalledWith('/connectors/api-key/activate', {
-      connector_type: 'simli', api_key: 'simli-personal-test-key', key_name: 'simli_key',
-    }));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith('/connectors/api-key/activate', {
+        connector_type: 'simli',
+        api_key: 'simli-personal-test-key',
+        key_name: 'simli_key',
+      })
+    );
     expect(useRevisionStore.getState().revisions.avatar).toBe(previous + 1);
     expect(group.getByLabelText('settings.connectors.api_key.key_placeholder')).toHaveValue('');
   });

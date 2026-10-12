@@ -18,13 +18,13 @@ import httpx
 
 from src.domains.radio.facts import FactKind, FactPack, RadioFact, Sensitivity, SourceRef
 from src.domains.radio.formats import RadioFormat, RadioRole
-from src.domains.radio.jev_checker import MIN_CONFIDENCE, verifier_request
+from src.domains.radio.jev_checker import DECISION_MARGIN, verifier_request
 from src.domains.radio.script import LineKind, RadioDelivery, ScriptPart
 from src.domains.radio.verification import VerifiedLine
 from src.infrastructure.llm.typesafe_client import TypeSafeClient, TypeSafeError
 
 
-async def measure(output: Path, key: str, repetitions: int, corpus: Path, threshold: float) -> None:
+async def measure(output: Path, key: str, repetitions: int, corpus: Path, margin: float) -> None:
     cases = json.loads(corpus.read_text(encoding="utf-8"))
     records = []
     async with httpx.AsyncClient() as http:
@@ -66,22 +66,23 @@ async def measure(output: Path, key: str, repetitions: int, corpus: Path, thresh
                         questions=request[1],
                         timeout_seconds=5,
                     )
-                    accepted = all(
-                        answer.confidence >= threshold and answer.choice != "unknown"
-                        for answer in result.answers.values()
+                    # One Noul per line: the probability of an unsupported claim.
+                    accepted = set(result.nouls) == set(request[1]) and all(
+                        answer.noul <= margin or answer.noul >= 1 - margin
+                        for answer in result.nouls.values()
                     )
                     predicted = [
                         index
                         for index in range(len(lines))
-                        if f"line{index}" in result.answers
-                        and result.answers[f"line{index}"].choice == "unsupported"
+                        if f"line{index}" in result.nouls
+                        and result.nouls[f"line{index}"].noul >= 1 - margin
                     ]
                     row.update(
                         accepted=accepted,
                         predicted=predicted,
                         correct=predicted == case["expected_unsupported"],
                         answers={
-                            name: answer.model_dump() for name, answer in result.answers.items()
+                            name: answer.model_dump() for name, answer in result.nouls.items()
                         },
                         tokens=result.usage.model_dump(),
                         model=result.model,
@@ -122,11 +123,13 @@ if __name__ == "__main__":
         type=Path,
         default=Path(__file__).parents[1] / "tests/fixtures/jev_radio_cases.json",
     )
-    parser.add_argument("--threshold", type=float, choices=(0.95, 0.99), default=MIN_CONFIDENCE)
+    parser.add_argument(
+        "--margin", type=float, default=DECISION_MARGIN, help="decided when p <= m or p >= 1 - m"
+    )
     args = parser.parse_args()
     credential = (
         getpass.getpass("TypeSafe key (not stored): ")
         if args.prompt_key
         else os.environ["TYPESAFE_API_KEY"]
     )
-    asyncio.run(measure(args.output, credential, args.repetitions, args.corpus, args.threshold))
+    asyncio.run(measure(args.output, credential, args.repetitions, args.corpus, args.margin))

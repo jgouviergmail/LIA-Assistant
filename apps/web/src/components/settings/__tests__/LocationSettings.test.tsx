@@ -62,7 +62,11 @@ const refetchHome = vi.fn(async () => {});
 
 function stubHome(data: HomeLocation | null) {
   persistedHome = data;
-  useApplicationAccountQuery.mockImplementation(() => ({ data: persistedHome, ownerId: 'one', refetch: refetchHome }));
+  useApplicationAccountQuery.mockImplementation(() => ({
+    data: persistedHome,
+    ownerId: 'one',
+    refetch: refetchHome,
+  }));
 }
 
 beforeEach(() => {
@@ -73,7 +77,9 @@ beforeEach(() => {
     persistedHome = { address: '10 Downing St', lat: 51.5, lon: -0.12 };
     return persistedHome;
   });
-  deleteMutate = mutateSpy().mockImplementation(async () => { persistedHome = null; });
+  deleteMutate = mutateSpy().mockImplementation(async () => {
+    persistedHome = null;
+  });
   // The component instantiates two mutations; route them by HTTP method.
   useApiMutation.mockImplementation((opts: { method: string }) =>
     opts.method === 'PUT'
@@ -213,7 +219,9 @@ describe('LocationSettings — home location', () => {
     expect(screen.getByText('10 Downing St')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'common.delete' }));
     await waitFor(() => expect(deleteMutate).toHaveBeenCalledWith(HOME_ENDPOINT, undefined));
-    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('settings.location.home.cleared'));
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith('settings.location.home.cleared')
+    );
     rerender(<LocationSettings lng="en" />);
     await waitFor(() => expect(screen.queryByText('10 Downing St')).not.toBeInTheDocument());
     expect(toast.success).toHaveBeenCalledWith('settings.location.home.cleared');

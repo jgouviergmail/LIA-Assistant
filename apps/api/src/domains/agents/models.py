@@ -379,17 +379,6 @@ class MessagesState(TypedDict):
         str | None
     )  # Semantic intent from SemanticIntentDetector (action|detail|search|list|full)
 
-    # ==========================================================================
-    # Memory-Based Reference Resolution (Pre-Planner)
-    # ==========================================================================
-    # Resolves relational references ("my brother", "my wife") to concrete entity names
-    # BEFORE the planner generates the execution plan. Uses memory facts + LLM micro-call.
-    # Structure: ResolvedReferences with original_query, enriched_query, mappings
-    # Example: {"my brother": "john doe"} allows natural response phrasing
-    resolved_references: (
-        dict[str, Any] | None
-    )  # ResolvedReferences from memory_reference_resolution_service
-
     # Data Registry (LIA Adaptive Rendering System): Registry for rich frontend rendering
     # The registry stores complete data items (contacts, emails, events) that are:
     # 1. Sent to frontend via SSE (registry_update event)
@@ -727,7 +716,6 @@ def create_initial_state(
         turn_type=None,  # Context resolution: Turn type classification
         resolved_context=None,  # Context resolution: Resolved reference context
         detected_intent=None,  # Semantic intent from SemanticIntentDetector (action|detail|search|list|full)
-        resolved_references=None,  # Memory reference resolution: ResolvedReferences from pre-planner
         registry={},  # Data Registry: Registry for rich frontend rendering (empty at start)
         current_turn_registry=None,  # Data Registry: Current turn registry items
         # Data Registry LOT 4.3: Draft/Critique HITL support

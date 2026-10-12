@@ -247,7 +247,10 @@ function ClockSelect({
 }) {
   return (
     <div className="flex items-center gap-1">
-      <Select value={String(value.hour)} onValueChange={v => onChange({ ...value, hour: Number(v) })}>
+      <Select
+        value={String(value.hour)}
+        onValueChange={v => onChange({ ...value, hour: Number(v) })}
+      >
         <SelectTrigger id={triggerId} aria-label={label} className="w-20">
           <SelectValue />
         </SelectTrigger>

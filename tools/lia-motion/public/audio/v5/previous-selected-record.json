@@ -1,0 +1,19 @@
+{
+  "id": "lookin-up",
+  "title": "Lookin' Up",
+  "artist": "Shane Ivers",
+  "source": "https://www.silvermansound.com/free-music/lookin-up",
+  "sourceAudio": "https://www.silvermansound.com/wp-content/uploads/lookin-up.mp3",
+  "sourceSha256": "860a06be772e107cd0441c9a1a1b6ee269b716c40d6ff3a9399e6d1e1ad8df3c",
+  "publishedTempoBpm": 131,
+  "isrc": "UKEZT2200007",
+  "attribution": "Lookin' Up — Shane Ivers · silvermansound.com · CC BY 4.0 · montage LIA",
+  "styleSource": "Piano, strings, acoustic guitar, bass and steady drums; progressive arrangement",
+  "trimFrom": 0,
+  "license": "CC-BY-4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+  "sourceFormat": "Official MP3 decoded with headroom to working PCM; not lossless",
+  "originalAudio": "audio/v5/lookin-up-original.mp3",
+  "workingAudio": "audio/v5/lookin-up-film.wav",
+  "allowanceSeconds": 160
+}

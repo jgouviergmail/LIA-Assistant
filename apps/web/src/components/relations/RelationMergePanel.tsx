@@ -48,9 +48,7 @@ export function RelationMergePanel({
 
   // Never offer the open relationship: merging it with itself has no meaning
   // and the API refuses it. Also drop what is already merged in.
-  const selectable = candidates.filter(
-    name => name !== displayName && !mergedFrom.includes(name)
-  );
+  const selectable = candidates.filter(name => name !== displayName && !mergedFrom.includes(name));
 
   const submit = useCallback(async () => {
     // The GUARD is here, not on the attribute: `aria-disabled` keeps the

@@ -64,7 +64,10 @@ export function DeviceSessionsSettings() {
       setNotifBusy(false);
     }
   };
-  const [revokeTarget, setRevokeTarget] = useApplicationAccountState<DeviceSession | null>(user?.id, null);
+  const [revokeTarget, setRevokeTarget] = useApplicationAccountState<DeviceSession | null>(
+    user?.id,
+    null
+  );
   const [revokeAllOpen, setRevokeAllOpen] = useApplicationAccountState(user?.id, false);
   const [busy, setBusy] = useApplicationAccountState(user?.id, false);
 
@@ -115,7 +118,8 @@ export function DeviceSessionsSettings() {
     try {
       const revoked = await guard(() => revokeOthers());
       setRevokeAllOpen(false);
-      if (isCurrent()) toast.success(t('settings.security.devices.others_revoked', { count: revoked }));
+      if (isCurrent())
+        toast.success(t('settings.security.devices.others_revoked', { count: revoked }));
     } catch (err) {
       if (!(err instanceof ApiStepUpError)) {
         logger.error('Revoke-others failed', err as Error, {

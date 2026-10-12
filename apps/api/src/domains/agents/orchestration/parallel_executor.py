@@ -124,12 +124,12 @@ from src.domains.agents.orchestration.step_timeouts import compute_step_timeout
 
 # 2026-01: Text compaction for token optimization (post-Jinja evaluation)
 from src.domains.agents.orchestration.text_compaction import compact_text_params
+from src.domains.agents.semantic.argument_guard import guard_tool_arguments
 from src.domains.agents.semantic.param_guard import (
-    check_semantic_params,
     person_names_from_config,
+    request_from_config,
     strip_placeholder_arguments,
 )
-from src.domains.agents.semantic.value_bindings import binding_scope_from_config
 from src.domains.agents.services.connector_error_notice import (
     emit_connector_notice_for_exception,
 )
@@ -2624,45 +2624,27 @@ async def _execute_tool(
     # default instead of geocoding a city named "null" (prod 2026-07-23).
     args = strip_placeholder_arguments(tool_name, args)
 
-    # Runtime semantic contract guard (fail-open): a person name resolved for
-    # this turn must not reach an address/email-typed parameter — the API
-    # would geocode/send it arbitrarily and the wrong result may be cached.
-    # Recoverable error instead, so the planner/LLM fetches the real value.
-    guard_names = person_names_from_config(config)
-    bindings, account, sources = binding_scope_from_config(config)
-    if guard_names:
-        violation = check_semantic_params(
-            tool_name,
-            args,
-            guard_names,
-            value_bindings=bindings,
-            account_id=account,
-            known_sources=sources,
+    # Runtime semantic contract guard (fail-open): a value of the wrong kind —
+    # a person name resolved for this turn, or one JEV judges so — must not
+    # reach an address/email-typed parameter: the API would geocode/send it
+    # arbitrarily and the wrong result may be cached. Recoverable error instead,
+    # so the planner/LLM fetches the real value.
+    violation = await guard_tool_arguments(
+        tool_name,
+        args,
+        config,
+        person_names=person_names_from_config(config),
+        request=request_from_config(config),
+        execution_mode="pipeline",
+    )
+    if violation is not None:
+        return ToolExecutionResult(
+            result={
+                "success": False,
+                "error": violation.llm_message(),
+                FIELD_ERROR_CODE: ToolErrorCode.INVALID_PARAM_VALUE.value,
+            }
         )
-        if violation is not None:
-            from src.infrastructure.observability.metrics_agents import (
-                semantic_param_guard_blocks_total,
-            )
-
-            semantic_param_guard_blocks_total.labels(
-                tool_name=tool_name,
-                semantic_type=violation.semantic_type,
-                execution_mode="pipeline",
-            ).inc()
-            # No PII at WARNING: the offending value is a person name.
-            logger.warning(
-                "semantic_param_guard_blocked",
-                tool_name=tool_name,
-                param_name=violation.param_name,
-                semantic_type=violation.semantic_type,
-            )
-            return ToolExecutionResult(
-                result={
-                    "success": False,
-                    "error": violation.llm_message(),
-                    FIELD_ERROR_CODE: ToolErrorCode.INVALID_PARAM_VALUE.value,
-                }
-            )
 
     # Build ToolRuntime and inject if needed (Session 22 - Helper #4)
     args = _build_tool_runtime(tool, args, config, store)

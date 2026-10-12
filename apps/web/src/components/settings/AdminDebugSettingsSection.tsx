@@ -1,9 +1,7 @@
 'use client';
 
 import { toast } from 'sonner';
-import {
-  Microscope,
-} from 'lucide-react';
+import { Microscope } from 'lucide-react';
 import { InfoBox } from '@/components/ui/info-box';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';

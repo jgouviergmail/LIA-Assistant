@@ -12,13 +12,7 @@
  * precedent).
  */
 
-import {
-  Eye,
-  Handshake,
-  Radar,
-  ShieldOff,
-  UserSearch,
-} from 'lucide-react';
+import { Eye, Handshake, Radar, ShieldOff, UserSearch } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { LoadingSpinner } from '@/components/ui/loading-spinner';

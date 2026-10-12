@@ -7,8 +7,8 @@ email is expected — the downstream API then geocodes/sends to something
 arbitrary, and the wrong result may even be cached.
 
 This guard checks final tool arguments (post Jinja2 / $steps resolution)
-against the identity mappings resolved for the current turn: an argument
-that is exactly a resolved person name on a guarded parameter fails fast
+against the person names resolved for the current turn (``turn_person_names``):
+an argument that is exactly a resolved person name on a guarded parameter fails fast
 with a recoverable error BEFORE the paid API call, in both execution modes
 (pipeline parallel executor + ReAct execute-tools node).
 
@@ -17,6 +17,10 @@ unexpected registry error → no blocking. An exact match against the turn's
 resolved person names is a collision signal. A genuinely homonymous location
 passes only when an explicitly selected canonical field proves its role,
 identity, account and unchanged value.
+
+The same walk over guarded values (:func:`guarded_values`) feeds the optional
+value-kind judgment (``semantic/jev_value_kind.py``), which can only ADD a
+refusal this deterministic rule cannot see (ADR-120 amendment 2026-10-11).
 """
 
 from collections.abc import Collection, Iterator, Mapping, Sequence
@@ -25,7 +29,14 @@ from typing import Any
 
 from langchain_core.runnables import RunnableConfig
 
-from src.core.field_names import FIELD_RESOLVED_PERSON_NAMES
+from src.core.field_names import FIELD_GUARD_REQUEST, FIELD_RESOLVED_PERSON_NAMES
+from src.domains.agents.analysis.query_intelligence_helpers import get_qi_attr, turn_references
+from src.domains.agents.analysis.resolved_references import (
+    ResolvedReferenceEntry,
+    fold_value,
+    person_name_values,
+)
+from src.domains.agents.registry.catalogue import ParameterSchema, ToolManifest
 from src.domains.agents.semantic.core_types import load_core_types
 from src.domains.agents.semantic.manifest_semantics import available_manifest
 from src.domains.agents.semantic.semantic_type import TypeCategory
@@ -51,22 +62,38 @@ GUARDED_SEMANTIC_TYPES: dict[str, str] = {
     "locality": "place or locality",
 }
 
+# What a guarded value IS, as the value-kind judgment names it, with the words
+# the recoverable error uses. The order is the order the judgment is offered.
+VALUE_KIND_LABELS: dict[str, str] = {
+    "person_name": "a person's name",
+    "postal_address": "a postal address",
+    "place": "a place",
+    "link": "a web link",
+    "email_address": "an email address",
+    "phone_number": "a phone number",
+    "datetime": "a date or a time",
+    "other": "another kind of value",
+}
+
 
 @dataclass(frozen=True)
 class SemanticParamViolation:
-    """A person name detected on an address/email-typed tool parameter.
+    """A value of a kind its address/email-typed tool parameter refuses.
 
     Attributes:
         tool_name: Name of the tool whose call was intercepted.
         param_name: Manifest parameter carrying the guarded semantic type.
         semantic_type: The guarded semantic type (e.g. "physical_address").
-        value: The offending argument value (a resolved person name).
+        value: The offending argument value.
+        value_kind: What the value-kind judgment found the value to be; None
+            when the deterministic rule refused a resolved person name.
     """
 
     tool_name: str
     param_name: str
     semantic_type: str
     value: str
+    value_kind: str | None = None
 
     def llm_message(self) -> str:
         """Build the recoverable error message guiding the LLM.
@@ -76,49 +103,65 @@ class SemanticParamViolation:
             language) explaining what was expected and how to recover.
         """
         expected = GUARDED_SEMANTIC_TYPES.get(self.semantic_type, self.semantic_type)
+        article = "an" if expected[:1] in ("a", "e", "i", "o", "u") else "a"
+        received = f"Parameter '{self.param_name}' of {self.tool_name} expects {article} {expected}"
+        if self.value_kind is None or self.value_kind == "person_name":
+            return (
+                f"{received}, but received '{self.value}', which is a person's "
+                f"name. Fetch the person's actual {expected} first (e.g. from "
+                f"contacts), then retry with that value."
+            )
+        kind = VALUE_KIND_LABELS.get(self.value_kind, VALUE_KIND_LABELS["other"])
         return (
-            f"Parameter '{self.param_name}' of {self.tool_name} expects a "
-            f"{expected}, but received '{self.value}', which is a person's "
-            f"name. Fetch the person's actual {expected} first (e.g. from "
-            f"contacts), then retry with that value."
+            f"{received}, but received '{self.value}', which is {kind}. Pass the "
+            f"{expected} the request names, or look it up first, then retry."
         )
 
 
 def _normalize(text: str) -> str:
     """Normalize a value for exact-match comparison (whitespace + case)."""
-    return " ".join(text.split()).casefold()
+    return fold_value(text)
 
 
 def collect_resolved_person_names(
-    resolved_references: Mapping[str, Any] | None,
+    references: Sequence[ResolvedReferenceEntry],
 ) -> frozenset[str]:
-    """Extract normalized person names from the turn's identity mappings.
+    """Normalized PERSON names among the turn's resolved references.
 
-    The memory-resolution pipeline produces mappings whose values are person
-    names by construction ({"my brother": "Marc Lemoine"}), which makes
-    exact matching against them a deterministic signal.
+    Only what a producer declared a person's name (``person_name_values``): a
+    date, a place or the address the memory resolver returns for a location
+    query never is — reading every value as a name blocked a places search on
+    the city the person asked about (2026-10-11, ADR-120 amendment).
 
     Args:
-        resolved_references: The turn's reference → resolved-name mappings
-            (state key ``resolved_references``), or None.
+        references: The turn's typed references.
 
     Returns:
         Frozen set of normalized names; empty when there is nothing to guard.
     """
-    if not resolved_references:
-        return frozenset()
-    return frozenset(
-        _normalize(value)
-        for value in resolved_references.values()
-        if isinstance(value, str) and value.strip()
-    )
+    return frozenset(fold_value(value) for value in person_name_values(references))
+
+
+def turn_person_names(state: Mapping[str, Any]) -> frozenset[str]:
+    """The person names the guard checks for the CURRENT turn.
+
+    Sourced from the state's query_intelligence — the only conduit that
+    survives a HITL interrupt/resume, and rewritten on every turn.
+
+    Args:
+        state: The graph state.
+
+    Returns:
+        Frozen set of normalized names.
+    """
+    return collect_resolved_person_names(turn_references(state))
 
 
 def config_with_person_names(
     config: RunnableConfig,
     state: Mapping[str, Any],
 ) -> RunnableConfig:
-    """Return a config whose configurable carries the turn's person names.
+    """Return a config whose configurable carries the turn's person names and request.
 
     Called by the nodes that launch plan execution (task orchestrator,
     initiative) so the parallel executor's guard can read the names from
@@ -127,21 +170,43 @@ def config_with_person_names(
 
     Args:
         config: The node's RunnableConfig.
-        state: LangGraph state holding ``resolved_references``.
+        state: LangGraph state holding the turn's query_intelligence.
 
     Returns:
         The same config when there is nothing to guard, otherwise a shallow
-        copy with ``resolved_person_names`` added to configurable.
+        copy with ``resolved_person_names`` and the turn's request (read by the
+        value-kind judgment) added to configurable.
     """
-    names = collect_resolved_person_names(state.get("resolved_references"))
+    names = turn_person_names(state)
+    request = turn_request(state)
     config = config_with_binding_evidence(config, state)
-    if not names:
+    if not names and not request:
         return config
-    configurable = {
-        **(config.get("configurable") or {}),
-        FIELD_RESOLVED_PERSON_NAMES: sorted(names),
-    }
+    configurable = dict(config.get("configurable") or {})
+    if names:
+        configurable[FIELD_RESOLVED_PERSON_NAMES] = sorted(names)
+    if request:
+        configurable[FIELD_GUARD_REQUEST] = request
     return {**config, "configurable": configurable}
+
+
+def turn_request(state: Mapping[str, Any]) -> str | None:
+    """The person's words for the CURRENT turn, from its query_intelligence.
+
+    Args:
+        state: The graph state.
+
+    Returns:
+        The original query, or None when the turn has none.
+    """
+    query = get_qi_attr(dict(state), "original_query", default=None)
+    return query if isinstance(query, str) and query.strip() else None
+
+
+def request_from_config(config: RunnableConfig) -> str | None:
+    """Read the turn's request back from a config enriched by config_with_person_names."""
+    request = (config.get("configurable") or {}).get(FIELD_GUARD_REQUEST)
+    return request if isinstance(request, str) and request.strip() else None
 
 
 def config_with_binding_evidence(
@@ -380,6 +445,61 @@ def strip_placeholder_arguments(
         return dict(args)
 
 
+@dataclass(frozen=True)
+class GuardedValue:
+    """One string a guarded parameter receives, where it sits and what it must be."""
+
+    param: ParameterSchema
+    path: str
+    semantic_type: str
+    value: str
+
+
+def guarded_values(manifest: ToolManifest, args: Mapping[str, Any]) -> Iterator[GuardedValue]:
+    """Every string the call hands to a guarded semantic type, in manifest order.
+
+    A parameter typed as a whole and a value annotated inside its schema
+    (``x-semantic-type``) are both walked; a union guards only the leaves every
+    applicable branch agrees on.
+
+    Args:
+        manifest: The tool's manifest.
+        args: Final arguments (after Jinja2 / $steps resolution).
+
+    Yields:
+        The guarded values, possibly with duplicates.
+    """
+    for param in manifest.parameters:
+        semantic_type = getattr(param, "semantic_type", None)
+        checks = list(_iter_schema_values(param.schema, args.get(param.name), param.name))
+        if semantic_type in GUARDED_SEMANTIC_TYPES:
+            checks.extend(
+                (param.name, semantic_type, candidate)
+                for candidate in _iter_string_values(args.get(param.name))
+            )
+        for path, type_name, candidate in checks:
+            if type_name in GUARDED_SEMANTIC_TYPES:
+                yield GuardedValue(param, path, type_name, candidate)
+
+
+def proven_by_binding(
+    item: GuardedValue,
+    value_bindings: Sequence[SemanticValueBinding],
+    account_id: str | None,
+    known_sources: Mapping[str, SemanticValueBinding],
+) -> bool:
+    """Whether a selected canonical field proves the value's role for this account."""
+    return value_binding_exempts_collision(
+        value_bindings,
+        path=item.path,
+        value=item.value,
+        semantic_type=item.semantic_type,
+        expected_role=getattr(item.param, "semantic_role", None),
+        account_id=account_id,
+        known_sources=known_sources,
+    )
+
+
 def check_semantic_params(
     tool_name: str,
     args: Mapping[str, Any],
@@ -395,7 +515,10 @@ def check_semantic_params(
         tool_name: Tool about to be executed.
         args: Final arguments (after Jinja2 / $steps resolution).
         resolved_person_names: Normalized person names for the current turn
-            (from :func:`collect_resolved_person_names`).
+            (from :func:`turn_person_names`).
+        value_bindings: Canonical fields selected this turn.
+        account_id: The account the call runs for.
+        known_sources: The source observations the bindings were read from.
 
     Returns:
         The first violation found, or None when the call is clean (or when
@@ -409,34 +532,16 @@ def check_semantic_params(
         if manifest is None:
             return None
 
-        for param in manifest.parameters:
-            semantic_type = getattr(param, "semantic_type", None)
-            checks = list(_iter_schema_values(param.schema, args.get(param.name), param.name))
-            if semantic_type in GUARDED_SEMANTIC_TYPES:
-                checks.extend(
-                    (param.name, semantic_type, candidate)
-                    for candidate in _iter_string_values(args.get(param.name))
+        for item in guarded_values(manifest, args):
+            if _normalize(item.value) in resolved_person_names and not proven_by_binding(
+                item, value_bindings, account_id, known_sources or {}
+            ):
+                return SemanticParamViolation(
+                    tool_name=tool_name,
+                    param_name=item.path,
+                    semantic_type=item.semantic_type,
+                    value=item.value,
                 )
-            for path, type_name, candidate in checks:
-                if (
-                    type_name in GUARDED_SEMANTIC_TYPES
-                    and _normalize(candidate) in resolved_person_names
-                    and not value_binding_exempts_collision(
-                        value_bindings,
-                        path=path,
-                        value=candidate,
-                        semantic_type=type_name,
-                        expected_role=getattr(param, "semantic_role", None),
-                        account_id=account_id,
-                        known_sources=known_sources or {},
-                    )
-                ):
-                    return SemanticParamViolation(
-                        tool_name=tool_name,
-                        param_name=path,
-                        semantic_type=type_name,
-                        value=candidate,
-                    )
         return None
 
     except Exception as exc:

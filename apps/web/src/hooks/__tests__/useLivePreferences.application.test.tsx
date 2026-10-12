@@ -12,7 +12,9 @@ vi.mock('@/lib/api-client', async importOriginal => {
 import { useLivePreferences } from '../useLivePreferences';
 
 const saved: LivePreferences = {
-  interruptions: true, end_of_speech: 'normal', result_delivery: 'when_idle',
+  interruptions: true,
+  end_of_speech: 'normal',
+  result_delivery: 'when_idle',
 };
 beforeEach(() => {
   vi.resetAllMocks();
@@ -23,7 +25,13 @@ beforeEach(() => {
 describe('live reflex account lifetime and full replacement writes', () => {
   it('serializes rapid writes and includes both changes in the second replacement', async () => {
     let complete: ((value: LivePreferences) => void) | undefined;
-    put.mockImplementationOnce(() => new Promise<LivePreferences>(done => { complete = done; }))
+    put
+      .mockImplementationOnce(
+        () =>
+          new Promise<LivePreferences>(done => {
+            complete = done;
+          })
+      )
       .mockImplementationOnce(async (_path: string, values: LivePreferences) => values);
     const { result } = renderHook(() => useLivePreferences());
     await waitFor(() => expect(result.current.preferences).toEqual(saved));
@@ -34,11 +42,23 @@ describe('live reflex account lifetime and full replacement writes', () => {
       second = result.current.save({ end_of_speech: 'calm' });
     });
     await waitFor(() => expect(put).toHaveBeenCalledTimes(1));
-    expect(result.current.preferences).toEqual({ ...saved, interruptions: false, end_of_speech: 'calm' });
+    expect(result.current.preferences).toEqual({
+      ...saved,
+      interruptions: false,
+      end_of_speech: 'calm',
+    });
     get.mockResolvedValue({ ...saved, interruptions: false, end_of_speech: 'calm' });
-    await act(async () => { complete?.({ ...saved, interruptions: false }); await first; await second; });
+    await act(async () => {
+      complete?.({ ...saved, interruptions: false });
+      await first;
+      await second;
+    });
     expect(put.mock.calls[1][1]).toEqual({ ...saved, interruptions: false, end_of_speech: 'calm' });
-    expect(result.current.preferences).toEqual({ ...saved, interruptions: false, end_of_speech: 'calm' });
+    expect(result.current.preferences).toEqual({
+      ...saved,
+      interruptions: false,
+      end_of_speech: 'calm',
+    });
   });
 
   it('refuses an obsolete callback before sending a write after A-to-B-to-A', async () => {
@@ -51,7 +71,9 @@ describe('live reflex account lifetime and full replacement writes', () => {
     useAuth.mockReturnValue({ user: { id: 'one' } });
     rerender();
     await waitFor(() => expect(result.current.preferences).toEqual(saved));
-    await act(async () => { expect(await obsolete({ interruptions: false })).toBe(false); });
+    await act(async () => {
+      expect(await obsolete({ interruptions: false })).toBe(false);
+    });
     expect(put).not.toHaveBeenCalled();
   });
 
@@ -77,17 +99,27 @@ describe('live reflex account lifetime and full replacement writes', () => {
 
   it('does not publish a late successful write into a new account', async () => {
     let complete: ((value: LivePreferences) => void) | undefined;
-    put.mockImplementationOnce(() => new Promise<LivePreferences>(done => { complete = done; }));
+    put.mockImplementationOnce(
+      () =>
+        new Promise<LivePreferences>(done => {
+          complete = done;
+        })
+    );
     const { result, rerender } = renderHook(() => useLivePreferences());
     await waitFor(() => expect(result.current.preferences).toEqual(saved));
     let writing: Promise<boolean> | undefined;
-    act(() => { writing = result.current.save({ interruptions: false }); });
+    act(() => {
+      writing = result.current.save({ interruptions: false });
+    });
     await waitFor(() => expect(put).toHaveBeenCalledTimes(1));
     useAuth.mockReturnValue({ user: { id: 'two' } });
     get.mockResolvedValueOnce({ ...saved, end_of_speech: 'lively' });
     rerender();
     await waitFor(() => expect(result.current.preferences?.end_of_speech).toBe('lively'));
-    await act(async () => { complete?.({ ...saved, interruptions: false }); expect(await writing).toBe(false); });
+    await act(async () => {
+      complete?.({ ...saved, interruptions: false });
+      expect(await writing).toBe(false);
+    });
     expect(result.current.preferences).toEqual({ ...saved, end_of_speech: 'lively' });
     expect(get).toHaveBeenCalledTimes(2);
   });
@@ -96,7 +128,9 @@ describe('live reflex account lifetime and full replacement writes', () => {
     put.mockRejectedValueOnce(new Error('refused'));
     const { result } = renderHook(() => useLivePreferences());
     await waitFor(() => expect(result.current.preferences).toEqual(saved));
-    await act(async () => { expect(await result.current.save({ interruptions: false })).toBe(false); });
+    await act(async () => {
+      expect(await result.current.save({ interruptions: false })).toBe(false);
+    });
     await waitFor(() => expect(result.current.preferences).toEqual(saved));
     expect(result.current.saving).toBe(false);
   });
@@ -106,7 +140,9 @@ describe('live reflex account lifetime and full replacement writes', () => {
     await waitFor(() => expect(result.current.preferences).toEqual(saved));
     put.mockRejectedValueOnce(new Error('offline'));
     get.mockRejectedValueOnce(new Error('still offline'));
-    await act(async () => { expect(await result.current.save({ interruptions: false })).toBe(false); });
+    await act(async () => {
+      expect(await result.current.save({ interruptions: false })).toBe(false);
+    });
     await waitFor(() => expect(result.current.loadError).toBe(true));
     expect(result.current.preferences).toEqual(saved);
   });

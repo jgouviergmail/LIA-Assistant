@@ -565,7 +565,6 @@ describe('formatWindow', () => {
   });
 });
 
-
 describe('streaks (Lot 1-A4)', () => {
   it('shows the current run, its meta line and the milestone badge', () => {
     state.overview = overview({

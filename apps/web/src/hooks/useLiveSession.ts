@@ -65,7 +65,8 @@ export function useLiveSession(bindings: LiveChatBindings): UseLiveSessionReturn
         createTransport: createLiveTransport,
         // Give iOS PCM playback headroom for uneven WebSocket arrivals; WebRTC
         // transports own their audio and never use this player.
-        createPlayer: () => new RoutedLivePlayer(new PcmStreamPlayer(isAppleMobile() ? 120 : 0), avatarEngine),
+        createPlayer: () =>
+          new RoutedLivePlayer(new PcmStreamPlayer(isAppleMobile() ? 120 : 0), avatarEngine),
         startMic: startMicCapture,
         isSupported: isLiveSupported,
         chat: bindings,

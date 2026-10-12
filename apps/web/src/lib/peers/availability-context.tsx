@@ -24,7 +24,9 @@ export interface PeersAvailabilityProviderProps {
 
 export function PeersAvailabilityProvider({ available, children }: PeersAvailabilityProviderProps) {
   return (
-    <PeersAvailabilityContext.Provider value={available}>{children}</PeersAvailabilityContext.Provider>
+    <PeersAvailabilityContext.Provider value={available}>
+      {children}
+    </PeersAvailabilityContext.Provider>
   );
 }
 

@@ -61,14 +61,28 @@ export interface UseBriefingPreferencesReturn {
 }
 
 export function useBriefingPreferences(enabled = true): UseBriefingPreferencesReturn {
-  const { data, loading, error, refetch, ownerId } = useApplicationAccountQuery<BriefingPreferences>('/briefing/preferences', 'useBriefingPreferences', enabled);
+  const { data, loading, error, refetch, ownerId } =
+    useApplicationAccountQuery<BriefingPreferences>(
+      '/briefing/preferences',
+      'useBriefingPreferences',
+      enabled
+    );
   const { mutate } = useApiMutation<BriefingPreferences, BriefingPreferences>({
     method: 'PUT',
     componentName: 'useBriefingPreferences',
   });
 
-  const write = useCallback((next: BriefingPreferences) => mutate('/briefing/preferences', next), [mutate]);
-  const { value, save } = useApplicationPreferenceState(ownerId, data, 'briefing_preferences', refetch, write);
+  const write = useCallback(
+    (next: BriefingPreferences) => mutate('/briefing/preferences', next),
+    [mutate]
+  );
+  const { value, save } = useApplicationPreferenceState(
+    ownerId,
+    data,
+    'briefing_preferences',
+    refetch,
+    write
+  );
 
   return { preferences: value ?? null, loading, error: !!error, save };
 }

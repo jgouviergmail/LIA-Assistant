@@ -178,7 +178,7 @@ Do NOT create $steps references to retrieve what is already provided here.
 
 RESOLVED REFERENCES:
 {references}
-Entity IDs already matched. Use these exact IDs — do NOT re-search.
+Values already resolved for this turn, each tagged with what it is ([person_name], [postal_address], [place], [datetime]). Use them directly as parameter values of that kind. A [person_name] is never an address, a locality or an email: when a parameter needs one of those for that person, look the person up first.
 
 SEMANTIC DEPENDENCIES (cross-domain type requirements):
 {semantic_dependencies}

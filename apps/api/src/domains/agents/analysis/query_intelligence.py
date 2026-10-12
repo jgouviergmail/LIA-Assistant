@@ -14,6 +14,10 @@ from typing import TYPE_CHECKING, Any
 from src.core.config import settings
 from src.core.i18n import resolve_language
 from src.domains.agents.analysis.requested_outcomes import GoalRequirement
+from src.domains.agents.analysis.resolved_references import (
+    ResolvedReferenceEntry,
+    as_mapping,
+)
 
 if TYPE_CHECKING:
     from src.domains.agents.services.reference_resolver import ResolvedContext
@@ -99,8 +103,10 @@ class QueryIntelligence:
     source_turn_id: int | None = None
     source_domain: str | None = None
 
-    # Resolved memory references
-    resolved_references: dict[str, str] | None = None
+    # The turn's resolved references, each with what its value IS — their only
+    # home: rewritten every turn, carried through a HITL resume by the checkpoint
+    # (ADR-120 amendment 2026-10-11).
+    resolved_references: tuple[ResolvedReferenceEntry, ...] = ()
 
     # === AUTONOMY: ANTICIPATION ===
 
@@ -379,7 +385,7 @@ class QueryIntelligence:
                 "is_reference": self.is_reference_turn(),
                 "source_turn_id": self.source_turn_id,
                 "source_domain": self.source_domain,
-                "resolved_references": self.resolved_references,
+                "resolved_references": as_mapping(self.resolved_references) or None,
                 "thresholds": {
                     "confidence_threshold": {
                         "value": context_th["confidence_threshold"],
@@ -455,9 +461,7 @@ class QueryIntelligence:
             "resolved_context": self.resolved_context.to_dict() if self.resolved_context else None,
             "source_turn_id": self.source_turn_id,
             "source_domain": self.source_domain,
-            "resolved_references": (
-                dict(self.resolved_references) if self.resolved_references else None
-            ),
+            "resolved_references": [entry.to_dict() for entry in self.resolved_references] or None,
             # Autonomy
             "anticipated_needs": list(self.anticipated_needs),
             "fallback_strategies": list(self.fallback_strategies),

@@ -94,6 +94,8 @@ export interface ExpressiveEyesProps {
   /** Whether the face lives on its own (mimics, sketches). Default true;
    * a preview turns it off to stay comparable. */
   life?: boolean;
+  /** False excludes sleep scenes while preserving the rest of the idle life. */
+  allowSleep?: boolean;
   /** Explicit local pause for static previews; separate from user motion preference. */
   motionEnabled?: boolean;
   /** Frozen historical portrait uses the same geometry without a live rig clock. */
@@ -547,6 +549,7 @@ export function ExpressiveEyes(props: ExpressiveEyesProps) {
     emphasis: view.emphasis,
     responseWeight: view.responseWeight,
     life: view.life,
+    allowSleep: props.allowSleep,
     motionEnabled: props.motionEnabled,
     staticPose: props.staticPose,
     appearanceKey: volume.appearanceKey,

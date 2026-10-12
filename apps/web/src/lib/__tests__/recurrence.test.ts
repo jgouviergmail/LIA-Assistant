@@ -46,12 +46,7 @@ describe('materialised times (preview only)', () => {
       start: { hour: 8, minute: 0 },
       end: { hour: 14, minute: 0 },
     };
-    expect(materialisedTimes(times).map(clockLabel)).toEqual([
-      '08:00',
-      '10:00',
-      '12:00',
-      '14:00',
-    ]);
+    expect(materialisedTimes(times).map(clockLabel)).toEqual(['08:00', '10:00', '12:00', '14:00']);
   });
 
   it('sorts and de-duplicates explicit moments', () => {

@@ -56,11 +56,18 @@ export const INTEREST_HISTORY_PAGE_SIZE = 10;
  *   not pay for a list nobody is looking at.
  */
 export function useInterestNotificationHistory(enabled = true) {
-  const { ownerId, data, loading, error, refetch } = useApplicationAccountQuery<InterestNotificationHistory>(
-    `/interests/notifications/history?limit=${INTEREST_HISTORY_PAGE_SIZE}`,
-    'useInterestNotificationHistory', enabled,
+  const { ownerId, data, loading, error, refetch } =
+    useApplicationAccountQuery<InterestNotificationHistory>(
+      `/interests/notifications/history?limit=${INTEREST_HISTORY_PAGE_SIZE}`,
+      'useInterestNotificationHistory',
+      enabled
+    );
+  useApplicationResourceSync(
+    enabled ? ownerId : undefined,
+    'interests',
+    refetch,
+    releaseHistoryOverride
   );
-  useApplicationResourceSync(enabled ? ownerId : undefined, 'interests', refetch, releaseHistoryOverride);
 
   return {
     notifications: data?.notifications,

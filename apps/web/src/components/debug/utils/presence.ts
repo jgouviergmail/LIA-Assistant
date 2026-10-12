@@ -80,8 +80,8 @@ function totalsPresence(metrics: DebugMetrics): SectionPresence {
     performed_effects: Boolean(metrics.performed_effects?.count),
     registers: Boolean(
       metrics.registers?.decision ||
-        metrics.registers?.treatments.count ||
-        metrics.registers?.verdicts?.count
+      metrics.registers?.treatments.count ||
+      metrics.registers?.verdicts?.count
     ),
   };
 }

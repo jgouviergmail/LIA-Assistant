@@ -32,10 +32,12 @@ describe('useBulkConnect', () => {
     await act(async () => result.current.connectAllGoogle());
 
     expect(post).toHaveBeenCalledExactlyOnceWith(
-      '/connectors/oauth-bulk/google/connect-all/authorize', {}
+      '/connectors/oauth-bulk/google/connect-all/authorize',
+      {}
     );
     expect(navigate).toHaveBeenCalledExactlyOnceWith(
-      'https://accounts.example/oauth', 'bulk-connect'
+      'https://accounts.example/oauth',
+      'bulk-connect'
     );
     expect(sessionStorage.getItem('oauth_connectors_reconnect_pending')).toBe('true');
     expect(localStorage.length).toBe(0);
@@ -45,7 +47,8 @@ describe('useBulkConnect', () => {
     const { result } = setup();
     await act(async () => result.current.connectAllMicrosoft());
     expect(post).toHaveBeenCalledExactlyOnceWith(
-      '/connectors/oauth-bulk/microsoft/connect-all/authorize', {}
+      '/connectors/oauth-bulk/microsoft/connect-all/authorize',
+      {}
     );
   });
 
@@ -83,10 +86,20 @@ describe('useBulkConnect', () => {
 
   it('requires a deliberate account choice when known grants exist', async () => {
     const connectors = [
-      makeConnector({ id: 'a', connector_type: 'google_calendar', status: 'active',
-        oauth_grant_id: 'grant-a', metadata: { oauth_account_email: 'a@gmail.com' } }),
-      makeConnector({ id: 'b', connector_type: 'google_contacts', status: 'active',
-        oauth_grant_id: 'grant-b', metadata: { oauth_account_email: 'b@gmail.com' } }),
+      makeConnector({
+        id: 'a',
+        connector_type: 'google_calendar',
+        status: 'active',
+        oauth_grant_id: 'grant-a',
+        metadata: { oauth_account_email: 'a@gmail.com' },
+      }),
+      makeConnector({
+        id: 'b',
+        connector_type: 'google_contacts',
+        status: 'active',
+        oauth_grant_id: 'grant-b',
+        metadata: { oauth_account_email: 'b@gmail.com' },
+      }),
     ];
     const { result } = setup(connectors);
     await act(async () => result.current.connectAllGoogle());
@@ -98,19 +111,25 @@ describe('useBulkConnect', () => {
     ]);
     await act(async () => result.current.confirmAccount('grant-b'));
     expect(post).toHaveBeenCalledExactlyOnceWith(
-      '/connectors/oauth-bulk/google/connect-all/authorize', { grant_id: 'grant-b' }
+      '/connectors/oauth-bulk/google/connect-all/authorize',
+      { grant_id: 'grant-b' }
     );
   });
 
   it('allows choosing another provider account without binding a known grant', async () => {
     const { result } = setup([
-      makeConnector({ id: 'a', connector_type: 'google_calendar', status: 'active',
-        oauth_grant_id: 'grant-a' }),
+      makeConnector({
+        id: 'a',
+        connector_type: 'google_calendar',
+        status: 'active',
+        oauth_grant_id: 'grant-a',
+      }),
     ]);
     await act(async () => result.current.connectAllGoogle());
     await act(async () => result.current.confirmAccount(null));
     expect(post).toHaveBeenCalledExactlyOnceWith(
-      '/connectors/oauth-bulk/google/connect-all/authorize', {}
+      '/connectors/oauth-bulk/google/connect-all/authorize',
+      {}
     );
   });
 
@@ -125,12 +144,21 @@ describe('useBulkConnect', () => {
 
   it('ignores a second click while the first authorization is in flight', async () => {
     let resolve!: (value: { authorization_url: string }) => void;
-    post.mockReturnValueOnce(new Promise(resolvePromise => { resolve = resolvePromise; }));
+    post.mockReturnValueOnce(
+      new Promise(resolvePromise => {
+        resolve = resolvePromise;
+      })
+    );
     const { result } = setup();
     let first!: Promise<void>;
-    act(() => { first = result.current.connectAllGoogle(); });
+    act(() => {
+      first = result.current.connectAllGoogle();
+    });
     await act(async () => result.current.connectAllMicrosoft());
     expect(post).toHaveBeenCalledTimes(1);
-    await act(async () => { resolve({ authorization_url: 'https://accounts.example/oauth' }); await first; });
+    await act(async () => {
+      resolve({ authorization_url: 'https://accounts.example/oauth' });
+      await first;
+    });
   });
 });

@@ -98,7 +98,11 @@ async def test_matches_non_matches_and_unknowns_all_remain_inspectable() -> None
     assert request["state"]["query"] == "Emails requiring a reply"
     assert "signed agreement" in request["state"]["items"]["q0"]["body"]
     assert request["state"]["items"]["q0"]["isRead"] is False
-    assert "q0" in request["questions"]["q0"].instructions
+    question = request["questions"]["q0"]
+    assert isinstance(question.instructions, dict)
+    assert "`items.q0`" in str(question.instructions["question"])
+    assert "`application_facts.q0`" in str(question.instructions["rules"])
+    assert list(question.criteria)[0] == "unknown"  # the conservative outcome first
 
 
 @pytest.mark.parametrize("outcome", ["disabled", "timeout", "invalid_response", "unavailable"])

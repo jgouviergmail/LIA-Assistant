@@ -38,9 +38,7 @@ import { FormSection } from '@/components/ui/form-section';
 
 import { RecurrenceDaysField } from '@/components/recurrence/RecurrenceDaysField';
 import { RecurrenceSummary } from '@/components/recurrence/RecurrenceSummary';
-import {
-  RecurrenceTimesField,
-} from '@/components/recurrence/RecurrenceTimesField';
+import { RecurrenceTimesField } from '@/components/recurrence/RecurrenceTimesField';
 import type { RecurrenceSpec } from '@/types/recurrence';
 import { runsPerDay } from '@/lib/recurrence';
 

@@ -129,6 +129,7 @@ class SystemSettingKey(str, enum.Enum):
     JEV_INITIATIVE_UTILITY_ENABLED = "jev_initiative_utility_enabled"
     JEV_MEMORY_REFERENCE_PRESENCE_ENABLED = "jev_memory_reference_presence_enabled"
     JEV_HITL_REJECTION_ENABLED = "jev_hitl_rejection_enabled"
+    JEV_PARAMETER_KIND_ENABLED = "jev_parameter_kind_enabled"
 
     # Future settings can be added here:
     # MAINTENANCE_MODE = "maintenance_mode"

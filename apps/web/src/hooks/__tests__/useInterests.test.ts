@@ -19,7 +19,11 @@ const mockUseApiMutation = vi.hoisted(() => vi.fn());
 vi.mock('@/hooks/useApiQuery', () => ({ useApiQuery: mockUseApiQuery }));
 vi.mock('@/hooks/useApiMutation', () => ({ useApiMutation: mockUseApiMutation }));
 vi.mock('@/hooks/useApplicationAccountQuery', () => ({
-  useApplicationAccountQuery: (endpoint: string) => ({ ...mockUseApiQuery(endpoint), ownerId: 'one', isCurrent: () => true }),
+  useApplicationAccountQuery: (endpoint: string) => ({
+    ...mockUseApiQuery(endpoint),
+    ownerId: 'one',
+    isCurrent: () => true,
+  }),
 }));
 vi.mock('@/hooks/useApplicationResourceSync', () => ({ useApplicationResourceSync: vi.fn() }));
 

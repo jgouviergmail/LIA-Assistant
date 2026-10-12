@@ -15,8 +15,15 @@ describe('application state stream', () => {
   it('accepts the complete plugin group refresh without leaking values', () => {
     const { context, dispatch } = buildHandlerContext();
     const handleApplicationStateChange = vi.fn();
-    const pluginChange = { ...change, resources: ['plugins', 'skills', 'user_mcp'], changed_fields: ['plugin_to_delete'] };
-    processSSEChunk({ type: 'application_state_changed', content: '', metadata: { change: pluginChange } }, { ...context, handleApplicationStateChange });
+    const pluginChange = {
+      ...change,
+      resources: ['plugins', 'skills', 'user_mcp'],
+      changed_fields: ['plugin_to_delete'],
+    };
+    processSSEChunk(
+      { type: 'application_state_changed', content: '', metadata: { change: pluginChange } },
+      { ...context, handleApplicationStateChange }
+    );
     expect(handleApplicationStateChange).toHaveBeenCalledExactlyOnceWith(pluginChange);
     expect(dispatch).not.toHaveBeenCalled();
   });
@@ -33,10 +40,12 @@ describe('application state stream', () => {
 
   it('accepts a valid notification when the resource listener is not mounted', () => {
     const { context, dispatch } = buildHandlerContext();
-    expect(() => processSSEChunk(
-      { type: 'application_state_changed', content: '', metadata: { change } },
-      context
-    )).not.toThrow();
+    expect(() =>
+      processSSEChunk(
+        { type: 'application_state_changed', content: '', metadata: { change } },
+        context
+      )
+    ).not.toThrow();
     expect(dispatch).not.toHaveBeenCalled();
   });
 

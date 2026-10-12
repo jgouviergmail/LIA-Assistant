@@ -2,10 +2,7 @@
 
 import { useCallback } from 'react';
 import { toast } from 'sonner';
-import {
-  ExternalLink,
-  Signpost,
-} from 'lucide-react';
+import { ExternalLink, Signpost } from 'lucide-react';
 
 import { InfoBox } from '@/components/ui/info-box';
 import { Label } from '@/components/ui/label';
@@ -51,10 +48,9 @@ export default function AdminPublicDemoLinkSection({ lng }: BaseSettingsProps) {
     }
   );
 
-  const { mutate, loading: saving } = useApiMutation<
-    { enabled: boolean },
-    PublicDemoLinkAdminView
-  >({ method: 'PUT', componentName: 'AdminPublicDemoLinkSection' });
+  const { mutate, loading: saving } = useApiMutation<{ enabled: boolean }, PublicDemoLinkAdminView>(
+    { method: 'PUT', componentName: 'AdminPublicDemoLinkSection' }
+  );
 
   const handleToggle = useCallback(
     async (checked: boolean) => {

@@ -72,7 +72,10 @@ export function RecurrenceSummary({
   return (
     <div className="space-y-1.5 rounded-lg border border-border/40 bg-muted/30 p-3 text-xs">
       {sentence && (
-        <p className="flex items-center gap-1.5 font-medium text-foreground" data-testid="recurrence-sentence">
+        <p
+          className="flex items-center gap-1.5 font-medium text-foreground"
+          data-testid="recurrence-sentence"
+        >
           <CalendarClock className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
           {sentence}
         </p>

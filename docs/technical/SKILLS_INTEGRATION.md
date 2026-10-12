@@ -871,7 +871,7 @@ All `agent_name` values (from `domains/agents/constants.py`):
 
 | agent_name | tool_name | Key parameters | Notes |
 |------------|-----------|----------------|-------|
-| `weather_agent` | `get_weather_forecast_tool` | `days` (1-10), `location` | Best for plan_template |
+| `weather_agent` | `get_weather_forecast_tool` | `days` (consecutive days from `date`, 1 to `WEATHER_FORECAST_MAX_DAYS`), `date`, `location` | Best for plan_template |
 | `weather_agent` | `get_current_weather_tool` | `location` | Current conditions only |
 | `weather_agent` | `get_hourly_forecast_tool` | `hours`, `location` | |
 | `wikipedia_agent` | `search_wikipedia_tool` | `query`, `language` | |

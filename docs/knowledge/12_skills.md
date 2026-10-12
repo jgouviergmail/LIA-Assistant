@@ -177,3 +177,7 @@ Nothing is written directly: LIA proposes the new version on a card showing **ex
 Three cases are refused: **system** skills (maintained by the administrator, no fork offered), skills **installed from the library or brought by a plugin** (they follow their source — update them instead), and your own ones that are **disabled** — re-enable it first in Settings → Skills.
 
 A regenerated package is also checked for internal consistency: a skill declaring an interactive output with no script, or advertising a resource it does not ship, is rejected rather than stored broken.
+
+## Can I manage skills, plugins and MCP servers through conversation?
+
+Offered commands can read and prepare authorised operations on your existing skills, plugins, personal MCP servers and channels. File imports and keys continue in the secure interface; installation, deletion and sensitive changes retain confirmation. Asking does not create a new messaging adapter. If Docker refuses a skill sandbox, the operation is reported unavailable rather than run outside the container.

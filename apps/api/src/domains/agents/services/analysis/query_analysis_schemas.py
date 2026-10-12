@@ -16,6 +16,10 @@ from pydantic import BaseModel, ConfigDict, field_validator
 from pydantic import Field as PydanticField
 
 from src.domains.agents.analysis.requested_outcomes import GoalRequirement
+from src.domains.agents.analysis.resolved_references import (
+    AnalyzerReferenceType,
+    parse_reference_type,
+)
 from src.domains.agents.services.analysis.skill_suppression import normalize_skill_name
 
 __all__ = [
@@ -27,11 +31,23 @@ __all__ = [
 
 
 class ResolvedReference(BaseModel):
-    """A resolved reference from the query."""
+    """A resolved reference from the query, typed by what its VALUE is."""
 
     original: str = PydanticField(description="Original reference in user query")
     resolved: str = PydanticField(description="Resolved value")
-    type: str = PydanticField(description="Reference type: temporal, person, contextual")
+    type: AnalyzerReferenceType = PydanticField(
+        default=AnalyzerReferenceType.CONTEXTUAL,
+        description=(
+            "What the resolved value is: person (a person's name), place (a place, a city "
+            "or an address), temporal (a date, a time or a range), contextual (anything else)"
+        ),
+    )
+
+    @field_validator("type", mode="before")
+    @classmethod
+    def _read_type(cls, raw: object) -> AnalyzerReferenceType:
+        """A type outside the vocabulary is ``contextual`` — never a failed analysis."""
+        return parse_reference_type(raw)
 
 
 class ConstraintHints(BaseModel):

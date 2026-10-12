@@ -13,7 +13,7 @@
 
 import { NextResponse } from 'next/server';
 
-import { resolveLandingPlaylist } from '@/lib/landing/media';
+import { resolveLandingPlaylist, resolveLandingPresentation } from '@/lib/landing/media';
 import { LANDING_MEDIA_TTL_MS, loadLandingManifest } from '@/lib/landing/media-origin';
 
 export const dynamic = 'force-dynamic';
@@ -38,7 +38,7 @@ export async function GET(): Promise<NextResponse> {
   if (!loaded) return noVideo();
   const [video, ...next] = resolveLandingPlaylist(loaded.manifest, loaded.baseUrl);
   return NextResponse.json(
-    { video, next },
+    { video, next, presentation: resolveLandingPresentation(loaded.manifest, loaded.baseUrl) },
     {
       headers: {
         'Cache-Control': `public, max-age=${LANDING_MEDIA_TTL_MS / 1000}, stale-while-revalidate=60`,

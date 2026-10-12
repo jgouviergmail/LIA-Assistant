@@ -1,0 +1,708 @@
+[
+  {
+    "id": "sunsetter",
+    "title": "Sunsetter",
+    "artist": "Shane Ivers",
+    "source": "https://www.silvermansound.com/free-music/sunsetter",
+    "sourceAudio": "https://www.silvermansound.com/wp-content/uploads/sunsetter.mp3",
+    "sourceSha256": "0de0349ce104e1c6f397b06830c408517359964de98b9c121faf2b04fee90fd1",
+    "publishedTempoBpm": 117,
+    "isrc": "UKEZT2300012",
+    "attribution": "Sunsetter — Shane Ivers · silvermansound.com · CC BY 4.0 · montage LIA",
+    "styleSource": "Summer dance; acoustic guitar, ukulele, bass and drums",
+    "trimFrom": 0,
+    "license": "CC-BY-4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "audio": "audio/v3/sunsetter-20s.wav",
+    "durationSeconds": 20.0,
+    "audioSha256": "49e7c579b63cf075893ec70f9dcf1c8e040e658be0a6a3d1eb6d994b868f7d0d",
+    "sourceFormat": "Official MP3 decoded with headroom to working PCM; not lossless",
+    "edit": {
+      "trimFrom": 0,
+      "trimTo": 20,
+      "repetitions": 0,
+      "decodeHeadroomDb": 6
+    },
+    "beats": [
+      0.133,
+      0.548,
+      1.029,
+      1.576,
+      2.085,
+      2.601,
+      3.117,
+      3.626,
+      4.134,
+      4.648,
+      5.135,
+      5.674,
+      6.19,
+      6.701,
+      7.215,
+      7.725,
+      8.234,
+      8.757,
+      9.261,
+      9.781,
+      10.294,
+      10.809,
+      11.307,
+      11.833,
+      12.336,
+      12.857,
+      13.367,
+      13.882,
+      14.394,
+      14.909,
+      15.418,
+      15.931,
+      16.437,
+      16.963,
+      17.468,
+      17.987,
+      18.489,
+      19.012,
+      19.516
+    ],
+    "beatEntries": [
+      [
+        133,
+        0.04,
+        false
+      ],
+      [
+        548,
+        0.68,
+        false
+      ],
+      [
+        1029,
+        0.45,
+        false
+      ],
+      [
+        1576,
+        0.82,
+        false
+      ],
+      [
+        2085,
+        0.72,
+        false
+      ],
+      [
+        2601,
+        0.66,
+        false
+      ],
+      [
+        3117,
+        0.52,
+        false
+      ],
+      [
+        3626,
+        0.8,
+        false
+      ],
+      [
+        4134,
+        0.7,
+        false
+      ],
+      [
+        4648,
+        0.86,
+        false
+      ],
+      [
+        5135,
+        0.55,
+        true
+      ],
+      [
+        5674,
+        0.89,
+        false
+      ],
+      [
+        6190,
+        0.66,
+        false
+      ],
+      [
+        6701,
+        0.73,
+        false
+      ],
+      [
+        7215,
+        0.69,
+        true
+      ],
+      [
+        7725,
+        0.96,
+        false
+      ],
+      [
+        8234,
+        1.0,
+        false
+      ],
+      [
+        8757,
+        0.5,
+        false
+      ],
+      [
+        9261,
+        0.7,
+        false
+      ],
+      [
+        9781,
+        0.61,
+        false
+      ],
+      [
+        10294,
+        0.55,
+        false
+      ],
+      [
+        10809,
+        0.5,
+        false
+      ],
+      [
+        11307,
+        0.67,
+        false
+      ],
+      [
+        11833,
+        0.65,
+        false
+      ],
+      [
+        12336,
+        0.99,
+        false
+      ],
+      [
+        12857,
+        0.54,
+        false
+      ],
+      [
+        13367,
+        0.9,
+        false
+      ],
+      [
+        13882,
+        0.73,
+        false
+      ],
+      [
+        14394,
+        0.65,
+        false
+      ],
+      [
+        14909,
+        0.57,
+        false
+      ],
+      [
+        15418,
+        0.66,
+        false
+      ],
+      [
+        15931,
+        0.81,
+        false
+      ],
+      [
+        16437,
+        1.0,
+        true
+      ],
+      [
+        16963,
+        0.32,
+        false
+      ],
+      [
+        17468,
+        0.81,
+        false
+      ],
+      [
+        17987,
+        0.54,
+        false
+      ],
+      [
+        18489,
+        0.76,
+        true
+      ],
+      [
+        19012,
+        0.36,
+        false
+      ],
+      [
+        19516,
+        0.99,
+        false
+      ]
+    ],
+    "analysisVersion": 2,
+    "onsetLeadMs": 72.9,
+    "analysis": {
+      "beats": 39,
+      "bars": 4,
+      "tempo_windows": [
+        {
+          "from_s": 0.0,
+          "bpm": 117.5
+        },
+        {
+          "from_s": 5.0,
+          "bpm": 117.5
+        },
+        {
+          "from_s": 10.0,
+          "bpm": 117.5
+        }
+      ],
+      "median_interval_ms": 512.5,
+      "interval_mad_ms": 5.5,
+      "mean_weight": 0.681,
+      "onset_hit_rate": 0.974
+    },
+    "review": {
+      "licenceAndRecordingVerified": true,
+      "humanListening": false,
+      "styleJudgement": "Composer's instrumentation/mood and measured rhythm; listening required"
+    }
+  },
+  {
+    "id": "tidie-fridie",
+    "title": "Tidie Fridie",
+    "artist": "Shane Ivers",
+    "source": "https://www.silvermansound.com/free-music/tidie-fridie",
+    "sourceAudio": "https://www.silvermansound.com/wp-content/uploads/tidie-fridie.mp3",
+    "sourceSha256": "ea732d99beb1a1819b6bd1f5da5e9bd50c8ec24cd3a0faea776ee2379d446941",
+    "publishedTempoBpm": 105,
+    "isrc": "UKEZT2300002",
+    "attribution": "Tidie Fridie — Shane Ivers · silvermansound.com · CC BY 4.0 · montage LIA",
+    "styleSource": "Funky bass; electric piano, vintage drums and bass guitars",
+    "trimFrom": 0,
+    "license": "CC-BY-4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "audio": "audio/v3/tidie-fridie-20s.wav",
+    "durationSeconds": 20.0,
+    "audioSha256": "b7ba4a179ec8118c1993c8b99e2729f2024095f45a885739847f54f2f98ceef1",
+    "sourceFormat": "Official MP3 decoded with headroom to working PCM; not lossless",
+    "edit": {
+      "trimFrom": 0,
+      "trimTo": 20,
+      "repetitions": 0,
+      "decodeHeadroomDb": 6
+    },
+    "beats": [
+      0.457,
+      1.479,
+      2.33,
+      3.068,
+      3.756,
+      4.622,
+      5.451,
+      6.046,
+      6.905,
+      7.618,
+      8.332,
+      9.07,
+      9.757,
+      10.612,
+      11.467,
+      12.041,
+      12.889,
+      13.749,
+      14.318,
+      15.174,
+      16.031,
+      16.6,
+      17.464,
+      18.209,
+      18.903,
+      19.755
+    ],
+    "beatEntries": [
+      [
+        457,
+        0.17,
+        false
+      ],
+      [
+        1479,
+        0.91,
+        false
+      ],
+      [
+        2330,
+        1.0,
+        true
+      ],
+      [
+        3068,
+        0.05,
+        false
+      ],
+      [
+        3756,
+        0.9,
+        false
+      ],
+      [
+        4622,
+        0.93,
+        false
+      ],
+      [
+        5451,
+        0.29,
+        true
+      ],
+      [
+        6046,
+        0.96,
+        false
+      ],
+      [
+        6905,
+        0.84,
+        false
+      ],
+      [
+        7618,
+        0.07,
+        false
+      ],
+      [
+        8332,
+        0.84,
+        true
+      ],
+      [
+        9070,
+        0.18,
+        false
+      ],
+      [
+        9757,
+        0.34,
+        false
+      ],
+      [
+        10612,
+        0.84,
+        false
+      ],
+      [
+        11467,
+        0.93,
+        true
+      ],
+      [
+        12041,
+        0.53,
+        false
+      ],
+      [
+        12889,
+        0.92,
+        false
+      ],
+      [
+        13749,
+        0.82,
+        false
+      ],
+      [
+        14318,
+        0.67,
+        true
+      ],
+      [
+        15174,
+        0.79,
+        false
+      ],
+      [
+        16031,
+        1.0,
+        false
+      ],
+      [
+        16600,
+        0.72,
+        false
+      ],
+      [
+        17464,
+        0.98,
+        false
+      ],
+      [
+        18209,
+        0.15,
+        false
+      ],
+      [
+        18903,
+        0.3,
+        false
+      ],
+      [
+        19755,
+        0.86,
+        false
+      ]
+    ],
+    "analysisVersion": 2,
+    "onsetLeadMs": 72.9,
+    "analysis": {
+      "beats": 26,
+      "bars": 5,
+      "tempo_windows": [
+        {
+          "from_s": 0.0,
+          "bpm": 69.8
+        },
+        {
+          "from_s": 5.0,
+          "bpm": 69.8
+        },
+        {
+          "from_s": 10.0,
+          "bpm": 69.8
+        }
+      ],
+      "median_interval_ms": 829.0,
+      "interval_mad_ms": 84.0,
+      "mean_weight": 0.653,
+      "onset_hit_rate": 0.923
+    },
+    "review": {
+      "licenceAndRecordingVerified": true,
+      "humanListening": false,
+      "styleJudgement": "Composer's instrumentation/mood and measured rhythm; listening required"
+    }
+  },
+  {
+    "id": "transition",
+    "title": "Transition",
+    "artist": "Jason Shaw",
+    "source": "https://audionautix.com/free-music/pop-funk",
+    "sourceAudio": "https://audionautix.com/Music/Transition.mp3",
+    "sourceSha256": "2a095f4ed86dbc807319f1c96296f8b1fd66551d195995add0a4dbbd2d2e19a4",
+    "attribution": "Transition — Jason Shaw · audionautix.com · CC BY 4.0 · montage LIA",
+    "styleSource": "Pop/funk; published mood: bouncy, uplifting, bright",
+    "trimFrom": 4.051,
+    "license": "CC-BY-4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "audio": "audio/v3/transition-20s.wav",
+    "durationSeconds": 20.0,
+    "audioSha256": "f9bc70ea6b7abc821a28181e446d7e7114d972647e55d7b27e2b3411f35eadd9",
+    "sourceFormat": "Official MP3 decoded with headroom to working PCM; not lossless",
+    "edit": {
+      "trimFrom": 4.051,
+      "trimTo": 24.051000000000002,
+      "repetitions": 0,
+      "decodeHeadroomDb": 6
+    },
+    "beats": [
+      0.092,
+      0.871,
+      1.714,
+      2.574,
+      3.426,
+      4.29,
+      5.144,
+      6.003,
+      6.854,
+      7.714,
+      8.568,
+      9.428,
+      10.282,
+      11.142,
+      12.0,
+      12.856,
+      13.715,
+      14.572,
+      15.426,
+      16.286,
+      17.141,
+      17.998,
+      18.857,
+      19.716
+    ],
+    "beatEntries": [
+      [
+        92,
+        0.09,
+        true
+      ],
+      [
+        871,
+        0.16,
+        false
+      ],
+      [
+        1714,
+        0.65,
+        false
+      ],
+      [
+        2574,
+        0.26,
+        false
+      ],
+      [
+        3426,
+        0.61,
+        true
+      ],
+      [
+        4290,
+        0.68,
+        false
+      ],
+      [
+        5144,
+        0.31,
+        false
+      ],
+      [
+        6003,
+        0.35,
+        false
+      ],
+      [
+        6854,
+        1.0,
+        true
+      ],
+      [
+        7714,
+        0.52,
+        false
+      ],
+      [
+        8568,
+        0.91,
+        false
+      ],
+      [
+        9428,
+        0.65,
+        false
+      ],
+      [
+        10282,
+        1.0,
+        true
+      ],
+      [
+        11142,
+        0.59,
+        false
+      ],
+      [
+        12000,
+        0.55,
+        false
+      ],
+      [
+        12856,
+        0.68,
+        false
+      ],
+      [
+        13715,
+        0.67,
+        true
+      ],
+      [
+        14572,
+        0.55,
+        false
+      ],
+      [
+        15426,
+        0.85,
+        false
+      ],
+      [
+        16286,
+        0.52,
+        false
+      ],
+      [
+        17141,
+        0.9,
+        true
+      ],
+      [
+        17998,
+        0.88,
+        false
+      ],
+      [
+        18857,
+        0.53,
+        false
+      ],
+      [
+        19716,
+        0.57,
+        false
+      ]
+    ],
+    "analysisVersion": 2,
+    "onsetLeadMs": 72.9,
+    "analysis": {
+      "beats": 24,
+      "bars": 6,
+      "tempo_windows": [
+        {
+          "from_s": 0.0,
+          "bpm": 69.8
+        },
+        {
+          "from_s": 5.0,
+          "bpm": 69.8
+        },
+        {
+          "from_s": 10.0,
+          "bpm": 69.8
+        }
+      ],
+      "median_interval_ms": 857.0,
+      "interval_mad_ms": 3.0,
+      "mean_weight": 0.603,
+      "onset_hit_rate": 1.0
+    },
+    "review": {
+      "licenceAndRecordingVerified": true,
+      "humanListening": false,
+      "styleJudgement": "Composer's instrumentation/mood and measured rhythm; listening required"
+    }
+  }
+]

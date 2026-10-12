@@ -283,29 +283,61 @@ function ConnectorForm({
   );
 }
 
-function LiveThinkingSelect({ lng, state, saving }: { lng: Language; state: DraftState; saving: boolean }) {
+function LiveThinkingSelect({
+  lng,
+  state,
+  saving,
+}: {
+  lng: Language;
+  state: DraftState;
+  saving: boolean;
+}) {
   const { t } = useTranslation(lng);
   if (state.levels.length === 0) return null;
   return (
     <div className="space-y-3">
       <Label htmlFor="live-thinking">{t('settings.live_mode.thinking')}</Label>
-      <Select value={state.draft.thinking_level ?? state.levels[0]} onValueChange={state.chooseLevel} disabled={saving}>
-        <SelectTrigger id="live-thinking" className="w-full"><SelectValue /></SelectTrigger>
+      <Select
+        value={state.draft.thinking_level ?? state.levels[0]}
+        onValueChange={state.chooseLevel}
+        disabled={saving}
+      >
+        <SelectTrigger id="live-thinking" className="w-full">
+          <SelectValue />
+        </SelectTrigger>
         <SelectContent>
-          {state.levels.map(level => <SelectItem key={level} value={level}>{level}</SelectItem>)}
+          {state.levels.map(level => (
+            <SelectItem key={level} value={level}>
+              {level}
+            </SelectItem>
+          ))}
         </SelectContent>
       </Select>
     </div>
   );
 }
 
-function SavedSettingsChangedNotice({ lng, state, saving }: { lng: Language; state: DraftState; saving: boolean }) {
+function SavedSettingsChangedNotice({
+  lng,
+  state,
+  saving,
+}: {
+  lng: Language;
+  state: DraftState;
+  saving: boolean;
+}) {
   const { t } = useTranslation(lng);
   if (!state.sourceChanged) return null;
   return (
     <div className="space-y-2 text-sm" role="status">
       <p>{t('settings.live_mode.settings_changed')}</p>
-      <Button type="button" variant="outline" size="sm" onClick={state.resetToSaved} disabled={saving}>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={state.resetToSaved}
+        disabled={saving}
+      >
         {t('settings.live_mode.reload_saved')}
       </Button>
     </div>

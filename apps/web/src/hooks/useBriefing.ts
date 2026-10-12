@@ -69,14 +69,21 @@ const ENDPOINT_REFRESH_CARDS = '/briefing/refresh-cards';
 const releaseReminderOverride = () => {};
 
 export function useBriefing(): UseBriefingResult {
-  const cardsQuery = useApplicationAccountQuery<CardsResponse>(ENDPOINT_CARDS, 'TodayBriefing.cards');
-  const synthesisQuery = useApplicationAccountQuery<SynthesisResponse>(ENDPOINT_SYNTHESIS, 'TodayBriefing.synthesis');
+  const cardsQuery = useApplicationAccountQuery<CardsResponse>(
+    ENDPOINT_CARDS,
+    'TodayBriefing.cards'
+  );
+  const synthesisQuery = useApplicationAccountQuery<SynthesisResponse>(
+    ENDPOINT_SYNTHESIS,
+    'TodayBriefing.synthesis'
+  );
   const { ownerId, lifetime, isCurrent, refetch: refetchCards } = cardsQuery;
   // Reminder cards are always live at the source; rereading them calls no LLM.
   useApplicationResourceSync(ownerId, 'reminders', refetchCards, releaseReminderOverride);
 
   const [refreshing, setRefreshing] = useState({ lifetime, sections: new Set<RefreshScope>() });
-  const refreshingSections = refreshing.lifetime === lifetime ? refreshing.sections : new Set<RefreshScope>();
+  const refreshingSections =
+    refreshing.lifetime === lifetime ? refreshing.sections : new Set<RefreshScope>();
 
   const refetchSection = useCallback(
     async (section: RefreshScope) => {

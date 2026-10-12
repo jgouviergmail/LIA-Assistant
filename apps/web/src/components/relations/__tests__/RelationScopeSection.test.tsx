@@ -24,15 +24,7 @@ import { RelationScopeSection } from '../RelationScopeSection';
 
 function scope(over: Partial<RelationOverviewScope> = {}): RelationOverviewScope {
   return {
-    sections: [
-      'contact',
-      'open_loops',
-      'calls',
-      'memories',
-      'peer_messages',
-      'emails',
-      'events',
-    ],
+    sections: ['contact', 'open_loops', 'calls', 'memories', 'peer_messages', 'emails', 'events'],
     directions: ['received', 'sent'],
     roles: ['attendee', 'organizer'],
     max_items: 5,
@@ -70,7 +62,9 @@ describe('RelationScopeSection', () => {
     await renderScope({ sections: ['contact', 'emails'], roles: ['organizer'] });
     expect(screen.getByRole('checkbox', { name: 'relations.section_contact' })).toBeChecked();
     expect(screen.getByRole('checkbox', { name: 'relations.section_calls' })).not.toBeChecked();
-    expect(screen.getByRole('checkbox', { name: 'relations.event_role_attendee' })).not.toBeChecked();
+    expect(
+      screen.getByRole('checkbox', { name: 'relations.event_role_attendee' })
+    ).not.toBeChecked();
   });
 
   it('reports an unticked source without touching the rest', async () => {
@@ -148,12 +142,7 @@ describe('RelationScopeSection', () => {
 
   it('starts folded, like every other section of the panel', () => {
     renderWithProviders(
-      <RelationScopeSection
-        scope={scope()}
-        saving={false}
-        onChange={vi.fn()}
-        onPrepare={vi.fn()}
-      />
+      <RelationScopeSection scope={scope()} saving={false} onChange={vi.fn()} onPrepare={vi.fn()} />
     );
     expect(screen.getByRole('button', { name: /relations.scope_title/ })).toHaveAttribute(
       'aria-expanded',

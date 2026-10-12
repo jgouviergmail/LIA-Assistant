@@ -94,6 +94,21 @@ only on hover or keyboard focus; `life=false` alone would still permit breathing
 New device preferences select `bip` at the largest preset; existing saved
 styles and sizes are preserved. The public landing explicitly presents the
 masculine BIP at that size without changing the application's preferences.
+An operator can separately opt one deployment into a BIP introduction campaign
+using the server-only runtime `AVATAR_STYLE_ROLLOUT_ID` option, empty by default.
+The authenticated host reads `/api/runtime-ui`, rehydrates browser preferences,
+and changes only the style and persisted campaign marker once for that identifier.
+Later manual choices, visibility, size and both positions remain intact.
+The campaign is per browser origin, not per database account, and applies on
+the next authenticated visit; it cannot update an offline browser.
+Web Locks serialize first application across tabs when supported; storage events
+follow later choices without writing back. Without Web Locks, a latest-record
+re-read protects delayed replies but is not a cross-process transaction.
+Clearing the option stops new applications without restoring old choices.
+Use a stable unique identifier for each intentional campaign; never reuse an old
+identifier or rotate it automatically for every release. Ordinary installations
+leave the option empty. See [ADR-342](../architecture/ADR-342-Opt-In-Runtime-Avatar-Preference-Campaigns.md)
+for lifecycle, compatibility and qualification limits.
 The client-only [application host](../../apps/web/src/components/eyes/ApplicationEyes.tsx)
 mounts once under the authenticated dashboard layout, retaining the same
 face across its pages. Chat phases travel through an ephemeral
@@ -265,6 +280,11 @@ buffer remains independently bounded by its geometry module. Download size,
 decoded memory and real-device smoothness must be measured on the actual delivery.
 
 ## Native anatomical volume and layout
+
+[ADR-340](../architecture/ADR-340-Native-Avatar-Volume-From-Reviewed-Offline-Art.md)
+records the geometry, native motion ownership and fallback boundaries of this surface.
+The [native volume guide](NATIVE_AVATAR_VOLUME.md) maps the alpha material,
+projected face, resource lifecycle and approximation limits to their sources.
 
 The hybrid characters and monitor use
 [`BodyVolume`](../../apps/web/src/components/eyes/volume/BodyVolume.tsx) when

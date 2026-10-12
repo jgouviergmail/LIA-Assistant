@@ -78,8 +78,7 @@ describe('ScreenshotsSection', () => {
     const image = screen.getByRole('img', { name: names[0] });
     expect(image).toHaveAttribute('src', src);
     expect(image).not.toHaveAttribute('srcset');
-    const capture = homeProof.images.find(item => item.file === 'homepage.png')!;
-    expect(image.parentElement).toHaveStyle({ aspectRatio: capture.width / capture.height });
+    // Preview shares the Grafana frame; full-page data remains inspectable.
     await user.click(screen.getByRole('button', { name: 'common.expand_image' }));
     expect(within(screen.getByRole('dialog')).getByRole('img')).toHaveAttribute('src', src);
   });
@@ -89,13 +88,14 @@ describe('ScreenshotsSection', () => {
     expect(screen.getByRole('button', { name: 'common.expand_image' })).toBeInTheDocument();
   });
 
-  it('lets an operator switch between the two dedicated monitoring views', async () => {
+  it('lets an operator inspect the three dedicated monitoring views', async () => {
     const user = userEvent.setup();
     render(<ScreenshotsSection monitoring />);
 
     expect(thumbnailNames()).toEqual([
       'landing.screenshots.proof.grafana_overview',
       'landing.screenshots.proof.grafana_costs',
+      'landing.screenshots.proof.grafana_activity',
     ]);
     expect(
       screen.getByRole('group', { name: 'landing.platform.dashboard_title' })
@@ -111,6 +111,19 @@ describe('ScreenshotsSection', () => {
       screen.getByRole('img', { name: 'landing.screenshots.proof.grafana_costs' })
     ).toBeVisible();
     expect(screen.getByRole('button', { name: 'common.expand_image' })).toBeVisible();
+    const activity = screen.getByRole('button', {
+      name: 'landing.screenshots.proof.grafana_activity',
+    });
+    activity.focus();
+    await user.keyboard('{Enter}');
+    expect(activity).toHaveFocus();
+    expect(activity).toHaveAttribute('aria-current', 'true');
+    const src = `/screenshots/proof/grafana-activity.png?v=${monitoringProof.revision}`;
+    expect(
+      screen.getByRole('img', { name: 'landing.screenshots.proof.grafana_activity' })
+    ).toHaveAttribute('src', src);
+    await user.click(screen.getByRole('button', { name: 'common.expand_image' }));
+    expect(within(screen.getByRole('dialog')).getByRole('img')).toHaveAttribute('src', src);
   });
 });
 

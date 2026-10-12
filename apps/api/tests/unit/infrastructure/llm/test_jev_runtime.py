@@ -406,3 +406,45 @@ async def test_real_transport_stream_cleanup_accounts_received_usage_once(
             assert calls[0]["tokens_out"] == 18
             assert calls[0]["status"] == "error"
             assert calls[0]["failure_kind"] == ("cancelled" if cancelled else "transport_error")
+
+
+async def test_a_single_noul_goes_through_the_batch_door_and_reaches_nouls() -> None:
+    from src.infrastructure.llm.typesafe_client import NoulAnswer, NoulCriteria, NoulQuestion
+
+    owner = uuid4()
+    tracker = TrackingContext("noul", owner, "chat", None, auto_commit=False)
+    config = DecisionConfiguration("jev-1.13.0", 2, SecretStr("test-secret"), PRICE)
+    question = NoulQuestion(
+        instructions="`query` holds.", criteria=NoulCriteria(true="Yes", false="No")
+    )
+    with (
+        patch.object(
+            module, "load_jev_snapshot", AsyncMock(return_value=JevSnapshot(True, "ready", config))
+        ),
+        patch.object(module, "enforce_usage_limit", AsyncMock()),
+        patch.object(module, "get_cached_usd_eur_rate", return_value=0.9),
+        patch("src.infrastructure.llm.typesafe_client.TypeSafeClient.choose", AsyncMock()) as one,
+        patch(
+            "src.infrastructure.llm.typesafe_client.TypeSafeClient.choose_many",
+            AsyncMock(
+                return_value=ChoiceBatchResult(
+                    config.model,
+                    {},
+                    DecisionUsage(input_tokens=500, output_tokens=4),
+                    {"selection": NoulAnswer(type="noul", noul=0.08)},
+                )
+            ),
+        ) as many,
+    ):
+        async with tracker:
+            result = await module.choose_with_jev(
+                usage=JevUsage.INITIATIVE_UTILITY,
+                user_id=owner,
+                run_id="noul",
+                state="x",
+                question=question,
+            )
+    one.assert_not_awaited()
+    assert many.call_args.kwargs["questions"] == {"selection": question}
+    assert result.answer is None and result.nouls["selection"].noul == 0.08
+    assert len(tracker.get_llm_calls_breakdown()) == 1

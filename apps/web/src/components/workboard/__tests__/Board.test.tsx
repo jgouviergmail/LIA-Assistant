@@ -351,22 +351,22 @@ describe('the « to confirm » column', () => {
 
     await user.click(screen.getByRole('combobox', { name: 'workboard.board.pick_column' }));
     await user.click(await screen.findByRole('option', { name: /workboard.columns.confirming/ }));
-    expect(screen.getByRole('region', { name: 'workboard.columns.confirming' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('region', { name: 'workboard.columns.confirming' })
+    ).toBeInTheDocument();
 
     // The ticket is answered: the server stops counting the column, and the
     // board stops drawing it under the reader.
-    rerender(
-      boardElement({ ...holdingProps, countsByStatus: { ...holding, confirming: 0 } })
-    );
+    rerender(boardElement({ ...holdingProps, countsByStatus: { ...holding, confirming: 0 } }));
 
     // Exactly one column is shown, and it is one the board still draws.
     const regions = screen.getAllByRole('region');
     expect(regions).toHaveLength(1);
     expect(regions[0].getAttribute('aria-label')).not.toBe('workboard.columns.confirming');
     // And the list agrees with what is on screen.
-    expect(
-      screen.getByRole('combobox', { name: 'workboard.board.pick_column' })
-    ).toHaveTextContent(String(regions[0].getAttribute('aria-label')));
+    expect(screen.getByRole('combobox', { name: 'workboard.board.pick_column' })).toHaveTextContent(
+      String(regions[0].getAttribute('aria-label'))
+    );
   });
 });
 

@@ -5,12 +5,22 @@ import {
   type VolumeMesh,
   type VolumeProfile,
 } from './volume-geometry';
+import { smoothSurfaceNormals } from './volume-normals';
 type Sample = { u: number; v: number; alpha: number };
 const SOLID = 180;
 function alpha(mask: VolumeMask, u: number, v: number) {
-  const x = Math.min(mask.width - 1, Math.max(0, Math.floor(u * mask.width)));
-  const y = Math.min(mask.height - 1, Math.max(0, Math.floor(v * mask.height)));
-  return mask.alpha[y * mask.width + x];
+  const x = Math.max(0, Math.min(mask.width - 1, u * mask.width - 0.5)),
+    y = Math.max(0, Math.min(mask.height - 1, v * mask.height - 0.5));
+  const col = Math.floor(x),
+    row = Math.floor(y),
+    fx = x - col,
+    fy = y - row;
+  const at = (cx: number, cy: number) =>
+    mask.alpha[Math.min(mask.height - 1, cy) * mask.width + Math.min(mask.width - 1, cx)];
+  return (
+    (at(col, row) * (1 - fx) + at(col + 1, row) * fx) * (1 - fy) +
+    (at(col, row + 1) * (1 - fx) + at(col + 1, row + 1) * fx) * fy
+  );
 }
 function cellPeak(mask: VolumeMask, col: number, row: number, grid: number): Sample {
   let best: Sample = { u: (col + 0.5) / grid, v: (row + 0.5) / grid, alpha: 0 };
@@ -35,15 +45,28 @@ function cellPeak(mask: VolumeMask, col: number, row: number, grid: number): Sam
         };
   return best;
 }
-function clipped(triangle: readonly Sample[]): Sample[] {
+/** Locate the source's contour, rather than inventing a linear alpha ramp
+ * across an entire mesh cell (several source pixels wide). */
+function contourPoint(mask: VolumeMask, a: Sample, b: Sample): Sample {
+  let low = 0,
+    high = 1;
+  for (let iteration = 0; iteration < 8; iteration++) {
+    const t = (low + high) / 2;
+    const solid = alpha(mask, a.u + (b.u - a.u) * t, a.v + (b.v - a.v) * t) >= SOLID;
+    if (solid === a.alpha >= SOLID) low = t;
+    else high = t;
+  }
+  const t = (low + high) / 2;
+  return { u: a.u + (b.u - a.u) * t, v: a.v + (b.v - a.v) * t, alpha: SOLID };
+}
+function clipped(mask: VolumeMask, triangle: readonly Sample[]): Sample[] {
   const polygon: Sample[] = [];
   for (let i = 0; i < triangle.length; i++) {
     const a = triangle[i],
       b = triangle[(i + 1) % triangle.length];
     if (a.alpha >= SOLID) polygon.push(a);
     if (a.alpha >= SOLID === b.alpha >= SOLID) continue;
-    const t = (SOLID - a.alpha) / (b.alpha - a.alpha);
-    polygon.push({ u: a.u + (b.u - a.u) * t, v: a.v + (b.v - a.v) * t, alpha: SOLID });
+    polygon.push(contourPoint(mask, a, b));
   }
   const distinct = polygon.filter(
     (sample, index) => index === 0 || !samePoint(sample, polygon[index - 1])
@@ -94,17 +117,14 @@ function frontSurface(profile: VolumeProfile, mask: VolumeMask, grid: number) {
     if (existing !== undefined) return existing;
     const x = (sample.u - 0.5) * 2.6 * profile.scale,
       y = (sample.v - 0.5) * 2.6 * profile.scale;
-    const dx = (volumeDepth(profile, x + 0.002, y) - volumeDepth(profile, x - 0.002, y)) / 0.004;
-    const dy = (volumeDepth(profile, x, y + 0.002) - volumeDepth(profile, x, y - 0.002)) / 0.004;
-    const length = Math.hypot(dx, dy, 1),
-      index = vertices.length / 8;
+    const index = vertices.length / 8;
     vertices.push(
       x,
       y,
       profile.alphaDistance && sample.alpha === SOLID ? 0 : volumeDepth(profile, x, y),
-      -dx / length,
-      -dy / length,
-      1 / length,
+      0,
+      0,
+      1,
       sample.u,
       sample.v
     );
@@ -114,7 +134,7 @@ function frontSurface(profile: VolumeProfile, mask: VolumeMask, grid: number) {
   for (let row = 0; row < grid; row++)
     for (let col = 0; col < grid; col++) {
       for (const triangle of cellTriangles(mask, col, row, grid)) {
-        const polygon = clipped(triangle);
+        const polygon = clipped(mask, triangle);
         for (let j = 1; j < polygon.length - 1; j++)
           indices.push(
             vertexIndex(polygon[0]),
@@ -138,17 +158,36 @@ function boundary(indices: readonly number[]) {
     }
   return [...edges.values()].filter(edge => edge.count === 1);
 }
-export function alphaOutlineMesh(profile: VolumeProfile, mask: VolumeMask, grid = 32): VolumeMesh {
-  const front = frontSurface(profile, mask, grid);
-  const edges = boundary(front.indices);
-  if (profile.alphaDistance)
-    for (const { a, b } of edges) {
-      front.vertices[a * 8 + 2] = 0;
-      front.vertices[b * 8 + 2] = 0;
-    }
-  if (profile.alphaDistance) removeFlatCaps(front);
-  const vertices = [...front.vertices],
-    indices = [...front.indices];
+/** The joined contour follows the source tangent, independent of thin triangles. */
+function contourNormals(
+  vertices: number[],
+  edges: readonly { a: number; b: number }[],
+  mask: VolumeMask
+) {
+  const contour = new Set(edges.flatMap(({ a, b }) => [a, b]));
+  for (const index of contour) {
+    const offset = index * 8,
+      u = vertices[offset + 6],
+      v = vertices[offset + 7];
+    const nx =
+        (alpha(mask, u - 0.5 / mask.width, v) - alpha(mask, u + 0.5 / mask.width, v)) * mask.width,
+      ny =
+        (alpha(mask, u, v - 0.5 / mask.height) - alpha(mask, u, v + 0.5 / mask.height)) *
+        mask.height,
+      length = Math.hypot(nx, ny);
+    // An image-frame edge can have no alpha gradient; retain the hull normal.
+    if (length === 0) continue;
+    vertices[offset + 3] = nx / length;
+    vertices[offset + 4] = ny / length;
+    vertices[offset + 5] = 0;
+  }
+}
+/** Reflect the rear with outward winding, keeping the joined contour welded. */
+function rearSurface(
+  front: { vertices: number[]; indices: number[] },
+  vertices: number[],
+  indices: number[]
+) {
   const back: number[] = [];
   for (let i = 0; i < front.vertices.length; i += 8) {
     if (front.vertices[i + 2] === 0) {
@@ -167,7 +206,25 @@ export function alphaOutlineMesh(profile: VolumeProfile, mask: VolumeMask, grid 
       front.vertices[i + 7]
     );
   }
-  indices.push(...front.indices.map(index => back[index]));
+  for (let i = 0; i < front.indices.length; i += 3)
+    indices.push(back[front.indices[i]], back[front.indices[i + 2]], back[front.indices[i + 1]]);
+  return back;
+}
+export function alphaOutlineMesh(profile: VolumeProfile, mask: VolumeMask, grid = 32): VolumeMesh {
+  const front = frontSurface(profile, mask, grid);
+  const edges = boundary(front.indices);
+  if (profile.alphaDistance)
+    for (const { a, b } of edges) {
+      front.vertices[a * 8 + 2] = 0;
+      front.vertices[b * 8 + 2] = 0;
+    }
+  if (profile.alphaDistance) removeFlatCaps(front);
+  // The monitor keeps its hard casing edges; organic contours share normals
+  // across the front and rear after the whole hull has been assembled.
+  if (!profile.alphaDistance) smoothSurfaceNormals(front.vertices, front.indices);
+  const vertices = [...front.vertices],
+    indices = [...front.indices],
+    back = rearSurface(front, vertices, indices);
   for (const { a, b } of edges) {
     if (back[a] === a && back[b] === b) continue;
     const start = vertices.length / 8,
@@ -182,6 +239,10 @@ export function alphaOutlineMesh(profile: VolumeProfile, mask: VolumeMask, grid 
     for (const index of [a, b, back[b], back[a]])
       vertices.push(...vertices.slice(index * 8, index * 8 + 3), dy / len, -dx / len, 0, u, v);
     indices.push(start, start + 1, start + 2, start, start + 2, start + 3);
+  }
+  if (profile.alphaDistance) {
+    smoothSurfaceNormals(vertices, indices);
+    contourNormals(vertices, edges, mask);
   }
   if (vertices.length / 8 > 5000 && grid > 16) return alphaOutlineMesh(profile, mask, grid - 4);
   return { vertices: new Float32Array(vertices), indices: new Uint16Array(indices) };

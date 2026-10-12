@@ -110,15 +110,17 @@ describe('ElevenLabsWebRtcTransport', () => {
     const transport = new ElevenLabsWebRtcTransport();
     await transport.connect(options, { onRemoteStream: vi.fn(() => vi.fn()) });
     expect(setWebRTCAudioAdapterFactory).toHaveBeenCalledOnce();
-    expect(vi.mocked(setWebRTCAudioAdapterFactory).mock.invocationCallOrder[0])
-      .toBeLessThan(vi.mocked(Conversation.startSession).mock.invocationCallOrder[0]);
+    expect(vi.mocked(setWebRTCAudioAdapterFactory).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(Conversation.startSession).mock.invocationCallOrder[0]
+    );
     await transport.close();
   });
 
   it('does not start the SDK after cancellation during the browser import', async () => {
     const transport = new ElevenLabsWebRtcTransport();
     const connecting = transport.connect(options, {});
-    await transport.close(); await connecting;
+    await transport.close();
+    await connecting;
     expect(Conversation.startSession).not.toHaveBeenCalled();
   });
 });

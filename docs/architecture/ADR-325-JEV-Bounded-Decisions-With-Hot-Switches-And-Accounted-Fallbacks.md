@@ -25,6 +25,29 @@ the existing fallback. One question slot is reserved for scope, and its separate
 confidence policy does not lower the per-item policy. Debug labels expose that
 judgment. The result remains a proposal requiring the existing human confirmation.
 
+**Amendment — 2026-10-11 (questions aligned with the vendor's documented practice):**
+the transport carries the documented Noul primitive and structured instructions
+and criteria (``typesafe_client.NoulQuestion``; Noul answers travel in
+``DecisionAttempt.nouls``, the panel draws them as two outcomes). A question
+changes only when a measurement on its usage's own calibration and holdout corpora
+shows no more wrong shortcuts and at least the same coverage. Four questions
+passed and changed: the initiative utility (a Noul, skip at p ≤ 0.11), the
+consultation selectors (one structured question, the conservative ``other``
+first, the request fields only, one threshold of 0.97), the radio verifier (one
+Noul per line, decided at p ≤ 0.16 or ≥ 0.84) and the collection qualification
+(structured, ``unknown`` first, 0.94). The memory reference presence, the HITL
+refusal and the HITL exclusion kept their wording: their aligned candidates
+covered less or erred more. Evidence and method:
+[JEV_SEMANTIC_QUALIFICATION.md](../technical/JEV_SEMANTIC_QUALIFICATION.md).
+
+**Amendment — 2026-10-11 (guarded parameter values):** a new usage,
+``parameter_kind``, judges what a value bound for an address, place or email
+parameter IS (one Choice per distinct value, the measured d5 question); the code
+decides whether the parameter accepts that kind. It runs only after the
+deterministic guard let the call through and only ever adds a refusal (ADR-120,
+amendment 2026-10-11). Its decisions join the turn's tracker, so their cost lands
+on the turn's own summary.
+
 ## Context
 
 LIA spends model time on decisions which do not require prose: choosing a meeting

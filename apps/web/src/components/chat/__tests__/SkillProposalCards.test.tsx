@@ -170,7 +170,9 @@ describe('SkillProposalCards', () => {
     await waitFor(() => expect(install).toHaveAttribute('aria-disabled', 'false'));
     await user.click(install);
 
-    const result = await screen.findByText('The import result needs checking. This proposal will not be installed again automatically.');
+    const result = await screen.findByText(
+      'The import result needs checking. This proposal will not be installed again automatically.'
+    );
     expect(result).toHaveFocus();
     expect(screen.queryByRole('button', { name: /Install the skill/ })).not.toBeInTheDocument();
   });
@@ -232,7 +234,11 @@ describe('SkillProposalCards', () => {
     const user = userEvent.setup();
     renderWithProviders(<SkillProposalCards proposals={[card()]} />);
     await user.click(await screen.findByRole('button', { name: 'Install the skill ma-skill' }));
-    expect(await screen.findByText('The import result needs checking. This proposal will not be installed again automatically.')).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        'The import result needs checking. This proposal will not be installed again automatically.'
+      )
+    ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Install the skill/ })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Check result' }));
     expect(api.post).toHaveBeenCalledOnce();

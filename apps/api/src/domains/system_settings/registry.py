@@ -133,6 +133,7 @@ SETTING_SPECS: dict[SystemSettingKey, SettingSpec[Any]] = {
             SystemSettingKey.JEV_INITIATIVE_UTILITY_ENABLED,
             SystemSettingKey.JEV_MEMORY_REFERENCE_PRESENCE_ENABLED,
             SystemSettingKey.JEV_HITL_REJECTION_ENABLED,
+            SystemSettingKey.JEV_PARAMETER_KIND_ENABLED,
         )
     },
     SystemSettingKey.JEV_ENABLED: SettingSpec(

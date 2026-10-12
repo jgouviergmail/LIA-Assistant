@@ -31,7 +31,12 @@ export const EmptySection = React.memo(function EmptySection({
   message = 'No data for this section on this request.',
 }: EmptySectionProps) {
   return (
-    <DebugSection value={value} title={title} icon={icon} badge={<DebugChip tone="neutral">N/A</DebugChip>}>
+    <DebugSection
+      value={value}
+      title={title}
+      icon={icon}
+      badge={<DebugChip tone="neutral">N/A</DebugChip>}
+    >
       <div className="rounded border border-border/50 bg-muted/20 p-2 text-xs text-muted-foreground">
         {message}
       </div>

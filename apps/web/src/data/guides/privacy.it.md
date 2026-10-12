@@ -2,8 +2,8 @@
 
 > I tuoi dati. Il tuo assistente. Le tue regole.
 
-**Versione**: 1.0
-**Data**: 2026-10-05
+**Versione**: 1.1
+**Data**: 2026-10-12
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -127,6 +127,12 @@ I controlli di oscuramento proteggono i log tecnici; non anonimizzano automatica
 
 **Log sicuri:**
 I log tecnici utilizzano un formato JSON strutturato (tramite structlog), con regole per omettere i contenuti citati dell'utente e oscurare segreti e informazioni personali riconosciuti. Questi controlli non rendono anonimo ogni archivio diagnostico.
+
+### Comandi e continuazioni private
+
+Chiavi, file scelti, connessioni di account e consensi del browser usano l’interfaccia sicura dell’operazione, non parametri inventati dal modello. Il comando è legato all’account e al suo contesto autorizzato; permessi e versione della risorsa sono ricontrollati prima della scrittura. Cifrare i contenuti dei comandi non nasconde tutto il servizio al gestore: messaggi e dati operativi conservano i limiti descritti qui.
+
+---
 
 ## 6. Fornitori di LLM
 

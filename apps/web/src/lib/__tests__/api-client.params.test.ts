@@ -40,7 +40,10 @@ function okJson() {
 
 beforeEach(() => {
   vi.restoreAllMocks();
-  vi.stubGlobal('fetch', vi.fn(async () => okJson()));
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => okJson())
+  );
 });
 
 afterEach(() => {

@@ -182,13 +182,7 @@ function ChangeSection({ plan, t }: { plan: PricingSheetPlan; t: Translate }) {
 }
 
 /** What the import actually wrote — named, never merely "done". */
-function AppliedSection({
-  report,
-  t,
-}: {
-  report: PricingSheetImportReport;
-  t: Translate;
-}) {
+function AppliedSection({ report, t }: { report: PricingSheetImportReport; t: Translate }) {
   return (
     <section className="space-y-1 rounded-md border border-success/40 bg-success/5 px-3 py-2">
       <h3 className="text-sm font-semibold">{t('settings.admin.llm.sheet.applied_title')}</h3>

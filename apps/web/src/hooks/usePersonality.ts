@@ -53,16 +53,16 @@ export function usePersonality(): UsePersonalityReturn {
 
   // Field-by-field selectors: subscribing to the whole store would re-render
   // every consumer on any change, including the `updating` flag of a sibling.
-  const personalities = usePersonalityStore((state) => state.personalities);
-  const currentPersonality = usePersonalityStore((state) => state.currentPersonality);
-  const currentPersonalityId = usePersonalityStore((state) => state.currentPersonalityId);
-  const storeLoading = usePersonalityStore((state) => state.loading);
-  const hasLoaded = usePersonalityStore((state) => state.hasLoaded);
-  const updating = usePersonalityStore((state) => state.updating);
-  const error = usePersonalityStore((state) => state.error);
-  const load = usePersonalityStore((state) => state.load);
-  const refetch = usePersonalityStore((state) => state.refetch);
-  const updatePersonality = usePersonalityStore((state) => state.updatePersonality);
+  const personalities = usePersonalityStore(state => state.personalities);
+  const currentPersonality = usePersonalityStore(state => state.currentPersonality);
+  const currentPersonalityId = usePersonalityStore(state => state.currentPersonalityId);
+  const storeLoading = usePersonalityStore(state => state.loading);
+  const hasLoaded = usePersonalityStore(state => state.hasLoaded);
+  const updating = usePersonalityStore(state => state.updating);
+  const error = usePersonalityStore(state => state.error);
+  const load = usePersonalityStore(state => state.load);
+  const refetch = usePersonalityStore(state => state.refetch);
+  const updatePersonality = usePersonalityStore(state => state.updatePersonality);
 
   useEffect(() => {
     void load(userId);

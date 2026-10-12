@@ -426,6 +426,30 @@
       "role": "Die API besitzt die Simli-Verbindung unter einer Redis-Lease: Einmal-Ticket, verschlüsseltes Token, weitergeleitete Signalisierung und PCM, geprüfter Stopp und begrenzte Anwesenheit. Der Browser wählt eine hörbare Ausgabe und erhält die Wunschposition bei mobiler Tastatur. Medien- und Geräteprüfung stehen noch aus.",
       "stack": ["Simli Compose", "WebRTC", "Web Audio", "AudioWorklet", "Redis"],
       "src": "36a9b358e3f7"
+    },
+    "t.application": {
+      "name": "Dauerhafte Anwendungsbefehle",
+      "role": "Typisierte Operationen durchlaufen aktuelle Berechtigungsprüfungen und das Effekt-Gate. Ein verschlüsselter Befehl bindet Akteur, kanonischen Inhalt, Digest, Ursprung, Ablaufzeit und Claim; die Quelldienste behalten ihre Compare-and-Set-Prüfungen. Private Fortsetzungen gehen zurück an den authentifizierten Browser. Nur ein ausdrücklich committed gesetztes Ergebnis ist ein abgeschlossener Erfolg.",
+      "stack": [
+        "Typisierte Deklarationen / Pydantic",
+        "Verschlüsselte PostgreSQL-Inhalte",
+        "Durch Token abgesicherte Claims",
+        "Browser-Fortsetzungen",
+        "SSE und authentifiziertes Neulesen"
+      ],
+      "src": "449fae9ab504"
+    },
+    "t.nativeavatar": {
+      "name": "Rig und Volumen nativer Begleiter",
+      "role": "Dasselbe Rig steuert Gesicht, Körper und Accessoires. Ein begrenztes, aus Alpha abgeleitetes Mesh gibt der Frontalzeichnung angenähertes Volumen; Gesichtsebenen bleiben DOM/SVG-Projektionen, der Schal wird davor komponiert. Sichtbarkeit, reduzierte Bewegung und Bereitschaft steuern Ressourcen und Fallback. Eine optionale Laufzeitkampagne wählt BIP je Browser-Ursprung, ohne Avatar-Spalte im Konto.",
+      "stack": [
+        "React / DOM / SVG",
+        "Gemeinsames natives Rig",
+        "Begrenztes WebGL",
+        "Offline-Artwork",
+        "Browserlokale Präferenzen"
+      ],
+      "src": "42c09ed2a4e1"
     }
   },
   "flows": {
@@ -515,6 +539,21 @@
         "LIA sammelt die Belege des Vorfalls und diagnostiziert ihn."
       ],
       "src": "e31d7b94f863"
+    },
+    "tflow.application": {
+      "name": "Einen Anwendungsbefehl ausführen",
+      "summary": "Dauerhafte Identität und aktuelle Voraussetzungen; eine geöffnete Fortsetzung bleibt ausstehend.",
+      "steps": [
+        "Der Client verwendet den Operationskatalog, der diesem Konto angeboten wird.",
+        "Die Deklaration legt Operation, Schema, Geltungsbereich und benötigte Fähigkeiten fest.",
+        "Die Vorbereitung bindet Vorher-/Nachher-Werte, Digest, Akteur, Ursprung und Ablaufzeit in einem verschlüsselten Befehl.",
+        "Das Effekt-Gate prüft die genaue Zustimmung, wenn die Operation sie verlangt.",
+        "Die Ausführung liest Rechte und Fähigkeiten neu; tokengebundener Claim und Compare-and-Set des Quelldienstes schützen ihre jeweiligen Grenzen.",
+        "Eine private Fortsetzung ist an Sitzung und gegebenenfalls adressiertes Gerät gebunden; Geheimnisse bleiben außerhalb des Modells.",
+        "Committed, waiting, Konflikt, Fehler und Abbruch bleiben getrennt; eine verlorene Antwort wird nicht automatisch erneut ausgeführt.",
+        "Ein gezielter Hinweis invalidiert betroffene Ressourcen; der Client liest ihre authentifizierten Abfragen neu."
+      ],
+      "src": "61654a82d651"
     }
   }
 }

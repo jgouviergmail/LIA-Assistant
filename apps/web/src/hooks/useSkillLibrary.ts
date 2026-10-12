@@ -36,8 +36,11 @@ export const LIBRARY_QUERY_MIN_CHARS = 2;
 export function useLibrarySearch(searchText: string, revision = 0) {
   const text = searchText.trim();
   const query = useApplicationAccountQuery<LibrarySearchResponse>(
-    `${BASE}/search`, 'SkillLibrarySearch', text.length >= LIBRARY_QUERY_MIN_CHARS,
-    undefined, { params: { q: text }, deps: [revision] }
+    `${BASE}/search`,
+    'SkillLibrarySearch',
+    text.length >= LIBRARY_QUERY_MIN_CHARS,
+    undefined,
+    { params: { q: text }, deps: [revision] }
   );
   useApplicationResourceSync(query.ownerId, 'skills', query.refetch);
   return query;
@@ -46,7 +49,9 @@ export function useLibrarySearch(searchText: string, revision = 0) {
 /** The skills installed from a library, each with its update verdict. */
 export function useLibraryInstalled(enabled: boolean) {
   const query = useApplicationAccountQuery<LibraryInstalledResponse>(
-    `${BASE}/installed`, 'SkillLibraryInstalled', enabled
+    `${BASE}/installed`,
+    'SkillLibraryInstalled',
+    enabled
   );
   useApplicationResourceSync(query.ownerId, 'skills', query.refetch);
   return query;

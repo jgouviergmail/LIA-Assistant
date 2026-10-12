@@ -40,7 +40,7 @@ export function ProofDrawer({ links, onOpened }: ProofDrawerProps) {
 
   return (
     <Dialog
-      onOpenChange={(open) => {
+      onOpenChange={open => {
         if (open) onOpened();
       }}
     >
@@ -48,11 +48,7 @@ export function ProofDrawer({ links, onOpened }: ProofDrawerProps) {
         {/* Default size on purpose: this trigger sits in the receipt action
             row next to default-size outline CTAs — a smaller control there
             read as a hierarchy that did not exist (owner feedback). */}
-        <Button
-          type="button"
-          variant="outline"
-          data-testid="showroom-proof-open"
-        >
+        <Button type="button" variant="outline" data-testid="showroom-proof-open">
           {t('showroom.proof.open')}
         </Button>
       </DialogTrigger>
@@ -60,18 +56,14 @@ export function ProofDrawer({ links, onOpened }: ProofDrawerProps) {
         <DialogHeader>
           <DialogTitle>{t('showroom.proof.title')}</DialogTitle>
           <DialogDescription>
-            {links.isImmutable
-              ? t('showroom.proof.exact')
-              : t('showroom.proof.fallback')}{' '}
+            {links.isImmutable ? t('showroom.proof.exact') : t('showroom.proof.fallback')}{' '}
             {t('showroom.proof.external_warning')}
           </DialogDescription>
         </DialogHeader>
         <ul className="space-y-2">
-          {links.links.map((link) => (
+          {links.links.map(link => (
             <li key={link.id} className="flex items-center gap-2 text-sm">
-              <Badge
-                variant={link.kind === 'product-core' ? 'default' : 'outline'}
-              >
+              <Badge variant={link.kind === 'product-core' ? 'default' : 'outline'}>
                 {t(KIND_LABEL_KEY[link.kind])}
               </Badge>
               <a
@@ -81,10 +73,7 @@ export function ProofDrawer({ links, onOpened }: ProofDrawerProps) {
                 className="inline-flex min-w-0 items-center gap-1 text-primary underline-offset-2 hover:underline"
               >
                 <span className="truncate">{t(link.labelKey)}</span>
-                <ExternalLink
-                  className="h-3.5 w-3.5 shrink-0"
-                  aria-hidden="true"
-                />
+                <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
               </a>
             </li>
           ))}

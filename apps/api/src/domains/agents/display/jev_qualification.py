@@ -36,7 +36,10 @@ from src.infrastructure.observability.metrics_jev import (
     jev_decisions_total,
 )
 
-MIN_CONFIDENCE = 0.95
+# Chosen on the collection calibration corpora (no more wrong verdicts than the
+# former wording), verified on the extra-collection holdout (no wrong verdict),
+# 2026-10-11. The holdout is small (24 judgments): widen it before relying on more.
+MIN_CONFIDENCE = 0.94
 logger = structlog.get_logger(__name__)
 PREVIEW_LIMIT = 100
 MAX_BATCHES = 8
@@ -160,9 +163,7 @@ def _batch(
         key = f"q{index}"
         if excluded and key in excluded:
             continue
-        question = prompt.model_copy(
-            update={"instructions": prompt.instructions.format(item_key=key)}
-        )
+        question = prompt.filled(item_key=key)
         candidate = {**selected, key: value.data if value.data is not None else value.text}
         candidate_questions = {**questions, key: question}
         # The catalogue bounds a model name at 100 characters. Reserve its full

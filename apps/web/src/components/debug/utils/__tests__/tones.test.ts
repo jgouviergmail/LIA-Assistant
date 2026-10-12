@@ -183,9 +183,17 @@ describe('node identity families', () => {
 
   it('gives distinct identities to distinct families', () => {
     const chips = new Set(
-      ['router', 'planner', 'hitl_dispatch', 'task_orchestrator', 'react_setup', 'response', 'image_generation', 'embedding_embed_query', 'memory_extraction'].map(
-        nodeChipClasses
-      )
+      [
+        'router',
+        'planner',
+        'hitl_dispatch',
+        'task_orchestrator',
+        'react_setup',
+        'response',
+        'image_generation',
+        'embedding_embed_query',
+        'memory_extraction',
+      ].map(nodeChipClasses)
     );
     expect(chips.size).toBe(9);
   });

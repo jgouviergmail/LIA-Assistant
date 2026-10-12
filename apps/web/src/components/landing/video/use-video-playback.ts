@@ -14,7 +14,15 @@
  * whatever the current one was doing — a skip is a request to watch.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from 'react';
 
 import type { LandingRendition, LandingVideoDescriptor } from '@/lib/landing/media';
 
@@ -64,6 +72,8 @@ export function renditionsFor(
 export interface VideoPlaybackOptions {
   /** Start muted — a resume record said the sound was off when the page left. */
   startMuted: boolean;
+  /** Another explicitly opened player owns playback until it closes. */
+  suspended?: boolean;
 }
 
 /**
@@ -81,7 +91,8 @@ export function useVideoPlayback(
   const observedInView = useInViewport(slotElement);
   // No slot on the page reads as out of view: a muted video pauses, a video
   // with sound keeps playing — docked, where the host draws it.
-  const inView = slotElement ? observedInView : false;
+  const suspended = options.suspended ?? false;
+  const inView = !suspended && slotElement ? observedInView : false;
   const pageLoaded = usePageLoaded();
   const reducedMotion = usePrefersReducedMotion();
 
@@ -107,28 +118,70 @@ export function useVideoPlayback(
   const startedForEntry = useRef(false);
   // A playlist video ended while playing: the next sources start as they load.
   const continueAfterSwitch = useRef(false);
+  const resumeAfterExclusive = useRef(false);
+  const previousSuspended = useRef(false);
+  const attempt = useRef({ active: true, suspended, generation: 0, pending: false });
 
-  const autoplayAllowed = !reducedMotion && !savesData();
+  useLayoutEffect(() => {
+    const state = attempt.current;
+    state.active = true;
+    return () => {
+      state.active = false;
+      state.generation++;
+      state.pending = false;
+    };
+  }, []);
+
+  const autoplayAllowed = !suspended && !reducedMotion && !savesData();
 
   const startPlayback = useCallback(() => {
+    const state = attempt.current;
+    if (!state.active || state.suspended) return;
     const element = videoRef.current;
     if (!element) return;
+    const generation = ++state.generation;
+    state.pending = true;
+    const current = () =>
+      state.active &&
+      !state.suspended &&
+      generation === state.generation &&
+      videoRef.current === element;
     element.play().catch((error: unknown) => {
+      if (!current()) return;
       if (!element.muted && isNotAllowed(error)) {
         // The common autoplay policy: sound needs a gesture, a muted start
         // does not. Start muted and let the sound button say so.
         element.muted = true;
         setMuted(true);
         element.play().catch(() => {
+          if (current()) state.pending = false;
           // Refused even muted (Low Power Mode, policy): the poster stays,
           // the play button is the way in. Nothing to retry.
         });
         return;
       }
+      state.pending = false;
       // Refused (Low Power Mode, policy) or interrupted: the poster stays,
       // the play button is the way in. Nothing to retry.
     });
   }, [videoRef]);
+
+  // Suspension owns its own resume intention. It must also stop pending native
+  // play attempts, not only a `playing` state whose event has already arrived.
+  useLayoutEffect(() => {
+    const state = attempt.current;
+    state.suspended = suspended;
+    if (previousSuspended.current === suspended) return;
+    previousSuspended.current = suspended;
+    const element = videoRef.current;
+    if (suspended) {
+      resumeAfterExclusive.current =
+        !userPaused && (playing || state.pending || (element !== null && !element.paused));
+      element?.pause();
+    }
+    state.generation++;
+    state.pending = false;
+  }, [suspended, playing, userPaused, videoRef]);
 
   // Near the viewport, once the page is loaded, the sources are attached (see
   // `sources`): let the browser fetch ahead, so the first frame is there when
@@ -136,19 +189,38 @@ export function useVideoPlayback(
   useEffect(() => {
     const element = videoRef.current;
     if (sources === null || !element) return;
+    attempt.current.generation++;
+    attempt.current.pending = false;
     element.preload = 'auto';
     element.load();
+  }, [sources, videoRef]);
+
+  // Source loading and playback continuation are separate: suspending a stable
+  // source must never reload it or reset its native currentTime.
+  useEffect(() => {
+    if (sources === null || suspended) return;
     if (continueAfterSwitch.current) {
       continueAfterSwitch.current = false;
+      resumeAfterExclusive.current = false;
+      startedForEntry.current = true;
       startPlayback();
+      return;
     }
-  }, [sources, videoRef, startPlayback]);
+    if (!resumeAfterExclusive.current) return;
+    resumeAfterExclusive.current = false;
+    if (userPaused) return;
+    if (!muted || inView === true) {
+      pausedByPage.current = false;
+      startedForEntry.current = true;
+      startPlayback();
+    } else pausedByPage.current = true;
+  }, [sources, suspended, userPaused, muted, inView, startPlayback]);
 
   // In view: start (autoplay, or resume what the page paused). Out of view:
   // a muted video pauses — a video with sound keeps playing.
   useEffect(() => {
     const element = videoRef.current;
-    if (!element || sources === null || inView === null) return;
+    if (!element || sources === null || inView === null || suspended) return;
     if (!inView) {
       startedForEntry.current = false;
       if (playing && muted && !userPaused) {
@@ -163,7 +235,17 @@ export function useVideoPlayback(
       pausedByPage.current = false;
       startPlayback();
     }
-  }, [inView, playing, muted, userPaused, sources, autoplayAllowed, startPlayback, videoRef]);
+  }, [
+    inView,
+    playing,
+    muted,
+    suspended,
+    userPaused,
+    sources,
+    autoplayAllowed,
+    startPlayback,
+    videoRef,
+  ]);
 
   // A hidden tab: pause a muted video (a visitor who hears nothing gains
   // nothing from a decoder running); resume on return, like the scroll.
@@ -212,7 +294,15 @@ export function useVideoPlayback(
     }
   }, [muted, playing, startPlayback, videoRef]);
 
-  const handlePlay = useCallback(() => setPlaying(true), []);
+  const handlePlay = useCallback(() => {
+    if (!attempt.current.active) return;
+    if (attempt.current.suspended) {
+      videoRef.current?.pause();
+      return;
+    }
+    attempt.current.pending = false;
+    setPlaying(true);
+  }, [videoRef]);
   const handlePause = useCallback(() => setPlaying(false), []);
   // `ended` follows the `pause` the end of a non-looping element fires, so
   // nothing here says "the visitor paused": the next video simply plays on.

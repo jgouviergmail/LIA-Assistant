@@ -36,7 +36,9 @@ export function mapsMetadata(
       locale: LOCALE_MAP[lng],
       alternateLocale: languages.filter(l => l !== lng).map(l => LOCALE_MAP[l]),
       type: 'website',
-      images: socialImage ? [{ url: socialImage, width: 2125, height: 1193, alt: title }] : undefined,
+      images: socialImage
+        ? [{ url: socialImage, width: 2125, height: 1193, alt: title }]
+        : undefined,
     },
     twitter: {
       card: 'summary_large_image',

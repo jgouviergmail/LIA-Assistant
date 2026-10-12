@@ -732,6 +732,15 @@ _WEATHER_NO_SLOTS_FOR_DATE: dict[str, str] = {
     "zh-CN": "{date} 没有可用的详细预报。每日预报仍然可用。",
 }
 
+_WEATHER_NO_DAILY_FORECAST_FOR_DATE: dict[str, str] = {
+    "fr": "Aucune prévision n'est disponible pour le {date}.",
+    "en": "No forecast is available for {date}.",
+    "es": "No hay ningún pronóstico disponible para el {date}.",
+    "de": "Für den {date} ist keine Vorhersage verfügbar.",
+    "it": "Nessuna previsione è disponibile per il {date}.",
+    "zh-CN": "{date} 没有可用的预报。",
+}
+
 # Tool summaries handed to the response LLM (registry_updates message). They are
 # read by the model and can end up quoted, so they follow the user's language
 # like any other user-visible string — no inline French in the tool modules.
@@ -3254,6 +3263,15 @@ class V3Messages:
         """Get the 'no detailed slot for this day' message (day within window)."""
         lang = resolve_language(language)
         template = _WEATHER_NO_SLOTS_FOR_DATE.get(lang, _WEATHER_NO_SLOTS_FOR_DATE["en"])
+        return template.format(date=date)
+
+    @staticmethod
+    def get_weather_no_daily_forecast_for_date(language: str, date: str) -> str:
+        """Get the 'no daily forecast for this day' message (the day is not covered)."""
+        lang = resolve_language(language)
+        template = _WEATHER_NO_DAILY_FORECAST_FOR_DATE.get(
+            lang, _WEATHER_NO_DAILY_FORECAST_FOR_DATE["en"]
+        )
         return template.format(date=date)
 
     @staticmethod

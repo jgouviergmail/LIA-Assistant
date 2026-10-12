@@ -47,10 +47,15 @@ function DeviceIcon({ type }: { type: string }) {
 
 export function NotificationSettings({ lng }: NotificationSettingsProps) {
   const { user } = useAuth();
-  return <AccountNotificationSettings key={user?.id ?? 'signed-out'} ownerId={user?.id} lng={lng} />;
+  return (
+    <AccountNotificationSettings key={user?.id ?? 'signed-out'} ownerId={user?.id} lng={lng} />
+  );
 }
 
-function AccountNotificationSettings({ lng, ownerId }: NotificationSettingsProps & { ownerId: string | undefined }) {
+function AccountNotificationSettings({
+  lng,
+  ownerId,
+}: NotificationSettingsProps & { ownerId: string | undefined }) {
   const { t } = useTranslation(lng);
   const { isCurrent } = useApplicationAccountLifetime(ownerId);
   const {

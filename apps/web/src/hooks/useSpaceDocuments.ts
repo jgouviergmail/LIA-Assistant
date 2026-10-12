@@ -66,7 +66,9 @@ export function useSpaceDocuments({
   }, []);
 
   // Both new durable jobs and reindexing can be waiting before a worker runs.
-  const processingDocs = documents.filter(d => ['pending', 'processing', 'reindexing'].includes(d.status));
+  const processingDocs = documents.filter(d =>
+    ['pending', 'processing', 'reindexing'].includes(d.status)
+  );
 
   useEffect(() => {
     if (processingDocs.length === 0) return;

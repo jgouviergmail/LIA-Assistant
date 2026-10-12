@@ -29,7 +29,7 @@ beforeEach(() => {
 });
 
 describe('Jev administration', () => {
-  it.each(['memory_reference_presence', 'hitl_rejection'] as const)(
+  it.each(['memory_reference_presence', 'hitl_rejection', 'parameter_kind'] as const)(
     'shows %s off while preserving existing preferences and toggles it alone',
     async usage => {
       const memoryLabel = `settings.admin.jev.usages.${usage}`;

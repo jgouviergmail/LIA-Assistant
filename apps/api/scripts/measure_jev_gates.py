@@ -23,7 +23,7 @@ from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.agents.services.planner import jev_consultation
 from src.domains.agents.services.smart_catalogue_service import FilteredCatalogue
 from src.infrastructure.llm.decision_types import DecisionAttempt
-from src.infrastructure.llm.typesafe_client import TypeSafeClient, TypeSafeError
+from src.infrastructure.llm.typesafe_client import NoulQuestion, TypeSafeClient, TypeSafeError
 
 
 def initiative_prompt(case):
@@ -104,10 +104,21 @@ async def native(output, cases, repetitions, key):
 
                     async def choose(*, record=row, **kwargs):
                         try:
+                            question = kwargs["question"]
+                            if isinstance(question, NoulQuestion):
+                                batch = await client.choose_many(
+                                    model="jev-1.13.0",
+                                    state=kwargs["state"],
+                                    questions={"selection": question},
+                                    timeout_seconds=5,
+                                )
+                                record["answer"] = batch.nouls["selection"].model_dump()
+                                record["tokens"] = batch.usage.model_dump()
+                                return DecisionAttempt(outcome="success", nouls=batch.nouls)
                             result = await client.choose(
                                 model="jev-1.13.0",
                                 state=kwargs["state"],
-                                question=kwargs["question"],
+                                question=question,
                                 timeout_seconds=5,
                             )
                             record["answer"] = result.answer.model_dump()

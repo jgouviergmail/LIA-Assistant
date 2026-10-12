@@ -159,23 +159,33 @@ describe('native meeting changes and account ownership', () => {
     const pending = Promise.withResolvers<MeetingDetail>();
     api.get.mockResolvedValue(detail());
     api.delete.mockReturnValue(pending.promise);
-    const { result, rerender } = renderHook(({ id }) => useMeeting(id), { initialProps: { id: 'm1' } });
+    const { result, rerender } = renderHook(({ id }) => useMeeting(id), {
+      initialProps: { id: 'm1' },
+    });
     await waitFor(() => expect(result.current.meeting).not.toBeNull());
     let writing: Promise<MeetingDetail | null> | undefined;
-    act(() => { writing = result.current.deleteTranscript(); });
+    act(() => {
+      writing = result.current.deleteTranscript();
+    });
     await waitFor(() => expect(api.delete).toHaveBeenCalledTimes(1));
     api.get.mockResolvedValue(detail({ id: 'm2' }));
     rerender({ id: 'm2' });
     await waitFor(() => expect(result.current.meeting?.id).toBe('m2'));
-    await act(async () => { pending.resolve(detail({ has_transcript: false })); expect(await writing).toBeNull(); });
+    await act(async () => {
+      pending.resolve(detail({ has_transcript: false }));
+      expect(await writing).toBeNull();
+    });
     expect(result.current.meeting?.id).toBe('m2');
     expect(result.current.isActing).toBe(false);
   });
 
   it('keeps polling known processing state through successive network failures', async () => {
     const failure = new Error('offline');
-    api.get.mockResolvedValueOnce(detail({ status: 'processing', stage: 'synthesizing' }))
-      .mockRejectedValueOnce(failure).mockRejectedValueOnce(failure).mockResolvedValue(detail());
+    api.get
+      .mockResolvedValueOnce(detail({ status: 'processing', stage: 'synthesizing' }))
+      .mockRejectedValueOnce(failure)
+      .mockRejectedValueOnce(failure)
+      .mockResolvedValue(detail());
     const { result } = renderHook(() => useMeeting('m1'));
     await waitFor(() => expect(result.current.meeting?.status).toBe('processing'));
     for (let pass = 0; pass < 3; pass += 1) {

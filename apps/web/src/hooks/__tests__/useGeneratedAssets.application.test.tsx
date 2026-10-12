@@ -12,12 +12,25 @@ vi.mock('@/lib/api-client', async importOriginal => {
 import { useGeneratedAssets } from '../useGeneratedAssets';
 
 const saved: GeneratedAssetList = {
-  items: [{
-    id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', title: 'Owned file',
-    original_filename: 'owned.png', mime_type: 'image/png', file_size: 3,
-    origin: 'generated_image', conversation_id: null, shared_by_name: null,
-    created_at: '2026-10-10T00:00:00Z', expires_at: null,
-  }], total: 1, total_bytes: 3, limit: 24, offset: 0, max_limit: 100,
+  items: [
+    {
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      title: 'Owned file',
+      original_filename: 'owned.png',
+      mime_type: 'image/png',
+      file_size: 3,
+      origin: 'generated_image',
+      conversation_id: null,
+      shared_by_name: null,
+      created_at: '2026-10-10T00:00:00Z',
+      expires_at: null,
+    },
+  ],
+  total: 1,
+  total_bytes: 3,
+  limit: 24,
+  offset: 0,
+  max_limit: 100,
   keep: { kept_files: 1, kept_bytes: 3, max_files: 100, max_bytes: 1000 },
 };
 beforeEach(() => {
@@ -42,21 +55,30 @@ describe('generated gallery changes and queries belong to their current account'
     const { result, rerender } = renderHook(() => useGeneratedAssets('images', {}, true));
     await waitFor(() => expect(result.current.total).toBe(1));
     let resolve: (value: GeneratedAssetList) => void = () => {};
-    get.mockImplementation(() => new Promise<GeneratedAssetList>(accept => { resolve = accept; }));
+    get.mockImplementation(
+      () =>
+        new Promise<GeneratedAssetList>(accept => {
+          resolve = accept;
+        })
+    );
     useAuth.mockReturnValue({ user: { id: 'two' } });
     rerender();
     expect(result.current.total).toBe(0);
     expect(result.current.keep).toBeNull();
     expect(result.current.items).toEqual([]);
     await waitFor(() => expect(get).toHaveBeenCalledTimes(2));
-    await act(async () => { resolve({ ...saved, total: 2 }); });
+    await act(async () => {
+      resolve({ ...saved, total: 2 });
+    });
     await waitFor(() => expect(result.current.total).toBe(2));
   });
 
   it('never queries an unavailable account', async () => {
     useAuth.mockReturnValue({ user: null });
     renderHook(() => useGeneratedAssets('documents', {}, true));
-    await act(async () => { await Promise.resolve(); });
+    await act(async () => {
+      await Promise.resolve();
+    });
     expect(get).not.toHaveBeenCalled();
   });
 

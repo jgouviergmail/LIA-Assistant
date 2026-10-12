@@ -18,6 +18,7 @@ prompt_cache_key). Guarded by tests/unit/domains/agents/prompts/.
 Compliance: LangGraph v1.0 + LangChain v1.0 best practices
 """
 
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
@@ -26,6 +27,10 @@ import structlog
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.i18n import get_language_name, resolve_language
 from src.core.prompt_store import parse_prompt_sections
+from src.domains.agents.analysis.resolved_references import (
+    ResolvedReferenceEntry,
+    render_reference_lines,
+)
 from src.domains.agents.prompts.prompt_loader import (
     PromptIntegrityError,
     PromptLoadError,
@@ -391,7 +396,7 @@ def get_response_prompt(
     user_query: str = "",
     enriched_query: str | None = None,
     data_for_filtering: str = "",
-    resolved_references: dict[str, str] | None = None,
+    resolved_references: Sequence[ResolvedReferenceEntry] | None = None,
     anticipated_needs: list[str] | None = None,
     skills_context: str = "",
     rag_context: str = "",
@@ -435,7 +440,8 @@ def get_response_prompt(
             Example: "I want the details" + history "where do the Duponds live"
             → enriched_query: "get contact details for the dupond family"
         data_for_filtering: Enriched data with IDs for LLM filtering analysis.
-        resolved_references: Resolved personal references from memory (e.g., {"my wife": "jean dupond"}).
+        resolved_references: The turn's resolved references, each with what its value is
+            (ADR-120 amendment 2026-10-11).
         anticipated_needs: List of anticipated user needs for proactive suggestions.
             Example: ["may want reminder", "may want to reschedule"]
             Used by LIA to provide proactive suggestions in response.
@@ -475,10 +481,7 @@ def get_response_prompt(
     # message. Kept in the signature for backwards-compatible call sites.
     _ = skills_context  # noqa: F841
 
-    # Example: {"my wife": "jean dupond"} → "my wife" = jean dupond
-    resolved_refs_str = ", ".join(
-        f'"{ref}" = {name}' for ref, name in (resolved_references or {}).items()
-    )
+    resolved_refs_str = render_reference_lines(resolved_references or ())
     # Example: ["may want reminder", "may want to reschedule"] → "- …\n- …" (max 4)
     anticipated_needs_str = "\n".join(f"- {need}" for need in (anticipated_needs or [])[:4])
 

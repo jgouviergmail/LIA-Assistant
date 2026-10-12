@@ -78,14 +78,23 @@ describe('CosmosHero — guided demo CTA', () => {
     expect(demoLinks).toHaveLength(0);
   });
 
-  it('keeps the other hero calls to action in both variants', async () => {
+  it('offers presentation and source code, without the neighboring registration CTA', async () => {
     for (const variant of ['guided', 'legacy'] as const) {
       variantMock.mockReturnValue(variant);
       const { container, unmount } = render(await CosmosHero({ lng: 'fr' }));
-      expect(container.querySelector('a[href*="/register"]')).toBeInTheDocument();
+      expect(container.querySelector('a[href*="/register"]')).not.toBeInTheDocument();
+      expect(container.querySelector('[data-testid="hero-cta-presentation"]')).toBeInTheDocument();
       expect(container.querySelector('a[href^="https://github.com/"]')).toBeInTheDocument();
       unmount();
     }
+  });
+
+  it('places presentation before the guided demonstration', async () => {
+    variantMock.mockReturnValue('guided');
+    const { getByTestId } = render(await CosmosHero({ lng: 'fr' }));
+    expect(
+      getByTestId('hero-cta-presentation').compareDocumentPosition(getByTestId('hero-cta-demo'))
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
   it('keeps the GitHub link without a redundant Star action', async () => {

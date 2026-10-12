@@ -83,14 +83,27 @@ export function characterNeutralPose(
   };
 }
 
-/** The favorite is more frequent; every other scene remains reachable and memory wins. */
+/** Sleep performances share one policy for autonomous and explicitly cued scenes. */
+const SLEEP_SKETCHES: ReadonlySet<SketchName> = new Set([
+  'doze-and-snap',
+  'body-doze',
+  'yawn-stretch',
+]);
+
+export function canPlaySketch(name: SketchName, allowSleep: boolean): boolean {
+  return allowSleep || !SLEEP_SKETCHES.has(name);
+}
+
+/** The favorite is more frequent; allowed scenes remain reachable and memory wins. */
 export function pickActingSketch(
   profile: ActingProfile,
   random: () => number,
-  recent: readonly SketchName[] = []
+  recent: readonly SketchName[] = [],
+  allowSleep = true
 ): SketchName {
-  const available = SKETCHES.filter(name => !recent.includes(name));
-  const pool = available.length ? available : SKETCHES;
+  const catalogue = SKETCHES.filter(name => canPlaySketch(name, allowSleep));
+  const available = catalogue.filter(name => !recent.includes(name));
+  const pool = available.length ? available : catalogue;
   const weight = (name: SketchName) => (name === profile.signature ? 6 : 1);
   const draw = random();
   let cursor =

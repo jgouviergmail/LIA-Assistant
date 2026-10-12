@@ -44,7 +44,6 @@ from src.domains.agents.constants import (
     STATE_KEY_PLANNER_ITERATION,
     STATE_KEY_PLANNING_RESULT,
     STATE_KEY_RESOLVED_CONTEXT,
-    STATE_KEY_RESOLVED_REFERENCES,
     STATE_KEY_ROUTING_HISTORY,
     STATE_KEY_SEMANTIC_VALIDATION,
     STATE_KEY_TURN_TYPE,
@@ -376,10 +375,6 @@ async def router_node_v3(
         state_update[STATE_KEY_RESOLVED_CONTEXT] = intelligence.resolved_context.to_dict()
     else:
         state_update[STATE_KEY_RESOLVED_CONTEXT] = None
-
-    # Add resolved references if available
-    if intelligence.resolved_references:
-        state_update[STATE_KEY_RESOLVED_REFERENCES] = intelligence.resolved_references
 
     # ADR-117 Lot 3: apply the dangling-tool_calls repair operations through
     # the messages reducer (same-id replacement / RemoveMessage).

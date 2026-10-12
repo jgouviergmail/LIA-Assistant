@@ -31,11 +31,7 @@ import {
 import { useTranslation } from '@/i18n/client';
 import { type Language } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
-import {
-  usePlugins,
-  type InstalledPlugin,
-  type PluginImportReport,
-} from '@/hooks/usePlugins';
+import { usePlugins, type InstalledPlugin, type PluginImportReport } from '@/hooks/usePlugins';
 
 interface PluginsSettingsProps {
   lng: Language;
@@ -67,9 +63,7 @@ function PluginRow({
           )}
         </div>
         {plugin.description && (
-          <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">
-            {plugin.description}
-          </p>
+          <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{plugin.description}</p>
         )}
         <div className="mt-1.5 flex flex-wrap items-center gap-2">
           <Badge variant="secondary" className="gap-1">
@@ -88,7 +82,9 @@ function PluginRow({
         className="shrink-0 self-end text-destructive hover:text-destructive sm:self-center"
         aria-disabled={uninstalling}
         aria-label={t('settings.plugins.uninstall_aria', { name: plugin.name })}
-        onClick={() => { if (!uninstalling) onUninstall(plugin); }}
+        onClick={() => {
+          if (!uninstalling) onUninstall(plugin);
+        }}
       >
         <Trash2 className="mr-1.5 h-4 w-4" aria-hidden="true" />
         {t('settings.plugins.uninstall')}
@@ -190,7 +186,8 @@ export function PluginsSettings({ lng }: PluginsSettingsProps) {
   const [uploading, setUploading] = useApplicationAccountState(ownerId, false);
   const [importUrl, setImportUrl] = useApplicationAccountState<string>(ownerId, '');
   const [report, setReport] = useApplicationAccountState<PluginImportReport | null>(ownerId, null);
-  const [pluginToUninstall, setPluginToUninstall] = useApplicationAccountState<InstalledPlugin | null>(ownerId, null);
+  const [pluginToUninstall, setPluginToUninstall] =
+    useApplicationAccountState<InstalledPlugin | null>(ownerId, null);
 
   const handleReport = (result: PluginImportReport) => {
     if (!isCurrent()) return;
@@ -267,7 +264,9 @@ export function PluginsSettings({ lng }: PluginsSettingsProps) {
           variant="outline"
           size="sm"
           aria-disabled={uploading}
-          onClick={() => { if (isCurrent() && !uploading) fileInputRef.current?.click(); }}
+          onClick={() => {
+            if (isCurrent() && !uploading) fileInputRef.current?.click();
+          }}
         >
           {uploading ? (
             <LoadingSpinner className="mr-2 h-4 w-4" />

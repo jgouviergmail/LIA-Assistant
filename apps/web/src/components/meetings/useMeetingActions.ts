@@ -142,7 +142,7 @@ export function useMeetingActions(
   const email = useCallback(
     () =>
       run(async () => {
-        return await state.email() !== null;
+        return (await state.email()) !== null;
       }, 'meetings.detail.email_ok'),
     [run, state]
   );
@@ -163,7 +163,7 @@ export function useMeetingActions(
   const remove = useCallback(async () => {
     if (!(await confirmed('confirm_delete', 'meetings.detail.delete', true))) return;
     await run(async () => {
-      if (await state.remove() && isCurrent()) {
+      if ((await state.remove()) && isCurrent()) {
         toast.success(t('meetings.detail.deleted'));
         navigateToList();
       }

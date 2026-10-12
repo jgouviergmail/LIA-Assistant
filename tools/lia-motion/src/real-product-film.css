@@ -1,0 +1,227 @@
+.real-product-film {
+  background: #e6f0f6;
+  color: #0d4870;
+  font-family: 'Lia Inter', sans-serif;
+  overflow: hidden;
+}
+.real-product-film * {
+  box-sizing: border-box;
+}
+.real-product-screen {
+  overflow: hidden;
+  background: #e6edf3;
+}
+.real-product-capture {
+  position: absolute;
+  left: 0;
+  top: 0;
+  will-change: transform;
+}
+.real-product-capture img,
+.real-product-capture video {
+  display: block;
+  max-width: none;
+}
+.real-product-caption {
+  position: absolute;
+  left: 96px;
+  bottom: 100px;
+  max-width: 1430px;
+  padding: 22px 32px 26px;
+  color: #fff;
+  background: #075d89;
+  box-shadow: 0 9px 24px rgb(4 56 83 / 16%);
+  font-size: 44px;
+  font-weight: 720;
+  letter-spacing: -1.5px;
+}
+.real-product-provenance {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  padding: 18px 96px;
+  color: #426578;
+  background: #e6f0f6;
+  font-size: 19px;
+  line-height: 1.2;
+}
+.real-product-type {
+  background: #08628c;
+  color: #fff;
+  overflow: hidden;
+  justify-content: center;
+}
+.real-product-type-plane {
+  position: absolute;
+  inset: 0;
+  background: #0b78a7;
+  transform-origin: left;
+}
+.real-product-wordline {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 33px;
+  max-width: 1680px;
+  margin: 0 110px;
+  font-size: 124px;
+  font-weight: 760;
+  letter-spacing: -6px;
+  line-height: 1.13;
+}
+.real-product-wordline span {
+  display: block;
+  will-change: transform;
+}
+.real-product-type-brand {
+  position: absolute;
+  right: 96px;
+  bottom: 77px;
+  font-size: 37px;
+  font-weight: 740;
+}
+.real-product-companions {
+  overflow: hidden;
+  background: #e6f0f6;
+  color: #075d89;
+}
+.real-product-companion-word {
+  position: absolute;
+  left: 86px;
+  top: 175px;
+  font-size: 548px;
+  line-height: 1;
+  font-weight: 860;
+  letter-spacing: -45px;
+  color: #c9e1ec;
+}
+.real-product-hero-character {
+  position: absolute;
+  width: 650px;
+  height: 650px;
+  left: 635px;
+  top: 110px;
+  transform-origin: 50% 70%;
+}
+.real-product-avatar-shadow {
+  position: absolute;
+  left: 650px;
+  top: 717px;
+  width: 640px;
+  height: 62px;
+  background: radial-gradient(ellipse, #548ca8, transparent 67%);
+}
+.real-product-cast-character {
+  position: absolute;
+  top: 647px;
+  width: 180px;
+  height: 180px;
+}
+.real-product-companion-copy {
+  position: absolute;
+  left: 96px;
+  right: 96px;
+  bottom: 145px;
+  text-align: center;
+  font-size: 59px;
+  font-weight: 700;
+  letter-spacing: -2.5px;
+}
+.real-product-native-note {
+  position: absolute;
+  bottom: 32px;
+  left: 96px;
+  font-size: 19px;
+  color: #426578;
+}
+.real-product-finale {
+  background: #08628c;
+  color: #fff;
+  overflow: hidden;
+}
+.real-product-finale-character {
+  position: absolute;
+  width: 340px;
+  height: 340px;
+  left: 138px;
+  top: 326px;
+}
+.real-product-finale-copy {
+  position: absolute;
+  left: 580px;
+  top: 190px;
+  right: 100px;
+}
+.real-product-finale-copy strong {
+  display: block;
+  font-size: 240px;
+  line-height: 1;
+  font-weight: 810;
+  letter-spacing: -14px;
+}
+.real-product-finale-copy p {
+  max-width: 1120px;
+  font-size: 64px;
+  line-height: 1.2;
+  font-weight: 640;
+  letter-spacing: -2.8px;
+  margin: 32px 0 48px;
+}
+.real-product-finale-copy span {
+  font-size: 42px;
+  font-weight: 600;
+}
+.real-product-finale-line {
+  position: absolute;
+  height: 5px;
+  bottom: 70px;
+  left: 96px;
+  right: 96px;
+  background: #70d4f5;
+  transform-origin: left;
+}
+.real-product-extracts {
+  background: #d7e8f1;
+  overflow: hidden;
+}
+.real-product-extract-brand {
+  position: absolute;
+  left: 95px;
+  top: 80px;
+  font-size: 70px;
+  font-weight: 810;
+  letter-spacing: -3px;
+  color: #075d89;
+}
+.real-product-extract-context {
+  position: absolute;
+  left: 180px;
+  top: -70px;
+  width: 1560px;
+  opacity: 0.14;
+  filter: blur(3px);
+}
+.real-product-native-extract {
+  position: absolute;
+  overflow: hidden;
+  box-shadow: 0 14px 34px rgb(22 56 75 / 20%);
+  transform-origin: center;
+}
+.real-product-music-credit {
+  position: absolute;
+  left: 96px;
+  bottom: 88px;
+  color: #daeff8;
+  font-size: 23px;
+}
+.real-product-proof-credit {
+  position: absolute;
+  bottom: 88px;
+  right: 96px;
+  font-size: 21px;
+  color: #32576b;
+  background: #e6f0f6;
+  padding: 10px 14px;
+}

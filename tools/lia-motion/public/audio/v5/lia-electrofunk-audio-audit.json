@@ -1,0 +1,264 @@
+{
+  "status": "audit_failed",
+  "startedAt": "2026-10-12T00:12:58.567260+00:00",
+  "model": "gemini-3.8-flash",
+  "provider": "Google Gemini API",
+  "modelListedByReadOnlyPreflight": true,
+  "sourceAudio": "LIA-ElectroFunk.mp3",
+  "sourceBytes": 3868065,
+  "sourceSha256": "a4df8c28625c67763e19ddcbb44c684270fb5bb36bd5d805205a87b7b10d21fd",
+  "sourceDurationSeconds": 160.914208,
+  "inputMimeType": "audio/mp3",
+  "wholeSourceInline": true,
+  "generationConfig": {
+    "max_output_tokens": 3500,
+    "thinking_level": "minimal"
+  },
+  "prompt": "Analyse the complete supplied audio by its audible content alone.\nYou have no information about the creator's intent, requested genre or intended\ninstrumentation. Do not infer an instrument from a musical stereotype. State\nuncertainty rather than convert a synthetic timbre into a definite acoustic\ninstrument. Give concise descriptions in French and timestamps in seconds.\n\nIdentify the main rhythm, bass and melodic lead instruments and how their\ntextures change across the piece. Separately assess (a) saxophone, (b) other\nbrass or woodwind instruments, and (c) human voices, including speech, singing,\nhumming and sampled/chopped vocals. For each, report present/absent/uncertain,\nself-assessed confidence and every relevant time range. Distinguish an audible\nrealistic wind/reed sound from a synthesizer with a horn-like tone, and say when\nthe distinction cannot be determined from this mix. If absent, use no detection\nintervals; do not invent positions. Also describe the actual structural changes,\nrhythmic energy, melodic repetition and the audible ending. The confidence\nvalues are self-assessments, not calibrated probabilities. This is an automatic\naudio-perception report and must not claim human listening or legal clearance.\n",
+  "responseSchema": {
+    "type": "object",
+    "properties": {
+      "mainInstruments": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "melodicLeads": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "startSeconds": {
+              "type": "number"
+            },
+            "endSeconds": {
+              "type": "number"
+            },
+            "description": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "startSeconds",
+            "endSeconds",
+            "description"
+          ]
+        }
+      },
+      "saxophone": {
+        "type": "object",
+        "properties": {
+          "presence": {
+            "type": "string",
+            "enum": [
+              "present",
+              "absent",
+              "uncertain"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "intervals": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "startSeconds": {
+                  "type": "number"
+                },
+                "endSeconds": {
+                  "type": "number"
+                },
+                "description": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "startSeconds",
+                "endSeconds",
+                "description"
+              ]
+            }
+          }
+        },
+        "required": [
+          "presence",
+          "confidence",
+          "reason",
+          "intervals"
+        ]
+      },
+      "otherBrassOrWoodwinds": {
+        "type": "object",
+        "properties": {
+          "presence": {
+            "type": "string",
+            "enum": [
+              "present",
+              "absent",
+              "uncertain"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "intervals": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "startSeconds": {
+                  "type": "number"
+                },
+                "endSeconds": {
+                  "type": "number"
+                },
+                "description": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "startSeconds",
+                "endSeconds",
+                "description"
+              ]
+            }
+          }
+        },
+        "required": [
+          "presence",
+          "confidence",
+          "reason",
+          "intervals"
+        ]
+      },
+      "voices": {
+        "type": "object",
+        "properties": {
+          "presence": {
+            "type": "string",
+            "enum": [
+              "present",
+              "absent",
+              "uncertain"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "intervals": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "startSeconds": {
+                  "type": "number"
+                },
+                "endSeconds": {
+                  "type": "number"
+                },
+                "description": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "startSeconds",
+                "endSeconds",
+                "description"
+              ]
+            }
+          }
+        },
+        "required": [
+          "presence",
+          "confidence",
+          "reason",
+          "intervals"
+        ]
+      },
+      "structure": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "startSeconds": {
+              "type": "number"
+            },
+            "endSeconds": {
+              "type": "number"
+            },
+            "description": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "startSeconds",
+            "endSeconds",
+            "description"
+          ]
+        }
+      },
+      "rhythmicEnergy": {
+        "type": "string"
+      },
+      "melodicRepetition": {
+        "type": "string"
+      },
+      "ending": {
+        "type": "string"
+      },
+      "limitations": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "required": [
+      "mainInstruments",
+      "melodicLeads",
+      "saxophone",
+      "otherBrassOrWoodwinds",
+      "voices",
+      "structure",
+      "rhythmicEnergy",
+      "melodicRepetition",
+      "ending",
+      "limitations"
+    ]
+  },
+  "generationPromptProvided": false,
+  "filenameProvidedToModel": false,
+  "automatedAudioPerception": true,
+  "humanAudioAudition": false,
+  "musicGenerationRequests": 0,
+  "maximumAuditRequests": 1,
+  "automaticRetries": 0,
+  "credentialPersisted": false,
+  "store": false,
+  "audioGuide": "https://ai.google.dev/gemini-api/docs/audio",
+  "apiReference": "https://ai.google.dev/api/interactions-api",
+  "pricingSource": "https://ai.google.dev/gemini-api/docs/pricing",
+  "publishedInputUsdPerMillionTokens": 0.75,
+  "publishedOutputUsdPerMillionTokens": 3.75,
+  "pricePeriod": "Standard through 2026-12-31",
+  "invoiceVerified": false,
+  "qualification": "The sole automatic audio audit was rejected HTTP 400; no instrument-presence assessment was received. No automatic retry. Generation instructions do not prove absence of saxophone, other winds or vocals.",
+  "errorType": "ApiFailure",
+  "apiDiagnostic": {
+    "httpStatus": 400,
+    "apiStatus": null
+  },
+  "assessment": null
+}

@@ -28,8 +28,9 @@ export interface DeviceSession {
 }
 
 export function useSessions() {
-  const { ownerId, isCurrent, data, loading, error, refetch } =
-    useApplicationAccountQuery<DeviceSession[]>('/auth/sessions', 'useSessions');
+  const { ownerId, isCurrent, data, loading, error, refetch } = useApplicationAccountQuery<
+    DeviceSession[]
+  >('/auth/sessions', 'useSessions');
   useApplicationResourceSync(ownerId, 'device_sessions', refetch, releaseSessionState);
 
   const revokeSession = useCallback(

@@ -106,6 +106,7 @@ describe('GET /api/landing-media', () => {
         aiGenerated: true,
       },
       next: [],
+      presentation: null,
     });
     expect(res.headers.get('cache-control')).toContain('max-age=300');
   });
@@ -132,6 +133,20 @@ describe('GET /api/landing-media', () => {
         aiGenerated: true,
       },
     ]);
+  });
+
+  it('serves the explicit full presentation separately from the automatic playlist', async () => {
+    vi.stubEnv('LANDING_MEDIA_BASE_URL', BASE);
+    vi.stubGlobal(
+      'fetch',
+      fetchByUrl({
+        [`${BASE}/manifest.json`]: { ...MANIFEST, presentation: SECOND },
+      })
+    );
+    const body = await (await getMedia()).json();
+    expect(body.next).toEqual([]);
+    expect(body.presentation.poster).toBe(`${BASE}/second-poster.webp`);
+    expect(body.presentation.durationSeconds).toBe(251.4);
   });
 
   it('answers "no video" when the origin fails, when the manifest is invalid, and when the variable is malformed', async () => {

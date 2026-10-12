@@ -53,11 +53,14 @@ export function useVoicePlayback() {
   // ADR-324: while the radio plays, the answer stays written — two voices at
   // once is neither heard nor understood.
   const radioOnAir = useRadioHoldsAudio();
-  const beginVoiceRun = useCallback((runId: string) => {
-    audioQueueRef.current?.stop();
-    selection.current = output.begin({ source: 'comments', id: runId });
-    audioQueueRef.current?.setDecodedOutput(selection.current.output);
-  }, [output]);
+  const beginVoiceRun = useCallback(
+    (runId: string) => {
+      audioQueueRef.current?.stop();
+      selection.current = output.begin({ source: 'comments', id: runId });
+      audioQueueRef.current?.setDecodedOutput(selection.current.output);
+    },
+    [output]
+  );
   /** `voice_complete`: the run's last clip is queued, the avatar drains once it empties. */
   const endVoiceRun = useCallback(() => {
     audioQueueRef.current?.endRun();
@@ -111,7 +114,8 @@ export function useVoicePlayback() {
         audioQueueRef.current.dispose();
         audioQueueRef.current = null;
       }
-      output.interrupt(); selection.current = null;
+      output.interrupt();
+      selection.current = null;
     };
   }, [isEnabled, configureQueueCallbacks, output]);
 
@@ -145,7 +149,8 @@ export function useVoicePlayback() {
    * Called on user interaction or context change.
    */
   const stopPlayback = useCallback(() => {
-    output.interrupt(); selection.current = null;
+    output.interrupt();
+    selection.current = null;
     if (audioQueueRef.current) {
       audioQueueRef.current.stop();
       setIsPlaying(false);

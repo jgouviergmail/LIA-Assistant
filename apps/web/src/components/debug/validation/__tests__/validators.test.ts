@@ -7,11 +7,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import {
-  validateDomainScores,
-  validateSectionSchemas,
-  validateToolScores,
-} from '../validators';
+import { validateDomainScores, validateSectionSchemas, validateToolScores } from '../validators';
 import { baseDebugMetrics } from '../../__tests__/fixtures';
 import type { DebugMetrics } from '@/types/chat';
 

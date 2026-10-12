@@ -60,7 +60,7 @@ pattern detection with an LLM-based extraction for language-agnostic reference d
 │                                                                           │
 │  ┌─────────────────────┐     ┌──────────────────────────────┐            │
 │  │ BROAD RETRIEVAL      │     │ PHASE 1: REFERENCE EXTRACTION │            │
-│  │ Full query embedding │     │ LLM nano (2s timeout)         │            │
+│  │ Full query embedding │     │ LLM (bounded timeout)        │            │
 │  │ → memory_facts       │     │ → ["ma femme", "mon fils"]    │            │
 │  └──────────┬──────────┘     └──────────────┬───────────────┘            │
 │             │         (parallel)             │                             │
@@ -116,7 +116,7 @@ yields higher similarity scores, allowing a higher threshold and less noise.
    │
    ├──────────────────────────────┐
    ▼                              ▼
-2a. BROAD RETRIEVAL          2b. PHASE 1: LLM EXTRACTION (2s timeout)
+2a. BROAD RETRIEVAL          2b. PHASE 1: LLM EXTRACTION (bounded timeout)
     Full query embedding          Prompt: memory_reference_extraction_prompt
     → memory_facts: [             → references: ["mon frère"]
       "J'ai un frère jean dupond"
@@ -165,7 +165,7 @@ regex patterns. This makes the system **language-agnostic** — it works for all
 supported languages without maintaining per-language regex patterns.
 
 **Prompt**: `memory_reference_extraction_prompt.txt`
-**LLM type**: `memory_reference_extraction` (nano model, 2s timeout)
+**LLM slot**: `memory_reference_extraction`, configured through central LLM administration. The outer call is also bounded by `MEMORY_REFERENCE_EXTRACTION_TIMEOUT_SECONDS`; it is not a fixed two-second call.
 
 The LLM extracts any expression that designates a person, place, or entity through
 a relationship or possession rather than by name:
@@ -202,59 +202,58 @@ class ResolvedReferences:
     # Requête avec références remplacées par les noms résolus
     enriched_query: str
 
-    # Dict mapping reference → resolved name
-    # Example: {"mon frère": "jean dupond"}
+    # Dict mapping reference → resolved value (a name, or an address for a
+    # location query). Example: {"mon frère": "jean dupond"}
     mappings: dict[str, str] = field(default_factory=dict)
+
+    # What each value IS, as the resolver declares it (prompt rule 6):
+    # "person_name", or "postal_address" for a location query.
+    value_kinds: dict[str, str] = field(default_factory=dict)
 
     def has_resolutions(self) -> bool:
         """Check if any references were resolved."""
         return len(self.mappings) > 0
 ```
 
-### State Key
+### Where the references live
 
-```python
-STATE_KEY_RESOLVED_REFERENCES = "resolved_references"
-```
-
-Dans `MessagesState`:
-```python
-class MessagesState(TypedDict, total=False):
-    resolved_references: dict[str, Any] | None
-```
+The turn's references have ONE home: `QueryIntelligence.resolved_references`, a
+tuple of `ResolvedReferenceEntry(reference, value, kind, source)`
+(`analysis/resolved_references.py`). The router rewrites it on every turn and the
+checkpoint carries it through a HITL resume; it is read back through
+`turn_references(state)` alone (guard
+`tests/unit/domains/agents/test_resolved_references_single_reader_guard.py`).
+There is no state key of its own any more: written only when non-empty, such a
+copy was inherited by every later turn (ADR-120 amendment 2026-10-11).
 
 ---
 
 ## Configuration
 
-### Settings (dans `agents.py`)
+The two slots are `memory_reference_extraction` and
+`memory_reference_resolution`. Provider, model, reasoning, token budget and
+configured timeout come from the [central LLM configuration](LLM_CONFIG_ADMIN.md)
+and its database overrides/defaults. Do not infer an instance's model from a
+historical environment example.
+
+`MemoryResolver._extract_references()` has an additional outer timeout from
+`core.constants.MEMORY_REFERENCE_EXTRACTION_TIMEOUT_SECONDS`.
+`MemoryReferenceResolutionService._resolve_with_llm()` reads its timeout through
+`get_llm_config_for_agent(settings, "memory_reference_resolution")`.
 
 ```python
-class MemoryReferenceResolutionSettings(BaseSettings):
-    # Feature toggle
-    memory_reference_resolution_enabled: bool = True
+from src.core.config import settings
+from src.core.llm_config_helper import get_llm_config_for_agent
 
-    # LLM Configuration
-    memory_reference_resolution_llm_provider: str = "openai"
-    memory_reference_resolution_llm_model: str = "gpt-4.1-mini"
-    memory_reference_resolution_llm_temperature: float = 0.0
-    memory_reference_resolution_llm_max_tokens: int = 50
-
-    # Timeout (fail-safe)
-    memory_reference_resolution_timeout_ms: int = 2000  # 2 seconds max
+resolution_config = get_llm_config_for_agent(settings, "memory_reference_resolution")
+timeout_seconds = resolution_config.timeout_seconds
 ```
 
-### Variables d'Environnement
-
-```bash
-# .env
-MEMORY_REFERENCE_RESOLUTION_ENABLED=true
-MEMORY_REFERENCE_RESOLUTION_LLM_PROVIDER=openai
-MEMORY_REFERENCE_RESOLUTION_LLM_MODEL=gpt-4.1-mini
-MEMORY_REFERENCE_RESOLUTION_TIMEOUT_MS=2000
-```
-
----
+There is no `MEMORY_REFERENCE_RESOLUTION_ENABLED` feature switch. Reference
+resolution remains part of query analysis; access to memory facts still respects
+the active account, memory capability and personal consent. A failed or timed-out
+resolution preserves the original query. The typed result and current-turn reader
+described above prevent a reference from being inherited by a later turn.
 
 ## Intégration
 
@@ -266,18 +265,23 @@ point below is read from the code):
   `resolve_pre_planner(query, memory_facts, config)`. The analysis LLM may add
   references of its own (`QueryAnalyzerService`), never replacing one the memory
   service resolved.
-- **State** — `router_node_v3` writes the mappings, `{reference: name}`, under
-  `STATE_KEY_RESOLVED_REFERENCES`; the planner works from the same analysis
-  (`QueryIntelligence.resolved_references`, `english_enriched_query`).
+- **State** — the references live in `QueryIntelligence.resolved_references`,
+  typed (`person_name`, `postal_address`, `place`, `datetime`, `other`) and read
+  through `turn_references`; the planner renders them one per line with their
+  kind (`render_reference_lines`) and works from `english_enriched_query`.
 - **Clarification** — a clarification answer is resolved the same way before it
   is planned again (`planner_node_v3`, log event
   `clarification_resolution_memory_success`).
-- **Response** — nothing rewrites the answer: `get_response_prompt` injects the
-  mappings as one context line (`"my brother" = jean dupond`) and the model
-  phrases the reference itself, in the person's language.
-- **ReAct and parameters** — the ReAct context (`nodes/react_context.py`,
-  `<MemoryContext>`) and the parameter guard (`semantic/param_guard.py`) read
-  the same mappings.
+- **Response** — nothing rewrites the answer: `get_response_prompt` renders
+  each reference with its kind (`- "my brother" = jean dupond [person_name]`)
+  and the model phrases the reference itself, in the person's language.
+- **ReAct and parameters** — the ReAct loop reads the pipeline's own
+  `<ResolvedReferences>` section (`nodes/react_context.py`); the parameter guard
+  (`semantic/param_guard.py`) reads `person_name_values` only — a value a
+  producer declared a person's name, unless another producer declared the same
+  value a place or an address that turn. The resolver declares its `kinds`
+  (prompt rule 6); after a change of the `memory_reference_resolution` slot,
+  rerun `python -m scripts.semantic_simulation.memory_kinds --real-models`.
 
 ---
 
@@ -289,7 +293,7 @@ Le service est conçu pour **ne jamais bloquer** la conversation.
 
 | Phase | Condition | Comportement |
 |-------|-----------|--------------|
-| Phase 1 (extraction) | LLM timeout (>2s) | Return `[]` → fallback to broad facts |
+| Phase 1 (extraction) | LLM timeout (outer bound) | Return `[]` → fallback to broad facts |
 | Phase 1 (extraction) | LLM error | Return `[]` → fallback to broad facts |
 | Phase 2 (targeted search) | All searches fail | Return None → fallback to broad facts |
 | Phase 2 (targeted search) | No facts found | Return None → fallback to broad facts |
@@ -441,7 +445,7 @@ result = await llm.ainvoke(prompt, config=config)
 | `prompts/v1/memory_reference_extraction_prompt.txt` | Phase 1: extraction prompt |
 | `prompts/v1/memory_reference_resolution_prompt.txt` | Phase 3: resolution prompt |
 | `services/query_analyzer_service.py` | Integration (Step 1 of analyze_full) |
-| `models.py` | STATE_KEY definition |
+| `analysis/resolved_references.py`, `analysis/query_intelligence_helpers.py` | Typed entries, serialization and the single `turn_references` reader |
 | `core/config/agents.py` | Configuration settings |
 | `domains/llm_config/constants.py` | LLM type: memory_reference_extraction |
 

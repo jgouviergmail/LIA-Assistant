@@ -26,7 +26,12 @@ interface CountUpOptions {
 
 export function useCountUp(
   target: number,
-  { decimals = 0, suffix = '', durationMs = DEFAULT_DURATION_MS, locale = 'en' }: CountUpOptions = {}
+  {
+    decimals = 0,
+    suffix = '',
+    durationMs = DEFAULT_DURATION_MS,
+    locale = 'en',
+  }: CountUpOptions = {}
 ): { display: string; start: () => void } {
   const format = useCallback(
     (value: number) =>

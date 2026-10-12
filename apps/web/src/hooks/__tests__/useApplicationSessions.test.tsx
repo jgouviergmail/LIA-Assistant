@@ -5,7 +5,10 @@ import { applicationStateChangeSchema } from '@/types/application-state';
 import { useSessions, type DeviceSession } from '../useSessions';
 
 const { auth, get, remove, post } = vi.hoisted(() => ({
-  auth: vi.fn(), get: vi.fn(), remove: vi.fn(), post: vi.fn(),
+  auth: vi.fn(),
+  get: vi.fn(),
+  remove: vi.fn(),
+  post: vi.fn(),
 }));
 vi.mock('@/hooks/useAuth', () => ({ useAuth: auth }));
 vi.mock('@/lib/api-client', async importOriginal => {
@@ -16,9 +19,17 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => k
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }));
 
 function session(id: string): DeviceSession {
-  return { id, current: false, ua_family: 'chrome', os_family: 'windows', ip_trunc: null,
-    auth_methods: ['password'], created_at: '2026-10-07T10:00:00Z', last_seen_at: null,
-    device_name: 'Owned device' };
+  return {
+    id,
+    current: false,
+    ua_family: 'chrome',
+    os_family: 'windows',
+    ip_trunc: null,
+    auth_methods: ['password'],
+    created_at: '2026-10-07T10:00:00Z',
+    last_seen_at: null,
+    device_name: 'Owned device',
+  };
 }
 
 beforeEach(() => {
@@ -47,7 +58,9 @@ describe('application session invalidation and account authority', () => {
       publishApplicationResources('one', new Set(['phone_identity']));
     });
     expect(get).toHaveBeenCalledTimes(1);
-    act(() => { publishApplicationResources('one', new Set(['device_sessions'])); });
+    act(() => {
+      publishApplicationResources('one', new Set(['device_sessions']));
+    });
     await waitFor(() => expect(result.current.sessions).toEqual([]));
     expect(get).toHaveBeenCalledTimes(2);
     expect(remove).not.toHaveBeenCalled();
@@ -63,15 +76,24 @@ describe('application session invalidation and account authority', () => {
     auth.mockReturnValue({ user: { id: 'two' } });
     rerender();
     expect(result.current.sessions).toEqual([]);
-    await act(async () => { await expect(obsolete('private-one')).rejects.toThrow(); });
+    await act(async () => {
+      await expect(obsolete('private-one')).rejects.toThrow();
+    });
     expect(remove).not.toHaveBeenCalled();
   });
 
   it('accepts the new backend hint without accepting session credentials', () => {
-    const hint = { schema_version: 1, command_id: '46c2fdb3-7bdd-4ee4-a21a-bd6e5dce9bba',
-      actor_id: '20b5e4db-34f3-4717-91e4-040eb21e70d7', resources: ['device_sessions'],
-      changed_fields: ['session_to_revoke'], observed_at: '2026-10-07T10:00:00Z' };
+    const hint = {
+      schema_version: 1,
+      command_id: '46c2fdb3-7bdd-4ee4-a21a-bd6e5dce9bba',
+      actor_id: '20b5e4db-34f3-4717-91e4-040eb21e70d7',
+      resources: ['device_sessions'],
+      changed_fields: ['session_to_revoke'],
+      observed_at: '2026-10-07T10:00:00Z',
+    };
     expect(applicationStateChangeSchema.safeParse(hint).success).toBe(true);
-    expect(applicationStateChangeSchema.safeParse({ ...hint, cookie: 'private' }).success).toBe(false);
+    expect(applicationStateChangeSchema.safeParse({ ...hint, cookie: 'private' }).success).toBe(
+      false
+    );
   });
 });

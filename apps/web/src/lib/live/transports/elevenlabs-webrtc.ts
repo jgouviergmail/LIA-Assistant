@@ -54,8 +54,12 @@ export class ElevenLabsWebRtcTransport implements LiveTransport {
       // through the exported seam AFTER that import and BEFORE startSession.
       const { setWebRTCAudioAdapterFactory } = await import('@elevenlabs/client/internal');
       if (!current()) return;
-      setWebRTCAudioAdapterFactory(() => elevenLabsAudioAdapter({ onRemoteStream: stream =>
-        current() ? events.onRemoteStream?.(stream) ?? (() => {}) : () => {} }));
+      setWebRTCAudioAdapterFactory(() =>
+        elevenLabsAudioAdapter({
+          onRemoteStream: stream =>
+            current() ? (events.onRemoteStream?.(stream) ?? (() => {})) : () => {},
+        })
+      );
     }
     const declaredTools: Record<string, (parameters: unknown) => Promise<string>> = {};
     for (const name of options.toolNames ?? []) {

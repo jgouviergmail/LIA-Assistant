@@ -16,7 +16,14 @@ vi.mock('@/hooks/useApiQuery', () => ({ useApiQuery: mockUseApiQuery }));
 import { HEARTBEAT_HISTORY_PAGE_SIZE, useHeartbeatHistory } from '../useHeartbeatHistory';
 
 function reply(over: Record<string, unknown> = {}) {
-  return { data: undefined, loading: false, error: null, refetch: vi.fn(), setData: vi.fn(), ...over };
+  return {
+    data: undefined,
+    loading: false,
+    error: null,
+    refetch: vi.fn(),
+    setData: vi.fn(),
+    ...over,
+  };
 }
 
 beforeEach(() => vi.clearAllMocks());
@@ -45,9 +52,7 @@ describe('useHeartbeatHistory', () => {
   });
 
   it('keeps the total of the SET, not of the page', () => {
-    mockUseApiQuery.mockReturnValue(
-      reply({ data: { notifications: [{ id: 'a' }], total: 137 } })
-    );
+    mockUseApiQuery.mockReturnValue(reply({ data: { notifications: [{ id: 'a' }], total: 137 } }));
 
     const { result } = renderHook(() => useHeartbeatHistory(true));
 

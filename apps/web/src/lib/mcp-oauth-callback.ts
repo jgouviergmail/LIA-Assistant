@@ -12,7 +12,10 @@ import { z } from '@/lib/zod';
 export type McpOAuthOutcome = 'success' | 'denied' | 'error' | 'pending';
 
 /** Native MCP callbacks land in settings; a staged application command returns to its chat. */
-export function resumeApplicationMCPOAuthReturn(outcome: McpOAuthOutcome, commandId: string | null): void {
+export function resumeApplicationMCPOAuthReturn(
+  outcome: McpOAuthOutcome,
+  commandId: string | null
+): void {
   if (outcome === 'pending' && z.string().uuid().safeParse(commandId).success)
     window.location.replace('/dashboard/chat');
 }

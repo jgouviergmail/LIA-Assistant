@@ -34,7 +34,8 @@ from langchain_core.messages import HumanMessage
 
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
-from src.domains.agents.analysis.query_intelligence_helpers import get_qi_attr
+from src.domains.agents.analysis.query_intelligence_helpers import get_qi_attr, turn_references
+from src.domains.agents.analysis.resolved_references import person_name_values
 from src.domains.agents.context.runtime_context import (
     runtime_context_if_running,
     runtime_user_id_str,
@@ -561,9 +562,9 @@ async def fetch_response_context(
             texts: list[str | None] = [last_user_message]
             if isinstance(intelligence, dict):
                 texts.append(intelligence.get("english_query"))
-                resolved = intelligence.get("resolved_references") or {}
-                if isinstance(resolved, dict):
-                    texts.extend(str(value) for value in resolved.values())
+            # Only values this turn resolved to a PERSON's name: a place or a date
+            # is never a peer, whatever it spells (ADR-120 amendment 2026-10-11).
+            texts.extend(person_name_values(turn_references(state)))
             return await build_relation_context(UUID(user_id_for_peer), texts)
         except Exception as exc:  # noqa: BLE001 - enrichment, never fatal
             logger.warning(

@@ -26,7 +26,9 @@ vi.mock('@/hooks/useApiQuery', () => ({ useApiQuery }));
 // behavior is exercised by the real-hook transport and application suites.
 vi.mock('@/hooks/useApplicationAccountQuery', () => ({
   useApplicationAccountQuery: (endpoint: string, componentName: string) => ({
-    ...useApiQuery(endpoint, { componentName }), ownerId: 'owned-journal-user', isCurrent: () => true,
+    ...useApiQuery(endpoint, { componentName }),
+    ownerId: 'owned-journal-user',
+    isCurrent: () => true,
   }),
 }));
 const { useApiMutation } = vi.hoisted(() => ({ useApiMutation: vi.fn() }));

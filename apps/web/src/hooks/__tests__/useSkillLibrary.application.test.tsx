@@ -18,7 +18,9 @@ beforeEach(() => {
 
 describe('library reads follow committed skills and the current account', () => {
   it.each(['installed', 'search'] as const)('refreshes only the owner of %s', async kind => {
-    const { result } = renderHook(() => kind === 'installed' ? useLibraryInstalled(true) : useLibrarySearch('pdf'));
+    const { result } = renderHook(() =>
+      kind === 'installed' ? useLibraryInstalled(true) : useLibrarySearch('pdf')
+    );
     await waitFor(() => expect(result.current.data).toBeDefined());
     get.mockClear();
     act(() => publishApplicationResources('foreign', new Set(['skills'])));
@@ -38,7 +40,10 @@ describe('library reads follow committed skills and the current account', () => 
   });
 
   it('retains search parameters across committed refresh and revisions', async () => {
-    const { result, rerender } = renderHook(({ revision }) => useLibrarySearch('literal query', revision), { initialProps: { revision: 0 } });
+    const { result, rerender } = renderHook(
+      ({ revision }) => useLibrarySearch('literal query', revision),
+      { initialProps: { revision: 0 } }
+    );
     await waitFor(() => expect(result.current.data).toBeDefined());
     act(() => publishApplicationResources('one', new Set(['skills'])));
     await waitFor(() => expect(get).toHaveBeenCalledTimes(2));
@@ -51,7 +56,9 @@ describe('library reads follow committed skills and the current account', () => 
     useAuth.mockReturnValue({ user: null });
     renderHook(() => useLibraryInstalled(true));
     renderHook(() => useLibrarySearch('pdf'));
-    await act(async () => { await Promise.resolve(); });
+    await act(async () => {
+      await Promise.resolve();
+    });
     expect(get).not.toHaveBeenCalled();
   });
 });

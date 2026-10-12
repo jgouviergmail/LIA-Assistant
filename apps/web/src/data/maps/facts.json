@@ -1,7 +1,7 @@
 {
-  "version": "2.6.1",
-  "releaseDate": "2026-10-06",
-  "releases": 278,
+  "version": "3.0.0",
+  "releaseDate": "2026-10-12",
+  "releases": 279,
   "milestones": [
     {
       "version": "1.0.0",
@@ -224,8 +224,8 @@
       "date": "2026-10-05"
     },
     {
-      "version": "2.6.1",
-      "date": "2026-10-06"
+      "version": "3.0.0",
+      "date": "2026-10-12"
     }
   ],
   "domains": 55,
@@ -567,6 +567,10 @@
     "335": "ADR-335-Canonical-Semantic-Proofs-And-Constructible-Dependencies.md",
     "336": "ADR-336-Requested-Outcomes-Checked-Against-Canonical-Observations.md",
     "337": "ADR-337-Checkpointed-ReAct-Read-Segments-And-Turn-Local-Reuse.md",
-    "338": "ADR-338-Live-MCP-Contracts-And-Exact-Callable-Identity.md"
+    "338": "ADR-338-Live-MCP-Contracts-And-Exact-Callable-Identity.md",
+    "339": "ADR-339-Application-Commands-With-Current-Authority-And-Secure-Continuations.md",
+    "340": "ADR-340-Native-Avatar-Volume-From-Reviewed-Offline-Art.md",
+    "341": "ADR-341-Editable-Motion-Production-And-Exclusive-Presentation.md",
+    "342": "ADR-342-Opt-In-Runtime-Avatar-Preference-Campaigns.md"
   }
 }

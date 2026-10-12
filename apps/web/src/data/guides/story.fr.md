@@ -4,7 +4,7 @@
 
 **Version** : 2.3
 **Date** : 2026-10-04
-**Application** : LIA v2.6.1
+**Application** : LIA v3.0.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ La quasi-totalité du code a été écrite par une IA, sous direction humaine : 
 | Indicateur | Valeur |
 | --- | --- |
 | Code écrit par une IA — dirigée, encadrée, contrôlée | **≈ 100 %** |
-| Lignes de source (hors tests) — 55 domaines fonctionnels | **820 000+** |
-| Tests automatisés, exécutés à chaque commit et livraison | **51 000+** |
-| Décisions d'architecture documentées (ADR) | **337** |
-| Versions livrées à rythme régulier | **278** |
+| Lignes de source (hors tests) — 55 domaines fonctionnels | **931 000+** |
+| Tests automatisés inventoriés ; suites adaptées au commit et à la livraison | **59 000+** |
+| Décisions d'architecture documentées (ADR) | **341** |
+| Versions livrées à rythme régulier | **279** |
 | Langues, parité vérifiée automatiquement | **6** |
 | Audit technique sur 24 périmètres | **8,3/10** |
 
@@ -52,9 +52,17 @@ Une IA qui code produit du volume ; elle ne produit de la qualité que sous cont
 
 Plusieurs agents peuvent travailler en même temps sur le même dépôt — deux familles d'outils différentes, chacune dans son arbre de travail. La règle est la même que pour le code : rien n'est consolidé sur la foi d'un résumé. Chaque fichier est attribué à son auteur par son empreinte et par le journal de l'agent, chaque fusion est rejouée dans un arbre isolé puis vérifiée par toutes les barrières, et une sauvegarde précède chaque bascule.
 
+### Une intention, puis un résultat vérifiable
+
+Une interface conversationnelle devient utile quand elle peut agir sur ses propres outils. Demander « Passe mes réponses en HTML + cartes » doit retrouver le même réglage que le formulaire. La conversation apporte un chemin plus simple ; elle ne crée ni un droit supplémentaire ni une permission implicite.
+
+Cette règle s’applique aussi au récit : préparer n’est pas accomplir. Une demande en attente, une modification enregistrée et un conflit doivent être nommés séparément. Les compagnons animés rendent ce travail visible, avec des designs originaux et des expressions liées à l’activité, sans transformer une intention en preuve d’exécution.
+
+---
+
 ## 4. Les arbitrages
 
-Trois décisions structurantes, parmi les 337 documentées :
+Trois décisions structurantes, parmi les 341 documentées :
 
 **Souveraineté & réversibilité — aucune dépendance fournisseur irréversible.** Les modèles d'IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modèles locaux via Ollama) sont placés derrière une abstraction unique : chaque usage peut changer de fournisseur par configuration, avec comparaison de coût. Même principe côté métier : Google, Apple et Microsoft sont interchangeables par catégorie fonctionnelle. L'auto-hébergement te donne la maîtrise du serveur ; les données du compte sont stockées sur l'instance et les identifiants des connecteurs sont chiffrés. Les services distants que tu choisis reçoivent toujours les données utiles à leur part de la demande.
 
@@ -80,7 +88,7 @@ Une présence visible doit rester un choix maîtrisé : l’avatar Simli expéri
 
 ## 6. La preuve
 
-Le niveau annoncé dans ce document résulte d'un audit technique complet : 24 périmètres notés, chaque constat vérifié dans le code et contre-vérifié pour éliminer les faux positifs. L'audit applique la méthode du projet lui-même — conduit avec l'outillage IA, en posture contradictoire, chaque conclusion ancrée dans une preuve vérifiée sur pièces. Dernière évaluation : **8,3/10**, avec un profil assumé. Le rapport complet — grille de notation, méthode, constats ouverts et protocole de reproduction — est public : [rapport d'audit complet](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
+Le niveau annoncé dans ce document résulte d'un audit technique complet : 24 périmètres notés, chaque constat vérifié dans le code et contre-vérifié pour éliminer les faux positifs. L'audit applique la méthode du projet lui-même — conduit avec l'outillage IA, en posture contradictoire, chaque conclusion ancrée dans une preuve vérifiée sur pièces. Évaluation de juillet 2026 : **8,3/10**, avec un profil assumé. Le rapport complet — grille de notation, méthode, constats ouverts et protocole de reproduction — est public : [rapport d'audit complet](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
 
 **Points forts confirmés :**
 
@@ -113,4 +121,4 @@ Ce que cette expérience change dans une pratique de direction :
 - **Entre l'interdiction générale et la confiance aveugle, il existe une voie gouvernable.** Le contrôle humain gradué se spécifie, se teste et s'audite ; c'est l'approche que dessinent les exigences réglementaires, et elle est opérationnelle dès maintenant.
 - **Un dirigeant qui pratique arbitre mieux.** Faire ou faire faire, dette acceptable ou non, promesse fournisseur crédible ou non — ces décisions gagnent en justesse quand on a éprouvé la matière. Ce projet est une façon d'entretenir cette proximité avec le terrain.
 
-*Projet personnel, mené en dehors de toute activité professionnelle. Évaluation technique issue de l’audit de juillet 2026, constats contre-vérifiés. Les comptes structurels suivent le dépôt ; les lignes de source ont été remesurées le 2026-10-05. Dépôt : [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*
+*Projet personnel, mené en dehors de toute activité professionnelle. Évaluation technique issue de l’audit de juillet 2026, constats contre-vérifiés. Les comptes structurels suivent le dépôt ; les lignes de source ont été remesurées le 2026-10-12. Dépôt : [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*

@@ -413,6 +413,30 @@
       "role": "The API owns the Simli connection under a Redis lease: single-use ticket, encrypted token, relayed signalling and PCM, verified stop and bounded presence. The browser chooses one audible output and preserves the preferred position through mobile keyboard changes. Media and real-device qualification remain pending.",
       "stack": ["Simli Compose", "WebRTC", "Web Audio", "AudioWorklet", "Redis"],
       "src": "36a9b358e3f7"
+    },
+    "t.application": {
+      "name": "Durable application commands",
+      "role": "Typed operations pass through current authority and the effect gate. An encrypted command binds actor, canonical content, digest, origin, expiry and claim; source services retain their compare-and-set checks. Private continuations return to the authenticated browser. Only an explicitly committed result is completed success.",
+      "stack": [
+        "Typed declarations / Pydantic",
+        "Encrypted PostgreSQL payloads",
+        "Token-fenced claims",
+        "Browser continuations",
+        "SSE and authenticated rereads"
+      ],
+      "src": "449fae9ab504"
+    },
+    "t.nativeavatar": {
+      "name": "Native companion rig and volume",
+      "role": "The same rig drives face, body and accessories. A bounded alpha-derived mesh adds approximate volume to frontal artwork; facial layers stay projected in DOM/SVG and the scarf is composited in front. Visibility, reduced motion and readiness govern resources and fallback. An optional runtime campaign selects BIP per browser origin, without an account avatar column.",
+      "stack": [
+        "React / DOM / SVG",
+        "Shared native rig",
+        "Bounded WebGL",
+        "Offline artwork",
+        "Browser-local preferences"
+      ],
+      "src": "42c09ed2a4e1"
     }
   },
   "flows": {
@@ -502,6 +526,21 @@
         "LIA gathers the evidence of the incident and diagnoses it."
       ],
       "src": "e31d7b94f863"
+    },
+    "tflow.application": {
+      "name": "Execute an application command",
+      "summary": "Durable identity and current preconditions; an opened continuation remains pending.",
+      "steps": [
+        "The client uses the operation catalogue offered to this account.",
+        "The declaration fixes the operation, schema, scope and required capabilities.",
+        "Preparation binds before/after values, digest, actor, origin and expiry in an encrypted command.",
+        "The effect gate checks exact approval when the operation requires it.",
+        "Execution rereads authority and capabilities; a token-fenced claim and the source service's compare-and-set protect their respective boundaries.",
+        "A private continuation binds to the session and, where required, the addressed device; secrets stay outside the model.",
+        "Committed, waiting, conflict, failure and cancellation remain distinct; a lost response is not automatically replayed.",
+        "An addressed hint invalidates affected resources; the client rereads their authenticated queries."
+      ],
+      "src": "61654a82d651"
     }
   }
 }

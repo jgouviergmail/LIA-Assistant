@@ -1,0 +1,6653 @@
+{
+ "d1_v2": {
+  "decision": "d1",
+  "variant": "v2",
+  "key": "answer",
+  "baselines": {},
+  "jev": {
+   "cases": 91,
+   "errors": 0,
+   "forced_accuracy": 1.0,
+   "threshold": 0.3,
+   "coverage": 1.0,
+   "abstention": 0.0,
+   "selective_accuracy": 1.0,
+   "selective_accuracy_lenient": 1.0,
+   "per_class": {
+    "datetime": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 14
+    },
+    "other": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 17
+    },
+    "person_name": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 22
+    },
+    "place": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 27
+    },
+    "postal_address": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 11
+    }
+   },
+   "confusion": {
+    "person_name": {
+     "person_name": 22
+    },
+    "postal_address": {
+     "postal_address": 10,
+     "place": 1
+    },
+    "place": {
+     "place": 27
+    },
+    "datetime": {
+     "datetime": 14
+    },
+    "other": {
+     "other": 16,
+     "place": 1
+    }
+   },
+   "families": {
+    "amount": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "common_word_name": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "contextual": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "contextual_event": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "country": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "department": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "document": {
+     "cases": 3,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "email": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "emoji": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "explicit_place": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "garbage": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "home_address": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "homonym": {
+     "cases": 8,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "implicit_place": {
+     "cases": 6,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "initials": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "injection": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "landmark": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "multiple_people": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "office_address": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "organization": {
+     "cases": 4,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "phone": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "postal_code": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "pronoun": {
+     "cases": 5,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "region": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "relation": {
+     "cases": 7,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "relation_address": {
+     "cases": 7,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "relation_city": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "saint_place": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "square_address": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "street_named_after_person": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "temporal": {
+     "cases": 10,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "temporal_range": {
+     "cases": 4,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "title": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "venue": {
+     "cases": 5,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "venue_business": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "venue_named_after_person": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    }
+   },
+   "forced": 1.0,
+   "decisions": 182,
+   "latency_ms_p50": 228.7902400130406,
+   "latency_ms_p95": 283.3084650046658,
+   "latency_ms_p99": 379.4282870076131,
+   "cost_eur_total": 0.00571914205632,
+   "cost_eur_per_decision": 3.142385745230769e-05,
+   "calls": 182,
+   "stability": 1.0,
+   "calibration_buckets": [
+    {
+     "from": 0.4,
+     "to": 0.5,
+     "cases": 1,
+     "accuracy": 1.0
+    },
+    {
+     "from": 0.8,
+     "to": 0.9,
+     "cases": 1,
+     "accuracy": 1.0
+    },
+    {
+     "from": 0.9,
+     "to": 1.0,
+     "cases": 89,
+     "accuracy": 1.0
+    }
+   ],
+   "threshold_from_calibration": 0.3
+  },
+  "reference": {
+   "engine": "generative",
+   "accuracy": null,
+   "target": 0.98
+  },
+  "checks": {
+   "threshold_found_on_calibration": true,
+   "beats_generative_by_3_points": false,
+   "meets_safety_floor": true,
+   "abstention_at_most_10_percent": true,
+   "p95_under_600_ms": true
+  },
+  "adopt": false
+ },
+ "d1_order_bias": {
+  "cases": 91,
+  "agreement": 1.0,
+  "forward": {
+   "cases": 91,
+   "errors": 0,
+   "forced_accuracy": 1.0,
+   "threshold": 0.0,
+   "coverage": 1.0,
+   "abstention": 0.0,
+   "selective_accuracy": 1.0,
+   "selective_accuracy_lenient": 1.0,
+   "per_class": {
+    "datetime": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 14
+    },
+    "other": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 17
+    },
+    "person_name": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 22
+    },
+    "place": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 27
+    },
+    "postal_address": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 11
+    }
+   },
+   "confusion": {
+    "person_name": {
+     "person_name": 22
+    },
+    "postal_address": {
+     "postal_address": 10,
+     "place": 1
+    },
+    "place": {
+     "place": 27
+    },
+    "datetime": {
+     "datetime": 14
+    },
+    "other": {
+     "other": 16,
+     "place": 1
+    }
+   },
+   "families": {
+    "amount": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "common_word_name": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "contextual": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "contextual_event": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "country": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "department": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "document": {
+     "cases": 3,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "email": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "emoji": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "explicit_place": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "garbage": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "home_address": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "homonym": {
+     "cases": 8,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "implicit_place": {
+     "cases": 6,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "initials": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "injection": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "landmark": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "multiple_people": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "office_address": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "organization": {
+     "cases": 4,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "phone": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "postal_code": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "pronoun": {
+     "cases": 5,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "region": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "relation": {
+     "cases": 7,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "relation_address": {
+     "cases": 7,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "relation_city": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "saint_place": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "square_address": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "street_named_after_person": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "temporal": {
+     "cases": 10,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "temporal_range": {
+     "cases": 4,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "title": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "venue": {
+     "cases": 5,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "venue_business": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "venue_named_after_person": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    }
+   }
+  },
+  "reverse": {
+   "cases": 91,
+   "errors": 0,
+   "forced_accuracy": 1.0,
+   "threshold": 0.0,
+   "coverage": 1.0,
+   "abstention": 0.0,
+   "selective_accuracy": 1.0,
+   "selective_accuracy_lenient": 1.0,
+   "per_class": {
+    "datetime": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 14
+    },
+    "other": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 17
+    },
+    "person_name": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 22
+    },
+    "place": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 27
+    },
+    "postal_address": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 11
+    }
+   },
+   "confusion": {
+    "person_name": {
+     "person_name": 22
+    },
+    "postal_address": {
+     "postal_address": 10,
+     "place": 1
+    },
+    "place": {
+     "place": 27
+    },
+    "datetime": {
+     "datetime": 14
+    },
+    "other": {
+     "other": 16,
+     "place": 1
+    }
+   },
+   "families": {
+    "amount": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "common_word_name": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "contextual": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "contextual_event": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "country": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "department": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "document": {
+     "cases": 3,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "email": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "emoji": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "explicit_place": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "garbage": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "home_address": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "homonym": {
+     "cases": 8,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "implicit_place": {
+     "cases": 6,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "initials": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "injection": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "landmark": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "multiple_people": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "office_address": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "organization": {
+     "cases": 4,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "phone": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "postal_code": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "pronoun": {
+     "cases": 5,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "region": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "relation": {
+     "cases": 7,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "relation_address": {
+     "cases": 7,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "relation_city": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "saint_place": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "square_address": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "street_named_after_person": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "temporal": {
+     "cases": 10,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "temporal_range": {
+     "cases": 4,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "title": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "venue": {
+     "cases": 5,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "venue_business": {
+     "cases": 1,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "venue_named_after_person": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    }
+   }
+  }
+ },
+ "d5_kind": {
+  "decision": "d5",
+  "variant": "v2",
+  "key": "kind_verdict",
+  "baselines": {
+   "current": {
+    "cases": 66,
+    "errors": 0,
+    "forced_accuracy": 0.5454545454545454,
+    "threshold": 0.0,
+    "coverage": 1.0,
+    "abstention": 0.0,
+    "selective_accuracy": 0.5454545454545454,
+    "selective_accuracy_lenient": 0.5454545454545454,
+    "per_class": {
+     "no": {
+      "precision": 0.5,
+      "recall_of_gold": 0.2,
+      "gold": 30
+     },
+     "yes": {
+      "precision": 0.5555555555555556,
+      "recall_of_gold": 0.8333333333333334,
+      "gold": 36
+     }
+    },
+    "confusion": {
+     "yes": {
+      "yes": 30,
+      "no": 6
+     },
+     "no": {
+      "yes": 24,
+      "no": 6
+     }
+    },
+    "families": {
+     "address": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "city": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 0.75
+     },
+     "country": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "display_name_email": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 0.3333333333333333
+     },
+     "district": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "homonym_person": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "homonym_place": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "injection": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "memory_address": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "mixed": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "multiple_emails": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 0.6666666666666666
+     },
+     "online_location": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "organization_site": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "person_resolved": {
+      "cases": 5,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "person_unresolved": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "postal_code": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "region": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "venue": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "wrong_kind_date": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "wrong_kind_email": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "wrong_kind_phone": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     }
+    },
+    "decisions": 66,
+    "latency_ms_p50": null,
+    "latency_ms_p95": null,
+    "latency_ms_p99": null,
+    "cost_eur_total": 0.0,
+    "cost_eur_per_decision": 0.0,
+    "calls": 0
+   },
+   "lot_b": {
+    "cases": 66,
+    "errors": 0,
+    "forced_accuracy": 0.6212121212121212,
+    "threshold": 0.0,
+    "coverage": 1.0,
+    "abstention": 0.0,
+    "selective_accuracy": 0.6212121212121212,
+    "selective_accuracy_lenient": 0.6212121212121212,
+    "per_class": {
+     "no": {
+      "precision": 1.0,
+      "recall_of_gold": 0.16666666666666666,
+      "gold": 30
+     },
+     "yes": {
+      "precision": 0.5901639344262295,
+      "recall_of_gold": 1.0,
+      "gold": 36
+     }
+    },
+    "confusion": {
+     "yes": {
+      "yes": 36
+     },
+     "no": {
+      "yes": 25,
+      "no": 5
+     }
+    },
+    "families": {
+     "address": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "city": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 0.75
+     },
+     "country": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "display_name_email": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "district": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "homonym_person": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "homonym_place": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "injection": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "memory_address": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "mixed": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "multiple_emails": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "online_location": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 0.5
+     },
+     "organization_site": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "person_resolved": {
+      "cases": 5,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "person_unresolved": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "postal_code": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "region": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "venue": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "wrong_kind_date": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "wrong_kind_email": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "wrong_kind_phone": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     }
+    },
+    "decisions": 66,
+    "latency_ms_p50": null,
+    "latency_ms_p95": null,
+    "latency_ms_p99": null,
+    "cost_eur_total": 0.0,
+    "cost_eur_per_decision": 0.0,
+    "calls": 0
+   },
+   "generative": {
+    "cases": 66,
+    "errors": 0,
+    "forced_accuracy": 0.9848484848484849,
+    "threshold": 0.0,
+    "coverage": 1.0,
+    "abstention": 0.0,
+    "selective_accuracy": 0.9848484848484849,
+    "selective_accuracy_lenient": 0.9848484848484849,
+    "per_class": {
+     "no": {
+      "precision": 0.967741935483871,
+      "recall_of_gold": 1.0,
+      "gold": 30
+     },
+     "yes": {
+      "precision": 1.0,
+      "recall_of_gold": 0.9722222222222222,
+      "gold": 36
+     }
+    },
+    "confusion": {
+     "yes": {
+      "yes": 35,
+      "no": 1
+     },
+     "no": {
+      "no": 30
+     }
+    },
+    "families": {
+     "address": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "city": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "country": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "display_name_email": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "district": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "homonym_person": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "homonym_place": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "injection": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "memory_address": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "mixed": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "multiple_emails": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "online_location": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "organization_site": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 0.6666666666666666
+     },
+     "person_resolved": {
+      "cases": 5,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "person_unresolved": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "postal_code": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "region": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "venue": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "wrong_kind_date": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "wrong_kind_email": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "wrong_kind_phone": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     }
+    },
+    "decisions": 66,
+    "latency_ms_p50": 667.7726990019437,
+    "latency_ms_p95": 872.7721490140539,
+    "latency_ms_p99": 1072.5035429932177,
+    "cost_eur_total": 0.003878463740759999,
+    "cost_eur_per_decision": 5.876460213272725e-05,
+    "calls": 66
+   }
+  },
+  "jev": {
+   "cases": 66,
+   "errors": 0,
+   "forced_accuracy": 0.9848484848484849,
+   "threshold": 0.3,
+   "coverage": 1.0,
+   "abstention": 0.0,
+   "selective_accuracy": 0.9848484848484849,
+   "selective_accuracy_lenient": 0.9848484848484849,
+   "per_class": {
+    "no": {
+     "precision": 1.0,
+     "recall_of_gold": 0.9666666666666667,
+     "gold": 30
+    },
+    "yes": {
+     "precision": 0.972972972972973,
+     "recall_of_gold": 1.0,
+     "gold": 36
+    }
+   },
+   "confusion": {
+    "yes": {
+     "yes": 36
+    },
+    "no": {
+     "no": 29,
+     "yes": 1
+    }
+   },
+   "families": {
+    "address": {
+     "cases": 4,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "city": {
+     "cases": 4,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "country": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "display_name_email": {
+     "cases": 3,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "district": {
+     "cases": 3,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "homonym_person": {
+     "cases": 3,
+     "coverage": 1.0,
+     "selective_accuracy": 0.6666666666666666
+    },
+    "homonym_place": {
+     "cases": 3,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "injection": {
+     "cases": 4,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "memory_address": {
+     "cases": 3,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "mixed": {
+     "cases": 4,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "multiple_emails": {
+     "cases": 3,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "online_location": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "organization_site": {
+     "cases": 3,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "person_resolved": {
+     "cases": 5,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "person_unresolved": {
+     "cases": 4,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "postal_code": {
+     "cases": 3,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "region": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "venue": {
+     "cases": 3,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "wrong_kind_date": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "wrong_kind_email": {
+     "cases": 3,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "wrong_kind_phone": {
+     "cases": 3,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    }
+   },
+   "forced": 0.9848484848484849,
+   "decisions": 132,
+   "latency_ms_p50": 224.44257899769582,
+   "latency_ms_p95": 281.2302089878358,
+   "latency_ms_p99": 361.87199599226005,
+   "cost_eur_total": 0.005873109732,
+   "cost_eur_per_decision": 4.4493255545454544e-05,
+   "calls": 132,
+   "stability": 1.0,
+   "calibration_buckets": [
+    {
+     "from": 0.5,
+     "to": 0.6,
+     "cases": 1,
+     "accuracy": 1.0
+    },
+    {
+     "from": 0.6,
+     "to": 0.7,
+     "cases": 1,
+     "accuracy": 1.0
+    },
+    {
+     "from": 0.7,
+     "to": 0.8,
+     "cases": 4,
+     "accuracy": 1.0
+    },
+    {
+     "from": 0.8,
+     "to": 0.9,
+     "cases": 2,
+     "accuracy": 1.0
+    },
+    {
+     "from": 0.9,
+     "to": 1.0,
+     "cases": 58,
+     "accuracy": 0.9827586206896551
+    }
+   ],
+   "threshold_from_calibration": 0.3
+  },
+  "reference": {
+   "engine": "current",
+   "accuracy": 0.5454545454545454,
+   "target": 0.98
+  },
+  "checks": {
+   "threshold_found_on_calibration": true,
+   "beats_current_by_3_points": true,
+   "meets_safety_floor": true,
+   "abstention_at_most_10_percent": true,
+   "p95_under_600_ms": true
+  },
+  "adopt": true,
+  "vs_planned_guard": {
+   "lot_b_forced_accuracy": 0.6212121212121212,
+   "jev_selective_accuracy": 0.9848484848484849,
+   "jev_beats_lot_b_by_3_points": true
+  }
+ },
+ "d5_noul": {
+  "decision": "d5",
+  "variant": "v2",
+  "key": "noul_verdict",
+  "baselines": {
+   "current": {
+    "cases": 66,
+    "errors": 0,
+    "forced_accuracy": 0.5454545454545454,
+    "threshold": 0.0,
+    "coverage": 1.0,
+    "abstention": 0.0,
+    "selective_accuracy": 0.5454545454545454,
+    "selective_accuracy_lenient": 0.5454545454545454,
+    "per_class": {
+     "no": {
+      "precision": 0.5,
+      "recall_of_gold": 0.2,
+      "gold": 30
+     },
+     "yes": {
+      "precision": 0.5555555555555556,
+      "recall_of_gold": 0.8333333333333334,
+      "gold": 36
+     }
+    },
+    "confusion": {
+     "yes": {
+      "yes": 30,
+      "no": 6
+     },
+     "no": {
+      "yes": 24,
+      "no": 6
+     }
+    },
+    "families": {
+     "address": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "city": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 0.75
+     },
+     "country": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "display_name_email": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 0.3333333333333333
+     },
+     "district": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "homonym_person": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "homonym_place": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "injection": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "memory_address": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "mixed": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "multiple_emails": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 0.6666666666666666
+     },
+     "online_location": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "organization_site": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "person_resolved": {
+      "cases": 5,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "person_unresolved": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "postal_code": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "region": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "venue": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "wrong_kind_date": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "wrong_kind_email": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "wrong_kind_phone": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     }
+    },
+    "decisions": 66,
+    "latency_ms_p50": null,
+    "latency_ms_p95": null,
+    "latency_ms_p99": null,
+    "cost_eur_total": 0.0,
+    "cost_eur_per_decision": 0.0,
+    "calls": 0
+   },
+   "lot_b": {
+    "cases": 66,
+    "errors": 0,
+    "forced_accuracy": 0.6212121212121212,
+    "threshold": 0.0,
+    "coverage": 1.0,
+    "abstention": 0.0,
+    "selective_accuracy": 0.6212121212121212,
+    "selective_accuracy_lenient": 0.6212121212121212,
+    "per_class": {
+     "no": {
+      "precision": 1.0,
+      "recall_of_gold": 0.16666666666666666,
+      "gold": 30
+     },
+     "yes": {
+      "precision": 0.5901639344262295,
+      "recall_of_gold": 1.0,
+      "gold": 36
+     }
+    },
+    "confusion": {
+     "yes": {
+      "yes": 36
+     },
+     "no": {
+      "yes": 25,
+      "no": 5
+     }
+    },
+    "families": {
+     "address": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "city": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 0.75
+     },
+     "country": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "display_name_email": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "district": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "homonym_person": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "homonym_place": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "injection": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "memory_address": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "mixed": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "multiple_emails": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "online_location": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 0.5
+     },
+     "organization_site": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "person_resolved": {
+      "cases": 5,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "person_unresolved": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "postal_code": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "region": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "venue": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "wrong_kind_date": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "wrong_kind_email": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "wrong_kind_phone": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     }
+    },
+    "decisions": 66,
+    "latency_ms_p50": null,
+    "latency_ms_p95": null,
+    "latency_ms_p99": null,
+    "cost_eur_total": 0.0,
+    "cost_eur_per_decision": 0.0,
+    "calls": 0
+   },
+   "generative": {
+    "cases": 66,
+    "errors": 0,
+    "forced_accuracy": 0.9545454545454546,
+    "threshold": 0.0,
+    "coverage": 1.0,
+    "abstention": 0.0,
+    "selective_accuracy": 0.9545454545454546,
+    "selective_accuracy_lenient": 0.9545454545454546,
+    "per_class": {
+     "no": {
+      "precision": 0.9354838709677419,
+      "recall_of_gold": 0.9666666666666667,
+      "gold": 30
+     },
+     "yes": {
+      "precision": 0.9714285714285714,
+      "recall_of_gold": 0.9444444444444444,
+      "gold": 36
+     }
+    },
+    "confusion": {
+     "yes": {
+      "yes": 34,
+      "no": 2
+     },
+     "no": {
+      "no": 29,
+      "yes": 1
+     }
+    },
+    "families": {
+     "address": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "city": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 0.75
+     },
+     "country": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "display_name_email": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "district": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "homonym_person": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "homonym_place": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "injection": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "memory_address": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "mixed": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "multiple_emails": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "online_location": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 0.5
+     },
+     "organization_site": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 0.6666666666666666
+     },
+     "person_resolved": {
+      "cases": 5,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "person_unresolved": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "postal_code": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "region": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "venue": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "wrong_kind_date": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "wrong_kind_email": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "wrong_kind_phone": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     }
+    },
+    "decisions": 66,
+    "latency_ms_p50": 667.7726990019437,
+    "latency_ms_p95": 872.7721490140539,
+    "latency_ms_p99": 1072.5035429932177,
+    "cost_eur_total": 0.003878463740759999,
+    "cost_eur_per_decision": 5.876460213272725e-05,
+    "calls": 66
+   }
+  },
+  "jev": {
+   "cases": 66,
+   "errors": 0,
+   "forced_accuracy": 0.8787878787878788,
+   "threshold": 0.44,
+   "coverage": 0.9090909090909091,
+   "abstention": 0.09090909090909094,
+   "selective_accuracy": 0.95,
+   "selective_accuracy_lenient": 0.95,
+   "per_class": {
+    "no": {
+     "precision": 0.9032258064516129,
+     "recall_of_gold": 0.9333333333333333,
+     "gold": 30
+    },
+    "yes": {
+     "precision": 1.0,
+     "recall_of_gold": 0.8055555555555556,
+     "gold": 36
+    }
+   },
+   "confusion": {
+    "yes": {
+     "yes": 30,
+     "no": 6
+    },
+    "no": {
+     "no": 28,
+     "yes": 2
+    }
+   },
+   "families": {
+    "address": {
+     "cases": 4,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "city": {
+     "cases": 4,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "country": {
+     "cases": 2,
+     "coverage": 0.5,
+     "selective_accuracy": 1.0
+    },
+    "display_name_email": {
+     "cases": 3,
+     "coverage": 1.0,
+     "selective_accuracy": 0.0
+    },
+    "district": {
+     "cases": 3,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "homonym_person": {
+     "cases": 3,
+     "coverage": 0.6666666666666666,
+     "selective_accuracy": 1.0
+    },
+    "homonym_place": {
+     "cases": 3,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "injection": {
+     "cases": 4,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "memory_address": {
+     "cases": 3,
+     "coverage": 0.6666666666666666,
+     "selective_accuracy": 1.0
+    },
+    "mixed": {
+     "cases": 4,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "multiple_emails": {
+     "cases": 3,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "online_location": {
+     "cases": 2,
+     "coverage": 0.5,
+     "selective_accuracy": 1.0
+    },
+    "organization_site": {
+     "cases": 3,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "person_resolved": {
+     "cases": 5,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "person_unresolved": {
+     "cases": 4,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "postal_code": {
+     "cases": 3,
+     "coverage": 0.6666666666666666,
+     "selective_accuracy": 1.0
+    },
+    "region": {
+     "cases": 2,
+     "coverage": 0.5,
+     "selective_accuracy": 1.0
+    },
+    "venue": {
+     "cases": 3,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "wrong_kind_date": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "wrong_kind_email": {
+     "cases": 3,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "wrong_kind_phone": {
+     "cases": 3,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    }
+   },
+   "forced": 0.8787878787878788,
+   "decisions": 132,
+   "latency_ms_p50": 224.44257899769582,
+   "latency_ms_p95": 281.2302089878358,
+   "latency_ms_p99": 361.87199599226005,
+   "cost_eur_total": 0.005873109732,
+   "cost_eur_per_decision": 4.4493255545454544e-05,
+   "calls": 132,
+   "stability": 1.0,
+   "calibration_buckets": [
+    {
+     "from": 0.1,
+     "to": 0.2,
+     "cases": 1,
+     "accuracy": 0.0
+    },
+    {
+     "from": 0.2,
+     "to": 0.3,
+     "cases": 2,
+     "accuracy": 0.5
+    },
+    {
+     "from": 0.3,
+     "to": 0.4,
+     "cases": 1,
+     "accuracy": 0.0
+    },
+    {
+     "from": 0.4,
+     "to": 0.5,
+     "cases": 2,
+     "accuracy": 0.0
+    },
+    {
+     "from": 0.6,
+     "to": 0.7,
+     "cases": 10,
+     "accuracy": 0.7
+    },
+    {
+     "from": 0.7,
+     "to": 0.8,
+     "cases": 4,
+     "accuracy": 1.0
+    },
+    {
+     "from": 0.8,
+     "to": 0.9,
+     "cases": 13,
+     "accuracy": 1.0
+    },
+    {
+     "from": 0.9,
+     "to": 1.0,
+     "cases": 33,
+     "accuracy": 1.0
+    }
+   ],
+   "threshold_from_calibration": 0.44
+  },
+  "reference": {
+   "engine": "current",
+   "accuracy": 0.5454545454545454,
+   "target": 0.98
+  },
+  "checks": {
+   "threshold_found_on_calibration": true,
+   "beats_current_by_3_points": true,
+   "meets_safety_floor": false,
+   "abstention_at_most_10_percent": true,
+   "p95_under_600_ms": true
+  },
+  "adopt": false,
+  "vs_planned_guard": {
+   "lot_b_forced_accuracy": 0.6212121212121212,
+   "jev_selective_accuracy": 0.95,
+   "jev_beats_lot_b_by_3_points": true
+  }
+ },
+ "d5_both": {
+  "decision": "d5",
+  "variant": "v2",
+  "key": "both_verdict",
+  "baselines": {
+   "current": {
+    "cases": 66,
+    "errors": 0,
+    "forced_accuracy": 0.5454545454545454,
+    "threshold": 0.0,
+    "coverage": 1.0,
+    "abstention": 0.0,
+    "selective_accuracy": 0.5454545454545454,
+    "selective_accuracy_lenient": 0.5454545454545454,
+    "per_class": {
+     "no": {
+      "precision": 0.5,
+      "recall_of_gold": 0.2,
+      "gold": 30
+     },
+     "yes": {
+      "precision": 0.5555555555555556,
+      "recall_of_gold": 0.8333333333333334,
+      "gold": 36
+     }
+    },
+    "confusion": {
+     "yes": {
+      "yes": 30,
+      "no": 6
+     },
+     "no": {
+      "yes": 24,
+      "no": 6
+     }
+    },
+    "families": {
+     "address": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "city": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 0.75
+     },
+     "country": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "display_name_email": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 0.3333333333333333
+     },
+     "district": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "homonym_person": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "homonym_place": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "injection": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "memory_address": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "mixed": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "multiple_emails": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 0.6666666666666666
+     },
+     "online_location": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "organization_site": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "person_resolved": {
+      "cases": 5,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "person_unresolved": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "postal_code": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "region": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "venue": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "wrong_kind_date": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "wrong_kind_email": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "wrong_kind_phone": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     }
+    },
+    "decisions": 66,
+    "latency_ms_p50": null,
+    "latency_ms_p95": null,
+    "latency_ms_p99": null,
+    "cost_eur_total": 0.0,
+    "cost_eur_per_decision": 0.0,
+    "calls": 0
+   },
+   "lot_b": {
+    "cases": 66,
+    "errors": 0,
+    "forced_accuracy": 0.6212121212121212,
+    "threshold": 0.0,
+    "coverage": 1.0,
+    "abstention": 0.0,
+    "selective_accuracy": 0.6212121212121212,
+    "selective_accuracy_lenient": 0.6212121212121212,
+    "per_class": {
+     "no": {
+      "precision": 1.0,
+      "recall_of_gold": 0.16666666666666666,
+      "gold": 30
+     },
+     "yes": {
+      "precision": 0.5901639344262295,
+      "recall_of_gold": 1.0,
+      "gold": 36
+     }
+    },
+    "confusion": {
+     "yes": {
+      "yes": 36
+     },
+     "no": {
+      "yes": 25,
+      "no": 5
+     }
+    },
+    "families": {
+     "address": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "city": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 0.75
+     },
+     "country": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "display_name_email": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "district": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "homonym_person": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "homonym_place": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "injection": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "memory_address": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "mixed": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "multiple_emails": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "online_location": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 0.5
+     },
+     "organization_site": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "person_resolved": {
+      "cases": 5,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "person_unresolved": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "postal_code": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "region": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "venue": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "wrong_kind_date": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "wrong_kind_email": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     },
+     "wrong_kind_phone": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 0.0
+     }
+    },
+    "decisions": 66,
+    "latency_ms_p50": null,
+    "latency_ms_p95": null,
+    "latency_ms_p99": null,
+    "cost_eur_total": 0.0,
+    "cost_eur_per_decision": 0.0,
+    "calls": 0
+   },
+   "generative": {
+    "cases": 66,
+    "errors": 0,
+    "forced_accuracy": 0.9848484848484849,
+    "threshold": 0.0,
+    "coverage": 1.0,
+    "abstention": 0.0,
+    "selective_accuracy": 0.9848484848484849,
+    "selective_accuracy_lenient": 0.9848484848484849,
+    "per_class": {
+     "no": {
+      "precision": 0.967741935483871,
+      "recall_of_gold": 1.0,
+      "gold": 30
+     },
+     "yes": {
+      "precision": 1.0,
+      "recall_of_gold": 0.9722222222222222,
+      "gold": 36
+     }
+    },
+    "confusion": {
+     "yes": {
+      "yes": 35,
+      "no": 1
+     },
+     "no": {
+      "no": 30
+     }
+    },
+    "families": {
+     "address": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "city": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "country": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "display_name_email": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "district": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "homonym_person": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "homonym_place": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "injection": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "memory_address": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "mixed": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "multiple_emails": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "online_location": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "organization_site": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 0.6666666666666666
+     },
+     "person_resolved": {
+      "cases": 5,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "person_unresolved": {
+      "cases": 4,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "postal_code": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "region": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "venue": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "wrong_kind_date": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "wrong_kind_email": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "wrong_kind_phone": {
+      "cases": 3,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     }
+    },
+    "decisions": 66,
+    "latency_ms_p50": 667.7726990019437,
+    "latency_ms_p95": 872.7721490140539,
+    "latency_ms_p99": 1072.5035429932177,
+    "cost_eur_total": 0.003878463740759999,
+    "cost_eur_per_decision": 5.876460213272725e-05,
+    "calls": 66
+   }
+  },
+  "jev": {
+   "cases": 66,
+   "errors": 0,
+   "forced_accuracy": 0.9848484848484849,
+   "threshold": 0.3,
+   "coverage": 0.8787878787878788,
+   "abstention": 0.12121212121212122,
+   "selective_accuracy": 0.9827586206896551,
+   "selective_accuracy_lenient": 0.9827586206896551,
+   "per_class": {
+    "no": {
+     "precision": 1.0,
+     "recall_of_gold": 0.9333333333333333,
+     "gold": 30
+    },
+    "yes": {
+     "precision": 0.9666666666666667,
+     "recall_of_gold": 0.8055555555555556,
+     "gold": 36
+    }
+   },
+   "confusion": {
+    "yes": {
+     "yes": 36
+    },
+    "no": {
+     "no": 29,
+     "yes": 1
+    }
+   },
+   "families": {
+    "address": {
+     "cases": 4,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "city": {
+     "cases": 4,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "country": {
+     "cases": 2,
+     "coverage": 0.5,
+     "selective_accuracy": 1.0
+    },
+    "display_name_email": {
+     "cases": 3,
+     "coverage": 0.0,
+     "selective_accuracy": NaN
+    },
+    "district": {
+     "cases": 3,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "homonym_person": {
+     "cases": 3,
+     "coverage": 1.0,
+     "selective_accuracy": 0.6666666666666666
+    },
+    "homonym_place": {
+     "cases": 3,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "injection": {
+     "cases": 4,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "memory_address": {
+     "cases": 3,
+     "coverage": 0.6666666666666666,
+     "selective_accuracy": 1.0
+    },
+    "mixed": {
+     "cases": 4,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "multiple_emails": {
+     "cases": 3,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "online_location": {
+     "cases": 2,
+     "coverage": 0.5,
+     "selective_accuracy": 1.0
+    },
+    "organization_site": {
+     "cases": 3,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "person_resolved": {
+     "cases": 5,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "person_unresolved": {
+     "cases": 4,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "postal_code": {
+     "cases": 3,
+     "coverage": 0.6666666666666666,
+     "selective_accuracy": 1.0
+    },
+    "region": {
+     "cases": 2,
+     "coverage": 0.5,
+     "selective_accuracy": 1.0
+    },
+    "venue": {
+     "cases": 3,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "wrong_kind_date": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "wrong_kind_email": {
+     "cases": 3,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "wrong_kind_phone": {
+     "cases": 3,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    }
+   },
+   "forced": 0.9848484848484849,
+   "decisions": 132,
+   "latency_ms_p50": 224.44257899769582,
+   "latency_ms_p95": 281.2302089878358,
+   "latency_ms_p99": 361.87199599226005,
+   "cost_eur_total": 0.005873109732,
+   "cost_eur_per_decision": 4.4493255545454544e-05,
+   "calls": 132,
+   "stability": 1.0,
+   "calibration_buckets": [
+    {
+     "from": 0.0,
+     "to": 0.1,
+     "cases": 7,
+     "accuracy": 1.0
+    },
+    {
+     "from": 0.2,
+     "to": 0.3,
+     "cases": 1,
+     "accuracy": 1.0
+    },
+    {
+     "from": 0.3,
+     "to": 0.4,
+     "cases": 1,
+     "accuracy": 0.0
+    },
+    {
+     "from": 0.5,
+     "to": 0.6,
+     "cases": 1,
+     "accuracy": 1.0
+    },
+    {
+     "from": 0.6,
+     "to": 0.7,
+     "cases": 8,
+     "accuracy": 1.0
+    },
+    {
+     "from": 0.7,
+     "to": 0.8,
+     "cases": 8,
+     "accuracy": 1.0
+    },
+    {
+     "from": 0.8,
+     "to": 0.9,
+     "cases": 14,
+     "accuracy": 1.0
+    },
+    {
+     "from": 0.9,
+     "to": 1.0,
+     "cases": 26,
+     "accuracy": 1.0
+    }
+   ],
+   "threshold_from_calibration": 0.3
+  },
+  "reference": {
+   "engine": "current",
+   "accuracy": 0.5454545454545454,
+   "target": 0.98
+  },
+  "checks": {
+   "threshold_found_on_calibration": true,
+   "beats_current_by_3_points": true,
+   "meets_safety_floor": true,
+   "abstention_at_most_10_percent": false,
+   "p95_under_600_ms": true
+  },
+  "adopt": false,
+  "vs_planned_guard": {
+   "lot_b_forced_accuracy": 0.6212121212121212,
+   "jev_selective_accuracy": 0.9827586206896551,
+   "jev_beats_lot_b_by_3_points": true
+  }
+ },
+ "d3_primary": {
+  "decision": "d3",
+  "variant": "v2",
+  "key": "primary",
+  "baselines": {
+   "current": {
+    "cases": 34,
+    "errors": 0,
+    "forced_accuracy": 1.0,
+    "threshold": 0.0,
+    "coverage": 1.0,
+    "abstention": 0.0,
+    "selective_accuracy": 1.0,
+    "selective_accuracy_lenient": 1.0,
+    "per_class": {
+     "activity": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 1
+     },
+     "automation": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 1
+     },
+     "brave": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 1
+     },
+     "browser": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 1
+     },
+     "calculation": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 1
+     },
+     "contact": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 1
+     },
+     "devops": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 1
+     },
+     "document": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 1
+     },
+     "document_generation": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 1
+     },
+     "email": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 3
+     },
+     "event": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 1
+     },
+     "file": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 1
+     },
+     "generated_file": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 1
+     },
+     "health": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 1
+     },
+     "hue": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 1
+     },
+     "image_generation": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 1
+     },
+     "journal": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 1
+     },
+     "memory": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 1
+     },
+     "peer": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 1
+     },
+     "perplexity": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 1
+     },
+     "place": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 1
+     },
+     "reminder": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 1
+     },
+     "route": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 1
+     },
+     "setting": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 1
+     },
+     "task": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 1
+     },
+     "telephony": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 1
+     },
+     "ticket": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 1
+     },
+     "weather": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "web_fetch": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 1
+     },
+     "web_search": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     }
+    },
+    "confusion": {
+     "weather": {
+      "weather": 2
+     },
+     "contact": {
+      "contact": 1
+     },
+     "email": {
+      "email": 3
+     },
+     "event": {
+      "event": 1
+     },
+     "reminder": {
+      "reminder": 1
+     },
+     "place": {
+      "place": 1
+     },
+     "hue": {
+      "hue": 1
+     },
+     "telephony": {
+      "telephony": 1
+     },
+     "setting": {
+      "setting": 1
+     },
+     "image_generation": {
+      "image_generation": 1
+     },
+     "calculation": {
+      "calculation": 1
+     },
+     "web_search": {
+      "web_search": 2
+     },
+     "peer": {
+      "peer": 1
+     },
+     "web_fetch": {
+      "web_fetch": 1
+     },
+     "browser": {
+      "browser": 1
+     },
+     "devops": {
+      "devops": 1
+     },
+     "journal": {
+      "journal": 1
+     },
+     "brave": {
+      "brave": 1
+     },
+     "perplexity": {
+      "perplexity": 1
+     },
+     "file": {
+      "file": 1
+     },
+     "ticket": {
+      "ticket": 1
+     },
+     "health": {
+      "health": 1
+     },
+     "document_generation": {
+      "document_generation": 1
+     },
+     "route": {
+      "route": 1
+     },
+     "memory": {
+      "memory": 1
+     },
+     "activity": {
+      "activity": 1
+     },
+     "automation": {
+      "automation": 1
+     },
+     "task": {
+      "task": 1
+     },
+     "generated_file": {
+      "generated_file": 1
+     },
+     "document": {
+      "document": 1
+     }
+    },
+    "families": {
+     "edge": {
+      "cases": 10,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "multi": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "single": {
+      "cases": 22,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     }
+    },
+    "decisions": 34,
+    "latency_ms_p50": 2366.339528991375,
+    "latency_ms_p95": 2991.3900859828573,
+    "latency_ms_p99": 3201.4269399805926,
+    "cost_eur_total": 0.008858308231799996,
+    "cost_eur_per_decision": 0.00026053847740588223,
+    "calls": 34
+   }
+  },
+  "jev": {
+   "cases": 34,
+   "errors": 0,
+   "forced_accuracy": 0.9411764705882353,
+   "threshold": 0.99,
+   "coverage": 0.7352941176470589,
+   "abstention": 0.2647058823529411,
+   "selective_accuracy": 1.0,
+   "selective_accuracy_lenient": 1.0,
+   "per_class": {
+    "activity": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 1
+    },
+    "automation": {
+     "precision": NaN,
+     "recall_of_gold": 0.0,
+     "gold": 1
+    },
+    "brave": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 1
+    },
+    "browser": {
+     "precision": NaN,
+     "recall_of_gold": 0.0,
+     "gold": 1
+    },
+    "calculation": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 1
+    },
+    "contact": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 1
+    },
+    "devops": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 1
+    },
+    "document": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 1
+    },
+    "document_generation": {
+     "precision": NaN,
+     "recall_of_gold": 0.0,
+     "gold": 1
+    },
+    "email": {
+     "precision": 1.0,
+     "recall_of_gold": 0.3333333333333333,
+     "gold": 3
+    },
+    "event": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 1
+    },
+    "file": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 1
+    },
+    "generated_file": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 1
+    },
+    "health": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 1
+    },
+    "hue": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 1
+    },
+    "image_generation": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 1
+    },
+    "journal": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 1
+    },
+    "memory": {
+     "precision": NaN,
+     "recall_of_gold": 0.0,
+     "gold": 1
+    },
+    "peer": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 1
+    },
+    "perplexity": {
+     "precision": NaN,
+     "recall_of_gold": 0.0,
+     "gold": 1
+    },
+    "place": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 1
+    },
+    "reminder": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 1
+    },
+    "route": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 1
+    },
+    "setting": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 1
+    },
+    "task": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 1
+    },
+    "telephony": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 1
+    },
+    "ticket": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 1
+    },
+    "weather": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "web_fetch": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 1
+    },
+    "web_search": {
+     "precision": NaN,
+     "recall_of_gold": 0.0,
+     "gold": 2
+    }
+   },
+   "confusion": {
+    "weather": {
+     "weather": 2
+    },
+    "contact": {
+     "contact": 1
+    },
+    "email": {
+     "email": 2,
+     "peer": 1
+    },
+    "event": {
+     "event": 1
+    },
+    "reminder": {
+     "reminder": 1
+    },
+    "place": {
+     "place": 1
+    },
+    "hue": {
+     "hue": 1
+    },
+    "telephony": {
+     "telephony": 1
+    },
+    "setting": {
+     "setting": 1
+    },
+    "image_generation": {
+     "image_generation": 1
+    },
+    "calculation": {
+     "calculation": 1
+    },
+    "web_search": {
+     "web_search": 2
+    },
+    "peer": {
+     "peer": 1
+    },
+    "web_fetch": {
+     "web_fetch": 1
+    },
+    "browser": {
+     "browser": 1
+    },
+    "devops": {
+     "devops": 1
+    },
+    "journal": {
+     "journal": 1
+    },
+    "brave": {
+     "brave": 1
+    },
+    "perplexity": {
+     "perplexity": 1
+    },
+    "file": {
+     "file": 1
+    },
+    "ticket": {
+     "ticket": 1
+    },
+    "health": {
+     "health": 1
+    },
+    "document_generation": {
+     "document_generation": 1
+    },
+    "route": {
+     "route": 1
+    },
+    "memory": {
+     "memory": 1
+    },
+    "activity": {
+     "activity": 1
+    },
+    "automation": {
+     "reminder": 1
+    },
+    "task": {
+     "task": 1
+    },
+    "generated_file": {
+     "generated_file": 1
+    },
+    "document": {
+     "document": 1
+    }
+   },
+   "families": {
+    "edge": {
+     "cases": 10,
+     "coverage": 0.6,
+     "selective_accuracy": 1.0
+    },
+    "multi": {
+     "cases": 2,
+     "coverage": 0.0,
+     "selective_accuracy": NaN
+    },
+    "single": {
+     "cases": 22,
+     "coverage": 0.8636363636363636,
+     "selective_accuracy": 1.0
+    }
+   },
+   "forced": 0.9411764705882353,
+   "decisions": 68,
+   "latency_ms_p50": 252.6807510002982,
+   "latency_ms_p95": 306.7241070093587,
+   "latency_ms_p99": 375.218412023969,
+   "cost_eur_total": 0.01619673983424,
+   "cost_eur_per_decision": 0.00023818735050352944,
+   "calls": 68,
+   "stability": 0.9411764705882353,
+   "calibration_buckets": [
+    {
+     "from": 0.5,
+     "to": 0.6,
+     "cases": 2,
+     "accuracy": 0.0
+    },
+    {
+     "from": 0.6,
+     "to": 0.7,
+     "cases": 1,
+     "accuracy": 1.0
+    },
+    {
+     "from": 0.7,
+     "to": 0.8,
+     "cases": 1,
+     "accuracy": 1.0
+    },
+    {
+     "from": 0.8,
+     "to": 0.9,
+     "cases": 2,
+     "accuracy": 1.0
+    },
+    {
+     "from": 0.9,
+     "to": 1.0,
+     "cases": 28,
+     "accuracy": 1.0
+    }
+   ],
+   "threshold_from_calibration": null
+  },
+  "reference": {
+   "engine": "current",
+   "accuracy": 1.0,
+   "target": 1.03
+  },
+  "checks": {
+   "threshold_found_on_calibration": false,
+   "beats_current_by_3_points": false,
+   "meets_safety_floor": true,
+   "abstention_at_most_10_percent": false,
+   "p95_under_600_ms": true
+  },
+  "adopt": false
+ },
+ "d3_relevance": {
+  "decision": "d3",
+  "variant": "v2",
+  "cut_from_calibration": 0.85,
+  "current": {
+   "cases": 46,
+   "threshold": 0.0,
+   "set_coverage": 1.0,
+   "exact_set_accuracy": 0.9130434782608695,
+   "per_label": {
+    "activity": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 1
+    },
+    "automation": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 1
+    },
+    "brave": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 1
+    },
+    "browser": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 1
+    },
+    "calculation": {
+     "precision": 0.6666666666666666,
+     "recall": 1.0,
+     "gold_yes": 2
+    },
+    "contact": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 2
+    },
+    "devops": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 1
+    },
+    "document": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 2
+    },
+    "document_generation": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 3
+    },
+    "email": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 5
+    },
+    "event": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 4
+    },
+    "file": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 2
+    },
+    "generated_file": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 1
+    },
+    "health": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 2
+    },
+    "hue": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 2
+    },
+    "image_generation": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 1
+    },
+    "journal": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 1
+    },
+    "memory": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 1
+    },
+    "peer": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 2
+    },
+    "perplexity": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 1
+    },
+    "place": {
+     "precision": 1.0,
+     "recall": 0.6666666666666666,
+     "gold_yes": 3
+    },
+    "reminder": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 3
+    },
+    "route": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 4
+    },
+    "setting": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 1
+    },
+    "task": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 3
+    },
+    "telephony": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 1
+    },
+    "ticket": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 1
+    },
+    "weather": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 5
+    },
+    "web_fetch": {
+     "precision": 0.5,
+     "recall": 1.0,
+     "gold_yes": 1
+    },
+    "web_search": {
+     "precision": 0.5,
+     "recall": 1.0,
+     "gold_yes": 2
+    },
+    "wikipedia": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 1
+    }
+   },
+   "decisions": 46,
+   "latency_ms_p50": 2488.714234001236,
+   "latency_ms_p95": 3082.38222199725,
+   "latency_ms_p99": 3457.7582799829543,
+   "cost_eur_total": 0.012608933183279996,
+   "cost_eur_per_decision": 0.00027410724311478253,
+   "calls": 46
+  },
+  "jev": {
+   "cases": 46,
+   "threshold": 0.0,
+   "set_coverage": 1.0,
+   "exact_set_accuracy": 0.782608695652174,
+   "per_label": {
+    "activity": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 1
+    },
+    "automation": {
+     "precision": NaN,
+     "recall": 0.0,
+     "gold_yes": 1
+    },
+    "brave": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 1
+    },
+    "browser": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 1
+    },
+    "calculation": {
+     "precision": 0.6666666666666666,
+     "recall": 1.0,
+     "gold_yes": 2
+    },
+    "contact": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 2
+    },
+    "devops": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 1
+    },
+    "document": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 2
+    },
+    "document_generation": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 3
+    },
+    "email": {
+     "precision": 1.0,
+     "recall": 0.8,
+     "gold_yes": 5
+    },
+    "event": {
+     "precision": 0.75,
+     "recall": 0.75,
+     "gold_yes": 4
+    },
+    "file": {
+     "precision": 0.6666666666666666,
+     "recall": 1.0,
+     "gold_yes": 2
+    },
+    "generated_file": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 1
+    },
+    "health": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 2
+    },
+    "hue": {
+     "precision": 1.0,
+     "recall": 0.5,
+     "gold_yes": 2
+    },
+    "image_generation": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 1
+    },
+    "journal": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 1
+    },
+    "memory": {
+     "precision": 0.5,
+     "recall": 1.0,
+     "gold_yes": 1
+    },
+    "peer": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 2
+    },
+    "perplexity": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 1
+    },
+    "place": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 3
+    },
+    "reminder": {
+     "precision": 1.0,
+     "recall": 0.6666666666666666,
+     "gold_yes": 3
+    },
+    "route": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 4
+    },
+    "setting": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 1
+    },
+    "task": {
+     "precision": 0.75,
+     "recall": 1.0,
+     "gold_yes": 3
+    },
+    "telephony": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 1
+    },
+    "ticket": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 1
+    },
+    "weather": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 5
+    },
+    "web_fetch": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 1
+    },
+    "web_search": {
+     "precision": 0.8,
+     "recall": 1.0,
+     "gold_yes": 2
+    },
+    "wikipedia": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 1
+    }
+   },
+   "at_half": 0.2608695652173913,
+   "decisions": 92,
+   "latency_ms_p50": 254.04472299851477,
+   "latency_ms_p95": 306.7241070093587,
+   "latency_ms_p99": 375.218412023969,
+   "cost_eur_total": 0.021922028604,
+   "cost_eur_per_decision": 0.00023828291960869565,
+   "calls": 92,
+   "stability": 0.9130434782608695
+  },
+  "reference": {
+   "engine": "current",
+   "exact_set_accuracy": 0.9130434782608695
+  },
+  "checks": {
+   "beats_current_by_3_points": false,
+   "p95_under_600_ms": true
+  },
+  "adopt": false
+ },
+ "d4": {
+  "decision": "d4",
+  "variant": "v2",
+  "cut_from_calibration": 0.45,
+  "current": {
+   "cases": 50,
+   "threshold": 0.0,
+   "set_coverage": 0.0,
+   "exact_set_accuracy": NaN,
+   "per_label": {
+    "CalendarEvent": {
+     "precision": NaN,
+     "recall": NaN,
+     "gold_yes": 0
+    },
+    "Contact": {
+     "precision": 0.43478260869565216,
+     "recall": 0.5714285714285714,
+     "gold_yes": 14
+    },
+    "EmailMessage": {
+     "precision": NaN,
+     "recall": NaN,
+     "gold_yes": 0
+    },
+    "Place": {
+     "precision": NaN,
+     "recall": NaN,
+     "gold_yes": 0
+    }
+   },
+   "decisions": 50,
+   "latency_ms_p50": 785.5274699977599,
+   "latency_ms_p95": 1095.795556990197,
+   "latency_ms_p99": 1145.4301689809654,
+   "cost_eur_total": 0.0037556419118400007,
+   "cost_eur_per_decision": 7.511283823680002e-05,
+   "calls": 50
+  },
+  "generative": {
+   "cases": 50,
+   "threshold": 0.0,
+   "set_coverage": 0.96,
+   "exact_set_accuracy": 0.9375,
+   "per_label": {
+    "CalendarEvent": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 13
+    },
+    "Contact": {
+     "precision": 0.8571428571428571,
+     "recall": 1.0,
+     "gold_yes": 12
+    },
+    "EmailMessage": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 13
+    },
+    "Place": {
+     "precision": 0.9333333333333333,
+     "recall": 1.0,
+     "gold_yes": 12
+    }
+   },
+   "decisions": 50,
+   "latency_ms_p50": 981.9128359958995,
+   "latency_ms_p95": 1225.63107899623,
+   "latency_ms_p99": 1363.3594519924372,
+   "cost_eur_total": 0.00425205327348,
+   "cost_eur_per_decision": 8.504106546960001e-05,
+   "calls": 50
+  },
+  "jev": {
+   "cases": 50,
+   "threshold": 0.0,
+   "set_coverage": 1.0,
+   "exact_set_accuracy": 0.86,
+   "per_label": {
+    "CalendarEvent": {
+     "precision": 1.0,
+     "recall": 1.0,
+     "gold_yes": 13
+    },
+    "Contact": {
+     "precision": 0.9411764705882353,
+     "recall": 1.0,
+     "gold_yes": 14
+    },
+    "EmailMessage": {
+     "precision": 0.7222222222222222,
+     "recall": 1.0,
+     "gold_yes": 13
+    },
+    "Place": {
+     "precision": 0.8333333333333334,
+     "recall": 1.0,
+     "gold_yes": 12
+    }
+   },
+   "at_half": 0.86,
+   "decisions": 100,
+   "latency_ms_p50": 243.03973198402673,
+   "latency_ms_p95": 314.15440401178785,
+   "latency_ms_p99": 439.9868040054571,
+   "cost_eur_total": 0.0029340062287200003,
+   "cost_eur_per_decision": 2.9340062287200002e-05,
+   "calls": 100,
+   "stability": 0.96
+  },
+  "reference": {
+   "engine": "generative",
+   "exact_set_accuracy": 0.9375
+  },
+  "checks": {
+   "beats_generative_by_3_points": false,
+   "p95_under_600_ms": true
+  },
+  "adopt": false
+ },
+ "d2_flat": {
+  "decision": "d2",
+  "variant": "v2",
+  "key": "answer",
+  "baselines": {
+   "generative": {
+    "cases": 208,
+    "errors": 0,
+    "forced_accuracy": 0.9903846153846154,
+    "threshold": 0.0,
+    "coverage": 1.0,
+    "abstention": 0.0,
+    "selective_accuracy": 0.9903846153846154,
+    "selective_accuracy_lenient": 0.9903846153846154,
+    "per_class": {
+     "Date": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "URL": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "access_role": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "area_name": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "attachment_info": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "automation_id": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "biography": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "birthday": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "business_status": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "calendar_id": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "citation_url": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "conference_link": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "confidence_score": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "contact_id": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "content_type_filter": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "coordinate": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "country_code": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "datetime": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "degree_of_openness": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "devops_session_id": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "distance": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "duration": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "duration_minutes": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "effect_status": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "email_address": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "email_attachment_id": {
+      "precision": 1.0,
+      "recall_of_gold": 0.5,
+      "gold": 2
+     },
+     "email_body": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "email_label": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "email_label_id": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "event_id": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "event_start_datetime": {
+      "precision": NaN,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "file_content": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "file_id": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "file_mime_type": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "file_name": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "file_size": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "folder_id": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "formatted_address": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "formatted_time": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "google_maps_url": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "health_metric_kind": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "html_content": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "hue_light_id": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "humidity": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "identity_confidence": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "incident_id": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "journal_entry_kind": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "language_code": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "latitude": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "locality": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "location_source": {
+      "precision": 1.0,
+      "recall_of_gold": 0.5,
+      "gold": 2
+     },
+     "longitude": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "markdown_text": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "memory_category": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "message_headers": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "message_id": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "message_snippet": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "modification_timestamp": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "navigation_steps": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "none": {
+      "precision": 0.0,
+      "recall_of_gold": NaN,
+      "gold": 0
+     },
+     "only_completed_filter": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "open_now_filter": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "operation_status": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "optimal_order": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "organization_name": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "person_name": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "phone_number": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "physical_address": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "place_id": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "place_type": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "polyline": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "postal_code": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "precipitation_probability": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "price_level": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "radius_meters": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "rating": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "recency_filter": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "reminder_id": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "reply_all_flag": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "review": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "route_condition": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "route_matrix": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "route_mode_modifier": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "search_mode": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "send_updates_option": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "shared_status": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "show_completed_filter": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "task_id": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "task_list_id": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "task_status": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "temperature": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "thread_id": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "ticket_id": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "ticket_priority": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "ticket_status": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "timezone": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "traffic_condition": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "travel_mode": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "trigger_datetime": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "unit_system": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "unix_timestamp": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "waypoint": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "website_url": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "wikipedia_page_id": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     },
+     "wind_speed": {
+      "precision": 1.0,
+      "recall_of_gold": 1.0,
+      "gold": 2
+     }
+    },
+    "confusion": {
+     "email_address": {
+      "email_address": 2
+     },
+     "phone_number": {
+      "phone_number": 2
+     },
+     "person_name": {
+      "person_name": 2
+     },
+     "organization_name": {
+      "organization_name": 2
+     },
+     "physical_address": {
+      "physical_address": 1,
+      "formatted_address": 1
+     },
+     "formatted_address": {
+      "formatted_address": 2
+     },
+     "coordinate": {
+      "coordinate": 2
+     },
+     "country_code": {
+      "country_code": 2
+     },
+     "postal_code": {
+      "postal_code": 2
+     },
+     "locality": {
+      "locality": 2
+     },
+     "area_name": {
+      "area_name": 2
+     },
+     "waypoint": {
+      "waypoint": 2
+     },
+     "latitude": {
+      "latitude": 2
+     },
+     "longitude": {
+      "longitude": 2
+     },
+     "polyline": {
+      "polyline": 2
+     },
+     "radius_meters": {
+      "radius_meters": 2
+     },
+     "distance": {
+      "distance": 2
+     },
+     "temperature": {
+      "temperature": 2
+     },
+     "humidity": {
+      "humidity": 2
+     },
+     "wind_speed": {
+      "wind_speed": 2
+     },
+     "precipitation_probability": {
+      "precipitation_probability": 2
+     },
+     "rating": {
+      "rating": 2
+     },
+     "file_size": {
+      "file_size": 2
+     },
+     "confidence_score": {
+      "confidence_score": 2
+     },
+     "Date": {
+      "Date": 2
+     },
+     "unix_timestamp": {
+      "unix_timestamp": 2
+     },
+     "duration_minutes": {
+      "duration_minutes": 2
+     },
+     "datetime": {
+      "datetime": 2
+     },
+     "timezone": {
+      "timezone": 2
+     },
+     "duration": {
+      "duration": 2
+     },
+     "modification_timestamp": {
+      "modification_timestamp": 1,
+      "datetime": 1
+     },
+     "birthday": {
+      "birthday": 2
+     },
+     "recency_filter": {
+      "recency_filter": 2
+     },
+     "formatted_time": {
+      "formatted_time": 2
+     },
+     "trigger_datetime": {
+      "trigger_datetime": 2
+     },
+     "event_start_datetime": {
+      "datetime": 2
+     },
+     "event_id": {
+      "event_id": 2
+     },
+     "calendar_id": {
+      "calendar_id": 2
+     },
+     "contact_id": {
+      "contact_id": 2
+     },
+     "file_id": {
+      "file_id": 2
+     },
+     "folder_id": {
+      "folder_id": 2
+     },
+     "message_id": {
+      "message_id": 2
+     },
+     "thread_id": {
+      "thread_id": 2
+     },
+     "task_id": {
+      "task_id": 2
+     },
+     "task_list_id": {
+      "task_list_id": 2
+     },
+     "place_id": {
+      "place_id": 2
+     },
+     "reminder_id": {
+      "reminder_id": 2
+     },
+     "wikipedia_page_id": {
+      "wikipedia_page_id": 2
+     },
+     "ticket_id": {
+      "ticket_id": 2
+     },
+     "email_attachment_id": {
+      "email_attachment_id": 1,
+      "none": 1
+     },
+     "email_label_id": {
+      "email_label_id": 2
+     },
+     "incident_id": {
+      "incident_id": 2
+     },
+     "devops_session_id": {
+      "devops_session_id": 2
+     },
+     "hue_light_id": {
+      "hue_light_id": 2
+     },
+     "automation_id": {
+      "automation_id": 2
+     },
+     "file_mime_type": {
+      "file_mime_type": 2
+     },
+     "email_label": {
+      "email_label": 2
+     },
+     "place_type": {
+      "place_type": 2
+     },
+     "ticket_priority": {
+      "ticket_priority": 2
+     },
+     "memory_category": {
+      "memory_category": 2
+     },
+     "health_metric_kind": {
+      "health_metric_kind": 2
+     },
+     "journal_entry_kind": {
+      "journal_entry_kind": 2
+     },
+     "travel_mode": {
+      "travel_mode": 2
+     },
+     "language_code": {
+      "language_code": 2
+     },
+     "unit_system": {
+      "unit_system": 2
+     },
+     "route_mode_modifier": {
+      "route_mode_modifier": 2
+     },
+     "search_mode": {
+      "search_mode": 2
+     },
+     "content_type_filter": {
+      "content_type_filter": 2
+     },
+     "reply_all_flag": {
+      "reply_all_flag": 2
+     },
+     "only_completed_filter": {
+      "only_completed_filter": 2
+     },
+     "show_completed_filter": {
+      "show_completed_filter": 2
+     },
+     "file_name": {
+      "file_name": 2
+     },
+     "price_level": {
+      "price_level": 2
+     },
+     "markdown_text": {
+      "markdown_text": 2
+     },
+     "html_content": {
+      "html_content": 2
+     },
+     "email_body": {
+      "email_body": 2
+     },
+     "message_snippet": {
+      "message_snippet": 2
+     },
+     "file_content": {
+      "file_content": 2
+     },
+     "biography": {
+      "biography": 2
+     },
+     "review": {
+      "review": 2
+     },
+     "citation_url": {
+      "citation_url": 2
+     },
+     "message_headers": {
+      "message_headers": 2
+     },
+     "attachment_info": {
+      "attachment_info": 2
+     },
+     "conference_link": {
+      "conference_link": 2
+     },
+     "URL": {
+      "URL": 2
+     },
+     "website_url": {
+      "website_url": 2
+     },
+     "google_maps_url": {
+      "google_maps_url": 2
+     },
+     "navigation_steps": {
+      "navigation_steps": 2
+     },
+     "route_matrix": {
+      "route_matrix": 2
+     },
+     "optimal_order": {
+      "optimal_order": 2
+     },
+     "ticket_status": {
+      "ticket_status": 2
+     },
+     "identity_confidence": {
+      "identity_confidence": 2
+     },
+     "effect_status": {
+      "effect_status": 2
+     },
+     "traffic_condition": {
+      "traffic_condition": 2
+     },
+     "task_status": {
+      "task_status": 2
+     },
+     "access_role": {
+      "access_role": 2
+     },
+     "shared_status": {
+      "shared_status": 2
+     },
+     "location_source": {
+      "none": 1,
+      "location_source": 1
+     },
+     "business_status": {
+      "business_status": 2
+     },
+     "operation_status": {
+      "operation_status": 2
+     },
+     "send_updates_option": {
+      "send_updates_option": 2
+     },
+     "open_now_filter": {
+      "open_now_filter": 2
+     },
+     "route_condition": {
+      "route_condition": 2
+     },
+     "degree_of_openness": {
+      "degree_of_openness": 2
+     }
+    },
+    "families": {
+     "Date": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "URL": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "access_role": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "area_name": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "attachment_info": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "automation_id": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "biography": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "birthday": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "business_status": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "calendar_id": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "citation_url": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "conference_link": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "confidence_score": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "contact_id": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "content_type_filter": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "country_code": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "datetime": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "devops_session_id": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "distance": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "duration_minutes": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "effect_status": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "email_address": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "email_attachment_id": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 0.5
+     },
+     "email_body": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "email_label": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "email_label_id": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "event_id": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "event_start_datetime": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "file_content": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "file_id": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "file_mime_type": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "file_name": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "file_size": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "folder_id": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "formatted_address": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "formatted_time": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "google_maps_url": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "health_metric_kind": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "html_content": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "hue_light_id": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "humidity": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "identity_confidence": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "incident_id": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "journal_entry_kind": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "language_code": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "latitude": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "locality": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "longitude": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "markdown_text": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "memory_category": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "message_headers": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "message_id": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "message_snippet": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "modification_timestamp": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "navigation_steps": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "only_completed_filter": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "open_now_filter": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "optimal_order": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "organization_name": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "person_name": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "phone_number": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "physical_address": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "place_id": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "place_type": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "polyline": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "postal_code": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "precipitation_probability": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "price_level": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "radius_meters": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "rating": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "recency_filter": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "reminder_id": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "reply_all_flag": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "review": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "route_condition": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "route_matrix": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "search_mode": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "send_updates_option": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "shared_status": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "show_completed_filter": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "task_id": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "task_list_id": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "task_status": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "temperature": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "thread_id": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "ticket_id": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "ticket_priority": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "ticket_status": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "timezone": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "traffic_condition": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "travel_mode": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "trigger_datetime": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "unit_system": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "unix_timestamp": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "unwired:coordinate": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "unwired:degree_of_openness": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "unwired:duration": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "unwired:location_source": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 0.5
+     },
+     "unwired:operation_status": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "unwired:route_mode_modifier": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "unwired:waypoint": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "website_url": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "wikipedia_page_id": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     },
+     "wind_speed": {
+      "cases": 2,
+      "coverage": 1.0,
+      "selective_accuracy": 1.0
+     }
+    },
+    "decisions": 208,
+    "latency_ms_p50": 1127.0474240009207,
+    "latency_ms_p95": 1443.06263801991,
+    "latency_ms_p99": 1579.9405880097765,
+    "cost_eur_total": 0.01198133660736,
+    "cost_eur_per_decision": 5.760257984307692e-05,
+    "calls": 208
+   }
+  },
+  "jev": {
+   "cases": 208,
+   "errors": 0,
+   "forced_accuracy": 0.9807692307692307,
+   "threshold": 0.99,
+   "coverage": 0.7548076923076923,
+   "abstention": 0.2451923076923077,
+   "selective_accuracy": 1.0,
+   "selective_accuracy_lenient": 1.0,
+   "per_class": {
+    "Date": {
+     "precision": 1.0,
+     "recall_of_gold": 0.5,
+     "gold": 2
+    },
+    "URL": {
+     "precision": 1.0,
+     "recall_of_gold": 0.5,
+     "gold": 2
+    },
+    "access_role": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "area_name": {
+     "precision": 1.0,
+     "recall_of_gold": 0.5,
+     "gold": 2
+    },
+    "attachment_info": {
+     "precision": NaN,
+     "recall_of_gold": 0.0,
+     "gold": 2
+    },
+    "automation_id": {
+     "precision": 1.0,
+     "recall_of_gold": 0.5,
+     "gold": 2
+    },
+    "biography": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "birthday": {
+     "precision": NaN,
+     "recall_of_gold": 0.0,
+     "gold": 2
+    },
+    "business_status": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "calendar_id": {
+     "precision": NaN,
+     "recall_of_gold": 0.0,
+     "gold": 2
+    },
+    "citation_url": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "conference_link": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "confidence_score": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "contact_id": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "content_type_filter": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "coordinate": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "country_code": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "datetime": {
+     "precision": 1.0,
+     "recall_of_gold": 0.5,
+     "gold": 2
+    },
+    "degree_of_openness": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "devops_session_id": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "distance": {
+     "precision": 1.0,
+     "recall_of_gold": 0.5,
+     "gold": 2
+    },
+    "duration": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "duration_minutes": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "effect_status": {
+     "precision": 1.0,
+     "recall_of_gold": 0.5,
+     "gold": 2
+    },
+    "email_address": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "email_attachment_id": {
+     "precision": NaN,
+     "recall_of_gold": 0.0,
+     "gold": 2
+    },
+    "email_body": {
+     "precision": NaN,
+     "recall_of_gold": 0.0,
+     "gold": 2
+    },
+    "email_label": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "email_label_id": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "event_id": {
+     "precision": 1.0,
+     "recall_of_gold": 0.5,
+     "gold": 2
+    },
+    "event_start_datetime": {
+     "precision": NaN,
+     "recall_of_gold": 0.0,
+     "gold": 2
+    },
+    "file_content": {
+     "precision": NaN,
+     "recall_of_gold": 0.0,
+     "gold": 2
+    },
+    "file_id": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "file_mime_type": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "file_name": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "file_size": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "folder_id": {
+     "precision": 1.0,
+     "recall_of_gold": 0.5,
+     "gold": 2
+    },
+    "formatted_address": {
+     "precision": 1.0,
+     "recall_of_gold": 0.5,
+     "gold": 2
+    },
+    "formatted_time": {
+     "precision": NaN,
+     "recall_of_gold": 0.0,
+     "gold": 2
+    },
+    "google_maps_url": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "health_metric_kind": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "html_content": {
+     "precision": 1.0,
+     "recall_of_gold": 0.5,
+     "gold": 2
+    },
+    "hue_light_id": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "humidity": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "identity_confidence": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "incident_id": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "journal_entry_kind": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "language_code": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "latitude": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "locality": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "location_source": {
+     "precision": 1.0,
+     "recall_of_gold": 0.5,
+     "gold": 2
+    },
+    "longitude": {
+     "precision": 1.0,
+     "recall_of_gold": 0.5,
+     "gold": 2
+    },
+    "markdown_text": {
+     "precision": 1.0,
+     "recall_of_gold": 0.5,
+     "gold": 2
+    },
+    "memory_category": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "message_headers": {
+     "precision": 1.0,
+     "recall_of_gold": 0.5,
+     "gold": 2
+    },
+    "message_id": {
+     "precision": NaN,
+     "recall_of_gold": 0.0,
+     "gold": 2
+    },
+    "message_snippet": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "modification_timestamp": {
+     "precision": NaN,
+     "recall_of_gold": 0.0,
+     "gold": 2
+    },
+    "navigation_steps": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "only_completed_filter": {
+     "precision": NaN,
+     "recall_of_gold": 0.0,
+     "gold": 2
+    },
+    "open_now_filter": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "operation_status": {
+     "precision": NaN,
+     "recall_of_gold": 0.0,
+     "gold": 2
+    },
+    "optimal_order": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "organization_name": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "person_name": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "phone_number": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "physical_address": {
+     "precision": NaN,
+     "recall_of_gold": 0.0,
+     "gold": 2
+    },
+    "place_id": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "place_type": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "polyline": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "postal_code": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "precipitation_probability": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "price_level": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "radius_meters": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "rating": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "recency_filter": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "reminder_id": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "reply_all_flag": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "review": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "route_condition": {
+     "precision": 1.0,
+     "recall_of_gold": 0.5,
+     "gold": 2
+    },
+    "route_matrix": {
+     "precision": 1.0,
+     "recall_of_gold": 0.5,
+     "gold": 2
+    },
+    "route_mode_modifier": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "search_mode": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "send_updates_option": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "shared_status": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "show_completed_filter": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "task_id": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "task_list_id": {
+     "precision": NaN,
+     "recall_of_gold": 0.0,
+     "gold": 2
+    },
+    "task_status": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "temperature": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "thread_id": {
+     "precision": 1.0,
+     "recall_of_gold": 0.5,
+     "gold": 2
+    },
+    "ticket_id": {
+     "precision": 1.0,
+     "recall_of_gold": 0.5,
+     "gold": 2
+    },
+    "ticket_priority": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "ticket_status": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "timezone": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "traffic_condition": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "travel_mode": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "trigger_datetime": {
+     "precision": 1.0,
+     "recall_of_gold": 0.5,
+     "gold": 2
+    },
+    "unit_system": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "unix_timestamp": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "waypoint": {
+     "precision": 1.0,
+     "recall_of_gold": 0.5,
+     "gold": 2
+    },
+    "website_url": {
+     "precision": NaN,
+     "recall_of_gold": 0.0,
+     "gold": 2
+    },
+    "wikipedia_page_id": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    },
+    "wind_speed": {
+     "precision": 1.0,
+     "recall_of_gold": 1.0,
+     "gold": 2
+    }
+   },
+   "confusion": {
+    "email_address": {
+     "email_address": 2
+    },
+    "phone_number": {
+     "phone_number": 2
+    },
+    "person_name": {
+     "person_name": 2
+    },
+    "organization_name": {
+     "organization_name": 2
+    },
+    "physical_address": {
+     "formatted_address": 1,
+     "physical_address": 1
+    },
+    "formatted_address": {
+     "formatted_address": 2
+    },
+    "coordinate": {
+     "coordinate": 2
+    },
+    "country_code": {
+     "country_code": 2
+    },
+    "postal_code": {
+     "postal_code": 2
+    },
+    "locality": {
+     "locality": 2
+    },
+    "area_name": {
+     "area_name": 2
+    },
+    "waypoint": {
+     "waypoint": 2
+    },
+    "latitude": {
+     "latitude": 2
+    },
+    "longitude": {
+     "longitude": 2
+    },
+    "polyline": {
+     "polyline": 2
+    },
+    "radius_meters": {
+     "radius_meters": 2
+    },
+    "distance": {
+     "distance": 2
+    },
+    "temperature": {
+     "temperature": 2
+    },
+    "humidity": {
+     "humidity": 2
+    },
+    "wind_speed": {
+     "wind_speed": 2
+    },
+    "precipitation_probability": {
+     "precipitation_probability": 2
+    },
+    "rating": {
+     "rating": 2
+    },
+    "file_size": {
+     "file_size": 2
+    },
+    "confidence_score": {
+     "confidence_score": 2
+    },
+    "Date": {
+     "Date": 2
+    },
+    "unix_timestamp": {
+     "unix_timestamp": 2
+    },
+    "duration_minutes": {
+     "duration_minutes": 2
+    },
+    "datetime": {
+     "datetime": 2
+    },
+    "timezone": {
+     "timezone": 2
+    },
+    "duration": {
+     "duration": 2
+    },
+    "modification_timestamp": {
+     "modification_timestamp": 2
+    },
+    "birthday": {
+     "birthday": 2
+    },
+    "recency_filter": {
+     "recency_filter": 2
+    },
+    "formatted_time": {
+     "formatted_time": 1,
+     "duration": 1
+    },
+    "trigger_datetime": {
+     "trigger_datetime": 2
+    },
+    "event_start_datetime": {
+     "event_start_datetime": 2
+    },
+    "event_id": {
+     "event_id": 2
+    },
+    "calendar_id": {
+     "calendar_id": 2
+    },
+    "contact_id": {
+     "contact_id": 2
+    },
+    "file_id": {
+     "file_id": 2
+    },
+    "folder_id": {
+     "folder_id": 2
+    },
+    "message_id": {
+     "message_id": 1,
+     "message_snippet": 1
+    },
+    "thread_id": {
+     "thread_id": 2
+    },
+    "task_id": {
+     "task_id": 2
+    },
+    "task_list_id": {
+     "task_list_id": 2
+    },
+    "place_id": {
+     "place_id": 2
+    },
+    "reminder_id": {
+     "reminder_id": 2
+    },
+    "wikipedia_page_id": {
+     "wikipedia_page_id": 2
+    },
+    "ticket_id": {
+     "ticket_id": 2
+    },
+    "email_attachment_id": {
+     "email_attachment_id": 1,
+     "attachment_info": 1
+    },
+    "email_label_id": {
+     "email_label_id": 2
+    },
+    "incident_id": {
+     "incident_id": 2
+    },
+    "devops_session_id": {
+     "devops_session_id": 2
+    },
+    "hue_light_id": {
+     "hue_light_id": 2
+    },
+    "automation_id": {
+     "automation_id": 2
+    },
+    "file_mime_type": {
+     "file_mime_type": 2
+    },
+    "email_label": {
+     "email_label": 2
+    },
+    "place_type": {
+     "place_type": 2
+    },
+    "ticket_priority": {
+     "ticket_priority": 2
+    },
+    "memory_category": {
+     "memory_category": 2
+    },
+    "health_metric_kind": {
+     "health_metric_kind": 2
+    },
+    "journal_entry_kind": {
+     "journal_entry_kind": 2
+    },
+    "travel_mode": {
+     "travel_mode": 2
+    },
+    "language_code": {
+     "language_code": 2
+    },
+    "unit_system": {
+     "unit_system": 2
+    },
+    "route_mode_modifier": {
+     "route_mode_modifier": 2
+    },
+    "search_mode": {
+     "search_mode": 2
+    },
+    "content_type_filter": {
+     "content_type_filter": 2
+    },
+    "reply_all_flag": {
+     "reply_all_flag": 2
+    },
+    "only_completed_filter": {
+     "only_completed_filter": 2
+    },
+    "show_completed_filter": {
+     "show_completed_filter": 2
+    },
+    "file_name": {
+     "file_name": 2
+    },
+    "price_level": {
+     "price_level": 2
+    },
+    "markdown_text": {
+     "markdown_text": 2
+    },
+    "html_content": {
+     "html_content": 2
+    },
+    "email_body": {
+     "email_body": 2
+    },
+    "message_snippet": {
+     "message_snippet": 2
+    },
+    "file_content": {
+     "file_content": 2
+    },
+    "biography": {
+     "biography": 2
+    },
+    "review": {
+     "review": 2
+    },
+    "citation_url": {
+     "citation_url": 2
+    },
+    "message_headers": {
+     "message_headers": 2
+    },
+    "attachment_info": {
+     "attachment_info": 2
+    },
+    "conference_link": {
+     "conference_link": 2
+    },
+    "URL": {
+     "URL": 2
+    },
+    "website_url": {
+     "website_url": 2
+    },
+    "google_maps_url": {
+     "google_maps_url": 2
+    },
+    "navigation_steps": {
+     "navigation_steps": 2
+    },
+    "route_matrix": {
+     "route_matrix": 2
+    },
+    "optimal_order": {
+     "optimal_order": 2
+    },
+    "ticket_status": {
+     "ticket_status": 2
+    },
+    "identity_confidence": {
+     "identity_confidence": 2
+    },
+    "effect_status": {
+     "effect_status": 2
+    },
+    "traffic_condition": {
+     "traffic_condition": 2
+    },
+    "task_status": {
+     "task_status": 2
+    },
+    "access_role": {
+     "access_role": 2
+    },
+    "shared_status": {
+     "shared_status": 2
+    },
+    "location_source": {
+     "physical_address": 1,
+     "location_source": 1
+    },
+    "business_status": {
+     "business_status": 2
+    },
+    "operation_status": {
+     "operation_status": 2
+    },
+    "send_updates_option": {
+     "send_updates_option": 2
+    },
+    "open_now_filter": {
+     "open_now_filter": 2
+    },
+    "route_condition": {
+     "route_condition": 2
+    },
+    "degree_of_openness": {
+     "degree_of_openness": 2
+    }
+   },
+   "families": {
+    "Date": {
+     "cases": 2,
+     "coverage": 0.5,
+     "selective_accuracy": 1.0
+    },
+    "URL": {
+     "cases": 2,
+     "coverage": 0.5,
+     "selective_accuracy": 1.0
+    },
+    "access_role": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "area_name": {
+     "cases": 2,
+     "coverage": 0.5,
+     "selective_accuracy": 1.0
+    },
+    "attachment_info": {
+     "cases": 2,
+     "coverage": 0.0,
+     "selective_accuracy": NaN
+    },
+    "automation_id": {
+     "cases": 2,
+     "coverage": 0.5,
+     "selective_accuracy": 1.0
+    },
+    "biography": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "birthday": {
+     "cases": 2,
+     "coverage": 0.0,
+     "selective_accuracy": NaN
+    },
+    "business_status": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "calendar_id": {
+     "cases": 2,
+     "coverage": 0.0,
+     "selective_accuracy": NaN
+    },
+    "citation_url": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "conference_link": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "confidence_score": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "contact_id": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "content_type_filter": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "country_code": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "datetime": {
+     "cases": 2,
+     "coverage": 0.5,
+     "selective_accuracy": 1.0
+    },
+    "devops_session_id": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "distance": {
+     "cases": 2,
+     "coverage": 0.5,
+     "selective_accuracy": 1.0
+    },
+    "duration_minutes": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "effect_status": {
+     "cases": 2,
+     "coverage": 0.5,
+     "selective_accuracy": 1.0
+    },
+    "email_address": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "email_attachment_id": {
+     "cases": 2,
+     "coverage": 0.0,
+     "selective_accuracy": NaN
+    },
+    "email_body": {
+     "cases": 2,
+     "coverage": 0.0,
+     "selective_accuracy": NaN
+    },
+    "email_label": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "email_label_id": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "event_id": {
+     "cases": 2,
+     "coverage": 0.5,
+     "selective_accuracy": 1.0
+    },
+    "event_start_datetime": {
+     "cases": 2,
+     "coverage": 0.0,
+     "selective_accuracy": NaN
+    },
+    "file_content": {
+     "cases": 2,
+     "coverage": 0.0,
+     "selective_accuracy": NaN
+    },
+    "file_id": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "file_mime_type": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "file_name": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "file_size": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "folder_id": {
+     "cases": 2,
+     "coverage": 0.5,
+     "selective_accuracy": 1.0
+    },
+    "formatted_address": {
+     "cases": 2,
+     "coverage": 0.5,
+     "selective_accuracy": 1.0
+    },
+    "formatted_time": {
+     "cases": 2,
+     "coverage": 0.0,
+     "selective_accuracy": NaN
+    },
+    "google_maps_url": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "health_metric_kind": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "html_content": {
+     "cases": 2,
+     "coverage": 0.5,
+     "selective_accuracy": 1.0
+    },
+    "hue_light_id": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "humidity": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "identity_confidence": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "incident_id": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "journal_entry_kind": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "language_code": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "latitude": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "locality": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "longitude": {
+     "cases": 2,
+     "coverage": 0.5,
+     "selective_accuracy": 1.0
+    },
+    "markdown_text": {
+     "cases": 2,
+     "coverage": 0.5,
+     "selective_accuracy": 1.0
+    },
+    "memory_category": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "message_headers": {
+     "cases": 2,
+     "coverage": 0.5,
+     "selective_accuracy": 1.0
+    },
+    "message_id": {
+     "cases": 2,
+     "coverage": 0.0,
+     "selective_accuracy": NaN
+    },
+    "message_snippet": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "modification_timestamp": {
+     "cases": 2,
+     "coverage": 0.0,
+     "selective_accuracy": NaN
+    },
+    "navigation_steps": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "only_completed_filter": {
+     "cases": 2,
+     "coverage": 0.0,
+     "selective_accuracy": NaN
+    },
+    "open_now_filter": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "optimal_order": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "organization_name": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "person_name": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "phone_number": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "physical_address": {
+     "cases": 2,
+     "coverage": 0.0,
+     "selective_accuracy": NaN
+    },
+    "place_id": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "place_type": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "polyline": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "postal_code": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "precipitation_probability": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "price_level": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "radius_meters": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "rating": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "recency_filter": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "reminder_id": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "reply_all_flag": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "review": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "route_condition": {
+     "cases": 2,
+     "coverage": 0.5,
+     "selective_accuracy": 1.0
+    },
+    "route_matrix": {
+     "cases": 2,
+     "coverage": 0.5,
+     "selective_accuracy": 1.0
+    },
+    "search_mode": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "send_updates_option": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "shared_status": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "show_completed_filter": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "task_id": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "task_list_id": {
+     "cases": 2,
+     "coverage": 0.0,
+     "selective_accuracy": NaN
+    },
+    "task_status": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "temperature": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "thread_id": {
+     "cases": 2,
+     "coverage": 0.5,
+     "selective_accuracy": 1.0
+    },
+    "ticket_id": {
+     "cases": 2,
+     "coverage": 0.5,
+     "selective_accuracy": 1.0
+    },
+    "ticket_priority": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "ticket_status": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "timezone": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "traffic_condition": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "travel_mode": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "trigger_datetime": {
+     "cases": 2,
+     "coverage": 0.5,
+     "selective_accuracy": 1.0
+    },
+    "unit_system": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "unix_timestamp": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "unwired:coordinate": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "unwired:degree_of_openness": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "unwired:duration": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "unwired:location_source": {
+     "cases": 2,
+     "coverage": 0.5,
+     "selective_accuracy": 1.0
+    },
+    "unwired:operation_status": {
+     "cases": 2,
+     "coverage": 0.0,
+     "selective_accuracy": NaN
+    },
+    "unwired:route_mode_modifier": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "unwired:waypoint": {
+     "cases": 2,
+     "coverage": 0.5,
+     "selective_accuracy": 1.0
+    },
+    "website_url": {
+     "cases": 2,
+     "coverage": 0.0,
+     "selective_accuracy": NaN
+    },
+    "wikipedia_page_id": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    },
+    "wind_speed": {
+     "cases": 2,
+     "coverage": 1.0,
+     "selective_accuracy": 1.0
+    }
+   },
+   "forced": 0.9807692307692307,
+   "decisions": 416,
+   "latency_ms_p50": 232.5134869897738,
+   "latency_ms_p95": 283.23783999076113,
+   "latency_ms_p99": 371.7062280047685,
+   "cost_eur_total": 0.0572682544812,
+   "cost_eur_per_decision": 0.0001376640732721154,
+   "calls": 416,
+   "stability": 0.9951923076923077,
+   "calibration_buckets": [
+    {
+     "from": 0.3,
+     "to": 0.4,
+     "cases": 2,
+     "accuracy": 0.0
+    },
+    {
+     "from": 0.5,
+     "to": 0.6,
+     "cases": 5,
+     "accuracy": 0.8
+    },
+    {
+     "from": 0.6,
+     "to": 0.7,
+     "cases": 2,
+     "accuracy": 1.0
+    },
+    {
+     "from": 0.7,
+     "to": 0.8,
+     "cases": 5,
+     "accuracy": 1.0
+    },
+    {
+     "from": 0.8,
+     "to": 0.9,
+     "cases": 9,
+     "accuracy": 0.8888888888888888
+    },
+    {
+     "from": 0.9,
+     "to": 1.0,
+     "cases": 185,
+     "accuracy": 1.0
+    }
+   ],
+   "threshold_from_calibration": null
+  },
+  "reference": {
+   "engine": "generative",
+   "accuracy": 0.9903846153846154,
+   "target": 1.0203846153846154
+  },
+  "checks": {
+   "threshold_found_on_calibration": false,
+   "beats_generative_by_3_points": false,
+   "meets_safety_floor": true,
+   "abstention_at_most_10_percent": false,
+   "p95_under_600_ms": true
+  },
+  "adopt": false
+ },
+ "d2_fallback": {
+  "threshold": 0.99,
+  "cases": 208,
+  "accuracy_with_category_fallback": 0.9807692307692307
+ },
+ "spent_eur": {
+  "spend.json": 0.5824276985030464,
+  "spend_v2.json": 0.24548549240879977
+ }
+}

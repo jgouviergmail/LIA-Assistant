@@ -1,0 +1,28 @@
+{
+  "id": "lia-original-score",
+  "title": "LIA — Une journée en harmonie",
+  "artist": "Composition originale LIA · Google Lyria",
+  "provider": "Google Gemini API",
+  "model": "lyria-3.5",
+  "source": "https://ai.google.dev/gemini-api/docs/music-generation",
+  "sourceSha256": "834d9f582404d0de3d43f2869022c60eba3de4dd959a806c964f29177e083800",
+  "publishedTempoBpm": 118,
+  "tempoIsPromptTarget": true,
+  "attribution": "LIA — Une journée en harmonie · composition sur mesure générée avec Google Lyria 3.5",
+  "styleSource": "Original instrumental piano/Rhodes, clean guitar, warm bass and restrained organic pop/funk drums; continuous 160-second composition requested.",
+  "license": "Google Gemini API generated-content terms",
+  "licenseUrl": "https://ai.google.dev/gemini-api/terms",
+  "sourceFormat": {
+    "codec_name": "mp3",
+    "sample_fmt": "fltp",
+    "sample_rate": "44100",
+    "channels": 2,
+    "bits_per_sample": 0,
+    "bit_rate": "192000"
+  },
+  "originalAudio": "audio/v5/lia-custom-original.mp3",
+  "workingAudio": "audio/v5/lia-custom-film.wav",
+  "allowanceSeconds": 160.0,
+  "generationMetadata": "audio/v5/lia-custom-generation.json",
+  "compositionRequest": "audio/v5/lia-custom-composition-request.json"
+}

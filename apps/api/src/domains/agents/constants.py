@@ -341,7 +341,6 @@ STATE_KEY_DETECTED_INTENT = (
 )
 
 # Memory reference resolution state keys (Pre-Planner)
-STATE_KEY_RESOLVED_REFERENCES = "resolved_references"  # ResolvedReferences from memory resolution
 
 # ============================================================================
 # TURN TYPES (for context resolution)
@@ -853,7 +852,6 @@ __all__ = [
     "STATE_KEY_LAST_LIST_TURN_ID",
     "STATE_KEY_TURN_TYPE",
     "STATE_KEY_RESOLVED_CONTEXT",
-    "STATE_KEY_RESOLVED_REFERENCES",
     "STATE_KEY_DETECTED_INTENT",
     "TURN_TYPE_ACTION",
     "TURN_TYPE_REFERENCE",

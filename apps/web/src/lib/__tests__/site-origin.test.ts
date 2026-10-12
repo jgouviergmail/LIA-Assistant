@@ -15,11 +15,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  buildAbsoluteUrl,
-  getSiteOrigin,
-  localizedUrl,
-} from '@/lib/site-origin';
+import { buildAbsoluteUrl, getSiteOrigin, localizedUrl } from '@/lib/site-origin';
 
 describe('getSiteOrigin', () => {
   afterEach(() => {
@@ -52,7 +48,7 @@ describe('getSiteOrigin', () => {
     'https://x.example/#frag',
     'https://x.example/sub/path',
     'not-a-url',
-  ])('rejects invalid origin %s loudly', (bad) => {
+  ])('rejects invalid origin %s loudly', bad => {
     vi.stubEnv('APP_URL_SERVER', bad);
     expect(() => getSiteOrigin()).toThrow(/APP_URL_SERVER/);
   });
@@ -65,22 +61,14 @@ describe('getSiteOrigin', () => {
 
 describe('URL builders', () => {
   it('buildAbsoluteUrl concatenates origin and path without double slash', () => {
-    expect(buildAbsoluteUrl('https://x.example', '/demo')).toBe(
-      'https://x.example/demo'
-    );
+    expect(buildAbsoluteUrl('https://x.example', '/demo')).toBe('https://x.example/demo');
     expect(buildAbsoluteUrl('https://x.example', '')).toBe('https://x.example');
   });
 
   it('localizedUrl keeps the historical shape with an origin', () => {
-    expect(localizedUrl('https://x.example', '/demo', 'fr')).toBe(
-      'https://x.example/demo'
-    );
-    expect(localizedUrl('https://x.example', '/demo', 'en')).toBe(
-      'https://x.example/en/demo'
-    );
-    expect(localizedUrl('https://x.example', '', 'fr')).toBe(
-      'https://x.example'
-    );
+    expect(localizedUrl('https://x.example', '/demo', 'fr')).toBe('https://x.example/demo');
+    expect(localizedUrl('https://x.example', '/demo', 'en')).toBe('https://x.example/en/demo');
+    expect(localizedUrl('https://x.example', '', 'fr')).toBe('https://x.example');
   });
 
   it('localizedUrl degrades to relative paths without an origin', () => {

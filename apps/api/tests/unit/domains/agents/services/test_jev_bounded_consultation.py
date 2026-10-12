@@ -149,3 +149,23 @@ async def test_bounded_path_cannot_reintroduce_a_forbidden_tool():
     )
     assert result is None
     native.assert_not_awaited()
+
+
+def test_bounded_candidates_share_the_one_consultation_question() -> None:
+    from src.domains.agents.services.planner import consultation_paths, jev_bounded_consultation
+
+    paths = jev_bounded_consultation._calendar_paths(
+        "Europe/Paris", datetime(2026, 10, 11, 9, tzinfo=UTC)
+    )
+    bounded = jev_bounded_consultation.bounded_question(paths)
+    basic = consultation_paths.consultation_question(consultation_paths.READ_PATHS)
+    assert bounded.instructions == basic.instructions
+    assert list(bounded.criteria)[0] == "other"
+    assert bounded.criteria["other"] == basic.criteria["other"]
+    assert bounded.criteria["event_today"] == {"what": paths["event_today"].description}
+
+
+def test_a_counted_listing_keeps_the_reviewed_wording_of_its_path() -> None:
+    from src.domains.agents.services.planner.consultation_paths import path_label
+
+    assert path_label("email_unread") == "Show unread emails. The only filter is unread status."

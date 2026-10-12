@@ -152,7 +152,9 @@ export const InterestProfileSection = React.memo(function InterestProfileSection
                 interest={interest}
                 decision={
                   decisionsByTopic.get(interest.topic) ??
-                  (interest.interest_id ? decisionsByInterestId.get(interest.interest_id) : undefined)
+                  (interest.interest_id
+                    ? decisionsByInterestId.get(interest.interest_id)
+                    : undefined)
                 }
               />
             ))}

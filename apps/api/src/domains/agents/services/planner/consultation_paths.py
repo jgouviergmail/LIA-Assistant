@@ -1,5 +1,14 @@
-"""Reviewed read-only candidates shared by the basic and bounded selectors."""
+"""Reviewed read-only candidates shared by the basic and bounded selectors.
 
+Both selectors ask ONE question (``jev_consultation_question``): structured rules,
+the conservative ``other`` offered FIRST (Choice favours its first option), each
+candidate a ``{"what": ...}`` criterion. Measured against the previous wording on
+the gate and bounded corpora (2026-10-11): no wrong selection either way, and the
+holdout coverage rose from 73.5 % to 88.2 %
+(``docs/technical/JEV_SEMANTIC_QUALIFICATION.md``).
+"""
+
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 from src.domains.agents.prompts.prompt_loader import load_prompt
@@ -29,10 +38,34 @@ READ_PATHS = {
 }
 
 
-def consultation_question(paths: dict[str, ReadPath]) -> ChoiceQuestion:
-    question = ChoiceQuestion.model_validate_json(
+def _template() -> ChoiceQuestion:
+    return ChoiceQuestion.model_validate_json(
         load_prompt("jev_consultation_question", version="v1")
     )
+
+
+def path_label(key: str) -> str:
+    """The reviewed wording of one fixed listing (its criterion's ``what``)."""
+    criterion = _template().criteria[key]
+    assert isinstance(criterion, dict) and isinstance(criterion.get("what"), str)
+    return str(criterion["what"])
+
+
+def candidate_question(descriptions: Mapping[str, str]) -> ChoiceQuestion:
+    """The same question over listings the code built (``other`` stays first)."""
+    template = _template()
+    return template.model_copy(
+        update={
+            "criteria": {
+                "other": template.criteria["other"],
+                **{key: {"what": text} for key, text in descriptions.items()},
+            }
+        }
+    )
+
+
+def consultation_question(paths: dict[str, ReadPath]) -> ChoiceQuestion:
+    question = _template()
     return question.model_copy(
         update={
             "criteria": {

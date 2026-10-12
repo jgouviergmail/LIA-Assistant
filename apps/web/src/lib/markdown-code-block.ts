@@ -47,7 +47,11 @@ function textOf(node: HastNode): string {
 
 function languageOf(code: ElementNode): string {
   const cn = code.properties?.className;
-  const classes = Array.isArray(cn) ? cn.map(String) : typeof cn === 'string' ? cn.split(/\s+/) : [];
+  const classes = Array.isArray(cn)
+    ? cn.map(String)
+    : typeof cn === 'string'
+      ? cn.split(/\s+/)
+      : [];
   const tag = classes.find(c => c.startsWith('language-'));
   const language = tag ? tag.slice('language-'.length) : '';
   return language || DEFAULT_CODE_LANGUAGE;

@@ -7,7 +7,6 @@ import { useApiMutation } from './useApiMutation';
 
 const ENDPOINT = '/plugins';
 
-
 /** Taxonomy code for a plugin validation/import issue (mirrors the backend enum). */
 export type PluginIssueCode =
   | 'manifest_not_an_object'

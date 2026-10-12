@@ -42,9 +42,11 @@ beforeEach(() => {
 
 describe('useSourceActions — link refusals', () => {
   it('tells a coded refusal in its own words', async () => {
-    const link = vi.fn().mockRejectedValue(
-      new ApiError('conflict', 409, { detail: { code: 'drive_folder_nested' } })
-    );
+    const link = vi
+      .fn()
+      .mockRejectedValue(
+        new ApiError('conflict', 409, { detail: { code: 'drive_folder_nested' } })
+      );
     const { result } = hook(link);
     await act(() => result.current.handleLink('child', 'Child'));
     expect(toast.error).toHaveBeenCalledWith('spaces.drive.link_nested');

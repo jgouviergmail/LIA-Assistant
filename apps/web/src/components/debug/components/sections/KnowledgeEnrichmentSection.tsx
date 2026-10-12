@@ -12,13 +12,7 @@
 
 import React from 'react';
 import { BookOpen } from 'lucide-react';
-import {
-  DebugChip,
-  DebugSection,
-  EmptySection,
-  MetricRow,
-  SubSectionHeader,
-} from '../shared';
+import { DebugChip, DebugSection, EmptySection, MetricRow, SubSectionHeader } from '../shared';
 import { TONE_TEXT } from '../../utils/tones';
 import { cn } from '@/lib/utils';
 import type { KnowledgeEnrichmentMetrics } from '@/types/chat';
@@ -60,7 +54,9 @@ export const KnowledgeEnrichmentSection = React.memo(function KnowledgeEnrichmen
   data,
 }: KnowledgeEnrichmentSectionProps) {
   if (!data) {
-    return <EmptySection value="knowledge-enrichment" title="Knowledge Enrichment" icon={BookOpen} />;
+    return (
+      <EmptySection value="knowledge-enrichment" title="Knowledge Enrichment" icon={BookOpen} />
+    );
   }
 
   // Feature globally disabled

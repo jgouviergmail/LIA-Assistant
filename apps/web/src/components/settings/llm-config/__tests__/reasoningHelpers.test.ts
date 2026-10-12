@@ -168,6 +168,8 @@ describe('formatReasoningValue', () => {
     expect(formatReasoningValue(EMPTY_INTENT)).toBe('auto');
     expect(formatReasoningValue(withLevel(EMPTY_INTENT, 'high'))).toBe('high');
     expect(formatReasoningValue(withBudget(EMPTY_INTENT, 8192))).toBe('8192t');
-    expect(formatReasoningValue(withBudget(withLevel(EMPTY_INTENT, 'low'), 2048))).toBe('low/2048t');
+    expect(formatReasoningValue(withBudget(withLevel(EMPTY_INTENT, 'low'), 2048))).toBe(
+      'low/2048t'
+    );
   });
 });

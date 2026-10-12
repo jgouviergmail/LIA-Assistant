@@ -15,14 +15,18 @@ from src.domains.llm_config.jev_settings import load_jev_snapshot
 from src.infrastructure.llm.decision_types import DecisionAttempt
 from src.infrastructure.llm.jev_debug_store import begin_trace, finish_trace, record_action
 from src.infrastructure.llm.jev_runtime import choose_with_jev
-from src.infrastructure.llm.typesafe_client import ChoiceQuestion
+from src.infrastructure.llm.typesafe_client import NoulQuestion
 from src.infrastructure.observability.metrics_jev import (
     jev_decision_duration_seconds,
     jev_decisions_total,
 )
 
-# Calibrated for this three-way utility judgment, not borrowed from another task.
-MIN_CONFIDENCE = 0.85
+# A Noul: "the context leaves something useful to offer". The full evaluator is
+# skipped only when that probability is at most this value. Chosen on the gate
+# calibration corpus (no wrong skip), verified on its holdout and on the structured
+# production-shape states (no wrong skip; 86 % and 92 % of the empty cases skipped,
+# against 7 % and 0 % for the former three-way Choice), 2026-10-11.
+MAX_UTILITY_PROBABILITY = 0.11
 logger = structlog.get_logger(__name__)
 
 
@@ -30,7 +34,7 @@ async def _incomplete_attempt(
     owner: UUID,
     run_id: str,
     state: JsonValue,
-    question: ChoiceQuestion,
+    question: NoulQuestion,
     omissions: dict[str, int],
 ) -> DecisionAttempt:
     """Preserve opted-in diagnostics without buying a judgment code cannot accept."""
@@ -89,7 +93,7 @@ async def choose_empty_initiative(
         return None
     started = perf_counter()
     native_state = state if state is not None else {"evaluation_context": prompt}
-    question = ChoiceQuestion.model_validate_json(
+    question = NoulQuestion.model_validate_json(
         load_prompt("jev_initiative_question", version="v1")
     )
     omissions = evidence_omissions(native_state, omissions)
@@ -103,12 +107,11 @@ async def choose_empty_initiative(
             state=native_state,
             question=question,
         )
-    answer = attempt.answer
+    utility = attempt.nouls.get("selection")
     empty = (
         attempt.outcome == "success"
-        and answer is not None
-        and answer.choice == "no_utility"
-        and answer.confidence >= MIN_CONFIDENCE
+        and utility is not None
+        and utility.noul <= MAX_UTILITY_PROBABILITY
     )
     outcome = (
         "no_utility"

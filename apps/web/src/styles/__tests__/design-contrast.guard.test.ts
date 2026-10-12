@@ -21,10 +21,7 @@
 
 import { describe, it, expect } from 'vitest';
 
-import {
-  SETTINGS_GROUP_TONES,
-  SETTINGS_TONE_CHIP_ALPHA,
-} from '../../lib/settings-group-tones';
+import { SETTINGS_GROUP_TONES, SETTINGS_TONE_CHIP_ALPHA } from '../../lib/settings-group-tones';
 import {
   type Palette,
   type Rgb,
@@ -260,7 +257,10 @@ describe('design-system contrast guard (WCAG AA, all themes × modes)', () => {
       it(`${name}: cyan-${step} on cyan-500/20 over card meets AA`, () => {
         const ground = blend(CYAN[500], palette['card'], 0.2);
         const ratio = contrast(CYAN[step], ground);
-        expect(ratio, `cyan-${step} on the badge wash in ${name}: ${ratio.toFixed(2)}`).toBeGreaterThanOrEqual(AA);
+        expect(
+          ratio,
+          `cyan-${step} on the badge wash in ${name}: ${ratio.toFixed(2)}`
+        ).toBeGreaterThanOrEqual(AA);
       });
     }
   });
@@ -287,9 +287,10 @@ describe('design-system contrast guard (WCAG AA, all themes × modes)', () => {
       const ratio = contrast(CYAN[step], peak);
       if (ratio < AA) failures.push(`${name}: ${ratio.toFixed(2)} < ${AA}`);
     }
-    expect(failures, `\nglimmer peak contrast failures (alpha ${alpha}):\n  ${failures.join('\n  ')}\n`).toEqual(
-      []
-    );
+    expect(
+      failures,
+      `\nglimmer peak contrast failures (alpha ${alpha}):\n  ${failures.join('\n  ')}\n`
+    ).toEqual([]);
   });
 
   /**
@@ -298,9 +299,8 @@ describe('design-system contrast guard (WCAG AA, all themes × modes)', () => {
    * The stop must also move it to the animation's end position.
    */
   it('parks the glimmer off the badge under prefers-reduced-motion', () => {
-    const endPosition = /@keyframes badge-glimmer[\s\S]*?100%\s*\{\s*background-position:\s*([^;]+);/.exec(
-      cssSource
-    );
+    const endPosition =
+      /@keyframes badge-glimmer[\s\S]*?100%\s*\{\s*background-position:\s*([^;]+);/.exec(cssSource);
     expect(endPosition, 'badge-glimmer 100% keyframe not found').not.toBeNull();
 
     // Scoping a regex "inside the reduced-motion media query" is unreliable —
@@ -323,8 +323,9 @@ describe('design-system contrast guard (WCAG AA, all themes × modes)', () => {
    * read than unselected text.
    */
   it('selected text stays AA on the accent-tinted highlight', () => {
-    const literal =
-      /::selection\s*\{[^}]*color-mix\(in oklch, var\(--color-primary\) (\d+)%/.exec(cssSource);
+    const literal = /::selection\s*\{[^}]*color-mix\(in oklch, var\(--color-primary\) (\d+)%/.exec(
+      cssSource
+    );
     expect(literal, '::selection primary mix not found in globals.css').not.toBeNull();
     const alpha = Number(literal![1]) / 100;
 
@@ -339,7 +340,6 @@ describe('design-system contrast guard (WCAG AA, all themes × modes)', () => {
       `\nselection contrast failures (primary/${literal![1]}):\n  ${failures.join('\n  ')}\n`
     ).toEqual([]);
   });
-
 
   /**
    * Settings group tones — the second fixed-palette chrome element.
@@ -386,13 +386,11 @@ describe('design-system contrast guard (WCAG AA, all themes × modes)', () => {
           const ratio = contrast(ink, chip);
           if (ratio < NON_TEXT) failures.push(`${group}: ${ratio.toFixed(2)} < ${NON_TEXT}`);
         }
-        expect(
-          failures,
-          `\n${name} settings-tone failures:\n  ${failures.join('\n  ')}\n`
-        ).toEqual([]);
+        expect(failures, `\n${name} settings-tone failures:\n  ${failures.join('\n  ')}\n`).toEqual(
+          []
+        );
       });
     }
-
 
     /**
      * The rail renders the same tones WITHOUT a chip: the glyph sits directly
@@ -424,10 +422,7 @@ describe('design-system contrast guard (WCAG AA, all themes × modes)', () => {
             }
           }
         }
-        expect(
-          failures,
-          `\n${name} rail-tone failures:\n  ${failures.join('\n  ')}\n`
-        ).toEqual([]);
+        expect(failures, `\n${name} rail-tone failures:\n  ${failures.join('\n  ')}\n`).toEqual([]);
       });
     }
     /**
@@ -445,9 +440,9 @@ describe('design-system contrast guard (WCAG AA, all themes × modes)', () => {
      */
     it.each(['default-light', 'default-dark'])('keeps the twelve tones distinct in %s', name => {
       const tones = palettes[name];
-      const inks = GROUPS.map(([group, tone]) => [group, tones[tokenOf(tone.glyph)]] as const).filter(
-        (entry): entry is readonly [string, Rgb] => Boolean(entry[1])
-      );
+      const inks = GROUPS.map(
+        ([group, tone]) => [group, tones[tokenOf(tone.glyph)]] as const
+      ).filter((entry): entry is readonly [string, Rgb] => Boolean(entry[1]));
       expect(inks, 'no settings tone token resolved').not.toHaveLength(0);
 
       const tooClose: string[] = [];
@@ -461,7 +456,9 @@ describe('design-system contrast guard (WCAG AA, all themes × modes)', () => {
           if (d < 0.12) tooClose.push(`${a} vs ${b}: ${d.toFixed(3)}`);
         }
       }
-      expect(tooClose, `\ntones too close to tell apart:\n  ${tooClose.join('\n  ')}\n`).toEqual([]);
+      expect(tooClose, `\ntones too close to tell apart:\n  ${tooClose.join('\n  ')}\n`).toEqual(
+        []
+      );
     });
   });
 

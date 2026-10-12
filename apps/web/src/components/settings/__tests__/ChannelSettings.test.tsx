@@ -55,16 +55,28 @@ function hook(over: Partial<ChannelsHook> = {}) {
 }
 
 function renderChannels() {
-  return renderWithProviders(
-    <ChannelSettings lng="en" />
-  );
+  return renderWithProviders(<ChannelSettings lng="en" />);
 }
 
-beforeEach(() => { vi.clearAllMocks(); auth.id = 'one'; });
+beforeEach(() => {
+  vi.clearAllMocks();
+  auth.id = 'one';
+});
 
 describe('ChannelSettings — unbound', () => {
   it('removes an already displayed OTP when the account changes', async () => {
-    useChannelBindings.mockReturnValue(hook({ generateOtp: vi.fn().mockResolvedValue({ code: '123456', expires_in_seconds: 300, bot_username: 'LIABot', channel_type: 'telegram' }) }));
+    useChannelBindings.mockReturnValue(
+      hook({
+        generateOtp: vi
+          .fn()
+          .mockResolvedValue({
+            code: '123456',
+            expires_in_seconds: 300,
+            bot_username: 'LIABot',
+            channel_type: 'telegram',
+          }),
+      })
+    );
     const { user, rerender } = renderChannels();
     await user.click(screen.getByRole('button', { name: 'settings.channels.link_button' }));
     expect(await screen.findByText('123456')).toBeInTheDocument();
@@ -109,7 +121,12 @@ describe('ChannelSettings — unbound', () => {
 describe('ChannelSettings — bound', () => {
   it('suppresses the old account completion toast after a late toggle', async () => {
     let complete: (() => void) | undefined;
-    const toggleBinding = vi.fn(() => new Promise<{ id: string; is_active: boolean }>(done => { complete = () => done({ id: 'b1', is_active: false }); }));
+    const toggleBinding = vi.fn(
+      () =>
+        new Promise<{ id: string; is_active: boolean }>(done => {
+          complete = () => done({ id: 'b1', is_active: false });
+        })
+    );
     useChannelBindings.mockReturnValue(hook({ bindings: [binding()], toggleBinding }));
     const { user, rerender } = renderChannels();
     await user.click(screen.getByRole('switch'));

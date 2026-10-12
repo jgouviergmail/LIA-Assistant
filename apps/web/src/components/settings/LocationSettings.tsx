@@ -43,8 +43,15 @@ export function LocationSettings({ lng }: BaseSettingsProps) {
     disable,
   } = useGeolocation();
 
-  const { homeLocation, homeAddressInput, setHomeAddressInput, savingHome, clearingHome,
-    handleSaveHomeLocation, handleClearHomeLocation } = useHomeLocationSettings(lng);
+  const {
+    homeLocation,
+    homeAddressInput,
+    setHomeAddressInput,
+    savingHome,
+    clearingHome,
+    handleSaveHomeLocation,
+    handleClearHomeLocation,
+  } = useHomeLocationSettings(lng);
 
   // Geolocation handlers
   const handleGeoToggle = async (checked: boolean) => {
@@ -155,7 +162,9 @@ export function LocationSettings({ lng }: BaseSettingsProps) {
           {homeLocation && (
             <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
               <div className="flex items-center justify-between gap-4">
-                <p className="min-w-0 flex-1 break-words text-sm text-foreground">{homeLocation.address}</p>
+                <p className="min-w-0 flex-1 break-words text-sm text-foreground">
+                  {homeLocation.address}
+                </p>
                 <Button
                   variant="ghost"
                   size="icon"

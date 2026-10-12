@@ -63,7 +63,10 @@ export function useMeetingTemplates(enabled = true): UseMeetingTemplatesReturn {
   const { user } = useAuth();
   const ownerId = user?.id;
   const { lifetime, isCurrent } = useApplicationAccountLifetime(ownerId);
-  const [templates, setTemplates] = useApplicationAccountState<MeetingTemplateSummary[]>(ownerId, []);
+  const [templates, setTemplates] = useApplicationAccountState<MeetingTemplateSummary[]>(
+    ownerId,
+    []
+  );
   const [maxUserTemplates, setMaxUserTemplates] = useApplicationAccountState(ownerId, 0);
   const [isLoading, setIsLoading] = useApplicationAccountState(ownerId, enabled);
   const [isSaving, setIsSaving] = useApplicationAccountState(ownerId, false);
@@ -92,9 +95,11 @@ export function useMeetingTemplates(enabled = true): UseMeetingTemplatesReturn {
       if (!isStale() && isCurrent()) setIsLoading(false);
     }
   }, [enabled, guard, isCurrent, setTemplates, setMaxUserTemplates, setError, setIsLoading]);
-  const refetch = useCallback(async () => { await read(); }, [read]);
+  const refetch = useCallback(async () => {
+    await read();
+  }, [read]);
   const refetchVerified = useCallback(async () => {
-    if (!await read()) throw new Error('Meeting library refresh failed');
+    if (!(await read())) throw new Error('Meeting library refresh failed');
   }, [read]);
   useApplicationResourceSync(enabled ? ownerId : undefined, 'meeting_templates', refetchVerified);
 
@@ -124,22 +129,29 @@ export function useMeetingTemplates(enabled = true): UseMeetingTemplatesReturn {
     [enabled, isCurrent, lifetime, setError, setIsSaving]
   );
 
-  const load = useCallback(async (ref: string) => {
-    if (!enabled || !isCurrent()) return null;
-    try {
-      const template = await meetingsApi.template(ref);
-      return isCurrent() ? template : null;
-    } catch (err) {
-      if (isCurrent()) setError(err instanceof Error ? err : new Error(String(err)));
-      return null;
-    }
-  }, [enabled, isCurrent, setError]);
+  const load = useCallback(
+    async (ref: string) => {
+      if (!enabled || !isCurrent()) return null;
+      try {
+        const template = await meetingsApi.template(ref);
+        return isCurrent() ? template : null;
+      } catch (err) {
+        if (isCurrent()) setError(err instanceof Error ? err : new Error(String(err)));
+        return null;
+      }
+    },
+    [enabled, isCurrent, setError]
+  );
 
   const create = useCallback(
     (request: MeetingTemplateCreate) =>
       write(
         () => meetingsApi.createTemplate(request),
-        created => setTemplates(current => [...current.filter(item => item.ref !== created.ref), summaryOf(created)])
+        created =>
+          setTemplates(current => [
+            ...current.filter(item => item.ref !== created.ref),
+            summaryOf(created),
+          ])
       ),
     [write, setTemplates]
   );
@@ -160,10 +172,11 @@ export function useMeetingTemplates(enabled = true): UseMeetingTemplatesReturn {
     (refs: string[]) =>
       write(
         () => meetingsApi.bulkDuplicateTemplates({ refs }),
-        result => setTemplates(current => {
-          const refs = new Set(result.created.map(item => item.ref));
-          return [...current.filter(item => !refs.has(item.ref)), ...result.created];
-        })
+        result =>
+          setTemplates(current => {
+            const refs = new Set(result.created.map(item => item.ref));
+            return [...current.filter(item => !refs.has(item.ref)), ...result.created];
+          })
       ),
     [write, setTemplates]
   );

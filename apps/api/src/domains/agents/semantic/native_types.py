@@ -33,7 +33,7 @@ DURATION_MINUTES = SemanticType(
     parent="Intangible",
     category=TypeCategory.TEMPORAL,
     description="Numeric elapsed duration in minutes, not an ISO 8601 duration string",
-    source_domains=["route", "event"],
+    source_domains=["route"],
 )
 
 FILE_NAME = SemanticType(
@@ -137,7 +137,7 @@ LATITUDE = SemanticType(
     parent="QuantitativeValue",
     category=TypeCategory.LOCATION,
     description="Latitude in decimal degrees, one component of a coordinate pair",
-    source_domains=["place", "route"],
+    source_domains=["place"],
 )
 
 LONGITUDE = SemanticType(
@@ -145,7 +145,7 @@ LONGITUDE = SemanticType(
     parent="QuantitativeValue",
     category=TypeCategory.LOCATION,
     description="Longitude in decimal degrees, one component of a coordinate pair",
-    source_domains=["place", "route"],
+    source_domains=["place"],
 )
 
 INCIDENT_ID = SemanticType(

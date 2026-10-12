@@ -19,7 +19,8 @@ export type JevUsage =
   | 'filter_document'
   | 'initiative_utility'
   | 'memory_reference_presence'
-  | 'hitl_rejection';
+  | 'hitl_rejection'
+  | 'parameter_kind';
 export type JevReadiness =
   | 'ready'
   | 'missing_key'

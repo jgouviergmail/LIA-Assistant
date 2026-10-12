@@ -30,8 +30,6 @@ describe('catalog hints derive their count from the catalog', () => {
 
   it('the basics band states the length of its own catalog', async () => {
     render(await BasicsBand({ lng: 'en' }));
-    expect(
-      screen.getByText(`${BASICS_CATALOG.length} detailed capabilities`)
-    ).toBeInTheDocument();
+    expect(screen.getByText(`${BASICS_CATALOG.length} detailed capabilities`)).toBeInTheDocument();
   });
 });

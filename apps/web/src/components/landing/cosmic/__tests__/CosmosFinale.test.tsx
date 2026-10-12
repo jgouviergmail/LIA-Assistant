@@ -44,9 +44,6 @@ describe.each(['en', 'fr'] as const)('CosmosFinale localized actions (%s)', lang
       expect(screen.getByText(copy.home_cta.subtitle)).toBeVisible();
       expect(screen.getByText(copy.home_cta.note_beta)).toBeVisible();
 
-      const account = screen.getByRole('link', { name: copy.home_cta.button });
-      expect(account).toBeVisible();
-      expect(account).toHaveAttribute('href', paths[language].register);
       const install = screen.getByRole('link', { name: copy.home_cta.install_link });
       expect(install).toBeVisible();
       expect(install).toHaveAttribute(
@@ -62,21 +59,27 @@ describe.each(['en', 'fr'] as const)('CosmosFinale localized actions (%s)', lang
       ).toHaveAttribute('href', paths[language].why);
 
       if (variant === 'guided') {
+        expect(screen.queryByRole('link', { name: copy.home_cta.button })).not.toBeInTheDocument();
         const demo = screen.getByRole('link', { name: copy.hero.home_cta_demo });
         expect(demo).toBeVisible();
         expect(demo).toHaveAttribute('href', paths[language].demo);
         await user.tab();
         expect(demo).toHaveFocus();
+        await user.tab();
+        expect(install).toHaveFocus();
       } else {
+        const account = screen.getByRole('link', { name: copy.home_cta.button });
+        expect(account).toBeVisible();
+        expect(account).toHaveAttribute('href', paths[language].register);
         expect(
           screen.queryByRole('link', { name: copy.hero.home_cta_demo })
         ).not.toBeInTheDocument();
         expect(screen.getAllByRole('link').map(link => link.getAttribute('href'))).not.toContain(
           paths[language].demo
         );
+        await user.tab();
+        expect(account).toHaveFocus();
       }
-      await user.tab();
-      expect(account).toHaveFocus();
     }
   );
 });

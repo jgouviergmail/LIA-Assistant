@@ -204,9 +204,13 @@ export function useApiQuery<T = unknown>(
   // It must not restart the old query or cancel the new screen's read.
   const refetchVerified = useCallback(() => {
     const effect = activeEffect.current;
-    return effect?.read === fetchData ? fetchData(effect.controller.signal) : Promise.resolve(false);
+    return effect?.read === fetchData
+      ? fetchData(effect.controller.signal)
+      : Promise.resolve(false);
   }, [fetchData]);
-  const refetch = useCallback(async () => { await refetchVerified(); }, [refetchVerified]);
+  const refetch = useCallback(async () => {
+    await refetchVerified();
+  }, [refetchVerified]);
 
   return {
     data,

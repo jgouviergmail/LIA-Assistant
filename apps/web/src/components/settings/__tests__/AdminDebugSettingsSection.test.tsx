@@ -103,9 +103,7 @@ describe('AdminDebugSettingsSection — surfaces', () => {
 
 describe('AdminDebugSettingsSection — debug panel switch', () => {
   it('enables the panel, patches the cache optimistically and confirms', async () => {
-    const { user } = renderWithProviders(
-      <AdminDebugSettingsSection lng="en" />
-    );
+    const { user } = renderWithProviders(<AdminDebugSettingsSection lng="en" />);
     await user.click(screen.getByRole('switch', { name: PANEL_SWITCH }));
     await waitFor(() =>
       expect(mutatePanel).toHaveBeenCalledWith(PANEL_ENDPOINT, { enabled: true })
@@ -120,9 +118,7 @@ describe('AdminDebugSettingsSection — debug panel switch', () => {
 
   it('uses the disable wording when switching the panel off', async () => {
     stub(panelData({ enabled: true, is_default: false }), accessData());
-    const { user } = renderWithProviders(
-      <AdminDebugSettingsSection lng="en" />
-    );
+    const { user } = renderWithProviders(<AdminDebugSettingsSection lng="en" />);
     await user.click(screen.getByRole('switch', { name: PANEL_SWITCH }));
     await waitFor(() =>
       expect(mutatePanel).toHaveBeenCalledWith(PANEL_ENDPOINT, { enabled: false })
@@ -132,9 +128,7 @@ describe('AdminDebugSettingsSection — debug panel switch', () => {
 
   it('reports a failed panel update without touching the cache', async () => {
     mutatePanel.mockRejectedValue(new Error('boom'));
-    const { user } = renderWithProviders(
-      <AdminDebugSettingsSection lng="en" />
-    );
+    const { user } = renderWithProviders(<AdminDebugSettingsSection lng="en" />);
     await user.click(screen.getByRole('switch', { name: PANEL_SWITCH }));
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('settings.admin.debug.error'));
     expect(setPanel).not.toHaveBeenCalled();
@@ -143,9 +137,7 @@ describe('AdminDebugSettingsSection — debug panel switch', () => {
 
 describe('AdminDebugSettingsSection — user access switch', () => {
   it('opens access to end users through its own endpoint', async () => {
-    const { user } = renderWithProviders(
-      <AdminDebugSettingsSection lng="en" />
-    );
+    const { user } = renderWithProviders(<AdminDebugSettingsSection lng="en" />);
     await user.click(screen.getByRole('switch', { name: ACCESS_SWITCH }));
     await waitFor(() =>
       expect(mutateAccess).toHaveBeenCalledWith(ACCESS_ENDPOINT, { available: true })
@@ -160,9 +152,7 @@ describe('AdminDebugSettingsSection — user access switch', () => {
 
   it('reports a failed access update', async () => {
     mutateAccess.mockRejectedValue(new Error('boom'));
-    const { user } = renderWithProviders(
-      <AdminDebugSettingsSection lng="en" />
-    );
+    const { user } = renderWithProviders(<AdminDebugSettingsSection lng="en" />);
     await user.click(screen.getByRole('switch', { name: ACCESS_SWITCH }));
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('settings.admin.debug.error'));
     expect(setAccess).not.toHaveBeenCalled();

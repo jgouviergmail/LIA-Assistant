@@ -417,6 +417,30 @@
       "role": "La API posee la conexión Simli bajo un arrendamiento Redis: ticket de un solo uso, token cifrado, señalización y PCM retransmitidos, parada verificada y presencia limitada. El navegador elige una salida audible y conserva la posición preferida al abrir el teclado móvil. La validación de medios y dispositivos reales sigue pendiente.",
       "stack": ["Simli Compose", "WebRTC", "Web Audio", "AudioWorklet", "Redis"],
       "src": "36a9b358e3f7"
+    },
+    "t.application": {
+      "name": "Órdenes de aplicación duraderas",
+      "role": "Las operaciones tipadas pasan por la autorización actual y el control de efectos. Una orden cifrada vincula actor, contenido canónico, digest, origen, caducidad y claim; los servicios de origen conservan sus controles compare-and-set. Las continuaciones privadas vuelven al navegador autenticado. Solo un resultado explícitamente committed constituye un éxito completado.",
+      "stack": [
+        "Declaraciones tipadas / Pydantic",
+        "Contenido PostgreSQL cifrado",
+        "Claims protegidos por token",
+        "Continuaciones del navegador",
+        "SSE y consultas autenticadas"
+      ],
+      "src": "449fae9ab504"
+    },
+    "t.nativeavatar": {
+      "name": "Rig y volumen de los compañeros nativos",
+      "role": "El mismo rig dirige rostro, cuerpo y accesorios. Una malla acotada derivada del alfa aporta volumen aproximado al dibujo frontal; las capas faciales siguen proyectadas en DOM/SVG y la bufanda se compone delante. Visibilidad, movimiento reducido y disponibilidad gobiernan recursos y alternativa fija. Una campaña opcional en tiempo de ejecución selecciona BIP por origen del navegador, sin columna de avatar en la cuenta.",
+      "stack": [
+        "React / DOM / SVG",
+        "Rig nativo compartido",
+        "WebGL acotado",
+        "Arte offline",
+        "Preferencias locales del navegador"
+      ],
+      "src": "42c09ed2a4e1"
     }
   },
   "flows": {
@@ -506,6 +530,21 @@
         "LIA reúne las pruebas del incidente y lo diagnostica."
       ],
       "src": "e31d7b94f863"
+    },
+    "tflow.application": {
+      "name": "Ejecutar una orden de aplicación",
+      "summary": "Identidad duradera y condiciones actuales; una continuación abierta sigue pendiente.",
+      "steps": [
+        "El cliente usa el catálogo de operaciones ofrecido a esta cuenta.",
+        "La declaración fija operación, esquema, alcance y capacidades requeridas.",
+        "La preparación vincula valores anteriores y posteriores, digest, actor, origen y caducidad en una orden cifrada.",
+        "El control de efectos verifica la aprobación exacta cuando la operación la requiere.",
+        "La ejecución vuelve a leer permisos y capacidades; el claim protegido por token y el compare-and-set del servicio de origen protegen sus respectivas fronteras.",
+        "Una continuación privada queda vinculada a la sesión y, si procede, al dispositivo indicado; los secretos quedan fuera del modelo.",
+        "Committed, waiting, conflicto, fallo y cancelación siguen separados; una respuesta perdida no se vuelve a ejecutar automáticamente.",
+        "Una señal dirigida invalida los recursos afectados; el cliente repite sus consultas autenticadas."
+      ],
+      "src": "61654a82d651"
     }
   }
 }

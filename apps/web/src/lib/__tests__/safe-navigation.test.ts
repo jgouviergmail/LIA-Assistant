@@ -185,9 +185,7 @@ describe('navigateToAuthorizationUrl — inside a native shell', () => {
     navigateToAuthorizationUrl('https://accounts.google.com/o/oauth2/v2/auth', 'oauth-gmail');
 
     // Better a flow the provider may refuse than a button that does nothing.
-    await vi.waitFor(() =>
-      expect(assigned).toBe('https://accounts.google.com/o/oauth2/v2/auth')
-    );
+    await vi.waitFor(() => expect(assigned).toBe('https://accounts.google.com/o/oauth2/v2/auth'));
   });
 
   it('falls back when the shell call itself fails', async () => {
@@ -195,9 +193,7 @@ describe('navigateToAuthorizationUrl — inside a native shell', () => {
 
     navigateToAuthorizationUrl('https://accounts.google.com/o/oauth2/v2/auth', 'oauth-gmail');
 
-    await vi.waitFor(() =>
-      expect(assigned).toBe('https://accounts.google.com/o/oauth2/v2/auth')
-    );
+    await vi.waitFor(() => expect(assigned).toBe('https://accounts.google.com/o/oauth2/v2/auth'));
   });
 
   it('still refuses an unsafe URL before the shell ever sees it', () => {

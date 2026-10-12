@@ -92,9 +92,15 @@ export function PsycheHistory({ lng, isOpen }: PsycheHistoryProps) {
 
   const { data, loading, refetch, ownerId } = useApplicationAccountQuery<PsycheHistoryEntry[]>(
     `/psyche/history?limit=${RANGE_LIMITS[activeRange]}&hours=${RANGE_HOURS[activeRange]}`,
-    'PsycheHistory', isOpen
+    'PsycheHistory',
+    isOpen
   );
-  useApplicationResourceSync(isOpen ? ownerId : undefined, 'psyche', refetch, releaseHistoryOverride);
+  useApplicationResourceSync(
+    isOpen ? ownerId : undefined,
+    'psyche',
+    refetch,
+    releaseHistoryOverride
+  );
 
   // Extract reset markers (vertical reference lines on charts)
   const resetMarkers = useMemo(() => {

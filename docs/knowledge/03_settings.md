@@ -691,9 +691,7 @@ Advertising, sponsorships, deals and purchase pitches are filtered. Genuine invo
 
 ## Can an administrator enable JEV decisions?
 
-In **Settings › Administration › JEV integrations**, enable each bounded use and then the general switch. All start off and require a provider key, model and price. Two uses can detect a reference needing a memory lookup and an unambiguous refusal of the **whole** proposed action.
-
-The decision uses the exact authorised registry snapshot and the operation's frozen prices. An uncertain or unavailable answer falls back to the existing process; a paid attempt and its fallback both count. Debug shows what ran. JEV cannot grant access, approve an action or turn a partial refusal into permission.
+JEV decisions are configured under Administration › JEV integrations, with a general switch and independent usages. They are optional and off by default, and require valid configuration and prices. The model helps classify a value or choose within a declared scope, while compatibility rules, permissions and execution stay in code. Uncertain, unavailable or disabled judgments fall back to deterministic protections. Diagnostics are opt-in and bounded; parameter_kind is off by default. A paid failed call and its fallback both count. Test-corpus results do not promise the same benefit on all your requests.
 
 ## Can I make the interface text bigger or smaller?
 Yes. In **Settings › Preferences › Personalization**, the **Font size** section
@@ -707,3 +705,15 @@ what you read grows or shrinks.
 **🔄 On all your devices:** the choice is saved on your account and applies
 wherever you sign in. It combines with the font chosen in the section just
 above.
+
+## Can I ask LIA to change its own settings?
+
+Yes. Try “Which response mode is active?”, “Switch my answers to HTML + cards” or “Show my routines”. LIA uses the same settings and labels as the interface, within the features available on your instance and authorised for your account. Reads and some small reversible preferences may be direct. Creating, deleting or making a sensitive change retains its confirmation.
+
+## When do I confirm or continue in the browser?
+
+Confirmation applies to the operation and content shown. OAuth sign-in, file selection, a key or device permission continue in your authenticated browser: do not paste these secrets into chat. LIA may prepare the request and wait for that step. Enabling hands-free listening and sensitive permissions retain their protections; a command cannot bypass them.
+
+## How does an animated companion differ from a personality?
+
+The companion is the visual style you choose: BIP and the other native designs are original. Expressions follow activity and the answer’s tone. Personality controls the way LIA converses; it is not an avatar. Native companion volume and rotation use prepared elements and a shared rig; hidden geometry remains an approximation. Animation needs no image-generation call, and reduced or static display remains available.

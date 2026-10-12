@@ -9,13 +9,7 @@
 
 import React from 'react';
 import { ShieldCheck } from 'lucide-react';
-import {
-  DebugChip,
-  DebugSection,
-  EmptySection,
-  MetricRow,
-  SubSectionHeader,
-} from '../shared';
+import { DebugChip, DebugSection, EmptySection, MetricRow, SubSectionHeader } from '../shared';
 import { formatPercent } from '../../utils/formatters';
 import type { DebugTone } from '../../utils/tones';
 import type { SemanticValidationMetrics } from '@/types/chat';
@@ -74,12 +68,13 @@ export const SemanticValidatorSection = React.memo(function SemanticValidatorSec
         <SubSectionHeader label="Verdict" />
         <MetricRow label="Valid" value={data.is_valid} highlight />
         <MetricRow label="Confidence" value={formatPercent(data.confidence)} highlight />
-        <MetricRow label="Duration" value={`${data.validation_duration_seconds.toFixed(2)}s`} mono />
+        <MetricRow
+          label="Duration"
+          value={`${data.validation_duration_seconds.toFixed(2)}s`}
+          mono
+        />
         {data.used_fallback && (
-          <MetricRow
-            label="Fallback"
-            value={data.fallback_reason ?? 'timeout (optimistic pass)'}
-          />
+          <MetricRow label="Fallback" value={data.fallback_reason ?? 'timeout (optimistic pass)'} />
         )}
       </div>
 

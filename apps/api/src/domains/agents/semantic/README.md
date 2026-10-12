@@ -118,12 +118,9 @@ added. Evidence entities are derived in the query analyzer (STEP 3) from:
 ### Runtime Parameter Guard
 
 ```python
-from src.domains.agents.semantic.param_guard import (
-    check_semantic_params,
-    collect_resolved_person_names,
-)
+from src.domains.agents.semantic.param_guard import check_semantic_params, turn_person_names
 
-names = collect_resolved_person_names({"my brother": "Marc Lemoine"})
+names = turn_person_names(state)  # names a producer declared — never places, dates, addresses
 violation = check_semantic_params("get_route_tool", {"destination": "Marc Lemoine"}, names)
 # violation.llm_message() → recoverable error guiding the LLM to fetch the
 # contact's address first. Wired in the parallel executor (pipeline) and

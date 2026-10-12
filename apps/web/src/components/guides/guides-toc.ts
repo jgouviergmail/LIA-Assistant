@@ -124,6 +124,7 @@ export const HOW_TOC_SECTIONS: readonly GuideTocSection[] = [
   { id: 'process_anatomy', icon: MemoryStick },
   { id: 'live_mode', icon: AudioLines },
   { id: 'cards', icon: LayoutTemplate },
+  { id: 'application_commands', icon: SlidersHorizontal },
   { id: 'conclusion', icon: Flag },
 ] as const;
 

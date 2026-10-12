@@ -49,9 +49,7 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, options?: { defaultValue?: string; value?: string }) => {
       const template = dictionary[key] ?? options?.defaultValue ?? key;
-      return options?.value === undefined
-        ? template
-        : template.replace('{{value}}', options.value);
+      return options?.value === undefined ? template : template.replace('{{value}}', options.value);
     },
     i18n: { language: 'en' },
   }),

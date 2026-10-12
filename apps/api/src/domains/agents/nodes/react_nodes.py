@@ -216,7 +216,7 @@ async def react_setup_node(
     system_prompt = await build_bound_system_prompt(state, tool_names)
 
     # Context blocks, in injection ORDER (react_context.build_setup_blocks).
-    setup_blocks = await react_context.build_setup_blocks(state, config, intelligence)
+    setup_blocks = await react_context.build_setup_blocks(state, config)
     system_blocks: list[str] = [system_prompt, *setup_blocks.blocks]
 
     duration_ms = int((time.monotonic() - start_time) * 1000)

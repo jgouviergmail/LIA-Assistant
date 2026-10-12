@@ -7,11 +7,7 @@ import {
   FONT_STORAGE_KEY,
   fontSizeScale,
 } from '@/constants/fonts';
-import {
-  COLOR_THEMES,
-  COLOR_THEME_STORAGE_KEY,
-  DEFAULT_COLOR_THEME,
-} from '@/lib/color-themes';
+import { COLOR_THEMES, COLOR_THEME_STORAGE_KEY, DEFAULT_COLOR_THEME } from '@/lib/color-themes';
 import { OLED_STORAGE_KEY } from '@/lib/theme-mode';
 
 /**
@@ -43,7 +39,9 @@ export function ThemeInitScript() {
   const accents = COLOR_THEMES.filter(t => t !== DEFAULT_COLOR_THEME);
   const families = FONT_FAMILY_NAMES.filter(f => f !== DEFAULT_FONT_FAMILY);
   // Stored value -> text scale factor, precomputed: the script only looks up.
-  const sizes = Object.fromEntries(FONT_SIZE_STEPS.map(px => [String(px), String(fontSizeScale(px))]));
+  const sizes = Object.fromEntries(
+    FONT_SIZE_STEPS.map(px => [String(px), String(fontSizeScale(px))])
+  );
   const script = `(function(){try{var d=document.documentElement;
 if(localStorage.getItem(${JSON.stringify(OLED_STORAGE_KEY)})==='1')d.setAttribute('data-oled','');
 var c=localStorage.getItem(${JSON.stringify(COLOR_THEME_STORAGE_KEY)});

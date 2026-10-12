@@ -6,13 +6,7 @@
 
 import React from 'react';
 import { Globe } from 'lucide-react';
-import {
-  DebugChip,
-  DebugSection,
-  EmptySection,
-  MetricRow,
-  SubSectionHeader,
-} from '../shared';
+import { DebugChip, DebugSection, EmptySection, MetricRow, SubSectionHeader } from '../shared';
 import { formatCost } from '../../utils/formatters';
 import { TONE_TEXT } from '../../utils/tones';
 import { cn } from '@/lib/utils';

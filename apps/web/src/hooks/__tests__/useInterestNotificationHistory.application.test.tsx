@@ -7,7 +7,19 @@ vi.mock('@/lib/api-client', () => ({ default: { get } }));
 vi.mock('@/hooks/useAuth', () => ({ useAuth }));
 import { useInterestNotificationHistory } from '../useInterestNotificationHistory';
 
-const saved = { total: 1, notifications: [{ id: 'notice', topic: 'Old topic', content: 'Delivered message', source: 'llm', user_feedback: null, created_at: '2026-10-08T12:00:00Z' }] };
+const saved = {
+  total: 1,
+  notifications: [
+    {
+      id: 'notice',
+      topic: 'Old topic',
+      content: 'Delivered message',
+      source: 'llm',
+      user_feedback: null,
+      created_at: '2026-10-08T12:00:00Z',
+    },
+  ],
+};
 beforeEach(() => {
   vi.resetAllMocks();
   useAuth.mockReturnValue({ user: { id: 'one' } });
@@ -21,7 +33,10 @@ describe('interest history follows current account management', () => {
     get.mockClear();
     act(() => publishApplicationResources('foreign', new Set(['interests'])));
     expect(get).not.toHaveBeenCalled();
-    get.mockResolvedValue({ ...saved, notifications: [{ ...saved.notifications[0], topic: null }] });
+    get.mockResolvedValue({
+      ...saved,
+      notifications: [{ ...saved.notifications[0], topic: null }],
+    });
     act(() => publishApplicationResources('one', new Set(['interests'])));
     await waitFor(() => expect(result.current.notifications?.[0]?.topic).toBeNull());
     expect(result.current.notifications?.[0]?.content).toBe('Delivered message');
@@ -40,7 +55,9 @@ describe('interest history follows current account management', () => {
     expect(result.current.total).toBe(0);
     await waitFor(() => expect(get).toHaveBeenCalled());
     get.mockClear();
-    await act(async () => { await retired(); });
+    await act(async () => {
+      await retired();
+    });
     expect(get).not.toHaveBeenCalled();
   });
 

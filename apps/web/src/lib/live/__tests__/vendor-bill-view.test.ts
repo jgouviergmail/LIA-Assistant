@@ -23,7 +23,9 @@ describe('describeVendorBill', () => {
   it('the brand, the total in USD, the shares with their models, the duration', () => {
     const line = describeVendorBill(BILL, t, 'fr');
     expect(line).toContain('live.vendor_bill.total(ElevenLabs,0,1234 $)');
-    expect(line).toContain('live.vendor_bill.shares(4,8,gemini-3.6-flash,eleven_v3_conversational)');
+    expect(line).toContain(
+      'live.vendor_bill.shares(4,8,gemini-3.6-flash,eleven_v3_conversational)'
+    );
     expect(line).toContain('live.vendor_bill.duration(95)');
   });
 

@@ -210,9 +210,7 @@ describe('where the explanation is offered', () => {
     // Same owner call as the provenance block: six coefficients and four dates
     // are more than a phone should spend on an interest the reader is only
     // scrolling past.
-    const { container } = renderWithProviders(
-      <InterestExplanation interestId="abc" locale="fr" />
-    );
+    const { container } = renderWithProviders(<InterestExplanation interestId="abc" locale="fr" />);
 
     const root = container.querySelector('details');
     expect(root).toHaveClass('hidden');

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { MCP_OAUTH_TOAST, resolveMcpOAuthOutcome, resumeApplicationMCPOAuthReturn } from '../mcp-oauth-callback';
+import {
+  MCP_OAUTH_TOAST,
+  resolveMcpOAuthOutcome,
+  resumeApplicationMCPOAuthReturn,
+} from '../mcp-oauth-callback';
 import { vi } from 'vitest';
 
 describe('resolveMcpOAuthOutcome', () => {
@@ -14,7 +18,9 @@ describe('resolveMcpOAuthOutcome', () => {
       resumeApplicationMCPOAuthReturn('pending', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
       expect(replace).toHaveBeenCalledOnce();
       expect(replace).toHaveBeenCalledWith('/dashboard/chat');
-    } finally { vi.unstubAllGlobals(); }
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
   it('returns null when the parameter is absent', () => {
     expect(resolveMcpOAuthOutcome(null)).toBeNull();

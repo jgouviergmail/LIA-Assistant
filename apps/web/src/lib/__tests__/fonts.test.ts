@@ -37,9 +37,7 @@ describe('self-hosted fonts contract', () => {
     // Match the import form only — prose MENTIONS of the module id (this
     // guard, the fonts.ts docstring explaining the remediation) are fine.
     const importForm = /from ['"]next\/font\/google['"]/;
-    const offenders = walk(SRC_ROOT).filter(file =>
-      importForm.test(readFileSync(file, 'utf-8'))
-    );
+    const offenders = walk(SRC_ROOT).filter(file => importForm.test(readFileSync(file, 'utf-8')));
     expect(offenders).toEqual([]);
   });
 

@@ -104,12 +104,8 @@ describe('backdropStars', () => {
 describe('the chart paints itself with tokens that are in scope', () => {
   const root = join(__dirname, '..', '..', '..');
   const css = readFileSync(join(root, 'styles', 'globals.css'), 'utf8');
-  const sources = [
-    'CapabilityConstellation.tsx',
-    'ConstellationSky.tsx',
-    'CapabilityList.tsx',
-  ].map(name =>
-    readFileSync(join(root, 'components', 'capabilities', name), 'utf8')
+  const sources = ['CapabilityConstellation.tsx', 'ConstellationSky.tsx', 'CapabilityList.tsx'].map(
+    name => readFileSync(join(root, 'components', 'capabilities', name), 'utf8')
   );
   // The chart's own stylesheet block, plus every `var()` its markup reads.
   const styleBlock = css.slice(css.indexOf('.capability-'));
@@ -173,9 +169,7 @@ describe('a capability with no tally is never given one', () => {
   // `personality` and `proactivity` are switches, and `detail ?? 0` turned
   // "no tally" into "0 item(s)" — an active capability reading as empty.
   const t = ((key: string, opts?: Record<string, unknown>) =>
-    opts ? `${key}|${JSON.stringify(opts)}` : key) as unknown as Parameters<
-    typeof activeLabel
-  >[0];
+    opts ? `${key}|${JSON.stringify(opts)}` : key) as unknown as Parameters<typeof activeLabel>[0];
 
   it('says plain "active" in the list when there is nothing to count', () => {
     expect(activeLabel(t, { key: 'personality', active: true, detail: null })).toBe(

@@ -84,27 +84,30 @@ describe('shipped wake-word models', () => {
     }
   });
 
-  it.each(WAKE_SHIPPED_LANGUAGES)('%s: its bench verdict matches its status, with provenance', language => {
-    const { measured, provenance, commands } = raw(language) as {
-      measured: { verdict: string };
-      provenance: Record<string, unknown>;
-      commands: { stop: { measured: { verdict: string } } };
-    };
-    // A stable model passed the bench, phrase AND stop word; a beta one has
-    // not yet — the day both say `go`, the table must say `stable`.
-    const passed = measured.verdict === 'go' && commands.stop.measured.verdict === 'go';
-    expect(['go', 'no-go']).toContain(measured.verdict);
-    expect(['go', 'no-go']).toContain(commands.stop.measured.verdict);
-    expect(WAKE_MODEL_STATUS[language]).toBe(passed ? 'stable' : 'beta');
-    expect(provenance.generator).toBe('scripts/wake-word');
-    expect(provenance.sources_lock_sha256).toMatch(/^[0-9a-f]{64}$/);
-    for (const key of ['voices', 'synthesisers', 'corpora']) {
-      const entries = provenance[key] as string[];
-      expect(entries.length, key).toBeGreaterThan(0);
-      // Every input names the licence it is used under.
-      for (const entry of entries) expect(entry, key).toMatch(/\(.*\)/);
+  it.each(WAKE_SHIPPED_LANGUAGES)(
+    '%s: its bench verdict matches its status, with provenance',
+    language => {
+      const { measured, provenance, commands } = raw(language) as {
+        measured: { verdict: string };
+        provenance: Record<string, unknown>;
+        commands: { stop: { measured: { verdict: string } } };
+      };
+      // A stable model passed the bench, phrase AND stop word; a beta one has
+      // not yet — the day both say `go`, the table must say `stable`.
+      const passed = measured.verdict === 'go' && commands.stop.measured.verdict === 'go';
+      expect(['go', 'no-go']).toContain(measured.verdict);
+      expect(['go', 'no-go']).toContain(commands.stop.measured.verdict);
+      expect(WAKE_MODEL_STATUS[language]).toBe(passed ? 'stable' : 'beta');
+      expect(provenance.generator).toBe('scripts/wake-word');
+      expect(provenance.sources_lock_sha256).toMatch(/^[0-9a-f]{64}$/);
+      for (const key of ['voices', 'synthesisers', 'corpora']) {
+        const entries = provenance[key] as string[];
+        expect(entries.length, key).toBeGreaterThan(0);
+        // Every input names the licence it is used under.
+        for (const entry of entries) expect(entry, key).toMatch(/\(.*\)/);
+      }
     }
-  });
+  );
 
   it('ships no file that no manifest names', () => {
     const named = new Set(

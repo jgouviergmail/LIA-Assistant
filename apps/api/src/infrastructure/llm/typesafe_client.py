@@ -1,19 +1,25 @@
-"""Native TypeSafe Choice transport; no chat emulation and no implicit retries.
+"""Native TypeSafe transport (Choice and Noul); no chat emulation and no implicit retries.
 
 The caller owns HTTP resources, policy, accounting and the fallback. A malformed
 answer retains valid usage so paid attempts are still recorded before fallback.
 Provider response bodies and credentials never appear in raised errors.
+
+Instructions and criteria may be plain strings or structured JSON (a question and
+its rules, a criterion's ``what``/``not_for``/``examples``), as the documented
+request accepts. A Noul answers whether a condition holds with ONE probability and
+no separate confidence; its answers travel apart from the Choice answers.
 """
 
 import asyncio
 import json
 import math
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 
 import httpx
-from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError, field_validator
 
 from src.infrastructure.utils.bounded_read import BodyTooLargeError, read_bounded
 
@@ -23,13 +29,87 @@ MAX_RESPONSE_BYTES = 131_072
 MAX_QUESTIONS = 24
 
 
+# Plain unions: an ``Annotated`` inside a union loses its metadata
+# (test_annotated_metadata_guard); emptiness is refused by ``_non_empty``.
+Criterion = str | dict[str, JsonValue] | list[JsonValue]
+Instructions = str | dict[str, JsonValue]
+
+
+def _non_empty[T: Criterion](value: T) -> T:
+    """An empty instruction or criterion tells the model nothing; refuse it."""
+    if not value:
+        raise ValueError("must not be empty")
+    return value
+
+
+def _fill(value: JsonValue, values: Mapping[str, str]) -> JsonValue:
+    """Fill ``{name}`` placeholders in every string of an instructions tree."""
+    if isinstance(value, str):
+        return value.format(**values)
+    if isinstance(value, list):
+        return [_fill(item, values) for item in value]
+    if isinstance(value, dict):
+        return {key: _fill(item, values) for key, item in value.items()}
+    return value
+
+
 class ChoiceQuestion(BaseModel):
     """One bounded choice, with fully described candidate values."""
 
     model_config = ConfigDict(strict=True, extra="forbid", frozen=True)
     type: Literal["choice"] = Field(default="choice", description="Native primitive.")
-    instructions: str = Field(min_length=1, description="The judgment to make.")
-    criteria: dict[str, str] = Field(min_length=2, max_length=255, description="Allowed answers.")
+    instructions: Instructions = Field(description="The judgment to make.")
+    criteria: dict[str, Criterion] = Field(
+        min_length=2, max_length=255, description="Allowed answers, in the order offered."
+    )
+
+    @field_validator("instructions")
+    @classmethod
+    def _instructions_said(cls, value: Instructions) -> Instructions:
+        return _non_empty(value)
+
+    @field_validator("criteria")
+    @classmethod
+    def _criteria_said(cls, value: dict[str, Criterion]) -> dict[str, Criterion]:
+        return {key: _non_empty(criterion) for key, criterion in value.items()}
+
+    def filled(self, **values: str) -> Self:
+        """A copy whose instructions name one state member (``items.{item_key}``)."""
+        return self.model_copy(update={"instructions": _fill(self.instructions, values)})
+
+
+class NoulCriteria(BaseModel):
+    """What makes the condition true and what makes it false."""
+
+    model_config = ConfigDict(strict=True, extra="forbid", frozen=True)
+    true: Criterion = Field(description="When the condition holds.")
+    false: Criterion = Field(description="When it does not.")
+
+    @field_validator("true", "false")
+    @classmethod
+    def _outcome_said(cls, value: Criterion) -> Criterion:
+        return _non_empty(value)
+
+
+class NoulQuestion(BaseModel):
+    """Whether one condition holds; answered by a single probability."""
+
+    model_config = ConfigDict(strict=True, extra="forbid", frozen=True)
+    type: Literal["noul"] = Field(default="noul", description="Native primitive.")
+    instructions: Instructions = Field(description="The condition to judge.")
+    criteria: NoulCriteria = Field(description="The two outcomes.")
+
+    @field_validator("instructions")
+    @classmethod
+    def _instructions_said(cls, value: Instructions) -> Instructions:
+        return _non_empty(value)
+
+    def filled(self, **values: str) -> Self:
+        """A copy whose instructions name one state member (``script.{line_key}``)."""
+        return self.model_copy(update={"instructions": _fill(self.instructions, values)})
+
+
+DecisionQuestion = ChoiceQuestion | NoulQuestion
 
 
 class DecisionUsage(BaseModel):
@@ -65,6 +145,14 @@ class ChoiceAnswer(BaseModel):
     probabilities: dict[str, Probability] = Field(description="Candidate distribution.")
 
 
+class NoulAnswer(BaseModel):
+    """The probability that the condition holds; there is no separate confidence."""
+
+    model_config = ConfigDict(strict=True, frozen=True)
+    type: Literal["noul"] = Field(description="Returned primitive.")
+    noul: Probability = Field(description="Probability that the condition holds.")
+
+
 class _UsageEnvelope(BaseModel):
     model_config = ConfigDict(strict=True)
     usage: DecisionUsage = Field(description="Actual token counters.")
@@ -86,11 +174,16 @@ class ChoiceResult:
 
 @dataclass(frozen=True)
 class ChoiceBatchResult:
-    """Independent answers sharing one provider usage, never one charge per answer."""
+    """Independent answers sharing one provider usage, never one charge per answer.
+
+    ``answers`` holds the Choice answers and ``nouls`` the Noul answers; together
+    they cover exactly the questions sent.
+    """
 
     model: str
     answers: dict[str, ChoiceAnswer]
     usage: DecisionUsage
+    nouls: dict[str, NoulAnswer] = field(default_factory=dict)
 
 
 class TypeSafeError(Exception):
@@ -152,7 +245,7 @@ def _transport_failure(code: str, raw: bytes | None) -> TypeSafeError:
     return TypeSafeError(code, usage=usage, model=model)
 
 
-def _validate_questions(questions: dict[str, ChoiceQuestion]) -> None:
+def _validate_questions(questions: Mapping[str, DecisionQuestion]) -> None:
     if not 1 <= len(questions) <= MAX_QUESTIONS or any(
         not key or len(key) > 100 for key in questions
     ):
@@ -189,20 +282,30 @@ def _parse_answer(value: JsonValue, question: ChoiceQuestion) -> ChoiceAnswer:
     return answer.model_copy(update={"confidence": min(answer.confidence, concentration)})
 
 
-def _parse_batch(raw: bytes, questions: dict[str, ChoiceQuestion]) -> ChoiceBatchResult:
+def _parse_noul(value: JsonValue) -> NoulAnswer:
+    try:
+        return NoulAnswer.model_validate(value)
+    except ValidationError:
+        raise TypeSafeError("invalid_response", reason="answer_schema") from None
+
+
+def _parse_batch(raw: bytes, questions: Mapping[str, DecisionQuestion]) -> ChoiceBatchResult:
     envelope = _parse_envelope(raw)
     try:
         if not isinstance(envelope.answers, dict) or set(envelope.answers) != set(questions):
             raise TypeSafeError("invalid_response", reason="answer_set")
-        answers = {
-            key: _parse_answer(envelope.answers[key], question)
-            for key, question in questions.items()
-        }
+        answers: dict[str, ChoiceAnswer] = {}
+        nouls: dict[str, NoulAnswer] = {}
+        for key, question in questions.items():
+            if isinstance(question, NoulQuestion):
+                nouls[key] = _parse_noul(envelope.answers[key])
+            else:
+                answers[key] = _parse_answer(envelope.answers[key], question)
     except TypeSafeError as exc:
         raise TypeSafeError(
             "invalid_response", usage=envelope.usage, model=envelope.model, reason=exc.reason
         ) from None
-    return ChoiceBatchResult(envelope.model, answers, envelope.usage)
+    return ChoiceBatchResult(envelope.model, answers, envelope.usage, nouls)
 
 
 class TypeSafeClient:
@@ -229,7 +332,7 @@ class TypeSafeClient:
         *,
         model: str,
         state: JsonValue,
-        questions: dict[str, ChoiceQuestion],
+        questions: Mapping[str, DecisionQuestion],
         timeout_seconds: float,
     ) -> ChoiceBatchResult:
         """Evaluate independent questions once, atomically validating the answer set."""
@@ -269,7 +372,9 @@ class TypeSafeClient:
         return _parse_batch(raw, questions)
 
 
-def _encode_request(model: str, state: JsonValue, questions: dict[str, ChoiceQuestion]) -> bytes:
+def _encode_request(
+    model: str, state: JsonValue, questions: Mapping[str, DecisionQuestion]
+) -> bytes:
     """Reject malformed state before HTTP; do not leak its values in exceptions."""
     try:
         body = json.dumps(

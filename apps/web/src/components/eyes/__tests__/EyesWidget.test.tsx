@@ -307,6 +307,25 @@ describe('EyesWidget — chrome & preferences', () => {
 });
 
 describe('EyesWidget — the landing surface', () => {
+  it.each([14, 23, 3])('keeps BIP awake at %i h through every inactivity stage', hour => {
+    const now = new Date('2026-08-20T14:00:00');
+    now.setHours(hour);
+    vi.setSystemTime(now);
+    renderWidget({ surface: 'landing', styleId: 'bip', size: 'xl', variant: 'male' });
+    const mountedAt = Date.now();
+    for (const elapsed of [
+      0,
+      INACTIVITY_DROWSY_MS,
+      INACTIVITY_SLEEPY_MS,
+      INACTIVITY_ASLEEP_MS,
+      24 * 60 * 60 * 1000,
+    ]) {
+      observeInactivityAt(mountedAt + elapsed);
+      expect(eyesRoot().dataset.expression).toBe('neutral');
+      expect(document.querySelector('.lia-emote')?.textContent).not.toBe('z');
+    }
+  });
+
   function renderOnLanding(): ReturnType<typeof render> {
     const result = render(
       <EyesWidget surface="landing" chatStatus="idle" streamPhase="answer" hitlAwaiting={false} />

@@ -282,9 +282,7 @@ describe('EffectsJournal — the reading it was given', () => {
     // stayed green.
     render(<EffectsJournal lng="en" origin="mine" />);
 
-    expect(
-      screen.getByRole('group', { name: 'Export the register' })
-    ).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Export the register' })).toBeInTheDocument();
   });
 
   it('withholds the export from a filtered reading', () => {
@@ -292,8 +290,6 @@ describe('EffectsJournal — the reading it was given', () => {
     // where a person came to see a SUBSET would say the opposite.
     render(<EffectsJournal lng="en" origin="initiative" />);
 
-    expect(
-      screen.queryByRole('group', { name: 'Export the register' })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Export the register' })).not.toBeInTheDocument();
   });
 });

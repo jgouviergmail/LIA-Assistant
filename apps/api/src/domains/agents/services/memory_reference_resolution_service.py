@@ -70,8 +70,10 @@ class ResolvedReferences:
     Attributes:
         original_query: User's original query (unchanged)
         enriched_query: Query with references replaced by resolved names
-        mappings: Dict mapping references to resolved names
-                  Example: {"my brother": "jean dupond"}
+        mappings: Dict mapping references to resolved values (a name, or an address
+                  for a location query). Example: {"my brother": "jean dupond"}
+        value_kinds: Dict mapping each reference to what its value is ("person_name",
+                  or "postal_address" for a location query — prompt rule 6).
 
     Usage:
         >>> result = ResolvedReferences(
@@ -86,10 +88,43 @@ class ResolvedReferences:
     original_query: str
     enriched_query: str
     mappings: dict[str, str] = field(default_factory=dict)
+    value_kinds: dict[str, str] = field(default_factory=dict)
 
     def has_resolutions(self) -> bool:
         """Check if any references were resolved."""
         return len(self.mappings) > 0
+
+
+def _string_mapping(raw: object) -> dict[str, str]:
+    """The string-to-string items of a mapping the model wrote; anything else dropped."""
+    if not isinstance(raw, dict):
+        return {}
+    return {
+        key: value for key, value in raw.items() if isinstance(key, str) and isinstance(value, str)
+    }
+
+
+def resolution_from_payload(parsed: object, query: str) -> ResolvedReferences:
+    """Read the model's decoded JSON field by field (ADR-120 amendment 2026-10-11).
+
+    A field of the wrong shape is dropped on its own; a payload that is not an
+    object resolves nothing and keeps the original query.
+
+    Args:
+        parsed: The decoded JSON.
+        query: The user's query (returned unchanged when nothing is usable).
+
+    Returns:
+        The resolution, with each mapping's declared kind.
+    """
+    payload = parsed if isinstance(parsed, dict) else {}
+    resolved_query = payload.get("resolved_query")
+    return ResolvedReferences(
+        original_query=query,
+        enriched_query=resolved_query if isinstance(resolved_query, str) else query,
+        mappings=_string_mapping(payload.get("mappings")),
+        value_kinds=_string_mapping(payload.get("kinds")),
+    )
 
 
 # =============================================================================
@@ -362,20 +397,7 @@ class MemoryReferenceResolutionService:
                     response = response[4:]
                 response = response.strip()
 
-            parsed = json.loads(response)
-
-            resolved_query = parsed.get("resolved_query", query)
-            mappings = parsed.get("mappings", {})
-
-            # Validate mappings is a dict
-            if not isinstance(mappings, dict):
-                mappings = {}
-
-            return ResolvedReferences(
-                original_query=query,
-                enriched_query=resolved_query,
-                mappings=mappings,
-            )
+            return resolution_from_payload(json.loads(response), query)
 
         except json.JSONDecodeError as e:
             logger.warning(

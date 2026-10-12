@@ -115,8 +115,14 @@ describe('useConversationSync — StrictMode', () => {
 
 describe('application interest feedback synchronization', () => {
   it('rereads once after an owned change and keeps the streaming turn untouched', async () => {
-    const updated = { ...row, metadata: { ...row.metadata, feedback_submitted: true, feedback_value: 'thumbs_down' } };
-    const opts = { ...options({ blocked: true, readNewestPage: vi.fn(async () => ({ messages: [updated] })) }), ownerId: 'owner-a' };
+    const updated = {
+      ...row,
+      metadata: { ...row.metadata, feedback_submitted: true, feedback_value: 'thumbs_down' },
+    };
+    const opts = {
+      ...options({ blocked: true, readNewestPage: vi.fn(async () => ({ messages: [updated] })) }),
+      ownerId: 'owner-a',
+    };
     const { rerender } = renderHook(props => useConversationSync(props), { initialProps: opts });
     act(() => publishApplicationResources('owner-a', new Set(['interests'])));
     expect(opts.readNewestPage).not.toHaveBeenCalled();
@@ -137,8 +143,20 @@ describe('application interest feedback synchronization', () => {
 
   it('discards an in-flight page after the account changes', async () => {
     let resolve!: (page: { messages: Message[] }) => void;
-    const first = { ...options({ readNewestPage: vi.fn(() => new Promise<{ messages: Message[] }>(done => { resolve = done; })) }), ownerId: 'owner-a' };
-    const { result, rerender } = renderHook(props => useConversationSync(props), { initialProps: first });
+    const first = {
+      ...options({
+        readNewestPage: vi.fn(
+          () =>
+            new Promise<{ messages: Message[] }>(done => {
+              resolve = done;
+            })
+        ),
+      }),
+      ownerId: 'owner-a',
+    };
+    const { result, rerender } = renderHook(props => useConversationSync(props), {
+      initialProps: first,
+    });
     act(() => result.current.requestSync('signal'));
     const second = { ...options(), ownerId: 'owner-b' };
     rerender(second);

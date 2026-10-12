@@ -80,8 +80,9 @@ ONSET_LEAD_MS = 72.9
 # the media directory is served immutable for a year. Bump it with any change
 # to the functions below; the schema version inside the file is another thing
 # (``apps/web/src/lib/landing/beats-schema.ts``). History: 1 — first analysis;
-# 2 — ``ONSET_LEAD_MS`` and a sharper tracker (``alpha`` 8), 2026-10-01.
-BEAT_ANALYSIS_VERSION = 2
+# 2 — ``ONSET_LEAD_MS`` and a sharper tracker (``alpha`` 8), 2026-10-01;
+# 3 — only refine local peaks, never extrapolate a window edge, 2026-10-12.
+BEAT_ANALYSIS_VERSION = 3
 # The bar phase is voted LOCALLY, over this many beats on each side (8 bars).
 # A global `i % 4` was measured wrong on the shipped video (2026-10-01): the
 # tracker inserts or drops a beat in a breakdown, so the count from the start
@@ -482,8 +483,11 @@ def snap_and_weight(beats, env, low_env, fps: float, radius_ms: float = 30.0):
         if 0 < k < len(env) - 1:
             y0, y1, y2 = env[k - 1], env[k], env[k + 1]
             denom = y0 - 2 * y1 + y2
-            if denom < 0:
-                offset = 0.5 * (y0 - y2) / denom
+            if denom < 0 and y1 >= y0 and y1 >= y2:
+                # A boundary of the search window can still be a rising
+                # shoulder. Extrapolating it can jump past the recording and
+                # make the chronological guard discard every later beat.
+                offset = float(np.clip(0.5 * (y0 - y2) / denom, -0.5, 0.5))
         snapped.append((k + offset, float(env[k]), float(low_env[k])))
     strengths = np.array([s for _, s, _ in snapped])
     scale = np.percentile(strengths, 95) or 1.0

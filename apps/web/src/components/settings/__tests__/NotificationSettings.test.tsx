@@ -55,9 +55,7 @@ function fcm(over: Partial<UseFCMTokenReturn> = {}): UseFCMTokenReturn {
 }
 
 function renderNotifications() {
-  return renderWithProviders(
-    <NotificationSettings lng="en" />
-  );
+  return renderWithProviders(<NotificationSettings lng="en" />);
 }
 
 beforeEach(() => {
@@ -138,15 +136,24 @@ describe('NotificationSettings — enabling', () => {
 
 it('does not toast a completed removal into a different account', async () => {
   let finish: () => void = () => {};
-  const unregisterToken = vi.fn(() => new Promise<void>(done => { finish = done; }));
+  const unregisterToken = vi.fn(
+    () =>
+      new Promise<void>(done => {
+        finish = done;
+      })
+  );
   useFCMToken.mockReturnValue(fcm({ registeredTokens: [token()], unregisterToken }));
   const view = renderNotifications();
-  await view.user.click(screen.getByRole('button', { name: 'settings.notifications.remove_device_title' }));
+  await view.user.click(
+    screen.getByRole('button', { name: 'settings.notifications.remove_device_title' })
+  );
   await view.user.click(await screen.findByRole('button', { name: 'common.delete' }));
   await waitFor(() => expect(unregisterToken).toHaveBeenCalledOnce());
   useAuth.mockReturnValue({ user: { id: 'two' } });
   view.rerender(<NotificationSettings lng="en" />);
-  await act(async () => { finish(); });
+  await act(async () => {
+    finish();
+  });
   expect(toast.success).not.toHaveBeenCalled();
   expect(toast.error).not.toHaveBeenCalled();
 });

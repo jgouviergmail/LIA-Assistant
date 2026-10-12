@@ -4,7 +4,7 @@
 
 **Version**: 6.2
 **Datum**: 2026-10-04
-**Anwendung**: LIA v2.6.1
+**Anwendung**: LIA v3.0.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -107,6 +107,16 @@ Der Administrator hat Zugriff auf eine dritte Registerkarte zur Verwaltung der I
 ### 2.4. Ein Assistent, kein technisches Projekt
 
 Das Ziel von LIA ist nicht, dich zum Systemadministrator zu machen. Es geht darum, dir die Leistungsfähigkeit eines vollständigen KI-Assistenten zu bieten — **mit der Einfachheit einer verbraucherorientierten Anwendung**. Die Oberfläche lässt sich als native App auf Desktop, Tablet und Smartphone installieren (PWA), und alles ist so gestaltet, dass es im Alltag ohne technische Kenntnisse zugänglich ist.
+
+---
+
+### Einstellungen im Gespräch erreichen
+
+Ja. Frage zum Beispiel „Welcher Antwortmodus ist aktiv?“, „Stelle meine Antworten auf HTML + Karten um“ oder „Zeige meine Routinen“. LIA verwendet die Einstellungen und Bezeichnungen der Oberfläche, soweit deine Instanz und dein Konto sie erlauben. Abfragen und einige kleine, umkehrbare Einstellungen können direkt erfolgen. Erstellen, Löschen und sensible Änderungen behalten ihre Bestätigung.
+
+Die Bestätigung gilt für die angezeigte Operation und ihren Inhalt. OAuth-Anmeldung, Dateiauswahl, Schlüssel und Geräteberechtigungen werden in deinem authentifizierten Browser fortgesetzt: Füge diese Geheimnisse nicht in den Chat ein. LIA kann die Anfrage vorbereiten und auf diesen Schritt warten. Freihändiges Zuhören und sensible Berechtigungen behalten ihre Schutzmechanismen; ein Befehl umgeht sie nicht.
+
+Eine vorbereitete Anfrage, eine ausstehende Bestätigung und eine gespeicherte Änderung sind unterschiedliche Zustände. LIA nennt beobachtete Ergebnisse und unterscheidet Teilergebnisse, Warten, Konflikte, Ablauf und Fehler. Hat sich die Ressource seit der Vorbereitung geändert, kann der Befehl abgelehnt werden und eine neue Anfrage nötig sein. Eine Delegation an ein Werkzeug beweist allein nicht alle internen Auswirkungen.
 
 ---
 

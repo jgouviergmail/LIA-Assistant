@@ -23,12 +23,7 @@ def exclusion_questions(count: int) -> dict[str, ChoiceQuestion]:
         load_prompt("jev_hitl_exclusion_question", version="v1")
     )
     return {
-        **{
-            f"item_{i}": template.model_copy(
-                update={"instructions": template.instructions.format(item_key=f"item_{i}")}
-            )
-            for i in range(count)
-        },
+        **{f"item_{i}": template.filled(item_key=f"item_{i}") for i in range(count)},
         REFERENCE_SCOPE_KEY: ChoiceQuestion.model_validate_json(
             load_prompt("jev_hitl_reference_scope_question", version="v1")
         ),

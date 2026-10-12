@@ -1,0 +1,85 @@
+{
+  "status": "generated",
+  "startedAt": "2026-10-11T23:56:42.445189+00:00",
+  "provider": "Google Gemini API",
+  "model": "lyria-3.5",
+  "publishedGenerationPriceUsd": 0.08,
+  "invoiceVerified": false,
+  "pricingSource": "https://ai.google.dev/gemini-api/docs/pricing",
+  "paidGenerationAttempts": 1,
+  "humanRequestedTake": 2,
+  "automaticRetries": 0,
+  "credentialPersisted": false,
+  "finishedAt": "2026-10-11T23:57:29.028934+00:00",
+  "elapsedSeconds": 46.582,
+  "interactionId": null,
+  "requestHeaders": {
+    "date": "Sun, 11 Oct 2026 23:57:28 GMT"
+  },
+  "usage": {
+    "total_tokens": 3427,
+    "total_input_tokens": 968,
+    "input_tokens_by_modality": [
+      {
+        "modality": "text",
+        "tokens": 968
+      }
+    ],
+    "total_cached_tokens": 0,
+    "total_output_tokens": 2459,
+    "total_tool_use_tokens": 0,
+    "total_thought_tokens": 0,
+    "raw_prompt_token": 11377,
+    "model_invocation_token_counts": [
+      {}
+    ],
+    "non_grounding_model_invocation_token_counts": [
+      {}
+    ]
+  },
+  "providerRequestIdentifierAvailable": false,
+  "reportedMimeType": "audio/mpeg",
+  "sourceAudio": "lia-funk-original.mp3",
+  "sourceBytes": 3829822,
+  "sourceSha256": "0d31582a0292b21b2e8a0ab8d7306b0ce339e9386ce5b604b013773c019a1fa3",
+  "sourceAudioFormat": {
+    "codec_name": "mp3",
+    "sample_fmt": "fltp",
+    "sample_rate": "44100",
+    "channels": 2,
+    "bits_per_sample": 0,
+    "bit_rate": "192000"
+  },
+  "sourceDurationSeconds": 159.32075,
+  "generationGuide": "https://ai.google.dev/gemini-api/docs/music-generation",
+  "termsSource": "https://ai.google.dev/gemini-api/terms",
+  "termsQualification": "Google does not claim ownership of generated content; API terms apply. No Creative Commons licence or exclusive copyright is asserted.",
+  "instrumentalRequested": true,
+  "humanAudioAudition": false,
+  "structuralText": [
+    "[[A0]]\n[[B1]]\n[[C2]]\n[[D3]]\n[[E4]]"
+  ],
+  "providerRequestIdentifierNote": "No interaction id or provider request id was exposed in the recorded fields. store=false was requested; source SHA and dispatch timestamp identify the local take.",
+  "audioQualification": {
+    "workingDurationSeconds": 159.32,
+    "workingCodec": "pcm_s24le",
+    "workingSampleRate": 48000,
+    "workingChannels": 2,
+    "workingBitsPerSample": 24,
+    "integratedLufsBeforeDeliveryNormalization": -18.66,
+    "truePeakDbtpBeforeDeliveryNormalization": -5.76,
+    "loudnessRangeLu": 4.3,
+    "requestedTempoBpm": 134,
+    "measuredTempoWindowRangeBpm": [
+      123.0,
+      132.5
+    ],
+    "medianBeatIntervalMs": 468.0,
+    "beatCount": 341,
+    "onsetHitRate": 0.985,
+    "looped": false,
+    "humanAudioAudition": false,
+    "instrumentalContentManuallyVerified": false,
+    "firstTakePreserved": true
+  }
+}

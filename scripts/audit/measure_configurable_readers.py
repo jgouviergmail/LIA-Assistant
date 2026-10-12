@@ -13,7 +13,7 @@ has since been migrated.
 Only run-scoped keys are scanned. LangGraph plumbing (``thread_id``,
 ``checkpoint_ns``, ``run_id``) and node-local values a caller writes for its own
 callee (``node_name``, ``turn_id``, ``oauth_scopes``, ``resolved_person_names``,
-``__parent_thread_id``) legitimately live in ``configurable`` and are not context.
+``guard_request``, ``__parent_thread_id``) legitimately live in ``configurable`` and are not context.
 
 Usage (from apps/api/):
     python ../../scripts/audit/measure_configurable_readers.py            # report

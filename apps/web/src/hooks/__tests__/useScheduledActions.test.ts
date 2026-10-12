@@ -40,14 +40,12 @@ import {
   EXECUTING_REFRESH_INTERVAL_MS,
 } from '../useScheduledActions';
 import type {
-
   ScheduledActionListResponse,
   ScheduledActionWeekResponse,
 } from '@/hooks/useScheduledActions';
 
 const ENDPOINT = '/scheduled-actions';
 const WEEK_ENDPOINT = '/scheduled-actions/week';
-
 
 /** The five mutations, handed out in the fixed order the hook declares them. */
 const mutate = {
@@ -76,8 +74,8 @@ function weekPayload(): ScheduledActionWeekResponse {
             day: 1,
             date: '2026-07-20',
             slot_at: '2026-07-20T06:00:00Z',
-          hour: 8,
-          minute: 0,
+            hour: 8,
+            minute: 0,
             outcome: 'success',
             run_at: '2026-07-20T06:00:04Z',
             error: null,
@@ -110,7 +108,7 @@ function setupWith(
           loading: options.loading ?? false,
           setData,
           refetch,
-        }))
+        })),
   }));
   return renderHook(() => useScheduledActions());
 }
@@ -157,16 +155,16 @@ describe('useScheduledActions — creating', () => {
     title: 'Evening recap',
     action_prompt: 'Recap',
     recurrence: {
-          freq: 'weekly',
-          interval: 1,
-          anchor_date: '2026-01-05',
-          byweekday: [1],
-          bymonthday: [],
-          bymonth: [],
-          nth_weekday: null,
-          times: { mode: 'at', at: [{ hour: 8, minute: 0 }] },
-          end: { kind: 'never', on_date: null, after_count: null },
-        },
+      freq: 'weekly',
+      interval: 1,
+      anchor_date: '2026-01-05',
+      byweekday: [1],
+      bymonthday: [],
+      bymonth: [],
+      nth_weekday: null,
+      times: { mode: 'at', at: [{ hour: 8, minute: 0 }] },
+      end: { kind: 'never', on_date: null, after_count: null },
+    },
   };
 
   it('posts to the collection and appends the created row', async () => {
@@ -289,16 +287,16 @@ describe('useScheduledActions — updaters on an empty cache', () => {
           title: 't',
           action_prompt: 'p',
           recurrence: {
-          freq: 'weekly',
-          interval: 1,
-          anchor_date: '2026-01-05',
-          byweekday: [1],
-          bymonthday: [],
-          bymonth: [],
-          nth_weekday: null,
-          times: { mode: 'at', at: [{ hour: 8, minute: 0 }] },
-          end: { kind: 'never', on_date: null, after_count: null },
-        },
+            freq: 'weekly',
+            interval: 1,
+            anchor_date: '2026-01-05',
+            byweekday: [1],
+            bymonthday: [],
+            bymonth: [],
+            nth_weekday: null,
+            times: { mode: 'at', at: [{ hour: 8, minute: 0 }] },
+            end: { kind: 'never', on_date: null, after_count: null },
+          },
         }),
     ],
     [
@@ -384,16 +382,16 @@ describe('useScheduledActions — the week (ADR-265)', () => {
           title: 't',
           action_prompt: 'p',
           recurrence: {
-          freq: 'weekly',
-          interval: 1,
-          anchor_date: '2026-01-05',
-          byweekday: [1],
-          bymonthday: [],
-          bymonth: [],
-          nth_weekday: null,
-          times: { mode: 'at', at: [{ hour: 8, minute: 0 }] },
-          end: { kind: 'never', on_date: null, after_count: null },
-        },
+            freq: 'weekly',
+            interval: 1,
+            anchor_date: '2026-01-05',
+            byweekday: [1],
+            bymonthday: [],
+            bymonth: [],
+            nth_weekday: null,
+            times: { mode: 'at', at: [{ hour: 8, minute: 0 }] },
+            end: { kind: 'never', on_date: null, after_count: null },
+          },
         }),
     ],
     [

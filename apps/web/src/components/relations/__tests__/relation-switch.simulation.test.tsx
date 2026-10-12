@@ -55,7 +55,6 @@ vi.mock('@/lib/api-client', () => ({
   ApiError: class ApiError extends Error {},
 }));
 
-
 import { RelationDetailPanel } from '../RelationDetailPanel';
 
 const SCOPE = {
@@ -154,8 +153,8 @@ describe('switching relationship then running a 360°', () => {
         debriefEnabled={false}
         onDebriefToggle={vi.fn()}
         onBack={vi.fn()}
-      candidates={[]}
-      onMerged={vi.fn()}
+        candidates={[]}
+        onMerged={vi.fn()}
       />
     );
 
@@ -179,8 +178,8 @@ describe('switching relationship then running a 360°', () => {
         debriefEnabled={false}
         onDebriefToggle={vi.fn()}
         onBack={vi.fn()}
-      candidates={[]}
-      onMerged={vi.fn()}
+        candidates={[]}
+        onMerged={vi.fn()}
       />
     );
     // The header must show the person the panel was asked about — if it still
@@ -196,7 +195,9 @@ describe('switching relationship then running a 360°', () => {
     // carries `subject=`, so asserting on the href would pass on the subject
     // alone even if the sentence named the wrong person — the very defect this
     // test exists to catch.
-    const intent = new URLSearchParams(String(openChat.mock.calls[0][0]).split('?')[1]).get('intent');
+    const intent = new URLSearchParams(String(openChat.mock.calls[0][0]).split('?')[1]).get(
+      'intent'
+    );
     expect(intent).toContain('Paul Martin');
     expect(intent).not.toContain('Marie Dupont');
   });
@@ -221,8 +222,8 @@ describe('switching relationship then running a 360°', () => {
         debriefEnabled={false}
         onDebriefToggle={vi.fn()}
         onBack={vi.fn()}
-      candidates={[]}
-      onMerged={vi.fn()}
+        candidates={[]}
+        onMerged={vi.fn()}
       />
     );
     await waitFor(() =>
@@ -279,8 +280,8 @@ describe('switching relationship then running a 360°', () => {
         debriefEnabled={false}
         onDebriefToggle={vi.fn()}
         onBack={vi.fn()}
-      candidates={[]}
-      onMerged={vi.fn()}
+        candidates={[]}
+        onMerged={vi.fn()}
       />
     );
 

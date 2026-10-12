@@ -136,3 +136,7 @@ Calls paid with the platform's keys reach the same usage, cost tiles and limits,
 Maps, weather, air quality, address geocoding, displayed place photos, transcription and paid voice synthesis are counted when billable. Phone and Live cards include LIA's own work.
 
 Services on **your own connector key** remain on your provider bill: a live model, phone agent, personal web search or Simli avatar. Simli consumes your plan throughout an active connection, including silence; its personal charge is not added to LIA's platform ledger.
+
+## Can I administer the whole platform through chat?
+
+Only with administrator permissions, and for operations exposed on your instance. LLM configuration, reference prices, users and diagnostics retain their scope and confirmations. Permissions are read again at execution; a link or role mentioned in conversation is insufficient. Another account’s private information does not become accessible through a command. Catalogue prices are neither invoices nor guarantees of provider availability.

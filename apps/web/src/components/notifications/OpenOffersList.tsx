@@ -64,10 +64,7 @@ export function OpenOffersList({ offers, lng, locale, onDecided }: OpenOffersLis
   return (
     <ul className="space-y-2" role="list">
       {offers.map(offer => (
-        <li
-          key={offer.id}
-          className="flex items-start gap-3 rounded-xl border bg-card px-4 py-3"
-        >
+        <li key={offer.id} className="flex items-start gap-3 rounded-xl border bg-card px-4 py-3">
           <div className="min-w-0 flex-1">
             <p className="text-sm text-foreground/90">{offer.content}</p>
             <p className="mt-0.5 text-xs text-muted-foreground">

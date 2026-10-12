@@ -112,8 +112,14 @@ export function useFCMToken(): UseFCMTokenReturn {
   const [permissionStatus, setPermissionStatus] = useState<FCMPermissionStatus>('default');
   const [isLoading, setIsLoading] = useApplicationAccountState(ownerId, false);
   const [error, setError] = useApplicationAccountState<string | null>(ownerId, null);
-  const [registeredTokens, setRegisteredTokens] = useApplicationAccountState<RegisteredToken[]>(ownerId, []);
-  const latestRead = useRef<{ sequence: number; result: Promise<boolean> | null }>({ sequence: 0, result: null });
+  const [registeredTokens, setRegisteredTokens] = useApplicationAccountState<RegisteredToken[]>(
+    ownerId,
+    []
+  );
+  const latestRead = useRef<{ sequence: number; result: Promise<boolean> | null }>({
+    sequence: 0,
+    result: null,
+  });
 
   // A native shell has neither `Notification` nor a Firebase web config, and
   // both are the wrong question to ask it: it gets its token from its host and
@@ -162,21 +168,27 @@ export function useFCMToken(): UseFCMTokenReturn {
         if (isSupported && isConfigured && !inShell) {
           setPermissionStatus(getNotificationPermission());
         }
-        const response = await apiClient.get<{ tokens: RegisteredToken[] }>('/notifications/tokens');
+        const response = await apiClient.get<{ tokens: RegisteredToken[] }>(
+          '/notifications/tokens'
+        );
         if (!isCurrent()) return false;
-        if (request !== latestRead.current.sequence) return (await latestRead.current.result) ?? false;
+        if (request !== latestRead.current.sequence)
+          return (await latestRead.current.result) ?? false;
         const devices = response.tokens ?? [];
         setRegisteredTokens(devices);
         logger.debug('FCM: Tokens refreshed', {
-          component: 'useFCMToken', count: devices.length,
+          component: 'useFCMToken',
+          count: devices.length,
         });
         return true;
       } catch (err) {
         if (!isCurrent()) return false;
-        if (request !== latestRead.current.sequence) return (await latestRead.current.result) ?? false;
+        if (request !== latestRead.current.sequence)
+          return (await latestRead.current.result) ?? false;
         // The existing manual refresh stays silent; addressed sync reports failure.
         logger.warn('FCM: Failed to refresh tokens', {
-          component: 'useFCMToken', error: err instanceof Error ? err.message : 'Unknown error',
+          component: 'useFCMToken',
+          error: err instanceof Error ? err.message : 'Unknown error',
         });
         return false;
       }
@@ -189,7 +201,7 @@ export function useFCMToken(): UseFCMTokenReturn {
     await refreshTokensVerified();
   }, [refreshTokensVerified]);
   const refreshOwnedDevices = useCallback(async () => {
-    if (!await refreshTokensVerified()) throw new Error('Notification device refresh failed');
+    if (!(await refreshTokensVerified())) throw new Error('Notification device refresh failed');
   }, [refreshTokensVerified]);
   const release = useCallback(() => {}, []);
   useApplicationResourceSync(ownerId, 'notification_devices', refreshOwnedDevices, release);
@@ -206,7 +218,8 @@ export function useFCMToken(): UseFCMTokenReturn {
    * MUST be called from a user interaction (click event).
    */
   const requestPermission = useCallback(async (): Promise<EnrollmentResult> => {
-    if (!isCurrent()) return { status: 'failed', error: 'Account changed during notification enrollment' };
+    if (!isCurrent())
+      return { status: 'failed', error: 'Account changed during notification enrollment' };
     if (!isSupported) {
       const message = 'Notifications are not supported in this browser';
       setError(message);
@@ -230,7 +243,8 @@ export function useFCMToken(): UseFCMTokenReturn {
       // list — is the same work, and duplicating it into a second hook is how
       // the two paths would drift.
       const acquired = await acquireCurrentPush(i18n.language, isCurrent);
-      if (acquired.status === 'stale') return { status: 'failed', error: 'Account changed during notification enrollment' };
+      if (acquired.status === 'stale')
+        return { status: 'failed', error: 'Account changed during notification enrollment' };
       const { native, token: fcmToken, permission: newPermission } = acquired;
       setPermissionStatus(newPermission);
 
@@ -254,7 +268,8 @@ export function useFCMToken(): UseFCMTokenReturn {
         device_type: deviceType,
         device_name: deviceName,
       } satisfies RegisterTokenRequest);
-      if (!isCurrent()) return { status: 'failed', error: 'Account changed during notification enrollment' };
+      if (!isCurrent())
+        return { status: 'failed', error: 'Account changed during notification enrollment' };
 
       setToken(fcmToken);
 
@@ -265,10 +280,12 @@ export function useFCMToken(): UseFCMTokenReturn {
 
       // Refresh token list after registration
       await refreshTokens();
-      if (!isCurrent()) return { status: 'failed', error: 'Account changed during notification enrollment' };
+      if (!isCurrent())
+        return { status: 'failed', error: 'Account changed during notification enrollment' };
       return { status: 'enrolled', token: fcmToken };
     } catch (err) {
-      if (!isCurrent()) return { status: 'failed', error: 'Account changed during notification enrollment' };
+      if (!isCurrent())
+        return { status: 'failed', error: 'Account changed during notification enrollment' };
       // Extract detailed error message for debugging
       const message = err instanceof Error ? err.message : 'Failed to enable notifications';
       setError(message);
@@ -289,7 +306,16 @@ export function useFCMToken(): UseFCMTokenReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [isSupported, isConfigured, refreshTokens, i18n.language, isCurrent, setIsLoading, setError, setToken]);
+  }, [
+    isSupported,
+    isConfigured,
+    refreshTokens,
+    i18n.language,
+    isCurrent,
+    setIsLoading,
+    setError,
+    setToken,
+  ]);
 
   /**
    * Unregister a token by ID from backend.
@@ -351,18 +377,28 @@ export function useFCMToken(): UseFCMTokenReturn {
   };
 }
 
-type PushAcquisition = { status: 'stale' } | {
-  status: 'ready'; native: NativeEnrolment | null; token: string | null;
-  permission: FCMPermissionStatus;
-};
+type PushAcquisition =
+  | { status: 'stale' }
+  | {
+      status: 'ready';
+      native: NativeEnrolment | null;
+      token: string | null;
+      permission: FCMPermissionStatus;
+    };
 
-async function acquireCurrentPush(language: string, isCurrent: () => boolean): Promise<PushAcquisition> {
+async function acquireCurrentPush(
+  language: string,
+  isCurrent: () => boolean
+): Promise<PushAcquisition> {
   const native = await enrolNativePush(language);
   if (!isCurrent()) return { status: 'stale' };
   const token = native ? native.token : await requestNotificationPermission();
   if (!isCurrent()) return { status: 'stale' };
   const permission: FCMPermissionStatus = native
-    ? (token ? 'granted' : 'denied') : getNotificationPermission();
+    ? token
+      ? 'granted'
+      : 'denied'
+    : getNotificationPermission();
   return { status: 'ready', native, token, permission };
 }
 

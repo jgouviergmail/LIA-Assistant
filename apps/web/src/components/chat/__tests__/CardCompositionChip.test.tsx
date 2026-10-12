@@ -34,7 +34,12 @@ const deletion: CardCompositionDraft = {
 describe('email deletion composition chip', () => {
   it.each([
     { language: 'en', group: 'Selected card', action: 'Delete', remove: 'Remove selected card' },
-    { language: 'fr', group: 'Carte sélectionnée', action: 'Supprimer', remove: 'Retirer la carte sélectionnée' },
+    {
+      language: 'fr',
+      group: 'Carte sélectionnée',
+      action: 'Supprimer',
+      remove: 'Retirer la carte sélectionnée',
+    },
   ])('renders and removes the selected deletion context in $language', async sample => {
     locale.language = sample.language;
     const onRemove = vi.fn();

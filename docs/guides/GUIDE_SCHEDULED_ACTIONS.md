@@ -1,7 +1,7 @@
 # Guide Pratique : Actions Planifiees (Scheduled Actions)
 
 > Guide pratique pour les developpeurs souhaitant comprendre, configurer, etendre et debugger le systeme d'actions planifiees recurrentes de LIA.
-> Version 1.0 - 2026-03-08
+> Version 1.1 - 2026-10-12
 
 ---
 
@@ -46,7 +46,7 @@ Le resultat de chaque execution est automatiquement archive dans la conversation
 
 Les **Reminders** sont des rappels crees via le langage naturel ("Rappelle-moi d'appeler le medecin dans 2 heures") ou depuis leur section de reglages. Depuis 2026-09-06 ils portent la meme `RecurrenceSpec` que les routines : un rappel ponctuel est une recurrence d'une seule occurrence, et une ligne est supprimee des qu'il ne lui reste plus rien a servir.
 
-Les **Scheduled Actions** sont des taches recurrentes configurees via l'UI Settings. Elles persistent et se reprogramment automatiquement apres chaque execution.
+Les **Scheduled Actions** sont des routines configurées dans les réglages ou par une commande conversationnelle autorisée et confirmée. Elles persistent et se reprogramment automatiquement apres chaque execution.
 
 ### La page des routines (ADR-265)
 
@@ -65,7 +65,7 @@ Les cartes sont triees a l'affichage par heure de declenchement (heure, minute, 
                     |                                          |
 [APScheduler 60s] --poll--> [scheduled_action_executor.py]    |
        |                              |                        |
-       |  1. SchedulerLock(Redis)     |                        |
+       |  1. Leader scheduler        |                        |
        |  2. recover_stale_executing  |                        |
        |  3. get_and_lock_due_actions (FOR UPDATE SKIP LOCKED) |
        |  4. COMMIT (release locks)                            |
@@ -108,6 +108,7 @@ scheduled_actions
 +-- next_trigger_at (DateTime TZ, UTC, nullable) -- Calcule ; NULL = plus rien apres
 +-- is_enabled (Boolean, default true)
 +-- status (String 20: active|executing|error)
++-- execution_token (UUID, nullable) -- identité de réservation
 +-- last_executed_at (DateTime TZ, nullable)
 +-- execution_count (Integer, default 0)
 +-- consecutive_failures (Integer, default 0)
@@ -140,26 +141,42 @@ Une ligne par tick, ecrite AU RESULTAT dans la meme transaction que `mark_execut
 | `executing` | En cours d'execution (verrouillee par le scheduler) |
 | `error` | Auto-desactivee apres trop d'echecs consecutifs |
 
+### Réservation d'une exécution manuelle
+
+L'UI et les commandes applicatives passent par
+`ScheduledActionService.reserve_manual_execution()` : la ligne appartenant au
+compte est verrouillée et un lancement déjà `executing` est refusé. La
+réservation porte un `execution_token` opaque. La récupération d'un état
+ancien et le règlement d'un run libèrent ce token.
+
+Une commande conversationnelle peut attendre la fin du tour actif. Sa reprise
+conserve la configuration confirmée et son échéance, puis
+`application/routine_execution_policy.py::authorize_reserved_routine()` relit
+l'autorité, le token, le statut, le snapshot et l'expiration après les lectures
+et avant l'inférence. Une réservation obsolète est annulée seulement si son
+token correspond encore ; elle ne libère ni ne consomme une réservation plus
+récente. Ce contrôle ne promet pas une transaction exactement une fois chez un
+fournisseur externe. Voir [les commandes applicatives](../technical/APPLICATION_COMMANDS.md).
+
 ### Pipeline d'execution
 
 L'exécuteur utilise `stream_chat_response()` avec `auto_approve_plan=True`, qui injecte `state["plan_approved"] = True` dans l'état LangGraph — un drapeau inerte : le routeur le remet à `None` au début de chaque tour, avant tout lecteur. Une routine en mode pipeline rencontre donc les clarifications du validateur comme un tour tapé (voir [SCHEDULED_ACTIONS.md](../technical/SCHEDULED_ACTIONS.md), « Pas de contournement HITL »).
 
 Avant exécution, une **garde HITL** lit l'enregistrement de question en attente dans Redis (`conversation_has_pending_hitl`) — celui sur lequel le chat route la réponse de la personne, jamais le checkpoint du graphe. S'il en existe un, l'action est ignorée sans erreur et reprogrammée au prochain cycle.
 
-> **Note** : Les actions planifiees sont des sources automatisees — elles ne declenchent **ni l'extraction de memoire long terme**, **ni la detection de centres d'interet**. Seules les interactions directes de l'utilisateur alimentent ces systemes d'apprentissage. Le `response_node` detecte les sources automatisees via le prefixe `SCHEDULED_ACTIONS_SESSION_PREFIX` du `session_id`.
+> **Source automatisée** : l'exécuteur transmet `is_automated_source=True` dans `configurable`. `response_node` lit ce drapeau pour exclure les extractions post-réponse de mémoire, intérêts, journal et psyché. Le préfixe de `session_id` n'est pas ce contrôle.
 
 ---
 
 ## 3. Configuration
 
-### Feature flag
+### Disponibilité
 
-Le feature flag `SCHEDULED_ACTIONS_ENABLED` est documente dans le README et le guide de deploiement. En pratique, le job scheduler et le router sont toujours enregistres (pas de garde conditionnelle dans le code actuel).
-
-```bash
-# .env
-SCHEDULED_ACTIONS_ENABLED=true
-```
+Il n'existe pas de réglage `SCHEDULED_ACTIONS_ENABLED`. Le routeur et le job sont
+enregistrés par les étapes de startup ; chaque routine conserve son état
+d'activation, ses droits, ses limites et sa garde HITL. Les réglages du scheduler
+bornent délais, concurrence et reprise. Une variable `.env` non déclarée ne
+désactive pas ce domaine.
 
 ### Constantes
 
@@ -198,7 +215,7 @@ scheduler.add_job(
 )
 ```
 
-`max_instances=1` empeche les executions concurrentes du job APScheduler. Le `SchedulerLock` (Redis SETNX) ajoute une securite supplementaire pour les deployments multi-worker.
+L'élection du leader, `max_instances=1` et `FOR UPDATE SKIP LOCKED` coordonnent le scrutin. Aucun `SchedulerLock` Redis supplémentaire n'est pris. Le batch exécute les routines avec une concurrence bornée et une session SQL distincte par routine.
 
 ---
 
@@ -462,7 +479,7 @@ Apres execution reussie, le resultat est notifie via :
 | Canal | Condition | Detail |
 |-------|-----------|--------|
 | **Archive conversation** | Toujours | Automatique via `stream_chat_response()` |
-| **FCM Push** | `FCM_NOTIFICATIONS_ENABLED=true` + tokens actifs | Titre localise (6 langues) + body tronque a 150 chars |
+| **FCM Push** | `FCM_NOTIFICATIONS_ENABLED=true` + tokens actifs | Titre localisé (6 langues) + texte aplati puis borné par `proactive_notification_max_length` |
 | **Redis SSE** | Redis disponible | Publie sur `user_notifications:{user_id}` |
 
 ### Format FCM
@@ -471,7 +488,11 @@ Apres execution reussie, le resultat est notifie via :
 title = f"{localized_title}: {action.title}"
 # Exemples: "Action planifiee: Meteo du jour" (fr)
 #           "Scheduled Action: Daily Weather" (en)
-body = response_content[:150]  # Tronque a 150 caracteres
+from src.infrastructure.proactive.notification import plain_text_for_notification
+from src.infrastructure.scheduler.scheduled_action_executor import _truncate
+
+# Exemple du chemin interne : texte aplati, puis plafond configuré.
+body = _truncate(plain_text_for_notification(response_content))
 data = {"type": "scheduled_action", "action_id": str(action_id)}
 ```
 
@@ -500,12 +521,12 @@ Les erreurs FCM et SSE sont loguees mais ne bloquent pas l'execution. L'action e
 
 | Critere | Reminders | Scheduled Actions | Heartbeat |
 |---------|-----------|-------------------|-----------|
-| **Declencheur** | Date/heure fixe (one-shot) | Recurrence jour/heure (cron) | Decision LLM periodique |
-| **Creation** | Langage naturel ("rappelle-moi...") | UI Settings (formulaire CRUD) | Automatique (scheduler) |
-| **Persistence** | Supprime apres execution | Persiste, recalcule `next_trigger_at` | Pas de persistence action |
+| **Declencheur** | Récurrence partagée, ponctuelle ou répétée | Récurrence partagée ou condition système | Decision LLM periodique |
+| **Creation** | Langage naturel ("rappelle-moi...") | Réglages ou commande conversationnelle confirmée | Automatique (scheduler) |
+| **Persistence** | Supprimé quand plus aucune occurrence ne reste | Persiste, recalcule `next_trigger_at` | Pas de persistence action |
 | **Contenu** | Message personnalise par LLM | Resultat du pipeline d'agents | Notification proactive contextuelle |
-| **HITL** | N/A | Bypass plan approval, guard HITL | N/A |
-| **Feature flag** | `FCM_NOTIFICATIONS_ENABLED` | `SCHEDULED_ACTIONS_ENABLED` | `HEARTBEAT_ENABLED` |
+| **HITL** | N/A | Clarification et politiques de mutation conservées ; garde HITL | N/A |
+| **Feature flag** | `FCM_NOTIFICATIONS_ENABLED` | Aucun interrupteur de domaine | `HEARTBEAT_ENABLED` |
 | **Retry** | 3 tentatives, DELETE apres echec | 2 tentatives, auto-disable apres 5 echecs | Pas de retry |
 | **Timezone** | Conversion locale -> UTC au create | Heure murale localisee par le moteur | Plage horaire configurable |
 | **Notification** | FCM + SSE + archive | FCM + SSE + archive | FCM + SSE + Telegram + archive |

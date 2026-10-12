@@ -117,6 +117,8 @@ export interface UseEyesRigOptions {
    * The breath and the moving hold stay: they are the pose, not a beat.
    */
   life?: boolean;
+  /** A public presentation may keep its idle life while refusing sleep scenes. */
+  allowSleep?: boolean;
   /** Pauses this face locally without changing the user's reduced-motion preference. */
   motionEnabled?: boolean;
   /** Immutable message portrait: no live stores, observers, timers or frames. */
@@ -209,6 +211,7 @@ export function useEyesRig(options: UseEyesRigOptions) {
       initial: initialRef.current.pose,
       idleScale: initialRef.current.idleScale,
       characterId: initialRef.current.characterId,
+      allowSleep: options.allowSleep,
       reducedMotion: !motionEnabled || prefersReducedMotion(),
       // The one caller that hands the rig real entropy: two angers must never
       // land at exactly the same speed. Tests build rigs without it and stay
@@ -314,7 +317,7 @@ export function useEyesRig(options: UseEyesRigOptions) {
       wakeRef.current = null;
       rigRef.current = null;
     };
-  }, [motionEnabled, staticPose]);
+  }, [motionEnabled, staticPose, options.allowSleep]);
 
   // --- Pose: expression, style and mood family.
   useEffect(() => {

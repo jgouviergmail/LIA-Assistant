@@ -42,25 +42,40 @@ describe('confirmed original-browser archive request', () => {
     auth.mockReturnValue({ user: { id: 'owner' } });
     const status = waiting();
     status.operation_id = 'meeting_report.download';
-    renderWithProviders(<ApplicationExportDownloadCard status={status} checkResult={vi.fn()} readError={null} />);
+    renderWithProviders(
+      <ApplicationExportDownloadCard status={status} checkResult={vi.fn()} readError={null} />
+    );
     expect(screen.getByRole('region', { name: 'Meeting minutes to download' })).toBeInTheDocument();
-    expect(screen.getByRole('link')).toHaveAttribute('href', expect.stringContaining(`/application-commands/${id}/meeting-pdf`));
+    expect(screen.getByRole('link')).toHaveAttribute(
+      'href',
+      expect.stringContaining(`/application-commands/${id}/meeting-pdf`)
+    );
   });
   it('offers the complete skill ZIP through its approved browser endpoint', () => {
     auth.mockReturnValue({ user: { id: 'owner' } });
     const status = waiting();
     status.operation_id = 'skill_settings.download';
-    renderWithProviders(<ApplicationExportDownloadCard status={status} checkResult={vi.fn()} readError={null} />);
+    renderWithProviders(
+      <ApplicationExportDownloadCard status={status} checkResult={vi.fn()} readError={null} />
+    );
     expect(screen.getByRole('region', { name: 'Skill to download' })).toBeInTheDocument();
-    expect(screen.getByRole('link')).toHaveAttribute('href', expect.stringContaining(`/application-commands/${id}/skill-download`));
+    expect(screen.getByRole('link')).toHaveAttribute(
+      'href',
+      expect.stringContaining(`/application-commands/${id}/skill-download`)
+    );
   });
   it('offers the complete saved-answer export through its original-browser endpoint', () => {
     auth.mockReturnValue({ user: { id: 'owner' } });
     const status = waiting();
     status.operation_id = 'saved_answer.download';
-    renderWithProviders(<ApplicationExportDownloadCard status={status} checkResult={vi.fn()} readError={null} />);
+    renderWithProviders(
+      <ApplicationExportDownloadCard status={status} checkResult={vi.fn()} readError={null} />
+    );
     expect(screen.getByRole('region', { name: 'Saved answer download' })).toBeInTheDocument();
-    expect(screen.getByRole('link')).toHaveAttribute('href', expect.stringContaining(`/application-commands/${id}/bookmark-download`));
+    expect(screen.getByRole('link')).toHaveAttribute(
+      'href',
+      expect.stringContaining(`/application-commands/${id}/bookmark-download`)
+    );
   });
   it('offers the approved gallery file with its accessible name and single-use endpoint', () => {
     auth.mockReturnValue({ user: { id: 'owner' } });

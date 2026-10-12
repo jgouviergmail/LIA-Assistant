@@ -1,9 +1,9 @@
 # STATE_AND_CHECKPOINT - State Management & Checkpointing
 
-> **Documentation complète du state management LangGraph avec PostgreSQL checkpointing**
+> **Guide du state management LangGraph avec PostgreSQL checkpointing**
 >
-> Version: 1.2
-> Date: 2026-02-27
+> Version: 1.3
+> Date: 2026-10-12
 > Auteur: Documentation LIA
 
 ---
@@ -11,7 +11,7 @@
 ## 📋 Table des Matières
 
 1. [Vue d'ensemble](#-vue-densemble)
-2. [MessagesState - Structure Complète](#-messagesstate---structure-complète)
+2. [MessagesState - Aperçu](#-messagesstate---aperçu)
 3. [Les Reducers](#-les-reducers)
 4. [PostgreSQL Checkpointing](#-postgresql-checkpointing)
 5. [Checkpoint Lifecycle](#-checkpoint-lifecycle)
@@ -58,8 +58,8 @@ graph TB
 
 **MessagesState**:
 - TypedDict définissant le schéma complet du state
-- 19 champs couvrant messages, metadata, planning, HITL, etc.
-- Schema versioning (`_schema_version = "1.0"`)
+- Champs couvrant messages, metadata, planning, HITL et preuves du tour ; leur déclaration complète est dans le code source
+- Schema versioning (`_schema_version`, valeur courante possédée par `CURRENT_SCHEMA_VERSION` dans `models.py`)
 
 **Reducers**:
 - Fonctions définissant comment fusionner old state + new updates
@@ -73,11 +73,14 @@ graph TB
 
 ---
 
-## 🏗️ MessagesState - Structure Complète
+## 🏗️ MessagesState - Aperçu
 
 ### Schéma TypedDict
 
-**Fichier source**: [apps/api/src/domains/agents/models.py:130-195](../../apps/api/src/domains/agents/models.py#L130-L195)
+**Fichier source**: [apps/api/src/domains/agents/models.py](../../apps/api/src/domains/agents/models.py)
+
+L'extrait suivant présente une partie des champs. La déclaration `MessagesState`
+dans le code reste l'autorité sur le schéma courant, ses types et ses reducers.
 
 ```python
 from typing import Annotated, Any
@@ -89,7 +92,7 @@ class MessagesState(TypedDict):
     LangGraph state for conversational agents.
     Compatible with PostgresCheckpointer for state persistence.
 
-    Schema Version: 1.0 (introduced 2025-10-27)
+    Extrait pédagogique, non exhaustif.
     """
 
     # === Core Conversation ===
@@ -133,8 +136,54 @@ class MessagesState(TypedDict):
     initiative_suggestion: str | None  # Write-action suggestion for response_node
 
     # === Schema Versioning ===
-    _schema_version: str  # Current: "1.1"
+    _schema_version: str  # Version courante définie par CURRENT_SCHEMA_VERSION
 ```
+
+### Preuves sémantiques et exécution ReAct du tour (ADR-335 à ADR-337)
+
+Les champs suivants sont déclarés dans `MessagesState` et peuvent traverser un
+checkpoint/reprise. Leur portée reste le tour courant : la persistance du thread
+ne les transforme pas en cache partagé ou en preuve valable pour le tour suivant.
+
+| Champ | Rôle |
+|-------|------|
+| `semantic_value_bindings` | Preuves de valeurs canoniques et de leurs liens aux paramètres, selon le catalogue offert et les contrats sémantiques |
+| `semantic_source_observations` | Observations des éléments canoniques du registry, avec leur provenance |
+| `semantic_source_valid_after` | Frontière de fraîcheur utilisée pour invalider les observations autour d'une mutation ou délégation |
+| `requested_outcome_evidence` | Verdicts compacts sur les obligations ancrées dans la demande courante, avant projection des résultats au modèle |
+| `react_read_results` | Résultats de lectures exactes réutilisables dans le tour, avec contenu, registry sérialisé et expiration |
+| `react_read_observations` | Issues observées des lectures commencées, utiles aux contrôles de résultat et à la recovery |
+| `react_last_productive_message_id` | Identité de la requête modèle déjà créditée comme productive, pour éviter de compter ses segments plusieurs fois |
+
+[`react_turn_reset()`](../../apps/api/src/domains/agents/utils/react_budget.py)
+fournit des conteneurs neufs et les valeurs initiales de ces champs, des budgets et
+des compteurs. `create_initial_state` et
+[`router_node_v3`](../../apps/api/src/domains/agents/nodes/router_node_v3.py)
+utilisent cette déclaration. Une reprise HITL conserve l'état du même tour ; elle
+ne redémarre pas ses budgets ni ses observations. Les obligations elles-mêmes
+restent dans `query_intelligence`, validées contre la demande actuelle.
+
+Les [segments ReAct](../../apps/api/src/domains/agents/nodes/react_execution.py)
+renvoient leurs ToolMessages, registry et accounting au graphe pour checkpoint
+avant le segment suivant. La concurrence exige des lectures explicitement éligibles.
+La [réutilisation](../../apps/api/src/domains/agents/nodes/react_read_reuse.py)
+exige une observation obtenue, fraîche, complète et un TTL déclaré ; le cache est
+borné en nombre d'entrées et en octets sérialisés. Une tentative de mutation ou une
+délégation opaque invalide les lectures réutilisables et les preuves sémantiques
+avant invocation et à la fin, y compris en cas d'échec.
+
+Les résultats demandés distinguent satisfait, manquant, échec, partiel, confirmation
+en attente et inconnu. Une attente ou une délégation opaque ne prouve pas un effet
+réalisé. Les lacunes canoniques peuvent atteindre la recovery bornée et la synthèse
+finale, sans autoriser le rejeu d'une mutation. Un crash avant le checkpoint d'un
+segment peut encore rejouer ses lectures ; ce state ne garantit pas une écriture
+distante exactement une fois.
+
+Voir [ADR-335](../architecture/ADR-335-Canonical-Semantic-Proofs-And-Constructible-Dependencies.md),
+[ADR-336](../architecture/ADR-336-Requested-Outcomes-Checked-Against-Canonical-Observations.md),
+[ADR-337](../architecture/ADR-337-Checkpointed-ReAct-Read-Segments-And-Turn-Local-Reuse.md)
+et le [guide ReAct](REACT_EXECUTION_MODE.md#checkpointed-read-segments-and-turn-reuse-adr-337)
+pour les contrats et leurs limites.
 
 ### Champs Détaillés
 

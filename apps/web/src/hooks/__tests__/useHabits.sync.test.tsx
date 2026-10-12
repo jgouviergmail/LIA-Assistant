@@ -30,13 +30,16 @@ describe('owned habit management synchronization', () => {
     [{ deleted_habits: 1, profile_deleted: true, advisory_cleanup_confirmed: false }, 'partial'],
     [{ deleted_habits: 1, profile_deleted: true }, 'partial'],
     [{ profile_deleted: 'false' }, 'failed'],
-  ] as const)('reports the actual forgetting outcome without hiding partial cleanup', async (response, expected) => {
-    const { result } = renderHook(() => useHabits());
-    await waitFor(() => expect(result.current.overview).not.toBeNull());
-    remove.mockResolvedValue(response);
-    await act(async () => expect(await result.current.removeAll()).toBe(expected));
-    expect(remove).toHaveBeenCalledTimes(1);
-  });
+  ] as const)(
+    'reports the actual forgetting outcome without hiding partial cleanup',
+    async (response, expected) => {
+      const { result } = renderHook(() => useHabits());
+      await waitFor(() => expect(result.current.overview).not.toBeNull());
+      remove.mockResolvedValue(response);
+      await act(async () => expect(await result.current.removeAll()).toBe(expected));
+      expect(remove).toHaveBeenCalledTimes(1);
+    }
+  );
   it('rereads the source after a confirmed native learning preference change', async () => {
     const { result } = renderHook(() => useHabits());
     await waitFor(() => expect(result.current.overview?.habits_enabled).toBe(true));
@@ -59,14 +62,20 @@ describe('owned habit management synchronization', () => {
     expect(patch).not.toHaveBeenCalled();
   });
 
-  it.each(['paused', 'blocked', 'deleted'])('rereads a confirmed %s record change', async status => {
-    const { result } = renderHook(() => useHabits());
-    await waitFor(() => expect(result.current.overview?.habits).toHaveLength(1));
-    get.mockResolvedValue({ habits_enabled: true, habits: status === 'deleted' ? [] : [{ id: 'private-one', status }] });
-    act(() => publishApplicationResources('one', new Set(['habits'])));
-    await waitFor(() => {
-      if (status === 'deleted') expect(result.current.overview?.habits).toEqual([]);
-      else expect(result.current.overview?.habits[0].status).toBe(status);
-    });
-  });
+  it.each(['paused', 'blocked', 'deleted'])(
+    'rereads a confirmed %s record change',
+    async status => {
+      const { result } = renderHook(() => useHabits());
+      await waitFor(() => expect(result.current.overview?.habits).toHaveLength(1));
+      get.mockResolvedValue({
+        habits_enabled: true,
+        habits: status === 'deleted' ? [] : [{ id: 'private-one', status }],
+      });
+      act(() => publishApplicationResources('one', new Set(['habits'])));
+      await waitFor(() => {
+        if (status === 'deleted') expect(result.current.overview?.habits).toEqual([]);
+        else expect(result.current.overview?.habits[0].status).toBe(status);
+      });
+    }
+  );
 });

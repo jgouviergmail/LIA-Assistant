@@ -19,9 +19,7 @@ type PsycheHook = ReturnType<typeof usePsycheFn>;
 // PsycheSettings renders inside an open SettingsSection card (ADR-227), so
 // its controls are visible on mount.
 function renderPsyche() {
-  return renderWithProviders(
-    <PsycheSettings lng="en" />
-  );
+  return renderWithProviders(<PsycheSettings lng="en" />);
 }
 
 function hook(over: Partial<PsycheHook> = {}) {

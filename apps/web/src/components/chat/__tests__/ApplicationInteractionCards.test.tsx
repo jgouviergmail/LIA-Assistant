@@ -150,9 +150,13 @@ describe('approved secure application continuation', () => {
               : en.settings.application_tools.device_recording_done
           )
         ).toBeInTheDocument();
-        await waitFor(() => expect(screen.getByRole('button', {
-          name: lng === 'fr' ? 'Vérifier le résultat' : 'Check result',
-        })).toHaveFocus());
+        await waitFor(() =>
+          expect(
+            screen.getByRole('button', {
+              name: lng === 'fr' ? 'Vérifier le résultat' : 'Check result',
+            })
+          ).toHaveFocus()
+        );
       } finally {
         withdraw();
       }

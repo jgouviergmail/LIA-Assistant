@@ -39,7 +39,8 @@ const SHIFT = 0x100;
 const REPLACEMENT_CHARACTER = '�';
 
 /** A character reference as CommonMark reads it (the `;` is required). */
-const CHARACTER_REFERENCE = /&(?:#([0-9]{1,7})|#[xX]([0-9A-Fa-f]{1,6})|([A-Za-z][A-Za-z0-9]{0,31}));/y;
+const CHARACTER_REFERENCE =
+  /&(?:#([0-9]{1,7})|#[xX]([0-9A-Fa-f]{1,6})|([A-Za-z][A-Za-z0-9]{0,31}));/y;
 /**
  * A fenced block's opening line (group 1, its fence group 2) or a code span
  * (its backticks group 3, its content group 4; never across a blank line).
@@ -108,7 +109,11 @@ export function decodeReference(
 function readReferences(text: string): string {
   let out = '';
   let position = 0;
-  for (let ampersand = text.indexOf('&'); ampersand !== -1; ampersand = text.indexOf('&', position)) {
+  for (
+    let ampersand = text.indexOf('&');
+    ampersand !== -1;
+    ampersand = text.indexOf('&', position)
+  ) {
     out += text.slice(position, ampersand);
     CHARACTER_REFERENCE.lastIndex = ampersand;
     const reference = CHARACTER_REFERENCE.exec(text);
@@ -148,7 +153,10 @@ function readCode(match: RegExpExecArray, text: string): [string, number] {
     const close = closing.exec(text);
     const bodyEnd = close ? close.index : text.length;
     const resume = close ? close.index + close[0].length : text.length;
-    return [match[1] + shieldPunctuation(text.slice(end, bodyEnd)) + (close ? close[0] : ''), resume];
+    return [
+      match[1] + shieldPunctuation(text.slice(end, bodyEnd)) + (close ? close[0] : ''),
+      resume,
+    ];
   }
   return [match[3] + shieldPunctuation(match[4]) + match[3], end];
 }
@@ -184,7 +192,8 @@ export function readAsMarkdown(
   restore: (char: string) => string = char => char
 ): string {
   return flatten(shield(text)).replace(SHIELDED, (whole: string, escaped: string | undefined) => {
-    if (escaped !== undefined) return String.fromCodePoint((escaped.codePointAt(0) ?? SHIFT) - SHIFT);
+    if (escaped !== undefined)
+      return String.fromCodePoint((escaped.codePointAt(0) ?? SHIFT) - SHIFT);
     return restore(String.fromCodePoint((whole.codePointAt(0) ?? SHIELD_BASE) - SHIELD_BASE));
   });
 }

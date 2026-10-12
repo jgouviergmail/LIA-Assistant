@@ -3790,6 +3790,13 @@ MEMORY_REFERENCE_EXTRACTION_TIMEOUT_SECONDS = 30.0  # Nano model, strict latency
 # Absence-only native gate, evaluated on independent multilingual queries.
 JEV_MEMORY_REFERENCE_MIN_CONFIDENCE = 0.99
 JEV_HITL_REJECTION_MIN_CONFIDENCE = 0.99
+# Guarded parameter values (ADR-120 amendment 2026-10-11): a value's judged
+# kind refuses a call only at this confidence or above, and at most this many
+# values of one call are judged (one request each). Calibrated on the version 2
+# qualification (docs/technical/JEV_SEMANTIC_QUALIFICATION.md): no compatible
+# value refused on its calibration or its independent cases.
+JEV_PARAMETER_KIND_MIN_CONFIDENCE = 0.30
+JEV_PARAMETER_KIND_MAX_VALUES = 8
 
 # ============================================================================
 # LOCALIZATION DEFAULTS

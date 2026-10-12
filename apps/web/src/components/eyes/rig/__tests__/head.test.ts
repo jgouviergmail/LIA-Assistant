@@ -3,22 +3,25 @@ import { createEyeRig } from '../runtime';
 import { RIG_EYE_STYLE_IDS } from '../../eye-styles';
 
 describe('a gaze carried by a head with weight', () => {
-  it.each(RIG_EYE_STYLE_IDS)('%s lets the eyes lead, then the head follow without a snap', styleId => {
-    const rig = createEyeRig({ initial: { expression: 'neutral', styleId, family: 'calm' } });
-    rig.setGaze({ x: 1, y: -0.8 });
-    for (let i = 0; i < 5; i++) rig.step(16);
-    const first = { ...rig.values() };
-    expect(first.gazeX).toBeGreaterThan(first.headYaw * 2);
-    expect(first.headYaw).toBeGreaterThan(0);
-    for (let i = 0; i < 180; i++) rig.step(16);
-    expect(rig.values().headYaw).toBeCloseTo(1, 2);
-    expect(rig.values().headPitch).toBeCloseTo(-0.8, 2);
-    const before = { ...rig.values() };
-    rig.setGaze({ x: -1, y: 1 });
-    expect(rig.values().headYaw).toBe(before.headYaw);
-    rig.step(16);
-    expect(Math.abs(rig.values().headYaw - before.headYaw)).toBeLessThan(0.03);
-  });
+  it.each(RIG_EYE_STYLE_IDS)(
+    '%s lets the eyes lead, then the head follow without a snap',
+    styleId => {
+      const rig = createEyeRig({ initial: { expression: 'neutral', styleId, family: 'calm' } });
+      rig.setGaze({ x: 1, y: -0.8 });
+      for (let i = 0; i < 5; i++) rig.step(16);
+      const first = { ...rig.values() };
+      expect(first.gazeX).toBeGreaterThan(first.headYaw * 2);
+      expect(first.headYaw).toBeGreaterThan(0);
+      for (let i = 0; i < 180; i++) rig.step(16);
+      expect(rig.values().headYaw).toBeCloseTo(1, 2);
+      expect(rig.values().headPitch).toBeCloseTo(-0.8, 2);
+      const before = { ...rig.values() };
+      rig.setGaze({ x: -1, y: 1 });
+      expect(rig.values().headYaw).toBe(before.headYaw);
+      rig.step(16);
+      expect(Math.abs(rig.values().headYaw - before.headYaw)).toBeLessThan(0.03);
+    }
+  );
 
   it('follows an internally authored thought, not only pointer props', () => {
     const rig = createEyeRig({

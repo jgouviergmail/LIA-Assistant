@@ -212,9 +212,14 @@ def parse_source_observations(value: object) -> dict[str, SemanticValueBinding]:
     return sources
 
 
-def binding_scope_from_config(
-    config: Mapping[str, object],
-) -> tuple[tuple[SemanticValueBinding, ...], str | None, dict[str, SemanticValueBinding]]:
+# The evidence a guarded value is checked against: the canonical fields
+# selected this turn, the account the call runs for, their source observations.
+type BindingScope = tuple[
+    tuple[SemanticValueBinding, ...], str | None, dict[str, SemanticValueBinding]
+]
+
+
+def binding_scope_from_config(config: Mapping[str, object]) -> BindingScope:
     """Read serializable server-side binding evidence from a RunnableConfig."""
     configurable = config.get("configurable")
     metadata = config.get("metadata")

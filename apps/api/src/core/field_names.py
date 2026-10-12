@@ -67,6 +67,9 @@ FIELD_HIDDEN = "hidden"
 # (from memory reference resolution), consumed by the runtime semantic
 # parameter guard in the parallel executor.
 FIELD_RESOLVED_PERSON_NAMES = "resolved_person_names"
+# RunnableConfig.configurable: the person's request for the turn, which the
+# same guard hands to the value-kind judgment (ADR-120 amendment 2026-10-11).
+FIELD_GUARD_REQUEST = "guard_request"
 
 # LLM & Tokens
 FIELD_TOKENS_IN = "tokens_in"

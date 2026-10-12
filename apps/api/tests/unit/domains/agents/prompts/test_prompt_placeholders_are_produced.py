@@ -136,7 +136,9 @@ class _Producers(ast.NodeVisitor):
     def visit_Call(self, node: ast.Call) -> None:  # noqa: N802 — ast visitor API
         func = node.func
         if isinstance(func, ast.Attribute):
-            if func.attr == "format":
+            # ``filled`` is the JEV question's own ``str.format`` over its
+            # instructions tree (``typesafe_client``): same keyword contract.
+            if func.attr in {"format", "filled"}:
                 self.calls_format = True
                 for kw in node.keywords:
                     if kw.arg is None:

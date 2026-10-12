@@ -67,9 +67,7 @@ type TelemetryItem =
   | { kind: 'vital'; metric: VitalMetric; value: number };
 
 export function isTelemetryEnabled(): boolean {
-  return (
-    typeof window !== 'undefined' && process.env.NEXT_PUBLIC_PRODUCT_TELEMETRY === 'true'
-  );
+  return typeof window !== 'undefined' && process.env.NEXT_PUBLIC_PRODUCT_TELEMETRY === 'true';
 }
 
 function endpoint(): string {
@@ -116,16 +114,13 @@ export function trackProductEvent(eventType: ProductFunnelEvent): void {
 export function trackShowroomEvent(event: ShowroomFunnelEvent): void {
   if (!isTelemetryEnabled()) return;
   try {
-    void fetch(
-      `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1/product/showroom-events`,
-      {
-        method: 'POST',
-        body: JSON.stringify({ events: [event] }),
-        keepalive: true,
-        credentials: 'omit',
-        headers: { 'Content-Type': 'application/json' },
-      }
-    ).catch(() => undefined);
+    void fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1/product/showroom-events`, {
+      method: 'POST',
+      body: JSON.stringify({ events: [event] }),
+      keepalive: true,
+      credentials: 'omit',
+      headers: { 'Content-Type': 'application/json' },
+    }).catch(() => undefined);
   } catch {
     // Telemetry never throws.
   }

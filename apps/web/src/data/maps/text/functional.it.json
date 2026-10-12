@@ -370,6 +370,18 @@
       "role": "Una presenza Simli sperimentale, scelta con la tua chiave, per commenti vocali e Live. Una finestra accessibile in tre dimensioni mostra la chiusura confermata o in attesa; la sospensione chiude la connessione. Radio mantiene il suo lettore.",
       "goal": "Scegliere un volto conoscendone il consumo, silenzi compresi.",
       "src": "193ba4c65edd"
+    },
+    "f.application": {
+      "name": "Gestire LIA attraverso la conversazione",
+      "role": "Puoi leggere e modificare impostazioni e oggetti di LIA tramite operazioni dichiarate: preferenze, connessioni, fonti, skills o amministrazione secondo i tuoi permessi. Le modifiche seguono le conferme previste; gli input privati restano nel browser autenticato. Un comando in attesa non viene mai annunciato come concluso.",
+      "goal": "Gestire LIA senza cercare ogni schermata, mantenendo il controllo della modifica e del risultato.",
+      "src": "c02744de2ba8"
+    },
+    "f.nativeavatar": {
+      "name": "Compagni nativi animati",
+      "role": "Scegli uno stile e le varianti disponibili nel catalogo nativo. Emozioni, sguardo e accessori seguono l'attività e il contesto disponibile. Il volume è un rilievo approssimato del disegno frontale; il disegno fisso subentra quando presentazione o risorse non consentono l'animazione.",
+      "goal": "Una presenza originale che esprime lo stato di LIA e rispetta la tua scelta di visualizzazione.",
+      "src": "798cc7462f28"
     }
   },
   "flows": {
@@ -489,6 +501,20 @@
         "Subito dopo, LIA può chiederti com'è andata la riunione."
       ],
       "src": "97ed7772581f"
+    },
+    "flow.application": {
+      "name": "Un'impostazione richiesta, un risultato verificato",
+      "summary": "Dalla richiesta allo stato riletto: operazione dichiarata, controlli attuali, conferma e prosecuzione privata quando serve.",
+      "steps": [
+        "Chiedi di modificare un'impostazione o collegare un servizio.",
+        "LIA sceglie un'operazione dichiarata disponibile per il tuo account e i tuoi permessi attuali.",
+        "Se l'operazione lo richiede, approvi la modifica precisa prima dell'esecuzione.",
+        "Il comando conserva identità e scadenza; autorizzazione e precondizioni vengono ricontrollate al momento di agire.",
+        "Input privato, file, OAuth o dispositivo? Prosegui nel browser autenticato senza fornire segreti al modello.",
+        "LIA distingue una modifica confermata da un'attesa, un conflitto, un errore o un annullamento.",
+        "L'interfaccia ricarica i dati autenticati interessati invece di mostrare una bozza come stato reale."
+      ],
+      "src": "e95b8505fbf8"
     }
   }
 }

@@ -34,7 +34,9 @@ describe('RecurrenceSummary', () => {
         timezone="Europe/Paris"
       />
     );
-    expect(screen.getByTestId('recurrence-per-day')).toHaveTextContent('recurrence.summary_per_day');
+    expect(screen.getByTestId('recurrence-per-day')).toHaveTextContent(
+      'recurrence.summary_per_day'
+    );
   });
 
   it('lists the moments a served day fires at', () => {

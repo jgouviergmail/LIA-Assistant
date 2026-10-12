@@ -6,7 +6,7 @@
 
 **Versión**: 5.2
 **Fecha**: 2026-10-04
-**Aplicación**: LIA v2.6.1
+**Aplicación**: LIA v3.0.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -57,7 +57,8 @@
 42. [La anatomía de un proceso: lo que carga está declarado, medido y acotado](#42-la-anatomía-de-un-proceso-lo-que-carga-está-declarado-medido-y-acotado)
 43. [El modo Live: dos inteligencias, una costura — y una política por modo](#43-el-modo-live-dos-inteligencias-una-costura--y-una-política-por-modo)
 44. [Tarjetas que muestran lo recibido, y acciones que pertenecen a su mensaje](#44-tarjetas-que-muestran-lo-recibido-y-acciones-que-pertenecen-a-su-mensaje)
-45. [Conclusión](#45-conclusión)
+45. [Comandos de aplicación: una intención, autoridad actual](#45-comandos-de-aplicación-una-intención-autoridad-actual)
+46. [Conclusión](#46-conclusión)
 ---
 
 ## 1. Contexto y decisiones fundacionales
@@ -72,7 +73,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), credenciales cifradas con Fernet, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
 | Transparencia total | 618 métricas Prometheus, debug panel integrado, seguimiento token por token |
-| Fiabilidad en producción | 337 ADRs, más de 51.000 pruebas automatizadas de backend y frontend, observabilidad nativa, HITL de 6 niveles |
+| Fiabilidad en producción | 341 ADRs, más de 59.000 pruebas automatizadas de backend y frontend, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
 ### 1.2. Principios arquitecturales
@@ -90,10 +91,10 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 
 | Métrica | Valor |
 |----------|--------|
-| Tests | Más de 51.000 pruebas automatizadas con pytest y Vitest (umbrales de cobertura bloqueados, ADR-116) |
+| Tests | Más de 59.000 pruebas automatizadas con pytest y Vitest (umbrales de cobertura bloqueados, ADR-116) |
 | Fixtures pytest | 1.082, de las cuales 48 compartidas mediante conftest |
 | Documentos de documentación | 716 |
-| ADRs (Architecture Decision Records) | 337 |
+| ADRs (Architecture Decision Records) | 341 |
 | Métricas Prometheus | 618 definiciones |
 | Dashboards Grafana | 31 |
 | Idiomas soportados (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -756,9 +757,9 @@ llm = get_llm(provider="openai", model="gpt-5.4", temperature=0.7, streaming=Tru
 
 El `get_llm()` resuelve la configuración efectiva via `get_llm_config_for_agent(settings, agent_type)` (code defaults → DB admin overrides), instancia el modelo y aplica los adaptadores específicos.
 
-### 12.2. 86 tipos de configuración LLM
+### 12.2. 87 tipos de configuración LLM
 
-El registro efectivo ofrece **86 configuraciones**: **62 de conversación**, **20 decisiones nativas** y **4 para generación de imágenes, transcripción o síntesis de voz**. Las decisiones nativas incluyen la elección de la plantilla de reunión y otros 19 usos JEV. Cada espacio se configura de forma independiente en la interfaz de administración, sin redespliegue:
+El registro efectivo ofrece **87 configuraciones**: **62 de conversación**, **21 decisiones nativas** y **4 para generación de imágenes, transcripción o síntesis de voz**. Las decisiones nativas incluyen la elección de la plantilla de reunión y otros 20 usos JEV. Cada espacio se configura de forma independiente en la interfaz de administración, sin redespliegue:
 
 | Categoría | Tipos configurables |
 |-----------|-------------------|
@@ -1548,7 +1549,7 @@ Una regla CSS gobierna los espaciados del design system: los márgenes verticale
 
 ## 24. Arquitectura de decisiones (ADR)
 
-337 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
+341 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
 
 | ADR | Decisión | Problema resuelto | Impacto medido |
 |-----|----------|----------------|---------------|
@@ -1707,9 +1708,9 @@ La página Actividad es un **read-model puro**: fetchers paralelos (una sesión 
 
 ## 31. Ojos expresivos: un personaje guiado por señales
 
-El widget de ojos del chat (ADR-240) descansa sobre un único principio: **ninguna señal nueva, ningún coste nuevo**. Un motor puro — tablas de decisión con RNG y relojes inyectados — deriva una de veinte expresiones de una cadena de prioridades (error > pregunta HITL > voz > interacción > reacción del turno > notificación > escritura > inactividad > ánimo × hora) alimentada exclusivamente por la maquinaria existente: la máquina de estados del chat, los pasos de ejecución SSE (reflexión vs. búsqueda de herramienta), la tarjeta HITL, la máquina vocal y el motor psicológico. La reacción a cada respuesta lee el autoinforme emocional que el modelo ya adjunta a su propio turno, con un repliegue heurístico estrictamente neutro en idioma (puntuación, emojis, estructura — ancho completo chino incluido). El renderizado es declarativo — un atributo de expresión, variables CSS y una hoja de animación donde los párpados son **morphs geométricos puros** (compresión vertical anclada, rotación por ojo, modelado de radios): sin clipping en ninguna parte, cada estado intermedio sigue siendo una curva suave. La vida entre eventos — parpadeos, sacadas de la mirada, gestos ponderados por ánimo, microescenas de ensoñación, raro slapstick — vive en planificadores de timers propios, en pausa con la pestaña oculta o el widget minimizado, congelados bajo `prefers-reduced-motion`. Los seis estilos seleccionables comparten este único esqueleto: un registro genérico donde añadir una mirada cuesta un id, una hoja CSS con ámbito y seis entradas de locale — la completitud es un test, no una convención.
+El widget de ojos del chat (ADR-240) descansa sobre un único principio: **ninguna señal nueva, ningún coste nuevo**. Un motor puro — tablas de decisión con RNG y relojes inyectados — deriva una de veinte expresiones de una cadena de prioridades (error > pregunta HITL > voz > interacción > reacción del turno > notificación > escritura > inactividad > ánimo × hora) alimentada exclusivamente por la maquinaria existente: la máquina de estados del chat, los pasos de ejecución SSE (reflexión vs. búsqueda de herramienta), la tarjeta HITL, la máquina vocal y el motor psicológico. La reacción a cada respuesta lee el autoinforme emocional que el modelo ya adjunta a su propio turno, con un repliegue heurístico estrictamente neutro en idioma (puntuación, emojis, estructura — ancho completo chino incluido). El renderizado es declarativo — un atributo de expresión, variables CSS y una hoja de animación donde los párpados son **morphs geométricos puros** (compresión vertical anclada, rotación por ojo, modelado de radios): sin clipping en ninguna parte, cada estado intermedio sigue siendo una curva suave. La vida entre eventos — parpadeos, sacadas de la mirada, gestos ponderados por ánimo, microescenas de ensoñación, raro slapstick — vive en planificadores de timers propios, en pausa con la pestaña oculta o el widget minimizado, congelados bajo `prefers-reduced-motion`. Los estilos clásicos seleccionables comparten este único esqueleto: un registro genérico donde añadir una mirada cuesta un id, una hoja CSS con ámbito y seis entradas de locale — la completitud es un test, no una convención.
 
-El rostro vive entre dos respuestas, y esa vida es un rig, no una hoja de estilos (ADR-252, ADR-264). Un runtime TypeScript calcula cada canal en cada fotograma — muelles analíticos, bucles aditivos, cintas de claves — y publica el resultado como propiedades personalizadas `--rig-*` que la hoja se limita a leer: una hoja de estilos nunca declara una y nunca pone una transición sobre un valor que cambia sesenta veces por segundo. La ceja tiene un arco y sigue discretamente presente en reposo; una sola respiración lleva la masa, las cejas y la anchura de la boca con el mismo periodo; la mirada levanta las cejas y un parpadeo las baja, acoplados en el rig como **contribuciones absolutas y no incrementos**, porque la vía rápida de reposo solo reescribe los canales que recorre un bucle — un incremento allí derivaría durante toda la sesión, lo que un test fija comparando veinte mil pasos pequeños con uno solo. El habla tiene frases (una envolvente a través del cierre, una apertura acotada en el intervalo unidad) y cejas que puntúan con un patrón irregular. La boca tiene vida propia — muecas relativas a cadencia aleatoria, programadas por el rig — y diez breves escenas sobre un rostro en reposo, cortadas por cualquier cambio de expresión con el rostro exactamente donde estaba, verificado contra un rig gemelo. El azar procede de un flujo sembrado aparte, nunca de `Math.random`, para que los tests del widget sigan siendo deterministas; la quietud viva es un presupuesto en píxeles en los tests — visible en reposo, por debajo de dos píxeles, exactamente cero sobre un rostro concentrado. El mismo widget recibe a los visitantes en la página de inicio pública: sin cuenta, una posición por superficie, el aspecto Smiley impuesto allí mientras el chat conserva el estilo del usuario — y las vistas previas del selector de estilo apagan esa vida, porque una vista previa compara siluetas.
+El rostro vive entre dos respuestas, y esa vida es un rig, no una hoja de estilos (ADR-252, ADR-264). Un runtime TypeScript calcula cada canal en cada fotograma — muelles analíticos, bucles aditivos, cintas de claves — y publica el resultado como propiedades personalizadas `--rig-*` que la hoja se limita a leer: una hoja de estilos nunca declara una y nunca pone una transición sobre un valor que cambia sesenta veces por segundo. La ceja tiene un arco y sigue discretamente presente en reposo; una sola respiración lleva la masa, las cejas y la anchura de la boca con el mismo periodo; la mirada levanta las cejas y un parpadeo las baja, acoplados en el rig como **contribuciones absolutas y no incrementos**, porque la vía rápida de reposo solo reescribe los canales que recorre un bucle — un incremento allí derivaría durante toda la sesión, lo que un test fija comparando veinte mil pasos pequeños con uno solo. El habla tiene frases (una envolvente a través del cierre, una apertura acotada en el intervalo unidad) y cejas que puntúan con un patrón irregular. La boca tiene vida propia — muecas relativas a cadencia aleatoria, programadas por el rig — y diez breves escenas sobre un rostro en reposo, cortadas por cualquier cambio de expresión con el rostro exactamente donde estaba, verificado contra un rig gemelo. El azar procede de un flujo sembrado aparte, nunca de `Math.random`, para que los tests del widget sigan siendo deterministas; la quietud viva es un presupuesto en píxeles en los tests — visible en reposo, por debajo de dos píxeles, exactamente cero sobre un rostro concentrado. El mismo widget recibe a los visitantes en la página de inicio pública: sin cuenta, una posición por superficie, BIP masculino mostrado independientemente del estilo guardado en el chat — y las vistas previas del selector de estilo apagan esa vida, porque una vista previa compara siluetas.
 
 Cada canal del rig se ajusta contra una medición de lo que la página realmente renderiza (ADR-294). La ceja se apoya en el ojo y pesa: tiene masa, se frunce y **conduce** cada expresión en lugar de seguirla. El habla no es un bucle sino una frase generada — sílabas, pausas, acentos — que nada repite; los tiempos fuertes de las expresiones se deforman en cada sorteo, de modo que dos parpadeos, dos sonrisas, dos miradas nunca son idénticos. Las escenas esperan un verdadero tiempo de reposo en un reloj que la página conserva a través de las navegaciones, porque un reloj puesto a cero en cada montaje nunca dejaría llegar la escena. Todo ello se lee en los canales que publica el rig, medidos fotograma a fotograma.
 
@@ -1909,12 +1910,46 @@ Solo se afirma una selección cuando las pruebas establecen qué elementos y fec
 
 ---
 
-## 45. Conclusión
+## 45. Comandos de aplicación: una intención, autoridad actual
+
+El chat puede leer preferencias y preparar operaciones sobre recursos de LIA según el catálogo realmente ofrecido. Cada operación declarada define entradas, resultados, secciones de la interfaz, derechos necesarios y política de confirmación. Los valores ofrecidos reutilizan opciones y nombres nativos; el modelo no inventa otra opción del formulario.
+
+### Un comando vinculado a su contenido
+
+La aprobación identifica un contenido preciso y su huella. El comando conserva identidad, fase, caducidad y contexto de cuenta/origen/dispositivo; el contenido sensible se cifra. Antes de escribir, el ejecutor relee autoridad y versión del recurso. Una comparación de versión (CAS) rechaza escrituras preparadas sobre un estado obsoleto. Una reserva protegida limita ejecuciones duplicadas en la aplicación sin prometer transacciones exactamente una vez en todos los proveedores externos.
+
+### La entrada privada permanece en su interfaz
+
+Una continuación entrega la operación al navegador autenticado para OAuth, una clave, un archivo o consentimiento del dispositivo. Se verifican origen y sesión; los valores privados no se convierten en argumentos del modelo. Los eventos pueden pedir a la interfaz que relea recursos afectados sin exponer sus valores nuevos ni contenido administrativo privado. Cifrar el contenido nunca sustituye los controles de acceso.
+
+### La respuesta sigue las pruebas, no la intención
+
+Una solicitud preparada, una confirmación pendiente y un cambio registrado son estados distintos. LIA comunica resultados observados y distingue resultados parciales, espera, conflictos, caducidad y fallos. Si el recurso cambió después de la preparación, el comando puede rechazarse y necesitar una nueva solicitud. Delegar en una herramienta no demuestra por sí solo todos sus efectos internos.
+
+### Lecturas recientes y herramientas identificadas
+
+Las lecturas independientes y expresamente aptas pueden ejecutarse en paralelo, por segmentos con checkpoints y concurrencia limitada. Las modificaciones no reciben ese permiso por estar cerca en un plan. Una interrupción antes del checkpoint puede provocar otra lectura; la reutilización local no promete una única lectura global ni un estado siempre reciente.
+
+En ReAct, una lectura exacta, completa y aún reciente puede reutilizarse dentro de la misma solicitud. Una modificación invalida las observaciones afectadas; otra solicitud puede necesitar una lectura nueva. Las referencias conservan su tipo y fuente: una ciudad no es un contacto. Las fechas siguen el contexto y la zona horaria de la solicitud; el tiempo declara sus unidades en lugar de adivinar conversiones de valores desconocidos.
+
+LIA utiliza los esquemas y contratos de resultado realmente descubiertos, con identidad, antigüedad y huella. Un nombre legible o alias no sustituye la identidad del servidor y la herramienta ofrecidos. Los servidores personales y administrativos permanecen separados. Los resultados estructurados se utilizan según su contrato; los esquemas arbitrarios y los datos externos no se convierten en verdad interna. Los contratos ausentes o inciertos siguen identificados como tales, con las confirmaciones aplicables.
+
+### Decisiones visuales y límites explícitos
+
+Los compañeros nativos usan arte preparado sin conexión y un rig común. El volumen es aproximado, con elementos faciales y accesorios unidos al movimiento de la cabeza; no reconstruye toda la anatomía oculta. El movimiento tiene un único responsable, los recursos un ciclo de vida, y la visualización reducida o estática sigue disponible. El vídeo usa réplicas de interfaz y datos de demostración; no demuestra rendimiento del dispositivo ni certificación televisiva.
+
+Las decisiones JEV se configuran en Administración › Integraciones JEV, con un interruptor general y usos independientes. Son opcionales, desactivadas por defecto y necesitan configuración y precios válidos. El modelo ayuda a clasificar un valor o elegir dentro de un ámbito declarado, pero compatibilidad, permisos y ejecución permanecen en código. Un juicio incierto, no disponible o desactivado recurre a las protecciones deterministas. Los diagnósticos son opcionales y limitados; parameter_kind está desactivado por defecto. Una llamada de pago fallida y su alternativa cuentan ambas. Los resultados de un corpus de pruebas no prometen el mismo beneficio para todas tus solicitudes.
+
+Los estudios de oMLX, llama.cpp y LM Studio y el mundo isométrico son trabajos de validación o diseño, no nuevas integraciones entregadas. Usa los proveedores realmente ofrecidos por tu instancia. El avatar de vídeo Simli sigue siendo experimental, opcional y dependiente de un servicio externo; es distinto de los compañeros nativos.
+
+---
+
+## 46. Conclusión
 
 LIA es un ejercicio de ingeniería de software que intenta resolver un problema concreto: construir un asistente IA multi-agente de calidad producción, transparente, seguro y extensible, capaz de funcionar en un Raspberry Pi.
 
-Los 337 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Las más de 51.000 pruebas automatizadas, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
+Los 341 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Las más de 59.000 pruebas automatizadas, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (700+ documentos), de los 337 ADRs y del changelog (v1.0 a v2.6.1). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (700+ documentos), de los 341 ADRs y del changelog (v1.0 a v3.0.0). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

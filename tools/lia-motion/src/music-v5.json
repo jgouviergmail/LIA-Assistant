@@ -1,0 +1,28 @@
+{
+  "id": "lia-original-score",
+  "title": "LIA — ElectroFunk",
+  "artist": "Composition originale LIA · Google Lyria",
+  "provider": "Google Gemini API",
+  "model": "lyria-3.5",
+  "source": "https://ai.google.dev/gemini-api/docs/music-generation",
+  "sourceSha256": "a4df8c28625c67763e19ddcbb44c684270fb5bb36bd5d805205a87b7b10d21fd",
+  "publishedTempoBpm": 134,
+  "tempoIsPromptTarget": true,
+  "attribution": "LIA — ElectroFunk · composition sur mesure générée avec Google Lyria 3.5",
+  "styleSource": "Original electro-funk: upfront analog synth bass, tight electronic drums, rounded middle-register analog polysynth lead, discreet muted rhythm guitar; sax/brass/woodwinds/voice forbidden in the prompt. Continuous 160-second composition requested.",
+  "license": "Google Gemini API generated-content terms",
+  "licenseUrl": "https://ai.google.dev/gemini-api/terms",
+  "sourceFormat": {
+    "codec_name": "mp3",
+    "sample_fmt": "fltp",
+    "sample_rate": "44100",
+    "channels": 2,
+    "bits_per_sample": 0,
+    "bit_rate": "192000"
+  },
+  "originalAudio": "audio/v5/LIA-ElectroFunk.mp3",
+  "workingAudio": "audio/v5/LIA-ElectroFunk-film.wav",
+  "allowanceSeconds": 160.0,
+  "generationMetadata": "audio/v5/lia-electrofunk-generation.json",
+  "compositionRequest": "audio/v5/lia-electrofunk-composition-request.json"
+}

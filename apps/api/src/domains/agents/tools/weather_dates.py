@@ -140,3 +140,26 @@ def calculate_target_date(
 
     # A value nobody can read is refused, never guessed as today (ADR-310).
     raise UnreadableDateError(ref)
+
+
+def forecast_window_days(requested: int | None, *, is_specific_date: bool, max_days: int) -> int:
+    """How many consecutive days a daily forecast returns, from its target date.
+
+    An omitted count is the target day alone when a specific date was asked,
+    and the whole published window otherwise. An explicit count is honoured —
+    it used to be replaced by 1 whenever it equalled the default, so "the next
+    five days" from today came back as one day (2026-10-11) — and bounded to
+    ``[1, max_days]``: the ReAct loop reaches the tool without the planner's
+    clamp, and a bound is repaired, never rejected (ADR-184).
+
+    Args:
+        requested: The caller's ``days``, or None when omitted.
+        is_specific_date: Whether a specific target date was asked.
+        max_days: The published window (``WEATHER_FORECAST_MAX_DAYS``).
+
+    Returns:
+        The number of days to return.
+    """
+    if requested is None:
+        return 1 if is_specific_date else max_days
+    return max(1, min(requested, max_days))

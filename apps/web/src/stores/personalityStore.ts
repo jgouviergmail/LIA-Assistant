@@ -116,7 +116,7 @@ export const usePersonalityStore = create<PersonalityStoreState>((set, get) => {
   return {
     ...INITIAL_STATE,
 
-    load: async (ownerId) => {
+    load: async ownerId => {
       const state = get();
       if (state.ownerId !== ownerId) {
         // Another account, or the first load. Serving the previous user's
@@ -139,7 +139,7 @@ export const usePersonalityStore = create<PersonalityStoreState>((set, get) => {
       await run();
     },
 
-    updatePersonality: async (personalityId) => {
+    updatePersonality: async personalityId => {
       set({ updating: true, error: null });
       try {
         const response = await updateCurrentPersonality({ personality_id: personalityId });

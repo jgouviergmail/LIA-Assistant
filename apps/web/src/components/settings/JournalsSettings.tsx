@@ -139,13 +139,7 @@ interface JournalsSettingsProps {
   lng: Language;
 }
 
-function PortraitReadError({
-  error,
-  lng,
-}: {
-  error: Error | null | undefined;
-  lng: Language;
-}) {
+function PortraitReadError({ error, lng }: { error: Error | null | undefined; lng: Language }) {
   const { t } = useTranslation(lng, 'translation');
   if (!error) return null;
   return (

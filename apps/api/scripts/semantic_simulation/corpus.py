@@ -153,6 +153,28 @@ SCENARIOS = (
         "create_task_tool",
         {"title": "N/A 123", "notes": "Ce texte contient {accolades} et $steps.fake, à conserver."},
     ),
+    Scenario(
+        "nearby_places_city_reference",
+        # One search: the scenario judges the location VALUE (the city, never
+        # refused). A plural or two-part request (the incident's walks AND café)
+        # is legitimately split into several searches, so it is proven end to
+        # end instead (measured 2026-10-12: two then three searches, all on the city).
+        "Trouve un parc près de montbéliard pour une balade.",
+        ("place",),
+        "get_places_tool",
+        {"location": "Montbéliard"},
+        accepted_values={
+            "location": ("Montbéliard, France", "Montbéliard, FR", "Montbéliard 25200")
+        },
+    ),
+    Scenario(
+        "five_day_forecast_window",
+        # The person's own number, not the configured window.
+        "Quel sera le jour le plus propice à une balade dehors les 5 prochains jours à Lyon ?",
+        ("weather",),
+        "get_weather_forecast_tool",
+        {"days": 5},
+    ),
 )
 
 

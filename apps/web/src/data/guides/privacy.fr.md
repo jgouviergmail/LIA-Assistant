@@ -2,8 +2,8 @@
 
 > Vos donnees. Votre assistant. Vos regles.
 
-**Version** : 1.0
-**Date** : 2026-10-05
+**Version** : 1.1
+**Date** : 2026-10-12
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -127,6 +127,12 @@ Des contrôles de masquage protègent les journaux techniques ; ils n'anonymisen
 
 **Journalisation securisee :**
 Les journaux techniques utilisent le format JSON structuré (via structlog), avec des règles pour omettre les propos de l'utilisateur et masquer les secrets et informations personnelles reconnus. Ces contrôles ne rendent pas chaque stockage de diagnostic anonyme.
+
+### Commandes et continuations privées
+
+Les clés, choix de fichier, connexions de compte et consentements du navigateur passent par l’interface sécurisée prévue pour l’opération, pas par des paramètres que le modèle invente. La commande est liée au compte et à son contexte autorisé ; les droits et la version de la ressource sont revérifiés avant l’écriture. Le chiffrement des contenus de commande ne rend pas tout le service invisible à son opérateur : les messages et les données nécessaires au fonctionnement gardent les limites décrites ici.
+
+---
 
 ## 6. Fournisseurs LLM
 

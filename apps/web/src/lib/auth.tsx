@@ -1,6 +1,14 @@
 'use client';
 
-import React, { createContext, useState, useEffect, useCallback, useMemo, useRef, ReactNode } from 'react';
+import React, {
+  createContext,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+  ReactNode,
+} from 'react';
 import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
 import { clearInputDraft } from '@/hooks/useInputDraft';
 import {
@@ -113,7 +121,10 @@ export const AuthContext = createContext<AuthContextType | undefined>(undefined)
  */
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const refreshIdentity = useRef<{ id: string | null; sequence: number }>({ id: null, sequence: 0 });
+  const refreshIdentity = useRef<{ id: string | null; sequence: number }>({
+    id: null,
+    sequence: 0,
+  });
   useEffect(() => {
     const identity = refreshIdentity.current;
     identity.id = user?.id ?? null;
@@ -439,7 +450,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const sequence = ++refreshIdentity.current.sequence;
     try {
       const response = await apiClient.get<User>('/auth/me');
-      if (response.id !== ownerId || refreshIdentity.current.id !== ownerId || refreshIdentity.current.sequence !== sequence) return false;
+      if (
+        response.id !== ownerId ||
+        refreshIdentity.current.id !== ownerId ||
+        refreshIdentity.current.sequence !== sequence
+      )
+        return false;
       // Only update if user data actually changed (prevents unnecessary re-renders)
       setUser(prev => {
         if (prev?.id !== ownerId) return prev;

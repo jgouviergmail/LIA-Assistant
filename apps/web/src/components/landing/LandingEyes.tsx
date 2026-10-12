@@ -9,7 +9,7 @@
  * graceful degradation) and everything the face does on its own — breath,
  * idle gestures, mimics, sketches — plays on a resting expression. The
  * position dragged here is the landing's own (`EyesSurface`). The public
- * presentation is BIP masculine, at the largest size on desktop. Narrow
+ * presentation is BIP masculine, always awake, at the largest size on desktop. Narrow
  * screens omit the floating widget so it cannot cover the proof or actions.
  * It is independent
  * of the visitor's saved application style, size and gender.

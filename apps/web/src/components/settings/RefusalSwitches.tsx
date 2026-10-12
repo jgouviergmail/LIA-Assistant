@@ -183,9 +183,7 @@ export function RefusalSwitches({
                 // screen, and a reader who cannot read which ones is left
                 // exactly where they started.
                 <span id={`${state.id}-requires`} className="block text-xs text-warning">
-                  {requiresNote?.(
-                    state.missing.map(name => requirementLabelFor?.(name) ?? name)
-                  )}
+                  {requiresNote?.(state.missing.map(name => requirementLabelFor?.(name) ?? name))}
                 </span>
               )}
             </div>

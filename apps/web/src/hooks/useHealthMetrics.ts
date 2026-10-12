@@ -86,18 +86,24 @@ export interface HealthMetricsDeleteResponse {
 export function useHealthMetrics(period: HealthMetricsPeriod = 'day') {
   // Aggregated chart data
   const aggregateQuery = useApplicationAccountQuery<HealthMetricsAggregateResponse>(
-    `/health-metrics/aggregate?period=${period}`, 'useHealthMetrics');
+    `/health-metrics/aggregate?period=${period}`,
+    'useHealthMetrics'
+  );
   const {
     data: aggregate,
     loading: aggregateLoading,
     error: aggregateError,
     refetch: refetchAggregate,
-    ownerId, isCurrent, setData: setAggregate,
+    ownerId,
+    isCurrent,
+    setData: setAggregate,
   } = aggregateQuery;
 
   // Token listing
   const tokenQuery = useApplicationAccountQuery<HealthMetricsTokenListResponse>(
-    '/health-metrics/tokens', 'useHealthMetrics');
+    '/health-metrics/tokens',
+    'useHealthMetrics'
+  );
   const {
     data: tokensData,
     loading: tokensLoading,
@@ -159,7 +165,7 @@ export function useHealthMetrics(period: HealthMetricsPeriod = 'day') {
       if (result) {
         await refetchTokens();
       }
-      return isCurrent() ? result ?? null : null;
+      return isCurrent() ? (result ?? null) : null;
     },
     [createTokenMutate, refetchTokens, isCurrent]
   );

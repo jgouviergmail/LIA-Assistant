@@ -17,7 +17,14 @@ vi.mock('@/hooks/useApiQuery', () => ({ useApiQuery: mockUseApiQuery }));
 import { useChatSuggestions } from '../useChatSuggestions';
 
 function reply(over: Record<string, unknown> = {}) {
-  return { data: undefined, loading: false, error: null, refetch: vi.fn(), setData: vi.fn(), ...over };
+  return {
+    data: undefined,
+    loading: false,
+    error: null,
+    refetch: vi.fn(),
+    setData: vi.fn(),
+    ...over,
+  };
 }
 
 beforeEach(() => vi.clearAllMocks());
@@ -30,7 +37,9 @@ describe('useChatSuggestions', () => {
 
     const { result } = renderHook(() => useChatSuggestions(true));
 
-    expect(result.current.suggestions).toEqual([{ id: 'next_event', params: { subject: 'Revue' } }]);
+    expect(result.current.suggestions).toEqual([
+      { id: 'next_event', params: { subject: 'Revue' } },
+    ]);
   });
 
   it('asks the endpoint only when the rail can be shown', () => {
@@ -53,7 +62,9 @@ describe('useChatSuggestions', () => {
   });
 
   it('falls silent on failure rather than surfacing an error', () => {
-    mockUseApiQuery.mockReturnValue(reply({ error: new Error('boom'), data: { suggestions: [{ id: 'x' }] } }));
+    mockUseApiQuery.mockReturnValue(
+      reply({ error: new Error('boom'), data: { suggestions: [{ id: 'x' }] } })
+    );
 
     const { result } = renderHook(() => useChatSuggestions(true));
 

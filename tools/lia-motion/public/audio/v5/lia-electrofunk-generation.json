@@ -1,0 +1,138 @@
+{
+  "status": "generated",
+  "startedAt": "2026-10-12T00:06:34.538364+00:00",
+  "provider": "Google Gemini API",
+  "model": "lyria-3.5",
+  "publishedGenerationPriceUsd": 0.08,
+  "invoiceVerified": false,
+  "pricingSource": "https://ai.google.dev/gemini-api/docs/pricing",
+  "paidGenerationAttempts": 1,
+  "humanRequestedTake": 3,
+  "automaticRetries": 0,
+  "credentialPersisted": false,
+  "finishedAt": "2026-10-12T00:07:04.725403+00:00",
+  "elapsedSeconds": 30.186,
+  "interactionId": null,
+  "requestHeaders": {
+    "date": "Mon, 12 Oct 2026 00:07:04 GMT"
+  },
+  "usage": {
+    "total_tokens": 2697,
+    "total_input_tokens": 1065,
+    "input_tokens_by_modality": [
+      {
+        "modality": "text",
+        "tokens": 1065
+      }
+    ],
+    "total_cached_tokens": 0,
+    "total_output_tokens": 1632,
+    "total_tool_use_tokens": 0,
+    "total_thought_tokens": 0,
+    "raw_prompt_token": 11764,
+    "model_invocation_token_counts": [
+      {}
+    ],
+    "non_grounding_model_invocation_token_counts": [
+      {}
+    ]
+  },
+  "providerRequestIdentifierAvailable": false,
+  "reportedMimeType": "audio/mpeg",
+  "sourceAudio": "LIA-ElectroFunk.mp3",
+  "sourceBytes": 3868065,
+  "sourceSha256": "a4df8c28625c67763e19ddcbb44c684270fb5bb36bd5d805205a87b7b10d21fd",
+  "sourceAudioFormat": {
+    "codec_name": "mp3",
+    "sample_fmt": "fltp",
+    "sample_rate": "44100",
+    "channels": 2,
+    "bits_per_sample": 0,
+    "bit_rate": "192000"
+  },
+  "sourceDurationSeconds": 160.914208,
+  "generationGuide": "https://ai.google.dev/gemini-api/docs/music-generation",
+  "termsSource": "https://ai.google.dev/gemini-api/terms",
+  "termsQualification": "Google does not claim ownership of generated content; API terms apply. No Creative Commons licence or exclusive copyright is asserted.",
+  "instrumentalRequested": true,
+  "humanAudioAudition": false,
+  "structuralText": [
+    "[[A0]]\n[[B1]]\n[[C2]]\n[[D3]]\n[[C4]]"
+  ],
+  "generationMode": "single-turn original composition; audio remix/editing is not supported by Lyria 3.5",
+  "forbiddenInstrumentsRequested": [
+    "saxophone",
+    "sax-like lead",
+    "brass",
+    "woodwinds",
+    "voice"
+  ],
+  "audioQualification": {
+    "qualifiedAt": "2026-10-12T00:13:58.447022+00:00",
+    "workingAudio": "LIA-ElectroFunk-film.wav",
+    "workingDurationSeconds": 160.0,
+    "workingSha256": "adef0876426337dc1e4becac925e3db289830c00312803a052b366c38f971f99",
+    "workingAudioFormat": {
+      "codec_name": "pcm_s24le",
+      "sample_rate": "48000",
+      "channels": 2,
+      "bits_per_sample": 24
+    },
+    "workingLoudness": {
+      "integratedLufs": -18.85,
+      "truePeakDbtp": -4.92,
+      "loudnessRangeLu": 3.4
+    },
+    "edit": {
+      "trimFrom": 0,
+      "trimTo": 160.0,
+      "repetitions": 0,
+      "decodeHeadroomDb": 6
+    },
+    "beatMap": {
+      "entries": 387,
+      "onsetAlignmentRate": 0.972,
+      "analysisVersion": 3,
+      "medianIntervalMs": 407.0,
+      "tempoIsEstimateNotVerifiedMetronome": true,
+      "intervalMadMs": 29.0,
+      "firstEntrySeconds": 0.089,
+      "lastEntrySeconds": 159.861,
+      "allEntriesWithinSource": true,
+      "outOfRangeEntries": 0,
+      "sourceRangeSeconds": [
+        0,
+        160.0
+      ],
+      "reanalysis": {
+        "status": "complete",
+        "analysedAt": "2026-10-12T00:30:47.502225+00:00",
+        "version": 3,
+        "workingSha256": "adef0876426337dc1e4becac925e3db289830c00312803a052b366c38f971f99",
+        "workingAudioUnchanged": true,
+        "explanation": "Only actual local maxima receive parabolic interpolation, whose offset is bounded to half an analysis frame. This removes the former out-of-source extrapolation and restores subsequently suppressed entries. No beat is added by editorial timing.",
+        "prefixBefore24SecondsIdenticalToV2Replay": true,
+        "prefixEntriesCompared": 55,
+        "prefixSha256": "e89e39831d1edb7c415da6e4f41467c13a88153006ddf747b4d1647779bc6d6f",
+        "prefixComparisonMethod": "Replayed the former v2 refinement on the same native working audio in memory; timestamps, weights and bar flags before 24 s are exactly identical.",
+        "previousV2Entries": 336,
+        "previousV2OutOfRangeEntries": 1,
+        "finalStatus": "All 387 timing entries are derived from this 160 s working source and lie within its bounds. Weak or ambiguous accents remain algorithmic estimates, not human-certified percussion."
+      }
+    },
+    "audioPerceptionAudit": {
+      "report": "lia-electrofunk-audio-audit.json",
+      "status": "audit_failed",
+      "httpStatus": 400,
+      "automaticRetries": 0,
+      "instrumentationConfirmed": false,
+      "submittedAuditRequests": 1,
+      "auditBillingVerified": false
+    },
+    "humanAudioAudition": false,
+    "publishedMusicGenerationTotalUsd": 0.24,
+    "musicGenerationSuccessfulTakes": 3,
+    "invoiceVerified": false,
+    "sourceFidelityClaim": "PCM 24-bit 48 kHz is a decoded working format; the native 192 kbps MP3 source remains preserved."
+  }
+}

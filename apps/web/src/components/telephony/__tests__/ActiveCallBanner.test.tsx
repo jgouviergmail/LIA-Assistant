@@ -125,9 +125,7 @@ describe('ActiveCallBanner — an owner call', () => {
   });
 
   it('a verification call is also a call to the person', () => {
-    mockCalls([
-      call({ status: 'in_progress', call_kind: 'verification', callee_display: 'Alex' }),
-    ]);
+    mockCalls([call({ status: 'in_progress', call_kind: 'verification', callee_display: 'Alex' })]);
     renderWithProviders(<ActiveCallBanner lng="fr" />);
     expect(screen.getByText('chat.active_call.self_in_progress')).toBeInTheDocument();
   });

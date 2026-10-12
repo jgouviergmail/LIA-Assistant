@@ -81,7 +81,10 @@ function cache(over: Partial<SkillListResponse> = {}): SkillListResponse {
 }
 
 function setupWith(data: SkillListResponse | undefined, adminView = false) {
-  useApplicationAccountQuery.mockReturnValue({ ...queryResult<SkillListResponse>({ data, setData, refetch }), ownerId: "skills-owner" });
+  useApplicationAccountQuery.mockReturnValue({
+    ...queryResult<SkillListResponse>({ data, setData, refetch }),
+    ownerId: 'skills-owner',
+  });
   return renderHook(() => useSkills(adminView));
 }
 

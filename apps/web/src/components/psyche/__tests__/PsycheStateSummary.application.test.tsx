@@ -24,8 +24,15 @@ describe('owned passive manual psyche state refresh', () => {
 
   it('refuses an obsolete account response', async () => {
     let finish: (value: object) => void = () => {};
-    get.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
-    const update = vi.spyOn(usePsycheStore.getState(), 'updateFromFullState').mockImplementation(() => {});
+    get.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
+    const update = vi
+      .spyOn(usePsycheStore.getState(), 'updateFromFullState')
+      .mockImplementation(() => {});
     const { rerender } = render(<PsycheStateSummary lng="en" refreshKey={0} />);
     rerender(<PsycheStateSummary lng="en" refreshKey={1} />);
     useAuth.mockReturnValue({ user: { id: 'two' } });

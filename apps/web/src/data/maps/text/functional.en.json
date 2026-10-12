@@ -370,6 +370,18 @@
       "role": "An experimental Simli presence, chosen on your own key, for voice comments and Live. A three-size window stays accessible and shows confirmed or pending closure; standby closes the connection. Radio keeps its own player.",
       "goal": "Choose a face while knowing its consumption, silence included.",
       "src": "193ba4c65edd"
+    },
+    "f.application": {
+      "name": "Manage LIA through conversation",
+      "role": "Read and change LIA's settings and objects through declared operations: preferences, connections, sources, skills or administration within your permissions. Changes follow their required confirmations; private input stays in the authenticated browser. A waiting command is never announced as completed.",
+      "goal": "Manage LIA without hunting through every screen, while staying in control of the change and its result.",
+      "src": "c02744de2ba8"
+    },
+    "f.nativeavatar": {
+      "name": "Animated native companions",
+      "role": "Choose a style and its offered variants from the native catalogue. Emotions, gaze and accessories follow activity and available context. The volume is approximate relief from frontal artwork; the fixed drawing takes over when presentation or resources do not permit animation.",
+      "goal": "An original presence that expresses LIA's state and respects your display choice.",
+      "src": "798cc7462f28"
     }
   },
   "flows": {
@@ -489,6 +501,20 @@
         "Right after, LIA may ask you how the meeting went."
       ],
       "src": "97ed7772581f"
+    },
+    "flow.application": {
+      "name": "A requested setting, a verified result",
+      "summary": "From your request to reread state: declared operation, current checks, confirmation and private continuation when needed.",
+      "steps": [
+        "Ask to change a setting or connect a service.",
+        "LIA selects a declared operation available to your account and current permissions.",
+        "If the operation requires it, approve the exact change before execution.",
+        "The command retains its identity and expiry; authority and preconditions are rechecked when acting.",
+        "Private input, a file, OAuth or a device? Continue in your authenticated browser without giving the model a secret.",
+        "LIA distinguishes a committed change from waiting, conflict, failure or cancellation.",
+        "The interface reloads the relevant authenticated data instead of presenting a draft as real state."
+      ],
+      "src": "e95b8505fbf8"
     }
   }
 }

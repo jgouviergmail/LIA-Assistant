@@ -34,17 +34,18 @@ export function useBeatSync(
   // it is merely wanted: a start the browser turns muted never fetches it.
   useEffect(() => {
     if (muted || !playing || beatTrack !== null || !hasBeats) return;
-    let cancelled = false;
-    loadBeatTrack(rank)
-      .then(track => {
-        if (!cancelled && track) setLoaded({ rank, track });
-      })
-      .catch(() => {
-        // No beat map: the video plays, the titles stay still.
-      });
-    return () => {
-      cancelled = true;
-    };
+    const controller = new AbortController();
+    queueMicrotask(() => {
+      if (controller.signal.aborted) return;
+      loadBeatTrack(rank, controller.signal)
+        .then(track => {
+          if (!controller.signal.aborted && track) setLoaded({ rank, track });
+        })
+        .catch(() => {
+          // No beat map: the video plays, the titles stay still.
+        });
+    });
+    return () => controller.abort();
   }, [rank, muted, playing, beatTrack, hasBeats]);
 
   useEffect(() => {

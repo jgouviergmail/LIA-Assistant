@@ -4,7 +4,7 @@
 
 **Versione**: 6.2
 **Data**: 2026-10-04
-**Applicazione**: LIA v2.6.1
+**Applicazione**: LIA v3.0.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -107,6 +107,16 @@ L'amministratore ha accesso a una terza scheda dedicata alla gestione dell'istan
 ### 2.4. Un assistente, non un progetto tecnico
 
 L'obiettivo di LIA non è trasformarti in un amministratore di sistema. È offrirti la potenza di un assistente IA completo **con la semplicità di un'app consumer**. L'interfaccia è installabile come applicazione nativa su computer, tablet e smartphone (PWA), e tutto è pensato per essere usato senza competenze tecniche nel quotidiano.
+
+---
+
+### Impostazioni accessibili tramite conversazione
+
+Sì. Prova «Quale modalità di risposta è attiva?», «Passa le mie risposte a HTML + schede» o «Mostra le mie routine». LIA usa impostazioni e nomi dell’interfaccia, entro le funzioni disponibili sulla tua istanza e autorizzate per il tuo account. Le letture e alcune piccole preferenze reversibili possono essere dirette. Creazione, eliminazione e modifiche sensibili mantengono la conferma.
+
+La conferma riguarda l’operazione e il contenuto mostrati. Accesso OAuth, scelta di file, chiavi e permessi del dispositivo proseguono nel tuo browser autenticato: non incollare questi segreti nella chat. LIA può preparare la richiesta e attendere quel passaggio. L’ascolto a mani libere e i permessi sensibili mantengono le protezioni; un comando non le aggira.
+
+Una richiesta preparata, una conferma attesa e una modifica registrata sono stati diversi. LIA comunica risultati osservati e distingue risultati parziali, attesa, conflitti, scadenza ed errori. Se la risorsa è cambiata dopo la preparazione, il comando può essere rifiutato e richiedere una nuova richiesta. Delegare a uno strumento non dimostra da solo tutti i suoi effetti interni.
 
 ---
 

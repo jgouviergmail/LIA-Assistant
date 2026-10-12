@@ -91,7 +91,9 @@ export const PlannerSection = React.memo(function PlannerSection({ data }: Plann
       {/* Plan Details */}
       <div>
         <SubSectionHeader label="Plan details" borderTop />
-        {plan.steps_count !== undefined && <MetricRow label="Steps count" value={plan.steps_count} />}
+        {plan.steps_count !== undefined && (
+          <MetricRow label="Steps count" value={plan.steps_count} />
+        )}
         {plan.tools_used && plan.tools_used.length > 0 && (
           <MetricRow label="Tools used" value={plan.tools_used.join(', ')} truncate />
         )}

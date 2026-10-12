@@ -15,7 +15,9 @@ vi.mock('sonner', () => ({ toast }));
 // connector (2026-08-16): child blocks inside the enabled panel may read the
 // auth context, and the stub keeps the panel mountable in isolation.
 const { auth } = vi.hoisted(() => ({ auth: { id: 'one' } }));
-vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: auth.id }, isLoading: false }) }));
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({ user: { id: auth.id }, isLoading: false }),
+}));
 
 // The history hook is spied rather than stubbed away: whether it is called
 // with `enabled: false` while the block is shut is the property under test,
@@ -63,12 +65,20 @@ function hook(over: Partial<HeartbeatHook> = {}) {
   };
 }
 
-beforeEach(() => { vi.clearAllMocks(); auth.id = 'one'; });
+beforeEach(() => {
+  vi.clearAllMocks();
+  auth.id = 'one';
+});
 
 describe('HeartbeatSettings', () => {
   it('does not announce the old account result after switching accounts', async () => {
     let complete: ((value: HeartbeatHook['settings']) => void) | undefined;
-    const updateSettings = vi.fn(() => new Promise<HeartbeatHook['settings']>(done => { complete = done; }));
+    const updateSettings = vi.fn(
+      () =>
+        new Promise<HeartbeatHook['settings']>(done => {
+          complete = done;
+        })
+    );
     useHeartbeatSettings.mockReturnValue(hook({ updateSettings }));
     const { user, rerender } = renderWithProviders(<HeartbeatSettings lng="en" />);
     await user.click(screen.getAllByRole('switch')[0]);

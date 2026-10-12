@@ -78,27 +78,35 @@ function hook(over: Partial<PluginsHook> = {}): PluginsHook {
 }
 
 function renderSection() {
-  return renderWithProviders(
-    <PluginsSettings lng="en" />
-  );
+  return renderWithProviders(<PluginsSettings lng="en" />);
 }
 
 beforeEach(() => vi.clearAllMocks());
 
 describe('PluginsSettings', () => {
   it('reports saved import with pending predecessor-file cleanup', async () => {
-    usePlugins.mockReturnValue(hook({ importFromUrl: vi.fn().mockResolvedValue(report({ file_cleanup_pending: true })) }));
+    usePlugins.mockReturnValue(
+      hook({ importFromUrl: vi.fn().mockResolvedValue(report({ file_cleanup_pending: true })) })
+    );
     renderSection();
     const user = userEvent.setup();
-    await user.type(screen.getByRole('textbox', { name: 'settings.plugins.import_url' }), 'https://example.com/plugin.zip');
+    await user.type(
+      screen.getByRole('textbox', { name: 'settings.plugins.import_url' }),
+      'https://example.com/plugin.zip'
+    );
     await user.click(screen.getByRole('button', { name: 'settings.plugins.import_url' }));
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('settings.plugins.file_cleanup_pending'));
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent('settings.plugins.file_cleanup_pending')
+    );
   });
   it('retires a previous account import report and typed address immediately', async () => {
     usePlugins.mockReturnValue(hook({ ownerId: 'owner' }));
     const { rerender } = renderSection();
     const user = userEvent.setup();
-    await user.type(screen.getByRole('textbox', { name: 'settings.plugins.import_url' }), 'https://example.com/private.zip');
+    await user.type(
+      screen.getByRole('textbox', { name: 'settings.plugins.import_url' }),
+      'https://example.com/private.zip'
+    );
     await user.click(screen.getByRole('button', { name: 'settings.plugins.import_url' }));
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
     usePlugins.mockReturnValue(hook({ ownerId: 'other' }));
@@ -143,9 +151,7 @@ describe('PluginsSettings', () => {
     await user.click(screen.getByRole('button', { name: /settings.plugins.uninstall_aria/ }));
     expect(screen.getByText('settings.plugins.uninstall_confirm_title')).toBeInTheDocument();
 
-    await user.click(
-      screen.getByRole('button', { name: /^settings.plugins.uninstall$/ })
-    );
+    await user.click(screen.getByRole('button', { name: /^settings.plugins.uninstall$/ }));
 
     await waitFor(() => expect(uninstallPlugin).toHaveBeenCalledWith('p-1'));
     await waitFor(() => expect(toast.success).toHaveBeenCalled());
@@ -160,9 +166,7 @@ describe('PluginsSettings', () => {
             kind: 'mcp_server',
             key: 'local',
             status: 'skipped',
-            issues: [
-              { code: 'server_transport_unsupported', field: 'local', detail: null },
-            ],
+            issues: [{ code: 'server_transport_unsupported', field: 'local', detail: null }],
           },
         ],
       })

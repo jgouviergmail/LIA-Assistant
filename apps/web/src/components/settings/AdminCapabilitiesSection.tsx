@@ -88,10 +88,7 @@ function groupByFamily(rows: readonly CapabilitySwitch[]): [string, CapabilitySw
  * @param t - The caller's translator.
  * @returns The sentence the row carries under its description.
  */
-function enforcementLine(
-  capability: CapabilitySwitch,
-  t: (key: string) => string
-): string {
+function enforcementLine(capability: CapabilitySwitch, t: (key: string) => string): string {
   const prefix = 'settings.admin.capabilities.';
   if (!capability.deployment_available) return t(`${prefix}deploymentBlocked`);
   if (capability.enforced_in_catalogue && capability.enforced_on_routes) {
@@ -126,9 +123,7 @@ function CapabilityRow({
             {t(capability.label_key)}
           </Label>
           {blockedByDeployment && (
-            <Badge variant="secondary">
-              {t('settings.admin.capabilities.unavailableBadge')}
-            </Badge>
+            <Badge variant="secondary">{t('settings.admin.capabilities.unavailableBadge')}</Badge>
           )}
         </div>
         <p className="text-xs text-muted-foreground">{t(`${capability.label_key}_description`)}</p>

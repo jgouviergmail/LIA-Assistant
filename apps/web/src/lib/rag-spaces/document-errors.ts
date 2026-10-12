@@ -18,7 +18,9 @@ export const RAG_DOCUMENT_ERROR_CODES = [
 
 export type RagDocumentErrorCode = (typeof RAG_DOCUMENT_ERROR_CODES)[number];
 
-export function isRagDocumentErrorCode(value: string | null | undefined): value is RagDocumentErrorCode {
+export function isRagDocumentErrorCode(
+  value: string | null | undefined
+): value is RagDocumentErrorCode {
   return value != null && (RAG_DOCUMENT_ERROR_CODES as readonly string[]).includes(value);
 }
 

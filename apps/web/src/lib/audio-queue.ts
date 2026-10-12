@@ -98,7 +98,9 @@ export class AudioQueue {
   private externalEnd: ReturnType<typeof setTimeout> | null = null;
   private runEnded = false;
   private encodedBytes = 0;
-  setDecodedOutput(output: DecodedAudioOutput | null): void { this.decodedOutput = output; }
+  setDecodedOutput(output: DecodedAudioOutput | null): void {
+    this.decodedOutput = output;
+  }
   /** The producer queued its last clip (`voice_complete`): drain the external output once it empties. */
   endRun(): void {
     this.runEnded = true;
@@ -500,13 +502,20 @@ export class AudioQueue {
     this.externalPlayback = null;
     this.isPlaying = false;
     // An initialization failure cannot be fixed by retrying the same queue forever.
-    if (!this.context) { this.queue = []; this.encodedBytes = 0; }
+    if (!this.context) {
+      this.queue = [];
+      this.encodedBytes = 0;
+    }
     this.onError?.(error as Error);
     // An observer may stop/start the queue; it then owns advancing the new generation.
     if (generation === this.playbackGeneration) void this.playNext();
   }
 
-  private async decodeChunk(context: AudioContext, data: ArrayBuffer, generation: number): Promise<AudioBuffer> {
+  private async decodeChunk(
+    context: AudioContext,
+    data: ArrayBuffer,
+    generation: number
+  ): Promise<AudioBuffer> {
     try {
       // decodeAudioData detaches its argument; keep the owned queued buffer intact.
       return await context.decodeAudioData(data.slice(0));
@@ -515,7 +524,11 @@ export class AudioQueue {
     }
   }
 
-  private async playExternal(output: DecodedAudioOutput, buffer: AudioBuffer, generation: number): Promise<void> {
+  private async playExternal(
+    output: DecodedAudioOutput,
+    buffer: AudioBuffer,
+    generation: number
+  ): Promise<void> {
     const controller = new AbortController();
     this.externalPlayback = controller;
     if (this.externalEnd) clearTimeout(this.externalEnd);

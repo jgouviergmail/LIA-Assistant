@@ -63,6 +63,8 @@ export const landingMediaManifestSchema = z.object({
   version: z.literal(1),
   ...videoShape,
   next: z.array(landingVideoSchema).max(LANDING_MEDIA_MAX_NEXT).default([]),
+  /** Complete presentation, opened explicitly instead of advancing the playlist. */
+  presentation: landingVideoSchema.nullable().default(null),
 });
 
 export type LandingMediaManifest = z.infer<typeof landingMediaManifestSchema>;
@@ -99,7 +101,7 @@ export function resolveMediaFile(baseUrl: string, name: string): string {
 
 /** The videos of a validated manifest, in playing order: the top level first. */
 function entriesOf(manifest: LandingMediaManifest): LandingVideoEntry[] {
-  const { version: _version, next, ...first } = manifest;
+  const { version: _version, next, presentation: _presentation, ...first } = manifest;
   return [first, ...next];
 }
 
@@ -134,6 +136,15 @@ export function resolveLandingPlaylist(
   return entriesOf(landingMediaManifestSchema.parse(manifest)).map(entry =>
     resolveVideo(entry, baseUrl)
   );
+}
+
+/** The complete film is explicit: an unrelated playlist entry is never guessed. */
+export function resolveLandingPresentation(
+  manifest: unknown,
+  baseUrl: string
+): LandingVideoDescriptor | null {
+  const parsed = landingMediaManifestSchema.parse(manifest);
+  return parsed.presentation === null ? null : resolveVideo(parsed.presentation, baseUrl);
 }
 
 /**

@@ -168,7 +168,10 @@ export function flattenForVoice(content: string): string {
  * the rule swallowed the rest of a run of empty lines before failing, and
  * 40 KB of newlines cost 14 s; a link's label and target are bounded.
  */
-const LINK_RE = new RegExp(`\\[([^\\]]{1,${SPAN_MAX_CHARS}})\\]\\([^)]{0,${SPAN_MAX_CHARS}}\\)`, 'g');
+const LINK_RE = new RegExp(
+  `\\[([^\\]]{1,${SPAN_MAX_CHARS}})\\]\\([^)]{0,${SPAN_MAX_CHARS}}\\)`,
+  'g'
+);
 
 function flattenShielded(content: string): string {
   return htmlToPlainText(content)

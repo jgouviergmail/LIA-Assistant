@@ -1,10 +1,10 @@
 # Scheduled Actions (Actions Planifiees)
 
-> Systeme d'actions recurrentes executees automatiquement par l'assistant selon un calendrier defini par l'utilisateur.
+> Routines persistantes exécutées selon une récurrence ou une condition définie par l'utilisateur.
 
 **Version**: 1.0
 **Date**: 2026-02-27
-**Mise à jour**: 2026-09-25 — une horloge par routine : une planification, ou les vérifications du système ([ADR-322](../architecture/ADR-322-One-Clock-Per-Routine.md))
+**Mise à jour**: 2026-10-12 — récurrence partagée et réservations manuelles sous autorité actuelle ([ADR-322](../architecture/ADR-322-One-Clock-Per-Routine.md))
 
 ---
 
@@ -14,7 +14,7 @@ Les Scheduled Actions permettent aux utilisateurs de configurer des taches recur
 
 - Un **titre** descriptif
 - Un **prompt d'instruction** pour l'assistant
-- Un **calendrier** : jours de la semaine (ISO 1-7) + heure/minute en timezone locale
+- Une **horloge** : récurrence calendaire ou condition vérifiée par le système
 - Un **fuseau horaire** (herite du profil utilisateur)
 
 Les resultats sont archives dans la conversation de l'utilisateur et notifies via FCM push et Redis SSE.
@@ -40,7 +40,7 @@ Les resultats sont archives dans la conversation de l'utilisateur et notifies vi
                     |                                          |
 [APScheduler 60s] --poll--> [scheduled_action_executor.py]    |
        |                              |                        |
-       |  1. SchedulerLock(Redis)     |                        |
+       |  1. Leader scheduler        |                        |
        |  2. recover_stale_executing  |                        |
        |  3. get_and_lock_due_actions (FOR UPDATE SKIP LOCKED) |
        |  4. COMMIT (release locks)                            |
@@ -49,7 +49,7 @@ Les resultats sont archives dans la conversation de l'utilisateur et notifies vi
        |         continuer sur un fait NEUF seulement          |
        |     a. Guard: HITL pending check                      |
        |     b. stream_chat_response(auto_approve_plan=True)   |
-       |     c. FCM + SSE + Channels notification               |
+       |     c. FCM + SSE notification                         |
        |     d. TriggerPlan.after_tick (recurrence ou systeme) |
        |     e. mark_execution_success / failure               |
 ```
@@ -67,7 +67,7 @@ Les resultats sont archives dans la conversation de l'utilisateur et notifies vi
 | `domains/scheduled_actions/repository.py` | BaseRepository + lock queries scheduler |
 | `domains/scheduled_actions/service.py` | CRUD + toggle + timezone recalculation |
 | `domains/scheduled_actions/router.py` | 6 endpoints FastAPI |
-| `domains/scheduled_actions/schedule_helpers.py` | APScheduler CronTrigger integration |
+| `core/recurrence/schedule.py` | Réarmement et instants servis depuis RecurrenceSpec |
 | `infrastructure/scheduler/scheduled_action_executor.py` | Job scheduler + execute_single_action |
 
 ### Modele de donnees
@@ -86,6 +86,7 @@ scheduled_actions
 ├── next_trigger_at (DateTime TZ, UTC, nullable) -- Calcule ; NULL = plus rien
 ├── is_enabled (Boolean, default true)
 ├── status (String 20: active|executing|error)
+├── execution_token (UUID, nullable) -- identité de réservation
 ├── last_executed_at (DateTime TZ, nullable)
 ├── execution_count (Integer, default 0)
 ├── consecutive_failures (Integer, default 0)
@@ -119,36 +120,58 @@ construction, et non par un filtre qu'il faudrait penser a ecrire.
 | DELETE | `/scheduled-actions/{id}` | 204 | Supprimer |
 | PATCH | `/scheduled-actions/{id}/toggle` | 200 | Toggle is_enabled |
 | POST | `/scheduled-actions/{id}/execute` | 202 | Tester maintenant (fire-and-forget) |
-| GET | `/scheduled-actions/week` | 200 | La semaine en cours de chaque routine : instants du moteur cron + issue du run qui a servi chaque creneau (ADR-265). Declaree AVANT `/{id}`. |
+| GET | `/scheduled-actions/week` | 200 | La semaine en cours de chaque routine : instants du moteur de récurrence + issue du run qui a servi chaque creneau (ADR-265). Declaree AVANT `/{id}`. |
 
 ### Calcul du prochain declenchement
 
-Utilise `APScheduler.CronTrigger.get_next_fire_time()` (zero dependance ajoutee) :
+Les routines utilisent le moteur partagé `core/recurrence`, comme les rappels.
+`rearm_after()` combine la `RecurrenceSpec`, le fuseau local et l'instant servi,
+puis rend un instant UTC ou `None` si la série n'a plus d'occurrence. APScheduler
+cadence le scrutin ; il ne représente pas la récurrence de chaque routine.
 
 ```python
-trigger = CronTrigger(
-    day_of_week="mon,wed,fri",
-    hour=19, minute=30,
-    timezone=ZoneInfo("Europe/Paris"),
-)
-next_fire = trigger.get_next_fire_time(None, now_utc())
-# CronTrigger retourne l'heure dans la timezone du trigger -> conversion UTC
-return next_fire.astimezone(UTC)
+from src.core.recurrence import RecurrenceSpec, rearm_after
+
+# Exemple de calendrier, pas des valeurs par défaut.
+spec = RecurrenceSpec.model_validate({
+    "freq": "weekly", "interval": 1, "anchor_date": "2026-10-12",
+    "byweekday": [1, 3, 5],
+    "times": {"mode": "at", "at": [{"hour": 19, "minute": 30}]},
+})
+next_fire = rearm_after(spec, "Europe/Paris", due_at=None)
 ```
 
-**Important** : `CronTrigger.get_next_fire_time()` retourne un datetime dans la timezone du trigger (timezone utilisateur), pas en UTC. La conversion explicite `.astimezone(UTC)` est indispensable.
+Une routine `condition` ne possède pas cette planification :
+`TriggerPlan.after_tick()` calcule son prochain contrôle système.
 
 ### Execution par le scheduler
 
 Le job `process_scheduled_actions` tourne toutes les 60 secondes :
 
 1. **Recovery** : reset actions `executing` > 10 min (crash recovery)
-2. **Lock** : `FOR UPDATE SKIP LOCKED` + transition `status='executing'`
+2. **Lock** : `FOR UPDATE SKIP LOCKED`, transition `status='executing'` et nouveau `execution_token`
 3. **Commit** : libere les verrous FOR UPDATE (status='executing' sert de verrou logique)
 4. **Execute** : `execute_single_action()` dans sa propre session DB
 5. **Notification** : FCM push + Redis SSE (voir [Corps des notifications](#corps-des-notifications))
 
-> **Aucun SchedulerLock Redis** (F003). L'unicite d'execution est deja garantie par l'election de leader (`SchedulerLeaderElector`), le `max_instances=1` d'APScheduler et le `FOR UPDATE SKIP LOCKED` de l'etape 2. L'ancien lock, retenu pendant tout son TTL (300 s), bridait ce job de 60 s a une execution toutes les cinq minutes. Verrouille par `test_process_scheduled_actions_uses_no_redis_lock`.
+> **Collecte sérialisée** : l'élection du leader, `max_instances=1` et le verrou SQL coordonnent le scrutin. Aucun `SchedulerLock` Redis supplémentaire n'est pris. La concurrence du batch est bornée par `scheduled_actions_max_concurrency`, avec une session distincte par exécution.
+
+### Réservation d'une exécution manuelle
+
+L'UI et les commandes applicatives passent par
+`ScheduledActionService.reserve_manual_execution()` : la ligne appartenant au
+compte est verrouillée et un lancement déjà `executing` est refusé. La
+réservation porte un `execution_token` opaque. La récupération d'un état
+ancien et le règlement d'un run libèrent ce token.
+
+Une commande conversationnelle peut attendre la fin du tour actif. Sa reprise
+conserve la configuration confirmée et son échéance, puis
+`application/routine_execution_policy.py::authorize_reserved_routine()` relit
+l'autorité, le token, le statut, le snapshot et l'expiration après les lectures
+et avant l'inférence. Une réservation obsolète est annulée seulement si son
+token correspond encore ; elle ne libère ni ne consomme une réservation plus
+récente. Ce contrôle ne promet pas une transaction exactement une fois chez un
+fournisseur externe. Voir [les commandes applicatives](APPLICATION_COMMANDS.md).
 
 ### Deux horloges : une planification, ou les vérifications du système (ADR-322)
 

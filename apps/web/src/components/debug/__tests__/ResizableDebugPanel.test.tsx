@@ -79,7 +79,10 @@ describe('ResizableDebugPanel', () => {
     const handle = renderPanel();
 
     fireEvent.keyDown(handle, { key: 'ArrowLeft' });
-    expect(handle).toHaveAttribute('aria-valuenow', String(DEBUG_PANEL_WIDTH_DEFAULT + DEBUG_PANEL_WIDTH_STEP));
+    expect(handle).toHaveAttribute(
+      'aria-valuenow',
+      String(DEBUG_PANEL_WIDTH_DEFAULT + DEBUG_PANEL_WIDTH_STEP)
+    );
 
     fireEvent.keyDown(handle, { key: 'ArrowRight', shiftKey: true });
     expect(handle).toHaveAttribute(

@@ -17,20 +17,26 @@ describe('useStepUpGuard', () => {
     });
     const action = vi.fn().mockRejectedValue(new ApiStepUpError());
     let pending: Promise<unknown> | undefined;
-    act(() => { pending = result.current.guard(action).catch(error => error); });
+    act(() => {
+      pending = result.current.guard(action).catch(error => error);
+    });
     await waitFor(() => expect(result.current.stepUpOpen).toBe(true));
     const obsolete = result.current.onVerified;
     rerender({ ownerId: 'two' });
     expect(result.current.stepUpOpen).toBe(false);
     await expect(pending).resolves.toBeInstanceOf(ApiStepUpError);
-    act(() => { obsolete(); });
+    act(() => {
+      obsolete();
+    });
     expect(action).toHaveBeenCalledTimes(1);
   });
   it('does not overwrite an existing parked challenge with a second action', async () => {
     const { result } = renderHook(() => useStepUpGuard());
     const first = vi.fn().mockRejectedValue(new ApiStepUpError());
     let pending: Promise<unknown> | undefined;
-    act(() => { pending = result.current.guard(first).catch(error => error); });
+    act(() => {
+      pending = result.current.guard(first).catch(error => error);
+    });
     await waitFor(() => expect(result.current.stepUpOpen).toBe(true));
     const second = vi.fn().mockResolvedValue('unexpected');
     await expect(result.current.guard(second)).rejects.toBeInstanceOf(ApiStepUpError);
@@ -42,7 +48,9 @@ describe('useStepUpGuard', () => {
     const { result, unmount } = renderHook(() => useStepUpGuard());
     const action = vi.fn().mockRejectedValue(new ApiStepUpError());
     let pending: Promise<unknown> | undefined;
-    act(() => { pending = result.current.guard(action).catch(error => error); });
+    act(() => {
+      pending = result.current.guard(action).catch(error => error);
+    });
     await waitFor(() => expect(result.current.stepUpOpen).toBe(true));
     const verify = result.current.onVerified;
     unmount();
@@ -53,7 +61,12 @@ describe('useStepUpGuard', () => {
 
   it('rejects a challenge arriving after unmount without parking it', async () => {
     let reject: ((reason: Error) => void) | undefined;
-    const action = vi.fn(() => new Promise<void>((_resolve, fail) => { reject = fail; }));
+    const action = vi.fn(
+      () =>
+        new Promise<void>((_resolve, fail) => {
+          reject = fail;
+        })
+    );
     const { result, unmount } = renderHook(() => useStepUpGuard());
     const pending = result.current.guard(action).catch(error => error);
     unmount();

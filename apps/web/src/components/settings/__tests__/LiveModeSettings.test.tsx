@@ -16,12 +16,22 @@ vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'live-settings
 vi.mock('@/hooks/useApplicationAccountQuery', () => ({
   useApplicationAccountQuery: (url: string, _component: string, enabled: boolean) => {
     const table: Record<string, unknown> = {
-      '/live/connectors': h.connectors, '/live/models': h.models,
-      '/live/voices?provider=gemini': GEMINI_VOICES, '/live/voices?provider=openai': OPENAI_VOICES,
-      '/live/voices?provider=elevenlabs': PORTAL_VOICES, '/live/preferences': PREFS, '/live/config': LIVE_CONFIG,
+      '/live/connectors': h.connectors,
+      '/live/models': h.models,
+      '/live/voices?provider=gemini': GEMINI_VOICES,
+      '/live/voices?provider=openai': OPENAI_VOICES,
+      '/live/voices?provider=elevenlabs': PORTAL_VOICES,
+      '/live/preferences': PREFS,
+      '/live/config': LIVE_CONFIG,
     };
-    return { ownerId: 'live-settings-account', data: enabled ? table[url] : undefined,
-      loading: false, error: null, refetch: vi.fn(async () => {}), setData: vi.fn() };
+    return {
+      ownerId: 'live-settings-account',
+      data: enabled ? table[url] : undefined,
+      loading: false,
+      error: null,
+      refetch: vi.fn(async () => {}),
+      setData: vi.fn(),
+    };
   },
 }));
 
@@ -67,7 +77,12 @@ const MODELS = {
       name: 'agent_0123456789abcdef',
       label: 'Assistant',
       thinking_levels: [],
-      capabilities: { ...CAPABILITIES, configurable_vad: false, portal_voice: true, vendor_billed: true },
+      capabilities: {
+        ...CAPABILITIES,
+        configurable_vad: false,
+        portal_voice: true,
+        vendor_billed: true,
+      },
     },
   ],
   default_model: 'gemini-x-live',
@@ -205,7 +220,12 @@ const ELEVENLABS = {
   },
   model_settings: {},
   functionally_verified: true,
-  capabilities: { ...CAPABILITIES, configurable_vad: false, portal_voice: true, vendor_billed: true },
+  capabilities: {
+    ...CAPABILITIES,
+    configurable_vad: false,
+    portal_voice: true,
+    vendor_billed: true,
+  },
   active: false,
 };
 

@@ -2,14 +2,19 @@ import { render } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 
 const { useAuth, setColorTheme, state } = vi.hoisted(() => ({
-  useAuth: vi.fn(), setColorTheme: vi.fn(), state: { colorTheme: 'default' },
+  useAuth: vi.fn(),
+  setColorTheme: vi.fn(),
+  state: { colorTheme: 'default' },
 }));
 vi.mock('@/hooks/useAuth', () => ({ useAuth }));
 vi.mock('@/lib/theme-context', () => ({ useColorTheme: () => ({ ...state, setColorTheme }) }));
 
 import { ColorPreferencesSync } from '../ColorPreferencesSync';
 
-beforeEach(() => { vi.clearAllMocks(); state.colorTheme = 'default'; });
+beforeEach(() => {
+  vi.clearAllMocks();
+  state.colorTheme = 'default';
+});
 
 it('applies a validated account theme on pages where the selector is absent', () => {
   useAuth.mockReturnValue({ user: { id: 'one', color_theme: 'ocean' } });

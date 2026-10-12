@@ -160,7 +160,7 @@ def test_mutation_and_self_requiring_provider_cannot_discover_an_existing_handle
     [
         ("email_address", "message_id"),
         ("contact_id", "event_id"),
-        ("duration_minutes", "duration"),
+        ("distance", "radius_meters"),
         ("Date", "datetime"),
         ("unix_timestamp", "datetime"),
         ("latitude", "longitude"),

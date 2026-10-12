@@ -87,7 +87,15 @@ const voicesOf = (provider: string, names: string[]) => ({
 describe('useLiveConnectorDraft', () => {
   it('follows confirmed settings when clean and preserves an unsaved edit when source changes', () => {
     const { result, rerender } = renderHook(
-      ({ connector }) => useLiveConnectorDraft(connector, MODELS, voicesOf('gemini', ['Kore', 'Puck']), NOTHING_MORE, RULES, vi.fn()),
+      ({ connector }) =>
+        useLiveConnectorDraft(
+          connector,
+          MODELS,
+          voicesOf('gemini', ['Kore', 'Puck']),
+          NOTHING_MORE,
+          RULES,
+          vi.fn()
+        ),
       { initialProps: { connector: CONNECTOR } }
     );
     const puck = { ...CONNECTOR, settings: { ...STORED, voice: 'Puck' } };

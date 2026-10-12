@@ -47,9 +47,7 @@ beforeEach(() => {
 describe('OpenOffersList', () => {
   it('accept records a thumbs_up then opens the prefilled chat', async () => {
     const onDecided = vi.fn();
-    render(
-      <OpenOffersList offers={[offer()]} lng="fr" locale="fr-FR" onDecided={onDecided} />
-    );
+    render(<OpenOffersList offers={[offer()]} lng="fr" locale="fr-FR" onDecided={onDecided} />);
 
     fireEvent.click(
       screen.getByRole('button', { name: 'notifications_hub.sections.offers.accept' })
@@ -64,9 +62,7 @@ describe('OpenOffersList', () => {
 
   it('decline records a thumbs_down and never navigates', async () => {
     const onDecided = vi.fn();
-    render(
-      <OpenOffersList offers={[offer()]} lng="fr" locale="fr-FR" onDecided={onDecided} />
-    );
+    render(<OpenOffersList offers={[offer()]} lng="fr" locale="fr-FR" onDecided={onDecided} />);
 
     fireEvent.click(
       screen.getByRole('button', { name: 'notifications_hub.sections.offers.dismiss' })
@@ -82,9 +78,7 @@ describe('OpenOffersList', () => {
   it('a failed decision surfaces a toast — no navigation, no reload', async () => {
     patchMock.mockRejectedValue(new Error('boom'));
     const onDecided = vi.fn();
-    render(
-      <OpenOffersList offers={[offer()]} lng="fr" locale="fr-FR" onDecided={onDecided} />
-    );
+    render(<OpenOffersList offers={[offer()]} lng="fr" locale="fr-FR" onDecided={onDecided} />);
 
     fireEvent.click(
       screen.getByRole('button', { name: 'notifications_hub.sections.offers.accept' })

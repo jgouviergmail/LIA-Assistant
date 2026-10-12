@@ -372,3 +372,13 @@ account timezone. Browser tests also verify distinct visible weather motifs,
 actual motion and a live switch to reduced motion. HTTP tests cover account isolation, hidden preferences,
 malformed cache entries, Redis failure and unauthenticated access. No new
 dependency, database schema, prompt, token allowance or provider quota is needed.
+
+### Follow-up: native body volume (2026-10-12)
+
+[ADR-340](ADR-340-Native-Avatar-Volume-From-Reviewed-Offline-Art.md) extends the
+native presentation with an alpha-derived body proxy, projected facial wrappers
+and shared contextual materials. It retains this ADR's rig clock and
+visibility/motion owner. The
+[native volume guide](../technical/NATIVE_AVATAR_VOLUME.md) documents source
+ownership, resource fallback and the limits of approximate rear anatomy,
+DOM/SVG facial occlusion and the deliberately front-composited scarf.

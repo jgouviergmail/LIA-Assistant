@@ -80,7 +80,6 @@ function SettingsPanel() {
   );
 }
 
-
 /** Reads the refreshing flag the way a consumer sets `aria-busy`. */
 function Busy() {
   const { refreshing } = usePersonality();
@@ -95,7 +94,7 @@ beforeEach(() => {
   fetchCurrentPersonality.mockResolvedValue({ personality: CALM, personality_id: CALM.id });
   updateCurrentPersonality.mockImplementation(
     async ({ personality_id }: { personality_id: string | null }) => {
-      const chosen = [CALM, SHARP].find((p) => p.id === personality_id) ?? null;
+      const chosen = [CALM, SHARP].find(p => p.id === personality_id) ?? null;
       return { personality: chosen, personality_id: chosen?.id ?? null };
     }
   );
@@ -157,7 +156,7 @@ describe('what the shared state must not cost', () => {
     // without `hasLoaded` the header would flash "aucun" on first paint.
     let resolve: (value: unknown) => void = () => {};
     fetchPersonalities.mockReturnValue(
-      new Promise((r) => {
+      new Promise(r => {
         resolve = r;
       })
     );
@@ -226,7 +225,7 @@ describe('a refresh is not a first load', () => {
 
     let resolve: (value: unknown) => void = () => {};
     fetchPersonalities.mockReturnValue(
-      new Promise((r) => {
+      new Promise(r => {
         resolve = r;
       })
     );
@@ -246,7 +245,7 @@ describe('a refresh is not a first load', () => {
 
     let resolve: (value: unknown) => void = () => {};
     fetchPersonalities.mockReturnValue(
-      new Promise((r) => {
+      new Promise(r => {
         resolve = r;
       })
     );

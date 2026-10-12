@@ -81,10 +81,9 @@ export function galleryPath(
 }
 
 /** Owned page metadata and its empty defaults share one projection. */
-function galleryValues(data: GeneratedAssetList | undefined): Pick<
-  UseGeneratedAssetsReturn,
-  'items' | 'total' | 'totalBytes' | 'keep' | 'totalPages'
-> {
+function galleryValues(
+  data: GeneratedAssetList | undefined
+): Pick<UseGeneratedAssetsReturn, 'items' | 'total' | 'totalBytes' | 'keep' | 'totalPages'> {
   const total = data?.total ?? 0;
   return {
     items: data?.items ?? [],
@@ -105,7 +104,10 @@ export function useGeneratedAssets(
   const [page, setPage] = useState(1);
   // The filters are the page's identity: a narrowing that kept the offset
   // would land on a page the new set does not have.
-  const key = useMemo(() => JSON.stringify([accountId, family, filters]), [accountId, family, filters]);
+  const key = useMemo(
+    () => JSON.stringify([accountId, family, filters]),
+    [accountId, family, filters]
+  );
   const [lastKey, setLastKey] = useState(key);
   const effectivePage = key === lastKey ? page : 1;
   if (key !== lastKey) {

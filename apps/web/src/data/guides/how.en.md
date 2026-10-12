@@ -6,7 +6,7 @@
 
 **Version**: 5.2
 **Date**: 2026-10-04
-**Application**: LIA v2.6.1
+**Application**: LIA v3.0.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -57,7 +57,8 @@
 42. [The anatomy of a process: what it loads is declared, measured and bounded](#42-the-anatomy-of-a-process-what-it-loads-is-declared-measured-and-bounded)
 43. [The live mode: two intelligences, one seam — and one policy per mode](#43-the-live-mode-two-intelligences-one-seam--and-one-policy-per-mode)
 44. [Cards that show what was received, and actions that belong to their message](#44-cards-that-show-what-was-received-and-actions-that-belong-to-their-message)
-45. [Conclusion](#45-conclusion)
+45. [Application commands: an intention, current authority](#45-application-commands-an-intention-current-authority)
+46. [Conclusion](#46-conclusion)
 ---
 
 ## 1. Context and founding choices
@@ -72,7 +73,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), credentials encrypted with Fernet, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 618 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 337 ADRs, 51,000+ automated backend and frontend tests, native observability, 6-level HITL |
+| Production reliability | 341 ADRs, 59,000+ automated backend and frontend tests, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -90,10 +91,10 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | 51,000+ automated tests with pytest and Vitest (ratcheted coverage thresholds, ADR-116) |
+| Tests | 59,000+ automated tests with pytest and Vitest (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 1,082, 48 of them shared through conftest |
 | Documentation documents | 716 |
-| ADRs (Architecture Decision Records) | 337 |
+| ADRs (Architecture Decision Records) | 341 |
 | Prometheus metrics | 618 definitions |
 | Grafana dashboards | 31 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -756,9 +757,9 @@ llm = get_llm(provider="openai", model="gpt-5.4", temperature=0.7, streaming=Tru
 
 `get_llm()` resolves the effective configuration via `get_llm_config_for_agent(settings, agent_type)` (code defaults → DB admin overrides), instantiates the model, and applies specific adapters.
 
-### 12.2. 86 LLM configuration types
+### 12.2. 87 LLM configuration types
 
-The effective registry exposes **86 configurations**: **62 chat**, **20 native decisions** and **4 for image generation, transcription or speech synthesis**. The native decisions comprise meeting-template selection and 19 other JEV uses. Each slot is independently configurable through the Admin UI, without redeployment:
+The effective registry exposes **87 configurations**: **62 chat**, **21 native decisions** and **4 for image generation, transcription or speech synthesis**. The native decisions comprise meeting-template selection and 20 other JEV uses. Each slot is independently configurable through the Admin UI, without redeployment:
 
 | Category | Configurable types |
 |----------|-------------------|
@@ -1542,7 +1543,7 @@ One CSS rule governs the design system's spacing: vertical margins on an `inline
 
 ## 24. Architecture Decision Records (ADR)
 
-337 ADRs in MADR format document the major architectural decisions. Some representative examples:
+341 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1701,9 +1702,9 @@ The Activity page is a **pure read model**: parallel fetchers (one session per s
 
 ## 31. Expressive eyes: a character driven by signals
 
-The chat's eyes widget (ADR-240) is built on a single principle: **no new signal, no new cost**. A pure engine — decision tables with injected RNG and clocks — derives one of twenty expressions from a priority chain (error > HITL question > voice > interaction > per-turn reaction > notification > typing > inactivity > mood × hour) fed entirely by machinery the app already had: the chat state machine, the SSE execution steps (thinking vs tool search), the HITL card, the voice state machine and the psyche engine. The per-answer reaction reads the emotional self-report the model already attaches to its own turn, with a strictly language-neutral heuristic fallback (punctuation, emoji, structure — fullwidth Chinese included). Rendering is declarative — an expression attribute, CSS custom properties, and an animation sheet where eyelids are **pure geometric morphs** (anchored vertical compression, per-eye rotation, radius shaping): no clipping anywhere, so every intermediate state stays a smooth curve. The life between events — blinks, gaze saccades, mood-weighted gestures, day-dream micro-scenes, rare slapstick — lives in owned-timer schedulers that pause when the tab is hidden or the widget minimized, and freeze under `prefers-reduced-motion`. The six selectable looks share this one skeleton: a generic registry where adding a gaze costs one id, one scoped CSS sheet and six locale entries — completeness is a test, not a convention.
+The chat's eyes widget (ADR-240) is built on a single principle: **no new signal, no new cost**. A pure engine — decision tables with injected RNG and clocks — derives one of twenty expressions from a priority chain (error > HITL question > voice > interaction > per-turn reaction > notification > typing > inactivity > mood × hour) fed entirely by machinery the app already had: the chat state machine, the SSE execution steps (thinking vs tool search), the HITL card, the voice state machine and the psyche engine. The per-answer reaction reads the emotional self-report the model already attaches to its own turn, with a strictly language-neutral heuristic fallback (punctuation, emoji, structure — fullwidth Chinese included). Rendering is declarative — an expression attribute, CSS custom properties, and an animation sheet where eyelids are **pure geometric morphs** (anchored vertical compression, per-eye rotation, radius shaping): no clipping anywhere, so every intermediate state stays a smooth curve. The life between events — blinks, gaze saccades, mood-weighted gestures, day-dream micro-scenes, rare slapstick — lives in owned-timer schedulers that pause when the tab is hidden or the widget minimized, and freeze under `prefers-reduced-motion`. The selectable classic looks share this one skeleton: a generic registry where adding a gaze costs one id, one scoped CSS sheet and six locale entries — completeness is a test, not a convention.
 
-The face lives between two answers, and that life is a rig, not a stylesheet (ADR-252, ADR-264). A TypeScript runtime computes every channel each frame — analytic springs, additive loops, tapes of keys — and publishes the result as `--rig-*` custom properties the sheet only reads: a stylesheet never declares one and never puts a transition on a value that changes sixty times a second. The brow has an arch and stays faintly present at rest; one breath carries the mass, the brows and the mouth width on the same period; the gaze lifts the brows and a blink dips them, coupled in the rig as **absolute contributions rather than increments**, because the idle fast path only rewrites the channels a loop rides — an increment there would drift for the whole session, which a test pins by comparing twenty thousand small steps against one. Speech has phrases (an envelope through the closure, an opening bounded in the unit interval) and brows that punctuate on an irregular pattern. The mouth has a life of its own — relative mimics at a random cadence, scheduled by the rig — and ten short sketches on a resting face, dropped by any expression change with the face exactly where it was, checked against a twin rig. The randomness comes from a separate seeded stream, never `Math.random`, so the widget tests stay deterministic; the moving hold is a pixel budget in the tests — visible at rest, under two pixels, exactly zero on a focused face. The same widget greets visitors on the public home page: no account, one position per surface, the Smiley look forced there while the chat keeps the user's own style — and the style picker's previews switch that life off, because a preview compares silhouettes.
+The face lives between two answers, and that life is a rig, not a stylesheet (ADR-252, ADR-264). A TypeScript runtime computes every channel each frame — analytic springs, additive loops, tapes of keys — and publishes the result as `--rig-*` custom properties the sheet only reads: a stylesheet never declares one and never puts a transition on a value that changes sixty times a second. The brow has an arch and stays faintly present at rest; one breath carries the mass, the brows and the mouth width on the same period; the gaze lifts the brows and a blink dips them, coupled in the rig as **absolute contributions rather than increments**, because the idle fast path only rewrites the channels a loop rides — an increment there would drift for the whole session, which a test pins by comparing twenty thousand small steps against one. Speech has phrases (an envelope through the closure, an opening bounded in the unit interval) and brows that punctuate on an irregular pattern. The mouth has a life of its own — relative mimics at a random cadence, scheduled by the rig — and ten short sketches on a resting face, dropped by any expression change with the face exactly where it was, checked against a twin rig. The randomness comes from a separate seeded stream, never `Math.random`, so the widget tests stay deterministic; the moving hold is a pixel budget in the tests — visible at rest, under two pixels, exactly zero on a focused face. The same widget greets visitors on the public home page: no account, one position per surface, BIP masculine presented there independently of the chat's saved style — and the style picker's previews switch that life off, because a preview compares silhouettes.
 
 Every channel of the rig is tuned against a measurement of what the page actually renders (ADR-294). The brow sits on the eye and weighs: it has mass, knits, and **leads** each expression instead of following it. Speech is not a loop but a generated phrase — syllables, pauses, stresses — that nothing repeats; the beats of the expressions are warped on every draw, so two blinks, two smiles, two glances are never identical. The sketches wait for real resting time on a clock the page keeps across navigations, because a clock reset at every mount would never let the scene arrive. All of it reads in the channels the rig publishes, measured frame by frame.
 
@@ -1903,12 +1904,46 @@ A selection is claimed only when evidence establishes which items and dates it c
 
 ---
 
-## 45. Conclusion
+## 45. Application commands: an intention, current authority
+
+Chat can read preferences and prepare operations on LIA resources, according to the catalogue actually offered. A declared operation defines its inputs, results, UI sections, required rights and confirmation policy. Offered values reuse native choices and labels; the model cannot invent a new form option.
+
+### A command bound to its content
+
+Approval names precise content and its digest. A command retains its identity, phase, expiry and account/origin/device context; sensitive content is encrypted. At writing time, the executor reads authority and the resource version again. A version comparison (CAS) rejects writing prepared against a stale state. A fenced claim bounds duplicate application execution without promising exactly-once transactions across all external providers.
+
+### Private input stays in its interface
+
+A continuation hands the operation to the authenticated browser for OAuth, a key, a file or device consent. Origin and session are checked; private values do not become model arguments. Events can ask the interface to reread affected resources without exposing their new values or private administrator content. Payload encryption never replaces access checks.
+
+### The answer follows evidence, not intention
+
+A prepared request, an awaited confirmation and a recorded change are different states. LIA reports observed results and distinguishes partial results, waiting, conflicts, expiry and failure. If the resource changed after preparation, the command may be refused and need a new request. Delegation to a tool does not by itself prove all its internal effects.
+
+### Fresh reads and identified tools
+
+Independent reads explicitly eligible for parallel execution can run in checkpointed segments with bounded concurrency. Mutations do not gain that permission merely by appearing nearby in a plan. A stop before checkpoint can still cause a source to be read again; local reuse therefore promises neither one global read nor permanently fresh state.
+
+In ReAct, an exact, complete and still fresh read may be reused within the same request. A change invalidates affected observations; a different request may need a new read. References retain their type and source: a city is not a contact. Dates follow the request context and time zone; weather declares its units rather than guessing a conversion for an unknown value.
+
+LIA uses the schemas and result contracts actually discovered, with their identity, age and fingerprint. A readable name or alias does not replace the offered server and tool identity. Personal and administrator servers remain separate. Structured results can be used where their contract permits; arbitrary schemas or external data do not become internal truth. Missing or uncertain contracts stay declared as such, with applicable confirmation protections.
+
+### Visual choices and explicit limits
+
+Native companions use artwork prepared offline and a shared rig. Their volume is approximate, with facial elements and accessories attached to head motion; it does not reconstruct all hidden anatomy. Motion has a single owner, resources have a lifecycle and reduced or static display remains available. The presentation film uses UI replicas and demonstration data; it proves neither device performance nor television broadcast certification.
+
+JEV decisions are configured under Administration › JEV integrations, with a general switch and independent usages. They are optional and off by default, and require valid configuration and prices. The model helps classify a value or choose within a declared scope, while compatibility rules, permissions and execution stay in code. Uncertain, unavailable or disabled judgments fall back to deterministic protections. Diagnostics are opt-in and bounded; parameter_kind is off by default. A paid failed call and its fallback both count. Test-corpus results do not promise the same benefit on all your requests.
+
+The oMLX, llama.cpp and LM Studio studies and the isometric world are qualification or design work, not new shipped integrations. Use the providers actually offered by your instance. The Simli video avatar remains experimental, opt-in and dependent on an external service; it is separate from native companions.
+
+---
+
+## 46. Conclusion
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 337 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The 51,000+ automated tests, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 341 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The 59,000+ automated tests, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (700+ documents), 337 ADRs, and the changelog (v1.0 to v2.6.1). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (700+ documents), 341 ADRs, and the changelog (v1.0 to v3.0.0). All metrics, versions, and patterns cited are verifiable in the codebase.*

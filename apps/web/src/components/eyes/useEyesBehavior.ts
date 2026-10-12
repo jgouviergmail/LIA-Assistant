@@ -98,6 +98,8 @@ export interface UseEyesBehaviorOptions extends EyesBehaviorProps {
    * hidden widget must cost nothing.
    */
   enabled: boolean;
+  /** Public presentations stay awake; application companions may doze by default. */
+  allowSleep?: boolean;
 }
 
 /** A wandered idle gaze: the target plus its CSS travel time. */
@@ -137,6 +139,18 @@ export interface EyesBehavior {
 
 function sameFrame(a: ExpressionFrame, b: ExpressionFrame): boolean {
   return a.expression === b.expression && a.gaze?.x === b.gaze?.x && a.gaze?.y === b.gaze?.y;
+}
+
+const SLEEP_EXPRESSIONS: ReadonlySet<EyeExpression> = new Set(['tired', 'sleepy', 'sleep']);
+
+/** Apply the surface's sleep policy before mood, wake clocks and emotes see the frame. */
+function sleepPolicyFrame(
+  frame: ExpressionFrame,
+  allowSleep: boolean | undefined
+): ExpressionFrame {
+  return allowSleep === false && SLEEP_EXPRESSIONS.has(frame.expression)
+    ? { expression: 'neutral', gaze: null }
+    : frame;
 }
 
 /**
@@ -275,6 +289,7 @@ export function useEyesBehavior({
   streamPhase,
   hitlAwaiting,
   enabled,
+  allowSleep,
 }: UseEyesBehaviorOptions): EyesBehavior {
   const motionReduced = useSyncExternalStore(subscribeMotion, prefersReducedMotion, () => false);
   const [frame, setFrame] = useState<ExpressionFrame>({
@@ -457,13 +472,16 @@ export function useEyesBehavior({
     const live = readCompanionSignals(now);
     const errorExpired =
       erroredAtRef.current !== null && now - erroredAtRef.current >= ERROR_HOLD_MS;
-    const next = deriveExpression({
-      chatStatus: chatStatus === 'error' && errorExpired ? 'idle' : chatStatus,
-      streamPhase,
-      ...live,
-      hitlAwaiting,
-      inactivityStage: inactivityStageFor(now - (lastActivityRef.current ?? now)),
-    });
+    const next = sleepPolicyFrame(
+      deriveExpression({
+        chatStatus: chatStatus === 'error' && errorExpired ? 'idle' : chatStatus,
+        streamPhase,
+        ...live,
+        hitlAwaiting,
+        inactivityStage: inactivityStageFor(now - (lastActivityRef.current ?? now)),
+      }),
+      allowSleep
+    );
     // Mood family: the personality channel (breathing pace, blink cadence,
     // gesture weights) — tracked as state for CSS and a ref for the timers.
     const nextFamily = resolveIdleFamily(live.moodLabel, next.expression);
@@ -503,7 +521,7 @@ export function useEyesBehavior({
     // sit on top of a live exchange or to hide the notification glance.
     if (!idleStage || signals.isNotificationLive(now)) cancelPerformance();
     applyFrame(next, now);
-  }, [chatStatus, streamPhase, hitlAwaiting, cancelPerformance, applyFrame]);
+  }, [chatStatus, streamPhase, hitlAwaiting, allowSleep, cancelPerformance, applyFrame]);
   useEffect(() => {
     evaluateRef.current = evaluate;
   }, [evaluate]);

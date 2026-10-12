@@ -29,9 +29,12 @@ export interface UseLivePreferencesReturn {
 }
 
 export function useLivePreferences(enabled = true): UseLivePreferencesReturn {
-  const { data, loading, error, refetch, setData, ownerId } = useApplicationAccountQuery<LivePreferences>(
-    LIVE_PREFERENCES_PATH, 'useLivePreferences', enabled
-  );
+  const { data, loading, error, refetch, setData, ownerId } =
+    useApplicationAccountQuery<LivePreferences>(
+      LIVE_PREFERENCES_PATH,
+      'useLivePreferences',
+      enabled
+    );
   const { lifetime, isCurrent } = useApplicationAccountLifetime(ownerId);
   const [pending, setPending] = useApplicationAccountState<LivePreferences | null>(ownerId, null);
   const [saving, setSaving] = useApplicationAccountState(ownerId, false);
@@ -64,15 +67,16 @@ export function useLivePreferences(enabled = true): UseLivePreferencesReturn {
           setData(saved);
           if (revisions.current.get(lifetime) === revision) setPending(saved);
           return true;
-        } catch { return false; }
+        } catch {
+          return false;
+        }
       });
       queues.current.set(lifetime, writing);
       try {
         const saved = await writing;
         if (!saved && isCurrent() && revisions.current.get(lifetime) === revision) setPending(null);
         return saved;
-      }
-      finally {
+      } finally {
         if (queues.current.get(lifetime) === writing) {
           queues.current.delete(lifetime);
           desired.current.delete(lifetime);

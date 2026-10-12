@@ -1787,6 +1787,26 @@
       "title": "Aktuelle MCP-Verträge beschreiben Fähigkeiten und die genaue Serveridentität",
       "summary": "Die MCP-Werkzeuge jeder Person werden anhand ihrer aktuellen Deklarationen entdeckt; nur erfolgreich erstellte Werkzeuge werden angeboten. Die genaue Serveridentität bleibt von vereinfachten Routing- und Aufrufnamen getrennt. Eine an einen Server gebundene Aufgabe prüft ihr Ziel vor der Bestätigung. Ältere Beschreibungen erhalten aktuelle Fähigkeiten, ohne Kenntnis der gesamten Serverontologie zu behaupten.",
       "src": "4d70e2379e7f"
+    },
+    "339": {
+      "title": "Anwendungsbefehle mit aktuellen Rechten und privaten Fortsetzungen",
+      "summary": "LIA verwaltet Einstellungen und Objekte über deklarierte Operationen. Verschlüsselte dauerhafte Befehle binden genehmigten Inhalt, Akteur, Ursprung und Ablaufzeit; Rechte, Fähigkeiten und Voraussetzungen werden bei der Ausführung neu gelesen. Quelldienste behalten Compare-and-Set-Prüfungen, Claims sind durch Token abgesichert. Dateien, OAuth, private Eingaben und Geräteaktionen werden im authentifizierten Browser fortgesetzt. Warten ist kein abgeschlossener Erfolg; ein verlorenes Ergebnis bleibt ungewiss, ohne Zusage einer externen Genau-einmal-Ausführung.",
+      "src": "7bc4d8db53f0"
+    },
+    "340": {
+      "title": "Natives Volumen aus geprüftem Artwork",
+      "summary": "Die Frontalzeichnung texturiert ein begrenztes Relief, dessen Kontur und Randmaterial aus dem Quell-Alpha stammen. Verdeckte Anatomie bleibt angenähert; Augen, Brauen und Mund sind DOM/SVG-Projektionen, der Schal wird bewusst davor komponiert. Körper, Gesicht und Accessoires teilen das bestehende Rig. Sichtbarkeit, reduzierte Bewegung, Bereitschaft und Grafikkontext steuern Ressourcen und Rückkehr zur festen Zeichnung. Geometrie- und Lebenszyklustests bescheinigen weder beliebige Verdeckung noch Leistung auf realen Geräten.",
+      "src": "80220e3564f6"
+    },
+    "341": {
+      "title": "Editierbare Motion-Produktion und exklusive Präsentation",
+      "summary": "Ein Offline-Remotion-Projekt bewahrt Kapitel, HTML/CSS-Ansichten, Posen und musikalische Akzente, damit Film und Funktionsfokusse gemeinsam weiterentwickelt werden. Rekonstruierte Oberflächen verweisen auf native Quellen und verwenden fiktive Daten; außerhalb expliziter Fokusse bleibt ihre Geometrie fest, BIP begleitet die Präsentation. Das Manifest kann einen vollständigen Film getrennt von der Playlist deklarieren: Sein Vollbilddialog pausiert den Hintergrundplayer. Der Film ist französisch, seine Bedienung übersetzt; Renderings, ausgelieferte Dateien, Musikherkunft und Senderabnahme werden gesondert geprüft.",
+      "src": "3ba1c350e291"
+    },
+    "342": {
+      "title": "Eine vom Betreiber aktivierte Avatar-Kampagne zur Laufzeit",
+      "summary": "Eine standardmäßig leere Serveroption stellt BIP beim nächsten authentifizierten Besuch je Browser-Ursprung vor. Eine explizite Kennung ändert nur Stil und Marker; Sichtbarkeit, Größe, Positionen und spätere manuelle Auswahl bleiben erhalten. Keine Avatar-Spalte wird dem Konto hinzugefügt. Web Locks koordiniert verfügbare Tabs; ohne diese API garantiert das Neulesen des neuesten Datensatzes keine gleichzeitige Transaktion. Abschalten stoppt neue Anwendungen, stellt frühere Auswahl nicht wieder her und erreicht keine Offline-Geräte.",
+      "src": "3a65c19d433e"
     }
   }
 }

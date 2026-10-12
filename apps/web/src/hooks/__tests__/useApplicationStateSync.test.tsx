@@ -8,7 +8,9 @@ vi.mock('@/hooks/useAuth', () => ({ useAuth }));
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
 const { get, stopAvatar, bump } = vi.hoisted(() => ({
-  get: vi.fn(), stopAvatar: vi.fn(), bump: vi.fn(),
+  get: vi.fn(),
+  stopAvatar: vi.fn(),
+  bump: vi.fn(),
 }));
 vi.mock('@/lib/api-client', () => ({ apiClient: { get } }));
 vi.mock('@/lib/avatars/runtime', () => ({ stopAvatarForConnectorChange: stopAvatar }));
@@ -39,7 +41,13 @@ describe('confirmed application state synchronization', () => {
     const read = vi.fn();
     const unsubscribe = subscribeApplicationResource(actorId, 'live_preferences', read);
     const { result } = renderHook(() => useApplicationStateSync());
-    act(() => result.current.handleChange({ ...change, resources: ['live_preferences'], changed_fields: ['live_reflexes'] }));
+    act(() =>
+      result.current.handleChange({
+        ...change,
+        resources: ['live_preferences'],
+        changed_fields: ['live_reflexes'],
+      })
+    );
     await waitFor(() => expect(read).toHaveBeenCalledOnce());
     expect(refreshUser).not.toHaveBeenCalled();
     expect(stopAvatar).not.toHaveBeenCalled();
@@ -48,21 +56,39 @@ describe('confirmed application state synchronization', () => {
   });
   it('rereads saved connections before stopping the avatar and invalidating its readers', async () => {
     const { result } = renderHook(() => useApplicationStateSync());
-    act(() => result.current.handleChange({ ...change, resources: ['connectors', 'avatar'], changed_fields: ['connector_to_disconnect'] }));
+    act(() =>
+      result.current.handleChange({
+        ...change,
+        resources: ['connectors', 'avatar'],
+        changed_fields: ['connector_to_disconnect'],
+      })
+    );
     await waitFor(() => expect(bump).toHaveBeenCalledWith('avatar'));
     expect(get).toHaveBeenCalledWith('/connectors?fresh=true');
     expect(stopAvatar).toHaveBeenCalledOnce();
   });
   it('does not stop an unrelated avatar when removing a Live connector', async () => {
     const { result } = renderHook(() => useApplicationStateSync());
-    act(() => result.current.handleChange({ ...change, resources: ['connectors', 'live_connectors'], changed_fields: ['connector_to_disconnect'] }));
+    act(() =>
+      result.current.handleChange({
+        ...change,
+        resources: ['connectors', 'live_connectors'],
+        changed_fields: ['connector_to_disconnect'],
+      })
+    );
     await waitFor(() => expect(bump).toHaveBeenCalledWith('live_connectors'));
     expect(stopAvatar).not.toHaveBeenCalled();
   });
   it('preserves runtimes when the authoritative connection read fails', async () => {
     get.mockRejectedValue(new Error('offline'));
     const { result } = renderHook(() => useApplicationStateSync());
-    act(() => result.current.handleChange({ ...change, resources: ['connectors', 'avatar'], changed_fields: ['connector_to_disconnect'] }));
+    act(() =>
+      result.current.handleChange({
+        ...change,
+        resources: ['connectors', 'avatar'],
+        changed_fields: ['connector_to_disconnect'],
+      })
+    );
     await act(async () => {});
     expect(get).toHaveBeenCalledOnce();
     expect(stopAvatar).not.toHaveBeenCalled();
@@ -70,24 +96,50 @@ describe('confirmed application state synchronization', () => {
   });
   it('discards an old-account connection refresh before touching any runtime', async () => {
     let finish: (value: { connectors: [] }) => void = () => {};
-    get.mockImplementationOnce(() => new Promise(done => { finish = done; }));
+    get.mockImplementationOnce(
+      () =>
+        new Promise(done => {
+          finish = done;
+        })
+    );
     const { result, rerender } = renderHook(() => useApplicationStateSync());
-    act(() => result.current.handleChange({ ...change, resources: ['connectors', 'avatar'], changed_fields: ['connector_to_disconnect'] }));
+    act(() =>
+      result.current.handleChange({
+        ...change,
+        resources: ['connectors', 'avatar'],
+        changed_fields: ['connector_to_disconnect'],
+      })
+    );
     useAuth.mockReturnValue({ user: { id: 'other' }, refreshUser });
     rerender();
-    await act(async () => { finish({ connectors: [] }); });
+    await act(async () => {
+      finish({ connectors: [] });
+    });
     expect(stopAvatar).not.toHaveBeenCalled();
     expect(bump).not.toHaveBeenCalled();
   });
   it('does not bump a new account after waiting for the old avatar to close', async () => {
     let finish: () => void = () => {};
-    stopAvatar.mockImplementationOnce(() => new Promise<void>(done => { finish = done; }));
+    stopAvatar.mockImplementationOnce(
+      () =>
+        new Promise<void>(done => {
+          finish = done;
+        })
+    );
     const { result, rerender } = renderHook(() => useApplicationStateSync());
-    act(() => result.current.handleChange({ ...change, resources: ['connectors', 'avatar'], changed_fields: ['connector_to_disconnect'] }));
+    act(() =>
+      result.current.handleChange({
+        ...change,
+        resources: ['connectors', 'avatar'],
+        changed_fields: ['connector_to_disconnect'],
+      })
+    );
     await waitFor(() => expect(stopAvatar).toHaveBeenCalledOnce());
     useAuth.mockReturnValue({ user: { id: 'other' }, refreshUser });
     rerender();
-    await act(async () => { finish(); });
+    await act(async () => {
+      finish();
+    });
     expect(bump).not.toHaveBeenCalled();
   });
   it('refreshes heartbeat through its owner without an unrelated profile request', async () => {
@@ -96,10 +148,18 @@ describe('confirmed application state synchronization', () => {
     const unsubscribe = subscribeApplicationResource(actorId, 'heartbeat', read);
     const { result } = renderHook(() => useApplicationStateSync());
     try {
-      act(() => result.current.handleChange({ ...change, resources: ['heartbeat'], changed_fields: ['heartbeat_enabled'] }));
+      act(() =>
+        result.current.handleChange({
+          ...change,
+          resources: ['heartbeat'],
+          changed_fields: ['heartbeat_enabled'],
+        })
+      );
       await waitFor(() => expect(read).toHaveBeenCalledOnce());
       expect(refreshUser).not.toHaveBeenCalled();
-    } finally { unsubscribe(); }
+    } finally {
+      unsubscribe();
+    }
   });
   it('waits for transport completion before navigating to the verified saved locale', async () => {
     window.history.replaceState({}, '', '/dashboard/chat?view=compact#thread');
@@ -139,7 +199,9 @@ describe('confirmed application state synchronization', () => {
 
   it('ignores events for another account and events after logout', () => {
     const { result, rerender } = renderHook(() => useApplicationStateSync());
-    act(() => result.current.handleChange({ ...change, actor_id: '00000000-0000-4000-8000-000000000099' }));
+    act(() =>
+      result.current.handleChange({ ...change, actor_id: '00000000-0000-4000-8000-000000000099' })
+    );
     useAuth.mockReturnValue({ user: null, refreshUser });
     rerender();
     act(() => result.current.handleChange(change));
@@ -160,22 +222,43 @@ describe('confirmed application state synchronization', () => {
 
   it('coalesces a burst while rereading once more for a change committed during the first read', async () => {
     let resolve: (value: boolean) => void = () => {};
-    refreshUser.mockImplementationOnce(() => new Promise<boolean>(done => { resolve = done; }));
+    refreshUser.mockImplementationOnce(
+      () =>
+        new Promise<boolean>(done => {
+          resolve = done;
+        })
+    );
     const { result } = renderHook(() => useApplicationStateSync());
-    act(() => { result.current.handleChange(change); result.current.handleChange(change); result.current.handleChange(change); });
+    act(() => {
+      result.current.handleChange(change);
+      result.current.handleChange(change);
+      result.current.handleChange(change);
+    });
     expect(refreshUser).toHaveBeenCalledTimes(1);
-    await act(async () => { resolve(true); });
+    await act(async () => {
+      resolve(true);
+    });
     await waitFor(() => expect(refreshUser).toHaveBeenCalledTimes(2));
   });
 
   it('does not continue an obsolete refresh loop after switching accounts', async () => {
     let resolve: (value: boolean) => void = () => {};
-    refreshUser.mockImplementationOnce(() => new Promise<boolean>(done => { resolve = done; }));
+    refreshUser.mockImplementationOnce(
+      () =>
+        new Promise<boolean>(done => {
+          resolve = done;
+        })
+    );
     const { result, rerender } = renderHook(() => useApplicationStateSync());
-    act(() => { result.current.handleChange(change); result.current.handleChange(change); });
+    act(() => {
+      result.current.handleChange(change);
+      result.current.handleChange(change);
+    });
     useAuth.mockReturnValue({ user: { id: '00000000-0000-4000-8000-000000000099' }, refreshUser });
     rerender();
-    await act(async () => { resolve(true); });
+    await act(async () => {
+      resolve(true);
+    });
     expect(refreshUser).toHaveBeenCalledTimes(1);
   });
 });

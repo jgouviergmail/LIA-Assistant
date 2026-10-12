@@ -44,7 +44,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 2.6.1</strong> — <strong>Continuous speech, a controllable avatar and an interface within reach.</strong> Long Live answers keep their audio in order. The experimental Simli avatar has an explicit stop control with confirmed or pending closure, and its connection is controlled by the API. Floating windows adapt to the mobile keyboard without overwriting your preferred position. Radio music starts more reliably. Application screenshots use fictional demonstration data. Provider and physical Android/iOS qualification of the avatar remains pending — 6 October 2026, 20:56 CEST.
+  <strong>Version 3.0.0</strong> — <strong>Your requests, their context, a result you can verify.</strong> Manage supported LIA settings and objects through conversation, with explicit confirmation for sensitive operations. ReAct checks requested outcomes against structured results and reuses eligible fresh reads within a turn. Native companions gain reviewed body volume, and the editable product film explains the main workflows. Experimental speaking-avatar provider and physical Android/iOS qualification remains separate.
 </p>
 
 ---
@@ -53,6 +53,7 @@
 
 - [What is LIA?](#what-is-lia)
 - [Try LIA Online](#try-lia-online)
+- [Product presentation](#product-presentation)
 - [Screenshots](#screenshots)
 - [Features](#features)
 - [Administration & Monitoring](#administration--monitoring)
@@ -125,6 +126,25 @@ To run your own LIA, start with [Quick Start](#quick-start) or the [production i
 
 ---
 
+## Product presentation
+
+[![Watch the complete LIA product presentation](docs/assets/lia-presentation.png)](https://github.com/jgouviergmail/LIA-Assistant/releases/download/v3.0.0/lia-presentation-v3.0.0.mp4)
+
+[Watch or download the complete film](https://github.com/jgouviergmail/LIA-Assistant/releases/download/v3.0.0/lia-presentation-v3.0.0.mp4).
+The French presentation follows concrete uses, contextual native avatars,
+display modes, reminders, Relations, planned actions, administration and the
+installable mobile web application. Interfaces follow the product's UI with
+fictional demonstration data. The landing's blue **Presentation** button opens
+the full film with sound and controls in an exclusive fullscreen player.
+
+The [editable construction](tools/lia-motion/README.md),
+[production and update procedure](docs/technical/MOTION_DESIGN.md) and
+[decision record](docs/architecture/ADR-341-Editable-Motion-Production-And-Exclusive-Presentation.md)
+preserve the scenario, native-view sources, feature focuses and soundtrack
+provenance for future product updates. Release assets include a
+[checked editable source archive](https://github.com/jgouviergmail/LIA-Assistant/releases/download/v3.0.0/lia-motion-sources-v3.0.0.zip).
+The video is a product demonstration, not a recorded provider session.
+
 ## Screenshots
 
 The application views below show the real interface in English with fictional demonstration data. They illustrate workflows and controls; no model, connected account or external action was exercised in these captures. The Radio player used a local silent audio fixture.
@@ -190,7 +210,7 @@ Open any image for its full resolution. For the workflow captures below, the [ap
 
 
 
-The [Administration & Monitoring](#administration--monitoring) section below includes the two Grafana views supplied by the project.
+The [Administration & Monitoring](#administration--monitoring) section below includes the three Grafana views supplied by the project.
 
 ---
 
@@ -260,6 +280,12 @@ Every capability below is documented in an architecture decision record (ADR) or
 
 #### An expressive companion
 
+The complete native catalogue uses original designs and contextual expressions.
+Reviewed offline artwork supplies bounded body relief, while the shared rig
+owns head pose, eyes, brows and mouth. Reduced motion and unavailable graphics
+retain their native fallback. See the [volume guide](docs/technical/NATIVE_AVATAR_VOLUME.md)
+for projection and performance limits.
+
 - Psyche temperament, actual tool execution and the delivered answer's tone share one animation rig, including the shaded Smiley. Eyes lead a head with depth and weight.
 - Continuous mouth/brow contours, quiet thought and varied resting scenes keep transitions natural. Speech follows actual audio, and a prepared draft never earns an accomplished-action gesture. Fresh cached weather and the account clock add discreet ambience without a provider or LLM call.
 - Reduced motion keeps static contextual poses ([ADR-240](docs/architecture/ADR-240-expressive-eyes-widget.md), [ADR-252](docs/architecture/ADR-252-Expressive-Eyes-Animation-Rig.md), [ADR-253](docs/architecture/ADR-253-Per-Turn-Expressivity-Annotation.md), [ADR-264](docs/architecture/ADR-264-Living-Brows-And-Mouth.md), [ADR-294](docs/architecture/ADR-294-A-Face-That-Never-Plays-The-Same-Twice.md)).
@@ -324,6 +350,18 @@ Every capability below is documented in an architecture decision record (ADR) or
 
 ### Act, under your control
 
+#### Manage LIA through conversation
+
+Ask LIA to inspect or change supported preferences and application objects:
+reminders, routines, memories, skills and other declared capabilities. Reads and
+minor reversible settings follow their own authorization policy; creations,
+deletions and sensitive operations present a reviewable confirmation. File,
+private-input and connector authorization steps continue through their native
+browser flows. Commands remain account-scoped, expiring and checked against
+current authority; administrator capabilities stay reserved to administrators.
+The [application commands guide](docs/technical/APPLICATION_COMMANDS.md) describes
+the supported surfaces and secure continuation contract.
+
 #### Two execution modes, one toggle
 
 - The _pipeline_ builds and validates a plan, applies the required approval gates and executes tools in dependency-aware waves.
@@ -332,6 +370,7 @@ Every capability below is documented in an architecture decision record (ADR) or
 - A ReAct tool result is projected item by item under a token budget derived from the slot's own window, never cut mid-item, the cut stated to the model and counted ([ADR-286](docs/architecture/ADR-286-Tool-Result-Projected-Per-Item-Under-A-Token-Budget.md)).
 - The loop binds its tools by relevance — the detected domains' tools, the best-ranked doors of every other family, the top of the turn's global ranking — so no family falls off a blind cap and the schemas stop being most of the prompt, and it reads the same knowledge spaces the pipeline reads ([ADR-293](docs/architecture/ADR-293-React-Tools-Bound-By-Relevance.md)).
 - A ReAct turn is judged on its result: every fact the loop set out to obtain ends obtained or declared with the rungs tried. A declared gap buys one bounded recovery pass through a node that calls no model ([ADR-310](docs/architecture/ADR-310-ReAct-Turn-Judged-On-Its-Result.md)).
+- Requested outcomes are checked against canonical structured observations, including the value, operation, account and completeness expected. A draft, opaque result or delegated announcement does not prove completion. Independent eligible reads return checkpointed segments; exact fresh reads may be reused within the same turn, with mutation invalidation and bounded budgets ([ADR-336](docs/architecture/ADR-336-Requested-Outcomes-Checked-Against-Canonical-Observations.md), [ADR-337](docs/architecture/ADR-337-Checkpointed-ReAct-Read-Segments-And-Turn-Local-Reuse.md)).
 - Each person picks an exchange rhythm. Frequent binds every tool, moves the turn's context after the question and drops the history by blocks anchored on the turn counter, so the provider's prompt cache is read from one turn to the next. Occasional keeps the relevance selection at a steady cost ([ADR-308](docs/architecture/ADR-308-ReAct-Cross-Turn-Prompt-Cache.md), [ADR-311](docs/architecture/ADR-311-Exchange-Rhythm-Is-The-Persons-Choice.md)).
 
 #### Human-in-the-Loop
@@ -546,7 +585,7 @@ A 24-section panel embedded in the chat, organised into six groups; an empty sec
 
 ### See the instance from the operator's side
 
-These two Grafana screenshots were supplied by the project owner and reproduced unchanged. Their figures show the supplied dashboard state; the [Grafana manifest](apps/web/public/screenshots/proof/grafana-manifest.json) records their origin and dimensions.
+These three Grafana screenshots were supplied by the project owner and reproduced unchanged. Their figures show the supplied dashboard state; the [Grafana manifest](apps/web/public/screenshots/proof/grafana-manifest.json) records their origin and dimensions.
 
 <p align="center">
   <a href="apps/web/public/screenshots/proof/grafana-overview.png"><img src="apps/web/public/screenshots/proof/grafana-overview.png" alt="Grafana — Host CPU, memory, disk, network and container resources" width="1200" /></a>
@@ -556,6 +595,11 @@ These two Grafana screenshots were supplied by the project owner and reproduced 
 <p align="center">
   <a href="apps/web/public/screenshots/proof/grafana-costs.png"><img src="apps/web/public/screenshots/proof/grafana-costs.png" alt="Grafana — LLM token consumption, cost breakdowns and cache ratio" width="1200" /></a>
   <br /><em>Grafana — LLM tokens, costs and cache.</em>
+</p>
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/grafana-activity.png"><img src="apps/web/public/screenshots/proof/grafana-activity.png" alt="Grafana — Request origins and rates, account activity, tool usage and router intents" width="1200" /></a>
+  <br /><em>Grafana — request origins and rates, account activity, tool usage and router intents.</em>
 </p>
 
 ---
@@ -570,10 +614,10 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **55** functional domains | **820,000+** source lines (excl. tests) | **51,000+** automated tests | **337** ADRs                                                            |
-| **278** versions shipped  | **6 languages**, parity enforced in CI  | **618** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **55** functional domains | **931,000+** source lines (excl. tests) | **59,000+** inventoried automated tests | **341** ADRs                                                            |
+| **279** versions shipped  | **6 languages**, parity enforced in CI  | **618** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
-Source-line figure: 824,754 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-10-06). The published technical audit does not score security.
+Source-line figure: 932,860 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-10-12). Test inventory combines backend collection and the frontend suite; release qualification executes the repository's required gates. The published technical audit does not score security.
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -927,7 +971,7 @@ Instrumentation and caching are in place — per-node message windowing, LLM con
 
 ### Architecture Decision Records
 
-337 ADR files (ADR-001 through ADR-338 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
+341 ADR files (ADR-001 through ADR-342 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
 
 - [ADR-070: ReAct Execution Mode](docs/architecture/ADR-070-ReAct-Execution-Mode.md) — why two execution modes rather than one
 - [ADR-263: Execution Authority Chain and Effect Register](docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md) — how every act is claimed, closed and recorded

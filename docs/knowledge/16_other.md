@@ -41,24 +41,8 @@ Statistics are updated in real-time after each conversation.
 Statistics are displayed directly on the home page (dashboard).
 
 ## Does LIA work on mobile?
-Yes, LIA is **fully responsive**:
 
-**📱 Compatibility:**
-• Smartphones (iOS and Android)
-• Tablets
-• Computers (Windows, Mac, Linux)
-• All modern browsers
-
-**🔄 Synchronization:**
-• Your conversation syncs in real-time
-• Start on PC, continue on mobile
-• Same preferences across all devices
-
-**💡 Mobile tip:**
-Add LIA to your home screen for quick access like a native app.
-
-**⚠️ Internet connection:**
-LIA requires an active internet connection to function.
+Yes, the interface adapts to phones. In a compatible browser, use the offered PWA installation option or add the site to your home screen. The installed interface remains connected to your LIA server; it does not run a model offline. Some cached content remains viewable without a connection, but conversation, synchronisation and actions need the network. Sharing and notifications depend on your browser, system and permissions.
 
 ## Are there usage limits?
 Some technical limits exist to ensure performance:
@@ -102,3 +86,11 @@ Your administrator can:
 
 **💡 Before reporting:**
 Check this FAQ - your question may already have an answer!
+
+## What does the presentation film show?
+
+The film is in French. It presents LIA’s uses through faithfully reconstructed screens and demonstration data, animated native companions and original music generated with Google Lyria. It is not a recording of your session or evidence that a provider executed every operation shown. Settings and confirmations remain available in the application.
+
+## Are the local-model and isometric-world projects available?
+
+The oMLX, llama.cpp and LM Studio studies and the isometric world are qualification or design work, not new shipped integrations. Use the providers actually offered by your instance. The Simli video avatar remains experimental, opt-in and dependent on an external service; it is separate from native companions.

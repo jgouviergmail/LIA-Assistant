@@ -73,8 +73,15 @@ const INITIAL_STATE = {
 
 export const usePsycheStore = create<PsycheStoreState>(set => ({
   ...INITIAL_STATE,
-  bindOwner: ownerId => set(previous => previous.ownerId === ownerId ? previous : { ...INITIAL_STATE, ownerId }),
-  clearObservedState: () => set(previous => ({ ...INITIAL_STATE, ownerId: previous.ownerId, enabled: previous.enabled, displayAvatar: previous.displayAvatar })),
+  bindOwner: ownerId =>
+    set(previous => (previous.ownerId === ownerId ? previous : { ...INITIAL_STATE, ownerId })),
+  clearObservedState: () =>
+    set(previous => ({
+      ...INITIAL_STATE,
+      ownerId: previous.ownerId,
+      enabled: previous.enabled,
+      displayAvatar: previous.displayAvatar,
+    })),
 
   updateFromSSE: (summary: PsycheStateSummary) =>
     set(previous => ({

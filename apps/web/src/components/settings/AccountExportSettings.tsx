@@ -88,8 +88,14 @@ export function AccountExportSettings() {
 
 function AccountExportSettingsBody() {
   const { t, i18n } = useTranslation();
-  const { data: job, ownerId, error, refetch } = useApplicationAccountQuery<ExportJob | null>(
-    '/account/export/latest', 'AccountExportSettings'
+  const {
+    data: job,
+    ownerId,
+    error,
+    refetch,
+  } = useApplicationAccountQuery<ExportJob | null>(
+    '/account/export/latest',
+    'AccountExportSettings'
   );
   const { isCurrent } = useApplicationAccountLifetime(ownerId);
   const { guard, stepUpOpen, onVerified, onCancel } = useStepUpGuard();
@@ -113,9 +119,13 @@ function AccountExportSettingsBody() {
     } catch (err) {
       if (!isCurrent()) return;
       if (!(err instanceof ApiStepUpError)) {
-        logger.error('Export request failed', err instanceof Error ? err : new Error('Export request failed'), {
-          component: 'AccountExportSettings',
-        });
+        logger.error(
+          'Export request failed',
+          err instanceof Error ? err : new Error('Export request failed'),
+          {
+            component: 'AccountExportSettings',
+          }
+        );
         toast.error(t('settings.security.export.error_generic'));
       }
     } finally {
@@ -129,7 +139,8 @@ function AccountExportSettingsBody() {
   // archive to disk; the filename comes from Content-Disposition).
   const downloadHref =
     job?.status === 'done' && job.download_available
-      ? apiEndpointUrl(`/account/export/${job.id}/download`) : null;
+      ? apiEndpointUrl(`/account/export/${job.id}/download`)
+      : null;
 
   const content = (
     <div className="space-y-3">

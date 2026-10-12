@@ -1,9 +1,7 @@
 'use client';
 
 import { toast } from 'sonner';
-import {
-  Cable,
-} from 'lucide-react';
+import { Cable } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CONNECTOR_LABELS, isValidConnectorType } from '@/constants/connectors';
 import { useApiQuery } from '@/hooks/useApiQuery';

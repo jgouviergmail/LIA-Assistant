@@ -116,7 +116,8 @@ export function useMemories() {
     refetch,
     setData,
   } = useApplicationAccountQuery<MemoryListResponse>(
-    categoryFilter ? `/memories?category=${categoryFilter}` : '/memories', 'useMemories'
+    categoryFilter ? `/memories?category=${categoryFilter}` : '/memories',
+    'useMemories'
   );
   useApplicationResourceSync(ownerId, 'memories', refetch, releaseMemoryOverride);
 

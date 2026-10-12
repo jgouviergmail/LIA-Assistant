@@ -25,7 +25,14 @@ const RESULTS = {
 };
 
 function reply(over: Record<string, unknown> = {}) {
-  return { data: undefined, loading: false, error: null, refetch: vi.fn(), setData: vi.fn(), ...over };
+  return {
+    data: undefined,
+    loading: false,
+    error: null,
+    refetch: vi.fn(),
+    setData: vi.fn(),
+    ...over,
+  };
 }
 
 beforeEach(() => vi.clearAllMocks());

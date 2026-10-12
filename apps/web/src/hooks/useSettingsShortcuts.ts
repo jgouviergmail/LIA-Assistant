@@ -71,19 +71,39 @@ export interface UseSettingsShortcutsReturn {
 
 export function useSettingsShortcuts(enabled = true): UseSettingsShortcutsReturn {
   const { refreshUser } = useAuth();
-  const { data, loading, error, refetch, ownerId } = useApplicationAccountQuery<SettingsShortcutsResponse>(ENDPOINT, 'useSettingsShortcuts', enabled);
-  const { mutate, loading: saving } = useApiMutation<SettingsShortcutsPayload, SettingsShortcutsResponse>({
+  const { data, loading, error, refetch, ownerId } =
+    useApplicationAccountQuery<SettingsShortcutsResponse>(
+      ENDPOINT,
+      'useSettingsShortcuts',
+      enabled
+    );
+  const { mutate, loading: saving } = useApiMutation<
+    SettingsShortcutsPayload,
+    SettingsShortcutsResponse
+  >({
     method: 'PUT',
     componentName: 'useSettingsShortcuts',
   });
-  const write = useCallback((next: SettingsSectionToken[]) => mutate(ENDPOINT, { shortcuts: next }), [mutate]);
+  const write = useCallback(
+    (next: SettingsSectionToken[]) => mutate(ENDPOINT, { shortcuts: next }),
+    [mutate]
+  );
   const saved = useMemo(() => knownShortcutTokens(data?.shortcuts), [data?.shortcuts]);
-  const { value, save: saveState } = useApplicationPreferenceState(ownerId, saved, 'profile', refetch, write);
-  const save = useCallback(async (next: SettingsSectionToken[]): Promise<boolean> => {
-    if (!await saveState(next)) return false;
-    await refreshUser();
-    return true;
-  }, [saveState, refreshUser]);
+  const { value, save: saveState } = useApplicationPreferenceState(
+    ownerId,
+    saved,
+    'profile',
+    refetch,
+    write
+  );
+  const save = useCallback(
+    async (next: SettingsSectionToken[]): Promise<boolean> => {
+      if (!(await saveState(next))) return false;
+      await refreshUser();
+      return true;
+    },
+    [saveState, refreshUser]
+  );
 
   return {
     shortcuts: value ?? [],

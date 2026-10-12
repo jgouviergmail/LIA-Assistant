@@ -22,12 +22,7 @@ const KINDS = ['event_followup'];
 describe('MomentKindSwitches', () => {
   it('offers one named switch per kind the server publishes', () => {
     renderWithProviders(
-      <MomentKindSwitches
-        allKinds={KINDS}
-        disabledKinds={[]}
-        updating={false}
-        onChange={vi.fn()}
-      />
+      <MomentKindSwitches allKinds={KINDS} disabledKinds={[]} updating={false} onChange={vi.fn()} />
     );
 
     expect(screen.getAllByRole('switch')).toHaveLength(KINDS.length);
@@ -35,12 +30,7 @@ describe('MomentKindSwitches', () => {
 
   it('shows a kind ON when nothing is refused', () => {
     renderWithProviders(
-      <MomentKindSwitches
-        allKinds={KINDS}
-        disabledKinds={[]}
-        updating={false}
-        onChange={vi.fn()}
-      />
+      <MomentKindSwitches allKinds={KINDS} disabledKinds={[]} updating={false} onChange={vi.fn()} />
     );
 
     expect(screen.getByRole('switch')).toBeChecked();
@@ -94,12 +84,7 @@ describe('MomentKindSwitches', () => {
   it('refuses a second write while one is in flight, without losing the tab stop', async () => {
     const onChange = vi.fn();
     renderWithProviders(
-      <MomentKindSwitches
-        allKinds={KINDS}
-        disabledKinds={[]}
-        updating
-        onChange={onChange}
-      />
+      <MomentKindSwitches allKinds={KINDS} disabledKinds={[]} updating onChange={onChange} />
     );
 
     const control = screen.getByRole('switch');
@@ -146,12 +131,7 @@ describe('MomentKindSwitches', () => {
 
   it('does not require the dependencies prop — an older payload simply says nothing', () => {
     renderWithProviders(
-      <MomentKindSwitches
-        allKinds={KINDS}
-        disabledKinds={[]}
-        updating={false}
-        onChange={vi.fn()}
-      />
+      <MomentKindSwitches allKinds={KINDS} disabledKinds={[]} updating={false} onChange={vi.fn()} />
     );
 
     expect(screen.getByRole('switch')).not.toHaveAttribute('aria-describedby');

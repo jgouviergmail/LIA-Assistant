@@ -1,0 +1,65 @@
+[
+  {
+    "source": "https://ai.google.dev/gemini-api/terms",
+    "file": "google-gemini-terms.html",
+    "retrievedAt": "2026-10-11T23:50:14.961902+00:00",
+    "sha256": "5b2a4d11f4fd65e00a1156f859afb1dd821889d80976ac2a64341f1f802f29bf",
+    "originalSha256": "93af92551eda333da3b3f6d03330c77e9ba1ba5e3ed9b91858b704e14bd30f16",
+    "sanitizedSha256": "5b2a4d11f4fd65e00a1156f859afb1dd821889d80976ac2a64341f1f802f29bf",
+    "sanitizedAt": "2026-10-12T02:41:29.272280+00:00",
+    "snapshotMode": "static-article",
+    "sanitization": {
+      "scope": "Public provider documentation; embedded site configuration is not a LIA generation credential.",
+      "scriptElementsOmitted": 4,
+      "providerKeyShapedOccurrencesOmitted": 9,
+      "tablesPreserved": 0,
+      "codeBlocksPreserved": 0,
+      "articleTextVerified": true,
+      "images": "Alt captions retained; remote images are not loaded.",
+      "removed": "Outside-article site chrome, scripts, forms, input controls, active attributes and configuration.",
+      "futureRefresh": "Sanitize freshly downloaded provider snapshots before commit or publication; keep original and sanitized documentary hashes."
+    }
+  },
+  {
+    "source": "https://ai.google.dev/gemini-api/docs/pricing",
+    "file": "google-lyria-pricing.html",
+    "retrievedAt": "2026-10-11T23:50:15.449153+00:00",
+    "sha256": "613fcb55d1878deddcec6a60d2077b60f4cf59a8b9ee64ede825d17030561cc9",
+    "originalSha256": "449b40b8682a741906ae64ee12c1eb8519c3ad07d2c97f0f2b66bb0a1bb69009",
+    "sanitizedSha256": "613fcb55d1878deddcec6a60d2077b60f4cf59a8b9ee64ede825d17030561cc9",
+    "sanitizedAt": "2026-10-12T02:41:29.272280+00:00",
+    "snapshotMode": "static-article",
+    "sanitization": {
+      "scope": "Public provider documentation; embedded site configuration is not a LIA generation credential.",
+      "scriptElementsOmitted": 5,
+      "providerKeyShapedOccurrencesOmitted": 9,
+      "tablesPreserved": 82,
+      "codeBlocksPreserved": 0,
+      "articleTextVerified": true,
+      "images": "Alt captions retained; remote images are not loaded.",
+      "removed": "Outside-article site chrome, scripts, forms, input controls, active attributes and configuration.",
+      "futureRefresh": "Sanitize freshly downloaded provider snapshots before commit or publication; keep original and sanitized documentary hashes."
+    }
+  },
+  {
+    "source": "https://ai.google.dev/gemini-api/docs/music-generation",
+    "file": "google-lyria-guide.html",
+    "retrievedAt": "2026-10-11T23:50:16.015239+00:00",
+    "sha256": "667ab51ee7787dc056bb4e53add49fbc6fa8c7009ef7723927f8565ba2249aca",
+    "originalSha256": "8a6094bd7da0d829e25cea901cd01bc77382e91135726c59a21405139854e668",
+    "sanitizedSha256": "667ab51ee7787dc056bb4e53add49fbc6fa8c7009ef7723927f8565ba2249aca",
+    "sanitizedAt": "2026-10-12T02:41:29.272280+00:00",
+    "snapshotMode": "static-article",
+    "sanitization": {
+      "scope": "Public provider documentation; embedded site configuration is not a LIA generation credential.",
+      "scriptElementsOmitted": 5,
+      "providerKeyShapedOccurrencesOmitted": 9,
+      "tablesPreserved": 1,
+      "codeBlocksPreserved": 49,
+      "articleTextVerified": true,
+      "images": "Alt captions retained; remote images are not loaded.",
+      "removed": "Outside-article site chrome, scripts, forms, input controls, active attributes and configuration.",
+      "futureRefresh": "Sanitize freshly downloaded provider snapshots before commit or publication; keep original and sanitized documentary hashes."
+    }
+  }
+]

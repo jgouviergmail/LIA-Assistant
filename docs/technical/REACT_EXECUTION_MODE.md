@@ -9,6 +9,7 @@
 | 1.4 | 2026-09-23 | [ADR-308](../architecture/ADR-308-ReAct-Cross-Turn-Prompt-Cache.md) |
 | 1.5 | 2026-09-24 | [ADR-310](../architecture/ADR-310-ReAct-Turn-Judged-On-Its-Result.md) |
 | 1.6 | 2026-09-24 | [ADR-311](../architecture/ADR-311-Exchange-Rhythm-Is-The-Persons-Choice.md), [ADR-309](../architecture/ADR-309-One-Prompt-Layout-For-Every-Cache-Mechanism.md) amendment |
+| 1.7 | 2026-10-12 | [ADR-336](../architecture/ADR-336-Requested-Outcomes-Checked-Against-Canonical-Observations.md), [ADR-337](../architecture/ADR-337-Checkpointed-ReAct-Read-Segments-And-Turn-Local-Reuse.md), [ADR-338](../architecture/ADR-338-Live-MCP-Contracts-And-Exact-Callable-Identity.md) |
 
 ## Table of Contents
 
@@ -61,7 +62,7 @@ Custom ReAct loop as **5 nodes in the parent LangGraph graph** (not a `create_re
 │ router ──(react)──► react_setup ──► react_call_model ◄───────────────────┬────┐  │
 │                                            │                             │    │  │
 │                   ┌────────────────────────┼───────────────────┐         │    │  │
-│        tool_calls │         none declared  │     gap declared  │         │    │  │
+│        tool_calls │           no gap       │      gap found    │         │    │  │
 │                   ▼                        ▼      a pass left  ▼         │    │  │
 │          react_execute_tools        react_finalize      react_recovery ──┘    │  │
 │                   │                        │           (draft removed,        │  │
@@ -99,6 +100,8 @@ graph.add_conditional_edges(
     {
         NODE_REACT_CALL_MODEL: NODE_REACT_CALL_MODEL,  # Loop back (no draft)
         NODE_DRAFT_CRITIQUE: NODE_DRAFT_CRITIQUE,  # Draft → shared HITL dispatch
+        NODE_REACT_EXECUTE_TOOLS: NODE_REACT_EXECUTE_TOOLS,  # Next checkpointed segment
+        NODE_REACT_FINALIZE: NODE_REACT_FINALIZE,  # Budget/stop predicate
     },
 )
 graph.add_conditional_edges(
@@ -154,7 +157,7 @@ Calls the ReAct LLM with bound tools:
 
 ### react_execute_tools
 
-Executes tools from the last AIMessage:
+Executes one bounded segment from the last AIMessage:
 - HITL: tools flagged `hitl_required` trigger `interrupt()` for pre-execution approval; draft-preparing mutation tools (`requires_confirmation`) instead hand off to the shared draft-confirmation flow (see [HITL in ReAct](#hitl-in-react))
 - Idempotence: on re-execution after interrupt resume, already-resolved tool calls are skipped
 - **No-progress guard** (ADR-170): after the idempotence skip, each executed call is digested and counted
@@ -165,6 +168,48 @@ Executes tools from the last AIMessage:
   the node and discards the results that did come back
 - Accumulates the time spent inside tools into `react_tool_seconds` (ADR-256)
 - Registry items accumulated across iterations via `current_turn_registry` merge
+
+### Checkpointed read segments and turn reuse (ADR-337)
+
+[Segment execution](../../apps/api/src/domains/agents/nodes/react_execution.py)
+returns completed tool messages, canonical registry observations and accounting to
+graph state before the next segment runs. The
+[routing predicate](../../apps/api/src/domains/agents/nodes/routing.py)
+checks the stop condition between segments, returns to tool execution while calls
+remain pending, and then returns to the model. A later HITL interruption therefore
+resumes from the persisted calls, including in a new graph instance. Calls abandoned
+by a budget exit still receive their explicit closing ToolMessages.
+
+Concurrency requires an available manifest declaring `concurrency_safe`, no
+exclusive scope, a read-only operation, no delegation and no pre-execution HITL.
+Only independent calls with distinct exact signatures share a segment; other calls
+run alone. The concurrency bound belongs to the implementation. A tool-name prefix
+or a read label alone is not an independence contract.
+
+[Read reuse](../../apps/api/src/domains/agents/nodes/react_read_reuse.py) requires an
+explicit positive manifest TTL and a successful, obtained, nonempty, nonpartial
+observation. Its keyed signature includes normalized arguments, public and semantic
+schema, MCP owner identity, account/thread and the runtime timezone, language and
+browser context. A reused result retains its original registry provenance and gets
+a ToolMessage paired with the new call. Expiry, schema/context changes and explicit
+refresh prevent reuse; failed, empty and incomplete results are not negative caches.
+
+`react_read_results`, `react_read_observations` and `requested_outcome_evidence` are
+JSON-compatible checkpoint state declared in
+[MessagesState](../../apps/api/src/domains/agents/models.py). The result cache has
+entry and serialized-byte bounds owned by the read-reuse implementation. These
+values reset at turn start through
+[`react_turn_reset()`](../../apps/api/src/domains/agents/utils/react_budget.py).
+Attempted mutations and opaque delegations invalidate reusable reads and semantic
+proof before invocation and again on completion, including failure, under
+[ADR-335](../architecture/ADR-335-Canonical-Semantic-Proofs-And-Constructible-Dependencies.md).
+
+A hard crash before a segment reaches its checkpoint can still replay its reads.
+This mechanism does not establish exactly-once remote writes, cross-turn result
+caching, global provider consistency or safe sharing of a database session between
+concurrent calls. See
+[ADR-337](../architecture/ADR-337-Checkpointed-ReAct-Read-Segments-And-Turn-Local-Reuse.md)
+for the decision and qualification boundary.
 
 ### The two time budgets (ADR-170, ADR-256)
 
@@ -277,7 +322,7 @@ allowed, a web search never tried). A turn is now judged on its result
   opens nothing — case-insensitively, and ignores an empty one, the `...` placeholder or a lone
   « none » in six languages.
 - **One predicate.** `should_recover` (`nodes/react_recovery.py`) is true when the last message
-  is a final answer that declares a gap, fewer passes were taken than `REACT_RECOVERY_PASSES_MAX`
+  is a final answer with a declared or canonically observed gap, fewer passes were taken than `REACT_RECOVERY_PASSES_MAX`
   (`0` switches the pass off), and `react_exit_reason` — which it CALLS — lets the loop go on.
   The router reads it in its « no tool calls » branch.
 - **The node calls no model.** It removes the draft from the thread at once (`RemoveMessage`) —
@@ -299,6 +344,32 @@ allowed, a web search never tried). A turn is now judged on its result
   a budget that stops it with calls pending — hands the last draft back as the final message,
   since the draft left the thread at the pass. A fact still unresolved reaches the response node
   inside the final message, which says it is missing, with what was tried — never an estimate.
+
+#### Canonical requested outcomes (ADR-336)
+
+The [requested-outcome coverage](../../apps/api/src/domains/agents/nodes/react_observed_gaps.py)
+uses literal anchors validated against the current query and canonical tool evidence
+recorded before projection to the model. Turn-local date/timezone anchors remain
+stable through checkpoint and resume. Supported exact field, date, count and same-item
+constraints distinguish satisfied, missing, failed, partial, pending confirmation and
+unknown outcomes. A pending approval or an opaque delegation does not prove a completed
+effect; an omitted or misunderstood analyzer obligation cannot be certified.
+
+Missing, failed or partial requested results, and explicit failed/partial started
+reads, can trigger the existing bounded recovery even when the model omitted its
+`<unresolved>` block. The pass records the union of declared and observed gaps.
+Recovery remains read-only: it cannot replay a mutation or opaque delegation to prove
+an effect. Pending and unknown retain their distinct meaning, and the usual pass and
+budget limits remain authoritative. Removing a textual gap is not evidence that the
+canonical result recovered.
+
+The verified coverage also reaches final synthesis. A known requested gap suppresses
+the model's completion claim so the response can synthesize from the actual tool
+results and their limits. The evidence is compact checkpoint state rather than a
+duplicate payload registry. Unverified totals across pages do not prove a requested
+minimum. See
+[ADR-336](../architecture/ADR-336-Requested-Outcomes-Checked-Against-Canonical-Observations.md)
+for supported constraints, extraction limits and the outcome ledger.
 
 The doctrine behind the protocol lives in the prompt's static part: a result counts only if it
 answers what was asked — a wrong day, place or entity, or a list the tool says it cut, is an
@@ -341,7 +412,7 @@ Collects iteration count and prepares metadata for the response node:
 ## Tool System
 
 The ReAct agent binds tools **by relevance** ([ADR-293](../architecture/ADR-293-React-Tools-Bound-By-Relevance.md)), never by registration order:
-- Filtered by active connectors (`get_request_tool_manifests()`), then composed by `ReactToolSelector.select` from the turn's **global ranking** — every available manifest ordered by the router's semantic scorer from the ONE query embedding it already pays for (`router_tool_scoring.score_tools_for_turn`, `tool_selection_result["global_ranking"]`, user MCP tools ranked through their per-request vectors): the detected domains' tools first (all of them), then every OTHER family's `CATALOGUE_DOMAIN_COVERAGE_TOP_N` best-ranked tools (the planner catalogue's own coverage constant, so a family the router did not name stays reachable), then the first `REACT_TOOL_SEMANTIC_TOP_K` of the ranking; the rest is dropped by relevance (`react_tool_selector_relevance`, names at debug). No tool name is written anywhere in this rule. An iterative user MCP server's individual tools rank through their per-request vectors (they have no manifest of their own) and its delegation door (`_task`) is kept beside the family's coverage, ranked as the best tool behind it; an actionable turn with no detected domain is ranked all the same. A **binding unit** (`ToolManifest.binding_unit` — the four skills tools declare `SKILLS_BINDING_UNIT`) is bound whole or not at all: it ranks as its best member, holds one coverage seat, rides the tail whole and the cap never cuts inside it (ADR-293 amendment 2026-09-20 — measured: the ranking bound `activate_skill_tool` and dropped `run_skill_script`, so the loop activated a skill it could not run).
+- Filtered by active connectors (`get_request_tool_manifests()`), then composed by `ReactToolSelector.select` from the turn's **global ranking** — every available manifest ordered by the router's semantic scorer from the ONE query embedding it already pays for (`router_tool_scoring.score_tools_for_turn`, `tool_selection_result["global_ranking"]`, user MCP tools ranked through their per-request vectors): the detected domains' tools first (all of them), then every OTHER family's `CATALOGUE_DOMAIN_COVERAGE_TOP_N` best-ranked tools (the planner catalogue's own coverage constant, so a family the router did not name stays reachable), then the first `REACT_TOOL_SEMANTIC_TOP_K` of the ranking; the rest is dropped by relevance (`react_tool_selector_relevance`, names at debug). No tool name is written anywhere in this rule. An iterative user MCP server's individual tools rank through their per-request vectors and carry server-owned reactive manifests admitted through the offered task identity and its delegation door (`_task`) is kept beside the family's coverage, ranked as the best tool behind it; an actionable turn with no detected domain is ranked all the same. A **binding unit** (`ToolManifest.binding_unit` — the four skills tools declare `SKILLS_BINDING_UNIT`) is bound whole or not at all: it ranks as its best member, holds one coverage seat, rides the tail whole and the cap never cuts inside it (ADR-293 amendment 2026-09-20 — measured: the ranking bound `activate_skill_tool` and dropped `run_skill_script`, so the loop activated a skill it could not run).
 - Without a ranking, or with `REACT_TOOL_SEMANTIC_TOP_K=0`, every available tool is bound in registration order — the behaviour before ADR-293.
 - Capped by `REACT_AGENT_MAX_TOOLS` (default: 100) as the safety net — measured on the **resolved** tool count, after iterative expansion, by a stable sort on tiers: the detected domains' tools, then one coverage per family, then the rest; every dropped tool is named in a `react_tool_selector_capped` warning. A blind positional truncation here used to silently drop e.g. calendar tools on a calendar query once user-MCP expansion pushed the count over the cap (2026-07-08 incident: hallucinated appointments); and before ADR-293 the same tools fell off on every turn of any account with more tools than the cap, whatever the question.
 - Measured: `react_tools_bound` (after selection and cap) against `react_tools_resolved`, and `react_bound_tool_tokens` — the schema tokens every model call of the turn carries, which the delivered-context histogram never counted (dashboard 20). `task react:selection:measure -- --turns turns.json` replays an operator's own turns against the policy.
@@ -374,7 +445,17 @@ Measured before (2026-09-15): the block was a JSON dump cut at 8 000 **character
 
 ### Tool resolution (shared with the pipeline)
 
-Both `ReactToolSelector` (binding) and `_rebuild_wrapped_tools` (execution) resolve a tool *name* to its instance through the shared `src/domains/agents/tools/tool_resolution.py` — the single source of truth used by the pipeline executor too. Resolution order: global `tool_registry` (native + admin MCP) → hallucinated-suffix strip → per-request `user_mcp_tools_ctx` (exact then fuzzy). Without this fallback the ReAct loop, which consulted only the global registry, silently dropped **user** MCP tools (whose instances live only in the ContextVar) — see ADR-070 amendment 2026-06-02.
+Both `ReactToolSelector` (binding) and `_rebuild_wrapped_tools` (execution) use the
+shared [tool resolver](../../apps/api/src/domains/agents/tools/tool_resolution.py),
+as does the pipeline executor. In a bound request, its offered manifest selects
+the global or user callable store and the exact MCP owner. An explicitly empty,
+absent, ambiguous or mismatched contract is unavailable; another registry cannot
+restore it. Supported suffix removal recovers only an unambiguous offered alias.
+Iterative individuals require their offered task's exact origin/server identity.
+Outside a bound request, diagnostic callers retain global exact/suffix lookup and
+then user exact/fuzzy compatibility. See
+[ADR-338](../architecture/ADR-338-Live-MCP-Contracts-And-Exact-Callable-Identity.md)
+and the [MCP integration guide](MCP_INTEGRATION.md#offered-contracts-and-callable-identity).
 
 ### Iterative user MCP expansion
 

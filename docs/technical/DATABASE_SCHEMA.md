@@ -1,14 +1,14 @@
 # Database Schema - LIA
 
-> **Documentation technique complète du schéma de base de données PostgreSQL**
+> **Référence technique du schéma PostgreSQL et de ses modèles déclarés**
 >
-> **Version**: 1.8
-> **Date**: 2026-07-11
-> **Validated**: Diff complet tables documentées ↔ modèles ORM effectué le 2026-07-11 (voir « Tables complémentaires »)
+> **Version**: 1.9
+> **Date**: 2026-10-12
+> **Reviewed**: sources des commandes, révisions d’apprentissage et réservations relues le 2026-10-12. L’inventaire ORM du 2026-07-11 est un snapshot historique ; les modèles enregistrés et les migrations restent l’autorité, pas une preuve de migration d’une instance.
 >
 > Architecture: PostgreSQL 16 avec SQLAlchemy 2.0 ORM
 > Migration: Alembic avec versioning temporel
-> Compliance: GDPR, OWASP, Audit Trail immuable
+> Controls: ownership, account-data policies, encrypted credentials and audit trails. These mechanisms are not a deployment certification.
 
 ---
 
@@ -43,16 +43,16 @@
 | Métrique | Valeur |
 |----------|--------|
 | **PostgreSQL Version** | 15+ (recommandé 16) |
-| **Total Tables** | 27 tables (+ 1 LangGraph checkpoints) |
-| **Extensions** | pgvector (embeddings future), pg_trgm (full-text), unaccent |
+| **Tables** | Modèles enregistrés dans `apps/api/src/infrastructure/database/registry.py`; schéma effectif déterminé par les migrations appliquées |
+| **Extensions** | pgvector (embeddings), pg_trgm (full-text), unaccent |
 | **ORM** | SQLAlchemy 2.0 (Mapped annotations) |
-| **Migrations** | Alembic 29 migrations |
-| **Total Indexes** | 58+ indexes (performance optimisée) |
-| **Compliance** | GDPR (soft delete, audit), OWASP 2024 |
+| **Migrations** | Chaîne Alembic dans `apps/api/alembic/versions/` |
+| **Indexes** | Déclarés par les modèles et migrations ; vérifier le schéma de l’instance |
+| **Données personnelles** | Export et purge par `users/user_data_map.py`; exploitation et conformité restent à qualifier |
 
 ### Domaines DDD
 
-Le schéma suit l'architecture Domain-Driven Design avec **13 domaines** (11 avec tables DB, 2 sans tables):
+Le schéma suit l’architecture Domain-Driven Design. Vue simplifiée des propriétaires historiques ; les tables complémentaires et le registre ORM précisent les domaines ajoutés :
 
 ```
 📁 domains/
@@ -62,18 +62,18 @@ Le schéma suit l'architecture Domain-Driven Design avec **13 domaines** (11 ave
 ├── chat/           → token_usage_logs, message_token_summary, user_statistics (3 tables)
 ├── llm/            → llm_models, llm_model_pricing, currency_exchange_rates (3 tables) [llm_models added in v1.19.0]
 ├── google_api/     → google_api_pricing, google_api_usage_logs (2 tables) [NEW v1.9]
-├── agents/         → plan_approvals (1 table HITL Phase 8)
+├── agents/         → approvals, commandes applicatives et registres de travail
 ├── users/          → admin_audit_log (1 table)
 ├── personalities/  → personalities, personality_translations (2 tables)
 ├── user_mcp/       → user_mcp_servers (1 table MCP per-user) [NEW v6.2]
 ├── channels/       → user_channel_bindings (1 table multi-channel messaging) [NEW v6.2]
 ├── sub_agents/     → (table sub_agents SUPPRIMÉE — migration 2026-05-13, ADR-083)
 ├── skills/         → skills, user_skill_states (2 tables normalized skill registry) [NEW v1.5]
-├── memories/       → (Langfuse semantic store, pas de table DB)
+├── memories/       → memories (PostgreSQL + pgvector)
 └── voice/          → (Google Cloud TTS, pas de table DB)
 ```
 
-**Total**: 27 tables métier (incluant personalities, Google API, MCP, channels, sub-agents, skills) + 1 table LangGraph (checkpoints)
+La vue ci-dessus n’est pas un compteur du schéma actuel. Les checkpoints LangGraph restent distincts des tables métier.
 
 ---
 
@@ -2270,7 +2270,12 @@ CREATE TABLE scheduled_actions (
     -- Action definition
     title VARCHAR(200) NOT NULL,
     action_prompt TEXT NOT NULL,
-    recurrence JSONB NOT NULL,                 -- RecurrenceSpec (see below)
+    recurrence JSONB,                          -- TIME only; NULL for CONDITION
+    trigger_kind VARCHAR(20) NOT NULL DEFAULT 'time',
+    condition_config JSONB,                     -- CONDITION only: {type, params, until}
+    condition_state JSONB,                      -- fact ledger, written as a new dict
+    requires_approval BOOLEAN NOT NULL DEFAULT FALSE,
+    execution_mode VARCHAR(10) NOT NULL DEFAULT 'react', -- pipeline|react
     user_timezone VARCHAR(50) NOT NULL DEFAULT 'Europe/Paris',
 
     -- Scheduling state
@@ -2279,6 +2284,7 @@ CREATE TABLE scheduled_actions (
     status VARCHAR(20) NOT NULL DEFAULT 'active', -- active|executing|error
 
     -- Execution tracking
+    execution_token UUID,                       -- opaque reservation identity
     last_executed_at TIMESTAMPTZ,
     execution_count INTEGER NOT NULL DEFAULT 0,
     consecutive_failures INTEGER NOT NULL DEFAULT 0,
@@ -2296,7 +2302,14 @@ CREATE INDEX ix_scheduled_actions_due
     WHERE is_enabled = TRUE AND status = 'active' AND next_trigger_at IS NOT NULL;
 ```
 
-**The schedule is one column.** `recurrence` holds a `RecurrenceSpec`
+**Two clock kinds, one schedule authority.** `trigger_kind=time` carries a
+`recurrence`; `trigger_kind=condition` carries `condition_config`, leaves the
+recurrence SQL NULL and is checked by the system. A table CHECK enforces this
+pairing. `condition_state` retains the fact ledger, not one run row for every
+unmet check. `requires_approval` chooses a proposal before execution; it does
+not authorize mutations on its own.
+
+For a time routine, `recurrence` holds a `RecurrenceSpec`
 (`src/core/recurrence/spec.py`): which calendar days the routine serves
 (`freq`, `interval`, `anchor_date`, `byweekday`, `bymonthday`, `nth_weekday`,
 `bymonth`), which moments inside them (`times`), and where the series stops
@@ -2331,11 +2344,17 @@ class ScheduledAction(BaseModel):
     user_id: Mapped[UUID]
     title: Mapped[str]
     action_prompt: Mapped[str]
-    recurrence: Mapped[dict]              # JSONB - RecurrenceSpec
+    recurrence: Mapped[dict | None]       # JSONB - TIME only
+    trigger_kind: Mapped[str]            # time|condition
+    condition_config: Mapped[dict | None]
+    condition_state: Mapped[dict | None]
+    requires_approval: Mapped[bool]
+    execution_mode: Mapped[str]          # pipeline|react
     user_timezone: Mapped[str]
     next_trigger_at: Mapped[datetime | None]  # UTC; None = nothing follows
     is_enabled: Mapped[bool]
     status: Mapped[str]
+    execution_token: Mapped[UUID | None]  # opaque run reservation
     last_executed_at: Mapped[datetime | None]
     execution_count: Mapped[int]
     consecutive_failures: Mapped[int]
@@ -2748,17 +2767,20 @@ Per-user usage quota configuration. One record per user (1:1 relationship with `
 
 ---
 
-## Tables complémentaires (présentes en base, non détaillées ci-dessus)
+## Tables complémentaires (modèles déclarés, non détaillés ci-dessus)
 
 > Diff effectué le 2026-07-20 entre les modèles ORM (`__tablename__`), les migrations
 > Alembic (`create_table`) et ce document : **52 tables réelles, 52 couvertes** au moment de ce diff. ADR-263 a depuis ajouté `agent_effects` (lot 1), `agent_treatments` (lot 4), `ledger_chain` (lot 5), `agent_decisions` (lot 6) et `agent_integrity_events` (lot 8), toutes décrites ci-dessous.
-> Chaque table ci-dessous existe et est active ; le détail des colonnes vit dans le
-> fichier de modèle indiqué (source de vérité).
+> Les tables ci-dessous sont déclarées dans le dépôt ; le détail des colonnes vit
+> dans le modèle indiqué. Leur présence effective sur une instance dépend de ses
+> migrations appliquées.
 
 | Table | Modèle | Rôle |
 |-------|--------|------|
-| `memories` | `src/domains/memories/models.py` | Mémoire long-terme (contenu chiffré, embeddings pgvector, catégorie, poids émotionnel) |
+| `memories` | `src/domains/memories/models.py` | Mémoire long-terme (contenu applicatif SQL, embeddings pgvector, catégorie, poids émotionnel, propriétaire) |
 | `journal_entries` | `src/domains/journals/models.py` | Carnets de bord introspectifs stratifiés L0–L3 (ADR-079/088) |
+| `journal_evidence_events` | `src/domains/journals/evidence_models.py` | Événements indépendants pour une révision de règle ; unicité `(journal_entry_id, rule_revision, event_key)`, propriétaire en `CASCADE`, conversation en `SET NULL` |
+| `application_commands` | `src/domains/agents/application/command_models.py` | Commandes durables : contenu et résultat chiffrés, digest, phase, expiration, origine liée et claim token ; propriétaire obligatoire |
 | `psyche_states` / `psyche_history` | `src/domains/psyche/models.py` | État psychologique dynamique courant + snapshots historiques (ADR-068) |
 | `reminders` | `src/domains/reminders/models.py` | Rappels, ponctuels ou récurrents ; supprimés quand plus rien ne suit (ADR-051) |
 | `attachments` | `src/domains/attachments/models.py` | Pièces jointes chat (images/PDF) + analyse vision. `shared_by_name` : sur la copie reçue d'une connexion, le nom de qui l'a partagée, instantané affiché par la galerie (ADR-316) |
@@ -2782,6 +2804,41 @@ Per-user usage quota configuration. One record per user (1:1 relationship with `
 | `user_fcm_tokens` | `src/domains/notifications/models.py` | Tokens FCM push par appareil |
 | `phone_calls` | `src/domains/telephony/models.py` | Appels sortants (un par appel). Le numéro appelé (`callee_phone`) est **chiffré** par le service — PII. |
 | `provenance_references` | `src/domains/shared/provenance.py` | Renvois **bornés** d'une conclusion (souvenir, entrée de journal, centre d'intérêt) vers le signal qui l'a produite. Pointeur et horodatage uniquement — jamais le texte. Clés vers le sujet en `CASCADE`, clés vers la conversation et le message en **`SET NULL`** : une suppression laisse une **pierre tombale** datée, jamais une résurrection. Contrainte `CHECK` : exactement un sujet par ligne (ADR-201). |
+
+---
+
+### Commandes et révisions durables
+
+`application_commands` porte `actor_id` (FK `users`, `CASCADE`), `draft_id`
+unique, `operation_id`, `content_digest`, `content_encrypted`, `phase`,
+`claim_token`, `expires_at`, `result_encrypted` et `origin_binding_encrypted`.
+L'index acteur/phase sert les reprises. Le contenu chiffré ne constitue pas une
+autorisation : compte, origine, version et phase sont relus lors de l'exécution.
+Voir [APPLICATION_COMMANDS.md](APPLICATION_COMMANDS.md).
+
+La suppression normale d'un compte conserve une ligne utilisateur expurgée :
+elle purge explicitement cette table. Les commandes transitoires sont exclues de
+l'export ; conversation et registres portent déjà les résultats à exporter. La
+politique appartient à `apps/api/src/domains/users/user_data_map.py`.
+
+Les révisions de l'apprentissage ont des rôles distincts :
+
+| Champ / table | Rôle |
+| --- | --- |
+| `users.extraction_revision` | Invalidation des tâches automatiques après consentement ou gestion explicite des données ; relue avant règlement |
+| `journal_entries.revision` | Version de la proposition, utilisée pour les écritures et preuves admissibles |
+| `users.journal_revision`, `journal_consolidated_revision` | Corpus courant et révision consolidée |
+| `journal_last_attempted_at`, `journal_last_attempt_status` | Résultat de tentative, distinct du nombre d'actions |
+| `journal_consolidation_owner`, `journal_consolidation_held_until` | Propriétaire et échéance du lease de consolidation |
+| `journal_evidence_events` | Identité unique d'un événement pour une révision ; résultat `evidence` ou `contradiction`, conversation supprimée laissée en pierre tombale |
+| `scheduled_actions.execution_token` | Réservation opaque ; une reprise applicative ne peut libérer une réservation plus récente |
+
+Les migrations déclarant ces objets sont dans `apps/api/alembic/versions/` :
+commandes `c29fba860e13` et origine `d38fa76219bc`, extraction `f19c83e2a6b0`,
+règlement journal `a92d4e713b60`, réservation routine `e47c0a52d9f1`.
+Leur présence au dépôt ne signifie pas qu'elles sont déjà appliquées sur une
+instance. [JOURNALS.md](JOURNALS.md), [LONG_TERM_MEMORY.md](LONG_TERM_MEMORY.md)
+et [SCHEDULED_ACTIONS.md](SCHEDULED_ACTIONS.md) décrivent les contrôles de règlement.
 
 ---
 
@@ -2912,7 +2969,13 @@ ANALYZE message_token_summary;
 | **conversations** | plan_approvals | CASCADE | Conversation delete → delete approvals |
 | **users** | user_mcp_servers | CASCADE | User deletion → delete MCP server configs |
 
-### Critical Cascade: User Deletion (GDPR Right to Erasure)
+### Physical foreign-key cascade and account deletion
+
+The SQL below illustrates a **physical** users-row deletion. The application’s
+normal account-erasure path scrubs the retained user row and explicitly purges
+the tables declared in `user_data_map.py`; it must not rely on this cascade alone.
+Export/purge policies and provider revocation are service operations, not an
+automatic effect of PostgreSQL foreign keys.
 
 ```sql
 -- User deletion triggers CASCADE chain:
@@ -3186,14 +3249,21 @@ aws s3 cp "$BACKUP_DIR/${DB_NAME}_${DATE}.dump" \
     s3://lia-backups/postgres/
 ```
 
-### 5. GDPR Compliance Checklist
+### 5. Personal-data controls and deployment review
 
-- ✅ **Right to Erasure**: `DELETE FROM users WHERE id = :user_id` (CASCADE)
-- ✅ **Data Minimization**: SessionStore réduit données session (90% memory reduction)
-- ✅ **Audit Trail**: `conversation_audit_log`, `admin_audit_log` (immutable)
-- ✅ **Encryption at Rest**: PostgreSQL TLS + credentials_encrypted (Fernet)
-- ✅ **Soft Delete**: `conversations.deleted_at` (recovery window)
-- ✅ **Retention Policy**: Backup 30 days, logs 90 days
+- **Effacement** : le service expurge le compte et purge les tables déclarées
+  dans `users/user_data_map.py`; un `DELETE` SQL isolé ne représente pas ce parcours.
+- **Export** : la politique classe les données exportées et les objets
+  transitoires exclus, dont les commandes applicatives.
+- **Audit** : `conversation_audit_log` et `admin_audit_log` retracent les opérations
+  prévues par leurs services ; leur accès et leur rétention restent à gérer.
+- **Chiffrement** : les credentials concernés utilisent Fernet. TLS protège le
+  transport lorsqu'il est configuré ; il ne chiffre pas toutes les colonnes au repos.
+- **Rétention** : les politiques applicatives, les journaux d'exploitation et les
+  sauvegardes ont des périmètres distincts à vérifier sur l'instance.
+
+Ces contrôles techniques contribuent à la gestion des données personnelles.
+Ils ne certifient ni la conformité réglementaire ni la politique d'exploitation.
 
 ---
 

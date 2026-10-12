@@ -7,7 +7,9 @@ vi.mock('sonner', () => ({ toast: notices }));
 
 describe('settings feedback account lifetime', () => {
   it('retires old feedback across an account change and a return to the same account', () => {
-    const { result, rerender } = renderHook(({ owner }) => useApplicationAccountToast(owner), { initialProps: { owner: 'first' } });
+    const { result, rerender } = renderHook(({ owner }) => useApplicationAccountToast(owner), {
+      initialProps: { owner: 'first' },
+    });
     const retired = result.current;
     act(() => retired.success('owned saved state'));
     expect(notices.success).toHaveBeenCalledOnce();

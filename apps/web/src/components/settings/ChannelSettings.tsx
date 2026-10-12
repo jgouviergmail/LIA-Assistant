@@ -47,7 +47,10 @@ export function ChannelSettings(props: ChannelSettingsProps) {
   return <ChannelSettingsContent key={ownerId ?? 'anonymous'} ownerId={ownerId} {...props} />;
 }
 
-function ChannelSettingsContent({ lng, ownerId }: ChannelSettingsProps & { ownerId: string | undefined }) {
+function ChannelSettingsContent({
+  lng,
+  ownerId,
+}: ChannelSettingsProps & { ownerId: string | undefined }) {
   const { isCurrent } = useApplicationAccountLifetime(ownerId);
   const { t } = useTranslation(lng);
   const {
@@ -121,7 +124,9 @@ function ChannelSettingsContent({ lng, ownerId }: ChannelSettingsProps & { owner
       await navigator.clipboard.writeText(`/start ${otpData.code}`);
       if (!isCurrent()) return;
       setCopied(true);
-      setTimeout(() => { if (isCurrent()) setCopied(false); }, 2000);
+      setTimeout(() => {
+        if (isCurrent()) setCopied(false);
+      }, 2000);
     } catch {
       // Fallback
     }

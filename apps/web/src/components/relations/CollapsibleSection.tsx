@@ -104,7 +104,6 @@ export function SectionBadge({ children }: { children: React.ReactNode }) {
   );
 }
 
-
 /**
  * The refresh control a section carries, wherever the section lives.
  *

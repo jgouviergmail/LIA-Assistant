@@ -23,7 +23,11 @@ function renderButton(url: string, enabled: boolean | null, expiresAt?: string) 
     <ShareImageButton url={url} title="a lighthouse" expiresAt={expiresAt} className="x" />
   );
   return renderWithProviders(
-    enabled === null ? button : <PeersAvailabilityProvider available={enabled}>{button}</PeersAvailabilityProvider>
+    enabled === null ? (
+      button
+    ) : (
+      <PeersAvailabilityProvider available={enabled}>{button}</PeersAvailabilityProvider>
+    )
   );
 }
 

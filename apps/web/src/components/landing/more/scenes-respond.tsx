@@ -1212,7 +1212,10 @@ function CardComposeScene({ active, labels }: SceneProps) {
       >
         <div className="flex items-center gap-1.5">
           <MiniChip
-            className={cn('transition-opacity duration-300', composing ? 'opacity-100' : 'opacity-0')}
+            className={cn(
+              'transition-opacity duration-300',
+              composing ? 'opacity-100' : 'opacity-0'
+            )}
           >
             <Mail className="h-3 w-3" />
             {labels.context}

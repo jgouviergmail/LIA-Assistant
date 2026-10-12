@@ -21,7 +21,8 @@ vi.mock('@/hooks/useApiQuery', () => ({ useApiQuery }));
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'export-owner' } }) }));
 vi.mock('@/hooks/useApplicationAccountQuery', () => ({
   useApplicationAccountQuery: (url: string, componentName: string) => ({
-    ...useApiQuery(url, { componentName }), ownerId: 'export-owner',
+    ...useApiQuery(url, { componentName }),
+    ownerId: 'export-owner',
   }),
 }));
 const { useStepUpGuard } = vi.hoisted(() => ({ useStepUpGuard: vi.fn() }));

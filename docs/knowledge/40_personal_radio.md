@@ -47,3 +47,7 @@ obtain.
 Start Radio from the header, dashboard or Radio page if your instance offers it. Choose topics, sources, voices and an optional verification level. It speaks about your day and cited news only while you listen, shows sources and spending, and ends at your timer; there is no replay or scheduled edition.
 
 Advertising, sponsorships, deals and purchase pitches are filtered. Genuine invoices, reservations and editorial, scientific or economic reporting remain eligible. A speaking Simli avatar does not accompany Radio.
+
+## How does the first programme become available?
+
+The first programme is prioritised so listening can start before the remainder is ready. Source availability, synthesis latency and playback still depend on configuration and providers; this is not a fixed latency promise. Native companions and the experimental Simli video connector remain separate.

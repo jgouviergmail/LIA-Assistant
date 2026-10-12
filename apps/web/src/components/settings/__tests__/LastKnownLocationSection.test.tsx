@@ -55,9 +55,7 @@ describe('LastKnownLocationSection — toggle', () => {
     useAuth.mockReturnValue(authed({ use_last_known_location: false }));
     renderWithProviders(<LastKnownLocationSection t={t} />);
     expect(screen.getByRole('switch')).not.toBeChecked();
-    expect(
-      screen.queryByText('settings.location.last_known.stored_title')
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText('settings.location.last_known.stored_title')).not.toBeInTheDocument();
   });
 
   it('enabling persists the preference, refreshes and toasts', async () => {
@@ -139,8 +137,6 @@ describe('LastKnownLocationSection — opted in', () => {
     get.mockResolvedValue(NO_LOCATION);
     useAuth.mockReturnValue(authed({ use_last_known_location: true }));
     renderWithProviders(<LastKnownLocationSection t={t} />);
-    expect(
-      await screen.findByText('settings.location.last_known.no_stored')
-    ).toBeInTheDocument();
+    expect(await screen.findByText('settings.location.last_known.no_stored')).toBeInTheDocument();
   });
 });

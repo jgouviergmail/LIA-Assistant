@@ -202,7 +202,9 @@ export const MemoryDetectionSection = React.memo(function MemoryDetectionSection
     >
       {hasActions ? (
         <div className="space-y-1">
-          <SubSectionHeader label={`Actions (${appliedCount} applied / ${memories.length} parsed)`} />
+          <SubSectionHeader
+            label={`Actions (${appliedCount} applied / ${memories.length} parsed)`}
+          />
           <div className="space-y-1.5">
             {memories.map((memory, index) => (
               <MemoryActionRow key={`mem-${index}`} memory={memory} />

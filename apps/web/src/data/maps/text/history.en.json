@@ -1787,6 +1787,26 @@
       "title": "Current MCP contracts carry capabilities and exact server identity",
       "summary": "Each person's MCP tools are discovered from their current declarations; only successfully constructed tools are advertised. The server keeps its exact identity separate from simplified routing and callable names. A server-bound task checks its target before confirmation. Older descriptions receive current capabilities without claiming to know the server's entire ontology.",
       "src": "4d70e2379e7f"
+    },
+    "339": {
+      "title": "Application commands with current permissions and private continuations",
+      "summary": "LIA manages its settings and objects through declared operations. Encrypted durable commands bind approved content, actor, origin and expiry; authority, capabilities and preconditions are reread at execution. Source services retain their compare-and-set checks, and claims are token-fenced. Files, OAuth, private input and device work continue in the authenticated browser. Waiting is not completed success; a lost result remains uncertain, without a promise of external exactly-once execution.",
+      "src": "7bc4d8db53f0"
+    },
+    "340": {
+      "title": "Native volume from reviewed artwork",
+      "summary": "Frontal artwork textures bounded relief whose contour and fringe come from source alpha. Hidden anatomy remains approximate; eyes, brows and mouth are projected DOM/SVG layers, and the scarf is deliberately composited in front. Body, face and accessories share the existing rig. Visibility, reduced motion, readiness and graphics context govern resources and fallback to the fixed drawing. Geometry and lifecycle tests certify neither arbitrary occlusion nor real-device performance.",
+      "src": "80220e3564f6"
+    },
+    "341": {
+      "title": "Editable motion production and exclusive presentation",
+      "summary": "An offline Remotion project preserves chapters, HTML/CSS views, poses and musical accents so the film and feature focuses can evolve together. Reconstructed screens cite native sources and use fictitious data; geometry stays fixed outside explicit focuses, with BIP accompanying the presentation. The manifest can declare a full film distinct from the playlist: its fullscreen dialog suspends the background player. The film is French and its controls are translated; renders, delivered files, music provenance and broadcaster acceptance remain separately qualified.",
+      "src": "3ba1c350e291"
+    },
+    "342": {
+      "title": "An operator-enabled runtime avatar campaign",
+      "summary": "A server option, empty by default, introduces BIP on the next authenticated visit per browser origin. An explicit identifier changes only style and its marker; visibility, size, positions and later manual choices are preserved. No account avatar column is added. Web Locks coordinates tabs where available; without it, rereading the latest record does not guarantee a simultaneous transaction. Disabling the campaign stops new applications without restoring earlier choices, and cannot reach offline devices.",
+      "src": "3a65c19d433e"
     }
   }
 }

@@ -201,3 +201,45 @@ def test_every_fixed_path_matches_the_actual_executable_tool_contract() -> None:
         schema.model_validate(dict(path.parameters))
     question = module.consultation_question(module.READ_PATHS)
     assert set(question.criteria) == set(module.READ_PATHS) | {"other"}
+
+
+async def test_the_question_reads_the_request_alone_never_the_analyzer_interpretation() -> None:
+    module = importlib.import_module("src.domains.agents.services.planner.jev_consultation")
+    qi = replace(
+        intelligence(),
+        english_enriched_query="My unread emails in the inbox",
+        goal_reasoning="The user wants every message from a sender",
+    )
+    _, native = await invoke(module, qi, attempt("email_unread"))
+    sent = native.call_args.kwargs["state"]["intelligence"]
+    assert (
+        set(sent)
+        == set(module.REQUEST_FIELDS)
+        == {
+            "original_query",
+            "english_query",
+            "english_enriched_query",
+        }
+    )
+    assert sent["english_enriched_query"] == "My unread emails in the inbox"
+    assert "goal_reasoning" not in sent and "domain_scores" not in sent
+
+
+@pytest.mark.parametrize("confidence,selected", [(0.97, True), (0.969, False)])
+async def test_one_threshold_serves_both_selectors(confidence: float, selected: bool) -> None:
+    module = importlib.import_module("src.domains.agents.services.planner.jev_consultation")
+    assert module.MIN_CONFIDENCE == 0.97
+    result, _ = await invoke(module, intelligence(), attempt("email_unread", confidence))
+    assert (result is not None) is selected
+
+
+async def test_other_is_offered_first_and_candidates_are_structured() -> None:
+    module = importlib.import_module("src.domains.agents.services.planner.jev_consultation")
+    _, native = await invoke(module, intelligence(), attempt("email_unread"))
+    question = native.call_args.kwargs["question"]
+    keys = list(question.criteria)
+    assert keys[0] == "other" and "email_unread" in keys
+    assert question.criteria["email_unread"] == {
+        "what": "Show unread emails. The only filter is unread status."
+    }
+    assert isinstance(question.instructions, dict) and question.instructions["rules"]

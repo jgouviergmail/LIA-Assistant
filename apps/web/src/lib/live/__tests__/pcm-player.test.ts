@@ -74,8 +74,12 @@ describe('the worklet source', () => {
   it('observes weak actual output and silence on the render thread only when requested', () => {
     const { processor, posted } = instantiate(48000);
     processor.port.onmessage?.({ data: { type: 'observe_audio', epoch: 7 } });
-    processor.port.onmessage?.({ data: { type: 'chunk', seq: 1, rate: 48000, samples: new Float32Array(128).fill(.00004) } });
-    render(processor, 128); render(processor, 128); render(processor, 128);
+    processor.port.onmessage?.({
+      data: { type: 'chunk', seq: 1, rate: 48000, samples: new Float32Array(128).fill(0.00004) },
+    });
+    render(processor, 128);
+    render(processor, 128);
+    render(processor, 128);
     expect(posted).toContainEqual({ type: 'audio_activity', active: true, epoch: 7 });
     expect(posted).toContainEqual({ type: 'audio_activity', active: false, epoch: 7 });
   });

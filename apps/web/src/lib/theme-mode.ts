@@ -102,7 +102,9 @@ export function applyOledAttribute(oled: boolean): void {
   const root = document.documentElement;
   const style = document.createElement('style');
   style.appendChild(
-    document.createTextNode('*,*::before,*::after{transition:none!important;animation:none!important}')
+    document.createTextNode(
+      '*,*::before,*::after{transition:none!important;animation:none!important}'
+    )
   );
   document.head.appendChild(style);
 

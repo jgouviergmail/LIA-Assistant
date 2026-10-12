@@ -359,18 +359,20 @@ async def test_oversized_complete_native_source_is_rejected_before_http() -> Non
     import httpx
 
     from src.domains.agents.prompts.prompt_loader import load_prompt
-    from src.infrastructure.llm.typesafe_client import ChoiceQuestion, TypeSafeError
+    from src.infrastructure.llm.typesafe_client import NoulQuestion, TypeSafeError
 
     assert not evidence.omissions
     async with httpx.AsyncClient() as client:
         with patch.object(client, "stream") as http:
             with pytest.raises(TypeSafeError) as caught:
-                await TypeSafeClient(client, "synthetic-key").choose(
+                await TypeSafeClient(client, "synthetic-key").choose_many(
                     model="jev-1.13.0",
                     state=state,
-                    question=ChoiceQuestion.model_validate_json(
-                        load_prompt("jev_initiative_question")
-                    ),
+                    questions={
+                        "selection": NoulQuestion.model_validate_json(
+                            load_prompt("jev_initiative_question")
+                        )
+                    },
                     timeout_seconds=1,
                 )
     assert caught.value.code == "request_too_large"

@@ -57,7 +57,9 @@ describe('InterestNotificationHistory', () => {
     // A hash does not invert: there is nothing to backfill, and a summary made
     // up here would be the one thing worse than an absent one.
     renderWithProviders(
-      <InterestNotificationHistory {...makeProps({ notifications: [notification({ content: null })] })} />
+      <InterestNotificationHistory
+        {...makeProps({ notifications: [notification({ content: null })] })}
+      />
     );
 
     expect(screen.getByText('fusion nucléaire')).toBeInTheDocument();
@@ -68,7 +70,9 @@ describe('InterestNotificationHistory', () => {
     // `interest_id` is nullable. Dropping the row would hide part of the very
     // audit the reader opened the panel for.
     renderWithProviders(
-      <InterestNotificationHistory {...makeProps({ notifications: [notification({ topic: null })] })} />
+      <InterestNotificationHistory
+        {...makeProps({ notifications: [notification({ topic: null })] })}
+      />
     );
 
     expect(
@@ -107,7 +111,9 @@ describe('InterestNotificationHistory', () => {
   });
 
   it('says so plainly when nothing has been sent yet', () => {
-    renderWithProviders(<InterestNotificationHistory {...makeProps({ notifications: [], total: 0 })} />);
+    renderWithProviders(
+      <InterestNotificationHistory {...makeProps({ notifications: [], total: 0 })} />
+    );
 
     expect(screen.getByText('interests.history.empty')).toBeInTheDocument();
   });
@@ -148,7 +154,9 @@ describe('InterestNotificationHistory', () => {
 
   it('leaves the slot empty rather than inventing one when the interest is gone', () => {
     const { container } = renderWithProviders(
-      <InterestNotificationHistory {...makeProps({ notifications: [notification({ topic: null })] })} />
+      <InterestNotificationHistory
+        {...makeProps({ notifications: [notification({ topic: null })] })}
+      />
     );
 
     expect(container.querySelector('.uppercase')).toBeNull();

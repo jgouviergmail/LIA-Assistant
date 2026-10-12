@@ -486,6 +486,22 @@
       "domains": ["avatars"],
       "surfaces": ["/dashboard/chat", "/dashboard/settings"],
       "deps": ["f.voice", "f.live", "f.connectors"]
+    },
+    {
+      "id": "f.application",
+      "group": "g.act",
+      "icon": "sliders-horizontal",
+      "domains": ["agents"],
+      "surfaces": ["/dashboard/chat", "/dashboard/settings"],
+      "deps": ["f.security", "f.hitl", "f.provenance"]
+    },
+    {
+      "id": "f.nativeavatar",
+      "group": "g.remember",
+      "icon": "smile",
+      "domains": [],
+      "surfaces": ["/dashboard/chat", "/dashboard/settings"],
+      "deps": ["f.personality", "f.voice"]
     }
   ],
   "flows": [
@@ -550,6 +566,19 @@
       "id": "flow.meeting",
       "icon": "mic-vocal",
       "steps": ["f.meetings", "f.voice", "f.documents", "f.rag", "f.moments"]
+    },
+    {
+      "id": "flow.application",
+      "icon": "sliders-horizontal",
+      "steps": [
+        "f.chat",
+        "f.application",
+        "f.hitl",
+        "f.application",
+        "f.security",
+        "f.application",
+        "f.chat"
+      ]
     }
   ]
 }

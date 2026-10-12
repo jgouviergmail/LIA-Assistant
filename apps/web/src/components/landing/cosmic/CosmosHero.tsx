@@ -17,6 +17,7 @@ import { InteractiveChatMockup } from '../InteractiveChatMockup';
 import { LANDING_PLANETARIUM_ENABLED } from '../constants';
 import { APP_VERSION, LAST_UPDATED } from '@/lib/version';
 import { Planetarium } from './Planetarium';
+import { PresentationButton } from '../video/PresentationButton';
 
 const HERO_DATE_LOCALES: Record<string, string> = {
   fr: 'fr-FR',
@@ -56,7 +57,6 @@ export async function CosmosHero({
   planetarium = LANDING_PLANETARIUM_ENABLED,
 }: CosmosHeroProps) {
   const { t } = await initI18next(lng);
-  const registerHref = buildLocalizedPath('/register', lng as Language);
   // The demo CTA exists ONLY when the guided mission is the /demo experience:
   // under `legacy` that page is a passive mockup, so advertising it as a demo
   // would overpromise. Build-time value — no runtime branch on the public page.
@@ -141,7 +141,7 @@ export async function CosmosHero({
             </p>
             <p
               {...rise(RISE_DELAYS.sub)}
-              className="cosmos-rise text-sm mobile:text-base text-foreground/80 max-w-2xl mx-auto lg:mx-0 leading-relaxed"
+              className="cosmos-rise mt-6 border-b border-border/60 pb-6 pt-2 text-sm mobile:text-base text-foreground/80 max-w-2xl mx-auto lg:mx-0 leading-relaxed sm:mt-0 sm:border-b-0 sm:pb-0 sm:pt-0"
             >
               {t('landing.hero.home_value')}
             </p>
@@ -171,22 +171,15 @@ export async function CosmosHero({
               {...rise(RISE_DELAYS.cta)}
               className="cosmos-rise flex flex-col sm:flex-row sm:flex-wrap gap-3 justify-center lg:justify-start mb-3"
             >
+              <PresentationButton label={t('landing.hero.home_cta_presentation')} />
               {showsGuidedDemo && (
-                <Button asChild size="lg" className="text-base px-5 gap-2">
+                <Button asChild variant="outline" size="lg" className="text-base px-5 gap-2">
                   <Link href={demoHref} data-testid="hero-cta-demo">
                     <PlayCircle className="w-5 h-5" aria-hidden="true" />
                     {t('landing.hero.home_cta_demo')}
                   </Link>
                 </Button>
               )}
-              <Button
-                asChild
-                variant={showsGuidedDemo ? 'outline' : 'default'}
-                size="lg"
-                className="text-base px-6"
-              >
-                <Link href={registerHref}>{t('landing.hero.home_cta_primary')}</Link>
-              </Button>
             </div>
 
             <a
@@ -205,10 +198,13 @@ export async function CosmosHero({
 
             <div
               {...rise(RISE_DELAYS.trust)}
-              className="cosmos-rise flex flex-wrap items-center gap-x-4 gap-y-2 justify-center lg:justify-start text-sm text-muted-foreground"
+              className="cosmos-rise flex flex-col items-center justify-center gap-3 border-y border-border/60 py-5 text-sm text-muted-foreground sm:flex-row sm:flex-wrap sm:gap-x-4 sm:gap-y-2 sm:border-y-0 sm:py-0 lg:justify-start"
             >
               {trustItems.map(({ icon: Icon, label }) => (
-                <span key={label} className="flex items-center gap-1.5">
+                <span
+                  key={label}
+                  className="flex max-w-full items-center justify-center gap-1.5 text-center leading-relaxed sm:justify-start sm:text-left"
+                >
                   <Icon className="w-4 h-4 shrink-0 text-primary" aria-hidden="true" />
                   {label}
                 </span>

@@ -121,10 +121,7 @@ function applyMove(
  * @returns The new state; the SAME object when nothing applied, so React skips
  *   the render.
  */
-export function workboardReducer(
-  state: WorkboardState,
-  action: WorkboardAction
-): WorkboardState {
+export function workboardReducer(state: WorkboardState, action: WorkboardAction): WorkboardState {
   switch (action.type) {
     case 'loaded':
       return {

@@ -10,7 +10,10 @@ from pydantic import BaseModel, ConfigDict, Field, JsonValue, model_validator
 from src.infrastructure.llm.typesafe_client import (
     ChoiceAnswer,
     ChoiceQuestion,
+    Criterion,
     InvalidResponseReason,
+    NoulAnswer,
+    NoulQuestion,
 )
 
 CONTEXT_CHARACTERS = 6000
@@ -148,19 +151,68 @@ def context_preview(value: JsonValue) -> ContextPreview:
     )
 
 
+def criterion_label(criterion: Criterion | None, fallback: str) -> str:
+    """A bounded human label: a plain criterion, or a structured one's ``what``."""
+    if isinstance(criterion, str):
+        return criterion[:240]
+    if isinstance(criterion, dict) and isinstance(criterion.get("what"), str):
+        return str(criterion["what"])[:240]
+    if criterion:
+        return json.dumps(criterion, ensure_ascii=False)[:240]
+    return fallback[:240]
+
+
 def choice_preview(
     answer: ChoiceAnswer, question: ChoiceQuestion, *, limit: int = RESPONSE_CANDIDATES
 ) -> ChoicePreview:
     ordered = sorted(answer.probabilities.items(), key=lambda item: item[1], reverse=True)
     return ChoicePreview(
         choice=answer.choice,
-        choice_label=question.criteria.get(answer.choice, answer.choice)[:240],
+        choice_label=criterion_label(question.criteria.get(answer.choice), answer.choice),
         confidence=answer.confidence,
         probabilities=[
             CandidateProbability(
-                key=key, label=question.criteria.get(key, key)[:240], probability=probability
+                key=key,
+                label=criterion_label(question.criteria.get(key), key),
+                probability=probability,
             )
             for key, probability in ordered[:limit]
         ],
         omitted_candidates=max(0, len(ordered) - limit),
     )
+
+
+def noul_preview(answer: NoulAnswer, question: NoulQuestion) -> ChoicePreview:
+    """A Noul drawn as its two outcomes; the concentration of {p, 1-p} is |2p - 1|."""
+    outcomes = sorted(
+        (
+            ("true", question.criteria.true, answer.noul),
+            ("false", question.criteria.false, 1 - answer.noul),
+        ),
+        key=lambda item: item[2],
+        reverse=True,
+    )
+    return ChoicePreview(
+        choice=outcomes[0][0],
+        choice_label=criterion_label(outcomes[0][1], outcomes[0][0]),
+        confidence=abs(2 * answer.noul - 1),
+        probabilities=[
+            CandidateProbability(key=key, label=criterion_label(text, key), probability=value)
+            for key, text, value in outcomes
+        ],
+        omitted_candidates=0,
+    )
+
+
+def decision_preview(
+    answer: ChoiceAnswer | NoulAnswer,
+    question: ChoiceQuestion | NoulQuestion,
+    *,
+    limit: int = RESPONSE_CANDIDATES,
+) -> ChoicePreview | None:
+    """The panel's one shape for either primitive; a mismatched pair draws nothing."""
+    if isinstance(answer, ChoiceAnswer) and isinstance(question, ChoiceQuestion):
+        return choice_preview(answer, question, limit=limit)
+    if isinstance(answer, NoulAnswer) and isinstance(question, NoulQuestion):
+        return noul_preview(answer, question)
+    return None

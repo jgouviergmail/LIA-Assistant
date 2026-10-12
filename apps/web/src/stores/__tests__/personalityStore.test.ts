@@ -64,10 +64,12 @@ beforeEach(() => {
   usePersonalityStore.getState().reset();
   fetchPersonalities.mockResolvedValue({ personalities: [CALM, SHARP], count: 2 });
   fetchCurrentPersonality.mockResolvedValue({ personality: CALM, personality_id: CALM.id });
-  updateCurrentPersonality.mockImplementation(async ({ personality_id }: { personality_id: string | null }) => {
-    const chosen = [CALM, SHARP].find((p) => p.id === personality_id) ?? null;
-    return { personality: chosen, personality_id: chosen?.id ?? null };
-  });
+  updateCurrentPersonality.mockImplementation(
+    async ({ personality_id }: { personality_id: string | null }) => {
+      const chosen = [CALM, SHARP].find(p => p.id === personality_id) ?? null;
+      return { personality: chosen, personality_id: chosen?.id ?? null };
+    }
+  );
 });
 
 describe('the shared personality state', () => {

@@ -57,8 +57,7 @@ export function useTelephonyCalls(enabled = true, limit?: number): UseTelephonyC
     try {
       // Ask the server for exactly what the caller displays — never fetch a
       // longer list to slice it client-side (the endpoint caps at 100).
-      const endpoint =
-        limit !== undefined ? `/telephony/calls?limit=${limit}` : '/telephony/calls';
+      const endpoint = limit !== undefined ? `/telephony/calls?limit=${limit}` : '/telephony/calls';
       const response = await apiClient.get<TelephonyCallSummary[]>(endpoint);
       if (isStale()) return;
       setCalls(Array.isArray(response) ? response : []);

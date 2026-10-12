@@ -106,6 +106,8 @@ export interface LandingCarouselProps {
    * slide weighs 2 MB and is already served at its readable width.
    */
   zoomable?: boolean;
+  /** Keep preview geometry uniform; full-page originals remain available in the lightbox. */
+  uniformFrame?: boolean;
 }
 
 /** Selection stays above the variable-height image in a mixed gallery. */
@@ -216,13 +218,105 @@ function CarouselNavigation({
   );
 }
 
+/** Preview geometry can vary without changing the original opened by the lightbox. */
+function CarouselImageStage({
+  active,
+  frame,
+  variant,
+  uniformFrame,
+  index,
+  total,
+  mixedFormats,
+  zoomable,
+  onExpand,
+  onTouchStart,
+  onTouchMove,
+  onTouchEnd,
+}: {
+  active: CarouselSlide;
+  frame: Frame;
+  variant: CarouselVariant;
+  uniformFrame: boolean;
+  index: number;
+  total: number;
+  mixedFormats: boolean;
+  zoomable: boolean;
+  onExpand: () => void;
+  onTouchStart: React.TouchEventHandler<HTMLDivElement>;
+  onTouchMove: React.TouchEventHandler<HTMLDivElement>;
+  onTouchEnd: React.TouchEventHandler<HTMLDivElement>;
+}) {
+  const { t } = useTranslation();
+  const portrait = active.aspectRatio !== undefined && active.aspectRatio < 1;
+
+  return (
+    <div
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      className={cn(
+        'relative mx-auto w-full overflow-hidden rounded-2xl border border-border/70 bg-card/50',
+        frame.aspect,
+        portrait && !uniformFrame && 'max-w-[34rem]'
+      )}
+      style={!uniformFrame && active.aspectRatio ? { aspectRatio: active.aspectRatio } : undefined}
+    >
+      {/* Ambient light fills the frame. Application proofs use their
+          revisioned originals, shared by the browser cache with the
+          sharp image; decks retain the small optimized source. */}
+      <Image
+        key={`${active.src}#ambient`}
+        src={active.src}
+        unoptimized={variant === 'application'}
+        alt=""
+        aria-hidden="true"
+        fill
+        sizes="32px"
+        className="scale-110 object-cover opacity-45 blur-2xl saturate-150"
+      />
+      <div aria-hidden="true" className="absolute inset-0 bg-background/30" />
+      <Image
+        key={active.src}
+        src={active.src}
+        unoptimized={variant === 'application'}
+        alt={active.label}
+        fill
+        sizes={frame.sizes}
+        className={portrait && uniformFrame ? 'object-cover object-top' : 'object-contain'}
+      />
+
+      {/* Position, as a chip on the stage. Decorative on purpose: the
+          caption below is the live region that announces the change. */}
+      {total > 1 && !mixedFormats && (
+        <p
+          aria-hidden="true"
+          className="absolute bottom-3 left-3 z-10 rounded-full border border-border/60 bg-background/75 px-3 py-1 text-xs font-semibold tabular-nums text-muted-foreground backdrop-blur-md"
+        >
+          {String(index + 1).padStart(2, '0')} / {String(total).padStart(2, '0')}
+        </p>
+      )}
+
+      {zoomable && (
+        <button
+          type="button"
+          onClick={onExpand}
+          aria-label={t('common.expand_image')}
+          className="absolute right-3 top-3 z-10 grid h-10 w-10 place-items-center rounded-full border border-border/70 bg-background/75 text-foreground shadow-lg backdrop-blur-md transition hover:scale-105 hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none"
+        >
+          <Expand aria-hidden="true" className="h-4 w-4" />
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function LandingCarousel({
   slides,
   variant,
   label,
   zoomable = false,
+  uniformFrame = false,
 }: LandingCarouselProps) {
-  const { t } = useTranslation();
   const [index, setIndex] = useState(0);
   const [expanded, setExpanded] = useState(false);
   const railRef = useRef<HTMLDivElement>(null);
@@ -233,10 +327,8 @@ export function LandingCarousel({
   const frame = FRAMES[variant];
   const total = slides.length;
   const active = slides[index];
-  const portrait = active?.aspectRatio !== undefined && active.aspectRatio < 1;
-  const mixedFormats = slides.some(
-    slide => slide.aspectRatio !== undefined && slide.aspectRatio < 1
-  );
+  const mixedFormats =
+    !uniformFrame && slides.some(slide => slide.aspectRatio !== undefined && slide.aspectRatio < 1);
 
   const goTo = useCallback((next: number) => setIndex((next + total) % total), [total]);
 
@@ -337,63 +429,20 @@ export function LandingCarousel({
           onPrevious={() => goTo(index - 1)}
           onNext={() => goTo(index + 1)}
         />
-        <div
+        <CarouselImageStage
+          active={active}
+          frame={frame}
+          variant={variant}
+          uniformFrame={uniformFrame}
+          index={index}
+          total={total}
+          mixedFormats={mixedFormats}
+          zoomable={zoomable}
+          onExpand={() => setExpanded(true)}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
-          className={cn(
-            'relative mx-auto w-full overflow-hidden rounded-2xl border border-border/70 bg-card/50',
-            frame.aspect,
-            portrait && 'max-w-[34rem]'
-          )}
-          style={active.aspectRatio ? { aspectRatio: active.aspectRatio } : undefined}
-        >
-          {/* Ambient light fills the frame. Application proofs use their
-              revisioned originals, shared by the browser cache with the
-              sharp image; decks retain the small optimized source. */}
-          <Image
-            key={`${active.src}#ambient`}
-            src={active.src}
-            unoptimized={variant === 'application'}
-            alt=""
-            aria-hidden="true"
-            fill
-            sizes="32px"
-            className="scale-110 object-cover opacity-45 blur-2xl saturate-150"
-          />
-          <div aria-hidden="true" className="absolute inset-0 bg-background/30" />
-          <Image
-            key={active.src}
-            src={active.src}
-            unoptimized={variant === 'application'}
-            alt={active.label}
-            fill
-            sizes={frame.sizes}
-            className="object-contain"
-          />
-
-          {/* Position, as a chip on the stage. Decorative on purpose: the
-              caption below is the live region that announces the change. */}
-          {total > 1 && !mixedFormats && (
-            <p
-              aria-hidden="true"
-              className="absolute bottom-3 left-3 z-10 rounded-full border border-border/60 bg-background/75 px-3 py-1 text-xs font-semibold tabular-nums text-muted-foreground backdrop-blur-md"
-            >
-              {String(index + 1).padStart(2, '0')} / {String(total).padStart(2, '0')}
-            </p>
-          )}
-
-          {zoomable && (
-            <button
-              type="button"
-              onClick={() => setExpanded(true)}
-              aria-label={t('common.expand_image')}
-              className="absolute right-3 top-3 z-10 grid h-10 w-10 place-items-center rounded-full border border-border/70 bg-background/75 text-foreground shadow-lg backdrop-blur-md transition hover:scale-105 hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none"
-            >
-              <Expand aria-hidden="true" className="h-4 w-4" />
-            </button>
-          )}
-        </div>
+        />
       </div>
 
       {/* Caption — and the carousel's live region. Capped to a readable

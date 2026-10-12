@@ -1787,6 +1787,26 @@
       "title": "Los contratos MCP actuales describen capacidades e identidad exacta del servidor",
       "summary": "Las herramientas MCP de cada persona se descubren a partir de sus declaraciones actuales; solo se anuncian las construidas correctamente. El servidor conserva su identidad exacta, separada de los nombres simplificados de enrutamiento y llamada. Una tarea ligada a un servidor comprueba su destino antes de confirmar. Las descripciones antiguas reciben las capacidades actuales sin afirmar conocer toda la ontología del servidor.",
       "src": "4d70e2379e7f"
+    },
+    "339": {
+      "title": "Órdenes de aplicación con permisos actuales y continuaciones privadas",
+      "summary": "LIA gestiona ajustes y objetos mediante operaciones declaradas. Las órdenes duraderas cifradas vinculan contenido aprobado, actor, origen y caducidad; permisos, capacidades y condiciones se consultan de nuevo al ejecutar. Los servicios de origen conservan sus controles compare-and-set y los claims quedan protegidos por token. Archivos, OAuth, entrada privada y acciones de dispositivo continúan en el navegador autenticado. Esperar no es un éxito completado; un resultado perdido sigue siendo incierto, sin prometer ejecución externa exactamente una vez.",
+      "src": "7bc4d8db53f0"
+    },
+    "340": {
+      "title": "Volumen nativo a partir de dibujos revisados",
+      "summary": "El dibujo frontal texturiza un relieve acotado cuyo contorno y franja proceden del alfa original. La anatomía oculta sigue siendo aproximada; ojos, cejas y boca son capas proyectadas en DOM/SVG, y la bufanda se compone deliberadamente delante. Cuerpo, rostro y accesorios comparten el rig existente. Visibilidad, movimiento reducido, disponibilidad y contexto gráfico gobiernan recursos y retorno al dibujo fijo. Las pruebas de geometría y ciclo de vida no certifican toda oclusión ni el rendimiento en dispositivos reales.",
+      "src": "80220e3564f6"
+    },
+    "341": {
+      "title": "Producción motion editable y presentación exclusiva",
+      "summary": "Un proyecto Remotion offline conserva capítulos, vistas HTML/CSS, poses y acentos musicales para evolucionar conjuntamente el film y los enfoques de funciones. Las pantallas reconstruidas citan fuentes nativas y usan datos ficticios; la geometría permanece fija fuera de enfoques explícitos, con BIP acompañando la presentación. El manifiesto puede declarar un film completo distinto de la lista: su diálogo a pantalla completa suspende el reproductor de fondo. El film está en francés y sus controles se traducen; renders, archivos entregados, procedencia musical y aceptación del medio se verifican por separado.",
+      "src": "3ba1c350e291"
+    },
+    "342": {
+      "title": "Una campaña de avatar en tiempo de ejecución, activada por el operador",
+      "summary": "Una opción de servidor, vacía por defecto, presenta BIP en la siguiente visita autenticada por origen y navegador. Un identificador explícito cambia solo estilo y marcador; conserva visibilidad, tamaño, posiciones y elecciones manuales posteriores. No se añade una columna de avatar a la cuenta. Web Locks coordina pestañas cuando está disponible; sin él, releer el registro más reciente no garantiza una transacción simultánea. Desactivar la campaña detiene nuevas aplicaciones sin restaurar elecciones anteriores, y no alcanza dispositivos desconectados.",
+      "src": "3a65c19d433e"
     }
   }
 }

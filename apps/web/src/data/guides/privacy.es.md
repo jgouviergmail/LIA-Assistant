@@ -2,8 +2,8 @@
 
 > Tus datos. Tu asistente. Tus reglas.
 
-**Versión**: 1.0
-**Fecha**: 2026-10-05
+**Versión**: 1.1
+**Fecha**: 2026-10-12
 **Licencia**: AGPL-3.0 (código abierto)
 
 ---
@@ -127,6 +127,12 @@ Los controles de ocultación protegen los registros técnicos; no anonimizan aut
 
 **Registros seguros:**
 Los registros técnicos utilizan un formato JSON estructurado (mediante structlog), con reglas para omitir contenido citado del usuario y ocultar secretos e información personal reconocidos. Estos controles no convierten todos los almacenes de diagnóstico en anónimos.
+
+### Comandos y continuaciones privadas
+
+Las claves, los archivos elegidos, las conexiones de cuentas y los consentimientos del navegador usan la interfaz segura de la operación, no parámetros inventados por el modelo. El comando está vinculado a la cuenta y a su contexto autorizado; los permisos y la versión del recurso se comprueban de nuevo antes de escribir. Cifrar el contenido de los comandos no oculta todo el servicio a su operador: mensajes y datos operativos conservan los límites descritos aquí.
+
+---
 
 ## 6. Proveedores de LLM
 

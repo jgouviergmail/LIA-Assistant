@@ -4,7 +4,7 @@
 
 **Version**: 6.2
 **Date**: 2026-10-04
-**Application**: LIA v2.6.1
+**Application**: LIA v3.0.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -107,6 +107,16 @@ The administrator accesses a third tab dedicated to instance management:
 ### 2.4. An assistant, not a technical project
 
 LIA's goal is not to turn you into a system administrator. It's to give you the power of a full AI assistant **with the simplicity of a consumer application**. The interface is installable as a native app on desktop, tablet and smartphone (PWA), and everything is designed to be accessible without technical skills in daily use.
+
+---
+
+### Settings reachable through conversation
+
+Yes. Try “Which response mode is active?”, “Switch my answers to HTML + cards” or “Show my routines”. LIA uses the same settings and labels as the interface, within the features available on your instance and authorised for your account. Reads and some small reversible preferences may be direct. Creating, deleting or making a sensitive change retains its confirmation.
+
+Confirmation applies to the operation and content shown. OAuth sign-in, file selection, a key or device permission continue in your authenticated browser: do not paste these secrets into chat. LIA may prepare the request and wait for that step. Enabling hands-free listening and sensitive permissions retain their protections; a command cannot bypass them.
+
+A prepared request, an awaited confirmation and a recorded change are different states. LIA reports observed results and distinguishes partial results, waiting, conflicts, expiry and failure. If the resource changed after preparation, the command may be refused and need a new request. Delegation to a tool does not by itself prove all its internal effects.
 
 ---
 

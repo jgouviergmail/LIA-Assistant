@@ -93,11 +93,16 @@ describe('useApiMutation — method routing', () => {
 describe('useApiMutation — error handling', () => {
   it('keeps private addresses and credential payloads out of mutation diagnostics', async () => {
     mockApi.put.mockRejectedValueOnce(new ApiError('unavailable', 503));
-    const { result } = renderHook(() => useApiMutation({ method: 'PUT', componentName: 'Settings' }));
+    const { result } = renderHook(() =>
+      useApiMutation({ method: 'PUT', componentName: 'Settings' })
+    );
     await act(async () => {
-      await result.current.mutate('/users/me/home-location', {
-        address: 'Private home 123', secret: 'private-secret',
-      }).catch(() => {});
+      await result.current
+        .mutate('/users/me/home-location', {
+          address: 'Private home 123',
+          secret: 'private-secret',
+        })
+        .catch(() => {});
     });
     expect(logger.error).toHaveBeenCalled();
     expect(JSON.stringify(vi.mocked(logger.error).mock.calls)).not.toContain('Private home 123');

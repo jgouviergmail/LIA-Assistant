@@ -17,6 +17,7 @@ properties matter more than the resolution itself:
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
@@ -25,6 +26,7 @@ import pytest
 from src.domains.agents.services.memory_reference_resolution_service import (
     MemoryReferenceResolutionService,
     ResolvedReferences,
+    resolution_from_payload,
 )
 
 pytestmark = pytest.mark.unit
@@ -186,3 +188,83 @@ class TestFallbackExtraction:
             result = self._extract(service, response)
             assert result.original_query == "cherche ma femme"
             assert isinstance(result.mappings, dict)
+
+
+class TestPayloadIsReadForgivingly:
+    """The model's JSON is read field by field; a bad field never sinks the rest."""
+
+    def test_kinds_are_carried(self) -> None:
+        result = resolution_from_payload(
+            {
+                "resolved_query": "itinéraire 12 rue des Lilas",
+                "mappings": {"chez mon frère": "12 rue des Lilas, Lyon"},
+                "kinds": {"chez mon frère": "postal_address"},
+            },
+            "itinéraire chez mon frère",
+        )
+        assert result.mappings == {"chez mon frère": "12 rue des Lilas, Lyon"}
+        assert result.value_kinds == {"chez mon frère": "postal_address"}
+
+    def test_absent_kinds_are_empty(self) -> None:
+        result = resolution_from_payload({"mappings": {"ma femme": "Jane"}}, "q")
+        assert result.value_kinds == {}
+        assert result.enriched_query == "q"
+
+    @pytest.mark.parametrize("payload", [[], "text", None, 3])
+    def test_a_non_object_payload_resolves_nothing(self, payload: object) -> None:
+        result = resolution_from_payload(payload, "cherche ma femme")
+        assert (result.enriched_query, result.mappings, result.value_kinds) == (
+            "cherche ma femme",
+            {},
+            {},
+        )
+
+    def test_non_string_values_and_containers_are_dropped(self) -> None:
+        result = resolution_from_payload(
+            {
+                "resolved_query": 7,
+                "mappings": {"a": "Jane", "b": None, "c": {"x": 1}},
+                "kinds": ["x"],
+            },
+            "q",
+        )
+        assert (result.enriched_query, result.mappings, result.value_kinds) == (
+            "q",
+            {"a": "Jane"},
+            {},
+        )
+
+
+class TestModelReplyWiring:
+    async def test_the_kinds_of_a_reply_reach_the_result(
+        self, service: MemoryReferenceResolutionService
+    ) -> None:
+        reply = SimpleNamespace(
+            text='```json\n{"resolved_query": "r", "mappings": {"chez ma sœur": "4 avenue Foch, Paris"}, '
+            '"kinds": {"chez ma sœur": "postal_address"}}\n```'
+        )
+        llm = SimpleNamespace(ainvoke=AsyncMock(return_value=reply))
+        with (
+            patch(
+                "src.domains.agents.services.memory_reference_resolution_service.get_llm",
+                return_value=llm,
+            ),
+            patch(
+                "src.core.llm_config_helper.get_llm_config_for_agent",
+                return_value=SimpleNamespace(timeout_seconds=5),
+            ),
+        ):
+            result = await service._resolve_all_via_llm(
+                query="restaurants chez ma sœur", memory_facts=FACTS
+            )
+        assert result.mappings == {"chez ma sœur": "4 avenue Foch, Paris"}
+        assert result.value_kinds == {"chez ma sœur": "postal_address"}
+
+    def test_the_regex_fallback_declares_no_kind(
+        self, service: MemoryReferenceResolutionService
+    ) -> None:
+        result = service._fallback_regex_extraction(
+            '{"resolved_query": "cherche Jane", "mappings": {"ma femme": "Jane"}',
+            "cherche ma femme",
+        )
+        assert result.value_kinds == {}

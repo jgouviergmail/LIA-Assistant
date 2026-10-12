@@ -1515,6 +1515,7 @@ for _slot, _name in (
     ("jev_initiative_utility", "Initiative utility (Jev)"),
     ("jev_memory_reference_presence", "Memory reference presence (Jev)"),
     ("jev_hitl_rejection", "Complete HITL rejection (Jev)"),
+    ("jev_parameter_kind", "Guarded parameter values (Jev)"),
 ):
     LLM_TYPES_REGISTRY[_slot] = LLMTypeMetadata(
         llm_type=_slot,

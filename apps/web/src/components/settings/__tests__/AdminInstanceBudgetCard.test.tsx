@@ -86,7 +86,9 @@ describe('AdminInstanceBudgetCard', () => {
     render(<AdminInstanceBudgetCard />);
 
     // Showing "100 €" alone would be a fiction: 1 € is what applies.
-    expect(await screen.findByText('usage_limits.instance_budget.capped_notice')).toBeInTheDocument();
+    expect(
+      await screen.findByText('usage_limits.instance_budget.capped_notice')
+    ).toBeInTheDocument();
   });
 
   it('sends the new ceiling and reports success', async () => {

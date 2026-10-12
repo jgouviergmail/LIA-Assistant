@@ -39,9 +39,7 @@ describe('SECTION_CAPABILITY — the derived reverse', () => {
     for (const [capability, token] of Object.entries(CAPABILITY_SECTION)) {
       expect(SECTION_CAPABILITY[token]).toBe(capability);
     }
-    expect(Object.keys(SECTION_CAPABILITY)).toHaveLength(
-      Object.keys(CAPABILITY_SECTION).length
-    );
+    expect(Object.keys(SECTION_CAPABILITY)).toHaveLength(Object.keys(CAPABILITY_SECTION).length);
   });
 });
 

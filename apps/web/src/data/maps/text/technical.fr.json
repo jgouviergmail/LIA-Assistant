@@ -351,6 +351,28 @@
       "name": "Avatar : session et restitution",
       "role": "L’API possède la connexion Simli sous bail Redis : ticket à usage unique, jeton chiffré, signalisation et PCM relayés, arrêt vérifié et présence bornée. Le navigateur choisit une sortie audible et conserve le placement préféré malgré le clavier mobile. La qualification du média et des appareils réels reste en attente.",
       "stack": ["Simli Compose", "WebRTC", "Web Audio", "AudioWorklet", "Redis"]
+    },
+    "t.application": {
+      "name": "Commandes applicatives durables",
+      "role": "Des opérations typées passent par l'autorité courante et le gate d'effets. Une commande chiffrée lie acteur, contenu canonique, digest, origine, expiration et claim ; les services sources conservent leurs contrôles compare-and-set. Les continuations privées reviennent au navigateur authentifié. Seul un résultat explicitement committed constitue un succès accompli.",
+      "stack": [
+        "Déclarations typées / Pydantic",
+        "PostgreSQL chiffré",
+        "Claims protégés par jeton",
+        "Continuations navigateur",
+        "SSE et relecture authentifiée"
+      ]
+    },
+    "t.nativeavatar": {
+      "name": "Rig et volume des compagnons natifs",
+      "role": "Le même rig pilote visage, corps et accessoires. Un maillage borné issu de l'alpha donne un volume approché au dessin frontal ; les organes restent projetés en DOM/SVG, l'écharpe est compositée devant. Visibilité, mouvement réduit et readiness gouvernent ressources et fallback. Une campagne runtime optionnelle change BIP par origine/navigateur, sans champ avatar en base.",
+      "stack": [
+        "React / DOM / SVG",
+        "Rig natif partagé",
+        "WebGL borné",
+        "Artwork offline",
+        "Préférences locales au navigateur"
+      ]
     }
   },
   "flows": {
@@ -433,6 +455,20 @@
         "Grafana montre chaque sous-système.",
         "Une alerte part avec son runbook.",
         "LIA rassemble les preuves de l'incident et le diagnostique."
+      ]
+    },
+    "tflow.application": {
+      "name": "Exécuter une commande applicative",
+      "summary": "Identité durable et préconditions actuelles ; une continuation ouverte reste une attente.",
+      "steps": [
+        "Le client utilise le catalogue d'opérations proposé à ce compte.",
+        "La déclaration fixe l'opération, le schéma, sa portée et ses capacités requises.",
+        "La préparation lie valeurs avant/après, digest, acteur, origine et expiration dans une commande chiffrée.",
+        "Le gate d'effets vérifie l'approbation exacte lorsque l'opération la requiert.",
+        "L'exécution relit les droits et capacités ; claim protégé par jeton et compare-and-set du service source protègent leurs frontières respectives.",
+        "Une continuation privée est liée à la session et, si nécessaire, au périphérique adressé ; les secrets restent hors du modèle.",
+        "Committed, waiting, conflit, échec et annulation restent des résultats distincts ; une réponse perdue n'est pas rejouée automatiquement.",
+        "Un signal adressé invalide les ressources concernées ; le client relit leurs requêtes authentifiées."
       ]
     }
   }

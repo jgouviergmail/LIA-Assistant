@@ -124,9 +124,7 @@ describe('GeolocationPrompt — actions', () => {
     await screen.findByText('chat.geolocation.prompt_title');
     // Two controls share the SAME accessible name on purpose (the ghost
     // button and the X close): same action, same name.
-    await user.click(
-      screen.getAllByRole('button', { name: 'chat.geolocation.dismiss_button' })[0]
-    );
+    await user.click(screen.getAllByRole('button', { name: 'chat.geolocation.dismiss_button' })[0]);
     await waitFor(() =>
       expect(screen.queryByText('chat.geolocation.prompt_title')).not.toBeInTheDocument()
     );
@@ -164,9 +162,7 @@ describe('GeolocationPrompt — proactive reactivation', () => {
     useGeolocation.mockReturnValue(geo({ isEnabled: true, needsReactivation: true }));
     const { user, unmount } = renderWithProviders(<GeolocationPrompt currentMessage="" />);
     await screen.findByText('chat.geolocation.reactivate_title');
-    await user.click(
-      screen.getAllByRole('button', { name: 'chat.geolocation.dismiss_button' })[0]
-    );
+    await user.click(screen.getAllByRole('button', { name: 'chat.geolocation.dismiss_button' })[0]);
     await waitFor(() =>
       expect(screen.queryByText('chat.geolocation.reactivate_title')).not.toBeInTheDocument()
     );

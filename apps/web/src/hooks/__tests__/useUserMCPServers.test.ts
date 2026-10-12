@@ -60,7 +60,11 @@ function cache(over: Partial<UserMCPServerListResponse> = {}): UserMCPServerList
 }
 
 function setupWith(data: UserMCPServerListResponse | undefined) {
-  useApplicationAccountQuery.mockReturnValue({ ...queryResult<UserMCPServerListResponse>({ data, setData, refetch }), ownerId: "owner", isCurrent: () => true });
+  useApplicationAccountQuery.mockReturnValue({
+    ...queryResult<UserMCPServerListResponse>({ data, setData, refetch }),
+    ownerId: 'owner',
+    isCurrent: () => true,
+  });
   return renderHook(() => useUserMCPServers());
 }
 

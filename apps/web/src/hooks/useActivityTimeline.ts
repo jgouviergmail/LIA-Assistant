@@ -18,11 +18,7 @@
 import { useCallback, useMemo, useState } from 'react';
 
 import { useApiQuery } from '@/hooks/useApiQuery';
-import type {
-  ActivityEvent,
-  ActivityKindTotal,
-  ActivityTimelineResponse,
-} from '@/types/activity';
+import type { ActivityEvent, ActivityKindTotal, ActivityTimelineResponse } from '@/types/activity';
 
 /** Rows per request — one number, one reading rhythm for the feed. */
 export const ACTIVITY_PAGE_SIZE = 25;

@@ -2,7 +2,13 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { publishApplicationResources } from '@/lib/application-resources';
 
-const { get, post, patch, remove, useAuth } = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), patch: vi.fn(), remove: vi.fn(), useAuth: vi.fn() }));
+const { get, post, patch, remove, useAuth } = vi.hoisted(() => ({
+  get: vi.fn(),
+  post: vi.fn(),
+  patch: vi.fn(),
+  remove: vi.fn(),
+  useAuth: vi.fn(),
+}));
 vi.mock('@/hooks/useAuth', () => ({ useAuth }));
 vi.mock('@/lib/api-client', async importOriginal => {
   const original = await importOriginal<typeof import('@/lib/api-client')>();
@@ -10,11 +16,17 @@ vi.mock('@/lib/api-client', async importOriginal => {
 });
 import { useMemories } from '../useMemories';
 
-const saved = { items: [{ id: 'memory', content: 'Owned fact', category: 'personal', pinned: false }], total: 1, by_category: { personal: 1 } };
+const saved = {
+  items: [{ id: 'memory', content: 'Owned fact', category: 'personal', pinned: false }],
+  total: 1,
+  by_category: { personal: 1 },
+};
 beforeEach(() => {
   vi.resetAllMocks();
   useAuth.mockReturnValue({ user: { id: 'one' } });
-  get.mockImplementation((endpoint: string) => Promise.resolve(endpoint === '/memories/categories' ? { categories: [] } : saved));
+  get.mockImplementation((endpoint: string) =>
+    Promise.resolve(endpoint === '/memories/categories' ? { categories: [] } : saved)
+  );
 });
 
 describe('memory invalidation belongs to its account', () => {
@@ -25,7 +37,12 @@ describe('memory invalidation belongs to its account', () => {
     act(() => publishApplicationResources('foreign', new Set(['memories'])));
     expect(get).not.toHaveBeenCalled();
     let complete: ((value: typeof saved) => void) | undefined;
-    get.mockImplementation(() => new Promise<typeof saved>(resolve => { complete = resolve; }));
+    get.mockImplementation(
+      () =>
+        new Promise<typeof saved>(resolve => {
+          complete = resolve;
+        })
+    );
     act(() => publishApplicationResources('one', new Set(['memories'])));
     await waitFor(() => expect(get).toHaveBeenCalledOnce());
     expect(result.current.memories).toHaveLength(1);
@@ -58,9 +75,16 @@ describe('memory invalidation belongs to its account', () => {
     const { result } = renderHook(() => useMemories());
     await waitFor(() => expect(result.current.memories).toHaveLength(1));
     act(() => result.current.setCategoryFilter('personal'));
-    await waitFor(() => expect(get).toHaveBeenCalledWith(expect.stringContaining('category=personal'), expect.anything()));
+    await waitFor(() =>
+      expect(get).toHaveBeenCalledWith(
+        expect.stringContaining('category=personal'),
+        expect.anything()
+      )
+    );
     get.mockClear();
     act(() => publishApplicationResources('one', new Set(['memories'])));
-    await waitFor(() => expect(get).toHaveBeenCalledWith('/memories?category=personal', expect.anything()));
+    await waitFor(() =>
+      expect(get).toHaveBeenCalledWith('/memories?category=personal', expect.anything())
+    );
   });
 });

@@ -81,9 +81,7 @@ export function useRadioSources(): UseRadioSourcesReturn {
     async (address: string): Promise<RadioWrite<RadioDiscovery>> => {
       try {
         const found = await previewMutate(RADIO_ENDPOINTS.sourcePreview, { address });
-        return found
-          ? { ok: true, value: found }
-          : { ok: false, refusal: null };
+        return found ? { ok: true, value: found } : { ok: false, refusal: null };
       } catch (error) {
         return { ok: false, refusal: sourceLookupRefusalOf(error) };
       }

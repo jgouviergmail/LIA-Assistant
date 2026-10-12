@@ -13,16 +13,12 @@
 export type PublicShowroomVariant = 'legacy' | 'guided';
 
 /** Parse a raw env value into the bounded variant union. Never throws. */
-export function parsePublicShowroomVariant(
-  raw: string | undefined
-): PublicShowroomVariant {
+export function parsePublicShowroomVariant(raw: string | undefined): PublicShowroomVariant {
   return raw === 'guided' ? 'guided' : 'legacy';
 }
 
 /** Read the build-time inlined variant for this bundle. */
 export function getPublicShowroomVariant(): PublicShowroomVariant {
   // Full static expression on purpose: Next.js inlines exactly this form.
-  return parsePublicShowroomVariant(
-    process.env.NEXT_PUBLIC_PUBLIC_SHOWROOM_VARIANT
-  );
+  return parsePublicShowroomVariant(process.env.NEXT_PUBLIC_PUBLIC_SHOWROOM_VARIANT);
 }

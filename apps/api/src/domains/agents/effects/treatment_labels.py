@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Final
 import structlog
 
 from src.core.constants import MCP_TOOL_NAME_PREFIX
-from src.domains.agents.registry.domain_taxonomy import DOMAIN_REGISTRY
+from src.domains.agents.registry.domain_taxonomy import DOMAIN_REGISTRY, domain_of_agent
 from src.domains.shared.consultation_surfaces import capability_domains
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
@@ -117,22 +117,6 @@ TREATMENT_DOMAIN_OVERRIDES: Final[dict[str, str]] = {
 }
 
 
-def _reverse_agent_map() -> dict[str, str]:
-    """Map each agent name to the domain that declares it.
-
-    Returns:
-        ``{"contact_agent": "contact", ...}``, built from the taxonomy so the
-        domain of a manifest is READ from the registry rather than parsed.
-    """
-    return {
-        agent_name: domain
-        for domain, config in DOMAIN_REGISTRY.items()
-        for agent_name in config.agent_names
-    }
-
-
-_AGENT_TO_DOMAIN: Final[dict[str, str]] = _reverse_agent_map()
-
 #: Memoised resolutions. The write path resolves the domain of EVERY row it
 #: persists, and a manifest read takes the registry's lock — a runaway batch
 #: would take it once per row. Same doctrine as ``resolve_policy``: only
@@ -164,18 +148,9 @@ def _from_manifest(tool_name: str, registry: AgentRegistry | None) -> str | None
         agent = registry.get_tool_manifest(tool_name).agent
     except Exception:  # noqa: BLE001 - no manifest, or no registry loaded yet
         return None
-    known = _AGENT_TO_DOMAIN.get(agent)
-    if known is not None:
-        return known
-    # An agent may qualify its family (``devops_diagnostics_agent``): the
-    # taxonomy knows ``devops`` and not the qualified spelling, so the leading
-    # segment is tried before falling back to the whole name. Measured
-    # 2026-09-04: without this, the four self-diagnostics tools resolved to
-    # ``devops_diagnostics``, which no wording table names — and the boot guard
-    # correctly refused to start the API.
-    stem = agent.removesuffix("_agent")
-    head = stem.split("_")[0]
-    return (head if head in DOMAIN_REGISTRY else stem) or None
+    # The taxonomy reads the agent (a qualified family included); an agent it
+    # does not know keeps its own stem, which the wording tables then refuse.
+    return domain_of_agent(agent) or agent.removesuffix("_agent") or None
 
 
 def _from_name(tool_name: str) -> str | None:

@@ -307,6 +307,16 @@
       "name": "Avatar parlant",
       "role": "Une présence Simli expérimentale, choisie sur ta clé, pour les commentaires vocaux et le Live. Une fenêtre à trois tailles reste accessible et affiche l’arrêt confirmé ou en attente ; la veille ferme la connexion. Radio garde son lecteur.",
       "goal": "Choisir un visage en connaissant sa consommation, silences compris."
+    },
+    "f.application": {
+      "name": "Piloter LIA par la conversation",
+      "role": "Tu peux lire et modifier les réglages et objets de LIA avec ses opérations déclarées : préférences, connexions, sources, skills ou administration selon tes droits. Les changements suivent leurs confirmations prévues ; les entrées privées restent dans le navigateur authentifié. Une commande en attente n'est pas annoncée comme accomplie.",
+      "goal": "Gérer LIA sans chercher chaque écran, tout en gardant la maîtrise du changement et de son résultat."
+    },
+    "f.nativeavatar": {
+      "name": "Compagnons natifs animés",
+      "role": "Tu choisis un style et les variantes proposées dans le catalogue natif. Émotions, regard et accessoires suivent l'activité et le contexte disponible. Le volume est un relief approché du dessin frontal ; le dessin fixe prend le relais lorsque la présentation ou les ressources ne permettent pas l'animation.",
+      "goal": "Une présence originale qui exprime l'état de LIA et respecte ton choix d'affichage."
     }
   },
   "flows": {
@@ -416,6 +426,19 @@
         "Un compte rendu structuré est rédigé dans le modèle choisi automatiquement.",
         "Il rejoint un espace de connaissances.",
         "Juste après, LIA peut te demander comment la réunion s'est passée."
+      ]
+    },
+    "flow.application": {
+      "name": "Un réglage demandé, un résultat vérifié",
+      "summary": "De ta demande à l'état relu : opération déclarée, contrôle actuel, confirmation et continuation privée si nécessaire.",
+      "steps": [
+        "Tu demandes de modifier un réglage ou de relier un service.",
+        "LIA choisit une opération déclarée, disponible pour ton compte et tes droits actuels.",
+        "Si l'opération le requiert, tu valides le changement précis avant son exécution.",
+        "La commande conserve son identité et son expiration ; les droits et les préconditions sont revérifiés au moment d'agir.",
+        "Une entrée privée, un fichier, OAuth ou un périphérique ? Tu continues dans ton navigateur authentifié, sans fournir de secret au modèle.",
+        "LIA distingue le changement validé d'une attente, d'un conflit, d'un échec ou d'une annulation.",
+        "L'interface recharge les données authentifiées concernées au lieu de présenter un brouillon comme l'état réel."
       ]
     }
   }

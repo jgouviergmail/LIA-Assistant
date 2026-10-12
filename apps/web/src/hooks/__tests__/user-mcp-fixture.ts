@@ -26,4 +26,3 @@ export function userMCPServer(over: Partial<UserMCPServer> = {}): UserMCPServer 
     ...over,
   };
 }
-

@@ -55,7 +55,11 @@ export function SettingsSection({
   contentClassName,
 }: SettingsSectionProps) {
   return (
-    <Card id={`settings-section-${value}`} tabIndex={-1} className={cn('overflow-hidden', className)}>
+    <Card
+      id={`settings-section-${value}`}
+      tabIndex={-1}
+      className={cn('overflow-hidden', className)}
+    >
       <CardHeader className="flex-row items-center gap-3 space-y-0 px-4 py-4 sm:gap-4 sm:px-6 sm:py-6">
         {Icon && (
           <div className="flex rounded-lg bg-primary/10 p-2 sm:p-2.5">
@@ -63,7 +67,9 @@ export function SettingsSection({
           </div>
         )}
         <div className="flex-1">
-          <h3 className="text-base font-semibold leading-none tracking-tight sm:text-lg">{title}</h3>
+          <h3 className="text-base font-semibold leading-none tracking-tight sm:text-lg">
+            {title}
+          </h3>
           {description && <p className="mt-1.5 text-sm text-muted-foreground">{description}</p>}
         </div>
       </CardHeader>

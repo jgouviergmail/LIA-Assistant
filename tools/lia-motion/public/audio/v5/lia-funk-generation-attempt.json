@@ -1,0 +1,15 @@
+{
+  "status": "generated",
+  "startedAt": "2026-10-11T23:56:42.445189+00:00",
+  "provider": "Google Gemini API",
+  "model": "lyria-3.5",
+  "publishedGenerationPriceUsd": 0.08,
+  "invoiceVerified": false,
+  "pricingSource": "https://ai.google.dev/gemini-api/docs/pricing",
+  "paidGenerationAttempts": 1,
+  "humanRequestedTake": 2,
+  "automaticRetries": 0,
+  "credentialPersisted": false,
+  "interactionId": null,
+  "sourceSha256": "0d31582a0292b21b2e8a0ab8d7306b0ce339e9386ce5b604b013773c019a1fa3"
+}

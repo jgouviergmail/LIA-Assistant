@@ -43,7 +43,8 @@ export function LiveBudgetField({
 }: LiveBudgetFieldProps) {
   const { t } = useTranslation(lng);
   const [edit, setEdit] = useState<{ text: string; from: number | null } | null>(null);
-  const text = edit !== null && edit.from === value ? edit.text : value === null ? '' : String(value);
+  const text =
+    edit !== null && edit.from === value ? edit.text : value === null ? '' : String(value);
   return (
     <div className="space-y-2">
       <Label htmlFor={ID}>{t('settings.live_mode.budget', { provider })}</Label>

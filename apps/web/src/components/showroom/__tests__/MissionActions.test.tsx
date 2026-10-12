@@ -54,7 +54,9 @@ function setup(over: Partial<MissionActionsProps> = {}) {
 
 /** The two rows of controls, in document order. */
 function rows(): HTMLElement[] {
-  return Array.from(document.querySelectorAll<HTMLElement>('[data-testid^="showroom-actions-row"]'));
+  return Array.from(
+    document.querySelectorAll<HTMLElement>('[data-testid^="showroom-actions-row"]')
+  );
 }
 
 describe('MissionActions — the closing block is centred', () => {

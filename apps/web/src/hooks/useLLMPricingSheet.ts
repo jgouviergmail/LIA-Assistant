@@ -27,12 +27,7 @@ export type SheetIssueCode =
   | 'creation_field_missing';
 
 /** What an import would do to one model. */
-export type SheetChangeAction =
-  | 'create'
-  | 'update'
-  | 'deactivate'
-  | 'reactivate'
-  | 'unchanged';
+export type SheetChangeAction = 'create' | 'update' | 'deactivate' | 'reactivate' | 'unchanged';
 
 export interface SheetIssue {
   code: SheetIssueCode;
@@ -136,17 +131,11 @@ export function useLLMPricingSheet(): UseLLMPricingSheet {
     []
   );
 
-  const preview = useCallback(
-    (file: File) => upload(file, 'dry_run=true'),
-    [upload]
-  );
+  const preview = useCallback((file: File) => upload(file, 'dry_run=true'), [upload]);
 
   const apply = useCallback(
     (file: File, planFingerprint: string) =>
-      upload(
-        file,
-        `dry_run=false&plan_fingerprint=${encodeURIComponent(planFingerprint)}`
-      ),
+      upload(file, `dry_run=false&plan_fingerprint=${encodeURIComponent(planFingerprint)}`),
     [upload]
   );
 

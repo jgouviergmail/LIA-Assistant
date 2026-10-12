@@ -54,9 +54,12 @@ describe('voice projection corpus (shared with the API)', () => {
     expect(flattenForVoice(input)).toBe(expected);
   });
 
-  it.each(corpus.bound)('bounds $id as the server does', ({ input, max_tokens, cut_line, expected }) => {
-    expect(boundToTokens(input, max_tokens, cut_line)).toBe(expected);
-  });
+  it.each(corpus.bound)(
+    'bounds $id as the server does',
+    ({ input, max_tokens, cut_line, expected }) => {
+      expect(boundToTokens(input, max_tokens, cut_line)).toBe(expected);
+    }
+  );
 
   it.each(corpus.tokens)('estimates $id as the server does', ({ input, expected }) => {
     expect(estimateTokens(input)).toBe(expected);

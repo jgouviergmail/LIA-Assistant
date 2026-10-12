@@ -31,14 +31,14 @@ from src.domains.agents.nodes.react_result_reading import (
     tool_message_status,
 )
 from src.domains.agents.registry.catalogue import is_read_only_tool
+from src.domains.agents.semantic.argument_guard import guard_tool_arguments
 from src.domains.agents.semantic.manifest_semantics import available_manifest
 from src.domains.agents.semantic.param_guard import (
-    check_semantic_params,
-    collect_resolved_person_names,
     config_with_binding_evidence,
+    turn_person_names,
+    turn_request,
 )
 from src.domains.agents.semantic.registry_value_bindings import registry_source_observations
-from src.domains.agents.semantic.value_bindings import binding_scope_from_config
 from src.domains.agents.services.connector_error_notice import emit_connector_notice_for_exception
 from src.domains.agents.services.hitl.protocols import HitlInteractionType
 from src.domains.agents.services.outcome_evidence import observe_requested_outcome
@@ -54,7 +54,6 @@ from src.domains.agents.utils.loop_guard import (
 from src.domains.agents.utils.message_filters import tool_call_not_run
 from src.domains.agents.utils.react_budget import TIMEOUT_ATTRIBUTION_MARGIN, tool_timeout_message
 from src.domains.agents.utils.react_execution_contracts import ReadEvidence
-from src.infrastructure.observability.metrics_agents import semantic_param_guard_blocks_total
 from src.infrastructure.observability.metrics_react import (
     react_agent_hitl_interrupts_total,
     react_agent_tools_called_total,
@@ -116,30 +115,19 @@ def _mapping(value: object) -> dict[str, object]:
     return {str(key): item for key, item in value.items()} if isinstance(value, Mapping) else {}
 
 
-def _semantic_guard(
+async def _semantic_guard(
     call: ToolCall, state: MessagesState, config: RunnableConfig
 ) -> ToolMessage | None:
-    names = collect_resolved_person_names(state.get("resolved_references"))
-    bindings, account, sources = binding_scope_from_config(
-        config_with_binding_evidence(config, state)
-    )
-    violation = (
-        check_semantic_params(
-            call["name"],
-            call["args"],
-            names,
-            value_bindings=bindings,
-            account_id=account,
-            known_sources=sources,
-        )
-        if names
-        else None
+    violation = await guard_tool_arguments(
+        call["name"],
+        call["args"],
+        config_with_binding_evidence(config, state),
+        person_names=turn_person_names(state),
+        request=turn_request(state),
+        execution_mode="react",
     )
     if violation is None:
         return None
-    semantic_param_guard_blocks_total.labels(
-        tool_name=call["name"], semantic_type=violation.semantic_type, execution_mode="react"
-    ).inc()
     return ToolMessage(
         content=f"ERROR: {violation.llm_message()}",
         tool_call_id=call["id"],
@@ -465,7 +453,7 @@ async def execute_call(
         items=_sandbox_items(state.get("current_turn_registry") or {}),
     )
     digests, refused, terminal = _repetition_guard(call, state)
-    refused = refused or _recovery_guard(call, state) or _semantic_guard(call, state, config)
+    refused = refused or _recovery_guard(call, state) or await _semantic_guard(call, state, config)
     if refused is None:
         refused = _approve(call, state, ports)
     outcome = (

@@ -10,10 +10,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  getPublicShowroomVariant,
-  parsePublicShowroomVariant,
-} from '@/lib/showroom-config';
+import { getPublicShowroomVariant, parsePublicShowroomVariant } from '@/lib/showroom-config';
 
 describe('showroom-config', () => {
   afterEach(() => {
@@ -31,15 +28,13 @@ describe('showroom-config', () => {
 
   it.each(['GUIDED', 'Guided', 'live', 'demo', '1', 'true', ' guided '])(
     'falls back to legacy on unknown or unnormalized value %j',
-    (raw) => {
+    raw => {
       expect(parsePublicShowroomVariant(raw)).toBe('legacy');
     }
   );
 
   it('never throws on hostile input', () => {
-    expect(() =>
-      parsePublicShowroomVariant('x'.repeat(10_000))
-    ).not.toThrow();
+    expect(() => parsePublicShowroomVariant('x'.repeat(10_000))).not.toThrow();
   });
 
   it('reads the build-time env variable', () => {

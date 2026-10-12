@@ -30,7 +30,13 @@ from src.infrastructure.observability.metrics_jev import (
     jev_decisions_total,
 )
 
-MIN_CONFIDENCE = 0.99
+# One threshold for both selectors, chosen on the gate and bounded calibration
+# corpora (no wrong selection) and verified on both holdouts (2026-10-11). It is a
+# concentration, not a probability of correctness.
+MIN_CONFIDENCE = 0.97
+# The fields the question reads. The analyzer's scores and reasoning are its own
+# interpretation of the request, not evidence about it.
+REQUEST_FIELDS = ("original_query", "english_query", "english_enriched_query")
 
 
 def eligible_query(qi: QueryIntelligence, *, bounded: bool = False) -> bool:
@@ -127,7 +133,6 @@ async def try_consultation_plan(
 ) -> PlanningResult | None:
     context = runtime_context_if_running()
     from src.domains.agents.services.planner.jev_bounded_consultation import (
-        BOUNDED_MIN_CONFIDENCE,
         bounded_paths,
         bounded_question,
         wants_bounded_path,
@@ -143,6 +148,7 @@ async def try_consultation_plan(
         return None
     question = bounded_question(paths) if bounded else consultation_question(paths)
     usage = JevUsage.CONSULTATION_BOUNDED if bounded else JevUsage.CONSULTATION_PATH
+    request = intelligence.to_serializable_dict()
     started = perf_counter()
     attempt = await choose_with_jev(
         usage=usage,
@@ -151,7 +157,7 @@ async def try_consultation_plan(
         state=cast(
             JsonValue,
             {
-                "intelligence": intelligence.to_serializable_dict(),
+                "intelligence": {key: request.get(key) for key in REQUEST_FIELDS},
                 "journal_context": journal_context,
                 "date_anchor": anchor.isoformat(),
                 "timezone": context.timezone,
@@ -164,7 +170,7 @@ async def try_consultation_plan(
         question=question,
     )
     answer = attempt.answer
-    selected = _accepted_path(attempt, paths, BOUNDED_MIN_CONFIDENCE if bounded else MIN_CONFIDENCE)
+    selected = _accepted_path(attempt, paths, MIN_CONFIDENCE)
     await _record_outcome(context.user_id, attempt, selected, usage, started)
     if selected is None:
         return None

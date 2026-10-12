@@ -12,6 +12,7 @@ import {
   LANDING_MEDIA_MAX_NEXT,
   landingMediaManifestSchema,
   resolveLandingPlaylist,
+  resolveLandingPresentation,
   resolveMediaFile,
 } from '../media';
 
@@ -36,6 +37,30 @@ const MANIFEST = {
   credit: { label: '@someone', url: 'https://x.com/someone' },
   aiGenerated: true,
 };
+
+describe('resolveLandingPresentation', () => {
+  it('resolves only the explicitly designated complete film', () => {
+    const presentation = { ...MANIFEST, poster: 'full-poster.webp', durationSeconds: 158 };
+    expect(resolveLandingPresentation({ ...MANIFEST, presentation }, BASE)).toMatchObject({
+      poster: `${BASE}/full-poster.webp`,
+      durationSeconds: 158,
+    });
+    expect(resolveLandingPlaylist({ ...MANIFEST, presentation }, BASE)).toHaveLength(1);
+    expect(resolveLandingPresentation({ ...MANIFEST, next: [presentation] }, BASE)).toBeNull();
+  });
+
+  it('rejects a presentation asset outside the media directory', () => {
+    expect(() =>
+      resolveLandingPresentation(
+        {
+          ...MANIFEST,
+          presentation: { ...MANIFEST, poster: '../full.webp' },
+        },
+        BASE
+      )
+    ).toThrow();
+  });
+});
 
 describe('resolveMediaFile', () => {
   it('joins a bare file name under the base directory', () => {

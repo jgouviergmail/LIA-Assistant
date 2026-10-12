@@ -208,7 +208,9 @@ describe('useConversation — UI message mapping', () => {
       skillProposals: RICH_API_MESSAGE.message_metadata.skill_proposals,
     });
     expect(page.messages[0].timestamp).toEqual(new Date('2026-01-01T00:01:00Z'));
-    expect(page.messages[0].metadata?.application_interactions).toEqual(RICH_API_MESSAGE.message_metadata.application_interactions);
+    expect(page.messages[0].metadata?.application_interactions).toEqual(
+      RICH_API_MESSAGE.message_metadata.application_interactions
+    );
   });
 
   it('maps a bare assistant message with nulls to a clean UI message', async () => {

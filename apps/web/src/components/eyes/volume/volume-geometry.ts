@@ -229,13 +229,17 @@ export function volumePose(
 }
 
 export function volumeDepth(profile: VolumeProfile, x: number, y: number): number {
+  // Anatomy is authored in source coordinates; the registered portrait scales
+  // its whole footprint, including its rounded sides and lower silhouette.
+  const sourceX = finite(x) / profile.scale,
+    sourceY = finite(y) / profile.scale;
   let depth = 0.018;
   for (const item of profile.lobes) {
     const power = item.box ? 4 : 2;
     const radius =
       1 -
-      Math.abs((finite(x) - item.x) / item.rx) ** power -
-      Math.abs((finite(y) - item.y) / item.ry) ** power;
+      Math.abs((sourceX - item.x) / item.rx) ** power -
+      Math.abs((sourceY - item.y) / item.ry) ** power;
     if (radius <= 0) continue;
     const height = item.box ? 0.86 + 0.14 * Math.sqrt(radius) : Math.sqrt(radius);
     depth = Math.max(depth, item.depth * height);
@@ -341,7 +345,7 @@ function rectangleRim(grid: number, side: number) {
 export function visibleVolumeMesh(
   profile: VolumeProfile,
   mask: VolumeMask,
-  grid = profile.character === 'monitor' ? 48 : 32
+  grid = profile.character === 'monitor' ? 48 : 64
 ): VolumeMesh {
-  return alphaOutlineMesh(profile, mask, Math.min(profile.character === 'monitor' ? 64 : 32, grid));
+  return alphaOutlineMesh(profile, mask, Math.min(64, grid));
 }

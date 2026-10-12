@@ -2477,76 +2477,64 @@
       "adr": 334,
       "date": "2026-10-05",
       "theme": "voice",
-      "functional": [
-        "f.avatar",
-        "f.voice",
-        "f.live"
-      ],
-      "technical": [
-        "t.avatar",
-        "t.voiceinfra",
-        "t.live",
-        "t.web",
-        "t.redis"
-      ]
+      "functional": ["f.avatar", "f.voice", "f.live"],
+      "technical": ["t.avatar", "t.voiceinfra", "t.live", "t.web", "t.redis"]
     },
     {
       "adr": 335,
       "date": "2026-10-07",
       "theme": "orchestration",
-      "functional": [
-        "f.chat"
-      ],
-      "technical": [
-        "t.toolsys",
-        "t.planner",
-        "t.dataregistry",
-        "t.initiative"
-      ]
+      "functional": ["f.chat"],
+      "technical": ["t.toolsys", "t.planner", "t.dataregistry", "t.initiative"]
     },
     {
       "adr": 336,
       "date": "2026-10-07",
       "theme": "reliability",
-      "functional": [
-        "f.chat"
-      ],
-      "technical": [
-        "t.router",
-        "t.react",
-        "t.response",
-        "t.dataregistry"
-      ]
+      "functional": ["f.chat"],
+      "technical": ["t.router", "t.react", "t.response", "t.dataregistry"]
     },
     {
       "adr": 337,
       "date": "2026-10-07",
       "theme": "reliability",
-      "functional": [
-        "f.chat",
-        "f.hitl"
-      ],
-      "technical": [
-        "t.react",
-        "t.langgraph",
-        "t.hitl",
-        "t.toolsys"
-      ]
+      "functional": ["f.chat", "f.hitl"],
+      "technical": ["t.react", "t.langgraph", "t.hitl", "t.toolsys"]
     },
     {
       "adr": 338,
       "date": "2026-10-07",
       "theme": "connectors",
-      "functional": [
-        "f.mcp",
-        "f.hitl"
-      ],
-      "technical": [
-        "t.mcp",
-        "t.toolsys",
-        "t.router",
-        "t.hitl"
-      ]
+      "functional": ["f.mcp", "f.hitl"],
+      "technical": ["t.mcp", "t.toolsys", "t.router", "t.hitl"]
+    },
+    {
+      "adr": 339,
+      "date": "2026-10-12",
+      "theme": "orchestration",
+      "functional": ["f.application", "f.hitl", "f.security"],
+      "technical": ["t.application", "t.hitl", "t.bff", "t.postgres", "t.sse"]
+    },
+    {
+      "adr": 340,
+      "date": "2026-10-12",
+      "theme": "experience",
+      "functional": ["f.nativeavatar"],
+      "technical": ["t.nativeavatar", "t.web"]
+    },
+    {
+      "adr": 341,
+      "date": "2026-10-12",
+      "theme": "experience",
+      "functional": ["f.product", "f.chat"],
+      "technical": ["t.web", "t.release"]
+    },
+    {
+      "adr": 342,
+      "date": "2026-10-12",
+      "theme": "experience",
+      "functional": ["f.nativeavatar"],
+      "technical": ["t.nativeavatar", "t.web", "t.config"]
     }
   ]
 }

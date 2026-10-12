@@ -338,3 +338,25 @@ def test_system_prompt_initiative_value_with_braces_is_format_safe():
     ):
         out = _prompt(state={STATE_KEY_INITIATIVE_SUGGESTION: "reserve {table} for 2"})
     assert "reserve {table} for 2" in out
+
+
+def test_resolved_references_render_with_their_kind() -> None:
+    from src.domains.agents.analysis.resolved_references import (
+        ReferenceSource,
+        ReferenceValueKind,
+        ResolvedReferenceEntry,
+    )
+    from src.domains.agents.prompts import get_response_prompt
+
+    entries = (
+        ResolvedReferenceEntry(
+            "mon frère", "Marc Lemoine", ReferenceValueKind.PERSON_NAME, ReferenceSource.MEMORY
+        ),
+        ResolvedReferenceEntry(
+            "demain", "2026-10-12", ReferenceValueKind.DATETIME, ReferenceSource.ANALYZER
+        ),
+    )
+    prompt = get_response_prompt(user_language="fr", resolved_references=entries)
+    assert '- "mon frère" = Marc Lemoine [person_name]' in prompt
+    assert '- "demain" = 2026-10-12 [datetime]' in prompt
+    assert "Personal references resolved from memory" not in prompt

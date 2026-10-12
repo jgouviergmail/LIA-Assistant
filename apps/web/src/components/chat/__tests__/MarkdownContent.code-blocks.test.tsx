@@ -49,9 +49,7 @@ describe('MarkdownContent — code block routing', () => {
 
   it('routes an HTML-mode <pre><code> with no class to CodeBlock', async () => {
     render(
-      '<div class="lia-response"><p>Voici.</p><pre><code>' +
-        LONG_LINE +
-        '\n</code></pre></div>'
+      '<div class="lia-response"><p>Voici.</p><pre><code>' + LONG_LINE + '\n</code></pre></div>'
     );
     const block = await screen.findByTestId('codeblock');
     expect(block.getAttribute('data-language')).toBe('text');

@@ -312,6 +312,8 @@ services:
       # at request time (src/lib/landing/media-origin.ts). Not a secret; empty
       # = no video section.
       - LANDING_MEDIA_BASE_URL=${LANDING_MEDIA_BASE_URL:-}
+      # Opt-in browser preference campaign (ADR-342). Empty preserves every saved choice.
+      - AVATAR_STYLE_ROLLOUT_ID=${AVATAR_STYLE_ROLLOUT_ID:-}
       - API_URL_SERVER_HTTP=${API_URL_SERVER_HTTP:-}
       - RAG_SPACES_MAX_FILE_SIZE_MB=${RAG_SPACES_MAX_FILE_SIZE_MB:-}
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-}

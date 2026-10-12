@@ -123,3 +123,7 @@ Before v1.38.0 the deployment ran inside the SSH session, so closing your laptop
 
 ## Does the deployment leave my production secrets on my machine?
 No, not since v1.38.0. Building the bundle decrypts your production environment file in clear on your own machine. That copy — along with the encryption keys and the encrypted archive — is now removed on every exit path, including every error path, not only when the deployment succeeds. The bundle itself is left in place after a failure so you can inspect it. A simulation run (`-DryRun`) never touches anything.
+
+## What happens if Docker refuses the skills sandbox?
+
+The operation is reported unavailable rather than executed outside the isolated runner. Check the actual Docker permissions and deployment configuration. On Windows, SOPS secret input and output retain UTF-8; this preserves encoding, not a guarantee that deployment or restore succeeded. Keep a verified backup before migrations and qualify the running version after deployment.

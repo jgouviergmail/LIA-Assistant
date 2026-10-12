@@ -1343,7 +1343,7 @@ adaptive_replanner_decisions_total = Counter(
 semantic_param_guard_blocks_total = Counter(
     "semantic_param_guard_blocks_total",
     "Tool calls blocked by the runtime semantic parameter guard "
-    "(person name passed on an address/email-typed parameter)",
+    "(a value of a kind its address/email-typed parameter refuses)",
     ["tool_name", "semantic_type", "execution_mode"],  # execution_mode: pipeline, react
 )
 

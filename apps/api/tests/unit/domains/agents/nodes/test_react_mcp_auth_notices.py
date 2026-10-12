@@ -98,7 +98,7 @@ class TestMcpAuthNoticesBlock:
         from src.domains.agents.nodes import react_context, react_nodes
 
         # The setup mounts its blocks through ONE assembler (react_context).
-        assert "react_context.build_setup_blocks(state, config, intelligence)" in inspect.getsource(
+        assert "react_context.build_setup_blocks(state, config)" in inspect.getsource(
             react_nodes.react_setup_node
         )
         assert "build_mcp_auth_notices_block" in inspect.getsource(react_context.build_setup_blocks)

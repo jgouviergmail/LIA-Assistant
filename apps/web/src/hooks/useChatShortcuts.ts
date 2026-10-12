@@ -39,14 +39,24 @@ export interface UseChatShortcutsReturn {
 }
 
 export function useChatShortcuts(enabled = true): UseChatShortcutsReturn {
-  const { data, loading, error, refetch, ownerId } = useApplicationAccountQuery<ChatShortcutsResponse>(ENDPOINT, 'useChatShortcuts', enabled);
+  const { data, loading, error, refetch, ownerId } =
+    useApplicationAccountQuery<ChatShortcutsResponse>(ENDPOINT, 'useChatShortcuts', enabled);
   const { mutate, loading: saving } = useApiMutation<ChatShortcutsPayload, ChatShortcutsResponse>({
     method: 'PUT',
     componentName: 'useChatShortcuts',
   });
-  const write = useCallback((next: UserChatShortcut[]) => mutate(ENDPOINT, { shortcuts: next }), [mutate]);
+  const write = useCallback(
+    (next: UserChatShortcut[]) => mutate(ENDPOINT, { shortcuts: next }),
+    [mutate]
+  );
   const saved = useMemo(() => data?.shortcuts ?? [], [data?.shortcuts]);
-  const { value, save } = useApplicationPreferenceState(ownerId, saved, 'chat_shortcuts', refetch, write);
+  const { value, save } = useApplicationPreferenceState(
+    ownerId,
+    saved,
+    'chat_shortcuts',
+    refetch,
+    write
+  );
 
   return {
     shortcuts: value ?? [],

@@ -14,10 +14,7 @@ import { renderHook, act } from '@testing-library/react';
 const { useApiQuery } = vi.hoisted(() => ({ useApiQuery: vi.fn() }));
 vi.mock('@/hooks/useApiQuery', () => ({ useApiQuery }));
 
-import {
-  useActivityTimeline,
-  ACTIVITY_PAGE_SIZE,
-} from '../useActivityTimeline';
+import { useActivityTimeline, ACTIVITY_PAGE_SIZE } from '../useActivityTimeline';
 import type { ActivityEvent, ActivityTimelineResponse } from '@/types/activity';
 
 function event(refId: string, kind = 'habit_detected'): ActivityEvent {
@@ -84,9 +81,7 @@ describe('useActivityTimeline', () => {
     const { result } = renderHook(() => useActivityTimeline());
 
     expect(result.current.events?.map(e => e.ref_id)).toEqual(['a', 'b']);
-    expect(result.current.totals).toEqual([
-      { kind: 'habit_detected', total: 2, truncated: false },
-    ]);
+    expect(result.current.totals).toEqual([{ kind: 'habit_detected', total: 2, truncated: false }]);
     expect(result.current.hasMore).toBe(true);
     expect(result.current.windowDays).toBe(30);
     expect(result.current.firstLoad).toBe(false);
@@ -97,9 +92,7 @@ describe('useActivityTimeline', () => {
     const { result, rerender } = renderHook(() => useActivityTimeline());
 
     act(() => result.current.loadMore());
-    answer(
-      payload({ events: [event('b')], offset: ACTIVITY_PAGE_SIZE, has_more: false })
-    );
+    answer(payload({ events: [event('b')], offset: ACTIVITY_PAGE_SIZE, has_more: false }));
     rerender();
 
     expect(useApiQuery).toHaveBeenLastCalledWith(
@@ -116,9 +109,7 @@ describe('useActivityTimeline', () => {
 
     act(() => result.current.loadMore());
     // The set shifted server-side: "b" comes back on page 2.
-    answer(
-      payload({ events: [event('b'), event('c')], offset: ACTIVITY_PAGE_SIZE })
-    );
+    answer(payload({ events: [event('b'), event('c')], offset: ACTIVITY_PAGE_SIZE }));
     rerender();
 
     expect(result.current.events?.map(e => e.ref_id)).toEqual(['a', 'b', 'c']);

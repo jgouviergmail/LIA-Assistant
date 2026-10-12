@@ -3,7 +3,17 @@
  * Extracted from UserConnectorsSection.tsx for DRY compliance.
  */
 
-import { Plug, Cloud, Book, Search, MapPin, Globe, Wind, ScanFace, type LucideIcon } from 'lucide-react';
+import {
+  Plug,
+  Cloud,
+  Book,
+  Search,
+  MapPin,
+  Globe,
+  Wind,
+  ScanFace,
+  type LucideIcon,
+} from 'lucide-react';
 
 // ============================================================================
 // CONNECTOR TYPES
@@ -27,7 +37,12 @@ export const GOOGLE_CONNECTOR_TYPES = [
  * account, so « My connectors » neither lists nor offers them (ADR-307).
  * A backend test refuses any keyless type here.
  */
-export const API_KEY_CONNECTOR_TYPES = ['openweathermap', 'perplexity', 'brave_search', 'simli'] as const;
+export const API_KEY_CONNECTOR_TYPES = [
+  'openweathermap',
+  'perplexity',
+  'brave_search',
+  'simli',
+] as const;
 
 export const APPLE_CONNECTOR_TYPES = ['apple_email', 'apple_calendar', 'apple_contacts'] as const;
 
@@ -228,13 +243,14 @@ export const CONNECTORS_WITH_PREFERENCES = [
 ];
 
 // Preference field mapping by connector type
-export const PREFERENCE_FIELDS: Record<string, 'default_calendar_name' | 'default_task_list_name'> = {
-  google_calendar: 'default_calendar_name',
-  google_tasks: 'default_task_list_name',
-  apple_calendar: 'default_calendar_name',
-  microsoft_calendar: 'default_calendar_name',
-  microsoft_tasks: 'default_task_list_name',
-};
+export const PREFERENCE_FIELDS: Record<string, 'default_calendar_name' | 'default_task_list_name'> =
+  {
+    google_calendar: 'default_calendar_name',
+    google_tasks: 'default_task_list_name',
+    apple_calendar: 'default_calendar_name',
+    microsoft_calendar: 'default_calendar_name',
+    microsoft_tasks: 'default_task_list_name',
+  };
 
 // ============================================================================
 // GOOGLE CONNECTOR METADATA (for available connectors list)

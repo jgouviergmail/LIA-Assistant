@@ -89,7 +89,11 @@ function LibrarySkeleton() {
 }
 
 /** The batches, with their toasts, out of the render function. */
-function useLibraryBatches(library: UseMeetingTemplatesReturn, t: Translate, ownerId: string | undefined) {
+function useLibraryBatches(
+  library: UseMeetingTemplatesReturn,
+  t: Translate,
+  ownerId: string | undefined
+) {
   const { confirm, confirmDialog } = useConfirm();
   const { isCurrent } = useApplicationAccountLifetime(ownerId);
   const toast = useApplicationAccountToast(ownerId);
@@ -137,7 +141,13 @@ function useLibraryBatches(library: UseMeetingTemplatesReturn, t: Translate, own
 
 export function MeetingTemplateManager(props: MeetingTemplateManagerProps) {
   const { user } = useAuth();
-  return <MeetingTemplateManagerForAccount key={user?.id ?? 'signed-out'} {...props} ownerId={user?.id} />;
+  return (
+    <MeetingTemplateManagerForAccount
+      key={user?.id ?? 'signed-out'}
+      {...props}
+      ownerId={user?.id}
+    />
+  );
 }
 
 function MeetingTemplateManagerForAccount({

@@ -54,10 +54,17 @@ export function useSavedLastLocation(user: User | null, optedIn: boolean) {
     queueMicrotask(() => {
       if (optedIn && sequence === readSequence.current) void fetchStored().catch(() => {});
     });
-    return () => { readSequence.current += 1; activeOwner.current = undefined; };
+    return () => {
+      readSequence.current += 1;
+      activeOwner.current = undefined;
+    };
   }, [optedIn, fetchStored, user?.id]);
   const releaseRead = useCallback(() => {}, []);
   useApplicationResourceSync(optedIn ? user?.id : undefined, 'locations', fetchStored, releaseRead);
 
-  return { stored: optedIn ? stored : null, readFailed: !!user && readFailure === user, clearStored };
+  return {
+    stored: optedIn ? stored : null,
+    readFailed: !!user && readFailure === user,
+    clearStored,
+  };
 }

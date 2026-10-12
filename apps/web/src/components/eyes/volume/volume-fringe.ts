@@ -1,11 +1,30 @@
-/** Complete source coverage is a thin core film, depth-tested behind the closed relief. */
-import type { VolumeMesh, VolumeProfile } from './volume-geometry';
+/** Source shadows and unmeshed details remain behind the closed relief. */
+import type { VolumeMask, VolumeMesh, VolumeProfile } from './volume-geometry';
+import { volumeFringeAlpha } from './volume-coverage';
+
+/** A bounded alpha texture shares the material's existing source read. */
+export function volumeFringeMask(mesh: VolumeMesh, mask: VolumeMask): HTMLCanvasElement | null {
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = mask.width;
+    canvas.height = mask.height;
+    const context = canvas.getContext('2d');
+    if (!context) return null;
+    const pixels = context.createImageData(mask.width, mask.height),
+      alpha = volumeFringeAlpha(mesh, mask);
+    for (let index = 0; index < alpha.length; index++) pixels.data[index * 4 + 3] = alpha[index];
+    context.putImageData(pixels, 0, 0);
+    return canvas;
+  } catch {
+    return null;
+  }
+}
 export function withSoftFringe(mesh: VolumeMesh, profile: VolumeProfile): VolumeMesh {
   const start = mesh.vertices.length / 8,
     half = 1.3 * profile.scale;
   const vertices = new Float32Array(mesh.vertices.length + 32);
   vertices.set(mesh.vertices);
-  // Normal.z=2 is a material flag, not another anatomical surface or rear.
+  // Normal.z=2 flags the masked fringe, not another anatomical surface or rear.
   vertices.set(
     [
       -half,

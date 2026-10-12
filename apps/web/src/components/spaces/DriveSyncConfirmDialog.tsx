@@ -46,7 +46,9 @@ export function DriveSyncConfirmDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>{t('spaces.drive.confirm.title', { name: folderName })}</AlertDialogTitle>
+          <AlertDialogTitle>
+            {t('spaces.drive.confirm.title', { name: folderName })}
+          </AlertDialogTitle>
           <AlertDialogDescription asChild>
             <div className="space-y-2 text-sm text-muted-foreground">
               <p className="text-foreground font-medium">
@@ -77,7 +79,9 @@ export function DriveSyncConfirmDialog({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm}>{t('spaces.drive.confirm.confirm')}</AlertDialogAction>
+          <AlertDialogAction onClick={onConfirm}>
+            {t('spaces.drive.confirm.confirm')}
+          </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

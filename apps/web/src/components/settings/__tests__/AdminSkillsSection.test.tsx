@@ -60,9 +60,7 @@ function hook(over: Partial<SkillsHook> = {}) {
 }
 
 function render() {
-  return renderWithProviders(
-    <AdminSkillsSection lng="en" />
-  );
+  return renderWithProviders(<AdminSkillsSection lng="en" />);
 }
 
 /** The import control is a deliberately hidden native file input. */

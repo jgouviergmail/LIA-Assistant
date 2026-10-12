@@ -1,0 +1,78 @@
+{
+  "status": "generated",
+  "startedAt": "2026-10-11T23:47:41.844305+00:00",
+  "provider": "Google Gemini API",
+  "model": "lyria-3.5",
+  "publishedGenerationPriceUsd": 0.08,
+  "invoiceVerified": false,
+  "pricingSource": "https://ai.google.dev/gemini-api/docs/pricing",
+  "paidGenerationAttempts": 1,
+  "automaticRetries": 0,
+  "credentialPersisted": false,
+  "finishedAt": "2026-10-11T23:48:16.480877+00:00",
+  "elapsedSeconds": 34.635,
+  "interactionId": null,
+  "requestHeaders": {
+    "date": "Sun, 11 Oct 2026 23:48:16 GMT"
+  },
+  "usage": {
+    "total_tokens": 2830,
+    "total_input_tokens": 845,
+    "input_tokens_by_modality": [
+      {
+        "modality": "text",
+        "tokens": 845
+      }
+    ],
+    "total_cached_tokens": 0,
+    "total_output_tokens": 1985,
+    "total_tool_use_tokens": 0,
+    "total_thought_tokens": 0,
+    "raw_prompt_token": 10885,
+    "model_invocation_token_counts": [
+      {}
+    ],
+    "non_grounding_model_invocation_token_counts": [
+      {}
+    ]
+  },
+  "reportedMimeType": "audio/mpeg",
+  "sourceAudio": "lia-custom-original.mp3",
+  "sourceBytes": 3875589,
+  "sourceSha256": "834d9f582404d0de3d43f2869022c60eba3de4dd959a806c964f29177e083800",
+  "sourceAudioFormat": {
+    "codec_name": "mp3",
+    "sample_fmt": "fltp",
+    "sample_rate": "44100",
+    "channels": 2,
+    "bits_per_sample": 0,
+    "bit_rate": "192000"
+  },
+  "sourceDurationSeconds": 161.227708,
+  "generationGuide": "https://ai.google.dev/gemini-api/docs/music-generation",
+  "termsSource": "https://ai.google.dev/gemini-api/terms",
+  "termsQualification": "Google does not claim ownership of generated content; API terms apply. No Creative Commons licence or exclusive copyright is asserted.",
+  "instrumentalRequested": true,
+  "humanAudioAudition": false,
+  "structuralText": [
+    "[[A0]]\n[[B1]]\n[[C2]]\n[[D3]]\n[[B4]]\n[[E5]]\n[[E6]]\n[[D8]]\n[[D9]]\n[[G10]]\n[[F7]]"
+  ],
+  "providerRequestIdentifierAvailable": false,
+  "providerRequestIdentifierNote": "No interaction id or provider request id was present in the recorded response fields; store=false was requested. Original audio fingerprint and dispatch timestamp identify the local generation.",
+  "audioQualification": {
+    "workingDurationSeconds": 160.0,
+    "workingCodec": "pcm_s24le",
+    "workingSampleRate": 48000,
+    "workingChannels": 2,
+    "workingBitsPerSample": 24,
+    "integratedLufsBeforeDeliveryNormalization": -18.37,
+    "truePeakDbtpBeforeDeliveryNormalization": -5.38,
+    "loudnessRangeLu": 7.2,
+    "measuredTempoEstimateBpm": 114.8,
+    "beatCount": 315,
+    "onsetHitRate": 0.987,
+    "looped": false,
+    "humanAudioAudition": false,
+    "instrumentalContentManuallyVerified": false
+  }
+}

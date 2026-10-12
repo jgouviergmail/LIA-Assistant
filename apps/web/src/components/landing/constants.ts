@@ -9,6 +9,9 @@
  *   2026-07-25: `grep -c 'register_agent(' agents.py` — the telephony agent
  *   had landed without this counter following it.
  * - tools: tool manifests the running catalogue actually EXPOSES, not the count
+ *   Re-measured 2026-10-12 (v3.0.0) at Docker dev startup: 304 registered
+ *   manifests (`catalogue_initialized`, 2026-10-12T02:32:09.503568Z).
+ *   This is the instance catalogue, not the tools available to each account.
  *   Re-measured 2026-09-30 (v2.2.0) on the dev instance = 124 (`"tool_manifests": 124`
  *   in the catalogue stats at boot): `run_skill_command` (ADR-327) joined the catalogue.
  *   Previous re-measure 2026-09-25 (v1.47.4) on the dev instance = 123 (`tool_count` in
@@ -91,6 +94,9 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
+ *   Re-measured 2026-10-12 (v3.0.0): backend 46,912 collected in 3,118 files;
+ *   frontend coverage: 12,487 passed in 1,032 files, for a combined inventory
+ *   of 59,399. Inventory is distinct from executing every suite at commit.
  *   Re-measured 2026-10-06 (v2.6.1): backend 40,039 collected
  *   (pytest --collect-only -q --no-cov, 2,315 files) + frontend 11,066 collected
  *   (892 files, collected 2026-10-06) = 51,105 -> 51000. Coverage and runtime gates qualify the snapshot.
@@ -379,14 +385,14 @@
 
 export const LANDING_STATS = {
   agents: 20,
-  tools: 124,
+  tools: 304,
   providers: 7,
   voiceLanguages: 99,
   metrics: 618,
   uiLanguages: 6,
-  tests: 51000,
-  adrs: 337,
-  releases: 278,
+  tests: 59000,
+  adrs: 341,
+  releases: 279,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

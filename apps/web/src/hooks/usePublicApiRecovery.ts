@@ -7,7 +7,12 @@ const RECOVERY_DELAYS = [1000, 2000, 4000, 8000, 16000, 30000] as const;
 
 function isTransient(error: Error | null): boolean {
   if (error instanceof ApiError) return [502, 503, 504].includes(error.status);
-  return !!error && /failed to fetch|networkerror|load failed|fetch failed|network request failed|timed out|timeout/i.test(error.message);
+  return (
+    !!error &&
+    /failed to fetch|networkerror|load failed|fetch failed|network request failed|timed out|timeout/i.test(
+      error.message
+    )
+  );
 }
 
 interface PublicReadRecovery {
@@ -18,16 +23,28 @@ interface PublicReadRecovery {
 }
 
 /** Recovery is for public GET availability only; it never repeats a mutation. */
-export function usePublicApiRecovery({ hasData, loading, error, refetchVerified }: PublicReadRecovery) {
+export function usePublicApiRecovery({
+  hasData,
+  loading,
+  error,
+  refetchVerified,
+}: PublicReadRecovery) {
   const attempts = useRef(0);
   const running = useRef(false);
   const read = useCallback(() => {
     if (running.current) return;
     running.current = true;
-    void refetchVerified().finally(() => { running.current = false; }).catch(() => undefined);
+    void refetchVerified()
+      .finally(() => {
+        running.current = false;
+      })
+      .catch(() => undefined);
   }, [refetchVerified]);
   useEffect(() => {
-    if (hasData) { attempts.current = 0; return; }
+    if (hasData) {
+      attempts.current = 0;
+      return;
+    }
     if (loading || !isTransient(error) || attempts.current >= RECOVERY_DELAYS.length) return;
     const timer = window.setTimeout(() => {
       attempts.current += 1;

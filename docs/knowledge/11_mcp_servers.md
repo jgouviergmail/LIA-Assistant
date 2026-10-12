@@ -244,3 +244,7 @@ A server can also declare that a tool is **destructive**. LIA believes that decl
 • A tool announced as destructive asks for confirmation **even if** confirmation is switched off for that server
 • A server claiming to be harmless never earns a free pass
 • This is what the specification recommends: a third-party server's annotations may strengthen a protection, never lift one
+
+## How does LIA check what an MCP tool can do?
+
+LIA uses the schemas and result contracts actually discovered, with their identity, age and fingerprint. A readable name or alias does not replace the offered server and tool identity. Personal and administrator servers remain separate. Structured results can be used where their contract permits; arbitrary schemas or external data do not become internal truth. Missing or uncertain contracts stay declared as such, with applicable confirmation protections.

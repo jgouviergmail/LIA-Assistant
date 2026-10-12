@@ -2,7 +2,13 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { publishApplicationResources } from '@/lib/application-resources';
 
-const { get, post, patch, remove, useAuth } = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), patch: vi.fn(), remove: vi.fn(), useAuth: vi.fn() }));
+const { get, post, patch, remove, useAuth } = vi.hoisted(() => ({
+  get: vi.fn(),
+  post: vi.fn(),
+  patch: vi.fn(),
+  remove: vi.fn(),
+  useAuth: vi.fn(),
+}));
 vi.mock('@/hooks/useAuth', () => ({ useAuth }));
 vi.mock('@/lib/api-client', async importOriginal => {
   const original = await importOriginal<typeof import('@/lib/api-client')>();
@@ -33,13 +39,21 @@ describe('reminder data and callbacks belong to the current account', () => {
   it('hides old data and rejects retired mutation callbacks after an account change', async () => {
     const { result, rerender } = renderHook(() => useReminders());
     await waitFor(() => expect(result.current.reminders).toHaveLength(1));
-    const retired = { create: result.current.createReminder, update: result.current.updateReminder, remove: result.current.deleteReminder };
+    const retired = {
+      create: result.current.createReminder,
+      update: result.current.updateReminder,
+      remove: result.current.deleteReminder,
+    };
     get.mockReturnValue(new Promise(() => {}));
     useAuth.mockReturnValue({ user: { id: 'two' } });
     rerender();
     expect(result.current.reminders).toEqual([]);
     await act(async () => {
-      await retired.create({ content: 'Old', original_message: 'Old', trigger_at: '2099-01-01T09:00:00Z' });
+      await retired.create({
+        content: 'Old',
+        original_message: 'Old',
+        trigger_at: '2099-01-01T09:00:00Z',
+      });
       await retired.update('reminder', { content: 'Old' });
       await retired.remove('reminder');
     });

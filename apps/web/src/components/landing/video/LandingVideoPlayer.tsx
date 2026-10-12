@@ -252,6 +252,8 @@ export interface LandingVideoPlayerProps {
   /** The skip button's move; absent with a single video, and the button with it. */
   onNext?: () => void;
   onFailed: () => void;
+  /** The complete presentation has exclusive playback. */
+  suspended?: boolean;
 }
 
 export function LandingVideoPlayer({
@@ -266,11 +268,12 @@ export function LandingVideoPlayer({
   onEnded,
   onNext,
   onFailed,
+  suspended = false,
 }: LandingVideoPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const slotElement = slot?.element ?? null;
-  const playback = useVideoPlayback(video, slotElement, videoRef, { startMuted });
+  const playback = useVideoPlayback(video, slotElement, videoRef, { startMuted, suspended });
   const soundOn = playback.playing && !playback.muted;
   const mode = playerModeFor(slotElement !== null, soundOn, playback.inView);
   useBeatSync(videoRef, {

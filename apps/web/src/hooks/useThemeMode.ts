@@ -80,7 +80,8 @@ export function useThemeMode(): UseThemeMode {
     // "dark" for a user sitting on `system` that happens to resolve dark looks
     // identical on screen but is a different setting — leaving it unapplied
     // makes Settings show "System" while the server says "Dark".
-    if ((stored.mode !== 'system' || hadAccountValue || changedAccount) && stored.mode !== theme) setTheme(stored.mode);
+    if ((stored.mode !== 'system' || hadAccountValue || changedAccount) && stored.mode !== theme)
+      setTheme(stored.mode);
     if (stored.oled !== readStoredOled()) {
       setOled(stored.oled);
       writeStoredOled(stored.oled);

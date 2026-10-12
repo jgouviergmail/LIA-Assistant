@@ -4,7 +4,7 @@
 
 **Version**: 2.3
 **Datum**: 2026-10-04
-**Anwendung**: LIA v2.6.1
+**Anwendung**: LIA v3.0.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | Indikator | Wert |
 | --- | --- |
 | Von einer KI geschriebener Code — geführt, gerahmt, kontrolliert | **≈ 100 %** |
-| Quellcodezeilen (ohne Tests) — 55 Fachdomänen | **820.000+** |
-| Automatisierte Tests, bei jedem Commit und Release ausgeführt | **51.000+** |
-| Dokumentierte Architekturentscheidungen (ADR) | **337** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **278** |
+| Quellcodezeilen (ohne Tests) — 55 Fachdomänen | **931.000+** |
+| Inventarisierte automatisierte Tests; passende Suiten für Commit und Release | **59.000+** |
+| Dokumentierte Architekturentscheidungen (ADR) | **341** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **279** |
 | Sprachen, Parität automatisch geprüft | **6** |
 | Technisches Audit über 24 Bereiche | **8,3/10** |
 
@@ -52,9 +52,17 @@ Eine KI, die programmiert, produziert Volumen; Qualität produziert sie nur unte
 
 Mehrere Agenten können gleichzeitig am selben Repository arbeiten — zwei verschiedene Werkzeugfamilien, jede in ihrem eigenen Arbeitsbaum. Die Regel ist dieselbe wie für den Code: Nichts wird auf die bloße Zusicherung einer Zusammenfassung hin zusammengeführt. Jede Datei wird ihrem Urheber über ihren Fingerabdruck und das Protokoll des Agenten zugeordnet, jeder Merge wird in einem isolierten Baum nachgespielt und dann von allen Prüfungen verifiziert, und vor jedem Umschalten steht eine Sicherung.
 
+### Eine Absicht, dann ein überprüfbares Ergebnis
+
+Eine Gesprächsoberfläche wird nützlich, wenn sie ihre eigenen Werkzeuge bedienen kann. „Stelle meine Antworten auf HTML + Karten um“ soll dieselbe Einstellung wie das Formular finden. Das Gespräch schafft einen einfacheren Weg, aber weder zusätzliche Rechte noch stillschweigende Erlaubnis.
+
+Dieselbe Regel gilt für die Darstellung: Vorbereiten ist nicht Abschließen. Warten, gespeicherte Änderung und Konflikt müssen getrennt benannt werden. Animierte Begleiter machen diese Arbeit mit originalen Designs und aktivitätsbezogenen Ausdrücken sichtbar, ohne aus Absicht einen Ausführungsnachweis zu machen.
+
+---
+
 ## 4. Die Abwägungen
 
-Drei strukturelle Entscheidungen, unter den 337 dokumentierten:
+Drei strukturelle Entscheidungen, unter den 341 dokumentierten:
 
 **Souveränität & Reversibilität — keine irreversible Anbieterabhängigkeit.** Die KI-Modelle (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, lokale Modelle über Ollama) stehen hinter einer einzigen Abstraktion: Jede Nutzung kann per Konfiguration den Anbieter wechseln, mit Kostenvergleich. Dasselbe Prinzip auf Fachseite: Google, Apple und Microsoft sind pro Funktionskategorie austauschbar. Selbsthosting gibt dir die Kontrolle über den Server; Kontodaten liegen auf der Instanz und Konnektor-Zugangsdaten sind verschlüsselt. Die gewählten externen Dienste erhalten weiterhin die Daten, die sie für ihren Teil einer Anfrage benötigen.
 
@@ -80,7 +88,7 @@ Eine sichtbare Präsenz muss eine kontrollierbare Wahl bleiben: Der experimentel
 
 ## 6. Der Beweis
 
-Das in diesem Dokument beanspruchte Niveau stammt aus einem vollständigen technischen Audit: 24 bewertete Bereiche, jeder Befund im Code verifiziert und gegengeprüft, um Falsch-Positive zu eliminieren. Das Audit wendet die Methode des Projekts selbst an — mit KI-Werkzeugen durchgeführt, in kontradiktorischer Haltung, jede Schlussfolgerung in gegengeprüften Belegen verankert. Letzte Bewertung: **8,3/10**, mit einem offen eingestandenen Profil. Der vollständige Bericht — Bewertungsraster, Methode, offene Befunde und das Protokoll zur Reproduktion — ist öffentlich: [vollständiger Audit-Bericht](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
+Das in diesem Dokument beanspruchte Niveau stammt aus einem vollständigen technischen Audit: 24 bewertete Bereiche, jeder Befund im Code verifiziert und gegengeprüft, um Falsch-Positive zu eliminieren. Das Audit wendet die Methode des Projekts selbst an — mit KI-Werkzeugen durchgeführt, in kontradiktorischer Haltung, jede Schlussfolgerung in gegengeprüften Belegen verankert. Bewertung vom Juli 2026: **8,3/10**, mit einem offen eingestandenen Profil. Der vollständige Bericht — Bewertungsraster, Methode, offene Befunde und das Protokoll zur Reproduktion — ist öffentlich: [vollständiger Audit-Bericht](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
 
 **Bestätigte Stärken:**
 
@@ -113,4 +121,4 @@ Was diese Erfahrung in einer Führungspraxis verändert:
 - **Zwischen Generalverbot und blindem Vertrauen gibt es einen steuerbaren Weg.** Abgestufte menschliche Kontrolle lässt sich spezifizieren, testen und auditieren; es ist der Ansatz, auf den die regulatorischen Anforderungen zulaufen, und er ist heute einsatzbereit.
 - **Eine Führungskraft, die praktiziert, entscheidet besser.** Selbst machen oder machen lassen, akzeptable Schulden oder nicht, glaubwürdiges Anbieterversprechen oder nicht — diese Entscheidungen gewinnen an Treffsicherheit, wenn man die Materie selbst erprobt hat. Dieses Projekt ist eine Art, diese Nähe zum Terrain zu pflegen.
 
-*Persönliches Projekt, außerhalb jeder beruflichen Tätigkeit durchgeführt. Technische Bewertung aus dem Audit von Juli 2026, Befunde gegengeprüft. Strukturelle Zahlen folgen dem Repository; Quellcodezeilen wurden am 2026-10-05 erneut gemessen. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*
+*Persönliches Projekt, außerhalb jeder beruflichen Tätigkeit durchgeführt. Technische Bewertung aus dem Audit von Juli 2026, Befunde gegengeprüft. Strukturelle Zahlen folgen dem Repository; Quellcodezeilen wurden am 2026-10-12 erneut gemessen. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*

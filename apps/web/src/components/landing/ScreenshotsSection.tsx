@@ -27,6 +27,7 @@ const APPLICATION_VIEWS = [
 const MONITORING_VIEWS = [
   { key: 'grafana_overview', file: 'grafana-overview' },
   { key: 'grafana_costs', file: 'grafana-costs' },
+  { key: 'grafana_activity', file: 'grafana-activity' },
 ] as const;
 
 type ApplicationView = (typeof APPLICATION_VIEWS)[number]['key'];
@@ -68,6 +69,7 @@ export function ScreenshotsSection({
     <LandingCarousel
       slides={slides}
       variant="application"
+      uniformFrame
       label={t(monitoring ? 'landing.platform.dashboard_title' : 'landing.gallery.tab_screens')}
       zoomable
     />

@@ -42,11 +42,7 @@ export const IntelligentMechanismsSection = React.memo(function IntelligentMecha
       value="mechanisms"
       title="Intelligent Mechanisms"
       icon={Sparkles}
-      badge={
-        <DebugChip tone="neutral">
-          {mechanismsApplied} active
-        </DebugChip>
-      }
+      badge={<DebugChip tone="neutral">{mechanismsApplied} active</DebugChip>}
     >
       {/* LLM Query Analysis - v3.1 Primary Mechanism */}
       {data.llm_query_analysis?.applied && (

@@ -151,7 +151,7 @@ FORMATTED_ADDRESS = SemanticType(
     description="Fully formatted address string",
     examples=["10 Rue de la Paix, 75002 Paris, France"],
     related_types=["physical_address"],
-    source_domains=["place", "route"],
+    source_domains=[],
 )
 
 GEO_COORDINATES = SemanticType(
@@ -182,7 +182,7 @@ COUNTRY_CODE = SemanticType(
     category=TypeCategory.LOCATION,
     description="ISO 3166-1 alpha-2 country code",
     examples=["FR", "US", "DE"],
-    source_domains=["place", "contact"],
+    source_domains=["contact"],
 )
 
 POSTAL_CODE = SemanticType(
@@ -203,28 +203,13 @@ LOCALITY = SemanticType(
     source_domains=["place", "contact"],
 )
 
-AREA_NAME = SemanticType(
-    name="area_name",
-    parent="Text",
-    category=TypeCategory.LOCATION,
-    description="Area or region name",
-    source_domains=["place"],
-)
-
-WAYPOINT = SemanticType(
-    name="waypoint",
-    parent="GeoCoordinates",
-    category=TypeCategory.LOCATION,
-    description="Intermediate point on a route",
-    source_domains=["route"],
-)
 
 RADIUS_METERS = SemanticType(
     name="radius_meters",
     parent="QuantitativeValue",
     category=TypeCategory.MEASUREMENT,
     description="Search radius in meters",
-    source_domains=["place"],
+    source_domains=[],
 )
 
 # =============================================================================
@@ -307,7 +292,7 @@ FOLDER_ID = SemanticType(
     parent="Identifier",
     category=TypeCategory.RESOURCE_ID,
     description="Unique identifier for folder (Google Drive)",
-    source_domains=["file"],
+    source_domains=[],
 )
 
 MESSAGE_ID = SemanticType(
@@ -352,7 +337,7 @@ PLACE_ID = SemanticType(
     category=TypeCategory.RESOURCE_ID,
     description="Unique identifier for place (Google Places)",
     related_types=["physical_address", "coordinate", "PostalAddress"],
-    source_domains=["place", "route"],
+    source_domains=["place"],
     used_in_tools=["get_places_tool"],
 )
 
@@ -389,8 +374,8 @@ EMAIL_LABEL = SemanticType(
     name="email_label",
     parent="Text",
     category=TypeCategory.CATEGORY,
-    description="Gmail label or category",
-    examples=["INBOX", "SENT", "STARRED", "UNREAD"],
+    description="A user mail label name (system labels such as INBOX cannot be created, renamed or deleted)",
+    examples=["Work", "Invoices", "Travel/2026"],
     source_domains=["email"],
 )
 
@@ -422,7 +407,7 @@ DATETIME = SemanticType(
     description="ISO 8601 datetime string",
     examples=["2024-01-15T14:30:00Z", "2024-01-15T14:30:00+01:00"],
     validation_rules=["Must be valid ISO 8601 datetime"],
-    source_domains=["event", "task", "email", "file"],
+    source_domains=["event", "task"],
 )
 
 TIMEZONE = SemanticType(
@@ -432,25 +417,16 @@ TIMEZONE = SemanticType(
     description="IANA timezone identifier",
     examples=["Europe/Paris", "America/New_York", "UTC"],
     validation_rules=["Must be valid IANA timezone"],
-    source_domains=["event"],
+    source_domains=[],
 )
 
-DURATION = SemanticType(
-    name="duration",
-    parent="Intangible",
-    category=TypeCategory.TEMPORAL,
-    description="ISO 8601 duration",
-    examples=["PT1H", "PT30M", "P1D"],
-    validation_rules=["Must be valid ISO 8601 duration"],
-    source_domains=["event", "route"],
-)
 
 MODIFICATION_TIMESTAMP = SemanticType(
     name="modification_timestamp",
     parent="DateTime",
     category=TypeCategory.TEMPORAL,
     description="Last modification timestamp",
-    source_domains=["file", "email", "event"],
+    source_domains=["file"],
 )
 
 BIRTHDAY = SemanticType(
@@ -458,16 +434,16 @@ BIRTHDAY = SemanticType(
     parent="Date",
     category=TypeCategory.TEMPORAL,
     description="Person's birthday date",
-    source_domains=["contact"],
+    source_domains=[],
 )
 
 RECENCY_FILTER = SemanticType(
     name="recency_filter",
     parent="Text",
     category=TypeCategory.TEMPORAL,
-    description="Filter for recent items (e.g., 'last_week', 'last_month')",
-    examples=["today", "this_week", "last_month"],
-    source_domains=["email", "file", "event"],
+    description="Freshness window of a web search, in the vocabulary of each search tool",
+    examples=["day", "week", "month", "year", "pd", "pw", "pm", "py"],
+    source_domains=[],
 )
 
 FORMATTED_TIME = SemanticType(
@@ -476,7 +452,7 @@ FORMATTED_TIME = SemanticType(
     category=TypeCategory.TEMPORAL,
     description="Human-readable formatted time string",
     examples=["14:30", "2:30 PM", "14h30"],
-    source_domains=["event"],
+    source_domains=[],
 )
 
 TRIGGER_DATETIME = SemanticType(
@@ -549,14 +525,6 @@ WIND_SPEED = SemanticType(
     source_domains=["weather"],
 )
 
-PRECIPITATION_PROBABILITY = SemanticType(
-    name="precipitation_probability",
-    parent="QuantitativeValue",
-    category=TypeCategory.MEASUREMENT,
-    description="Probability of precipitation (percentage)",
-    examples=["30%", "80%"],
-    source_domains=["weather"],
-)
 
 RATING = SemanticType(
     name="rating",
@@ -609,8 +577,8 @@ TRAFFIC_CONDITION = SemanticType(
     name="traffic_condition",
     parent="Enumeration",
     category=TypeCategory.STATUS,
-    description="Current traffic condition",
-    examples=["TRAFFIC_UNSPECIFIED", "TRAFFIC_SMOOTH", "TRAFFIC_SLOW", "TRAFFIC_JAM"],
+    description="Traffic level on a route, from its traffic-aware duration",
+    examples=["NORMAL", "LIGHT", "MODERATE", "HEAVY"],
     source_domains=["route"],
 )
 
@@ -627,9 +595,9 @@ ACCESS_ROLE = SemanticType(
     name="access_role",
     parent="Enumeration",
     category=TypeCategory.STATUS,
-    description="User's access role",
-    examples=["owner", "writer", "reader"],
-    source_domains=["event", "file"],
+    description="The account's access role on a calendar",
+    examples=["owner", "writer", "reader", "freeBusyReader"],
+    source_domains=["event"],
 )
 
 SHARED_STATUS = SemanticType(
@@ -638,35 +606,19 @@ SHARED_STATUS = SemanticType(
     category=TypeCategory.STATUS,
     description="Whether resource is shared",
     examples=["true", "false"],
-    source_domains=["file", "event"],
+    source_domains=["file"],
 )
 
-LOCATION_SOURCE = SemanticType(
-    name="location_source",
-    parent="Enumeration",
-    category=TypeCategory.STATUS,
-    description="Source of location data",
-    examples=["user_input", "gps", "address_lookup"],
-    source_domains=["place"],
-)
 
 BUSINESS_STATUS = SemanticType(
     name="business_status",
     parent="Enumeration",
     category=TypeCategory.STATUS,
-    description="Business operational status",
-    examples=["OPERATIONAL", "CLOSED_TEMPORARILY", "CLOSED_PERMANENTLY"],
+    description="A place's closure status, reported only when it is not operational",
+    examples=["CLOSED_TEMPORARILY", "CLOSED_PERMANENTLY"],
     source_domains=["place"],
 )
 
-OPERATION_STATUS = SemanticType(
-    name="operation_status",
-    parent="Enumeration",
-    category=TypeCategory.STATUS,
-    description="Current operational status",
-    examples=["open", "closed"],
-    source_domains=["place"],
-)
 
 SEND_UPDATES_OPTION = SemanticType(
     name="send_updates_option",
@@ -674,7 +626,7 @@ SEND_UPDATES_OPTION = SemanticType(
     category=TypeCategory.STATUS,
     description="Whether to send calendar update notifications",
     examples=["all", "externalOnly", "none"],
-    source_domains=["event"],
+    source_domains=[],
 )
 
 OPEN_NOW_FILTER = SemanticType(
@@ -683,7 +635,7 @@ OPEN_NOW_FILTER = SemanticType(
     category=TypeCategory.STATUS,
     description="Filter for place currently open",
     examples=["true", "false"],
-    source_domains=["place"],
+    source_domains=[],
 )
 
 # =============================================================================
@@ -707,21 +659,6 @@ TEXT = SemanticType(
     uri="http://schema.org/Text",
 )
 
-MARKDOWN_TEXT = SemanticType(
-    name="markdown_text",
-    parent="Text",
-    category=TypeCategory.CONTENT,
-    description="Markdown formatted text",
-    source_domains=["agents", "file"],
-)
-
-HTML_CONTENT = SemanticType(
-    name="html_content",
-    parent="Text",
-    category=TypeCategory.CONTENT,
-    description="HTML formatted content",
-    source_domains=["email", "file"],
-)
 
 EMAIL_BODY = SemanticType(
     name="email_body",
@@ -769,16 +706,9 @@ CITATION_URL = SemanticType(
     parent="URL",
     category=TypeCategory.CONTENT,
     description="URL to source citation",
-    source_domains=["perplexity", "wikipedia"],
+    source_domains=["perplexity"],
 )
 
-MESSAGE_HEADERS = SemanticType(
-    name="message_headers",
-    parent="Text",
-    category=TypeCategory.CONTENT,
-    description="Email message headers (From, To, Subject, etc.)",
-    source_domains=["email"],
-)
 
 ATTACHMENT_INFO = SemanticType(
     name="attachment_info",
@@ -794,7 +724,7 @@ CONFERENCE_LINK = SemanticType(
     parent="URL",
     category=TypeCategory.CONTENT,
     description="Video conference link (Meet, Zoom, etc.)",
-    source_domains=["event"],
+    source_domains=[],
 )
 
 WEBSITE_URL = SemanticType(
@@ -802,7 +732,7 @@ WEBSITE_URL = SemanticType(
     parent="URL",
     category=TypeCategory.CONTENT,
     description="Website URL",
-    source_domains=["place", "contact"],
+    source_domains=["place"],
 )
 
 GOOGLE_MAPS_URL = SemanticType(
@@ -832,7 +762,7 @@ TRAVEL_MODE = SemanticType(
     description="Mode of transportation",
     examples=["DRIVE", "WALK", "BICYCLE", "TRANSIT", "TWO_WHEELER"],
     source_domains=["route"],
-    used_in_tools=["get_route_tool"],
+    used_in_tools=["get_route_tool", "get_route_matrix_tool"],
 )
 
 LANGUAGE_CODE = SemanticType(
@@ -841,7 +771,7 @@ LANGUAGE_CODE = SemanticType(
     category=TypeCategory.CATEGORY,
     description="ISO 639-1 language code",
     examples=["fr", "en", "es", "de"],
-    source_domains=["agents", "wikipedia"],
+    source_domains=["agents"],
 )
 
 UNIT_SYSTEM = SemanticType(
@@ -849,35 +779,27 @@ UNIT_SYSTEM = SemanticType(
     parent="Enumeration",
     category=TypeCategory.CATEGORY,
     description="System of units (metric/imperial)",
-    examples=["METRIC", "IMPERIAL"],
-    source_domains=["route", "weather"],
+    examples=["metric", "imperial"],
+    source_domains=[],
 )
 
-ROUTE_MODE_MODIFIER = SemanticType(
-    name="route_mode_modifier",
-    parent="Enumeration",
-    category=TypeCategory.CATEGORY,
-    description="Route calculation modifier",
-    examples=["AVOID_TOLLS", "AVOID_HIGHWAYS", "AVOID_FERRIES"],
-    source_domains=["route"],
-)
 
 SEARCH_MODE = SemanticType(
     name="search_mode",
     parent="Enumeration",
     category=TypeCategory.CATEGORY,
-    description="Search mode type",
-    examples=["text", "nearby", "details"],
-    source_domains=["place"],
+    description="Whether a file search matches names only or names and content",
+    examples=["name_only", "full_text"],
+    source_domains=[],
 )
 
 CONTENT_TYPE_FILTER = SemanticType(
     name="content_type_filter",
     parent="Enumeration",
     category=TypeCategory.CATEGORY,
-    description="Filter by content type",
-    examples=["document", "spreadsheet", "presentation", "folder"],
-    source_domains=["file"],
+    description="Whether a file search returns files, folders or both",
+    examples=["files_only", "folders_only", "all"],
+    source_domains=[],
 )
 
 REPLY_ALL_FLAG = SemanticType(
@@ -886,7 +808,7 @@ REPLY_ALL_FLAG = SemanticType(
     category=TypeCategory.CATEGORY,
     description="Whether to reply to all recipients",
     examples=["true", "false"],
-    source_domains=["email"],
+    source_domains=[],
 )
 
 ONLY_COMPLETED_FILTER = SemanticType(
@@ -895,7 +817,7 @@ ONLY_COMPLETED_FILTER = SemanticType(
     category=TypeCategory.CATEGORY,
     description="Filter for completed task only",
     examples=["true", "false"],
-    source_domains=["task"],
+    source_domains=[],
 )
 
 SHOW_COMPLETED_FILTER = SemanticType(
@@ -904,20 +826,13 @@ SHOW_COMPLETED_FILTER = SemanticType(
     category=TypeCategory.CATEGORY,
     description="Whether to show completed items",
     examples=["true", "false"],
-    source_domains=["task"],
+    source_domains=[],
 )
 
 # =============================================================================
 # GEOGRAPHIC DATA TYPES (Routes specific)
 # =============================================================================
 
-POLYLINE = SemanticType(
-    name="polyline",
-    parent="Text",
-    category=TypeCategory.LOCATION,
-    description="Encoded polyline for route path",
-    source_domains=["route"],
-)
 
 NAVIGATION_STEPS = SemanticType(
     name="navigation_steps",
@@ -947,17 +862,9 @@ ROUTE_CONDITION = SemanticType(
     name="route_condition",
     parent="Enumeration",
     category=TypeCategory.STATUS,
-    description="Current route condition",
-    examples=["CONDITION_UNSPECIFIED", "ROUTE_PREFERRED", "ROUTE_TOLLS"],
+    description="Whether a route exists between a matrix origin and destination",
+    examples=["ROUTE_EXISTS", "ROUTE_NOT_FOUND"],
     source_domains=["route"],
-)
-
-DEGREE_OF_OPENNESS = SemanticType(
-    name="degree_of_openness",
-    parent="Enumeration",
-    category=TypeCategory.STATUS,
-    description="How open or accessible a route/place is",
-    source_domains=["place"],
 )
 
 
@@ -1007,8 +914,6 @@ def load_core_types(registry: TypeRegistry) -> None:
     registry.register(COUNTRY_CODE)
     registry.register(POSTAL_CODE)
     registry.register(LOCALITY)
-    registry.register(AREA_NAME)
-    registry.register(WAYPOINT)
     registry.register(RADIUS_METERS)
 
     # Event hierarchy
@@ -1041,7 +946,6 @@ def load_core_types(registry: TypeRegistry) -> None:
     registry.register(DATE_TIME)
     registry.register(DATETIME)
     registry.register(TIMEZONE)
-    registry.register(DURATION)
     registry.register(MODIFICATION_TIMESTAMP)
     registry.register(BIRTHDAY)
     registry.register(RECENCY_FILTER)
@@ -1055,7 +959,6 @@ def load_core_types(registry: TypeRegistry) -> None:
     registry.register(TEMPERATURE)
     registry.register(HUMIDITY)
     registry.register(WIND_SPEED)
-    registry.register(PRECIPITATION_PROBABILITY)
     registry.register(RATING)
     registry.register(FILE_SIZE)
     registry.register(CONFIDENCE_SCORE)
@@ -1067,9 +970,7 @@ def load_core_types(registry: TypeRegistry) -> None:
     registry.register(TASK_STATUS)
     registry.register(ACCESS_ROLE)
     registry.register(SHARED_STATUS)
-    registry.register(LOCATION_SOURCE)
     registry.register(BUSINESS_STATUS)
-    registry.register(OPERATION_STATUS)
     registry.register(SEND_UPDATES_OPTION)
     registry.register(OPEN_NOW_FILTER)
 
@@ -1078,15 +979,12 @@ def load_core_types(registry: TypeRegistry) -> None:
     registry.register(EMAIL_MESSAGE)
     registry.register(TEXT)
     registry.register(URL)
-    registry.register(MARKDOWN_TEXT)
-    registry.register(HTML_CONTENT)
     registry.register(EMAIL_BODY)
     registry.register(MESSAGE_SNIPPET)
     registry.register(FILE_CONTENT)
     registry.register(BIOGRAPHY)
     registry.register(REVIEW)
     registry.register(CITATION_URL)
-    registry.register(MESSAGE_HEADERS)
     registry.register(ATTACHMENT_INFO)
     registry.register(CONFERENCE_LINK)
     registry.register(WEBSITE_URL)
@@ -1096,7 +994,6 @@ def load_core_types(registry: TypeRegistry) -> None:
     registry.register(TRAVEL_MODE)
     registry.register(LANGUAGE_CODE)
     registry.register(UNIT_SYSTEM)
-    registry.register(ROUTE_MODE_MODIFIER)
     registry.register(SEARCH_MODE)
     registry.register(CONTENT_TYPE_FILTER)
     registry.register(REPLY_ALL_FLAG)
@@ -1104,12 +1001,10 @@ def load_core_types(registry: TypeRegistry) -> None:
     registry.register(SHOW_COMPLETED_FILTER)
 
     # Geographic data
-    registry.register(POLYLINE)
     registry.register(NAVIGATION_STEPS)
     registry.register(ROUTE_MATRIX)
     registry.register(OPTIMAL_ORDER)
     registry.register(ROUTE_CONDITION)
-    registry.register(DEGREE_OF_OPENNESS)
 
     # Resource handles (extracted module — see resource_handle_types.py)
     load_resource_handle_types(registry)

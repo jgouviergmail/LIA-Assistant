@@ -70,7 +70,9 @@ export function DocumentViewer({ attachmentId, filename, docType }: DocumentView
           return;
         }
         const text = (await blob.text()).replace(/^﻿/, '');
-        setState(docType === 'csv' ? { kind: 'table', rows: parseCsv(text) } : { kind: 'text', text });
+        setState(
+          docType === 'csv' ? { kind: 'table', rows: parseCsv(text) } : { kind: 'text', text }
+        );
       } catch {
         if (!controller.signal.aborted) setState({ kind: 'error' });
       }
@@ -151,9 +153,7 @@ export function DocumentViewer({ attachmentId, filename, docType }: DocumentView
 
       {state.kind === 'file' && (
         <div className="rounded-lg border bg-card p-6 space-y-4 max-w-md">
-          <p className="text-sm text-muted-foreground">
-            {t('documents.viewer.not_renderable')}
-          </p>
+          <p className="text-sm text-muted-foreground">{t('documents.viewer.not_renderable')}</p>
           <p className="text-sm">{formatFileSize(state.blob.size)}</p>
           <Button onClick={() => downloadBlob(state.blob)}>
             <Download className="w-4 h-4 mr-2" aria-hidden="true" />

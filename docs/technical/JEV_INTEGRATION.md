@@ -38,9 +38,21 @@ complète ; une économie observée sur un corpus n'est pas une promesse génér
 
 ## Bonnes pratiques communes aux usages existants et futurs
 
-Le guide TypeSafe joint et les contrats officiels [State](https://docs.typesafe.ai/concepts/state)
-et [Choice](https://docs.typesafe.ai/primitives/choice) guident la conception ; les
+Le guide TypeSafe joint et la documentation officielle — [State](https://docs.typesafe.ai/concepts/state),
+[Choice](https://docs.typesafe.ai/primitives/choice), [Noul](https://docs.typesafe.ai/primitives/noul),
+[Confidence](https://docs.typesafe.ai/confidence) et les recettes — guident la conception ; les
 permissions, les invariants métier et les contrôles de LIA restent exécutés en code.
+
+- Une condition (oui ou non) est un Noul : une seule probabilité, sans option
+  « incertain » — le doute est une probabilité proche de 0,5. Un Choice qui garde
+  une issue de repli la propose EN PREMIER, car Choice favorise sa première option.
+- Instructions et critères sont structurés (`question` et `rules` ; `what`,
+  `not_for`, `examples`), les chemins d'état entre accents graves, et l'état ne
+  porte que les champs que la question lit.
+- Une question ne change qu'après mesure sur les corpus de calibration et de
+  validation de son usage : pas plus de raccourcis faux, au moins la même
+  couverture. Méthode et résultats du 11 octobre 2026 :
+  [JEV_SEMANTIC_QUALIFICATION.md](JEV_SEMANTIC_QUALIFICATION.md).
 
 - Fournir l'état utile et ses relations, avec une question qui désigne explicitement
   l'objet évalué. Une clé de question ne remplace pas cette désignation. Les champs
@@ -516,6 +528,38 @@ incertains visibles dans le diagnostic administratif. Une preuve trop longue ou
 incompatible n'est pas classée.
 Les données de source, leurs statuts et la réponse finale ne sont jamais modifiés.
 Chaque usage est désactivé par défaut et utilise le diagnostic JEV commun.
+
+## Valeurs de paramètres protégés
+
+L'usage `parameter_kind` (« Valeurs de paramètres protégés », désactivé par
+défaut) complète le garde-fou sémantique des paramètres d'adresse, de lieu et
+d'email ([ADR-120](../architecture/ADR-120-Semantic-Evidence-Expansion-And-Param-Guard.md),
+amendement du 11 octobre 2026). La règle déterministe décide d'abord : elle ne
+refuse qu'un nom de personne résolu pendant le tour. Si elle laisse passer
+l'appel, JEV reçoit, pour chaque valeur distincte, la demande du tour
+(`original_query`), le paramètre tel qu'il est publié (outil, nom, type
+sémantique, description) et la valeur, puis répond ce qu'est la valeur. Le code
+décide seul si le paramètre accepte cette nature
+([`ACCEPTED_VALUE_KINDS`](../../apps/api/src/domains/agents/semantic/jev_value_kind.py)).
+Une adresse physique ou une localité ne refuse qu'une valeur reconnue comme autre
+chose : un nom de personne, un numéro de téléphone, une date, une adresse email, ou
+un lien pour une localité. Le lieu d'un événement est un texte libre (« Visio », une
+salle) : une valeur que JEV ne range dans aucune nature connue n'est pas refusée.
+Un paramètre email n'accepte qu'une adresse email.
+
+JEV peut seulement ajouter un refus. Interrupteur coupé, aucun suivi de dépense actif, demande
+absente, jugement sous `JEV_PARAMETER_KIND_MIN_CONFIDENCE`, délai, quota ou erreur :
+aucun refus, l'appel se poursuit comme avant. Une valeur prouvée par un champ
+canonique sélectionné n'est pas soumise, et au plus
+`JEV_PARAMETER_KIND_MAX_VALUES` valeurs d'un même appel le sont. Un refus est
+compté par `semantic_param_guard_blocks_total` comme ceux de la règle
+déterministe, et journalisé avec la nature jugée, jamais avec la valeur.
+Chaque décision rejoint le suivi du tour : son coût figure dans le compteur de la
+réponse. Mesuré sur dev le 12 octobre 2026 (compte de preuve, quatre tours en
+pipeline et en ReAct) : 16 décisions, 209 à 258 ms chacune, environ 0,00004 € par
+décision ; un appel d'outil protégé attend donc sa décision, les valeurs d'un même
+appel étant jugées en parallèle. La mesure (décision d5) et ses limites sont dans
+le [bilan de qualification](JEV_SEMANTIC_QUALIFICATION.md).
 
 ## Qualification avant activation
 

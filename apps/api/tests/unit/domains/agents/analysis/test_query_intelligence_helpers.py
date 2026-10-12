@@ -15,8 +15,14 @@ import pytest
 from src.domains.agents.analysis.query_intelligence import QueryIntelligence, UserGoal
 from src.domains.agents.analysis.query_intelligence_helpers import (
     reconstruct_query_intelligence,
+    turn_references,
 )
 from src.domains.agents.analysis.requested_outcomes import GoalRequirement
+from src.domains.agents.analysis.resolved_references import (
+    ReferenceSource,
+    ReferenceValueKind,
+    ResolvedReferenceEntry,
+)
 
 
 def _make_full_query_intelligence() -> QueryIntelligence:
@@ -43,7 +49,11 @@ def _make_full_query_intelligence() -> QueryIntelligence:
         resolved_context=None,
         source_turn_id=7,
         source_domain="email",
-        resolved_references={"my wife": "jean dupond"},
+        resolved_references=(
+            ResolvedReferenceEntry(
+                "my wife", "jean dupond", ReferenceValueKind.PERSON_NAME, ReferenceSource.MEMORY
+            ),
+        ),
         anticipated_needs=["may want reminder"],
         fallback_strategies=["broaden search"],
         suggested_enrichments=["recent emails with contact"],
@@ -130,3 +140,44 @@ def test_reconstruct_defaults_has_temporal_reference_to_false():
     reconstructed = reconstruct_query_intelligence(serialized)
 
     assert reconstructed.has_temporal_reference is False
+
+
+class TestTurnReferences:
+    """The current turn's references are read from its query_intelligence, never a copy."""
+
+    def test_reads_the_typed_list(self) -> None:
+        entry = ResolvedReferenceEntry(
+            "demain", "2026-10-12", ReferenceValueKind.DATETIME, ReferenceSource.ANALYZER
+        )
+        assert turn_references(
+            {"query_intelligence": {"resolved_references": [entry.to_dict()]}}
+        ) == (entry,)
+
+    def test_ignores_a_stale_state_copy(self) -> None:
+        state = {
+            "query_intelligence": {"resolved_references": None},
+            "resolved_references": {"montbéliard": "Montbéliard"},
+        }
+        assert turn_references(state) == ()
+
+    @pytest.mark.parametrize(
+        "state", [{}, {"query_intelligence": None}, {"query_intelligence": "x"}]
+    )
+    def test_no_query_intelligence_means_no_reference(self, state: dict[str, object]) -> None:
+        assert turn_references(state) == ()
+
+    def test_legacy_flat_dict_reconstructs_as_legacy_entries(self) -> None:
+        intelligence = reconstruct_query_intelligence(
+            {
+                **_make_full_query_intelligence().to_serializable_dict(),
+                "resolved_references": {"my wife": "jean dupond"},
+            }
+        )
+        assert [(e.value, e.source) for e in intelligence.resolved_references] == [
+            ("jean dupond", ReferenceSource.LEGACY)
+        ]
+
+    def test_typed_references_survive_the_round_trip(self) -> None:
+        original = _make_full_query_intelligence()
+        rebuilt = reconstruct_query_intelligence(original.to_serializable_dict())
+        assert rebuilt.resolved_references == original.resolved_references

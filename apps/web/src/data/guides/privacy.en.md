@@ -2,8 +2,8 @@
 
 > Your data. Your assistant. Your rules.
 
-**Version**: 1.0
-**Date**: 2026-10-05
+**Version**: 1.1
+**Date**: 2026-10-12
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -127,6 +127,12 @@ Redaction controls protect technical logging; they do not automatically anonymiz
 
 **Secure logging:**
 Technical logs use structured JSON format (via structlog), with rules to omit quoted user content and redact recognized secrets and personal information. These controls do not make every diagnostic store anonymous.
+
+### Commands and private continuations
+
+Keys, file choices, account connections and browser consent use the operation’s secure interface, rather than parameters invented by the model. A command is tied to the account and its authorised context; permissions and the resource version are checked again before writing. Encrypted command content does not hide the whole service from its operator: messages and operational data retain the limits described here.
+
+---
 
 ## 6. LLM providers
 

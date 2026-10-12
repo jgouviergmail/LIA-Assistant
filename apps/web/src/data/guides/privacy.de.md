@@ -2,8 +2,8 @@
 
 > Ihre Daten. Ihr Assistent. Ihre Regeln.
 
-**Version**: 1.0
-**Datum**: 2026-10-05
+**Version**: 1.1
+**Datum**: 2026-10-12
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -127,6 +127,12 @@ Kontrollen zur Schwärzung schützen die technische Protokollierung. Sie anonymi
 
 **Sichere Protokollierung:**
 Technische Protokolle verwenden ein strukturiertes JSON-Format (über structlog) mit Regeln, um zitierte Benutzerinhalte wegzulassen und erkannte Geheimnisse und personenbezogene Informationen zu schwärzen. Diese Kontrollen machen nicht jeden Diagnosespeicher anonym.
+
+### Befehle und private Fortsetzungen
+
+Schlüssel, Dateiauswahl, Kontoverbindungen und Browserzustimmungen nutzen die sichere Oberfläche der Operation statt erfundener Modellparameter. Ein Befehl ist an Konto und zulässigen Kontext gebunden; Berechtigungen und Ressourcenversion werden vor dem Schreiben erneut geprüft. Verschlüsselte Befehlsinhalte verbergen nicht den gesamten Dienst vor seinem Betreiber: Nachrichten und Betriebsdaten behalten die hier beschriebenen Grenzen.
+
+---
 
 ## 6. LLM-Anbieter
 

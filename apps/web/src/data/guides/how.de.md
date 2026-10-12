@@ -6,7 +6,7 @@
 
 **Version**: 5.2
 **Datum**: 2026-10-04
-**Application**: LIA v2.6.1
+**Application**: LIA v3.0.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -57,7 +57,8 @@
 42. [Die Anatomie eines Prozesses: was er lädt, ist deklariert, gemessen und begrenzt](#42-die-anatomie-eines-prozesses-was-er-lädt-ist-deklariert-gemessen-und-begrenzt)
 43. [Der Live-Modus: zwei Intelligenzen, eine Naht – und eine Regel pro Modus](#43-der-live-modus-zwei-intelligenzen-eine-naht--und-eine-regel-pro-modus)
 44. [Karten, die zeigen, was empfangen wurde, und Aktionen, die zu ihrer Nachricht gehören](#44-karten-die-zeigen-was-empfangen-wurde-und-aktionen-die-zu-ihrer-nachricht-gehören)
-45. [Fazit](#45-fazit)
+45. [Anwendungsbefehle: eine Absicht, aktuelle Berechtigung](#45-anwendungsbefehle-eine-absicht-aktuelle-berechtigung)
+46. [Fazit](#46-fazit)
 ---
 
 ## 1. Kontext und grundlegende Entscheidungen
@@ -72,7 +73,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), mit Fernet verschlüsselte Zugangsdaten, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
 | Vollständige Transparenz | 618 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 337 ADRs, über 51.000 automatisierte Tests in Backend und Frontend, native Observability, HITL auf 6 Ebenen |
+| Produktionszuverlässigkeit | 341 ADRs, über 59.000 automatisierte Tests in Backend und Frontend, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -90,10 +91,10 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Metrik | Wert |
 |----------|--------|
-| Tests | Über 51.000 automatisierte Tests mit pytest und Vitest (Abdeckungsschwellen fixiert, ADR-116) |
+| Tests | Über 59.000 automatisierte Tests mit pytest und Vitest (Abdeckungsschwellen fixiert, ADR-116) |
 | pytest-Fixtures | 1.082, davon 48 über conftest geteilt |
 | Dokumentationsdokumente | 716 |
-| ADRs (Architecture Decision Records) | 337 |
+| ADRs (Architecture Decision Records) | 341 |
 | Prometheus-Metriken | 618 Definitionen |
 | Grafana-Dashboards | 31 |
 | Unterstützte Sprachen (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -756,9 +757,9 @@ llm = get_llm(provider="openai", model="gpt-5.4", temperature=0.7, streaming=Tru
 
 `get_llm()` löst die effektive Konfiguration über `get_llm_config_for_agent(settings, agent_type)` auf (Code-Defaults → DB-Admin-Overrides), instanziiert das Modell und wendet die spezifischen Adapter an.
 
-### 12.2. 86 LLM-Konfigurationstypen
+### 12.2. 87 LLM-Konfigurationstypen
 
-Das effektive Register bietet **86 Konfigurationen**: **62 für Chat**, **20 native Entscheidungen** und **4 für Bilderzeugung, Transkription oder Sprachsynthese**. Die nativen Entscheidungen umfassen die Wahl der Sitzungsvorlage und 19 weitere JEV-Anwendungen. Jeder Platz ist über die Admin-UI unabhängig konfigurierbar, ohne erneutes Deployment:
+Das effektive Register bietet **87 Konfigurationen**: **62 für Chat**, **21 native Entscheidungen** und **4 für Bilderzeugung, Transkription oder Sprachsynthese**. Die nativen Entscheidungen umfassen die Wahl der Sitzungsvorlage und 20 weitere JEV-Anwendungen. Jeder Platz ist über die Admin-UI unabhängig konfigurierbar, ohne erneutes Deployment:
 
 | Kategorie | Konfigurierbare Typen |
 |-----------|-------------------|
@@ -1548,7 +1549,7 @@ Eine CSS-Regel bestimmt die Abstände des Design-Systems: Vertikale Ränder eine
 
 ## 24. Architekturentscheidungen (ADR)
 
-337 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+341 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1707,9 +1708,9 @@ Die Aktivitätsseite ist ein **reines Read-Model**: Parallele Fetcher (eine Sess
 
 ## 31. Ausdrucksstarke Augen: eine von Signalen gesteuerte Figur
 
-Das Augen-Widget des Chats (ADR-240) beruht auf einem einzigen Prinzip: **kein neues Signal, keine neuen Kosten**. Eine reine Engine — Entscheidungstabellen mit injiziertem RNG und injizierten Uhren — leitet einen von zwanzig Ausdrücken aus einer Prioritätskette ab (Fehler > HITL-Frage > Stimme > Interaktion > Reaktion des Zuges > Benachrichtigung > Tippen > Inaktivität > Stimmung × Uhrzeit), gespeist ausschließlich aus vorhandener Maschinerie: Chat-Zustandsmaschine, SSE-Ausführungsschritte (Nachdenken vs. Tool-Suche), HITL-Karte, Sprach-Zustandsmaschine und Psyche-Engine. Die Reaktion auf jede Antwort liest den emotionalen Selbstbericht, den das Modell seinem eigenen Zug bereits anhängt, mit einem streng sprachneutralen heuristischen Fallback (Interpunktion, Emojis, Struktur — chinesische Vollbreite eingeschlossen). Das Rendering ist deklarativ — ein Ausdrucksattribut, CSS-Variablen und ein Animationsblatt, in dem Augenlider **reine geometrische Morphs** sind (verankerte vertikale Kompression, Rotation pro Auge, Radienformung): nirgendwo Clipping, jeder Zwischenzustand bleibt eine glatte Kurve. Das Leben zwischen den Ereignissen — Blinzeln, Blicksakkaden, stimmungsgewichtete Gesten, Tagtraum-Miniszenen, seltener Slapstick — lebt in Schedulern mit eigenen Timern, pausiert bei verstecktem Tab oder minimiertem Widget und erstarrt unter `prefers-reduced-motion`. Die sechs wählbaren Looks teilen dieses eine Skelett: ein generisches Register, in dem ein neuer Blick eine id, ein gescoptes CSS-Blatt und sechs Locale-Einträge kostet — Vollständigkeit ist ein Test, keine Konvention.
+Das Augen-Widget des Chats (ADR-240) beruht auf einem einzigen Prinzip: **kein neues Signal, keine neuen Kosten**. Eine reine Engine — Entscheidungstabellen mit injiziertem RNG und injizierten Uhren — leitet einen von zwanzig Ausdrücken aus einer Prioritätskette ab (Fehler > HITL-Frage > Stimme > Interaktion > Reaktion des Zuges > Benachrichtigung > Tippen > Inaktivität > Stimmung × Uhrzeit), gespeist ausschließlich aus vorhandener Maschinerie: Chat-Zustandsmaschine, SSE-Ausführungsschritte (Nachdenken vs. Tool-Suche), HITL-Karte, Sprach-Zustandsmaschine und Psyche-Engine. Die Reaktion auf jede Antwort liest den emotionalen Selbstbericht, den das Modell seinem eigenen Zug bereits anhängt, mit einem streng sprachneutralen heuristischen Fallback (Interpunktion, Emojis, Struktur — chinesische Vollbreite eingeschlossen). Das Rendering ist deklarativ — ein Ausdrucksattribut, CSS-Variablen und ein Animationsblatt, in dem Augenlider **reine geometrische Morphs** sind (verankerte vertikale Kompression, Rotation pro Auge, Radienformung): nirgendwo Clipping, jeder Zwischenzustand bleibt eine glatte Kurve. Das Leben zwischen den Ereignissen — Blinzeln, Blicksakkaden, stimmungsgewichtete Gesten, Tagtraum-Miniszenen, seltener Slapstick — lebt in Schedulern mit eigenen Timern, pausiert bei verstecktem Tab oder minimiertem Widget und erstarrt unter `prefers-reduced-motion`. Die wählbaren klassischen Looks teilen dieses eine Skelett: ein generisches Register, in dem ein neuer Blick eine id, ein gescoptes CSS-Blatt und sechs Locale-Einträge kostet — Vollständigkeit ist ein Test, keine Konvention.
 
-Das Gesicht lebt zwischen zwei Antworten, und dieses Leben ist ein Rig, kein Stylesheet (ADR-252, ADR-264). Eine TypeScript-Laufzeit berechnet jeden Kanal in jedem Frame — analytische Federn, additive Schleifen, Bänder aus Keys — und veröffentlicht das Ergebnis als `--rig-*`-Eigenschaften, die das Stylesheet nur liest: Ein Stylesheet deklariert nie eine davon und legt nie eine Transition auf einen Wert, der sich sechzigmal pro Sekunde ändert. Die Braue hat einen Bogen und bleibt in Ruhe leicht präsent; ein einziger Atem trägt die Masse, die Brauen und die Mundbreite auf derselben Periode; der Blick hebt die Brauen und ein Blinzeln senkt sie, im Rig gekoppelt als **absolute Beiträge statt Inkremente**, weil der schnelle Ruhepfad nur die Kanäle neu schreibt, auf denen eine Schleife reitet — ein Inkrement würde dort die ganze Sitzung lang driften, was ein Test festhält, indem er zwanzigtausend kleine Schritte mit einem einzigen vergleicht. Sprache hat Phrasen (eine Hüllkurve durch den Schluss, eine Öffnung, die im Einheitsintervall bleibt) und Brauen, die in unregelmäßigem Muster interpunktieren. Der Mund hat ein Eigenleben — relative Mimiken in zufälliger Kadenz, vom Rig geplant — und zehn kurze Szenen auf einem ruhenden Gesicht, von jedem Ausdruckswechsel abgebrochen, das Gesicht genau dort, wo es war, gegen ein Zwillings-Rig geprüft. Der Zufall stammt aus einem separaten, geseedeten Strom, nie aus `Math.random`, damit die Widget-Tests deterministisch bleiben; das lebendige Halten ist in den Tests ein Pixel-Budget — in Ruhe sichtbar, unter zwei Pixeln, exakt null auf einem konzentrierten Gesicht. Dasselbe Widget begrüßt Besucher auf der öffentlichen Startseite: kein Konto, eine Position pro Oberfläche, der Smiley-Look dort erzwungen, während der Chat den Stil des Nutzers behält — und die Vorschauen des Stilwählers schalten dieses Leben ab, denn eine Vorschau vergleicht Silhouetten.
+Das Gesicht lebt zwischen zwei Antworten, und dieses Leben ist ein Rig, kein Stylesheet (ADR-252, ADR-264). Eine TypeScript-Laufzeit berechnet jeden Kanal in jedem Frame — analytische Federn, additive Schleifen, Bänder aus Keys — und veröffentlicht das Ergebnis als `--rig-*`-Eigenschaften, die das Stylesheet nur liest: Ein Stylesheet deklariert nie eine davon und legt nie eine Transition auf einen Wert, der sich sechzigmal pro Sekunde ändert. Die Braue hat einen Bogen und bleibt in Ruhe leicht präsent; ein einziger Atem trägt die Masse, die Brauen und die Mundbreite auf derselben Periode; der Blick hebt die Brauen und ein Blinzeln senkt sie, im Rig gekoppelt als **absolute Beiträge statt Inkremente**, weil der schnelle Ruhepfad nur die Kanäle neu schreibt, auf denen eine Schleife reitet — ein Inkrement würde dort die ganze Sitzung lang driften, was ein Test festhält, indem er zwanzigtausend kleine Schritte mit einem einzigen vergleicht. Sprache hat Phrasen (eine Hüllkurve durch den Schluss, eine Öffnung, die im Einheitsintervall bleibt) und Brauen, die in unregelmäßigem Muster interpunktieren. Der Mund hat ein Eigenleben — relative Mimiken in zufälliger Kadenz, vom Rig geplant — und zehn kurze Szenen auf einem ruhenden Gesicht, von jedem Ausdruckswechsel abgebrochen, das Gesicht genau dort, wo es war, gegen ein Zwillings-Rig geprüft. Der Zufall stammt aus einem separaten, geseedeten Strom, nie aus `Math.random`, damit die Widget-Tests deterministisch bleiben; das lebendige Halten ist in den Tests ein Pixel-Budget — in Ruhe sichtbar, unter zwei Pixeln, exakt null auf einem konzentrierten Gesicht. Dasselbe Widget begrüßt Besucher auf der öffentlichen Startseite: kein Konto, eine Position pro Oberfläche, BIP männlich dort unabhängig von der im Chat gespeicherten Auswahl dargestellt, während der Chat den Stil des Nutzers behält — und die Vorschauen des Stilwählers schalten dieses Leben ab, denn eine Vorschau vergleicht Silhouetten.
 
 Jeder Kanal des Rigs wird gegen eine Messung dessen abgestimmt, was die Seite tatsächlich rendert (ADR-294). Die Braue sitzt auf dem Auge und wiegt: Sie hat Masse, zieht sich zusammen und **führt** jeden Ausdruck, statt ihm zu folgen. Die Sprache ist keine Schleife, sondern eine erzeugte Phrase — Silben, Pausen, Betonungen —, die nichts wiederholt; die Schläge der Ausdrücke werden bei jedem Zug verzerrt, sodass zwei Blinzler, zwei Lächeln, zwei Blicke nie identisch sind. Die Sketche warten auf echte Ruhezeit auf einer Uhr, die die Seite über Navigationen hinweg behält, denn eine bei jedem Mount zurückgesetzte Uhr ließe die Szene nie ankommen. All das liest sich in den Kanälen, die das Rig veröffentlicht, Bild für Bild gemessen.
 
@@ -1909,12 +1910,46 @@ Eine Auswahl wird nur behauptet, wenn Belege ihre Elemente und Daten bestimmen; 
 
 ---
 
-## 45. Fazit
+## 45. Anwendungsbefehle: eine Absicht, aktuelle Berechtigung
+
+Der Chat kann Präferenzen lesen und Operationen auf LIA-Ressourcen gemäß dem tatsächlich angebotenen Katalog vorbereiten. Die deklarierte Operation bestimmt Eingaben, Ergebnisse, UI-Bereiche, Rechte und Bestätigungspolitik. Angebotene Werte verwenden native Optionen und Bezeichnungen; das Modell erfindet keine neue Formularoption.
+
+### Ein Befehl ist an seinen Inhalt gebunden
+
+Die Zustimmung benennt den genauen Inhalt und dessen Digest. Der Befehl speichert Identität, Phase, Ablauf und Konto-/Ursprungs-/Gerätekontext; sensible Inhalte sind verschlüsselt. Vor dem Schreiben liest der Executor Berechtigung und Ressourcenversion erneut. Ein Versionsvergleich (CAS) lehnt Schreiben auf Grundlage eines veralteten Zustands ab. Eine abgesicherte Übernahme begrenzt doppelte Anwendungsausführung, verspricht aber keine Genau-einmal-Transaktion bei sämtlichen externen Anbietern.
+
+### Private Eingaben bleiben in ihrer Oberfläche
+
+Eine Fortsetzung übergibt OAuth, Schlüssel, Dateien oder Gerätezustimmung an den authentifizierten Browser. Ursprung und Sitzung werden geprüft; private Werte werden nicht zu Modellargumenten. Ereignisse können die Oberfläche auffordern, betroffene Ressourcen erneut zu lesen, ohne neue Werte oder private Admininhalte zu veröffentlichen. Payload-Verschlüsselung ersetzt niemals Zugriffskontrollen.
+
+### Die Antwort folgt Belegen statt Absichten
+
+Eine vorbereitete Anfrage, eine ausstehende Bestätigung und eine gespeicherte Änderung sind unterschiedliche Zustände. LIA nennt beobachtete Ergebnisse und unterscheidet Teilergebnisse, Warten, Konflikte, Ablauf und Fehler. Hat sich die Ressource seit der Vorbereitung geändert, kann der Befehl abgelehnt werden und eine neue Anfrage nötig sein. Eine Delegation an ein Werkzeug beweist allein nicht alle internen Auswirkungen.
+
+### Aktuelle Abfragen und identifizierte Werkzeuge
+
+Unabhängige, ausdrücklich geeignete Abfragen können in checkpointierten Segmenten mit begrenzter Parallelität laufen. Änderungen erhalten diese Erlaubnis nicht allein durch ihre Nähe im Plan. Ein Abbruch vor dem Checkpoint kann erneutes Lesen verursachen; lokale Wiederverwendung verspricht weder eine einzige globale Abfrage noch dauerhaft aktuelle Zustände.
+
+In ReAct kann eine genaue, vollständige und noch aktuelle Abfrage innerhalb derselben Anfrage wiederverwendet werden. Eine Änderung entwertet betroffene Beobachtungen; eine neue Anfrage kann eine neue Abfrage benötigen. Referenzen behalten Typ und Quelle: Eine Stadt ist kein Kontakt. Daten folgen Kontext und Zeitzone der Anfrage; Wetterwerte nennen ihre Einheiten, statt unbekannte Werte willkürlich umzurechnen.
+
+LIA nutzt tatsächlich entdeckte Schemata und Ergebniskontrakte mit Identität, Alter und Fingerabdruck. Ein lesbarer Name oder Alias ersetzt nicht die Identität des angebotenen Servers und Werkzeugs. Persönliche und administrative Server bleiben getrennt. Strukturierte Ergebnisse sind entsprechend ihrem Vertrag nutzbar; beliebige Schemata und externe Daten werden nicht zu interner Wahrheit. Fehlende oder unsichere Verträge bleiben entsprechend gekennzeichnet, mit den geltenden Bestätigungen.
+
+### Visuelle Entscheidungen und klare Grenzen
+
+Native Begleiter nutzen offline vorbereitete Grafiken und ein gemeinsames Rig. Ihr Volumen ist angenähert; Gesichtselemente und Zubehör folgen der Kopfbewegung, ohne die gesamte verdeckte Anatomie zu rekonstruieren. Die Bewegung hat einen einzigen Eigentümer, Ressourcen einen Lebenszyklus; reduzierte oder statische Darstellung bleibt verfügbar. Der Präsentationsfilm nutzt UI-Nachbildungen und Beispieldaten und belegt weder Geräteperformance noch eine TV-Zertifizierung.
+
+JEV-Entscheidungen werden unter Administration › JEV-Integrationen mit einem Hauptschalter und einzelnen Nutzungen konfiguriert. Sie sind optional, standardmäßig aus und benötigen gültige Konfiguration und Preise. Das Modell hilft, Werte zu klassifizieren oder innerhalb eines erklärten Bereichs auszuwählen; Kompatibilität, Rechte und Ausführung bleiben im Code. Unsichere, nicht verfügbare oder deaktivierte Urteile nutzen die deterministischen Schutzregeln. Diagnosen sind optional und begrenzt; parameter_kind ist standardmäßig aus. Ein bezahlter fehlgeschlagener Aufruf und sein Fallback werden beide erfasst. Testergebnisse versprechen nicht denselben Nutzen für alle Anfragen.
+
+Die Studien zu oMLX, llama.cpp und LM Studio sowie die isometrische Welt sind Qualifikations- oder Entwurfsarbeiten, keine neu ausgelieferten Integrationen. Nutze die tatsächlich auf deiner Instanz angebotenen Anbieter. Der Simli-Videoavatar bleibt experimentell, optional und von einem externen Dienst abhängig; er ist von nativen Begleitern getrennt.
+
+---
+
+## 46. Fazit
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 337 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die über 51.000 automatisierten Tests, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 341 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die über 59.000 automatisierten Tests, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (700+ Dokumente), der 337 ADRs und des Changelogs (v1.0 bis v2.6.1). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (700+ Dokumente), der 341 ADRs und des Changelogs (v1.0 bis v3.0.0). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

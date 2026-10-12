@@ -100,9 +100,7 @@ describe('the list', () => {
   });
 
   it('states how many times a day a busy reminder fires', () => {
-    useReminders.mockReturnValue(
-      hook({ reminders: [reminder({ runs_per_day: 3 })], total: 1 })
-    );
+    useReminders.mockReturnValue(hook({ reminders: [reminder({ runs_per_day: 3 })], total: 1 }));
     renderWithProviders(<RemindersSettings lng="fr" />);
 
     expect(screen.getByText('recurrence.summary_per_day')).toBeInTheDocument();

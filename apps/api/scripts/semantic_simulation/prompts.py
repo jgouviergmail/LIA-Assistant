@@ -25,6 +25,7 @@ from src.domains.agents.services.smart_catalogue_service import SmartCatalogueSe
 from src.domains.agents.tools.calendar_tools import create_event_tool, get_events_tool
 from src.domains.agents.tools.emails_tools import get_emails_tool
 from src.domains.agents.tools.google_contacts_tools import get_contacts_tool
+from src.domains.agents.tools.places_tools import get_places_tool
 from src.domains.agents.tools.routes_tools import get_route_tool
 from src.domains.agents.tools.tasks_tools import create_task_tool
 from src.domains.agents.tools.weather_tools import get_weather_forecast_tool
@@ -47,6 +48,7 @@ TOOLS = _native_tools(
         create_event_tool,
         create_task_tool,
         get_events_tool,
+        get_places_tool,
         get_route_tool,
         get_weather_forecast_tool,
     )

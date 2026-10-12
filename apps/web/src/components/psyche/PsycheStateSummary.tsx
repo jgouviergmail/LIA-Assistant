@@ -54,7 +54,9 @@ export function PsycheStateSummary({ lng, refreshKey = 0 }: PsycheStateSummaryPr
         else store.updateFromFullState(fresh);
       })
       .catch(() => {});
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [refreshKey, isCurrent]);
 
   if (!enabled) {
@@ -315,9 +317,7 @@ function PadBar({
         </span>
       </div>
       <div className="flex items-center gap-1.5">
-        <span className="w-14 text-px-9 text-right text-muted-foreground truncate">
-          {negLabel}
-        </span>
+        <span className="w-14 text-px-9 text-right text-muted-foreground truncate">{negLabel}</span>
         <div className="flex-1 h-2 rounded-full bg-muted relative overflow-hidden">
           {/* Center marker */}
           <div className="absolute left-1/2 top-0 bottom-0 w-px bg-muted-foreground/20" />

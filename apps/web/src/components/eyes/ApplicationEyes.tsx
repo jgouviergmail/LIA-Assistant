@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useEyesChatStore, RESTING_CHAT } from '@/stores/eyesChatStore';
 import { CompanionPresence, isChatRoute } from '@/components/companion/CompanionPresence';
+import { useAvatarStyleRollout } from '@/hooks/useAvatarStyleRollout';
 
 const EyesWidget = dynamic(() => import('./EyesWidget').then(module => module.EyesWidget), {
   ssr: false,
@@ -12,6 +13,7 @@ const EyesWidget = dynamic(() => import('./EyesWidget').then(module => module.Ey
 
 /** One mount under the authenticated layout, preserved across all its pages. */
 export function ApplicationEyes() {
+  useAvatarStyleRollout();
   const onChat = isChatRoute(usePathname());
   const state = useEyesChatStore(store => store.state);
   const [backgroundWorking, setBackgroundWorking] = useState(false);

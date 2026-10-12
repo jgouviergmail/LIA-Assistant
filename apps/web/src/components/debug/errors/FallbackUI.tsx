@@ -90,9 +90,7 @@ export function FallbackUI({ error, onRetry }: FallbackUIProps) {
           <div className="p-3 bg-muted/30 rounded border border-warning/30">
             {/* Error name */}
             <div className="mb-2">
-              <span className="text-px-10 font-semibold text-warning uppercase">
-                Error Type
-              </span>
+              <span className="text-px-10 font-semibold text-warning uppercase">Error Type</span>
               <div className="text-xs font-mono text-foreground">{error.name || 'Error'}</div>
             </div>
 
@@ -107,9 +105,7 @@ export function FallbackUI({ error, onRetry }: FallbackUIProps) {
             {/* Stack trace */}
             {error.stack && (
               <div>
-                <span className="text-px-10 font-semibold text-warning uppercase">
-                  Stack Trace
-                </span>
+                <span className="text-px-10 font-semibold text-warning uppercase">Stack Trace</span>
                 <pre className="mt-1 p-2 bg-muted/30 rounded text-px-10 text-muted-foreground overflow-auto max-h-40 leading-tight">
                   {error.stack}
                 </pre>

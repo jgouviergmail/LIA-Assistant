@@ -76,20 +76,30 @@ export function useAdminMCPServers() {
   const toggleServer = useCallback(
     (serverKey: string) => {
       const previous = queues.current.get(serverKey) ?? Promise.resolve(undefined);
-      const pending = previous.catch(() => undefined).then(async () => {
-        if (!isCurrent()) return undefined;
-        const result = await toggleMutate(`${ENDPOINT}/${encodeURIComponent(serverKey)}/toggle`, undefined);
-        if (!isCurrent()) return undefined;
-        if (result) {
-          try { await refetch(); }
-          catch { if (isCurrent()) toast.error(t('settings.application_tools.sync_failed')); }
-        }
-        return isCurrent() ? result : undefined;
-      });
+      const pending = previous
+        .catch(() => undefined)
+        .then(async () => {
+          if (!isCurrent()) return undefined;
+          const result = await toggleMutate(
+            `${ENDPOINT}/${encodeURIComponent(serverKey)}/toggle`,
+            undefined
+          );
+          if (!isCurrent()) return undefined;
+          if (result) {
+            try {
+              await refetch();
+            } catch {
+              if (isCurrent()) toast.error(t('settings.application_tools.sync_failed'));
+            }
+          }
+          return isCurrent() ? result : undefined;
+        });
       queues.current.set(serverKey, pending);
-      void pending.finally(() => {
-        if (queues.current.get(serverKey) === pending) queues.current.delete(serverKey);
-      }).catch(() => {});
+      void pending
+        .finally(() => {
+          if (queues.current.get(serverKey) === pending) queues.current.delete(serverKey);
+        })
+        .catch(() => {});
       return pending;
     },
     [toggleMutate, isCurrent, refetch, t]

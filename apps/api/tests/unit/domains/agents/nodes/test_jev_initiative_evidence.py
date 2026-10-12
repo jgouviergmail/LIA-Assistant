@@ -21,7 +21,7 @@ from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.llm.pricing_service import ModelPrice
 from src.domains.llm_config.jev_settings import DecisionConfiguration, JevSnapshot
 from src.infrastructure.llm.decision_types import DecisionAttempt
-from src.infrastructure.llm.typesafe_client import ChoiceAnswer
+from src.infrastructure.llm.typesafe_client import NoulAnswer
 
 pytestmark = pytest.mark.unit
 CONFIGURATION = DecisionConfiguration(
@@ -136,9 +136,7 @@ async def test_hidden_prerequisite_cannot_accept_a_native_absence_claim(tail: st
     summary = node._format_execution_summary(
         {}, registry={"a": {"payload": {"body": "x" * 150 + tail}}}, evidence=evidence
     )
-    answer = ChoiceAnswer(
-        type="choice", choice="no_utility", confidence=1, probabilities={"no_utility": 1}
-    )
+    answer = NoulAnswer(type="noul", noul=0.0)
     with (
         patch.object(
             gate,
@@ -151,7 +149,7 @@ async def test_hidden_prerequisite_cannot_accept_a_native_absence_claim(tail: st
         patch.object(
             gate,
             "choose_with_jev",
-            AsyncMock(return_value=DecisionAttempt(outcome="success", answer=answer)),
+            AsyncMock(return_value=DecisionAttempt(outcome="success", nouls={"selection": answer})),
         ) as native,
     ):
         assert (
@@ -282,14 +280,12 @@ async def test_complete_named_state_still_uses_native_judgment() -> None:
         "context": {"execution_summary": "complete"},
         "evidence": {"complete": True, "omissions": {}},
     }
-    answer = ChoiceAnswer(
-        type="choice", choice="no_utility", confidence=1, probabilities={"no_utility": 1}
-    )
+    answer = NoulAnswer(type="noul", noul=0.0)
     with (
         patch.object(
             gate,
             "choose_with_jev",
-            AsyncMock(return_value=DecisionAttempt(outcome="success", answer=answer)),
+            AsyncMock(return_value=DecisionAttempt(outcome="success", nouls={"selection": answer})),
         ) as native,
         patch.object(gate, "load_jev_snapshot", AsyncMock()) as local_snapshot,
         patch.object(gate, "record_action", AsyncMock()),
@@ -364,9 +360,7 @@ async def test_node_consumes_full_native_evidence_but_preserves_source_truncatio
             "a": {"payload": {"body": body, "truncated": truncated}, "meta": {"turn_id": 4}}
         },
     }
-    answer = ChoiceAnswer(
-        type="choice", choice="no_utility", confidence=1, probabilities={"no_utility": 1}
-    )
+    answer = NoulAnswer(type="noul", noul=0.0)
     with ExitStack() as stack:
         stack.enter_context(patch.object(node.settings, "initiative_enabled", True))
         stack.enter_context(
@@ -394,7 +388,9 @@ async def test_node_consumes_full_native_evidence_but_preserves_source_truncatio
             patch.object(
                 gate,
                 "choose_with_jev",
-                AsyncMock(return_value=DecisionAttempt(outcome="success", answer=answer)),
+                AsyncMock(
+                    return_value=DecisionAttempt(outcome="success", nouls={"selection": answer})
+                ),
             )
         )
         full = stack.enter_context(

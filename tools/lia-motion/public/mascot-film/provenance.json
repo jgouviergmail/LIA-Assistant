@@ -1,0 +1,22 @@
+{
+  "character": "bip",
+  "scope": "Original artwork used by the native product, copied without editing for film resolution",
+  "nativeManifest": "apps/web/public/avatars/bip/v1/manifest.json",
+  "nativeRecipe": "scripts/assets/art-packaging.mjs:encodeArtwork — uniform scale and transparent padding; no crop or painting",
+  "assets": [
+    {
+      "variant": "male",
+      "path": "mascot-film/bip-male-original.png",
+      "width": 1254,
+      "height": 1254,
+      "sha256": "6a15490175640bc48cc7a9a799f694fec6ff59a5ca3bad3d2ff6cece224f0739"
+    },
+    {
+      "variant": "female",
+      "path": "mascot-film/bip-female-original.png",
+      "width": 1254,
+      "height": 1254,
+      "sha256": "b223200e91a1707c7d941bb041a9b2c1705f5a4165913a8ebf1ca005e6b81655"
+    }
+  ]
+}

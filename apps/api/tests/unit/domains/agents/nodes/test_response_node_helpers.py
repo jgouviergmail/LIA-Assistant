@@ -22,6 +22,11 @@ from sqlalchemy.exc import OperationalError
 
 from src.core.constants import RESPONSE_DISPLAY_MODE_CARDS
 from src.core.context import current_tracker
+from src.domains.agents.analysis.resolved_references import (
+    ReferenceSource,
+    ReferenceValueKind,
+    ResolvedReferenceEntry,
+)
 from src.domains.agents.constants import DATA_FILTERING_GENERATION_ERROR_MARKER, TURN_TYPE_ACTION
 from src.domains.agents.models import MessagesState, create_initial_state
 from src.domains.agents.nodes.response_node import (
@@ -110,23 +115,27 @@ async def test_await_knowledge_enrichment_no_task_preserves_input():
 # --- _extract_qi_response_hints ----------------------------------------------
 
 
-def test_extract_qi_response_hints_reads_mappings_and_qi_fields():
+def test_extract_qi_response_hints_reads_typed_references_and_qi_fields():
+    entry = ResolvedReferenceEntry(
+        "ma femme", "jean dupond", ReferenceValueKind.PERSON_NAME, ReferenceSource.MEMORY
+    )
     state = {
-        "resolved_references": {"mappings": {"ma femme": "jean dupond"}},
+        "resolved_references": {"stale": "Montbéliard"},
         "query_intelligence": {
+            "resolved_references": [entry.to_dict()],
             "english_enriched_query": "get contact details for the dupond family",
             "anticipated_needs": ["may want reminder"],
         },
     }
     resolved, enriched, anticipated = _extract_qi_response_hints(state, "r")
-    assert resolved == {"ma femme": "jean dupond"}
+    assert resolved == (entry,)
     assert enriched == "get contact details for the dupond family"
     assert anticipated == ["may want reminder"]
 
 
-def test_extract_qi_response_hints_all_none_when_absent():
+def test_extract_qi_response_hints_all_empty_when_absent():
     resolved, enriched, anticipated = _extract_qi_response_hints({}, "r")
-    assert resolved is None
+    assert resolved == ()
     assert enriched is None
     assert anticipated is None
 

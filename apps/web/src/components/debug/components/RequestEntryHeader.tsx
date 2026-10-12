@@ -10,7 +10,13 @@ import React from 'react';
 import { ChevronDown, Clock, MessageSquare, TriangleAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DebugChip, NodeChip } from './shared';
-import { formatClockTime, formatCost, formatDuration, formatTokenCount, truncateText } from '../utils/formatters';
+import {
+  formatClockTime,
+  formatCost,
+  formatDuration,
+  formatTokenCount,
+  truncateText,
+} from '../utils/formatters';
 import { QUERY_TRUNCATE_LENGTH } from '../utils/constants';
 import type { DebugMetrics } from '@/types/chat';
 import type { DebugMetricsEntry } from '@/types/chat-state';
@@ -75,8 +81,7 @@ export const RequestEntryHeader = React.memo(function RequestEntryHeader({
   anomalyCount,
 }: RequestEntryHeaderProps) {
   const metrics = entry.metrics;
-  const timestamp =
-    entry.timestamp instanceof Date ? entry.timestamp : new Date(entry.timestamp);
+  const timestamp = entry.timestamp instanceof Date ? entry.timestamp : new Date(entry.timestamp);
   const route = metrics.routing_decision?.route_to;
 
   return (

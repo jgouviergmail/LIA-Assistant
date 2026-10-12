@@ -64,8 +64,11 @@ export function useChannelBindings() {
   const release = useCallback(() => {}, []);
   useApplicationResourceSync(ownerId, 'channels', refetch, release);
   const refreshSaved = useCallback(async () => {
-    try { await refetch(); }
-    catch { if (isCurrent()) toast.error(t('settings.application_tools.sync_failed')); }
+    try {
+      await refetch();
+    } catch {
+      if (isCurrent()) toast.error(t('settings.application_tools.sync_failed'));
+    }
   }, [refetch, isCurrent, t]);
 
   const bindings = listData?.bindings ?? [];

@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { readPublicUiJson } from '@/lib/api-client';
 
 import type { BeatTrack } from '@/lib/landing/beat-sync';
 import type { LandingVideoDescriptor } from '@/lib/landing/media';
@@ -33,23 +34,24 @@ export function useLandingMedia(): LandingMediaState {
   const [state, setState] = useState<LandingMediaState>({ status: 'loading' });
 
   useEffect(() => {
-    let cancelled = false;
-    fetch(LANDING_MEDIA_ENDPOINT, { headers: { accept: 'application/json' } })
-      .then(async response => (response.ok ? response.json() : { video: null }))
-      .then((body: LandingMediaBody) => {
-        if (cancelled) return;
-        setState(
-          body.video
-            ? { status: 'ready', playlist: [body.video, ...(body.next ?? [])] }
-            : { status: 'none' }
-        );
-      })
-      .catch(() => {
-        if (!cancelled) setState({ status: 'none' });
-      });
-    return () => {
-      cancelled = true;
-    };
+    const controller = new AbortController();
+    // StrictMode's retired effect never starts a duplicate metadata request.
+    queueMicrotask(() => {
+      if (controller.signal.aborted) return;
+      readPublicUiJson<LandingMediaBody>(LANDING_MEDIA_ENDPOINT, { signal: controller.signal })
+        .then(body => {
+          if (controller.signal.aborted) return;
+          setState(
+            body.video
+              ? { status: 'ready', playlist: [body.video, ...(body.next ?? [])] }
+              : { status: 'none' }
+          );
+        })
+        .catch(() => {
+          if (!controller.signal.aborted) setState({ status: 'none' });
+        });
+    });
+    return () => controller.abort();
   }, []);
 
   return state;
@@ -81,16 +83,16 @@ export function usePrefersReducedMotion(): boolean {
  * visitor who never unmutes loads neither. `null` when there is no map or it
  * does not validate: the video plays, the titles stay still.
  */
-export async function loadBeatTrack(rank: number): Promise<BeatTrack | null> {
-  const [response, engine, schema] = await Promise.all([
-    fetch(`${LANDING_MEDIA_BEATS_ENDPOINT}?video=${rank}`, {
-      headers: { accept: 'application/json' },
-    }),
+export async function loadBeatTrack(rank: number, signal?: AbortSignal): Promise<BeatTrack | null> {
+  const [body, engine, schema] = await Promise.all([
+    readPublicUiJson<unknown>(`${LANDING_MEDIA_BEATS_ENDPOINT}?video=${rank}`, { signal }).catch(
+      () => null
+    ),
     import('@/lib/landing/beat-sync'),
     import('@/lib/landing/beats-schema'),
   ]);
-  if (!response.ok) return null;
-  return engine.createBeatTrack(schema.parseBeatMap(await response.json()));
+  if (body === null) return null;
+  return engine.createBeatTrack(schema.parseBeatMap(body));
 }
 
 /** `Save-Data` from the browser, when it says so. */

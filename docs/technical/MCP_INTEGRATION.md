@@ -21,7 +21,8 @@ Startup: MCPSettings → MCPClientManager.initialize() → session.list_tools()
          → domain_taxonomy "mcp" → _build_domain_index()
 
 Runtime (standard): QueryAnalyzerService detects per-server domain → SmartCatalogueService includes MCP tools
-         → Planner selects MCP tool → parallel_executor → tool_registry.get_tool()
+         → Planner selects MCP tool → offered request manifest + exact callable owner
+         → parallel_executor → MCPToolAdapter / UserMCPToolAdapter
          → MCPToolAdapter._arun() → session.call_tool()
 
 Runtime (iterative_mode, admin): QueryAnalyzerService detects domain → Planner selects mcp_{server}_task
@@ -63,6 +64,32 @@ apps/api/src/infrastructure/mcp/
 | SSRF constants copied (not imported from `url_validator.py`) | Avoids infrastructure → domain dependency violation |
 | In-memory rate limiting with `asyncio.Lock` | Prevents TOCTOU race conditions under concurrent requests |
 | `repr=False` on `env`/`headers` fields | Prevents secret leakage in logs |
+
+### Offered contracts and callable identity
+
+The catalogue offered to the current request is authoritative for manifest and
+callable resolution, including an explicitly empty snapshot. The shared
+[manifest resolver](../../apps/api/src/domains/agents/registry/manifest_resolution.py)
+and [callable resolver](../../apps/api/src/domains/agents/tools/tool_resolution.py)
+use that snapshot before choosing the admin registry or the user's ContextVar.
+An absent or ambiguous manifest cannot be resurrected from another registry.
+
+[Request identity](../../apps/api/src/domains/agents/registry/request_tool_identity.py)
+keeps the model-facing alias, MCP origin (`admin` or `user`), server key and callable
+owner distinct. Removing a supported hallucinated suffix may recover an offered
+canonical alias, but cannot change its owner. An iterative user's individual tool
+is available only under the offered task's matching origin and server identity.
+The selected callable must corroborate the manifest's identity through its adapter
+or server-owned task metadata. Missing or mismatched identity makes it unavailable.
+Delegated task identity is fixed before effect admission; an alias alone does not
+authorize another server or account.
+
+The manifest carries the discovered schemas and their provenance; a schema or MCP
+safety annotation does not establish that the returned data proves a requested
+effect. Arbitrary or opaque outputs can remain unknown. Discovery age and schema
+fingerprints describe the observed contract, not a guarantee that the remote server
+will keep it unchanged. See
+[ADR-338](../architecture/ADR-338-Live-MCP-Contracts-And-Exact-Callable-Identity.md).
 
 ---
 
@@ -603,9 +630,9 @@ At server registration (test_connection), embeddings from the memory embedder (`
 1. **Router Node** (`router_node_v3.py`): Includes user MCP tools in scoring when any `mcp_*` domain detected (`is_mcp_domain()`). Passes `extra_embeddings` from ContextVar.
 2. **Catalogue — Normal Filtering** (`normal_filtering.py`): Injects user MCP manifests from ContextVar. Per-server domains are detected by the LLM (no force-include).
 3. **Catalogue — Panic Filtering** (`panic_filtering.py`): Injects user MCP manifests. Force-includes ALL per-server MCP domains as a safety net.
-4. **Executor — Manifest lookup** (`parallel_executor.py:_get_tool_manifest_for_step`): ContextVar fallback when manifest not in global registry — via the shared `tool_resolution.py:resolve_tool_manifest_named`.
-5. **Executor — Type coercion** (`parallel_executor.py:_execute_tool_step`): ContextVar fallback for tool instance resolution — via `tool_resolution.py:resolve_tool_instance_named`.
-6. **Executor — Tool execution** (`parallel_executor.py:_execute_tool`): ContextVar fallback for tool invocation — via `resolve_tool_instance_named`.
+4. **Executor — Manifest lookup** (`parallel_executor.py:_get_tool_manifest_for_step`): the shared `resolve_tool_manifest_named` resolves only the bound request's offered contract, including an empty snapshot.
+5. **Executor — Type coercion** (`parallel_executor.py:_execute_tool_step`): `tool_resolution.py:resolve_tool_instance_named` selects the callable store from that manifest and verifies the exact MCP owner.
+6. **Executor — Tool execution** (`parallel_executor.py:_execute_tool`): the same `resolve_tool_instance_named` refuses absent, ambiguous or mismatched contracts instead of falling back to another owner.
 7. **ReAct — Tool selection & rebuild** (`react_tool_selector.py`, `react_nodes.py:_rebuild_wrapped_tools`): binds/executes user MCP tools through the **same** shared resolver (`tool_resolution.py`) — without it, the ReAct loop (which consulted only the global registry) silently dropped user MCP tools. HITL is read from the in-hand manifest. Iterative user MCP servers are **expanded to their individual tools** for the ReAct loop (which is itself iterative) instead of the opaque `_task` tool — except MCP App servers (which keep the task tool) — gated by `REACT_MCP_EXPAND_ITERATIVE_ENABLED` (default `true`). See ADR-070 (amendment 2026-06-02).
 8. **Adapters — Argument sanitization** (`tool_adapter.py`, `user_tool_adapter.py`): both adapters drop `None`-valued optional arguments (`utils.py:drop_none_values`) before the server call, so strictly-typed (e.g. Go) servers don't reject unset optionals as `null`.
 
@@ -917,9 +944,17 @@ The `handle_callback()` token exchange supports both `application/json` and `app
 
 Token refresh uses a Redis distributed lock (`mcp_oauth_refresh_lock:{server_id}`, TTL `MCP_OAUTH_REFRESH_LOCK_TTL_SECONDS` = 15s) to prevent concurrent requests from simultaneously refreshing the same token. If the lock is already held, the request re-reads fresh credentials instead of refreshing. This follows the same pattern as the Google `OAuthLock` in `infrastructure/locks/`.
 
-### Tool Name Fuzzy Resolution
+### Canonical aliases and diagnostic compatibility
 
-`UserMCPToolsContext.resolve_tool_name()` handles LLM-hallucinated suffixes (`_tool`, `_action`) that the planner may append to MCP tool names. For example, `mcp_user_xxx_hub_search_tool` resolves to `mcp_user_xxx_hub_search`. This fuzzy matching is used by `parallel_executor` and `approval_gate_node` for tool/manifest resolution via `resolve_tool_manifest()`.
+In a bound request, `resolve_tool_manifest()` and `resolve_tool_instance_named()`
+use the offered contract and exact owner described above. A supported hallucinated
+suffix such as `_tool` or `_action` can resolve to its canonical alias only if that
+offered identity exists unambiguously; it does not widen the catalogue.
+
+Outside a bound request, diagnostic callers retain the compatibility lookup order:
+global exact name, supported suffix removal, then the user ContextVar's exact/fuzzy
+resolution (`UserMCPToolsContext.resolve_tool_name()`). This compatibility path is
+not the execution or approval authority for a request with a bound snapshot.
 
 ---
 

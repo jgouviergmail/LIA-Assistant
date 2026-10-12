@@ -62,7 +62,11 @@ function InjectionSubSection({
 
   return (
     <>
-      <SubSectionHeader label={label} borderTop={showBorderTop} className="uppercase tracking-wider" />
+      <SubSectionHeader
+        label={label}
+        borderTop={showBorderTop}
+        className="uppercase tracking-wider"
+      />
 
       {/* Summary metrics */}
       <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
@@ -197,8 +201,8 @@ export const JournalInjectionSection = React.memo(function JournalInjectionSecti
       {/* No injection results message */}
       {!hasAnyInjection && (
         <div className="mt-1 rounded border border-border/50 bg-muted/20 p-2 text-xs text-muted-foreground">
-          No journal entries matched. The assistant hasn&apos;t written any entries yet, or
-          journals are disabled.
+          No journal entries matched. The assistant hasn&apos;t written any entries yet, or journals
+          are disabled.
         </div>
       )}
     </DebugSection>

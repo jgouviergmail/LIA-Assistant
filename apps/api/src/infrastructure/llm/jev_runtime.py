@@ -1,7 +1,7 @@
 """The only application door to the native TypeSafe transport."""
 
 import asyncio
-from collections.abc import AsyncIterator, Coroutine
+from collections.abc import AsyncIterator, Coroutine, Mapping
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -27,10 +27,13 @@ from src.infrastructure.llm.inference_params import capture_inference_params
 from src.infrastructure.llm.jev_debug_models import JevAction
 from src.infrastructure.llm.jev_debug_store import begin_trace, finish_trace
 from src.infrastructure.llm.typesafe_client import (
+    ChoiceAnswer,
     ChoiceBatchResult,
     ChoiceQuestion,
+    DecisionQuestion,
     DecisionUsage,
     InvalidResponseReason,
+    NoulAnswer,
     TypeSafeCancelledError,
     TypeSafeClient,
     TypeSafeError,
@@ -86,9 +89,12 @@ async def choose_with_jev(
     user_id: UUID,
     run_id: str,
     state: JsonValue,
-    question: ChoiceQuestion,
+    question: DecisionQuestion,
 ) -> DecisionAttempt:
-    """Resolve one operation snapshot, gate spend, call once and account before returning."""
+    """Resolve one operation snapshot, gate spend, call once and account before returning.
+
+    A Choice answer lands in ``answer``; a Noul answer in ``nouls["selection"]``.
+    """
     return await choose_many_with_jev(
         usage=usage,
         user_id=user_id,
@@ -104,7 +110,7 @@ async def choose_many_with_jev(
     user_id: UUID,
     run_id: str,
     state: JsonValue,
-    questions: dict[str, ChoiceQuestion],
+    questions: Mapping[str, DecisionQuestion],
     snapshot: JevSnapshot | None = None,
 ) -> DecisionAttempt:
     """One quota gate and charge per batch, retaining an operation's routing.
@@ -136,14 +142,15 @@ async def _call_native(
     client: TypeSafeClient,
     config: DecisionConfiguration,
     state: JsonValue,
-    questions: dict[str, ChoiceQuestion],
+    questions: Mapping[str, DecisionQuestion],
 ) -> ChoiceBatchResult:
     """Preserve the single-selection interface while sharing batch validation."""
-    if set(questions) == {"selection"}:
+    single = questions.get("selection") if set(questions) == {"selection"} else None
+    if isinstance(single, ChoiceQuestion):
         result = await client.choose(
             model=config.model,
             state=state,
-            question=questions["selection"],
+            question=single,
             timeout_seconds=config.timeout_seconds,
         )
         return ChoiceBatchResult(result.model, {"selection": result.answer}, result.usage)
@@ -223,7 +230,7 @@ async def _execute_decision(
     user_id: UUID,
     run_id: str,
     state: JsonValue,
-    questions: dict[str, ChoiceQuestion],
+    questions: Mapping[str, DecisionQuestion],
 ) -> DecisionAttempt:
     """Execute an authorized snapshot once, closing its accounting and diagnostic."""
     question = questions["selection"] if set(questions) == {"selection"} else questions
@@ -237,9 +244,12 @@ async def _execute_decision(
     )
     started_at, started = time(), perf_counter()
     rate = get_cached_usd_eur_rate()
-    answers, counters, model, failure = {}, None, config.model, None
+    answers: dict[str, ChoiceAnswer] = {}
+    nouls: dict[str, NoulAnswer] = {}
+    counters, model, failure = None, config.model, None
     charge = None
-    response_answer, status_code = None, None
+    response_answer: ChoiceAnswer | NoulAnswer | dict[str, ChoiceAnswer | NoulAnswer] | None = None
+    status_code = None
     invalid_response_reason = None
     reported_model: str | None = None
     action: JevAction = "pending"
@@ -254,15 +264,18 @@ async def _execute_decision(
                         state,
                         questions,
                     )
-                    answers, counters, model = result.answers, result.usage, result.model
+                    answers, nouls = result.answers, result.nouls
+                    counters, model = result.usage, result.model
+                    merged: dict[str, ChoiceAnswer | NoulAnswer] = {
+                        **result.answers,
+                        **result.nouls,
+                    }
                     response_answer = (
-                        result.answers["selection"]
-                        if isinstance(question, ChoiceQuestion)
-                        else result.answers
+                        merged.get("selection") if not isinstance(question, Mapping) else merged
                     )
                     reported_model = result.model
                     if model != config.model:
-                        answers, failure = {}, "unexpected_model"
+                        answers, nouls, failure = {}, {}, "unexpected_model"
                 except (TypeSafeError, TypeSafeCancelledError) as exc:
                     counters, model, failure = exc.usage, exc.model or config.model, exc.code
                     status_code = exc.status_code
@@ -326,6 +339,7 @@ async def _execute_decision(
     return DecisionAttempt(
         answer=answers.get("selection"),
         answers=answers,
+        nouls=nouls,
         charge=charge,
         outcome=failure or "success",
         diagnostic=diagnostic,

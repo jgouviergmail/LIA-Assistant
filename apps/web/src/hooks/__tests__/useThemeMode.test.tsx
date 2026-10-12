@@ -46,13 +46,26 @@ beforeEach(() => {
 describe('useThemeMode — restoring the stored preference', () => {
   it('saves the queued newer choice even when the previous write fails', async () => {
     let reject: ((error: Error) => void) | undefined;
-    mutate.mockImplementationOnce(() => new Promise<void>((_resolve, refuse) => { reject = refuse; }))
+    mutate
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((_resolve, refuse) => {
+            reject = refuse;
+          })
+      )
       .mockResolvedValue(undefined);
     const { result } = renderHook(() => useThemeMode());
     let first: Promise<void> | undefined;
-    act(() => { first = result.current.apply({ mode: 'dark', oled: false }); });
-    await act(async () => { await result.current.apply({ mode: 'light', oled: false }); });
-    await act(async () => { reject?.(new Error('offline')); await first; });
+    act(() => {
+      first = result.current.apply({ mode: 'dark', oled: false });
+    });
+    await act(async () => {
+      await result.current.apply({ mode: 'light', oled: false });
+    });
+    await act(async () => {
+      reject?.(new Error('offline'));
+      await first;
+    });
     expect(mutate).toHaveBeenLastCalledWith('/users/u1', { theme: 'light' });
   });
   it('applies the new account system mode instead of carrying another account local choice', () => {
@@ -120,17 +133,27 @@ describe('useThemeMode — restoring the stored preference', () => {
 describe('useThemeMode — persistence under rapid changes', () => {
   it('keeps each queued preference write addressed to the account that chose it', async () => {
     let release: (() => void) | undefined;
-    const held = new Promise<void>(resolve => { release = resolve; });
+    const held = new Promise<void>(resolve => {
+      release = resolve;
+    });
     mutate.mockImplementationOnce(() => held);
     const { result, rerender } = renderHook(() => useThemeMode());
     let firstSave: Promise<void> | undefined;
-    act(() => { firstSave = result.current.apply({ mode: 'dark', oled: false }); });
+    act(() => {
+      firstSave = result.current.apply({ mode: 'dark', oled: false });
+    });
     useAuth.mockReturnValue({ user: { id: 'u2' }, refreshUser: vi.fn() });
     rerender();
-    await act(async () => { await result.current.apply({ mode: 'light', oled: false }); });
-    await act(async () => { release?.(); await firstSave; });
+    await act(async () => {
+      await result.current.apply({ mode: 'light', oled: false });
+    });
+    await act(async () => {
+      release?.();
+      await firstSave;
+    });
     expect(mutate.mock.calls).toEqual([
-      ['/users/u1', { theme: 'dark' }], ['/users/u2', { theme: 'light' }],
+      ['/users/u1', { theme: 'dark' }],
+      ['/users/u2', { theme: 'light' }],
     ]);
   });
 

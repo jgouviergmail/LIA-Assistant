@@ -83,15 +83,17 @@ describe('AdminPublicDemoLinkSection', () => {
 
     // The switch would flip a setting that shows nothing: the card states the
     // deployment fact instead of letting the operator believe it worked.
-    expect(
-      screen.getByText('settings.admin.publicDemoLink.notDeployed')
-    ).toBeInTheDocument();
+    expect(screen.getByText('settings.admin.publicDemoLink.notDeployed')).toBeInTheDocument();
     expect(screen.getByRole('switch')).toBeDisabled();
   });
 
   it('flips the switch through the admin endpoint', async () => {
     mockView({ enabled: false, url: null, url_configured: true });
-    mutate.mockResolvedValue({ enabled: true, url: 'https://demo.example.org', url_configured: true });
+    mutate.mockResolvedValue({
+      enabled: true,
+      url: 'https://demo.example.org',
+      url_configured: true,
+    });
     render(<AdminPublicDemoLinkSection lng="fr" />);
 
     await userEvent.click(screen.getByRole('switch'));

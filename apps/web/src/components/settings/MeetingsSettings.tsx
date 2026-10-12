@@ -126,7 +126,10 @@ function PreferencesForm({
   const { user } = useAuth();
   // The draft is DERIVED during render: null means "what the server holds";
   // an edit materialises it, a save clears it (no setState inside an effect).
-  const [draft, setDraft] = useApplicationAccountState<MeetingPreferencesUpdate | null>(user?.id, null);
+  const [draft, setDraft] = useApplicationAccountState<MeetingPreferencesUpdate | null>(
+    user?.id,
+    null
+  );
 
   if (preferences === null) {
     return <Skeleton className="h-40 w-full" />;

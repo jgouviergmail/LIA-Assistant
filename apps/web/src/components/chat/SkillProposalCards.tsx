@@ -156,9 +156,14 @@ function isPast(expiresAt: string): boolean {
 type FootState = 'installed' | 'gone' | 'failed' | 'pending' | 'unknown';
 
 /** The foot's state — pure, so the card's own render stays branch-light. */
-function footStateOf(read: { data?: SkillProposal; error: unknown }, expired: boolean, uncertain: boolean): FootState {
+function footStateOf(
+  read: { data?: SkillProposal; error: unknown },
+  expired: boolean,
+  uncertain: boolean
+): FootState {
   if (read.data?.status === 'installed') return 'installed';
-  if (uncertain || read.data?.status === 'installing' || read.data?.status === 'unknown') return 'unknown';
+  if (uncertain || read.data?.status === 'installing' || read.data?.status === 'unknown')
+    return 'unknown';
   if (read.data) return 'pending';
   if (expired || isProposalGone(read.error)) return 'gone';
   return read.error ? 'failed' : 'pending';
@@ -276,7 +281,10 @@ function ProposalCard({ card }: { card: SkillProposalCard }) {
     } catch (error) {
       const refusalKey = proposalRefusalKey(error);
       setRefusal(refusalKey ?? `${PREFIX}.install_failed`);
-      if (refusalKey === `${PREFIX}.errors.skill_proposal_completion_unknown` || refusalKey === null)
+      if (
+        refusalKey === `${PREFIX}.errors.skill_proposal_completion_unknown` ||
+        refusalKey === null
+      )
         setUncertain(true);
     } finally {
       setBusy(false);
@@ -307,11 +315,27 @@ function ProposalCard({ card }: { card: SkillProposalCard }) {
       <FileList card={card} read={read.data} t={t} />
 
       {foot === 'installed' && <InstalledFoot focusRef={doneRef} t={t} lng={i18n.language} />}
-      {foot === 'installed' && read.data?.cache_refresh_pending && <p role="status" className="text-sm text-muted-foreground">{t(`${PREFIX}.cache_pending`)}</p>}
-      {foot === 'unknown' && <div className="space-y-2">
-        <p ref={doneRef} tabIndex={-1} role="status" className="text-sm text-muted-foreground">{t(`${PREFIX}.unknown`)}</p>
-        <Button variant="outline" size="sm" onClick={() => { void read.refetch(); }}>{t(`${PREFIX}.check_result`)}</Button>
-      </div>}
+      {foot === 'installed' && read.data?.cache_refresh_pending && (
+        <p role="status" className="text-sm text-muted-foreground">
+          {t(`${PREFIX}.cache_pending`)}
+        </p>
+      )}
+      {foot === 'unknown' && (
+        <div className="space-y-2">
+          <p ref={doneRef} tabIndex={-1} role="status" className="text-sm text-muted-foreground">
+            {t(`${PREFIX}.unknown`)}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              void read.refetch();
+            }}
+          >
+            {t(`${PREFIX}.check_result`)}
+          </Button>
+        </div>
+      )}
       {foot === 'gone' && <p className="text-sm text-muted-foreground">{t(`${PREFIX}.closed`)}</p>}
       {foot === 'failed' && (
         <div className="flex flex-wrap items-center gap-2">

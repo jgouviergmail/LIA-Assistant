@@ -25,9 +25,7 @@ function backendTable(): Record<string, string[]> {
     join(process.cwd(), '..', 'api', 'src', 'core', 'recurrence', 'spec.py'),
     'utf8'
   );
-  const block = source.match(
-    /SELECTORS_READ_BY: dict\[str, frozenset\[str\]\] = \{([\s\S]*?)\n\}/
-  );
+  const block = source.match(/SELECTORS_READ_BY: dict\[str, frozenset\[str\]\] = \{([\s\S]*?)\n\}/);
   expect(block, 'SELECTORS_READ_BY not found in spec.py').not.toBeNull();
   const table: Record<string, string[]> = {};
   for (const line of block![1].split('\n')) {

@@ -139,6 +139,6 @@ class TestTheSetupNodeMountsIt:
         from src.domains.agents.nodes import react_nodes
 
         source = inspect.getsource(react_nodes.react_setup_node)
-        assert "react_context.build_setup_blocks(state, config, intelligence)" in source
+        assert "react_context.build_setup_blocks(state, config)" in source
         assembler = inspect.getsource(react_context.build_setup_blocks)
         assert "build_knowledge_block(state, config)" in assembler

@@ -119,9 +119,7 @@ describe('AdminCapabilitiesSection', () => {
     expect(
       await screen.findByText('settings.admin.capabilities.unavailableBadge')
     ).toBeInTheDocument();
-    expect(
-      screen.getByText('settings.admin.capabilities.deploymentBlocked')
-    ).toBeInTheDocument();
+    expect(screen.getByText('settings.admin.capabilities.deploymentBlocked')).toBeInTheDocument();
 
     const control = screen.getByRole('switch', { name: 'capabilities.items.telephony' });
     expect(control).toBeDisabled();
@@ -174,7 +172,10 @@ describe('AdminCapabilitiesSection', () => {
   });
 
   it('keeps each row self-contained so a long list stays readable', async () => {
-    mockList([capability(), capability({ capability: 'browser', label_key: 'capabilities.items.browser' })]);
+    mockList([
+      capability(),
+      capability({ capability: 'browser', label_key: 'capabilities.items.browser' }),
+    ]);
 
     render(<AdminCapabilitiesSection lng="fr" />);
 

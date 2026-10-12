@@ -4,7 +4,7 @@
 
 **Version**: 2.3
 **Date**: 2026-10-04
-**Application**: LIA v2.6.1
+**Application**: LIA v3.0.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | Indicator | Value |
 | --- | --- |
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
-| Source lines (excluding tests) — 55 functional domains | **820,000+** |
-| Automated tests, run on every commit and release | **51,000+** |
-| Documented architecture decisions (ADR) | **337** |
-| Versions shipped at a steady pace | **278** |
+| Source lines (excluding tests) — 55 functional domains | **931,000+** |
+| Inventoried automated tests; suites selected for commits and releases | **59,000+** |
+| Documented architecture decisions (ADR) | **341** |
+| Versions shipped at a steady pace | **279** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **8.3/10** |
 
@@ -52,9 +52,17 @@ An AI that codes produces volume; it only produces quality under constraint. Fou
 
 Several agents can work on the same repository at once — two different families of tools, each in its own working tree. The rule is the same as for the code: nothing is consolidated on the strength of a summary. Every file is attributed to its author by its fingerprint and by the agent's log, every merge is replayed in an isolated tree and then checked by every gate, and a backup precedes every switch.
 
+### An intention, then a verifiable outcome
+
+A conversational interface becomes useful when it can act on its own tools. “Switch my answers to HTML + cards” should find the same setting as the form. Conversation provides a simpler route; it creates neither additional rights nor implied permission.
+
+The same rule governs the story: preparation is not completion. A waiting request, a recorded change and a conflict must be named separately. Animated companions make this work visible through original designs and activity-driven expressions, without turning intention into evidence of execution.
+
+---
+
 ## 4. The trade-offs
 
-Three structural decisions, among the 337 documented:
+Three structural decisions, among the 341 documented:
 
 **Sovereignty & reversibility — no irreversible vendor dependency.** AI models (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, local models via Ollama) sit behind a single abstraction: any usage can switch provider through configuration, with cost comparison. The same principle applies to business services: Google, Apple and Microsoft are interchangeable per functional category. Self-hosting gives you control of the server; account data is stored on the instance and connector credentials are encrypted. The remote services you choose still receive the data needed for their part of a request.
 
@@ -80,7 +88,7 @@ A visible presence must remain a controlled choice: the experimental Simli avata
 
 ## 6. The proof
 
-The level claimed in this document comes from a complete technical audit: 24 areas scored, every finding verified in the code and cross-checked to eliminate false positives. The audit applies the project's own method — conducted with AI tooling, in an adversarial posture, every conclusion anchored in cross-checked evidence. Latest assessment: **8.3/10**, with a profile openly acknowledged. The full report — scorecard, method, open findings and the protocol to reproduce it — is public: [full audit report](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
+The level claimed in this document comes from a complete technical audit: 24 areas scored, every finding verified in the code and cross-checked to eliminate false positives. The audit applies the project's own method — conducted with AI tooling, in an adversarial posture, every conclusion anchored in cross-checked evidence. July 2026 assessment: **8.3/10**, with a profile openly acknowledged. The full report — scorecard, method, open findings and the protocol to reproduce it — is public: [full audit report](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
 
 **Confirmed strengths:**
 
@@ -113,4 +121,4 @@ What this experience changes in a management practice:
 - **Between blanket prohibition and blind trust, there is a governable path.** Graded human control can be specified, tested and audited; it is the approach regulatory requirements are converging on, and it is operational today.
 - **A leader who practices arbitrates better.** Build or buy, acceptable debt or not, credible vendor promise or not — these decisions gain accuracy when you have worked the material yourself. This project is a way of maintaining that proximity to the field.
 
-*Personal project, carried out outside any professional activity. Technical assessment from the July 2026 audit, with findings cross-checked. Structural counts follow the repository; source lines were measured again on 2026-10-05. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*
+*Personal project, carried out outside any professional activity. Technical assessment from the July 2026 audit, with findings cross-checked. Structural counts follow the repository; source lines were measured again on 2026-10-12. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*

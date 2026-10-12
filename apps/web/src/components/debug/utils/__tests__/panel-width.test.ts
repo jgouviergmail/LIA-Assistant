@@ -5,11 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import {
-  DEBUG_PANEL_CHAT_MIN_WIDTH,
-  DEBUG_PANEL_GAP,
-  DEBUG_PANEL_WIDTH_MIN,
-} from '../constants';
+import { DEBUG_PANEL_CHAT_MIN_WIDTH, DEBUG_PANEL_GAP, DEBUG_PANEL_WIDTH_MIN } from '../constants';
 import { clampPanelWidth, debugPanelBounds } from '../panel-width';
 
 describe('debugPanelBounds', () => {
@@ -20,7 +16,10 @@ describe('debugPanelBounds', () => {
   });
 
   it('never offers less room than the minimum, however narrow the row', () => {
-    expect(debugPanelBounds(500)).toEqual({ min: DEBUG_PANEL_WIDTH_MIN, max: DEBUG_PANEL_WIDTH_MIN });
+    expect(debugPanelBounds(500)).toEqual({
+      min: DEBUG_PANEL_WIDTH_MIN,
+      max: DEBUG_PANEL_WIDTH_MIN,
+    });
     // Not measured yet.
     expect(debugPanelBounds(0).max).toBe(DEBUG_PANEL_WIDTH_MIN);
   });

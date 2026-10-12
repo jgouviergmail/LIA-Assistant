@@ -240,3 +240,7 @@ Through a **watch** and **rules that cannot be forgotten**. Every week, an autom
 **Careful updates:** a new version comes in only after a cooling-off period — from a few days for a fix to two months for a major version — long enough for a possible defect to become known. An update never moves a dependency backwards, and a security fix becomes a floor nothing can go below.
 
 **A verifiable build:** every building block of the server — images, languages, tools — is pinned by its digest, every version publishes the exact inventory of what it contains (a CycloneDX SBOM), and the code goes through the secret detector before every push. Before it is published, every version is installed on blank machines.
+
+## Do private inputs needed by a command pass through the model?
+
+Keys, file choices, account connections and browser consent use the operation’s secure interface, rather than parameters invented by the model. A command is tied to the account and its authorised context; permissions and the resource version are checked again before writing. Encrypted command content does not hide the whole service from its operator: messages and operational data retain the limits described here.

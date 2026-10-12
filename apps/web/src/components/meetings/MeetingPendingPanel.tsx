@@ -10,10 +10,7 @@
 import { RefreshCw, Trash2 } from 'lucide-react';
 
 import { MeetingProgress } from '@/components/meetings/MeetingProgress';
-import {
-  type MeetingActions,
-  meetingErrorLabel,
-} from '@/components/meetings/useMeetingActions';
+import { type MeetingActions, meetingErrorLabel } from '@/components/meetings/useMeetingActions';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';

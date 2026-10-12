@@ -205,7 +205,6 @@ describe('MemorySettings — pinned export', () => {
   });
 });
 
-
 describe('procedural category (ADR-236) — the learned-rules admin surface', () => {
   it('every category of the type is offered by the edit selector', async () => {
     const { MEMORY_CATEGORIES } = await import('@/hooks/useMemories');
@@ -220,7 +219,6 @@ describe('procedural category (ADR-236) — the learned-rules admin surface', ()
     }
   });
 });
-
 
 describe('category labels exist in the REAL locales', () => {
   // The i18n mock echoes keys, so a label landing under the wrong JSON

@@ -2418,6 +2418,74 @@ tasks:
       - cmd: apps/api/.venv/bin/python scripts/audit/semantic_contracts.py --output .tmp/semantic-contracts.json
         platforms: [linux, darwin]
 
+  motion:install:
+    desc: Install the pinned offline LIA film authoring dependencies
+    dir: tools/lia-motion
+    cmds:
+      - npm ci
+      - npm run assets
+
+  motion:audio:
+    desc: Rebuild the current licensed soundtrack and its measured beat map
+    cmds:
+      - cmd: apps/api/.venv/Scripts/python tools/lia-motion/scripts/prepare_music_film.py
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python tools/lia-motion/scripts/prepare_music_film.py
+        platforms: [linux, darwin]
+
+  motion:audio:v2:
+    desc: Rebuild the legacy V2 soundtrack for the preserved edits
+    cmds:
+      - cmd: apps/api/.venv/Scripts/python tools/lia-motion/scripts/prepare_music_v2.py
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python tools/lia-motion/scripts/prepare_music_v2.py
+        platforms: [linux, darwin]
+
+  motion:check:
+    desc: Check film types, musical cuts and declared public feature coverage
+    dir: tools/lia-motion
+    cmds:
+      - npm run check
+      - node --experimental-strip-types scripts/presentation-report.mjs
+
+  motion:studio:
+    desc: Open the editable LIA Remotion studio on port 3100
+    dir: tools/lia-motion
+    cmds:
+      - npm run studio
+
+  motion:render:
+    desc: Render the current LIA scene or an explicitly named legacy edit
+    dir: tools/lia-motion
+    cmds:
+      - node scripts/render.mjs {{.CLI_ARGS}}
+
+  motion:package:
+    desc: Package rendered edits for the existing native landing reader
+    dir: tools/lia-motion
+    cmds:
+      - node scripts/package-media.mjs {{.CLI_ARGS}}
+
+  motion:preview:
+    desc: Create the local review player for the current LIA scene
+    dir: tools/lia-motion
+    cmds:
+      - node scripts/preview-presentation.mjs
+
+  motion:verify:
+    desc: Measure delivered media, native manifests, checksums and audio levels
+    dir: tools/lia-motion
+    cmds:
+      - node scripts/verify-delivery.mjs {{.CLI_ARGS}}
+
+  motion:archive:
+    desc: Preserve verified production sources, native assets and licensed music
+    cmds:
+      - cmd: apps/api/.venv/Scripts/python tools/lia-motion/scripts/archive_production.py
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python tools/lia-motion/scripts/archive_production.py
+        platforms: [linux, darwin]
+
   semantic:simulate:
     desc: Run semantic business scenarios and model-harness guards without provider calls
     dir: apps/api

@@ -173,7 +173,13 @@ export function BoardFilters({ filters, onChange, collapsible = false }: BoardFi
     </>
   );
 
-  if (collapsible) return <FoldedFilters filters={filters}>{controls}{clearButton}</FoldedFilters>;
+  if (collapsible)
+    return (
+      <FoldedFilters filters={filters}>
+        {controls}
+        {clearButton}
+      </FoldedFilters>
+    );
 
   return (
     <section

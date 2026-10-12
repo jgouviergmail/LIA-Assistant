@@ -164,7 +164,12 @@ describe('the two registers are present when they hold something (B8)', () => {
         decision: null,
         treatments: {
           entries: [
-            { tool_name: 'get_emails_tool', mutation_policy: 'read', outcome: 'ok', duration_ms: 8 },
+            {
+              tool_name: 'get_emails_tool',
+              mutation_policy: 'read',
+              outcome: 'ok',
+              duration_ms: 8,
+            },
           ],
           count: 1,
           failed_count: 0,

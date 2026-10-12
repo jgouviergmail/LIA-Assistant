@@ -1,0 +1,10 @@
+# Assets are copied from the application, not separately maintained.
+public/avatars/
+public/fonts/
+public/screenshots/
+public/logo.svg
+public/audio/*.wav
+public/audio/*.flac
+public/audio/*.mp3
+public/audio/v*/*.wav
+build/

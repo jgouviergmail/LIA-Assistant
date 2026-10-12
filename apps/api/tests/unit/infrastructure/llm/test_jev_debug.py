@@ -9,7 +9,7 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
-from src.infrastructure.llm.typesafe_client import ChoiceAnswer, ChoiceQuestion
+from src.infrastructure.llm.typesafe_client import ChoiceAnswer, ChoiceQuestion, NoulQuestion
 
 pytestmark = pytest.mark.unit
 
@@ -159,3 +159,46 @@ async def test_batch_debug_keeps_every_answer_under_its_own_question() -> None:
     assert restored.responses["q1"].choice_label == "Missing evidence"
     assert restored.input_tokens == 700
     assert restored.response is None
+
+
+def test_a_noul_is_drawn_as_its_two_outcomes() -> None:
+    from src.infrastructure.llm.typesafe_client import NoulAnswer, NoulCriteria, NoulQuestion
+
+    module = importlib.import_module("src.infrastructure.llm.jev_debug_models")
+    question = NoulQuestion(
+        instructions="`script.line1` is unsupported.",
+        criteria=NoulCriteria(
+            true={"what": "A claim exceeds its facts."}, false="Every claim holds."
+        ),
+    )
+    preview = module.decision_preview(NoulAnswer(type="noul", noul=0.1), question)
+    assert preview is not None
+    assert preview.choice == "false" and preview.choice_label == "Every claim holds."
+    assert preview.confidence == pytest.approx(0.8)
+    assert [(p.key, p.label) for p in preview.probabilities] == [
+        ("false", "Every claim holds."),
+        ("true", "A claim exceeds its facts."),
+    ]
+    assert preview.probabilities[1].probability == pytest.approx(0.1)
+
+
+def test_a_structured_choice_criterion_is_labelled_by_its_what() -> None:
+    module = importlib.import_module("src.infrastructure.llm.jev_debug_models")
+    question = ChoiceQuestion(
+        instructions={"question": "Which listing?"},
+        criteria={"other": {"what": "Nothing fits.", "examples": ["x"]}, "a": "A"},
+    )
+    answer = ChoiceAnswer(
+        type="choice", choice="other", confidence=0.9, probabilities={"other": 0.95, "a": 0.05}
+    )
+    preview = module.decision_preview(answer, question)
+    assert preview is not None and preview.choice_label == "Nothing fits."
+    assert (
+        module.decision_preview(
+            answer,
+            NoulQuestion.model_validate(
+                {"instructions": "x", "criteria": {"true": "y", "false": "n"}}
+            ),
+        )
+        is None
+    )

@@ -195,15 +195,27 @@ describe('useChat — nominal send/stream/done cycle', () => {
     h.user = { id: actorId, email: 'u@test.local', picture_url: null };
     scriptStream([
       ROUTER_CHUNK,
-      { type: 'application_state_changed', content: '', metadata: { change: {
-        schema_version: 1, command_id: '00000000-0000-4000-8000-000000000002',
-        actor_id: actorId, resources: ['profile'], changed_fields: ['font_size'],
-        observed_at: '2026-10-06T17:00:00Z',
-      } } },
-      token('Enregistré'), done(),
+      {
+        type: 'application_state_changed',
+        content: '',
+        metadata: {
+          change: {
+            schema_version: 1,
+            command_id: '00000000-0000-4000-8000-000000000002',
+            actor_id: actorId,
+            resources: ['profile'],
+            changed_fields: ['font_size'],
+            observed_at: '2026-10-06T17:00:00Z',
+          },
+        },
+      },
+      token('Enregistré'),
+      done(),
     ]);
     const { result } = renderHook(() => useChat());
-    await act(async () => { await result.current.sendMessage('Agrandis la police'); });
+    await act(async () => {
+      await result.current.sendMessage('Agrandis la police');
+    });
     expect(h.refreshUser).toHaveBeenCalledTimes(1);
     expect(result.current.messages).toHaveLength(2);
     expect(result.current.messages[1].content).toBe('Enregistré');

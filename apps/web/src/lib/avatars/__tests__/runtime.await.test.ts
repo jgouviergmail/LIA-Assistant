@@ -55,7 +55,12 @@ function fixture(start: AvatarEngineDeps['api']['start'] = async () => session) 
     },
   };
 }
-const session = { session_token: 'fixture', lease_id: 'lease', ice_servers: [], max_session_seconds: 3600 };
+const session = {
+  session_token: 'fixture',
+  lease_id: 'lease',
+  ice_servers: [],
+  max_session_seconds: 3600,
+};
 async function settle() {
   for (let n = 0; n < 30; n++) await Promise.resolve();
 }

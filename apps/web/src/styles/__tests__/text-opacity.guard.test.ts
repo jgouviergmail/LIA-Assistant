@@ -117,9 +117,10 @@ describe('dimmed-text ratchet (text-<token>/<opacity>)', () => {
     const grown = Object.entries(current)
       .filter(([f, n]) => f in baseline && n > baseline[f])
       .map(([f, n]) => `${f}: ${baseline[f]} -> ${n}`);
-    expect(grown, `\nDimmed-text count grew (the ratchet only turns down):\n  ${grown.join('\n  ')}\n`).toEqual(
-      []
-    );
+    expect(
+      grown,
+      `\nDimmed-text count grew (the ratchet only turns down):\n  ${grown.join('\n  ')}\n`
+    ).toEqual([]);
   });
 
   it('has no stale baseline entries (lower the baseline after cleaning a file)', () => {

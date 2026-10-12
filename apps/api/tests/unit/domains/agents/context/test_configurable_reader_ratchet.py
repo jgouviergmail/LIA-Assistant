@@ -27,7 +27,7 @@ Mechanism (allowlist: ``configurable_readers_allowlist.json``):
 3. Keys that legitimately stay in ``configurable`` are not scanned: ``thread_id``,
    ``run_id``, ``checkpoint_ns`` and friends are LangGraph plumbing, and
    ``node_name``/``turn_id``/``oauth_scopes``/``resolved_person_names``/
-   ``__parent_thread_id`` are node-local values a nested call writes for its own
+   ``guard_request``/``__parent_thread_id`` are node-local values a nested call writes for its own
    callee — neither is run-scoped context.
 
 The scan lives in ``scripts/audit/measure_configurable_readers.py`` (single

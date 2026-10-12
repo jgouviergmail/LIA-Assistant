@@ -17,7 +17,7 @@ Flow:
 
 import asyncio
 import time
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from contextlib import suppress
 from typing import TYPE_CHECKING, Any, NamedTuple
 
@@ -49,7 +49,8 @@ from src.core.i18n_api_messages import (
 )
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.core.run_config import run_id_of
-from src.domains.agents.analysis.query_intelligence_helpers import get_qi_attr
+from src.domains.agents.analysis.query_intelligence_helpers import get_qi_attr, turn_references
+from src.domains.agents.analysis.resolved_references import ResolvedReferenceEntry
 from src.domains.agents.constants import (
     DATA_FILTERING_GENERATION_ERROR_MARKER,
     RESPONSE_MAX_ERRORS_DISPLAY,
@@ -62,7 +63,6 @@ from src.domains.agents.constants import (
     STATE_KEY_PLAN_REJECTION_REASON,
     STATE_KEY_PLANNER_ERROR,
     STATE_KEY_RESOLVED_CONTEXT,
-    STATE_KEY_RESOLVED_REFERENCES,
     STATE_KEY_SEMANTIC_VALIDATION,
     STATE_KEY_TURN_TYPE,
     STATE_KEY_VALIDATION_RESULT,
@@ -1780,7 +1780,7 @@ def _build_response_system_prompt(
     last_user_message: str,
     enriched_query: str | None,
     data_for_filtering: str,
-    resolved_references: dict[str, str] | None,
+    resolved_references: Sequence[ResolvedReferenceEntry],
     anticipated_needs: Any,
     skills_context: str,
     app_knowledge_context: str,
@@ -2553,25 +2553,18 @@ def _build_data_for_filtering(current_turn_registry: dict[str, Any] | None, run_
 
 def _extract_qi_response_hints(
     state: MessagesState, run_id: str
-) -> tuple[dict[str, str] | None, str | None, Any]:
+) -> tuple[tuple[ResolvedReferenceEntry, ...], str | None, Any]:
     """Extract resolved references, enriched query and anticipated needs from QI.
 
     Extracted verbatim from ``response_node``. Returns
     (resolved_references, enriched_query, anticipated_needs).
     """
-    # Extract resolved references for natural response phrasing
-    # Example: {"my wife": "jean dupond"} enables "your wife (jean dupond)" in response
-    resolved_references_raw = state.get(STATE_KEY_RESOLVED_REFERENCES)
-    resolved_references: dict[str, str] | None = None
-    if resolved_references_raw and isinstance(resolved_references_raw, dict):
-        # Extract mappings from resolved_references structure
-        resolved_references = resolved_references_raw.get("mappings") or resolved_references_raw
-        if resolved_references:
-            logger.info(
-                "response_node_resolved_references",
-                run_id=run_id,
-                mappings=resolved_references,
-            )
+    # The turn's references, each with what its value is: "your brother (Marc)".
+    resolved_references = turn_references(state)
+    if resolved_references:
+        logger.info(
+            "response_node_resolved_references", run_id=run_id, count=len(resolved_references)
+        )
     # Extract enriched query from QueryIntelligence for context-aware filtering
     # Example: "I want the details" + history "where do the duponds live"
     #   → enriched_query: "get contact details for the dupond family"

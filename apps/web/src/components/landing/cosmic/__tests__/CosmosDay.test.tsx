@@ -45,9 +45,7 @@ describe('CosmosDay', () => {
 
     expect(screen.getByRole('heading', { name: 'landing.day.title' })).toBeInTheDocument();
     expect(container.querySelector('.cosmos-pin-stage')).toBeInTheDocument();
-    expect(container.querySelector('.cosmos-ghost')).toHaveTextContent(
-      'landing.cosmos.ghost.day'
-    );
+    expect(container.querySelector('.cosmos-ghost')).toHaveTextContent('landing.cosmos.ghost.day');
     expect(screen.getByRole('tablist')).toBeInTheDocument();
     expect(screen.getAllByRole('tab')).toHaveLength(4);
     // 4 profiles × 4 stops, all panels in the DOM (hidden panels included).

@@ -1,6 +1,5 @@
 """Code owns candidate parameters; Jev matches the WHOLE request or abstains."""
 
-import json
 import re
 from dataclasses import replace
 from datetime import datetime, time, timedelta
@@ -8,11 +7,11 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from src.core.config import settings
 from src.domains.agents.analysis.query_intelligence import QueryIntelligence
-from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.agents.services.planner.consultation_paths import (
     READ_PATHS,
     ReadPath,
-    consultation_question,
+    candidate_question,
+    path_label,
 )
 from src.infrastructure.llm.typesafe_client import ChoiceQuestion
 
@@ -29,9 +28,6 @@ _CAPS = {
     "task": "tasks_tool_default_max_results",
     "event": "calendar_tool_default_max_results",
 }
-
-# Independently calibrated for these candidates; not a probability of correctness.
-BOUNDED_MIN_CONFIDENCE = 0.97
 
 
 def wants_bounded_path(qi: QueryIntelligence) -> bool:
@@ -84,9 +80,8 @@ def bounded_paths(qi: QueryIntelligence, timezone: str, anchor: datetime) -> dic
     if qi.primary_domain == "event":
         paths = _calendar_paths(timezone, anchor)
     elif count is not None and not qi.has_temporal_reference:
-        labels = consultation_question(READ_PATHS).criteria
         paths = {
-            key: replace(path, description=str(labels[key]))
+            key: replace(path, description=path_label(key))
             for key, path in READ_PATHS.items()
             if path.domain == qi.primary_domain and path.domain in _CAPS
         }
@@ -106,11 +101,5 @@ def bounded_paths(qi: QueryIntelligence, timezone: str, anchor: datetime) -> dic
 
 
 def bounded_question(paths: dict[str, ReadPath]) -> ChoiceQuestion:
-    template = json.loads(load_prompt("jev_bounded_consultation_question", version="v1"))
-    return ChoiceQuestion(
-        instructions=template["instructions"],
-        criteria={
-            **{key: path.description for key, path in paths.items()},
-            "other": template["criteria"]["other"],
-        },
-    )
+    """The shared consultation question over these code-built candidates."""
+    return candidate_question({key: path.description for key, path in paths.items()})

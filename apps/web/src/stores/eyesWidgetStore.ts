@@ -16,6 +16,7 @@ import { persist } from 'zustand/middleware';
 
 import { EYES_WIDGET_PREFS_KEY } from '@/lib/constants';
 import { DEFAULT_EYE_STYLE, isValidEyeStyle, type EyeStyleId } from '@/components/eyes/eye-styles';
+import { normalizeAvatarStyleRolloutId } from '@/lib/runtime-ui';
 
 export type EyesSize = 'sm' | 'md' | 'lg' | 'xl';
 
@@ -50,6 +51,8 @@ export interface EyesWidgetStore {
   position: EyesPosition | null;
   /** Custom position on the landing, or null for its default corner. */
   landingPosition: EyesPosition | null;
+  /** Last operator campaign applied on this browser origin, not an account preference. */
+  appliedAvatarStyleRolloutId: string | null;
 
   setVisible: (visible: boolean) => void;
   setSize: (size: EyesSizeSetting) => void;
@@ -58,6 +61,7 @@ export interface EyesWidgetStore {
   setStyle: (style: EyeStyleId) => void;
   setPosition: (position: EyesPosition) => void;
   setLandingPosition: (position: EyesPosition) => void;
+  applyAvatarStyleRollout: (id: string) => void;
   reset: () => void;
 }
 
@@ -71,8 +75,9 @@ const DEFAULTS = {
 
 export const useEyesWidgetStore = create<EyesWidgetStore>()(
   persist(
-    set => ({
+    (set, get) => ({
       ...DEFAULTS,
+      appliedAvatarStyleRolloutId: null,
 
       setVisible: visible => set({ visible }),
 
@@ -104,6 +109,27 @@ export const useEyesWidgetStore = create<EyesWidgetStore>()(
           return sameFloatingPosition(s.landingPosition, landingPosition) ? s : { landingPosition };
         }),
 
+      applyAvatarStyleRollout: value => {
+        const id = normalizeAvatarStyleRolloutId(value);
+        const previous = get();
+        if (!id || previous.appliedAvatarStyleRolloutId === id) return;
+        try {
+          set({ style: 'bip', appliedAvatarStyleRolloutId: id });
+        } catch {
+          // Persist updates memory before writing localStorage. Quota/privacy
+          // refusal must not leave an unrecorded campaign replacing the choice.
+          try {
+            set({
+              style: previous.style,
+              appliedAvatarStyleRolloutId: previous.appliedAvatarStyleRolloutId,
+            });
+          } catch {
+            // Memory was restored before this second storage refusal.
+          }
+        }
+      },
+
+      // A manual reset restores display defaults, but does not replay a campaign.
       reset: () => set(DEFAULTS),
     }),
     {
@@ -114,6 +140,7 @@ export const useEyesWidgetStore = create<EyesWidgetStore>()(
         style: s.style,
         position: s.position,
         landingPosition: s.landingPosition,
+        appliedAvatarStyleRolloutId: s.appliedAvatarStyleRolloutId,
       }),
       // A persisted style that no longer exists in the registry falls back to
       // the default instead of rendering an unstyled widget.
@@ -125,6 +152,9 @@ export const useEyesWidgetStore = create<EyesWidgetStore>()(
           position: normalizeFloatingPosition(p?.position),
           landingPosition: normalizeFloatingPosition(p?.landingPosition),
           style: isValidEyeStyle(p?.style) ? p.style : DEFAULT_EYE_STYLE,
+          appliedAvatarStyleRolloutId: normalizeAvatarStyleRolloutId(
+            p?.appliedAvatarStyleRolloutId
+          ),
         };
       },
     }

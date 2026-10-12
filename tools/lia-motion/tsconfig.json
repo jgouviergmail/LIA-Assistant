@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM"],
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "paths": { "@/*": ["../../apps/web/src/*"] },
+    "types": ["node", "react"]
+  },
+  "include": ["src", "scripts/storyboard.ts", "tests", "remotion.config.ts"]
+}

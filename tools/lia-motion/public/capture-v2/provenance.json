@@ -1,0 +1,1315 @@
+{
+  "version": 1,
+  "freeze": {
+    "frozenAt": "2026-10-11T21:17:49.144Z",
+    "reason": "Capture extension stopped; inventory retained for directed workflow revision.",
+    "assetCount": 32,
+    "uniqueClipCount": 31,
+    "noFurtherAssetMutationsDuringRender": true
+  },
+  "manifestSha256": "b8bba24e3e65eb12f166dd81c77a1d32cb1f55aea2e7df082348ce62b826877c",
+  "nativeRuntime": "existing isolated .next-e2e-landing-final standalone build in lia-web-dev, APIs disabled server-side",
+  "currentRepositoryRevision": "c53d17d3301c97bd1b4a237a8b353342d423c010",
+  "exactCompiledRevisionEstablished": false,
+  "sourceComponentPathsAreCurrentRepositoryCorrespondence": true,
+  "captureMethod": "Official Chromium and real isolated Next.js frontend. Fictional API responses; original native components, styles, interactions and avatars. No product DOM reconstruction.",
+  "networkBoundary": "Repository api-network-guard proxy plus page API interception. Background requests shown below were blocked. No live backend/API/provider operation or private account data.",
+  "audioBoundary": "Radio playback uses a local silent WAV solely to exercise its native controls. No generated speech, Live or Simli session. Clip audio removed during MP4 encoding.",
+  "fixtureSources": [
+    "apps/web/e2e/capture/landing-proof-data.ts",
+    "apps/web/e2e/capture/public-screenshot-data.ts",
+    "apps/web/e2e/smoke/settings-habits.spec.ts",
+    "apps/web/e2e/smoke/settings-heartbeat.spec.ts",
+    "apps/web/e2e/smoke/generated-assets-gallery.spec.ts",
+    "tools/lia-motion/scripts/capture-native.mjs"
+  ],
+  "contractSources": [
+    "apps/web/src/types/telephony.ts",
+    "apps/web/src/types/generated-assets.ts",
+    "apps/web/src/lib/avatars/types.ts",
+    "apps/web/src/lib/live/types.ts",
+    "apps/web/src/hooks/useHeartbeatSettings.ts",
+    "apps/web/src/hooks/useImageGenerationOptions.ts"
+  ],
+  "encoding": "Raw Playwright video trimmed and reencoded H.264, 30 fps, yuv420p, CRF16. No substituted product pixels. Native desktop 1440x960; mobile independently captured 390x844.",
+  "assets": [
+    {
+      "id": "approval",
+      "path": "capture-v2/fr/approval.png",
+      "beforePath": "capture-v2/fr/approval-before.png",
+      "type": "image",
+      "width": 1440,
+      "height": 960,
+      "sha256": "26fbe2630dd1a0bb38ab17920a8bf19e4f4d44d8dcf3afe25b0eb369b7467c5c",
+      "locale": "fr",
+      "nativeFrontend": true,
+      "fictionalData": true,
+      "clipStartSeconds": 3.284,
+      "durationSeconds": 7.633333,
+      "route": "/fr/dashboard/chat",
+      "exercised": [
+        "native pending HITL rehydration, confirm click, captured native chat-stream request and demo result; no email sent"
+      ],
+      "writes": [
+        {
+          "path": "/api/v1/agents/chat/stream",
+          "body": {
+            "message": "Confirmer",
+            "user_id": "00000000-0000-4000-8000-000000000001",
+            "session_id": "session_00000000-0000-4000-8000-000000000001",
+            "context": {
+              "geolocation": null,
+              "lia_gender": "female",
+              "viewport_width": 1440
+            },
+            "hitl_decision": {
+              "message_id": "landing-proof-approval",
+              "action": "confirm"
+            }
+          }
+        }
+      ],
+      "clipPath": "capture-v2/fr/approval.mp4",
+      "fromSeconds": 0,
+      "clipSha256": "8c0fe1c285fe83ea5b1a558b1d02e2953512da25b8f9cd931cdd6c7427af5ba3",
+      "codec": "h264",
+      "fps": 30,
+      "sourceComponents": [
+        "apps/web/src/components/chat/HitlActionCard.tsx",
+        "apps/web/src/hooks/usePendingHitlSync.ts"
+      ],
+      "nativeUrl": "http://127.0.0.1:3134/fr/dashboard/chat"
+    },
+    {
+      "id": "skill",
+      "path": "capture-v2/fr/skill.png",
+      "beforePath": "capture-v2/fr/skill-before.png",
+      "type": "image",
+      "width": 1440,
+      "height": 960,
+      "sha256": "f822498f04859024bf32ee3ba2dbd7f059b780dddecabb228370601a6e72bb85",
+      "locale": "fr",
+      "nativeFrontend": true,
+      "fictionalData": true,
+      "clipStartSeconds": 3.076,
+      "durationSeconds": 10.433333,
+      "route": "/fr/dashboard/chat",
+      "exercised": [
+        "native SkillAppWidget, real French system converter script, typed value/unit selection and computed 250cm result"
+      ],
+      "writes": [],
+      "clipPath": "capture-v2/fr/skill.mp4",
+      "fromSeconds": 0,
+      "clipSha256": "d7af2d182e58d82b913cdfed37f5d60549d334e3990d87dfe4cc70a312098412",
+      "codec": "h264",
+      "fps": 30,
+      "sourceComponents": [
+        "apps/web/src/components/chat/SkillAppWidget.tsx"
+      ],
+      "nativeUrl": "http://127.0.0.1:3134/fr/dashboard/chat"
+    },
+    {
+      "id": "relations",
+      "path": "capture-v2/fr/relations.png",
+      "beforePath": "capture-v2/fr/relations-before.png",
+      "type": "image",
+      "width": 1440,
+      "height": 960,
+      "sha256": "665bf2fb6f111c2a62cded2ce14f5d7cfeba116988a70b790102f64b9f259e3a",
+      "locale": "fr",
+      "nativeFrontend": true,
+      "fictionalData": true,
+      "clipStartSeconds": 2.681,
+      "durationSeconds": 9.633333,
+      "route": "/fr/dashboard/relations",
+      "exercised": [
+        "native Relations overview, opening Morgan detail, commitments and exchanged emails"
+      ],
+      "writes": [],
+      "clipPath": "capture-v2/fr/relations.mp4",
+      "fromSeconds": 0,
+      "clipSha256": "df7f5be8125125cd1babcb4fc40589e53e224207abfd3a7905e9e117321ce726",
+      "codec": "h264",
+      "fps": 30,
+      "sourceComponents": [
+        "apps/web/src/components/relations/RelationDetailPanel.tsx",
+        "apps/web/src/components/relations/RelationCardList.tsx"
+      ],
+      "nativeUrl": "http://127.0.0.1:3134/fr/dashboard/relations"
+    },
+    {
+      "id": "chat",
+      "path": "capture-v2/fr/chat.png",
+      "beforePath": "capture-v2/fr/chat-before.png",
+      "type": "image",
+      "width": 1440,
+      "height": 960,
+      "sha256": "cc3170d6b78bc50759513b286b8e1e78d20256e3f0a28373ab1f01fc05c3e3d3",
+      "locale": "fr",
+      "nativeFrontend": true,
+      "fictionalData": true,
+      "clipStartSeconds": 3.264,
+      "durationSeconds": 12.1,
+      "route": "/fr/dashboard/chat",
+      "exercised": [
+        "native chat composer, Enter submission, real streaming renderer supplied with fictional SSE tokens"
+      ],
+      "writes": [
+        {
+          "path": "/api/v1/agents/chat/stream",
+          "body": {
+            "message": "Quelle date dois-je confirmer avec le fournisseur ?",
+            "user_id": "00000000-0000-4000-8000-000000000001",
+            "session_id": "session_00000000-0000-4000-8000-000000000001",
+            "context": {
+              "geolocation": null,
+              "lia_gender": "female",
+              "viewport_width": 1440
+            }
+          }
+        }
+      ],
+      "clipPath": "capture-v2/fr/chat.mp4",
+      "fromSeconds": 0,
+      "clipSha256": "1ed60fa53101d763c52d5705fdecaa644aa5717f11b95fea2eae68c26d6f7a8a",
+      "codec": "h264",
+      "fps": 30,
+      "sourceComponents": [
+        "apps/web/src/components/chat/ChatInput.tsx",
+        "apps/web/src/app/[lng]/dashboard/chat/page.tsx"
+      ],
+      "nativeUrl": "http://127.0.0.1:3134/fr/dashboard/chat"
+    },
+    {
+      "id": "knowledge",
+      "path": "capture-v2/fr/knowledge.png",
+      "beforePath": "capture-v2/fr/knowledge-before.png",
+      "type": "image",
+      "width": 1440,
+      "height": 960,
+      "sha256": "e662e6023df94bb831a3b75cc51e46f014834e92321d705225edd194640fd3d6",
+      "locale": "fr",
+      "nativeFrontend": true,
+      "fictionalData": true,
+      "clipStartSeconds": 5.261,
+      "durationSeconds": 7.066667,
+      "route": "/fr/dashboard/spaces/00000000-0000-4000-8000-000000000ad1",
+      "exercised": [
+        "native knowledge-space document and connected-source lists, real scroll; no indexing"
+      ],
+      "writes": [],
+      "clipPath": "capture-v2/fr/knowledge.mp4",
+      "fromSeconds": 0,
+      "clipSha256": "3a23c13caff76c59ca0a03f94fc4de69318608eefaf90abd192a7dc0fb1c6003",
+      "codec": "h264",
+      "fps": 30,
+      "sourceComponents": [
+        "apps/web/src/app/[lng]/dashboard/spaces/[id]/page.tsx"
+      ],
+      "nativeUrl": "http://127.0.0.1:3134/fr/dashboard/spaces/00000000-0000-4000-8000-000000000ad1"
+    },
+    {
+      "id": "meetings",
+      "path": "capture-v2/fr/meetings.png",
+      "beforePath": "capture-v2/fr/meetings-before.png",
+      "type": "image",
+      "width": 1440,
+      "height": 960,
+      "sha256": "d86b58cbe5e456893c2ba1cee0dc850567a54c1283961d466417d7a4baae4cf8",
+      "locale": "fr",
+      "nativeFrontend": true,
+      "fictionalData": true,
+      "clipStartSeconds": 3.65,
+      "durationSeconds": 8.7,
+      "route": "/fr/dashboard/meetings/00000000-0000-4000-8000-000000000ad2",
+      "exercised": [
+        "native ready meeting page, participants, decisions, action items and scroll; no recording/transcription/provider"
+      ],
+      "writes": [],
+      "clipPath": "capture-v2/fr/meetings.mp4",
+      "fromSeconds": 0,
+      "clipSha256": "665c1111ba05ee899d695d29569069015c7209fc63e084cd125fbc7921ab48f7",
+      "codec": "h264",
+      "fps": 30,
+      "sourceComponents": [
+        "apps/web/src/components/meetings/MeetingReportView.tsx",
+        "apps/web/src/app/[lng]/dashboard/meetings/[id]/page.tsx"
+      ],
+      "nativeUrl": "http://127.0.0.1:3134/fr/dashboard/meetings/00000000-0000-4000-8000-000000000ad2"
+    },
+    {
+      "id": "workboard",
+      "path": "capture-v2/fr/workboard.png",
+      "beforePath": "capture-v2/fr/workboard-before.png",
+      "type": "image",
+      "width": 1440,
+      "height": 960,
+      "sha256": "cf76bd55e395d287cdddb4a365d34d45a9e79f3ffc5169117d08e810cce6c2bb",
+      "locale": "fr",
+      "nativeFrontend": true,
+      "fictionalData": true,
+      "clipStartSeconds": 2.953,
+      "durationSeconds": 7.866667,
+      "route": "/fr/dashboard/workboard",
+      "exercised": [
+        "native workboard columns/tickets and opening native ticket detail with demo comments/costs"
+      ],
+      "writes": [],
+      "clipPath": "capture-v2/fr/workboard.mp4",
+      "fromSeconds": 0,
+      "clipSha256": "988cdd79e640424d52f1dadf96f43c053e241ca436ad44b655f1b2d326fc1c69",
+      "codec": "h264",
+      "fps": 30,
+      "sourceComponents": [
+        "apps/web/src/components/workboard/WorkboardPage.tsx"
+      ],
+      "nativeUrl": "http://127.0.0.1:3134/fr/dashboard/workboard"
+    },
+    {
+      "id": "memory",
+      "path": "capture-v2/fr/memory.png",
+      "beforePath": "capture-v2/fr/memory-before.png",
+      "type": "image",
+      "width": 1440,
+      "height": 960,
+      "sha256": "c5431a5b1f26fb5a05c6f3e76b869b6b9bd613f1f650535c4bf72a35f26f5ab7",
+      "locale": "fr",
+      "nativeFrontend": true,
+      "fictionalData": true,
+      "clipStartSeconds": 2.295,
+      "durationSeconds": 7.8,
+      "route": "/fr/dashboard/settings?section=memories",
+      "exercised": [
+        "native memory list/edit dialog, no save"
+      ],
+      "writes": [],
+      "clipPath": "capture-v2/fr/memory.mp4",
+      "fromSeconds": 0,
+      "clipSha256": "4a1a2f018ccbb571e1c93a1511e6fbc36268dc32552672999476a9730494e387",
+      "codec": "h264",
+      "fps": 30,
+      "sourceComponents": [
+        "apps/web/src/components/settings/MemorySettings.tsx"
+      ],
+      "nativeUrl": "http://127.0.0.1:3134/fr/dashboard/settings?section=memories"
+    },
+    {
+      "id": "voice",
+      "path": "capture-v2/fr/voice.png",
+      "beforePath": "capture-v2/fr/voice-before.png",
+      "type": "image",
+      "width": 1440,
+      "height": 960,
+      "sha256": "6ccb9214c31e9bb938f22a02cbb4eb2e502a047d5514ea29a39f86367732d9a0",
+      "locale": "fr",
+      "nativeFrontend": true,
+      "fictionalData": true,
+      "clipStartSeconds": 1.991,
+      "durationSeconds": 7.633333,
+      "route": "/fr/dashboard/settings?section=voice-mode",
+      "exercised": [
+        "native voice mode, speech engine and wake-word settings; no microphone or generated audio"
+      ],
+      "writes": [],
+      "clipPath": "capture-v2/fr/voice.mp4",
+      "fromSeconds": 0,
+      "clipSha256": "fa54d68ae44d0e205f890daeb92ebc903621dd304cdb8a362e8108cebcae5197",
+      "codec": "h264",
+      "fps": 30,
+      "sourceComponents": [
+        "apps/web/src/components/settings/VoiceModeSettings.tsx"
+      ],
+      "nativeUrl": "http://127.0.0.1:3134/fr/dashboard/settings?section=voice-mode"
+    },
+    {
+      "id": "connections",
+      "path": "capture-v2/fr/connections.png",
+      "beforePath": "capture-v2/fr/connections-before.png",
+      "type": "image",
+      "width": 1440,
+      "height": 960,
+      "sha256": "acf7d393db32c33337f2372013cd86bb5b429f1316edcc5d6e3d661a233fb333",
+      "locale": "fr",
+      "nativeFrontend": true,
+      "fictionalData": true,
+      "clipStartSeconds": 2.192,
+      "durationSeconds": 7.933333,
+      "route": "/fr/dashboard/settings?section=connectors",
+      "exercised": [
+        "native provider connector catalogue; no account connected or OAuth started"
+      ],
+      "writes": [],
+      "clipPath": "capture-v2/fr/connections.mp4",
+      "fromSeconds": 0,
+      "clipSha256": "5ddf5cb96b59c24960715fc60eeb3571f0669516249f2450ef00b2f5932dfd7c",
+      "codec": "h264",
+      "fps": 30,
+      "sourceComponents": [
+        "apps/web/src/components/settings/UserConnectorsSection.tsx"
+      ],
+      "nativeUrl": "http://127.0.0.1:3134/fr/dashboard/settings?section=connectors"
+    },
+    {
+      "id": "health",
+      "path": "capture-v2/fr/health.png",
+      "beforePath": "capture-v2/fr/health-before.png",
+      "type": "image",
+      "width": 1440,
+      "height": 960,
+      "sha256": "e709974336db52ff0bbb4bc193245306cac548280e9e29dfd975dc2487c9d55f",
+      "locale": "fr",
+      "nativeFrontend": true,
+      "fictionalData": true,
+      "clipStartSeconds": 2.422,
+      "durationSeconds": 6.6,
+      "route": "/fr/dashboard/settings?section=health-metrics",
+      "exercised": [
+        "native health metrics charts with fictional aggregates; no medical inference or real data"
+      ],
+      "writes": [],
+      "clipPath": "capture-v2/fr/health.mp4",
+      "fromSeconds": 0,
+      "clipSha256": "f86f53208a6fc51ecebf0cd1a8f01f98c96e0d0389d22e7dcb47557d9cb4f274",
+      "codec": "h264",
+      "fps": 30,
+      "sourceComponents": [
+        "apps/web/src/components/settings/HealthMetricsSettings.tsx"
+      ],
+      "nativeUrl": "http://127.0.0.1:3134/fr/dashboard/settings?section=health-metrics"
+    },
+    {
+      "id": "avatars",
+      "path": "capture-v2/fr/avatars.png",
+      "beforePath": "capture-v2/fr/avatars-before.png",
+      "type": "image",
+      "width": 1440,
+      "height": 960,
+      "sha256": "3a3869f3eddb7ffece52716a52d93ce23b97dc6a90a0b64cd53cd3bfc27da4fa",
+      "locale": "fr",
+      "nativeFrontend": true,
+      "fictionalData": true,
+      "clipStartSeconds": 3.967,
+      "durationSeconds": 10.1,
+      "route": "/fr/dashboard/settings?section=eyes-style",
+      "exercised": [
+        "native avatar style selector, native preview hover/focus life and local preference selection Smiley then Bip; no external avatar provider"
+      ],
+      "writes": [],
+      "clipPath": "capture-v2/fr/avatars.mp4",
+      "fromSeconds": 0,
+      "clipSha256": "84b1ec66b4e996ef9837fc5e365f62b17c7df47d6e963d63a92b29fbb9eb906c",
+      "codec": "h264",
+      "fps": 30,
+      "sourceComponents": [
+        "apps/web/src/components/settings/EyesStyleSettings.tsx"
+      ],
+      "nativeUrl": "http://127.0.0.1:3134/fr/dashboard/settings?section=eyes-style"
+    },
+    {
+      "id": "extensions",
+      "path": "capture-v2/fr/extensions.png",
+      "beforePath": "capture-v2/fr/extensions-before.png",
+      "type": "image",
+      "width": 1440,
+      "height": 960,
+      "sha256": "c178d1f60ec8084fab102ff83fae6ba00abc812c299f41945619f8bd7fae291d",
+      "locale": "fr",
+      "nativeFrontend": true,
+      "fictionalData": true,
+      "clipStartSeconds": 2.845,
+      "durationSeconds": 6.666667,
+      "route": "/fr/dashboard/settings?section=skills",
+      "exercised": [
+        "native skills gallery, existing real system skill names and demo descriptions; no invocation or import"
+      ],
+      "writes": [],
+      "clipPath": "capture-v2/fr/extensions.mp4",
+      "fromSeconds": 0,
+      "clipSha256": "3d022ab7a5d0b5be4ea732574da39c01adf2afba94855e712f981b2937ac30b2",
+      "codec": "h264",
+      "fps": 30,
+      "sourceComponents": [
+        "apps/web/src/components/settings/SkillsSettings.tsx"
+      ],
+      "nativeUrl": "http://127.0.0.1:3134/fr/dashboard/settings?section=skills"
+    },
+    {
+      "id": "mcp",
+      "path": "capture-v2/fr/mcp.png",
+      "beforePath": "capture-v2/fr/mcp-before.png",
+      "type": "image",
+      "width": 1440,
+      "height": 960,
+      "sha256": "ef671a3ecda75a2d1b4d88f7092bcea9c1d89577997baa848ffe50f27fe3e868",
+      "locale": "fr",
+      "nativeFrontend": true,
+      "fictionalData": true,
+      "clipStartSeconds": 2.543,
+      "durationSeconds": 6.866667,
+      "route": "/fr/dashboard/settings?section=mcp-servers",
+      "exercised": [
+        "native MCP server configuration dialog, no server connected or external call"
+      ],
+      "writes": [],
+      "clipPath": "capture-v2/fr/mcp.mp4",
+      "fromSeconds": 0,
+      "clipSha256": "f1179eb47d584f1ceb6cbdaf74e7eaee65045f28ea3ace54a629b65b9fd47047",
+      "codec": "h264",
+      "fps": 30,
+      "sourceComponents": [
+        "apps/web/src/components/settings/MCPServersSettings.tsx"
+      ],
+      "nativeUrl": "http://127.0.0.1:3134/fr/dashboard/settings?section=mcp-servers"
+    },
+    {
+      "id": "administration",
+      "path": "capture-v2/fr/administration.png",
+      "beforePath": "capture-v2/fr/administration-before.png",
+      "type": "image",
+      "width": 1440,
+      "height": 960,
+      "sha256": "f26b4def2513fd2552e3e71be502d1f9019e371d1087b1c2e09712a67f90c064",
+      "locale": "fr",
+      "nativeFrontend": true,
+      "fictionalData": true,
+      "clipStartSeconds": 2.47,
+      "durationSeconds": 6.566667,
+      "route": "/fr/dashboard/settings?section=admin-usage-limits",
+      "exercised": [
+        "native administration instance ceiling/user quota gauges; fictional values, no configuration saved"
+      ],
+      "writes": [],
+      "clipPath": "capture-v2/fr/administration.mp4",
+      "fromSeconds": 0,
+      "clipSha256": "efe4d1c27f66e90f29504597a5114aa7a4cd0213196133bcd25ae82d27c1067f",
+      "codec": "h264",
+      "fps": 30,
+      "sourceComponents": [
+        "apps/web/src/components/settings/AdminUsageLimitsSection.tsx"
+      ],
+      "nativeUrl": "http://127.0.0.1:3134/fr/dashboard/settings?section=admin-usage-limits"
+    },
+    {
+      "id": "radio",
+      "path": "capture-v2/fr/radio.png",
+      "beforePath": "capture-v2/fr/radio-before.png",
+      "type": "image",
+      "width": 1440,
+      "height": 960,
+      "sha256": "259bdfd830579f6b0b22d833845e78d4f2ede954e86b77eb3a7dacea76557ffc",
+      "locale": "fr",
+      "nativeFrontend": true,
+      "fictionalData": true,
+      "clipStartSeconds": 1.967,
+      "durationSeconds": 10.3,
+      "route": "/fr/dashboard/radio",
+      "exercised": [
+        "native Radio start, playback of locally generated silent WAV, pause, source interaction; no generated voice"
+      ],
+      "writes": [],
+      "clipPath": "capture-v2/fr/radio.mp4",
+      "fromSeconds": 0,
+      "clipSha256": "a9c7f228bbc94fabf35e41a670cbf9c7025d1fd98968bf3e63e62e9da97c2f0c",
+      "codec": "h264",
+      "fps": 30,
+      "sourceComponents": [
+        "apps/web/src/components/radio/RadioPage.tsx",
+        "apps/web/src/components/radio/RadioArticles.tsx"
+      ],
+      "nativeUrl": "http://127.0.0.1:3134/fr/dashboard/radio"
+    },
+    {
+      "id": "briefing",
+      "path": "capture-v2/fr/briefing.png",
+      "beforePath": "capture-v2/fr/briefing-before.png",
+      "type": "image",
+      "width": 1440,
+      "height": 960,
+      "sha256": "72cd170a3013436db48866dcc1616b6f06bb741a83f0f1ed64b243f71d388a40",
+      "locale": "fr",
+      "nativeFrontend": true,
+      "fictionalData": true,
+      "clipStartSeconds": 3.202,
+      "durationSeconds": 9,
+      "route": "/fr/dashboard",
+      "exercised": [
+        "native Today Briefing cards and scroll; handwritten fictional weather/agenda/mail/tasks"
+      ],
+      "writes": [],
+      "clipPath": "capture-v2/fr/briefing.mp4",
+      "fromSeconds": 0,
+      "clipSha256": "0c4b732b6c5fb4a580cfb029e75f8e7cc4e21d741fb481d59b05887d006f2dae",
+      "codec": "h264",
+      "fps": 30,
+      "sourceComponents": [
+        "apps/web/src/components/dashboard/TodayBriefing.tsx"
+      ],
+      "nativeUrl": "http://127.0.0.1:3134/fr/dashboard"
+    },
+    {
+      "id": "routines",
+      "path": "capture-v2/fr/routines.png",
+      "beforePath": "capture-v2/fr/routines-before.png",
+      "type": "image",
+      "width": 1440,
+      "height": 960,
+      "sha256": "7e67453a60ac90591e4088206630ba7bf4042c8d2cf798dbe26d2ad55f32b183",
+      "locale": "fr",
+      "nativeFrontend": true,
+      "fictionalData": true,
+      "clipStartSeconds": 3.221,
+      "durationSeconds": 8.033333,
+      "route": "/fr/dashboard/settings?section=scheduled-actions",
+      "exercised": [
+        "native routine cards and schedule with fictional sample recurrence; no run triggered"
+      ],
+      "writes": [],
+      "clipPath": "capture-v2/fr/routines.mp4",
+      "fromSeconds": 0,
+      "clipSha256": "250a6460df56144c65c1a68f4a10f249825be908c76560e532131a31a516a362",
+      "codec": "h264",
+      "fps": 30,
+      "sourceComponents": [
+        "apps/web/src/components/settings/ScheduledActionsSettings.tsx"
+      ],
+      "nativeUrl": "http://127.0.0.1:3134/fr/dashboard/settings?section=scheduled-actions"
+    },
+    {
+      "id": "habits",
+      "path": "capture-v2/fr/habits.png",
+      "beforePath": "capture-v2/fr/habits-before.png",
+      "type": "image",
+      "width": 1440,
+      "height": 960,
+      "sha256": "f51d183d1afd85f214874b3adb9a2cd5284002850991ba22e3b676a82017ce53",
+      "locale": "fr",
+      "nativeFrontend": true,
+      "fictionalData": true,
+      "clipStartSeconds": 2.267,
+      "durationSeconds": 8.066667,
+      "route": "/fr/dashboard/settings?section=habits",
+      "exercised": [
+        "native habits settings, learned request/rhythm cards from existing typed E2E fixture; no mutation"
+      ],
+      "writes": [],
+      "clipPath": "capture-v2/fr/habits.mp4",
+      "fromSeconds": 0,
+      "clipSha256": "b6f17865aff3f9c83f9b3500c7d4f70e85093e73f5f8b3c1279d9fdd6f949517",
+      "codec": "h264",
+      "fps": 30,
+      "sourceComponents": [
+        "apps/web/src/components/settings/HabitsSettings.tsx"
+      ],
+      "nativeUrl": "http://127.0.0.1:3134/fr/dashboard/settings?section=habits"
+    },
+    {
+      "id": "journals",
+      "path": "capture-v2/fr/journals.png",
+      "beforePath": "capture-v2/fr/journals-before.png",
+      "type": "image",
+      "width": 1440,
+      "height": 960,
+      "sha256": "05bc9174517d5b7a5029aba172dd395f9c1194c2eb373fddf22ad15fe01b27ec",
+      "locale": "fr",
+      "nativeFrontend": true,
+      "fictionalData": true,
+      "clipStartSeconds": 2.587,
+      "durationSeconds": 8.233333,
+      "route": "/fr/dashboard/settings?section=journals",
+      "exercised": [
+        "native personal journals list and settings; handwritten fictional entry, no generation or consolidation"
+      ],
+      "writes": [],
+      "clipPath": "capture-v2/fr/journals.mp4",
+      "fromSeconds": 0,
+      "clipSha256": "81ce43abc320e9c9943f34c0994385c788a3a0a2120ee977dc841e7cf3c7a513",
+      "codec": "h264",
+      "fps": 30,
+      "sourceComponents": [
+        "apps/web/src/components/settings/JournalsSettings.tsx"
+      ],
+      "nativeUrl": "http://127.0.0.1:3134/fr/dashboard/settings?section=journals"
+    },
+    {
+      "id": "peers",
+      "path": "capture-v2/fr/peers.png",
+      "beforePath": "capture-v2/fr/peers-before.png",
+      "type": "image",
+      "width": 1440,
+      "height": 960,
+      "sha256": "2579d9b4d5ea123435f8ff8aacbaae2db440039b3b30a5632a658a17355ed6a8",
+      "locale": "fr",
+      "nativeFrontend": true,
+      "fictionalData": true,
+      "clipStartSeconds": 2.48,
+      "durationSeconds": 7,
+      "route": "/fr/dashboard/settings?section=peer-connections",
+      "exercised": [
+        "native peer connection card and two sharing directions; no real person connected or access granted"
+      ],
+      "writes": [],
+      "clipPath": "capture-v2/fr/peers.mp4",
+      "fromSeconds": 0,
+      "clipSha256": "18af63b3dc1118e447714455dfb01ec35567bac7cf99cd6c59b94768393fecc6",
+      "codec": "h264",
+      "fps": 30,
+      "sourceComponents": [
+        "apps/web/src/components/settings/PeerConnectionsSettings.tsx"
+      ],
+      "nativeUrl": "http://127.0.0.1:3134/fr/dashboard/settings?section=peer-connections"
+    },
+    {
+      "id": "plugins",
+      "path": "capture-v2/fr/plugins.png",
+      "beforePath": "capture-v2/fr/plugins-before.png",
+      "type": "image",
+      "width": 1440,
+      "height": 960,
+      "sha256": "6c6be36d95d08ec46fe668d8127611f2628920eec2dbd686c16ec522c8895e65",
+      "locale": "fr",
+      "nativeFrontend": true,
+      "fictionalData": true,
+      "clipStartSeconds": 2.772,
+      "durationSeconds": 7.1,
+      "route": "/fr/dashboard/settings?section=plugins",
+      "exercised": [
+        "native plugin ZIP/URL import controls and empty installed-plugin list; no installation or external download"
+      ],
+      "writes": [],
+      "clipPath": "capture-v2/fr/plugins.mp4",
+      "fromSeconds": 0,
+      "clipSha256": "55b5dbc0680ac4e14a18f9b1d0156fed0b71f8195504f4d6923d547067e4c369",
+      "codec": "h264",
+      "fps": 30,
+      "sourceComponents": [
+        "apps/web/src/components/settings/PluginsSettings.tsx"
+      ],
+      "nativeUrl": "http://127.0.0.1:3134/fr/dashboard/settings?section=plugins"
+    },
+    {
+      "id": "simli",
+      "path": "capture-v2/fr/simli.png",
+      "beforePath": "capture-v2/fr/simli-before.png",
+      "type": "image",
+      "width": 1440,
+      "height": 960,
+      "sha256": "db18b1b1150d39e63aee0095db713dc526e15630a8e22383df483b9247a91eee",
+      "locale": "fr",
+      "nativeFrontend": true,
+      "fictionalData": true,
+      "clipStartSeconds": 2.681,
+      "durationSeconds": 6.733333,
+      "route": "/fr/dashboard/settings?section=avatar",
+      "exercised": [
+        "native speaking-avatar Simli settings, disconnected and disabled; no face image, voice or session synthesized"
+      ],
+      "writes": [],
+      "clipPath": "capture-v2/fr/simli.mp4",
+      "fromSeconds": 0,
+      "clipSha256": "46230244da30a141b7e6fe6ad40806ab918d40bcc9abcc0460a755769a1a9a05",
+      "codec": "h264",
+      "fps": 30,
+      "sourceComponents": [
+        "apps/web/src/components/settings/AvatarSettings.tsx"
+      ],
+      "nativeUrl": "http://127.0.0.1:3134/fr/dashboard/settings?section=avatar"
+    },
+    {
+      "id": "images",
+      "path": "capture-v2/fr/images.png",
+      "beforePath": "capture-v2/fr/images-before.png",
+      "type": "image",
+      "width": 1440,
+      "height": 960,
+      "sha256": "c12882a64157c6c4f0d916fc2f45a6400149b1016291ae9bd29b174cf105c527",
+      "locale": "fr",
+      "nativeFrontend": true,
+      "fictionalData": true,
+      "clipStartSeconds": 2.764,
+      "durationSeconds": 7.8,
+      "route": "/fr/dashboard/settings?section=image-generation",
+      "exercised": [
+        "native image-generation quality/size/prompt-enhancement preference controls with fictional model pricing; no image generated"
+      ],
+      "writes": [],
+      "clipPath": "capture-v2/fr/images.mp4",
+      "fromSeconds": 0,
+      "clipSha256": "de0cf2007f3be2cacab0c73eae8cd92679b2c0477dd9f73e50c4cc6cc3206fae",
+      "codec": "h264",
+      "fps": 30,
+      "sourceComponents": [
+        "apps/web/src/components/settings/ImageGenerationSettings.tsx"
+      ],
+      "nativeUrl": "http://127.0.0.1:3134/fr/dashboard/settings?section=image-generation"
+    },
+    {
+      "id": "live",
+      "path": "capture-v2/fr/live.png",
+      "beforePath": "capture-v2/fr/live-before.png",
+      "type": "image",
+      "width": 1440,
+      "height": 960,
+      "sha256": "23cec6c2d09839c691bf5dac889322686581e24fea1ed5039385a1349e640e2f",
+      "locale": "fr",
+      "nativeFrontend": true,
+      "fictionalData": true,
+      "clipStartSeconds": 1.696,
+      "durationSeconds": 8.3,
+      "route": "/fr/dashboard/settings?section=live-mode",
+      "exercised": [
+        "native Live preference controls with no active provider connector; no microphone, WebRTC or live session"
+      ],
+      "writes": [],
+      "clipPath": "capture-v2/fr/live.mp4",
+      "fromSeconds": 0,
+      "clipSha256": "8ec63da0b1c57d0ce25eb0aba60c889424652aab48956a27e154f2d6bc5c49a4",
+      "codec": "h264",
+      "fps": 30,
+      "sourceComponents": [
+        "apps/web/src/components/settings/LiveModeSettings.tsx"
+      ],
+      "nativeUrl": "http://127.0.0.1:3134/fr/dashboard/settings?section=live-mode"
+    },
+    {
+      "id": "phone",
+      "path": "capture-v2/fr/phone.png",
+      "beforePath": "capture-v2/fr/phone-before.png",
+      "type": "image",
+      "width": 1440,
+      "height": 960,
+      "sha256": "cf2b113286c9f290b80a6d8bdedf8797d79e20078cb9f5d675e30baa03b803b0",
+      "locale": "fr",
+      "nativeFrontend": true,
+      "fictionalData": true,
+      "clipStartSeconds": 1.757,
+      "durationSeconds": 6.266667,
+      "route": "/fr/dashboard/settings?section=telephony-calls",
+      "exercised": [
+        "native recent-calls row and structured debrief with explicitly fictional call data; no telephone call placed"
+      ],
+      "writes": [],
+      "clipPath": "capture-v2/fr/phone.mp4",
+      "fromSeconds": 0,
+      "clipSha256": "3f95515c6f94a0a85da92c6942fcce008904495c5212ebc2c88b511014f54411",
+      "codec": "h264",
+      "fps": 30,
+      "sourceComponents": [
+        "apps/web/src/components/settings/TelephonyCallsSection.tsx"
+      ],
+      "nativeUrl": "http://127.0.0.1:3134/fr/dashboard/settings?section=telephony-calls"
+    },
+    {
+      "id": "phone-identity",
+      "path": "capture-v2/fr/phone-identity.png",
+      "beforePath": "capture-v2/fr/phone-identity-before.png",
+      "type": "image",
+      "width": 1440,
+      "height": 960,
+      "sha256": "dc4c9bb22e65426ca1502f7a4918f8b35c70332a476cf70cace189e3fb256503",
+      "locale": "fr",
+      "nativeFrontend": true,
+      "fictionalData": true,
+      "clipStartSeconds": 2.115,
+      "durationSeconds": 7.166667,
+      "route": "/fr/dashboard/settings?section=telephony-identity",
+      "exercised": [
+        "native phone identity/Live versus Live direct/domain-access settings, blank number and no verification call"
+      ],
+      "writes": [],
+      "clipPath": "capture-v2/fr/phone-identity.mp4",
+      "fromSeconds": 0,
+      "clipSha256": "c1c1abeb5782327dcea334406ddf0593c48e7db7a153eeac9cc99e8907471a4b",
+      "codec": "h264",
+      "fps": 30,
+      "sourceComponents": [
+        "apps/web/src/components/settings/TelephonyIdentitySection.tsx"
+      ],
+      "nativeUrl": "http://127.0.0.1:3134/fr/dashboard/settings?section=telephony-identity"
+    },
+    {
+      "id": "agents",
+      "path": "capture-v2/fr/agents.png",
+      "beforePath": "capture-v2/fr/agents-before.png",
+      "type": "image",
+      "width": 1440,
+      "height": 960,
+      "sha256": "85e92658633ef723471b2d950c6d119568573fd787a405894d3708f7c7802924",
+      "locale": "fr",
+      "nativeFrontend": true,
+      "fictionalData": true,
+      "clipStartSeconds": 1.615,
+      "durationSeconds": 6,
+      "route": "/fr/dashboard/settings?section=admin-llm-config",
+      "exercised": [
+        "native LLM configuration list and domain-agent entries, reusing existing typed public screenshot fixtures; no orchestration run or configuration write"
+      ],
+      "writes": [],
+      "clipPath": "capture-v2/fr/agents.mp4",
+      "fromSeconds": 0,
+      "clipSha256": "64f0d9987f39e2651dd3dcae00b96c7689fd10cf929745c3b1e452f354bee6a0",
+      "codec": "h264",
+      "fps": 30,
+      "sourceComponents": [
+        "apps/web/src/components/settings/AdminLLMConfigSection.tsx"
+      ],
+      "nativeUrl": "http://127.0.0.1:3134/fr/dashboard/settings?section=admin-llm-config"
+    },
+    {
+      "id": "files",
+      "path": "capture-v2/fr/files.png",
+      "beforePath": "capture-v2/fr/files-before.png",
+      "type": "image",
+      "width": 1440,
+      "height": 960,
+      "sha256": "7c1ed805559c933e2d56645e08e6bde7687cd117d88e1e140143665042f023bf",
+      "locale": "fr",
+      "nativeFrontend": true,
+      "fictionalData": true,
+      "clipStartSeconds": 1.588,
+      "durationSeconds": 6.066667,
+      "route": "/fr/dashboard/settings?section=generated-assets",
+      "exercised": [
+        "native generated-files gallery, opening the Documents tab and actual local fictional PDF fixture metadata; PDFs created locally for filming, no provider generation"
+      ],
+      "writes": [],
+      "clipPath": "capture-v2/fr/files.mp4",
+      "fromSeconds": 0,
+      "clipSha256": "d0459863784e49ecca96fc78ea19f2e677d1cd53e1f78b68924334c49bcd0056",
+      "codec": "h264",
+      "fps": 30,
+      "sourceComponents": [
+        "apps/web/src/components/settings/GeneratedAssetsSettings.tsx",
+        "apps/web/src/components/settings/generated-assets/GeneratedAssetGrid.tsx"
+      ],
+      "nativeUrl": "http://127.0.0.1:3134/fr/dashboard/settings?section=generated-assets"
+    },
+    {
+      "id": "mobile",
+      "path": "capture-v2/fr/mobile.png",
+      "beforePath": "capture-v2/fr/mobile-before.png",
+      "type": "image",
+      "width": 390,
+      "height": 844,
+      "sha256": "23261bfb8b89ac8c6e282cc8e82ada338c50e6d9e6659fefbc3be5291c55b837",
+      "locale": "fr",
+      "nativeFrontend": true,
+      "fictionalData": true,
+      "clipStartSeconds": 1.621,
+      "durationSeconds": 9.266667,
+      "route": "/fr/dashboard/chat",
+      "exercised": [
+        "native mobile 390x844 chat and compact Bip companion, real responsive layout/composer/submission supplied fictional SSE tokens; no provider inference"
+      ],
+      "writes": [
+        {
+          "path": "/api/v1/agents/chat/stream",
+          "body": {
+            "message": "Quelle date dois-je confirmer ?",
+            "user_id": "00000000-0000-4000-8000-000000000001",
+            "session_id": "session_00000000-0000-4000-8000-000000000001",
+            "context": {
+              "geolocation": null,
+              "lia_gender": "female",
+              "viewport_width": 390
+            }
+          }
+        }
+      ],
+      "clipPath": "capture-v2/fr/mobile.mp4",
+      "fromSeconds": 0,
+      "clipSha256": "7d5c9314a20f3f8af951858041026ca1f0534b188e614332c2929b2dd8a95418",
+      "codec": "h264",
+      "fps": 30,
+      "sourceComponents": [
+        "apps/web/src/components/chat/ChatInput.tsx",
+        "apps/web/src/app/[lng]/dashboard/chat/page.tsx"
+      ],
+      "nativeUrl": "http://127.0.0.1:3134/fr/dashboard/chat"
+    },
+    {
+      "id": "heartbeat",
+      "path": "capture-v2/fr/heartbeat.png",
+      "beforePath": "capture-v2/fr/heartbeat-before.png",
+      "type": "image",
+      "width": 1440,
+      "height": 960,
+      "sha256": "1c0909d17d63e26b2bf3d1c0932153fde0a07f0d08fb2f693c2c8c813935e91a",
+      "locale": "fr",
+      "nativeFrontend": true,
+      "fictionalData": true,
+      "clipStartSeconds": 1.571,
+      "durationSeconds": 5.966667,
+      "route": "/fr/dashboard/settings?section=heartbeat",
+      "exercised": [
+        "native proactive-notification time window and allowed-source controls; no notification generated"
+      ],
+      "writes": [],
+      "clipPath": "capture-v2/fr/heartbeat.mp4",
+      "fromSeconds": 0,
+      "clipSha256": "a13e797ccca04553f30763c2c309795a7baa99169650c9652d56dfec96b660cc",
+      "codec": "h264",
+      "fps": 30,
+      "sourceComponents": [
+        "apps/web/src/components/settings/HeartbeatSettings.tsx"
+      ],
+      "nativeUrl": "http://127.0.0.1:3134/fr/dashboard/settings?section=heartbeat"
+    },
+    {
+      "id": "dossier",
+      "path": "capture-v2/fr/chat.png",
+      "beforePath": "capture-v2/fr/chat-before.png",
+      "type": "image",
+      "width": 1440,
+      "height": 960,
+      "sha256": "cc3170d6b78bc50759513b286b8e1e78d20256e3f0a28373ab1f01fc05c3e3d3",
+      "locale": "fr",
+      "nativeFrontend": true,
+      "fictionalData": true,
+      "clipStartSeconds": 3.264,
+      "durationSeconds": 12.1,
+      "route": "/fr/dashboard/chat",
+      "exercised": [
+        "native chat composer, Enter submission, real streaming renderer supplied with fictional SSE tokens"
+      ],
+      "writes": [
+        {
+          "path": "/api/v1/agents/chat/stream",
+          "body": {
+            "message": "Quelle date dois-je confirmer avec le fournisseur ?",
+            "user_id": "00000000-0000-4000-8000-000000000001",
+            "session_id": "session_00000000-0000-4000-8000-000000000001",
+            "context": {
+              "geolocation": null,
+              "lia_gender": "female",
+              "viewport_width": 1440
+            }
+          }
+        }
+      ],
+      "clipPath": "capture-v2/fr/chat.mp4",
+      "fromSeconds": 0,
+      "clipSha256": "1ed60fa53101d763c52d5705fdecaa644aa5717f11b95fea2eae68c26d6f7a8a",
+      "codec": "h264",
+      "fps": 30,
+      "aliases": [
+        "chat"
+      ],
+      "semanticScope": "native chat cross-source dossier demo and follow-up question, no inference performed",
+      "sourceComponents": [
+        "apps/web/src/components/chat/ChatInput.tsx",
+        "apps/web/src/app/[lng]/dashboard/chat/page.tsx"
+      ],
+      "nativeUrl": "http://127.0.0.1:3134/fr/dashboard/chat"
+    }
+  ],
+  "documents": [
+    {
+      "path": "capture-v2/demo-files/compte-rendu-demo.pdf",
+      "sha256": "5ef6f93c7130e7d31ce27f735d0b12abaa0fdc216faad0c88062bed51163c2d4",
+      "provenance": "Local fictional PDF fixture authored by scripts/create-capture-documents.py using ReportLab; not generated by LIA or a model provider."
+    },
+    {
+      "path": "capture-v2/demo-files/synthese-atlas-demo.pdf",
+      "sha256": "4298accd4f38204c41957dd9d7a64cbc72a428a1605f83de3ec856714da05245",
+      "provenance": "Local fictional PDF fixture authored by scripts/create-capture-documents.py using ReportLab; not generated by LIA or a model provider."
+    }
+  ],
+  "campaigns": [
+    {
+      "reportArtifact": "output/playwright/lia-motion-native-v2/capture-report-1791751862151.json",
+      "captured": [
+        "approval",
+        "skill"
+      ],
+      "failed": [
+        {
+          "id": "relations",
+          "reason": "TimeoutError: locator.click: Timeout 15000ms exceeded.\nCall log:\n  - waiting for getByRole('button', { name: /^E-mails échangés/ })\n"
+        },
+        {
+          "id": "radio",
+          "reason": "TimeoutError: locator.click: Timeout 15000ms exceeded.\nCall log:\n  - waiting for getByRole('button', { name: 'Démarrer la radio', exact: true }).last()\n"
+        },
+        {
+          "id": "workboard",
+          "reason": "Error: {\"id\":\"workboard\",\"unexpected\":[\"GET /api/v1/peers/connections\"],\"errors\":[]}"
+        }
+      ],
+      "transportGuardBlocked": [
+        "CONNECT update.googleapis.com:443",
+        "CONNECT update.googleapis.com:443",
+        "CONNECT accounts.google.com:443",
+        "CONNECT www.google.com:443",
+        "CONNECT www.google.com:443",
+        "CONNECT www.google.com:443",
+        "CONNECT www.google.com:443",
+        "CONNECT www.google.com:443",
+        "CONNECT www.google.com:443",
+        "CONNECT www.google.com:443",
+        "CONNECT accounts.google.com:443",
+        "CONNECT www.google.com:443",
+        "CONNECT www.google.com:443",
+        "CONNECT accounts.google.com:443",
+        "CONNECT accounts.google.com:443",
+        "CONNECT android.clients.google.com:443",
+        "CONNECT www.google.com:443",
+        "CONNECT www.google.com:443",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "CONNECT www.google.com:443",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "CONNECT www.google.com:443",
+        "CONNECT www.google.com:443",
+        "CONNECT www.google.com:443",
+        "CONNECT accounts.google.com:443",
+        "CONNECT www.google.com:443",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "CONNECT www.google.com:443",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "CONNECT www.google.com:443",
+        "CONNECT www.google.com:443",
+        "CONNECT www.google.com:443",
+        "CONNECT android.clients.google.com:443",
+        "CONNECT www.google.com:443",
+        "CONNECT www.google.com:443",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "CONNECT www.google.com:443",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "CONNECT www.google.com:443",
+        "CONNECT www.google.com:443",
+        "CONNECT www.google.com:443",
+        "CONNECT www.google.com:443",
+        "CONNECT update.googleapis.com:443",
+        "CONNECT www.google.com:443",
+        "CONNECT www.google.com:443",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "CONNECT www.google.com:443",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "CONNECT www.google.com:443",
+        "CONNECT www.google.com:443",
+        "CONNECT www.google.com:443",
+        "CONNECT www.google.com:443",
+        "CONNECT www.google.com:443",
+        "CONNECT www.google.com:443",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "CONNECT www.google.com:443"
+      ]
+    },
+    {
+      "reportArtifact": "output/playwright/lia-motion-native-v2/capture-report-1791752027566.json",
+      "captured": [
+        "relations",
+        "chat",
+        "knowledge",
+        "meetings",
+        "workboard"
+      ],
+      "failed": [
+        {
+          "id": "radio",
+          "reason": "Error: locator.waitFor: Error: strict mode violation: getByText('Votre matinée, avec les sources') resolved to 2 elements:\n    1) <p class=\"min-h-5 truncate text-sm\">…</p> aka getByText('Ouverture — Votre matinée,')\n    2) <h2 class=\"text-lg font-semibold\">Votre matinée, avec les sources à portée de main</h2> aka getByRole('heading', { name: 'Votre matinée, avec les' })\n\nCall log:\n  - waiting for getByText('Votre matinée, avec les sources') to be visible\n"
+        },
+        {
+          "id": "briefing",
+          "reason": "Error: {\"id\":\"briefing\",\"unexpected\":[\"GET /api/v1/radio/preferences\"],\"errors\":[]}"
+        },
+        {
+          "id": "memory",
+          "reason": "TimeoutError: locator.click: Timeout 15000ms exceeded.\nCall log:\n  - waiting for getByRole('button', { name: 'Modifier', exact: true }).first()\n"
+        }
+      ],
+      "transportGuardBlocked": [
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream"
+      ]
+    },
+    {
+      "reportArtifact": "output/playwright/lia-motion-native-v2/capture-report-1791752316310.json",
+      "captured": [
+        "radio",
+        "briefing",
+        "memory",
+        "routines",
+        "habits",
+        "journals",
+        "health",
+        "voice",
+        "connections"
+      ],
+      "failed": [
+        {
+          "id": "peers",
+          "reason": "TimeoutError: locator.waitFor: Timeout 60000ms exceeded.\nCall log:\n  - waiting for getByText('Morgan Démo').visible().first() to be visible\n"
+        }
+      ],
+      "transportGuardBlocked": [
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/agents/runs/active",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream"
+      ]
+    },
+    {
+      "reportArtifact": "output/playwright/lia-motion-native-v2/capture-report-1791752550695.json",
+      "captured": [
+        "habits",
+        "health",
+        "avatars",
+        "extensions",
+        "mcp",
+        "administration"
+      ],
+      "failed": [
+        {
+          "id": "peers",
+          "reason": "TimeoutError: locator.click: Timeout 15000ms exceeded.\nCall log:\n  - waiting for getByRole('button', { name: /^Mes connexions/ }).first()\n"
+        }
+      ],
+      "transportGuardBlocked": [
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/agents/runs/active",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream"
+      ]
+    },
+    {
+      "reportArtifact": "output/playwright/lia-motion-native-v2/capture-report-1791752686720.json",
+      "captured": [
+        "radio",
+        "briefing",
+        "routines",
+        "habits",
+        "journals",
+        "peers"
+      ],
+      "failed": [],
+      "transportGuardBlocked": [
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream"
+      ]
+    },
+    {
+      "reportArtifact": "output/playwright/lia-motion-native-v2/capture-report-1791752840179.json",
+      "captured": [
+        "plugins",
+        "live",
+        "simli",
+        "images",
+        "files"
+      ],
+      "failed": [],
+      "transportGuardBlocked": [
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream"
+      ]
+    },
+    {
+      "reportArtifact": "output/playwright/lia-motion-native-v2/capture-report-1791753010506.json",
+      "captured": [
+        "live",
+        "phone",
+        "phone-identity",
+        "agents",
+        "heartbeat"
+      ],
+      "failed": [],
+      "transportGuardBlocked": [
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream"
+      ]
+    },
+    {
+      "reportArtifact": "output/playwright/lia-motion-native-v2/capture-report-1791753149865.json",
+      "captured": [
+        "files",
+        "mobile"
+      ],
+      "failed": [],
+      "transportGuardBlocked": [
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream"
+      ]
+    },
+    {
+      "reportArtifact": "output/playwright/lia-motion-native-v2/capture-report-1791753258047.json",
+      "captured": [
+        "heartbeat"
+      ],
+      "failed": [],
+      "transportGuardBlocked": [
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+        "GET http://127.0.0.1:3134/api/v1/notifications/stream"
+      ]
+    }
+  ]
+}

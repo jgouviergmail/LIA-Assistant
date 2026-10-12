@@ -457,27 +457,9 @@ Yes, since v1.46.0 and only in ReAct mode (⚡). When a step needs a service no 
 
 ## What are the little animated eyes on the chat page?
 
-They are LIA's **expressive eyes** — a small companion widget that mirrors what
-the assistant is doing and feeling. They watch the input while you type, squint
-while LIA thinks, scan side to side while it searches, and play the **register**
-of each answer — LIA states whether what she has just written is warm, assured,
-factual, apologetic, curious or concerned, and the face plays it, mouth
-included. Twelve distinct expressions, only two of which smile: a technical
-answer keeps a focused face. Left alone, the whole face lives on: the brows sit
-on the eye, have weight, knit and lead each expression; the mouth speaks a
-generated speech that never loops and plays small mimics in phrases rather than
-on a cadence; no two blinks, smiles or glances are alike; and the short sketches
-— a fly to follow, a sneeze, a yawn, hiccups — wait for real resting time on a
-clock the page keeps across navigations, so you actually see them. Any change of
-expression drops a sketch on the spot.
+This is LIA’s visual companion: it follows real thinking, search, speech and response states. Expressions accompany tone without proving an action completed. Choose its design under Personalisation › Avatar style, with previews that animate on hover or focus.
 
-**Make them yours:** drag them anywhere (arrow keys work too, and they never
-drift from where you put them), tap them on mobile to reveal the size and hide
-buttons, or dismiss them to a small restore dot. Six visual styles are available
-in **Settings > Personalization > Eyes style**, with live previews. The same
-face greets visitors on the public home page, in the capsule look, with a spot
-of its own that never moves the chat's. Under reduced-motion system settings
-the eyes stay still.
+Move the companion, change its size or hide it; controls appear on hover, focus or touch. Style, size and positions are saved in this browser. The landing uses its own BIP presentation, independently of your application choice. The system’s reduced-motion preference retains a quiet pose.
 
 ## Do new messages appear by themselves?
 Yes. When a message lands in your conversation from elsewhere — another tab or device, Telegram, a voice session, a routine, a reminder — the chat adds it without reloading the page: what is already on screen stays as it is, your selection and open panels included. If you are reading higher up, you are not moved; the round button at the bottom counts what arrived. Nothing changes while an answer is being written: the new messages join once it is done. And if the connection dropped (network, a laptop asleep), the chat catches up when it comes back or when you return to the tab.
@@ -492,3 +474,15 @@ Cards show the data received from the source; missing values stay missing. Full 
 **Reply, forward or delete an e-mail** from its card: LIA prepares a request tied to that exact message and mailbox, then follows the usual confirmation. Changing the active provider cannot target another mailbox.
 
 MCP cards preserve lists and simple values, and show the tool, method and source URL when supplied. Weather icons follow the actual condition and day or night; dates and numbers follow the chosen display format. The model receives the authorised facts, not the card's markup.
+
+Cards at the end of an answer are grouped under one disclosure in Cards and HTML + cards modes. Details remain readable, while confirmations, interactive widgets and messages without text keep their controls.
+
+## How do I know whether an action actually happened?
+
+A prepared request, an awaited confirmation and a recorded change are different states. LIA reports observed results and distinguishes partial results, waiting, conflicts, expiry and failure. If the resource changed after preparation, the command may be refused and need a new request. Delegation to a tool does not by itself prove all its internal effects.
+
+## Why does LIA sometimes read information again?
+
+In ReAct, an exact, complete and still fresh read may be reused within the same request. A change invalidates affected observations; a different request may need a new read. References retain their type and source: a city is not a contact. Dates follow the request context and time zone; weather declares its units rather than guessing a conversion for an unknown value.
+
+Independent reads explicitly eligible for parallel execution can run in checkpointed segments with bounded concurrency. Mutations do not gain that permission merely by appearing nearby in a plan. A stop before checkpoint can still cause a source to be read again; local reuse therefore promises neither one global read nor permanently fresh state.

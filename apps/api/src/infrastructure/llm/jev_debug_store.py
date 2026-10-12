@@ -1,6 +1,7 @@
 """Encrypted, per-account Redis diagnostics, bounded by count AND call age."""
 
 import asyncio
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
@@ -22,15 +23,20 @@ from src.infrastructure.llm.jev_debug_models import (
     JevCallTrace,
     JevCollectionCoverage,
     JevTracePage,
-    choice_preview,
     context_preview,
+    decision_preview,
 )
 from src.infrastructure.llm.typesafe_client import (
     ChoiceAnswer,
     ChoiceQuestion,
+    DecisionQuestion,
     DecisionUsage,
     InvalidResponseReason,
+    NoulAnswer,
+    NoulQuestion,
 )
+
+DecisionAnswer = ChoiceAnswer | NoulAnswer
 
 logger = structlog.get_logger(__name__)
 DEBUG_IO_SECONDS = 0.25
@@ -124,7 +130,7 @@ async def begin_trace(
     run_id: str,
     model: str,
     state: JsonValue,
-    question: ChoiceQuestion | dict[str, ChoiceQuestion],
+    question: DecisionQuestion | Mapping[str, DecisionQuestion],
 ) -> JevCallTrace | None:
     """Collect only for an opted-in account; never keep the DB session across HTTP."""
     try:
@@ -145,7 +151,7 @@ async def begin_trace(
                         "state": state,
                         "question": (
                             question.model_dump()
-                            if isinstance(question, ChoiceQuestion)
+                            if isinstance(question, ChoiceQuestion | NoulQuestion)
                             else {key: value.model_dump() for key, value in question.items()}
                         ),
                     }
@@ -203,8 +209,8 @@ async def finish_trace(
     user_id: UUID,
     trace: JevCallTrace | None,
     *,
-    answer: ChoiceAnswer | dict[str, ChoiceAnswer] | None,
-    question: ChoiceQuestion | dict[str, ChoiceQuestion],
+    answer: DecisionAnswer | Mapping[str, DecisionAnswer] | None,
+    question: DecisionQuestion | Mapping[str, DecisionQuestion],
     reported_model: str | None,
     duration_ms: float,
     outcome: str,
@@ -223,16 +229,19 @@ async def finish_trace(
                 "reported_model": reported_model,
                 "duration_ms": duration_ms,
                 "response": (
-                    choice_preview(answer, question)
-                    if isinstance(answer, ChoiceAnswer) and isinstance(question, ChoiceQuestion)
+                    decision_preview(answer, question)
+                    if isinstance(answer, ChoiceAnswer | NoulAnswer)
+                    and isinstance(question, ChoiceQuestion | NoulQuestion)
                     else None
                 ),
                 "responses": (
                     {
-                        key: choice_preview(value, question[key], limit=3)
+                        key: preview
                         for key, value in answer.items()
+                        if key in question
+                        and (preview := decision_preview(value, question[key], limit=3)) is not None
                     }
-                    if isinstance(answer, dict) and isinstance(question, dict)
+                    if isinstance(answer, Mapping) and isinstance(question, Mapping)
                     else {}
                 ),
                 "outcome": outcome,

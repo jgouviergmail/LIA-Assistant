@@ -1,26 +1,33 @@
 {
-  "revision": "4d87818067552da8",
-  "providedAt": "2026-10-10T03:14:00.772Z",
+  "revision": "15041a73f400568c",
+  "providedAt": "2026-10-11T21:34:49Z",
   "capturedAt": null,
   "provenance": "Original PNG screenshots supplied by the project owner in this conversation for the homepage.",
-  "theme": "Grafana dark",
+  "theme": "Grafana light",
   "imageTreatment": "Copied byte for byte. No cropping, retouching, generated graphics or raster resizing.",
-  "navigation": "No left navigation visible in either supplied image.",
+  "navigation": "No left navigation visible in the three supplied images.",
   "data": "Values shown in the supplied screenshots. No query fixtures were injected into these images. No live dashboard session, metric collection, benchmark, data provenance or capture timestamp independently verified in this campaign.",
   "images": [
     {
       "file": "grafana-overview.png",
-      "providedFilename": "codex-clipboard-25508ceb-7456-4ea0-8e6f-27ead178c1f4.png",
-      "sha256": "95539d11a640c0caf763a7e58692427ef875af44d930a1df7b018f2f2e62c192",
-      "width": 1858,
-      "height": 1064
+      "providedFilename": "codex-clipboard-677d5a4a-a4c1-49f4-9865-93ef20fb9d5a.png",
+      "sha256": "1adecad4734d18dfa4891f3d97d82ac88396c8565e32ea952d8953a1ed82572c",
+      "width": 2177,
+      "height": 1142
     },
     {
       "file": "grafana-costs.png",
-      "providedFilename": "codex-clipboard-8d29b25a-5309-436d-888b-01ccd8f736a9.png",
-      "sha256": "7f29b1559010d60198f2328c6c3104cbb9dc96afc344f3291f35a49000ffc84e",
-      "width": 1860,
-      "height": 1103
+      "providedFilename": "codex-clipboard-34620c7f-18a4-48fe-8799-e60640b0bcbc.png",
+      "sha256": "cbcf2fde1e15461dd9b7cb6a1f07f1c695e745a3eac9cd0abbd7e431bea78468",
+      "width": 2178,
+      "height": 1142
+    },
+    {
+      "file": "grafana-activity.png",
+      "providedFilename": "codex-clipboard-fb660ee7-fac7-47bb-961d-877967b4022e.png",
+      "sha256": "a45cb0b3f6e167e0a06744b6454062782e83cecc83fe01836b74f4bf043f2260",
+      "width": 2179,
+      "height": 1144
     }
   ],
   "scenes": [
@@ -38,6 +45,16 @@
       "file": "grafana-costs.png",
       "dashboard": "LLM tokens, costs and cache",
       "dashboardSource": "infrastructure/observability/grafana/dashboards/05-llm-tokens-cost.json",
+      "sourceRelationship": "Corresponding dashboard implementation in this repository; the captured instance and revision were not independently verified.",
+      "exercised": [],
+      "illustrated": [
+        "Dashboard panels and values as shown in the original project-provided screenshot."
+      ]
+    },
+    {
+      "file": "grafana-activity.png",
+      "dashboard": "Request origins, account activity and tool usage",
+      "dashboardSource": "infrastructure/observability/grafana/dashboards/17-user-analytics-geo.json",
       "sourceRelationship": "Corresponding dashboard implementation in this repository; the captured instance and revision were not independently verified.",
       "exercised": [],
       "illustrated": [

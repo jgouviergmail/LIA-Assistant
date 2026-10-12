@@ -1,4 +1,10 @@
-"""Optional native verifier; an uncertain batch delegates the complete original script."""
+"""Optional native verifier; an uncertain batch delegates the complete original script.
+
+One Noul per checked line: "this line makes a claim its cited facts do not
+support". A batch is accepted only when EVERY line is decided — its probability at
+most ``DECISION_MARGIN`` (supported) or at least ``1 - DECISION_MARGIN``
+(unsupported); anything in between hands the whole script to the existing verifier.
+"""
 
 import json
 from collections.abc import Sequence
@@ -15,20 +21,21 @@ from src.domains.radio.production import LineChecker
 from src.domains.radio.verification import VerifiedLine
 from src.infrastructure.llm.jev_debug_store import record_action
 from src.infrastructure.llm.jev_runtime import choose_many_with_jev
-from src.infrastructure.llm.typesafe_client import MAX_QUESTIONS, MAX_REQUEST_BYTES, ChoiceQuestion
+from src.infrastructure.llm.typesafe_client import MAX_QUESTIONS, MAX_REQUEST_BYTES, NoulQuestion
 from src.infrastructure.observability.metrics_jev import (
     jev_decision_duration_seconds,
     jev_decisions_total,
 )
 
-# Calibrated on 30 synthetic scripts, then held out on 24 new, longer stories.
-# This is concentration, not a correctness guarantee; every ambiguous batch falls back.
-MIN_CONFIDENCE = 0.95
+# Chosen on the 30 synthetic calibration scripts (no wrong acceptance), verified on
+# the 24 held-out stories (no wrong acceptance; 94 % of the scripts decided natively
+# against 77 % for the former three-way Choice), 2026-10-11.
+DECISION_MARGIN = 0.16
 
 
 def verifier_request(
     lines: Sequence[VerifiedLine], pack: FactPack, station: str
-) -> tuple[JsonValue, dict[str, ChoiceQuestion]] | None:
+) -> tuple[JsonValue, dict[str, NoulQuestion]] | None:
     """No truncation: a script that does not fit uses the existing verifier."""
     positions = checked_positions(lines)
     if not 1 <= len(positions) <= MAX_QUESTIONS:
@@ -44,13 +51,8 @@ def verifier_request(
             for index, line in enumerate(lines)
         },
     }
-    question = ChoiceQuestion.model_validate_json(load_prompt("jev_radio_question", version="v1"))
-    questions = {
-        f"line{index}": question.model_copy(
-            update={"instructions": question.instructions.format(line_key=f"line{index}")}
-        )
-        for index in positions
-    }
+    question = NoulQuestion.model_validate_json(load_prompt("jev_radio_question", version="v1"))
+    questions = {f"line{index}": question.filled(line_key=f"line{index}") for index in positions}
     encoded = json.dumps(
         {
             "model": "界" * 100,
@@ -60,6 +62,10 @@ def verifier_request(
         ensure_ascii=False,
     )
     return (state, questions) if len(encoded.encode()) <= MAX_REQUEST_BYTES else None
+
+
+def _decided(probability: float) -> bool:
+    return probability <= DECISION_MARGIN or probability >= 1 - DECISION_MARGIN
 
 
 class JevLineChecker:
@@ -93,12 +99,8 @@ class JevLineChecker:
         )
         accepted = (
             attempt.outcome == "success"
-            and set(attempt.answers) == set(questions)
-            and all(
-                answer.confidence >= MIN_CONFIDENCE
-                and answer.choice in {"supported", "unsupported"}
-                for answer in attempt.answers.values()
-            )
+            and set(attempt.nouls) == set(questions)
+            and all(_decided(answer.noul) for answer in attempt.nouls.values())
         )
         outcome = (
             "verified"
@@ -119,5 +121,7 @@ class JevLineChecker:
         if not accepted:
             return await self._fallback.unsupported(lines, pack)
         return frozenset(
-            index for index in positions if attempt.answers[f"line{index}"].choice == "unsupported"
+            index
+            for index in positions
+            if attempt.nouls[f"line{index}"].noul >= 1 - DECISION_MARGIN
         )

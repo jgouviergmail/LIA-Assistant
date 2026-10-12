@@ -16,7 +16,6 @@ implementation would drift, and drift is how the two modes came to disagree.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
 
 import structlog
 from langchain_core.messages import HumanMessage
@@ -24,6 +23,8 @@ from langchain_core.runnables import RunnableConfig
 
 from src.core.config import settings
 from src.core.run_config import run_id_of
+from src.domains.agents.analysis.query_intelligence_helpers import turn_references
+from src.domains.agents.analysis.resolved_references import render_reference_lines
 from src.domains.agents.context.runtime_context import (
     runtime_context_if_running,
     runtime_user_id_str,
@@ -205,23 +206,21 @@ async def build_knowledge_block(state: MessagesState, config: RunnableConfig) ->
     return render_context_section("rag_context", content) or None
 
 
-def build_reference_resolution_block(state: MessagesState, intelligence: Any) -> str | None:
-    """Pre-resolved references ("my brother" = "Marc Lemoine"), when any.
+def build_reference_resolution_block(state: MessagesState) -> str | None:
+    """This turn's resolved references, in the pipeline's own section and wording.
+
+    Read from the turn's QueryIntelligence (fresh every turn), rendered by
+    ``render_context_section`` so both execution modes read ONE description
+    (ADR-284, ADR-120 amendment 2026-10-11).
 
     Args:
         state: Current graph state.
-        intelligence: QueryIntelligence for this turn, when available.
 
     Returns:
         The block, or None when nothing was resolved.
     """
-    resolved = state.get("resolved_references") or (
-        intelligence.resolved_references if intelligence else None
-    )
-    if not resolved:
-        return None
-    lines = [f'- "{key}" = {value}' for key, value in resolved.items()]
-    return "<MemoryContext>\nReference resolution:\n" + "\n".join(lines) + "\n</MemoryContext>"
+    lines = render_reference_lines(turn_references(state))
+    return render_context_section("resolved_references", lines) or None
 
 
 async def build_user_model_block() -> str | None:
@@ -398,9 +397,7 @@ class SetupBlocks:
     skills_catalog: str
 
 
-async def build_setup_blocks(
-    state: MessagesState, config: RunnableConfig, intelligence: Any
-) -> SetupBlocks:
+async def build_setup_blocks(state: MessagesState, config: RunnableConfig) -> SetupBlocks:
     """The context blocks of a ReAct turn, in injection ORDER.
 
     The order is meaningful: standing rules lead, because they govern how
@@ -410,7 +407,6 @@ async def build_setup_blocks(
     Args:
         state: Current graph state.
         config: RunnableConfig carrying the user context.
-        intelligence: The router's query intelligence, for reference resolution.
 
     Returns:
         The non-empty blocks and the flags the setup log reports.
@@ -428,7 +424,7 @@ async def build_setup_blocks(
     ordered = [
         build_card_composition_block(),
         memory_block,
-        build_reference_resolution_block(state, intelligence),
+        build_reference_resolution_block(state),
         await build_user_model_block(),
         await build_journal_directives_block(state, config),
         knowledge_block,

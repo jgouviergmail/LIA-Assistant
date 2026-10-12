@@ -1,7 +1,7 @@
 # Guide API REST - LIA
 
-**Version** : 2.0
-**Dernière mise à jour** : 2026-03-08
+**Version** : 2.1
+**Dernière mise à jour** : 2026-10-12
 **Statut** : ✅ Stable
 
 > **Documentation complète de l'API REST FastAPI v1**
@@ -26,13 +26,14 @@
 10. [Channels (Telegram)](#channels-telegram)
 11. [Heartbeat (Notifications Proactives)](#heartbeat-notifications-proactives)
 12. [Scheduled Actions (Actions Planifiees)](#scheduled-actions-actions-planifiees)
-13. [Error Handling](#error-handling)
-14. [Rate Limiting](#rate-limiting)
-15. [SSE Streaming](#sse-streaming)
-16. [Security (OWASP 2024)](#security-owasp-2024)
-17. [Examples cURL](#examples-curl)
-18. [Client SDKs](#client-sdks)
-19. [Troubleshooting](#troubleshooting)
+13. [Commandes applicatives](#commandes-applicatives)
+14. [Error Handling](#error-handling)
+15. [Rate Limiting](#rate-limiting)
+16. [SSE Streaming](#sse-streaming)
+17. [Security (OWASP 2024)](#security-owasp-2024)
+18. [Examples cURL](#examples-curl)
+19. [Client SDKs](#client-sdks)
+20. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -439,6 +440,7 @@ data: {}
 | `tool_call_end` | Tool invocation ended | `{tool_name, status}` |
 | `hitl_approval_request` | HITL approval required | `{action_requests, review_configs}` |
 | `plan_approval_request` | Plan approval required (Phase 8) | `{plan_summary, approval_question}` |
+| `application_state_changed` | Invalidation de ressources applicatives du compte | Chunk à `content` vide ; `metadata.change` contient le contrat versionné décrit dans [Commandes applicatives](#commandes-applicatives) |
 | `done` | Generation complete | `{run_id, total_tokens, cost_eur}` |
 | `error` | Error occurred | `{error_type, message}` |
 | `end` | Stream closed | `{}` |
@@ -2358,6 +2360,107 @@ Cookie: session_id=xxx
 curl -X POST http://localhost:8000/api/v1/scheduled-actions/550e8400-e29b-41d4-a716-446655440000/execute \
   -b cookies.txt
 ```
+
+---
+
+## Commandes applicatives
+
+La famille `/api/v1/application-commands` permet au navigateur authentifié
+d'observer une commande durable et de poursuivre son interaction déclarée. La
+commande est préparée par une opération applicative revue et le parcours de
+confirmation partagé ; cette famille ne fournit pas un endpoint générique pour
+soumettre une mutation arbitraire. Les contrôles d'autorité, de capacité, de
+propriétaire, d'origine et d'expiration sont revérifiés côté serveur.
+
+Sources : [router authentifié](../../apps/api/src/domains/agents/application/command_router.py),
+[statut](../../apps/api/src/domains/agents/application/command_status.py),
+[ADR-339](../architecture/ADR-339-Application-Commands-With-Current-Authority-And-Secure-Continuations.md)
+et [guide technique](../technical/APPLICATION_COMMANDS.md).
+
+### GET /application-commands/{command_id}
+
+Observe l'état actuel de la commande du compte connecté. La requête utilise la
+session HTTP-only ; l'identité de commande ne donne pas accès à celle d'un autre
+compte. Le navigateur d'origine, et le device adressé lorsqu'il est requis, restent
+liés à la commande. `X-Lia-Device-ID` est une adresse de document navigateur et
+ne remplace pas l'authentification ni les permissions.
+
+**Response :** `200 OK`, `Cache-Control: no-store`.
+
+| Champ de `ApplicationCommandStatus` | Signification |
+|------------------------------------|---------------|
+| `schema_version` | Version du contrat, actuellement `1` |
+| `command_id`, `operation_id` | Identités de la commande et de l'opération déclarée |
+| `phase`, `expires_at` | Phase courante et expiration, avec date comportant un fuseau |
+| `interaction` | Interaction en attente lorsque le résultat courant en porte une |
+| `outcome` | Résultat explicite observé ; peut être absent tant qu'aucun résultat courant n'est disponible |
+| `prior_outcome` | Ancien résultat d'attente pendant `resuming`, lorsqu'il existe ; ne constitue pas le résultat de la reprise |
+
+Les phases `pending`, `claimed` et `resuming` décrivent une commande en cours.
+Un résultat `waiting` porte une interaction à terminer et reste non accompli.
+Un succès d'exécution exige **`phase=committed` et `committed=true`** dans
+[`ApplicationExecutionOutcome`](../../apps/api/src/domains/agents/application/outcomes.py).
+`failed`, `conflict`, `cancelled` et `expired` restent distincts. Une fenêtre
+ouverte, un fichier proposé ou une réponse HTTP reçue ne suffisent pas à déclarer
+l'opération accomplie.
+
+### Continuations déclarées
+
+Les routes sont choisies par la famille d'interaction de la commande déjà
+autorisée. Le navigateur fournit les valeurs privées, fichiers ou permissions
+locales directement au parcours correspondant ; ils ne deviennent pas des
+arguments du modèle. La liste complète et les schémas sont dans le router et
+l'OpenAPI de l'instance.
+
+| Méthode et suffixe sous `/application-commands/{command_id}` | Parcours |
+|------------------------------------------------------------|----------|
+| `POST /resume` | Reprise d'une action sécurisée déjà autorisée ; corps vide ou absent, résultat `ApplicationCommandStatus` |
+| `POST /personal-mcp` | Valeurs privées de configuration MCP, via la route d'entrée privée |
+| `POST /personal-mcp-oauth/{stage}` | Étape OAuth `start` ou `complete`, liée au navigateur original |
+| `POST /document-upload`, `/skill-upload`, `/plugin-upload` | Continuation de l'import de fichier déclaré |
+| `GET /download`, `/management-export`, `/meeting-pdf`, `/asset-download`, `/bookmark-download`, `/skill-download`, `/document-download`, `/document-archive` | Téléchargement déclaré, sous les contrôles propres à l'opération |
+| `POST /device/claim`, `/device/ack` | Prise en charge et accusé du device adressé pour l'enregistrement |
+| `POST /health-token` | Création du token de santé via son interaction sécurisée |
+
+La reprise conserve l'approbation originale et ses contraintes. Un conflit, une
+expiration ou une erreur d'autorité ne vaut pas nouvelle autorisation.
+`COMPLETION_UNKNOWN` signale une incertitude à observer par le statut de commande ;
+le client ne doit pas créer automatiquement une nouvelle mutation pour la retenter.
+
+### Événement application_state_changed
+
+Après une écriture confirmée pertinente, le
+[publisher](../../apps/api/src/domains/agents/application/state_changes.py)
+adresse une indication d'invalidation au compte propriétaire. Elle porte des
+identités et noms de champs, **pas les nouvelles valeurs, les secrets ou le contenu
+privé**. Le contrat est validé par le
+[schéma frontend](../../apps/web/src/types/application-state.ts), puis les
+[lectures de ressources](../../apps/web/src/hooks/useApplicationResourceSync.ts)
+rafraîchissent les queries authentifiées existantes.
+
+Exemple fictif de chunk SSE :
+
+```json
+{
+  "type": "application_state_changed",
+  "content": "",
+  "metadata": {
+    "change": {
+      "schema_version": 1,
+      "command_id": "00000000-0000-4000-8000-000000000001",
+      "actor_id": "00000000-0000-4000-8000-000000000002",
+      "resources": ["profile"],
+      "changed_fields": ["response_display_mode"],
+      "observed_at": "2026-10-12T10:00:00Z"
+    }
+  }
+}
+```
+
+Le chunk est un hint de synchronisation et non une valeur à appliquer de façon
+optimiste. Une absence de notification ne transforme pas une écriture validée en
+échec ; le statut durable de la commande et la relecture de la source restent
+nécessaires pour établir son résultat.
 
 ---
 

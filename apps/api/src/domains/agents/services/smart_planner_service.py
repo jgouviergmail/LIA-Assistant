@@ -34,6 +34,7 @@ from src.core.constants import (
 from src.core.context import exclude_sub_agents_from_prompt, panic_mode_attempted
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.domains.agents.analysis.query_intelligence import QueryIntelligence
+from src.domains.agents.analysis.resolved_references import render_reference_lines
 from src.domains.agents.context.runtime_context import (
     runtime_language,
     runtime_timezone,
@@ -1148,9 +1149,7 @@ class SmartPlannerService:
             catalogue=catalogue.to_prompt_string(),
             original_query=resolved_query,
             context=context,
-            references=(
-                str(intelligence.resolved_references) if intelligence.resolved_references else ""
-            ),
+            references=render_reference_lines(intelligence.resolved_references),
             user_timezone=user_timezone,
             user_language=user_language,
             validation_feedback=validation_feedback,

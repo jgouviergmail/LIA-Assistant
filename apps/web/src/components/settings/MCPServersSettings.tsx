@@ -38,12 +38,17 @@ import { useApplicationAccountToast } from '@/hooks/useApplicationAccountToast';
 import { MCPServerCard } from './MCPServerCard';
 import { ToolDisplayName } from './ToolDisplayName';
 import { MCPServerFormFields } from './MCPServerFormFields';
-import { emptyMCPServerForm, editMCPServerForm, isMCPServerFormValid, mcpServerFormValues, type MCPServerFormState } from '@/lib/mcp-server-form';
+import {
+  emptyMCPServerForm,
+  editMCPServerForm,
+  isMCPServerFormValid,
+  mcpServerFormValues,
+  type MCPServerFormState,
+} from '@/lib/mcp-server-form';
 
 interface MCPServersSettingsProps {
   lng: Language;
 }
-
 
 const EMPTY_FORM = emptyMCPServerForm();
 
@@ -325,14 +330,33 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
           <DialogDescription>{t('settings.mcp.form_description')}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
-          <MCPServerFormFields form={form} setForm={setForm} editingServer={editingServer} t={t}
-            descriptionAction={editingServer && editingServer.tool_count > 0 ? (
-              <Button type="button" size="sm" variant="ghost" onClick={() => { if (!generatingDescription) void handleGenerateDescription(); }}
-                aria-disabled={generatingDescription} className="shrink-0 h-6 px-2 text-xs">
-                {generatingDescription ? <LoadingSpinner className="h-3 w-3 mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
-                {t('settings.mcp.generate_description')}
-              </Button>
-            ) : undefined} />
+          <MCPServerFormFields
+            form={form}
+            setForm={setForm}
+            editingServer={editingServer}
+            t={t}
+            descriptionAction={
+              editingServer && editingServer.tool_count > 0 ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    if (!generatingDescription) void handleGenerateDescription();
+                  }}
+                  aria-disabled={generatingDescription}
+                  className="shrink-0 h-6 px-2 text-xs"
+                >
+                  {generatingDescription ? (
+                    <LoadingSpinner className="h-3 w-3 mr-1" />
+                  ) : (
+                    <Sparkles className="h-3 w-3 mr-1" />
+                  )}
+                  {t('settings.mcp.generate_description')}
+                </Button>
+              ) : undefined
+            }
+          />
 
           {/* Test Connection (edit mode only) */}
           {editingServer && (
@@ -386,7 +410,13 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
           <Button variant="outline" onClick={onClose}>
             {t('common.cancel')}
           </Button>
-          <Button onClick={() => { if (isFormValid && !creating && !updating) void handleSave(); }} disabled={!isFormValid && !creating && !updating} aria-disabled={creating || updating}>
+          <Button
+            onClick={() => {
+              if (isFormValid && !creating && !updating) void handleSave();
+            }}
+            disabled={!isFormValid && !creating && !updating}
+            aria-disabled={creating || updating}
+          >
             {(creating || updating) && <LoadingSpinner className="mr-2 h-4 w-4" />}
             {t('common.save')}
           </Button>

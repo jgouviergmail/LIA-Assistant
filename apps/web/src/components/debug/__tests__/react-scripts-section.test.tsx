@@ -30,18 +30,18 @@ describe('ephemeral scripts in the ReAct debug section', () => {
   it('shows the code and its purpose when a script ran', () => {
     render(
       <Accordion type="multiple" defaultValue={['react_execution']}>
-      <ReactExecutionSection
-        data={metrics({
-          scripts: [
-            {
-              purpose: 'sum the layover durations',
-              code: 'import json,sys\nprint(sum(x["m"] for x in json.load(sys.stdin)["items"].values()))',
-              success: true,
-              output_head: '220',
-            },
-          ],
-        })}
-      />
+        <ReactExecutionSection
+          data={metrics({
+            scripts: [
+              {
+                purpose: 'sum the layover durations',
+                code: 'import json,sys\nprint(sum(x["m"] for x in json.load(sys.stdin)["items"].values()))',
+                success: true,
+                output_head: '220',
+              },
+            ],
+          })}
+        />
       </Accordion>
     );
 
@@ -53,18 +53,18 @@ describe('ephemeral scripts in the ReAct debug section', () => {
   it('marks a failed script so the admin sees what the model had to repair', () => {
     render(
       <Accordion type="multiple" defaultValue={['react_execution']}>
-      <ReactExecutionSection
-        data={metrics({
-          scripts: [
-            {
-              purpose: 'divide',
-              code: 'print(1/0)',
-              success: false,
-              output_head: 'ZeroDivisionError: division by zero',
-            },
-          ],
-        })}
-      />
+        <ReactExecutionSection
+          data={metrics({
+            scripts: [
+              {
+                purpose: 'divide',
+                code: 'print(1/0)',
+                success: false,
+                output_head: 'ZeroDivisionError: division by zero',
+              },
+            ],
+          })}
+        />
       </Accordion>
     );
 

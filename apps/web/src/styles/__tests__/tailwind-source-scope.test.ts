@@ -53,8 +53,8 @@ describe('tailwind source scope', () => {
     const result = await compile();
 
     const dependencies = result.messages
-      .filter((message) => message.type === 'dependency')
-      .map((message) => path.relative(WEB_ROOT, String(message.file)).split(path.sep).join('/'));
+      .filter(message => message.type === 'dependency')
+      .map(message => path.relative(WEB_ROOT, String(message.file)).split(path.sep).join('/'));
 
     // Lower bound too: a collapsed scan would silently ship a stylesheet with
     // most utilities missing, which no assertion on the CSS text would catch.
@@ -64,7 +64,7 @@ describe('tailwind source scope', () => {
     // Tailwind's own entry stylesheet is a legitimate rebuild dependency; any
     // OTHER path outside `src/` means the scan has escaped the sources again.
     const strays = dependencies.filter(
-      (file) => !file.startsWith('src/') && !file.includes('node_modules/'),
+      file => !file.startsWith('src/') && !file.includes('node_modules/')
     );
     expect(strays).toEqual([]);
   });

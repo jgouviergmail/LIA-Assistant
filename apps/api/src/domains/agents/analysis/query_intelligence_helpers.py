@@ -27,10 +27,15 @@ Usage:
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from src.core.i18n import resolve_language
 from src.domains.agents.analysis.requested_outcomes import anchored_requirements, parse_requirements
+from src.domains.agents.analysis.resolved_references import (
+    ResolvedReferenceEntry,
+    read_resolved_references,
+)
 from src.domains.agents.constants import INTENTION_ACTION, STATE_KEY_ROUTING_HISTORY
 
 if TYPE_CHECKING:
@@ -194,7 +199,7 @@ def reconstruct_query_intelligence(data: dict[str, Any]) -> QueryIntelligence:
         resolved_context=None,  # Complex object, can't reconstruct
         source_turn_id=data.get("source_turn_id"),
         source_domain=data.get("source_domain"),
-        resolved_references=data.get("resolved_references"),
+        resolved_references=read_resolved_references(data.get("resolved_references")),
         anticipated_needs=data.get("anticipated_needs", []),
         fallback_strategies=data.get("fallback_strategies", []),
         suggested_enrichments=data.get("suggested_enrichments", []),
@@ -282,6 +287,26 @@ def resolve_actionable_domain(state: dict[str, Any]) -> str | None:
     return str(primary) if is_registered_domain(primary) else None
 
 
+def turn_references(state: Mapping[str, Any]) -> tuple[ResolvedReferenceEntry, ...]:
+    """The CURRENT turn's resolved references — the one reader of their checkpointed form.
+
+    Read from the turn's serialized QueryIntelligence, which the router rewrites
+    on every turn and the checkpoint carries through a HITL interrupt. Never from
+    a state copy of its own: written only when non-empty, such a copy was
+    inherited by every later turn (ADR-120 amendment 2026-10-11).
+
+    Args:
+        state: The graph state.
+
+    Returns:
+        The references, possibly empty.
+    """
+    intelligence = state.get(STATE_KEY_QUERY_INTELLIGENCE)
+    if not isinstance(intelligence, Mapping):
+        return ()
+    return read_resolved_references(intelligence.get("resolved_references"))
+
+
 __all__ = [
     "resolve_actionable_domain",
     "get_qi_attr",
@@ -289,4 +314,5 @@ __all__ = [
     "reconstruct_query_intelligence",
     "STATE_KEY_QUERY_INTELLIGENCE",
     "STATE_KEY_QUERY_INTELLIGENCE_OBJ",
+    "turn_references",
 ]

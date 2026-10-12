@@ -72,11 +72,11 @@ function setupWith(data: MemoryListResponse | undefined) {
     options: { onSuccess?: (value: unknown) => void }
   ) {
     const collection = endpoint !== '/memories/categories';
-      const observedData = data;
-      const notify = options.onSuccess;
+    const observedData = data;
+    const notify = options.onSuccess;
     useEffect(() => {
-        if (collection && observedData !== undefined) notify?.(observedData);
-      }, [collection, observedData, notify]);
+      if (collection && observedData !== undefined) notify?.(observedData);
+    }, [collection, observedData, notify]);
     return collection
       ? queryResult<MemoryListResponse>({ data, setData })
       : dataQuery({ categories: [{ category: 'preference', count: 1, label: 'Préférences' }] });

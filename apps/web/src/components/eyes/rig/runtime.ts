@@ -78,6 +78,7 @@ import {
 } from '@/components/eyes/rig/sketches';
 import type { BodyMotionSpace } from '../body-motion-geometry';
 import {
+  canPlaySketch,
   characterNeutralPose,
   pickActingSketch,
   resolveActingProfile,
@@ -317,6 +318,8 @@ export interface EyeRig {
 
 export interface RigOptions {
   readonly characterId?: RigCharacterId;
+  /** Public presentations can stay awake while retaining every other comic performance. */
+  readonly allowSleep?: boolean;
   /** Start the rig already settled on this pose (avoids a boot animation). */
   readonly initial?: RigPose;
   readonly reducedMotion?: boolean;
@@ -364,6 +367,7 @@ const PATTERN_SEED = 0x51de;
 
 export function createEyeRig(options: RigOptions = {}): EyeRig {
   const pose: RigPose = { ...DEFAULT_POSE, ...options.initial };
+  const allowSleep = options.allowSleep !== false;
   const random = options.random;
   const lifeRandom = options.lifeRandom;
   let context: ActingContext = { ...NEUTRAL_CONTEXT };
@@ -535,7 +539,7 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
       return;
     sketchClock.restedMs += dtMs;
     if (sketchClock.restedMs < sketchClock.dueMs) return;
-    const name = pickActingSketch(acting, lifeRandom, sketchClock.recent);
+    const name = pickActingSketch(acting, lifeRandom, sketchClock.recent, allowSleep);
     // Warped: the same scene twice is never the same performance.
     playSketch(warpTapes(actingSketchTapes(name, acting, bodySpace, lifeRandom), lifeRandom));
     recordSketch(sketchClock, name);
@@ -1100,6 +1104,7 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
 
     playScene(name) {
       if (!SKETCH_EXPRESSIONS.has(expression)) return;
+      if (!canPlaySketch(name, allowSleep)) return;
       if (
         playSketch(
           warpTapes(actingSketchTapes(name, acting, bodySpace, patternRandom), patternRandom)

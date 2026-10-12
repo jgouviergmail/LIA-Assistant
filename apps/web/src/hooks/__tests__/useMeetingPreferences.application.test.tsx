@@ -11,7 +11,14 @@ vi.mock('@/lib/api-client', async importOriginal => {
 });
 import { useMeetingPreferences } from '../useMeetingPreferences';
 
-const saved: MeetingPreferences = { stt_engine: 'auto', language: 'auto', auto_email: false, keep_audio_hours: 0, default_template_ref: null, keep_audio_hours_max: 24 };
+const saved: MeetingPreferences = {
+  stt_engine: 'auto',
+  language: 'auto',
+  auto_email: false,
+  keep_audio_hours: 0,
+  default_template_ref: null,
+  keep_audio_hours_max: 24,
+};
 beforeEach(() => {
   vi.resetAllMocks();
   useAuth.mockReturnValue({ user: { id: 'one' } });
@@ -43,9 +50,11 @@ describe('meeting preferences ownership and native refresh', () => {
     const { result, rerender } = renderHook(() => useMeetingPreferences());
     await waitFor(() => expect(result.current.preferences).toEqual(saved));
     const oldSave = result.current.save;
-    useAuth.mockReturnValue({ user: { id: 'two' } }); rerender();
+    useAuth.mockReturnValue({ user: { id: 'two' } });
+    rerender();
     await waitFor(() => expect(result.current.preferences).toEqual(saved));
-    useAuth.mockReturnValue({ user: { id: 'one' } }); rerender();
+    useAuth.mockReturnValue({ user: { id: 'one' } });
+    rerender();
     await waitFor(() => expect(result.current.preferences).toEqual(saved));
     await act(async () => expect(await oldSave({ ...saved, language: 'fr' })).toBeNull());
     expect(put).not.toHaveBeenCalled();
@@ -53,16 +62,27 @@ describe('meeting preferences ownership and native refresh', () => {
 
   it('hides prior account data and ignores its late save result', async () => {
     let complete: ((value: MeetingPreferences) => void) | undefined;
-    put.mockImplementationOnce(() => new Promise<MeetingPreferences>(resolve => { complete = resolve; }));
+    put.mockImplementationOnce(
+      () =>
+        new Promise<MeetingPreferences>(resolve => {
+          complete = resolve;
+        })
+    );
     const { result, rerender } = renderHook(() => useMeetingPreferences());
     await waitFor(() => expect(result.current.preferences).toEqual(saved));
     let writing: Promise<MeetingPreferences | null> | undefined;
-    act(() => { writing = result.current.save({ ...saved, language: 'fr' }); });
+    act(() => {
+      writing = result.current.save({ ...saved, language: 'fr' });
+    });
     await waitFor(() => expect(put).toHaveBeenCalledTimes(1));
     get.mockImplementationOnce(() => new Promise(() => {}));
-    useAuth.mockReturnValue({ user: { id: 'two' } }); rerender();
+    useAuth.mockReturnValue({ user: { id: 'two' } });
+    rerender();
     expect(result.current.preferences).toBeNull();
-    await act(async () => { complete?.({ ...saved, language: 'fr' }); expect(await writing).toBeNull(); });
+    await act(async () => {
+      complete?.({ ...saved, language: 'fr' });
+      expect(await writing).toBeNull();
+    });
     expect(result.current.preferences).toBeNull();
     expect(result.current.isSaving).toBe(false);
   });

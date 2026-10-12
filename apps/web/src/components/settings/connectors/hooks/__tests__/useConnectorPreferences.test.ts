@@ -117,7 +117,9 @@ describe('useConnectorPreferences — saving', () => {
   });
 
   it('maps a task connector onto its own field', async () => {
-    const { result } = setup([makeConnector({ id: 'c1', connector_type: 'google_tasks', status: 'active' })]);
+    const { result } = setup([
+      makeConnector({ id: 'c1', connector_type: 'google_tasks', status: 'active' }),
+    ]);
     await act(async () => {
       await result.current.selectPreference('c1', 'google_tasks', 'Inbox');
     });
@@ -267,13 +269,23 @@ describe('useConnectorPreferences — load racing a local write', () => {
 
 describe('useConnectorPreferences — application scope', () => {
   it('serializes writes and keeps the later preview while verifying the earlier commit', async () => {
-    get.mockResolvedValueOnce({ preferences: { default_calendar_name: 'Before' } })
+    get
+      .mockResolvedValueOnce({ preferences: { default_calendar_name: 'Before' } })
       .mockResolvedValueOnce({ preferences: { default_calendar_name: 'First' } })
       .mockResolvedValue({ preferences: { default_calendar_name: 'Second' } });
     let settleFirst!: () => void;
     let settleSecond!: () => void;
-    patch.mockReturnValueOnce(new Promise<void>(resolve => { settleFirst = resolve; }))
-      .mockReturnValueOnce(new Promise<void>(resolve => { settleSecond = resolve; }));
+    patch
+      .mockReturnValueOnce(
+        new Promise<void>(resolve => {
+          settleFirst = resolve;
+        })
+      )
+      .mockReturnValueOnce(
+        new Promise<void>(resolve => {
+          settleSecond = resolve;
+        })
+      );
     const { result } = setup();
     await waitFor(() => expect(result.current.savedPrefs.c1?.default_calendar_name).toBe('Before'));
     let first!: Promise<void>;
@@ -283,10 +295,16 @@ describe('useConnectorPreferences — application scope', () => {
       second = result.current.selectPreference('c1', 'google_calendar', 'Second');
     });
     await waitFor(() => expect(patch).toHaveBeenCalledTimes(1));
-    await act(async () => { settleFirst(); await first; });
+    await act(async () => {
+      settleFirst();
+      await first;
+    });
     expect(result.current.savedPrefs.c1?.default_calendar_name).toBe('Second');
     expect(patch).toHaveBeenCalledTimes(2);
-    await act(async () => { settleSecond(); await second; });
+    await act(async () => {
+      settleSecond();
+      await second;
+    });
     expect(result.current.savedPrefs.c1?.default_calendar_name).toBe('Second');
   });
 
@@ -305,7 +323,9 @@ describe('useConnectorPreferences — application scope', () => {
   it('refuses an obsolete save callback before HTTP and hides the old account values', async () => {
     get.mockResolvedValue({ preferences: { default_calendar_name: 'Private A' } });
     const { result, rerender } = setup();
-    await waitFor(() => expect(result.current.savedPrefs.c1?.default_calendar_name).toBe('Private A'));
+    await waitFor(() =>
+      expect(result.current.savedPrefs.c1?.default_calendar_name).toBe('Private A')
+    );
     const oldSave = result.current.selectPreference;
     account.id = 'account-b';
     get.mockResolvedValue({ preferences: {} });
@@ -323,7 +343,9 @@ describe('useConnectorPreferences — application scope', () => {
     await waitFor(() => expect(result.current.savedPrefs.c1?.default_calendar_name).toBe('Before'));
     get.mockRejectedValue(new Error('offline'));
     act(() => publishApplicationResources('account-a', new Set(['connector_preferences'])));
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('settings.application_tools.sync_failed'));
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith('settings.application_tools.sync_failed')
+    );
     expect(result.current.savedPrefs.c1?.default_calendar_name).toBe('Before');
   });
 });

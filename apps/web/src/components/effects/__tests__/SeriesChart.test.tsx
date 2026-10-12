@@ -59,14 +59,21 @@ describe('SeriesChart', () => {
   it('calls a mean an AVERAGE, never a total', () => {
     // 80 ms is the weighted mean, not a sum: labelling it « Total » would
     // invite the reader to add bars that never add up.
-    renderChart({ slices: [{ label: 'x', count: 100, secondary: 0 }], total: 80, kind: 'average' }, 'ms');
+    renderChart(
+      { slices: [{ label: 'x', count: 100, secondary: 0 }], total: 80, kind: 'average' },
+      'ms'
+    );
 
     expect(screen.getByText('Average 80 ms')).toBeInTheDocument();
     expect(screen.queryByText('Total 80 ms')).not.toBeInTheDocument();
   });
 
   it('states a stacked figure as the total of BOTH measures', () => {
-    renderChart({ slices: [{ label: 'gpt', count: 20, secondary: 10 }], total: 30, kind: 'stacked' });
+    renderChart({
+      slices: [{ label: 'gpt', count: 20, secondary: 10 }],
+      total: 30,
+      kind: 'stacked',
+    });
 
     expect(screen.getByText('Total 30')).toBeInTheDocument();
   });
@@ -86,7 +93,12 @@ describe('SeriesChart', () => {
   it('shows no badge at all while the series is unknown', () => {
     // Undefined is « not loaded yet », which is not the same claim as zero.
     render(
-      <SeriesChart title="A chart" series={undefined} emptyLabel="Nothing here." countLabel="Calls" />
+      <SeriesChart
+        title="A chart"
+        series={undefined}
+        emptyLabel="Nothing here."
+        countLabel="Calls"
+      />
     );
 
     expect(screen.queryByText(/Total/)).not.toBeInTheDocument();

@@ -25,9 +25,7 @@ function validateOrigin(raw: string, source: string): string {
   try {
     url = new URL(raw);
   } catch {
-    throw new Error(
-      `${source} must be an absolute HTTP(S) origin (e.g. https://lia.example.tld)`
-    );
+    throw new Error(`${source} must be an absolute HTTP(S) origin (e.g. https://lia.example.tld)`);
   }
   const valid =
     HTTP_PROTOCOLS.has(url.protocol) &&
@@ -63,11 +61,7 @@ export function buildAbsoluteUrl(origin: string, path: string): string {
  * unprefixed, every other locale is `/{lng}` — absolute when an origin is
  * configured, honest RELATIVE otherwise.
  */
-export function localizedUrl(
-  origin: string | null,
-  path: string,
-  lng: string
-): string {
+export function localizedUrl(origin: string | null, path: string, lng: string): string {
   const localizedPath = lng === fallbackLng ? path : `/${lng}${path}`;
   if (origin === null) {
     return localizedPath === '' ? '/' : localizedPath;

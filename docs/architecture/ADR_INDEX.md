@@ -5042,3 +5042,35 @@ graph TD
 **Statut** : accepté ; implémenté et qualifié localement, sans certification de déploiement.
 
 **Décision** : les déclarations MCP courantes et leurs sorties structurées sont conservées sans inventer l'ontologie des serveurs utilisateurs. L'âge de schéma et les empreintes suivent le contrat ; seules les capacités réellement construites sont publiées. Origine et clé admin ou UUID utilisateur complets restent distincts des alias de domaine et de fonction. Le snapshot offert gouverne la résolution, les lectures sémantiques et les confirmations ; une cible de délégation est liée avant politique, HITL et invocation. La projection de capacités actuelle complète le texte stocké sans prétendre le régénérer. Complète ADR-070, ADR-255 et ADR-263.
+
+### ADR-339: account-scoped application commands and secure continuations
+
+**File**: `docs/architecture/ADR-339-Application-Commands-With-Current-Authority-And-Secure-Continuations.md`
+
+**Status**: Accepted, 2026-10-12.
+
+**Decision**: Inspect and manage supported application settings and objects through declared account-scoped tools. Durable encrypted commands retain operation identity, current authority, expiry and phase. Sensitive execution requires review; browser-native file, private-input and connector authorization flows provide secure continuations. User and administrator authority remain distinct.
+
+### ADR-340: reviewed offline art and bounded native avatar volume
+
+**File**: `docs/architecture/ADR-340-Native-Avatar-Volume-From-Reviewed-Offline-Art.md`
+
+**Status**: Accepted, 2026-10-12.
+
+**Decision**: Retain original reviewed companion artwork with alpha-derived bounded anatomical relief, native facial projection and a shared motion owner. Coverage, normals, fringe and graphics lifecycle have independent checks. Hidden anatomy, face depth-buffer occlusion and physical GPU performance remain qualified limitations.
+
+### ADR-341: editable motion production and exclusive presentation
+
+**File**: `docs/architecture/ADR-341-Editable-Motion-Production-And-Exclusive-Presentation.md`
+
+**Status**: Accepted, 2026-10-12.
+
+**Decision**: Keep an offline deterministic HTML/CSS/Remotion construction with faithful native UI, stationary complete screens, explicit fixed focus crops, native companions and measured musical cuts. Preserve coverage and provenance. Package immutable static media and measure actual exports. An explicit full-film descriptor opens an accessible fullscreen player that suspends background playback.
+
+### ADR-342: optional runtime companion preference campaigns
+
+**File**: `docs/architecture/ADR-342-Opt-In-Runtime-Avatar-Preference-Campaigns.md`
+
+**Status**: Accepted, 2026-10-12.
+
+**Decision**: A deployment-scoped runtime identifier applies BIP once on an authenticated browser visit. Persist completion, preserve later manual choices and other preferences, coordinate tabs where available, and roll back failed persistence. Empty remains the installation default. Offline browsers and device origins are not database account updates.

@@ -556,3 +556,26 @@ apps/web/src/components/landing/
   ScreenshotsSection.tsx  PresentationSection.tsx
   constants.ts                  # LANDING_STATS
 ```
+
+## Editable presentation and phone layout
+
+The full product film is selected by the optional manifest `presentation`
+descriptor and exposed by `/api/landing-media` alongside the existing playlist.
+The blue Presentation CTA precedes the guided demo CTA; the neighboring signup
+CTA is removed. Opening the lazy fullscreen dialog suspends background playback,
+including sound, without reloading its sources or resetting its position.
+Closing restores focus and eligible playback. Metadata and beat requests are
+bounded same-origin public reads, aborted on retirement; late playback refusals
+cannot restart an exclusively suspended player.
+
+On phones, the assistant promise and journey-benefit panel have additional
+spacing and separators. The three trust statements are centered on individual
+lines between separators. Application and Grafana galleries use the same
+uniform preview frame and controls. A full-page application original is shown
+from its top in the preview and remains complete in the full-screen lightbox.
+Other decks keep their existing native-ratio behavior.
+
+See [the motion production procedure](MOTION_DESIGN.md) and
+[ADR-341](../architecture/ADR-341-Editable-Motion-Production-And-Exclusive-Presentation.md)
+for faithful source views, rendering, qualification, media publication and updates.
+The UI labels cover six languages; the current video editorial copy is French.

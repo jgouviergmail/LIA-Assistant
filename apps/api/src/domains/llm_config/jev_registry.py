@@ -30,6 +30,7 @@ class JevUsage(StrEnum):
     FILTER_DOCUMENT = "filter_document"
     MEMORY_REFERENCE_PRESENCE = "memory_reference_presence"
     HITL_REJECTION = "hitl_rejection"
+    PARAMETER_KIND = "parameter_kind"
 
 
 @dataclass(frozen=True)
@@ -141,6 +142,11 @@ JEV_USAGES: dict[JevUsage, JevUsageSpec] = {
         SystemSettingKey.JEV_HITL_REJECTION_ENABLED,
         "jev_hitl_rejection",
         "settings.admin.jev.usages.hitl_rejection",
+    ),
+    JevUsage.PARAMETER_KIND: JevUsageSpec(
+        SystemSettingKey.JEV_PARAMETER_KIND_ENABLED,
+        "jev_parameter_kind",
+        "settings.admin.jev.usages.parameter_kind",
     ),
 }
 

@@ -57,6 +57,7 @@ from src.domains.agents.analysis.query_intelligence import (
     UserGoal,
 )
 from src.domains.agents.analysis.requested_outcomes import GoalRequirement, anchored_requirements
+from src.domains.agents.analysis.resolved_references import merge_resolved_references
 from src.domains.agents.context.runtime_context import (
     runtime_language,
     runtime_timezone,
@@ -587,7 +588,7 @@ async def analyze_query(
             confidence=result.confidence,
             english_query=result.english_query,
             resolved_references=[
-                {"original": r.original, "resolved": r.resolved, "type": r.type}
+                {"original": r.original, "resolved": r.resolved, "type": r.type.value}
                 for r in result.resolved_references
             ],
             reasoning=result.reasoning,
@@ -837,10 +838,12 @@ class QueryAnalyzerService:
 
             # Extract resolved references and enriched query
             memory_resolved_refs: dict[str, str] = {}
+            memory_resolved_kinds: dict[str, str] = {}
             memory_enriched_query: str | None = None
 
             if memory_resolved and memory_resolved.mappings:
                 memory_resolved_refs = memory_resolved.mappings
+                memory_resolved_kinds = memory_resolved.value_kinds
                 memory_enriched_query = memory_resolved.enriched_query
                 # No PII at INFO: mappings are resolved person names (DEBUG only).
                 logger.info(
@@ -946,40 +949,28 @@ class QueryAnalyzerService:
                     "domains_before": analysis_result.domains,
                 }
 
-            # Handle resolved references: merge memory service + LLM results
-            # Memory service has priority (dedicated, more accurate)
-            resolved_refs_dict: dict[str, str] | None = None
-
-            # Start with memory service results (higher priority)
+            # Both producers' references, each with what its VALUE is; memory wins
+            # on a shared reference (ADR-120 amendment 2026-10-11).
+            resolved_refs = merge_resolved_references(
+                memory_resolved_refs, memory_resolved_kinds, analysis_result.resolved_references
+            )
             if memory_resolved_refs:
-                resolved_refs_dict = dict(memory_resolved_refs)
                 intelligent_mechanisms["memory_resolution_service"] = {
                     "applied": True,
                     "source": "MemoryReferenceResolutionService",
                     "mappings": memory_resolved_refs,
                 }
                 reasoning_trace.append(f"Memory resolved: {list(memory_resolved_refs.keys())}")
-
-            # Add LLM references (lower priority, don't overwrite memory service)
             if analysis_result.resolved_references:
-                llm_refs = {
-                    ref["original"]: ref["resolved"] for ref in analysis_result.resolved_references
-                }
-                if resolved_refs_dict is None:
-                    resolved_refs_dict = llm_refs
-                else:
-                    # Only add LLM refs that aren't already resolved by memory service
-                    for orig, resolved in llm_refs.items():
-                        if orig not in resolved_refs_dict:
-                            resolved_refs_dict[orig] = resolved
-
                 intelligent_mechanisms["memory_resolution_llm"] = {
                     "applied": True,
                     "source": "QueryAnalyzer LLM",
                     "resolved_references": analysis_result.resolved_references,
                     "num_references": len(analysis_result.resolved_references),
                 }
-                reasoning_trace.append(f"LLM resolved: {list(llm_refs.keys())}")
+                reasoning_trace.append(
+                    f"LLM resolved: {[ref['original'] for ref in analysis_result.resolved_references]}"
+                )
 
             # === STEP 3: Semantic Type Domain Expansion ===
             # Person-reference evidence, most reliable source first. The memory
@@ -1189,7 +1180,7 @@ class QueryAnalyzerService:
             }
 
             # === STEP 6: Set english_enriched_query ===
-            english_enriched_query: str | None = english_query if resolved_refs_dict else None
+            english_enriched_query: str | None = english_query if resolved_refs else None
 
             # === STEP 7: User Goal Inference ===
             # Delegated to GoalInferrer (SRP: single service for goal inference)
@@ -1310,7 +1301,7 @@ class QueryAnalyzerService:
                 ),
                 source_turn_id=(context_result.source_turn_id if context_result else None),
                 source_domain=source_domain,
-                resolved_references=resolved_refs_dict,
+                resolved_references=resolved_refs,
                 anticipated_needs=[],  # Removed - was dead code
                 fallback_strategies=[],  # Removed - was dead code
                 suggested_enrichments=[],  # Removed - was dead code
@@ -1463,7 +1454,7 @@ class QueryAnalyzerService:
             resolved_context=None,
             source_turn_id=None,
             source_domain=None,
-            resolved_references=None,
+            resolved_references=(),
             anticipated_needs=[],
             fallback_strategies=[],
             suggested_enrichments=[],

@@ -3,6 +3,7 @@ Catalogue manifests for Weather tools (OpenWeatherMap API).
 Optimized for orchestration efficiency.
 """
 
+from src.core.config import settings
 from src.domains.agents.registry.catalogue import (
     CostProfile,
     DisplayMetadata,
@@ -42,12 +43,18 @@ _LOC_PARAM = ParameterSchema(
         ),
     ),
 )
+#: The units the weather tools serve (ADR-310): one vocabulary published by the
+#: manifest and the tools' schemas, and read by the tools themselves — any other
+#: value is refused, never sent to a provider that would answer in Kelvin.
+WEATHER_UNITS: tuple[str, ...] = ("metric", "imperial")
+UNITS_DESCRIPTION = "'metric' (Celsius, default) or 'imperial' (Fahrenheit)."
 _UNIT_PARAM = ParameterSchema(
     name="units",
     type="string",
     required=False,
-    description="'metric' (Celsius, def) or 'imperial' (Fahrenheit).",
+    description=UNITS_DESCRIPTION,
     semantic_type="unit_system",
+    constraints=[ParameterConstraint(kind="enum", value=list(WEATHER_UNITS))],
 )
 #: The one wording of the forecast tools' ``date`` contract (ADR-310), read by the
 #: planner through this manifest AND by the ReAct loop through the tools' own
@@ -65,6 +72,23 @@ _DATE_PARAM = ParameterSchema(
     required=False,
     description=FORECAST_DATE_DESCRIPTION,
     semantic_type="event_start_datetime",  # Cross-domain: weather for a calendar event
+)
+#: ONE text for the planner's manifest and the ReAct ``@tool`` schema (ADR-310);
+#: the bound it states is the one ``forecast_window_days`` enforces (ADR-184).
+FORECAST_DAYS_DESCRIPTION = (
+    "Number of consecutive days to return, starting at 'date' (today when 'date' is "
+    f"omitted), from 1 to {settings.weather_forecast_max_days}. Omit it with a 'date' to "
+    "get that single day; for 'the next N days', pass days=N and no 'date'."
+)
+_DAYS_PARAM = ParameterSchema(
+    name="days",
+    type="integer",
+    required=False,
+    description=FORECAST_DAYS_DESCRIPTION,
+    constraints=[
+        ParameterConstraint(kind="minimum", value=1),
+        ParameterConstraint(kind="maximum", value=settings.weather_forecast_max_days),
+    ],
 )
 
 # ============================================================================
@@ -171,12 +195,12 @@ get_current_weather_catalogue_manifest = ToolManifest(
 # 2. GET WEATHER FORECAST (5 Days / 3h)
 # ============================================================================
 _forecast_desc = (
-    "**Tool: get_weather_forecast_tool** - Multi-day weather forecast (1 to max days, 3h intervals).\n"
-    "Returns ~40 data points with temperature, conditions, precipitation probability.\n"
+    "**Tool: get_weather_forecast_tool** - Daily weather forecast: one summary per day "
+    "(min/max/average temperature, conditions, humidity, wind).\n"
     "**Use for**: 'Weather this week', 'Forecast for tomorrow', 'Best day for outdoor activity', "
     "'Weather at my calendar event'.\n"
     "**CALENDAR EVENTS**: Use event's start_datetime as 'date' parameter to get weather FOR that day.\n"
-    "**Granularity**: 3-hour intervals. Use 'days' parameter (1-5)."
+    "**Window**: 'date' is the first day returned, 'days' how many consecutive days."
 )
 get_weather_forecast_catalogue_manifest = ToolManifest(
     name="get_weather_forecast_tool",
@@ -198,18 +222,7 @@ get_weather_forecast_catalogue_manifest = ToolManifest(
     parameters=[
         _LOC_PARAM,
         _DATE_PARAM,
-        ParameterSchema(
-            name="days",
-            type="integer",
-            required=False,
-            description=(
-                "Number of days to forecast (1-5, def: 5). "
-                "CALCULATE from current datetime to reach target day. "
-                "Ex: If today is Monday and user asks for 'Friday', set days=5 to include Friday. "
-                "Ex: If today is Wednesday and user asks for 'this weekend', set days=4 to include Sat."
-            ),
-            constraints=[ParameterConstraint(kind="maximum", value=5)],
-        ),
+        _DAYS_PARAM,
         _UNIT_PARAM,
     ],
     # The daily forecast exposes BOTH a flat `forecasts` list and the

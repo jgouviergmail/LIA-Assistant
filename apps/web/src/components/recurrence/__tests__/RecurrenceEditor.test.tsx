@@ -73,9 +73,7 @@ describe('choosing days', () => {
     const user = userEvent.setup();
     const { onChange } = setup({ freq: 'weekly', byweekday: [1] });
     await user.click(screen.getByRole('button', { name: 'recurrence.weekday_set.workdays' }));
-    expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ byweekday: [1, 2, 3, 4, 5] })
-    );
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ byweekday: [1, 2, 3, 4, 5] }));
   });
 
   it('refuses to leave a weekly rule with no day at all, and says so first', async () => {
@@ -212,7 +210,9 @@ describe('ending a series', () => {
 
   it('has no end rule for a single occurrence', () => {
     setup({ freq: 'once' });
-    expect(screen.queryByRole('combobox', { name: 'recurrence.end_label' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('combobox', { name: 'recurrence.end_label' })
+    ).not.toBeInTheDocument();
   });
 
   it('asks for the count when the series ends after N times', () => {
@@ -317,9 +317,10 @@ describe('the last remaining weekday explains itself', () => {
   it('drops the hint as soon as a second day makes unchecking legal', () => {
     setup({ freq: 'weekly', byweekday: [2, 4] });
     expect(screen.queryByText('recurrence.error_no_weekday')).not.toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: 'scheduled_actions.days.d2' })
-    ).toHaveAttribute('aria-disabled', 'false');
+    expect(screen.getByRole('button', { name: 'scheduled_actions.days.d2' })).toHaveAttribute(
+      'aria-disabled',
+      'false'
+    );
   });
 });
 
@@ -327,7 +328,13 @@ describe('the last remaining moment explains itself too', () => {
   it('names the reason and refuses to leave a day with no time', async () => {
     const user = userEvent.setup();
     const { onChange } = setup({
-      times: { mode: 'at', at: [{ hour: 9, minute: 0 }], step_minutes: null, start: null, end: null },
+      times: {
+        mode: 'at',
+        at: [{ hour: 9, minute: 0 }],
+        step_minutes: null,
+        start: null,
+        end: null,
+      },
     });
 
     const remove = screen.getByRole('button', { name: /recurrence.time_remove/ });
@@ -460,7 +467,13 @@ describe('the shape of the day and interval rows (owner arbitration 2026-09-06)'
 
 describe('the stepped window gives each group its own line', () => {
   const stepped = {
-    times: { mode: 'every' as const, at: [], step_minutes: 60, start: { hour: 8, minute: 0 }, end: { hour: 18, minute: 0 } },
+    times: {
+      mode: 'every' as const,
+      at: [],
+      step_minutes: 60,
+      start: { hour: 8, minute: 0 },
+      end: { hour: 18, minute: 0 },
+    },
   };
 
   it('puts the step on its own line, and the window bounds on the next', () => {
@@ -494,7 +507,13 @@ describe('the stepped window gives each group its own line', () => {
 
 describe('the window reads as one phrase (owner arbitration 2026-09-06)', () => {
   const stepped = {
-    times: { mode: 'every' as const, at: [], step_minutes: 60, start: { hour: 8, minute: 0 }, end: { hour: 18, minute: 0 } },
+    times: {
+      mode: 'every' as const,
+      at: [],
+      step_minutes: 60,
+      start: { hour: 8, minute: 0 },
+      end: { hour: 18, minute: 0 },
+    },
   };
 
   it('drops the "From" caption and puts the joining word between the two clocks', () => {

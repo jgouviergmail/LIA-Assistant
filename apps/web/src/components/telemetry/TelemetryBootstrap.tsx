@@ -41,7 +41,7 @@ export function TelemetryBootstrap(): null {
 
     if (sampled && typeof PerformanceObserver !== 'undefined') {
       try {
-        const lcp = new PerformanceObserver((list) => {
+        const lcp = new PerformanceObserver(list => {
           const entries = list.getEntries();
           const last = entries[entries.length - 1];
           if (last) vitals.set('lcp', last.startTime / 1000);
@@ -49,7 +49,7 @@ export function TelemetryBootstrap(): null {
         lcp.observe({ type: 'largest-contentful-paint', buffered: true });
         observers.push(lcp);
 
-        const cls = new PerformanceObserver((list) => {
+        const cls = new PerformanceObserver(list => {
           for (const entry of list.getEntries()) {
             const shift = entry as PerformanceEntry & {
               value: number;
@@ -78,7 +78,7 @@ export function TelemetryBootstrap(): null {
       window.removeEventListener('beforeinstallprompt', onInstallPrompt);
       window.removeEventListener('appinstalled', onInstalled);
       document.removeEventListener('visibilitychange', flush);
-      observers.forEach((o) => o.disconnect());
+      observers.forEach(o => o.disconnect());
     };
   }, []);
 

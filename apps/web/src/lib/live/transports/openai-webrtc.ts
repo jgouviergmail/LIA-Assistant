@@ -236,7 +236,9 @@ export class OpenAiLiveTransport implements LiveTransport {
     const element = new Audio();
     element.autoplay = true;
     element.srcObject = stream;
-    void element.play().catch(() => this.events.onError?.(new Error('live_audio_playback_blocked')));
+    void element
+      .play()
+      .catch(() => this.events.onError?.(new Error('live_audio_playback_blocked')));
     this.remoteAudio = element;
   }
 

@@ -370,6 +370,18 @@
       "role": "Una presencia Simli experimental, elegida con tu clave, para comentarios de voz y Live. Una ventana accesible de tres tamaños muestra el cierre confirmado o pendiente; la espera cierra la conexión. Radio conserva su reproductor.",
       "goal": "Elegir un rostro conociendo su consumo, incluidos los silencios.",
       "src": "193ba4c65edd"
+    },
+    "f.application": {
+      "name": "Gestionar LIA mediante la conversación",
+      "role": "Puedes leer y cambiar los ajustes y objetos de LIA mediante operaciones declaradas: preferencias, conexiones, fuentes, skills o administración según tus permisos. Los cambios siguen sus confirmaciones previstas; la entrada privada queda en el navegador autenticado. Una orden en espera nunca se anuncia como completada.",
+      "goal": "Gestionar LIA sin buscar cada pantalla, manteniendo el control del cambio y de su resultado.",
+      "src": "c02744de2ba8"
+    },
+    "f.nativeavatar": {
+      "name": "Compañeros nativos animados",
+      "role": "Eliges un estilo y sus variantes disponibles en el catálogo nativo. Las emociones, la mirada y los accesorios siguen la actividad y el contexto disponible. El volumen es un relieve aproximado del dibujo frontal; el dibujo fijo toma el relevo cuando la presentación o los recursos no permiten animación.",
+      "goal": "Una presencia original que expresa el estado de LIA y respeta tu elección de visualización.",
+      "src": "798cc7462f28"
     }
   },
   "flows": {
@@ -489,6 +501,20 @@
         "Justo después, LIA puede preguntarte cómo ha ido la reunión."
       ],
       "src": "97ed7772581f"
+    },
+    "flow.application": {
+      "name": "Un ajuste solicitado, un resultado verificado",
+      "summary": "De tu petición al estado consultado de nuevo: operación declarada, controles actuales, confirmación y continuación privada cuando hace falta.",
+      "steps": [
+        "Pides cambiar un ajuste o conectar un servicio.",
+        "LIA elige una operación declarada disponible para tu cuenta y tus permisos actuales.",
+        "Si la operación lo exige, apruebas el cambio exacto antes de ejecutarlo.",
+        "La orden conserva su identidad y caducidad; la autorización y las condiciones se verifican de nuevo al actuar.",
+        "¿Entrada privada, archivo, OAuth o dispositivo? Continúas en tu navegador autenticado sin dar secretos al modelo.",
+        "LIA distingue un cambio confirmado de una espera, un conflicto, un fallo o una cancelación.",
+        "La interfaz vuelve a cargar los datos autenticados afectados en vez de mostrar un borrador como estado real."
+      ],
+      "src": "e95b8505fbf8"
     }
   }
 }

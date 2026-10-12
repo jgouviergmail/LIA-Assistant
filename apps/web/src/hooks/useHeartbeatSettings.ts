@@ -69,17 +69,26 @@ export interface HeartbeatSettingsUpdate {
  * Hook for managing heartbeat notification settings.
  */
 export function useHeartbeatSettings() {
-  const { data, loading, error, refetch, ownerId } = useApplicationAccountQuery<HeartbeatSettings>('/heartbeat/settings', 'useHeartbeatSettings');
+  const { data, loading, error, refetch, ownerId } = useApplicationAccountQuery<HeartbeatSettings>(
+    '/heartbeat/settings',
+    'useHeartbeatSettings'
+  );
   const { lifetime, isCurrent } = useApplicationAccountLifetime(ownerId);
-  const [override, setOverride] = useState<{ lifetime: typeof lifetime; value: HeartbeatSettings } | null>(null);
+  const [override, setOverride] = useState<{
+    lifetime: typeof lifetime;
+    value: HeartbeatSettings;
+  } | null>(null);
   const queues = useRef(new Map<typeof lifetime, Promise<HeartbeatSettings | undefined>>());
   const revisions = useRef(new Map<typeof lifetime, number>());
   const settings = override?.lifetime === lifetime ? override.value : data;
   const release = useCallback(() => {
-    setOverride(current => current && queues.current.has(current.lifetime) ? current : null);
+    setOverride(current => (current && queues.current.has(current.lifetime) ? current : null));
   }, []);
   useApplicationResourceSync(ownerId, 'heartbeat', refetch, release);
-  const { mutate: updateMutate, loading: updating } = useApiMutation<HeartbeatSettingsUpdate, HeartbeatSettings>({
+  const { mutate: updateMutate, loading: updating } = useApiMutation<
+    HeartbeatSettingsUpdate,
+    HeartbeatSettings
+  >({
     method: 'PATCH',
     componentName: 'useHeartbeatSettings',
   });
@@ -92,8 +101,14 @@ export function useHeartbeatSettings() {
       setOverride(current => {
         const prev = current?.lifetime === lifetime ? current.value : settings;
         if (!prev) return current;
-        return { lifetime, value: { ...prev, ...data,
-          disabled_sources: data.heartbeat_disabled_sources ?? prev.disabled_sources } };
+        return {
+          lifetime,
+          value: {
+            ...prev,
+            ...data,
+            disabled_sources: data.heartbeat_disabled_sources ?? prev.disabled_sources,
+          },
+        };
       });
       const queued = queues.current.get(lifetime) ?? Promise.resolve(undefined);
       const writing = queued.then(async () => {
@@ -101,18 +116,20 @@ export function useHeartbeatSettings() {
         try {
           const result = await updateMutate('/heartbeat/settings', data);
           if (!result || !isCurrent()) return undefined;
-          if (revisions.current.get(lifetime) === revision) setOverride({ lifetime, value: result });
+          if (revisions.current.get(lifetime) === revision)
+            setOverride({ lifetime, value: result });
           return result;
         } catch {
           if (isCurrent() && revisions.current.get(lifetime) === revision) {
-            setOverride(current => current?.lifetime === lifetime ? null : current);
+            setOverride(current => (current?.lifetime === lifetime ? null : current));
           }
           return undefined;
         }
       });
       queues.current.set(lifetime, writing);
-      try { return await writing; }
-      finally {
+      try {
+        return await writing;
+      } finally {
         if (queues.current.get(lifetime) === writing) {
           queues.current.delete(lifetime);
           revisions.current.delete(lifetime);

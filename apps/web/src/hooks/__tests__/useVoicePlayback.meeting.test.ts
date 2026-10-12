@@ -44,7 +44,12 @@ afterEach(() => {
 });
 
 describe('useVoicePlayback while a meeting records', () => {
-  const chunk: VoiceAudioChunk = { audio_base64: 'QUJD', mime_type: 'audio/mpeg', phrase_index: 0, is_last: true };
+  const chunk: VoiceAudioChunk = {
+    audio_base64: 'QUJD',
+    mime_type: 'audio/mpeg',
+    phrase_index: 0,
+    is_last: true,
+  };
   it('drops spoken answers during a capture and speaks again afterwards', async () => {
     const { result } = renderHook(() => useVoicePlayback());
     act(() => {

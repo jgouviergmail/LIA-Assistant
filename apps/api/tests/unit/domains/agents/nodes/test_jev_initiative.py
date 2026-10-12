@@ -7,29 +7,29 @@ from uuid import uuid4
 import pytest
 
 from src.infrastructure.llm.decision_types import DecisionAttempt
-from src.infrastructure.llm.typesafe_client import ChoiceAnswer
+from src.infrastructure.llm.typesafe_client import ChoiceAnswer, NoulAnswer
 
 pytestmark = pytest.mark.unit
 
 
 @pytest.mark.parametrize(
-    "key,confidence,empty",
+    "utility,empty",
     [
-        ("no_utility", 0.999, True),
-        ("possible_utility", 0.999, False),
-        ("unknown", 0.999, False),
-        ("no_utility", 0.84, False),
+        (0.02, True),
+        (0.11, True),
+        (0.12, False),
+        (0.5, False),
+        (0.97, False),
     ],
 )
-async def test_only_high_confidence_absence_of_all_utility_can_skip(key, confidence, empty) -> None:
+async def test_only_a_low_probability_of_any_utility_can_skip(utility, empty) -> None:
     module = importlib.import_module("src.domains.agents.nodes.jev_initiative")
-    answer = ChoiceAnswer(
-        type="choice", choice=key, confidence=confidence, probabilities={key: 0.999, "other": 0.001}
-    )
+    assert module.MAX_UTILITY_PROBABILITY == 0.11
+    answer = NoulAnswer(type="noul", noul=utility)
     with patch.object(
         module,
         "choose_with_jev",
-        AsyncMock(return_value=DecisionAttempt(outcome="success", answer=answer)),
+        AsyncMock(return_value=DecisionAttempt(outcome="success", nouls={"selection": answer})),
     ) as native:
         result = await module.choose_empty_initiative(
             "Policy\nFacts\nMemory\nInterests\nAvailable tools", str(uuid4()), "run"
@@ -114,3 +114,30 @@ async def test_node_preserves_suggestions_and_chips_when_native_defers(skip) -> 
         assert result[STATE_KEY_INITIATIVE_SUGGESTION] == useful.suggestion
         assert result[STATE_KEY_INITIATIVE_FOLLOWUPS] == ["Check the return train"]
         pushes.assert_called_once()
+
+
+async def test_a_choice_shaped_answer_never_skips_the_evaluator() -> None:
+    """Only the Noul the question asks for may empty the initiative."""
+    module = importlib.import_module("src.domains.agents.nodes.jev_initiative")
+    stale = ChoiceAnswer(
+        type="choice", choice="no_utility", confidence=1, probabilities={"no_utility": 1}
+    )
+    with patch.object(
+        module,
+        "choose_with_jev",
+        AsyncMock(return_value=DecisionAttempt(outcome="success", answer=stale)),
+    ):
+        result = await module.choose_empty_initiative("Policy", str(uuid4()), "run")
+    assert result is None
+
+
+async def test_the_question_is_a_noul_about_remaining_utility() -> None:
+    module = importlib.import_module("src.domains.agents.nodes.jev_initiative")
+    with patch.object(
+        module, "choose_with_jev", AsyncMock(return_value=DecisionAttempt(outcome="disabled"))
+    ) as native:
+        await module.choose_empty_initiative("Policy", str(uuid4()), "run")
+    question = native.call_args.kwargs["question"]
+    assert question.type == "noul"
+    assert isinstance(question.instructions, dict)
+    assert "useful" in str(question.instructions["question"])

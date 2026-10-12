@@ -15,7 +15,10 @@ import {
 import { type Connector, isConnectorActive, isConnectorTypeExists } from '../types';
 
 type Provider = 'google' | 'microsoft';
-export interface KnownOAuthAccount { grantId: string; email: string | null }
+export interface KnownOAuthAccount {
+  grantId: string;
+  email: string | null;
+}
 
 interface UseBulkConnectOptions {
   connectors: Connector[];
@@ -27,20 +30,23 @@ const PENDING_KEY = 'oauth_connectors_reconnect_pending';
 const LEGACY_QUEUE_KEYS = [BULK_CONNECT_QUEUE_KEY, MICROSOFT_BULK_CONNECT_QUEUE_KEY];
 
 export function availableTypes(provider: Provider, connectors: Connector[]): string[] {
-  const types = provider === 'google'
-    ? GOOGLE_CONNECTOR_TYPES.filter(type => type !== 'gmail')
-    : MICROSOFT_CONNECTOR_TYPES;
+  const types =
+    provider === 'google'
+      ? GOOGLE_CONNECTOR_TYPES.filter(type => type !== 'gmail')
+      : MICROSOFT_CONNECTOR_TYPES;
   const activeTypes = new Set(
     connectors.filter(isConnectorActive).map(connector => connector.connector_type.toLowerCase())
   );
-  return types.filter(type =>
-    !isConnectorTypeExists(connectors, type, type === 'google_gmail' ? GMAIL_TYPES : undefined) &&
-    !MUTUAL_EXCLUSIVITY_MAP[type]?.some(competing => activeTypes.has(competing))
+  return types.filter(
+    type =>
+      !isConnectorTypeExists(connectors, type, type === 'google_gmail' ? GMAIL_TYPES : undefined) &&
+      !MUTUAL_EXCLUSIVITY_MAP[type]?.some(competing => activeTypes.has(competing))
   );
 }
 
 function knownAccounts(provider: Provider, connectors: Connector[]): KnownOAuthAccount[] {
-  const types: readonly string[] = provider === 'google' ? GOOGLE_CONNECTOR_TYPES : MICROSOFT_CONNECTOR_TYPES;
+  const types: readonly string[] =
+    provider === 'google' ? GOOGLE_CONNECTOR_TYPES : MICROSOFT_CONNECTOR_TYPES;
   const accounts = new Map<string, KnownOAuthAccount>();
   for (const connector of connectors) {
     if (!types.includes(connector.connector_type) || !connector.oauth_grant_id) continue;
@@ -63,7 +69,11 @@ export function useBulkConnect({ connectors, loading, t }: UseBulkConnectOptions
   // A previous release persisted one queue per provider. It must never resume
   // after this one-request flow replaces the sequential OAuth journey.
   useEffect(() => {
-    try { LEGACY_QUEUE_KEYS.forEach(key => localStorage.removeItem(key)); } catch { /* restricted storage */ }
+    try {
+      LEGACY_QUEUE_KEYS.forEach(key => localStorage.removeItem(key));
+    } catch {
+      /* restricted storage */
+    }
   }, []);
 
   const authorize = async (provider: Provider, grantId: string | null): Promise<void> => {
@@ -75,12 +85,17 @@ export function useBulkConnect({ connectors, loading, t }: UseBulkConnectOptions
         `/connectors/oauth-bulk/${provider}/connect-all/authorize`,
         grantId ? { grant_id: grantId } : {}
       );
-      try { sessionStorage.setItem(PENDING_KEY, 'true'); } catch { /* restricted storage */ }
+      try {
+        sessionStorage.setItem(PENDING_KEY, 'true');
+      } catch {
+        /* restricted storage */
+      }
       setAccountDialogProvider(null);
       navigateToAuthorizationUrl(response.authorization_url, 'bulk-connect');
     } catch (error) {
       logger.error('Failed to start grouped connector authorization', error as Error, {
-        component: 'useBulkConnect', provider,
+        component: 'useBulkConnect',
+        provider,
       });
       toast.error(t(`settings.connectors.${provider}.connect_all_error`));
     } finally {

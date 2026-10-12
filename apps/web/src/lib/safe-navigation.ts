@@ -98,7 +98,7 @@ export function navigateToAuthorizationUrl(url: unknown, context: string): void 
     // of which has anything to do after the browser has the URL.
     void openInSystemBrowser(url)
       .catch(() => false)
-      .then((taken) => {
+      .then(taken => {
         if (!taken) {
           // Better a flow the provider may refuse than a button that silently
           // does nothing — the user can at least see what happened.

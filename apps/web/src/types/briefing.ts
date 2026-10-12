@@ -307,7 +307,6 @@ export interface CardSection<T extends SectionData = SectionData> {
   last_attempt_at: string | null;
 }
 
-
 export interface TextSection {
   text: string;
   /** ISO 8601 datetime (UTC) */

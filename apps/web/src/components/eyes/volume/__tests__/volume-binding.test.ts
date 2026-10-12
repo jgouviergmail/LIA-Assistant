@@ -6,6 +6,7 @@ import {
   setBodyVolumeReducedMotion,
 } from '../volume-binding';
 import * as masks from '../volume-mask';
+import * as fringe from '../volume-fringe';
 import { restChannelValues } from '../../rig/channels';
 import { smileyClothGraphics } from '../../__tests__/smiley-cloth-graphics';
 import { createVolumeSurfaceWriter } from '../volume-writer';
@@ -40,9 +41,37 @@ function host(visible = true) {
   const alpha = new Uint8Array(192 * 192);
   for (let y = 10; y < 182; y++) for (let x = 28; x < 164; x++) alpha[y * 192 + x] = 255;
   vi.spyOn(masks, 'readVolumeMask').mockReturnValue({ width: 192, height: 192, alpha });
+  vi.spyOn(fringe, 'volumeFringeMask').mockReturnValue(null);
   return { root, canvas };
 }
 describe('the rig alone owns volume visibility, playback and bounded resources', () => {
+  it('uploads the supplied fringe mask once per GPU lifetime and releases both textures', () => {
+    const { root, canvas } = host();
+    const gl = smileyClothGraphics();
+    const fringeMask = document.createElement('canvas');
+    fringeMask.width = fringeMask.height = 192;
+    vi.mocked(fringe.volumeFringeMask).mockReturnValue(fringeMask);
+    const dispose = bindBodyVolume(canvas, root, 'spirit', 'female', gl);
+    expect(fringe.volumeFringeMask).not.toHaveBeenCalled();
+    BodyImage.instances[0].load();
+    expect(fringe.volumeFringeMask).toHaveBeenCalledOnce();
+    expect(gl.createTexture).toHaveBeenCalledTimes(2);
+    expect(gl.texImage2D.mock.calls.filter(call => call.at(-1) === fringeMask)).toHaveLength(1);
+    paintBodyVolume(root, { ...restChannelValues(), headYaw: 1 });
+    expect(fringe.volumeFringeMask).toHaveBeenCalledOnce();
+    expect(gl.texImage2D).toHaveBeenCalledTimes(2);
+    setBodyVolumeVisibility(root, false);
+    expect(gl.deleteTexture).toHaveBeenCalledTimes(2);
+    setBodyVolumeVisibility(root, true);
+    expect(fringe.volumeFringeMask).toHaveBeenCalledOnce();
+    expect(gl.texImage2D.mock.calls.filter(call => call.at(-1) === fringeMask)).toHaveLength(2);
+    dispose();
+    dispose();
+    expect(gl.deleteTexture).toHaveBeenCalledTimes(4);
+    expect(gl.deleteTexture).toHaveBeenCalledTimes(gl.createTexture.mock.calls.length);
+    expect(gl.deleteBuffer).toHaveBeenCalledTimes(gl.createBuffer.mock.calls.length);
+    expect(gl.deleteProgram).toHaveBeenCalledTimes(gl.createProgram.mock.calls.length);
+  });
   it('confines the live organs with the loaded material contour, caches a stationary head and clears every projection on fallback', () => {
     const { root, canvas } = host(),
       gl = smileyClothGraphics();

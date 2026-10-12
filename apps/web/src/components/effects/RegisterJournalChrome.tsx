@@ -89,7 +89,10 @@ export function RegisterJournalTitle({
         <>
           {origin !== 'initiative' && <RegisterExportButton register={exportKind} />}
           <Button variant="outline" size="sm" onClick={onRefresh} disabled={firstLoad}>
-            <RefreshCw className={spinning ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} aria-hidden="true" />
+            <RefreshCw
+              className={spinning ? 'h-4 w-4 animate-spin' : 'h-4 w-4'}
+              aria-hidden="true"
+            />
             {refreshLabel}
           </Button>
         </>

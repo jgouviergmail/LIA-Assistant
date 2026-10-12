@@ -1,12 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  Clock,
-  History,
-  Radar,
-  SlidersHorizontal,
-} from 'lucide-react';
+import { Clock, History, Radar, SlidersHorizontal } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useTranslation } from '@/i18n/client';

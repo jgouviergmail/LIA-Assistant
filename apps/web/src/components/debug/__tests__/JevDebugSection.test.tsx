@@ -94,7 +94,9 @@ describe('JEV debug feed independent of chat turns', () => {
     expect(await screen.findByText(key('observedResultHelp'))).toBeVisible();
     expect(screen.queryByText(key('memoryEmptyProposal'))).not.toBeInTheDocument();
     await user.click(screen.getByText(key('observedResult')));
-    expect(screen.getByRole('region', { name: key('observedResult') })).toHaveTextContent(item.text);
+    expect(screen.getByRole('region', { name: key('observedResult') })).toHaveTextContent(
+      item.text
+    );
   });
 
   it('shows global collection coverage without treating unsubmitted candidates as unknown', async () => {
@@ -123,7 +125,9 @@ describe('JEV debug feed independent of chat turns', () => {
       const query = within(article);
       expect(query.getByText(key('coverageCandidates')).nextElementSibling).toHaveTextContent('75');
       expect(query.getByText(key('coverageEvaluated')).nextElementSibling).toHaveTextContent('14');
-      expect(query.getByText(key('coverageUnevaluated')).nextElementSibling).toHaveTextContent('61');
+      expect(query.getByText(key('coverageUnevaluated')).nextElementSibling).toHaveTextContent(
+        '61'
+      );
       expect(query.getByText(key('coverageUnknown')).nextElementSibling).toHaveTextContent('14');
       expect(query.getByText(key('coverageOmitted')).nextElementSibling).toHaveTextContent('0');
       expect(query.getByText(key('coverageBatch'))).toBeVisible();

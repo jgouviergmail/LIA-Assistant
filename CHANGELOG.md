@@ -5,6 +5,120 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-10-12
+
+**Requests connected to their context, with results you can inspect.** This
+release brings supported application management into conversation, strengthens
+structured outcome verification and publishes an editable product presentation.
+Native companions, public explanations and operating documentation evolve
+together. Experimental options retain their stated qualification limits.
+
+### Added
+
+- **Application management through conversation:** account-scoped tools inspect
+  and change supported preferences and objects. Minor reversible settings use
+  their declared policy; creations, deletion and sensitive operations request
+  confirmation. Encrypted expiring commands retain actor, origin, operation
+  digest, phase and current authority. Browser-native file, private-input and
+  connector authorization continuations keep their existing controls (ADR-339).
+- **Requested-outcome verification:** explicit obligations are checked against
+  canonical structured observations, including values, operation, account and
+  completeness. Drafts, opaque results and delegation announcements cannot
+  prove execution. Compact verdicts survive checkpoints and reach bounded
+  recovery and final synthesis (ADR-335, ADR-336).
+- **Checkpointed ReAct reads:** eligible independent read segments run with
+  bounded concurrency and publish results before later interruption. Exact,
+  fresh, complete results can be reused within the same turn and authority
+  context; mutations invalidate reuse. Unknown, interruptible, delegated and
+  mutating calls keep sequential execution (ADR-337).
+- **Live MCP contracts:** current input/output schemas, structured output,
+  schema age and hashes travel with the callable contract. Administrative and
+  user-owned targets preserve exact identity independently of public aliases;
+  delegation is bound before policy, approval and invocation (ADR-338).
+- **Native body volume:** reviewed original avatar artwork supplies bounded
+  anatomical relief, alpha coverage, normals and facial projection under the
+  existing rig. Graphics lifecycle and unavailable-resource fallbacks are
+  explicit; full physical anatomy and arbitrary facial occlusion remain
+  approximations (ADR-340).
+- **Product film and complementary focuses:** editable HTML/CSS/Remotion
+  construction, original electro-funk soundtrack provenance, complete native
+  avatar catalogue, contextual male Lumo, display modes, reminders, Relations,
+  populated planning, action register, administrative views and dedicated PWA
+  sequence. Complete native screens remain stationary outside declared element
+  focuses; crops preserve the original rows and geometry (ADR-341).
+- **Exclusive Presentation player:** blue CTA before the guided demo, explicit
+  full-film manifest descriptor, lazy fullscreen dialog, native controls,
+  localized loading/error/retry states and background playback suspension.
+  The neighboring registration CTA is removed. The film and checked editable
+  construction are linked from README and release assets.
+- **Optional one-time BIP campaign:** a deployment-scoped runtime identifier
+  applies the companion style on the next authenticated browser visit, with
+  persisted completion, later manual choices preserved, multitab coordination
+  where available and storage-failure rollback. Empty remains the installation
+  default; this is not a database avatar preference (ADR-342).
+
+### Changed
+
+- **Semantic context:** resolved references keep their value, kind and source
+  through query intelligence and the shared Pipeline/ReAct argument guard.
+  Dates and places cannot be silently treated as contacts. Tool dependencies
+  require constructible canonical evidence rather than phantom producers.
+- **JEV decisions:** native Choice/Noul criteria and bounded parameter-kind
+  observations retain debug evidence and attribution. Deterministic compatibility,
+  authorization and HITL stay in code. Parameter-kind assistance is opt-in and
+  disabled by default; uncertain outcomes do not remove existing guards.
+  Offline qualification findings are documented without inferring production
+  gains (ADR-325 amendments).
+- **Public content:** FAQ and end-user/admin release notes, relevant blog
+  material, six-language durable presentations, knowledge exports and
+  functional/technical/decision maps reflect the delivered features. Public
+  explanations distinguish implemented safeguards and supported standards from
+  certification claims.
+- **Landing on phones:** spacing and separators clarify the assistant promise,
+  journey benefits and three individually centered trust statements.
+  Application screenshots share the Grafana carousel's presentation frame.
+- **Model catalogue:** the repository's reviewed model/pricing seeds include
+  the added Anthropic model records; configured instance slots remain the
+  runtime authority rather than following a forced global retarget.
+
+### Fixed
+
+- Memory extraction records a consent-sensitive revision and refuses stale
+  writes after a concurrent revision or deletion. Routine generation uses a
+  reservation that settles the current generation without racing another tick.
+- Scheduled sandbox egress approvals retain their action buttons and pending
+  state when messages synchronize after the scheduled run.
+- Tool-result cards restore their terminal disclosure behavior; conversation
+  history search and light-theme chip icon contrast retain readable native UI.
+- Radio respects the first requested programme's priority. Existing commercial
+  and editorial source controls remain in place.
+- Voice sentence cleanup retains linear processing and removes native provider
+  tags without reordering rendered audio.
+- Its growth regression test measures current-thread CPU time to exclude
+  descheduling under load, while preserving the wall-time ceiling, growth
+  thresholds and a deliberately quadratic negative witness.
+- Weather input distinguishes explicit from omitted dates, validates supported
+  units and states accepted dates instead of silently replacing unreadable ones.
+- Semantic taxonomy, enum examples and producer ownership are aligned with the
+  actual executable registry rather than unavailable declarations.
+- Deployment preserves SOPS UTF-8 text on Windows and regenerates the Docker
+  group identity needed by the existing isolated skill runner. Sandbox Docker
+  denial has an explicit availability outcome instead of a successful claim.
+- Beat-map selection preserves bounded timing and an explicit analysis version;
+  exported music and source provenance stay attached to their actual edit.
+
+### Documentation and installation
+
+- Added ADR-339 through ADR-342 and guides for application commands, native
+  avatar volume, motion production and JEV semantic qualification. Updated
+  affected implementation references and architecture maps.
+- Version surfaces, changelog references and derived public counts use the
+  repository's release tooling. Public test/source figures are fresh
+  measurements, not projected counts.
+- Installer and backend configuration contracts cover the delivered migrations,
+  startup wiring and optional runtime UI setting. Clean-host candidate
+  qualification and release promotion remain bound to exact image digests.
+
 ## [2.6.1] - 2026-10-06
 
 **Une voix continue, un avatar maîtrisé et une interface à portée de main.**

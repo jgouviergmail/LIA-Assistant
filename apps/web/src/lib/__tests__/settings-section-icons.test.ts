@@ -34,9 +34,7 @@ const WRAPPED: Readonly<Partial<Record<SettingsSectionToken, string>>> = {
 /** lucide local name → canonical export name, from the file's own imports. */
 function lucideAliases(source: string): Map<string, string> {
   const aliases = new Map<string, string>();
-  for (const importMatch of source.matchAll(
-    /import\s*\{([^}]+)\}\s*from\s*'lucide-react'/gs
-  )) {
+  for (const importMatch of source.matchAll(/import\s*\{([^}]+)\}\s*from\s*'lucide-react'/gs)) {
     for (const spec of importMatch[1].split(',')) {
       const [name, alias] = spec.split(/\s+as\s+/).map(part => part.trim());
       if (name) aliases.set(alias ?? name, name);

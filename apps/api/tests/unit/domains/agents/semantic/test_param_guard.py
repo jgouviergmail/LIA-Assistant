@@ -10,6 +10,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from src.core.field_names import FIELD_RESOLVED_PERSON_NAMES
+from src.domains.agents.analysis.resolved_references import (
+    ReferenceSource,
+    ReferenceValueKind,
+    ResolvedReferenceEntry,
+)
 from src.domains.agents.registry.agent_registry import ToolManifestNotFound
 from src.domains.agents.registry.catalogue import (
     CostProfile,
@@ -23,11 +28,38 @@ from src.domains.agents.semantic.param_guard import (
     collect_resolved_person_names,
     config_with_person_names,
     person_names_from_config,
+    request_from_config,
     strip_placeholder_arguments,
+    turn_person_names,
+    turn_request,
 )
 
 PERSON = "Marc Lemoine"
 NAMES = frozenset({"marc lemoine"})
+
+
+def _state(*entries: ResolvedReferenceEntry) -> dict[str, object]:
+    return {"query_intelligence": {"resolved_references": [e.to_dict() for e in entries]}}
+
+
+NAME = ResolvedReferenceEntry(
+    "mon frère", PERSON, ReferenceValueKind.PERSON_NAME, ReferenceSource.MEMORY
+)
+CITY = ResolvedReferenceEntry(
+    "montbéliard", "Montbéliard", ReferenceValueKind.OTHER, ReferenceSource.ANALYZER
+)
+DATES = ResolvedReferenceEntry(
+    "les 5 prochains jours",
+    "2026-10-11 to 2026-10-15",
+    ReferenceValueKind.DATETIME,
+    ReferenceSource.ANALYZER,
+)
+ADDRESS = ResolvedReferenceEntry(
+    "chez mon frère",
+    "12 rue des Lilas, Lyon",
+    ReferenceValueKind.POSTAL_ADDRESS,
+    ReferenceSource.MEMORY,
+)
 
 
 def _manifest(
@@ -69,16 +101,96 @@ def _registry_with(manifest: ToolManifest) -> MagicMock:
 
 class TestCollectResolvedPersonNames:
     def test_normalizes_case_and_whitespace(self):
-        names = collect_resolved_person_names({"mon frère": "  Marc   LEMOINE "})
-        assert names == {"marc lemoine"}
+        entry = ResolvedReferenceEntry(
+            "mon frère", "  Marc   LEMOINE ", ReferenceValueKind.PERSON_NAME, ReferenceSource.MEMORY
+        )
+        assert collect_resolved_person_names((entry,)) == {"marc lemoine"}
 
     def test_empty_inputs(self):
-        assert collect_resolved_person_names(None) == frozenset()
-        assert collect_resolved_person_names({}) == frozenset()
+        assert collect_resolved_person_names(()) == frozenset()
 
-    def test_ignores_non_string_and_blank_values(self):
-        names = collect_resolved_person_names({"a": 42, "b": "", "c": "  ", "d": "Jean"})
-        assert names == {"jean"}
+    def test_only_declared_person_names_count(self):
+        assert collect_resolved_person_names((NAME, CITY, DATES, ADDRESS)) == NAMES
+
+
+class TestTurnPersonNames:
+    def test_only_person_names_are_collected(self) -> None:
+        assert turn_person_names(_state(NAME, CITY, DATES, ADDRESS)) == NAMES
+
+    def test_a_later_turn_never_guards_on_the_previous_turns_values(self) -> None:
+        stale = {
+            "query_intelligence": {"resolved_references": None},
+            "resolved_references": {"montbéliard": "Montbéliard"},
+        }
+        assert turn_person_names(stale) == frozenset()
+
+    def test_a_legacy_checkpoint_is_never_guarded(self) -> None:
+        legacy = {"query_intelligence": {"resolved_references": {"mon frère": PERSON}}}
+        assert turn_person_names(legacy) == frozenset()
+
+
+class TestIncident20261011:
+    """The places search on the city the person asked about is not blocked."""
+
+    def test_city_reference_does_not_block_places(self) -> None:
+        with patch(
+            "src.domains.agents.semantic.param_guard.available_manifest",
+            return_value=_manifest([("location", "physical_address")]),
+        ):
+            assert (
+                check_semantic_params(
+                    "get_places_tool",
+                    {"location": "Montbéliard"},
+                    turn_person_names(_state(CITY, DATES)),
+                )
+                is None
+            )
+
+    def test_memory_address_does_not_block_its_route(self) -> None:
+        with patch(
+            "src.domains.agents.semantic.param_guard.available_manifest",
+            return_value=_manifest([("destination", "physical_address")]),
+        ):
+            assert (
+                check_semantic_params(
+                    "get_route_tool",
+                    {"destination": "12 rue des Lilas, Lyon"},
+                    turn_person_names(_state(ADDRESS)),
+                )
+                is None
+            )
+
+    def test_a_person_name_is_still_blocked(self) -> None:
+        with patch(
+            "src.domains.agents.semantic.param_guard.available_manifest",
+            return_value=_manifest([("destination", "physical_address")]),
+        ):
+            assert (
+                check_semantic_params(
+                    "get_route_tool", {"destination": PERSON}, turn_person_names(_state(NAME))
+                )
+                is not None
+            )
+
+    def test_homonym_place_is_not_blocked(self) -> None:
+        sister = ResolvedReferenceEntry(
+            "ma sœur", "Florence", ReferenceValueKind.PERSON_NAME, ReferenceSource.MEMORY
+        )
+        there = ResolvedReferenceEntry(
+            "là-bas", "Florence", ReferenceValueKind.PLACE, ReferenceSource.ANALYZER
+        )
+        with patch(
+            "src.domains.agents.semantic.param_guard.available_manifest",
+            return_value=_manifest([("location", "locality")]),
+        ):
+            assert (
+                check_semantic_params(
+                    "get_weather_forecast_tool",
+                    {"location": "Florence"},
+                    turn_person_names(_state(sister, there)),
+                )
+                is None
+            )
 
 
 # =============================================================================
@@ -174,7 +286,7 @@ class TestCheckSemanticParams:
 class TestConfigPlumbing:
     def test_round_trip_through_configurable(self):
         config = {"configurable": {"langgraph_user_id": "u1"}}
-        state = {"resolved_references": {"mon frère": PERSON}}
+        state = _state(NAME, CITY)
 
         enriched = config_with_person_names(config, state)
 
@@ -185,13 +297,45 @@ class TestConfigPlumbing:
     def test_returns_same_config_when_nothing_to_guard(self):
         config = {"configurable": {}}
         assert config_with_person_names(config, {}) is config
+        assert config_with_person_names(config, _state(CITY, DATES)) is config
         assert person_names_from_config(config) == frozenset()
 
     def test_original_config_not_mutated(self):
         config = {"configurable": {"k": "v"}}
-        state = {"resolved_references": {"ma femme": "Corinne"}}
+        state = _state(
+            ResolvedReferenceEntry(
+                "ma femme", "Corinne", ReferenceValueKind.PERSON_NAME, ReferenceSource.MEMORY
+            )
+        )
         config_with_person_names(config, state)
         assert FIELD_RESOLVED_PERSON_NAMES not in config["configurable"]
+
+    def test_the_turn_request_travels_for_the_value_kind_judgment(self):
+        state = {"query_intelligence": {"original_query": "Restaurants à Montbéliard"}}
+        enriched = config_with_person_names({"configurable": {}}, state)
+        assert request_from_config(enriched) == "Restaurants à Montbéliard"
+        assert FIELD_RESOLVED_PERSON_NAMES not in enriched["configurable"]
+
+    @pytest.mark.parametrize("query", [None, "", "   ", 42])
+    def test_a_turn_without_words_carries_no_request(self, query: object):
+        state = {"query_intelligence": {"original_query": query}}
+        assert turn_request(state) is None
+        assert request_from_config(config_with_person_names({"configurable": {}}, state)) is None
+
+
+class TestViolationMessage:
+    def test_a_resolved_name_keeps_its_contacts_hint(self):
+        message = SemanticParamViolation("t", "p", "email_address", "Ana").llm_message()
+        assert "person's name" in message and "contacts" in message
+        assert "expects an email address" in message
+
+    @pytest.mark.parametrize(
+        ("kind", "words"),
+        [("phone_number", "a phone number"), ("datetime", "a date or a time"), ("x", "another")],
+    )
+    def test_a_judged_kind_is_named(self, kind: str, words: str):
+        message = SemanticParamViolation("t", "p", "locality", "v", kind).llm_message()
+        assert words in message and "person's name" not in message
 
 
 # =============================================================================

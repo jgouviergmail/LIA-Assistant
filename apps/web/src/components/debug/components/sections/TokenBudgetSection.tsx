@@ -150,7 +150,12 @@ export const TokenBudgetSection = React.memo(function TokenBudgetSection({
   const strategyLabel = strategy ? FALLBACK_STRATEGY_LABELS[strategy] || strategy : null;
 
   return (
-    <DebugSection value="token_budget" title="Token Budget" icon={Gauge} badge={<ZoneBadge zone={zone} />}>
+    <DebugSection
+      value="token_budget"
+      title="Token Budget"
+      icon={Gauge}
+      badge={<ZoneBadge zone={zone} />}
+    >
       {/* Catalogue strategy — the PLANNING input this section governs */}
       {strategy && (
         <div className="space-y-1">

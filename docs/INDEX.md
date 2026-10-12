@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 45 |
-| ADRs | 337 ADR files (ADR-338 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
+| ADRs | 341 ADR files (ADR-342 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
 | Fiches knowledge (RAG système) | 40 |
 
 ---
@@ -53,7 +53,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (337 ADR files) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (341 ADR files) |
 
 ### Pour les Product Managers
 
@@ -62,6 +62,10 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [HITL.md](./technical/HITL.md) | Human-in-the-Loop (approbations utilisateur) |
 | [LLM_PRICING_MANAGEMENT.md](./technical/LLM_PRICING_MANAGEMENT.md) | Gestion des coûts LLM |
 | [JEV_INTEGRATION.md](./technical/JEV_INTEGRATION.md) | Décisions natives TypeSafe, bascule à chaud par usage, repli et comptabilité |
+| [JEV_SEMANTIC_QUALIFICATION.md](./technical/JEV_SEMANTIC_QUALIFICATION.md) | Qualification mesurée de JEV pour le typage sémantique, et réalignement des questions livrées |
+| [APPLICATION_COMMANDS.md](./technical/APPLICATION_COMMANDS.md) | Account-scoped application commands, current authority, confirmations and secure browser continuations |
+| [NATIVE_AVATAR_VOLUME.md](./technical/NATIVE_AVATAR_VOLUME.md) | Reviewed native artwork, bounded body relief, facial projection and graphics lifecycle |
+| [MOTION_DESIGN.md](./technical/MOTION_DESIGN.md) | Editable film construction, faithful native views, review, delivery and update procedure |
 | [GOOGLE_API_TRACKING.md](./technical/GOOGLE_API_TRACKING.md) | Suivi consommation Google Maps Platform |
 | [METRICS_REFERENCE.md](./technical/METRICS_REFERENCE.md) | Métriques business |
 

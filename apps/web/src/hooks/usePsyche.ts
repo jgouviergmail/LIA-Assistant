@@ -31,8 +31,19 @@ export function usePsyche() {
     else store.updateFromFullState(fresh);
   }, []);
   // GET /psyche/state
-  const stateQuery = useApplicationAccountQuery<PsycheState | null>('/psyche/state?initialize=false', 'usePsyche', true, acceptState);
-  const { data: stateData, loading: stateLoading, refetch: refetchState, ownerId, isCurrent } = stateQuery;
+  const stateQuery = useApplicationAccountQuery<PsycheState | null>(
+    '/psyche/state?initialize=false',
+    'usePsyche',
+    true,
+    acceptState
+  );
+  const {
+    data: stateData,
+    loading: stateLoading,
+    refetch: refetchState,
+    ownerId,
+    isCurrent,
+  } = stateQuery;
 
   // GET /psyche/settings
   const {
@@ -46,7 +57,9 @@ export function usePsyche() {
   }, [refetchState, refetchSettings]);
   useApplicationResourceSync(ownerId, 'psyche', refetchPsyche, releasePsycheOverride);
 
-  useEffect(() => { usePsycheStore.getState().bindOwner(ownerId ?? null); }, [ownerId]);
+  useEffect(() => {
+    usePsycheStore.getState().bindOwner(ownerId ?? null);
+  }, [ownerId]);
 
   // PATCH /psyche/settings
   const { mutate: updateSettingsMutate, loading: updatingSettings } = useApiMutation<

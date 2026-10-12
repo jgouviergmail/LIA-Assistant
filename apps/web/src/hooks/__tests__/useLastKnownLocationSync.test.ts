@@ -16,10 +16,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 
 import { makeUser } from '@/__tests__/factories';
 import type { User } from '@/lib/auth';
-import {
-  LAST_LOCATION_PUSH_THROTTLE_MS,
-  LAST_LOCATION_PUSH_TS_KEY,
-} from '@/lib/constants';
+import { LAST_LOCATION_PUSH_THROTTLE_MS, LAST_LOCATION_PUSH_TS_KEY } from '@/lib/constants';
 
 const { useAuth } = vi.hoisted(() => ({ useAuth: vi.fn() }));
 vi.mock('@/hooks/useAuth', () => ({ useAuth }));
@@ -107,8 +104,6 @@ describe('useLastKnownLocationSync', () => {
   it('cleans up the legacy weather-scoped throttle marker', async () => {
     localStorage.setItem('smart_weather_last_push_ms', '12345');
     renderHook(() => useLastKnownLocationSync());
-    await waitFor(() =>
-      expect(localStorage.getItem('smart_weather_last_push_ms')).toBeNull()
-    );
+    await waitFor(() => expect(localStorage.getItem('smart_weather_last_push_ms')).toBeNull());
   });
 });

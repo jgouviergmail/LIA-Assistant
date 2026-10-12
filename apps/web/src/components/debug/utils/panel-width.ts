@@ -8,11 +8,7 @@
  * comes back when the room does.
  */
 
-import {
-  DEBUG_PANEL_CHAT_MIN_WIDTH,
-  DEBUG_PANEL_GAP,
-  DEBUG_PANEL_WIDTH_MIN,
-} from './constants';
+import { DEBUG_PANEL_CHAT_MIN_WIDTH, DEBUG_PANEL_GAP, DEBUG_PANEL_WIDTH_MIN } from './constants';
 
 export interface PanelWidthBounds {
   min: number;

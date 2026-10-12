@@ -239,7 +239,8 @@ export const useChat = ({
   debugPanelVisible = false,
 }: { debugPanelVisible?: boolean } = {}): UseChatReturn => {
   const { user } = useAuth();
-  const { handleChange: handleApplicationStateChange, completeStream: completeApplicationStream } = useApplicationStateSync();
+  const { handleChange: handleApplicationStateChange, completeStream: completeApplicationStream } =
+    useApplicationStateSync();
   const { withContext } = useLoggingContext();
   const { t, i18n } = useTranslation();
 

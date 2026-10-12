@@ -1,0 +1,37 @@
+.presentation-film,.presentation-film *{box-sizing:border-box}
+.presentation-film{--native-primary:oklch(47% .13 240);--native-background:oklch(95% .008 80);--native-card:oklch(97.5% .006 80);--native-foreground:oklch(35% .02 250);--native-muted:oklch(51% .015 250);--native-border:oklch(88% .01 80);overflow:hidden;background:#e9ecf6;color:#1b2140;font-family:'Lia Story Inter',sans-serif}
+.film-brand{position:absolute;left:120px;top:72px;font-size:40px;font-weight:780;letter-spacing:-1.8px;z-index:20}
+.film-copy{position:absolute;left:120px;top:236px;width:596px;z-index:8}
+.film-copy h1{margin:0;font-weight:690;line-height:1.08;letter-spacing:-4.2px;overflow:visible}
+.film-copy h1 span{display:block;white-space:nowrap}
+.film-copy h1 span+span{margin-top:10px;color:var(--film-accent)}
+.film-copy p{font-size:27px;line-height:1.5;letter-spacing:-.65px;font-weight:460;color:#414868;margin:30px 0 0;max-width:545px}
+.film-copy-right{left:1225px;width:570px}
+.film-copy-right h1{letter-spacing:-3.6px}
+.film-copy-right p{max-width:535px}
+.film-copy-top,.film-copy-full:not(.film-copy-signature){left:348px;top:155px;width:1340px}
+.film-copy-top h1,.film-copy-full:not(.film-copy-signature) h1{line-height:1.09;display:flex;gap:22px;letter-spacing:-3.7px}
+.film-copy-top h1 span+span,.film-copy-full:not(.film-copy-signature) h1 span+span{margin-top:0}
+.film-copy-top p,.film-copy-full:not(.film-copy-signature) p{max-width:1120px;font-size:27px;margin-top:19px}
+.film-copy-signature{left:304px;top:336px;width:835px}
+.film-copy-signature h1{letter-spacing:-4.8px;line-height:1.04}
+.film-copy-signature p{max-width:800px;font-size:28px;margin-top:37px}
+.film-feature-window{position:absolute;transform-origin:0 0;border-radius:20px;overflow:hidden;box-shadow:0 30px 56px -30px #26335749,0 0 0 1px #ffffffbd;z-index:3}
+.film-native-crop{position:absolute;transform-origin:0 0;overflow:hidden;border-radius:12px;box-shadow:0 23px 50px -27px #21384c66,0 0 0 1px #ffffffb3;background:oklch(97.5% .006 80);z-index:7}
+.film-crop-source{position:absolute}
+.film-native-state{position:absolute;inset:0;width:1440px;height:960px}
+/* Captured UI is held. No CSS transition/animation can bypass the frame guard. */
+.presentation-film [data-motion-role] *{animation:none!important;transition:none!important}
+.film-native-state .story-native-research-scene,.film-native-state .story-native-draft-scene{transform:none!important}
+.film-avatar-demonstration{position:absolute;width:1040px;height:700px;z-index:6}
+.film-mascot-carrier{position:absolute;z-index:9}
+.film-mascot-name{position:absolute;font-size:18px;font-weight:550;color:#2c56c4;z-index:10}
+.film-scene-mark{position:absolute;right:125px;top:90px;font-size:20px;font-weight:550;letter-spacing:-.5px;color:#414868}
+.film-scene-note{position:absolute;bottom:85px;left:555px;right:550px;margin:0;font-size:17px;line-height:1.45;color:#414868;z-index:10}
+.film-demo-note{position:absolute;left:120px;bottom:65px;font-size:17px;color:#414868;z-index:20}
+.film-music-credit{position:absolute;bottom:95px;left:120px;right:120px;margin:0;font-size:23px;line-height:1.5;text-align:center;color:#414868}
+.film-time-line{position:absolute;bottom:35px;left:120px;right:120px;height:2px;background:#2c56c414;z-index:30}
+.film-time-line span{height:2px;display:block;background:#2c56c47d}
+.film-mobile{position:absolute;transform-origin:0 0;overflow:hidden;border-radius:24px;box-shadow:0 20px 50px -20px #1b214060,0 0 0 2px #1b2140;z-index:6}
+.film-intro-composer{position:absolute;left:304px;top:764px;width:910px;height:81px;border-radius:14px;overflow:hidden;box-shadow:0 15px 28px -20px #1b21403b}
+.film-focus-label{position:absolute;left:348px;top:348px;width:1216px;text-align:center;font-size:22px;font-weight:550;letter-spacing:-.5px;color:#2c56c4;margin:0;z-index:10}

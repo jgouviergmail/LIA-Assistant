@@ -158,7 +158,10 @@ export const LLMCallsSection = React.memo(function LLMCallsSection({
             const model = callModel(call);
 
             return (
-              <div key={`${call.node_name}-${index}`} className="border-l-2 border-border pl-3 pb-1">
+              <div
+                key={`${call.node_name}-${index}`}
+                className="border-l-2 border-border pl-3 pb-1"
+              >
                 {/* Header: type chip + node + model */}
                 <div className="mb-1 flex items-center justify-between text-xs">
                   <div className="flex items-center gap-1">
@@ -166,7 +169,9 @@ export const LLMCallsSection = React.memo(function LLMCallsSection({
                     <NodeChip nodeName={call.node_name} />
                     {/* A failed call and a successful one used to render
                         identically, both with their tokens billed (B8). */}
-                    {failed && <DebugChip tone="destructive">{call.failure_kind ?? 'failed'}</DebugChip>}
+                    {failed && (
+                      <DebugChip tone="destructive">{call.failure_kind ?? 'failed'}</DebugChip>
+                    )}
                   </div>
                   <span
                     className="ml-2 truncate font-mono text-px-10 text-muted-foreground"

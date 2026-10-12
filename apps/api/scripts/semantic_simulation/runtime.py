@@ -31,8 +31,13 @@ from src.infrastructure.llm.token_capture import TokenCaptureHandler
 from src.infrastructure.llm.usage_guard import enforce_usage_limit
 from src.infrastructure.llm.usage_metadata import model_name_of, model_name_of_response
 
-Slot = Literal["planner", "react_agent", "query_analyzer"]
-SLOTS: tuple[Slot, ...] = ("planner", "react_agent", "query_analyzer")
+Slot = Literal["planner", "react_agent", "query_analyzer", "memory_reference_resolution"]
+SLOTS: tuple[Slot, ...] = (
+    "planner",
+    "react_agent",
+    "query_analyzer",
+    "memory_reference_resolution",
+)
 
 
 @dataclass

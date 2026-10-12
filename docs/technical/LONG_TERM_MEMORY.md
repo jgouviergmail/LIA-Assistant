@@ -4,7 +4,7 @@
 >
 > **Version**: 2.0
 > **Date**: 2026-03-30
-> **Updated**: v1.13.6 — Migration LangGraph Store → PostgreSQL custom, centralized embeddings, create/update/delete extraction
+> **Updated**: 2026-10-12 — PostgreSQL ownership, centralized embeddings and consent-revision fencing
 
 ## Table des Matières
 
@@ -48,7 +48,7 @@ Le système de Long-Term Memory de LIA permet à l'assistant de **se souvenir de
 - **Pinned protection** : Memories épinglées par l'utilisateur protégées de toute modification automatique
 - **Indicateur émotionnel** : Feedback visuel de l'état émotionnel (comfort/danger/neutral)
 - **Édition manuelle** : Modification des champs émotionnels/importance via l'UI
-- **RGPD compliant** : Export et suppression des données utilisateur
+- **Contrôles de données personnelles** : export, édition, suppression et consentement ; la conformité dépend aussi de l’exploitation de l’instance
 - **i18n complet** : Interface en 6 langues (fr, en, es, de, it, zh)
 
 ---
@@ -61,12 +61,12 @@ Le système de Long-Term Memory de LIA permet à l'assistant de **se souvenir de
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                          │
 │  Memory model (SQLAlchemy) + HNSW index (pgvector cosine distance)      │
-│  index = { dims: 1536, embed: text-embedding-3-small, fields: [...] }   │
+│  Embeddings Gemini configurés + index HNSW du modèle SQL                  │
 │                                                                          │
-│  NAMESPACES:                                                            │
-│  ├── (user_id, "memories")           → Profil psychologique utilisateur │
-│  ├── (user_id, "documents", source)  → Futur RAG documentaire           │
-│  └── (user_id, "context", domain)    → Tool context existant            │
+│  OWNERSHIP SQL:                                                          │
+│  ├── memories.user_id               → propriétaire du souvenir            │
+│  ├── RAG Spaces                     → domaine documentaire distinct       │
+│  └── Contexte du tour               → observations distinctes             │
 │                                                                          │
 └─────────────────────────────────────────────────────────────────────────┘
 
@@ -107,7 +107,7 @@ Le système de Long-Term Memory de LIA permet à l'assistant de **se souvenir de
 │  └──────────────┘    │ → Analyse DERNIER message user      │           │
 │                      │ → Contexte minimal (4 messages)     │           │
 │                      │ → Dedup par semantic search         │           │
-│                      │ → Store.aput() nouveaux souvenirs   │           │
+│                      │ → MemoryService : SQL + révision    │           │
 │                      │                                     │           │
 │                      │ ⚠ Skipped pour sources automatisées │           │
 │                      │   (scheduled actions, etc.)         │           │
@@ -212,18 +212,14 @@ le `delete` sur cette catégorie et l'écran le dit à la personne.
 
 ## Composants Backend
 
-### 1. Store Sémantique
+### 1. Stockage sémantique
 
-**Fichier** : `apps/api/src/domains/agents/context/store.py`
-
-```python
-# Configuration du store avec index sémantique
-index_config = {
-    "dims": settings.memory_embedding_dimensions,  # 1536 par défaut
-    "embed": embeddings,  # text-embedding-3-small
-    "fields": ["content", "text", "trigger_topic", "memory"],
-}
-```
+Les souvenirs sont des lignes du modèle
+`apps/api/src/domains/memories/models.py::Memory`, détenues par `user_id`.
+`MemoryService` valide les écritures et `MemoryRepository` porte les requêtes SQL
+et la recherche multi-vecteurs pgvector. Aucun namespace LangGraph Store n'est
+utilisé pour ces souvenirs. La porte de recherche active est décrite ci-dessous;
+les paramètres d'embedding sont configurés par l'infrastructure LLM.
 
 ### 2. Memory Injection Middleware
 
@@ -263,11 +259,13 @@ planificateur et la boucle ReAct disposent du domaine routable `memory` et de
 
 ```python
 async def extract_memories_background(
-    store: BaseStore,
     user_id: str,
     messages: list[BaseMessage],
     session_id: str,
     personality_instruction: str | None = None,
+    conversation_id: str | None = None,
+    parent_run_id: str | None = None,
+    query_embedding: list[float] | None = None,
 ) -> int:
     """
     Extraction psychoanalytique asynchrone post-conversation.
@@ -279,6 +277,21 @@ async def extract_memories_background(
     - Coûts API inutiles
     """
 ```
+
+### Consentement et règlement des écritures
+
+`users.extraction_revision` borne les tâches d'apprentissage déjà parties.
+`users/extraction_consent.py` lit le compte actif, le consentement mémoire et la
+révision attendue au début de l'extraction, avant une nouvelle phase payante et
+avant le règlement SQL. Les modifications explicites de consentement ou de
+données personnelles avancent cette révision sous verrou du compte.
+
+Les embeddings sont préparés avant le verrou d'écriture. La transaction finale
+relit le consentement et la révision avec `lock=True`, puis applique les actions
+validées par `MemoryService`, dont les protections d'épinglage. Un changement
+survenu entre-temps abandonne l'ancien travail ; il ne suffit pas que le modèle
+ait déjà proposé une action. Une attente fournisseur ne conserve pas ce verrou.
+Les sources automatisées restent exclues du déclenchement post-réponse.
 
 ### 4. Prompts Externalisés
 
@@ -342,20 +355,13 @@ Endpoints :
 - `DELETE /api/v1/memories` : Supprimer toutes (RGPD)
 - `GET /api/v1/memories/export` : Export JSON (RGPD)
 
-### 6. Namespace Helper
+### 6. Commandes applicatives
 
-**Fichier** : `apps/api/src/infrastructure/store/semantic_store.py` — *supprimé en ADR-168 ; la recherche vit désormais dans `domains/memories/repository.py::search_by_relevance`*
-
-```python
-class MemoryNamespace:
-    """Helper pour namespace LangGraph Store."""
-    def __init__(self, user_id: str):
-        self.user_id = user_id
-        self.collection = "memories"
-
-    def to_tuple(self) -> tuple[str, str]:
-        return (self.user_id, self.collection)
-```
+Les lectures et opérations de gestion conversationnelles passent par les
+[commandes applicatives](APPLICATION_COMMANDS.md) et les services du domaine.
+Elles conservent le propriétaire, les confirmations, la version courante et les
+protections des souvenirs épinglés. Les opérations explicites de gestion
+invalident les tâches automatiques concernées via la révision d'extraction.
 
 ---
 
@@ -377,7 +383,7 @@ Fonctionnalités :
 
 Champs éditables :
 - **Contenu** : Textarea
-- **Catégorie** : Select (6 options)
+- **Catégorie** : Select du vocabulaire de catégories déclaré
 - **Nuance d'usage** : Input texte
 - **Sujet déclencheur** : Input texte
 - **Poids émotionnel** : Slider -10 à +10 avec indicateur emoji
@@ -442,45 +448,33 @@ Clés i18n pour les mémoires :
 
 ## Configuration
 
-### Variables d'Environnement (.env)
+### Réglages et consentement
 
-```bash
-# Activer le système de mémoire
-MEMORY_ENABLED=true
-MEMORY_EXTRACTION_ENABLED=true
-MEMORY_INJECTION_ENABLED=true
+`core/config/agents.py` déclare les paramètres de recherche et d'extraction,
+dont `memory_extraction_enabled`, `memory_max_results`,
+`memory_min_search_score`, `memory_dedup_search_limit` et
+`memory_dedup_min_score`. Les valeurs par défaut appartiennent à la
+configuration et à ses constantes ; elles ne sont pas répétées ici.
 
-# Paramètres de recherche sémantique
-MEMORY_MAX_RESULTS=10
-MEMORY_MIN_SEARCH_SCORE=0.65
+Le consentement personnel (`users.memory_enabled`) est indépendant du réglage
+global d'extraction. Les chemins d'injection et d'extraction contrôlent ce
+consentement avec l'état du compte. `MEMORY_ENABLED` et
+`MEMORY_INJECTION_ENABLED` ne sont pas des interrupteurs de configuration
+déclarés.
 
-# LLM pour extraction (default: openai/gpt-5.4-mini, reasoning_effort: low)
-MEMORY_EXTRACTION_LLM_PROVIDER=openai
-MEMORY_EXTRACTION_LLM_MODEL=gpt-5.4-mini
-MEMORY_EXTRACTION_LLM_TEMPERATURE=0.5
-MEMORY_EXTRACTION_MAX_TOKENS=1000
-MEMORY_EXTRACTION_TOP_P=1.0
-MEMORY_EXTRACTION_FREQUENCY_PENALTY=0.0
-MEMORY_EXTRACTION_PRESENCE_PENALTY=0.0
-MEMORY_EXTRACTION_LLM_REASONING_EFFORT=low
+### Modèle d'extraction et embeddings
 
-# Embedding
-MEMORY_EMBEDDING_MODEL=text-embedding-3-small
-MEMORY_EMBEDDING_DIMENSIONS=1536
-```
+Le slot `memory_extraction` passe par `get_llm()` et
+`get_llm_config_for_agent()` : fournisseur, modèle, raisonnement, budget et délai
+proviennent de la [configuration LLM centrale](LLM_CONFIG_ADMIN.md). Les anciens
+exemples `.env` ne décrivent pas l'autorité du modèle exécuté sur une instance.
 
-### Paramètres Settings (Pydantic)
-
-| Paramètre | Type | Défaut | Description |
-|-----------|------|--------|-------------|
-| `memory_enabled` | bool | True | Active le système global |
-| `memory_extraction_enabled` | bool | True | Active l'extraction background |
-| `memory_injection_enabled` | bool | True | Active l'injection dans le prompt |
-| `memory_max_results` | int | 10 | Max mémoires par recherche |
-| `memory_min_search_score` | float | 0.65 | Score minimum pour inclusion |
-| `memory_extraction_top_p` | float | 0.9 | Top-p pour LLM extraction |
-| `memory_extraction_frequency_penalty` | float | 0.0 | Frequency penalty LLM |
-| `memory_extraction_presence_penalty` | float | 0.0 | Presence penalty LLM |
+`infrastructure/llm/memory_embeddings.py::get_memory_embeddings()` construit les
+embeddings Gemini à partir de `memory_embedding_model` et
+`memory_embedding_dimensions`. Le rôle `RETRIEVAL_QUERY` est utilisé pour la
+recherche, `RETRIEVAL_DOCUMENT` pour les passages stockés. La dimension doit
+rester compatible avec les colonnes vectorielles et les données de l'instance ;
+changer un nom de modèle n'est pas une migration de ses vecteurs.
 
 ---
 
@@ -553,48 +547,26 @@ Exporte toutes les mémoires en JSON (RGPD - portabilité).
 
 ### 1. Extraction (Background)
 
-```
-Response généré
-     │
-     ▼
-safe_fire_and_forget(extract_memories_background(...))
-     │
-     ▼ (async, non-bloquant)
-┌────────────────────────────────────────┐
-│ 1. Trouver DERNIER HumanMessage        │
-│ 2. Récupérer contexte (4 messages max) │
-│ 3. Semantic search pour dédup          │
-│    → query = message_content[:500]     │
-│    → limit = 10, score >= 0.5          │
-│ 4. Charger prompt externalisé          │
-│ 5. Appel LLM avec prompt formaté       │
-│ 6. Parser JSON (avec récupération)     │
-│ 7. Valider avec ExtractedMemory        │
-│ 8. store.aput() + vérification         │
-└────────────────────────────────────────┘
+```text
+Réponse à une entrée humaine
+    → safe_fire_and_forget(extract_memories_background(...))
+    → compte actif + consentement + extraction_revision
+    → dernier message humain et contexte admissible
+    → recherche SQL pour déduplication et appel du slot memory_extraction
+    → parsing, actions validées et protections des souvenirs épinglés
+    → embeddings préparés hors verrou d'écriture
+    → consentement/révision relus sous verrou du compte
+    → MemoryService : écritures SQL + provenance
 ```
 
 ### 2. Injection (Synchrone)
 
-```
-User message reçu
-     │
-     ▼
-build_psychological_profile(store, user_id, query)
-     │
-     ▼
-┌────────────────────────────────────────┐
-│ 1. store.asearch() avec query          │
-│ 2. Filtrer par min_score               │
-│ 3. Grouper par catégorie               │
-│ 4. Formater avec emojis émotionnels    │
-│ 5. Appliquer PSYCHOLOGICAL_PROFILE_TEMPLATE │
-│ 6. compute_emotional_state()           │
-└────────────────────────────────────────┘
-     │
-     ▼
-Retourne (profile_text, emotional_state)
-```
+`build_psychological_profile(user_id, query, query_embedding=...)` lit les
+souvenirs vivants autorisés, les classe et compose le profil psychologique avec
+leurs nuances d'usage. `compute_emotional_state()` calcule l'état agrégé ; le
+texte et cet état suivent ensuite le chemin de réponse. Pour une recherche
+active distincte d'une ligne de conversation, `search_memories()` calcule le
+vecteur avant d'ouvrir sa session SQL et distingue recherche vide et indisponible.
 
 ---
 
@@ -606,33 +578,19 @@ Retourne (profile_text, emotional_state)
 **Après** : Analyse uniquement du **dernier message utilisateur** avec contexte minimal (4 messages)
 
 Bénéfices :
-- Réduction des coûts API (~80%)
+- Moins de contexte et d’appels pour les messages écartés ; le gain dépend du tour
 - Évite le retraitement des messages déjà analysés
 - Évite les extractions de doublons
 - Ignore les messages assistant (pas d'info utilisateur)
 
 ### 2. Déduplication Sémantique
 
-**Avant** : Chargement de 50 mémoires existantes pour dédup par LLM
-**Après** : Semantic search ciblée sur le contenu du message
-
-```python
-# Avant (inefficace)
-existing = await store.asearch(namespace, query="", limit=50)
-
-# Après (optimisé)
-existing_results = await store.asearch(
-    namespace.to_tuple(),
-    query=message_content[:500],  # Truncate for efficiency
-    limit=10,  # Only top 10 similar memories
-)
-# Filtrage par score >= 0.5
-```
-
-Bénéfices :
-- Réduction tokens envoyés au LLM (~90%)
-- Dédup basée sur similarité sémantique (plus précise)
-- Scalabilité indépendante du nombre de mémoires
+L'extracteur réutilise le vecteur du message lorsqu'il est disponible et lit les
+souvenirs pertinents via `MemoryRepository.search_by_relevance()`. Les limites
+et scores viennent de la configuration. Le modèle reçoit les passages
+sélectionnés avec leurs identités ; il ne charge pas tout le compte. La validation
+métier conserve l'autorité sur les créations, mises à jour et suppressions.
+Ce filtrage réduit le contexte à traiter sans garantir un gain fixe sur chaque tour.
 
 ### 3. Prompts Externalisés
 
@@ -649,45 +607,12 @@ Bénéfices :
 
 ## Recherche Hybride
 
-> **Nouveau (2026-02-02)** : Combinaison BM25 + sémantique pour meilleur rappel.
-
-### Principe
-
-La recherche hybride combine deux signaux complémentaires :
-
-| Signal | Force | Faiblesse |
-|--------|-------|-----------|
-| **Sémantique** (pgvector) | Comprend le sens, synonymes | Rate les mots-clés exacts |
-| **BM25** (keyword) | Correspondances exactes | Ne comprend pas le sens |
-
-### Formule
-
-```
-final_score = α × semantic_score + (1 - α) × bm25_normalized
-```
-
-- `α = 0.6` par défaut (60% sémantique, 40% BM25)
-- Boost +10% si les deux signaux sont forts
-
-### Usage
-
-```python
-# Utilisé automatiquement dans build_psychological_profile()
-results = await search_hybrid(store, namespace, query, limit=10, min_score=0.5)
-```
-
-### Configuration
-
-```bash
-MEMORY_HYBRID_ENABLED=true
-MEMORY_HYBRID_ALPHA=0.6
-MEMORY_HYBRID_MIN_SCORE=0.5
-MEMORY_BM25_CACHE_MAX_USERS=100
-```
-
-> ⚠️ **Historique** : ce chemin hybride pour la mémoire a été supprimé (ADR-168) — il n'avait plus d'appelant depuis la migration v1.14.0 vers PostgreSQL/pgvector. Les mémoires utilisent une recherche sémantique multi-vecteurs ; le BM25 vivant est celui des RAG Spaces.
->
-> Documentation complète : `docs/technical/HYBRID_SEARCH.md`
+Les mémoires utilisent la recherche sémantique multi-vecteurs du dépôt
+PostgreSQL ; l'ancien `search_hybrid(store, namespace, ...)` n'est pas une API
+actuelle de ce domaine. Le BM25 actif des espaces documentaires appartient aux
+RAG Spaces et à leurs propres contrats. Voir [HYBRID_SEARCH.md](HYBRID_SEARCH.md)
+pour ce mécanisme distinct et [la recherche active](#2-bis-recherche-active-adr-313)
+pour la porte mémoire.
 
 ---
 
@@ -695,11 +620,11 @@ MEMORY_BM25_CACHE_MAX_USERS=100
 
 ### Isolation des Données
 
-- **Namespace** : Chaque utilisateur a son propre namespace `(user_id, "memories")`
+- **Propriétaire SQL** : lectures et écritures sont filtrées par `Memory.user_id`, avec contrôle du compte actif et des permissions
 - **Authentification** : Tous les endpoints vérifient `current_user`
-- **Chiffrement** : PostgreSQL + SSL pour stockage
+- **Transport et stockage** : TLS dépend de la configuration de déploiement. Le contenu des souvenirs est du contenu applicatif dans PostgreSQL ; ce n’est pas un coffre à chiffrement de bout en bout. Les clés de connecteurs suivent leur chiffrement propre.
 
-### Conformité RGPD
+### Fonctions relatives aux données personnelles
 
 | Droit | Implémentation |
 |-------|----------------|
@@ -731,20 +656,20 @@ Le profil injecté inclut une **directive comportementale dynamique** basée sur
 
 ## Métriques
 
-### Prometheus (à implémenter)
+### Prometheus
 
-| Métrique | Type | Description |
-|----------|------|-------------|
-> **Vérifié le 2026-07-20 : aucune de ces quatre métriques n'existe.** Les seules
-> métriques mémoire définies sont `memory_hybrid_search_total`,
-> `memory_hybrid_search_duration_seconds` et `memory_count`. Un panneau Grafana
-> bâti sur les noms ci-dessous reste vide sans erreur.
+Les définitions actives appartiennent à
+`apps/api/src/infrastructure/observability/`. Les garde-fous partagés peuvent
+compter des refus, par exemple `extraction_action_rejected_total` ; l'extracteur
+ne publie pas pour autant chaque nombre ou durée sous un nom propre à la mémoire.
 
-| `memory_extraction_duration_seconds` | Histogram | **N'existe pas** |
-| `memory_extraction_count` | Counter | **N'existe pas** |
-| `memory_injection_count` | Counter | Mémoires injectées |
-| `memory_search_latency_seconds` | Histogram | Latence recherche sémantique |
-| `emotional_state_distribution` | Counter | Distribution comfort/danger/neutral |
+Les anciennes propositions `memory_extraction_duration_seconds`,
+`memory_extraction_count`, `memory_injection_count`,
+`memory_search_latency_seconds` et `emotional_state_distribution` ne sont pas
+des séries exportées. Les métriques de l'ancien chemin hybride ont également
+disparu avec ce chemin. Vérifier la déclaration et son lecteur avant de bâtir
+un panneau Grafana ; un nom simplement présent dans une documentation peut
+donner un panneau vide sans erreur.
 
 ### Logs Structurés
 
@@ -788,15 +713,15 @@ logger.debug(
 
 #### Mémoires non injectées
 
-1. Vérifier `MEMORY_INJECTION_ENABLED=true`
+1. Vérifier le consentement `memory_enabled` du compte actif
 2. Vérifier `MEMORY_MIN_SEARCH_SCORE` (trop haut = moins de résultats)
-3. Vérifier que le namespace existe
-4. Utiliser le **Debug Panel > Memory Injection** pour visualiser les mémoires injectées avec leurs scores de similarité, catégories, et poids émotionnels. Affiche aussi les settings actifs (`min_score`, `max_results`, `hybrid_enabled`) pour faciliter le tuning.
+3. Vérifier les lignes `memories` du propriétaire et son consentement courant
+4. Utiliser le **Debug Panel > Memory Injection** pour visualiser les mémoires injectées avec leurs scores de similarité, catégories, et poids émotionnels. Affiche aussi les settings actifs (`min_score`, `max_results`) pour faciliter le tuning.
 5. Utiliser le **Debug Panel > Memory Detection** pour visualiser les mémoires extraites et stockées en mémoire long-terme depuis le message courant. Affiche les mémoires nouvellement créées (catégorie, poids émotionnel, importance, statut de stockage), les mémoires similaires trouvées lors de la déduplication, et les métadonnées LLM (modèle, tokens).
 
 #### Erreurs de semantic search
 
-1. Vérifier `OPENAI_API_KEY` est configuré
+1. Vérifier la clé Gemini et les paramètres du service d'embeddings de l'instance
 2. Vérifier que pgvector est installé dans PostgreSQL
 3. Consulter les logs pour `semantic_search_config_failed`
 
@@ -804,29 +729,19 @@ logger.debug(
 
 1. Vérifier que l'extraction n'est pas déclenchée plusieurs fois
 2. Consulter `memory_dedup_semantic_search` dans les logs
-3. Augmenter le seuil de similarité (score >= 0.5 par défaut)
+3. Examiner `memory_dedup_min_score` et `memory_dedup_search_limit` avant de modifier la sélection
 
 ### Commandes Utiles
 
-```bash
-# Vérifier les mémoires d'un utilisateur (PostgreSQL)
-SELECT * FROM store WHERE namespace[1] = 'user-id' AND namespace[2] = 'memories';
-
-# Compter les mémoires par catégorie
-SELECT
-  value->>'category' as category,
-  count(*)
-FROM store
-WHERE namespace[2] = 'memories'
-GROUP BY category;
-
-# Voir les mémoires récentes
-SELECT key, value->>'content', created_at
-FROM store
-WHERE namespace[2] = 'memories'
-ORDER BY created_at DESC
-LIMIT 10;
+```sql
+-- Exemples de diagnostic sur un compte contrôlé ; ne pas publier le contenu.
+SELECT id, category, importance, created_at FROM memories WHERE user_id = :user_id;
+SELECT category, count(*) FROM memories WHERE user_id = :user_id GROUP BY category;
 ```
+
+Ces paramètres sont à lier dans le client SQL utilisé. Les références LangMem et
+LangGraph ci-dessous décrivent l'origine du design ; la table `memories` et les
+services du domaine portent l'implémentation courante.
 
 ---
 

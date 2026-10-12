@@ -141,15 +141,17 @@ export function InteractiveChatMockup({
       </div>
       <ProductScene key={home ? sceneId : undefined} sceneId={sceneId} phase={phase} home={home} />
       {home ? (
-        <aside className="rounded-xl border border-border bg-background/70 px-4 py-3">
-          <p className="flex items-center gap-2 text-xs font-semibold">
-            <Lightbulb className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-            {t(`${demoKey}.difference`)}
-          </p>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            {t(`${demoKey}.scenes.${sceneId}.difference`)}
-          </p>
-        </aside>
+        <div className="border-b border-border/60 pb-5 sm:border-b-0 sm:pb-0">
+          <aside className="rounded-xl border border-border bg-background/70 px-4 py-3">
+            <p className="flex items-center gap-2 text-xs font-semibold">
+              <Lightbulb className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+              {t(`${demoKey}.difference`)}
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              {t(`${demoKey}.scenes.${sceneId}.difference`)}
+            </p>
+          </aside>
+        </div>
       ) : (
         <details className="group rounded-lg border border-border bg-background/60">
           <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary [&::-webkit-details-marker]:hidden">

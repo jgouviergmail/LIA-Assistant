@@ -150,17 +150,29 @@ interface DraftEditing {
   sourceChanged: boolean;
 }
 
-function editingAfterSavedUpdate(editing: DraftEditing, connector: LiveConnectorResponse): DraftEditing {
+function editingAfterSavedUpdate(
+  editing: DraftEditing,
+  connector: LiveConnectorResponse
+): DraftEditing {
   const dirtyBeforeUpdate = isDraftDirty(editing.draft, editing.draft.voice, editing.source);
   return {
     source: connector,
-    draft: dirtyBeforeUpdate ? editing.draft : { ...connector.settings, provider: connector.provider },
+    draft: dirtyBeforeUpdate
+      ? editing.draft
+      : { ...connector.settings, provider: connector.provider },
     sourceChanged: dirtyBeforeUpdate && isDraftDirty(editing.draft, editing.draft.voice, connector),
   };
 }
 
-function savedSettingsChanged(before: LiveConnectorResponse, after: LiveConnectorResponse): boolean {
-  return isDraftDirty({ ...before.settings, provider: before.provider }, before.settings.voice, after);
+function savedSettingsChanged(
+  before: LiveConnectorResponse,
+  after: LiveConnectorResponse
+): boolean {
+  return isDraftDirty(
+    { ...before.settings, provider: before.provider },
+    before.settings.voice,
+    after
+  );
 }
 
 export function useLiveConnectorDraft(
@@ -182,11 +194,12 @@ export function useLiveConnectorDraft(
   if (savedSettingsChanged(editing.source, connector)) {
     setEditing(editingAfterSavedUpdate(editing, connector));
   }
-  const resetToSaved = () => setEditing({
-    source: connector,
-    draft: { ...connector.settings, provider: connector.provider },
-    sourceChanged: false,
-  });
+  const resetToSaved = () =>
+    setEditing({
+      source: connector,
+      draft: { ...connector.settings, provider: connector.provider },
+      sourceChanged: false,
+    });
   const findModel = (provider: string, name: string) =>
     models.find(m => m.provider === provider && m.name === name);
   const selectedModel = findModel(draft.provider, draft.model);
@@ -197,7 +210,10 @@ export function useLiveConnectorDraft(
     setEditing(previous => {
       const next = { ...previous.draft, ...patch };
       const ladder = findModel(next.provider, next.model)?.thinking_levels ?? [];
-      return { ...previous, draft: { ...next, thinking_level: levelFor(ladder, next.thinking_level) } };
+      return {
+        ...previous,
+        draft: { ...next, thinking_level: levelFor(ladder, next.thinking_level) },
+      };
     });
 
   /** A model comes back with what its connector remembers of it, else the defaults. */

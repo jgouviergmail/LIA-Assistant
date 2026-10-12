@@ -11,21 +11,39 @@ vi.mock('@/lib/api-client', async importOriginal => {
 });
 vi.mock('@/lib/logger', () => ({ logger: { error: vi.fn(), debug: vi.fn(), warn: vi.fn() } }));
 
-const disabled: AuthFeatures = { mfa_enabled: false, federated_signin_enabled: false,
-  terms_required: false, terms_version: 'controlled-terms' };
-beforeEach(() => { vi.useFakeTimers(); get.mockReset(); });
-afterEach(() => { vi.useRealTimers(); });
+const disabled: AuthFeatures = {
+  mfa_enabled: false,
+  federated_signin_enabled: false,
+  terms_required: false,
+  terms_version: 'controlled-terms',
+};
+beforeEach(() => {
+  vi.useFakeTimers();
+  get.mockReset();
+});
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe('public authentication feature recovery', () => {
-  it.each(['Failed to fetch', 'Load failed', 'NetworkError when attempting to fetch resource.', 'The operation was aborted due to timeout'])('recovers initial %s without a reload and preserves disabled flags', async message => {
+  it.each([
+    'Failed to fetch',
+    'Load failed',
+    'NetworkError when attempting to fetch resource.',
+    'The operation was aborted due to timeout',
+  ])('recovers initial %s without a reload and preserves disabled flags', async message => {
     get.mockRejectedValueOnce(new TypeError(message)).mockResolvedValue(disabled);
     const { result } = renderHook(() => useAuthFeatures());
     await act(async () => {});
     expect(result.current.features).toBeUndefined();
-    await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
     expect(result.current.features).toEqual(disabled);
     expect(get).toHaveBeenCalledTimes(2);
-    await act(async () => { await vi.advanceTimersByTimeAsync(120000); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(120000);
+    });
     expect(get).toHaveBeenCalledTimes(2);
   });
 
@@ -34,26 +52,40 @@ describe('public authentication feature recovery', () => {
     const { result } = renderHook(() => useAuthFeatures());
     await act(async () => {});
     for (let period = 0; period < 8; period += 1) {
-      await act(async () => { await vi.advanceTimersByTimeAsync(30000); });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(30000);
+      });
     }
     const attempts = get.mock.calls.length;
     expect(attempts).toBeGreaterThan(1);
     expect(attempts).toBeLessThanOrEqual(7);
-    await act(async () => { await vi.advanceTimersByTimeAsync(120000); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(120000);
+    });
     expect(get).toHaveBeenCalledTimes(attempts);
     get.mockResolvedValue(disabled);
-    await act(async () => { window.dispatchEvent(new Event('online')); });
+    await act(async () => {
+      window.dispatchEvent(new Event('online'));
+    });
     expect(result.current.features).toEqual(disabled);
   });
 
-  it.each([400, 401, 403, 429, 500])('does not retry a nontransient HTTP %i refusal', async status => {
-    get.mockRejectedValue(new ApiError('Refused', status));
-    renderHook(() => useAuthFeatures());
-    await act(async () => {});
-    await act(async () => { await vi.advanceTimersByTimeAsync(120000); });
-    await act(async () => { window.dispatchEvent(new Event('online')); window.dispatchEvent(new Event('focus')); });
-    expect(get).toHaveBeenCalledTimes(1);
-  });
+  it.each([400, 401, 403, 429, 500])(
+    'does not retry a nontransient HTTP %i refusal',
+    async status => {
+      get.mockRejectedValue(new ApiError('Refused', status));
+      renderHook(() => useAuthFeatures());
+      await act(async () => {});
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(120000);
+      });
+      await act(async () => {
+        window.dispatchEvent(new Event('online'));
+        window.dispatchEvent(new Event('focus'));
+      });
+      expect(get).toHaveBeenCalledTimes(1);
+    }
+  );
 
   it('cancels scheduled recovery after the consumer unmounts', async () => {
     get.mockRejectedValue(new TypeError('Failed to fetch'));
@@ -61,7 +93,9 @@ describe('public authentication feature recovery', () => {
     await act(async () => {});
     unmount();
     window.dispatchEvent(new Event('online'));
-    await act(async () => { await vi.advanceTimersByTimeAsync(120000); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(120000);
+    });
     expect(get).toHaveBeenCalledTimes(1);
   });
 
@@ -77,7 +111,9 @@ describe('public authentication feature recovery', () => {
       document.dispatchEvent(new Event('visibilitychange'));
     });
     expect(get).toHaveBeenCalledTimes(2);
-    await act(async () => { pending.resolve(disabled); });
+    await act(async () => {
+      pending.resolve(disabled);
+    });
     expect(result.current.features).toEqual(disabled);
   });
 });

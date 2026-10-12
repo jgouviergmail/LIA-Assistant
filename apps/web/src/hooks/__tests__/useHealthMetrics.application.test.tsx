@@ -10,13 +10,29 @@ vi.mock('@/lib/api-client', async importOriginal => {
 });
 import { useHealthMetrics } from '../useHealthMetrics';
 
-const aggregate = { period: 'day', from_ts: '2026-01-01T00:00:00Z', to_ts: '2026-01-02T00:00:00Z',
-  points: [], averages: { heart_rate_avg: 80, steps_per_day_avg: 1000 } };
-const token = { id: 'token-one', token_prefix: 'hm_public', label: 'Watch', created_at: '2026-01-01T00:00:00Z', last_used_at: null, revoked_at: null };
+const aggregate = {
+  period: 'day',
+  from_ts: '2026-01-01T00:00:00Z',
+  to_ts: '2026-01-02T00:00:00Z',
+  points: [],
+  averages: { heart_rate_avg: 80, steps_per_day_avg: 1000 },
+};
+const token = {
+  id: 'token-one',
+  token_prefix: 'hm_public',
+  label: 'Watch',
+  created_at: '2026-01-01T00:00:00Z',
+  last_used_at: null,
+  revoked_at: null,
+};
 beforeEach(() => {
   vi.resetAllMocks();
   useAuth.mockReturnValue({ user: { id: 'one' } });
-  get.mockImplementation((endpoint: string) => Promise.resolve(endpoint.startsWith('/health-metrics/aggregate') ? aggregate : { tokens: [token] }));
+  get.mockImplementation((endpoint: string) =>
+    Promise.resolve(
+      endpoint.startsWith('/health-metrics/aggregate') ? aggregate : { tokens: [token] }
+    )
+  );
 });
 
 describe('health management follows the active account', () => {
@@ -26,7 +42,13 @@ describe('health management follows the active account', () => {
     get.mockClear();
     act(() => publishApplicationResources('foreign', new Set(['health_metrics'])));
     expect(get).not.toHaveBeenCalled();
-    get.mockImplementation((endpoint: string) => Promise.resolve(endpoint.startsWith('/health-metrics/aggregate') ? { ...aggregate, averages: { heart_rate_avg: null, steps_per_day_avg: null } } : { tokens: [] }));
+    get.mockImplementation((endpoint: string) =>
+      Promise.resolve(
+        endpoint.startsWith('/health-metrics/aggregate')
+          ? { ...aggregate, averages: { heart_rate_avg: null, steps_per_day_avg: null } }
+          : { tokens: [] }
+      )
+    );
     act(() => publishApplicationResources('one', new Set(['health_metrics'])));
     await waitFor(() => expect(result.current.aggregate?.averages.heart_rate_avg).toBeNull());
     expect(result.current.tokens).toEqual([]);

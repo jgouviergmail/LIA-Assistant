@@ -97,10 +97,6 @@ const ALLOWED: Record<string, string> = {
     'application/json; the session cookie and the native-shell marker are kept by hand',
   'hooks/useAPIHealth.ts':
     'availability probe: a 401 here means "API unreachable", it must not eject the user to /login',
-  'components/landing/video/use-landing-video.ts':
-    'the landing video descriptor and beat map (ADR-330) come from a same-origin Next route ' +
-    '(/api/landing-media), anonymous by design on a public page: no API base, no session to ' +
-    'send, and a failure must surface as "no video", never as an eject or an error contract',
   'lib/landing/media-origin.ts':
     "server-side fetch of the operator's media manifest from a route handler (ADR-330): no " +
     'browser, no session, no API — the origin is a static host named at run time, read behind ' +

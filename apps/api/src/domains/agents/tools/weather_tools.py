@@ -26,7 +26,6 @@ import structlog
 from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg, tool
 
-from src.core.config import settings
 from src.core.date_contract import UnreadableDateError
 from src.core.i18n import _, resolve_language
 from src.core.i18n_v3 import V3Messages
@@ -43,6 +42,7 @@ from src.domains.agents.tools.base import APIKeyConnectorTool
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.weather_dates import (
     calculate_target_date,
+    forecast_window_days,
     unreadable_date_result,
 )
 from src.domains.agents.tools.weather_environment_enrichment import (
@@ -56,9 +56,17 @@ from src.domains.agents.tools.weather_formatting import (
     _format_current_weather_response,
     _format_forecast_response,
     _format_hourly_response,
+    forecast_beyond_refusal,
+    forecast_window_refusal,
+    read_units,
+    unreadable_units_result,
 )
 from src.domains.agents.tools.weather_schemas import WeatherForecastItem as WeatherForecastItem
-from src.domains.agents.weather.catalogue_manifests import FORECAST_DATE_DESCRIPTION
+from src.domains.agents.weather.catalogue_manifests import (
+    FORECAST_DATE_DESCRIPTION,
+    FORECAST_DAYS_DESCRIPTION,
+    UNITS_DESCRIPTION,
+)
 from src.domains.connectors.clients.google_geocoding_helpers import forward_geocode
 from src.domains.connectors.clients.openweathermap_client import OpenWeatherMapClient
 from src.domains.connectors.models import ConnectorType
@@ -70,6 +78,57 @@ from src.infrastructure.observability.metrics_agents import (
 )
 
 logger = structlog.get_logger(__name__)
+
+
+async def _weather_point(
+    client: OpenWeatherMapClient,
+    location: str | None,
+    runtime: ToolRuntime[LiaRuntimeContext | None, Any],
+    user_message: str,
+    language: str,
+    resolved_event: str,
+) -> tuple[float, float, str, str] | dict[str, Any]:
+    """The point a weather call serves, or the refusal owed when there is none.
+
+    An absent or ``auto`` location is resolved from the person (consented
+    position, last known, home — ``resolve_location``); anything else, or an
+    ``auto`` nothing resolved, is geocoded with the city fallback.
+
+    Args:
+        client: The weather client, for geocoding.
+        location: The ``location`` argument as the call carried it.
+        runtime: The tool runtime.
+        user_message: The person's words, for location phrases (« at home »).
+        language: The person's language.
+        resolved_event: The log event naming the calling tool.
+
+    Returns:
+        ``(lat, lon, name, country)`` — an empty name lets the provider's city
+        name stand in — or the ``location_required``/``location_not_found`` result.
+    """
+    from src.domains.agents.tools.location_resolution import resolve_location
+
+    if not location or location.lower() == "auto":
+        resolved, fallback_msg = await resolve_location(runtime, user_message, language)
+        if resolved:
+            logger.info(resolved_event, source=resolved.source)
+            return resolved.lat, resolved.lon, resolved.address or "", ""
+        if fallback_msg:
+            return {"success": False, "error": "location_required", "message": fallback_msg}
+    if not location:
+        return {
+            "success": False,
+            "error": "location_required",
+            "message": _("Please specify a city or enable geolocation.", language),
+        }
+    coords = await _geocode_with_city_fallback(client, location)
+    if not coords:
+        return {
+            "success": False,
+            "error": "location_not_found",
+            "message": _("Unable to find location: {location}", language).format(location=location),
+        }
+    return coords
 
 
 async def _geocode_with_city_fallback(
@@ -195,11 +254,12 @@ class GetCurrentWeatherTool(APIKeyConnectorTool[OpenWeatherMapClient]):
         **kwargs: Any,
     ) -> dict[str, Any]:
         """Execute current weather API call."""
-        from src.domains.agents.tools.location_resolution import resolve_location
         from src.domains.agents.tools.runtime_helpers import get_original_user_message
 
         location = kwargs.get("location")
-        units = kwargs.get("units", "metric")
+        units = read_units(kwargs.get("units"))
+        if units is None:
+            return unreadable_units_result(kwargs.get("units"))
         runtime = kwargs.get("runtime")  # InjectedToolArg from parallel_executor
 
         # Get user_message from parameter or fallback to runtime config
@@ -210,54 +270,12 @@ class GetCurrentWeatherTool(APIKeyConnectorTool[OpenWeatherMapClient]):
         # The person's timezone (sunrise/sunset) and language (ADR-323).
         user_timezone, language = await _person_timezone_and_language(runtime)
 
-        lat: float | None = None
-        lon: float | None = None
-        resolved_name: str = ""
-        country: str = ""
-
-        # Auto-detect location when not explicitly provided
-        # resolve_location() uses i18n_location.detect_location_type() for i18n phrase detection
-        if not location or location.lower() == "auto":
-            resolved, fallback_msg = await resolve_location(runtime, user_message, language)
-            if resolved:
-                lat = resolved.lat
-                lon = resolved.lon
-                resolved_name = resolved.address or ""  # Empty triggers API city name substitution
-                country = ""  # Not available from browser geolocation
-                logger.info(
-                    "weather_location_auto_resolved",
-                    source=resolved.source,
-                    lat=lat,
-                    lon=lon,
-                )
-            elif fallback_msg:
-                # No location available, return fallback message
-                return {
-                    "success": False,
-                    "error": "location_required",
-                    "message": fallback_msg,
-                }
-
-        # If not auto-resolved, geocode the explicit location
-        if lat is None or lon is None:
-            if not location:
-                return {
-                    "success": False,
-                    "error": "location_required",
-                    "message": _("Please specify a city or enable geolocation.", language),
-                }
-
-            coords = await _geocode_with_city_fallback(client, location)
-            if not coords:
-                return {
-                    "success": False,
-                    "error": "location_not_found",
-                    "message": _("Unable to find location: {location}", language).format(
-                        location=location
-                    ),
-                }
-
-            lat, lon, resolved_name, country = coords
+        point = await _weather_point(
+            client, location, runtime, user_message, language, "weather_location_auto_resolved"
+        )
+        if isinstance(point, dict):
+            return point
+        lat, lon, resolved_name, country = point
 
         # Get current weather
         weather = await client.get_current_weather(
@@ -407,15 +425,16 @@ class GetWeatherForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
     ) -> dict[str, Any]:
         """Execute weather forecast API call."""
         from src.core.config import get_settings
-        from src.domains.agents.tools.location_resolution import resolve_location
         from src.domains.agents.tools.runtime_helpers import get_original_user_message
 
         # Get configurable forecast limit from settings
         max_forecast_days = get_settings().weather_forecast_max_days
 
         location = kwargs.get("location")
-        days = kwargs.get("days", max_forecast_days)
-        units = kwargs.get("units", "metric")
+        requested_days = kwargs.get("days")
+        units = read_units(kwargs.get("units"))
+        if units is None:
+            return unreadable_units_result(kwargs.get("units"))
         date_ref = kwargs.get("date")  # Temporal reference (e.g., "tomorrow", an ISO date)
         runtime = kwargs.get("runtime")  # InjectedToolArg from parallel_executor
 
@@ -435,18 +454,9 @@ class GetWeatherForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
             )
         except UnreadableDateError as exc:
             return unreadable_date_result(exc.reference, user_timezone)
-
-        # For specific date requests (tomorrow, ISO datetime), reduce days to 1
-        # When user asks "weather tomorrow" or "weather for my appointment", they want that day only
-        if is_specific_date and days == max_forecast_days:
-            days = 1  # Override default 5 days to 1 day for specific date requests
-            logger.debug(
-                "forecast_days_reduced_for_specific_date",
-                date_ref=date_ref,
-                target_date=target_date,
-                original_days=max_forecast_days,
-                new_days=days,
-            )
+        days = forecast_window_days(
+            requested_days, is_specific_date=is_specific_date, max_days=max_forecast_days
+        )
 
         logger.debug(
             "forecast_date_calculation",
@@ -457,63 +467,16 @@ class GetWeatherForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
             user_timezone=user_timezone,
         )
 
-        # Check if date is beyond forecast availability
-        if date_offset > max_forecast_days:
-            return {
-                "success": False,
-                "error": "date_beyond_forecast",
-                "message": V3Messages.get_forecast_beyond_limit(
-                    language, max_forecast_days, date_offset
-                ),
-            }
+        # The window holds max_forecast_days days counted from today (offset 0).
+        if date_offset >= max_forecast_days:
+            return forecast_beyond_refusal(language, max_forecast_days, date_offset)
 
-        lat: float | None = None
-        lon: float | None = None
-        resolved_name: str = ""
-        country: str = ""
-
-        # Auto-detect location when not explicitly provided
-        # resolve_location() uses i18n_location.detect_location_type() for i18n phrase detection
-        if not location or location.lower() == "auto":
-            resolved, fallback_msg = await resolve_location(runtime, user_message, language)
-            if resolved:
-                lat = resolved.lat
-                lon = resolved.lon
-                resolved_name = resolved.address or ""  # Empty triggers API city name substitution
-                country = ""
-                logger.info(
-                    "forecast_location_auto_resolved",
-                    source=resolved.source,
-                    lat=lat,
-                    lon=lon,
-                )
-            elif fallback_msg:
-                return {
-                    "success": False,
-                    "error": "location_required",
-                    "message": fallback_msg,
-                }
-
-        # If not auto-resolved, geocode the explicit location
-        if lat is None or lon is None:
-            if not location:
-                return {
-                    "success": False,
-                    "error": "location_required",
-                    "message": _("Please specify a city or enable geolocation.", language),
-                }
-
-            coords = await _geocode_with_city_fallback(client, location)
-            if not coords:
-                return {
-                    "success": False,
-                    "error": "location_not_found",
-                    "message": _("Unable to find location: {location}", language).format(
-                        location=location
-                    ),
-                }
-
-            lat, lon, resolved_name, country = coords
+        point = await _weather_point(
+            client, location, runtime, user_message, language, "forecast_location_auto_resolved"
+        )
+        if isinstance(point, dict):
+            return point
+        lat, lon, resolved_name, country = point
 
         # Get daily forecast - request enough days to cover offset + requested days
         # Free tier has max N days, so cap total at limit
@@ -542,8 +505,13 @@ class GetWeatherForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
         # Format response filtering by target date (not by index offset)
         # This correctly handles cases where API data starts later than today
         formatted = _format_forecast_response(
-            daily_data, resolved_name, country, days, units, target_date
+            daily_data, resolved_name, country, days, units, target_date, requested_days
         )
+        refusal = forecast_window_refusal(
+            formatted, target_date, is_specific_date=is_specific_date, language=language
+        )
+        if refusal is not None:
+            return refusal
         formatted["data"]["source"] = (
             "google_weather"
             if forecast_result.get("source") == "google_weather"
@@ -659,6 +627,8 @@ class GetWeatherForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
                 },
                 "forecasts": structured_forecasts,
                 "days": len(daily_forecasts),
+                # The count asked for: a window cut by the horizon is stated, not hidden.
+                "requested_days": data.get("requested_days", len(daily_forecasts)),
             },
             metadata={
                 "location": location_str,
@@ -698,7 +668,6 @@ class GetHourlyForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
     ) -> dict[str, Any]:
         """Execute hourly forecast API call."""
         from src.core.config import get_settings
-        from src.domains.agents.tools.location_resolution import resolve_location
         from src.domains.agents.tools.runtime_helpers import get_original_user_message
 
         # Get configurable forecast limit from settings
@@ -706,7 +675,9 @@ class GetHourlyForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
 
         location = kwargs.get("location")
         hours = kwargs.get("hours", 24)
-        units = kwargs.get("units", "metric")
+        units = read_units(kwargs.get("units"))
+        if units is None:
+            return unreadable_units_result(kwargs.get("units"))
         date_ref = kwargs.get("date")  # Temporal reference (e.g., "tomorrow", ISO datetime)
         runtime = kwargs.get("runtime")  # InjectedToolArg from parallel_executor
 
@@ -733,61 +704,14 @@ class GetHourlyForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
         # Fail honestly when the requested day is beyond the free-tier window, rather
         # than silently returning near-term slots (which reads to the LLM as "no data").
         if date_offset > max_forecast_days:
-            return {
-                "success": False,
-                "error": "date_beyond_forecast",
-                "message": V3Messages.get_forecast_beyond_limit(
-                    language, max_forecast_days, date_offset
-                ),
-            }
+            return forecast_beyond_refusal(language, max_forecast_days, date_offset)
 
-        lat: float | None = None
-        lon: float | None = None
-        resolved_name: str = ""
-        country: str = ""
-
-        # Auto-detect location when not explicitly provided
-        # resolve_location() uses i18n_location.detect_location_type() for i18n phrase detection
-        if not location or location.lower() == "auto":
-            resolved, fallback_msg = await resolve_location(runtime, user_message, language)
-            if resolved:
-                lat = resolved.lat
-                lon = resolved.lon
-                resolved_name = resolved.address or ""  # Empty triggers API city name substitution
-                country = ""
-                logger.info(
-                    "hourly_location_auto_resolved",
-                    source=resolved.source,
-                    lat=lat,
-                    lon=lon,
-                )
-            elif fallback_msg:
-                return {
-                    "success": False,
-                    "error": "location_required",
-                    "message": fallback_msg,
-                }
-
-        # If not auto-resolved, geocode the explicit location
-        if lat is None or lon is None:
-            if not location:
-                return {
-                    "success": False,
-                    "error": "location_required",
-                    "message": _("Please specify a city or enable geolocation.", language),
-                }
-
-            coords = await _geocode_with_city_fallback(client, location)
-            if not coords:
-                return {
-                    "success": False,
-                    "error": "location_not_found",
-                    "message": _("Unable to find location: {location}", language).format(
-                        location=location
-                    ),
-                }
-
-            lat, lon, resolved_name, country = coords
+        point = await _weather_point(
+            client, location, runtime, user_message, language, "hourly_location_auto_resolved"
+        )
+        if isinstance(point, dict):
+            return point
+        lat, lon, resolved_name, country = point
 
         # Get 3-hour forecast (free tier limit: 8 intervals/day * max_days).
         max_entries = max_forecast_days * 8  # 8 x 3-hour intervals per day
@@ -976,9 +900,7 @@ async def get_current_weather_tool(
         str | None,
         "Date reference (e.g., 'today', 'now') - ignored, always returns current weather",
     ] = None,
-    units: Annotated[
-        str, "Temperature units: 'metric' (Celsius) or 'imperial' (Fahrenheit)"
-    ] = "metric",
+    units: Annotated[str, UNITS_DESCRIPTION] = "metric",
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> str:
     """
@@ -1035,10 +957,8 @@ async def get_weather_forecast_tool(
         "Original user message (for location phrase detection like 'at home', 'nearby')",
     ] = "",
     date: Annotated[str | None, FORECAST_DATE_DESCRIPTION] = None,
-    days: Annotated[int, "Number of days to forecast (1-5)"] = settings.weather_forecast_max_days,
-    units: Annotated[
-        str, "Temperature units: 'metric' (Celsius) or 'imperial' (Fahrenheit)"
-    ] = "metric",
+    days: Annotated[int | None, FORECAST_DAYS_DESCRIPTION] = None,
+    units: Annotated[str, UNITS_DESCRIPTION] = "metric",
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> str:
     """
@@ -1055,7 +975,8 @@ async def get_weather_forecast_tool(
         user_message: Original user message for location phrase detection
         date: Target day, an ISO date or datetime (FORECAST_DATE_DESCRIPTION); a
             value the tool cannot read is refused, never read as today (ADR-310).
-        days: Number of days to forecast (1-5, default: 5)
+        days: Consecutive days from ``date`` (FORECAST_DAYS_DESCRIPTION); omitted, the
+            asked day alone, or the whole window without a date.
         units: 'metric' for Celsius, 'imperial' for Fahrenheit (default: metric)
         runtime: Tool runtime (injected)
 
@@ -1106,9 +1027,7 @@ async def get_hourly_forecast_tool(
         int,
         "Rolling window size in hours from now (used only when 'date' is omitted).",
     ] = 24,
-    units: Annotated[
-        str, "Temperature units: 'metric' (Celsius) or 'imperial' (Fahrenheit)"
-    ] = "metric",
+    units: Annotated[str, UNITS_DESCRIPTION] = "metric",
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> str:
     """

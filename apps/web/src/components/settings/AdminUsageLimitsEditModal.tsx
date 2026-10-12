@@ -257,15 +257,15 @@ function LimitField({
         />
         {!isUnlimited && (
           <div className="w-32">
-          <Input
-            id={fieldId}
-            type="number"
-            min={0}
-            step={step}
-            value={value}
-            onChange={e => onChange(Number(e.target.value))}
-            className="w-full text-sm"
-          />
+            <Input
+              id={fieldId}
+              type="number"
+              min={0}
+              step={step}
+              value={value}
+              onChange={e => onChange(Number(e.target.value))}
+              className="w-full text-sm"
+            />
           </div>
         )}
         {isUnlimited && (

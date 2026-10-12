@@ -14,3 +14,7 @@ The app ships its own offline screen (in all six languages) with a retry button 
 
 ## Do connected services (Gmail, calendars, MCP) work from the app?
 Yes. Every authorization that leaves for the browser — connectors, MCP servers, sign-in — now returns to the right screen of the app when it completes, instead of stranding you in a browser tab.
+
+## How does browser installation differ from the native app?
+
+Yes, the interface adapts to phones. In a compatible browser, use the offered PWA installation option or add the site to your home screen. The installed interface remains connected to your LIA server; it does not run a model offline. Some cached content remains viewable without a connection, but conversation, synchronisation and actions need the network. Sharing and notifications depend on your browser, system and permissions.

@@ -35,9 +35,7 @@ function flatTokens(model: ReturnType<typeof buildSettingsShellModel>): Settings
 describe('buildSettingsShellModel', () => {
   it('keeps page order and covers every available section for a regular user', () => {
     const model = buildSettingsShellModel(ALL);
-    const expected = TOKENS.filter(
-      token => SETTINGS_SECTIONS[token].tab !== 'administration'
-    );
+    const expected = TOKENS.filter(token => SETTINGS_SECTIONS[token].tab !== 'administration');
     expect(flatTokens(model)).toEqual(expected);
   });
 

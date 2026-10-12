@@ -25,6 +25,8 @@ export interface LandingVideoRegistry {
   current: number;
   /** Hand the landing's frame to the host; the returned function releases it. */
   registerSlot(slot: LandingVideoSlot): () => void;
+  /** Suspend the background player while the complete presentation is open. */
+  setExclusivePlayback(open: boolean): void;
 }
 
 const LandingVideoContext = createContext<LandingVideoRegistry | null>(null);

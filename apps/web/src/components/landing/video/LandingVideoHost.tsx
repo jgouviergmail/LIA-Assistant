@@ -58,6 +58,7 @@ export function LandingVideoHost({
   const [slot, setSlot] = useState<LandingVideoSlot | null>(null);
   const [playlist, setPlaylist] = useState<LandingVideoDescriptor[] | null>(null);
   const [failed, setFailed] = useState(false);
+  const [exclusivePlayback, setExclusivePlayback] = useState(false);
   // What the previous mount was doing (a language switch, a reload): read once.
   const [resume] = useState(() => readResume(sessionStorageOrNull(), Date.now()));
   const [rank, setRank] = useState(() => resume?.video ?? 0);
@@ -70,7 +71,7 @@ export function LandingVideoHost({
   // A rank the list does not hold (a resume record from a longer list) is the first video.
   const current = playlist !== null && rank < playlist.length ? rank : 0;
   const registry = useMemo<LandingVideoRegistry>(
-    () => ({ failed, current, registerSlot }),
+    () => ({ failed, current, registerSlot, setExclusivePlayback }),
     [failed, current, registerSlot]
   );
   const onFailed = useCallback(() => setFailed(true), []);
@@ -87,7 +88,7 @@ export function LandingVideoHost({
       {playlist !== null && onPublicRoute && !failed && (
         // The stage clips the framed player's halo at the page's edges
         // (`.landing-video-stage` in globals.css).
-        <div className="landing-video-stage">
+        <div className="landing-video-stage" hidden={exclusivePlayback}>
           <LandingVideoPlayer
             lng={lng}
             video={playlist[current]}
@@ -101,6 +102,7 @@ export function LandingVideoHost({
             onEnded={toNext}
             onNext={playlist.length > 1 ? toNext : undefined}
             onFailed={onFailed}
+            suspended={exclusivePlayback}
           />
         </div>
       )}

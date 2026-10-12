@@ -124,7 +124,17 @@
         "apps/api/src/infrastructure/account_exports.py"
       ],
       "domains": ["shared"],
-      "infra": ["async_utils", "utils", "resilience", "account_preferences", "personalization", "account_exports", "account_export_downloads", "file_transfer", "confirmed_commit"],
+      "infra": [
+        "async_utils",
+        "utils",
+        "resilience",
+        "account_preferences",
+        "personalization",
+        "account_exports",
+        "account_export_downloads",
+        "file_transfer",
+        "confirmed_commit"
+      ],
       "deps": ["t.startup", "t.config", "t.postgres", "t.redis"]
     },
     {
@@ -469,7 +479,20 @@
         "apps/api/src/infrastructure/scheduler/voice_session_closing.py"
       ],
       "domains": ["meetings"],
-      "infra": ["meeting_deletions", "meeting_email", "meeting_pdf", "meeting_preferences", "meeting_reads", "meeting_reformat", "meeting_regeneration", "meeting_report_updates", "meeting_reports", "meeting_retry", "meeting_templates", "meeting_transcripts"],
+      "infra": [
+        "meeting_deletions",
+        "meeting_email",
+        "meeting_pdf",
+        "meeting_preferences",
+        "meeting_reads",
+        "meeting_reformat",
+        "meeting_regeneration",
+        "meeting_report_updates",
+        "meeting_reports",
+        "meeting_retry",
+        "meeting_templates",
+        "meeting_transcripts"
+      ],
       "deps": ["t.postgres", "t.scheduler"]
     },
     {
@@ -634,6 +657,33 @@
       "domains": ["avatars"],
       "infra": ["simli"],
       "deps": ["t.bff", "t.redis", "t.postgres", "t.live", "t.voiceinfra"]
+    },
+    {
+      "id": "t.application",
+      "layer": "l.agents",
+      "icon": "sliders-horizontal",
+      "paths": [
+        "apps/api/src/domains/agents/application",
+        "apps/api/src/domains/agents/tools/application_action_tools.py",
+        "apps/web/src/components/chat/ApplicationInteractionCards.tsx",
+        "apps/web/src/hooks/useApplicationCommandStatus.ts",
+        "apps/web/src/hooks/useApplicationResourceSync.ts"
+      ],
+      "domains": ["agents"],
+      "deps": ["t.toolsys", "t.hitl", "t.bff", "t.postgres", "t.sse"]
+    },
+    {
+      "id": "t.nativeavatar",
+      "layer": "l.clients",
+      "icon": "smile",
+      "paths": [
+        "apps/web/src/components/eyes",
+        "apps/web/src/components/spirit",
+        "apps/web/src/styles/eyes.css",
+        "apps/web/src/hooks/useAvatarStyleRollout.ts",
+        "apps/web/src/app/api/runtime-ui/route.ts"
+      ],
+      "deps": ["t.web", "t.bff"]
     }
   ],
   "flows": [
@@ -695,6 +745,20 @@
       "id": "tflow.observe",
       "icon": "gauge",
       "steps": ["t.metrics", "t.logs", "t.dashboards", "t.alerts", "t.selfdiag"]
+    },
+    {
+      "id": "tflow.application",
+      "icon": "sliders-horizontal",
+      "steps": [
+        "t.web",
+        "t.toolsys",
+        "t.application",
+        "t.hitl",
+        "t.application",
+        "t.bff",
+        "t.application",
+        "t.web"
+      ]
     }
   ]
 }

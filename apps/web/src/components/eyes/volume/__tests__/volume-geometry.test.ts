@@ -14,6 +14,25 @@ import { clothMesh } from '../cloth-geometry';
 import { volumeFaceContour } from '../volume-mask';
 
 describe('structured body relief is closed 3D geometry, not a turning poster', () => {
+  it.each(VOLUME_CHARACTERS)(
+    'preserves the same %s anatomical depth at the same source coordinates across registration scales',
+    character => {
+      for (const variant of ['female', 'male'] as const) {
+        const authored = { ...volumeProfile(character, variant), scale: 1 };
+        const registered = { ...authored, scale: 1.13 };
+        for (let row = 0; row <= 8; row++)
+          for (let column = 0; column <= 8; column++) {
+            const x = (column / 8 - 0.5) * 2.6;
+            const y = (row / 8 - 0.5) * 2.6;
+            const expected = volumeDepth(authored, x, y);
+            expect(volumeDepth(registered, x * registered.scale, y * registered.scale)).toBeCloseTo(
+              expected,
+              8
+            );
+          }
+      }
+    }
+  );
   it('keeps the monitor straight physical edges straight instead of cutting a repeating peak fan into them', () => {
     const width = 192,
       alpha = new Uint8Array(width * width);

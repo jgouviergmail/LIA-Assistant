@@ -417,6 +417,30 @@
       "role": "L’API possiede la connessione Simli con una concessione Redis: ticket monouso, token cifrato, segnalazione e PCM inoltrati, arresto verificato e presenza limitata. Il browser sceglie un’uscita udibile e conserva la posizione preferita durante i cambiamenti della tastiera mobile. La verifica dei media e dei dispositivi reali resta in attesa.",
       "stack": ["Simli Compose", "WebRTC", "Web Audio", "AudioWorklet", "Redis"],
       "src": "36a9b358e3f7"
+    },
+    "t.application": {
+      "name": "Comandi applicativi durevoli",
+      "role": "Le operazioni tipizzate passano attraverso l'autorizzazione attuale e il gate degli effetti. Un comando cifrato lega attore, contenuto canonico, digest, origine, scadenza e claim; i servizi sorgente conservano i controlli compare-and-set. Le prosecuzioni private tornano al browser autenticato. Solo un risultato esplicitamente committed costituisce un successo concluso.",
+      "stack": [
+        "Dichiarazioni tipizzate / Pydantic",
+        "Contenuti PostgreSQL cifrati",
+        "Claim vincolati da token",
+        "Prosecuzioni nel browser",
+        "SSE e riletture autenticate"
+      ],
+      "src": "449fae9ab504"
+    },
+    "t.nativeavatar": {
+      "name": "Rig e volume dei compagni nativi",
+      "role": "Lo stesso rig guida volto, corpo e accessori. Una mesh limitata derivata dall'alfa aggiunge volume approssimato al disegno frontale; gli elementi del volto restano proiettati in DOM/SVG, la sciarpa viene composta davanti. Visibilità, movimento ridotto e disponibilità guidano risorse e fallback. Una campagna runtime opzionale seleziona BIP per origine del browser, senza colonna avatar nell'account.",
+      "stack": [
+        "React / DOM / SVG",
+        "Rig nativo condiviso",
+        "WebGL limitato",
+        "Artwork offline",
+        "Preferenze locali del browser"
+      ],
+      "src": "42c09ed2a4e1"
     }
   },
   "flows": {
@@ -506,6 +530,21 @@
         "LIA raccoglie le prove dell'incidente e lo diagnostica."
       ],
       "src": "e31d7b94f863"
+    },
+    "tflow.application": {
+      "name": "Eseguire un comando applicativo",
+      "summary": "Identità durevole e precondizioni attuali; una prosecuzione aperta resta in attesa.",
+      "steps": [
+        "Il client usa il catalogo di operazioni offerto a questo account.",
+        "La dichiarazione fissa operazione, schema, ambito e capacità richieste.",
+        "La preparazione lega valori prima/dopo, digest, attore, origine e scadenza in un comando cifrato.",
+        "Il gate degli effetti verifica l'approvazione esatta quando l'operazione la richiede.",
+        "L'esecuzione rilegge permessi e capacità; claim vincolato da token e compare-and-set del servizio sorgente proteggono le rispettive frontiere.",
+        "Una prosecuzione privata è legata alla sessione e, se necessario, al dispositivo destinatario; i segreti restano fuori dal modello.",
+        "Committed, waiting, conflitto, errore e annullamento restano distinti; una risposta persa non viene rieseguita automaticamente.",
+        "Un segnale indirizzato invalida le risorse interessate; il client rilegge le relative query autenticate."
+      ],
+      "src": "61654a82d651"
     }
   }
 }

@@ -14,7 +14,11 @@ export interface FileUploadDefinition<S extends { max_file_size_bytes: number }>
   resources?: readonly ApplicationResource[];
   select: (status: ApplicationCommandStatus) => S | null;
   endpoint: (commandId: string, selection: S) => string;
-  accept: (value: unknown, commandId: string, selection: S) => { cacheRefreshPending: boolean; details?: unknown } | null;
+  accept: (
+    value: unknown,
+    commandId: string,
+    selection: S
+  ) => { cacheRefreshPending: boolean; details?: unknown } | null;
 }
 
 /** Local bytes belong to one account/command lifetime; confirm() is the sole sender. */
@@ -34,51 +38,117 @@ export function useApplicationFileUpload<S extends { max_file_size_bytes: number
   const request = useRef<XMLHttpRequest | null>(null);
   const started = useRef(false);
   const selection = definition.select(status);
-  const waiting = status.operation_id === definition.operationId && status.phase === 'waiting' &&
+  const waiting =
+    status.operation_id === definition.operationId &&
+    status.phase === 'waiting' &&
     status.interaction?.kind === 'device';
   useEffect(() => {
     started.current = false;
-    return () => { request.current?.abort(); request.current = null; };
+    return () => {
+      request.current?.abort();
+      request.current = null;
+    };
   }, [lifetime]);
-  const choose = useCallback((value: File | null) => {
-    if (isCurrent() && waiting && !started.current) setFile(value);
-  }, [isCurrent, waiting, setFile]);
-  const confirm = useCallback((onAccepted?: () => void) => {
-    const deadline = Date.parse(status.expires_at);
-    if (!isCurrent() || !user?.id || !waiting || !selection || !file || started.current ||
-      file.size > selection.max_file_size_bytes || !Number.isFinite(deadline) || deadline <= Date.now()) return;
-    started.current = true;
-    setMode('sending');
-    const xhr = new XMLHttpRequest(); request.current = xhr;
-    const uncertain = () => { if (isCurrent()) setMode('uncertain'); };
-    xhr.timeout = 120_000;
-    xhr.withCredentials = true;
-    xhr.upload.onprogress = event => {
-      if (isCurrent() && event.lengthComputable && event.total > 0)
-        setProgress(Math.round(event.loaded / event.total * 100));
-    };
-    xhr.onerror = uncertain; xhr.ontimeout = uncertain; xhr.onabort = uncertain;
-    xhr.onload = () => {
-      if (!isCurrent()) return;
+  const choose = useCallback(
+    (value: File | null) => {
+      if (isCurrent() && waiting && !started.current) setFile(value);
+    },
+    [isCurrent, waiting, setFile]
+  );
+  const confirm = useCallback(
+    (onAccepted?: () => void) => {
+      const deadline = Date.parse(status.expires_at);
+      if (
+        !isCurrent() ||
+        !user?.id ||
+        !waiting ||
+        !selection ||
+        !file ||
+        started.current ||
+        file.size > selection.max_file_size_bytes ||
+        !Number.isFinite(deadline) ||
+        deadline <= Date.now()
+      )
+        return;
+      started.current = true;
+      setMode('sending');
+      const xhr = new XMLHttpRequest();
+      request.current = xhr;
+      const uncertain = () => {
+        if (isCurrent()) setMode('uncertain');
+      };
+      xhr.timeout = 120_000;
+      xhr.withCredentials = true;
+      xhr.upload.onprogress = event => {
+        if (isCurrent() && event.lengthComputable && event.total > 0)
+          setProgress(Math.round((event.loaded / event.total) * 100));
+      };
+      xhr.onerror = uncertain;
+      xhr.ontimeout = uncertain;
+      xhr.onabort = uncertain;
+      xhr.onload = () => {
+        if (!isCurrent()) return;
+        try {
+          const receipt =
+            xhr.status === 200
+              ? definition.accept(JSON.parse(xhr.responseText), status.command_id, selection)
+              : null;
+          if (!receipt) {
+            uncertain();
+            return;
+          }
+          setMode('accepted');
+          setFile(null);
+          setProgress(100);
+          setCacheRefreshPending(receipt.cacheRefreshPending);
+          setAcceptedDetails(receipt.details ?? null);
+          onAccepted?.();
+          publishApplicationResources(
+            user.id,
+            new Set(definition.resources ?? [definition.resource])
+          );
+          void checkResult();
+        } catch {
+          uncertain();
+        }
+      };
+      const data = new FormData();
+      data.append('file', file);
       try {
-        const receipt = xhr.status === 200
-          ? definition.accept(JSON.parse(xhr.responseText), status.command_id, selection) : null;
-        if (!receipt) { uncertain(); return; }
-        setMode('accepted'); setFile(null); setProgress(100);
-        setCacheRefreshPending(receipt.cacheRefreshPending);
-        setAcceptedDetails(receipt.details ?? null);
-        onAccepted?.();
-        publishApplicationResources(user.id, new Set(definition.resources ?? [definition.resource]));
-        void checkResult();
-      } catch { uncertain(); }
-    };
-    const data = new FormData(); data.append('file', file);
-    try {
-      xhr.open('POST', definition.endpoint(status.command_id, selection));
-      xhr.setRequestHeader('x-lia-file-confirmed', 'true');
-      xhr.send(data);
-    } catch { uncertain(); }
-  }, [isCurrent, user, waiting, selection, file, status.command_id, status.expires_at,
-    setMode, setFile, setProgress, setCacheRefreshPending, setAcceptedDetails, checkResult, definition]);
-  return { scopeKey, selection, file, mode, progress, waiting, cacheRefreshPending, acceptedDetails, choose, confirm };
+        xhr.open('POST', definition.endpoint(status.command_id, selection));
+        xhr.setRequestHeader('x-lia-file-confirmed', 'true');
+        xhr.send(data);
+      } catch {
+        uncertain();
+      }
+    },
+    [
+      isCurrent,
+      user,
+      waiting,
+      selection,
+      file,
+      status.command_id,
+      status.expires_at,
+      setMode,
+      setFile,
+      setProgress,
+      setCacheRefreshPending,
+      setAcceptedDetails,
+      checkResult,
+      definition,
+    ]
+  );
+  return {
+    scopeKey,
+    selection,
+    file,
+    mode,
+    progress,
+    waiting,
+    cacheRefreshPending,
+    acceptedDetails,
+    choose,
+    confirm,
+  };
 }

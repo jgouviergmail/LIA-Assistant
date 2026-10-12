@@ -58,14 +58,11 @@ export function CosmosFinale({ lng }: { lng: string }) {
               </Link>
             </Button>
           )}
-          <Button
-            asChild
-            variant={showsGuidedDemo ? 'outline' : 'default'}
-            size="lg"
-            className="w-full text-base px-6 font-semibold sm:w-auto"
-          >
-            <Link href={registerHref}>{t('landing.home_cta.button')}</Link>
-          </Button>
+          {!showsGuidedDemo && (
+            <Button asChild size="lg" className="w-full text-base px-6 font-semibold sm:w-auto">
+              <Link href={registerHref}>{t('landing.home_cta.button')}</Link>
+            </Button>
+          )}
         </div>
         <a
           href="https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/GETTING_STARTED.md"

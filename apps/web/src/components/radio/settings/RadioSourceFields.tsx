@@ -69,7 +69,10 @@ export function RadioSourceFields({ lng, options, preferences, onChange }: Radio
           const id = `radio-source-${source}`;
           const hintId = `${id}-hint`;
           return (
-            <li key={source} className="flex items-start justify-between gap-3 rounded-lg border p-3">
+            <li
+              key={source}
+              className="flex items-start justify-between gap-3 rounded-lg border p-3"
+            >
               <div className="flex min-w-0 items-start gap-2.5">
                 <Icon className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
                 <div className="min-w-0 space-y-0.5">

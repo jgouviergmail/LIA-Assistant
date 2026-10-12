@@ -9,6 +9,7 @@ from src.core.prompt_layout import single_call_messages
 from src.core.time_utils import get_current_datetime_context, now_in_timezone
 from src.domains.agents.analysis.query_intelligence import QueryIntelligence, UserGoal
 from src.domains.agents.analysis.requested_outcomes import anchored_requirements
+from src.domains.agents.analysis.resolved_references import merge_resolved_references
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.agents.services.analysis.domain_availability import build_available_domains
 from src.domains.agents.services.analysis.query_analysis_schemas import QueryAnalysisOutput
@@ -72,7 +73,9 @@ async def analyze_case(
         goal_reasoning=analysis.reasoning,
         domains=list(scenario.domains),
         primary_domain=analysis.primary_domain or scenario.domains[-1],
-        resolved_references={item.original: item.resolved for item in analysis.resolved_references},
+        resolved_references=merge_resolved_references(
+            None, None, [item.model_dump(mode="json") for item in analysis.resolved_references]
+        ),
         is_mutation_intent=analysis.is_mutation_intent,
         requested_outcomes=requirements,
         user_language="fr",

@@ -51,7 +51,7 @@ async def test_pipeline_and_react_receive_only_the_current_validated_selection(m
 
     async def build():
         pipeline = await planner._build_prompt(intelligence, catalogue, {})
-        react = await react_context.build_setup_blocks({}, {}, intelligence)
+        react = await react_context.build_setup_blocks({}, {})
         return pipeline, "\n".join(react.blocks)
 
     before = await build()

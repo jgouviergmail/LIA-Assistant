@@ -1,0 +1,28 @@
+{
+  "id": "lia-original-score",
+  "title": "LIA — Le groove en mouvement",
+  "artist": "Composition originale LIA · Google Lyria",
+  "provider": "Google Gemini API",
+  "model": "lyria-3.5",
+  "source": "https://ai.google.dev/gemini-api/docs/music-generation",
+  "sourceSha256": "0d31582a0292b21b2e8a0ab8d7306b0ce339e9386ce5b604b013773c019a1fa3",
+  "publishedTempoBpm": 134,
+  "tempoIsPromptTarget": true,
+  "attribution": "LIA — Le groove en mouvement · composition sur mesure générée avec Google Lyria 3.5",
+  "styleSource": "Original high-energy nu-funk/disco-funk with upfront syncopated bass, punchy live drums, clean funk guitar and developed non-repetitive melody; continuous 160-second composition requested.",
+  "license": "Google Gemini API generated-content terms",
+  "licenseUrl": "https://ai.google.dev/gemini-api/terms",
+  "sourceFormat": {
+    "codec_name": "mp3",
+    "sample_fmt": "fltp",
+    "sample_rate": "44100",
+    "channels": 2,
+    "bits_per_sample": 0,
+    "bit_rate": "192000"
+  },
+  "originalAudio": "audio/v5/lia-funk-original.mp3",
+  "workingAudio": "audio/v5/lia-funk-film.wav",
+  "allowanceSeconds": 159.32,
+  "generationMetadata": "audio/v5/lia-funk-generation.json",
+  "compositionRequest": "audio/v5/lia-funk-composition-request.json"
+}

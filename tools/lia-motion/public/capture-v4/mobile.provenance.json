@@ -1,0 +1,59 @@
+{
+  "capturedAt": "2026-10-11T22:14:22.970Z",
+  "path": "capture-v4/mobile.png",
+  "width": 390,
+  "height": 844,
+  "sha256": "4d9341b458422bbcabdf7b718594c032f456edb89806451e5c1538912c642577",
+  "nativeFrontend": true,
+  "reconstructed": false,
+  "bitmapEdited": false,
+  "fictionalData": true,
+  "route": "/fr/dashboard/chat",
+  "locale": "fr-FR",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "runtime": "existing isolated .next-e2e-landing-final standalone build in lia-web-dev, API fixtures only",
+  "currentRepositoryRevision": "c53d17d3301c97bd1b4a237a8b353342d423c010",
+  "exactCompiledRevisionEstablished": false,
+  "sourceCaptureContract": "tools/lia-motion/scripts/capture-native.mjs",
+  "widget": {
+    "preferences": {
+      "state": {
+        "visible": false,
+        "style": "bip",
+        "size": "sm",
+        "position": null,
+        "landingPosition": null
+      },
+      "version": 0
+    },
+    "visibleBodies": 0
+  },
+  "portraits": "hidden by the native responsive layout at 390px, without product DOM or CSS replacement",
+  "exercised": [
+    "native mobile 390x844 chat, widget hidden through native persisted visibility preference; responsive composer/submission supplied fictional SSE tokens; no provider inference"
+  ],
+  "writes": [
+    {
+      "path": "/api/v1/agents/chat/stream",
+      "body": {
+        "message": "Quelle date dois-je confirmer ?",
+        "user_id": "00000000-0000-4000-8000-000000000001",
+        "session_id": "session_00000000-0000-4000-8000-000000000001",
+        "context": {
+          "geolocation": null,
+          "lia_gender": "female",
+          "viewport_width": 390
+        }
+      }
+    }
+  ],
+  "transportGuardBlocked": [
+    "GET http://127.0.0.1:3134/api/v1/notifications/stream",
+    "GET http://127.0.0.1:3134/api/v1/notifications/stream"
+  ],
+  "errors": [],
+  "unexpected": []
+}

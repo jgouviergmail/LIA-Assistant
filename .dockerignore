@@ -2,6 +2,9 @@
 **/node_modules
 
 # Build outputs
+exports/
+# Offline motion authoring and its media do not enter application images.
+tools/lia-motion/
 .tmp/
 output/
 **/.next

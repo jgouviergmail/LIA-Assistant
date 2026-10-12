@@ -10,7 +10,16 @@ vi.mock('@/lib/api-client', async importOriginal => {
 });
 import { useApplicationConnectors } from '../useApplicationConnectors';
 
-const saved = { connectors: [{ id: 'saved-one', connector_type: 'google_gmail', status: 'active', created_at: '2026-10-07T00:00:00Z' }] };
+const saved = {
+  connectors: [
+    {
+      id: 'saved-one',
+      connector_type: 'google_gmail',
+      status: 'active',
+      created_at: '2026-10-07T00:00:00Z',
+    },
+  ],
+};
 beforeEach(() => {
   vi.resetAllMocks();
   useAuth.mockReturnValue({ user: { id: 'one' } });

@@ -31,17 +31,13 @@ vi.mock('@/lib/api-client', () => ({
   default: { get },
   apiEndpointUrl: (endpoint: string) => `/api/v1${endpoint}`,
 }));
-const {
-  createLLMPricing,
-  updateLLMPricing,
-  deactivateLLMPricing,
-  reloadLLMPricingCache,
-} = vi.hoisted(() => ({
-  createLLMPricing: vi.fn(),
-  updateLLMPricing: vi.fn(),
-  deactivateLLMPricing: vi.fn(),
-  reloadLLMPricingCache: vi.fn(),
-}));
+const { createLLMPricing, updateLLMPricing, deactivateLLMPricing, reloadLLMPricingCache } =
+  vi.hoisted(() => ({
+    createLLMPricing: vi.fn(),
+    updateLLMPricing: vi.fn(),
+    deactivateLLMPricing: vi.fn(),
+    reloadLLMPricingCache: vi.fn(),
+  }));
 vi.mock('@/lib/actions/settings-actions', () => ({
   createLLMPricing,
   updateLLMPricing,

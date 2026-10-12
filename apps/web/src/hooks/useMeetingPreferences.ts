@@ -23,7 +23,9 @@ export interface UseMeetingPreferencesReturn {
 
 export function useMeetingPreferences(enabled = true): UseMeetingPreferencesReturn {
   const query = useApplicationAccountQuery<MeetingPreferences>(
-    MEETING_PREFERENCES_PATH, 'useMeetingPreferences', enabled
+    MEETING_PREFERENCES_PATH,
+    'useMeetingPreferences',
+    enabled
   );
   const { ownerId, lifetime, isCurrent, setData, refetch } = query;
   const [isSaving, setIsSaving] = useApplicationAccountState(ownerId, false);
@@ -31,25 +33,33 @@ export function useMeetingPreferences(enabled = true): UseMeetingPreferencesRetu
   const pending = useRef<typeof lifetime | null>(null);
   useApplicationResourceSync(enabled ? ownerId : undefined, 'meeting_preferences', refetch);
 
-  const save = useCallback(async (update: MeetingPreferencesUpdate) => {
-    if (!enabled || !isCurrent() || pending.current === lifetime) return null;
-    pending.current = lifetime;
-    setIsSaving(true);
-    try {
-      const saved = await meetingsApi.putPreferences(update);
-      if (!isCurrent()) return null;
-      setData(saved);
-      setSaveError(null);
-      return saved;
-    } catch (err) {
-      if (isCurrent()) setSaveError(err instanceof Error ? err : new Error(String(err)));
-      return null;
-    } finally {
-      if (pending.current === lifetime) pending.current = null;
-      if (isCurrent()) setIsSaving(false);
-    }
-  }, [enabled, isCurrent, lifetime, setData, setSaveError, setIsSaving]);
+  const save = useCallback(
+    async (update: MeetingPreferencesUpdate) => {
+      if (!enabled || !isCurrent() || pending.current === lifetime) return null;
+      pending.current = lifetime;
+      setIsSaving(true);
+      try {
+        const saved = await meetingsApi.putPreferences(update);
+        if (!isCurrent()) return null;
+        setData(saved);
+        setSaveError(null);
+        return saved;
+      } catch (err) {
+        if (isCurrent()) setSaveError(err instanceof Error ? err : new Error(String(err)));
+        return null;
+      } finally {
+        if (pending.current === lifetime) pending.current = null;
+        if (isCurrent()) setIsSaving(false);
+      }
+    },
+    [enabled, isCurrent, lifetime, setData, setSaveError, setIsSaving]
+  );
 
-  return { preferences: enabled ? query.data ?? null : null, isLoading: query.loading,
-    isSaving, error: saveError ?? query.error ?? null, save };
+  return {
+    preferences: enabled ? (query.data ?? null) : null,
+    isLoading: query.loading,
+    isSaving,
+    error: saveError ?? query.error ?? null,
+    save,
+  };
 }

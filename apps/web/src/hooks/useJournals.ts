@@ -281,7 +281,10 @@ export function useJournals() {
   } = useApplicationAccountQuery<JournalSettings>('/journals/settings', 'useJournals');
 
   // Fetch themes
-  const { data: themesData } = useApplicationAccountQuery<{ themes: JournalThemeInfo[] }>('/journals/themes', 'useJournals');
+  const { data: themesData } = useApplicationAccountQuery<{ themes: JournalThemeInfo[] }>(
+    '/journals/themes',
+    'useJournals'
+  );
 
   // Fetch compiled portrait (commit 3 of ADR-079)
   const {
@@ -496,7 +499,14 @@ export function useJournals() {
       }
       return result;
     },
-    [portraitFeedbackMutate, refetch, refetchSettings, refetchPortrait, invalidatePortrait, isCurrent]
+    [
+      portraitFeedbackMutate,
+      refetch,
+      refetchSettings,
+      refetchPortrait,
+      invalidatePortrait,
+      isCurrent,
+    ]
   );
 
   return {

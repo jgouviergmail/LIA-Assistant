@@ -1,0 +1,420 @@
+{
+  "id": "sunsetter",
+  "title": "Sunsetter",
+  "artist": "Shane Ivers",
+  "source": "https://www.silvermansound.com/free-music/sunsetter",
+  "sourceAudio": "https://www.silvermansound.com/wp-content/uploads/sunsetter.mp3",
+  "sourceSha256": "0de0349ce104e1c6f397b06830c408517359964de98b9c121faf2b04fee90fd1",
+  "publishedTempoBpm": 117,
+  "isrc": "UKEZT2300012",
+  "attribution": "Sunsetter — Shane Ivers · silvermansound.com · CC BY 4.0 · montage LIA",
+  "styleSource": "Summer dance; acoustic guitar, ukulele, bass and drums",
+  "trimFrom": 0,
+  "license": "CC-BY-4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+  "audio": "audio/v3/sunsetter-30s.wav",
+  "durationSeconds": 30.0,
+  "audioSha256": "7a0e713476ff0cc5904331e4314eb5efb64240a22813295c2bf615ca183b4ffd",
+  "sourceFormat": "Official MP3 decoded with headroom to working PCM; not lossless",
+  "edit": {
+    "trimFrom": 0,
+    "trimTo": 30,
+    "repetitions": 0,
+    "decodeHeadroomDb": 6
+  },
+  "beats": [
+    0.133,
+    0.548,
+    1.029,
+    1.576,
+    2.085,
+    2.601,
+    3.117,
+    3.626,
+    4.134,
+    4.648,
+    5.135,
+    5.674,
+    6.19,
+    6.701,
+    7.215,
+    7.725,
+    8.234,
+    8.757,
+    9.261,
+    9.781,
+    10.294,
+    10.809,
+    11.307,
+    11.833,
+    12.336,
+    12.857,
+    13.367,
+    13.882,
+    14.394,
+    14.909,
+    15.418,
+    15.931,
+    16.437,
+    16.963,
+    17.468,
+    17.987,
+    18.489,
+    19.012,
+    19.516,
+    20.037,
+    20.542,
+    21.063,
+    21.565,
+    22.087,
+    22.59,
+    23.116,
+    23.62,
+    24.137,
+    24.648,
+    25.169,
+    25.679,
+    26.193,
+    26.699,
+    27.218,
+    27.729,
+    28.241,
+    28.749,
+    29.27,
+    29.777
+  ],
+  "beatEntries": [
+    [
+      133,
+      0.04,
+      false
+    ],
+    [
+      548,
+      0.69,
+      false
+    ],
+    [
+      1029,
+      0.45,
+      false
+    ],
+    [
+      1576,
+      0.83,
+      false
+    ],
+    [
+      2085,
+      0.72,
+      false
+    ],
+    [
+      2601,
+      0.67,
+      false
+    ],
+    [
+      3117,
+      0.53,
+      false
+    ],
+    [
+      3626,
+      0.81,
+      false
+    ],
+    [
+      4134,
+      0.7,
+      false
+    ],
+    [
+      4648,
+      0.86,
+      false
+    ],
+    [
+      5135,
+      0.55,
+      true
+    ],
+    [
+      5674,
+      0.89,
+      false
+    ],
+    [
+      6190,
+      0.66,
+      false
+    ],
+    [
+      6701,
+      0.74,
+      false
+    ],
+    [
+      7215,
+      0.7,
+      true
+    ],
+    [
+      7725,
+      0.97,
+      false
+    ],
+    [
+      8234,
+      1.0,
+      false
+    ],
+    [
+      8757,
+      0.5,
+      false
+    ],
+    [
+      9261,
+      0.7,
+      false
+    ],
+    [
+      9781,
+      0.61,
+      false
+    ],
+    [
+      10294,
+      0.55,
+      false
+    ],
+    [
+      10809,
+      0.51,
+      false
+    ],
+    [
+      11307,
+      0.67,
+      false
+    ],
+    [
+      11833,
+      0.66,
+      false
+    ],
+    [
+      12336,
+      1.0,
+      false
+    ],
+    [
+      12857,
+      0.54,
+      false
+    ],
+    [
+      13367,
+      0.91,
+      false
+    ],
+    [
+      13882,
+      0.74,
+      false
+    ],
+    [
+      14394,
+      0.65,
+      false
+    ],
+    [
+      14909,
+      0.58,
+      false
+    ],
+    [
+      15418,
+      0.67,
+      false
+    ],
+    [
+      15931,
+      0.81,
+      false
+    ],
+    [
+      16437,
+      1.0,
+      false
+    ],
+    [
+      16963,
+      0.32,
+      false
+    ],
+    [
+      17468,
+      0.82,
+      false
+    ],
+    [
+      17987,
+      0.55,
+      false
+    ],
+    [
+      18489,
+      0.77,
+      false
+    ],
+    [
+      19012,
+      0.36,
+      false
+    ],
+    [
+      19516,
+      1.0,
+      false
+    ],
+    [
+      20037,
+      0.42,
+      false
+    ],
+    [
+      20542,
+      0.78,
+      false
+    ],
+    [
+      21063,
+      0.48,
+      false
+    ],
+    [
+      21565,
+      0.93,
+      false
+    ],
+    [
+      22087,
+      0.6,
+      false
+    ],
+    [
+      22590,
+      0.83,
+      true
+    ],
+    [
+      23116,
+      0.44,
+      false
+    ],
+    [
+      23620,
+      0.96,
+      false
+    ],
+    [
+      24137,
+      0.59,
+      false
+    ],
+    [
+      24648,
+      0.8,
+      true
+    ],
+    [
+      25169,
+      0.29,
+      false
+    ],
+    [
+      25679,
+      0.46,
+      false
+    ],
+    [
+      26193,
+      0.46,
+      false
+    ],
+    [
+      26699,
+      0.58,
+      false
+    ],
+    [
+      27218,
+      0.29,
+      false
+    ],
+    [
+      27729,
+      0.56,
+      false
+    ],
+    [
+      28241,
+      0.4,
+      false
+    ],
+    [
+      28749,
+      0.61,
+      false
+    ],
+    [
+      29270,
+      0.37,
+      false
+    ],
+    [
+      29777,
+      0.5,
+      false
+    ]
+  ],
+  "analysisVersion": 2,
+  "onsetLeadMs": 72.9,
+  "analysis": {
+    "beats": 59,
+    "bars": 4,
+    "tempo_windows": [
+      {
+        "from_s": 0.0,
+        "bpm": 117.5
+      },
+      {
+        "from_s": 5.0,
+        "bpm": 117.5
+      },
+      {
+        "from_s": 10.0,
+        "bpm": 117.5
+      },
+      {
+        "from_s": 15.0,
+        "bpm": 117.5
+      },
+      {
+        "from_s": 20.0,
+        "bpm": 117.5
+      }
+    ],
+    "median_interval_ms": 512.0,
+    "interval_mad_ms": 6.5,
+    "mean_weight": 0.645,
+    "onset_hit_rate": 0.983
+  },
+  "review": {
+    "licenceAndRecordingVerified": true,
+    "humanListening": false,
+    "styleJudgement": "Composer's instrumentation/mood and measured rhythm; listening required"
+  }
+}

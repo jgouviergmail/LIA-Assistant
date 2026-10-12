@@ -1430,6 +1430,22 @@
     "338": {
       "title": "Les contrats MCP courants portent les capacités et l'identité exacte de leur serveur",
       "summary": "Les outils MCP de chaque personne sont découverts depuis leurs déclarations actuelles ; seuls les outils réellement construits sont annoncés. Le serveur conserve son identité exacte, séparée des noms simplifiés de routage et d'appel. Une tâche liée à un serveur vérifie sa cible avant confirmation. Les descriptions anciennes reçoivent les capacités courantes sans prétendre connaître toute l'ontologie d'un serveur."
+    },
+    "339": {
+      "title": "Des commandes applicatives avec droits actuels et continuations privées",
+      "summary": "LIA gère ses réglages et objets par des opérations déclarées. Les commandes durables chiffrées lient contenu approuvé, acteur, origine et expiration ; les droits, capacités et préconditions sont relus à l'exécution. Les services sources gardent leurs compare-and-set, les claims sont protégés par jeton. Fichiers, OAuth, données privées et périphériques continuent dans le navigateur authentifié. Une attente n'est pas un succès accompli ; un résultat perdu reste incertain, sans promesse d'exécution externe exactement une fois."
+    },
+    "340": {
+      "title": "Du volume natif à partir des dessins approuvés",
+      "summary": "Le dessin frontal texture un relief borné, dont le contour et les franges viennent de l'alpha source. L'anatomie cachée reste approchée ; les yeux, sourcils et bouche sont projetés en DOM/SVG, l'écharpe est volontairement compositée devant. Corps, visage et accessoires partagent le rig existant. Visibilité, mouvement réduit, readiness et contexte graphique gouvernent les ressources et le retour au dessin fixe. Les tests de géométrie et de cycle de vie ne certifient ni toute occlusion ni les performances sur appareil réel."
+    },
+    "341": {
+      "title": "Une production motion éditable et une présentation exclusive",
+      "summary": "Un projet Remotion offline conserve chapitres, vues HTML/CSS, poses et accents musicaux pour faire évoluer film et focus ensemble. Les écrans reconstruits citent les sources natives et utilisent des données fictives ; leur géométrie reste fixe hors focus explicite, BIP accompagne la présentation. Le manifeste peut déclarer un film complet distinct de la playlist : son dialogue plein écran suspend le lecteur de fond. Le film est français, ses contrôles sont traduits ; rendu, fichiers livrés, provenance musicale et acceptation du diffuseur restent qualifiés séparément."
+    },
+    "342": {
+      "title": "Une campagne d'avatar runtime, activée par l'opérateur",
+      "summary": "Une option serveur vide par défaut permet de présenter BIP lors de la prochaine visite authentifiée, par origine et navigateur. Un identifiant explicite change uniquement le style et son marqueur ; visibilité, taille, positions et choix manuels ultérieurs sont conservés. Aucune colonne avatar n'est ajoutée au compte. Web Locks coordonne les onglets quand disponible ; sans lui, la relecture récente ne garantit pas une transaction simultanée. Désactiver la campagne arrête les nouvelles applications sans rétablir d'anciens choix, et n'atteint pas les appareils hors ligne."
     }
   }
 }

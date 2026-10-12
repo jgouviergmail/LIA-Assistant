@@ -233,7 +233,9 @@ describe('JournalsSettings — portrait feedback outcome', () => {
       })
     );
     const { user } = render();
-    await user.click(await screen.findByRole('button', { name: 'journals.portraitFeedbackButton' }));
+    await user.click(
+      await screen.findByRole('button', { name: 'journals.portraitFeedbackButton' })
+    );
     const correction = await screen.findByLabelText('journals.portraitFeedbackCommentLabel');
     await user.type(correction, 'This passage is outdated.');
     await user.click(screen.getByRole('button', { name: 'journals.portraitFeedbackSubmit' }));

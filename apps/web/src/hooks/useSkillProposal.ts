@@ -25,7 +25,11 @@ const BASE = '/skill-proposals';
  *   deadline passed): a history page may hold many, and none is worth a call.
  */
 export function useSkillProposal(proposalId: string, enabled = true) {
-  const query = useApplicationAccountQuery<SkillProposal>(`${BASE}/${encodeURIComponent(proposalId)}`, 'SkillProposal', enabled);
+  const query = useApplicationAccountQuery<SkillProposal>(
+    `${BASE}/${encodeURIComponent(proposalId)}`,
+    'SkillProposal',
+    enabled
+  );
   return { ...query, refetch: query.refetchVerified };
 }
 

@@ -92,10 +92,7 @@ function ExportCard({
   );
 }
 
-export default function ConsumptionExportSection({
-  lng,
-  mode,
-}: ConsumptionExportSectionProps) {
+export default function ConsumptionExportSection({ lng, mode }: ConsumptionExportSectionProps) {
   const { t } = useTranslation(lng, 'translation');
   const i18n = I18N_PREFIX[mode];
 

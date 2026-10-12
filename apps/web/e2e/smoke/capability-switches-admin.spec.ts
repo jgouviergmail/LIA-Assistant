@@ -87,10 +87,29 @@ test.describe('the admin capability panel', () => {
     await page.goto('/en/dashboard/settings?section=admin-capabilities');
     await waitForHydration(page, SWITCH);
 
-    const families = await page
-      .locator('[data-family]')
-      .evaluateAll(nodes => nodes.map(node => node.getAttribute('data-family')));
+    // The companion also exposes its mood as data-family. Only the panel's
+    // accessible groups describe capability families.
+    const groups = page.locator('#settings-section-admin-capabilities').getByRole('group');
+    await expect(groups).toHaveCount(4);
+    const families = await groups.evaluateAll(nodes =>
+      nodes.map(node => node.getAttribute('data-family'))
+    );
     expect(families).toEqual(['media', 'knowledge', 'work', 'people']);
+
+    const expectedGroups = [
+      { name: 'Media & voice', switches: ['Image generation', 'Phone calls'] },
+      { name: 'Memory & knowledge', switches: ['Long-term memory'] },
+      { name: 'Work & initiative', switches: ['Workboard'] },
+      { name: 'People', switches: ['LIA connections'] },
+    ];
+    for (const [index, expected] of expectedGroups.entries()) {
+      const group = groups.nth(index);
+      await expect(group).toHaveAccessibleName(expected.name);
+      await expect(group.getByRole('switch')).toHaveCount(expected.switches.length);
+      for (const name of expected.switches) {
+        await expect(group.getByRole('switch', { name, exact: true })).toBeVisible();
+      }
+    }
   });
 
   test('says a capability is enforced at a service chokepoint, not on a route', async ({
@@ -104,7 +123,7 @@ test.describe('the admin capability panel', () => {
     await page.goto('/en/dashboard/settings?section=admin-capabilities');
     await waitForHydration(page, SWITCH);
 
-    const knowledge = page.locator('[data-family="knowledge"]');
+    const knowledge = page.getByRole('group', { name: 'Memory & knowledge', exact: true });
     await expect(knowledge).toContainText(/internal chokepoint/i);
     // The sentence that matters: the ability stops, the record stays.
     await expect(knowledge).toContainText(/already produced stays/i);
@@ -125,7 +144,9 @@ test.describe('the admin capability panel', () => {
     await expect(blocked).toBeVisible();
     await expect(blocked).toBeDisabled();
     // And it SAYS why, rather than merely greying out.
-    await expect(page.locator('[data-family="media"]')).toContainText(/deployment/i);
+    await expect(page.getByRole('group', { name: 'Media & voice', exact: true })).toContainText(
+      /deployment/i
+    );
   });
 
   test('never scrolls sideways at 320 px', async ({ page, authenticate, mockApi }) => {

@@ -57,7 +57,11 @@ export function PinnedScene({
   }
 
   return (
-    <div ref={ref} className={cn('cosmos-pin', className)} style={{ height: `${heights * 100}dvh` }}>
+    <div
+      ref={ref}
+      className={cn('cosmos-pin', className)}
+      style={{ height: `${heights * 100}dvh` }}
+    >
       <div className="cosmos-pin-stage">{children}</div>
     </div>
   );

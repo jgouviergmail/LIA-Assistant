@@ -44,9 +44,7 @@ afterEach(() => {
 describe('DocumentViewer — renderable types', () => {
   it('renders a csv as a table (headers + rows)', async () => {
     const fetchMock = mockFetchBlob('modèle,prix\n"Fable 5","20,00"');
-    renderWithProviders(
-      <DocumentViewer attachmentId="d1" filename="modeles.csv" docType="csv" />
-    );
+    renderWithProviders(<DocumentViewer attachmentId="d1" filename="modeles.csv" docType="csv" />);
     expect(await screen.findByRole('table')).toBeInTheDocument();
     expect(screen.getByText('modèle')).toBeInTheDocument();
     expect(screen.getByText('20,00')).toBeInTheDocument();
@@ -58,17 +56,13 @@ describe('DocumentViewer — renderable types', () => {
 
   it('renders markdown through the sanitized pipeline', async () => {
     mockFetchBlob('# Titre\n\ncorps');
-    renderWithProviders(
-      <DocumentViewer attachmentId="d2" filename="rapport.md" docType="md" />
-    );
+    renderWithProviders(<DocumentViewer attachmentId="d2" filename="rapport.md" docType="md" />);
     expect(await screen.findByTestId('markdown')).toHaveTextContent('Titre');
   });
 
   it('renders txt as preformatted text', async () => {
     mockFetchBlob('ligne 1\nligne 2');
-    renderWithProviders(
-      <DocumentViewer attachmentId="d3" filename="notes.txt" docType="txt" />
-    );
+    renderWithProviders(<DocumentViewer attachmentId="d3" filename="notes.txt" docType="txt" />);
     await waitFor(() => expect(screen.getByText(/ligne 1/)).toBeInTheDocument());
   });
 });
@@ -76,28 +70,20 @@ describe('DocumentViewer — renderable types', () => {
 describe('DocumentViewer — non-renderable types and errors', () => {
   it('offers an honest file panel with a download action for xlsx', async () => {
     mockFetchBlob(new Blob(['x']));
-    renderWithProviders(
-      <DocumentViewer attachmentId="d4" filename="data.xlsx" docType="xlsx" />
-    );
+    renderWithProviders(<DocumentViewer attachmentId="d4" filename="data.xlsx" docType="xlsx" />);
     expect(await screen.findByText('documents.viewer.not_renderable')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'documents.viewer.download' })).toBeInTheDocument();
   });
 
   it('reports a fetch failure instead of spinning forever', async () => {
     mockFetchBlob('', false);
-    renderWithProviders(
-      <DocumentViewer attachmentId="d5" filename="gone.csv" docType="csv" />
-    );
+    renderWithProviders(<DocumentViewer attachmentId="d5" filename="gone.csv" docType="csv" />);
     expect(await screen.findByText('documents.viewer.error')).toBeInTheDocument();
   });
 
   it('always shows the filename as the page heading', async () => {
     mockFetchBlob('a,b\n1,2');
-    renderWithProviders(
-      <DocumentViewer attachmentId="d6" filename="modeles.csv" docType="csv" />
-    );
-    expect(
-      await screen.findByRole('heading', { name: 'modeles.csv' })
-    ).toBeInTheDocument();
+    renderWithProviders(<DocumentViewer attachmentId="d6" filename="modeles.csv" docType="csv" />);
+    expect(await screen.findByRole('heading', { name: 'modeles.csv' })).toBeInTheDocument();
   });
 });

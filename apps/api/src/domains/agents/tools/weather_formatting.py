@@ -13,8 +13,10 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.i18n_v3 import V3Messages
 from src.core.time_utils import format_time_only, parse_rfc3339
 from src.domains.agents.display.values import list_values, scalar_text
+from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.tools.weather_fields import (
     extra_fields,
     finite_number,
@@ -24,6 +26,7 @@ from src.domains.agents.tools.weather_fields import (
     probability,
     weather_timezone,
 )
+from src.domains.agents.weather.catalogue_manifests import WEATHER_UNITS
 
 
 def _extract_location_from_geocode(
@@ -155,6 +158,7 @@ def _format_forecast_response(
     days: int,
     units: str,
     target_date: str,
+    requested_days: int | None = None,
 ) -> dict[str, Any]:
     """
     Format daily forecast API response.
@@ -163,9 +167,11 @@ def _format_forecast_response(
         daily_data: Raw forecast data from OpenWeatherMap API (grouped by date in user's timezone)
         resolved_name: Location name
         country: Country code
-        days: Number of days requested
+        days: Number of days to return (the bounded window)
         units: Temperature units (metric/imperial)
         target_date: Start date in YYYY-MM-DD format (user's timezone). Filter keeps days >= this date.
+        requested_days: The count the caller asked for, stated in the result so a window
+            cut by the horizon or the bound is visible; None when omitted.
     """
     temp_unit = "°C" if units == "metric" else "°F"
     speed_unit = "m/s" if units == "metric" else "mph"
@@ -202,8 +208,93 @@ def _format_forecast_response(
                 "country": country,
             },
             "forecast_days": len(daily_forecasts),
+            "requested_days": days if requested_days is None else requested_days,
             "daily": daily_forecasts,
         },
+    }
+
+
+#: Temperature scales read as the unit system that serves them.
+_UNIT_SCALES = {"celsius": "metric", "fahrenheit": "imperial"}
+
+
+def read_units(raw: object) -> str | None:
+    """The units a weather call is served in, or None when they cannot be read.
+
+    Absent means metric; a case or spacing variant of a published value is that
+    value, and the scale's own name is read (never published, like the dates of
+    ADR-310); anything else is unreadable and refused, never sent on: a provider
+    answers an unknown system in Kelvin.
+
+    Args:
+        raw: The ``units`` argument as the call carried it.
+
+    Returns:
+        One of ``WEATHER_UNITS``, or None.
+    """
+    if raw is None or (isinstance(raw, str) and not raw.strip()):
+        return WEATHER_UNITS[0]
+    value = raw.strip().lower() if isinstance(raw, str) else None
+    value = _UNIT_SCALES.get(value or "", value)
+    return value if value in WEATHER_UNITS else None
+
+
+def unreadable_units_result(raw: object) -> dict[str, Any]:
+    """The INVALID_INPUT failure for units the tool cannot read, naming the accepted ones."""
+    return {
+        "success": False,
+        "error": "invalid_units",
+        "error_code": ToolErrorCode.INVALID_INPUT.value,
+        "message": (
+            f"Unreadable units {str(raw)[:40]!r}: pass one of "
+            f"{', '.join(WEATHER_UNITS)}, or omit them for {WEATHER_UNITS[0]}."
+        ),
+    }
+
+
+def forecast_beyond_refusal(language: str, max_days: int, date_offset: int) -> dict[str, Any]:
+    """The refusal owed when the asked day lies past the forecast horizon.
+
+    Args:
+        language: The person's language.
+        max_days: The published window (``WEATHER_FORECAST_MAX_DAYS``).
+        date_offset: Days between today and the asked day.
+
+    Returns:
+        The ``date_beyond_forecast`` refusal payload.
+    """
+    return {
+        "success": False,
+        "error": "date_beyond_forecast",
+        "message": V3Messages.get_forecast_beyond_limit(language, max_days, date_offset),
+    }
+
+
+def forecast_window_refusal(
+    formatted: dict[str, Any], target_date: str, *, is_specific_date: bool, language: str
+) -> dict[str, Any] | None:
+    """The refusal owed when the forecast does not hold the day asked for, else None.
+
+    An empty window, or a specific date whose first returned day is another one
+    (late evening, the provider no longer covers today), is refused: serving
+    another day as the one asked answers another question (ADR-310).
+
+    Args:
+        formatted: The result of ``_format_forecast_response``.
+        target_date: The asked day, YYYY-MM-DD in the person's timezone.
+        is_specific_date: Whether a specific date was asked.
+        language: The person's language.
+
+    Returns:
+        The refusal payload, or None when the window holds the asked day.
+    """
+    daily = formatted["data"]["daily"]
+    if daily and (not is_specific_date or daily[0]["date"] == target_date):
+        return None
+    return {
+        "success": False,
+        "error": "no_forecast_for_date",
+        "message": V3Messages.get_weather_no_daily_forecast_for_date(language, target_date),
     }
 
 

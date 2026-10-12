@@ -13,7 +13,7 @@ from src.domains.radio.formats import RadioFormat, RadioRole
 from src.domains.radio.script import LineKind, RadioDelivery, ScriptPart
 from src.domains.radio.verification import VerifiedLine
 from src.infrastructure.llm.decision_types import DecisionAttempt
-from src.infrastructure.llm.typesafe_client import ChoiceAnswer
+from src.infrastructure.llm.typesafe_client import NoulAnswer
 
 pytestmark = pytest.mark.unit
 
@@ -58,16 +58,13 @@ LINES = (
 )
 
 
-def decision(choice: str, confidence: float = 0.999) -> ChoiceAnswer:
-    return ChoiceAnswer(
-        type="choice",
-        choice=choice,
-        confidence=confidence,
-        probabilities={
-            key: 0.998 if key == choice else 0.001
-            for key in ("supported", "unsupported", "unknown")
-        },
-    )
+def decision(verdict: str) -> NoulAnswer:
+    """A decided line: the Noul is the probability of an UNSUPPORTED claim."""
+    return NoulAnswer(type="noul", noul=0.999 if verdict == "unsupported" else 0.001)
+
+
+def undecided(probability: float) -> NoulAnswer:
+    return NoulAnswer(type="noul", noul=probability)
 
 
 async def test_complete_native_script_maps_exact_positions_and_never_checks_transitions() -> None:
@@ -79,7 +76,7 @@ async def test_complete_native_script_maps_exact_positions_and_never_checks_tran
         AsyncMock(
             return_value=DecisionAttempt(
                 outcome="success",
-                answers={"line1": decision("supported"), "line2": decision("unsupported")},
+                nouls={"line1": decision("supported"), "line2": decision("unsupported")},
             )
         ),
     ) as native:
@@ -120,14 +117,18 @@ async def test_unrepresentable_script_uses_whole_original_without_native_spend(l
     [
         DecisionAttempt(outcome="disabled"),
         DecisionAttempt(outcome="timeout"),
-        DecisionAttempt(outcome="success", answers={"line1": decision("supported")}),
+        DecisionAttempt(outcome="success", nouls={"line1": decision("supported")}),
         DecisionAttempt(
             outcome="success",
-            answers={"line1": decision("supported"), "line2": decision("unknown")},
+            nouls={"line1": decision("supported"), "line2": undecided(0.5)},
         ),
         DecisionAttempt(
             outcome="success",
-            answers={"line1": decision("supported", 0.8), "line2": decision("unsupported")},
+            nouls={"line1": undecided(0.3), "line2": decision("unsupported")},
+        ),
+        DecisionAttempt(
+            outcome="success",
+            nouls={"line1": decision("supported"), "line2": undecided(0.7)},
         ),
     ],
 )
@@ -177,7 +178,7 @@ async def test_native_verdict_flows_through_the_existing_deterministic_editor() 
         AsyncMock(
             return_value=DecisionAttempt(
                 outcome="success",
-                answers={
+                nouls={
                     f"line{n}": decision("unsupported" if n == 3 else "supported")
                     for n in range(1, 6)
                 },
@@ -196,3 +197,36 @@ async def test_native_verdict_flows_through_the_existing_deterministic_editor() 
     assert [ref for line in result.lines for ref in line.refs] == ["n1", "n2", "n4", "n5"]
     assert len(result.origins) == len(result.lines)
     fallback.unsupported.assert_not_awaited()
+
+
+async def test_a_line_exactly_at_the_margin_is_decided_and_just_past_it_is_not() -> None:
+    module = importlib.import_module("src.domains.radio.jev_checker")
+    margin = module.DECISION_MARGIN
+
+    async def judged(first: float, second: float) -> frozenset[int] | None:
+        fallback = AsyncMock()
+        fallback.unsupported.return_value = None
+        attempt = DecisionAttempt(
+            outcome="success", nouls={"line1": undecided(first), "line2": undecided(second)}
+        )
+        with patch.object(module, "choose_many_with_jev", AsyncMock(return_value=attempt)):
+            checker = module.JevLineChecker(
+                fallback, user_id=uuid4(), run_id="radio", station_name="Radio 42"
+            )
+            return await checker.unsupported(LINES, PACK)
+
+    assert await judged(margin, 1 - margin) == frozenset({2})
+    assert await judged(margin + 0.01, 1 - margin) is None
+    assert await judged(margin, 1 - margin - 0.01) is None
+
+
+async def test_lines_are_asked_as_nouls_naming_their_own_line() -> None:
+    module = importlib.import_module("src.domains.radio.jev_checker")
+    request = module.verifier_request(LINES, PACK, "Radio 42")
+    assert request is not None
+    _, questions = request
+    assert set(questions) == {"line1", "line2"}
+    for key, question in questions.items():
+        assert question.type == "noul"
+        assert isinstance(question.instructions, dict)
+        assert f"`script.{key}`" in str(question.instructions["question"])

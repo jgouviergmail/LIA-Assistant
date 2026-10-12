@@ -31,7 +31,10 @@ describe('composeStarterRail', () => {
   });
 
   it('puts grounded suggestions first and fills up with generics', () => {
-    const rail = composeStarterRail([{ id: 'next_event', params: { subject: 'Revue produit' } }], t);
+    const rail = composeStarterRail(
+      [{ id: 'next_event', params: { subject: 'Revue produit' } }],
+      t
+    );
 
     expect(rail).toHaveLength(CHAT_STARTER_IDS.length);
     expect(rail[0]).toMatchObject({ grounded: true });
@@ -69,7 +72,10 @@ describe('composeStarterRail', () => {
   });
 
   it('passes the parameters through so the wording names the real thing', () => {
-    const rail = composeStarterRail([{ id: 'close_loop', params: { subject: 'devis de Marie' } }], t);
+    const rail = composeStarterRail(
+      [{ id: 'close_loop', params: { subject: 'devis de Marie' } }],
+      t
+    );
 
     expect(rail[0].text).toContain('devis de Marie');
   });
@@ -118,30 +124,22 @@ describe('the known-suggestion list against the backend that produces them', () 
   // on host checkouts and in CI.
   const backendPath = path.resolve(process.cwd(), '../api/src/domains/chat/suggestions.py');
 
-  it.skipIf(!fs.existsSync(backendPath))(
-    'words every suggestion the backend can emit',
-    () => {
-      const source = fs.readFileSync(backendPath, 'utf-8');
-      const emitted = [...source.matchAll(/ChatSuggestion\(id="([a-z_]+)"/g)].map(m => m[1]);
+  it.skipIf(!fs.existsSync(backendPath))('words every suggestion the backend can emit', () => {
+    const source = fs.readFileSync(backendPath, 'utf-8');
+    const emitted = [...source.matchAll(/ChatSuggestion\(id="([a-z_]+)"/g)].map(m => m[1]);
 
-      expect(emitted.length).toBeGreaterThan(0);
-      for (const id of emitted) {
-        expect(KNOWN_SUGGESTION_IDS.has(id), `backend emits "${id}" — no wording here`).toBe(true);
-      }
+    expect(emitted.length).toBeGreaterThan(0);
+    for (const id of emitted) {
+      expect(KNOWN_SUGGESTION_IDS.has(id), `backend emits "${id}" — no wording here`).toBe(true);
     }
-  );
+  });
 
-  it.skipIf(!fs.existsSync(backendPath))(
-    'declares nothing the backend never emits',
-    () => {
-      // The other direction: a stale entry here is dead vocabulary that looks
-      // supported, and would hide the day it stops being produced.
-      const source = fs.readFileSync(backendPath, 'utf-8');
-      const emitted = new Set(
-        [...source.matchAll(/ChatSuggestion\(id="([a-z_]+)"/g)].map(m => m[1])
-      );
+  it.skipIf(!fs.existsSync(backendPath))('declares nothing the backend never emits', () => {
+    // The other direction: a stale entry here is dead vocabulary that looks
+    // supported, and would hide the day it stops being produced.
+    const source = fs.readFileSync(backendPath, 'utf-8');
+    const emitted = new Set([...source.matchAll(/ChatSuggestion\(id="([a-z_]+)"/g)].map(m => m[1]));
 
-      expect([...KNOWN_SUGGESTION_IDS].sort()).toEqual([...emitted].sort());
-    }
-  );
+    expect([...KNOWN_SUGGESTION_IDS].sort()).toEqual([...emitted].sort());
+  });
 });
