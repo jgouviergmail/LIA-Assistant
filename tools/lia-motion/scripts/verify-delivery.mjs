@@ -10,6 +10,11 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { PRESENTATION_REVISION } from '../src/presentation-plan.ts';
+import {
+  loadPreservedPlaylist,
+  validateMainPlaylist,
+  verifyPreservedAssets,
+} from './preserved-playlist.ts';
 
 const project = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const root = path.resolve(project, '../..');
@@ -209,7 +214,8 @@ export function checkLoudness(measurement, master = false) {
     'finite audio measurements'
   );
   assert.ok(
-    Math.abs(integratedLufs - (master ? LIMITS.masterIntegratedLufs : LIMITS.webIntegratedLufs)) <= LIMITS.integratedToleranceLufs,
+    Math.abs(integratedLufs - (master ? LIMITS.masterIntegratedLufs : LIMITS.webIntegratedLufs)) <=
+      LIMITS.integratedToleranceLufs,
     `integrated loudness ${integratedLufs} LUFS is outside the measured acceptance window`
   );
   const toleranceDb = master ? LIMITS.pcmTruePeakToleranceDb : LIMITS.aacTruePeakToleranceDb;
@@ -287,7 +293,11 @@ async function verifyRecord(record, composition, schemas) {
 
 async function verifyPackagedMode(mode, compositions, expectedNames, schemas, music) {
   const delivery = await readJson(underOutput(path.resolve(output, `${mode}-delivery.json`)));
-  assert.equal(delivery.generation, PRESENTATION_REVISION, 'delivery belongs to the active revision');
+  assert.equal(
+    delivery.generation,
+    PRESENTATION_REVISION,
+    'delivery belongs to the active revision'
+  );
   assert.deepEqual(
     delivery.music,
     {
@@ -308,12 +318,29 @@ async function verifyPackagedMode(mode, compositions, expectedNames, schemas, mu
     `complete ${mode} delivery`
   );
   const manifestEntries = new Map();
+  let preserved = null;
   if (mode === 'main') {
-    const parsed = schemas.landingMediaManifestSchema.parse(
-      await readJson(path.resolve(output, 'manifest.json'))
+    const config = await loadPreservedPlaylist(schemas);
+    const landing = delivery.records.find(record => record.name === 'landing');
+    const full = delivery.records.find(record => record.name === 'full');
+    const parsed = validateMainPlaylist(
+      await readJson(path.resolve(output, 'manifest.json')),
+      landing.descriptor,
+      full.descriptor,
+      config,
+      schemas
     );
-    assert.equal(parsed.next.length, 1, 'main manifest carries the full edit after landing');
-    assert.deepEqual(parsed.presentation, parsed.next[0], 'exclusive presentation names the complete film');
+    preserved = await verifyPreservedAssets(config, output, schemas);
+    for (const record of preserved.records) {
+      record.videos = record.descriptor.renditions.map(rendition => ({
+        file: rendition.src,
+        ...checkPreservedStreams(
+          probeMedia(path.resolve(output, rendition.src)),
+          record.descriptor,
+          rendition
+        ),
+      }));
+    }
     manifestEntries.set('landing', descriptorOf(parsed));
     manifestEntries.set('full', parsed.next[0]);
   } else {
@@ -355,11 +382,51 @@ async function verifyPackagedMode(mode, compositions, expectedNames, schemas, mu
       `Qualified ${record.name}: delivered checksums, native schemas, two encoded renditions and measured audio.`
     );
   }
+  if (preserved) records.push(...preserved.records);
   return {
     records,
     edits: records.length,
     encodedVideos: records.reduce((count, record) => count + record.videos.length, 0),
+    ...(preserved
+      ? {
+          preservedAssets: preserved.assetCount,
+          preservedConfigurationSha256: await sha256(
+            path.resolve(project, 'scripts/preserved-playlist.json')
+          ),
+        }
+      : {}),
   };
+}
+
+/** Original codecs/timing are preserved; V6's soundtrack levels are not imposed. */
+export function checkPreservedStreams(probe, descriptor, rendition) {
+  const video = probe.streams?.filter(stream => stream.codec_type === 'video') ?? [];
+  const audio = probe.streams?.filter(stream => stream.codec_type === 'audio') ?? [];
+  assert.equal(video.length, 1, 'one preserved video stream');
+  assert.equal(audio.length, 1, 'one preserved audio stream');
+  const stream = video[0];
+  const fps = frameRate(stream.avg_frame_rate || stream.r_frame_rate);
+  assert.ok(stream.width > 0 && stream.height > 0, 'preserved video dimensions');
+  assert.ok(
+    Math.abs(stream.width / stream.height - descriptor.aspectRatio[0] / descriptor.aspectRatio[1]) <
+      0.001,
+    'preserved encoded aspect ratio'
+  );
+  const codec = rendition.type.includes('av01')
+    ? 'av1'
+    : rendition.type.includes('avc1')
+      ? 'h264'
+      : null;
+  if (codec) assert.equal(stream.codec_name, codec, 'preserved negotiated video codec');
+  const seconds = Number(probe.format?.duration);
+  const tolerance = 2 / fps + 1024 / Number(audio[0].sample_rate);
+  assert.ok(
+    Number.isFinite(seconds) &&
+      Number.isFinite(tolerance) &&
+      Math.abs(seconds - descriptor.durationSeconds) <= tolerance,
+    'preserved original duration'
+  );
+  return { measuredSeconds: seconds, fps, video: stream, audio: audio[0] };
 }
 
 async function verifyMaster(compositions) {

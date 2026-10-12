@@ -47,6 +47,15 @@ remains a separate review. Generated source reports are not video qualification.
 
 ## Render and deliver
 
+Before main packaging, restore all assets pinned in
+[`scripts/preserved-playlist.json`](scripts/preserved-playlist.json) into
+`exports/lia-motion/`, using the published GitHub media base and the original
+bare file names, or the recorded original URLs. Their full SHA-256 hashes and
+byte counts are checked. They retain the two historical public videos after
+the new teaser and complete film; the dedicated presentation remains the full
+LIA film. The source ZIP contains this configuration without duplicating the
+historical video files. Missing or changed assets stop packaging.
+
 ```powershell
 task motion:render -- all
 task motion:render -- focus
@@ -64,6 +73,11 @@ posters, beat maps and native manifests. Verification measures the delivered
 bytes, encoded stream properties and audio. The working master is ProRes HQ,
 25 fps, Rec.709, 10-bit 4:2:2 and stereo PCM 24-bit/48 kHz. A broadcaster's
 technical acceptance specification is separate from these local measurements.
+
+With an existing main delivery, `task motion:package -- playlist` updates only
+the complete playlist manifest; it does not render or convert audio. Verification
+checks all preserved renditions and beat maps while retaining their original
+codecs, timing, credits and AI disclosures.
 
 A same-revision update can selectively render/package named focuses:
 

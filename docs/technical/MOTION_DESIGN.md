@@ -111,6 +111,19 @@ writers. Independent render jobs use separate bundles, but prepare shared
 native resources before starting parallel exports. Bound `MOTION_CONCURRENCY`
 to available memory and CPU. No render invokes a LIA account or provider.
 
+The main playlist retains the two historical public films declared in
+`tools/lia-motion/scripts/preserved-playlist.json`: their original renditions,
+credits, AI disclosure and beat maps follow the new teaser and complete film.
+The dedicated `presentation` still names only the complete LIA film. Copy every
+pinned historical asset into the delivery directory before main packaging;
+missing or changed bytes fail instead of silently dropping an older film.
+The recorded legacy name prefixes identify the original source, rather than each
+rendition's content, so the separate full SHA-256 fingerprints are authoritative.
+After an existing main delivery, `task motion:package -- playlist` regenerates
+only the manifest, with no render or audio conversion. Main delivery verification
+checks the complete ordered playlist and all preserved assets with native schemas;
+legacy codecs and original audio are retained without imposing the V6 soundtrack.
+
 The export directory is `exports/lia-motion/` and is ignored by Git. Web delivery
 contains hash-named H.264 HD/mobile renditions, posters, beat maps and manifests.
 Verification checks actual checksums, native schemas, duration, frame rate,

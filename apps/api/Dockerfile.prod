@@ -178,8 +178,25 @@ ENV APP_VERSION=${APP_VERSION} \
     GIT_COMMIT_SHA=${GIT_COMMIT_SHA} \
     BUILD_DATE=${BUILD_DATE}
 
-# Install prerequisites for repository setup (curl, gnupg needed for apt key imports)
-RUN apt-get update && apt-get install -y --no-install-recommends curl gnupg xz-utils \
+# Keep the real xz-utils/xdg-utils alternative targets before their postinst.
+# Debian slim excludes manpages; the later Bash/pager bootstrap cannot repair
+# missing lzma/open slave links. A distinct policy survives that bootstrap.
+RUN printf '%s\n' \
+      'path-include /usr/share/man/man1/xz.1.gz' \
+      'path-include /usr/share/man/man1/unxz.1.gz' \
+      'path-include /usr/share/man/man1/xzcat.1.gz' \
+      'path-include /usr/share/man/man1/xzmore.1.gz' \
+      'path-include /usr/share/man/man1/xzless.1.gz' \
+      'path-include /usr/share/man/man1/xzdiff.1.gz' \
+      'path-include /usr/share/man/man1/xzcmp.1.gz' \
+      'path-include /usr/share/man/man1/xzgrep.1.gz' \
+      'path-include /usr/share/man/man1/xzegrep.1.gz' \
+      'path-include /usr/share/man/man1/xzfgrep.1.gz' \
+      'path-include /usr/share/man/man1/xdg-open.1.gz' \
+      > /etc/dpkg/dpkg.cfg.d/zz-lia-runtime-alternatives-manpages
+
+# Install prerequisites for repository setup (curl, gnupg needed for apt key imports).
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends curl gnupg xz-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js from the OFFICIAL nodejs.org distribution, on the 24 LTS line

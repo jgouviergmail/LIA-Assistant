@@ -1,0 +1,127 @@
+{
+  "version": 1,
+  "sourceSnapshotSha256": "2e8af62b6eb8b2a48b3e6ca0e5eff744eb591902636fc0d5f1cfb0fbddef6d02",
+  "sourceManifestUrl": "https://myclaude.jeyswork.com/media/lia/landing/manifest.json",
+  "videos": [
+    {
+      "id": "underclass",
+      "descriptor": {
+        "poster": "underclass-7dfdd6a89a1b-poster.webp",
+        "renditions": [
+          {
+            "src": "underclass-7dfdd6a89a1b-1080p.av1.mp4",
+            "type": "video/mp4; codecs=\"av01.0.08M.10\"",
+            "minWidth": 900
+          },
+          {
+            "src": "underclass-7dfdd6a89a1b-1080p.h264.mp4",
+            "type": "video/mp4; codecs=\"avc1.640032\"",
+            "minWidth": 900
+          },
+          {
+            "src": "underclass-7dfdd6a89a1b-720p.av1.mp4",
+            "type": "video/mp4; codecs=\"av01.0.05M.10\""
+          },
+          {
+            "src": "underclass-7dfdd6a89a1b-720p.h264.mp4",
+            "type": "video/mp4; codecs=\"avc1.64001F\""
+          }
+        ],
+        "aspectRatio": [16, 9],
+        "durationSeconds": 306.48,
+        "beats": "underclass-7dfdd6a89a1b-beats-v2.json",
+        "credit": {
+          "label": "@anabology",
+          "url": "https://x.com/anabology"
+        },
+        "aiGenerated": true
+      }
+    },
+    {
+      "id": "stopshipping",
+      "descriptor": {
+        "poster": "stopshipping-64dc639bc976-poster.webp",
+        "renditions": [
+          {
+            "src": "stopshipping-64dc639bc976-720p.av1.mp4",
+            "type": "video/mp4; codecs=\"av01.0.05M.10\""
+          },
+          {
+            "src": "stopshipping-64dc639bc976-720p.h264.mp4",
+            "type": "video/mp4; codecs=\"avc1.64001F\""
+          }
+        ],
+        "aspectRatio": [16, 9],
+        "durationSeconds": 251.477,
+        "beats": "stopshipping-64dc639bc976-beats-v2.json",
+        "credit": {
+          "label": "@vikktorrrre",
+          "url": "https://x.com/vikktorrrre"
+        },
+        "aiGenerated": true
+      }
+    }
+  ],
+  "assets": [
+    {
+      "name": "underclass-7dfdd6a89a1b-poster.webp",
+      "bytes": 269748,
+      "sha256": "4060427d421f5ef2c458f794756980988a3f784b9757722c29f8a72b7d0dd30b",
+      "originalUrl": "https://myclaude.jeyswork.com/media/lia/landing/underclass-7dfdd6a89a1b-poster.webp"
+    },
+    {
+      "name": "underclass-7dfdd6a89a1b-beats-v2.json",
+      "bytes": 13181,
+      "sha256": "ed05da7c30af86fefbbaf333e555ebcc8f9afa7fbbe795bd20a109b9ed7797e7",
+      "originalUrl": "https://myclaude.jeyswork.com/media/lia/landing/underclass-7dfdd6a89a1b-beats-v2.json"
+    },
+    {
+      "name": "underclass-7dfdd6a89a1b-1080p.av1.mp4",
+      "bytes": 153441522,
+      "sha256": "b649f08b46e8c01c1e7b8fa1604cf8a9e052748ed34e131038eebc881cbc7c3f",
+      "originalUrl": "https://myclaude.jeyswork.com/media/lia/landing/underclass-7dfdd6a89a1b-1080p.av1.mp4"
+    },
+    {
+      "name": "underclass-7dfdd6a89a1b-1080p.h264.mp4",
+      "bytes": 212467013,
+      "sha256": "081cde321a1623ec65cacac7ca97d48a529f7770934be62c692cfc9acc46cd48",
+      "originalUrl": "https://myclaude.jeyswork.com/media/lia/landing/underclass-7dfdd6a89a1b-1080p.h264.mp4"
+    },
+    {
+      "name": "underclass-7dfdd6a89a1b-720p.av1.mp4",
+      "bytes": 90554422,
+      "sha256": "36477b6f57a1936abc14f9652e5f0772fd65afb09fd01c6d7dbee03690101c70",
+      "originalUrl": "https://myclaude.jeyswork.com/media/lia/landing/underclass-7dfdd6a89a1b-720p.av1.mp4"
+    },
+    {
+      "name": "underclass-7dfdd6a89a1b-720p.h264.mp4",
+      "bytes": 115025991,
+      "sha256": "6c77e440cfbc2230bf50b032b1c2140173d98eafcc2804dd46fea3464586b944",
+      "originalUrl": "https://myclaude.jeyswork.com/media/lia/landing/underclass-7dfdd6a89a1b-720p.h264.mp4"
+    },
+    {
+      "name": "stopshipping-64dc639bc976-poster.webp",
+      "bytes": 56710,
+      "sha256": "91498d3e3fe76ff6cf2cbcabb0db0fe57936f28cd91c90ebbc68f7c4c456cd93",
+      "originalUrl": "https://myclaude.jeyswork.com/media/lia/landing/stopshipping-64dc639bc976-poster.webp"
+    },
+    {
+      "name": "stopshipping-64dc639bc976-beats-v2.json",
+      "bytes": 10728,
+      "sha256": "8ede51270c91262b9fdbeef534722779d51a1a6a0d3f4dcf2f60b29725ca3a55",
+      "originalUrl": "https://myclaude.jeyswork.com/media/lia/landing/stopshipping-64dc639bc976-beats-v2.json"
+    },
+    {
+      "name": "stopshipping-64dc639bc976-720p.av1.mp4",
+      "bytes": 30011342,
+      "sha256": "aa5e98f0a044ee5cf0dc55c8c2337d35a78d884f62bbb8097f75016068d29413",
+      "originalUrl": "https://myclaude.jeyswork.com/media/lia/landing/stopshipping-64dc639bc976-720p.av1.mp4"
+    },
+    {
+      "name": "stopshipping-64dc639bc976-720p.h264.mp4",
+      "bytes": 36869988,
+      "sha256": "c6b455b0d6c61e47ae02a583875937e62986277eb6b41019d8430d6a5c069838",
+      "originalUrl": "https://myclaude.jeyswork.com/media/lia/landing/stopshipping-64dc639bc976-720p.h264.mp4"
+    }
+  ]
+}

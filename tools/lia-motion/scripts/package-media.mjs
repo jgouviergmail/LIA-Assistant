@@ -6,6 +6,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { measuredLoudnessFilter, runFfmpeg } from './audio-master.mjs';
 import { PRESENTATION_REVISION } from '../src/presentation-plan.ts';
+import { loadNativeSchemas } from './verify-delivery.mjs';
+import {
+  buildMainManifest,
+  loadPreservedPlaylist,
+  verifyPreservedAssets,
+} from './preserved-playlist.ts';
 
 const project = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const root = path.resolve(project, '../..');
@@ -201,10 +207,32 @@ async function focusDirectory() {
 async function packageMedia() {
   const mode = process.argv[2] ?? 'main';
   const requestedNames = process.argv.slice(3);
-  if (!['main', 'focus'].includes(mode)) throw new Error('Package mode must be main or focus');
+  if (!['main', 'focus', 'playlist'].includes(mode))
+    throw new Error('Package mode must be main, focus or playlist');
   // Resolve the physical target once before any file is written or renamed.
   if (!samePath(await realpath(output), output))
     throw new Error('Media export root must be a physical workspace directory');
+  const schemas = mode === 'focus' ? null : await loadNativeSchemas();
+  const preserved = schemas ? await loadPreservedPlaylist(schemas) : null;
+  if (preserved) await verifyPreservedAssets(preserved, output, schemas);
+  if (mode === 'playlist') {
+    if (requestedNames.length)
+      throw new Error('Playlist-only packaging accepts no composition names');
+    const delivery = JSON.parse(await readFile(exportPath(output, 'main-delivery.json'), 'utf8'));
+    if (delivery.generation !== PRESENTATION_REVISION || !Array.isArray(delivery.records))
+      throw new Error('A current main delivery is required before playlist-only packaging');
+    const landing = delivery.records.find(record => record.name === 'landing');
+    const full = delivery.records.find(record => record.name === 'full');
+    if (!landing || !full || delivery.records.length !== 2)
+      throw new Error('Playlist-only packaging requires the existing landing and full records');
+    for (const record of delivery.records) await verifyPreviousRecord(record, 'main');
+    const manifest = buildMainManifest(landing.descriptor, full.descriptor, preserved, schemas);
+    await writeMetadata(output, 'manifest.json', manifest);
+    console.log(
+      `Updated public playlist: ${1 + manifest.next.length} videos; no render or audio conversion.`
+    );
+    return;
+  }
   const music = JSON.parse(await readFile(path.resolve(project, 'src/music-film.json'), 'utf8'));
   const compositions = JSON.parse(await readFile(exportPath(output, 'compositions.json'), 'utf8'));
   const { available, selected } = selectCompositions(compositions, mode, requestedNames);
@@ -274,7 +302,7 @@ async function packageMedia() {
     const posterWorking = await workingFile(`${name}-poster-working.webp`);
     runFfmpeg([
       '-ss',
-      String(mode==='main'?(name==='full'?11:7):4),
+      String(mode === 'main' ? (name === 'full' ? 11 : 7) : 4),
       '-i',
       source,
       '-frames:v',
@@ -343,12 +371,11 @@ async function packageMedia() {
   if (mode === 'main') {
     const landing = ordered.find(record => record.name === 'landing');
     const full = ordered.find(record => record.name === 'full');
-    await writeMetadata(output, 'manifest.json', {
-      version: 1,
-      ...landing.descriptor,
-      next: [full.descriptor],
-      presentation: full.descriptor,
-    });
+    await writeMetadata(
+      output,
+      'manifest.json',
+      buildMainManifest(landing.descriptor, full.descriptor, preserved, schemas)
+    );
   } else {
     const directory = await focusDirectory();
     for (const record of updatedRecords) {
@@ -360,7 +387,7 @@ async function packageMedia() {
     }
   }
   await writeMetadata(output, `${mode}-delivery.json`, {
-    generation:PRESENTATION_REVISION,
+    generation: PRESENTATION_REVISION,
     music: {
       title: music.title,
       artist: music.artist,
