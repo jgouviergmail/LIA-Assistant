@@ -1,10 +1,10 @@
 # Getting Started - LIA
 
 > Complete guide to install, configure, and get started with LIA — Multi-Agent AI Assistant.
-> Every default value in this guide is the **production-proven configuration** actually running in production; you can adopt them as-is with confidence.
+> Start from the guided installer and the checked-in environment examples. Installer defaults are validated against the application's Settings; runtime model assignments and user preferences can differ between deployments. Review your instance's configuration before starting it.
 
 **Version**: 4.0
-**Last Updated**: 2026-08-22
+**Last Updated**: 2026-10-12
 **Compatibility**: LIA v3.0.0
 
 ## Table of Contents
