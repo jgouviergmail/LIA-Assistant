@@ -84,4 +84,6 @@ async def test_journal_creation_has_no_provider_work_before_exact_approval(
         select(User).where(User.id == owner_id).execution_options(populate_existing=True)
     )
     assert actor is not None and actor.journal_revision == previous_revision + int(committed)
-    assert actor.journal_portrait_full == (None if committed else "Previous portrait")
+    # ADR-343: a journal change never wipes the portrait — the moved revision
+    # reads it as STALE until the next consolidation replaces it.
+    assert actor.journal_portrait_full == "Previous portrait"

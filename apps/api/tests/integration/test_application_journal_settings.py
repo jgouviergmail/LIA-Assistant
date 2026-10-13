@@ -120,6 +120,8 @@ async def test_journal_settings_compare_source_and_preserve_observed_commit_trut
     assert saved.extraction_revision == extraction_revision + int(changed)
     invalidated = scenario in {"disable", "committed_lost_ack"}
     assert saved.journal_revision == journal_revision + int(invalidated)
-    assert saved.journal_portrait_full == (None if invalidated else "Stored portrait")
+    # ADR-343: the portrait is kept whatever the scenario; an invalidating one
+    # moves the revision above, which is what reads the words as STALE.
+    assert saved.journal_portrait_full == "Stored portrait"
     assert saved.journals_enabled is (scenario not in {"disable", "stale", "committed_lost_ack"})
     assert saved.journal_context_max_results == (1 if scenario == "context" else 5)
