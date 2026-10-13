@@ -100,6 +100,22 @@
     "review_by": "2026-11-30"
   },
   {
+    "kind": "advisory",
+    "subject": "pip:aiohttp@3.14.4",
+    "ref": "GHSA-9xw5-w5jj-pvcg",
+    "reason": "The repository advisory contradicts itself: its range reads '>=2,<=3.14.4' while its patched version is 3.14.4. The 3.14.4 release notes carry the fix (multipart handling moved to spooled temporary files to bound the file descriptors), 3.14.5 adds no security change, and the seven sibling advisories published with 3.14.4 read '<=3.14.3'. LIA runs no aiohttp server. Lifted when the advisory's range is corrected, or by the next aiohttp floor.",
+    "owner": "maintainer",
+    "review_by": "2026-11-30"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:apscheduler@3.11.2",
+    "ref": "GHSA-2r6w-vc63-g3hx",
+    "reason": "Needs a persistent job store: the advisory is pickle.loads() on a stored job_state, which only the SQLAlchemy, MongoDB, Redis, RethinkDB and ZooKeeper stores read. LIA builds one AsyncIOScheduler() with no jobstores argument (apps/api/src/main.py), so every job lives in the default in-memory store and nothing is ever unpickled; the account export's one-shot entry is in-memory too (domains/account_export/models.py). No release patches the 3.x line yet: take the fix when it ships, and re-read this acceptance before configuring any persistent store.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
     "kind": "npm-deprecated",
     "subject": "npm:eslint@9.39.5",
     "reason": "The deprecation is the end of life of ESLint 9: same condition as the end-of-life acceptance of eslint 9.",

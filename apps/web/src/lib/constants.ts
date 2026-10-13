@@ -200,15 +200,16 @@ export const API_TIMEOUT_LONG = 60000;
  * Timeout for the manual journal consolidation endpoints
  * (`POST /journals/consolidate` and `POST /journals/portrait/feedback`).
  *
- * The LLM type `journal_consolidation` has a server-side timeout (default 180s,
- * admin-configurable via the LLM admin UI). The client must allow more time
- * than the server so the response always reaches the UI before any client-side
- * cut-off. Override via the env var `NEXT_PUBLIC_JOURNAL_CONSOLIDATION_TIMEOUT_MS`.
+ * The consolidation runs one model call with reasoning (ADR-343 removed the
+ * review) under the server bound `JOURNAL_CONSOLIDATION_TIMEOUT_SECONDS`
+ * (default 300 s). The client must allow more time than the
+ * server so the response always reaches the UI before any client-side cut-off.
+ * Override via the env var `NEXT_PUBLIC_JOURNAL_CONSOLIDATION_TIMEOUT_MS`.
  */
 export const JOURNAL_CONSOLIDATION_TIMEOUT_MS = (() => {
   const raw = process.env.NEXT_PUBLIC_JOURNAL_CONSOLIDATION_TIMEOUT_MS;
   const parsed = raw ? Number.parseInt(raw, 10) : NaN;
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 240_000;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 330_000;
 })();
 
 /**

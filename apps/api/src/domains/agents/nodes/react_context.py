@@ -226,9 +226,9 @@ def build_reference_resolution_block(state: MessagesState) -> str | None:
 async def build_user_model_block() -> str | None:
     """User-model portrait — ambient diffusion (ADR-079).
 
-    Brief format (~60 tokens) injected once at setup so the loop carries the
-    same posture as the pipeline mode. The person is read from the ambient
-    runtime context (ADR-231).
+    Brief format (two or three sentences under JOURNAL_PORTRAIT_BRIEF_MAX_TOKENS)
+    injected once at setup so the loop carries the same posture as the pipeline
+    mode. The person is read from the ambient runtime context (ADR-231).
 
     Returns:
         The portrait block, or None.

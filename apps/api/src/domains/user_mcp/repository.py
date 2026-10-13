@@ -5,11 +5,12 @@ Phase: evolution F2.1 — MCP Per-User
 Created: 2026-02-28
 """
 
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import func, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import aliased, defer
 
 from src.core.exceptions import ResourceNotFoundError
 from src.core.repository import BaseRepository
@@ -76,9 +77,16 @@ class UserMCPServerRepository(BaseRepository[UserMCPServer]):
 
         Uses the partial index ix_user_mcp_servers_user_enabled for performance.
         This is the hot path called on every chat request.
+
+        The persisted vector envelope (``tool_embeddings_cache``, megabytes of
+        JSON per server) is NOT loaded here: every turn used to parse it into
+        Python floats for a catalogue that had not changed (ADR-283 amendment
+        2026-10-12). It is read alone, by :meth:`get_tool_embeddings_cache`,
+        when the per-worker vector cache has no entry for the catalogue.
         """
         stmt = (
             select(UserMCPServer)
+            .options(defer(UserMCPServer.tool_embeddings_cache))
             .where(UserMCPServer.user_id == user_id)
             .where(UserMCPServer.is_enabled.is_(True))
             .where(UserMCPServer.status == UserMCPServerStatus.ACTIVE.value)
@@ -86,6 +94,19 @@ class UserMCPServerRepository(BaseRepository[UserMCPServer]):
         )
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
+
+    async def get_tool_embeddings_cache(self, server_id: UUID) -> dict[str, Any] | None:
+        """The persisted vector envelope of one server, read alone.
+
+        Args:
+            server_id: The server whose envelope is wanted.
+
+        Returns:
+            The envelope as stored, or None when the row has none (or is gone).
+        """
+        stmt = select(UserMCPServer.tool_embeddings_cache).where(UserMCPServer.id == server_id)
+        envelope: dict[str, Any] | None = await self.db.scalar(stmt)
+        return envelope
 
     async def get_auth_required_for_user(
         self,

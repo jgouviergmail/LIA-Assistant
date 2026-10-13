@@ -56,19 +56,16 @@ from src.domains.journals.consolidation_output import (
 from src.domains.journals.consolidation_output import (
     parse_maintenance_output as _parse_consolidation_result,
 )
-from src.domains.journals.consolidation_settlement import settle_maintenance, validate_maintenance
+from src.domains.journals.consolidation_settlement import settle_maintenance
 from src.domains.journals.constants import JOURNAL_ENTRY_CONTENT_MAX_LENGTH
 from src.domains.journals.extraction_service import (
     _persist_journal_tokens,
     _update_user_last_cost,
 )
+from src.domains.journals.maintenance_actions import admit_maintenance, repair_maintenance
 from src.domains.journals.portrait_diagnostics import (
     log_consolidation_failure,
     log_consolidation_rejection,
-)
-from src.domains.journals.portrait_review import (
-    prepare_portrait_review,
-    review_portrait,
 )
 from src.domains.journals.portrait_sources import build_portrait_source_sections
 from src.domains.journals.prompt_builders import build_consolidation_prompt
@@ -497,21 +494,6 @@ async def _finish_consolidation_attempt(
     await finish_attempt(user_id, snapshot, status)
 
 
-async def _may_review_portrait(
-    user_id: UUID, snapshot: ConsolidationSnapshot, *, manual: bool
-) -> str:
-    """Consent and spend limits are rechecked before the additional paid call."""
-    from src.domains.usage_limits.service import UsageLimitService
-    from src.infrastructure.database import get_db_context
-
-    async with get_db_context() as db:
-        if await current_snapshot(db, user_id, snapshot, manual=manual) is None:
-            return "stale"
-    if await UsageLimitService.is_user_blocked_for_llm(user_id, layer="journal_consolidation"):
-        return "failed"
-    return "ready"
-
-
 async def _current_personality_code(db: Any, user: Any) -> str | None:
     """Resolve the personality captured by the current account preferences."""
     from src.domains.personalities.service import PersonalityService
@@ -616,10 +598,15 @@ async def _run_consolidation(
         # Health Metrics signals — empty string when disabled / no data.
         health_signals_section = await _maybe_build_health_signals_section(user_id)
 
-        # The four portrait sources (part B), each under its own gates and
-        # budget, with the provenance the portrait will be persisted with.
+        # The portrait sources (part B, nine since 2026-10-12), each under its own
+        # gates, whole, under one share of the slot's window, with the provenance
+        # the portrait will be persisted with.
+        context_window = get_effective_context_window_for_slot("journal_consolidation")
         sources = await build_portrait_source_sections(
-            user_id, user_language, journal_entries=len(entries)
+            user_id,
+            user_language,
+            journal_entries=len(entries),
+            window_tokens=context_window,
         )
         if _sources_unavailable(sources.provenance):
             failed = True
@@ -641,10 +628,7 @@ async def _run_consolidation(
             size_management_instruction=size_management_instruction,
             health_signals_section=health_signals_section,
             personality_code=personality_code,
-            memories_section=sources.sections["memories"],
-            interests_section=sources.sections["interests"],
-            habits_section=sources.sections["habits"],
-            debriefs_section=sources.sections["relation_debriefs"],
+            portrait_sources=sources.sections,
         )
 
         # Recheck the same consent/source snapshot immediately before paying.
@@ -656,7 +640,6 @@ async def _run_consolidation(
         requested_model = get_llm_config_for_agent(settings, "journal_consolidation").model
         llm = get_llm("journal_consolidation")
         configured_model = model_name_of(llm) or requested_model
-        context_window = get_effective_context_window_for_slot("journal_consolidation")
         llm_started_at = time()
         from src.infrastructure.cache.pricing_cache import capture_pricing_snapshot
 
@@ -709,34 +692,11 @@ async def _run_consolidation(
                 "journal_consolidation_invalid_output", user_id=str(user_id), reason=parsed.error
             )
             return 0
-        validate_maintenance(parsed, entries, max_entry_chars)
-        candidate = prepare_portrait_review(parsed, entries, sources)
-        review = None
-        if candidate is not None:
-            status = await _may_review_portrait(user_id, snapshot, manual=manual)
-            if status != "ready":
-                failed = True
-                return 0
-            review = await review_portrait(
-                candidate,
-                llm=llm,
-                user_id=user_id,
-                run_id=run_id,
-                configured_model=configured_model,
-                requested_model=requested_model,
-                capture=capture,
-                invoke=invoke_with_instrumentation,
-                persist=_persist_journal_tokens,
-                context_window=context_window,
-            )
-            if review.rejected:
-                logger.info(
-                    "journal_portrait_partially_approved",
-                    user_id=str(user_id),
-                    reviewed_count=len(candidate.evidence),
-                    approved_count=len(review.approved_indices or ()),
-                    rejected=list(review.rejected),
-                )
+        # An abstraction its supports cannot carry is filed at the level they carry,
+        # and an action the snapshot refuses is dropped alone: neither voids the paid
+        # batch any more (measured 2026-10-12 c and 2026-10-13, ADR-343).
+        parsed = repair_maintenance(parsed, entries)
+        parsed = admit_maintenance(parsed, entries, max_entry_chars)
         from src.infrastructure.llm.embedding_context import (
             get_embedding_context,
             restore_embedding_context,
@@ -757,7 +717,6 @@ async def _run_consolidation(
                 manual=manual,
                 personality_code=personality_code,
                 max_entry_chars=max_entry_chars,
-                review=review,
             )
         finally:
             restore_embedding_context(previous_embedding_context)

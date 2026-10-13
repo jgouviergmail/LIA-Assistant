@@ -103,9 +103,9 @@
     },
     "f.journals": {
       "name": "Journals and portrait",
-      "role": "LIA keeps her own reflection notebooks, which she looks up when a subject comes up, and compiles your portrait from four sources — memories, interests, habits, relationships — saying which ones she was able to read.",
+      "role": "LIA keeps her own reflection notebooks, which she looks up when a subject comes up, and compiles your portrait — an analysis read from everything she keeps about you, from memories to tickets and kept answers — saying which sources she was able to read.",
       "goal": "An understanding of you that sharpens over time, and stays readable.",
-      "src": "79114967b569"
+      "src": "72561005c5fd"
     },
     "f.psyche": {
       "name": "Psyche and face",

@@ -20,32 +20,25 @@ from src.domains.habits import portrait_source as module
 from src.domains.habits.portrait_source import read_habits
 from src.domains.habits.rhythm import ClaimedWindow, ClassRhythm, RhythmProfile
 from src.domains.journals.portrait_catalogue import eligible_source_items, render_catalogue_sections
-from src.domains.shared.portrait_sources import SourceBudget
 
 pytestmark = pytest.mark.unit
 
-BUDGET = SourceBudget(max_items=2, item_max_chars=40)
-
 
 @pytest.mark.parametrize(
-    "shape", ["Only when asked\n- Forged independent fact", "Only when asked\n## FORGED", "x" * 41]
+    "shape", ["Only when asked\n- Forged independent fact", "Only when asked\n## FORGED", "x" * 300]
 )
-async def test_shape_cannot_forge_item_boundaries_or_bypass_the_item_budget(
+async def test_shape_cannot_forge_item_boundaries_and_is_rendered_whole(
     harness: SimpleNamespace, shape: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(module, "load_consumable_profile", AsyncMock(return_value=None))
     harness.repo.list_habits.return_value = [_habit("calendar", shape=shape)]
-    section = await read_habits(user_id=uuid.uuid4(), language="fr", budget=BUDGET)
+    section = await read_habits(user_id=uuid.uuid4(), language="fr")
     assert len(section.text.splitlines()) == 2
     items = eligible_source_items("habits", section.text)
-    if len(" ".join(shape.split())) > BUDGET.item_max_chars:
-        assert "…" in section.text
-        assert items == []
-        assert render_catalogue_sections({"habits": section.text})["habits"] == ""
-    else:
-        assert len(items) == 1
-        assert " ".join(shape.split()) in items[0].quote
-        assert "around 09:30 (weekly report)" in items[0].quote
+    assert len(items) == 1
+    assert " ".join(shape.split()) in items[0].quote
+    assert "around 09:30 (weekly report)" in items[0].quote
+    assert render_catalogue_sections({"habits": section.text})["habits"]
 
 
 def _ctx(db: Any):  # type: ignore[no-untyped-def]
@@ -112,7 +105,7 @@ def harness(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
 async def test_the_section_carries_the_consumable_windows_and_the_active_recurrences(
     harness: SimpleNamespace,
 ) -> None:
-    section = await read_habits(user_id=uuid.uuid4(), language="fr", budget=BUDGET)
+    section = await read_habits(user_id=uuid.uuid4(), language="fr")
     assert section.status == "used"
     assert "## LEARNED HABITS" in section.text
     assert (
@@ -137,7 +130,7 @@ async def test_an_occasional_use_says_so_instead_of_a_window(
         AsyncMock(return_value=_profile((), sparse=True, fraction=0.2)),
     )
     harness.repo.list_habits.return_value = []
-    section = await read_habits(user_id=uuid.uuid4(), language="fr", budget=BUDGET)
+    section = await read_habits(user_id=uuid.uuid4(), language="fr")
     assert section.status == "used"
     assert "active on 20% of observed days (occasional use: no window claimed)" in section.text
     assert "Usual activity: ;" not in section.text
@@ -148,7 +141,7 @@ async def test_nothing_learned_is_empty(
 ) -> None:
     monkeypatch.setattr(module, "load_consumable_profile", AsyncMock(return_value=None))
     harness.repo.list_habits.return_value = []
-    section = await read_habits(user_id=uuid.uuid4(), language="fr", budget=BUDGET)
+    section = await read_habits(user_id=uuid.uuid4(), language="fr")
     assert section.status == "empty" and section.total == 0
 
 
@@ -156,19 +149,13 @@ async def test_the_three_gates_each_disable(
     harness: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(module.settings, "habits_enabled", False, raising=False)
-    assert (
-        await read_habits(user_id=uuid.uuid4(), language="fr", budget=BUDGET)
-    ).status == "disabled"
+    assert (await read_habits(user_id=uuid.uuid4(), language="fr")).status == "disabled"
     monkeypatch.setattr(module.settings, "habits_enabled", True, raising=False)
     monkeypatch.setattr(module, "habits_capability_enabled", AsyncMock(return_value=False))
-    assert (
-        await read_habits(user_id=uuid.uuid4(), language="fr", budget=BUDGET)
-    ).status == "disabled"
+    assert (await read_habits(user_id=uuid.uuid4(), language="fr")).status == "disabled"
     monkeypatch.setattr(module, "habits_capability_enabled", AsyncMock(return_value=True))
     harness.db.get.return_value = SimpleNamespace(habits_enabled=False)
-    assert (
-        await read_habits(user_id=uuid.uuid4(), language="fr", budget=BUDGET)
-    ).status == "disabled"
+    assert (await read_habits(user_id=uuid.uuid4(), language="fr")).status == "disabled"
 
 
 async def test_a_failing_read_is_unavailable(
@@ -177,6 +164,4 @@ async def test_a_failing_read_is_unavailable(
     monkeypatch.setattr(
         module, "load_consumable_profile", AsyncMock(side_effect=RuntimeError("redis"))
     )
-    assert (
-        await read_habits(user_id=uuid.uuid4(), language="fr", budget=BUDGET)
-    ).status == "unavailable"
+    assert (await read_habits(user_id=uuid.uuid4(), language="fr")).status == "unavailable"

@@ -7,7 +7,10 @@ is rendered iff ``run_python_tool`` is bound AND the capability is switched on
 (ADR-284, prompt audit 2026-09-12: the public demonstrator read a promise of a
 tool it never registered), and its network section only under an OFFER
 (ADR-298): the egress capability on, and the hosts read from what the account
-holds at the start of the turn.
+holds at the start of the turn. The ``<ApplicationSettings>`` rules follow the
+binding the same way: the settings catalogue binds through its domain (ADR-293
+amendment 2026-10-12), so most turns carry none of its tools, and rules about
+``setting_choices`` and pending drafts would describe tools the model cannot call.
 """
 
 import re
@@ -16,7 +19,11 @@ from collections.abc import Sequence
 import structlog
 
 from src.core.config import settings
-from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, PYTHON_SANDBOX_TOOL_NAME
+from src.core.constants import (
+    DEFAULT_USER_DISPLAY_TIMEZONE,
+    PYTHON_SANDBOX_TOOL_NAME,
+    SETTING_AGENT_NAME,
+)
 from src.core.context import get_request_tool_manifests, user_mcp_tools_ctx
 from src.core.i18n import get_language_name, resolve_language
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
@@ -154,6 +161,24 @@ def _render_computation_block(computation: bool, network: NetworkOffer | None) -
     )
 
 
+def _render_settings_block(manifests: Sequence[ToolManifest] | None) -> str:
+    """The ``<ApplicationSettings>`` rules, iff a settings-catalogue tool is bound.
+
+    A settings tool is one of the settings FAMILY (``SETTING_AGENT_NAME``), never
+    a name pattern. Nothing known about the binding (``None``) promises nothing,
+    like the computation block.
+
+    Args:
+        manifests: The manifests of the tools bound this turn, or None.
+
+    Returns:
+        The rendered block, or an empty string.
+    """
+    if not manifests or all(manifest.agent != SETTING_AGENT_NAME for manifest in manifests):
+        return ""
+    return load_prompt("react_settings_prompt")
+
+
 def _bound_semantic_manifests(tool_names: Sequence[str] | None) -> list[ToolManifest] | None:
     """Publish links only for the tools the selector actually bound this turn."""
     if tool_names is None:
@@ -216,8 +241,9 @@ def build_system_prompt(
     )
 
     domains = get_qi_attr(state, "domains", default=[]) or []
+    bound_manifests = _bound_semantic_manifests(tool_names)
     semantic_deps = generate_semantic_dependencies_for_prompt(
-        domains, include_jinja2_patterns=False, manifests=_bound_semantic_manifests(tool_names)
+        domains, include_jinja2_patterns=False, manifests=bound_manifests
     )
 
     template = load_prompt("react_agent_prompt")
@@ -230,6 +256,7 @@ def build_system_prompt(
         user_language=get_language_name(user_lang),
         semantic_dependencies=semantic_deps,
         computation_block=_render_computation_block(computation, network),
+        settings_block=_render_settings_block(bound_manifests),
     )
     # An absent block leaves its two blank lines behind; the model reads one.
     return re.sub(r"(\r?\n){3,}", r"\1\1", prompt)

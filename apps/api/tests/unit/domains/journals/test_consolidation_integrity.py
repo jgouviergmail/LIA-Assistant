@@ -11,10 +11,10 @@ from src.domains.journals.consolidation_output import (
     PortraitSupport,
     grounded_portraits,
     parse_maintenance_output,
-    render_exact_evidence,
 )
 from src.domains.journals.maintenance_actions import validate_maintenance
 from src.infrastructure.llm.providers.token_counter import OpenAITokenCounter
+from tests.unit.domains.journals.evidence_view import evidence_view
 
 pytestmark = pytest.mark.unit
 
@@ -82,44 +82,43 @@ def test_conditional_method_keeps_its_trigger_and_does_not_become_identity():
         facet="interaction",
         text=prose,
         supports=[PortraitSupport(source=f"journal:{entry.id}", quote=text)],
-        in_brief=True,
     )
     full, _ = grounded_portraits([claim], [entry], {})
     assert full == prose and "WHEN" not in full
-    with pytest.raises(ValueError):
-        grounded_portraits(
-            [
-                claim.model_copy(
-                    update={
-                        "supports": [
-                            claim.supports[0].model_copy(
-                                update={"quote": "The user has a recurring cinema interest."}
-                            )
-                        ]
-                    }
-                )
-            ],
-            [entry],
-            {},
-        )
-    with pytest.raises(ValueError):
-        grounded_portraits(
-            [
-                claim.model_copy(
-                    update={
-                        "supports": [
-                            claim.supports[0].model_copy(
-                                update={
-                                    "quote": "DO verify the local release BECAUSE dates differ by country."
-                                }
-                            )
-                        ]
-                    }
-                )
-            ],
-            [entry],
-            {},
-        )
+    # A passage that is not the whole current rule proves nothing: the claim is dropped.
+    assert grounded_portraits(
+        [
+            claim.model_copy(
+                update={
+                    "supports": [
+                        claim.supports[0].model_copy(
+                            update={"quote": "The user has a recurring cinema interest."}
+                        )
+                    ]
+                }
+            )
+        ],
+        [entry],
+        {},
+    ) == (None, None)
+    # A passage that is not the whole current rule proves nothing: the claim is dropped.
+    assert grounded_portraits(
+        [
+            claim.model_copy(
+                update={
+                    "supports": [
+                        claim.supports[0].model_copy(
+                            update={
+                                "quote": "DO verify the local release BECAUSE dates differ by country."
+                            }
+                        )
+                    ]
+                }
+            )
+        ],
+        [entry],
+        {},
+    ) == (None, None)
 
 
 def test_only_whole_authorized_source_items_can_support_the_portrait():
@@ -131,42 +130,45 @@ def test_only_whole_authorized_source_items_can_support_the_portrait():
     )
     full, _ = grounded_portraits([claim], [], {"habits": line})
     assert "peu nombreuses" in full
-    for quote in (line[:-10], line + "…"):
-        with pytest.raises(ValueError):
-            grounded_portraits(
-                [
-                    claim.model_copy(
-                        update={"supports": [claim.supports[0].model_copy(update={"quote": quote})]}
-                    )
-                ],
-                [],
-                {"habits": line + "…"},
-            )
+    for quote in (line[:-10], line + " and more"):
+        # A passage that is not the whole item proves nothing: the claim is dropped,
+        # never published (an ellipsis inside an item is text since 2026-10-12).
+        assert grounded_portraits(
+            [
+                claim.model_copy(
+                    update={"supports": [claim.supports[0].model_copy(update={"quote": quote})]}
+                )
+            ],
+            [],
+            {"habits": line},
+        ) == (None, None)
 
 
-def test_portrait_packs_complete_passages_under_both_budgets(monkeypatch):
+def test_each_format_publishes_its_own_claims_whole_whatever_the_budget(monkeypatch):
     from src.core.config import settings
 
     entry = _entry(
         "WHEN urgent -> DO give one next step BECAUSE the user explicitly requested action."
     )
     prose = "Dans une situation urgente, concentrer l'aide sur une prochaine action concrète lorsqu'il l'a demandée."
-    claim = PortraitClaim(
+    support = PortraitSupport(source=f"journal:{entry.id}", quote=entry.content)
+    full_claim = PortraitClaim(facet="interaction", text=prose, supports=[support])
+    brief_claim = PortraitClaim(
         facet="interaction",
-        text=prose,
-        supports=[PortraitSupport(source=f"journal:{entry.id}", quote=entry.content)],
-        in_brief=True,
+        placement="brief",
+        text="Une action concrète en urgence.",
+        supports=[support],
     )
     count = OpenAITokenCounter().count(prose, "gpt-4o")
     monkeypatch.setattr(settings, "journal_portrait_full_max_tokens", count)
-    monkeypatch.setattr(settings, "journal_portrait_brief_max_tokens", 10)
+    monkeypatch.setattr(settings, "journal_portrait_brief_max_tokens", 3)
     published = []
-    full, brief = grounded_portraits([claim], [entry], {}, published=published)
-    assert full is not None and brief is None
-    assert published[0].in_brief is False
-    assert OpenAITokenCounter().count(full, "gpt-4o") <= count
+    full, brief = grounded_portraits([full_claim, brief_claim], [entry], {}, published=published)
+    # The budgets are targets the prompt states, never clamps: both claims are published.
+    assert full == prose and brief == brief_claim.text
+    assert [claim.placement for claim in published] == ["full", "brief"]
     monkeypatch.setattr(settings, "journal_portrait_full_max_tokens", 10)
-    assert grounded_portraits([claim], [entry], {}) == (None, None)
+    assert grounded_portraits([full_claim], [entry], {}) == (prose, None)
 
 
 @pytest.mark.parametrize("level", ["L2", "L3"])
@@ -182,7 +184,7 @@ def test_a_provisional_synthesis_retains_its_uncertainty_in_the_portrait(level):
     )
     full, _ = grounded_portraits([claim], [entry], {})
     assert full == prose
-    assert render_exact_evidence([claim], [entry], {})[0]["provisional"] is True
+    assert evidence_view([claim], [entry], {})[0]["provisional"] is True
 
 
 def test_existing_l3_cannot_be_reclassified_as_a_method_lesson():

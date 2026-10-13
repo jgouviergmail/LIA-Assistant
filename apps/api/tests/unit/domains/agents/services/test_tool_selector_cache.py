@@ -229,3 +229,74 @@ class TestTheClaimIsAlwaysReleased:
 
         assert (cache_dir / TOOL_EMBEDDINGS_CACHE_FILENAME).is_file()
         assert not self._lock(cache_dir).exists()
+
+
+@pytest.mark.unit
+class TestTheVectorsAreStoredCompact:
+    """ADR-283 amendment 2026-10-12: what the selector keeps is float32, never Python floats."""
+
+    async def test_a_cold_initialisation_stores_float32_arrays(
+        self, cache_dir: Path, provider: Any
+    ) -> None:
+        import numpy as np
+
+        selector = SemanticToolSelector()
+        await selector.initialize([_manifest("alpha")])
+
+        width = int(settings.memory_embedding_dimensions)
+        description = selector._tool_description_embeddings["alpha"]
+        keywords = selector._tool_keyword_embeddings["alpha"]
+        assert isinstance(description, np.ndarray) and description.dtype == np.float32
+        assert description.shape == (width,)
+        assert isinstance(keywords, np.ndarray) and keywords.dtype == np.float32
+        assert keywords.shape == (2, width)
+
+    async def test_a_warm_cache_is_stored_compact_too(self, cache_dir: Path, provider: Any) -> None:
+        """The JSON cache hands lists of floats over; none of them survives the load."""
+        import numpy as np
+
+        await SemanticToolSelector().initialize([_manifest("alpha")])
+        warm = SemanticToolSelector()
+        await warm.initialize([_manifest("alpha")])
+
+        assert len(provider.calls) == 1, "the second boot read the cache"
+        assert all(
+            isinstance(v, np.ndarray) and v.dtype == np.float32
+            for v in warm._tool_description_embeddings.values()
+        )
+        assert all(
+            isinstance(m, np.ndarray) and m.dtype == np.float32
+            for m in warm._tool_keyword_embeddings.values()
+        )
+
+    async def test_a_query_of_another_width_is_refused_once_not_per_tool(
+        self, cache_dir: Path, provider: Any, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Measured 2026-09-19: 163 dimension-mismatch warnings per turn, the ranking
+        blind. One warning now names the two widths; every score is 0.0 as before."""
+        import logging
+
+        selector = SemanticToolSelector()
+        await selector.initialize([_manifest("alpha"), _manifest("beta")])
+        wrong_width = [1.0, 0.0, 0.0]
+
+        with caplog.at_level(logging.WARNING):
+            ranked = selector.rank_tools(wrong_width, [_manifest("alpha"), _manifest("beta")])
+            result = await selector.select_tools(
+                "anything", [_manifest("alpha"), _manifest("beta")], query_embedding=wrong_width
+            )
+
+        assert ranked == ["alpha", "beta"], "no score: the declared order holds"
+        assert all(
+            score == 0.0 for score in result.all_scores.values()
+        ) or result.all_scores == dict.fromkeys(("alpha", "beta"), 0.5)
+        mismatch_lines = [
+            r
+            for r in caplog.records
+            if "semantic_tool_selector_query_width_mismatch" in r.getMessage()
+        ]
+        per_vector_lines = [
+            r for r in caplog.records if "cosine_similarity_dimension_mismatch" in r.getMessage()
+        ]
+        assert len(mismatch_lines) == 2, "one warning per call, not one per vector"
+        assert not per_vector_lines

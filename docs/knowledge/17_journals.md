@@ -39,7 +39,7 @@ The assistant writes through **two mechanisms**:
 **🔄 Periodic consolidation:**
 • Every few hours, the assistant reviews all its notes
 • Merges similar entries (mandatory first step), audits classifications, promotes patterns that emerge across many entries from L1 to L2, and feeds the user model with L3 facets
-• In the same call, it compiles a **user-model portrait** in two formats: a full version (~200 tokens) used in conversation and planner prompts, and a brief version (~60 tokens) injected into proactive notifications, voice, reminders, and the ReAct loop
+• In the same call, it compiles a **user-model portrait** in two formats: a full version — an analytical reading across everything LIA keeps about you — used in conversation and planner prompts, and a brief version of two or three sentences, written as a summary of its own, injected into proactive notifications, voice, reminders, and the ReAct loop
 • Can optionally analyze recent conversation history (configurable, higher cost)
 
 ## How do journals influence responses?
@@ -78,10 +78,12 @@ Yes! In **Settings > Features > Personal Journals**, you can:
 A dedicated **"Comment LIA te perçoit"** section sits at the top of the journals settings. It surfaces the compiled portrait (full + brief tabs, read-only) and three corrective levers:
 
 1. **Edit L3 entries** — entries flagged as `level=L3` are the source of the portrait. Modify or delete them and the portrait will be recompiled on the next consolidation.
-2. **🚩 Signaler un problème** — a free-text feedback box. Submitting it creates a special L0 entry tagged "user correction" and triggers a synchronous re-consolidation that re-weights L3 entries and recompiles the portrait with your signal pinned at top of the prompt. Loader visible (~5–10 s).
+2. **🚩 Signaler un problème** — a free-text feedback box. Submitting it creates a special L0 entry tagged "user correction" and triggers a synchronous re-consolidation that re-weights L3 entries and recompiles the portrait with your signal pinned at top of the prompt. Loader visible; it can take a few minutes.
 3. **🔄 Consolider maintenant** — runs the full consolidation cycle on demand, bypassing the cooldown.
 
 The portrait itself is intentionally **not directly editable**. It is a synthesis — you act through these three levers and the synthesis stays coherent.
+
+The card says when the portrait was compiled. When your journals change afterwards, a line says a recompilation is pending: the text stays on screen, never erased, until the next consolidation. Deleting entries withdraws only the passages they supported.
 
 ## What settings can I configure?
 
@@ -103,8 +105,8 @@ The assistant manages its own journals autonomously via prompt engineering. A gl
 Journal operations use **background LLM calls**:
 
 • **Extraction**: One call per qualifying conversation (most return empty — selective). The deferred self-evaluation enriches the same prompt at zero added LLM cost.
-• **Consolidation**: One call per cycle (every 4–12 h per user) — the same call now also produces the compiled portrait, so portrait diffusion costs nothing extra in LLM dollars.
-• Per-turn diffusion adds roughly +200 tokens on the conversation/planner prompts and ~+60 tokens on secondary flows (voice, reminders, heartbeat, proactive, ReAct, fallback). One extra DB read (~1 ms) per flow.
+• **Consolidation**: One call, at most once per cooldown (a few hours) and only when your journals or their sources moved — the same call also produces the compiled portrait, so portrait diffusion costs nothing extra in LLM dollars.
+• Per-turn diffusion adds the portrait's size to the prompts — the full version on the conversation/planner prompts, the brief one on secondary flows (voice, reminders, heartbeat, proactive, ReAct, fallback) — plus one database read per flow.
 • LLM models are configurable in **Admin > LLM Configuration** (category: Background)
 • Real costs visible in Settings > Features > Personal Journals (tokens in/out + EUR)
 • Costs integrated into the global dashboard consumption
@@ -157,17 +159,27 @@ cannot be read, LIA falls back to the default — never to an error.
 
 ## Where does my portrait come from?
 
-From four sources, on top of your journals: your **memories** (pinned ones
-first, then the most important), your **interests**, your **learned habits**
-(active windows only, never a paused one) and your recent **relationship
-debriefs**. Each source is read under its own switch — yours and your
-administrator's — and a source that is off or unreachable is named as such,
-never read as empty.
+From everything LIA keeps about you, on top of your journals: your
+**memories**, your **interests**, your **learned habits** (active windows only,
+never a paused one), your recent **relationship debriefs**, your **open
+loops**, your **Workboard** tickets, your **routines**, your **reminders** and
+your **kept answers**. Each source is read whole, under its own switches when
+it has any — yours and your administrator's — and a source that is off or
+unreachable is named as such, never read as empty.
+
+The portrait is an **analysis, not an inventory**: LIA reads you across those
+sources — posture, focus, context, rhythm, tensions, way of interacting, areas
+of uncertainty — and names a pattern rather than listing what grounds it. No
+second model reviews it; what keeps it honest is structural: every reading
+cites items LIA actually holds, and a sentence that merely restates one of
+them, or carries a figure, an address, a date or a name from the material, is
+left out.
 
 Under the portrait, in **Settings > Journals**, a provenance line says how many
 entries were compiled and, for each source, whether it was used, empty, off or
-unavailable. When a source moves — a memory added, a debrief rebuilt — the next
-consolidation is reopened.
+unavailable; if the material outgrows the compilation window, the sources read
+only in part are named on a line of their own. When a source moves — a memory
+added, a ticket closed — the next consolidation is reopened.
 
 ## Can LIA search its journal?
 Yes. Beyond the entries your message evokes, which it re-reads with every answer, LIA can **search** its journals for a subject found along the way — "*what have you noticed about the way I work?*", or the name of a project it just came across in an e-mail.

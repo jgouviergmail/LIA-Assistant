@@ -171,3 +171,120 @@ are adjacent in every order, so the cut walks back to the unit's first). A
 unit no member of which is reached is dropped whole. Replayed: 0 of the 3
 turns with an unbound skill tool (was 3), 62 tools bound instead of 60,
 +427 schema tokens. Without a ranking nothing changes — every tool is bound.
+
+## Amendment 2026-10-12 — a binding unit binds through its domain
+
+Read on production (v3.0.0) after the owner reported high token spend and
+latency on « occasional » exchanges: the rhythm was correctly resolved and
+applied — every turn of 72 hours took the relevance selection, and the three
+turns of a « frequent » test fell back on the cap (383 resolved tools against
+300) — yet the selection bound 141 to 179 tools, 55K to 62K tokens of schemas
+on every model call, and the two rhythms produced the same set.
+
+The last turn's bound set, read from the checkpoint: 156 tools for a question
+about the agenda — 6 of the detected domain, about 58 of family coverage (two
+per family over 29 families), 23 of nine expanded MCP servers (a door and two
+seats each), and **71 through twelve binding units of the settings catalogue**
+(`lia_meetings` 18, `lia_peers` 9, `lia_relations` 7, …). The register of
+treatments held ONE settings call in 125 ReAct turns of seven days. Over those
+seven days the bound set ran from 81 to 181 tools (median 100), the variance
+being the units.
+
+The amendment of 2026-09-20 made a unit ONE coverage seat and ONE rank of the
+semantic tail whatever its size, measured on the four skills tools (+427
+tokens). Commit 499c4cecc (ADR-335 to ADR-338) then declared forty units
+holding 180 tools in one family, and the rule was never re-measured: on the
+agenda question the family's two seats were two whole sections, and every
+section whose best member ranked in the first forty landed whole on that one
+rank — 71 tools through twelve units in all.
+
+A first correction counted a seat by its size but kept the family's first
+seat whole whatever its size; on the owner's dev turns the settings family's
+best section (`lia_meetings`, 18 tools) still rode the coverage seat on every
+turn and its other sections rode the tail — 37 to 41 settings tools of 115 to
+129 bound on agenda and mail questions — and when the router named the
+`setting` domain the priority tier bound the whole family: 180 settings tools,
+243 bound, 73 644 tokens of schemas on a real production turn. The owner's
+verdict: the settings tools were treated unlike every other family, and that
+is abnormal.
+
+**Decision.** A unit still lands whole or not at all, and **a unit never
+rides the tail**. A family holding at most ONE unit keeps the rule of
+2026-09-20 unchanged: `CATALOGUE_DOMAIN_COVERAGE_TOP_N` SEATS, its unit one of
+them whatever its size — one affordance, one door: the skills, the case that
+amendment measured (a first draft counted that family's seats in tools too,
+and would have dropped the skills whenever a loose sibling outranked them;
+reviewed 2026-10-12). A family of SEVERAL units is a catalogue of sections
+whose coverage seats count TOOLS (`_fitting`), and it is reachable through its
+DOMAIN: when the router does not name it, it takes no seat a unit would
+overflow (a section that fits the count still does, like any family's tools);
+when the router names it, its loose tools are all bound and its units by rank
+under `REACT_TOOL_SEMANTIC_TOP_K` tools, the first whole — the question is
+about the family, not about every section of it. The tail counts TOOLS as
+well. Every walk STOPS at the first seat that does not fit, never binding a
+lower-ranked seat in place of a higher-ranked one (ADR-286's doctrine for the
+paging of a tool result). The new set is a SUBSET of the old one on every
+turn. Without a ranking nothing changes. No tool name enters the rule: it reads
+the manifests' units and the router's domains.
+
+**The prompt follows the binding** (ADR-284): the `<ApplicationSettings>` rules
+of the ReAct prompt — read the options, use `setting_choices` values, a draft is
+pending — are rendered only when a tool of the settings family is bound
+(`react_settings_prompt.txt`, `react_prompt._render_settings_block`, the
+`<Computation>` contract applied to the catalogue). Before this amendment the
+family's best section rode a coverage seat on every turn, so the block was
+always backed by a tool; after it, left unconditional, it would have described
+tools absent from most turns. The family is named by ONE constant
+(`SETTING_AGENT_NAME`), read by the domain config and the prompt assembler.
+
+Stated, so a bound set can be read back from the log: `react_tool_selector_relevance`
+carries the tier counts (`priority_count`, `coverage_count`, `tail_count`) and the
+units bound whole (`unit_count`, `unit_tool_count`); `react_tool_selector_complete`
+carries `every_tool_requested` beside `every_tool` (the two differ on every capped
+frequent turn); `react_setup_complete` carries `exchange_rhythm` — the rhythm a
+turn ran with was in no log line. `REACT_AGENT_MAX_TOOLS` may reach 500 (owner
+request, 2026-10-12).
+
+**Measured** on three real rankings read from checkpoints and replayed
+through `ReactToolSelector.select` on the native catalogue of a dev instance
+(303 manifests), previous rule → this rule: the owner's dev agenda turn, 140
+tools and 49 443 schema tokens (73 of the settings catalogue) → 67 and 26 346
+(none); the production agenda turn, 136 and 46 835 (70) → 68 and 25 236 (2: a
+two-tool section that fits the family's two seats); the production turn whose
+domain was `setting`, 243 and 73 644 (all 180) → 103 and 36 706 (40: the seven
+best-ranked sections). The detected domains' loose tools and every other
+family's coverage are identical in every pair. The repository corpus
+(`scripts/react/selection_corpus.json`: synthetic questions and the tools they
+need, no one's turns, every domain one the router CAN name — `query` and
+`context` are not routable; its settings questions carry the `setting` domain,
+as the router is expected to name it) replays through
+`task react:selection:measure`. Not measured: the model's own choices on real
+turns under the new set — no corpus of real questions exists (the conversation
+resets purge them), so the proof is by construction (the subset property, the
+reachability of every family, the units never split) and on the corpus.
+
+A settings request the router does not route to `setting` now binds no settings
+section: the catalogue is treated like every other family (the owner's
+verdict) and reached through its domain alone, as the planner catalogue already
+reaches it in pipeline mode. **Whether the router names `setting` on real
+phrasings is not measured.** Its description (commit 499c4cecc) names font
+size, theme, language, timezone, personality and feature preferences — not the
+forty sections (meetings, knowledge spaces, memories, reminders, devices,
+channels, …) — and over the seven days before this amendment the router named
+it on none of 117 ReAct turns (Loki, production) while one settings tool ran
+(register); one older checkpoint carried the domain. To verify on dev with a
+handful of settings questions (a replay of the query analyzer on the corpus's
+settings questions is a few model calls) before relying on it; a description
+that names the sections is the lever if it fails, measured, never assumed.
+
+Left open, for the owner: the family coverage itself — two tools of every
+family on every turn, about 60 tools on a 36-family account plus the expanded
+MCP servers' doors and seats — is ADR-293's « every family reachable »
+guarantee and the remaining mass of the bound set; narrowing it (one seat for
+families outside the best-ranked ones, a token budget) changes what the model
+sees and is a product decision, not an accounting fix. Observed on the same
+turns and not addressed here: a recovery pass (ADR-310, widened by ADR-336 to
+observed gaps) ended `still_unresolved` on four dev turns of four and on 14 of
+21 production turns in seven days, two model calls each; and the initiative
+node runs before the response node, five to eight seconds ahead of the first
+token.

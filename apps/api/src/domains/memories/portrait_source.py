@@ -3,7 +3,7 @@
 Installed into ``domains/shared/portrait_sources`` so ``journals`` reads it
 without importing this domain. Three gates, read AT CALL TIME: the deployment
 ceiling, the operator switch (``is_capability_enabled``) and the person's own
-preference. One bounded page, most important first, beside the EXACT total;
+preference. The WHOLE set, most important first, beside the EXACT total;
 each item carries the emotional label the memory injection already uses and
 the ISO date the memory was recorded. A read that fails is ``unavailable`` —
 a blind source is named, never read as empty.
@@ -14,19 +14,16 @@ from __future__ import annotations
 from uuid import UUID
 
 import structlog
-from sqlalchemy import Select, select
 
 from src.core.config import settings
 from src.domains.feature_switches.registry import PlatformCapability, is_capability_enabled
 from src.domains.memories.emotional_state import emotional_label
-from src.domains.memories.models import Memory
 from src.domains.memories.repository import MemoryRepository
 from src.domains.shared.portrait_sources import (
     FreshnessProbe,
     PortraitSourceSection,
-    SourceBudget,
-    clamp_item,
     empty_section,
+    flat_item,
     install_portrait_source,
     portrait_lines,
 )
@@ -48,15 +45,12 @@ async def _allowed(user_id: UUID) -> bool:
     return bool(user is not None and user.memory_enabled)
 
 
-async def read_memories(
-    *, user_id: UUID, language: str, budget: SourceBudget
-) -> PortraitSourceSection:
+async def read_memories(*, user_id: UUID, language: str) -> PortraitSourceSection:
     """Render the person's memories for the consolidation prompt.
 
     Args:
         user_id: The account.
         language: Unused — a memory is written in the person's own words.
-        budget: How many items, how long each.
 
     Returns:
         The section; never raises.
@@ -67,11 +61,7 @@ async def read_memories(
         async with get_db_context() as db:
             repo = MemoryRepository(db)
             total = await repo.get_count_for_user(user_id)
-            rows = (
-                await repo.list_for_portrait(user_id, limit=budget.max_items)
-                if total and budget.max_items > 0
-                else []
-            )
+            rows = await repo.list_for_portrait(user_id, limit=total) if total else []
         if not rows:
             return empty_section(KEY, "empty", total=total)
         lines = portrait_lines()
@@ -79,7 +69,7 @@ async def read_memories(
             lines["memories_item"].format(
                 category=row.category or "personal",
                 label=emotional_label(int(row.emotional_weight or 0)),
-                content=clamp_item(row.content or "", budget.item_max_chars),
+                content=flat_item(row.content or ""),
                 recorded=f"{row.created_at:%Y-%m-%d}" if row.created_at else "",
             )
             for row in rows
@@ -93,23 +83,6 @@ async def read_memories(
         return empty_section(KEY, "unavailable")
 
 
-def _selected_ids(user_id: UUID, budget: SourceBudget) -> Select[tuple[UUID]]:
-    """The same ordered active page as list_for_portrait, without vector reads."""
-    return (
-        select(Memory.id)
-        .where(Memory.user_id == user_id, Memory.invalidated_at.is_(None))
-        .order_by(
-            Memory.pinned.desc(),
-            Memory.importance.desc(),
-            Memory.usage_count.desc(),
-            Memory.created_at.desc(),
-            Memory.id.desc(),
-        )
-        .limit(max(0, budget.max_items))
-    )
-
-
-#: Exposure counters matter only when they change the selected page.
 FRESHNESS = FreshnessProbe(
     table="memories",
     user_column="user_id",
@@ -124,7 +97,6 @@ FRESHNESS = FreshnessProbe(
         "importance",
         "invalidated_at",
     ),
-    selection_query=_selected_ids,
 )
 
 # Installed at import for every path that does not go through the boot; the

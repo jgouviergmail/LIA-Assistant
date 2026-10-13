@@ -399,7 +399,12 @@ No-output settlement cannot stamp new-policy provenance onto old words. The
 source budgets, separate provenance display, revision-bound evidence,
 consent/lease fences and atomic maintenance settlement remain in force.
 
-Semantic review is a separate judgment by the same configured model, not a
+**Superseded on 2026-10-12 by [ADR-343](ADR-343-Portrait-Reads-The-Whole-Material-And-Its-Brief-Is-A-Synthesis.md) § 4-6**: the
+independent semantic review, its receipt and its ceiling described above are
+REMOVED — measured rejecting 70 to 80 % of grounded analytical readings — and the
+portrait is admitted claim by claim by deterministic guards; the paragraphs
+above are kept as the record of the v3.0.0 design. Semantic review was a
+separate judgment by the same configured model, not a
 statistically independent oracle or a deterministic proof of psychological
 truth or long-term usefulness. Qualification must include
 natural-output cases and scope-preserving paraphrases, alongside the SQL and

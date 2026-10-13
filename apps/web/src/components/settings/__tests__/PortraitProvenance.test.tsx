@@ -63,6 +63,51 @@ describe('PortraitProvenance', () => {
     );
   });
 
+  it('names the five records that joined on 2026-10-12, in the declared order', () => {
+    const nine = provenance({
+      sources: {
+        memories: { status: 'used', used: 62, total: 62 },
+        interests: { status: 'empty', used: 0, total: 0 },
+        habits: { status: 'used', used: 2, total: 2 },
+        relation_debriefs: { status: 'used', used: 3, total: 3 },
+        open_loops: { status: 'used', used: 4, total: 4 },
+        workboard: { status: 'used', used: 4, total: 4 },
+        routines: { status: 'used', used: 3, total: 3 },
+        reminders: { status: 'unavailable', used: 0, total: 0 },
+        bookmarks: { status: 'used', used: 3, total: 3 },
+      },
+    });
+    renderWithProviders(<PortraitProvenance provenance={nine} lng="en" />);
+    expect(screen.getByTestId('portrait-provenance').getAttribute('data-parts')).toBe(
+      'entries:12|memories:62|habits:2|relation_debriefs:3|open_loops:4|workboard:4|routines:3|bookmarks:3'
+    );
+    expect(screen.getByTestId('portrait-provenance-unavailable').getAttribute('data-sources')).toBe(
+      'reminders'
+    );
+    expect(en.journals.provenance.open_loops_other).toBe('{{count}} open loops');
+    expect(zh.journals.provenance.bookmarks_one).toBe(zh.journals.provenance.bookmarks_other);
+  });
+
+  it('names a source the compilation window cut, and never lists one it kept nothing of', () => {
+    const cutOne = provenance({
+      sources: {
+        memories: { status: 'used', used: 40, total: 62, reason: 'over_budget' },
+        interests: { status: 'used', used: 0, total: 9, reason: 'over_budget' },
+        habits: { status: 'used', used: 2, total: 2 },
+        relation_debriefs: { status: 'empty', used: 0, total: 0 },
+      },
+    });
+    renderWithProviders(<PortraitProvenance provenance={cutOne} lng="en" />);
+    expect(screen.getByTestId('portrait-provenance').getAttribute('data-parts')).toBe(
+      'entries:12|memories:40|habits:2'
+    );
+    expect(screen.getByTestId('portrait-provenance-cut').getAttribute('data-sources')).toBe(
+      'memories|interests'
+    );
+    expect(en.journals.provenance.over_budget_other).toContain('{{sources}}');
+    expect(zh.journals.provenance.over_budget_one).toBe(zh.journals.provenance.over_budget_other);
+  });
+
   it('keeps the six-language contract: plurals in English, one form in Chinese', () => {
     expect(en.journals.provenance.memories_one).toBe('{{count}} memory');
     expect(en.journals.provenance.memories_other).toBe('{{count}} memories');

@@ -80,6 +80,12 @@ RENDERED_BY: dict[str, tuple[str, ...]] = {
         "domains/interests/portrait_source.py",
         "domains/habits/portrait_source.py",
         "domains/relations/debrief/portrait_source.py",
+        "domains/open_loops/portrait_source.py",
+        "domains/workboard/portrait_source.py",
+        "domains/scheduled_actions/portrait_source.py",
+        "domains/reminders/portrait_source.py",
+        "domains/bookmarks/portrait_source.py",
+        "domains/journals/portrait_builder.py",
     ),
     # Loaded by the agents-side wrapper, rendered by the diagnostics builder.
     "runtime_failures_directive": ("domains/diagnostics/failure_context.py",),

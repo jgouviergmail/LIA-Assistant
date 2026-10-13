@@ -23,6 +23,7 @@ from pydantic_settings import BaseSettings
 
 from src.core.constants import (
     MCP_APP_MAX_HTML_SIZE_DEFAULT,
+    MCP_ARGS_SCHEMA_CACHE_MAX_DEFAULT,
     MCP_CONNECTION_RETRY_MAX_DEFAULT,
     MCP_DEFAULT_RATE_LIMIT_CALLS,
     MCP_DEFAULT_RATE_LIMIT_WINDOW,
@@ -40,6 +41,7 @@ from src.core.constants import (
     MCP_MAX_TOOLS_PER_SERVER_DEFAULT,
     MCP_OAUTH_HTTP_TIMEOUT_SECONDS,
     MCP_REFERENCE_CONTENT_MAX_CHARS_DEFAULT,
+    MCP_SERVER_VECTOR_CACHE_MAX_DEFAULT,
     MCP_USER_MAX_SERVERS_PER_USER_DEFAULT,
     MCP_USER_MAX_SERVERS_PER_USER_MAX,
     MCP_USER_POOL_EVICTION_INTERVAL_DEFAULT,
@@ -253,6 +255,29 @@ class MCPSettings(BaseSettings):
         description=(
             "Idle TTL for user MCP connections in the pool (seconds). "
             "Connections unused for this duration are evicted."
+        ),
+    )
+
+    mcp_server_vector_cache_max: int = Field(
+        default=MCP_SERVER_VECTOR_CACHE_MAX_DEFAULT,
+        ge=1,
+        description=(
+            "Per-worker bound of the compact (float32) vector sets kept for user MCP "
+            "servers, one entry per server, embedding model and catalogue fingerprint "
+            "(ADR-283 amendment 2026-10-12) — about 8 MB per entry for a server of a "
+            "hundred tools at 1,536 dimensions. A turn re-reads and re-parses a server's "
+            "persisted vectors only when its catalogue or the model changed."
+        ),
+    )
+
+    mcp_args_schema_cache_max: int = Field(
+        default=MCP_ARGS_SCHEMA_CACHE_MAX_DEFAULT,
+        ge=1,
+        description=(
+            "Per-worker bound of the argument model classes built from MCP tool JSON "
+            "schemas, one per distinct schema (ADR-283 amendment 2026-10-12): a turn "
+            "used to build one new pydantic class per tool, which only a full garbage "
+            "collection could reclaim."
         ),
     )
 

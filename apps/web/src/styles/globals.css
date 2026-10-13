@@ -1795,6 +1795,11 @@
   --cosmos-primary: #2c56c4;
   --cosmos-violet: #8b5cf6;
   --cosmos-cyan: #38d4f5;
+  /* The accent cyan as TEXT (the use-case step times). The bright cyan is a
+     glow colour: 11.4:1 on the dark ground, 1.7:1 on the light theme's glass
+     (axe on Firefox, 2026-10-12), so the light theme declares a deep cut.
+     `cosmos-contrast.guard.test.ts` keeps both. */
+  --cosmos-cyan-ink: var(--cosmos-cyan);
   --cosmos-line: rgba(148, 163, 220, 0.14);
   --cosmos-glass: rgba(15, 19, 38, 0.55);
   --cosmos-ghost-stroke: rgba(148, 163, 220, 0.3);
@@ -1854,6 +1859,9 @@ html:not(.dark) .cosmos {
      darkest glass and 5.2:1 under the canvas's resting link.
      `cosmos-contrast.guard.test.ts` keeps it. */
   --cosmos-mut: #414868;
+  /* Deep cyan: 7.4:1 on the sky, 5.1:1 on the footer glass and under the
+     canvas's resting link. */
+  --cosmos-cyan-ink: #075263;
   --cosmos-line: rgba(27, 33, 64, 0.12);
   --cosmos-glass: rgba(255, 255, 255, 0.78);
   --cosmos-ghost-stroke: rgba(27, 33, 64, 0.17);
@@ -2517,7 +2525,7 @@ html:not(.dark) .landing-video-player {
   font-size: calc(0.8rem * var(--lia-text-scale, 1));
   font-weight: 700;
   letter-spacing: 0.18em;
-  color: var(--cosmos-cyan);
+  color: var(--cosmos-cyan-ink);
 }
 .cosmos-step p {
   margin-top: 0.4rem;

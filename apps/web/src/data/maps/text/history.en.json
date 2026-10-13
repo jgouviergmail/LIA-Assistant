@@ -1807,6 +1807,11 @@
       "title": "An operator-enabled runtime avatar campaign",
       "summary": "A server option, empty by default, introduces BIP on the next authenticated visit per browser origin. An explicit identifier changes only style and its marker; visibility, size, positions and later manual choices are preserved. No account avatar column is added. Web Locks coordinates tabs where available; without it, rereading the latest record does not guarantee a simultaneous transaction. Disabling the campaign stops new applications without restoring earlier choices, and cannot reach offline devices.",
       "src": "3a65c19d433e"
+    },
+    "343": {
+      "title": "The portrait reads the whole material, and its brief is a synthesis",
+      "summary": "Nine records about the person — memories, interests, habits, debriefs, open loops, workboard, routines, reminders, kept answers — are read whole, every item citable, under one share of the model's window, and any cut is stated. The portrait is again an analysis of the person on seven facets, never an inventory, and the brief is written as its own sentences; the semantic review, measured rejecting grounded readings, is removed: what refuses invention is structural, every reading cites what grounds it. The budgets are stated targets, never a clamp. A journal change marks the portrait stale, served dated, instead of wiping it; a deleted entry takes the readings it grounded with it. Measured on dev before shipping.",
+      "src": "38eaccd2b7d9"
     }
   }
 }

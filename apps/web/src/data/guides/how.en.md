@@ -4,9 +4,9 @@
 >
 > Technical presentation documentation for architects, engineers and technical experts.
 
-**Version**: 5.2
-**Date**: 2026-10-04
-**Application**: LIA v3.0.0
+**Version**: 5.3
+**Date**: 2026-10-13
+**Application**: LIA v3.0.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -73,7 +73,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), credentials encrypted with Fernet, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 618 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 341 ADRs, 59,000+ automated backend and frontend tests, native observability, 6-level HITL |
+| Production reliability | 342 ADRs, 59,000+ automated backend and frontend tests, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -94,7 +94,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Tests | 59,000+ automated tests with pytest and Vitest (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 1,082, 48 of them shared through conftest |
 | Documentation documents | 716 |
-| ADRs (Architecture Decision Records) | 341 |
+| ADRs (Architecture Decision Records) | 342 |
 | Prometheus metrics | 618 definitions |
 | Grafana dashboards | 31 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -109,7 +109,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 |------------|---------|------|-----------------|
 | Python | 3.14 | Runtime | Richest ML/AI ecosystem, native async, complete typing |
 | FastAPI | 0.141.1 | REST API + SSE | Auto Pydantic validation, OpenAPI docs, async-first, performance |
-| LangGraph | 1.2.11 | Multi-agent orchestration | Only framework offering native state persistence + cycles + interrupts (HITL) |
+| LangGraph | 1.2.14 | Multi-agent orchestration | Only framework offering native state persistence + cycles + interrupts (HITL) |
 | LangChain Core | 1.5.6 | LLM/tools abstractions | `@tool` decorator, message formats, standardized callbacks |
 | SQLAlchemy | 2.0.54 | Async ORM | `Mapped[Type]` + `mapped_column()`, async sessions, `selectinload()` |
 | PostgreSQL | 16 + pgvector | Database + vector search | Native LangGraph checkpoints, HNSW semantic search, maturity |
@@ -368,9 +368,9 @@ What a tool returns is **projected into the loop's context item by item, under a
 
 A turn also owes itself a working memory that outlives it. State is bounded by a message window, and a ReAct turn appends two messages per iteration — so a long enough turn pushes **its own question** out of that window, after which the windowing that splits history from the current loop no longer finds a split point at all. The reducer therefore re-pins the turn's question when truncation evicts it, on both of its branches, and the coupling between the iteration budget and the window size carries a name rather than living as an unstated arithmetic relation. What a turn actually delivers to the model is measured too — the prompt size per iteration and its share of the model's context window — because counting a loop's iterations and duration says nothing about the thing that grows.
 
-The tools the loop receives are **bound by relevance, never by registration order** (ADR-293). The router already computes an embedding of the question to score the domains; from the same vector it orders every available manifest — native tools and the person's MCP servers alike — into a global ranking the loop reads. The selection composes without any tool name written anywhere: the detected domains' tools, then the best of every other family so that each stays reachable, then the head of the ranking up to a published budget; the cap is only a safety net by stable sort. A hand-declared "core" list is ruled out on principle: it would encode one account's usage into a multi-user product, where family coverage says the same thing structurally. The loop also mounts the knowledge-spaces block the pipeline injects, read from the bundle the router prefetched without consuming it: what the pipeline knows, the loop knows. The number of bound tools and their schema tokens are measured, because that prefix can weigh most of the first call.
+The tools the loop receives are **bound by relevance, never by registration order** (ADR-293). The router already computes an embedding of the question to score the domains; from the same vector it orders every available manifest — native tools and the person's MCP servers alike — into a global ranking the loop reads. The selection composes without any tool name written anywhere: the detected domains' tools, then the best of every other family so that each stays reachable, then the head of the ranking up to a published budget; the cap is only a safety net by stable sort. A hand-declared "core" list is ruled out on principle: it would encode one account's usage into a multi-user product, where family coverage says the same thing structurally. The loop also mounts the knowledge-spaces block the pipeline injects, read from the bundle the router prefetched without consuming it: what the pipeline knows, the loop knows. The number of bound tools and their schema tokens are measured, because that prefix can weigh most of the first call. A **binding unit** — several tools that make up a single capability — is bound whole or not at all, and a catalogue made of many units, such as the application's settings, is bound through its domain when the router detects it, never through the tail of the ranking: an agenda turn thus binds about half as many tools.
 
-A loop is **judged on its result** (ADR-310). Stopping as soon as the model calls no more tools would make persistence depend on how a configured model reads one sentence. Every fact the loop set out to obtain — the person's request and each cross-check it started — ends obtained or declared in an `<unresolved>` block that closes the draft, with the rungs tried: the corrected call, then another source named `(fallback)`, then the declaration. One predicate, `should_recover`, reads the declaration and calls the one that decides the stop (`react_exit_reason`) instead of copying it; it routes to `react_recovery`, a fifth node that calls no model: it removes the draft from the thread at the very moment of the pass, and each later call of the turn receives, transiently — never written to `messages` —, the draft and a directive placed right after it. Passes are bounded (`REACT_RECOVERY_PASSES_MAX`), counted by outcome, and a pass that would end with no usable answer hands the draft back rather than trade it for nothing. Upstream, a tool never replaces a value it cannot read: the weather refuses an unreadable date with the accepted format and today's date, under a contract published by one constant that both the manifest and the tool's schema read — the loop binds the schema, never the manifest.
+A loop is **judged on its result** (ADR-310). Stopping as soon as the model calls no more tools would make persistence depend on how a configured model reads one sentence. Every fact the loop set out to obtain — the person's request and each cross-check it started — ends obtained or declared in an `<unresolved>` block that closes the draft, with the rungs tried: the corrected call, then another source named `(fallback)`, then the declaration. One predicate, `should_recover`, reads the declaration and calls the one that decides the stop (`react_exit_reason`) instead of copying it; it routes to `react_recovery`, a fifth node that calls no model: it removes the draft from the thread at the very moment of the pass, and each later call of the turn receives, transiently — never written to `messages` —, the draft and a directive placed right after it. Passes are bounded (`REACT_RECOVERY_PASSES_MAX`), counted by outcome, and a pass that would end with no usable answer hands the draft back rather than trade it for nothing. Upstream, a tool never replaces a value it cannot read: the weather refuses an unreadable date with the accepted format and today's date, under a contract published by one constant that both the manifest and the tool's schema read — the loop binds the schema, never the manifest. A page a tool deliberately cut at its cap is not a gap: among the reads the loop started, only a failed read opens a pass — the cut is already stated to the model.
 
 A tool failure is read **structurally** there (ADR-303): a `ToolMessage` body carries the tool's prose, so the only honest verdict is a marker the message carries itself — `status="error"`, which survives the checkpoint. One success predicate, `core/tool_outcome.explicit_success`, serves the loop, the consultation register and the metrics: a declared failure, like an empty result, buys no iteration. And when a person chooses frequent exchanges in their settings (ADR-311; `REACT_CROSS_TURN_CACHE_ENABLED` only sets the default of an account that has not chosen, ADR-308), the loop binds every tool in registration order and places the turn's context after the question — in the shape each provider accepts, declared and checked at startup —, so that one turn's prefix is the next one's: on a bench of 396 real turns, the saving ranges from 18 to 42 % per turn depending on the cache mechanism, a model with no cache pays extra, and a counted fallback to the relevance selection takes over when the catalogue exceeds the cap or the window. The history then drops by blocks too, anchored on the turn counter, so that each turn extends the previous one: the three travel together because none of them pays alone, and occasional exchanges keep the relevance selection, whose cost does not depend on the gap between two turns.
 
@@ -658,7 +658,7 @@ When the token count exceeds a dynamic threshold (ratio of the response model's 
 
 ### 10.4. PostgreSQL Checkpointing
 
-Full state checkpointed after each node. P95 save < 50 ms, P95 load < 100 ms, average size ~15 KB/conversation. Checkpointer and store each run on a dedicated PostgreSQL connection pool per worker (sizes tunable via environment): concurrent conversations never serialize on a single connection, and a connection dropped while idle is detected at checkout and replaced automatically (ADR-111).
+Full state checkpointed after each node, save duration and size measured per node (`checkpoint_save_duration_seconds`, `checkpoint_size_bytes`). The graph input is the **turn's diff**, never the restored state: the loader keeps a copy of the restored values and the stream hands the graph only what changed since, so an unchanged channel takes no new version on every turn — a derived diff that no intermediate writer has to declare. Checkpointer and store each run on a dedicated PostgreSQL connection pool per worker (sizes tunable via environment): concurrent conversations never serialize on a single connection, and a connection dropped while idle is detected at checkout and replaced automatically (ADR-111).
 
 ### 10.5. A ReAct turn's system blocks are state (ADR-169/170)
 
@@ -725,7 +725,7 @@ The assistant maintains introspective reflections organized along four themes (s
 
 **Deferred self-evaluation T → T+1**: `MessagesState.injected_journal_ids` (symmetric to `injected_memories`) carries the IDs across turns. The `response_node` reads the previous turn's IDs at start, passes them to the post-conversation extractor, then writes the current turn's IDs at the end. The extractor sees the applied directives + the user's reaction in the same prompt and signals `evidence_outcome="evidence" | "contradiction"` on update actions — the service atomically increments the counters (anti-hallucination layer 4: the LLM only signals an outcome, the service owns the integers). **Zero added LLM cost** (same extraction call, enriched prompt).
 
-**Ambient diffusion of the user-model portrait**: consolidation produces, in the **same LLM call** (zero added call), a `portrait_full` (~200 tokens, conversation/planner) and a `portrait_brief` (~60 tokens, secondary flows) persisted on the `users` table. The builder `build_journal_user_model_block(user_id, format, flow)` (`src/domains/journals/portrait_builder.py`, mirror of `build_psyche_prompt_block`) returns a `<UserModelContext>...</UserModelContext>` block with graceful degradation. Diffused across **8 flows**: 2 primary in full format (`response_node`, `planner_node_v3`) and 6 secondary in brief format (`react_setup_node`, `interests/proactive_task`, `scheduler/reminder_notification`, `voice/service`, `heartbeat/prompts`, `agents/services/fallback_response` sync + async).
+**Ambient diffusion of the user-model portrait**: consolidation produces, in the **same LLM call** (zero added call), a `portrait_full` (the analytical reading, conversation/planner) and a `portrait_brief` (two or three sentences written as claims of their own, secondary flows), each under a token target stated to the model, persisted on the `users` table. The builder `build_journal_user_model_block(user_id, format, flow)` (`src/domains/journals/portrait_builder.py`, mirror of `build_psyche_prompt_block`) returns a `<UserModelContext>...</UserModelContext>` block with graceful degradation. Diffused across **8 flows**: 2 primary in full format (`response_node`, `planner_node_v3`) and 6 secondary in brief format (`react_setup_node`, `interests/proactive_task`, `scheduler/reminder_notification`, `voice/service`, `heartbeat/prompts`, `agents/services/fallback_response` sync + async).
 
 **Three user correction levers** on the portrait (never directly editable): (1) CRUD edits on the L3 source entries, (2) `POST /journals/portrait/feedback` (free text → L0 entry with `source=user_correction` + synchronous re-consolidation that re-weights L3 entries), (3) `POST /journals/consolidate` (manual consolidation, bypasses cooldown).
 
@@ -735,7 +735,9 @@ The assistant maintains introspective reflections organized along four themes (s
 
 **Dedicated observability**: 11 Prometheus metrics in `src/infrastructure/observability/metrics_journals.py` — `journal_entries_total{action,theme,source}`, `journal_evidence_total{outcome}`, `journal_consolidation_promotions_total{from_level,to_level}`, `journal_level_distribution{level}`, `journal_portrait_present_total{flow,format}`, `journal_portrait_age_hours`, `journal_portrait_feedback_total{outcome}`, etc.
 
-The portrait is composed from **four sources on top of the journals** (ADR-292): memories, interests, learned habits and relationship debriefs enter the consolidation prompt as material for the synthesis. The journals domain imports none of those domains — two of them already import it — so each source is offered through a shared registry with a closed vocabulary, installed explicitly at boot and refused when incomplete. A reader answers `used | empty | disabled | unavailable` with an exact total, under its three gates read at the act (ceiling, operator switch, the person's preference), and never raises: a blind source is named, never read as empty. The assembler reads one source at a time under a per-source cap and drops a whole section beyond the global budget; the prompt renders a section only when it exists and forbids re-listing a line or naming its sources. The provenance is persisted with the portrait, in the same write, and drawn under it; a source that moved reopens the eligibility for the next consolidation.
+The portrait is read from **everything LIA keeps about the person** (ADR-292, ADR-343): on top of the journals, nine sources — memories, interests, learned habits, relationship debriefs, open loops, Workboard tickets, routines, reminders and kept answers — enter the consolidation prompt, each read whole. The journals domain imports none of those domains — two of them already import it — so each source is offered through a shared registry with a closed vocabulary, installed explicitly at boot and refused when incomplete. A reader answers `used | empty | disabled | unavailable` with an exact total, under its gates read at the act (ceiling, operator switch, the person's preference), and never raises: a blind source is named, never read as empty. One physical bound replaces the per-source caps — a share of the consolidation slot's context window; beyond it, the last sections lose whole items from their end and the cut is stated in the provenance.
+
+The portrait is an **analysis, not an inventory**: the consolidation reads the person across the sources on seven facets (posture, focus, context, rhythm, tension, interaction, uncertainty), names a pattern without walking through its items, and writes the brief as two or three claims of its own. No second model reviews those readings — what refuses invention is structural: a reading cites items of the current snapshot, and a paragraph restating a single item, a name the evidence carries, a figure, an address or a date in the prose is dropped; a claim or a maintenance action the snapshot cannot carry is repaired or dropped alone, never fatal to the paid pass. The provenance is persisted with the portrait, in the same write, and drawn under it; a journal change marks the portrait stale without ever erasing it, and deleting entries withdraws only the readings they supported.
 
 **The journals can also be looked up on purpose** (ADR-318). Beyond the injection, a read tool — in both modes — searches the person's journals for a subject found along the way, over the same vectors, at the *configured* similarity floor rather than the learned one, and serves only directives, patterns and facets: a raw, not yet consolidated `L0` observation never comes out. The person's preference refuses it as it refuses the injection.
 
@@ -1191,7 +1193,6 @@ A metric, a log line and a trace tell the story of the same request — provided
 | Router Latency | 800 ms | < 2 s |
 | Planner Latency | 2.5 s | < 5 s |
 | Semantic Embedding | ~100 ms | < 200 ms |
-| Checkpoint save | < 50 ms | P95 |
 | Redis session lookup | < 5 ms | P95 |
 
 > These latencies measure the infrastructure. The full perceived response time depends on the LLM call cascade (from a few seconds to several dozen depending on request complexity and hardware) — that is the main optimization lever, measured in production.
@@ -1543,11 +1544,11 @@ One CSS rule governs the design system's spacing: vertical margins on an `inline
 
 ## 24. Architecture Decision Records (ADR)
 
-341 ADRs in MADR format document the major architectural decisions. Some representative examples:
+342 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
-| 001 | LangGraph for orchestration | Need for state persistence + HITL interrupts | Checkpoints P95 < 50 ms |
+| 001 | LangGraph for orchestration | Need for state persistence + HITL interrupts | HITL resumption on persisted state |
 | 002 | BFF Pattern (JWT → Redis) | JWT XSS vulnerable, revocation impossible | Memory -90%, OWASP A |
 | 003 | Dynamic filtering by domain | 10x prompt size = 10x cost | 73-83% catalogue reduction |
 | 005 | Filtering BEFORE asyncio.gather | Plan + fallback executed in parallel = 2x cost | -50% fallback plan cost |
@@ -1874,6 +1875,8 @@ What a singleton loads is multiplied by the worker count. Keeping one resident t
 
 The connection budget has a floor, not only a ceiling. Bounding the burst — what the pools may open — is not enough: every persistent connection is also an idle Postgres backend holding seven megabytes, beside `shared_buffers`. `ConnectionBudget.persistent_total` names that floor, and a guard reads the compose file (memory limit, `shared_buffers`) together with the two shipped `.env` profiles — the full one and the self-hoster's minimal one, absent keys resolving to the code's defaults as at boot: the floor must stay under half the limit, so the database keeps the other half for its cache. Shipped profile: five persistent connections and fifteen overflow per worker, a two-gibibyte limit. Two questions stay open, and are written down: the multi-day growth of a worker without transcription, which the per-worker series make measurable, and the retention of LangGraph checkpoints.
 
+What a worker holds for its whole life takes its **compact form, once**. The tool selector's vectors are `float32` arrays — a 1,536-dimension vector drops from about 49 KB as a list of Python floats to 6 KB —, a person's MCP server vectors are decoded once per catalogue and worker rather than on every turn, an MCP argument class is built once per schema, a BM25 index is replaced when its corpus changes instead of piling up, and the heap the boot built is frozen last in the lifespan: what will live until the process exits leaves the cyclic collector, which then scans only what turns allocate. Each of these items was pointed out by a census of types and sizes, injected into a live worker, before it was touched.
+
 ## 43. The live mode: two intelligences, one seam — and one policy per mode
 
 A speech-to-speech session runs on a live model the person connects with **their own key** — a connector category of its own, `live`, additive: several keys may be active, the sessions open on the one chosen, and choosing a model *is* choosing its provider. The provider bills your personal key; the platform ledger does not record that spend. The browser shows the available usage and cost separately. The API mints a single-use credential and renders the setup; the browser replays it verbatim and opens the connection itself, so **without the avatar, Live audio uses the direct provider connection**. Four behaviours of the provider, checked on its real API, each set a rule: a credential's constraint does not lock the system instruction; a used single-use credential cannot reconnect (every reconnection mints a fresh one for the same record); the provider silently accepts an unknown voice name (the voice is validated against a vendored, dated list); a raw browser WebSocket is accepted by one method only.
@@ -1942,8 +1945,8 @@ The oMLX, llama.cpp and LM Studio studies and the isometric world are qualificat
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 341 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The 59,000+ automated tests, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 342 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The 59,000+ automated tests, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (700+ documents), 341 ADRs, and the changelog (v1.0 to v3.0.0). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (700+ documents), 342 ADRs, and the changelog (v1.0 to v3.0.1). All metrics, versions, and patterns cited are verifiable in the codebase.*

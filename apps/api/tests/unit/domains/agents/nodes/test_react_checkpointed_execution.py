@@ -358,6 +358,34 @@ def test_observed_failure_survives_a_final_message_that_drops_its_gap() -> None:
     assert report["recovery"]["outcome"] == "still_unresolved"
 
 
+def test_a_page_cut_at_the_tool_s_cap_is_not_an_observed_gap() -> None:
+    """A read the tool cut at its cap — ``truncated``, a next page — answered what
+    it was asked, and the cut is already stated to the model (ADR-286). Counted as a
+    gap, it forced a recovery pass the model could not resolve: 4 dev turns of 4 and
+    21 production turns of 65 on 2026-10-12, 14 of them fruitless, two model calls
+    and 10 to 15 s each. Only a read that FAILED is an observed gap; a goal that
+    demands completeness keeps its own ``partial`` verdict (``requested_coverage``)."""
+    state = _state()
+    state["messages"] = [
+        ToolMessage("25 events (cut at the cap)", tool_call_id="c1", id="t1"),
+        AIMessage("Here are your meetings.", id="final"),
+    ]
+    state["react_read_observations"] = {
+        "signature": {
+            "tool_name": "get_events_tool",
+            "signature": "signature",
+            "outcome": "partial",
+        }
+    }
+    assert observed_gaps(state) == ()
+    assert not should_recover(state)
+    state["react_recovery_passes"] = [
+        {"anchor_id": "t1", "draft": "Earlier.", "unresolved": ["a declared fact"]}
+    ]
+    report = recovery_report(state, state["messages"][-1], cut=False)
+    assert report["recovery"]["outcome"] == "resolved"
+
+
 def test_an_empty_read_does_not_invent_a_missing_objective() -> None:
     state = _state()
     state["react_read_observations"] = {

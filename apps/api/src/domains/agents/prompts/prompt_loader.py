@@ -96,7 +96,6 @@ PromptName = Literal[
     "interest_perplexity_system_prompt",
     "journal_consolidation_lines",
     "journal_portrait_source_lines",
-    "journal_portrait_review_prompt",
     "semantic_validator_lines",
     "hitl_draft_modifier_lines",
     "interest_extraction_lines",
@@ -107,6 +106,9 @@ PromptName = Literal[
     # offer, and its one-line scaffolds (hosts, carriers, the unknown-host rule).
     "react_computation_network_prompt",
     "react_computation_lines",
+    # ADR-335 / ADR-284: the <ApplicationSettings> rules, rendered only when a
+    # tool of the settings catalogue is bound for the turn.
+    "react_settings_prompt",
     # ADR-327 lot 3: the skill runner's network line (offline, or the reachable hosts).
     "skill_command_network_lines",
     # ADR-310: what a recovery pass tells the model after its draft declared gaps.

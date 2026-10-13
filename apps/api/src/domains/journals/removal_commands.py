@@ -1,6 +1,7 @@
 """UI and native removals share owner-first locking and source invalidation."""
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -8,6 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.exceptions import ResourceConflictError, ResourceNotFoundError, raise_user_not_found
+from src.domains.journals.lifecycle import cites_removed_entry, withdraw_journal_supports
 from src.domains.journals.models import JournalEntry
 from src.domains.journals.removal_snapshot import JournalRemovalSnapshot, journal_removal_snapshot
 from src.domains.journals.service import JournalService
@@ -42,9 +44,28 @@ async def _verify_removed_scope(
     if (
         await db.scalar(remaining) != 0
         or portrait[0] != previous_revision + 1
-        or any(value is not None for value in portrait[1:])
+        or not _erasure_observed(portrait[1:], None if entry_id is None else {str(entry_id)})
     ):
         raise ValueError("Source journal removal effects were not observed")
+
+
+def _erasure_observed(portrait: Sequence[Any], removed: set[str] | None) -> bool:
+    """No stored claim rests on a removed entry, and each format matches its claims."""
+    full, brief, compiled_at, provenance = portrait
+    if full is None and brief is None:
+        # No words (never compiled, wiped, or an explicit empty compilation that
+        # stamped its date): there was nothing to erase.
+        return True
+    claims = provenance.get("claims") if isinstance(provenance, dict) else None
+    if not isinstance(claims, list) or not claims:
+        return False  # words with no readable claims must have been wiped
+    if any(cites_removed_entry(claim, removed) for claim in claims):
+        return False
+    for placement, text in (("full", full), ("brief", brief)):
+        expected = any(claim.get("placement", "full") == placement for claim in claims)
+        if (text is not None) != expected:
+            return False
+    return compiled_at is not None
 
 
 async def remove_journal_entries(
@@ -75,6 +96,7 @@ async def remove_journal_entries(
             raise ResourceNotFoundError("journal_entry", entry_id)
         await db.refresh(entry)
         await service.delete_entry(entry, expected_revision=entry.revision)
+    await withdraw_journal_supports(db, actor_id, None if entry_id is None else {str(entry_id)})
     await db.flush()
     await _verify_removed_scope(db, actor_id, entry_id, previous_revision)
     if check is not None:

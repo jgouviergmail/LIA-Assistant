@@ -103,9 +103,9 @@
     },
     "f.journals": {
       "name": "Diarios y retrato",
-      "role": "LIA lleva sus propios cuadernos de reflexión, que consulta cuando surge un tema, y compila tu retrato a partir de cuatro fuentes — recuerdos, intereses, hábitos, relaciones —, diciendo cuáles ha podido leer.",
+      "role": "LIA lleva sus propios cuadernos de reflexión, que consulta cuando surge un tema, y compila tu retrato — un análisis leído en todo lo que conserva sobre ti, de los recuerdos a los tickets y las respuestas guardadas —, diciendo qué fuentes ha podido leer.",
       "goal": "Una comprensión de ti que se afina con el tiempo y que sigue siendo legible.",
-      "src": "79114967b569"
+      "src": "72561005c5fd"
     },
     "f.psyche": {
       "name": "Psique y rostro",

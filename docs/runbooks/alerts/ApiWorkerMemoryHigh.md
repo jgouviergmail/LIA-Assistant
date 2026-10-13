@@ -56,7 +56,7 @@ Trois lectures possibles :
 |---|---|---|
 | **Un modèle STT** | le worker en alerte a `voice_stt_recognizers_loaded ≥ 1`, les autres non | une transcription locale l'a chargé (~0,8 Go par recognizer, mesuré 2026-09-12) |
 | **Deux modèles** | `voice_stt_recognizers_loaded = 2` sur ce worker | `VOICE_STT_MAX_RECOGNIZERS` relevé au-dessus de 1, ou deux langues demandées |
-| **Une fuite** | pas de STT, courbe qui monte sans plateau sur des heures | à instruire (recensement d'objets, ADR-283 § « ce qui reste ouvert ») |
+| **Une rétention** | pas de STT, paliers de 150 à 540 Mo à chaque tour de chat, jamais rendus | recensée le 2026-10-12 (ADR-283, amendement) : vecteurs du sélecteur d'outils en listes Python, une classe pydantic par outil MCP et par tour, cycles en attente d'une collection complète — fermées par `tool_vectors.py`, le cache de `build_args_schema` et `process_heap.freeze_startup_heap`. Si la courbe remonte malgré elles : recensement par `sys.remote_exec` avec `apps/api/scripts/ops/worker_census.py` (copié dans le conteneur, puis `docker exec -u 0 --privileged lia-api-prod python -c "import sys; sys.remote_exec(<pid>, '/tmp/census.py')"`, le résultat dans `/tmp/census_<pid>.json`), six secondes de pause dans ce worker, types et tailles seulement — un parcours des référents de milliers d'objets a tué un worker de production. Depuis le gel du tas de démarrage, `gc.get_objects()` ne rend que ce que le processus a alloué APRÈS le boot : le tas gelé se lit par `gc.get_freeze_count()` et c'est le reste qui compte, puisque seul lui peut grossir |
 
 ### 2. Confirmer sur l'hôte
 

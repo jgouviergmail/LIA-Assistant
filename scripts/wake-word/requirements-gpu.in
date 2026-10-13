@@ -12,3 +12,7 @@ soundfile==0.14.0
 onnxruntime-gpu==1.30.0
 onnx==1.23.1
 onnxscript==0.7.2
+# Security floors on purely transitive packages (ADR-331: a fix lives in its
+# manifest, never in a lockfile alone).
+aiohttp>=3.14.4  # via datasets, fsspec: the eight advisories published with 3.14.4 (GHSA-9xw5-w5jj-pvcg among them)
+opentelemetry-api>=1.45.1  # GHSA-xcq7-p3pf-p88h (unbounded tracestate parsing), pulled by fastapi

@@ -8,7 +8,9 @@
  * (ADR-185). A source the person or the operator switched off is simply
  * absent; a source that could NOT be read is named on a second line, because
  * « I did not look » and « there was nothing » are different answers and only
- * the second may be left implicit (ADR-269's honesty contract).
+ * the second may be left implicit (ADR-269's honesty contract); a source the
+ * compilation window CUT is named on a third, because a stated cut nobody can
+ * see is a silent one (ADR-286's rule, ADR-343).
  *
  * The fragments are joined with the locale's own list grammar
  * (`Intl.ListFormat`), so no locale carries an « and » key.
@@ -18,8 +20,18 @@ import type { PortraitProvenance as Provenance } from '@/hooks/useJournals';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 
-/** The declared order of the sources, the prompt's own. */
-const SOURCE_KEYS = ['memories', 'interests', 'habits', 'relation_debriefs'] as const;
+/** The declared order of the sources, the prompt's own (nine since 2026-10-12). */
+const SOURCE_KEYS = [
+  'memories',
+  'interests',
+  'habits',
+  'relation_debriefs',
+  'open_loops',
+  'workboard',
+  'routines',
+  'reminders',
+  'bookmarks',
+] as const;
 
 export interface PortraitProvenanceProps {
   provenance: Provenance;
@@ -37,8 +49,11 @@ function joinList(parts: string[], lng: Language): string {
 export function PortraitProvenance({ provenance, lng }: PortraitProvenanceProps) {
   const { t } = useTranslation(lng, 'translation');
 
-  const used = SOURCE_KEYS.filter(key => provenance.sources[key]?.status === 'used');
+  const used = SOURCE_KEYS.filter(
+    key => provenance.sources[key]?.status === 'used' && (provenance.sources[key]?.used ?? 0) > 0
+  );
   const unavailable = SOURCE_KEYS.filter(key => provenance.sources[key]?.status === 'unavailable');
+  const cut = SOURCE_KEYS.filter(key => provenance.sources[key]?.reason === 'over_budget');
 
   const parts = [
     { key: 'entries', count: provenance.journal_entries },
@@ -46,6 +61,7 @@ export function PortraitProvenance({ provenance, lng }: PortraitProvenanceProps)
   ];
   const fragments = parts.map(part => t(`journals.provenance.${part.key}`, { count: part.count }));
   const unavailableNames = unavailable.map(key => t(`journals.provenance.source.${key}`));
+  const cutNames = cut.map(key => t(`journals.provenance.source.${key}`));
 
   return (
     <div className="space-y-0.5 text-px-10 text-muted-foreground">
@@ -60,6 +76,14 @@ export function PortraitProvenance({ provenance, lng }: PortraitProvenanceProps)
           {t('journals.provenance.unavailable', {
             sources: joinList(unavailableNames, lng),
             count: unavailable.length,
+          })}
+        </p>
+      )}
+      {cut.length > 0 && (
+        <p data-testid="portrait-provenance-cut" data-sources={cut.join('|')}>
+          {t('journals.provenance.over_budget', {
+            sources: joinList(cutNames, lng),
+            count: cut.length,
           })}
         </p>
       )}

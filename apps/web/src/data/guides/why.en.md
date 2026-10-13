@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version**: 6.2
-**Date**: 2026-10-04
-**Application**: LIA v3.0.0
+**Version**: 6.3
+**Date**: 2026-10-13
+**Application**: LIA v3.0.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -464,7 +464,7 @@ Beyond writing, the journal **measures itself**. At every turn, LIA looks at the
 
 From this stratification emerges a **compiled user-model portrait**: your voice, your rhythm, your contexts, your contradictions, your blind spots. It travels with LIA wherever it speaks — conversation, voice, reminders, proactive notifications, ReAct, fallback — so the assistant doesn't "forget who you are" depending on the surface it's using.
 
-That portrait reads more than the journals: your memories, your interests, your learned habits and your relationship debriefs enter it as material, each under its own switch — yours and the administrator's. And it tells you where it comes from: under the portrait, a line names what was read, what was empty, what was off. A source that does not answer is named, never read as empty.
+That portrait reads more than the journals: everything LIA keeps about you enters it as material, whole — memories, interests, learned habits, relationship debriefs, open loops, Workboard tickets, routines, reminders, kept answers — each under its own switches, yours and the administrator's. What comes out is a reading of who you are, not a list of what you did: a pattern named, never the inventory of its evidence, and a brief that truly summarises rather than extracts. And it tells you where it comes from: under the portrait, a line names what was read, what was empty, what was off. A source that does not answer is named, never read as empty; when your journals change, the portrait stays, flagged as awaiting a recompilation, rather than disappearing.
 
 This is a form of artificial introspection — the assistant reflecting on its interactions, measuring its own usefulness, and developing a nuanced understanding of you. You retain full control: reading by theme or by level, editing, signaling a problem on the portrait, triggering a consolidation on demand. The portrait itself is never directly edited — it's a synthesis voice, corrected through indirect levers to preserve its coherence.
 

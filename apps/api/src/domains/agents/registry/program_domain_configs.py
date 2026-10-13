@@ -7,6 +7,7 @@ register through this ONE aggregator (net-zero taxonomy cost per new domain
 
 from __future__ import annotations
 
+from src.core.constants import SETTING_AGENT_NAME
 from src.domains.agents.registry.domain_taxonomy import DomainConfig
 
 PROGRAM_DOMAIN_CONFIGS: dict[str, DomainConfig] = {
@@ -17,7 +18,7 @@ PROGRAM_DOMAIN_CONFIGS: dict[str, DomainConfig] = {
             "The user's own LIA application settings: saved font size, theme, "
             "language, timezone, personality and feature preferences."
         ),
-        agent_names=["setting_agent"],
+        agent_names=[SETTING_AGENT_NAME],
         result_key="preferences",
         metadata={
             "provider": "internal",

@@ -172,7 +172,8 @@ export interface JournalThemeInfo {
 /**
  * Compiled user-model portrait (ADR-079, commit 3).
  *
- * Synthesized by the consolidation model and independently reviewed against current sources.
+ * An analytical reading of the person the consolidation model writes, every paragraph
+ * admitted claim by claim against the current sources (ADR-343).
  * Read-only on the client — to update
  * the portrait, the user uses one of the three levers:
  * 1. Edit/delete L3 source entries
@@ -190,6 +191,8 @@ export interface PortraitSourceProvenance {
   total: number;
   /** Selected items withheld because no complete source proof was available. */
   omitted_incomplete?: number;
+  /** Items cut at the published item length (never dropped for it). */
+  cut_items?: number;
 }
 
 /** What the portrait was compiled from — persisted WITH the portrait. */
@@ -199,21 +202,16 @@ export interface PortraitProvenance {
   sources: Record<string, PortraitSourceProvenance>;
   journal_revision?: number | null;
   source_state?: Record<string, unknown> | null;
+  /** Proposed claims the publication did not keep. */
+  omitted_claims?: number | null;
+  /** Claims erased since the compilation because an entry they rested on was deleted. */
+  withdrawn_claims?: number | null;
   portrait_pending?: boolean | null;
-  portrait_review?: {
-    policy: string;
-    digest: string;
-    model: string;
-    reviewed_at: number;
-    reviewed_digest?: string;
-    approved_indices?: number[];
-    rejected?: { claim_index: number; criteria: string[] }[];
-  } | null;
   claims?: Array<{
-    facet: 'context' | 'posture' | 'focus' | 'interaction' | 'uncertainty';
+    facet: 'posture' | 'focus' | 'context' | 'rhythm' | 'tension' | 'interaction' | 'uncertainty';
     text: string;
     supports: Array<{ source: string; quote: string }>;
-    in_brief: boolean;
+    placement: 'full' | 'brief';
   }> | null;
 }
 
@@ -223,6 +221,8 @@ export interface JournalPortrait {
   compiled_at: string | null;
   /** What it was compiled from; null before the first compilation. */
   sources: PortraitProvenance | null;
+  /** True when the evidence moved since the compilation: the words are served dated. */
+  stale?: boolean;
 }
 
 /**
@@ -297,13 +297,15 @@ export function useJournals() {
   const refetchPortrait = useCallback(async () => {
     await refetchPortraitVerified();
   }, [refetchPortraitVerified]);
-  const invalidatePortrait = useCallback(() => {
-    setPortraitData({ full: null, brief: null, compiled_at: null, sources: null });
+  // A write moves the evidence: the words STAY, read as dated, until the refetch
+  // brings the server's own verdict (2026-10-12: never an empty card).
+  const markPortraitStale = useCallback(() => {
+    setPortraitData(previous => (previous ? { ...previous, stale: true } : previous));
   }, [setPortraitData]);
   const refreshJournal = useCallback(async () => {
-    invalidatePortrait();
+    markPortraitStale();
     await Promise.all([refetch(), refetchSettings(), refetchPortraitStrict()]);
-  }, [refetch, refetchSettings, refetchPortraitStrict, invalidatePortrait]);
+  }, [refetch, refetchSettings, refetchPortraitStrict, markPortraitStale]);
   const keepSource = useCallback(() => {}, []);
   useApplicationResourceSync(ownerId, 'journals', refreshJournal, keepSource);
 
@@ -370,7 +372,7 @@ export function useJournals() {
       const result = await createMutate('/journals', data);
       if (!isCurrent()) return undefined;
       if (result) {
-        invalidatePortrait();
+        markPortraitStale();
         // Optimistic update
         setData(prev => {
           if (!prev) return prev;
@@ -385,7 +387,7 @@ export function useJournals() {
       }
       return result;
     },
-    [createMutate, setData, refetchPortrait, invalidatePortrait, isCurrent]
+    [createMutate, setData, refetchPortrait, markPortraitStale, isCurrent]
   );
 
   // Update entry
@@ -394,7 +396,7 @@ export function useJournals() {
       const result = await updateMutate(`/journals/${entryId}`, data);
       if (!isCurrent()) return undefined;
       if (result) {
-        invalidatePortrait();
+        markPortraitStale();
         setData(prev => {
           if (!prev) return prev;
           return {
@@ -406,7 +408,7 @@ export function useJournals() {
       }
       return result;
     },
-    [updateMutate, setData, refetchPortrait, invalidatePortrait, isCurrent]
+    [updateMutate, setData, refetchPortrait, markPortraitStale, isCurrent]
   );
 
   // Delete entry
@@ -415,7 +417,7 @@ export function useJournals() {
       const entry = entriesData?.entries.find(e => e.id === entryId);
       await deleteMutate(`/journals/${entryId}`);
       if (!isCurrent()) return;
-      invalidatePortrait();
+      markPortraitStale();
       setData(prev => {
         if (!prev) return prev;
         return {
@@ -427,14 +429,14 @@ export function useJournals() {
       });
       await refetchPortrait();
     },
-    [deleteMutate, setData, entriesData, refetchPortrait, invalidatePortrait, isCurrent]
+    [deleteMutate, setData, entriesData, refetchPortrait, markPortraitStale, isCurrent]
   );
 
   // Delete all entries (GDPR)
   const deleteAllEntries = useCallback(async () => {
     await deleteAllMutate('/journals');
     if (!isCurrent()) return;
-    invalidatePortrait();
+    markPortraitStale();
     setData(prev => {
       if (!prev) return prev;
       return {
@@ -447,7 +449,7 @@ export function useJournals() {
       };
     });
     await refetchPortrait();
-  }, [deleteAllMutate, setData, refetchPortrait, invalidatePortrait, isCurrent]);
+  }, [deleteAllMutate, setData, refetchPortrait, markPortraitStale, isCurrent]);
 
   // Update settings
   const updateSettings = useCallback(
@@ -456,7 +458,7 @@ export function useJournals() {
       if (!isCurrent()) return undefined;
       if (result) {
         if (result.portrait_invalidated ?? legacyPortraitSettingsChanged(data, settingsData)) {
-          invalidatePortrait();
+          markPortraitStale();
         }
         setSettingsData(result);
         await Promise.all([refetchSettings(), refetchPortrait()]);
@@ -469,7 +471,7 @@ export function useJournals() {
       refetchPortrait,
       settingsData,
       setSettingsData,
-      invalidatePortrait,
+      markPortraitStale,
       isCurrent,
     ]
   );
@@ -479,12 +481,12 @@ export function useJournals() {
     const result = await consolidateMutate('/journals/consolidate', {} as Record<string, never>);
     if (!isCurrent()) return undefined;
     if (result) {
-      if (result.status === 'success' || result.actions_applied > 0) invalidatePortrait();
+      if (result.status === 'success' || result.actions_applied > 0) markPortraitStale();
       // Refresh entries + settings (cost) + portrait (just recompiled)
       await Promise.all([refetch(), refetchSettings(), refetchPortrait()]);
     }
     return result;
-  }, [consolidateMutate, refetch, refetchSettings, refetchPortrait, invalidatePortrait, isCurrent]);
+  }, [consolidateMutate, refetch, refetchSettings, refetchPortrait, markPortraitStale, isCurrent]);
 
   // Lever 2 — signal a problem on the portrait
   const submitPortraitFeedback = useCallback(
@@ -494,7 +496,7 @@ export function useJournals() {
       if (result) {
         // A resolved feedback response already committed its correction,
         // including attempts whose later compilation was refused.
-        invalidatePortrait();
+        markPortraitStale();
         await Promise.all([refetch(), refetchSettings(), refetchPortrait()]);
       }
       return result;
@@ -504,7 +506,7 @@ export function useJournals() {
       refetch,
       refetchSettings,
       refetchPortrait,
-      invalidatePortrait,
+      markPortraitStale,
       isCurrent,
     ]
   );

@@ -1,12 +1,19 @@
-"""Validate and prepare maintenance actions, then apply them without provider calls."""
+"""Repair, validate and prepare maintenance actions, then apply them without provider calls."""
 
 from enum import Enum
-from typing import Literal, cast
+from typing import Any, Literal, cast
 from uuid import UUID
 
-from src.domains.journals.consolidation_output import MaintenanceAction, MaintenanceOutput
-from src.domains.journals.models import JournalEntry
+from src.domains.journals.consolidation_output import (
+    MaintenanceAction,
+    MaintenanceOutput,
+    changed_entry_ids,
+)
+from src.domains.journals.models import JournalEntry, JournalEntryLevel
 from src.domains.journals.service import JournalService, prepare_embeddings
+from src.infrastructure.observability.logging import get_logger
+
+logger = get_logger(__name__)
 
 PreparedEmbeddings = tuple[list[float] | None, list[float] | None]
 
@@ -87,15 +94,142 @@ def _validate_level(
         raise ValueError("method lessons cannot become identity facets")
 
 
+def repair_maintenance(output: MaintenanceOutput, entries: list[JournalEntry]) -> MaintenanceOutput:
+    """Apply an abstraction at the level its supports carry, never refuse the batch.
+
+    One synthesis citing immature rules used to void the whole paid consolidation —
+    its maintenance AND its portrait (measured 2026-10-12 c: 2 runs of 8 on the
+    measurement persona). The level is what the evidence decides, exactly like the
+    confidence ``_confidence`` lowers instead of refusing (ADR-184): a new entry is
+    created at L1, an update keeps the entry's level, and a rewrite of a validated
+    L2/L3 keeps its words. Every other refusal of ``validate_maintenance`` stays.
+
+    Args:
+        output: The parsed proposal.
+        entries: The snapshot's active entries.
+
+    Returns:
+        ``output`` itself when nothing needed a repair, else a repaired copy.
+    """
+    by_id = {str(entry.id): entry for entry in entries}
+    changed_ids = changed_entry_ids(output)
+    actions: list[MaintenanceAction] = []
+    repairs = {"created_at_l1": 0, "level_kept": 0, "words_kept": 0}
+    for action in output.actions:
+        repaired, kind = _repaired_abstraction(action, by_id, changed_ids)
+        actions.append(repaired)
+        if kind is not None:
+            repairs[kind] += 1
+    if not any(repairs.values()):
+        return output
+    logger.info(
+        "journal_maintenance_abstractions_repaired",
+        repaired=sum(repairs.values()),
+        **repairs,
+    )
+    return output.model_copy(update={"actions": actions})
+
+
+def _repaired_abstraction(
+    action: MaintenanceAction, by_id: dict[str, JournalEntry], changed_ids: set[str]
+) -> tuple[MaintenanceAction, str | None]:
+    """The action at the level its supports carry, and which repair it took (None: none)."""
+    if action.action not in ("create", "update"):
+        return action, None
+    previous = by_id.get(action.entry_id or "")
+    if action.action == "update" and previous is None:
+        return action, None  # an unknown entry is the validation's refusal, not a level
+    level = action.level.value if action.level else (previous.level if previous else "L1")
+    if not _new_abstraction(action, previous, level) or _supports_carry(action, by_id, changed_ids):
+        return action, None
+    if previous is None:
+        created = action.model_copy(update={"level": JournalEntryLevel.L1, "support_ids": []})
+        return created, "created_at_l1"
+    if previous.level in ("L2", "L3") and action.content not in (None, previous.content):
+        # The words of a validated abstraction stay what its supports validated.
+        kept = action.model_copy(
+            update={"level": None, "content": None, "title": None, "support_ids": []}
+        )
+        return kept, "words_kept"
+    return action.model_copy(update={"level": None, "support_ids": []}), "level_kept"
+
+
+def _supports_carry(
+    action: MaintenanceAction, by_id: dict[str, JournalEntry], changed_ids: set[str]
+) -> bool:
+    """Whether the cited supports carry the abstraction (the validation's own rule)."""
+    try:
+        _validate_supports(action, by_id, changed_ids)
+    except ValueError:
+        return False
+    return True
+
+
+def admit_maintenance(
+    output: MaintenanceOutput, entries: list[JournalEntry], max_entry_chars: int
+) -> MaintenanceOutput:
+    """Drop the actions this snapshot refuses, one by one; the batch goes on.
+
+    One refused action used to void the whole paid consolidation, its other
+    actions and its portrait included (2026-10-13). Each action is checked by the
+    validation's own rule and dropped alone, counted with what the parser
+    rejected. Dropping only shrinks the set of entries the batch changes, so what
+    stays validates as a whole (the settlement checks it again). Call it once, on
+    the parser's output: the proposal indices are derived from its rejections.
+
+    Args:
+        output: The parsed (and repaired) proposal.
+        entries: The snapshot's active entries.
+        max_entry_chars: The account's complete-entry limit.
+
+    Returns:
+        ``output`` itself when the snapshot refused nothing, else the admitted copy.
+
+    Raises:
+        ValueError: Every proposed action was refused and the answer carries no
+            portrait claims — nothing of it can be used.
+    """
+    by_id = {str(entry.id): entry for entry in entries}
+    changed_ids = changed_entry_ids(output)
+    admitted: list[MaintenanceAction] = []
+    refused: list[dict[str, Any]] = []
+    for index, action in zip(_proposal_indices(output), output.actions, strict=True):
+        try:
+            _validate_action(action, by_id, changed_ids, max_entry_chars)
+        except ValueError as exc:
+            refused.append({"action_index": index, "reason": str(exc)})
+            continue
+        admitted.append(action)
+    rejected = sorted(
+        [*output.rejected_actions, *refused], key=lambda item: int(item["action_index"])
+    )
+    if rejected and not admitted and output.portrait_claims is None:
+        raise ValueError("every maintenance action was refused")
+    if rejected:
+        logger.warning(
+            "journal_maintenance_actions_dropped",
+            proposed=len(admitted) + len(rejected),
+            dropped=len(rejected),
+            reasons=sorted({str(item["reason"]) for item in rejected}),
+        )
+    if not refused:
+        return output
+    return output.model_copy(update={"actions": admitted, "rejected_actions": rejected})
+
+
+def _proposal_indices(output: MaintenanceOutput) -> list[int]:
+    """The proposal index of each readable action: the positions the parser kept."""
+    rejected = {int(item["action_index"]) for item in output.rejected_actions}
+    total = len(output.actions) + len(rejected)
+    return [index for index in range(total) if index not in rejected]
+
+
 def validate_maintenance(
     output: MaintenanceOutput, entries: list[JournalEntry], max_entry_chars: int
 ) -> None:
     """Refuse semantic errors before embedding preparation incurs spend."""
     by_id = {str(entry.id): entry for entry in entries}
-    changed_ids = {action.entry_id for action in output.actions if action.entry_id is not None}
-    changed_ids.update(
-        str(identifier) for action in output.actions for identifier in action.merge_source_ids
-    )
+    changed_ids = changed_entry_ids(output)
     for action in output.actions:
         _validate_action(action, by_id, changed_ids, max_entry_chars)
 

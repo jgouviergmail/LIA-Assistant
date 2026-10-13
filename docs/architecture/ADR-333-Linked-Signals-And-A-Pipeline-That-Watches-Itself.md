@@ -62,3 +62,35 @@ Every finding was measured in production before it was touched:
   missing; the migrations configure logging before importing the models.
 - What it does not do: it adds no tracing of the browser and keeps logs and traces
   on their existing retention (7 days in production).
+
+## Amendment 2026-10-12 — the exporters keep only what is read
+
+Decision 3 applied to the stack's own targets. Measured on production on
+2026-10-12 (memory analysis of the host): cAdvisor published 7,137 series, of
+which the dashboards and rules read eight families (`container_cpu_usage_seconds_total`,
+`container_last_seen`, `container_memory_usage_bytes`, `container_memory_working_set_bytes`,
+`container_network_receive_bytes_total`, `container_network_transmit_bytes_total`,
+`container_spec_memory_limit_bytes`, `container_start_time_seconds`); postgres-exporter
+published 3,590, one per table for every `pg_stat_user_tables` column, of which four were
+read (`pg_up`, `pg_settings_max_connections`, `pg_stat_database_numbackends`,
+`pg_stat_database_tup_fetched`). Every other series cost Prometheus head memory and
+cAdvisor CPU for nobody.
+
+- **A keep-list per exporter job** in `prometheus.yml`, held by
+  `test_pipeline_keep_lists_guard`, which now recognises an exporter's series by the
+  metric-name prefix it declares (`EXPORTER_FAMILIES`): a panel selects
+  `container_memory_working_set_bytes{name="lia-api-prod"}` with no `job` label, so the
+  pipeline rule's `job="…"` selector could not see it. The guard also reads the
+  recording rules and the product alerts, not only the core alerts.
+- **cAdvisor computes only what is read**: `--docker_only=true` (no panel reads a
+  systemd cgroup), `--store_container_labels=false` (18 compose labels per series,
+  none read), `--housekeeping_interval=30s` under the 60 s scrape, and the per-file-system,
+  block-io, per-cpu, load and perf families disabled at the source — the same flags in
+  `docker-compose.prod.yml` and `docker-compose.dev.yml`.
+- Measured on the dev stack after the change: the cAdvisor scrape keeps 168 samples of
+  1,033 scraped and the postgres-exporter scrape 30 of 4,050; every family a panel or a
+  rule reads is still served; cAdvisor's own working set fell from 586 MB to 21 MB at
+  restart. On production the two jobs' 10,727 series become about 650.
+- What it does not do: it touches no LIA metric (every one of those has a reader by
+  the ADR-148 ratchet) and no alert; a future panel on a dropped exporter family fails
+  the build with the family named, which is the whole point of the guard.

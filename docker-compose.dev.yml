@@ -586,6 +586,14 @@ services:
     image: ghcr.io/google/cadvisor:v0.60.6@sha256:b8e7d1093144fd088f425ff003d75a4aa405de075db78dae3bc563730b1bd07a
     container_name: lia-cadvisor-dev
     privileged: true
+    # Same flags as production (ADR-333 amendment 2026-10-12): only what a
+    # panel or a rule reads is computed, docker containers only, no compose
+    # labels on the series, 30 s housekeeping under the 60 s scrape.
+    command:
+      - --docker_only=true
+      - --housekeeping_interval=30s
+      - --store_container_labels=false
+      - --disable_metrics=advtcp,cpu_topology,cpuset,cpuLoad,disk,diskIO,hugetlb,memory_numa,percpu,perf_event,process,referenced_memory,resctrl,sched,tcp,udp
     ports:
       - "${DEV_BIND_HOST:-127.0.0.1}:${CADVISOR_HOST_PORT:-8080}:8080"
     volumes:

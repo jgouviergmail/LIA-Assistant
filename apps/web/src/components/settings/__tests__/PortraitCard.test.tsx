@@ -55,6 +55,44 @@ describe('PortraitCard', () => {
     expect(screen.queryByText('A person who plans in the evening.')).not.toBeInTheDocument();
   });
 
+  it('says a recompilation is pending on a stale portrait and keeps its words', () => {
+    renderWithProviders(<PortraitCard {...props} portrait={portrait({ stale: true })} />);
+    expect(screen.getByTestId('portrait-stale')).toHaveTextContent('journals.portraitStale');
+    expect(screen.getByText('A person who plans in the evening.')).toBeInTheDocument();
+  });
+
+  it('draws no stale line on a current portrait', () => {
+    renderWithProviders(<PortraitCard {...props} portrait={portrait({ stale: false })} />);
+    expect(screen.queryByTestId('portrait-stale')).not.toBeInTheDocument();
+  });
+
+  it('starts on the brief when the portrait has no full text', () => {
+    renderWithProviders(
+      <PortraitCard {...props} portrait={portrait({ full: null, brief: 'Only a brief.' })} />
+    );
+    expect(screen.getByText('Only a brief.')).toBeInTheDocument();
+  });
+
+  it('shows the brief of a brief-only portrait that arrives after the mount', () => {
+    // The card mounts before the portrait is fetched: the shown format follows what
+    // the portrait HAS at render time, never a choice frozen at the mount.
+    const view = renderWithProviders(<PortraitCard {...props} portrait={null} />);
+    view.rerender(
+      <PortraitCard {...props} portrait={portrait({ full: null, brief: 'Only a brief.' })} />
+    );
+    expect(screen.getByText('Only a brief.')).toBeInTheDocument();
+  });
+
+  it('keeps showing words when an erasure leaves the brief alone', () => {
+    // An erasure can withdraw every full claim (ADR-343): the selected « Full » tab
+    // must not leave an empty body while a brief exists.
+    const view = renderWithProviders(<PortraitCard {...props} portrait={portrait()} />);
+    expect(screen.getByText('A person who plans in the evening.')).toBeInTheDocument();
+    view.rerender(<PortraitCard {...props} portrait={portrait({ full: null })} />);
+    expect(screen.getByText('Plans in the evening.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'journals.portraitFormatFull' })).toBeDisabled();
+  });
+
   it('disables a format the portrait does not have', () => {
     renderWithProviders(<PortraitCard {...props} portrait={portrait({ brief: null })} />);
     expect(screen.getByRole('button', { name: 'journals.portraitFormatBrief' })).toBeDisabled();

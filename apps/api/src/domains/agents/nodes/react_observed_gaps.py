@@ -67,7 +67,18 @@ def proven_final_content(state: MessagesState, content: object) -> str:
 
 
 def observed_gaps(state: MessagesState) -> tuple[str, ...]:
-    """Only explicit failures/partial markers; an empty read can answer a question."""
+    """The gaps the code observed, which a final answer may have left unsaid.
+
+    A requested goal left missing, failed, or partial when the request demanded
+    completeness (``requested_coverage``); and a started read that FAILED. A read
+    the tool cut at its cap — ``truncated``, a next page — is NOT a gap: it
+    answered what it was asked and the cut is stated to the model (ADR-286).
+    Counted as one, it forced a recovery pass the model could not resolve on
+    every agenda or mail question whose list outgrew the cap — measured
+    2026-10-12: 4 dev turns of 4, 21 production turns of 65, 14 of them
+    fruitless, two model calls and 10 to 15 s each. An empty read can answer a
+    question.
+    """
     observations = state.get("react_read_observations") or {}
     coverage = requested_coverage(state)
     goal_gaps = tuple(
@@ -77,7 +88,7 @@ def observed_gaps(state: MessagesState) -> tuple[str, ...]:
         f"{observation['tool_name']}: started read returned {observation['outcome']} "
         f"(observation {signature[:12]})"
         for signature, observation in observations.items()
-        if observation["outcome"] in {"failed", "partial"}
+        if observation["outcome"] == "failed"
     )
     return (*goal_gaps, *started_gaps)
 

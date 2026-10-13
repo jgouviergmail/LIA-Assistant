@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version**: 6.2
-**Datum**: 2026-10-04
-**Anwendung**: LIA v3.0.0
+**Version**: 6.3
+**Datum**: 2026-10-13
+**Anwendung**: LIA v3.0.1
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -464,7 +464,7 @@ Das Journal ist auf **vier Ebenen der Tiefe** organisiert — von der Rohbeobach
 
 Aus dieser Stratifizierung ergibt sich ein **kompiliertes Nutzer-Porträt**: Deine Stimme, dein Rhythmus, deine Kontexte, deine Widersprüche, deine blinden Flecken. Es reist mit LIA überall hin, wo sie spricht — Konversation, Stimme, Erinnerungen, proaktive Benachrichtigungen, ReAct, Fallback — damit der Assistent „nicht vergisst, wer du bist“ je nach genutzter Oberfläche.
 
-Dieses Porträt liest mehr als die Tagebücher: Deine Erinnerungen, deine Interessen, deine gelernten Gewohnheiten und deine Beziehungs-Debriefs gehen als Material ein, jedes unter seinem eigenen Schalter — deinem und dem des Administrators. Und es sagt dir, woher es kommt: Unter dem Porträt nennt eine Zeile, was gelesen wurde, was leer war, was abgeschaltet war. Eine Quelle, die nicht antwortet, wird benannt, nie als leer gelesen.
+Dieses Porträt liest mehr als die Tagebücher: Alles, was LIA über dich bewahrt, geht als Material ein, vollständig — Erinnerungen, Interessen, gelernte Gewohnheiten, Beziehungs-Debriefings, offene Fäden, Workboard-Tickets, Routinen, geplante Erinnerungen, aufbewahrte Antworten —, jedes unter seinen eigenen Schaltern, deinem und dem des Administrators. Was daraus entsteht, ist eine Lesart dessen, wer du bist, keine Liste dessen, was du getan hast: ein benanntes Muster, nie das Inventar seiner Belege, und eine Kurzfassung, die wirklich zusammenfasst, statt auszuschneiden. Und es sagt dir, woher es kommt: Unter dem Porträt nennt eine Zeile, was gelesen wurde, was leer war, was abgeschaltet war. Eine Quelle, die nicht antwortet, wird benannt, nie als leer gelesen; ändern sich deine Tagebücher, bleibt das Porträt da, als auf eine Neukompilierung wartend markiert, statt zu verschwinden.
 
 Das ist eine Form künstlicher Introspektion — der Assistent, der über seine Interaktionen nachdenkt, seine eigene Nützlichkeit misst und ein nuanciertes Verständnis von dir entwickelt. Du behältst die volle Kontrolle: Lesen nach Thema oder Ebene, Bearbeiten, Problem-Meldung am Porträt, Auslösen einer Konsolidierung auf Anfrage. Das Porträt selbst wird nie direkt bearbeitet — es ist eine Synthese-Stimme, korrigiert über indirekte Hebel, um seine Kohärenz zu bewahren.
 

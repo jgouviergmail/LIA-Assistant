@@ -468,20 +468,21 @@ class User(
         comment="Source of last journal intervention: 'extraction' or 'consolidation'.",
     )
 
-    # Compiled user-model portrait (ADR-079, commit 3 of journal-conscience-operationnelle).
-    # Two formats produced by the consolidation LLM in the same call:
-    # - full (~200 tokens): conversation/planner — rich faceted portrait
-    # - brief (~60 tokens): secondary flows (notifications, voice, reminders, react)
+    # Compiled user-model portrait (ADR-079, ADR-343). Two formats produced by the
+    # consolidation LLM in the same call, each from its own claims, under the token
+    # targets JOURNAL_PORTRAIT_FULL_MAX_TOKENS / JOURNAL_PORTRAIT_BRIEF_MAX_TOKENS:
+    # - full: conversation/planner — the analytical reading across the sources
+    # - brief: secondary flows (notifications, voice, reminders, react)
     # Read everywhere LIA speaks via build_journal_user_model_block().
     journal_portrait_full: Mapped[str | None] = mapped_column(
         Text(),
         nullable=True,
-        comment="Compiled portrait full format (~200 tokens) — used by response/planner.",
+        comment="Compiled portrait full format (analytical reading) — used by response/planner.",
     )
     journal_portrait_brief: Mapped[str | None] = mapped_column(
         Text(),
         nullable=True,
-        comment="Compiled portrait brief format (~60 tokens) — used by secondary flows.",
+        comment="Compiled portrait brief format (its own claims) — used by secondary flows.",
     )
     journal_portrait_compiled_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
@@ -496,7 +497,7 @@ class User(
         nullable=True,
         comment=(
             "Provenance of the compiled portrait: journal entries count and, per source "
-            "(memories, interests, habits, relation_debriefs), status/used/total."
+            "(the nine of PORTRAIT_SOURCE_KEYS), status/used/total, plus the claims."
         ),
     )
 

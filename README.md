@@ -25,7 +25,7 @@
   <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-24%20LTS-5FA04E?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node.js 24 LTS"></a>
   <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-0.141.1-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI"></a>
   <a href="https://nextjs.org/"><img src="https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=nextdotjs&logoColor=white" alt="Next.js 16"></a>
-  <a href="https://langchain-ai.github.io/langgraph/"><img src="https://img.shields.io/badge/LangGraph-1.2.11-FF6F00?style=flat-square" alt="LangGraph"></a>
+  <a href="https://langchain-ai.github.io/langgraph/"><img src="https://img.shields.io/badge/LangGraph-1.2.14-FF6F00?style=flat-square" alt="LangGraph"></a>
   <a href="https://python.langchain.com/"><img src="https://img.shields.io/badge/LangChain-1.3.15-4B8BBE?style=flat-square" alt="LangChain"></a>
   <a href="#talk-to-it"><img src="https://img.shields.io/badge/i18n-6%20languages-E040FB?style=flat-square" alt="6 languages"></a>
   <a href="docs/audit/README.md"><img src="https://img.shields.io/badge/360%C2%B0%20audit-8.3%2F10-2E7D5B?style=flat-square" alt="360° technical audit: 8.3/10 on the normalized 24-area grid — full public report"></a>
@@ -44,7 +44,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 3.0.0</strong> — <strong>Your requests, their context, a result you can verify.</strong> Manage supported LIA settings and objects through conversation, with explicit confirmation for sensitive operations. ReAct checks requested outcomes against structured results and reuses eligible fresh reads within a turn. Native companions gain reviewed body volume, and the editable product film explains the main workflows. Experimental speaking-avatar provider and physical Android/iOS qualification remains separate.
+  <strong>Version 3.0.1</strong> — <strong>A portrait that reads everything LIA keeps, and lighter ReAct turns.</strong> The compiled portrait is an analysis again, fed by nine sources read whole, with a brief written as a summary of its own and a journal change that marks it stale instead of erasing it; ReAct binds fewer tools, skips recovery passes over pages a tool capped on purpose and checkpoints only what a turn changed, while API workers keep their vectors compact — 13 October 2026.
 </p>
 
 ---
@@ -366,7 +366,7 @@ the supported surfaces and secure continuation contract.
 - _ReAct_ adapts its next steps to tool results for exploratory or ambiguous requests. Token use and latency depend on the task and configured models.
 - Both stream through the same response node ([ADR-070](docs/architecture/ADR-070-ReAct-Execution-Mode.md), [PLANNER](docs/technical/PLANNER.md)).
 - A ReAct tool result is projected item by item under a token budget derived from the slot's own window, never cut mid-item, the cut stated to the model and counted ([ADR-286](docs/architecture/ADR-286-Tool-Result-Projected-Per-Item-Under-A-Token-Budget.md)).
-- The loop binds its tools by relevance — the detected domains' tools, the best-ranked doors of every other family, the top of the turn's global ranking — so no family falls off a blind cap and the schemas stop being most of the prompt, and it reads the same knowledge spaces the pipeline reads ([ADR-293](docs/architecture/ADR-293-React-Tools-Bound-By-Relevance.md)).
+- The loop binds its tools by relevance — the detected domains' tools, the best-ranked doors of every other family, the top of the turn's global ranking, a large catalogue such as the settings reached through its own domain — so no family falls off a blind cap and the schemas stop being most of the prompt, and it reads the same knowledge spaces the pipeline reads ([ADR-293](docs/architecture/ADR-293-React-Tools-Bound-By-Relevance.md)).
 - A ReAct turn is judged on its result: every fact the loop set out to obtain ends obtained or declared with the rungs tried. A declared gap buys one bounded recovery pass through a node that calls no model ([ADR-310](docs/architecture/ADR-310-ReAct-Turn-Judged-On-Its-Result.md)).
 - Requested outcomes are checked against canonical structured observations, including the value, operation, account and completeness expected. A draft, opaque result or delegated announcement does not prove completion. Independent eligible reads return checkpointed segments; exact fresh reads may be reused within the same turn, with mutation invalidation and bounded budgets ([ADR-336](docs/architecture/ADR-336-Requested-Outcomes-Checked-Against-Canonical-Observations.md), [ADR-337](docs/architecture/ADR-337-Checkpointed-ReAct-Read-Segments-And-Turn-Local-Reuse.md)).
 - Each person picks an exchange rhythm. Frequent binds every tool, moves the turn's context after the question and drops the history by blocks anchored on the turn counter, so the provider's prompt cache is read from one turn to the next. Occasional keeps the relevance selection at a steady cost ([ADR-308](docs/architecture/ADR-308-ReAct-Cross-Turn-Prompt-Cache.md), [ADR-311](docs/architecture/ADR-311-Exchange-Rhythm-Is-The-Persons-Choice.md)).
@@ -452,7 +452,7 @@ The home page aggregates your sources in parallel with a per-section cache and a
 #### Personal journals
 
 - Introspective notebooks the assistant keeps in the first person, stratified from raw observations to a user portrait, with an epistemic status per entry and a deferred self-evaluation at zero added LLM cost.
-- The portrait is compiled from four sources — memories, interests, learned habits, relationship debriefs — each read under its own gates, and it shows which ones it used ([ADR-079](docs/architecture/ADR-079-Stratified-Journal-Consciousness.md), [ADR-292](docs/architecture/ADR-292-Portrait-Reads-Four-Sources.md), [JOURNALS](docs/technical/JOURNALS.md)).
+- The portrait is an analysis of the person, not an inventory, read from everything LIA keeps — memories, interests, learned habits, relationship debriefs, open loops, Workboard tickets, routines, reminders and kept answers — each read whole under its own gates; its brief is a summary of its own, a journal change marks it stale rather than erasing it, and it shows which sources it used ([ADR-079](docs/architecture/ADR-079-Stratified-Journal-Consciousness.md), [ADR-292](docs/architecture/ADR-292-Portrait-Reads-Four-Sources.md), [ADR-343](docs/architecture/ADR-343-Portrait-Reads-The-Whole-Material-And-Its-Brief-Is-A-Synthesis.md), [JOURNALS](docs/technical/JOURNALS.md)).
 - A read tool searches them on demand — directives, patterns and facets, never raw observations ([ADR-318](docs/architecture/ADR-318-Assistant-Tools-Exact-Answers-And-Own-Records.md)).
 
 #### Knowledge spaces
@@ -612,8 +612,8 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                                         |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------- |
-| **55** functional domains | **931,000+** source lines (excl. tests) | **59,000+** inventoried automated tests | **341** ADRs                                                            |
-| **279** versions shipped  | **6 languages**, parity enforced in CI  | **618** Prometheus metrics              | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **55** functional domains | **931,000+** source lines (excl. tests) | **59,000+** inventoried automated tests | **342** ADRs                                                            |
+| **280** versions shipped  | **6 languages**, parity enforced in CI  | **618** Prometheus metrics              | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 Source-line figure: 932,910 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-10-12). Test inventory combines backend collection and the frontend suite; release qualification executes the repository's required gates. The published technical audit does not score security.
 
@@ -821,7 +821,7 @@ docs/                     # Architecture, technical documents, guides, runbooks,
 | Layer         | Technology                                                                                                            | Role                                                              |
 | ------------- | --------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
 | Backend       | Python 3.14 · FastAPI 0.141.1 · Pydantic 2.13.4 · SQLAlchemy 2.0.54 · Alembic                                         | REST API, SSE streaming, validation, async ORM, migrations        |
-| Orchestration | LangGraph 1.2.11 · LangChain 1.3.15 · `mcp` SDK (Streamable HTTP)                                                     | Multi-agent graph, LLM abstraction, Model Context Protocol        |
+| Orchestration | LangGraph 1.2.14 · LangChain 1.3.15 · `mcp` SDK (Streamable HTTP)                                                     | Multi-agent graph, LLM abstraction, Model Context Protocol        |
 | Data          | PostgreSQL 16 + pgvector · Redis 7.4                                                                                  | Data, checkpoints, vector search · cache, sessions, locks         |
 | Frontend      | Node.js 24 LTS · Next.js 16.3.8 · React 19.3.0 · TypeScript · TailwindCSS · Radix UI · TanStack Query · react-i18next | App Router UI, accessible primitives, server state, six languages |
 | Voice         | ONNX Runtime Web (wake word) · sherpa-onnx (offline Whisper) · Edge TTS · OpenAI · ElevenLabs                         | In-browser detection, server transcription, speech synthesis      |
@@ -969,7 +969,7 @@ Instrumentation and caching are in place — per-node message windowing, LLM con
 
 ### Architecture Decision Records
 
-341 ADR files (ADR-001 through ADR-342 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
+342 ADR files (ADR-001 through ADR-343 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
 
 - [ADR-070: ReAct Execution Mode](docs/architecture/ADR-070-ReAct-Execution-Mode.md) — why two execution modes rather than one
 - [ADR-263: Execution Authority Chain and Effect Register](docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md) — how every act is claimed, closed and recorded

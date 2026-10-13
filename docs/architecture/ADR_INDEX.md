@@ -5074,3 +5074,11 @@ graph TD
 **Status**: Accepted, 2026-10-12.
 
 **Decision**: A deployment-scoped runtime identifier applies BIP once on an authenticated browser visit. Persist completion, preserve later manual choices and other preferences, coordinate tabs where available, and roll back failed persistence. Empty remains the installation default. Offline browsers and device origins are not database account updates.
+
+### ADR-343: the portrait reads the whole material, and its brief is a synthesis
+
+**File**: `docs/architecture/ADR-343-Portrait-Reads-The-Whole-Material-And-Its-Brief-Is-A-Synthesis.md`
+
+**Status**: Accepted, 2026-10-12.
+
+**Decision**: Nine records about the person are read whole under one share of the consolidation slot's window, every item citable; the brief is written as its own claims; the review sees every structurally valid claim and judges grounded synthesis; the budgets are targets the prompt states and the publication keeps every verified claim; a provisional facet is repaired and an unprovable claim dropped and counted; a journal change marks the portrait stale instead of wiping it. Measured on dev before it shipped.

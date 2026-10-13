@@ -1,7 +1,7 @@
 # Stack Technique - Reference Complete
 
 > **Version**: 2.0
-> **Date**: 2026-09-25
+> **Date**: 2026-10-13
 > **Statut**: Reference officielle des versions
 
 ---
@@ -104,7 +104,7 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 |-------------|---------|------|
 | **langchain-core** | 1.5.6 | Core abstractions |
 | **langchain** | 1.3.15 | LLM framework |
-| **langgraph** | 1.2.11 | Agent orchestration |
+| **langgraph** | 1.2.14 | Agent orchestration |
 | **langgraph-checkpoint** | 4.2.0 | Checkpoint serialization |
 | **langgraph-checkpoint-postgres** | 3.1.2 | State persistence |
 | **langgraph-prebuilt** | 1.1.0 | Prebuilt agent components |
@@ -134,10 +134,10 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 | **structlog** | 25.x | Structured logging |
 | **prometheus-client** | 0.25.x | Metrics |
 | **langfuse** | 4.7.1 | LLM observability |
-| **opentelemetry-api** | 1.44.0 | Distributed tracing |
-| **opentelemetry-sdk** | 1.44.0 | Tracing SDK |
-| **opentelemetry-instrumentation-fastapi** | 0.65b0 | FastAPI auto-instrumentation |
-| **opentelemetry-exporter-otlp** | 1.44.0 | OTLP export |
+| **opentelemetry-api** | 1.45.1 | Distributed tracing |
+| **opentelemetry-sdk** | 1.45.1 | Tracing SDK |
+| **opentelemetry-instrumentation-fastapi** | 0.66b1 | FastAPI auto-instrumentation |
+| **opentelemetry-exporter-otlp** | 1.45.1 | OTLP export |
 
 ### Securite & Auth
 

@@ -2535,6 +2535,13 @@
       "theme": "experience",
       "functional": ["f.nativeavatar"],
       "technical": ["t.nativeavatar", "t.web", "t.config"]
+    },
+    {
+      "adr": 343,
+      "date": "2026-10-12",
+      "theme": "memory",
+      "functional": ["f.journals", "f.memory", "f.interests", "f.habits", "f.relations", "f.openloops", "f.workboard", "f.routines", "f.reminders", "f.bookmarks"],
+      "technical": ["t.promptsys"]
     }
   ]
 }

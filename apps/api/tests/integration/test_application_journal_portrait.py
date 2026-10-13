@@ -58,8 +58,12 @@ async def test_portrait_matches_source_visibility_without_recompilation(
         )
         await async_session.commit()
     result = await read_journal_portrait(async_session, owner_id)
-    assert result.full == ("Observed owned portrait" if scenario == "current" else None)
-    assert result.brief == ("Owned brief" if scenario == "current" else None)
+    # The words are served whenever the account may read them; moved evidence is
+    # a FLAG, never a reason to hide them (2026-10-12).
+    served = scenario != "personal_off"
+    assert result.full == ("Observed owned portrait" if served else None)
+    assert result.brief == ("Owned brief" if served else None)
+    assert result.stale is (scenario in ("stale_revision", "source_moved", "missing"))
     await async_session.refresh(test_user)
     assert test_user.journal_portrait_full == "Observed owned portrait"
 

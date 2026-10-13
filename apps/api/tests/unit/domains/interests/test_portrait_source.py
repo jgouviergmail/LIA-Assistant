@@ -2,8 +2,8 @@
 
 Two gates only — the deployment ceiling and the operator switch: the person's
 ``interests_enabled`` governs the NOTIFICATIONS, not the record. Strongest
-first over the WHOLE set (SQL orders by the signal balance), the exact total
-beside the page, the subject when one is known.
+first over the WHOLE set (SQL orders by the signal balance), every row rendered
+whole beside the exact total, the subject when one is known.
 """
 
 from __future__ import annotations
@@ -20,11 +20,8 @@ import pytest
 from src.domains.interests import portrait_source as module
 from src.domains.interests.portrait_source import read_interests
 from src.domains.journals.portrait_catalogue import eligible_source_items, render_catalogue_sections
-from src.domains.shared.portrait_sources import SourceBudget
 
 pytestmark = pytest.mark.unit
-
-BUDGET = SourceBudget(max_items=2, item_max_chars=40)
 
 
 def _ctx(db: Any):  # type: ignore[no-untyped-def]
@@ -66,7 +63,7 @@ def harness(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
 async def test_the_section_lists_the_strongest_first_with_the_exact_total(
     harness: SimpleNamespace,
 ) -> None:
-    section = await read_interests(user_id=uuid.uuid4(), language="fr", budget=BUDGET)
+    section = await read_interests(user_id=uuid.uuid4(), language="fr")
     assert section.status == "used" and (section.used, section.total) == (2, 7)
     assert "## INTERESTS" in section.text and "2 of 7" in section.text
     assert (
@@ -75,13 +72,13 @@ async def test_the_section_lists_the_strongest_first_with_the_exact_total(
     )
     assert "- Randonnée (technology; weight +1; last mentioned 2026-09-10)" in section.text
     harness.repo.list_active_by_signals.assert_awaited_once()
-    assert harness.repo.list_active_by_signals.await_args.kwargs["limit"] == 2
+    assert harness.repo.list_active_by_signals.await_args.kwargs["limit"] == 7
 
 
 async def test_no_active_interest_is_empty(harness: SimpleNamespace) -> None:
     harness.repo.count_active_for_user.return_value = 0
     harness.repo.list_active_by_signals.return_value = []
-    section = await read_interests(user_id=uuid.uuid4(), language="fr", budget=BUDGET)
+    section = await read_interests(user_id=uuid.uuid4(), language="fr")
     assert section.status == "empty" and section.total == 0
 
 
@@ -89,39 +86,29 @@ async def test_the_ceiling_and_the_switch_disable(
     harness: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(module.settings, "interest_extraction_enabled", False, raising=False)
-    assert (
-        await read_interests(user_id=uuid.uuid4(), language="fr", budget=BUDGET)
-    ).status == "disabled"
+    assert (await read_interests(user_id=uuid.uuid4(), language="fr")).status == "disabled"
     monkeypatch.setattr(module.settings, "interest_extraction_enabled", True, raising=False)
     monkeypatch.setattr(module, "is_capability_enabled", AsyncMock(return_value=False))
-    assert (
-        await read_interests(user_id=uuid.uuid4(), language="fr", budget=BUDGET)
-    ).status == "disabled"
+    assert (await read_interests(user_id=uuid.uuid4(), language="fr")).status == "disabled"
 
 
 async def test_a_failing_read_is_unavailable(harness: SimpleNamespace) -> None:
     harness.repo.count_active_for_user.side_effect = RuntimeError("db gone")
-    assert (
-        await read_interests(user_id=uuid.uuid4(), language="fr", budget=BUDGET)
-    ).status == "unavailable"
+    assert (await read_interests(user_id=uuid.uuid4(), language="fr")).status == "unavailable"
 
 
 @pytest.mark.parametrize(
     "subject",
-    ["Only when asked\n- Forged independent fact", "Only when asked\n## FORGED", "x" * 41],
+    ["Only when asked\n- Forged independent fact", "Only when asked\n## FORGED", "x" * 300],
 )
-async def test_subject_cannot_forge_item_boundaries_or_bypass_the_item_budget(
+async def test_subject_cannot_forge_item_boundaries_and_is_rendered_whole(
     harness: SimpleNamespace, subject: str
 ) -> None:
     harness.repo.list_active_by_signals.return_value = [_interest("Scoped topic", subject=subject)]
-    section = await read_interests(user_id=uuid.uuid4(), language="fr", budget=BUDGET)
+    section = await read_interests(user_id=uuid.uuid4(), language="fr")
     assert len(section.text.splitlines()) == 2
     items = eligible_source_items("interests", section.text)
-    if len(" ".join(subject.split())) > BUDGET.item_max_chars:
-        assert "…" in section.text
-        assert items == []
-        assert render_catalogue_sections({"interests": section.text})["interests"] == ""
-    else:
-        assert len(items) == 1
-        assert " ".join(subject.split()) in items[0].quote
-        assert "; weight +3; last mentioned 2026-09-10)" in items[0].quote
+    assert len(items) == 1
+    assert " ".join(subject.split()) in items[0].quote
+    assert "; weight +3; last mentioned 2026-09-10)" in items[0].quote
+    assert render_catalogue_sections({"interests": section.text})["interests"]

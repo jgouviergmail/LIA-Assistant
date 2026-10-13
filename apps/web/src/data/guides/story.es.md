@@ -3,8 +3,8 @@
 > Informe de experiencia — un sistema completo, del diseño a la producción.
 
 **Versión**: 2.3
-**Fecha**: 2026-10-04
-**Aplicación**: LIA v3.0.0
+**Fecha**: 2026-10-13
+**Aplicación**: LIA v3.0.1
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -20,8 +20,8 @@ La casi totalidad del código fue escrita por una IA, bajo dirección humana: un
 | Código escrito por una IA — dirigida, encuadrada, controlada | **≈ 100 %** |
 | Líneas de código fuente (sin tests) — 55 dominios funcionales | **931.000+** |
 | Pruebas automatizadas inventariadas; suites adecuadas para cada commit y entrega | **59.000+** |
-| Decisiones de arquitectura documentadas (ADR) | **341** |
-| Versiones entregadas a ritmo regular | **279** |
+| Decisiones de arquitectura documentadas (ADR) | **342** |
+| Versiones entregadas a ritmo regular | **280** |
 | Idiomas, paridad verificada automáticamente | **6** |
 | Auditoría técnica sobre 24 perímetros | **8,3/10** |
 
@@ -62,7 +62,7 @@ La misma regla guía el relato: preparar no es completar. Una solicitud en esper
 
 ## 4. Los arbitrajes
 
-Tres decisiones estructurantes, entre las 341 documentadas:
+Tres decisiones estructurantes, entre las 342 documentadas:
 
 **Soberanía y reversibilidad — ninguna dependencia irreversible de proveedor.** Los modelos de IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelos locales vía Ollama) están detrás de una abstracción única: cada uso puede cambiar de proveedor por configuración, con comparación de costes. Mismo principio del lado del negocio: Google, Apple y Microsoft son intercambiables por categoría funcional. El autoalojamiento te da control del servidor; los datos de la cuenta se guardan en la instancia y las credenciales de los conectores están cifradas. Los servicios remotos que eliges siguen recibiendo los datos necesarios para su parte de la solicitud.
 

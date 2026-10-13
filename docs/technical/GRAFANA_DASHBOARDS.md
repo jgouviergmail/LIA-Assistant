@@ -62,8 +62,8 @@ OpenTelemetry OTLP --> Tempo --> Grafana
 | Source | Port | Role |
 |--------|------|------|
 | FastAPI `/metrics` | 9091 (HTTP dedie) | Metriques applicatives (agents, LLM, HITL, etc.) |
-| cAdvisor | 8080 | Metriques conteneurs Docker (CPU/memoire/reseau) |
-| postgres_exporter | 9187 | Metriques PostgreSQL (pool, requetes) |
+| cAdvisor | 8080 | Metriques conteneurs Docker (CPU/memoire/reseau) — huit familles gardees par la liste `keep` de `prometheus.yml` (ADR-333, amendement du 2026-10-12 : 7 137 series publiees en production, huit lues), et cAdvisor ne calcule que celles-la (`--docker_only`, `--store_container_labels=false`, familles disque/blkio/percpu/perf desactivees) |
+| postgres_exporter | 9187 | Metriques PostgreSQL (pool, requetes) — quatre familles gardees (`pg_up`, `pg_settings_max_connections`, `pg_stat_database_numbackends`, `pg_stat_database_tup_fetched`) sur 3 590 series publiees |
 | redis_exporter | 9121 | Metriques Redis (memoire, commandes) |
 | node_exporter | 9100 | Metriques systeme hote (disque, CPU, RAM) |
 | Loki, Alloy, Tempo, Grafana | 3100, 12345, 3200, 3000 | La pile elle-meme : `up`, plus les seules series que lisent l'alerte `LogsNotDelivered` et la ligne « Observability pipeline » du 16 (listes `keep` de `prometheus.yml` ; leurs `/metrics` complets pesaient ~9 000 series) |
@@ -422,6 +422,8 @@ Verifier que le conteneur cAdvisor est en cours d'execution et que le filtre de 
 ```promql
 container_cpu_usage_seconds_total{name=~"lia.*"}
 ```
+
+Un panneau ajoute sur une famille que la liste `keep` du job `cadvisor` (ou `postgresql`) ne garde pas affiche « No data » pour toujours : la liste ne garde que ce que les tableaux et les regles lisent (ADR-333, amendement du 2026-10-12). Ajouter la famille a la liste de `prometheus.yml` ; `test_pipeline_keep_lists_guard` refuse la construction tant que le panneau lit une serie que son job laisse tomber.
 
 Verifier les noms reels des conteneurs :
 ```bash

@@ -11,8 +11,8 @@
  * The backgrounds are composed here the way the browser stacks them, from the
  * values `globals.css` declares (the sky, the glow at its peak, the glass's
  * veil) and the canvas palette `lib/landing/attention-background.ts` draws
- * with. Both inks — body and muted — must hold 4.5:1 on every one, in both
- * themes.
+ * with. Every ink — body, muted and the accent cyan used as text — must hold
+ * 4.5:1 on every one, in both themes.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -108,6 +108,7 @@ describe('cosmos contrast', () => {
         '--cosmos-bg',
         '--cosmos-ink',
         '--cosmos-mut',
+        '--cosmos-cyan-ink',
         '--cosmos-glow-violet',
         '--cosmos-footer-veil',
       ]) {
@@ -119,7 +120,7 @@ describe('cosmos contrast', () => {
   });
 
   for (const theme of ['light', 'dark'] as const) {
-    for (const ink of ['--cosmos-ink', '--cosmos-mut'] as const) {
+    for (const ink of ['--cosmos-ink', '--cosmos-mut', '--cosmos-cyan-ink'] as const) {
       it(`${theme}: ${ink} holds AA on every ground it is read over`, () => {
         const fg = parsePaint(resolve(theme === 'light' ? LIGHT : DARK, ink)).rgb;
         const failing = Object.entries(grounds(theme))

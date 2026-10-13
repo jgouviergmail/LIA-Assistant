@@ -3529,6 +3529,13 @@ MCP_USER_MAX_SERVERS_PER_USER_DEFAULT = 20
 # Raised from 20 when production asked for 50 (2026-10-01).
 MCP_USER_MAX_SERVERS_PER_USER_MAX = 100
 MCP_USER_POOL_TTL_SECONDS_DEFAULT = 900  # 15 min idle before connection eviction
+# ADR-283 amendment 2026-10-12: per-worker bounds of what a turn's MCP catalogue leaves
+# behind. One entry per (server, embedding model, catalogue fingerprint) of compact
+# float32 vectors — about 8 MB for a server of a hundred tools at 1,536 dimensions, so
+# the bound is a memory ceiling of roughly 256 MB per worker; one argument model class
+# per distinct JSON schema.
+MCP_SERVER_VECTOR_CACHE_MAX_DEFAULT = 32
+MCP_ARGS_SCHEMA_CACHE_MAX_DEFAULT = 512
 MCP_USER_POOL_MAX_TOTAL_DEFAULT = 50  # Global pool limit across all users
 MCP_USER_POOL_EVICTION_INTERVAL_DEFAULT = 60  # Seconds between eviction sweeps
 MCP_USER_OAUTH_STATE_TTL_SECONDS = 300  # 5 min TTL for OAuth state in Redis
@@ -5565,16 +5572,19 @@ JOURNAL_CONSOLIDATION_MIN_ENTRIES_DEFAULT = 1
 JOURNAL_CONSOLIDATION_HISTORY_MAX_MESSAGES_DEFAULT = 20
 JOURNAL_CONSOLIDATION_HISTORY_MAX_DAYS_DEFAULT = 7
 
-# The portrait's budgets and the four sources it reads (2026-09-16 design,
-# part B). The budgets used to be prose in the prompt (« ~150-220 tokens »):
-# a number a prompt states is a number settings own (ADR-184).
-JOURNAL_PORTRAIT_FULL_MAX_TOKENS_DEFAULT = 300
+# The portrait's budgets (2026-09-16 design, part B). They used to be prose in
+# the prompt (« ~150-220 tokens »): a number a prompt states is a number
+# settings own (ADR-184). They are the TARGETS the prompt states; the
+# publication keeps every verified claim whole (owner rule 2026-10-12: the
+# synthesis is complete). 400 is the size ADR-292 measured for the former
+# prose; measured 2026-10-12, a verified paragraph weighs 62-73 proxy tokens.
+JOURNAL_PORTRAIT_FULL_MAX_TOKENS_DEFAULT = 400
 JOURNAL_PORTRAIT_BRIEF_MAX_TOKENS_DEFAULT = 70
-JOURNAL_CONSOLIDATION_MEMORIES_MAX_DEFAULT = 40
-JOURNAL_CONSOLIDATION_INTERESTS_MAX_DEFAULT = 30
-JOURNAL_CONSOLIDATION_DEBRIEFS_MAX_DEFAULT = 10
-JOURNAL_CONSOLIDATION_SOURCE_ITEM_MAX_CHARS_DEFAULT = 200
-JOURNAL_CONSOLIDATION_SOURCES_MAX_CHARS_DEFAULT = 12000
+# The share of the consolidation slot's context window the nine portrait
+# sources may take, every item whole; the per-source item caps, the per-item
+# clamp and the character cap they replace made the owner's three relationship
+# debriefs ineligible and hid half the memories (measured 2026-10-12).
+JOURNAL_CONSOLIDATION_SOURCES_WINDOW_FRACTION_DEFAULT = 0.5
 
 # Size defaults (user-configurable)
 JOURNAL_MAX_TOTAL_CHARS_DEFAULT = 40000  # ~10k tokens total budget
@@ -6127,6 +6137,12 @@ DEFAULT_EXECUTION_MODE: str = "pipeline"
 EXECUTION_MODE_PIPELINE: str = "pipeline"
 EXECUTION_MODE_REACT: str = "react"
 
+# ADR-335 — the owning agent of the application-settings catalogue (the forty
+# sections of ``domains/agents/application/``): read by its domain config and by
+# the ReAct prompt assembler, which renders <ApplicationSettings> only when one
+# of its tools is bound for the turn (ADR-284, ADR-293 amendment 2026-10-12).
+SETTING_AGENT_NAME: str = "setting_agent"
+
 # ADR-249 — ephemeral Python in the existing skills sandbox. The agent's owning
 # name is its own so the tool never borrows a domain agent's identity in the
 # metrics or the catalogue.
@@ -6199,7 +6215,11 @@ REACT_TOOL_SEMANTIC_TOP_K_DEFAULT: int = 40
 # Tools kept per family (agent) so that every family stays REACHABLE: the
 # planner catalogue protects this many per detected domain, the ReAct loop
 # this many per family outside the detected domains (ADR-293). Two, so a
-# family keeps an alternative to its best-scored tool.
+# family keeps an alternative to its best-scored tool. In the ReAct loop a
+# family of SEVERAL binding units counts its seats in TOOLS and is reachable
+# through its domain; a family holding at most one unit counts the unit as ONE
+# seat, the rule of 2026-09-20 measured on the skills (ADR-293 amendment
+# 2026-10-12).
 CATALOGUE_DOMAIN_COVERAGE_TOP_N: int = 2
 REACT_AGENT_HISTORY_WINDOW_TURNS_DEFAULT: int = 5
 # Expand iterative user MCP servers into their individual tools in ReAct mode

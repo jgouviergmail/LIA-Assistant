@@ -22,7 +22,6 @@ from pydantic import (
     ConfigDict,
     Field,
     StrictBool,
-    StrictInt,
     ValidationError,
     field_validator,
 )
@@ -315,23 +314,11 @@ class PortraitSourceProvenance(BaseModel):
         exclude_if=lambda value: value == 0,
         description="Selected items omitted because complete evidence was unavailable.",
     )
-
-
-class PortraitReviewProvenance(BaseModel):
-    """The exact publication receipt's portable diagnostic fields."""
-
-    policy: str = Field(min_length=1)
-    digest: str = Field(pattern=r"^[0-9a-f]{64}$")
-    model: str = Field(min_length=1)
-    reviewed_at: float = Field(ge=0, allow_inf_nan=False)
-    reviewed_digest: str | None = Field(
-        None, pattern=r"^[0-9a-f]{64}$", exclude_if=lambda value: value is None
-    )
-    approved_indices: list[StrictInt] | None = Field(
-        None, min_length=1, max_length=32, exclude_if=lambda value: value is None
-    )
-    rejected: list[dict[str, Any]] | None = Field(
-        None, max_length=32, exclude_if=lambda value: value is None
+    cut_items: int = Field(
+        0,
+        ge=0,
+        exclude_if=lambda value: value == 0,
+        description="Items cut at the published item length (never dropped for it).",
     )
 
 
@@ -341,13 +328,20 @@ class PortraitProvenance(BaseModel):
     version: Literal[1] = Field(description="Shape version of the stored JSON.")
     journal_entries: int = Field(ge=0, description="Active journal entries the prompt carried.")
     sources: dict[str, PortraitSourceProvenance] = Field(
-        description="Per source key (memories, interests, habits, relation_debriefs)."
+        description="Per source key, the nine of PORTRAIT_SOURCE_KEYS (ADR-343)."
     )
     journal_revision: int | None = None
     source_state: dict[str, Any] | None = None
     claims: list[dict[str, Any]] | None = None
+    omitted_claims: int | None = Field(
+        None, ge=0, description="Proposed claims the publication did not keep."
+    )
+    withdrawn_claims: int | None = Field(
+        None,
+        ge=0,
+        description="Claims erased since the compilation because an entry they rested on was deleted.",
+    )
     portrait_pending: StrictBool | None = None
-    portrait_review: PortraitReviewProvenance | None = None
 
 
 def provenance_of(stored: Any) -> PortraitProvenance | None:
@@ -371,9 +365,9 @@ class JournalPortraitResponse(BaseModel):
     """User-model portrait compiled by the journal consolidation.
 
     The portrait is a synthesis compiled from the journal entries AND, since
-    the 2026-09-16 design (part B), from the person's memories, interests,
-    learned habits and relationship debriefs — each read under its own gates
-    and reported in ``sources``. It is never user-editable directly — users
+    the 2026-09-16 design (part B), from the other records LIA keeps — nine
+    sources since ADR-343 — each read under its own gates and reported in
+    ``sources``. It is never user-editable directly — users
     act via the three levers:
     1. Editing/deleting L3 source entries
     2. POSTing feedback that triggers a synchronous re-consolidation
@@ -395,6 +389,13 @@ class JournalPortraitResponse(BaseModel):
     sources: PortraitProvenance | None = Field(
         None,
         description="What the portrait was compiled from; None before the first compilation.",
+    )
+    stale: bool = Field(
+        False,
+        description=(
+            "True when the evidence the portrait was compiled from has moved since: the "
+            "words are served dated until the next consolidation replaces them."
+        ),
     )
 
 

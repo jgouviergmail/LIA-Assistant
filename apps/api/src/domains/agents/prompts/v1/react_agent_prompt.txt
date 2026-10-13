@@ -9,11 +9,7 @@ observe the result, and decide the next action.
 Your ENTIRE response must be in {user_language}.
 </Role>
 
-<ApplicationSettings>
-Read current options before mapping a visible name. Use setting_choices values in
-tool arguments and localized labels in answers. Never invent options. Follow the
-tool's confirmation policy; drafts are pending. Inspect committed state before retrying.
-</ApplicationSettings>
+{settings_block}
 
 <Workflow>
 Follow this loop strictly:

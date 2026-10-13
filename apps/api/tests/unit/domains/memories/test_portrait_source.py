@@ -1,9 +1,10 @@
 """The long-term memories as the portrait reads them (2026-09-16, part B).
 
 Three gates (deployment ceiling, operator switch, the person's own
-preference), an EXACT total beside a bounded page, most important first, the
-emotional label the memory injection already uses, an ISO date — and a read
-that fails is ``unavailable``, never ``empty``.
+preference), the WHOLE set most important first beside its exact total (no
+page, no clamp since 2026-10-12), the emotional label the memory injection
+already uses, an ISO date — and a read that fails is ``unavailable``, never
+``empty``.
 """
 
 from __future__ import annotations
@@ -19,11 +20,8 @@ import pytest
 
 from src.domains.memories import portrait_source as module
 from src.domains.memories.portrait_source import read_memories
-from src.domains.shared.portrait_sources import SourceBudget
 
 pytestmark = pytest.mark.unit
-
-BUDGET = SourceBudget(max_items=2, item_max_chars=40)
 
 
 def _ctx(db: Any):  # type: ignore[no-untyped-def]
@@ -60,55 +58,41 @@ def harness(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
     return SimpleNamespace(repo=repo, db=db)
 
 
-async def test_the_section_is_bounded_labelled_dated_and_carries_the_exact_total(
+async def test_the_section_is_whole_labelled_dated_and_carries_the_exact_total(
     harness: SimpleNamespace,
 ) -> None:
-    section = await read_memories(user_id=uuid.uuid4(), language="fr", budget=BUDGET)
+    section = await read_memories(user_id=uuid.uuid4(), language="fr")
     assert section.key == "memories" and section.status == "used"
     assert (section.used, section.total) == (2, 5)
     assert section.text.startswith("## LONG-TERM MEMORIES")
     assert "2 of 5" in section.text
     assert "- [personal] [POSITIF] Je vis à Lyon depuis 2019 (2026-09-01)" in section.text
-    # The sensitivity is labelled as such and its content clamped with an ellipsis.
-    assert "[sensitivity] [TRAUMA/DOULEUR] " in section.text
-    assert "x" * 40 not in section.text and "…" in section.text
+    # The sensitivity is labelled as such and its content rendered WHOLE.
+    assert "[sensitivity] [TRAUMA/DOULEUR] " + "x" * 100 in section.text
+    assert "…" not in section.text
     harness.repo.list_for_portrait.assert_awaited_once_with(
-        harness.repo.list_for_portrait.await_args.args[0], limit=2
+        harness.repo.list_for_portrait.await_args.args[0], limit=5
     )
 
 
 async def test_nothing_kept_is_empty_not_used(harness: SimpleNamespace) -> None:
     harness.repo.get_count_for_user.return_value = 0
     harness.repo.list_for_portrait.return_value = []
-    section = await read_memories(user_id=uuid.uuid4(), language="fr", budget=BUDGET)
+    section = await read_memories(user_id=uuid.uuid4(), language="fr")
     assert section.status == "empty" and section.text == "" and section.total == 0
-
-
-async def test_a_zero_budget_renders_nothing_but_still_counts(harness: SimpleNamespace) -> None:
-    section = await read_memories(
-        user_id=uuid.uuid4(), language="fr", budget=SourceBudget(max_items=0, item_max_chars=40)
-    )
-    assert section.status == "empty" and section.total == 5
-    harness.repo.list_for_portrait.assert_not_awaited()
 
 
 async def test_the_deployment_ceiling_the_switch_and_the_preference_each_disable(
     harness: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(module.settings, "memory_extraction_enabled", False, raising=False)
-    assert (
-        await read_memories(user_id=uuid.uuid4(), language="fr", budget=BUDGET)
-    ).status == "disabled"
+    assert (await read_memories(user_id=uuid.uuid4(), language="fr")).status == "disabled"
     monkeypatch.setattr(module.settings, "memory_extraction_enabled", True, raising=False)
     monkeypatch.setattr(module, "is_capability_enabled", AsyncMock(return_value=False))
-    assert (
-        await read_memories(user_id=uuid.uuid4(), language="fr", budget=BUDGET)
-    ).status == "disabled"
+    assert (await read_memories(user_id=uuid.uuid4(), language="fr")).status == "disabled"
     monkeypatch.setattr(module, "is_capability_enabled", AsyncMock(return_value=True))
     harness.db.get.return_value = SimpleNamespace(memory_enabled=False)
-    assert (
-        await read_memories(user_id=uuid.uuid4(), language="fr", budget=BUDGET)
-    ).status == "disabled"
+    assert (await read_memories(user_id=uuid.uuid4(), language="fr")).status == "disabled"
     harness.repo.list_for_portrait.assert_not_awaited()
 
 
@@ -116,5 +100,5 @@ async def test_a_failing_read_is_unavailable_never_empty(
     harness: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     harness.repo.get_count_for_user.side_effect = RuntimeError("db gone")
-    section = await read_memories(user_id=uuid.uuid4(), language="fr", budget=BUDGET)
+    section = await read_memories(user_id=uuid.uuid4(), language="fr")
     assert section.status == "unavailable" and section.text == ""

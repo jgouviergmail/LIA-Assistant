@@ -2,7 +2,8 @@
 
 No source domain is imported: each installs its table and permission probe.
 Qualified content describes the whole source; exposure bookkeeping does not
-invalidate it. A source may also bind its selected page and related tables.
+invalidate it. A source may also bind related tables. The whole record is
+read (2026-10-12), so no selection page exists to bind.
 """
 
 from datetime import datetime
@@ -17,12 +18,7 @@ from sqlalchemy.sql.elements import ColumnElement
 from src.core.config import settings
 from src.core.time_utils import resolve_user_timezone
 from src.domains.journals.constants import JOURNAL_PORTRAIT_POLICY_VERSION
-from src.domains.journals.portrait_sources import _budget_for
-from src.domains.shared.portrait_sources import (
-    FreshnessProbe,
-    SourceBudget,
-    installed_portrait_sources,
-)
+from src.domains.shared.portrait_sources import FreshnessProbe, installed_portrait_sources
 from src.domains.users.models import User
 from src.infrastructure.database.models import Base
 
@@ -61,9 +57,9 @@ def _identity_columns(table: Table, probe: FreshnessProbe) -> list[ColumnElement
 
 
 async def _source_identity(
-    db: AsyncSession, user_id: UUID, probe: FreshnessProbe, budget: SourceBudget
+    db: AsyncSession, user_id: UUID, probe: FreshnessProbe
 ) -> dict[str, Any]:
-    """Read content and optional ordered selection on the owning transaction."""
+    """Read the whole record's identity on the owning transaction."""
     table = Base.metadata.tables[probe.table]
     row = (
         await db.execute(
@@ -73,12 +69,9 @@ async def _source_identity(
     identity: dict[str, Any] = {"count": row[0], "versions": row[-1]}
     if probe.semantic_columns is None:
         identity["stamps"] = [stamp.isoformat() if stamp else None for stamp in row[1:-1]]
-    if probe.selection_query is not None:
-        selected = await db.execute(probe.selection_query(user_id, budget))
-        identity["selected_ids"] = [str(entry_id) for entry_id in selected.scalars()]
     if probe.related_probes:
         identity["related"] = {
-            related.table: await _source_identity(db, user_id, related, budget)
+            related.table: await _source_identity(db, user_id, related)
             for related in probe.related_probes
         }
     return identity
@@ -97,19 +90,14 @@ async def portrait_source_state(db: AsyncSession, user: User) -> dict[str, Any]:
             "max_total_chars": user.journal_max_total_chars,
             "max_entry_chars": user.journal_max_entry_chars,
             "personality_id": str(user.personality_id) if user.personality_id else None,
+            "sources_window_fraction": settings.journal_consolidation_sources_window_fraction,
         }
     }
     for key, (_reader, probe) in installed_portrait_sources().items():
         allowed = await probe.allowed(user.id) if probe.allowed else True
-        budget = _budget_for(key)
-        item: dict[str, Any] = {
-            "allowed": allowed,
-            "max_items": budget.max_items,
-            "item_max_chars": budget.item_max_chars,
-            "total_cap": settings.journal_consolidation_sources_max_chars,
-        }
+        item: dict[str, Any] = {"allowed": allowed}
         if allowed:
-            item.update(await _source_identity(db, user.id, probe, budget))
+            item.update(await _source_identity(db, user.id, probe))
             if probe.expires_daily:
                 item["local_day"] = datetime.now(resolve_user_timezone(user)).date().isoformat()
                 item["max_age_days"] = settings.relation_debrief_injection_max_age_days

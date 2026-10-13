@@ -96,12 +96,13 @@ describe('journal observations follow the current account', () => {
     expect(result.current.portrait).toBeUndefined();
   });
 
-  it('does not retain a potentially invalidated portrait when the native reread fails', async () => {
+  it('keeps the words but marks the portrait stale when the native reread fails', async () => {
     const { result } = renderHook(() => useJournals());
     await waitFor(() => expect(result.current.portrait?.full).toBe('Owned portrait'));
     get.mockRejectedValue(new Error('Source temporarily unavailable'));
     act(() => publishApplicationResources('one', new Set(['journals'])));
     await waitFor(() => expect(result.current.portraitError).toBeInstanceOf(Error));
-    expect(result.current.portrait?.full).toBeNull();
+    expect(result.current.portrait?.stale).toBe(true);
+    expect(result.current.portrait?.full).toBe('Owned portrait');
   });
 });

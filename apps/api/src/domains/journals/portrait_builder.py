@@ -9,10 +9,13 @@ Two natural formats are synthesized during consolidation:
 - ``full``: a faceted portrait for conversational flows.
 - ``brief``: its essential posture, focus and interaction guidance for secondary flows.
 
-Compilation validates current supporting evidence and reviews semantic scope.
-This reader enforces runtime permission, compiler/source lineage and whole-frame
-budget admission. A deleted or disabled source invalidates its portrait before
-ambient use. The accompanying directive avoids repeating factual material
+Compilation validates current supporting evidence claim by claim (ADR-343).
+This reader enforces runtime permission and whole-frame budget admission; the
+block always carries its compilation date (ADR-343, 2026-10-12 c: the exact
+staleness verdict is the journals page's — its nine-source probe cost 14 ms
+fixed plus a hash of every row of the record, two to three times per chat turn,
+to decide one line), and a deleted entry takes the claims it supported with it
+at the deletion. The accompanying directive avoids repeating factual material
 already injected by the memories profile.
 
 The portrait can be empty (NULL) for users who never ran a consolidation
@@ -25,6 +28,7 @@ Phase: v1.20.x — Stratified journal consciousness, commit 3
 from __future__ import annotations
 
 from contextlib import suppress
+from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
@@ -33,6 +37,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.domains.feature_switches.registry import PlatformCapability, is_capability_enabled
+from src.domains.shared.portrait_sources import portrait_lines
 from src.domains.users.models import User
 from src.infrastructure.database.session import get_db_context
 from src.infrastructure.llm.providers.token_counter import OpenAITokenCounter
@@ -50,29 +55,71 @@ PortraitFormat = Literal["full", "brief"]
 
 async def _read_current_portrait(
     db: AsyncSession, uid: UUID, format: PortraitFormat, *, require_phone_context: bool = False
-) -> str | None:
-    """Read only an active account's compiled, current portrait synthesis."""
+) -> tuple[str, datetime | None] | None:
+    """Read an active account's compiled portrait: its words and its date.
+
+    A portrait whose evidence moved is still served (2026-10-12): dated, never
+    withheld — the next consolidation replaces it. No source probe runs here.
+    """
     result = await db.execute(
         select(User).where(User.id == uid).execution_options(populate_existing=True)
     )
     user = result.scalar_one_or_none()
+    if user is None or not _may_diffuse(user, require_phone_context=require_phone_context):
+        return None
+    text = _portrait_text(user, format)
+    if text is None:
+        return None
+    return text, user.journal_portrait_compiled_at
+
+
+def _may_diffuse(user: User, *, require_phone_context: bool) -> bool:
+    """Whether this account's compiled portrait may reach a prompt at all."""
     if (
-        user is None
-        or not user.journals_enabled
+        not user.journals_enabled
         or not user.is_active
         or user.deleted_at is not None
         or user.journal_portrait_compiled_at is None
     ):
-        return None
+        return False
     if require_phone_context and (
         not user.phone_rich_context_enabled or "journal" in (user.phone_disabled_domains or ())
     ):
-        return None
-    from src.domains.journals.lifecycle import portrait_is_current
+        return False
+    return True
 
-    if not await portrait_is_current(db, user):
-        return None
-    return user.journal_portrait_full if format == "full" else user.journal_portrait_brief
+
+def _portrait_text(user: User, format: PortraitFormat) -> str | None:
+    """The words of the asked format; the other format stands in for one nobody published.
+
+    A compilation may publish no brief claim, and an erasure may leave a brief
+    alone: the other format is better than nothing, and the frame's own budget
+    still decides whether it fits.
+    """
+    asked, other = (
+        (user.journal_portrait_full, user.journal_portrait_brief)
+        if format == "full"
+        else (user.journal_portrait_brief, user.journal_portrait_full)
+    )
+    text = asked if asked and asked.strip() else other
+    return text if text and text.strip() else None
+
+
+def _render_block(text: str, compiled_at: datetime | None) -> str:
+    """Compose the ``<UserModelContext>`` block: the words, their date, the directive.
+
+    The dated line names the compilation day (``?`` when unknown) so the model
+    weighs the synthesis against what this turn states (2026-10-12 c).
+    """
+    lines = portrait_lines()
+    day = f"{compiled_at:%Y-%m-%d}" if compiled_at else "?"
+    return (
+        "<UserModelContext>\n"
+        f"{text.strip()}\n"
+        f"{lines['ambient_compiled'].format(date=day)}\n"
+        f"{lines['ambient_directive']}\n"
+        "</UserModelContext>"
+    )
 
 
 async def build_journal_user_model_block(
@@ -125,18 +172,9 @@ async def build_journal_user_model_block(
                 db, uid, format, require_phone_context=require_phone_context
             )
 
-        if not portrait or not portrait.strip():
+        if portrait is None:
             return ""
-
-        block = (
-            "<UserModelContext>\n"
-            f"{portrait.strip()}\n"
-            "Use this user-model portrait silently to adjust your tone, depth, and "
-            "phrasing — never reference it explicitly. It complements the user's "
-            "factual memories (do not duplicate facts already injected by the "
-            "psychological profile elsewhere).\n"
-            "</UserModelContext>"
-        )
+        block = _render_block(*portrait)
         budgeted = f"{budget_prefix}\n\n{block}" if budget_prefix else block
         if max_tokens is not None and OpenAITokenCounter().count(budgeted, "gpt-4o") > max_tokens:
             return ""

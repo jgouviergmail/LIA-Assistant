@@ -1,0 +1,1461 @@
+{
+ "language": "fr",
+ "timezone": "Europe/Paris",
+ "memories": [
+  {
+   "content": "Je préfère qu'on me donne les chiffres avant les explications.",
+   "category": "preference",
+   "emotional_weight": 1,
+   "importance": 0.9,
+   "pinned": true,
+   "days_ago": 160
+  },
+  {
+   "content": "Je ne décide jamais le vendredi soir : je laisse reposer jusqu'au lundi.",
+   "category": "preference",
+   "emotional_weight": 0,
+   "importance": 0.85,
+   "pinned": true,
+   "days_ago": 150
+  },
+  {
+   "content": "Quand je demande un résumé, je veux trois points, pas une page.",
+   "category": "preference",
+   "emotional_weight": 1,
+   "importance": 0.9,
+   "pinned": true,
+   "days_ago": 140
+  },
+  {
+   "content": "Je tiens à vérifier moi-même une mesure avant de la répéter à l'équipe.",
+   "category": "preference",
+   "emotional_weight": 0,
+   "importance": 0.85,
+   "pinned": true,
+   "days_ago": 120
+  },
+  {
+   "content": "Je garde le dimanche après-midi sans écran, quoi qu'il arrive.",
+   "category": "personal",
+   "emotional_weight": 2,
+   "importance": 0.8,
+   "pinned": true,
+   "days_ago": 110
+  },
+  {
+   "content": "Je coordonne une équipe de support informatique de six personnes.",
+   "category": "professional",
+   "emotional_weight": 1,
+   "importance": 0.9,
+   "pinned": false,
+   "days_ago": 170
+  },
+  {
+   "content": "Les escalades clients passent par moi avant de remonter au responsable produit.",
+   "category": "professional",
+   "emotional_weight": 0,
+   "importance": 0.8,
+   "pinned": false,
+   "days_ago": 165
+  },
+  {
+   "content": "Je fais le point avec l'équipe chaque vendredi en fin d'après-midi.",
+   "category": "professional",
+   "emotional_weight": 1,
+   "importance": 0.8,
+   "pinned": false,
+   "days_ago": 150
+  },
+  {
+   "content": "Je prépare la grille d'astreintes un mois à l'avance, en deux options.",
+   "category": "professional",
+   "emotional_weight": 0,
+   "importance": 0.7,
+   "pinned": false,
+   "days_ago": 90
+  },
+  {
+   "content": "Je préfère un ticket bien qualifié à dix tickets vagues.",
+   "category": "professional",
+   "emotional_weight": 1,
+   "importance": 0.7,
+   "pinned": false,
+   "days_ago": 120
+  },
+  {
+   "content": "Je relis les réponses de l'équipe aux clients mécontents avant envoi.",
+   "category": "professional",
+   "emotional_weight": 0,
+   "importance": 0.7,
+   "pinned": false,
+   "days_ago": 100
+  },
+  {
+   "content": "Je note les pannes récurrentes dans un tableau partagé que je relis le lundi.",
+   "category": "professional",
+   "emotional_weight": 0,
+   "importance": 0.65,
+   "pinned": false,
+   "days_ago": 95
+  },
+  {
+   "content": "J'ai formé deux nouveaux arrivants au support cet été.",
+   "category": "professional",
+   "emotional_weight": 2,
+   "importance": 0.6,
+   "pinned": false,
+   "days_ago": 80
+  },
+  {
+   "content": "Je déteste les réunions sans ordre du jour écrit.",
+   "category": "professional",
+   "emotional_weight": -1,
+   "importance": 0.7,
+   "pinned": false,
+   "days_ago": 130
+  },
+  {
+   "content": "Je préfère écrire une procédure que de répondre trois fois à la même question.",
+   "category": "professional",
+   "emotional_weight": 1,
+   "importance": 0.75,
+   "pinned": false,
+   "days_ago": 125
+  },
+  {
+   "content": "Je demande des délais réalistes plutôt que des promesses optimistes.",
+   "category": "professional",
+   "emotional_weight": 0,
+   "importance": 0.7,
+   "pinned": false,
+   "days_ago": 115
+  },
+  {
+   "content": "Je garde une heure sans interruption chaque matin pour les dossiers difficiles.",
+   "category": "professional",
+   "emotional_weight": 1,
+   "importance": 0.75,
+   "pinned": false,
+   "days_ago": 105
+  },
+  {
+   "content": "Je commence ma journée de travail vers huit heures et je la termine vers dix-huit heures.",
+   "category": "professional",
+   "emotional_weight": 0,
+   "importance": 0.6,
+   "pinned": false,
+   "days_ago": 100
+  },
+  {
+   "content": "J'utilise un outil de tickets interne et un tableau de bord d'indicateurs hebdomadaires.",
+   "category": "professional",
+   "emotional_weight": 0,
+   "importance": 0.5,
+   "pinned": false,
+   "days_ago": 85
+  },
+  {
+   "content": "Je mesure le délai de première réponse et le taux de réouverture des tickets.",
+   "category": "professional",
+   "emotional_weight": 0,
+   "importance": 0.65,
+   "pinned": false,
+   "days_ago": 75
+  },
+  {
+   "content": "Je suis en train de réduire le nombre de tickets ouverts depuis plus de dix jours.",
+   "category": "professional",
+   "emotional_weight": 0,
+   "importance": 0.7,
+   "pinned": false,
+   "days_ago": 20
+  },
+  {
+   "content": "Je prépare une présentation des indicateurs du trimestre pour la fin du mois.",
+   "category": "professional",
+   "emotional_weight": 0,
+   "importance": 0.7,
+   "pinned": false,
+   "days_ago": 8
+  },
+  {
+   "content": "Un client important a signalé deux escalades en une semaine, ce qui m'a préoccupé.",
+   "category": "professional",
+   "emotional_weight": -2,
+   "importance": 0.7,
+   "pinned": false,
+   "days_ago": 6
+  },
+  {
+   "content": "Je compte proposer une rotation des astreintes plus équitable en novembre.",
+   "category": "professional",
+   "emotional_weight": 0,
+   "importance": 0.65,
+   "pinned": false,
+   "days_ago": 4
+  },
+  {
+   "content": "J'aimerais déléguer davantage la relecture des réponses à Noé.",
+   "category": "professional",
+   "emotional_weight": 1,
+   "importance": 0.6,
+   "pinned": false,
+   "days_ago": 3
+  },
+  {
+   "content": "Je vis avec Lila et notre enfant Sacha, qui a sept ans.",
+   "category": "family",
+   "emotional_weight": 3,
+   "importance": 0.9,
+   "pinned": false,
+   "days_ago": 175
+  },
+  {
+   "content": "Je dépose Sacha à l'école le matin vers huit heures et quart.",
+   "category": "family",
+   "emotional_weight": 1,
+   "importance": 0.7,
+   "pinned": false,
+   "days_ago": 150
+  },
+  {
+   "content": "Lila travaille en horaires décalés une semaine sur deux.",
+   "category": "family",
+   "emotional_weight": 0,
+   "importance": 0.7,
+   "pinned": false,
+   "days_ago": 140
+  },
+  {
+   "content": "Nous dînons ensemble vers dix-neuf heures trente les soirs de semaine.",
+   "category": "family",
+   "emotional_weight": 1,
+   "importance": 0.6,
+   "pinned": false,
+   "days_ago": 130
+  },
+  {
+   "content": "Le mercredi après-midi, j'accompagne Sacha à son cours de natation.",
+   "category": "family",
+   "emotional_weight": 2,
+   "importance": 0.65,
+   "pinned": false,
+   "days_ago": 120
+  },
+  {
+   "content": "Les grands-parents gardent Sacha un week-end sur quatre.",
+   "category": "family",
+   "emotional_weight": 1,
+   "importance": 0.5,
+   "pinned": false,
+   "days_ago": 110
+  },
+  {
+   "content": "Je prépare les repas de la semaine le dimanche soir avec Lila.",
+   "category": "family",
+   "emotional_weight": 1,
+   "importance": 0.55,
+   "pinned": false,
+   "days_ago": 100
+  },
+  {
+   "content": "Nous partons chaque été deux semaines au bord d'un lac.",
+   "category": "family",
+   "emotional_weight": 2,
+   "importance": 0.5,
+   "pinned": false,
+   "days_ago": 95
+  },
+  {
+   "content": "Sacha a commencé à lire seul ce printemps, ce qui m'a rendu fier.",
+   "category": "family",
+   "emotional_weight": 3,
+   "importance": 0.6,
+   "pinned": false,
+   "days_ago": 90
+  },
+  {
+   "content": "Je lis une histoire à Sacha tous les soirs vers vingt heures trente.",
+   "category": "family",
+   "emotional_weight": 2,
+   "importance": 0.65,
+   "pinned": false,
+   "days_ago": 85
+  },
+  {
+   "content": "Lila et moi réservons un dîner à deux une fois par mois.",
+   "category": "family",
+   "emotional_weight": 2,
+   "importance": 0.5,
+   "pinned": false,
+   "days_ago": 70
+  },
+  {
+   "content": "L'anniversaire de Sacha tombe début décembre et nous l'organisons à la maison.",
+   "category": "family",
+   "emotional_weight": 2,
+   "importance": 0.5,
+   "pinned": false,
+   "days_ago": 60
+  },
+  {
+   "content": "Mon frère habite à deux heures de route et nous nous voyons aux vacances.",
+   "category": "family",
+   "emotional_weight": 1,
+   "importance": 0.45,
+   "pinned": false,
+   "days_ago": 55
+  },
+  {
+   "content": "Je m'occupe des rendez-vous médicaux de Sacha, Lila de l'école.",
+   "category": "family",
+   "emotional_weight": 0,
+   "importance": 0.5,
+   "pinned": false,
+   "days_ago": 45
+  },
+  {
+   "content": "Nous cherchons un stage de sport pour Sacha pendant les vacances d'automne.",
+   "category": "family",
+   "emotional_weight": 0,
+   "importance": 0.5,
+   "pinned": false,
+   "days_ago": 5
+  },
+  {
+   "content": "Je restaure des meubles anciens le week-end dans un petit atelier au fond du jardin.",
+   "category": "personal",
+   "emotional_weight": 3,
+   "importance": 0.85,
+   "pinned": false,
+   "days_ago": 170
+  },
+  {
+   "content": "Je préfère le vernis au tampon aux vernis modernes, même si c'est plus long.",
+   "category": "personal",
+   "emotional_weight": 2,
+   "importance": 0.6,
+   "pinned": false,
+   "days_ago": 140
+  },
+  {
+   "content": "J'écoute du jazz des années cinquante quand je travaille le bois.",
+   "category": "personal",
+   "emotional_weight": 2,
+   "importance": 0.5,
+   "pinned": false,
+   "days_ago": 130
+  },
+  {
+   "content": "Je bois du thé noir le matin, jamais de café après midi.",
+   "category": "personal",
+   "emotional_weight": 0,
+   "importance": 0.4,
+   "pinned": false,
+   "days_ago": 125
+  },
+  {
+   "content": "Je lis surtout des romans policiers nordiques en hiver.",
+   "category": "personal",
+   "emotional_weight": 1,
+   "importance": 0.45,
+   "pinned": false,
+   "days_ago": 120
+  },
+  {
+   "content": "Je n'aime pas les films doublés : je les regarde en version originale.",
+   "category": "personal",
+   "emotional_weight": 0,
+   "importance": 0.4,
+   "pinned": false,
+   "days_ago": 110
+  },
+  {
+   "content": "Je cuisine volontiers des plats mijotés le dimanche.",
+   "category": "personal",
+   "emotional_weight": 1,
+   "importance": 0.45,
+   "pinned": false,
+   "days_ago": 100
+  },
+  {
+   "content": "Je collectionne les vieux outils de menuisier trouvés en brocante.",
+   "category": "personal",
+   "emotional_weight": 2,
+   "importance": 0.55,
+   "pinned": false,
+   "days_ago": 80
+  },
+  {
+   "content": "Je viens de terminer la restauration d'une commode en noyer pour la chambre de Sacha.",
+   "category": "personal",
+   "emotional_weight": 3,
+   "importance": 0.6,
+   "pinned": false,
+   "days_ago": 10
+  },
+  {
+   "content": "Je cherche une méthode pour retirer un vernis au tampon sans abîmer le placage.",
+   "category": "personal",
+   "emotional_weight": 0,
+   "importance": 0.6,
+   "pinned": false,
+   "days_ago": 12
+  },
+  {
+   "content": "Je cours trois fois par semaine, le mardi, le jeudi et le samedi matin.",
+   "category": "health",
+   "emotional_weight": 1,
+   "importance": 0.7,
+   "pinned": false,
+   "days_ago": 160
+  },
+  {
+   "content": "Je me couche vers vingt-trois heures et me lève vers six heures trente.",
+   "category": "health",
+   "emotional_weight": 0,
+   "importance": 0.65,
+   "pinned": false,
+   "days_ago": 150
+  },
+  {
+   "content": "J'ai arrêté de fumer il y a quatre ans.",
+   "category": "health",
+   "emotional_weight": 2,
+   "importance": 0.6,
+   "pinned": false,
+   "days_ago": 145
+  },
+  {
+   "content": "Je surveille mon dos depuis une sciatique l'an dernier et j'évite de porter lourd.",
+   "category": "health",
+   "emotional_weight": -1,
+   "importance": 0.7,
+   "pinned": false,
+   "days_ago": 100
+  },
+  {
+   "content": "Je fais dix minutes d'étirements le soir avant de me coucher.",
+   "category": "health",
+   "emotional_weight": 0,
+   "importance": 0.5,
+   "pinned": false,
+   "days_ago": 90
+  },
+  {
+   "content": "Je prépare une course de dix kilomètres pour le printemps prochain.",
+   "category": "health",
+   "emotional_weight": 1,
+   "importance": 0.6,
+   "pinned": false,
+   "days_ago": 30
+  },
+  {
+   "content": "Je dors mal les semaines où Lila travaille de nuit.",
+   "category": "health",
+   "emotional_weight": -1,
+   "importance": 0.55,
+   "pinned": false,
+   "days_ago": 40
+  },
+  {
+   "content": "Je bois peu d'alcool, un verre de vin le week-end tout au plus.",
+   "category": "health",
+   "emotional_weight": 0,
+   "importance": 0.4,
+   "pinned": false,
+   "days_ago": 120
+  },
+  {
+   "content": "J'ai un bilan médical annuel chaque automne.",
+   "category": "health",
+   "emotional_weight": 0,
+   "importance": 0.45,
+   "pinned": false,
+   "days_ago": 25
+  },
+  {
+   "content": "Je marche vingt minutes après le déjeuner quand la journée le permet.",
+   "category": "health",
+   "emotional_weight": 1,
+   "importance": 0.5,
+   "pinned": false,
+   "days_ago": 15
+  }
+ ],
+ "interests": [
+  {
+   "topic": "restauration de meubles anciens",
+   "category": "hobby",
+   "subject": "vernis au tampon",
+   "positive_signals": 18,
+   "negative_signals": 0,
+   "days_ago": 3
+  },
+  {
+   "topic": "outils de menuisier anciens",
+   "category": "hobby",
+   "subject": "rabots",
+   "positive_signals": 12,
+   "negative_signals": 1,
+   "days_ago": 9
+  },
+  {
+   "topic": "jazz des années cinquante",
+   "category": "culture",
+   "subject": null,
+   "positive_signals": 10,
+   "negative_signals": 0,
+   "days_ago": 14
+  },
+  {
+   "topic": "romans policiers nordiques",
+   "category": "culture",
+   "subject": null,
+   "positive_signals": 9,
+   "negative_signals": 1,
+   "days_ago": 21
+  },
+  {
+   "topic": "course à pied",
+   "category": "sport",
+   "subject": "préparation dix kilomètres",
+   "positive_signals": 11,
+   "negative_signals": 0,
+   "days_ago": 4
+  },
+  {
+   "topic": "outils de gestion de tickets",
+   "category": "tech",
+   "subject": "indicateurs de support",
+   "positive_signals": 8,
+   "negative_signals": 0,
+   "days_ago": 6
+  },
+  {
+   "topic": "rédaction de procédures",
+   "category": "tech",
+   "subject": null,
+   "positive_signals": 7,
+   "negative_signals": 1,
+   "days_ago": 11
+  },
+  {
+   "topic": "rotation des astreintes",
+   "category": "tech",
+   "subject": "équité des plannings",
+   "positive_signals": 6,
+   "negative_signals": 0,
+   "days_ago": 5
+  },
+  {
+   "topic": "cuisine mijotée",
+   "category": "hobby",
+   "subject": null,
+   "positive_signals": 6,
+   "negative_signals": 0,
+   "days_ago": 18
+  },
+  {
+   "topic": "plans d'eau pour les vacances",
+   "category": "other",
+   "subject": null,
+   "positive_signals": 5,
+   "negative_signals": 0,
+   "days_ago": 60
+  },
+  {
+   "topic": "natation pour enfants",
+   "category": "sport",
+   "subject": null,
+   "positive_signals": 5,
+   "negative_signals": 0,
+   "days_ago": 12
+  },
+  {
+   "topic": "lecture jeunesse",
+   "category": "culture",
+   "subject": null,
+   "positive_signals": 4,
+   "negative_signals": 0,
+   "days_ago": 30
+  },
+  {
+   "topic": "brocantes",
+   "category": "hobby",
+   "subject": null,
+   "positive_signals": 7,
+   "negative_signals": 0,
+   "days_ago": 16
+  },
+  {
+   "topic": "ergonomie du dos",
+   "category": "other",
+   "subject": "étirements",
+   "positive_signals": 5,
+   "negative_signals": 0,
+   "days_ago": 22
+  },
+  {
+   "topic": "formation des nouveaux arrivants",
+   "category": "tech",
+   "subject": null,
+   "positive_signals": 4,
+   "negative_signals": 1,
+   "days_ago": 45
+  },
+  {
+   "topic": "thé noir",
+   "category": "other",
+   "subject": null,
+   "positive_signals": 3,
+   "negative_signals": 0,
+   "days_ago": 50
+  },
+  {
+   "topic": "cinéma en version originale",
+   "category": "culture",
+   "subject": null,
+   "positive_signals": 3,
+   "negative_signals": 1,
+   "days_ago": 70
+  },
+  {
+   "topic": "présentations d'indicateurs",
+   "category": "tech",
+   "subject": "trimestriel",
+   "positive_signals": 4,
+   "negative_signals": 0,
+   "days_ago": 7
+  },
+  {
+   "topic": "stages sportifs de vacances",
+   "category": "other",
+   "subject": null,
+   "positive_signals": 3,
+   "negative_signals": 0,
+   "days_ago": 5
+  },
+  {
+   "topic": "méthodes de vernis",
+   "category": "hobby",
+   "subject": "placage",
+   "positive_signals": 6,
+   "negative_signals": 0,
+   "days_ago": 2
+  }
+ ],
+ "habits": {
+  "rhythm": {
+   "weekday": [
+    [
+     7,
+     9
+    ],
+    [
+     20,
+     22
+    ]
+   ],
+   "weekend": [
+    [
+     9,
+     12
+    ]
+   ],
+   "active_days_fraction": 0.74
+  },
+  "recurring": [
+   {
+    "key": "weekly_team_recap",
+    "shape": "every Friday afternoon",
+    "trigger_hour": 16.5,
+    "usual_intent": "summarise the support tickets of the week"
+   },
+   {
+    "key": "sunday_workshop_plan",
+    "shape": "Sunday morning",
+    "trigger_hour": 9.0,
+    "usual_intent": "plan the week-end workshop session"
+   }
+  ]
+ },
+ "journal_entries": [
+  {
+   "theme": "user_observations",
+   "title": "Chiffres en tête",
+   "content": "Observed: the person asked twice for the figure before the explanation.",
+   "level": "L0",
+   "confidence": "low",
+   "evidence_count": 0,
+   "contradiction_count": 0,
+   "search_hints": [
+    "chiffres"
+   ]
+  },
+  {
+   "theme": "user_observations",
+   "title": "Vendredi soir",
+   "content": "Observed: a decision was postponed on a Friday evening without explanation.",
+   "level": "L0",
+   "confidence": "low",
+   "evidence_count": 0,
+   "contradiction_count": 0,
+   "search_hints": [
+    "vendredi"
+   ]
+  },
+  {
+   "theme": "self_reflection",
+   "title": "Ton trop long",
+   "content": "Observed: the person stopped reading a long answer midway and asked for the point.",
+   "level": "L0",
+   "confidence": "low",
+   "evidence_count": 0,
+   "contradiction_count": 0,
+   "search_hints": [
+    "résumé"
+   ]
+  },
+  {
+   "theme": "ideas_analyses",
+   "title": "Bon, bref",
+   "content": "Observed: the person closes a topic with « bon » and moves on.",
+   "level": "L0",
+   "confidence": "low",
+   "evidence_count": 0,
+   "contradiction_count": 0,
+   "search_hints": [
+    "transition"
+   ]
+  },
+  {
+   "theme": "learnings",
+   "title": "Vernis",
+   "content": "Observed: the person corrected a claim about shellac drying time.",
+   "level": "L0",
+   "confidence": "low",
+   "evidence_count": 0,
+   "contradiction_count": 0,
+   "search_hints": [
+    "vernis"
+   ]
+  },
+  {
+   "theme": "user_observations",
+   "title": "Matin calme",
+   "content": "Observed: requests sent before nine in the morning are terse and operational.",
+   "level": "L0",
+   "confidence": "low",
+   "evidence_count": 0,
+   "contradiction_count": 0,
+   "search_hints": [
+    "matin"
+   ]
+  },
+  {
+   "theme": "user_observations",
+   "title": "Astreintes",
+   "content": "Observed: the person mentioned fairness of on-call rotation three times this month.",
+   "level": "L0",
+   "confidence": "low",
+   "evidence_count": 0,
+   "contradiction_count": 0,
+   "search_hints": [
+    "astreintes"
+   ]
+  },
+  {
+   "theme": "learnings",
+   "title": "Tableau de bord",
+   "content": "Observed: the ticket tool exports weekly indicators as a spreadsheet.",
+   "level": "L0",
+   "confidence": "low",
+   "evidence_count": 0,
+   "contradiction_count": 0,
+   "search_hints": [
+    "indicateurs"
+   ]
+  },
+  {
+   "theme": "user_observations",
+   "title": "Chiffres d'abord",
+   "content": "WHEN presenting a technical recommendation -> DO give the measured figures first and the explanation after BECAUSE the person asks for numbers before prose.",
+   "level": "L1",
+   "confidence": "medium",
+   "evidence_count": 3,
+   "contradiction_count": 0,
+   "search_hints": [
+    "chiffres",
+    "recommandation"
+   ]
+  },
+  {
+   "theme": "user_observations",
+   "title": "Trois points",
+   "content": "WHEN the person asks for a summary -> DO answer in three points at most BECAUSE a page-long summary is left unread.",
+   "level": "L1",
+   "confidence": "medium",
+   "evidence_count": 4,
+   "contradiction_count": 0,
+   "search_hints": [
+    "résumé"
+   ]
+  },
+  {
+   "theme": "user_observations",
+   "title": "Pas de décision le vendredi",
+   "content": "WHEN a decision is requested on a Friday evening -> DO propose to settle it on Monday BECAUSE the person never decides on Friday evenings.",
+   "level": "L1",
+   "confidence": "medium",
+   "evidence_count": 2,
+   "contradiction_count": 0,
+   "search_hints": [
+    "vendredi",
+    "décision"
+   ]
+  },
+  {
+   "theme": "user_observations",
+   "title": "Vérifier avant de répéter",
+   "content": "WHEN a figure comes from a tool -> DO say where it was measured BECAUSE the person verifies a measure before repeating it to the team.",
+   "level": "L1",
+   "confidence": "medium",
+   "evidence_count": 3,
+   "contradiction_count": 0,
+   "search_hints": [
+    "mesure"
+   ]
+  },
+  {
+   "theme": "user_observations",
+   "title": "Escalades",
+   "content": "WHEN a client escalation is mentioned -> DO ask whether it is the first one this week BECAUSE two escalations in a week is the person's alarm threshold.",
+   "level": "L1",
+   "confidence": "medium",
+   "evidence_count": 2,
+   "contradiction_count": 0,
+   "search_hints": [
+    "escalade"
+   ]
+  },
+  {
+   "theme": "user_observations",
+   "title": "Astreintes équitables",
+   "content": "WHEN the on-call rotation comes up -> DO show the distribution per person BECAUSE the person judges a planning by its fairness first.",
+   "level": "L1",
+   "confidence": "medium",
+   "evidence_count": 3,
+   "contradiction_count": 0,
+   "search_hints": [
+    "astreintes"
+   ]
+  },
+  {
+   "theme": "user_observations",
+   "title": "Dimanche sans écran",
+   "content": "WHEN scheduling anything on a Sunday afternoon -> DO avoid it BECAUSE the person keeps Sunday afternoons screen-free.",
+   "level": "L1",
+   "confidence": "medium",
+   "evidence_count": 2,
+   "contradiction_count": 0,
+   "search_hints": [
+    "dimanche"
+   ]
+  },
+  {
+   "theme": "user_observations",
+   "title": "Dos fragile",
+   "content": "WHEN a physical task involves lifting -> DO mention the weight BECAUSE the person protects a fragile back.",
+   "level": "L1",
+   "confidence": "medium",
+   "evidence_count": 1,
+   "contradiction_count": 0,
+   "search_hints": [
+    "dos"
+   ]
+  },
+  {
+   "theme": "user_observations",
+   "title": "Procédure plutôt que réponse",
+   "content": "WHEN the same question comes a third time -> DO offer to write a procedure BECAUSE the person prefers writing once to answering thrice.",
+   "level": "L1",
+   "confidence": "medium",
+   "evidence_count": 2,
+   "contradiction_count": 0,
+   "search_hints": [
+    "procédure"
+   ]
+  },
+  {
+   "theme": "user_observations",
+   "title": "Délais réalistes",
+   "content": "WHEN estimating a delay -> DO give a realistic range rather than an optimistic date BECAUSE the person distrusts optimistic promises.",
+   "level": "L1",
+   "confidence": "medium",
+   "evidence_count": 2,
+   "contradiction_count": 0,
+   "search_hints": [
+    "délai"
+   ]
+  },
+  {
+   "theme": "user_observations",
+   "title": "Heure protégée",
+   "content": "WHEN proposing a slot before ten in the morning -> DO avoid it BECAUSE the person keeps one uninterrupted hour for hard files.",
+   "level": "L1",
+   "confidence": "medium",
+   "evidence_count": 2,
+   "contradiction_count": 0,
+   "search_hints": [
+    "matin",
+    "créneau"
+   ]
+  },
+  {
+   "theme": "user_observations",
+   "title": "Atelier du week-end",
+   "content": "WHEN the weekend is mentioned -> DO expect workshop time BECAUSE the person restores furniture on Saturday and Sunday mornings.",
+   "level": "L1",
+   "confidence": "medium",
+   "evidence_count": 3,
+   "contradiction_count": 0,
+   "search_hints": [
+    "atelier",
+    "week-end"
+   ]
+  },
+  {
+   "theme": "user_observations",
+   "title": "Course du matin",
+   "content": "WHEN proposing an early slot on Tuesday, Thursday or Saturday -> DO leave the first hour free BECAUSE the person runs those mornings.",
+   "level": "L1",
+   "confidence": "medium",
+   "evidence_count": 2,
+   "contradiction_count": 0,
+   "search_hints": [
+    "course"
+   ]
+  },
+  {
+   "theme": "user_observations",
+   "title": "Histoire du soir",
+   "content": "WHEN an evening request arrives around half past eight -> DO keep the answer short BECAUSE the person reads to Sacha at that time.",
+   "level": "L1",
+   "confidence": "medium",
+   "evidence_count": 1,
+   "contradiction_count": 0,
+   "search_hints": [
+    "soir"
+   ]
+  },
+  {
+   "theme": "user_observations",
+   "title": "Semaine de nuit",
+   "content": "WHEN Lila works nights -> DO expect shorter sleep and a terser tone BECAUSE the person sleeps poorly those weeks.",
+   "level": "L1",
+   "confidence": "medium",
+   "evidence_count": 1,
+   "contradiction_count": 0,
+   "search_hints": [
+    "sommeil"
+   ]
+  },
+  {
+   "theme": "self_reflection",
+   "title": "Pas de digression",
+   "content": "WHEN my reply drifts into context the person did not ask for -> DO cut it BECAUSE the person stopped reading a digressive answer.",
+   "level": "L1",
+   "confidence": "medium",
+   "evidence_count": 2,
+   "contradiction_count": 0,
+   "search_hints": [
+    "digression"
+   ]
+  },
+  {
+   "theme": "self_reflection",
+   "title": "Nommer la source",
+   "content": "WHEN I state a figure -> DO name its source in the same sentence BECAUSE an unsourced figure was challenged.",
+   "level": "L1",
+   "confidence": "medium",
+   "evidence_count": 2,
+   "contradiction_count": 0,
+   "search_hints": [
+    "source"
+   ]
+  },
+  {
+   "theme": "self_reflection",
+   "title": "Ton direct",
+   "content": "WHEN I soften a technical verdict -> DO state it plainly instead BECAUSE the person asked for the verdict without cushioning.",
+   "level": "L1",
+   "confidence": "medium",
+   "evidence_count": 1,
+   "contradiction_count": 0,
+   "search_hints": [
+    "ton"
+   ]
+  },
+  {
+   "theme": "ideas_analyses",
+   "title": "Transition courte",
+   "content": "WHEN the person opens with « bon » or « bref » -> DO treat the previous topic as closed BECAUSE the word marks a change of subject, not agreement.",
+   "level": "L1",
+   "confidence": "medium",
+   "evidence_count": 2,
+   "contradiction_count": 0,
+   "search_hints": [
+    "transition"
+   ]
+  },
+  {
+   "theme": "ideas_analyses",
+   "title": "Question en deux temps",
+   "content": "WHEN the person asks a question then adds « enfin surtout » -> DO answer the second part first BECAUSE it names the real need.",
+   "level": "L1",
+   "confidence": "medium",
+   "evidence_count": 1,
+   "contradiction_count": 0,
+   "search_hints": [
+    "priorité"
+   ]
+  },
+  {
+   "theme": "learnings",
+   "title": "Vernis au tampon",
+   "content": "WHEN discussing shellac finishing -> DO count several days of drying between coats BECAUSE the person corrected a shorter estimate.",
+   "level": "L1",
+   "confidence": "medium",
+   "evidence_count": 2,
+   "contradiction_count": 0,
+   "search_hints": [
+    "vernis",
+    "tampon"
+   ]
+  },
+  {
+   "theme": "learnings",
+   "title": "Export des indicateurs",
+   "content": "WHEN the weekly indicators are needed -> DO ask for the spreadsheet export of the ticket tool BECAUSE the dashboard cannot be queried directly.",
+   "level": "L1",
+   "confidence": "medium",
+   "evidence_count": 1,
+   "contradiction_count": 0,
+   "search_hints": [
+    "indicateurs"
+   ]
+  },
+  {
+   "theme": "learnings",
+   "title": "Placage fragile",
+   "content": "WHEN a stripping method is suggested -> DO rule out abrasive methods on veneer BECAUSE the person lost a veneer corner to sanding.",
+   "level": "L1",
+   "confidence": "medium",
+   "evidence_count": 1,
+   "contradiction_count": 0,
+   "search_hints": [
+    "placage"
+   ]
+  },
+  {
+   "theme": "learnings",
+   "title": "Réouverture",
+   "content": "WHEN reporting ticket quality -> DO include the reopening rate BECAUSE the person reads it as the quality signal.",
+   "level": "L1",
+   "confidence": "medium",
+   "evidence_count": 2,
+   "contradiction_count": 0,
+   "search_hints": [
+    "réouverture"
+   ]
+  },
+  {
+   "theme": "learnings",
+   "title": "Natation du mercredi",
+   "content": "WHEN planning Wednesday afternoons -> DO keep them free BECAUSE the person accompanies Sacha to swimming.",
+   "level": "L1",
+   "confidence": "medium",
+   "evidence_count": 1,
+   "contradiction_count": 0,
+   "search_hints": [
+    "mercredi"
+   ]
+  },
+  {
+   "theme": "learnings",
+   "title": "Bilan d'automne",
+   "content": "WHEN autumn arrives -> DO expect a medical check-up to be scheduled BECAUSE the person has one every year.",
+   "level": "L1",
+   "confidence": "medium",
+   "evidence_count": 1,
+   "contradiction_count": 0,
+   "search_hints": [
+    "bilan"
+   ]
+  },
+  {
+   "theme": "user_observations",
+   "title": "Deux options",
+   "content": "WHEN proposing a planning -> DO offer exactly two options BECAUSE the person decides faster between two than among many.",
+   "level": "L1",
+   "confidence": "medium",
+   "evidence_count": 2,
+   "contradiction_count": 0,
+   "search_hints": [
+    "options"
+   ]
+  },
+  {
+   "theme": "user_observations",
+   "title": "Relecture avant envoi",
+   "content": "WHEN a reply to an unhappy client is drafted -> DO expect the person to reread it BECAUSE no such reply leaves without their review.",
+   "level": "L1",
+   "confidence": "medium",
+   "evidence_count": 2,
+   "contradiction_count": 0,
+   "search_hints": [
+    "relecture"
+   ]
+  },
+  {
+   "theme": "user_observations",
+   "title": "Réunions courtes",
+   "content": "WHEN a meeting is proposed -> DO cap it at thirty minutes BECAUSE the person dislikes long meetings.",
+   "level": "L1",
+   "confidence": "medium",
+   "evidence_count": 1,
+   "contradiction_count": 1,
+   "search_hints": [
+    "réunion"
+   ]
+  },
+  {
+   "theme": "learnings",
+   "title": "Café",
+   "content": "WHEN suggesting a drink -> DO propose coffee BECAUSE the person drinks coffee all day.",
+   "level": "L1",
+   "confidence": "medium",
+   "evidence_count": 0,
+   "contradiction_count": 2,
+   "search_hints": [
+    "café"
+   ]
+  },
+  {
+   "theme": "user_observations",
+   "title": "Réponses longues",
+   "content": "WHEN explaining a technical point -> DO write a full page BECAUSE the person likes detail.",
+   "level": "L1",
+   "confidence": "medium",
+   "evidence_count": 0,
+   "contradiction_count": 1,
+   "search_hints": [
+    "détail"
+   ]
+  },
+  {
+   "theme": "self_reflection",
+   "title": "Humour",
+   "content": "WHEN the exchange is tense -> DO add a joke BECAUSE the person laughed once.",
+   "level": "L1",
+   "confidence": "medium",
+   "evidence_count": 1,
+   "contradiction_count": 1,
+   "search_hints": [
+    "humour"
+   ]
+  },
+  {
+   "theme": "user_observations",
+   "title": "Mesure avant conclusion",
+   "content": "Across technical recommendations, planning decisions and workshop methods, the person demonstrates a measure-first stance — the unifying operational rule is: give the measured fact, then the reading, never the reverse.",
+   "level": "L2",
+   "confidence": "medium",
+   "evidence_count": 4,
+   "contradiction_count": 0,
+   "search_hints": [
+    "mesure",
+    "méthode"
+   ]
+  },
+  {
+   "theme": "user_observations",
+   "title": "Protéger le temps familial",
+   "content": "Across evenings, Sunday afternoons and Wednesday afternoons, the person demonstrates a protected family rhythm — the unifying operational rule is: never propose a slot inside those windows.",
+   "level": "L2",
+   "confidence": "medium",
+   "evidence_count": 3,
+   "contradiction_count": 0,
+   "search_hints": [
+    "famille",
+    "rythme"
+   ]
+  },
+  {
+   "theme": "ideas_analyses",
+   "title": "Signaux de clôture",
+   "content": "Across topic changes, the person demonstrates short closing words — the unifying operational rule is: a transition word closes the previous subject.",
+   "level": "L2",
+   "confidence": "medium",
+   "evidence_count": 2,
+   "contradiction_count": 0,
+   "search_hints": [
+    "transition"
+   ]
+  },
+  {
+   "theme": "self_reflection",
+   "title": "Sobriété",
+   "content": "Across my replies, the person rewards brevity and plain verdicts — the unifying operational rule is: say the verdict, cite the source, stop.",
+   "level": "L2",
+   "confidence": "medium",
+   "evidence_count": 3,
+   "contradiction_count": 0,
+   "search_hints": [
+    "sobriété"
+   ]
+  },
+  {
+   "theme": "user_observations",
+   "title": "Équité et preuve",
+   "content": "Structural facet: the person holds fairness and verified facts as foundations — a planning is judged by its fairness, a claim by its measure.",
+   "level": "L3",
+   "confidence": "high",
+   "evidence_count": 6,
+   "contradiction_count": 0,
+   "search_hints": [
+    "équité",
+    "preuve"
+   ]
+  }
+ ],
+ "relation_debriefs": [
+  {
+   "display_name": "Noé",
+   "headline": "Un binôme de confiance au support, sollicité pour les escalades.",
+   "where_we_stand": "Les échanges sont fréquents et tournent autour des escalades clients et de la relecture des réponses ; la dernière date de cette semaine.",
+   "open_points": [
+    "Répartition des astreintes de novembre",
+    "Déléguer la relecture des réponses"
+   ],
+   "days_ago": 1
+  },
+  {
+   "display_name": "Lila",
+   "headline": "Le quotidien se négocie autour des semaines de nuit.",
+   "where_we_stand": "Les messages portent sur l'organisation des soirs et des week-ends ; les semaines de nuit demandent plus de coordination.",
+   "open_points": [
+    "Stage de sport de Sacha pour les vacances"
+   ],
+   "days_ago": 2
+  },
+  {
+   "display_name": "l'ébéniste",
+   "headline": "Un fournisseur de conseils et de vernis, contacté avant chaque restauration.",
+   "where_we_stand": "Un devis de vernis attend une réponse ; le dernier échange portait sur le retrait d'un vernis au tampon.",
+   "open_points": [
+    "Renvoyer le devis signé"
+   ],
+   "days_ago": 4
+  }
+ ],
+ "open_loops": [
+  {
+   "subject": "Renvoyer le devis du vernis à l'ébéniste",
+   "counterparty": "l'ébéniste",
+   "direction": "user_owes",
+   "due_in_days": 3
+  },
+  {
+   "subject": "Proposer deux options de rotation des astreintes à l'équipe",
+   "counterparty": "l'équipe support",
+   "direction": "user_owes",
+   "due_in_days": 9
+  },
+  {
+   "subject": "Réponse du responsable produit sur l'escalade du client important",
+   "counterparty": "le responsable produit",
+   "direction": "waiting_on_other",
+   "due_in_days": 2
+  },
+  {
+   "subject": "Confirmation du stage de sport pour Sacha",
+   "counterparty": "le club",
+   "direction": "waiting_on_other",
+   "due_in_days": 6
+  }
+ ],
+ "workboard": [
+  {
+   "title": "Préparer la grille d'astreintes de novembre",
+   "description": "Compiler les disponibilités de l'équipe et proposer deux options équilibrées.",
+   "status": "in_progress",
+   "priority": "high",
+   "due_in_days": 6,
+   "assignee_kind": "human"
+  },
+  {
+   "title": "Résumer les tickets réouverts du mois",
+   "description": "Lister les tickets réouverts, la cause et le délai de première réponse.",
+   "status": "todo",
+   "priority": "medium",
+   "due_in_days": 4,
+   "assignee_kind": "lia"
+  },
+  {
+   "title": "Trouver une méthode pour retirer le vernis au tampon",
+   "description": "Comparer trois méthodes sans abrasif pour un placage ancien.",
+   "status": "waiting",
+   "priority": "low",
+   "due_in_days": 12,
+   "assignee_kind": "lia"
+  },
+  {
+   "title": "Présentation des indicateurs du trimestre",
+   "description": "Dix diapositives : délai de première réponse, réouvertures, escalades.",
+   "status": "done",
+   "priority": "high",
+   "due_in_days": -2,
+   "assignee_kind": "human"
+  }
+ ],
+ "routines": [
+  {
+   "title": "Résumé des tickets du vendredi",
+   "action_prompt": "Résume les tickets de support ouverts cette semaine et signale ceux sans réponse depuis quarante-huit heures.",
+   "recurrence": {
+    "freq": "weekly",
+    "byweekday": [
+     5
+    ],
+    "times": {
+     "mode": "at",
+     "at": [
+      {
+       "hour": 16,
+       "minute": 30
+      }
+     ]
+    },
+    "anchor_date": "2026-09-04"
+   }
+  },
+  {
+   "title": "Plan de l'atelier du dimanche",
+   "action_prompt": "Propose un ordre de travail pour la session d'atelier du dimanche matin à partir des restaurations en cours.",
+   "recurrence": {
+    "freq": "weekly",
+    "byweekday": [
+     7
+    ],
+    "times": {
+     "mode": "at",
+     "at": [
+      {
+       "hour": 8,
+       "minute": 30
+      }
+     ]
+    },
+    "anchor_date": "2026-09-06"
+   }
+  },
+  {
+   "title": "Rappel du bilan médical",
+   "action_prompt": "Rappelle de prendre le rendez-vous du bilan médical annuel.",
+   "recurrence": {
+    "freq": "yearly",
+    "bymonth": [
+     10
+    ],
+    "bymonthday": [
+     1
+    ],
+    "times": {
+     "mode": "at",
+     "at": [
+      {
+       "hour": 9,
+       "minute": 0
+      }
+     ]
+    },
+    "anchor_date": "2026-10-01"
+   }
+  }
+ ],
+ "reminders": [
+  {
+   "content": "Appeler le fournisseur de vernis",
+   "original_message": "Rappelle-moi d'appeler le fournisseur de vernis jeudi matin",
+   "trigger_in_days": 2,
+   "recurrence": {
+    "freq": "once",
+    "times": {
+     "mode": "at",
+     "at": [
+      {
+       "hour": 9,
+       "minute": 0
+      }
+     ]
+    },
+    "anchor_date": "2026-10-14"
+   }
+  },
+  {
+   "content": "Inscrire Sacha au stage de sport",
+   "original_message": "Rappelle-moi d'inscrire Sacha au stage de sport avant vendredi",
+   "trigger_in_days": 3,
+   "recurrence": {
+    "freq": "once",
+    "times": {
+     "mode": "at",
+     "at": [
+      {
+       "hour": 18,
+       "minute": 0
+      }
+     ]
+    },
+    "anchor_date": "2026-10-15"
+   }
+  },
+  {
+   "content": "Faire les étirements du soir",
+   "original_message": "Rappelle-moi tous les soirs de faire mes étirements",
+   "trigger_in_days": 0,
+   "recurrence": {
+    "freq": "daily",
+    "times": {
+     "mode": "at",
+     "at": [
+      {
+       "hour": 22,
+       "minute": 30
+      }
+     ]
+    },
+    "anchor_date": "2026-10-01"
+   }
+  }
+ ],
+ "bookmarks": [
+  {
+   "request_content": "Comment retirer un vernis au tampon sans abîmer le placage ?",
+   "content": "Travaillez par petites zones avec de l'alcool à brûler sur un chiffon non pelucheux, sans jamais frotter en travers du fil ; laissez le solvant agir dix secondes, essuyez, recommencez. Aucun abrasif sur un placage ancien : la couche fait moins d'un millimètre.",
+   "days_ago": 12
+  },
+  {
+   "request_content": "Quels indicateurs pour juger la qualité d'une équipe de support ?",
+   "content": "Trois indicateurs suffisent : le délai de première réponse (médiane, pas moyenne), le taux de réouverture des tickets dans les sept jours, et le nombre d'escalades par semaine. Les trois se lisent ensemble ; un seul peut être bon pour de mauvaises raisons.",
+   "days_ago": 30
+  },
+  {
+   "request_content": "Plan d'entraînement pour un dix kilomètres en vingt semaines",
+   "content": "Trois sorties par semaine : une courte en aisance respiratoire, une avec des fractions, une longue qui s'allonge de cinq minutes chaque semaine. Une semaine allégée toutes les quatre semaines. Les deux dernières semaines, on réduit le volume de moitié.",
+   "days_ago": 45
+  }
+ ]
+}

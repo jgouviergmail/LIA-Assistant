@@ -10,12 +10,10 @@ from uuid import uuid4
 import pytest
 from langchain_core.messages import AIMessage
 from sqlalchemy import delete, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.journals import consolidation_lifecycle as lifecycle
 from src.domains.journals import consolidation_service as consolidation
 from src.domains.journals import consolidation_settlement as settlement
-from src.domains.journals.constants import JOURNAL_PORTRAIT_POLICY_VERSION
 from src.domains.journals.lifecycle import portrait_is_current
 from src.domains.journals.models import JournalEntry
 from src.domains.journals.portrait_sources import PortraitSourceBundle
@@ -96,14 +94,6 @@ async def _entry(db, user, content="WHEN urgent -> DO give one step BECAUSE acti
     return result
 
 
-def _review_payload(messages):
-    try:
-        payload = json.loads(messages[-1].text)
-    except AttributeError, TypeError, ValueError:
-        return None
-    return payload if isinstance(payload, dict) and "facets" in payload else None
-
-
 def _claim(
     entry,
     text="Quand il demande explicitement une aide urgente, il attend une prochaine action concrète.",
@@ -112,34 +102,18 @@ def _claim(
         "facet": "interaction",
         "text": text,
         "supports": [{"source": f"journal:{entry.id}", "quote": entry.content}],
-        "in_brief": True,
+        "placement": "full",
     }
 
 
-def _answer(monkeypatch, payload, *, supported=True, on_generation=None, on_review=None):
+def _answer(monkeypatch, payload, *, on_generation=None):
+    """The ONE model call of a consolidation answers the given payload."""
+
     async def answer(**kwargs):
-        review = _review_payload(kwargs["messages"])
-        if review is not None:
-            if on_review is not None:
-                await on_review()
-            content = {
-                "reviews": [
-                    {
-                        "index": facet["index"],
-                        "supported": supported,
-                        "scope_preserved": True,
-                        "uncertainty_preserved": True,
-                        "synthesized": True,
-                    }
-                    for facet in review["facets"]
-                ]
-            }
-            tokens_in, tokens_out = 5, 3
-        else:
-            if on_generation is not None:
-                await on_generation()
-            content = payload
-            tokens_in, tokens_out = 11, 7
+        if on_generation is not None:
+            await on_generation()
+        content = payload
+        tokens_in, tokens_out = 11, 7
         return AIMessage(
             content=content if isinstance(content, str) else json.dumps(content),
             usage_metadata={
@@ -261,7 +235,7 @@ async def test_disabling_consent_during_call_prevents_settlement(isolated_runtim
     assert user.journal_portrait_compiled_at is None
 
 
-async def test_last_deletion_invalidates_portrait_and_remains_schedulable(isolated_runtime):
+async def test_last_deletion_marks_the_portrait_stale_and_remains_schedulable(isolated_runtime):
     db = isolated_runtime
     user = await _user(db)
     entry = await _entry(db, user)
@@ -276,7 +250,9 @@ async def test_last_deletion_invalidates_portrait_and_remains_schedulable(isolat
     await JournalService(db).delete_entry(entry)
     await db.commit()
     await db.refresh(user)
-    assert user.journal_portrait_full is None and not await portrait_is_current(db, user)
+    # The words stay and read as stale; the account is eligible again.
+    assert user.journal_portrait_full is not None
+    assert not await portrait_is_current(db, user)
     users = (await db.scalars(build_consolidation_eligible_users_query(datetime.now(UTC), 1))).all()
     assert user.id in [row.id for row in users]
 
@@ -319,7 +295,10 @@ async def test_success_consumes_own_revision_and_explicit_empty_portrait_clears(
     assert await lifecycle.consolidation_needed(db, user)
 
 
-async def test_bad_portrait_support_rolls_back_maintenance(isolated_runtime, monkeypatch):
+async def test_bad_portrait_support_is_dropped_and_maintenance_applies(
+    isolated_runtime, monkeypatch
+):
+    """An unprovable claim is dropped and counted; the batch is never refused for it."""
     db = isolated_runtime
     user = await _user(db)
     entry = await _entry(db, user)
@@ -337,11 +316,14 @@ async def test_bad_portrait_support_rolls_back_maintenance(isolated_runtime, mon
             ],
         },
     )
-    assert await _run(user) == 0
+    assert await _run(user) == 1
     await db.refresh(entry)
     await db.refresh(user)
-    assert entry.title == "Rule" and user.journal_last_consolidated_at is None
-    assert call.await_count == 1
+    assert entry.title == "New title" and user.journal_last_consolidated_at is not None
+    assert user.journal_last_attempt_status == "success"
+    # Nothing admitted: one model call, nothing published.
+    assert call.await_count == 1 and user.journal_portrait_full is None
+    assert user.journal_portrait_sources["portrait_pending"] is True
 
 
 async def test_explicit_empty_portrait_reports_publication_success(isolated_runtime, monkeypatch):
@@ -471,7 +453,7 @@ async def test_stale_scheduler_candidate_cannot_repeat_paid_work(isolated_runtim
     await consolidation.consolidate_journals_for_user(
         user.id, None, None, "fr", manual=True, attempt=attempt
     )
-    assert call.await_count == 2 and attempt.status == "success"
+    assert call.await_count == 2 and attempt.status == "success"  # the manual run
 
 
 async def test_refused_manual_attempt_does_not_report_previous_success(
@@ -516,91 +498,7 @@ def _independent_action():
     }
 
 
-async def test_semantic_rejection_applies_no_action_and_consumes_no_success(
-    isolated_runtime, monkeypatch
-):
-    db = isolated_runtime
-    user = await _user(db)
-    entry = await _entry(db, user)
-    call = _answer(
-        monkeypatch,
-        {
-            "actions": [_independent_action()],
-            "portrait_claims": [
-                _claim(entry, "Il privilégie toujours la décision à l'exploration.")
-            ],
-        },
-        supported=False,
-    )
-    assert await _run(user) == 0
-    await db.refresh(user)
-    assert call.await_count == 2
-    rows = (await db.scalars(select(JournalEntry).where(JournalEntry.user_id == user.id))).all()
-    assert [row.id for row in rows] == [entry.id]
-    assert user.journal_last_attempt_status == "invalid_output"
-    assert user.journal_last_consolidated_at is None
-    assert user.journal_consolidated_revision is None and user.journal_portrait_full is None
-    assert consolidation._file_consolidation.await_args.kwargs["failed"] is True
-
-
-async def test_disable_before_review_prevents_additional_call(isolated_runtime, monkeypatch):
-    db = isolated_runtime
-    user = await _user(db)
-    entry = await _entry(db, user)
-
-    async def disable():
-        user.journals_enabled = False
-        user.extraction_revision += 1
-        await db.commit()
-
-    call = _answer(
-        monkeypatch,
-        {"actions": [_independent_action()], "portrait_claims": [_claim(entry)]},
-        on_generation=disable,
-    )
-    assert await _run(user) == 0
-    await db.refresh(user)
-    assert call.await_count == 1
-    assert user.journal_last_attempt_status == "stale"
-    assert user.journal_last_consolidated_at is None and user.journal_portrait_full is None
-    assert (await JournalService(db).get_all_active(user.id)) == [entry]
-    assert consolidation._persist_journal_tokens.await_count == 1
-
-
-async def test_edit_during_semantic_review_refuses_stale_publication(isolated_runtime, monkeypatch):
-    db = isolated_runtime
-    user = await _user(db)
-    entry = await _entry(db, user)
-    changed = "WHEN urgent -> DO ask whether several options are wanted."
-
-    async def edit():
-        # Production workers have separate ORM identities. Sequential sessions
-        # share only this test's isolated connection, never concurrent I/O.
-        async with AsyncSession(
-            bind=db.bind, expire_on_commit=False, join_transaction_mode="create_savepoint"
-        ) as editor:
-            current = await editor.get(JournalEntry, entry.id)
-            await JournalService(editor).update_entry(
-                current, content=changed, precomputed_embeddings=(None, None)
-            )
-            await editor.commit()
-
-    call = _answer(
-        monkeypatch,
-        {"actions": [_independent_action()], "portrait_claims": [_claim(entry)]},
-        on_review=edit,
-    )
-    assert await _run(user) == 0
-    await db.refresh(entry)
-    await db.refresh(user)
-    assert call.await_count == 2
-    assert entry.content == changed
-    assert user.journal_last_attempt_status == "stale"
-    assert user.journal_last_consolidated_at is None and user.journal_portrait_full is None
-    assert (await JournalService(db).get_all_active(user.id)) == [entry]
-
-
-async def test_approved_natural_portrait_keeps_private_proofs_out_of_display(
+async def test_an_admitted_natural_portrait_keeps_private_proofs_out_of_display(
     isolated_runtime, monkeypatch
 ):
     db = isolated_runtime
@@ -610,50 +508,25 @@ async def test_approved_natural_portrait_keeps_private_proofs_out_of_display(
     call = _answer(monkeypatch, {"actions": [], "portrait_claims": [claim]})
     assert await _run(user) == 0
     await db.refresh(user)
-    assert call.await_count == 2 and user.journal_last_attempt_status == "success"
-    assert user.journal_portrait_full == user.journal_portrait_brief == claim["text"]
+    assert call.await_count == 1 and user.journal_last_attempt_status == "success"
+    # A `full` claim writes the full portrait; the brief is its own claims (none here).
+    assert user.journal_portrait_full == claim["text"] and user.journal_portrait_brief is None
     assert entry.content not in user.journal_portrait_full
     assert str(entry.id) not in user.journal_portrait_full
     provenance = user.journal_portrait_sources
     assert provenance["claims"] == [claim]
-    assert provenance["portrait_review"]["policy"] == JOURNAL_PORTRAIT_POLICY_VERSION
-    assert len(provenance["portrait_review"]["digest"]) == 64
+    assert "portrait_review" not in provenance
     assert provenance["portrait_pending"] is False
     assert await portrait_is_current(db, user)
     assert not await lifecycle.consolidation_needed(db, user)
-    review = _review_payload(call.await_args_list[1].kwargs["messages"])
-    assert review["facets"][0]["support_indices"] == [0]
-    assert len(review["proofs"]) == 1
-    assert review["proofs"][0]["quote"] == entry.content
-    assert review["proofs"][0]["revision"] == entry.revision
-    assert review["facets"][0]["in_brief"] is True
 
 
-async def test_generation_and_review_share_billing_run_and_one_cost_projection(
+async def test_support_mutated_by_same_batch_is_dropped_and_never_published(
     isolated_runtime, monkeypatch
 ):
-    db = isolated_runtime
-    user = await _user(db)
-    entry = await _entry(db, user)
-    _answer(monkeypatch, {"actions": [], "portrait_claims": [_claim(entry)]})
-    assert await _run(user) == 0
-    persist = consolidation._persist_journal_tokens
-    assert persist.await_count == 2
-    first, second = [call.kwargs for call in persist.await_args_list]
-    assert first["parent_run_id"] == second["parent_run_id"]
-    assert first["node_name"] == second["node_name"] == "journal_consolidation"
-    projection = consolidation._update_user_last_cost
-    projection.assert_awaited_once()
-    capture = projection.await_args.kwargs["capture"]
-    assert capture is first["capture"] is second["capture"]
-    records = capture.get_billing_records("synthetic-offline")
-    assert [(record.tokens_in, record.tokens_out) for record in records] == [(11, 7), (5, 3)]
-    assert capture.tokens_in == 16 and capture.tokens_out == 10
-
-
-async def test_support_mutated_by_same_batch_is_refused_before_review(
-    isolated_runtime, monkeypatch
-):
+    """A claim resting on an entry this batch changes is dropped at admission and
+    never reaches the words (found by this net, 2026-10-12).
+    """
     db = isolated_runtime
     user = await _user(db)
     entry = await _entry(db, user)
@@ -664,9 +537,153 @@ async def test_support_mutated_by_same_batch_is_refused_before_review(
             "portrait_claims": [_claim(entry)],
         },
     )
-    assert await _run(user) == 0
+    assert await _run(user) == 1
     await db.refresh(entry)
     await db.refresh(user)
     assert call.await_count == 1
-    assert entry.title == "Rule" and user.journal_last_attempt_status == "invalid_output"
-    assert user.journal_last_consolidated_at is None and user.journal_portrait_full is None
+    assert entry.title == "Changed" and user.journal_last_attempt_status == "success"
+    assert user.journal_last_consolidated_at is not None
+    assert user.journal_portrait_full is None and user.journal_portrait_brief is None
+    assert user.journal_portrait_sources["portrait_pending"] is True
+
+
+async def test_a_zero_effect_update_does_not_bar_the_claims_citing_its_entry(
+    isolated_runtime, monkeypatch
+):
+    """An update that changes nothing is no change: the reading citing the entry is published."""
+    db = isolated_runtime
+    user = await _user(db)
+    entry = await _entry(db, user)
+    _answer(
+        monkeypatch,
+        {
+            "actions": [{"action": "update", "entry_id": str(entry.id), "title": entry.title}],
+            "portrait_claims": [_claim(entry)],
+        },
+    )
+    assert await _run(user) == 0
+    await db.refresh(user)
+    assert user.journal_last_attempt_status == "success"
+    assert user.journal_portrait_full == _claim(entry)["text"]
+
+
+async def test_a_synthesis_its_supports_cannot_carry_no_longer_voids_the_paid_pass(
+    isolated_runtime, monkeypatch
+):
+    """Measured 2026-10-12 c: one such synthesis lost the whole paid run, portrait included.
+
+    The synthesis is created at L1 (its supports are immature), the other actions and
+    the portrait proceed, and the run is a success.
+    """
+    db = isolated_runtime
+    user = await _user(db)
+    first = await _entry(db, user)
+    second = await _entry(db, user, "WHEN reporting -> DO cite the source BECAUSE trust.")
+    call = _answer(
+        monkeypatch,
+        {
+            "actions": [
+                {
+                    "action": "create",
+                    "theme": "user_observations",
+                    "title": "Evidence first",
+                    "content": "Across contexts, the user decides on evidence first.",
+                    "level": "L2",
+                    "confidence": "high",
+                    "support_ids": [str(first.id), str(second.id)],
+                },
+                {"action": "update", "entry_id": str(second.id), "title": "Sources"},
+            ],
+            "portrait_claims": [_claim(first)],
+        },
+    )
+    assert await _run(user) == 2
+    await db.refresh(user)
+    assert call.await_count == 1
+    assert user.journal_last_attempt_status == "success"
+    assert user.journal_portrait_full == _claim(first)["text"]
+    created = (
+        await db.execute(
+            select(JournalEntry).where(
+                JournalEntry.user_id == user.id, JournalEntry.title == "Evidence first"
+            )
+        )
+    ).scalar_one()
+    assert (created.level, created.confidence) == ("L1", "medium")
+
+
+async def test_a_support_cited_by_its_portrait_id_no_longer_voids_the_paid_pass(
+    isolated_runtime, monkeypatch
+):
+    """Measured 2026-10-13: three actions citing `pi_` ids refused the whole paid run.
+
+    The unreadable action is dropped alone; the valid one applies and the portrait
+    is published.
+    """
+    db = isolated_runtime
+    user = await _user(db)
+    first = await _entry(db, user)
+    second = await _entry(db, user, "WHEN reporting -> DO cite the source BECAUSE trust.")
+    call = _answer(
+        monkeypatch,
+        {
+            "actions": [
+                {
+                    "action": "update",
+                    "entry_id": str(second.id),
+                    "level": "L2",
+                    "support_ids": ["pi_" + "0" * 64, str(first.id)],
+                },
+                {"action": "update", "entry_id": str(second.id), "title": "Sources"},
+            ],
+            "portrait_claims": [_claim(first)],
+        },
+    )
+    assert await _run(user) == 1
+    await db.refresh(user)
+    await db.refresh(second)
+    assert call.await_count == 1
+    assert user.journal_last_attempt_status == "success"
+    assert user.journal_portrait_full == _claim(first)["text"]
+    # The unreadable promotion never applied; the readable retitle, alone on its entry, did.
+    assert second.title == "Sources" and second.level == "L1"
+
+
+async def test_an_action_on_an_unknown_entry_is_dropped_and_the_rest_applies(
+    isolated_runtime, monkeypatch
+):
+    db = isolated_runtime
+    user = await _user(db)
+    first = await _entry(db, user)
+    second = await _entry(db, user, "WHEN reporting -> DO cite the source BECAUSE trust.")
+    _answer(
+        monkeypatch,
+        {
+            "actions": [
+                {"action": "update", "entry_id": str(uuid4()), "title": "Ghost"},
+                {"action": "update", "entry_id": str(second.id), "title": "Sources"},
+            ],
+            "portrait_claims": [_claim(first)],
+        },
+    )
+    assert await _run(user) == 1
+    await db.refresh(user)
+    await db.refresh(second)
+    assert user.journal_last_attempt_status == "success"
+    assert second.title == "Sources"
+    assert user.journal_portrait_full == _claim(first)["text"]
+
+
+async def test_every_action_refused_and_no_portrait_answer_stays_invalid(
+    isolated_runtime, monkeypatch
+):
+    db = isolated_runtime
+    user = await _user(db)
+    await _entry(db, user)
+    _answer(
+        monkeypatch, {"actions": [{"action": "update", "entry_id": str(uuid4()), "title": "X"}]}
+    )
+    assert await _run(user) == 0
+    await db.refresh(user)
+    assert user.journal_last_attempt_status == "invalid_output"
+    assert user.journal_last_consolidated_at is None

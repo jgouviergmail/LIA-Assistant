@@ -16,6 +16,16 @@ from src.infrastructure.mcp.user_context import (
 
 
 @pytest.fixture(autouse=True)
+def _fresh_vector_cache() -> Iterator[None]:
+    """A test never reads vectors another test cached per worker (ADR-283 amendment)."""
+    from src.domains.agents.services.tool_vectors import reset_server_vector_cache
+
+    reset_server_vector_cache()
+    yield
+    reset_server_vector_cache()
+
+
+@pytest.fixture(autouse=True)
 def _short_sessions() -> Iterator[None]:
     """The servers are read, and a refreshed envelope written, in short
     sessions of their own (ADR-304) — none of them on the turn's session."""
@@ -236,6 +246,8 @@ class TestSetupUserMCPTools:
 
         mock_repo = AsyncMock()
         mock_repo.get_enabled_active_for_user = AsyncMock(return_value=[server])
+        # The envelope is read ALONE, never from the listed row (ADR-283 amendment).
+        mock_repo.get_tool_embeddings_cache = AsyncMock(return_value=server.tool_embeddings_cache)
         mock_repo_cls.return_value = mock_repo
 
         entry = MagicMock()
@@ -261,9 +273,14 @@ class TestSetupUserMCPTools:
             try:
                 ctx = user_mcp_tools_ctx.get()
                 assert ctx is not None
-                # Embeddings should be re-keyed from "hub_search" to adapter_name
+                # Embeddings should be re-keyed from "hub_search" to adapter_name,
+                # in their compact form (float32 arrays), the envelope read once.
                 assert adapter_name in ctx.tool_embeddings
-                assert ctx.tool_embeddings[adapter_name]["description"] == [0.1, 0.2]
+                assert ctx.tool_embeddings[adapter_name]["description"].tolist() == pytest.approx(
+                    [0.1, 0.2]
+                )
+                assert ctx.tool_embeddings[adapter_name]["keywords"].shape == (1, 2)
+                mock_repo.get_tool_embeddings_cache.assert_awaited_once_with(server.id)
                 mock_repo.update.assert_not_awaited()
             finally:
                 cleanup_user_mcp_tools(token)
@@ -319,6 +336,7 @@ class TestSetupUserMCPTools:
         server.tool_embeddings_cache = stored
         mock_repo = AsyncMock()
         mock_repo.get_enabled_active_for_user = AsyncMock(return_value=[server])
+        mock_repo.get_tool_embeddings_cache = AsyncMock(return_value=stored)
         mock_repo_cls.return_value = mock_repo
         entry = MagicMock()
         entry.tools = [{"name": "hub_search", "description": "Search", "input_schema": {}}]
@@ -342,7 +360,9 @@ class TestSetupUserMCPTools:
             try:
                 ctx = user_mcp_tools_ctx.get()
                 assert ctx is not None
-                assert ctx.tool_embeddings[adapter_name]["description"] == [0.5] * 4
+                assert ctx.tool_embeddings[adapter_name]["description"].tolist() == pytest.approx(
+                    [0.5] * 4
+                )
             finally:
                 cleanup_user_mcp_tools(token)
         mock_compute.assert_awaited_once_with(tool_metadata=entry.tools, server_name="TestServer")

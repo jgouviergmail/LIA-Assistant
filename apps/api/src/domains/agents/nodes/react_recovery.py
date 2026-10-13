@@ -182,17 +182,23 @@ async def react_recovery_node(state: MessagesState, config: RunnableConfig) -> d
     """
     messages = state["messages"]
     draft, previous = messages[-1], messages[-2]
-    unresolved = list(dict.fromkeys((*declared_unresolved(draft), *observed_gaps(state))))
+    declared = declared_unresolved(draft)
+    observed = observed_gaps(state)
+    unresolved = list(dict.fromkeys((*declared, *observed)))
     record: dict[str, Any] = {
         "anchor_id": previous.id,
         "draft": coerce_content_to_text(draft.content),
         "unresolved": unresolved,
     }
     passes = [*(state.get("react_recovery_passes") or []), record]
+    # Declared by the model and observed by the code are counted APART: one
+    # count let a pass the code forced read like one the model asked for.
     logger.info(
         "react_recovery_pass_started",
         pass_number=len(passes),
-        declared=len(unresolved),
+        unresolved_count=len(unresolved),
+        declared_count=len(declared),
+        observed_count=len(observed),
         iteration=state.get("react_iteration", 0),
     )
     return {"messages": [RemoveMessage(id=str(draft.id))], "react_recovery_passes": passes}
@@ -239,7 +245,7 @@ def with_recovery_directives(
 
 
 def _directive_text(unresolved: Sequence[str]) -> str:
-    """The versioned directive, naming the declared facts."""
+    """The versioned directive, naming the facts — declared by the model or observed."""
     return load_prompt("react_recovery_directive").format(
         unresolved="\n".join(f"- {fact}" for fact in unresolved),
     )

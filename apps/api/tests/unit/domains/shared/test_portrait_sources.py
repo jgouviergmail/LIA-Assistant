@@ -1,4 +1,4 @@
-"""The seam the portrait reads its four sources through (2026-09-16, part B).
+"""The seam the portrait reads its sources through (2026-09-16, part B; nine since 2026-10-12).
 
 ``journals`` cannot import ``memories``, ``interests``, ``habits`` or
 ``relations``: two of them already import ``journals`` (the portrait block),
@@ -23,8 +23,8 @@ from src.domains.shared.portrait_sources import (
     PORTRAIT_SOURCE_KEYS,
     FreshnessProbe,
     PortraitSourceSection,
-    SourceBudget,
     assert_portrait_sources_complete,
+    flat_item,
     install_portrait_source,
     installed_portrait_sources,
 )
@@ -32,11 +32,11 @@ from src.domains.shared.portrait_sources import (
 pytestmark = pytest.mark.unit
 
 
-async def _reader(*, user_id: UUID, language: str, budget: SourceBudget) -> PortraitSourceSection:
+async def _reader(*, user_id: UUID, language: str) -> PortraitSourceSection:
     return PortraitSourceSection(key="memories", status="empty", text="", used=0, total=0)
 
 
-async def _other(*, user_id: UUID, language: str, budget: SourceBudget) -> PortraitSourceSection:
+async def _other(*, user_id: UUID, language: str) -> PortraitSourceSection:
     return PortraitSourceSection(key="memories", status="empty", text="", used=0, total=0)
 
 
@@ -48,8 +48,24 @@ def _clean_registry(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(seam, "_REGISTRY", {})
 
 
-def test_the_vocabulary_is_the_four_sources_in_the_prompts_order() -> None:
-    assert PORTRAIT_SOURCE_KEYS == ("memories", "interests", "habits", "relation_debriefs")
+def test_the_vocabulary_names_every_record_about_the_person_in_the_prompts_order() -> None:
+    assert PORTRAIT_SOURCE_KEYS == (
+        "memories",
+        "interests",
+        "habits",
+        "relation_debriefs",
+        "open_loops",
+        "workboard",
+        "routines",
+        "reminders",
+        "bookmarks",
+    )
+
+
+def test_flat_item_collapses_newlines_and_cuts_nothing() -> None:
+    long = "a" * 3000 + "\n\n" + "b" * 3000
+    assert flat_item(long) == "a" * 3000 + " " + "b" * 3000
+    assert "…" not in flat_item(long)
 
 
 def test_a_source_installs_once_and_an_idempotent_reimport_is_allowed() -> None:
@@ -65,8 +81,8 @@ def test_a_second_reader_for_one_key_is_a_conflict() -> None:
 
 
 def test_an_unknown_key_is_refused() -> None:
-    with pytest.raises(RuntimeError, match="bookmarks"):
-        install_portrait_source("bookmarks", _reader, PROBE)
+    with pytest.raises(RuntimeError, match="peers"):
+        install_portrait_source("peers", _reader, PROBE)
 
 
 def test_the_completeness_assert_names_what_is_missing() -> None:
@@ -86,6 +102,6 @@ def test_the_registry_is_read_in_the_declared_order() -> None:
 
 
 async def test_a_section_carries_its_status_its_count_and_its_exact_total() -> None:
-    section = await _reader(user_id=uuid4(), language="fr", budget=SourceBudget(3, 100))
+    section = await _reader(user_id=uuid4(), language="fr")
     assert section.status == "empty" and section.text == ""
     assert (section.used, section.total) == (0, 0)

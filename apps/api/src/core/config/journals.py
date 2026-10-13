@@ -19,15 +19,11 @@ from pydantic_settings import BaseSettings
 
 from src.core.constants import (
     JOURNAL_CONSOLIDATION_COOLDOWN_HOURS_DEFAULT,
-    JOURNAL_CONSOLIDATION_DEBRIEFS_MAX_DEFAULT,
     JOURNAL_CONSOLIDATION_HISTORY_MAX_DAYS_DEFAULT,
     JOURNAL_CONSOLIDATION_HISTORY_MAX_MESSAGES_DEFAULT,
-    JOURNAL_CONSOLIDATION_INTERESTS_MAX_DEFAULT,
     JOURNAL_CONSOLIDATION_INTERVAL_HOURS_DEFAULT,
-    JOURNAL_CONSOLIDATION_MEMORIES_MAX_DEFAULT,
     JOURNAL_CONSOLIDATION_MIN_ENTRIES_DEFAULT,
-    JOURNAL_CONSOLIDATION_SOURCE_ITEM_MAX_CHARS_DEFAULT,
-    JOURNAL_CONSOLIDATION_SOURCES_MAX_CHARS_DEFAULT,
+    JOURNAL_CONSOLIDATION_SOURCES_WINDOW_FRACTION_DEFAULT,
     JOURNAL_CONTEXT_MAX_CHARS_DEFAULT,
     JOURNAL_CONTEXT_MAX_RESULTS_DEFAULT,
     JOURNAL_CONTEXT_MIN_SCORE_DEFAULT,
@@ -125,8 +121,8 @@ class JournalsSettings(BaseSettings):
     )
 
     # ========================================================================
-    # Portrait compilation — budgets and the four sources it reads
-    # (2026-09-16 design, part B)
+    # Portrait compilation — budgets and the nine sources it reads
+    # (2026-09-16 design, part B; ADR-343)
     # ========================================================================
 
     journal_portrait_full_max_tokens: int = Field(
@@ -134,8 +130,9 @@ class JournalsSettings(BaseSettings):
         ge=100,
         le=1000,
         description=(
-            "Token budget the consolidation prompt states for the full portrait "
-            "(response and planner flows). Read by the prompt, never written in prose."
+            "Token target the consolidation prompt states for the full portrait "
+            "(response and planner flows); the publication keeps every verified claim "
+            "whole. Read by the prompt, never written in prose."
         ),
     )
 
@@ -146,44 +143,14 @@ class JournalsSettings(BaseSettings):
         description="Token budget the consolidation prompt states for the brief portrait.",
     )
 
-    journal_consolidation_memories_max: int = Field(
-        default=JOURNAL_CONSOLIDATION_MEMORIES_MAX_DEFAULT,
-        ge=0,
-        le=200,
+    journal_consolidation_sources_window_fraction: float = Field(
+        default=JOURNAL_CONSOLIDATION_SOURCES_WINDOW_FRACTION_DEFAULT,
+        gt=0.0,
+        le=0.9,
         description=(
-            "Long-term memories rendered into the consolidation prompt, most important "
-            "first (0 disables the section)."
-        ),
-    )
-
-    journal_consolidation_interests_max: int = Field(
-        default=JOURNAL_CONSOLIDATION_INTERESTS_MAX_DEFAULT,
-        ge=0,
-        le=200,
-        description="Active interests rendered into the consolidation prompt, strongest first.",
-    )
-
-    journal_consolidation_debriefs_max: int = Field(
-        default=JOURNAL_CONSOLIDATION_DEBRIEFS_MAX_DEFAULT,
-        ge=0,
-        le=100,
-        description="Relationship debriefs rendered into the consolidation prompt, newest first.",
-    )
-
-    journal_consolidation_source_item_max_chars: int = Field(
-        default=JOURNAL_CONSOLIDATION_SOURCE_ITEM_MAX_CHARS_DEFAULT,
-        ge=40,
-        le=2000,
-        description="Clamp applied to each rendered source item (a memory, a debrief line).",
-    )
-
-    journal_consolidation_sources_max_chars: int = Field(
-        default=JOURNAL_CONSOLIDATION_SOURCES_MAX_CHARS_DEFAULT,
-        ge=1000,
-        le=100000,
-        description=(
-            "Cap over the four source sections together; a section that does not fit "
-            "is dropped whole and reported unavailable, never cut mid-item."
+            "Share of the journal_consolidation slot's effective context window the "
+            "portrait sources may occupy; sections keep their order, every item is whole, "
+            "and a cut at the end of the last sections is stated in the provenance."
         ),
     )
 

@@ -1,0 +1,5 @@
+<ApplicationSettings>
+Read current options before mapping a visible name. Use setting_choices values in
+tool arguments and localized labels in answers. Never invent options. Follow the
+tool's confirmation policy; drafts are pending. Inspect committed state before retrying.
+</ApplicationSettings>

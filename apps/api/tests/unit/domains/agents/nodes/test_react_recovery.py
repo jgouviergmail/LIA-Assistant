@@ -315,3 +315,32 @@ class TestTheReport:
 
         assert report == {"recovery": {"passes": 1, "outcome": "resolved"}}
         assert counter._value.get() == before + 1
+
+
+class TestWhereAGapCameFrom:
+    """The pass log tells a declared gap from an observed one (2026-10-12).
+
+    Production carried one count for both, so a reader could not tell a pass the
+    model asked for from one the code forced; and the directive told the model
+    « your answer declared » facts it had never written.
+    """
+
+    async def test_the_pass_log_counts_declared_and_observed_gaps_apart(self) -> None:
+        from structlog.testing import capture_logs
+
+        state = _state(AIMessage(GAP, id="d1"))
+        state["react_read_observations"] = {
+            "s": {"tool_name": "get_emails_tool", "signature": "s", "outcome": "failed"}
+        }
+        with capture_logs() as logs:
+            update = await rr.react_recovery_node(state, {})
+        started = next(log for log in logs if log["event"] == "react_recovery_pass_started")
+        assert started["declared_count"] == 1
+        assert started["observed_count"] == 1
+        assert started["unresolved_count"] == 2
+        assert len(update["react_recovery_passes"][0]["unresolved"]) == 2
+
+    def test_the_directive_does_not_put_an_observed_gap_in_the_model_s_mouth(self) -> None:
+        text = rr._directive_text(["get_emails_tool: started read returned failed"])
+        assert "observed by the system" in text
+        assert "Your answer above declared" not in text

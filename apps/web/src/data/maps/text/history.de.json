@@ -1807,6 +1807,11 @@
       "title": "Eine vom Betreiber aktivierte Avatar-Kampagne zur Laufzeit",
       "summary": "Eine standardmäßig leere Serveroption stellt BIP beim nächsten authentifizierten Besuch je Browser-Ursprung vor. Eine explizite Kennung ändert nur Stil und Marker; Sichtbarkeit, Größe, Positionen und spätere manuelle Auswahl bleiben erhalten. Keine Avatar-Spalte wird dem Konto hinzugefügt. Web Locks koordiniert verfügbare Tabs; ohne diese API garantiert das Neulesen des neuesten Datensatzes keine gleichzeitige Transaktion. Abschalten stoppt neue Anwendungen, stellt frühere Auswahl nicht wieder her und erreicht keine Offline-Geräte.",
       "src": "3a65c19d433e"
+    },
+    "343": {
+      "title": "Das Porträt liest das ganze Material, und seine Kurzfassung ist eine Synthese",
+      "summary": "Neun Aufzeichnungen über die Person — Erinnerungen, Interessen, Gewohnheiten, Debriefings, offene Fäden, Workboard, Routinen, geplante Erinnerungen, aufbewahrte Antworten — werden vollständig gelesen, jedes Element zitierbar, unter einem einzigen Anteil des Modellfensters, und jeder Schnitt wird benannt. Das Porträt ist wieder eine Analyse der Person in sieben Facetten, nie ein Inventar, und die Kurzfassung wird als eigene Sätze geschrieben; die semantische Nachprüfung, die nachweislich begründete Lesarten zurückwies, ist entfernt: Was Erfindung verhindert, ist strukturell, jede Lesart zitiert, worauf sie beruht. Die Budgets sind genannte Ziele, nie ein Schnitt. Eine Änderung im Journal macht das Porträt veraltet, datiert bereitgestellt, statt es zu löschen; ein gelöschter Eintrag nimmt die Lesarten mit, die er begründete. Vor der Auslieferung auf dev gemessen.",
+      "src": "38eaccd2b7d9"
     }
   }
 }

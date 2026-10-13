@@ -103,9 +103,9 @@
     },
     "f.journals": {
       "name": "Tagebücher und Porträt",
-      "role": "LIA führt eigene Tagebücher für ihre Überlegungen, die sie durchsucht, wenn ein Thema auftaucht, und stellt dein Porträt aus vier Quellen zusammen — Erinnerungen, Interessen, Gewohnheiten, Beziehungen — und sagt dabei, welche sie lesen konnte.",
+      "role": "LIA führt eigene Tagebücher für ihre Überlegungen, die sie durchsucht, wenn ein Thema auftaucht, und stellt dein Porträt zusammen — eine Analyse aus allem, was sie über dich bewahrt, von Erinnerungen bis zu Tickets und aufbewahrten Antworten — und sagt dabei, welche Quellen sie lesen konnte.",
       "goal": "Ein Verständnis von dir, das sich mit der Zeit verfeinert und lesbar bleibt.",
-      "src": "79114967b569"
+      "src": "72561005c5fd"
     },
     "f.psyche": {
       "name": "Psyche und Gesicht",

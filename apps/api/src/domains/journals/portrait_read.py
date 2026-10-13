@@ -1,4 +1,9 @@
-"""Read the portrait the management interface is currently allowed to expose."""
+"""Read the portrait the management interface is currently allowed to expose.
+
+The words are served whenever the account may read them; whether their
+evidence still stands is a FLAG (``stale``), never a reason to hide them
+(2026-10-12, ADR-269's doctrine).
+"""
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,7 +22,7 @@ async def read_managed_portrait(db: AsyncSession, actor: User) -> JournalPortrai
         or not current.is_active
         or current.deleted_at is not None
         or not current.journals_enabled
-        or not await portrait_is_current(db, current)
+        or not (current.journal_portrait_full or current.journal_portrait_brief)
     ):
         return JournalPortraitResponse()
     return JournalPortraitResponse(
@@ -25,4 +30,5 @@ async def read_managed_portrait(db: AsyncSession, actor: User) -> JournalPortrai
         brief=current.journal_portrait_brief,
         compiled_at=current.journal_portrait_compiled_at,
         sources=provenance_of(current.journal_portrait_sources),
+        stale=not await portrait_is_current(db, current),
     )

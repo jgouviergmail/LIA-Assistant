@@ -1807,6 +1807,11 @@
       "title": "Una campagna avatar runtime attivata dall'operatore",
       "summary": "Un'opzione server, vuota per impostazione predefinita, presenta BIP alla successiva visita autenticata per origine e browser. Un identificatore esplicito cambia solo stile e marcatore; visibilità, dimensioni, posizioni e scelte manuali successive restano intatte. Nessuna colonna avatar viene aggiunta all'account. Web Locks coordina le schede quando disponibile; senza questa API, rileggere il record più recente non garantisce una transazione simultanea. Disattivare la campagna interrompe nuove applicazioni senza ripristinare vecchie scelte e non raggiunge dispositivi offline.",
       "src": "3a65c19d433e"
+    },
+    "343": {
+      "title": "Il ritratto legge tutto il materiale, e il suo riassunto è una sintesi",
+      "summary": "Nove registri sulla persona — ricordi, interessi, abitudini, debrief, fili aperti, Workboard, routine, promemoria, risposte conservate — sono letti per intero, ogni elemento citabile, sotto una sola quota della finestra del modello, e ogni taglio è dichiarato. Il ritratto torna a essere un'analisi della persona su sette sfaccettature, mai un inventario, e il riassunto è scritto come frasi proprie; la revisione semantica, misurata mentre respingeva letture fondate, è rimossa: ciò che rifiuta l'invenzione è strutturale, ogni lettura cita ciò che la fonda. I budget sono obiettivi dichiarati, mai un taglio. Una modifica del diario rende il ritratto obsoleto, servito datato, invece di cancellarlo; una voce eliminata porta via le letture che fondava. Misurato su dev prima della consegna.",
+      "src": "38eaccd2b7d9"
     }
   }
 }

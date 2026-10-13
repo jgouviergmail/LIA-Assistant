@@ -65,6 +65,14 @@ scrape_configs:
       - targets: ['cadvisor:8080']
         labels:
           service: 'cadvisor'
+    # Keep-list (ADR-333 amendment 2026-10-12): the families the dashboards
+    # and rules read. cAdvisor exposed 7,137 series on production and eight
+    # families were read; the rest cost head memory for nothing. A panel
+    # added on a dropped family fails test_pipeline_keep_lists_guard.
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'container_cpu_usage_seconds_total|container_last_seen|container_memory_usage_bytes|container_memory_working_set_bytes|container_network_receive_bytes_total|container_network_transmit_bytes_total|container_spec_memory_limit_bytes|container_start_time_seconds'
+        action: keep
 
   # PostgreSQL, through postgres_exporter
   - job_name: 'postgresql'
@@ -74,6 +82,13 @@ scrape_configs:
         labels:
           service: 'postgresql'
           database: 'lia'
+    # Keep-list (ADR-333 amendment 2026-10-12): postgres-exporter exposed
+    # 3,590 series on production (one per table for every pg_stat_user_tables
+    # column) and four families were read.
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'pg_up|pg_settings_max_connections|pg_stat_database_numbackends|pg_stat_database_tup_fetched'
+        action: keep
 
   # Redis, through redis_exporter
   - job_name: 'redis'

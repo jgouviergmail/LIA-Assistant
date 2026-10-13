@@ -53,10 +53,7 @@ CONSOLIDATION_FIELDS: dict[str, object] = {
     "max_entry_chars": 300,
     "size_management_instruction": "within limit",
     "health_signals_section": "",
-    "memories_section": "",
-    "interests_section": "",
-    "habits_section": "",
-    "debriefs_section": "",
+    "portrait_sources": {},
 }
 
 #: The pure renderer takes the portrait budgets as arguments; the builder
@@ -191,18 +188,35 @@ class TestConsolidationPrompt:
         monkeypatch.setattr(settings, "journal_portrait_full_max_tokens", full_budget)
         monkeypatch.setattr(settings, "journal_portrait_brief_max_tokens", brief_budget)
         prompt = build_consolidation_prompt(personality_code=None, **CONSOLIDATION_FIELDS)  # type: ignore[arg-type]
-        full_section = prompt.split("The FULL portrait", 1)[1].split("The BRIEF portrait", 1)[0]
-        brief_section = prompt.split("The BRIEF portrait", 1)[1].split("RULES:", 1)[0]
+        full_section = prompt.split("THE FULL PORTRAIT", 1)[1].split("THE BRIEF PORTRAIT", 1)[0]
+        brief_section = prompt.split("THE BRIEF PORTRAIT", 1)[1].split("RULES:", 1)[0]
         assert str(full_budget) in full_section and str(brief_budget) not in full_section
         assert str(brief_budget) in brief_section and str(full_budget) not in brief_section
         assert "150-220" not in prompt and "50-70" not in prompt
 
-    def test_the_four_source_sections_render_where_they_are_given(self) -> None:
+    def test_the_source_sections_render_where_they_are_given(self) -> None:
         prompt = build_consolidation_prompt(
             personality_code=None,
-            **{**CONSOLIDATION_FIELDS, "habits_section": "## LEARNED HABITS\n- x"},  # type: ignore[arg-type]
+            **{
+                **CONSOLIDATION_FIELDS,
+                "portrait_sources": {"habits": "## LEARNED HABITS\n- x"},
+            },  # type: ignore[arg-type]
         )
-        assert "## LEARNED HABITS" in prompt
+        assert "## LEARNED HABITS" in prompt and "portrait_item_id=" in prompt
+
+    def test_every_source_section_renders_in_the_declared_order(self) -> None:
+        from src.domains.shared.portrait_sources import PORTRAIT_SOURCE_KEYS
+
+        sections = {key: f"## {key.upper()}\n- item of {key}" for key in PORTRAIT_SOURCE_KEYS}
+        prompt = render_consolidation_prompt(
+            "{portrait_sources}",
+            "persona",
+            personality_code=None,
+            **{**CONSOLIDATION_FIELDS, "portrait_sources": sections},  # type: ignore[arg-type]
+            **RENDER_ONLY_FIELDS,  # type: ignore[arg-type]
+        )
+        positions = [prompt.index(f"## {key.upper()}") for key in PORTRAIT_SOURCE_KEYS]
+        assert positions == sorted(positions)
 
     def test_render_accepts_an_alternative_template(self) -> None:
         """A candidate consolidation prompt renders through the same path."""
@@ -210,8 +224,7 @@ class TestConsolidationPrompt:
             "CANDIDATE {all_entries}{current_chars}{max_chars}{size_warning}"
             "{current_datetime}{conversation_history_section}{usage_patterns_section}"
             "{user_language}{max_entry_chars}{size_management_instruction}"
-            "{health_signals_section}{memories_section}{interests_section}"
-            "{habits_section}{debriefs_section}{portrait_full_tokens}{portrait_brief_tokens}",
+            "{health_signals_section}{portrait_sources}{portrait_full_tokens}{portrait_brief_tokens}",
             str(load_prompt("journal_analyst_persona")),
             personality_code=None,
             **CONSOLIDATION_FIELDS,  # type: ignore[arg-type]

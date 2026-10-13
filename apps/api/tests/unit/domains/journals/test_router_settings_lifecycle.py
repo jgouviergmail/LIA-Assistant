@@ -42,9 +42,9 @@ def _fixture(monkeypatch: pytest.MonkeyPatch):
     repository.get_by_id_for_preference_update = AsyncMock(return_value=user)
     monkeypatch.setattr(preference_commands, "UserRepository", MagicMock(return_value=repository))
 
-    async def invalidate(_db, owner_id):
+    async def invalidate(_db, owner_id, *, invalidate_portrait=True):
         assert owner_id == user.id
-        user.journal_portrait_full = None
+        user.journal_revision_marked = True  # the words stay; the revision moves
         user.journal_revision += 1
 
     invalidator = AsyncMock(side_effect=invalidate)
@@ -91,7 +91,8 @@ async def test_unrelated_settings_and_noops_preserve_the_current_portrait(monkey
 async def test_changed_portrait_inputs_invalidate_and_acknowledge_the_cache(monkeypatch, changes):
     user, db, invalidator = _fixture(monkeypatch)
     result = await router.update_journal_settings(JournalSettingsUpdate(**changes), user, db)
-    assert user.journal_portrait_full is None
+    assert user.journal_portrait_full == "A supported current synthesis."
+    assert user.journal_revision_marked is True
     assert user.journal_revision == 4
     assert user.extraction_revision == 8
     invalidator.assert_awaited_once_with(db, user.id)

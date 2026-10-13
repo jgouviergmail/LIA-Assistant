@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Versión**: 6.2
-**Fecha**: 2026-10-04
-**Aplicación**: LIA v3.0.0
+**Versión**: 6.3
+**Fecha**: 2026-10-13
+**Aplicación**: LIA v3.0.1
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -464,7 +464,7 @@ Más allá de la escritura, el diario **se mide a sí mismo**. En cada turno, LI
 
 De esta estratificación emerge un **retrato de usuario compilado**: tu voz, tu ritmo, tus contextos, tus contradicciones, tus zonas de sombra. Viaja con LIA dondequiera que hable — conversación, voz, recordatorios, notificaciones proactivas, ReAct, fallback — para que el asistente no «olvide quién eres» según la superficie por la que habla.
 
-Ese retrato no lee solo los cuadernos: tus recuerdos, tus intereses, tus hábitos aprendidos y tus debriefs de relación entran en él como materia, cada uno bajo su propio interruptor — el tuyo y el del administrador. Y te dice de dónde viene: bajo el retrato, una línea nombra lo que se leyó, lo que estaba vacío, lo que estaba apagado. Una fuente que no responde se nombra, nunca se lee como vacía.
+Ese retrato no lee solo los cuadernos: todo lo que LIA conserva sobre ti entra en él como materia, entero — recuerdos, intereses, hábitos aprendidos, resúmenes de relación, hilos abiertos, tickets del Workboard, rutinas, recordatorios, respuestas guardadas —, cada uno bajo sus propios interruptores, el tuyo y el del administrador. Lo que resulta es una lectura de quién eres, no una lista de lo que hiciste: un patrón nombrado, nunca el inventario de sus pruebas, y un resumen breve que resume de verdad en lugar de extraer. Y te dice de dónde viene: bajo el retrato, una línea nombra lo que se leyó, lo que estaba vacío, lo que estaba apagado. Una fuente que no responde se nombra, nunca se lee como vacía; cuando tus cuadernos cambian, el retrato sigue ahí, marcado como pendiente de recompilación, en lugar de desaparecer.
 
 Es una forma de introspección artificial — el asistente que reflexiona sobre sus interacciones, mide su propia utilidad y desarrolla una comprensión matizada de ti. Mantienes el control total: lectura por tema o por nivel, edición, señalización de un problema en el retrato, activación de una consolidación bajo demanda. El retrato mismo nunca se edita directamente — es una voz de síntesis, corregida mediante palancas indirectas para preservar su coherencia.
 

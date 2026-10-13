@@ -5,6 +5,108 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.1] - 2026-10-13
+
+**A portrait that reads everything LIA keeps about you, and lighter ReAct turns.**
+The compiled portrait becomes an analysis of the person again, fed by nine
+sources read whole, with a brief written as a summary of its own; a journal
+change no longer erases it. ReAct binds fewer tools per turn, stops recovering
+from pages it was never meant to finish, and hands the graph only what a turn
+changed. API workers keep their vectors compact and freeze their startup heap.
+Twenty-three dependency advisories are fixed or accepted with a written reason,
+and the landing's use-case times are readable in the light theme.
+
+### Added
+
+- 🪞 **The portrait reads nine sources, whole** ([ADR-343](docs/architecture/ADR-343-Portrait-Reads-The-Whole-Material-And-Its-Brief-Is-A-Synthesis.md)):
+  memories, interests, learned habits and relationship debriefs are joined by
+  open loops, Workboard tickets, routines, reminders and kept answers, each
+  offered through the shared seam with its own gates and an exact total. Five
+  caps — three per source, a per-item clamp and a global character cap — give
+  way to ONE bound, a share of the consolidation slot's context window
+  (`JOURNAL_CONSOLIDATION_SOURCES_WINDOW_FRACTION`), and a cut is stated in the
+  provenance and on the settings card.
+- 🧠 **An analytical portrait with a real brief:** the consolidation reads the
+  person across the sources on seven facets (posture, focus, context, rhythm,
+  tension, interaction, uncertainty), names a pattern instead of listing its
+  items, and writes the brief as its own two or three claims rather than a
+  prefix of the full text. Every admitted reading is published; stored
+  portraits are recompiled once under the new policy.
+- 🧪 **Measurement tooling:** `scripts/journals/measure_portrait.py` measures
+  the portrait on a seeded, inert persona with oracles shared with admission;
+  `scripts/react/selection_corpus.json` replays tool selection over 45 questions;
+  `scripts/ops/worker_census.py` counts what a live worker holds by types and
+  sizes only.
+
+### Changed
+
+- 🛡️ **No model reviews the portrait's readings:** the second, semantic review
+  call is removed (measured rejecting grounded readings even after two
+  recalibrations of its criterion). What refuses
+  invention is structural: a reading cites items of the current snapshot, a
+  paragraph restating one item, a name the cited items carry or a figure,
+  address or date in the prose is dropped. One model call per consolidation
+  again.
+- 🕰️ **A journal change marks the portrait stale, never empty:** the settings
+  card says a recompilation is pending, the ambient block always carries its
+  compilation date, and deleting entries withdraws only the readings they
+  supported.
+- 🔧 **Repaired before refused:** a claim or a maintenance action the snapshot
+  cannot carry is repaired (a facet, an abstraction level) or dropped alone and
+  counted; a single faulty item no longer voids a paid consolidation.
+- 🎯 **ReAct binds a catalogue through its domain** ([ADR-293](docs/architecture/ADR-293-React-Tools-Bound-By-Relevance.md) amendment):
+  a binding unit never rides the relevance tail, and a family of many units —
+  the settings catalogue — is reached through its routed domain. Measured on
+  real rankings: an agenda turn binds 67 tools instead of 140, a settings turn
+  103 instead of 243. The application-settings prompt block is rendered only
+  when a settings tool is bound; the tool cap's bound rises to 500.
+- ⚡ **The graph input is the turn's diff** ([ADR-022](docs/architecture/ADR-022-LangGraph-State-Checkpointing.md) amendment):
+  the restored state is no longer replayed whole into the graph, so unchanged
+  channels take no new checkpoint version on every turn. What the model reads
+  is untouched.
+- 🔁 **A page cut at a tool's cap is not a gap** ([ADR-336](docs/architecture/ADR-336-Requested-Outcomes-Checked-Against-Canonical-Observations.md) amendment):
+  only a failed read reaches the bounded recovery pass; requested outcomes and
+  gaps the model declares keep their behaviour.
+- 🧮 **Compact worker memory** ([ADR-283](docs/architecture/ADR-283-Worker-Memory-Anatomy.md) amendment):
+  tool-selection vectors are `float32` arrays (about eight times smaller than
+  Python float lists), a user's MCP vectors are parsed once per catalogue and
+  worker (`MCP_SERVER_VECTOR_CACHE_MAX`), an MCP argument model is built once
+  per schema (`MCP_ARGS_SCHEMA_CACHE_MAX`), the startup heap is frozen last in
+  the lifespan, and a BM25 index is replaced when its corpus changes.
+- 📉 **Leaner observability:** cAdvisor and postgres-exporter are scraped on
+  keep-lists with lighter cAdvisor housekeeping ([ADR-333](docs/architecture/ADR-333-Linked-Signals-And-A-Pipeline-That-Watches-Itself.md) amendment);
+  the public demonstrator runs two API workers.
+
+### Fixed
+
+- 🔒 **Dependency advisories:** aiohttp 3.14.4, dnspython 2.9.0, LangGraph
+  1.2.14 with its SDK 0.4.6, OpenTelemetry 1.45.1, DOMPurify 3.4.17, i18next
+  26.4.4 and Vite 8.3.4, each fix held by a floor in its manifest (ADR-331); the
+  APScheduler advisory, unpatched upstream, is accepted with its reason — LIA
+  uses the in-memory job store only. truststore 0.10.5 closes two TLS
+  verification advisories published on release day.
+- 🎬 **Landing films kept across deliveries:** the historical public films stay
+  in the playlist after a new render, their bytes checked by fingerprint.
+- 🎨 **Readable use-case times in the light theme:** the step times of the
+  landing's use cases were bright cyan on light glass (1.7:1, found by axe on
+  Firefox); a text cut of the accent cyan (`--cosmos-cyan-ink`) holds AA on
+  every light ground, kept by the cosmos contrast guard.
+- 🐳 **API image:** runtime manual pages needed by package alternatives are
+  retained, package installs are declared non-interactive, and CI image builds
+  export to the cache only.
+- 🗄️ **Schema comments** of the portrait columns describe what they hold since
+  ADR-343 (migration `0ff858a07321`); a timing-sensitive unit test of the source
+  worker renewals waits on its events instead of a fixed delay.
+
+### Documentation and installation
+
+- ADR-343 added; ADR-022, ADR-079, ADR-283, ADR-293, ADR-308, ADR-333 and
+  ADR-336 amended; journals, ReAct execution, Grafana dashboards and the worker
+  memory runbook updated; FAQ, guides, knowledge base and living maps follow.
+- New settings are optional with defaults (`JOURNAL_CONSOLIDATION_SOURCES_WINDOW_FRACTION`,
+  `MCP_SERVER_VECTOR_CACHE_MAX`, `MCP_ARGS_SCHEMA_CACHE_MAX`); five portrait
+  source caps are removed. A fresh self-hosted install needs no new answer.
+
 ## [3.0.0] - 2026-10-12
 
 **Requests connected to their context, with results you can inspect.** This

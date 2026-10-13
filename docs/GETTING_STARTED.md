@@ -5,7 +5,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-10-12
-**Compatibility**: LIA v3.0.0
+**Compatibility**: LIA v3.0.1
 
 ## Table of Contents
 
@@ -64,7 +64,7 @@ For ElevenLabs speech, `ELEVENLABS_TTS_MAX_CONCURRENCY` is rendered at the appli
 
 | Layer | Technologies | Versions |
 |-------|--------------|----------|
-| **Backend** | FastAPI + LangGraph + SQLAlchemy | FastAPI 0.141.1, LangGraph 1.2.11, LangChain 1.3.15, SQLAlchemy 2.0.54, Python 3.14 |
+| **Backend** | FastAPI + LangGraph + SQLAlchemy | FastAPI 0.141.1, LangGraph 1.2.14, LangChain 1.3.15, SQLAlchemy 2.0.54, Python 3.14 |
 | **Frontend** | Next.js + React + TailwindCSS | Next.js 16.3.8, React 19.3.0 |
 | **Database** | PostgreSQL + pgvector | PostgreSQL 16 (`pgvector/pgvector`, pinned by version and digest) |
 | **Cache/Sessions** | Redis | Redis 7.4 |

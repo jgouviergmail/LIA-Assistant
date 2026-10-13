@@ -1,4 +1,4 @@
-/** Real query/mutation hooks: HTTP failure must not re-expose an invalidated portrait. */
+/** Real query/mutation hooks: a write marks the portrait stale; an HTTP failure never clears it. */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 
@@ -94,7 +94,7 @@ async function mounted() {
 
 describe('portrait freshness after acknowledged writes', () => {
   it.each(['delete', 'deleteAll', 'create', 'update'] as const)(
-    'clears the stale portrait after %s even when its GET fails',
+    'marks the portrait stale after %s even when its GET fails, and keeps its words',
     async operation => {
       const { result } = await mounted();
       api.post.mockResolvedValue({ ...source, id: 'new-entry' });
@@ -111,8 +111,8 @@ describe('portrait freshness after acknowledged writes', () => {
         if (operation === 'update')
           await result.current.updateEntry(source.id, { content: 'A corrected method.' });
       });
-      expect(result.current.portrait?.full).toBeFalsy();
-      expect(result.current.portrait?.compiled_at).toBeFalsy();
+      expect(result.current.portrait?.stale).toBe(true);
+      expect(result.current.portrait?.full).toBe(storedPortrait.full);
       expect(result.current.portraitError).toBeInstanceOf(Error);
     }
   );
@@ -124,7 +124,8 @@ describe('portrait freshness after acknowledged writes', () => {
     await act(async () => {
       await result.current.updateSettings({ journal_consolidation_with_history: false });
     });
-    expect(result.current.portrait?.full).toBeFalsy();
+    expect(result.current.portrait?.stale).toBe(true);
+    expect(result.current.portrait?.full).toBe(storedPortrait.full);
   });
 
   it('keeps a valid portrait when an exact settings receipt says no invalidation', async () => {
@@ -154,24 +155,26 @@ describe('portrait freshness after acknowledged writes', () => {
       await act(async () => {
         await result.current.updateSettings(changes);
       });
-      expect(result.current.portrait?.full).toBe(invalidated ? null : storedPortrait.full);
+      expect(result.current.portrait?.full).toBe(storedPortrait.full);
+      expect(Boolean(result.current.portrait?.stale)).toBe(invalidated);
     }
   );
 
   it.each(['success', 'no_op', 'invalid_output'])(
-    'keeps only unchanged manual state when the attempt is %s and its portrait refresh fails',
+    'keeps the words, marked stale only on success, when the attempt is %s and its portrait refresh fails',
     async status => {
       const { result } = await mounted();
       api.post.mockResolvedValue({ status, actions_applied: 0, duration_ms: 1500 });
       await act(async () => {
         await result.current.consolidateNow();
       });
-      expect(result.current.portrait?.full).toBe(status === 'success' ? null : storedPortrait.full);
+      expect(result.current.portrait?.full).toBe(storedPortrait.full);
+      expect(Boolean(result.current.portrait?.stale)).toBe(status === 'success');
       expect(result.current.portraitError).toBeInstanceOf(Error);
     }
   );
 
-  it('clears an old portrait after a persisted correction even when synthesis is rejected', async () => {
+  it('marks an old portrait stale after a persisted correction even when synthesis is rejected', async () => {
     const { result } = await mounted();
     api.post.mockResolvedValue({ status: 'invalid_output', actions_applied: 0, duration_ms: 1500 });
     await act(async () => {
@@ -179,7 +182,8 @@ describe('portrait freshness after acknowledged writes', () => {
         comment: 'Correct this account understanding.',
       });
     });
-    expect(result.current.portrait?.full).toBeFalsy();
+    expect(result.current.portrait?.stale).toBe(true);
+    expect(result.current.portrait?.full).toBe(storedPortrait.full);
   });
 
   it('retains prior valid data on an ordinary refresh failure and exposes that failure', async () => {

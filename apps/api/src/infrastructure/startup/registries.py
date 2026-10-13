@@ -469,10 +469,10 @@ def _install_consultation_sink() -> None:
 
 
 def _install_portrait_sources() -> None:
-    """Wire the four portrait sources into their seam, and prove it (part B).
+    """Wire the nine portrait sources into their seam, and prove it (part B).
 
     Each source installs itself at import (``<domain>/portrait_source.py``);
-    the boot IMPORTS the four explicitly so the installation is a declaration,
+    the boot IMPORTS the nine explicitly so the installation is a declaration,
     never a side effect somebody reorders away (ADR-270), then refuses a
     registry that does not offer every declared source — a portrait blind to a
     record the person keeps is the class of defect ADR-280 measured.
@@ -480,14 +480,19 @@ def _install_portrait_sources() -> None:
     Raises:
         StartupCompletenessError: When a declared source has no reader.
     """
+    from src.domains.bookmarks import portrait_source as bookmarks_source
     from src.domains.habits import portrait_source as habits_source
     from src.domains.interests import portrait_source as interests_source
     from src.domains.memories import portrait_source as memories_source
+    from src.domains.open_loops import portrait_source as open_loops_source
     from src.domains.relations.debrief import portrait_source as debriefs_source
+    from src.domains.reminders import portrait_source as reminders_source
+    from src.domains.scheduled_actions import portrait_source as routines_source
     from src.domains.shared.portrait_sources import (
         assert_portrait_sources_complete,
         install_portrait_source,
     )
+    from src.domains.workboard import portrait_source as workboard_source
 
     # The step INSTALLS: an import runs its side effect once per process, so a
     # module already imported wires nothing and the check below would refuse a
@@ -501,6 +506,21 @@ def _install_portrait_sources() -> None:
     install_portrait_source(habits_source.KEY, habits_source.read_habits, habits_source.FRESHNESS)
     install_portrait_source(
         debriefs_source.KEY, debriefs_source.read_relation_debriefs, debriefs_source.FRESHNESS
+    )
+    install_portrait_source(
+        open_loops_source.KEY, open_loops_source.read_open_loops, open_loops_source.FRESHNESS
+    )
+    install_portrait_source(
+        workboard_source.KEY, workboard_source.read_workboard, workboard_source.FRESHNESS
+    )
+    install_portrait_source(
+        routines_source.KEY, routines_source.read_routines, routines_source.FRESHNESS
+    )
+    install_portrait_source(
+        reminders_source.KEY, reminders_source.read_reminders, reminders_source.FRESHNESS
+    )
+    install_portrait_source(
+        bookmarks_source.KEY, bookmarks_source.read_bookmarks, bookmarks_source.FRESHNESS
     )
 
     try:

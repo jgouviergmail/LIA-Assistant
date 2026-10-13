@@ -102,6 +102,10 @@ il se multiplie.**
   LangGraph (3 Go sur 3,25 de base, seule purge : le reset d'une conversation)
   est un lot à part : elle doit garder les blobs référencés par les
   checkpoints conservés, LangGraph ne réécrivant que les canaux modifiés.
+  Mesuré le 2026-10-12 : l'état restauré était renvoyé ENTIER en entrée du
+  graphe, donc chaque canal reprenait une version à chaque tour (`__start__`
+  ≈ 1 Mo, `agent_results` 600 Ko réécrits inchangés) ; l'entrée est depuis le
+  diff du tour (ADR-022, amendement 2026-10-12).
 - Le démonstrateur n'est pas dans le garde du plancher : sans `shared_buffers`
   explicite (128 Mo) et avec 3 × 12 backends, son plancher fait 37 % de son
   `mem_limit` de 1 Gio — sain, et documenté ici plutôt que gardé par un second
@@ -134,9 +138,108 @@ voyait pas ce qu'une REQUÊTE tient. Mesuré sur dev (`pg_stat_activity`,
   règle est « une session ne vit pas plus longtemps que les requêtes qu'elle
   sert », jamais « autour » d'une attente.
 
+## Amendement 2026-10-12 — ce qu'un worker retient, recensé, et quatre retenues fermées
+
+La croissance « inexpliquée » du tableau ci-dessus (2,5 → 5,3 Go en deux
+jours, par paliers) a été instruite sur la production le 2026-10-12, avec le
+recensement que la décision 4 rendait possible : `sys.remote_exec` (PEP 768)
+dans un worker vivant, lancé par `docker exec -u 0 --privileged` (le profil
+seccomp par défaut refuse `process_vm_writev` sans `CAP_SYS_PTRACE`), six
+secondes de pause par worker, des nombres seuls en sortie (types, tailles,
+chaînes de référents), jamais un contenu. Trois faits, chacun mesuré avant
+d'être touché :
+
+1. **Les paliers sont des tours de chat, et c'est de la rétention, pas de la
+   fragmentation.** Chaque saut de 150 à 540 Mo coïncide avec un tour (jetons
+   consommés, 50 à 115 opérations de checkpoint, appels connecteurs). Sur un
+   worker de 1 238 Mo contre un worker léger de 925 Mo de la même génération,
+   pymalloc tenait 811 Mo alloués pour 1,5 Mo libres et glibc 396 Mo en usage
+   pour 22 Mo libres : les octets sont vivants. Un `gc.collect()` y a rendu
+   123 763 objets et 120 Mo — des cycles qui attendaient une collection
+   complète, laquelle n'arrive, sur un tas de 1,6 million d'objets
+   longue durée, qu'après quelque 400 000 nouveaux survivants.
+2. **Le premier poste est le sélecteur sémantique d'outils**, qui gardait un
+   vecteur de 1 536 flottants par description ET par mot-clé d'outil sous la
+   forme de `list[float]` Python (49 Ko le vecteur : 24 octets le flottant,
+   8 la case) : 1 585 vecteurs du catalogue natif (78 Mo par worker), plus
+   une copie des vecteurs des serveurs MCP de la personne par contexte de
+   requête encore vivant — 2 650 vecteurs sur le worker léger, 3 722 sur le
+   lourd. Le même vecteur pèse 6 Ko en `float32`.
+3. **Le second poste est une classe pydantic par outil MCP et par tour**
+   (`create_model("MCPToolInput")` dans `tool_adapter.py`) : 682 classes et
+   690 validateurs compilés de plus en cinq heures sur le worker lourd, chacune
+   un graphe de cycles que seule une collection complète libère.
+
+Hors de cause en production, et pourtant corrigé : l'index BM25 des espaces de
+connaissances (2 058 chunks, aucune série `bm25_*` en sept jours) mettait le
+md5 du corpus ENTIER dans sa clé de cache — recalculé à chaque requête par une
+jointure de tout le corpus — et chaque changement du corpus laissait un index
+complet de plus en mémoire, jusqu'à cent.
+
+**Décision.**
+
+- **Un vecteur tenu par un worker est un tableau `float32`, jamais une liste
+  de flottants Python** (`agents/services/tool_vectors.py` : `as_vector`,
+  `as_matrix`, `cosine_rows`). Le sélecteur convertit ce que le cache disque ou
+  l'embarqueur lui tend et ne garde rien d'autre ; les mots-clés d'un outil
+  forment une matrice, notée en un produit. Les vecteurs des serveurs MCP d'une
+  personne sont **parsés une fois par catalogue et par worker**
+  (`ServerVectorCache`, clé serveur × modèle × empreinte du catalogue, borne
+  `MCP_SERVER_VECTOR_CACHE_MAX`) : la liste des serveurs qui sert le tour
+  diffère la colonne `tool_embeddings_cache` (`defer`), relue seule, par
+  `get_tool_embeddings_cache`, à la première rencontre du catalogue — chaque
+  tour en parsait auparavant un millier de vecteurs depuis le JSON de la ligne.
+  Sa lecture est best-effort : un échec coûte au tour le classement de ces
+  outils, jamais les outils.
+- **Une classe d'arguments MCP est construite une fois par schéma**
+  (`build_args_schema`, clé = JSON canonique du schéma, borne
+  `MCP_ARGS_SCHEMA_CACHE_MAX`) : le même schéma rend la même classe.
+- **Le tas du démarrage est gelé en dernier** (`startup/process_heap.py`,
+  appelé à la fin du lifespan, après tout ce qui est résident) : `gc.collect()`
+  puis `gc.freeze()`, ce que le boot a construit sort du collecteur cyclique,
+  et une collection complète n'attend plus le quart d'un tas qui ne sera jamais
+  un déchet. Garde : `test_process_heap.py` (l'appel est le dernier avant le
+  `yield`).
+- **Un index BM25 par clé, remplacé quand son corpus change**
+  (`infrastructure/store/bm25_index.py`) : l'empreinte du corpus est portée par
+  l'entrée, calculée par identifiant trié sans jointure, et une entrée ne
+  survit pas à son corpus.
+
+Mesuré sur dev après le changement, un boot complet en conteneur jetable : 305
+descriptions et 1 280 lignes de mots-clés, toutes `float32`, 9,3 Mo au lieu
+d'environ 78 ; aucune liste de flottants vivante ; 1 322 144 objets gelés et
+287 objets restant au collecteur après le gel.
+
+Ce que l'amendement ne fait pas : la mesure après déploiement reste à faire sur
+la production (le worker léger et le worker lourd de la même génération donnent
+la projection : −68 Mo par worker sur le catalogue natif, −46 Mo par contexte
+MCP vivant, et les 120 Mo de cycles rendus au rythme des collections). Deux
+coûts restent, nommés : la recherche BM25 lit encore le corpus ENTIER à chaque
+requête pour en calculer l'empreinte (une version de corpus publiée par le
+dépôt l'éviterait) ; et un objet du démarrage remplacé à l'exécution — un cache
+de configuration rechargé sur invalidation — garde sa version gelée résidente,
+une copie, une fois, jamais par rechargement. Un troisième recensement — les
+référents de 3 722 vecteurs parcourus un à un — a fait mourir un worker de
+production (relancé par le superviseur en six secondes) ; seul le recensement
+par types et tailles, sans parcours des référents, est tenu pour sûr.
+
 ## Références
 
 - Runbook : `docs/runbooks/alerts/ApiWorkerMemoryHigh.md`
+- Tests de l'amendement 2026-10-12 :
+  `tests/unit/domains/agents/services/test_tool_vectors.py`,
+  `tests/unit/domains/agents/services/test_tool_selector_cache.py`
+  (`TestTheVectorsAreStoredCompact`),
+  `tests/unit/infrastructure/mcp/test_user_context_vectors.py`,
+  `tests/integration/domains/user_mcp/test_repository_envelope.py` (PostgreSQL
+  réel : la colonne différée, la lecture seule),
+  `tests/unit/infrastructure/store/test_bm25_index_manager.py`,
+  `tests/unit/infrastructure/startup/test_process_heap.py`,
+  `tests/unit/infrastructure/mcp/test_tool_adapter.py`
+  (`TestArgsSchemaIsBuiltOncePerSchema`)
+- Outil : `apps/api/scripts/ops/worker_census.py` — le recensement par types et
+  tailles, injecté par `sys.remote_exec` ; sa notice dit ce qu'il ne doit jamais
+  faire
 - Tests : `tests/unit/test_serve_launcher.py`,
   `tests/unit/test_lazy_heavy_imports_guard.py`,
   `tests/unit/domains/voice/test_sherpa_recognizer_cache.py`,

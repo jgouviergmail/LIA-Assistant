@@ -1,9 +1,11 @@
-"""The four sources the user portrait reads, offered to ``journals`` without an edge.
+"""The sources the user portrait reads, offered to ``journals`` without an edge.
 
 The consolidation (``journals``) compiles a portrait of the person from the
-journal entries and, since the 2026-09-16 design (part B), from four other
-records LIA keeps: the long-term memories, the interests, the learned habits
-and the relationship debriefs. ``journals`` cannot import those domains:
+journal entries and, since the 2026-09-16 design (part B), from the other
+records LIA keeps: four at first (the long-term memories, the interests, the
+learned habits and the relationship debriefs), nine since 2026-10-12 (the open
+loops, the workboard, the routines, the pending reminders and the kept answers
+joined them). ``journals`` cannot import those domains:
 ``interests`` and ``relations`` already import ``journals`` (the ambient
 portrait block), so the reverse edge would close a runtime cycle the coupling
 ratchet refuses — and the ratchet counts local imports too.
@@ -15,9 +17,11 @@ installation is a declaration and never a side effect somebody reorders
 away — ADR-270), and ``journals`` reads the registry. Nothing here imports
 anything from a domain.
 
-One mechanism for the four, on purpose: two of them could be imported by
+One mechanism for the nine, on purpose: several could be imported by
 ``journals`` directly today, and two shapes for one question is the trap the
-registries doctrine names.
+registries doctrine names. A reader renders its record WHOLE: the only bound is
+the assembler's (a share of the consolidation slot's window), never a page or a
+clamp of the reader's own.
 
 The boot REFUSES an incomplete registry (``assert_portrait_sources_complete``):
 a source nobody installed would make the portrait silently blind to a record
@@ -29,16 +33,18 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, Final, Literal, Protocol
+from typing import Final, Literal, Protocol
 from uuid import UUID
 
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 
-if TYPE_CHECKING:
-    from sqlalchemy import Select
-
-#: One ellipsis, never a cut that pretends to be the whole.
+#: One ellipsis, never a cut that pretends to be the whole (the radio's clamp).
 _ELLIPSIS: Final[str] = "…"
+
+#: The longest rendered item line the prompt carries: the assembler CUTS a longer
+#: one at this bound and states the cut in the provenance — an item is never dropped
+#: for its length (2026-10-12). The catalogue reads the same bound as its guard.
+PORTRAIT_ITEM_MAX_CHARS: Final[int] = 5000
 
 #: The closed vocabulary, in the order the prompt renders the sections.
 PORTRAIT_SOURCE_KEYS: Final[tuple[str, ...]] = (
@@ -46,28 +52,14 @@ PORTRAIT_SOURCE_KEYS: Final[tuple[str, ...]] = (
     "interests",
     "habits",
     "relation_debriefs",
+    "open_loops",
+    "workboard",
+    "routines",
+    "reminders",
+    "bookmarks",
 )
 
 SectionStatus = Literal["used", "empty", "disabled", "unavailable"]
-
-#: ``SourceBudget.max_items`` for a source bounded by construction (the learned
-#: habits: two day classes and a capped number of recurring rows) — the reader
-#: applies the clamp and ignores the item count.
-ITEMS_BOUNDED_BY_SOURCE: Final[int] = -1
-
-
-@dataclass(frozen=True, slots=True)
-class SourceBudget:
-    """What one reader may render.
-
-    Attributes:
-        max_items: Items rendered at most (0 renders none;
-            :data:`ITEMS_BOUNDED_BY_SOURCE` for a source bounded by construction).
-        item_max_chars: Clamp applied to each rendered item.
-    """
-
-    max_items: int
-    item_max_chars: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,17 +86,14 @@ class PortraitSourceSection:
 
 
 class PortraitSourceReader(Protocol):
-    """What a source offers the consolidation: one bounded, gated, safe read."""
+    """What a source offers the consolidation: one gated, whole, safe read."""
 
-    async def __call__(
-        self, *, user_id: UUID, language: str, budget: SourceBudget
-    ) -> PortraitSourceSection:
-        """Render the source for one account.
+    async def __call__(self, *, user_id: UUID, language: str) -> PortraitSourceSection:
+        """Render the WHOLE source for one account.
 
         Args:
             user_id: The account whose portrait is compiled.
-            language: The account's language (dates, labels).
-            budget: What may be rendered.
+            language: The account's language (dates, labels, recurrences).
 
         Returns:
             The section; never raises (an exception is ``unavailable``).
@@ -121,8 +110,6 @@ class FreshnessProbe:
         stamp_column: The column that moves when the record changes.
         semantic_columns: Qualified content/selection fields, or JSON paths.
             When supplied, bookkeeping timestamps are excluded from identity.
-        selection_query: Optional ordered page of IDs, executed by the caller's
-            session. It captures selection changes caused by usage ranking.
         related_probes: Additional tables consumed by the same source.
     """
 
@@ -132,7 +119,6 @@ class FreshnessProbe:
     allowed: Callable[[UUID], Awaitable[bool]] | None = None
     expires_daily: bool = False
     semantic_columns: tuple[str | tuple[str, ...], ...] | None = None
-    selection_query: Callable[[UUID, SourceBudget], Select[Any]] | None = None
     related_probes: tuple[FreshnessProbe, ...] = ()
 
 
@@ -149,8 +135,23 @@ def portrait_lines() -> dict[str, str]:
     return dict(parse_prompt_sections(read_prompt_file("journal_portrait_source_lines"), 2))
 
 
+def flat_item(text: str) -> str:
+    """One line: newlines collapsed, nothing cut — an item is quoted whole.
+
+    Args:
+        text: The item's text.
+
+    Returns:
+        The line.
+    """
+    return " ".join(text.split())
+
+
 def clamp_item(text: str, max_chars: int) -> str:
     """One line of at most ``max_chars`` characters, ending in an ellipsis when cut.
+
+    No portrait reader clamps any more (2026-10-12: an item is quoted whole);
+    the radio's prompting still bounds its lines through this helper.
 
     Args:
         text: The item's text (newlines collapsed).
@@ -159,7 +160,7 @@ def clamp_item(text: str, max_chars: int) -> str:
     Returns:
         The bounded line.
     """
-    flat = " ".join(text.split())
+    flat = flat_item(text)
     if len(flat) <= max_chars:
         return flat
     return flat[: max(max_chars - 1, 0)].rstrip() + _ELLIPSIS
@@ -216,16 +217,16 @@ def assert_portrait_sources_complete() -> None:
 
 
 __all__ = [
-    "ITEMS_BOUNDED_BY_SOURCE",
+    "PORTRAIT_ITEM_MAX_CHARS",
     "PORTRAIT_SOURCE_KEYS",
     "FreshnessProbe",
     "PortraitSourceReader",
     "PortraitSourceSection",
     "SectionStatus",
-    "SourceBudget",
     "assert_portrait_sources_complete",
     "clamp_item",
     "empty_section",
+    "flat_item",
     "install_portrait_source",
     "installed_portrait_sources",
     "portrait_lines",

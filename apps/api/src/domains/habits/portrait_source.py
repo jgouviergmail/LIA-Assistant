@@ -5,8 +5,7 @@ person's own preference); the rhythm through ``load_consumable_profile`` so a
 paused or blocked window never colours the portrait either (ADR-214 c); the
 recurring requests ACTIVE only, each with its shape, its hour and its usual
 intent — never a date. Habits are bounded by construction (two day classes,
-``habits_max_habits_per_kind`` rows), so the item budget does not apply; the
-clamp does.
+``habits_max_habits_per_kind`` rows); every line is rendered whole.
 """
 
 from __future__ import annotations
@@ -25,9 +24,8 @@ from src.domains.habits.rhythm import WEEKDAY, WEEKEND, RhythmProfile
 from src.domains.shared.portrait_sources import (
     FreshnessProbe,
     PortraitSourceSection,
-    SourceBudget,
-    clamp_item,
     empty_section,
+    flat_item,
     install_portrait_source,
     portrait_lines,
 )
@@ -67,35 +65,32 @@ def _rhythm_line(profile: RhythmProfile, lines: dict[str, str]) -> str | None:
     )
 
 
-def _recurring_line(habit: UserHabit, lines: dict[str, str], max_chars: int) -> str:
+def _recurring_line(habit: UserHabit, lines: dict[str, str]) -> str:
     payload = habit.payload or {}
     hour = payload.get("trigger_hour")
     intent = payload.get("usual_intent")
     return lines["habits_recurring"].format(
-        key=clamp_item(str(habit.key), max_chars),
-        shape=clamp_item(str(payload.get("shape") or ""), max_chars),
+        key=flat_item(str(habit.key)),
+        shape=flat_item(str(payload.get("shape") or "")),
         hour=(
             " " + lines["habits_recurring_hour"].format(hour=format_half_hour_label(float(hour)))
             if hour is not None
             else ""
         ),
         intent=(
-            " " + lines["habits_recurring_intent"].format(intent=clamp_item(str(intent), max_chars))
+            " " + lines["habits_recurring_intent"].format(intent=flat_item(str(intent)))
             if intent
             else ""
         ),
     )
 
 
-async def read_habits(
-    *, user_id: UUID, language: str, budget: SourceBudget
-) -> PortraitSourceSection:
+async def read_habits(*, user_id: UUID, language: str) -> PortraitSourceSection:
     """Render the person's learned rhythm and recurring requests.
 
     Args:
         user_id: The account.
         language: Unused — the lines are the model's, hours are numeric.
-        budget: The clamp applies; the item count is bounded by construction.
 
     Returns:
         The section; never raises.
@@ -117,7 +112,7 @@ async def read_habits(
             rhythm = _rhythm_line(profile, lines)
             if rhythm is not None:
                 items.append(rhythm)
-        items.extend(_recurring_line(habit, lines, budget.item_max_chars) for habit in rows)
+        items.extend(_recurring_line(habit, lines) for habit in rows)
         if not items:
             return empty_section(KEY, "empty")
         return PortraitSourceSection(

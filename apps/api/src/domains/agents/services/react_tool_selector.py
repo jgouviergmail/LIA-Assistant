@@ -20,6 +20,24 @@ script and answered in prose (the production motif on both skills). A unit
 ranks as its best member, takes ONE coverage seat, rides the semantic tail
 whole, and the cap drops it whole rather than cutting inside it.
 
+A BINDING UNIT BINDS THROUGH ITS DOMAIN (2026-10-12). The coverage ``N`` and
+the tail ``K`` count TOOLS, not seats: measured on production, the settings
+catalogue's forty units (180 tools in one family) each took one seat and one
+rank whatever their size, so a question about the agenda bound 71 settings
+tools through twelve units — 45 % of its 156 tools, about 26K tokens on every
+model call — while the loop called one settings tool in 125 turns; on dev the
+family's best section (18 tools) rode the coverage seat on every turn and its
+other sections rode the tail. A unit never rides the tail. A family holding at
+most ONE unit keeps the rule of 2026-09-20: its unit is ONE seat among the
+``N``, whatever its size — one affordance, one door: the skills, the case that
+amendment measured. A family of SEVERAL units is a catalogue of sections,
+reachable through its domain: its coverage seats count TOOLS, so a section only
+rides one when it fits the count; when the router names the family, its loose
+tools are all bound and its units by rank under ``K`` tools, the first whole;
+when it does not, no section wider than the count is bound. Every walk stops at
+the first seat that does not fit, never binding a lower-ranked seat in place of
+a higher-ranked one.
+
 Filtering chain (same as pipeline):
 1. Global registry tools
 2. Minus admin-disabled MCP servers (per user)
@@ -265,6 +283,9 @@ class ReactToolSelector:
             tool_count=len(wrapped_tools),
             hitl_count=sum(1 for v in hitl_map.values() if v),
             capped=resolved_count > max_tools,
+            # Requested by the turn's rhythm; applied unless a fallback kept the
+            # relevance selection — the two differ on every capped frequent turn.
+            every_tool_requested=every_tool,
             every_tool=bound_whole is not None,
         )
 
@@ -304,6 +325,13 @@ class ReactToolSelector:
                 top_k=top_k,
                 priority_agents=sorted(priority_agents),
                 dropped_by_relevance=len(dropped_by_relevance),
+                # The composition, tier by tier, so a bound set reads back from
+                # the log: the units it holds whole, and how many tools they weigh.
+                priority_count=tiers.count(0),
+                coverage_count=tiers.count(1),
+                tail_count=tiers.count(2),
+                unit_count=len({unit for unit in units if unit}),
+                unit_tool_count=sum(1 for unit in units if unit),
             )
             logger.debug(
                 "react_tool_selector_relevance_dropped", dropped_tools=dropped_by_relevance
@@ -479,8 +507,8 @@ class ReactToolSelector:
         ``top_k`` of it; what remains
         is dropped by relevance. Without a ranking nothing is dropped and the
         registration order stands: the tiers alone decide who survives the cap.
-        A binding unit ranks as its best member and holds one seat, so it
-        lands whole in whichever tier reaches it.
+        A binding unit ranks as its best member and lands whole through its
+        family's priority or coverage, never through the tail.
 
         Args:
             rows: The resolved tools, in registration order.
@@ -494,7 +522,9 @@ class ReactToolSelector:
             the binding unit of each so the cap never cuts inside one.
         """
         rank = ReactToolSelector._ranker(rows, ranking)
-        priority, coverage = ReactToolSelector._tiered(rows, rank)
+        priority, coverage = ReactToolSelector._tiered(
+            rows, rank, unit_budget=None if ranking is None else top_k
+        )
         tier_of = {id(row.tool): 0 for row in priority}
         tier_of.update({id(row.tool): 1 for row in coverage})
         if ranking is None:
@@ -542,28 +572,109 @@ class ReactToolSelector:
         return rank
 
     @staticmethod
-    def _tiered(rows: list[_Row], rank: Callable[[_Row], int]) -> tuple[list[_Row], list[_Row]]:
+    def _tiered(
+        rows: list[_Row], rank: Callable[[_Row], int], unit_budget: int | None
+    ) -> tuple[list[_Row], list[_Row]]:
         """The priority rows (registration order) and the family coverage (by rank).
 
-        Coverage keeps, per family outside the detected domains, its
-        ``CATALOGUE_DOMAIN_COVERAGE_TOP_N`` best-ranked seats and, beside them,
-        its delegation door when the family is an expanded user MCP server. A
-        binding unit is ONE seat: its members sit together or not at all.
+        Priority binds every loose tool and door of the detected domains'
+        families, and their binding units by rank under ``unit_budget`` tools,
+        the first whole: the question IS about the family, but a catalogue of
+        sections (the settings: forty units, 180 tools) is not bound whole for
+        it. ``None`` binds every unit — no ranking, the cap alone trims.
+
+        Coverage keeps, per family outside the detected domains, its best-ranked
+        seats and, beside them, its delegation door when the family is an
+        expanded user MCP server. A family holding at most one unit keeps the
+        rule of 2026-09-20: ``CATALOGUE_DOMAIN_COVERAGE_TOP_N`` SEATS, its unit
+        one of them whatever its size (one affordance, one door: the skills). A
+        family of several units is a catalogue of sections reachable through its
+        domain: its seats count TOOLS, a section rides one only when it fits, and
+        the walk stops at the first seat that does not fit (``_fitting``).
         """
-        priority = [row for row in rows if row.priority]
         by_family: dict[str, list[_Row]] = {}
         for row in rows:
-            if not row.priority:
-                by_family.setdefault(row.family, []).append(row)
+            by_family.setdefault(row.family, []).append(row)
+        kept: set[int] = set()
         coverage: list[_Row] = []
         for members in by_family.values():
-            doors = [row for row in members if row.door]
+            if members[0].priority:
+                kept.update(ReactToolSelector._priority_seats(members, rank, unit_budget))
+                continue
+            coverage.extend(row for row in members if row.door)
+            units = {row.unit for row in members if row.unit is not None}
             seats = ReactToolSelector._seats(members, rank)
-            coverage.extend(doors)
-            for seat in seats[:CATALOGUE_DOMAIN_COVERAGE_TOP_N]:
+            chosen = (
+                seats[:CATALOGUE_DOMAIN_COVERAGE_TOP_N]
+                if len(units) <= 1
+                else ReactToolSelector._fitting(
+                    seats, CATALOGUE_DOMAIN_COVERAGE_TOP_N, first_whole=False
+                )
+            )
+            for seat in chosen:
                 coverage.extend(seat)
+        priority = [row for row in rows if id(row.tool) in kept]
         coverage.sort(key=rank)
         return priority, coverage
+
+    @staticmethod
+    def _priority_seats(
+        members: list[_Row], rank: Callable[[_Row], int], unit_budget: int | None
+    ) -> set[int]:
+        """``id()`` of the tools a detected family binds.
+
+        Every loose tool and door of the family; its binding units by rank
+        under ``unit_budget`` tools, the first whole; every unit when the budget
+        is None.
+
+        Args:
+            members: The family's rows, in registration order.
+            rank: The turn's rank of a row.
+            unit_budget: Tools the family's units may hold together, or None.
+
+        Returns:
+            The identities of the bound tools.
+        """
+        kept = {id(row.tool) for row in members if row.unit is None}
+        unit_seats = [
+            seat for seat in ReactToolSelector._seats(members, rank) if seat[0].unit is not None
+        ]
+        chosen = (
+            unit_seats
+            if unit_budget is None
+            else ReactToolSelector._fitting(unit_seats, unit_budget, first_whole=True)
+        )
+        for seat in chosen:
+            kept.update(id(row.tool) for row in seat)
+        return kept
+
+    @staticmethod
+    def _fitting(seats: list[list[_Row]], budget: int, *, first_whole: bool) -> list[list[_Row]]:
+        """The leading seats whose tools fit ``budget`` together, in order.
+
+        The walk STOPS at the first seat that does not fit: a seat ranked lower
+        is never bound in place of one ranked higher (ADR-286's doctrine for
+        the paging of a tool result, applied to the binding).
+
+        Args:
+            seats: Seats in rank order; a unit's members on one seat.
+            budget: Tools the kept seats may hold together.
+            first_whole: Whether the first seat passes whole even past the
+                budget — a detected family owes its best section; the coverage
+                of a family of several units and the semantic tail owe nothing
+                past the count.
+
+        Returns:
+            The kept seats, a prefix of ``seats``.
+        """
+        kept: list[list[_Row]] = []
+        count = 0
+        for seat in seats:
+            if count + len(seat) > budget and not (first_whole and not kept):
+                break
+            kept.append(seat)
+            count += len(seat)
+        return kept
 
     @staticmethod
     def _seats(members: list[_Row], rank: Callable[[_Row], int]) -> list[list[_Row]]:
@@ -587,11 +698,34 @@ class ReactToolSelector:
     def _semantic_tail(
         rows: list[_Row], placed: set[int], rank: Callable[[_Row], int], top_k: int
     ) -> tuple[list[_Row], list[str]]:
-        """The first ``top_k`` of the ranking among the rows not yet placed, and the dropped names."""
-        remaining = [row for row in rows if id(row.tool) not in placed]
-        tail = sorted((row for row in remaining if rank(row) < top_k), key=rank)
+        """The loose tools the first ``top_k`` ranks reach among those not yet placed, under ``top_k`` TOOLS.
+
+        A binding unit never rides the tail: it lands whole through its family's
+        priority or coverage, or not at all — forty settings sections rode the
+        tail on the rank of their best member (2026-10-12). The walk stops at
+        the first seat that does not fit and no seat is forced: the tail is what
+        the ranking adds beyond the priority and the coverage, and it owes
+        nothing.
+
+        Args:
+            rows: The resolved tools, in registration order.
+            placed: ``id()`` of the tools the priority and the coverage hold.
+            rank: The turn's rank of a row.
+            top_k: The ranks the tail may reach, and the tools it may hold.
+
+        Returns:
+            The tail rows, in rank order, and the names dropped by relevance.
+        """
+        unplaced = [row for row in rows if id(row.tool) not in placed]
+        loose = [row for row in unplaced if row.unit is None]
+        seats = [seat for seat in ReactToolSelector._seats(loose, rank) if rank(seat[0]) < top_k]
+        tail = [
+            row
+            for seat in ReactToolSelector._fitting(seats, top_k, first_whole=False)
+            for row in seat
+        ]
         kept = {id(row.tool) for row in tail}
-        dropped = [row.name for row in remaining if id(row.tool) not in kept]
+        dropped = [row.name for row in unplaced if id(row.tool) not in kept]
         return tail, dropped
 
     @staticmethod

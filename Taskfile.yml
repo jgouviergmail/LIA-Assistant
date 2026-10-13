@@ -622,9 +622,11 @@ tasks:
     desc: Replay real ReAct turns against the tool-selection policy (NETWORK, on demand — ADR-293)
     dir: "{{.API_DIR}}"
     # A MEASUREMENT, never a gate: it needs the registry, the selector's
-    # embedding cache and one small embedding call per turn. The turns file is
-    # the operator's own extraction (query, router domains, tools called);
-    # nothing in the repository holds anyone's turns.
+    # embedding cache and one small embedding call per turn (none with a
+    # --rankings-cache already filled). The turns file is the operator's own
+    # extraction (query, router domains, tools called); nothing in the
+    # repository holds anyone's turns — apps/api/scripts/react/selection_corpus.json
+    # is a synthetic corpus (ADR-293 amendment 2026-10-12).
     cmds:
       - cmd: .venv/Scripts/python scripts/react/measure_tool_selection.py {{.CLI_ARGS}}
         platforms: [windows]
@@ -646,6 +648,19 @@ tasks:
       - cmd: .venv/Scripts/python scripts/react/measure_recovery.py {{.CLI_ARGS}}
         platforms: [windows]
       - cmd: .venv/bin/python scripts/react/measure_recovery.py {{.CLI_ARGS}}
+        platforms: [linux, darwin]
+
+  journals:portrait:measure:
+    desc: Seed a synthetic persona into the PROOF account on dev and measure what the portrait publishes (NETWORK, billed, on demand)
+    dir: "{{.API_DIR}}"
+    # A MEASUREMENT, never a gate: the real consolidation, its one model call,
+    # on the proof account only (the script refuses any other account
+    # and an Anthropic slot). apps/api/scripts/journals/portrait_corpus.json is
+    # an INVENTED persona; --teardown removes everything --seed wrote.
+    cmds:
+      - cmd: .venv/Scripts/python scripts/journals/measure_portrait.py {{.CLI_ARGS}}
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/journals/measure_portrait.py {{.CLI_ARGS}}
         platforms: [linux, darwin]
 
   habits:calibration:measure:

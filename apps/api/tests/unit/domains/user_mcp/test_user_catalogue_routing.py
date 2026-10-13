@@ -121,6 +121,14 @@ def routing(monkeypatch: pytest.MonkeyPatch) -> RoutingHarness:
             harness.queried_accounts.append(account_id)
             return list(harness.servers)
 
+        async def get_tool_embeddings_cache(self, server_id: UUID) -> dict[str, object] | None:
+            # The envelope is read alone (ADR-283 amendment): the fake mirrors
+            # the production contract and serves what the row carries.
+            for server in harness.servers:
+                if server.id == server_id:
+                    return getattr(server, "tool_embeddings_cache", None)
+            return None
+
     @asynccontextmanager
     async def session() -> AsyncIterator[object]:
         yield object()

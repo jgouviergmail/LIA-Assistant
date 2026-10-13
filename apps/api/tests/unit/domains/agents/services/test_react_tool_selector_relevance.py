@@ -327,16 +327,29 @@ def unit_harness(harness: _Harness) -> _Harness:
 
 
 class TestBindingUnit:
-    def test_one_ranked_member_binds_the_whole_unit_on_one_coverage_seat(
+    def test_one_ranked_member_binds_the_whole_unit_as_the_family_s_coverage(
         self, unit_harness: _Harness
     ) -> None:
         # Only the activation ranks; the run and the read are unranked. The
-        # unit takes its best member's rank and ONE seat, so the loose tool of
-        # the same family keeps the family's second seat.
+        # unit takes its best member's rank and is the family's first seat,
+        # so it is bound whole; the family holds one unit, so a seat is a seat
+        # (the 2026-09-20 rule): the loose tool is the second one, even
+        # unranked, like any family's second-best tool.
         ranking = ["skill_activate", *RANKING, "query_state"]
         bound, hitl_map = unit_harness.select(domains=["event"], ranking=ranking)
-        assert {"skill_activate", "skill_run", "skill_read"} <= set(bound)
-        assert "query_state" in bound
+        assert {"skill_activate", "skill_run", "skill_read", "query_state"} <= set(bound)
+        assert set(hitl_map) == set(bound)
+
+    def test_in_a_family_of_one_unit_the_unit_is_one_seat_whichever_ranks_first(
+        self, unit_harness: _Harness
+    ) -> None:
+        # The loose tool outranks the unit and the family has two seats: the
+        # unit is the second seat WHOLE, whatever its size — the measured rule
+        # of 2026-09-20. Counting tools here would have dropped the skills
+        # whenever a sibling outranked them (reviewed 2026-10-12).
+        ranking = ["query_state", "skill_read", *RANKING]
+        bound, hitl_map = unit_harness.select(domains=["event"], ranking=ranking)
+        assert {"query_state", "skill_activate", "skill_run", "skill_read"} <= set(bound)
         assert set(hitl_map) == set(bound)
 
     def test_a_unit_no_member_of_which_is_reached_is_dropped_whole(
@@ -353,18 +366,34 @@ class TestBindingUnit:
         assert "query_state" in bound
         assert not {"skill_activate", "skill_run", "skill_read"} & set(bound)
 
-    def test_the_unit_rides_the_semantic_tail_whole(
+    def test_a_unit_never_rides_the_semantic_tail(
         self, unit_harness: _Harness, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        # Two seats go to the loose tool and… the unit (one seat); with a
-        # third family member the tail is where a unit member lands, whole.
+        # The loose tool took the family's one seat; the unit's best member
+        # ranks within K, and still the unit is NOT bound: a unit lands whole
+        # through its family's priority or coverage, never on a rank of the
+        # tail (2026-10-12 — forty settings sections rode the tail that way).
         monkeypatch.setattr(
             "src.domains.agents.services.react_tool_selector.CATALOGUE_DOMAIN_COVERAGE_TOP_N", 1
         )
         monkeypatch.setattr(settings, "react_tool_semantic_top_k", 3)
         ranking = ["query_state", "web_c", "skill_run", *RANKING]
         bound, _ = unit_harness.select(domains=["event"], ranking=ranking)
-        assert {"skill_activate", "skill_run", "skill_read"} <= set(bound)
+        assert not {"skill_activate", "skill_run", "skill_read"} & set(bound)
+
+    def test_a_unit_binds_whole_through_its_detected_domain(
+        self, unit_harness: _Harness, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The same ranking, the family's domain detected: the unit is priority,
+        # bound whole beside the family's loose tool.
+        monkeypatch.setattr(
+            "src.domains.agents.services.react_tool_selector.CATALOGUE_DOMAIN_COVERAGE_TOP_N", 1
+        )
+        monkeypatch.setattr(settings, "react_tool_semantic_top_k", 3)
+        ranking = ["query_state", "web_c", "skill_run", *RANKING]
+        bound, hitl_map = unit_harness.select(domains=["query"], ranking=ranking)
+        assert {"skill_activate", "skill_run", "skill_read", "query_state"} <= set(bound)
+        assert set(hitl_map) == set(bound)
 
     def test_the_cap_never_cuts_inside_a_unit(
         self, unit_harness: _Harness, monkeypatch: pytest.MonkeyPatch
@@ -388,3 +417,156 @@ class TestBindingUnit:
     ) -> None:
         bound, _ = unit_harness.select(domains=["event"], ranking=None)
         assert {"skill_activate", "skill_run", "skill_read"} <= set(bound)
+
+
+# ---------------------------------------------------------------------------
+# A binding unit binds through its domain (2026-10-12)
+# ---------------------------------------------------------------------------
+#
+# Measured on production: the settings catalogue declares 40 binding units
+# holding 180 tools in ONE family (commit 499c4cecc). A unit took ONE coverage
+# seat and ONE rank of the semantic tail whatever its size, so on a question
+# about the agenda 71 settings tools were bound through 12 units — 45 % of the
+# 156 tools and about 26K tokens of schemas on every model call — while the
+# loop called one settings tool in 125 turns of 7 days; on dev, the family's
+# best section (18 tools) rode the coverage seat on every turn and its other
+# sections rode the tail. The owner's verdict: the settings tools were treated
+# unlike every other family, and that is abnormal.
+#
+# The rule now: a unit never rides the tail; a family holding at most ONE
+# unit keeps the 2026-09-20 rule (its unit is ONE seat among N, whatever its
+# size — the skills); a family of SEVERAL units is a catalogue of sections
+# whose coverage seats count TOOLS, reachable through its domain: when the
+# router names it, its loose tools are all bound and its units by rank under
+# K tools, the first whole; when it does not, no section wider than the count
+# is bound. The walk stops at the first seat that does not fit (ADR-286's
+# doctrine for the paging of a tool result).
+
+_SECTIONS: list[tuple[str, str | None]] = [
+    ("meet_get", "lia_meetings"),
+    ("meet_update", "lia_meetings"),
+    ("meet_delete", "lia_meetings"),
+    ("meet_template", "lia_meetings"),
+    ("peer_get", "lia_peers"),
+    ("peer_request", "lia_peers"),
+    ("peer_block", "lia_peers"),
+    ("habit_get", "lia_habits"),
+    ("habit_set", "lia_habits"),
+    ("habit_delete", "lia_habits"),
+    ("setting_loose", None),
+    ("setting_loose_2", None),
+]
+_MEETINGS = {name for name, unit in _SECTIONS if unit == "lia_meetings"}
+_PEERS = {name for name, unit in _SECTIONS if unit == "lia_peers"}
+_HABITS = {name for name, unit in _SECTIONS if unit == "lia_habits"}
+_UNIT_TOOLS = _MEETINGS | _PEERS | _HABITS
+
+
+@pytest.fixture
+def sections_harness(harness: _Harness) -> _Harness:
+    """The catalogue plus a settings-shaped family: three units, two loose tools."""
+    for name, unit in _SECTIONS:
+        harness.manifests.append(_native_manifest(name, "setting_agent", binding_unit=unit))
+        harness.ctx.tool_instances[name] = _Tool(name=name)
+    return harness
+
+
+class TestAUnitBindsThroughItsDomain:
+    def test_a_family_of_several_units_takes_no_coverage_seat_through_a_unit(
+        self, sections_harness: _Harness, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Two seats per family. The best seat is a four-tool unit and the family
+        # holds three units: no reachability exception — the first seat does not
+        # fit, the walk stops, and nothing of the family is bound (before: the
+        # whole first section, 18 tools on production, on every turn).
+        monkeypatch.setattr(settings, "react_tool_semantic_top_k", 1)
+        ranking = ["web_c", "meet_get", "peer_get", "habit_get", "setting_loose", *RANKING]
+        bound, hitl_map = sections_harness.select(domains=["event"], ranking=ranking)
+        assert not (_UNIT_TOOLS | {"setting_loose", "setting_loose_2"}) & set(bound)
+        assert set(hitl_map) == set(bound)
+
+    def test_the_loose_seats_of_such_a_family_still_take_its_coverage(
+        self, sections_harness: _Harness, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Ranked ahead of the units, the family's two loose tools are its two
+        # seats: the family stays reachable through tools that weigh one.
+        monkeypatch.setattr(settings, "react_tool_semantic_top_k", 1)
+        ranking = ["web_c", "setting_loose", "setting_loose_2", "meet_get", *RANKING]
+        bound, _ = sections_harness.select(domains=["event"], ranking=ranking)
+        assert {"setting_loose", "setting_loose_2"} <= set(bound)
+        assert not _UNIT_TOOLS & set(bound)
+
+    def test_the_family_coverage_stops_at_the_first_seat_that_does_not_fit(
+        self, sections_harness: _Harness, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # A loose tool, then a three-tool unit, then a loose tool that WOULD
+        # fit: the unit does not fit beside the first and the walk stops there
+        # — the second loose tool is never bound in place of the unit that
+        # outranks it.
+        monkeypatch.setattr(settings, "react_tool_semantic_top_k", 1)
+        ranking = ["web_c", "setting_loose", "peer_get", "setting_loose_2", "meet_get", *RANKING]
+        bound, _ = sections_harness.select(domains=["event"], ranking=ranking)
+        assert "setting_loose" in bound
+        assert "setting_loose_2" not in bound
+        assert not _UNIT_TOOLS & set(bound)
+
+    def test_a_unit_never_rides_the_tail(
+        self, sections_harness: _Harness, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # K = 5: three units rank first, then a loose settings tool. The tail
+        # binds the loose tool and none of the units, whatever their rank
+        # (before: all three, seven tools on three ranks).
+        monkeypatch.setattr(settings, "react_tool_semantic_top_k", 5)
+        ranking = ["meet_get", "peer_get", "habit_get", "setting_loose", "web_c", *RANKING]
+        bound, hitl_map = sections_harness.select(domains=["event"], ranking=ranking)
+        assert "setting_loose" in bound
+        assert not _UNIT_TOOLS & set(bound)
+        assert set(hitl_map) == set(bound)
+
+    def test_a_detected_family_binds_its_units_by_rank_under_k(
+        self, sections_harness: _Harness, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The router named the settings domain: every loose tool of the family
+        # is bound, and its units by rank under K = 7 tools — meetings (four,
+        # the first, whole), peers (three, fits), habits (would make ten): stop.
+        monkeypatch.setattr(settings, "react_tool_semantic_top_k", 7)
+        ranking = ["meet_get", "peer_get", "habit_get", "web_c", *RANKING]
+        bound, hitl_map = sections_harness.select(domains=["setting"], ranking=ranking)
+        assert _MEETINGS | _PEERS | {"setting_loose", "setting_loose_2"} <= set(bound)
+        assert not _HABITS & set(bound)
+        assert set(hitl_map) == set(bound)
+
+    def test_a_detected_family_s_first_unit_passes_whole(
+        self, sections_harness: _Harness, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # K = 2 cannot hold the four-tool unit; the question IS about the
+        # family, so its best section is bound whole all the same.
+        monkeypatch.setattr(settings, "react_tool_semantic_top_k", 2)
+        ranking = ["meet_get", "peer_get", "web_c", *RANKING]
+        bound, _ = sections_harness.select(domains=["setting"], ranking=ranking)
+        assert _MEETINGS <= set(bound)
+        assert not _PEERS & set(bound)
+
+    def test_without_a_ranking_a_detected_family_is_bound_whole(
+        self, sections_harness: _Harness
+    ) -> None:
+        # Relevance off: the previous behaviour, every tool bound, the cap alone.
+        bound, _ = sections_harness.select(domains=["setting"], ranking=None)
+        assert _UNIT_TOOLS | {"setting_loose", "setting_loose_2"} <= set(bound)
+
+    def test_the_selection_log_states_each_tier(self, sections_harness: _Harness) -> None:
+        # What the loop binds is stated per tier, so a bound set can be read
+        # back from the log — the rhythm and the volume used to be invisible.
+        from structlog.testing import capture_logs
+
+        ranking = ["meet_get", "peer_get", "web_c", *RANKING]
+        with capture_logs() as logs:
+            bound, _ = sections_harness.select(domains=["event"], ranking=ranking)
+        relevance = next(log for log in logs if log["event"] == "react_tool_selector_relevance")
+        complete = next(log for log in logs if log["event"] == "react_tool_selector_complete")
+        assert relevance["priority_count"] == 3  # the event family, whole
+        assert relevance["priority_count"] + relevance["coverage_count"] + relevance[
+            "tail_count"
+        ] == len(bound)
+        assert relevance["unit_count"] == 0 and relevance["unit_tool_count"] == 0
+        assert complete["every_tool_requested"] is False

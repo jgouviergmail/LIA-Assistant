@@ -18,7 +18,9 @@ Created: 2026-02-28
 from __future__ import annotations
 
 import functools
+import json
 import time
+from collections import OrderedDict
 from collections.abc import Awaitable, Callable, Container
 from copy import deepcopy
 from typing import Any
@@ -70,7 +72,50 @@ def _python_field_name(name: str, occupied: Container[str]) -> str:
     return candidate
 
 
+#: Argument model classes by canonical JSON of their schema, least recently used
+#: first. A class is a graph of cycles (the class, its validator, its fields,
+#: its methods' globals) that only a full garbage collection reclaims; a turn
+#: that builds one per user MCP tool left 682 of them waiting in one production
+#: worker over five hours (ADR-283 amendment 2026-10-12). The same schema gives
+#: the same class, bounded by ``MCP_ARGS_SCHEMA_CACHE_MAX``.
+_ARGS_SCHEMA_CACHE: OrderedDict[str, type[BaseModel] | None] = OrderedDict()
+
+
+def _args_schema_key(input_schema: dict[str, Any]) -> str:
+    return json.dumps(input_schema, sort_keys=True, separators=(",", ":"), default=str)
+
+
+def reset_args_schema_cache() -> None:
+    """Forget every cached argument model (tests)."""
+    _ARGS_SCHEMA_CACHE.clear()
+
+
 def build_args_schema(
+    input_schema: dict[str, Any],
+) -> type[BaseModel] | None:
+    """The Pydantic model of an MCP tool's JSON Schema — one class per distinct schema.
+
+    Args:
+        input_schema: JSON Schema dict from MCP list_tools()
+
+    Returns:
+        Pydantic model class, or None when the schema declares no usable
+        property at all; the same object for the same schema while it is cached.
+    """
+    from src.core.config import settings
+
+    key = _args_schema_key(input_schema)
+    if key in _ARGS_SCHEMA_CACHE:
+        _ARGS_SCHEMA_CACHE.move_to_end(key)
+        return _ARGS_SCHEMA_CACHE[key]
+    model = _build_args_schema_uncached(input_schema)
+    _ARGS_SCHEMA_CACHE[key] = model
+    while len(_ARGS_SCHEMA_CACHE) > max(1, settings.mcp_args_schema_cache_max):
+        _ARGS_SCHEMA_CACHE.popitem(last=False)
+    return model
+
+
+def _build_args_schema_uncached(
     input_schema: dict[str, Any],
 ) -> type[BaseModel] | None:
     """Build a Pydantic model from MCP tool JSON Schema.

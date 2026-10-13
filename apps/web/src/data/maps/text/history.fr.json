@@ -1446,6 +1446,10 @@
     "342": {
       "title": "Une campagne d'avatar runtime, activée par l'opérateur",
       "summary": "Une option serveur vide par défaut permet de présenter BIP lors de la prochaine visite authentifiée, par origine et navigateur. Un identifiant explicite change uniquement le style et son marqueur ; visibilité, taille, positions et choix manuels ultérieurs sont conservés. Aucune colonne avatar n'est ajoutée au compte. Web Locks coordonne les onglets quand disponible ; sans lui, la relecture récente ne garantit pas une transaction simultanée. Désactiver la campagne arrête les nouvelles applications sans rétablir d'anciens choix, et n'atteint pas les appareils hors ligne."
+    },
+    "343": {
+      "title": "Le portrait lit toute la matière, et son résumé est une synthèse",
+      "summary": "Neuf registres sur la personne — souvenirs, intérêts, habitudes, débriefs, fils ouverts, workboard, routines, rappels, réponses conservées — sont lus en entier, chaque élément citable, sous une seule part de la fenêtre du modèle, et toute coupe est dite. Le portrait redevient une analyse de la personne sur sept facettes, jamais un inventaire, et le résumé s'écrit comme ses propres phrases ; la relecture sémantique, mesurée rejetant les lectures fondées, est retirée : ce qui refuse l'invention est structurel, chaque lecture cite ce qui la fonde. Les budgets sont des cibles énoncées, jamais une coupe. Un changement du journal rend le portrait périmé, servi daté, au lieu de l'effacer ; une entrée supprimée emporte les lectures qu'elle fondait. Mesuré sur dev avant livraison."
     }
   }
 }

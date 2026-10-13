@@ -44,6 +44,7 @@ from src.domains.agents.models import (
     migrate_state_to_current,
     needs_migration,
 )
+from src.domains.agents.services.orchestration import turn_input
 from src.infrastructure.llm.instrumentation import enrich_config_with_callbacks
 from src.infrastructure.observability.callbacks import TokenTrackingCallback
 from src.infrastructure.observability.metrics_agents import agent_messages_history_count
@@ -397,6 +398,9 @@ class OrchestrationService:
                 # State exists in checkpoints - restore it
                 state = current_state.values
                 checkpoint_created_at = current_state.created_at
+                # The restored values before the turn shapes them: the stream hands
+                # the graph only what changed since, never the whole state.
+                turn_input.snapshot_restored_state(state, run_id)
 
                 # === SCHEMA MIGRATION (F7) ===
                 # Bring checkpoints written by older code up to the current
@@ -810,6 +814,10 @@ class OrchestrationService:
         state_dict = cast(dict[str, Any], state)
         resume_data = state_dict.get("_interrupt_resume_data")
         is_resuming_interrupt = resume_data is not None
+        # What the graph receives on a normal turn: the turn's changes since the
+        # restore (turn_input) — passed whole, every channel took a new version on
+        # every turn, ~1 MB of blobs per save on production (2026-10-12).
+        graph_input = turn_input.prepare_graph_input(state_dict, run_id, is_resuming_interrupt)
 
         if is_resuming_interrupt:
             logger.info(
@@ -883,9 +891,9 @@ class OrchestrationService:
                 ):
                     yield (mode, chunk)
             else:
-                # Normal execution with state
+                # Normal execution with the turn's changes
                 async for mode, chunk in graph.astream(
-                    state,
+                    graph_input,
                     runnable_config,
                     stream_mode=["values", "messages", "updates", "custom"],
                     context=runtime_context,

@@ -41,6 +41,7 @@ from src.infrastructure.startup import (
     caches,
     integrations,
     observability,
+    process_heap,
     registries,
     schedulers,
     shutdown,
@@ -161,6 +162,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     lifetime_metrics_task = observability.start_lifetime_metrics()
     cache_invalidation_task = caches.start_cache_invalidation_subscriber()
     worker_memory_task = observability.start_worker_memory_sampler()
+
+    # LAST, once every registry, cache, graph and catalogue above is resident:
+    # what the boot built is frozen out of the cyclic collector, so a full
+    # collection no longer waits for a quarter of the startup heap's worth of
+    # new survivors (ADR-283 amendment 2026-10-12).
+    process_heap.freeze_startup_heap()
 
     logger.info("application_ready")
 

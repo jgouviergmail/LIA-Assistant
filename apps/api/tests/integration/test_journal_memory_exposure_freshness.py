@@ -1,4 +1,4 @@
-"""Source freshness follows factual content and actual selected page identity."""
+"""Source freshness follows the factual content of the WHOLE record, never its bookkeeping."""
 
 from dataclasses import replace
 from unittest.mock import AsyncMock
@@ -8,7 +8,6 @@ import pytest
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from src.core.config import settings
 from src.domains.journals.lifecycle import portrait_is_current
 from src.domains.journals.source_state import portrait_source_state
 from src.domains.memories.models import Memory
@@ -20,13 +19,10 @@ from src.domains.users.models import User
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
 
-@pytest.mark.parametrize(
-    "mutation", ["same_page_usage", "selection_changes", "nonmax_edit", "delete"]
-)
-async def test_memory_tracking_preserves_only_unchanged_facts_and_selected_page(
-    async_engine, monkeypatch, mutation
-):
-    monkeypatch.setattr(settings, "journal_consolidation_memories_max", 1)
+@pytest.mark.parametrize("mutation", ["usage_only", "edit", "delete", "add"])
+async def test_memory_tracking_follows_the_facts_of_every_row(async_engine, monkeypatch, mutation):
+    """Every memory is read (ADR-343): an edit, a deletion or an addition anywhere in the
+    record moves the portrait; a usage counter — bookkeeping — never does."""
     monkeypatch.setattr(
         portrait_sources,
         "_REGISTRY",
@@ -70,22 +66,25 @@ async def test_memory_tracking_preserves_only_unchanged_facts_and_selected_page(
         async with factory() as db:
             user = await db.get(User, user_id)
             repo = MemoryRepository(db)
-            before = [row.id for row in await repo.list_for_portrait(user_id, limit=1)]
-            assert before == [first.id]
-            if mutation == "same_page_usage":
-                await repo.increment_usage([first.id])
-            elif mutation == "selection_changes":
-                for _ in range(3):
-                    await repo.increment_usage([other.id])
-            elif mutation == "nonmax_edit":
-                current = await db.get(Memory, first.id)
+            if mutation == "usage_only":
+                await repo.increment_usage([first.id, other.id])
+            elif mutation == "edit":
+                current = await db.get(Memory, other.id)
                 current.content = "Changed complete fact."
-            else:
+            elif mutation == "delete":
                 await db.execute(delete(Memory).where(Memory.id == other.id))
+            else:
+                db.add(
+                    Memory(
+                        user_id=user_id,
+                        content="A third complete fact.",
+                        char_count=21,
+                        category="personal",
+                        usage_count=0,
+                    )
+                )
             await db.commit()
-            after = [row.id for row in await repo.list_for_portrait(user_id, limit=1)]
-            assert (after == before) is (mutation != "selection_changes")
-            assert await portrait_is_current(db, user) is (mutation == "same_page_usage")
+            assert await portrait_is_current(db, user) is (mutation == "usage_only")
     finally:
         async with factory() as db:
             await db.execute(delete(User).where(User.id == user_id))

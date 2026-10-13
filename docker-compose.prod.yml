@@ -670,6 +670,17 @@ services:
     profiles: ["observability"]
     restart: unless-stopped
     privileged: true
+    # ADR-333 amendment 2026-10-12: cAdvisor computes only what a panel or a
+    # rule reads (the Prometheus keep-list drops the rest at scrape time, this
+    # stops it being computed at all). Docker containers only (no panel reads
+    # a systemd cgroup), no compose labels on the series (18 labels per series
+    # before, none read), a 30 s housekeeping under a 60 s scrape, and the
+    # per-file-system, block-io, per-cpu and perf families off.
+    command:
+      - --docker_only=true
+      - --housekeeping_interval=30s
+      - --store_container_labels=false
+      - --disable_metrics=advtcp,cpu_topology,cpuset,cpuLoad,disk,diskIO,hugetlb,memory_numa,percpu,perf_event,process,referenced_memory,resctrl,sched,tcp,udp
     ports:
       - "127.0.0.1:8080:8080"  # Loopback-only (audit A3)
     volumes:

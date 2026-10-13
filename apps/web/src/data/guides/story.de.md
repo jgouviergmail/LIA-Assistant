@@ -3,8 +3,8 @@
 > Erfahrungsbericht — ein vollständiges System, vom Entwurf bis zur Produktion.
 
 **Version**: 2.3
-**Datum**: 2026-10-04
-**Anwendung**: LIA v3.0.0
+**Datum**: 2026-10-13
+**Anwendung**: LIA v3.0.1
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -20,8 +20,8 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | Von einer KI geschriebener Code — geführt, gerahmt, kontrolliert | **≈ 100 %** |
 | Quellcodezeilen (ohne Tests) — 55 Fachdomänen | **931.000+** |
 | Inventarisierte automatisierte Tests; passende Suiten für Commit und Release | **59.000+** |
-| Dokumentierte Architekturentscheidungen (ADR) | **341** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **279** |
+| Dokumentierte Architekturentscheidungen (ADR) | **342** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **280** |
 | Sprachen, Parität automatisch geprüft | **6** |
 | Technisches Audit über 24 Bereiche | **8,3/10** |
 
@@ -62,7 +62,7 @@ Dieselbe Regel gilt für die Darstellung: Vorbereiten ist nicht Abschließen. Wa
 
 ## 4. Die Abwägungen
 
-Drei strukturelle Entscheidungen, unter den 341 dokumentierten:
+Drei strukturelle Entscheidungen, unter den 342 dokumentierten:
 
 **Souveränität & Reversibilität — keine irreversible Anbieterabhängigkeit.** Die KI-Modelle (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, lokale Modelle über Ollama) stehen hinter einer einzigen Abstraktion: Jede Nutzung kann per Konfiguration den Anbieter wechseln, mit Kostenvergleich. Dasselbe Prinzip auf Fachseite: Google, Apple und Microsoft sind pro Funktionskategorie austauschbar. Selbsthosting gibt dir die Kontrolle über den Server; Kontodaten liegen auf der Instanz und Konnektor-Zugangsdaten sind verschlüsselt. Die gewählten externen Dienste erhalten weiterhin die Daten, die sie für ihren Teil einer Anfrage benötigen.
 

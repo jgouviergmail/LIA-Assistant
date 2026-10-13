@@ -13,9 +13,8 @@ JOURNAL_ENTRY_TITLE_MAX_LENGTH = 200
 JOURNAL_ENTRY_CONTENT_MAX_LENGTH = 800
 JOURNAL_ENTRY_CONTENT_ABSOLUTE_MAX_LENGTH = 2000
 
-# Changing compilation doctrine makes stored words eligible for a fresh review.
-JOURNAL_PORTRAIT_POLICY_VERSION = "grounded_narrative_v3"
-JOURNAL_PORTRAIT_REVIEW_MAX_INPUT_TOKENS = 12000
+# Changing the compilation doctrine makes every stored portrait eligible for a recompilation.
+JOURNAL_PORTRAIT_POLICY_VERSION = "analytical_reading_v5"
 
 # =========================================================================
 # Extraction defaults

@@ -112,14 +112,29 @@ async def test_success_and_cancellation_join_the_renewal_task(monkeypatch):
 
 
 async def test_source_and_document_renewals_continue_during_a_slow_call(monkeypatch):
-    source_renewal = AsyncMock()
-    document_renewal = AsyncMock()
-    monkeypatch.setattr(runtime, "renew_native_source", source_renewal)
+    # The slow call lasts until both renewals ran three times, never a fixed delay:
+    # a 15 ms sleep against Windows' ~15.6 ms timer granularity let a loaded run
+    # observe two renewals only.
+    counts = {"source": 0, "document": 0}
+    renewed = asyncio.Event()
+
+    def counting(key: str):
+        async def renew() -> None:
+            counts[key] += 1
+            if min(counts.values()) > 2:
+                renewed.set()
+
+        return renew
+
+    monkeypatch.setattr(runtime, "renew_native_source", counting("source"))
     monkeypatch.setattr(runtime, "_heartbeat_interval", lambda: 0.001)
     with source_worker_scope(scope()):
-        await runtime.source_worker_external(lambda: asyncio.sleep(0.015), renewal=document_renewal)
-    assert source_renewal.await_count > 2
-    assert document_renewal.await_count > 2
+        await asyncio.wait_for(
+            runtime.source_worker_external(renewed.wait, renewal=counting("document")),
+            timeout=5,
+        )
+    assert counts["source"] > 2
+    assert counts["document"] > 2
 
 
 async def test_document_renewal_loss_cancels_the_operation(monkeypatch):

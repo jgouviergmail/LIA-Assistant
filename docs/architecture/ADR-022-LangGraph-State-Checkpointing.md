@@ -469,6 +469,36 @@ async def build_graph(
 - **LangGraph Persistence**: https://langchain-ai.github.io/langgraph/concepts/persistence/
 - **PostgreSQL Saver**: https://langchain-ai.github.io/langgraph/reference/checkpoints/#asyncpostgressaver
 
+## Amendment 2026-10-12 — the graph input is the turn's diff, never the restored state
+
+`load_or_create_state` restores the checkpoint's values, shapes them for the turn
+(the new message, the refreshed preferences, the turn counter, a schema migration)
+and the stream passed them WHOLE to `graph.astream`. LangGraph writes every input
+key to its channel, so every channel took a new version on every turn whatever it
+held: measured on production, the input landed as a `__start__` blob of about
+1 MB per turn, `agent_results` (600 KB) and `registry` (350 KB) were rewritten
+unchanged, a ReAct turn made about forty checkpoint saves of 1 MB and more
+(p50 51 ms, p90 187 ms, p99 459 ms, on the critical path between two nodes), and
+the blobs table held 1.9 GB.
+
+**Decision.** The loader keeps a deep copy of the restored values on the state
+before the turn shapes them (`orchestration/turn_input.snapshot_restored_state`,
+under a temporary key like `_interrupt_resume_data`, its cost logged) and the
+stream hands the graph only what changed since (`turn_input.prepare_graph_input`,
+the diff of `turn_input.turn_input`): the messages reduced to those appended,
+every other key by value. The diff is DERIVED, never a list of keys —
+a writer between the loader and the stream (the chat service sets
+`plan_approved`, the proactive messages are injected into the list, the turn's
+attachments are popped from `metadata` in place) needs to declare nothing. A new
+conversation, a checkpoint that could not be read and a HITL resumption (a
+`Command`) travel as before. What the model reads is untouched: every node
+assembles its context from the graph's state, which stays complete.
+
+Proven on a real graph with the in-memory checkpointer
+(`test_turn_input.py`): the final state is the same either way, and an unchanged
+channel takes no new version. Not measured yet: the save durations on production
+after deployment (`checkpoint_save_duration_seconds`, `checkpoint_size_bytes`).
+
 ---
 
 **Fin de ADR-022** - LangGraph State & Checkpointing Decision Record.

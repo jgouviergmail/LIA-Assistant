@@ -29,6 +29,7 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.types import interrupt
 
 from src.core.config import settings
+from src.core.exchange_rhythm import ExchangeRhythm
 from src.domains.agents.analysis.query_intelligence_helpers import (
     get_qi_attr,
     get_query_intelligence_from_state,
@@ -201,8 +202,9 @@ async def react_setup_node(
     # every tool when the turn's rhythm is frequent (ADR-308, ADR-311).
     selector = ReactToolSelector()
     ranking = (state.get("tool_selection_result") or {}).get(GLOBAL_RANKING_KEY)
+    frequent = frequent_exchanges(state)
     wrapped_tools, hitl_map = (
-        selector.select(intelligence, ranking=ranking, every_tool=frequent_exchanges(state))
+        selector.select(intelligence, ranking=ranking, every_tool=frequent)
         if intelligence
         else ([], {})
     )
@@ -222,6 +224,11 @@ async def react_setup_node(
     duration_ms = int((time.monotonic() - start_time) * 1000)
     logger.info(
         "react_setup_complete",
+        # The rhythm the setup bound on (ADR-311): it was in no log line, so a
+        # frequent turn that fell back read exactly like an occasional one.
+        exchange_rhythm=(
+            ExchangeRhythm.FREQUENT.value if frequent else ExchangeRhythm.OCCASIONAL.value
+        ),
         tool_count=len(tool_names),
         bound_tool_tokens=schema_tokens,
         hitl_count=sum(1 for v in hitl_map.values() if v),

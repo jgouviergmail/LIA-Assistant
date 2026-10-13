@@ -11,7 +11,9 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from src.core.exceptions import ResourceConflictError
 from src.domains.conversations.models import Conversation
 from src.domains.journals.evidence_models import JournalEvidenceEvent
+from src.domains.journals.lifecycle import portrait_is_current
 from src.domains.journals.models import JournalEntry
+from src.domains.journals.removal_commands import remove_journal_entries
 from src.domains.journals.repository import JournalEntryRepository
 from src.domains.journals.service import JournalService
 from src.domains.shared.provenance import ProvenanceReference
@@ -502,9 +504,10 @@ async def test_positive_reaction_preserves_portrait_and_advances_its_work_revisi
         assert user.journal_portrait_full == "The current grounded portrait"
 
 
-async def test_contradiction_immediately_retires_the_derived_portrait(
+async def test_a_contradiction_marks_the_portrait_stale_without_wiping_it(
     async_engine, committed_user_ids
 ):
+    """A correction moves the revision; the words stay, served dated (ADR-343)."""
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
     user_id, note_id = await seed(factory, committed_user_ids)
     async with factory() as db:
@@ -517,21 +520,85 @@ async def test_contradiction_immediately_retires_the_derived_portrait(
             note, evidence_outcome="contradiction", event_key="refutation"
         )
         await db.refresh(user)
-        assert user.journal_portrait_full is user.journal_portrait_brief is None
-        assert user.journal_portrait_sources is None
+        assert (user.journal_portrait_full, user.journal_portrait_brief) == ("Old view", "Old")
+        assert await portrait_is_current(db, user) is False
 
 
-async def test_delete_immediately_retires_the_derived_portrait(async_engine, committed_user_ids):
+async def test_a_service_level_delete_marks_the_portrait_stale(async_engine, committed_user_ids):
+    """The service deletes and moves the revision; erasure of the words is the removal door's."""
     factory = async_sessionmaker(async_engine, expire_on_commit=False)
     user_id, note_id = await seed(factory, committed_user_ids)
     async with factory() as db:
         user = await db.get(User, user_id)
         user.journal_portrait_full, user.journal_portrait_brief = "Old view", "Old"
+        user.journal_portrait_sources = {"journal_revision": user.journal_revision}
         await db.commit()
         note = await db.get(JournalEntry, note_id)
         await JournalService(db).delete_entry(note, expected_revision=note.revision)
         await db.refresh(user)
+        assert user.journal_portrait_full == "Old view"
+        assert await portrait_is_current(db, user) is False
+
+
+async def test_a_removal_withdraws_the_claims_the_entry_supported(async_engine, committed_user_ids):
+    """Erasure is surgical: the claims resting on the removed entry go, the others stay."""
+    factory = async_sessionmaker(async_engine, expire_on_commit=False)
+    user_id, note_id = await seed(factory, committed_user_ids)
+    on_note = {
+        "facet": "focus",
+        "text": "A paragraph resting on the removed rule.",
+        "placement": "full",
+        "supports": [{"source": f"journal:{note_id}", "quote": RULE}],
+    }
+    on_memory = {
+        "facet": "posture",
+        "text": "A paragraph resting on a memory.",
+        "placement": "full",
+        "supports": [{"source": "memories", "quote": "- [personal] A memory. (2026-10-01)"}],
+    }
+    async with factory() as db:
+        user = await db.get(User, user_id)
+        user.journal_portrait_full = on_note["text"] + "\n\n" + on_memory["text"]
+        user.journal_portrait_brief = "A brief."
+        user.journal_portrait_compiled_at = user.created_at
+        user.journal_portrait_sources = {
+            "version": 1,
+            "journal_entries": 1,
+            "sources": {},
+            "journal_revision": user.journal_revision,
+            "claims": [on_note, on_memory],
+        }
+        user.is_active = True  # the removal door serves active accounts only
+        await db.commit()
+    async with factory() as db:
+        await remove_journal_entries(db, user_id, note_id)
+    async with factory() as db:
+        user = await db.get(User, user_id)
+        assert user.journal_portrait_full == on_memory["text"]
+        assert user.journal_portrait_brief is None  # the brief had no claim of its own
+        assert user.journal_portrait_compiled_at is not None
+        assert user.journal_portrait_sources["claims"] == [on_memory]
+        assert user.journal_portrait_sources["withdrawn_claims"] == 1
+        assert await portrait_is_current(db, user) is False
+
+
+async def test_a_removal_wipes_a_portrait_whose_claims_cannot_be_read(
+    async_engine, committed_user_ids
+):
+    """Legacy prose names no supports: erasure can only take it whole."""
+    factory = async_sessionmaker(async_engine, expire_on_commit=False)
+    user_id, note_id = await seed(factory, committed_user_ids)
+    async with factory() as db:
+        user = await db.get(User, user_id)
+        user.journal_portrait_full, user.journal_portrait_brief = "Old view", "Old"
+        user.is_active = True  # the removal door serves active accounts only
+        await db.commit()
+    async with factory() as db:
+        await remove_journal_entries(db, user_id, None)
+    async with factory() as db:
+        user = await db.get(User, user_id)
         assert user.journal_portrait_full is user.journal_portrait_brief is None
+        assert user.journal_portrait_sources is None
 
 
 @pytest.mark.parametrize("change", [{"level": "L2"}, {"theme": "user_observations"}])

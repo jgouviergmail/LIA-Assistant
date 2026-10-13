@@ -896,12 +896,13 @@ class AgentsSettings(BaseSettings):
     react_agent_max_tools: int = Field(
         default=REACT_AGENT_MAX_TOOLS_DEFAULT,
         ge=5,
-        le=400,
+        le=500,
         description=(
             "Maximum number of tools provided to the ReAct agent per request. With "
             "REACT_CROSS_TURN_CACHE_ENABLED an account holding more tools keeps the "
             "relevance selection, so it must cover the account's whole catalogue; up "
-            "to 400 to leave room for a growing one (ADR-308)."
+            "to 500 to leave room for a growing one (ADR-308; 383 resolved on "
+            "production's main account, 2026-10-12)."
         ),
     )
     react_tool_semantic_top_k: int = Field(

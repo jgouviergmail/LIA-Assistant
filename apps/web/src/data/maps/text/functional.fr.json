@@ -85,7 +85,7 @@
     },
     "f.journals": {
       "name": "Journaux et portrait",
-      "role": "LIA tient ses propres carnets de réflexion, qu'elle consulte quand un sujet surgit, et compile ton portrait à partir de quatre sources — souvenirs, intérêts, habitudes, relations — en disant lesquelles elle a pu lire.",
+      "role": "LIA tient ses propres carnets de réflexion, qu'elle consulte quand un sujet surgit, et compile ton portrait — une analyse lue dans tout ce qu'elle garde sur toi, des souvenirs aux tickets et aux réponses conservées — en disant quelles sources elle a pu lire.",
       "goal": "Une compréhension de toi qui s'affine avec le temps, et qui reste lisible."
     },
     "f.psyche": {

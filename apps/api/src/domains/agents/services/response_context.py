@@ -470,8 +470,8 @@ async def fetch_response_context(
     async def _inject_portrait() -> str:
         """User-model portrait — ambient diffusion of the compiled portrait
         (ADR-079, commit 3). Always injected when journals are enabled.
-        Format depends on the turn: trivial → brief (~60 tokens),
-        otherwise → full (~200 tokens)."""
+        Format depends on the turn: trivial → brief, otherwise → full (each under
+        its JOURNAL_PORTRAIT_*_MAX_TOKENS target, ADR-343)."""
         if not (settings.journals_enabled and user_journals_enabled):
             return ""
         try:

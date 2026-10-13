@@ -19,7 +19,6 @@ from src.domains.journals.source_state import portrait_source_state
 from src.domains.relations.debrief import portrait_source as debrief_source
 from src.domains.relations.debrief.models import DebriefState, RelationDebrief
 from src.domains.shared import portrait_sources
-from src.domains.shared.portrait_sources import SourceBudget
 from src.domains.users.models import User
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
@@ -67,16 +66,12 @@ async def test_interest_notification_cooldown_does_not_change_evidence_identity(
     db.add(interest)
     await db.flush()
     before = await portrait_source_state(db, user)
-    rendered_before = await interests_source.read_interests(
-        user_id=user.id, language="en", budget=SourceBudget(5, 200)
-    )
+    rendered_before = await interests_source.read_interests(user_id=user.id, language="en")
     previous_stamp = interest.updated_at
     await InterestRepository(db).mark_notified(interest)
     await db.flush()
     assert interest.updated_at != previous_stamp
-    rendered_after = await interests_source.read_interests(
-        user_id=user.id, language="en", budget=SourceBudget(5, 200)
-    )
+    rendered_after = await interests_source.read_interests(user_id=user.id, language="en")
     assert rendered_before.text == rendered_after.text
     assert await portrait_source_state(db, user) == before
 
@@ -91,9 +86,7 @@ async def test_habit_profile_changed_without_mirror_row_changes_is_stale(
     repo = HabitsRepository(db)
     await repo.upsert_profile(user.id, {"sparse": True, "active_days_fraction": 0.25}, now, None)
     before = await portrait_source_state(db, user)
-    rendered_before = await habits_source.read_habits(
-        user_id=user.id, language="en", budget=SourceBudget(-1, 200)
-    )
+    rendered_before = await habits_source.read_habits(user_id=user.id, language="en")
     assert rendered_before.used == 1
     assert await repo.list_habits(user.id) == []
     await repo.upsert_profile(
@@ -103,9 +96,7 @@ async def test_habit_profile_changed_without_mirror_row_changes_is_stale(
     db.expire_all()
     # Scalar snapshot ownership survives expire_all without lazy IO.
     user = await db.get(User, user_id)
-    rendered_after = await habits_source.read_habits(
-        user_id=user.id, language="en", budget=SourceBudget(-1, 200)
-    )
+    rendered_after = await habits_source.read_habits(user_id=user.id, language="en")
     assert rendered_before.text != rendered_after.text
     assert await portrait_source_state(db, user) != before
 

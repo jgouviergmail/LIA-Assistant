@@ -1807,6 +1807,11 @@
       "title": "Una campaña de avatar en tiempo de ejecución, activada por el operador",
       "summary": "Una opción de servidor, vacía por defecto, presenta BIP en la siguiente visita autenticada por origen y navegador. Un identificador explícito cambia solo estilo y marcador; conserva visibilidad, tamaño, posiciones y elecciones manuales posteriores. No se añade una columna de avatar a la cuenta. Web Locks coordina pestañas cuando está disponible; sin él, releer el registro más reciente no garantiza una transacción simultánea. Desactivar la campaña detiene nuevas aplicaciones sin restaurar elecciones anteriores, y no alcanza dispositivos desconectados.",
       "src": "3a65c19d433e"
+    },
+    "343": {
+      "title": "El retrato lee todo el material, y su resumen es una síntesis",
+      "summary": "Nueve registros sobre la persona — recuerdos, intereses, hábitos, resúmenes de relación, hilos abiertos, Workboard, rutinas, recordatorios, respuestas guardadas — se leen enteros, cada elemento citable, bajo una sola parte de la ventana del modelo, y todo recorte se declara. El retrato vuelve a ser un análisis de la persona en siete facetas, nunca un inventario, y el resumen se escribe como frases propias; la revisión semántica, medida rechazando lecturas fundadas, se retira: lo que impide la invención es estructural, cada lectura cita lo que la funda. Los presupuestos son objetivos declarados, nunca un recorte. Un cambio del diario marca el retrato como desactualizado, servido con fecha, en lugar de borrarlo; una entrada eliminada se lleva las lecturas que fundaba. Medido en dev antes de entregar.",
+      "src": "38eaccd2b7d9"
     }
   }
 }

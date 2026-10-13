@@ -783,3 +783,54 @@ class TestConstraintsDoNotDisturbArgumentCoercion:
         assert model is not None
         assert model.model_fields["n"].annotation is int
         assert _coerce_args_to_schema({"n": 3.7}, model)["n"] == 3
+
+
+class TestArgsSchemaIsBuiltOncePerSchema:
+    """ADR-283 amendment 2026-10-12: a turn used to build one new pydantic class per user
+    MCP tool, and 682 of them waited for a full garbage collection in one worker."""
+
+    def setup_method(self) -> None:
+        from src.infrastructure.mcp.tool_adapter import reset_args_schema_cache
+
+        reset_args_schema_cache()
+
+    def test_the_same_schema_gives_the_same_class(self) -> None:
+        schema = {"type": "object", "properties": {"q": {"type": "string"}}, "required": ["q"]}
+
+        first = build_args_schema(schema)
+        second = build_args_schema(
+            {"required": ["q"], "properties": {"q": {"type": "string"}}, "type": "object"}
+        )
+
+        assert first is second
+
+    def test_another_schema_gives_another_class(self) -> None:
+        first = build_args_schema({"type": "object", "properties": {"q": {"type": "string"}}})
+        second = build_args_schema({"type": "object", "properties": {"n": {"type": "integer"}}})
+
+        assert first is not second
+
+    def test_a_schema_without_properties_is_cached_as_none(self) -> None:
+        assert build_args_schema({"type": "object"}) is None
+        assert build_args_schema({"type": "object"}) is None
+
+    def test_the_cache_is_bounded_by_the_setting(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from src.core.config import settings
+        from src.infrastructure.mcp import tool_adapter
+
+        monkeypatch.setattr(settings, "mcp_args_schema_cache_max", 2)
+        first = build_args_schema({"type": "object", "properties": {"a": {"type": "string"}}})
+        build_args_schema({"type": "object", "properties": {"b": {"type": "string"}}})
+        build_args_schema({"type": "object", "properties": {"c": {"type": "string"}}})
+
+        assert len(tool_adapter._ARGS_SCHEMA_CACHE) == 2
+        rebuilt = build_args_schema({"type": "object", "properties": {"a": {"type": "string"}}})
+        assert rebuilt is not first, "the least recently used class left the cache"
+
+    def test_a_cached_class_still_validates(self) -> None:
+        model = build_args_schema(
+            {"type": "object", "properties": {"q": {"type": "string"}}, "required": ["q"]}
+        )
+        assert model is not None
+
+        assert model(q="hello").model_dump() == {"q": "hello"}

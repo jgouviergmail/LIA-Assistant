@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version** : 6.2
-**Date** : 2026-10-04
-**Application** : LIA v3.0.0
+**Version** : 6.3
+**Date** : 2026-10-13
+**Application** : LIA v3.0.1
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -464,7 +464,7 @@ Au-delà de l'écriture, le carnet **se mesure lui-même**. À chaque tour, LIA 
 
 De cette stratification émerge un **portrait utilisateur compilé** : ta voix, ton rythme, tes contextes, tes contradictions, tes zones d'ombre. Il voyage avec LIA partout où elle prend la parole — conversation, voix, rappels, notifications proactives, ReAct, fallback — pour que l'assistant n'« oublie pas qui tu es » selon la surface qu'il utilise.
 
-Ce portrait ne lit pas que les carnets : tes souvenirs, tes intérêts, tes habitudes apprises et tes débriefs de relation y entrent comme matière, chacun sous son propre interrupteur — le tien et celui de l'administrateur. Et il te dit d'où il vient : sous le portrait, une ligne nomme ce qui a été lu, ce qui était vide, ce qui était coupé. Une source qui ne répond pas est nommée, jamais lue comme vide.
+Ce portrait ne lit pas que les carnets : tout ce que LIA garde sur toi y entre comme matière, en entier — souvenirs, intérêts, habitudes apprises, débriefs de relation, fils ouverts, tickets du Workboard, routines, rappels, réponses conservées —, chacun sous ses propres interrupteurs, le tien et celui de l'administrateur. Ce qui en sort est une lecture de qui tu es, pas une liste de ce que tu as fait : un motif nommé, jamais l'inventaire de ses preuves, et un bref qui résume vraiment au lieu d'extraire. Et il te dit d'où il vient : sous le portrait, une ligne nomme ce qui a été lu, ce qui était vide, ce qui était coupé. Une source qui ne répond pas est nommée, jamais lue comme vide ; quand tes carnets changent, le portrait reste là, signalé comme en attente d'une recompilation, plutôt que de disparaître.
 
 C'est une forme d'introspection artificielle — l'assistant qui réfléchit sur ses interactions, mesure sa propre utilité, et développe une compréhension nuancée de toi. Tu gardes le contrôle total : lecture par thème ou par niveau, édition, signalement d'une erreur sur le portrait, déclenchement d'une consolidation à la demande. Le portrait lui-même n'est jamais édité directement — c'est une voix de synthèse, qu'on corrige par les leviers indirects pour préserver sa cohérence.
 

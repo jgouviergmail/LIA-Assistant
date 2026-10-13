@@ -3,10 +3,12 @@
 # in a .py). Labels and lines only — the instruction on how to USE a section is
 # STEP 7's, one instruction per context.
 #
-# The four portrait sources (2026-09-16 design, part B) are rendered by their
-# owning domain (memories, interests, habits, relations/debrief), each reading
-# only its own keys; the usage-pattern and health blocks were the last two
-# scaffolds written inline in the service and moved here unchanged.
+# The portrait sources (2026-09-16 design, part B; nine since 2026-10-12) are
+# rendered by their owning domain (memories, interests, habits,
+# relations/debrief, open_loops, workboard, scheduled_actions, reminders,
+# bookmarks), each reading only its own keys; the usage-pattern and health
+# blocks were the last two scaffolds written inline in the service and moved
+# here unchanged. Every item is rendered WHOLE: a line is one item.
 
 memories_header|## LONG-TERM MEMORIES (facts the person stated, dated; {shown} of {total}, most important first)
 memories_item|- [{category}] {label} {content} ({recorded})
@@ -19,7 +21,27 @@ habits_recurring|- Recurring request: {key} — {shape}{hour}{intent}
 habits_recurring_hour|around {hour}
 habits_recurring_intent|({intent})
 debriefs_header|## RELATIONSHIP DEBRIEFS (dated syntheses LIA wrote; {shown} of {total}, newest first)
-debriefs_item|- {person} (written {date}): {headline} — {where_we_stand}
+debriefs_item|- {person} (written {date}): {headline} — {where_we_stand}{open_points}
+debriefs_open_points|Open: {points}
+open_loops_header|## OPEN LOOPS (unfinished threads the person tracks; {shown} of {total})
+open_loops_item|- {subject} ({direction}{counterparty}{due})
+open_loops_direction_owes|the person owes it
+open_loops_direction_waiting|the person is waiting on someone
+open_loops_due|; due around {date}
+workboard_header|## WORKBOARD (tickets the person owns or holds; {shown} of {total})
+workboard_item|- {title} [{status}, priority {priority}{due}{holder}]{description}
+workboard_holder_lia|, delegated to LIA
+workboard_due|, due {date}
+routines_header|## ROUTINES (what the person automated; {shown} of {total})
+routines_item|- {title} — {schedule}: {instruction}
+routines_condition|when {condition}
+routines_condition_unknown|a condition
+reminders_header|## PENDING REMINDERS ({shown} of {total})
+reminders_item|- {content} ({when})
+bookmarks_header|## KEPT ANSWERS (what the person chose to keep; {shown} of {total}; an answer longer than {excerpt_max} characters is cut there)
+bookmarks_item|- Asked « {request} » ({date}) and kept: {excerpt}
+ambient_directive|Use this user-model portrait silently to adjust your tone, depth, and phrasing — never reference it explicitly. It complements the user's factual memories (do not duplicate facts already injected by the psychological profile elsewhere).
+ambient_compiled|This synthesis was compiled on {date}: prefer a fact stated in this turn over a trait stated here.
 usage_header|## OBSERVED USAGE PATTERNS (past 7 days)
 usage_line|User messages: {total}. Distribution: {details}.
 usage_directive|Use these factual signals to situate the user's current rhythm in the portrait (phase, contexts) — never reference them explicitly to the user.

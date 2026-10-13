@@ -100,7 +100,11 @@ ALLOWED_BEFORE_MARKER: dict[str, frozenset[str]] = {
     "response_system_prompt_base": frozenset({"personnalite", "user_language"}),
     # ``computation_block``: present iff the sandbox tool is bound AND switched
     # on — two values per deployment, both stable for the life of the switch.
-    "react_agent_prompt": frozenset({"personnalite", "user_language", "computation_block"}),
+    # ``settings_block``: present iff a tool of the settings catalogue is bound
+    # (ADR-293 amendment 2026-10-12) — the same contract as ``computation_block``.
+    "react_agent_prompt": frozenset(
+        {"personnalite", "user_language", "computation_block", "settings_block"}
+    ),
     # Brave API maxima — constants, invariant for a deployment (ADR-184: the
     # bound the tool enforces is the one the prompt publishes).
     "brave_agent_prompt": frozenset({"brave_web_max_count", "brave_news_max_count"}),

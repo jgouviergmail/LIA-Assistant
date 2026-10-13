@@ -3,7 +3,8 @@
 With ``REACT_CROSS_TURN_CACHE_ENABLED`` an account holding more tools than
 ``REACT_AGENT_MAX_TOOLS`` keeps the relevance selection, so the cap must be able
 to cover the whole catalogue: production's main account already holds 212 tools,
-and the owner asked (2026-09-23) for room up to 400 as MCP servers are added.
+and the owner asked (2026-09-23) for room up to 400 as MCP servers are added —
+then (2026-10-12), the account resolving 383 tools, for 500.
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ from src.core.config.agents import AgentsSettings
 pytestmark = pytest.mark.unit
 
 #: What the owner asked the cap to be able to reach.
-REQUIRED_CAP = 400
+REQUIRED_CAP = 500
 
 
 def _declared_ceiling() -> int:
@@ -27,7 +28,7 @@ def _declared_ceiling() -> int:
 
 class TestTheToolCap:
     def test_it_can_be_raised_to_the_required_cap(self) -> None:
-        assert AgentsSettings(react_agent_max_tools=REQUIRED_CAP).react_agent_max_tools == 400
+        assert AgentsSettings(react_agent_max_tools=REQUIRED_CAP).react_agent_max_tools == 500
 
     def test_its_ceiling_leaves_the_required_room(self) -> None:
         assert _declared_ceiling() >= REQUIRED_CAP

@@ -103,9 +103,9 @@
     },
     "f.journals": {
       "name": "Diari e ritratto",
-      "role": "LIA tiene i propri taccuini di riflessione, che consulta quando emerge un argomento, e compila il tuo ritratto a partire da quattro fonti — ricordi, interessi, abitudini, relazioni — dicendo quali è riuscita a leggere.",
+      "role": "LIA tiene i propri taccuini di riflessione, che consulta quando emerge un argomento, e compila il tuo ritratto — un'analisi letta in tutto ciò che conserva su di te, dai ricordi ai ticket e alle risposte conservate — dicendo quali fonti è riuscita a leggere.",
       "goal": "Una comprensione di te che si affina con il tempo, e che resta leggibile.",
-      "src": "79114967b569"
+      "src": "72561005c5fd"
     },
     "f.psyche": {
       "name": "Psiche e volto",

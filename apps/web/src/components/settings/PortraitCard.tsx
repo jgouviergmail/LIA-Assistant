@@ -2,7 +2,8 @@
 
 /**
  * The compiled portrait — « How LIA sees you » — read-only, in its two
- * formats, with what it was compiled from (ADR-292) and the one lever the
+ * formats, with what it was compiled from (ADR-292), a dated line when its
+ * evidence moved since (the words stay — 2026-10-12), and the one lever the
  * card itself offers: signalling a problem (lever 2 of ADR-079).
  *
  * Extracted from `JournalsSettings` so the section's render keeps every
@@ -40,9 +41,14 @@ export function PortraitCard({
   signalDisabled,
 }: PortraitCardProps) {
   const { t } = useTranslation(lng, 'translation');
-  const [format, setFormat] = useState<PortraitFormat>('full');
+  const [chosen, setFormat] = useState<PortraitFormat>('full');
 
   if (!portrait || (!portrait.full && !portrait.brief)) return null;
+
+  // The shown format is one the portrait HAS at render time: a compilation may
+  // publish a brief alone, an erasure may leave one, and the portrait arrives
+  // after the mount — a choice frozen at the mount showed an empty body.
+  const format: PortraitFormat = portrait[chosen] ? chosen : portrait.full ? 'full' : 'brief';
 
   const compiledLine = portrait.compiled_at
     ? t('journals.portraitCompiledAt', 'Compiled {{when}}', {
@@ -61,6 +67,14 @@ export function PortraitCard({
               {t('journals.portraitTitle', 'How LIA sees you')}
             </div>
             <div className="text-px-11 text-muted-foreground">{compiledLine}</div>
+            {portrait.stale && (
+              <div className="text-px-11 text-warning" data-testid="portrait-stale">
+                {t(
+                  'journals.portraitStale',
+                  'A recompilation is pending: the text below may be dated.'
+                )}
+              </div>
+            )}
           </div>
         </div>
         <div className="flex gap-1 shrink-0">

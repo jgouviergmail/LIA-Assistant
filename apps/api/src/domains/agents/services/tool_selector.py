@@ -45,6 +45,13 @@ import numpy as np
 
 from src.domains.agents.registry.catalogue import ToolManifest
 from src.domains.agents.services import tool_embeddings_cache as embeddings_cache
+from src.domains.agents.services.tool_vectors import (
+    Matrix,
+    Vector,
+    as_matrix,
+    as_vector,
+    cosine_rows,
+)
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -157,8 +164,10 @@ class SemanticToolSelector:
     def __init__(self) -> None:
         """Initialize the selector (use get_tool_selector() instead)."""
         self._embeddings: Any | None = None
-        # Max-pooling: store list of embeddings per tool (one per keyword)
-        self._tool_keyword_embeddings: dict[str, list[list[float]]] = {}
+        # Max-pooling: one keyword vector per row of a float32 matrix per tool
+        # (ADR-283 amendment 2026-10-12: as lists of Python floats the native
+        # catalogue cost 78 MB per worker, as float32 arrays 10 MB).
+        self._tool_keyword_embeddings: dict[str, Matrix] = {}
         self._embedding_dimensions: int = 0
         # Track which keywords belong to which tool (for debugging)
         self._tool_keywords: dict[str, list[str]] = {}
@@ -170,7 +179,7 @@ class SemanticToolSelector:
         self._softmax_temperature: float = DEFAULT_SOFTMAX_TEMPERATURE
         self._calibrated_primary_min: float = DEFAULT_CALIBRATED_PRIMARY_MIN
         # Hybrid scoring (CORRECTION 7: Description + Keywords)
-        self._tool_description_embeddings: dict[str, list[float]] = {}
+        self._tool_description_embeddings: dict[str, Vector] = {}
         self._hybrid_alpha: float = DEFAULT_HYBRID_ALPHA
         self._hybrid_mode: str = DEFAULT_HYBRID_MODE
         self._hybrid_enabled: bool = True
@@ -408,14 +417,16 @@ class SemanticToolSelector:
                     if claim is not None:
                         embeddings_cache.release(claim)
 
-            # Distribute embeddings by type
+            # Distribute embeddings by type, in their compact form: the lists the
+            # cache or the embedder handed over die with this method.
+            keyword_rows: dict[str, list[Any]] = {}
             for i, (tool_name, text_type) in enumerate(text_metadata):
                 if text_type == "description":
-                    self._tool_description_embeddings[tool_name] = all_embeddings[i]
+                    self._tool_description_embeddings[tool_name] = as_vector(all_embeddings[i])
                 else:  # keyword
-                    if tool_name not in self._tool_keyword_embeddings:
-                        self._tool_keyword_embeddings[tool_name] = []
-                    self._tool_keyword_embeddings[tool_name].append(all_embeddings[i])
+                    keyword_rows.setdefault(tool_name, []).append(all_embeddings[i])
+            for tool_name, rows in keyword_rows.items():
+                self._tool_keyword_embeddings[tool_name] = as_matrix(rows)
 
             self._initialized = True
 
@@ -437,7 +448,7 @@ class SemanticToolSelector:
             raise
 
     def _description_score(
-        self, name: str, query_embedding: list[float], extra_embeddings: dict[str, dict] | None
+        self, name: str, query_embedding: Vector, extra_embeddings: dict[str, dict] | None
     ) -> float:
         """Cosine to the tool's description vector (hybrid mode), startup cache first."""
         from src.infrastructure.llm.local_embeddings import cosine_similarity
@@ -447,12 +458,19 @@ class SemanticToolSelector:
         vector = self._tool_description_embeddings.get(name)
         if vector is None and extra_embeddings and name in extra_embeddings:
             vector = extra_embeddings[name].get("description")
-        return cosine_similarity(query_embedding, vector) if vector else 0.0
+        if vector is None or len(vector) == 0:
+            return 0.0
+        return cosine_similarity(query_embedding, vector)
 
     def _keyword_score(
-        self, name: str, query_embedding: list[float], extra_embeddings: dict[str, dict] | None
+        self, name: str, query_embedding: Vector, extra_embeddings: dict[str, dict] | None
     ) -> tuple[float, str]:
-        """Best cosine over the tool's keyword vectors, and which keyword won."""
+        """Best cosine over the tool's keyword vectors, and which keyword won.
+
+        A matrix (the startup cache, a compact envelope) is scored in one
+        product; a list of vectors (a legacy envelope) row by row — the same
+        numbers, the same « nothing above zero wins » rule.
+        """
         from src.infrastructure.llm.local_embeddings import cosine_similarity
 
         if name in self._tool_keyword_embeddings:
@@ -463,12 +481,35 @@ class SemanticToolSelector:
             names = extra_embeddings[name].get("keyword_names", [])
         else:
             return 0.0, ""
+        if isinstance(vectors, np.ndarray):
+            sims = cosine_rows(query_embedding, vectors)
+            if sims.size == 0 or float(sims.max()) <= 0.0:
+                return 0.0, ""
+            i = int(sims.argmax())
+            return float(sims[i]), (names[i] if i < len(names) else f"keyword_{i}")
         best, best_kw = 0.0, ""
         for i, vector in enumerate(vectors):
             sim = cosine_similarity(query_embedding, vector)
             if sim > best:
                 best, best_kw = sim, (names[i] if i < len(names) else f"keyword_{i}")
         return best, best_kw
+
+    def _query_vector(self, query_embedding: Any) -> Vector | None:
+        """The query as a float32 vector, or None when its width is not the catalogue's.
+
+        A query of another width scores every tool 0.0 whatever happens; it used
+        to be said once per vector (163 warnings per turn, measured 2026-09-19).
+        It is said ONCE here, with both widths, and no vector is compared.
+        """
+        query = as_vector(query_embedding)
+        if self._embedding_dimensions and query.shape[0] != self._embedding_dimensions:
+            logger.warning(
+                "semantic_tool_selector_query_width_mismatch",
+                query_width=int(query.shape[0]),
+                catalogue_width=self._embedding_dimensions,
+            )
+            return None
+        return query
 
     def _combined_score(self, desc_score: float, keyword_score: float) -> float:
         """The hybrid weighting when both exist; whichever exists otherwise; 0.0 when none."""
@@ -479,7 +520,7 @@ class SemanticToolSelector:
     def _hybrid_score(
         self,
         name: str,
-        query_embedding: list[float],
+        query_embedding: Vector,
         extra_embeddings: dict[str, dict] | None,
     ) -> tuple[float, dict[str, Any]]:
         """Raw hybrid score of ONE tool — the one formula both readers share.
@@ -564,8 +605,11 @@ class SemanticToolSelector:
         names = [m.name for m in manifests]
         known = set(names)
         names.extend(name for name in (extra_embeddings or {}) if name not in known)
+        query = self._query_vector(query_embedding)
+        if query is None:
+            return names
         scored = [
-            (self._hybrid_score(name, query_embedding, extra_embeddings)[0], index, name)
+            (self._hybrid_score(name, query, extra_embeddings)[0], index, name)
             for index, name in enumerate(names)
         ]
         scored.sort(key=lambda item: (-item[0], item[1]))
@@ -613,6 +657,7 @@ class SemanticToolSelector:
         # Embed the query — unless the caller hands the vector it already paid for.
         if query_embedding is None:
             query_embedding = await self._embeddings.aembed_query(query)
+        query_vector = self._query_vector(query_embedding)
 
         # Determine which tools to compare against
         if available_tools:
@@ -625,8 +670,11 @@ class SemanticToolSelector:
         scoring_details: dict[str, dict] = {}  # For debugging
 
         for name in tool_names:
+            if query_vector is None:  # a query of another width: nothing to compare
+                scores[name], scoring_details[name] = 0.0, {"final_score": 0.0, "mode": "none"}
+                continue
             scores[name], scoring_details[name] = self._hybrid_score(
-                name, query_embedding, extra_embeddings
+                name, query_vector, extra_embeddings
             )
 
         # Apply softmax calibration to amplify score differences

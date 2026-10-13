@@ -81,7 +81,9 @@ async def test_downgrade_retires_portrait_without_replacing_supported_rule(
             assert entry.confidence == "medium"
             assert (entry.content, entry.revision, entry.evidence_count) == original
             assert not await portrait_is_current(db, current_user)
-            assert current_user.journal_portrait_full is current_user.journal_portrait_brief is None
+            # The words stay and are served stale; only the gate moved.
+            assert current_user.journal_portrait_full == full
+            assert current_user.journal_portrait_brief == brief
     finally:
         async with factory() as db:
             await db.execute(delete(User).where(User.id == user_id))

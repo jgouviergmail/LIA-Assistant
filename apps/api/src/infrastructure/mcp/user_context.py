@@ -66,7 +66,16 @@ logger = structlog.get_logger(__name__)
 async def _usable_tool_embeddings(
     server: UserMCPServer, tools: list[dict[str, Any]]
 ) -> dict[str, Any]:
-    """The server's persisted vectors when this model wrote them; else recomputed and saved.
+    """The server's vectors in their compact form, parsed once per catalogue per worker.
+
+    The per-worker :class:`~src.domains.agents.services.tool_vectors.ServerVectorCache`
+    answers first, keyed by the server, the embedding model and the fingerprint
+    of the tools just discovered. On a miss the persisted envelope is read
+    ALONE (the listing that served the turn deferred it) and, when this model
+    wrote it for this catalogue, converted to float32 arrays and cached; else it
+    is recomputed and saved as before. Measured on production (ADR-283
+    amendment 2026-10-12): every turn used to parse about a thousand vectors of
+    1,536 Python floats, and each request context still alive held its own copy.
 
     Best-effort in both halves: a recompute that fails leaves the tools
     unranked for the turn (they still bind through their family's coverage)
@@ -78,27 +87,50 @@ async def _usable_tool_embeddings(
         tools: The tools the pool just discovered on the server.
 
     Returns:
-        Vectors by raw MCP tool name, possibly empty.
+        Vectors by raw MCP tool name — arrays, possibly empty.
     """
     from src.domains.agents.services.tool_embeddings_envelope import (
+        embedding_model_key,
         read_server_cache,
         wrap_server_cache,
     )
-
-    vectors, stale = read_server_cache(
-        getattr(server, "tool_embeddings_cache", None), tool_metadata=tools
+    from src.domains.agents.services.tool_vectors import (
+        compact_tool_vectors,
+        get_server_vector_cache,
     )
+    from src.domains.user_mcp.repository import UserMCPServerRepository
+    from src.infrastructure.database.session import get_db_context
+    from src.infrastructure.mcp.catalogue_fingerprint import canonical_fingerprint
+
+    cache = get_server_vector_cache()
+    key = (str(server.id), embedding_model_key(), canonical_fingerprint(tools))
+    cached = cache.get(key)
+    if cached is not None:
+        return cached
+
+    try:
+        async with get_db_context() as db:
+            envelope = await UserMCPServerRepository(db).get_tool_embeddings_cache(server.id)
+    except Exception as exc:
+        # The envelope used to travel with the row; read alone, its failure must
+        # cost the turn its ranking of this server's tools, never the tools.
+        logger.warning(
+            "user_mcp_tool_embeddings_read_failed",
+            server_id=str(server.id),
+            error_type=type(exc).__name__,
+        )
+        return {}
+    vectors, stale = read_server_cache(envelope, tool_metadata=tools)
     if stale is None or not tools:
-        return vectors
+        compact = compact_tool_vectors(vectors)
+        cache.put(key, compact)
+        return compact
     try:
         from src.domains.agents.services.tool_selector import compute_tool_embeddings
 
         recomputed = await compute_tool_embeddings(tool_metadata=tools, server_name=server.name)
         if not recomputed:
             return {}
-        from src.domains.user_mcp.repository import UserMCPServerRepository
-        from src.infrastructure.database.session import get_db_context
-
         async with get_db_context() as db:
             repo = UserMCPServerRepository(db)
             row = await repo.get_by_id(server.id)
@@ -113,7 +145,9 @@ async def _usable_tool_embeddings(
             reason=stale,
             tool_count=len(recomputed),
         )
-        return recomputed
+        compact = compact_tool_vectors(recomputed)
+        cache.put(key, compact)
+        return compact
     except Exception as exc:
         logger.warning(
             "user_mcp_tool_embeddings_refresh_failed",

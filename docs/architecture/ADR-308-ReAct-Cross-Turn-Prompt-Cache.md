@@ -82,7 +82,8 @@ Anthropic and Gemini.
    of schemas, is meant for a model with a 1M window); `window` — the schemas exceed
    `REACT_CROSS_TURN_CACHE_MAX_WINDOW_FRACTION` of the slot's own window (0.5 by
    default: a 32K local window cannot hold the 36K tokens of the native catalogue,
-   a 1M window holds 400 tools with room to spare). The context placement still
+   a 1M window holds 400 tools with room to spare; the bound rose to 500 on
+   2026-10-12, the main account resolving 383 tools). The context placement still
    follows the flag.
 5. **Nothing reaches the checkpoint.** The layout is composed at call time from
    `react_system_blocks` and the windowed history; a question the context closes is a

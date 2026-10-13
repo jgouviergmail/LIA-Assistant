@@ -2,9 +2,9 @@
 
 Three gates (the deployment ceiling, the operator switch, the person's own
 preference); READY rows only, under the injection age the settings publish,
-measured against the reader's LOCAL day (ADR-269); the headline and where
-things stand, clamped; the date, so the model treats the line as DATED. A
-read that fails is ``unavailable``.
+measured against the reader's LOCAL day (ADR-269); the headline, where things
+stand and the open points, whole; the date, so the model treats the line as
+DATED. A read that fails is ``unavailable``.
 """
 
 from __future__ import annotations
@@ -17,14 +17,14 @@ import structlog
 from src.core.config import settings
 from src.core.time_utils import resolve_user_timezone
 from src.domains.feature_switches.registry import PlatformCapability, is_capability_enabled
+from src.domains.relations.debrief.models import RelationDebrief
 from src.domains.relations.debrief.repository import RelationDebriefRepository
 from src.domains.relations.debrief.service import read_of
 from src.domains.shared.portrait_sources import (
     FreshnessProbe,
     PortraitSourceSection,
-    SourceBudget,
-    clamp_item,
     empty_section,
+    flat_item,
     install_portrait_source,
     portrait_lines,
 )
@@ -46,15 +46,30 @@ async def _allowed(user_id: UUID) -> bool:
     return bool(user is not None and user.relation_debrief_enabled)
 
 
-async def read_relation_debriefs(
-    *, user_id: UUID, language: str, budget: SourceBudget
-) -> PortraitSourceSection:
+def _item(row: RelationDebrief, lines: dict[str, str]) -> str:
+    """One debrief, whole: the person, the date, the headline, where things stand, the open points."""
+    body = read_of(row).body
+    assert body is not None
+    open_points = [flat_item(point) for point in (body.open_points or []) if point]
+    return lines["debriefs_item"].format(
+        person=flat_item(row.display_name),
+        date=row.generated_for.isoformat(),
+        headline=flat_item(body.headline),
+        where_we_stand=flat_item(body.where_we_stand),
+        open_points=(
+            " " + lines["debriefs_open_points"].format(points="; ".join(open_points))
+            if open_points
+            else ""
+        ),
+    )
+
+
+async def read_relation_debriefs(*, user_id: UUID, language: str) -> PortraitSourceSection:
     """Render the person's fresh relationship debriefs for the consolidation prompt.
 
     Args:
         user_id: The account.
         language: Unused — a debrief is already written in the person's language.
-        budget: How many items, how long each.
 
     Returns:
         The section; never raises.
@@ -75,22 +90,10 @@ async def read_relation_debriefs(
                 not_before=today - timedelta(days=settings.relation_debrief_injection_max_age_days),
             )
         total = len(rows)
-        if not total or budget.max_items <= 0:
+        if not total:
             return empty_section(KEY, "empty", total=total)
         lines = portrait_lines()
-        items: list[str] = []
-        for row in rows[: budget.max_items]:
-            body = read_of(row).body
-            if body is None:
-                continue
-            items.append(
-                lines["debriefs_item"].format(
-                    person=clamp_item(row.display_name, budget.item_max_chars),
-                    date=row.generated_for.isoformat(),
-                    headline=clamp_item(body.headline, budget.item_max_chars),
-                    where_we_stand=clamp_item(body.where_we_stand, budget.item_max_chars),
-                )
-            )
+        items = [_item(row, lines) for row in rows if read_of(row).body is not None]
         if not items:
             return empty_section(KEY, "empty", total=total)
         header = lines["debriefs_header"].format(shown=len(items), total=total)

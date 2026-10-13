@@ -55,6 +55,30 @@ async def test_the_setup_binds_by_the_turn_s_rhythm(
     assert selector.select.call_args.kwargs["every_tool"] is every_tool
 
 
+@pytest.mark.parametrize(
+    ("rhythm", "logged"),
+    [("frequent", "frequent"), ("occasional", "occasional"), (None, "occasional")],
+)
+async def test_the_setup_log_names_the_rhythm_it_bound_on(
+    monkeypatch: pytest.MonkeyPatch, rhythm: str | None, logged: str
+) -> None:
+    """The rhythm a turn ran with used to be in no log line: a reader of production
+    could not tell a frequent turn that fell back from an occasional one."""
+    from structlog.testing import capture_logs
+
+    monkeypatch.setattr(rn.settings, "react_agent_enabled", True, raising=False)
+    monkeypatch.setattr(rn.settings, "journals_enabled", False, raising=False)
+    monkeypatch.setattr(rn.settings, "skills_enabled", False, raising=False)
+    selector = MagicMock()
+    selector.select.return_value = ([], {})
+
+    with patch.object(rn, "ReactToolSelector", return_value=selector), capture_logs() as logs:
+        await rn.react_setup_node(_setup_state(rhythm), {"configurable": {}})
+
+    complete = next(log for log in logs if log["event"] == "react_setup_complete")
+    assert complete["exchange_rhythm"] == logged
+
+
 def _turns(count: int) -> list[BaseMessage]:
     messages: list[BaseMessage] = []
     for turn in range(1, count + 1):

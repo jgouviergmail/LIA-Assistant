@@ -1,7 +1,9 @@
 """The envelope a persisted per-server vector cache travels in: its model, then its tools.
 
 ``user_mcp_servers.tool_embeddings_cache`` is written once, when a person tests
-their MCP server, and read on every turn to rank that server's tools (ADR-293).
+their MCP server, and read to rank that server's tools (ADR-293) — once per
+catalogue and per worker since the ADR-283 amendment of 2026-10-12, the compact
+form living in ``tool_vectors.ServerVectorCache`` between turns.
 It used to be a flat dict of vectors with no word about the model that produced
 them. When the embedder changed width, the rows stayed: measured 2026-09-20, two
 dev servers and two production servers (DeepWiki, GitMCP) carried 384-dimension

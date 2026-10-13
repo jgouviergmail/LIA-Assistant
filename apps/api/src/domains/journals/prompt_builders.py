@@ -20,9 +20,16 @@ appends it.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from src.core.config import settings
 from src.domains.agents.prompts.prompt_loader import load_prompt
+from src.domains.journals.consolidation_output import (
+    PORTRAIT_CLAIM_SUPPORTS_MAX,
+    PORTRAIT_CLAIMS_MAX,
+)
 from src.domains.journals.portrait_catalogue import render_catalogue_sections
+from src.domains.shared.portrait_sources import PORTRAIT_SOURCE_KEYS
 
 # The persona is appended after the consolidation template, separated by a blank line.
 _PERSONA_SEPARATOR = "\n\n"
@@ -171,12 +178,11 @@ def render_consolidation_prompt(
     size_management_instruction: str,
     health_signals_section: str,
     personality_code: str | None,
-    memories_section: str = "",
-    interests_section: str = "",
-    habits_section: str = "",
-    debriefs_section: str = "",
+    portrait_sources: Mapping[str, str],
     portrait_full_tokens: int,
     portrait_brief_tokens: int,
+    portrait_claims_max: int = PORTRAIT_CLAIMS_MAX,
+    portrait_supports_max: int = PORTRAIT_CLAIM_SUPPORTS_MAX,
 ) -> str:
     """Render the periodic consolidation prompt from explicit templates.
 
@@ -197,24 +203,20 @@ def render_consolidation_prompt(
         size_management_instruction: Pre-computed size directive.
         health_signals_section: Optional health-metrics block.
         personality_code: Active conversational personality code, or None.
-        memories_section: Optional long-term-memories block (part B).
-        interests_section: Optional interests block (part B).
-        habits_section: Optional learned-habits block (part B).
-        debriefs_section: Optional relationship-debriefs block (part B).
+        portrait_sources: The source sections by key (``""`` when absent), in
+            any order — the prompt renders them in the declared one.
         portrait_full_tokens: Budget the prompt states for the full portrait.
         portrait_brief_tokens: Budget the prompt states for the brief portrait.
+        portrait_claims_max: The claims cap the parser enforces (published, ADR-184).
+        portrait_supports_max: The supports cap the parser enforces (published).
 
     Returns:
         The complete prompt string sent to the consolidation LLM.
     """
-    sources = render_catalogue_sections(
-        {
-            "memories": memories_section,
-            "interests": interests_section,
-            "habits": habits_section,
-            "relation_debriefs": debriefs_section,
-        }
+    rendered = render_catalogue_sections(
+        {key: portrait_sources.get(key, "") for key in PORTRAIT_SOURCE_KEYS}
     )
+    sources = "\n\n".join(rendered[key] for key in PORTRAIT_SOURCE_KEYS if rendered[key])
     prompt = template.format(
         all_entries=all_entries,
         current_chars=current_chars,
@@ -227,12 +229,11 @@ def render_consolidation_prompt(
         max_entry_chars=max_entry_chars,
         size_management_instruction=size_management_instruction,
         health_signals_section=health_signals_section,
-        memories_section=sources["memories"],
-        interests_section=sources["interests"],
-        habits_section=sources["habits"],
-        debriefs_section=sources["relation_debriefs"],
+        portrait_sources=sources,
         portrait_full_tokens=portrait_full_tokens,
         portrait_brief_tokens=portrait_brief_tokens,
+        portrait_claims_max=portrait_claims_max,
+        portrait_supports_max=portrait_supports_max,
     )
     return prompt + _PERSONA_SEPARATOR + _render_persona(persona_template, personality_code)
 
@@ -251,10 +252,7 @@ def build_consolidation_prompt(
     size_management_instruction: str,
     health_signals_section: str,
     personality_code: str | None,
-    memories_section: str = "",
-    interests_section: str = "",
-    habits_section: str = "",
-    debriefs_section: str = "",
+    portrait_sources: Mapping[str, str],
 ) -> str:
     """Load the shipped templates and render the consolidation prompt.
 
@@ -275,10 +273,7 @@ def build_consolidation_prompt(
         size_management_instruction: Pre-computed size directive.
         health_signals_section: Optional health-metrics block.
         personality_code: Active conversational personality code, or None.
-        memories_section: Optional long-term-memories block (part B).
-        interests_section: Optional interests block (part B).
-        habits_section: Optional learned-habits block (part B).
-        debriefs_section: Optional relationship-debriefs block (part B).
+        portrait_sources: The source sections by key (part B, nine since 2026-10-12).
 
     Returns:
         The complete prompt string sent to the consolidation LLM.
@@ -298,10 +293,7 @@ def build_consolidation_prompt(
         size_management_instruction=size_management_instruction,
         health_signals_section=health_signals_section,
         personality_code=personality_code,
-        memories_section=memories_section,
-        interests_section=interests_section,
-        habits_section=habits_section,
-        debriefs_section=debriefs_section,
+        portrait_sources=portrait_sources,
         portrait_full_tokens=settings.journal_portrait_full_max_tokens,
         portrait_brief_tokens=settings.journal_portrait_brief_max_tokens,
     )

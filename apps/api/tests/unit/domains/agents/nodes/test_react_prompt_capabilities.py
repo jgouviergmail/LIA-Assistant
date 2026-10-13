@@ -69,6 +69,69 @@ class TestComputationBlockFollowsTheTools:
         assert not re.search(r"\n{3,}", prompt)
 
 
+def _manifest(name: str, agent: str) -> Any:
+    from src.domains.agents.registry.catalogue import (
+        CostProfile,
+        PermissionProfile,
+        ToolManifest,
+    )
+
+    return ToolManifest(
+        name=name,
+        agent=agent,
+        description="a prompt fixture",
+        parameters=[],
+        outputs=[],
+        cost=CostProfile(),
+        permissions=PermissionProfile(hitl_required=False),
+    )
+
+
+def _prompt_with(tool_names: list[str] | None, manifests: list[Any]) -> str:
+    from src.core.context import request_tool_manifests_ctx
+
+    token = request_tool_manifests_ctx.set(manifests)
+    try:
+        return _build_system_prompt(_STATE, tool_names=tool_names)
+    finally:
+        request_tool_manifests_ctx.reset(token)
+
+
+class TestSettingsBlockFollowsTheTools:
+    """``<ApplicationSettings>`` is rendered iff a tool of the settings catalogue is
+    bound (ADR-293 amendment 2026-10-12: the catalogue binds through its domain, so
+    most turns carry none of its tools; before, its best section rode a coverage
+    seat on every turn and the block was always backed by a tool)."""
+
+    _MANIFESTS = [
+        _manifest("get_emails_tool", "email_agent"),
+        _manifest("get_lia_preferences", "setting_agent"),
+    ]
+
+    def test_absent_when_no_settings_tool_is_bound(self) -> None:
+        prompt = _prompt_with(["get_emails_tool"], self._MANIFESTS)
+        assert "<ApplicationSettings>" not in prompt
+        assert "setting_choices" not in prompt
+
+    def test_present_when_a_settings_tool_is_bound(self) -> None:
+        prompt = _prompt_with(["get_emails_tool", "get_lia_preferences"], self._MANIFESTS)
+        assert "<ApplicationSettings>" in prompt and "setting_choices" in prompt
+        assert prompt.index("</ApplicationSettings>") < prompt.index("<Workflow>")
+
+    def test_a_settings_tool_is_one_by_its_family_never_by_its_name(self) -> None:
+        manifests = [_manifest("get_lia_preferences", "email_agent")]
+        assert "<ApplicationSettings>" not in _prompt_with(["get_lia_preferences"], manifests)
+
+    def test_unknown_binding_promises_nothing(self) -> None:
+        assert "<ApplicationSettings>" not in _build_system_prompt(_STATE)
+
+    @pytest.mark.parametrize("bound", [["get_emails_tool"], ["get_lia_preferences"]])
+    def test_no_placeholder_and_no_blank_run_either_way(self, bound: list[str]) -> None:
+        prompt = _prompt_with(bound, self._MANIFESTS)
+        assert not _PLACEHOLDER_RE.findall(prompt)
+        assert not re.search(r"\n{3,}", prompt.replace("\r\n", "\n"))
+
+
 class TestApprovalIsTheToolsDecision:
     def test_the_prompt_does_not_promise_a_confirmation_step(self) -> None:
         prompt = _build_system_prompt(_STATE)

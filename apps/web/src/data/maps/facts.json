@@ -1,7 +1,7 @@
 {
-  "version": "3.0.0",
-  "releaseDate": "2026-10-12",
-  "releases": 279,
+  "version": "3.0.1",
+  "releaseDate": "2026-10-13",
+  "releases": 280,
   "milestones": [
     {
       "version": "1.0.0",
@@ -226,6 +226,10 @@
     {
       "version": "3.0.0",
       "date": "2026-10-12"
+    },
+    {
+      "version": "3.0.1",
+      "date": "2026-10-13"
     }
   ],
   "domains": 55,
@@ -571,6 +575,7 @@
     "339": "ADR-339-Application-Commands-With-Current-Authority-And-Secure-Continuations.md",
     "340": "ADR-340-Native-Avatar-Volume-From-Reviewed-Offline-Art.md",
     "341": "ADR-341-Editable-Motion-Production-And-Exclusive-Presentation.md",
-    "342": "ADR-342-Opt-In-Runtime-Avatar-Preference-Campaigns.md"
+    "342": "ADR-342-Opt-In-Runtime-Avatar-Preference-Campaigns.md",
+    "343": "ADR-343-Portrait-Reads-The-Whole-Material-And-Its-Brief-Is-A-Synthesis.md"
   }
 }

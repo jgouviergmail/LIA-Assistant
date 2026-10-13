@@ -30,13 +30,10 @@ pytestmark = pytest.mark.unit
 
 @pytest.fixture(autouse=True)
 def _portrait_policy():
-    """Keep tests isolated from the operator store and source probes."""
-    with (
-        patch(
-            "src.domains.journals.portrait_builder.is_capability_enabled",
-            AsyncMock(return_value=True),
-        ),
-        patch("src.domains.journals.lifecycle.portrait_is_current", AsyncMock(return_value=True)),
+    """Keep tests isolated from the operator store."""
+    with patch(
+        "src.domains.journals.portrait_builder.is_capability_enabled",
+        AsyncMock(return_value=True),
     ):
         yield
 
@@ -65,7 +62,7 @@ def _make_db_context(row: tuple[bool, str | None, str | None] | None) -> Any:
                 journal_portrait_brief=row[2],
                 is_active=True,
                 deleted_at=None,
-                journal_portrait_compiled_at=datetime.now(UTC),
+                journal_portrait_compiled_at=COMPILED_AT,
             )
             if row is not None
             else None
@@ -94,6 +91,10 @@ def _patch_db_context(row: tuple[bool, str | None, str | None] | None):
         "src.domains.journals.portrait_builder.get_db_context",
         new=_make_db_context(row)(),
     )
+
+
+#: Pinned so the dated line is asserted against a known day, never against the clock.
+COMPILED_AT = datetime(2026, 10, 7, 8, 0, tzinfo=UTC)
 
 
 def _patch_db_context_factory(row: tuple[bool, str | None, str | None] | None):
@@ -148,16 +149,6 @@ class TestPortraitBuilderFeatureFlags:
         ):
             assert await build_journal_user_model_block(uuid4()) == ""
         db.assert_not_called()
-
-    async def test_invalidated_portrait_is_not_diffused(self) -> None:
-        with (
-            _patch_settings(system_enabled=True),
-            _patch_db_context_factory((True, "OLD FULL", "OLD BRIEF")),
-            patch(
-                "src.domains.journals.lifecycle.portrait_is_current", AsyncMock(return_value=False)
-            ),
-        ):
-            assert await build_journal_user_model_block(uuid4()) == ""
 
 
 # -----------------------------------------------------------------------------
@@ -317,3 +308,71 @@ class TestPortraitBuilderInputs:
         ):
             result = await build_journal_user_model_block(uid, format="full")
         assert "PORTRAIT" in result
+
+
+# -----------------------------------------------------------------------------
+# The block is always dated, and the ambient read runs no probe (2026-10-12 c)
+# -----------------------------------------------------------------------------
+
+
+class TestDatedPortrait:
+    """The block always carries its compilation date, and runs no source probe for it.
+
+    The nine-source staleness probe cost 14 ms fixed plus a hash of every row of the
+    record, two to three times per chat turn, to decide ONE line (measured 2026-10-12 c):
+    the date is a fact the row already holds, the exact `stale` verdict is the page's.
+    """
+
+    @pytest.mark.asyncio
+    async def test_the_block_carries_its_compilation_date(self) -> None:
+        with (
+            _patch_settings(system_enabled=True),
+            _patch_db_context_factory((True, "Full words.", "Brief words.")),
+        ):
+            block = await build_journal_user_model_block(uuid4(), format="full")
+        assert "Full words." in block
+        assert f"compiled on {COMPILED_AT:%Y-%m-%d}" in block
+        assert "prefer a fact stated in this turn" in block
+
+    @pytest.mark.asyncio
+    async def test_the_ambient_read_runs_no_source_probe(self) -> None:
+        probe = AsyncMock(return_value=False)
+        with (
+            _patch_settings(system_enabled=True),
+            _patch_db_context_factory((True, "Full words.", "Brief words.")),
+            patch("src.domains.journals.lifecycle.portrait_is_current", probe),
+            patch("src.domains.journals.source_state.portrait_source_state", probe),
+        ):
+            block = await build_journal_user_model_block(uuid4(), format="brief")
+        assert "Brief words." in block
+        probe.assert_not_awaited()
+
+
+class TestBriefFallsBackToFull:
+    """A missing format is served by the other: no brief claim, or a full an erasure took."""
+
+    @pytest.mark.asyncio
+    async def test_the_brief_serves_a_full_flow_when_no_full_exists(self) -> None:
+        with (
+            _patch_settings(system_enabled=True),
+            _patch_db_context_factory((True, None, "Brief words only.")),
+        ):
+            block = await build_journal_user_model_block(uuid4(), format="full")
+        assert "Brief words only." in block
+
+    @pytest.mark.asyncio
+    async def test_the_full_serves_a_brief_flow_when_no_brief_exists(self) -> None:
+        with (
+            _patch_settings(system_enabled=True),
+            _patch_db_context_factory((True, "Full words only.", None)),
+        ):
+            block = await build_journal_user_model_block(uuid4(), format="brief")
+        assert "Full words only." in block
+
+    @pytest.mark.asyncio
+    async def test_nothing_is_served_when_neither_format_exists(self) -> None:
+        with (
+            _patch_settings(system_enabled=True),
+            _patch_db_context_factory((True, None, None)),
+        ):
+            assert await build_journal_user_model_block(uuid4(), format="brief") == ""

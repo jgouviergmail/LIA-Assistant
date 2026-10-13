@@ -132,26 +132,6 @@ def _fake_llm(
     )
 
     async def _call(**kwargs: Any) -> AIMessage:
-        messages = kwargs.get("messages", [])
-        last_content = messages[-1].content if isinstance(messages, list) and messages else ""
-        try:
-            candidate = json.loads(last_content) if isinstance(last_content, str) else None
-        except ValueError:
-            candidate = None
-        if isinstance(candidate, dict) and isinstance(candidate.get("facets"), list):
-            verdict = {
-                "reviews": [
-                    {
-                        "index": item["index"],
-                        "supported": True,
-                        "scope_preserved": True,
-                        "uncertainty_preserved": True,
-                        "synthesized": True,
-                    }
-                    for item in candidate["facets"]
-                ]
-            }
-            return AIMessage(content=json.dumps(verdict))
         return AIMessage(content=payload)
 
     return _call
@@ -203,7 +183,7 @@ async def _make_entry(session: AsyncSession, user: User, theme: str) -> JournalE
 
 
 class TestPortraitSources:
-    """The portrait reads four more records, and says which (2026-09-16, part B)."""
+    """The portrait reads nine records, and says which (2026-09-16 part B, ADR-343)."""
 
     async def test_the_prompt_carries_the_sections_and_the_portrait_its_provenance(
         self,
@@ -259,7 +239,7 @@ class TestPortraitSources:
                         ),
                     }
                 ],
-                "in_brief": True,
+                "placement": "brief",
             },
             {
                 "facet": "context",
@@ -267,7 +247,7 @@ class TestPortraitSources:
                 "supports": [
                     {"source": "habits", "quote": "- Usual activity: weekdays 08:00-10:00"}
                 ],
-                "in_brief": False,
+                "placement": "full",
             },
         ]
         fake = _fake_llm(portrait_claims=claims)
@@ -285,13 +265,13 @@ class TestPortraitSources:
             user_language="fr",
         )
 
-        assert len(prompts) == 2  # Generation and independent semantic review.
+        assert len(prompts) == 1  # one generation; no semantic review any more
         assert "## LONG-TERM MEMORIES (2 of 2)" in prompts[0]
         assert "## LEARNED HABITS" in prompts[0]
         assert "## INTERESTS" not in prompts[0] and "## RELATIONSHIP DEBRIEFS" not in prompts[0]
         await async_session.refresh(user)
-        assert "facets" in prompts[1] and "scope_preserved" in prompts[1]
-        assert user.journal_portrait_full == "\n\n".join(claim["text"] for claim in claims)
+        # Each format is written from its own claims: the `full` one, the `brief` one.
+        assert user.journal_portrait_full == claims[1]["text"]
         assert user.journal_portrait_brief == claims[0]["text"]
         assert "[personal]" not in user.journal_portrait_full
         assert "08:00" not in user.journal_portrait_full
@@ -300,14 +280,13 @@ class TestPortraitSources:
             assert user.journal_portrait_sources[key] == value
         assert user.journal_portrait_sources["journal_revision"] == user.journal_revision
         assert user.journal_portrait_sources["claims"] == claims
-        assert user.journal_portrait_sources["portrait_review"]["digest"]
         from src.domains.journals.source_state import portrait_source_state
 
         assert user.journal_portrait_sources["source_state"] == await portrait_source_state(
             async_session, user
         )
 
-    async def test_no_portrait_invalidates_unverifiable_previous_words(
+    async def test_no_portrait_keeps_unverifiable_previous_words_stale(
         self,
         async_session: AsyncSession,
         monkeypatch: pytest.MonkeyPatch,
@@ -343,12 +322,13 @@ class TestPortraitSources:
         )
 
         await async_session.refresh(user)
-        assert user.journal_portrait_full is None
-        assert user.journal_portrait_brief is None
-        assert user.journal_portrait_compiled_at is None
-        assert user.journal_portrait_sources is not None
-        assert user.journal_portrait_sources["journal_revision"] == user.journal_revision
-        assert user.journal_portrait_sources["source_state"] is not None
+        # The unverifiable words STAY (served stale) under their own provenance: it
+        # keeps no revision, so they read as stale, and the follow-up is pending.
+        from src.domains.journals.lifecycle import portrait_is_current
+
+        assert user.journal_portrait_full == "Ancien portrait."
+        assert user.journal_portrait_sources == {**previous, "portrait_pending": True}
+        assert await portrait_is_current(async_session, user) is False
 
     async def test_no_portrait_preserves_already_current_words_and_their_provenance(
         self,
@@ -373,7 +353,7 @@ class TestPortraitSources:
                     "facet": "interaction",
                     "text": "Une synthèse déjà approuvée.",
                     "supports": [{"source": f"journal:{entry.id}", "quote": entry.content}],
-                    "in_brief": True,
+                    "placement": "brief",
                 }
             ],
         }
@@ -441,7 +421,7 @@ class TestPortraitFollowUp:
                     "la sélection concernée avant de passer à l’action."
                 ),
                 "supports": [{"source": f"journal:{entry.id}", "quote": corrected}],
-                "in_brief": True,
+                "placement": "full",
             }
         ]
         monkeypatch.setattr(
@@ -450,7 +430,6 @@ class TestPortraitFollowUp:
         assert await consolidation_service.consolidate_journals_for_user(**arguments) == 0
         await async_session.refresh(user)
         assert user.journal_portrait_full == claims[0]["text"]
-        assert user.journal_portrait_sources["portrait_review"]["digest"]
         assert user.journal_portrait_sources["portrait_pending"] is False
         assert await consolidation_lifecycle.consolidation_needed(async_session, user) is False
 
@@ -547,10 +526,12 @@ class TestPortraitFollowUp:
             == 0
         )
         await async_session.refresh(user)
-        assert user.journal_portrait_full is None
-        assert user.journal_portrait_brief is None
-        assert user.journal_portrait_compiled_at is None
-        assert user.journal_portrait_sources["source_state"] != old_state
+        # The old-policy words stay under their OLD provenance (a rewritten one would
+        # bless them as current), flagged stale by the moved policy, until replaced.
+        assert user.journal_portrait_full == "[memories] [personal] A copied fact."
+        assert user.journal_portrait_compiled_at is not None
+        assert user.journal_portrait_sources["source_state"] == old_state
+        assert await portrait_is_current(async_session, user) is False
         assert user.journal_portrait_sources["portrait_pending"] is True
         assert await consolidation_lifecycle.consolidation_needed(async_session, user) is True
 

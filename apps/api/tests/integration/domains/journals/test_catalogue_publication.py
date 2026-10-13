@@ -8,7 +8,6 @@ from tests.integration.domains.journals.test_consolidation_integrity import (
     _answer,
     _claim,
     _entry,
-    _review_payload,
     _run,
     _user,
 )
@@ -19,7 +18,7 @@ from tests.integration.domains.journals.test_consolidation_integrity import (
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
 
-async def test_catalogue_reference_publishes_canonical_quote_and_exact_review(
+async def test_catalogue_reference_publishes_and_stores_the_canonical_quote(
     isolated_runtime, monkeypatch
 ):
     db = isolated_runtime
@@ -38,9 +37,8 @@ async def test_catalogue_reference_publishes_canonical_quote_and_exact_review(
     assert user.journal_portrait_full == canonical_claim["text"]
     assert user.journal_portrait_sources["claims"] == [canonical_claim]
     assert await portrait_is_current(db, user)
-    assert call.await_count == 2
+    assert call.await_count == 1  # one model call: no semantic review any more
     assert journal_item_id(entry) in call.await_args_list[0].kwargs["messages"]
-    review = _review_payload(call.await_args_list[1].kwargs["messages"])
-    assert review["proofs"][0]["quote"] == entry.content
-    assert review["proofs"][0]["revision"] == entry.revision
-    assert "item_id" not in review["proofs"][0]
+    # The reference was resolved to the entry's own words and revision at publication.
+    stored = user.journal_portrait_sources["claims"][0]["supports"][0]
+    assert stored == {"source": f"journal:{entry.id}", "quote": entry.content}

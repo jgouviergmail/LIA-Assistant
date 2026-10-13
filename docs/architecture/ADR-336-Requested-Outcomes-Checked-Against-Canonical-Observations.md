@@ -103,6 +103,33 @@ Extend supported constraints only with both a satisfying canonical observation
 and a near-match that must remain unsatisfied. Future production evaluation
 must separately measure extraction omissions and actual end-to-end completion.
 
+## Amendment 2026-10-12 — a page cut at the tool's cap is not a gap
+
+Decision 6 let a started read that returned `partial` activate the bounded
+recovery pass. A read is `partial` whenever its result carries `truncated`,
+`has_more` or a next-page token — the normal outcome of any calendar window
+holding more events than the tool's cap, and of any mailbox with a next page.
+Measured on the owner's dev turns of 2026-10-12: 4 ReAct turns of 4 took a
+pass that ended `still_unresolved`, two model calls and 10 to 15 s each (one
+of them rewriting the whole answer); on an agenda question the loop re-read 21
+windows. On production over seven days: 21 turns of 65 took a pass, 14
+fruitless, a median of two iterations added. The pass cannot succeed: the cut
+is structural, the model already holds the page and ADR-286's note states the
+cut to it; and `observed_recovery_outcome` kept `still_unresolved` while the
+flag stood. The directive also told the model « your answer declared » facts it
+had never written.
+
+**Decision.** Among started reads, only a read that FAILED is an observed gap
+(`react_observed_gaps.observed_gaps`). The goal-level verdicts are unchanged:
+a requested goal left missing or failed, or partial when the request demanded
+completeness (`requires_complete`, anchored on an exhaustive quote), still
+reaches recovery and the final synthesis. A gap the model declares itself
+(ADR-310) is untouched. The pass log counts declared and observed gaps apart
+(`declared_count`, `observed_count`) and the directive names the facts as
+« declared in your answer above, or observed by the system ». Pinned by
+`test_a_page_cut_at_the_tool_s_cap_is_not_an_observed_gap` beside the tests
+that keep a failed read and a demanded completeness as gaps.
+
 ## Implementation references
 
 - [Requested outcome contracts](../../apps/api/src/domains/agents/analysis/requested_outcomes.py)

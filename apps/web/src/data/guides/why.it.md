@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Versione**: 6.2
-**Data**: 2026-10-04
-**Applicazione**: LIA v3.0.0
+**Versione**: 6.3
+**Data**: 2026-10-13
+**Applicazione**: LIA v3.0.1
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -464,7 +464,7 @@ Oltre alla scrittura, il diario **misura sé stesso**. A ogni turno, LIA guarda 
 
 Da questa stratificazione emerge un **ritratto utente compilato**: la tua voce, il tuo ritmo, i tuoi contesti, le tue contraddizioni, le tue zone d'ombra. Viaggia con LIA ovunque parli — conversazione, voce, promemoria, notifiche proattive, ReAct, fallback — in modo che l'assistente non «dimentichi chi sei» a seconda della superficie con cui parla.
 
-Quel ritratto non legge solo i diari: i tuoi ricordi, i tuoi interessi, le tue abitudini apprese e i tuoi debrief di relazione vi entrano come materia, ciascuno sotto il proprio interruttore — il tuo e quello dell'amministratore. E ti dice da dove viene: sotto il ritratto, una riga nomina ciò che è stato letto, ciò che era vuoto, ciò che era spento. Una fonte che non risponde è nominata, mai letta come vuota.
+Quel ritratto non legge solo i diari: tutto ciò che LIA conserva su di te vi entra come materia, per intero — ricordi, interessi, abitudini apprese, debrief di relazione, fili aperti, ticket del Workboard, routine, promemoria, risposte conservate —, ciascuno sotto i propri interruttori, il tuo e quello dell'amministratore. Ciò che ne esce è una lettura di chi sei, non un elenco di ciò che hai fatto: uno schema nominato, mai l'inventario delle sue prove, e una sintesi breve che riassume davvero invece di estrarre. E ti dice da dove viene: sotto il ritratto, una riga nomina ciò che è stato letto, ciò che era vuoto, ciò che era spento. Una fonte che non risponde è nominata, mai letta come vuota; quando i tuoi diari cambiano, il ritratto resta lì, segnalato in attesa di una ricompilazione, invece di sparire.
 
 È una forma di introspezione artificiale — l'assistente che riflette sulle proprie interazioni, misura la propria utilità e sviluppa una comprensione sfumata di te. Mantieni il pieno controllo: lettura per tema o livello, modifica, segnalazione di un problema sul ritratto, attivazione di una consolidazione su richiesta. Il ritratto stesso non viene mai modificato direttamente — è una voce di sintesi, corretta attraverso leve indirette per preservarne la coerenza.
 

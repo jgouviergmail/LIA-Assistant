@@ -49,7 +49,7 @@ LIA aggregates **thirteen sources** in parallel to decide whether to notify you.
 
 **📓 Journals** — relevant entries from the assistant's personal journals, when journals are enabled
 • Journals are fetched in a **second pass** — LIA builds a dynamic query from the aggregated context (calendar, weather, emails, etc.) to find the most relevant journal entries
-• In addition to the dynamic-query entries, the **compiled user-model portrait brief** (~60 tokens) is injected so the notification voice is aligned with the same nuanced model of you that drives the conversation
+• In addition to the dynamic-query entries, the **brief of the compiled user-model portrait** (two or three sentences) is injected so the notification voice is aligned with the same nuanced model of you that drives the conversation
 
 **❤️ Health signals** — when health metrics are enabled for your account
 
