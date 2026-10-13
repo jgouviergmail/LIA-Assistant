@@ -91,6 +91,13 @@ and the landing's use-case times are readable in the light theme.
   landing's use cases were bright cyan on light glass (1.7:1, found by axe on
   Firefox); a text cut of the accent cyan (`--cosmos-cyan-ink`) holds AA on
   every light ground, kept by the cosmos contrast guard.
+- 🧭 **Weekly browser matrix green again:** the Firefox and WebKit run read
+  Playwright's blind spots as product failures. A check an engine cannot expose
+  (WebKit's intercepted cookies and multipart content, a redirect fulfilment, a
+  subframe download outside Chromium) is asserted where it is observable and
+  named elsewhere as an `engine-limit` annotation; headless Firefox gets a
+  virtual display for WebGL, the companion sphere is measured at the page's own
+  density, and a touch tap waits for the page to come to rest.
 - 🐳 **API image:** runtime manual pages needed by package alternatives are
   retained, package installs are declared non-interactive, and CI image builds
   export to the cache only.

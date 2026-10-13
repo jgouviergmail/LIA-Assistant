@@ -473,6 +473,7 @@ test.describe('selection actions (C-02)', () => {
     page,
     authenticate,
     mockApi,
+    browserName,
   }) => {
     await page.setViewportSize({ width: 320, height: 480 });
     await authenticate({ language: 'fr' });
@@ -493,8 +494,20 @@ test.describe('selection actions (C-02)', () => {
 
     // Wheel the menu itself: a document-level capture listener also sees this
     // scroll, but it must not reset the menu while the person reaches its end.
-    await toolbar.hover();
-    await page.mouse.wheel(0, 600);
+    // Under Playwright, Firefox delivers the synthetic wheel to the chat list
+    // beneath the portaled menu (measured 2026-10-13: the selection moved, the
+    // menu did not), so it scrolls the menu directly — the same scroll event
+    // reaches the listener under test.
+    if (browserName === 'firefox') {
+      test.info().annotations.push({
+        type: 'engine-limit',
+        description: 'Firefox: a synthetic wheel reaches the list under a portaled menu',
+      });
+      await toolbar.evaluate(element => element.scrollBy(0, 600));
+    } else {
+      await toolbar.hover();
+      await page.mouse.wheel(0, 600);
+    }
     await expect.poll(() => toolbar.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
     await page.evaluate(
       () =>

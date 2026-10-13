@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Native audio and hermetic STUN for the engine-diverse Playwright matrix.
+# Native audio, hermetic STUN and a virtual display for the engine-diverse
+# Playwright matrix.
 set -euo pipefail
 
 if [[ $# -eq 0 ]]; then
@@ -80,4 +81,13 @@ if ! kill -0 "$stun_pid" 2>/dev/null || ! node "$browser_scripts/stun-ready.mjs"
   exit 1
 fi
 echo 'Native-media matrix ready: virtual audio sink and local STUN.'
-"$@"
+# Headless Firefox creates no WebGL context without a display ("Exhausted GL
+# driver options", measured 2026-10-13 in the Playwright image): the native
+# companion volume then never paints. Under Xvfb it gets Mesa's llvmpipe, the
+# software renderer Chromium's SwiftShader stands in for; the browsers stay
+# headless. Not exec'd: the EXIT trap above still owns the audio and STUN daemons.
+if [[ -z "${DISPLAY:-}" ]] && command -v xvfb-run >/dev/null; then
+  xvfb-run -a --server-args='-screen 0 1920x1080x24' "$@"
+else
+  "$@"
+fi

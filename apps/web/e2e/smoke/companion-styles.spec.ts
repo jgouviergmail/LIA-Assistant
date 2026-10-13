@@ -75,6 +75,8 @@ for (const [language, width] of [
               ready: canvas.parentElement?.getAttribute('data-sphere-ready'),
               bufferWidth: canvas.width,
               bufferHeight: canvas.height,
+              // smileySphereResolution clamps the screen's density to [1, 2].
+              density: Math.max(1, Math.min(2, devicePixelRatio)),
             };
           const image = new Image();
           const background = getComputedStyle(
@@ -96,8 +98,10 @@ for (const [language, width] of [
           if (geometry.kind !== 'sphere')
             throw new Error('The Smiley card must show the actual GPU sphere');
           expect(geometry.ready).toBe('true');
-          expect(geometry.bufferWidth).toBe(52);
-          expect(geometry.bufferHeight).toBe(52);
+          // The card face (20 px font, 2.6 em sphere) at the page's own density.
+          const buffer = Math.min(192, Math.ceil(20 * 2.6 * geometry.density));
+          expect(geometry.bufferWidth).toBe(buffer);
+          expect(geometry.bufferHeight).toBe(buffer);
         } else {
           expect(geometry.kind).toBe('hybrid');
           if (geometry.kind !== 'hybrid')

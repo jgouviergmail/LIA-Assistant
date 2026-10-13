@@ -1,12 +1,12 @@
 import AxeBuilder from '@axe-core/playwright';
-import { test, expect, chatRoutes, waitForHydration } from '../fixtures';
+import { test, expect, chatRoutes, expectMultipartFile, waitForHydration } from '../fixtures';
 
 const command = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const space = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const conversation = '00000000-0000-4000-8000-00000000c001';
 
 for (const { width, lost } of [{ width: 1280, lost: false }, { width: 320, lost: false }, { width: 320, lost: true }]) {
-  test(`confirmed local document uploads once at ${width}px, lost response ${lost}`, async ({ page, authenticate, mockApi }) => {
+  test(`confirmed local document uploads once at ${width}px, lost response ${lost}`, async ({ page, authenticate, mockApi, browserName }) => {
     await page.setViewportSize({ width, height: 900 });
     await authenticate(); await mockApi(chatRoutes([]));
     let attempts = 0; let accepted = false;
@@ -33,8 +33,7 @@ for (const { width, lost } of [{ width: 1280, lost: false }, { width: 320, lost:
     await page.route(`**/api/rag-upload/${space}?application_command=${command}`, async route => {
       attempts += 1;
       expect(route.request().headers()['x-lia-file-confirmed']).toBe('true');
-      expect(route.request().postData()).toContain('controlled.txt');
-      expect(route.request().postData()).toContain('controlled document');
+      expectMultipartFile(route.request(), browserName, { name: 'controlled.txt', content: 'controlled document' });
       accepted = true;
       if (lost) await route.abort('failed');
       else await route.fulfill({ json: receipt });

@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import AxeBuilder from '@axe-core/playwright';
+import type { Locator } from '@playwright/test';
 import { test, expect, waitForHydration } from '../fixtures';
 import { loadedChatRoutes } from '../fixtures/chat';
 import { prepareTheme, awaitStyledPage, expectNoOverflow } from './overflow-report';
@@ -15,6 +16,25 @@ const references: { id: string; language: string; html: string }[] = JSON.parse(
     'utf8'
   )
 );
+
+/** Resolves once the element has held the same position for ten frames. */
+async function atRest(locator: Locator): Promise<void> {
+  await locator.evaluate(
+    element =>
+      new Promise<void>(resolve => {
+        let last = Number.NaN;
+        let still = 0;
+        const frame = () => {
+          const top = element.getBoundingClientRect().top;
+          still = top === last ? still + 1 : 0;
+          last = top;
+          if (still >= 10) resolve();
+          else requestAnimationFrame(frame);
+        };
+        requestAnimationFrame(frame);
+      })
+  );
+}
 
 for (const sample of [
   { width: 1280, language: 'fr', theme: 'light', font: '16px' },
@@ -79,8 +99,16 @@ for (const sample of [
       await articleToggle.press('Enter');
       await expect(article.getByText('LAST_ARTICLE_FACT', { exact: true })).toBeVisible();
       const categories = article.locator('details').last().locator(':scope > summary');
-      if (sample.width < 500) await categories.tap();
-      else await categories.press('Enter');
+      if (sample.width < 500) {
+        // A reader brings the summary into view, lets the page come to rest,
+        // then taps. Right after the article opens WebKit is still laying out
+        // what it revealed, so a tap aimed at once lands on whatever slid under
+        // the finger — the sticky composer, the eyes, the toolbar (measured
+        // 2026-10-13 at 320 px with a 20 px root font).
+        await categories.scrollIntoViewIfNeeded();
+        await atRest(categories);
+        await categories.tap();
+      } else await categories.press('Enter');
       await expect(article.getByText('Category 6', { exact: true })).toBeVisible();
       const answer = page.locator('.lia-search--answer');
       const sourceToggle = answer.locator('details').last().locator(':scope > summary');

@@ -80,4 +80,10 @@ export { idleNotificationStream, waitForMockGate } from './api-mock';
 export { waitForHydration, waitForClockedHydration } from './hydration';
 export { briefingCardsMock, briefingWindowsMock } from './dashboard-shell';
 export { chatRoutes, loadedChatRoutes } from './chat';
+export {
+  expectMultipartFile,
+  expectSessionCookie,
+  fulfillRedirect,
+  observesSubframeDownloads,
+} from './engine-introspection';
 export type { ChatBody } from './chat';

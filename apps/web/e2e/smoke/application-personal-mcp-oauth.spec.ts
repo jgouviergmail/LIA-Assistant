@@ -1,12 +1,12 @@
 import AxeBuilder from '@axe-core/playwright';
-import { test, expect, chatRoutes, waitForHydration } from '../fixtures';
+import { test, expect, chatRoutes, expectSessionCookie, fulfillRedirect, waitForHydration } from '../fixtures';
 
 const command = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const server = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const refs = [{ command_id: command }];
 
 for (const { width, lost } of [{ width: 1280, lost: false }, { width: 320, lost: false }, { width: 320, lost: true }]) {
-  test(`OAuth follows HITL and provider return at ${width}px, lost ${lost}`, async ({ page, authenticate, mockApi, baseURL }) => {
+  test(`OAuth follows HITL and provider return at ${width}px, lost ${lost}`, async ({ page, authenticate, mockApi, baseURL, browserName }) => {
     if (!baseURL) throw new Error('An HTTP proof server is required');
     await page.setViewportSize({ width, height: 900 });
     await authenticate();
@@ -47,17 +47,17 @@ for (const { width, lost } of [{ width: 1280, lost: false }, { width: 320, lost:
       } },
       { url: `**/api/v1/application-commands/${command}/personal-mcp-oauth/start`, method: 'POST', handler: async route => {
         expect(confirmed).toBe(true); expect(started).toBe(false); started = true;
-        expect((await route.request().allHeaders()).cookie).toContain('lia_session=mcp-oauth-e2e');
+        await expectSessionCookie(route.request(), browserName, 'lia_session=mcp-oauth-e2e');
         await route.fulfill({ headers: { 'Cache-Control': 'no-store' }, json: {
           command_id: command, authorization_url: `${baseURL}/controlled-provider?state=private-state` } });
       } },
       { url: '**/api/v1/mcp/servers/oauth/callback*', handler: async route => {
         expect(started).toBe(true); expect(attempts).toBe(0); staged = true;
-        await route.fulfill({ status: 302, headers: { Location: `${baseURL}/en/dashboard/chat?mcp_oauth=pending&application_command_id=${command}` }, body: '' });
+        await fulfillRedirect(route, browserName, `${baseURL}/en/dashboard/chat?mcp_oauth=pending&application_command_id=${command}`);
       } },
       { url: `**/api/v1/application-commands/${command}/personal-mcp-oauth/complete`, method: 'POST', handler: async route => {
         expect(staged).toBe(true); expect(attempts).toBe(0); attempts += 1;
-        expect((await route.request().allHeaders()).cookie).toContain('lia_session=mcp-oauth-e2e');
+        await expectSessionCookie(route.request(), browserName, 'lia_session=mcp-oauth-e2e');
         if (lost) await route.abort('connectionreset');
         else await route.fulfill({ json: observed() });
       } },

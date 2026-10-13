@@ -81,7 +81,14 @@ sends silence while idle, then the actual PCM under test; no audio or video
 readiness is simulated. The wrapper provisions `pulseaudio` and `coturn` inside
 the disposable official container, verifies STUN with a bounded Binding request,
 and closes its services afterwards. Outside a container those packages must
-already be installed. Card scans load the selected account theme before the
+already be installed. Headless Firefox creates no WebGL context without a
+display, so the wrapper also starts the suite under Xvfb, where Mesa's software
+renderer serves it; the browsers stay headless. What Playwright cannot observe
+on an engine — the `Cookie` header and the file content of an intercepted
+request on WebKit, a redirect fulfilment on WebKit, a download started in a
+subframe outside Chromium — is asserted wherever it is observable and recorded
+elsewhere as an `engine-limit` annotation ([engine-introspection](fixtures/engine-introspection.ts)),
+so a report never reads a skipped check as a passed one. Card scans load the selected account theme before the
 first paint and require the history cards before geometry measurements.
 The resting-face oracle pauses the clock before navigation and pins the random
 gesture delay beyond its measurement interval. Detail captures keep the audited viewport and let

@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { test, expect, chatRoutes, waitForHydration } from '../fixtures';
+import { test, expect, chatRoutes, expectSessionCookie, waitForHydration } from '../fixtures';
 
 const command = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const conversation = '00000000-0000-4000-8000-00000000c001';
@@ -16,6 +16,7 @@ for (const { width, lost } of [
     authenticate,
     mockApi,
     baseURL,
+    browserName,
   }) => {
     await page.setViewportSize({ width, height: 900 });
     await authenticate();
@@ -141,9 +142,7 @@ for (const { width, lost } of [
         handler: async route => {
           expect(confirmed).toBe(true);
           expect(route.request().postDataJSON()).toEqual({});
-          expect((await route.request().allHeaders()).cookie).toContain(
-            'lia_session=health-e2e-session'
-          );
+          await expectSessionCookie(route.request(), browserName, 'lia_session=health-e2e-session');
           attempts += 1;
           if (lost) await route.abort('connectionreset');
           else

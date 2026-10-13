@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { test, expect, chatRoutes, waitForHydration } from '../fixtures';
+import { test, expect, chatRoutes, expectSessionCookie, waitForHydration } from '../fixtures';
 
 const command = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const server = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -8,7 +8,7 @@ const secret = 'controlled_private_api_key';
 const refs = [{ command_id: command }];
 
 for (const { width, lost } of [{ width: 1280, lost: false }, { width: 320, lost: false }, { width: 320, lost: true }]) {
-  test(`private MCP form follows HITL at ${width}px, lost ${lost}`, async ({ page, authenticate, mockApi, baseURL }) => {
+  test(`private MCP form follows HITL at ${width}px, lost ${lost}`, async ({ page, authenticate, mockApi, baseURL, browserName }) => {
     await page.setViewportSize({ width, height: 900 });
     await authenticate();
     if (!baseURL) throw new Error('An HTTP proof server is required');
@@ -55,7 +55,7 @@ for (const { width, lost } of [{ width: 1280, lost: false }, { width: 320, lost:
         expect(confirmed).toBe(true);
         expect(route.request().postDataJSON()).toEqual({ values: { name: 'Controlled server', url: 'https://example.org/mcp',
           auth_type: 'api_key', api_key: secret, header_name: 'X-API-Key', timeout_seconds: 30, iterative_mode: false } });
-        expect((await route.request().allHeaders()).cookie).toContain('lia_session=mcp-private-e2e-session');
+        await expectSessionCookie(route.request(), browserName, 'lia_session=mcp-private-e2e-session');
         attempts += 1;
         if (lost) await route.abort('connectionreset');
         else await route.fulfill({ headers: { 'Cache-Control': 'no-store' }, json: observed() });

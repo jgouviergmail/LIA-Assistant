@@ -1,5 +1,12 @@
 import AxeBuilder from '@axe-core/playwright';
-import { test, expect, chatRoutes, waitForHydration } from '../fixtures';
+import {
+  test,
+  expect,
+  chatRoutes,
+  expectSessionCookie,
+  observesSubframeDownloads,
+  waitForHydration,
+} from '../fixtures';
 
 const command = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const conversation = '00000000-0000-4000-8000-00000000c001';
@@ -53,6 +60,7 @@ for (const exported of [
       authenticate,
       mockApi,
       baseURL,
+      browserName,
     }) => {
       await page.setViewportSize({ width, height: 900 });
       await authenticate();
@@ -172,7 +180,9 @@ for (const exported of [
           handler: async route => {
             expect(confirmed).toBe(true);
             expect(route.request().postData()).toBeNull();
-            expect((await route.request().allHeaders()).cookie).toContain(
+            await expectSessionCookie(
+              route.request(),
+              browserName,
               'lia_session=e2e-download-session'
             );
             attempts += 1;
@@ -205,7 +215,10 @@ for (const exported of [
       await expect(card).toBeVisible();
       expect(attempts).toBe(0);
       const start = card.getByRole('link', { name: 'Lancer le téléchargement' });
-      const downloading = transferFailure ? null : page.waitForEvent('download');
+      const downloading =
+        !transferFailure && observesSubframeDownloads(browserName)
+          ? page.waitForEvent('download')
+          : null;
       await start.focus();
       await page.keyboard.press('Enter');
       if (transferFailure) {
@@ -227,10 +240,14 @@ for (const exported of [
         ).toBe(true);
         return;
       }
-      if (!downloading) throw new Error('Missing download expectation');
-      const download = await downloading;
-      expect(download.suggestedFilename()).toBe(exported.filename);
-      expect(await download.failure()).toBeNull();
+      if (downloading) {
+        const download = await downloading;
+        expect(download.suggestedFilename()).toBe(exported.filename);
+        expect(await download.failure()).toBeNull();
+      } else {
+        // The transfer still left exactly once; only the event is unobservable.
+        await expect.poll(() => attempts).toBe(1);
+      }
       expect(attempts).toBe(1);
       await expect(card.getByRole('status')).toContainText('LIA ne peut pas confirmer');
       await expect(page.getByRole('dialog')).toHaveCount(0);

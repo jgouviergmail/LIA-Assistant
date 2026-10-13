@@ -181,7 +181,12 @@ for (const climate of climates) {
         await page.clock.runFor(64);
         return moving.evaluate(e => {
           const matrix = new DOMMatrix(getComputedStyle(e).transform);
-          return [matrix.a, matrix.b, matrix.c, matrix.d, matrix.e, matrix.f];
+          // Firefox serialises the matrix in single precision (5.4 reads
+          // 5.400000095367432): the rest position is compared at 1e-4 px.
+          return [matrix.a, matrix.b, matrix.c, matrix.d, matrix.e, matrix.f].map(
+            // `+ 0` folds a rounded -0 into 0, which toEqual tells apart.
+            value => Math.round(value * 1e4) / 1e4 + 0
+          );
         });
       })
       .toEqual([1, 0, 0, 1, ...climate.rest]);
@@ -287,6 +292,9 @@ for (const style of styles) {
                 sphereReady: body.getAttribute('data-sphere-ready'),
                 canvasWidth: body.querySelector('canvas')?.width,
                 canvasHeight: body.querySelector('canvas')?.height,
+                // smileySphereResolution: the buffer follows the screen's density,
+                // clamped to [1, 2] — Desktop Safari renders at 2.
+                density: Math.max(1, Math.min(2, devicePixelRatio)),
                 sharedHead: boundary.parentElement === head && body.parentElement === head,
                 bodyTransform: getComputedStyle(body).transform,
                 eyesInside: boundary.contains(pair),
@@ -362,8 +370,10 @@ for (const style of styles) {
       expect(turned.containment).not.toBeNull();
       expect(turned.containment!.image).toContain('radial-gradient');
       expect(turned.containment!.sphereReady).toBe('true');
-      expect(turned.containment!.canvasWidth).toBe(78);
-      expect(turned.containment!.canvasHeight).toBe(78);
+      // The md face (30 px font, 2.6 em sphere) at the page's own density.
+      const buffer = Math.min(192, Math.ceil(30 * 2.6 * turned.containment!.density));
+      expect(turned.containment!.canvasWidth).toBe(buffer);
+      expect(turned.containment!.canvasHeight).toBe(buffer);
       expect(turned.containment!.mask).toBe('none');
       expect(turned.containment!.clip).toBe('circle(49%)');
       expect(turned.containment!.sharedHead).toBe(true);
