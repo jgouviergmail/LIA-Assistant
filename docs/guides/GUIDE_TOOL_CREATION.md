@@ -1166,7 +1166,10 @@ class MyTool(ConnectorTool):
 > and counted (`tool_failure_verdict_corrected_total`), and any unit test that
 > triggers the correction fails. Answer a failure with
 > `UnifiedToolOutput.failure(message=..., error_code=...)`; an AST guard refuses a
-> success built in a branch that has just read a failure.
+> success built in a branch that has just read a failure. And set
+> `registry_enabled = True`: in legacy mode the tool answers with a JSON string,
+> its failures too, and no reader of the verdict can read a string — a runtime
+> census holds every connector class in registry mode.
 
 > **What a read tool's `structured_data` carries reaches the answer (ADR-347).**
 > In both execution modes, the data a READ tool returns beyond its registry

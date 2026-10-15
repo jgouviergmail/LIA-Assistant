@@ -763,7 +763,8 @@ These rules close recurring bug classes identified by the 2026-07 full-codebase 
 - **A read tool's data reaches the answer through its data block, in both modes, and a
   payload's declared failure is never returned as a success** (ADR-347): put facts in
   `structured_data` (the message is a header); a tool whose message already renders its data
-  declares `pipeline_data_channel` with a reason; formatters answer a failure with `failure()`.
+  declares `pipeline_data_channel` with a reason; formatters answer a failure with `failure()`,
+  and a connector tool runs in registry mode (a legacy JSON string is a verdict no reader reads).
 
 ### Observability & honesty
 

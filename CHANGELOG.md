@@ -147,6 +147,12 @@ its exchanges in one take.
   now answer that the target was not found, naming the ones that exist. Every
   connector tool is held to the same verdict ([ADR-347](docs/architecture/ADR-347-Read-Tool-Data-Reaches-The-Pipeline-Answer-A-Declared-Failure-Is-Never-A-Success.md)): a refusal
   is never turned into a success on its way to the answer.
+- ✅ **A task that could not be marked as done is no longer filed as done:**
+  completing a Google task answered in a legacy format no reader of the
+  verdict could read, so a refused completion reached the actions LIA
+  performed, and the tool metrics, as a success. It now reads as the failure
+  it is, and every connector tool answers in the format that carries a
+  verdict.
 - 🔁 **A repeated action with one failed item keeps the others:** creating
   three reminders with one refused lost the confirmations of the two that
   were created; the answer now confirms them and states the one that failed.

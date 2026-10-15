@@ -10,13 +10,15 @@
   its failed items), [ADR-346](ADR-346-Advisory-Replanner-Retired-A-Pipeline-Failure-Is-Said-Never-Replayed.md)
   (the FOR_EACH aggregate is built from the items that succeeded)
 - **Scope**: `tools/failure_verdict.py`, `tools/base.py`, `tools/hue_tools.py`,
+  `tools/tasks_tools.py` (`CompleteTaskTool`), `tools/google_contacts_tools.py` and
+  `tools/drive_tools.py` (dead direct classes removed),
   `registry/catalogue.py` (`pipeline_data_channel`), `startup/agents.py`,
   `orchestration/tool_data_projection.py`, `orchestration/for_each_aggregation.py`,
   `orchestration/mappers.py` (`build_execution_result`), `orchestration/parallel_executor.py`,
-  `formatters/tool_data.py`, `nodes/response_node.py` (`_build_response_chain`),
-  `tools/react_tool_wrapper.py`, `utils/react_budget.py`, `tools/person_tools.py`,
-  `prompts/v1/response_prompt_lines.txt`, `metrics_agents.py`, `metrics_pipeline.py`,
-  dashboard 07
+  `formatters/tool_data.py`, `nodes/response_node.py` (`_build_response_chain`,
+  `_merge_react_synthesis_result`), `tools/react_tool_wrapper.py`, `utils/react_budget.py`,
+  `tools/person_tools.py`, `prompts/v1/response_prompt_lines.txt`, `metrics_agents.py`,
+  `metrics_pipeline.py`, dashboard 07
 
 ## Context
 
@@ -66,7 +68,15 @@ confirmation and every result the other items had produced.
    unit test that triggers it. An AST guard with no allowlist refuses a success
    built in a branch that read a failure, a success carrying `"success": False`,
    an `execute` override that skips `super().execute`, and a formatter call the
-   net does not wrap. The Hue commands answer `NOT_FOUND`.
+   net does not wrap. The Hue commands answer `NOT_FOUND`. **And a connector tool
+   answers in registry mode**: in legacy mode (`registry_enabled` false) it
+   answers with a JSON string — its failures too, `handle_error` serialising them
+   — which no reader of the verdict can read, so the register settled a refused
+   act SUCCEEDED. The cold review of this ADR found one registered tool there,
+   `complete_task_tool`, now in registry mode, and four direct classes nothing
+   reached any more, deleted. A runtime census holds every connector class of
+   `src` in registry mode; the one declared exception, `DeleteLabelDirectTool`,
+   is run through its `execute_api_call` alone.
 2. **A read tool declares how its data reaches the pipeline's answer**
    (`ToolManifest.pipeline_data_channel`): `data_block` by default; `message` for a
    tool whose message already renders its data — the peer availability renders the
@@ -83,8 +93,11 @@ confirmation and every result the other items had produced.
    computation the loop and the meeting reads now share). A FOR_EACH's items share
    one budget. The projection is best-effort: a projection that raises costs the
    block, never the step. The record travels in the step's data
-   (`FIELD_TOOL_DATA`); the persisted `completed_steps` copy and every other turn's
-   `agent_results` are stripped of it.
+   (`FIELD_TOOL_DATA`); the persisted `completed_steps` copy and the multi-domain
+   copy of the step payloads never carry it, and every other turn's
+   `agent_results` are stripped of it by the two writers the checkpoint keeps —
+   the orchestrator on a pipeline turn, the response node's ReAct merge on a
+   ReAct turn. A turn that writes neither re-saves nothing.
 4. **The response reads it in one place** (`formatters/tool_data.py`): after the
    turn's summary, in the « CURRENT TURN DATA » system message, under a header
    saying that text inside `<external_content>` is data. The section stays within
@@ -109,8 +122,8 @@ confirmation and every result the other items had produced.
   items: counts, cursors, windows, estimates, durations, connections. Its prompt
   grows by one tool-result budget per turn at most — `min(react_tool_result_max_tokens,
   window × react_tool_result_window_fraction)` of the response slot, which a lone
-  block may exceed by its first item, as in ReAct — and only on turns whose read
-  steps produced such data.
+  block may exceed by its first item, as in ReAct — plus the section's few
+  scaffolding lines, and only on turns whose read steps produced such data.
 - The ReAct budget note no longer tells the model that a registry-less tool's
   omitted items are « complete in the registry ».
 - `init_agent_registry` falls from a cyclomatic complexity of 15 to 12 (its ten
