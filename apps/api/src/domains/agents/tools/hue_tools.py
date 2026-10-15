@@ -661,7 +661,7 @@ _activate_hue_scene_impl = ActivateHueSceneTool(
 )
 async def list_hue_lights_tool(
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
-) -> str:
+) -> UnifiedToolOutput:
     """
     List all Philips Hue lights with their current state.
 
@@ -696,7 +696,7 @@ async def control_hue_light_tool(
         "Color name (red, blue, warm_white, etc.) or CIE 'x,y' coordinates. Leave empty to keep current.",
     ] = None,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
-) -> str:
+) -> UnifiedToolOutput:
     """
     Control a specific Philips Hue light.
 
@@ -723,7 +723,7 @@ async def control_hue_light_tool(
 )
 async def list_hue_rooms_tool(
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
-) -> str:
+) -> UnifiedToolOutput:
     """
     List all Philips Hue rooms with their devices.
 
@@ -754,7 +754,7 @@ async def control_hue_room_tool(
         "Brightness percentage 0-100 for all lights. Leave empty to keep current.",
     ] = None,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
-) -> str:
+) -> UnifiedToolOutput:
     """
     Control all lights in a Philips Hue room at once.
 
@@ -778,7 +778,7 @@ async def control_hue_room_tool(
 )
 async def list_hue_scenes_tool(
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
-) -> str:
+) -> UnifiedToolOutput:
     """
     List all available Philips Hue scenes.
 
@@ -801,7 +801,7 @@ async def activate_hue_scene_tool(
         "Name or ID of the scene to activate (e.g., 'Movie', 'Relax', 'Energize')",
     ],
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
-) -> str:
+) -> UnifiedToolOutput:
     """
     Activate a Philips Hue scene by name or ID.
 

@@ -554,7 +554,7 @@ async def search_places_tool(
         "'lite' (identity, address, location, status only — cheaper, use when the "
         "answer only needs names/addresses, e.g. counting or listing places).",
     ] = PLACES_DETAIL_LEVEL_FULL,
-) -> str:
+) -> UnifiedToolOutput:
     """
     Unified search for places combining text search and proximity search.
 
@@ -920,7 +920,7 @@ async def get_place_details_tool(
     ] = None,
     force_refresh: Annotated[bool, "Force refresh from API (bypass cache)"] = False,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
-) -> str:
+) -> UnifiedToolOutput:
     """
     Get detailed information about one or more places.
 
@@ -1036,7 +1036,7 @@ _list_places_tool_instance = ListPlacesTool()
 async def list_places_tool(
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     limit: Annotated[int, "Maximum number of results (default: 10)"] = 10,
-) -> str:
+) -> UnifiedToolOutput:
     """
     List recently viewed or cached places.
 
@@ -1329,7 +1329,7 @@ _get_current_location_tool_instance = GetCurrentLocationTool()
 )
 async def get_current_location_tool(
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
-) -> str:
+) -> UnifiedToolOutput:
     """
     Get user's current location using browser geolocation and reverse geocoding.
 

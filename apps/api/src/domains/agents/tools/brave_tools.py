@@ -302,7 +302,7 @@ async def brave_search_tool(
         "Freshness filter: 'pd' (24h), 'pw' (7d), 'pm' (31d), 'py' (1y)",
     ] = None,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
-) -> str:
+) -> UnifiedToolOutput:
     """
     Search the web using Brave Search API.
 
@@ -369,7 +369,7 @@ async def brave_news_tool(
         "Freshness filter: 'pd' (24h), 'pw' (7d), 'pm' (31d)",
     ] = None,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
-) -> str:
+) -> UnifiedToolOutput:
     """
     Search news using Brave Search API.
 

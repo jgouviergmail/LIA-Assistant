@@ -1169,7 +1169,8 @@ class MyTool(ConnectorTool):
 > success built in a branch that has just read a failure. And set
 > `registry_enabled = True`: in legacy mode the tool answers with a JSON string,
 > its failures too, and no reader of the verdict can read a string — a runtime
-> census holds every connector class in registry mode.
+> census holds every connector class in registry mode, and the `@tool` function
+> declares `-> UnifiedToolOutput`, never `-> str` (AST guard).
 
 > **What a read tool's `structured_data` carries reaches the answer (ADR-347).**
 > In both execution modes, the data a READ tool returns beyond its registry

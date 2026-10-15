@@ -12,13 +12,19 @@ one legacy class still reached through ``execute``.
 
 So every connector tool class of ``src`` runs in registry mode. The one class
 kept in legacy mode is never run through ``execute``: the label delete draft's
-executor calls its ``execute_api_call`` and reads the payload itself.
+executor calls its ``execute_api_call`` and reads the payload itself. And no tool
+function DECLARES a string return either: seventeen still said ``-> str`` over a
+registry class answering ``UnifiedToolOutput``, a lie the type checker could not
+see (``execute`` reaches it untyped) and the next legacy tool would have hidden
+behind.
 """
 
 from __future__ import annotations
 
+import ast
 import inspect
 from collections.abc import Awaitable, Callable, Iterator
+from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
@@ -113,10 +119,13 @@ class TestTheTaskCompletionVerdict:
         assert read_outcome(output).succeeded is True
 
 
-def _connector_classes() -> Iterator[type]:
+ConnectorClass = type[ConnectorTool[Any]] | type[APIKeyConnectorTool[Any]]
+
+
+def _connector_classes() -> Iterator[ConnectorClass]:
     """Every concrete connector tool class defined in ``src`` (test doubles excluded)."""
-    seen: set[type] = set()
-    pending: list[type] = [ConnectorTool, APIKeyConnectorTool]
+    seen: set[ConnectorClass] = set()
+    pending: list[ConnectorClass] = [ConnectorTool, APIKeyConnectorTool]
     while pending:
         for subclass in pending.pop().__subclasses__():
             if subclass in seen:
@@ -142,3 +151,60 @@ class TestEveryConnectorToolRunsInRegistryMode:
             "reader of the verdict can read: set registry_enabled = True and return "
             f"a UnifiedToolOutput from format_registry_response. Legacy: {legacy}"
         )
+
+
+SRC = Path(__file__).resolve().parents[5] / "src"
+
+
+def _decorator_name(node: ast.expr) -> str:
+    target = node.func if isinstance(node, ast.Call) else node
+    if isinstance(target, ast.Name):
+        return target.id
+    return target.attr if isinstance(target, ast.Attribute) else ""
+
+
+def string_returning_tools(tree: ast.AST) -> list[str]:
+    """Every tool function (``@tool``, ``@…_tool``) whose declared return admits a ``str``."""
+    offenders: list[str] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) or node.returns is None:
+            continue
+        names = {_decorator_name(decorator) for decorator in node.decorator_list}
+        if not any(name == "tool" or name.endswith("_tool") for name in names):
+            continue
+        returned = node.returns
+        members = [returned]
+        while members and isinstance(members[0], ast.BinOp):
+            union = members.pop(0)
+            assert isinstance(union, ast.BinOp)
+            members[:0] = [union.left, union.right]
+        if any(isinstance(member, ast.Name) and member.id == "str" for member in members):
+            offenders.append(node.name)
+    return offenders
+
+
+class TestNoToolDeclaresAStringReturn:
+    def test_the_codebase(self) -> None:
+        offenders = [
+            f"{path.relative_to(SRC).as_posix()}:{name}"
+            for path in sorted(SRC.rglob("*.py"))
+            for name in string_returning_tools(ast.parse(path.read_text(encoding="utf-8")))
+        ]
+
+        assert not offenders, (
+            "A tool function declares a str return: a string is a verdict no reader "
+            f"can read; return the UnifiedToolOutput its class builds: {offenders}"
+        )
+
+    def test_the_rule_bites(self) -> None:
+        tree = ast.parse(
+            "@tool\n"
+            "async def plain_tool() -> str: ...\n"
+            "@connector_tool(name='x')\n"
+            "async def maybe_tool() -> UnifiedToolOutput | str: ...\n"
+            "@read_tool(name='y')\n"
+            "async def typed_tool() -> UnifiedToolOutput: ...\n"
+            "async def helper() -> str: ...\n"
+        )
+
+        assert string_returning_tools(tree) == ["plain_tool", "maybe_tool"]

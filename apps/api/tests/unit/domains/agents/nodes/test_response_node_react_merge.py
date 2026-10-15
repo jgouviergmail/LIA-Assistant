@@ -11,12 +11,14 @@ ReAct entry without overwriting the Initiative entry.
 from __future__ import annotations
 
 from typing import Any
+from uuid import uuid4
 
 import pytest
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.runnables import RunnableLambda
 
 from src.core.field_names import FIELD_TOOL_DATA
+from src.domains.agents.models import MessagesState, create_initial_state
 from src.domains.agents.nodes.response_node import (
     _apply_react_passthrough,
     _build_response_chain,
@@ -26,24 +28,24 @@ from src.domains.agents.nodes.response_node import (
 
 @pytest.mark.unit
 class TestMergeReactSynthesisResult:
-    def test_injects_react_entry_into_empty_results(self):
+    def test_injects_react_entry_into_empty_results(self) -> None:
         merged = _merge_react_synthesis_result(None, "the answer", 4, {"item_1": object()})
         assert merged["4:react_agent"]["data"]["react_synthesis"] == "the answer"
 
-    def test_preserves_initiative_entry_and_adds_react(self):
-        existing = {"4:initiative": {"status": "success", "data": {"x": 1}}}
+    def test_preserves_initiative_entry_and_adds_react(self) -> None:
+        existing: dict[str, Any] = {"4:initiative": {"status": "success", "data": {"x": 1}}}
         merged = _merge_react_synthesis_result(existing, "the answer", 4, {})
         assert "4:initiative" in merged  # not dropped
         assert "4:react_agent" in merged  # added
         assert merged["4:react_agent"]["data"]["react_synthesis"] == "the answer"
 
-    def test_idempotent_on_react_key(self):
-        existing = {"4:react_agent": {"data": {"react_synthesis": "first"}}}
+    def test_idempotent_on_react_key(self) -> None:
+        existing: dict[str, Any] = {"4:react_agent": {"data": {"react_synthesis": "first"}}}
         merged = _merge_react_synthesis_result(existing, "second", 4, {})
         assert merged["4:react_agent"]["data"]["react_synthesis"] == "first"
 
-    def test_does_not_mutate_input(self):
-        existing = {"4:initiative": {"status": "success"}}
+    def test_does_not_mutate_input(self) -> None:
+        existing: dict[str, Any] = {"4:initiative": {"status": "success"}}
         _merge_react_synthesis_result(existing, "answer", 4, {})
         assert "4:react_agent" not in existing
 
@@ -66,12 +68,12 @@ class TestMergeReactSynthesisResult:
         assert merged["4:initiative"] == entry()
 
 
-def _react_state(final_message: str) -> dict[str, Any]:
-    return {
-        "react_agent_result": {"final_message": final_message, "iteration_count": 2},
-        "current_turn_id": 4,
-        "current_turn_registry": {},
-    }
+def _react_state(final_message: str) -> MessagesState:
+    state = create_initial_state(uuid4(), session_id="s", run_id="r")
+    state["react_agent_result"] = {"final_message": final_message, "iteration_count": 2}
+    state["current_turn_id"] = 4
+    state["current_turn_registry"] = {}
+    return state
 
 
 @pytest.mark.unit
@@ -94,22 +96,25 @@ class TestTheAnswerIsMergedAlone:
         _result, merged = _apply_react_passthrough(state, "run-1")
 
         assert not merged
-        assert "agent_results" not in state
+        assert "4:react_agent" not in (state.get("agent_results") or {})
 
 
-def _chain_blocks(performed_actions_block: str, *, data: str = "the answer") -> list[Any]:
+def _chain_blocks(performed_actions_block: str, *, data: str = "the answer") -> list[BaseMessage]:
     """The messages the response chain would send, rendered by the real template."""
     chain = _build_response_chain(
         base_system_prompt="BASE",
         agent_results_summary=data,
         skills_context="",
         plan_rejection_reason=None,
-        state={},
+        state=create_initial_state(uuid4(), session_id="s", run_id="r"),
         user_language="fr",
         llm=RunnableLambda(lambda _prompt: AIMessage(content="stub")),
         performed_actions_block=performed_actions_block,
     )
-    return chain.first.format_messages(messages=[HumanMessage(content="génère un chat")])
+    messages: list[BaseMessage] = chain.first.format_messages(
+        messages=[HumanMessage(content="génère un chat")]
+    )
+    return messages
 
 
 @pytest.mark.unit

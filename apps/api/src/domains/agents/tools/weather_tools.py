@@ -902,7 +902,7 @@ async def get_current_weather_tool(
     ] = None,
     units: Annotated[str, UNITS_DESCRIPTION] = "metric",
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
-) -> str:
+) -> UnifiedToolOutput:
     """
     Get current weather for a location.
 
@@ -920,7 +920,7 @@ async def get_current_weather_tool(
         runtime: Tool runtime (injected)
 
     Returns:
-        Current weather data as JSON string
+        The current weather as a UnifiedToolOutput, its registry item and verdict
 
     Examples:
         - get_current_weather("Paris")
@@ -960,7 +960,7 @@ async def get_weather_forecast_tool(
     days: Annotated[int | None, FORECAST_DAYS_DESCRIPTION] = None,
     units: Annotated[str, UNITS_DESCRIPTION] = "metric",
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
-) -> str:
+) -> UnifiedToolOutput:
     """
     Get weather forecast for a location.
 
@@ -981,7 +981,7 @@ async def get_weather_forecast_tool(
         runtime: Tool runtime (injected)
 
     Returns:
-        Weather forecast data as JSON string
+        The forecast as a UnifiedToolOutput, its registry items and verdict
 
     Examples:
         - get_weather_forecast("Paris", days=3)
@@ -1029,7 +1029,7 @@ async def get_hourly_forecast_tool(
     ] = 24,
     units: Annotated[str, UNITS_DESCRIPTION] = "metric",
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
-) -> str:
+) -> UnifiedToolOutput:
     """
     Get intra-day weather forecast in 3-hour steps for a location.
 
@@ -1054,7 +1054,7 @@ async def get_hourly_forecast_tool(
         runtime: Tool runtime (injected)
 
     Returns:
-        3-hour-step forecast data as JSON string
+        The 3-hour-step forecast as a UnifiedToolOutput, its registry items and verdict
 
     Examples:
         - get_hourly_forecast("Paris", hours=12)

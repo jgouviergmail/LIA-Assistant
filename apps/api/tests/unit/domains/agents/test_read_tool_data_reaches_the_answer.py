@@ -14,15 +14,18 @@ answers gave the durations a route matrix had computed; with it, 27 of 27.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
+from uuid import uuid4
 
 import pytest
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
 
 from src.core.field_names import FIELD_TOOL_DATA
 from src.domains.agents.constants import AgentResultStatus
+from src.domains.agents.models import create_initial_state
 from src.domains.agents.nodes.response_node import _build_response_chain
 from src.domains.agents.orchestration import parallel_executor as pe
 from src.domains.agents.orchestration import tool_data_projection as projection
@@ -109,12 +112,15 @@ def _plan_step(step_id: str) -> ExecutionStep:
 
 def _prompt_text(agent_results: dict[str, Any], summary: str = "") -> str:
     """Everything the response model is handed, rendered as the provider receives it."""
+    state = create_initial_state(uuid4(), session_id="s", run_id="r")
+    state["agent_results"] = agent_results
+    state["current_turn_id"] = TURN
     chain = _build_response_chain(
         base_system_prompt="BASE",
         agent_results_summary=summary,
         skills_context="",
         plan_rejection_reason=None,
-        state={"messages": [], "agent_results": agent_results, "current_turn_id": TURN},
+        state=state,
         user_language="en",
         llm=FakeListChatModel(responses=["ok"]),
         performed_actions_block="",
@@ -229,6 +235,49 @@ class TestTheRoad:
         assert FIELD_TOOL_DATA not in persisted
         next_turn = previous_turns_without_tool_data(agent_results, TURN + 1)
         assert "TOOL DATA" not in _prompt_text(next_turn)
+
+
+def _block_paths(value: object, path: str = "") -> Iterator[str]:
+    """Every path at which a data block sits, at any depth."""
+    if isinstance(value, dict):
+        for key, child in value.items():
+            here = f"{path}.{key}" if path else str(key)
+            if key == FIELD_TOOL_DATA:
+                yield here
+            else:
+                yield from _block_paths(child, here)
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            yield from _block_paths(child, f"{path}[{index}]")
+
+
+class TestTheStateHoldsABlockInOnePlace:
+    """Every copy of a step payload is a place a block can hide: the walk sees them all.
+
+    The cold review found one — ``MultiDomainResultData.completed_steps``, a copy
+    nobody reads — which this walk reports by its path; a future copy of the
+    payloads, under any name, fails here the same way.
+    """
+
+    async def test_a_turn_s_blocks_sit_in_its_step_payloads_and_leave_with_it(self) -> None:
+        completed: dict[str, dict[str, Any]] = {}
+        pe._merge_single_step_result(
+            completed, await _run_step("step_1", _matrix("home", (14, 15)))
+        )
+        completed["step_2"] = {"contacts": [{"resource_name": "c1"}], "total": 1}
+        completed["step_3"] = {"emails": [{"id": "m1"}], "total": 1}
+        plan = [_plan_step("step_1"), _plan_step("step_2"), _plan_step("step_3")]
+
+        agent_results = map_execution_result_to_agent_result(
+            execution_result=build_execution_result(plan, completed), plan_id="p", turn_id=TURN
+        )
+        next_turn = previous_turns_without_tool_data(agent_results, TURN + 1)
+
+        assert agent_results[f"{TURN}:plan_executor"]["data"]["result_type"] == "multi_domain"
+        assert list(_block_paths(agent_results)) == [
+            f"{TURN}:plan_executor.data.step_results[0].{FIELD_TOOL_DATA}"
+        ]
+        assert list(_block_paths(next_turn)) == []
 
 
 class TestBothModesReadTheSameData:

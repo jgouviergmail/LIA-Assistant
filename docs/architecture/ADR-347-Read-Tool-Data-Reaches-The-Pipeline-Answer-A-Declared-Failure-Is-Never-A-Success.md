@@ -76,7 +76,9 @@ confirmation and every result the other items had produced.
    `complete_task_tool`, now in registry mode, and four direct classes nothing
    reached any more, deleted. A runtime census holds every connector class of
    `src` in registry mode; the one declared exception, `DeleteLabelDirectTool`,
-   is run through its `execute_api_call` alone.
+   is run through its `execute_api_call` alone. And no tool function declares a
+   `str` return (AST guard): seventeen still did over registry classes, a lie the
+   type checker could not see, behind which the next legacy tool would have hidden.
 2. **A read tool declares how its data reaches the pipeline's answer**
    (`ToolManifest.pipeline_data_channel`): `data_block` by default; `message` for a
    tool whose message already renders its data — the peer availability renders the

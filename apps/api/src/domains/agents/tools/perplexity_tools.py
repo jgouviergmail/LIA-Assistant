@@ -461,7 +461,7 @@ async def perplexity_search_tool(
     ] = "none",
     include_citations: Annotated[bool, "Include source URLs (default: True)"] = True,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
-) -> str:
+) -> UnifiedToolOutput:
     """
     Search the web using Perplexity AI.
 
@@ -518,7 +518,7 @@ async def perplexity_ask_tool(
         "Optional context or domain to focus the answer (e.g., 'technology', 'finance')",
     ] = "",
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
-) -> str:
+) -> UnifiedToolOutput:
     """
     Ask a question using Perplexity AI with optional context.
 
