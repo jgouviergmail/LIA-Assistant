@@ -24,7 +24,6 @@ rather than all-or-nothing. Read-only, no HITL.
 
 from __future__ import annotations
 
-import json
 from typing import Annotated, Any
 
 import structlog
@@ -50,29 +49,23 @@ logger = structlog.get_logger(__name__)
 
 
 def _overview_message(payload: dict[str, Any]) -> str:
-    """The overview, in the field the response synthesizer actually reads.
+    """The overview's header: whose overview, and which blocks could not be read.
 
-    Measured on the dev API, 2026-08-01: the tool ran, produced relayed
-    messages, commitments and memories — and the assistant answered *"I have no
-    data at hand"*. Its payload had reached ``structured_data`` and stopped
-    there. Only two channels reach the response prompt: the **data registry**,
-    fed exclusively by tools declaring a ``context_key``, and this ``message``
-    field (``formatters/agent_results._extract_action_success_messages``). This
-    tool has no ``context_key`` — deliberately: the registry serialises ITEMS
-    for filtering, one truncated line each, which is the wrong shape for one
-    person's briefing across nine heterogeneous blocks. So the message carried
-    ``"overview built for X"``: proof the tool ran, and not one fact.
-
-    Serialised as compact JSON, like the planner catalogue: lossless, and it
-    preserves the distinction the whole design rests on — a block that could
-    not be read carries NO key and is named in ``unavailable``, while an empty
-    list means "looked, found nothing" (ADR-190).
+    The payload itself reaches the response model as the tool's data block, in
+    both execution modes (ADR-347): ``compose_tool_message`` in ReAct, the
+    step's projected record in the pipeline. Until then the pipeline read this
+    message alone, so the payload was serialised HERE as compact JSON — measured
+    2026-08-01, an assistant answering *"I have no data at hand"* over a payload
+    stuck in ``structured_data`` — and the ReAct loop received it twice
+    (median 460 tokens over the 18 golden cases, up to about 7 000 with every
+    block full). The data block also wraps it as external content: relayed
+    messages are third-party text.
 
     Args:
         payload: The overview payload, exactly as ``structured_data`` carries it.
 
     Returns:
-        A one-line header plus the payload as compact JSON.
+        One line.
     """
     person = payload.get("person", "")
     unavailable = payload.get("unavailable") or []
@@ -81,9 +74,7 @@ def _overview_message(payload: dict[str, Any]) -> str:
     # the distinction the whole design rests on (ADR-190), and it is the one a
     # model is most likely to flatten when it is not said plainly.
     gap = f" (could not read: {', '.join(unavailable)})" if unavailable else ""
-    return f"360 overview for {person}{gap}:\n" + json.dumps(
-        payload, separators=(",", ":"), ensure_ascii=False, default=str
-    )
+    return f"360 overview for {person}{gap}."
 
 
 @read_tool(name="get_person_overview", agent_name=AGENT_CONTACT)

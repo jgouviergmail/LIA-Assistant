@@ -26,6 +26,7 @@ this rewrite removed. Its two concerns did not vanish, they MOVED:
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
@@ -33,7 +34,17 @@ from uuid import uuid4
 
 import pytest
 
+from src.core.field_names import FIELD_TOOL_DATA
+from src.domains.agents.google_contacts.person_overview_manifest import (
+    get_person_overview_catalogue_manifest,
+)
+from src.domains.agents.orchestration.tool_data_projection import tool_data_fields
 from src.domains.agents.tools import person_tools
+from src.domains.agents.tools.react_tool_wrapper import compose_tool_message
+from src.domains.agents.utils.content_wrapper import (
+    EXTERNAL_CONTENT_CLOSE_TAG,
+    EXTERNAL_CONTENT_WARNING,
+)
 from src.domains.relations.overview import evidence as evidence_module
 from src.domains.relations.overview import fallback as fallback_module
 from src.domains.relations.overview_scope import (
@@ -583,23 +594,21 @@ class TestWhatActuallyReachesTheAssistant:
 
     Measured on the dev API, 2026-08-01: this tool ran, produced relayed
     messages, commitments and memories, and the assistant answered *"I have no
-    data at hand"*. Every oracle above passed throughout — they assert what the
-    tool PRODUCES (`structured_data`), and the response prompt is fed by two
-    other channels entirely: the data registry (only tools declaring a
-    `context_key`, which this one deliberately does not — the registry
-    serialises ITEMS for filtering, one truncated line each) and the `message`
-    field, which carried `"overview built for X"`. Proof the tool ran, and not
-    one fact.
+    data at hand"* — the payload had reached `structured_data` and stopped
+    there. It was then serialised into `message`, the one channel the pipeline
+    read, which the ReAct loop received a second time beside its data block.
+    Since ADR-347 the payload reaches the answer as the tool's DATA BLOCK in
+    both modes, and the message is its header.
 
     These oracles therefore assert the CHANNEL, not the payload.
     """
 
-    async def test_the_message_carries_the_facts_not_just_a_receipt(self) -> None:
-        result = await _run()
+    async def test_the_data_block_carries_the_facts_not_just_a_receipt(self) -> None:
+        body = json.dumps(_data_block(await _run()), ensure_ascii=False)
 
-        assert "Engagement 0" in result.message
-        assert "Salut" in result.message
-        assert "gerard@x.com" in result.message
+        assert "Engagement 0" in body
+        assert "Salut" in body
+        assert "gerard@x.com" in body
 
     async def test_the_message_names_the_person(self) -> None:
         """The synthesizer must know WHO the block is about."""
@@ -607,51 +616,63 @@ class TestWhatActuallyReachesTheAssistant:
 
         assert result.message.startswith("360 overview for Gérard Dupont")
 
-    async def test_the_message_and_the_payload_never_diverge(self) -> None:
-        """One source: the message IS the payload, not a second rendering.
-
-        A hand-written summary alongside a structured payload is two truths
-        about the same read, free to drift apart.
-        """
-        import json
-
+    async def test_the_block_and_the_payload_never_diverge(self) -> None:
+        """One source: the block IS the payload, not a second rendering."""
         result = await _run()
-        _, _, body = result.message.partition("\n")
 
-        assert json.loads(body) == json.loads(json.dumps(result.structured_data, default=str))
+        assert _data_block(result) == json.loads(json.dumps(result.structured_data, default=str))
 
-    async def test_an_unreadable_section_stays_unreadable_in_the_message(self) -> None:
+    async def test_the_react_loop_reads_the_payload_once(self) -> None:
+        result = await _run()
+
+        body = compose_tool_message(result, tool_name="get_person_overview_tool")
+
+        assert body.count('"open_commitments_total"') == 1
+
+    async def test_an_unreadable_section_stays_unreadable_in_the_block(self) -> None:
         """The ADR-190 distinction must survive serialisation.
 
         A block that could not be read carries NO key and is named in
         `unavailable`; an empty list means "looked, found nothing". Collapsing
         the two is how "I could not check" becomes "there is nothing".
         """
-        import json
-
         context = _context(emails=_section(ContextStatus.NOT_CONFIGURED))
         result = await _run(context=context)
-        body = json.loads(result.message.partition("\n")[2])
+        body = _data_block(result)
 
         assert "emails" not in body
-        assert "emails" in body["unavailable"]
+        assert "emails" in _unavailable(body)
+        assert "could not read: emails" in result.message
 
     async def test_an_empty_section_stays_an_empty_list(self) -> None:
-        import json
-
         context = _context(emails=_section(ContextStatus.EMPTY))
-        result = await _run(context=context)
-        body = json.loads(result.message.partition("\n")[2])
+        body = _data_block(await _run(context=context))
 
         assert body["emails"] == []
-        assert "emails" not in body["unavailable"]
+        assert "emails" not in _unavailable(body)
 
     async def test_the_exact_totals_reach_the_assistant(self) -> None:
         """ADR-185: a count shown is a claim. It must survive the channel."""
-        import json
-
-        result = await _run()
-        body = json.loads(result.message.partition("\n")[2])
+        body = _data_block(await _run())
 
         assert body["open_commitments_total"] == 8
         assert body["recent_calls_total"] == 1
+
+
+def _unavailable(body: dict[str, object]) -> list[object]:
+    """The blocks the overview could not read, as its payload names them."""
+    unavailable = body["unavailable"]
+    assert isinstance(unavailable, list)
+    return unavailable
+
+
+def _data_block(result: object) -> dict[str, object]:
+    """The payload as the pipeline's response model reads it: the projected block."""
+    (record,) = tool_data_fields(
+        result,
+        manifest=get_person_overview_catalogue_manifest,
+        tool_name="get_person_overview_tool",
+    )[FIELD_TOOL_DATA]
+    inside = record["text"].split(f"{EXTERNAL_CONTENT_WARNING}\n", 1)[1]
+    parsed: dict[str, object] = json.loads(inside.rsplit(f"\n{EXTERNAL_CONTENT_CLOSE_TAG}", 1)[0])
+    return parsed

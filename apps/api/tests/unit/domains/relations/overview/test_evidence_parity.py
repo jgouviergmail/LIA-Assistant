@@ -8,7 +8,10 @@ first consumer.
 
 ``golden_overview_payloads.json`` was captured from the PRE-extraction tool over
 a scope matrix. Every case below must reproduce it byte for byte: the extraction
-is a refactor, and a refactor that changes an answer is not one.
+is a refactor, and a refactor that changes an answer is not one. Its MESSAGES
+were re-derived once, by ADR-347: the payload now reaches the response model as
+the tool's data block, so the message is the header alone — the payloads were
+left untouched.
 
 The one thing that MUST change is measured separately, in
 :class:`TestItOnlyPaysForWhatTheScopeAsks` — the pre-extraction tool read the
@@ -24,7 +27,13 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from src.core.field_names import FIELD_TOOL_DATA
+from src.domains.agents.google_contacts.person_overview_manifest import (
+    get_person_overview_catalogue_manifest,
+)
+from src.domains.agents.orchestration.tool_data_projection import tool_data_fields
 from src.domains.agents.tools import person_tools
+from src.domains.agents.tools.react_tool_wrapper import compose_tool_message
 from src.domains.relations.overview import evidence as evidence_module
 from src.domains.relations.overview import fallback as fallback_module
 from src.domains.relations.overview_scope import (
@@ -161,7 +170,7 @@ class TestItAnswersExactlyWhatItAnsweredBefore:
 
     @pytest.mark.parametrize("case", sorted(CASES))
     async def test_message_matches_the_frozen_capture(self, case: str) -> None:
-        """The message field is the only channel reaching the response prompt."""
+        """The header: whose overview, and which blocks could not be read (ADR-190)."""
         result, _ = await _run_tool(**CASES[case])
         assert result.message == GOLDEN[case]["message"]
 
@@ -192,3 +201,28 @@ class TestItOnlyPaysForWhatTheScopeAsks:
         for case in sorted(set(CASES) - set(EXPECTED_CONTEXT_READS)):
             _, reads = await _run_tool(**CASES[case])
             assert reads == 1, case
+
+
+class TestThePayloadReachesTheAnswerOnce:
+    """ADR-347: one channel per mode, and the payload in it exactly once."""
+
+    async def test_the_react_loop_reads_the_header_then_the_payload_once(self) -> None:
+        result, _ = await _run_tool(**CASES["default"])
+
+        body = compose_tool_message(result, tool_name="get_person_overview_tool")
+
+        assert body.startswith(GOLDEN["default"]["message"])
+        assert body.count('"identity_confidence"') == 1
+        assert "<external_content" in body
+
+    async def test_the_pipeline_projects_the_payload_for_the_response(self) -> None:
+        result, _ = await _run_tool(**CASES["memories_unreadable"])
+
+        (record,) = tool_data_fields(
+            result,
+            manifest=get_person_overview_catalogue_manifest,
+            tool_name="get_person_overview_tool",
+        )[FIELD_TOOL_DATA]
+
+        assert '"unavailable"' in record["text"]
+        assert "<external_content" in record["text"]

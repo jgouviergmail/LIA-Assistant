@@ -1295,8 +1295,9 @@ class TestToolMessagesSurviveNormalization:
         )
         return mapped["1:plan_executor"]["data"]
 
-    #: The production shape, reduced: a briefing whose ONLY channel is its
-    #: message, alongside tools whose payloads trigger normalization.
+    #: The production shape, reduced: a step whose words travel in its step
+    #: payload — as its data blocks do since ADR-347 — alongside tools whose
+    #: payloads trigger normalization.
     BRIEFING = {"result": "360 overview for Alice: relayed messages...", "person": "Alice"}
 
     def test_two_domains_keep_the_briefing(self):

@@ -1,6 +1,6 @@
 {
   "contact_only": {
-    "message": "360 overview for Gérard Dupont:\n{\"person\":\"Gérard Dupont\",\"identity_confidence\":\"exact\",\"is_peer\":true,\"peer_connection\":{\"shared_by_me\":[\"task:titles\"],\"shared_with_me\":[\"calendar:availability\"],\"connected_since\":\"2026-08-01T09:00:00+00:00\"},\"contact\":{\"display_name\":\"Gérard Dupont\",\"nickname\":\"Gégé\",\"organization\":\"ACME\",\"occupation\":\"Architecte\",\"birthday\":\"--04-07\",\"biography\":\"Rencontré au forum.\",\"emails\":[\"gerard@x.com\"],\"addresses\":[\"12 rue des Lilas, Lyon\"],\"links\":[\"https://example.com\"],\"phones\":[\"+33600000000 (mobile)\"],\"relations\":[\"Claire Lefèvre (spouse)\"],\"important_dates\":[\"2011-09-03 (anniversary)\"],\"messaging\":[\"gerard.d (skype)\"]},\"unavailable\":[]}",
+    "message": "360 overview for Gérard Dupont.",
     "structured_data": {
       "contact": {
         "addresses": [
@@ -47,7 +47,7 @@
     }
   },
   "default": {
-    "message": "360 overview for Gérard Dupont:\n{\"person\":\"Gérard Dupont\",\"identity_confidence\":\"exact\",\"is_peer\":true,\"peer_connection\":{\"shared_by_me\":[\"task:titles\"],\"shared_with_me\":[\"calendar:availability\"],\"connected_since\":\"2026-08-01T09:00:00+00:00\"},\"open_commitments\":[{\"subject\":\"Engagement 0\",\"direction\":\"user_owes\",\"days_open\":0},{\"subject\":\"Engagement 1\",\"direction\":\"user_owes\",\"days_open\":1},{\"subject\":\"Engagement 2\",\"direction\":\"user_owes\",\"days_open\":2,\"due_hint\":\"2026-08-01T09:00:00+00:00\"},{\"subject\":\"Engagement 3\",\"direction\":\"user_owes\",\"days_open\":3},{\"subject\":\"Engagement 4\",\"direction\":\"user_owes\",\"days_open\":4}],\"open_commitments_total\":8,\"recent_calls\":[{\"objective\":\"Anniversaire\",\"outcome\":\"answered\",\"summary\":\"OK\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"}],\"recent_calls_total\":1,\"relayed_messages\":[{\"direction\":\"received\",\"text\":\"Salut\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"},{\"direction\":\"sent\",\"text\":\"Ok\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"}],\"relayed_messages_total\":2,\"memories\":[\"Aime la randonnée\"],\"contact\":{\"display_name\":\"Gérard Dupont\",\"nickname\":\"Gégé\",\"organization\":\"ACME\",\"occupation\":\"Architecte\",\"birthday\":\"--04-07\",\"biography\":\"Rencontré au forum.\",\"emails\":[\"gerard@x.com\"],\"addresses\":[\"12 rue des Lilas, Lyon\"],\"links\":[\"https://example.com\"],\"phones\":[\"+33600000000 (mobile)\"],\"relations\":[\"Claire Lefèvre (spouse)\"],\"important_dates\":[\"2011-09-03 (anniversary)\"],\"messaging\":[\"gerard.d (skype)\"]},\"emails\":[{\"direction\":\"received\",\"subject\":\"Devis\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\",\"excerpt\":\"Bonjour\"},{\"direction\":\"sent\",\"subject\":\"Relance\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"}],\"emails_window_days\":365,\"events\":[{\"summary\":\"Chantier\",\"role\":\"organizer\",\"starts_at\":\"2026-08-01T09:00:00+00:00\",\"ends_at\":\"2026-08-01T09:00:00+00:00\",\"is_past\":false},{\"summary\":\"Point\",\"role\":\"attendee\",\"starts_at\":\"2026-08-01T09:00:00+00:00\",\"ends_at\":null,\"is_past\":true},{\"summary\":\"Apple\",\"role\":\"unknown\",\"starts_at\":\"2026-08-01T09:00:00+00:00\",\"ends_at\":null,\"is_past\":false}],\"events_window_days\":90,\"unavailable\":[]}",
+    "message": "360 overview for Gérard Dupont.",
     "structured_data": {
       "contact": {
         "addresses": [
@@ -186,7 +186,7 @@
     }
   },
   "emails_only": {
-    "message": "360 overview for Gérard Dupont:\n{\"person\":\"Gérard Dupont\",\"identity_confidence\":\"exact\",\"is_peer\":true,\"peer_connection\":{\"shared_by_me\":[\"task:titles\"],\"shared_with_me\":[\"calendar:availability\"],\"connected_since\":\"2026-08-01T09:00:00+00:00\"},\"emails\":[{\"direction\":\"received\",\"subject\":\"Devis\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\",\"excerpt\":\"Bonjour\"},{\"direction\":\"sent\",\"subject\":\"Relance\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"}],\"emails_window_days\":365,\"unavailable\":[]}",
+    "message": "360 overview for Gérard Dupont.",
     "structured_data": {
       "emails": [
         {
@@ -218,7 +218,7 @@
     }
   },
   "empty_relation": {
-    "message": "360 overview for Gérard Dupont:\n{\"person\":\"Gérard Dupont\",\"identity_confidence\":\"exact\",\"is_peer\":false,\"open_commitments\":[],\"open_commitments_total\":0,\"recent_calls\":[],\"recent_calls_total\":0,\"relayed_messages\":[],\"relayed_messages_total\":0,\"memories\":[],\"emails\":[],\"emails_window_days\":365,\"events\":[],\"events_window_days\":90,\"unavailable\":[]}",
+    "message": "360 overview for Gérard Dupont.",
     "structured_data": {
       "emails": [],
       "emails_window_days": 365,
@@ -238,7 +238,7 @@
     }
   },
   "events_only": {
-    "message": "360 overview for Gérard Dupont:\n{\"person\":\"Gérard Dupont\",\"identity_confidence\":\"exact\",\"is_peer\":true,\"peer_connection\":{\"shared_by_me\":[\"task:titles\"],\"shared_with_me\":[\"calendar:availability\"],\"connected_since\":\"2026-08-01T09:00:00+00:00\"},\"events\":[{\"summary\":\"Chantier\",\"role\":\"organizer\",\"starts_at\":\"2026-08-01T09:00:00+00:00\",\"ends_at\":\"2026-08-01T09:00:00+00:00\",\"is_past\":false},{\"summary\":\"Point\",\"role\":\"attendee\",\"starts_at\":\"2026-08-01T09:00:00+00:00\",\"ends_at\":null,\"is_past\":true},{\"summary\":\"Apple\",\"role\":\"unknown\",\"starts_at\":\"2026-08-01T09:00:00+00:00\",\"ends_at\":null,\"is_past\":false}],\"events_window_days\":90,\"unavailable\":[]}",
+    "message": "360 overview for Gérard Dupont.",
     "structured_data": {
       "events": [
         {
@@ -280,7 +280,7 @@
     }
   },
   "local_only": {
-    "message": "360 overview for Gérard Dupont:\n{\"person\":\"Gérard Dupont\",\"identity_confidence\":\"exact\",\"is_peer\":true,\"peer_connection\":{\"shared_by_me\":[\"task:titles\"],\"shared_with_me\":[\"calendar:availability\"],\"connected_since\":\"2026-08-01T09:00:00+00:00\"},\"open_commitments\":[{\"subject\":\"Engagement 0\",\"direction\":\"user_owes\",\"days_open\":0},{\"subject\":\"Engagement 1\",\"direction\":\"user_owes\",\"days_open\":1},{\"subject\":\"Engagement 2\",\"direction\":\"user_owes\",\"days_open\":2,\"due_hint\":\"2026-08-01T09:00:00+00:00\"},{\"subject\":\"Engagement 3\",\"direction\":\"user_owes\",\"days_open\":3},{\"subject\":\"Engagement 4\",\"direction\":\"user_owes\",\"days_open\":4}],\"open_commitments_total\":8,\"recent_calls\":[{\"objective\":\"Anniversaire\",\"outcome\":\"answered\",\"summary\":\"OK\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"}],\"recent_calls_total\":1,\"relayed_messages\":[{\"direction\":\"received\",\"text\":\"Salut\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"},{\"direction\":\"sent\",\"text\":\"Ok\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"}],\"relayed_messages_total\":2,\"memories\":[\"Aime la randonnée\"],\"unavailable\":[]}",
+    "message": "360 overview for Gérard Dupont.",
     "structured_data": {
       "identity_confidence": "exact",
       "is_peer": true,
@@ -352,7 +352,7 @@
     }
   },
   "max_items_1": {
-    "message": "360 overview for Gérard Dupont:\n{\"person\":\"Gérard Dupont\",\"identity_confidence\":\"exact\",\"is_peer\":true,\"peer_connection\":{\"shared_by_me\":[\"task:titles\"],\"shared_with_me\":[\"calendar:availability\"],\"connected_since\":\"2026-08-01T09:00:00+00:00\"},\"open_commitments\":[{\"subject\":\"Engagement 0\",\"direction\":\"user_owes\",\"days_open\":0}],\"open_commitments_total\":8,\"recent_calls\":[{\"objective\":\"Anniversaire\",\"outcome\":\"answered\",\"summary\":\"OK\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"}],\"recent_calls_total\":1,\"relayed_messages\":[{\"direction\":\"received\",\"text\":\"Salut\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"}],\"relayed_messages_total\":2,\"memories\":[\"Aime la randonnée\"],\"contact\":{\"display_name\":\"Gérard Dupont\",\"nickname\":\"Gégé\",\"organization\":\"ACME\",\"occupation\":\"Architecte\",\"birthday\":\"--04-07\",\"biography\":\"Rencontré au forum.\",\"emails\":[\"gerard@x.com\"],\"addresses\":[\"12 rue des Lilas, Lyon\"],\"links\":[\"https://example.com\"],\"phones\":[\"+33600000000 (mobile)\"],\"relations\":[\"Claire Lefèvre (spouse)\"],\"important_dates\":[\"2011-09-03 (anniversary)\"],\"messaging\":[\"gerard.d (skype)\"]},\"emails\":[{\"direction\":\"received\",\"subject\":\"Devis\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\",\"excerpt\":\"Bonjour\"}],\"emails_window_days\":365,\"events\":[{\"summary\":\"Chantier\",\"role\":\"organizer\",\"starts_at\":\"2026-08-01T09:00:00+00:00\",\"ends_at\":\"2026-08-01T09:00:00+00:00\",\"is_past\":false}],\"events_window_days\":90,\"unavailable\":[]}",
+    "message": "360 overview for Gérard Dupont.",
     "structured_data": {
       "contact": {
         "addresses": [
@@ -446,7 +446,7 @@
     }
   },
   "max_items_25": {
-    "message": "360 overview for Gérard Dupont:\n{\"person\":\"Gérard Dupont\",\"identity_confidence\":\"exact\",\"is_peer\":true,\"peer_connection\":{\"shared_by_me\":[\"task:titles\"],\"shared_with_me\":[\"calendar:availability\"],\"connected_since\":\"2026-08-01T09:00:00+00:00\"},\"open_commitments\":[{\"subject\":\"Engagement 0\",\"direction\":\"user_owes\",\"days_open\":0},{\"subject\":\"Engagement 1\",\"direction\":\"user_owes\",\"days_open\":1},{\"subject\":\"Engagement 2\",\"direction\":\"user_owes\",\"days_open\":2,\"due_hint\":\"2026-08-01T09:00:00+00:00\"},{\"subject\":\"Engagement 3\",\"direction\":\"user_owes\",\"days_open\":3},{\"subject\":\"Engagement 4\",\"direction\":\"user_owes\",\"days_open\":4},{\"subject\":\"Engagement 5\",\"direction\":\"user_owes\",\"days_open\":5},{\"subject\":\"Engagement 6\",\"direction\":\"user_owes\",\"days_open\":6},{\"subject\":\"Engagement 7\",\"direction\":\"user_owes\",\"days_open\":7}],\"open_commitments_total\":8,\"recent_calls\":[{\"objective\":\"Anniversaire\",\"outcome\":\"answered\",\"summary\":\"OK\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"}],\"recent_calls_total\":1,\"relayed_messages\":[{\"direction\":\"received\",\"text\":\"Salut\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"},{\"direction\":\"sent\",\"text\":\"Ok\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"}],\"relayed_messages_total\":2,\"memories\":[\"Aime la randonnée\"],\"contact\":{\"display_name\":\"Gérard Dupont\",\"nickname\":\"Gégé\",\"organization\":\"ACME\",\"occupation\":\"Architecte\",\"birthday\":\"--04-07\",\"biography\":\"Rencontré au forum.\",\"emails\":[\"gerard@x.com\"],\"addresses\":[\"12 rue des Lilas, Lyon\"],\"links\":[\"https://example.com\"],\"phones\":[\"+33600000000 (mobile)\"],\"relations\":[\"Claire Lefèvre (spouse)\"],\"important_dates\":[\"2011-09-03 (anniversary)\"],\"messaging\":[\"gerard.d (skype)\"]},\"emails\":[{\"direction\":\"received\",\"subject\":\"Devis\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\",\"excerpt\":\"Bonjour\"},{\"direction\":\"sent\",\"subject\":\"Relance\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"}],\"emails_window_days\":365,\"events\":[{\"summary\":\"Chantier\",\"role\":\"organizer\",\"starts_at\":\"2026-08-01T09:00:00+00:00\",\"ends_at\":\"2026-08-01T09:00:00+00:00\",\"is_past\":false},{\"summary\":\"Point\",\"role\":\"attendee\",\"starts_at\":\"2026-08-01T09:00:00+00:00\",\"ends_at\":null,\"is_past\":true},{\"summary\":\"Apple\",\"role\":\"unknown\",\"starts_at\":\"2026-08-01T09:00:00+00:00\",\"ends_at\":null,\"is_past\":false}],\"events_window_days\":90,\"unavailable\":[]}",
+    "message": "360 overview for Gérard Dupont.",
     "structured_data": {
       "contact": {
         "addresses": [
@@ -600,7 +600,7 @@
     }
   },
   "memories_empty": {
-    "message": "360 overview for Gérard Dupont:\n{\"person\":\"Gérard Dupont\",\"identity_confidence\":\"exact\",\"is_peer\":true,\"peer_connection\":{\"shared_by_me\":[\"task:titles\"],\"shared_with_me\":[\"calendar:availability\"],\"connected_since\":\"2026-08-01T09:00:00+00:00\"},\"open_commitments\":[{\"subject\":\"Engagement 0\",\"direction\":\"user_owes\",\"days_open\":0},{\"subject\":\"Engagement 1\",\"direction\":\"user_owes\",\"days_open\":1},{\"subject\":\"Engagement 2\",\"direction\":\"user_owes\",\"days_open\":2,\"due_hint\":\"2026-08-01T09:00:00+00:00\"},{\"subject\":\"Engagement 3\",\"direction\":\"user_owes\",\"days_open\":3},{\"subject\":\"Engagement 4\",\"direction\":\"user_owes\",\"days_open\":4}],\"open_commitments_total\":8,\"recent_calls\":[{\"objective\":\"Anniversaire\",\"outcome\":\"answered\",\"summary\":\"OK\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"}],\"recent_calls_total\":1,\"relayed_messages\":[{\"direction\":\"received\",\"text\":\"Salut\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"},{\"direction\":\"sent\",\"text\":\"Ok\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"}],\"relayed_messages_total\":2,\"memories\":[],\"contact\":{\"display_name\":\"Gérard Dupont\",\"nickname\":\"Gégé\",\"organization\":\"ACME\",\"occupation\":\"Architecte\",\"birthday\":\"--04-07\",\"biography\":\"Rencontré au forum.\",\"emails\":[\"gerard@x.com\"],\"addresses\":[\"12 rue des Lilas, Lyon\"],\"links\":[\"https://example.com\"],\"phones\":[\"+33600000000 (mobile)\"],\"relations\":[\"Claire Lefèvre (spouse)\"],\"important_dates\":[\"2011-09-03 (anniversary)\"],\"messaging\":[\"gerard.d (skype)\"]},\"emails\":[{\"direction\":\"received\",\"subject\":\"Devis\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\",\"excerpt\":\"Bonjour\"},{\"direction\":\"sent\",\"subject\":\"Relance\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"}],\"emails_window_days\":365,\"events\":[{\"summary\":\"Chantier\",\"role\":\"organizer\",\"starts_at\":\"2026-08-01T09:00:00+00:00\",\"ends_at\":\"2026-08-01T09:00:00+00:00\",\"is_past\":false},{\"summary\":\"Point\",\"role\":\"attendee\",\"starts_at\":\"2026-08-01T09:00:00+00:00\",\"ends_at\":null,\"is_past\":true},{\"summary\":\"Apple\",\"role\":\"unknown\",\"starts_at\":\"2026-08-01T09:00:00+00:00\",\"ends_at\":null,\"is_past\":false}],\"events_window_days\":90,\"unavailable\":[]}",
+    "message": "360 overview for Gérard Dupont.",
     "structured_data": {
       "contact": {
         "addresses": [
@@ -737,7 +737,7 @@
     }
   },
   "memories_unreadable": {
-    "message": "360 overview for Gérard Dupont (could not read: memories):\n{\"person\":\"Gérard Dupont\",\"identity_confidence\":\"exact\",\"is_peer\":true,\"peer_connection\":{\"shared_by_me\":[\"task:titles\"],\"shared_with_me\":[\"calendar:availability\"],\"connected_since\":\"2026-08-01T09:00:00+00:00\"},\"open_commitments\":[{\"subject\":\"Engagement 0\",\"direction\":\"user_owes\",\"days_open\":0},{\"subject\":\"Engagement 1\",\"direction\":\"user_owes\",\"days_open\":1},{\"subject\":\"Engagement 2\",\"direction\":\"user_owes\",\"days_open\":2,\"due_hint\":\"2026-08-01T09:00:00+00:00\"},{\"subject\":\"Engagement 3\",\"direction\":\"user_owes\",\"days_open\":3},{\"subject\":\"Engagement 4\",\"direction\":\"user_owes\",\"days_open\":4}],\"open_commitments_total\":8,\"recent_calls\":[{\"objective\":\"Anniversaire\",\"outcome\":\"answered\",\"summary\":\"OK\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"}],\"recent_calls_total\":1,\"relayed_messages\":[{\"direction\":\"received\",\"text\":\"Salut\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"},{\"direction\":\"sent\",\"text\":\"Ok\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"}],\"relayed_messages_total\":2,\"contact\":{\"display_name\":\"Gérard Dupont\",\"nickname\":\"Gégé\",\"organization\":\"ACME\",\"occupation\":\"Architecte\",\"birthday\":\"--04-07\",\"biography\":\"Rencontré au forum.\",\"emails\":[\"gerard@x.com\"],\"addresses\":[\"12 rue des Lilas, Lyon\"],\"links\":[\"https://example.com\"],\"phones\":[\"+33600000000 (mobile)\"],\"relations\":[\"Claire Lefèvre (spouse)\"],\"important_dates\":[\"2011-09-03 (anniversary)\"],\"messaging\":[\"gerard.d (skype)\"]},\"emails\":[{\"direction\":\"received\",\"subject\":\"Devis\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\",\"excerpt\":\"Bonjour\"},{\"direction\":\"sent\",\"subject\":\"Relance\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"}],\"emails_window_days\":365,\"events\":[{\"summary\":\"Chantier\",\"role\":\"organizer\",\"starts_at\":\"2026-08-01T09:00:00+00:00\",\"ends_at\":\"2026-08-01T09:00:00+00:00\",\"is_past\":false},{\"summary\":\"Point\",\"role\":\"attendee\",\"starts_at\":\"2026-08-01T09:00:00+00:00\",\"ends_at\":null,\"is_past\":true},{\"summary\":\"Apple\",\"role\":\"unknown\",\"starts_at\":\"2026-08-01T09:00:00+00:00\",\"ends_at\":null,\"is_past\":false}],\"events_window_days\":90,\"unavailable\":[\"memories\"]}",
+    "message": "360 overview for Gérard Dupont (could not read: memories).",
     "structured_data": {
       "contact": {
         "addresses": [
@@ -875,7 +875,7 @@
     }
   },
   "no_address_with_fallback": {
-    "message": "360 overview for Gérard Dupont:\n{\"person\":\"Gérard Dupont\",\"identity_confidence\":\"exact\",\"is_peer\":true,\"peer_connection\":{\"shared_by_me\":[\"task:titles\"],\"shared_with_me\":[\"calendar:availability\"],\"connected_since\":\"2026-08-01T09:00:00+00:00\"},\"open_commitments\":[{\"subject\":\"Engagement 0\",\"direction\":\"user_owes\",\"days_open\":0},{\"subject\":\"Engagement 1\",\"direction\":\"user_owes\",\"days_open\":1},{\"subject\":\"Engagement 2\",\"direction\":\"user_owes\",\"days_open\":2,\"due_hint\":\"2026-08-01T09:00:00+00:00\"},{\"subject\":\"Engagement 3\",\"direction\":\"user_owes\",\"days_open\":3},{\"subject\":\"Engagement 4\",\"direction\":\"user_owes\",\"days_open\":4}],\"open_commitments_total\":8,\"recent_calls\":[{\"objective\":\"Anniversaire\",\"outcome\":\"answered\",\"summary\":\"OK\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"}],\"recent_calls_total\":1,\"relayed_messages\":[{\"direction\":\"received\",\"text\":\"Salut\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"},{\"direction\":\"sent\",\"text\":\"Ok\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"}],\"relayed_messages_total\":2,\"memories\":[\"Aime la randonnée\"],\"contact\":{\"display_name\":\"Gérard Dupont\",\"nickname\":\"Gégé\",\"organization\":\"ACME\",\"occupation\":\"Architecte\",\"birthday\":\"--04-07\",\"biography\":\"Rencontré au forum.\",\"emails\":[\"gerard@x.com\"],\"addresses\":[\"12 rue des Lilas, Lyon\"],\"links\":[\"https://example.com\"],\"phones\":[\"+33600000000 (mobile)\"],\"relations\":[\"Claire Lefèvre (spouse)\"],\"important_dates\":[\"2011-09-03 (anniversary)\"],\"messaging\":[\"gerard.d (skype)\"]},\"emails\":[{\"subject\":\"S\",\"from\":\"f\",\"date\":\"1\",\"snippet\":\"x\"}],\"emails_matched_by_name\":true,\"events\":[{\"title\":\"T\",\"start\":\"2026-08-02\",\"location\":null}],\"events_matched_by_name\":true,\"unavailable\":[]}",
+    "message": "360 overview for Gérard Dupont.",
     "structured_data": {
       "contact": {
         "addresses": [
@@ -993,7 +993,7 @@
     }
   },
   "no_address_without_fallback": {
-    "message": "360 overview for Gérard Dupont (could not read: emails, events):\n{\"person\":\"Gérard Dupont\",\"identity_confidence\":\"exact\",\"is_peer\":true,\"peer_connection\":{\"shared_by_me\":[\"task:titles\"],\"shared_with_me\":[\"calendar:availability\"],\"connected_since\":\"2026-08-01T09:00:00+00:00\"},\"open_commitments\":[{\"subject\":\"Engagement 0\",\"direction\":\"user_owes\",\"days_open\":0},{\"subject\":\"Engagement 1\",\"direction\":\"user_owes\",\"days_open\":1},{\"subject\":\"Engagement 2\",\"direction\":\"user_owes\",\"days_open\":2,\"due_hint\":\"2026-08-01T09:00:00+00:00\"},{\"subject\":\"Engagement 3\",\"direction\":\"user_owes\",\"days_open\":3},{\"subject\":\"Engagement 4\",\"direction\":\"user_owes\",\"days_open\":4}],\"open_commitments_total\":8,\"recent_calls\":[{\"objective\":\"Anniversaire\",\"outcome\":\"answered\",\"summary\":\"OK\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"}],\"recent_calls_total\":1,\"relayed_messages\":[{\"direction\":\"received\",\"text\":\"Salut\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"},{\"direction\":\"sent\",\"text\":\"Ok\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"}],\"relayed_messages_total\":2,\"memories\":[\"Aime la randonnée\"],\"contact\":{\"display_name\":\"Gérard Dupont\",\"nickname\":\"Gégé\",\"organization\":\"ACME\",\"occupation\":\"Architecte\",\"birthday\":\"--04-07\",\"biography\":\"Rencontré au forum.\",\"emails\":[\"gerard@x.com\"],\"addresses\":[\"12 rue des Lilas, Lyon\"],\"links\":[\"https://example.com\"],\"phones\":[\"+33600000000 (mobile)\"],\"relations\":[\"Claire Lefèvre (spouse)\"],\"important_dates\":[\"2011-09-03 (anniversary)\"],\"messaging\":[\"gerard.d (skype)\"]},\"unavailable\":[\"emails\",\"events\"]}",
+    "message": "360 overview for Gérard Dupont (could not read: emails, events).",
     "structured_data": {
       "contact": {
         "addresses": [
@@ -1097,7 +1097,7 @@
     }
   },
   "no_peer_link": {
-    "message": "360 overview for Gérard Dupont:\n{\"person\":\"Gérard Dupont\",\"identity_confidence\":\"exact\",\"is_peer\":false,\"open_commitments\":[{\"subject\":\"Engagement 0\",\"direction\":\"user_owes\",\"days_open\":0},{\"subject\":\"Engagement 1\",\"direction\":\"user_owes\",\"days_open\":1},{\"subject\":\"Engagement 2\",\"direction\":\"user_owes\",\"days_open\":2,\"due_hint\":\"2026-08-01T09:00:00+00:00\"},{\"subject\":\"Engagement 3\",\"direction\":\"user_owes\",\"days_open\":3},{\"subject\":\"Engagement 4\",\"direction\":\"user_owes\",\"days_open\":4}],\"open_commitments_total\":8,\"recent_calls\":[{\"objective\":\"Anniversaire\",\"outcome\":\"answered\",\"summary\":\"OK\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"}],\"recent_calls_total\":1,\"relayed_messages\":[{\"direction\":\"received\",\"text\":\"Salut\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"},{\"direction\":\"sent\",\"text\":\"Ok\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"}],\"relayed_messages_total\":2,\"memories\":[\"Aime la randonnée\"],\"contact\":{\"display_name\":\"Gérard Dupont\",\"nickname\":\"Gégé\",\"organization\":\"ACME\",\"occupation\":\"Architecte\",\"birthday\":\"--04-07\",\"biography\":\"Rencontré au forum.\",\"emails\":[\"gerard@x.com\"],\"addresses\":[\"12 rue des Lilas, Lyon\"],\"links\":[\"https://example.com\"],\"phones\":[\"+33600000000 (mobile)\"],\"relations\":[\"Claire Lefèvre (spouse)\"],\"important_dates\":[\"2011-09-03 (anniversary)\"],\"messaging\":[\"gerard.d (skype)\"]},\"emails\":[{\"direction\":\"received\",\"subject\":\"Devis\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\",\"excerpt\":\"Bonjour\"},{\"direction\":\"sent\",\"subject\":\"Relance\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"}],\"emails_window_days\":365,\"events\":[{\"summary\":\"Chantier\",\"role\":\"organizer\",\"starts_at\":\"2026-08-01T09:00:00+00:00\",\"ends_at\":\"2026-08-01T09:00:00+00:00\",\"is_past\":false},{\"summary\":\"Point\",\"role\":\"attendee\",\"starts_at\":\"2026-08-01T09:00:00+00:00\",\"ends_at\":null,\"is_past\":true},{\"summary\":\"Apple\",\"role\":\"unknown\",\"starts_at\":\"2026-08-01T09:00:00+00:00\",\"ends_at\":null,\"is_past\":false}],\"events_window_days\":90,\"unavailable\":[]}",
+    "message": "360 overview for Gérard Dupont.",
     "structured_data": {
       "contact": {
         "addresses": [
@@ -1227,7 +1227,7 @@
     }
   },
   "no_sections": {
-    "message": "360 overview for Gérard Dupont:\n{\"person\":\"Gérard Dupont\",\"identity_confidence\":\"exact\",\"is_peer\":true,\"peer_connection\":{\"shared_by_me\":[\"task:titles\"],\"shared_with_me\":[\"calendar:availability\"],\"connected_since\":\"2026-08-01T09:00:00+00:00\"},\"unavailable\":[]}",
+    "message": "360 overview for Gérard Dupont.",
     "structured_data": {
       "identity_confidence": "exact",
       "is_peer": true,
@@ -1245,7 +1245,7 @@
     }
   },
   "organizer_only": {
-    "message": "360 overview for Gérard Dupont:\n{\"person\":\"Gérard Dupont\",\"identity_confidence\":\"exact\",\"is_peer\":true,\"peer_connection\":{\"shared_by_me\":[\"task:titles\"],\"shared_with_me\":[\"calendar:availability\"],\"connected_since\":\"2026-08-01T09:00:00+00:00\"},\"open_commitments\":[{\"subject\":\"Engagement 0\",\"direction\":\"user_owes\",\"days_open\":0},{\"subject\":\"Engagement 1\",\"direction\":\"user_owes\",\"days_open\":1},{\"subject\":\"Engagement 2\",\"direction\":\"user_owes\",\"days_open\":2,\"due_hint\":\"2026-08-01T09:00:00+00:00\"},{\"subject\":\"Engagement 3\",\"direction\":\"user_owes\",\"days_open\":3},{\"subject\":\"Engagement 4\",\"direction\":\"user_owes\",\"days_open\":4}],\"open_commitments_total\":8,\"recent_calls\":[{\"objective\":\"Anniversaire\",\"outcome\":\"answered\",\"summary\":\"OK\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"}],\"recent_calls_total\":1,\"relayed_messages\":[{\"direction\":\"received\",\"text\":\"Salut\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"},{\"direction\":\"sent\",\"text\":\"Ok\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"}],\"relayed_messages_total\":2,\"memories\":[\"Aime la randonnée\"],\"contact\":{\"display_name\":\"Gérard Dupont\",\"nickname\":\"Gégé\",\"organization\":\"ACME\",\"occupation\":\"Architecte\",\"birthday\":\"--04-07\",\"biography\":\"Rencontré au forum.\",\"emails\":[\"gerard@x.com\"],\"addresses\":[\"12 rue des Lilas, Lyon\"],\"links\":[\"https://example.com\"],\"phones\":[\"+33600000000 (mobile)\"],\"relations\":[\"Claire Lefèvre (spouse)\"],\"important_dates\":[\"2011-09-03 (anniversary)\"],\"messaging\":[\"gerard.d (skype)\"]},\"emails\":[{\"direction\":\"received\",\"subject\":\"Devis\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\",\"excerpt\":\"Bonjour\"},{\"direction\":\"sent\",\"subject\":\"Relance\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"}],\"emails_window_days\":365,\"events\":[{\"summary\":\"Chantier\",\"role\":\"organizer\",\"starts_at\":\"2026-08-01T09:00:00+00:00\",\"ends_at\":\"2026-08-01T09:00:00+00:00\",\"is_past\":false},{\"summary\":\"Apple\",\"role\":\"unknown\",\"starts_at\":\"2026-08-01T09:00:00+00:00\",\"ends_at\":null,\"is_past\":false}],\"events_window_days\":90,\"unavailable\":[]}",
+    "message": "360 overview for Gérard Dupont.",
     "structured_data": {
       "contact": {
         "addresses": [
@@ -1377,7 +1377,7 @@
     }
   },
   "provider_error": {
-    "message": "360 overview for Gérard Dupont (could not read: emails, events):\n{\"person\":\"Gérard Dupont\",\"identity_confidence\":\"exact\",\"is_peer\":true,\"peer_connection\":{\"shared_by_me\":[\"task:titles\"],\"shared_with_me\":[\"calendar:availability\"],\"connected_since\":\"2026-08-01T09:00:00+00:00\"},\"open_commitments\":[{\"subject\":\"Engagement 0\",\"direction\":\"user_owes\",\"days_open\":0},{\"subject\":\"Engagement 1\",\"direction\":\"user_owes\",\"days_open\":1},{\"subject\":\"Engagement 2\",\"direction\":\"user_owes\",\"days_open\":2,\"due_hint\":\"2026-08-01T09:00:00+00:00\"},{\"subject\":\"Engagement 3\",\"direction\":\"user_owes\",\"days_open\":3},{\"subject\":\"Engagement 4\",\"direction\":\"user_owes\",\"days_open\":4}],\"open_commitments_total\":8,\"recent_calls\":[{\"objective\":\"Anniversaire\",\"outcome\":\"answered\",\"summary\":\"OK\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"}],\"recent_calls_total\":1,\"relayed_messages\":[{\"direction\":\"received\",\"text\":\"Salut\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"},{\"direction\":\"sent\",\"text\":\"Ok\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"}],\"relayed_messages_total\":2,\"memories\":[\"Aime la randonnée\"],\"contact\":{\"display_name\":\"Gérard Dupont\",\"nickname\":\"Gégé\",\"organization\":\"ACME\",\"occupation\":\"Architecte\",\"birthday\":\"--04-07\",\"biography\":\"Rencontré au forum.\",\"emails\":[\"gerard@x.com\"],\"addresses\":[\"12 rue des Lilas, Lyon\"],\"links\":[\"https://example.com\"],\"phones\":[\"+33600000000 (mobile)\"],\"relations\":[\"Claire Lefèvre (spouse)\"],\"important_dates\":[\"2011-09-03 (anniversary)\"],\"messaging\":[\"gerard.d (skype)\"]},\"unavailable\":[\"emails\",\"events\"]}",
+    "message": "360 overview for Gérard Dupont (could not read: emails, events).",
     "structured_data": {
       "contact": {
         "addresses": [
@@ -1481,7 +1481,7 @@
     }
   },
   "provider_only": {
-    "message": "360 overview for Gérard Dupont:\n{\"person\":\"Gérard Dupont\",\"identity_confidence\":\"exact\",\"is_peer\":true,\"peer_connection\":{\"shared_by_me\":[\"task:titles\"],\"shared_with_me\":[\"calendar:availability\"],\"connected_since\":\"2026-08-01T09:00:00+00:00\"},\"contact\":{\"display_name\":\"Gérard Dupont\",\"nickname\":\"Gégé\",\"organization\":\"ACME\",\"occupation\":\"Architecte\",\"birthday\":\"--04-07\",\"biography\":\"Rencontré au forum.\",\"emails\":[\"gerard@x.com\"],\"addresses\":[\"12 rue des Lilas, Lyon\"],\"links\":[\"https://example.com\"],\"phones\":[\"+33600000000 (mobile)\"],\"relations\":[\"Claire Lefèvre (spouse)\"],\"important_dates\":[\"2011-09-03 (anniversary)\"],\"messaging\":[\"gerard.d (skype)\"]},\"emails\":[{\"direction\":\"received\",\"subject\":\"Devis\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\",\"excerpt\":\"Bonjour\"},{\"direction\":\"sent\",\"subject\":\"Relance\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"}],\"emails_window_days\":365,\"events\":[{\"summary\":\"Chantier\",\"role\":\"organizer\",\"starts_at\":\"2026-08-01T09:00:00+00:00\",\"ends_at\":\"2026-08-01T09:00:00+00:00\",\"is_past\":false},{\"summary\":\"Point\",\"role\":\"attendee\",\"starts_at\":\"2026-08-01T09:00:00+00:00\",\"ends_at\":null,\"is_past\":true},{\"summary\":\"Apple\",\"role\":\"unknown\",\"starts_at\":\"2026-08-01T09:00:00+00:00\",\"ends_at\":null,\"is_past\":false}],\"events_window_days\":90,\"unavailable\":[]}",
+    "message": "360 overview for Gérard Dupont.",
     "structured_data": {
       "contact": {
         "addresses": [
@@ -1566,7 +1566,7 @@
     }
   },
   "received_only": {
-    "message": "360 overview for Gérard Dupont:\n{\"person\":\"Gérard Dupont\",\"identity_confidence\":\"exact\",\"is_peer\":true,\"peer_connection\":{\"shared_by_me\":[\"task:titles\"],\"shared_with_me\":[\"calendar:availability\"],\"connected_since\":\"2026-08-01T09:00:00+00:00\"},\"open_commitments\":[{\"subject\":\"Engagement 0\",\"direction\":\"user_owes\",\"days_open\":0},{\"subject\":\"Engagement 1\",\"direction\":\"user_owes\",\"days_open\":1},{\"subject\":\"Engagement 2\",\"direction\":\"user_owes\",\"days_open\":2,\"due_hint\":\"2026-08-01T09:00:00+00:00\"},{\"subject\":\"Engagement 3\",\"direction\":\"user_owes\",\"days_open\":3},{\"subject\":\"Engagement 4\",\"direction\":\"user_owes\",\"days_open\":4}],\"open_commitments_total\":8,\"recent_calls\":[{\"objective\":\"Anniversaire\",\"outcome\":\"answered\",\"summary\":\"OK\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"}],\"recent_calls_total\":1,\"relayed_messages\":[{\"direction\":\"received\",\"text\":\"Salut\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\"}],\"memories\":[\"Aime la randonnée\"],\"contact\":{\"display_name\":\"Gérard Dupont\",\"nickname\":\"Gégé\",\"organization\":\"ACME\",\"occupation\":\"Architecte\",\"birthday\":\"--04-07\",\"biography\":\"Rencontré au forum.\",\"emails\":[\"gerard@x.com\"],\"addresses\":[\"12 rue des Lilas, Lyon\"],\"links\":[\"https://example.com\"],\"phones\":[\"+33600000000 (mobile)\"],\"relations\":[\"Claire Lefèvre (spouse)\"],\"important_dates\":[\"2011-09-03 (anniversary)\"],\"messaging\":[\"gerard.d (skype)\"]},\"emails\":[{\"direction\":\"received\",\"subject\":\"Devis\",\"occurred_at\":\"2026-08-01T09:00:00+00:00\",\"excerpt\":\"Bonjour\"}],\"emails_window_days\":365,\"events\":[{\"summary\":\"Chantier\",\"role\":\"organizer\",\"starts_at\":\"2026-08-01T09:00:00+00:00\",\"ends_at\":\"2026-08-01T09:00:00+00:00\",\"is_past\":false},{\"summary\":\"Point\",\"role\":\"attendee\",\"starts_at\":\"2026-08-01T09:00:00+00:00\",\"ends_at\":null,\"is_past\":true},{\"summary\":\"Apple\",\"role\":\"unknown\",\"starts_at\":\"2026-08-01T09:00:00+00:00\",\"ends_at\":null,\"is_past\":false}],\"events_window_days\":90,\"unavailable\":[]}",
+    "message": "360 overview for Gérard Dupont.",
     "structured_data": {
       "contact": {
         "addresses": [
