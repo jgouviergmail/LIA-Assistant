@@ -15,8 +15,9 @@ kept in legacy mode is never run through ``execute``: the label delete draft's
 executor calls its ``execute_api_call`` and reads the payload itself. And no tool
 function DECLARES a string return either: seventeen still said ``-> str`` over a
 registry class answering ``UnifiedToolOutput``, a lie the type checker could not
-see (``execute`` reaches it untyped) and the next legacy tool would have hidden
-behind.
+see — the tools package sits under a ``disable_error_code`` override that
+silences ``return-value`` (the frozen MyPy debt, audit F020) — and the next legacy
+tool would have hidden behind. These two rules hold the contract mypy cannot.
 """
 
 from __future__ import annotations

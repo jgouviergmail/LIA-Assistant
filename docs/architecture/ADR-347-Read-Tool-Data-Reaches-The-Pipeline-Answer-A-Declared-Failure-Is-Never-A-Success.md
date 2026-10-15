@@ -78,7 +78,10 @@ confirmation and every result the other items had produced.
    `src` in registry mode; the one declared exception, `DeleteLabelDirectTool`,
    is run through its `execute_api_call` alone. And no tool function declares a
    `str` return (AST guard): seventeen still did over registry classes, a lie the
-   type checker could not see, behind which the next legacy tool would have hidden.
+   type checker could not see — the tools package sits under a
+   `disable_error_code` override silencing `return-value` (the frozen MyPy debt,
+   audit F020) — behind which the next legacy tool would have hidden. The census
+   and the guard hold that contract where MyPy cannot.
 2. **A read tool declares how its data reaches the pipeline's answer**
    (`ToolManifest.pipeline_data_channel`): `data_block` by default; `message` for a
    tool whose message already renders its data — the peer availability renders the
