@@ -10,11 +10,12 @@ draft's fast path SHOWS the person, and a data block must never reach a chat
 bubble.
 
 Each record was already bounded by the response slot's budget when it was
-projected; the section as a whole is bounded by the same budget. When the
-records do not all fit, the smallest are kept — the cut falls on the largest
-blocks, never on the many small ones — and the dropped tools are named, with
-their count, because a block nobody mentions reads as data that does not
-exist. Every cut is stated to the model and counted.
+projected; the blocks the section holds are bounded by the same budget, its few
+scaffolding lines (the header, a label per block, the cut lines) uncounted. When
+the records do not all fit, the smallest are kept — the cut falls on the largest
+blocks, never on the many small ones, and one block is always kept — and the
+dropped tools are named, with their count, because a block nobody mentions
+reads as data that does not exist. Every cut is stated to the model and counted.
 """
 
 from __future__ import annotations

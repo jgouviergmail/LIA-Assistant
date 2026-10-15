@@ -22,6 +22,7 @@ import pytest
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
 
 from src.core.field_names import FIELD_TOOL_DATA
+from src.domains.agents.constants import AgentResultStatus
 from src.domains.agents.nodes.response_node import _build_response_chain
 from src.domains.agents.orchestration import parallel_executor as pe
 from src.domains.agents.orchestration import tool_data_projection as projection
@@ -36,6 +37,7 @@ from src.domains.agents.orchestration.tool_data_projection import (
     without_tool_data,
 )
 from src.domains.agents.registry.catalogue import CostProfile, PermissionProfile, ToolManifest
+from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.react_tool_wrapper import compose_tool_message
 
@@ -166,6 +168,34 @@ class TestTheRoad:
 
         assert '"origin": "home"' in prompt and '"origin": "office"' in prompt
         assert '"duration_minutes": 31' in prompt
+
+    async def test_a_loop_with_a_failed_item_keeps_the_others_data(self) -> None:
+        """The failed item is merged by the executor's own failure path."""
+        completed: dict[str, dict[str, Any]] = {}
+        succeeded = await _run_step("step_1_item_0", _matrix("home", (14, 15)), share=2)
+        failed = pe.StepResult(
+            step_id="step_1_item_1",
+            step_type=StepType.TOOL,
+            tool_name=_MANIFEST.name,
+            success=False,
+            error="quota reached",
+            error_code=ToolErrorCode.RATE_LIMIT_EXCEEDED,
+        )
+        for step in (succeeded, failed):
+            pe._merge_single_step_result(completed, step)
+        aggregate_for_each_results(completed, "step_1", ["step_1_item_0", "step_1_item_1"])
+
+        agent_results = map_execution_result_to_agent_result(
+            execution_result=build_execution_result([_plan_step("step_1")], completed),
+            plan_id="p",
+            turn_id=TURN,
+        )
+        (result,) = agent_results.values()
+        prompt = _prompt_text(agent_results)
+
+        assert result["status"] == AgentResultStatus.SUCCESS.value
+        assert [f["error_code"] for f in result["failed_steps"]] == ["RATE_LIMIT_EXCEEDED"]
+        assert '"duration_minutes": 14' in prompt
 
     async def test_the_answer_s_own_words_stay_free_of_data(self) -> None:
         """A confirmed draft's fast path shows the SUMMARY: it never holds a block."""

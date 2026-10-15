@@ -136,7 +136,7 @@ from src.domains.agents.services.hitl.scope_detector import detect_for_each_scop
 from src.domains.agents.tools.common import ToolErrorCode
 
 if TYPE_CHECKING:
-    pass
+    from src.domains.agents.registry.catalogue import ToolManifest
 
 logger = structlog.get_logger(__name__)
 
@@ -2020,7 +2020,7 @@ def _get_tool_manifest_for_step(
     resolved_args: dict[str, Any],
     start_time: float,
     wave_id: int,
-) -> tuple[Any | None, StepResult | None]:
+) -> tuple[ToolManifest | None, StepResult | None]:
     """
     Get tool manifest from registry with error handling.
 
@@ -2541,7 +2541,7 @@ async def _execute_tool(
     accumulated_registry: dict[str, Any] | None = None,
     turn_id: int | None = None,
     step_id: str | None = None,
-    manifest: object = None,
+    manifest: ToolManifest | None = None,
     data_share: int = 1,
 ) -> ToolExecutionResult:
     """

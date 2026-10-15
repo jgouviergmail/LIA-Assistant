@@ -1136,40 +1136,6 @@ class DeleteFileDraftTool(ToolOutputMixin, ConnectorTool[GoogleDriveClient]):
         )
 
 
-# Direct delete tool for execute_fn callback
-class DeleteFileDirectTool(ConnectorTool[GoogleDriveClient]):
-    """Delete file that executes immediately (for HITL callback)."""
-
-    connector_type = ConnectorType.GOOGLE_DRIVE
-    client_class = GoogleDriveClient
-
-    def __init__(self) -> None:
-        super().__init__(tool_name="delete_file_direct_tool", operation="delete")
-
-    async def execute_api_call(
-        self,
-        client: GoogleDriveClient,
-        user_id: UUID,
-        **kwargs: Any,
-    ) -> dict[str, Any]:
-        """Execute delete file API call - business logic only."""
-        file_id: str = kwargs["file_id"]
-
-        await client.delete_file(file_id)
-
-        logger.info(
-            "file_deleted_via_tool",
-            user_id=str(user_id),
-            file_id=file_id,
-        )
-
-        return {
-            "success": True,
-            "file_id": file_id,
-            "message": APIMessages.file_deleted_successfully(),
-        }
-
-
 _delete_file_draft_tool_instance = DeleteFileDraftTool()
 
 
@@ -1372,7 +1338,6 @@ __all__ = [
     "ListFilesTool",
     "GetFileDetailsTool",
     "DeleteFileDraftTool",
-    "DeleteFileDirectTool",
     # Draft execution
     "execute_file_delete_draft",
 ]

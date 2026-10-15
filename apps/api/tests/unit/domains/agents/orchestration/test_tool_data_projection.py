@@ -20,7 +20,10 @@ from src.core.field_names import FIELD_TOOL_DATA
 from src.domains.agents.orchestration import parallel_executor as pe
 from src.domains.agents.orchestration import tool_data_projection as projection
 from src.domains.agents.orchestration.for_each_aggregation import aggregate_for_each_results
+from src.domains.agents.orchestration.mappers import map_execution_result_to_agent_result
+from src.domains.agents.orchestration.schemas import ExecutionResult, StepResult
 from src.domains.agents.orchestration.tool_data_projection import (
+    ToolDataRecord,
     beyond_the_registry,
     previous_turns_without_tool_data,
     tool_data_fields,
@@ -88,15 +91,15 @@ def _emails_output() -> UnifiedToolOutput:
     )
 
 
-def _fields(output: object, manifest: object = None, share: int = 1) -> dict[str, Any]:
+def _fields(
+    output: object, manifest: ToolManifest | None = None, share: int = 1
+) -> dict[str, list[ToolDataRecord]]:
     with patch.object(projection, "slot_tool_result_budget", return_value=BUDGET):
-        return dict(
-            tool_data_fields(
-                output,
-                manifest=_manifest() if manifest is None else manifest,
-                tool_name="probe_tool",
-                share=share,
-            )
+        return tool_data_fields(
+            output,
+            manifest=_manifest() if manifest is None else manifest,
+            tool_name="probe_tool",
+            share=share,
         )
 
 
@@ -294,3 +297,47 @@ class TestOnlyTheTurnKeepsItsRecords:
             "data": {"step_results": [{"result": "ok"}], "aggregated_results": [{"result": "ok"}]}
         }
         assert kept["6:react"] == {}
+
+    def test_a_record_inside_an_envelope_is_stripped_too(self) -> None:
+        """The section reads a record in either shape; the strippers remove both."""
+        inner: dict[str, object] = {"rows": [], FIELD_TOOL_DATA: [_RECORD]}
+        enveloped: dict[str, object] = {"success": True, "data": inner}
+
+        persisted = without_tool_data({"step_1": enveloped})
+
+        assert persisted == {"step_1": {"success": True, "data": {"rows": []}}}
+        assert FIELD_TOOL_DATA in inner, "the turn's own entry is never mutated"
+
+    def test_the_multi_domain_copy_of_the_steps_carries_no_record(self) -> None:
+        """``MultiDomainResultData.completed_steps`` copies every step payload, read by nobody.
+
+        The section reads ``step_results``; a second copy of each block in the
+        same entry would only double what the checkpoint stores.
+        """
+
+        def step(index: int, tool: str, result: dict[str, object]) -> StepResult:
+            return StepResult(
+                step_index=index, tool_name=tool, args={}, result=result, success=True
+            )
+
+        overview: dict[str, object] = {"person": "Alice", FIELD_TOOL_DATA: [_RECORD]}
+        execution = ExecutionResult(
+            success=True,
+            step_results=[
+                step(0, "get_person_overview_tool", overview),
+                step(1, "get_contacts_tool", {"contacts": [{"resource_name": "c1"}], "total": 1}),
+                step(2, "get_emails_tool", {"emails": [{"id": "m1"}], "total": 1}),
+            ],
+            total_steps=3,
+            completed_steps=3,
+            total_execution_time_ms=0,
+        )
+
+        mapped = map_execution_result_to_agent_result(
+            execution_result=execution, plan_id="p", turn_id=1
+        )
+        data = mapped["1:plan_executor"]["data"]
+
+        assert data["result_type"] == "multi_domain"
+        assert data["step_results"][0][FIELD_TOOL_DATA] == [_RECORD]
+        assert all(FIELD_TOOL_DATA not in payload for payload in data["completed_steps"].values())

@@ -2277,72 +2277,6 @@ class CreateContactDraftTool(ToolOutputMixin, ConnectorTool[GooglePeopleClient])
         )
 
 
-# ============================================================================
-# LEGACY: Direct Create (for backward compatibility during transition)
-# ============================================================================
-
-
-class CreateContactDirectTool(ConnectorTool[GooglePeopleClient]):
-    """
-    Create contact tool that executes immediately (no HITL).
-
-    WARNING: This tool creates contacts WITHOUT user confirmation.
-    Use CreateContactDraftTool instead for production.
-
-    This class is kept for:
-    1. Backward compatibility during LOT 5.4 migration
-    2. execute_fn in DraftCritiqueInteraction (actual create after confirm)
-    3. Testing/debugging without HITL flow
-
-    For normal use, prefer CreateContactDraftTool which creates a draft
-    and requires user confirmation before creating.
-    """
-
-    connector_type = ConnectorType.GOOGLE_CONTACTS
-    client_class = GooglePeopleClient
-    functional_category = "contacts"
-
-    def __init__(self) -> None:
-        """Initialize direct create contact tool."""
-        super().__init__(tool_name="create_contact_direct_tool", operation="create")
-
-    async def execute_api_call(
-        self,
-        client: GooglePeopleClient,
-        user_id: UUID,
-        **kwargs: Any,
-    ) -> dict[str, Any]:
-        """Execute create contact API call - business logic only."""
-        name: str = require_field(kwargs, "name")
-        email: str | None = kwargs.get("email")
-        phone: str | None = kwargs.get("phone")
-        organization: str | None = kwargs.get("organization")
-        notes: str | None = kwargs.get("notes")
-
-        # Create contact
-        result = await client.create_contact(
-            name=name,
-            email=email,
-            phone=phone,
-            organization=organization,
-            notes=notes,
-        )
-
-        logger.info(
-            "contacts_contact_created_via_tool",
-            user_id=str(user_id),
-            resource_name=result.get("resourceName"),
-        )
-
-        return {
-            "success": True,
-            "resource_name": result.get("resourceName"),
-            "name": name,
-            "email": email,
-            "message": APIMessages.contact_created_successfully(name),
-        }
-
-
 # Create tool instance (singleton)
 _create_contact_draft_tool_instance = CreateContactDraftTool()
 
@@ -2571,60 +2505,6 @@ class UpdateContactDraftTool(ToolOutputMixin, ConnectorTool[GooglePeopleClient])
         )
 
 
-# Direct update tool for execute_fn callback
-class UpdateContactDirectTool(ConnectorTool[GooglePeopleClient]):
-    """Update contact that executes immediately (for HITL callback)."""
-
-    connector_type = ConnectorType.GOOGLE_CONTACTS
-    client_class = GooglePeopleClient
-    functional_category = "contacts"
-
-    def __init__(self) -> None:
-        super().__init__(tool_name="update_contact_direct_tool", operation="update")
-
-    async def execute_api_call(
-        self,
-        client: GooglePeopleClient,
-        user_id: UUID,
-        **kwargs: Any,
-    ) -> dict[str, Any]:
-        """Execute update contact API call - business logic only."""
-        resource_name: str = kwargs["resource_name"]
-        name: str | None = kwargs.get("name")
-        email: str | None = kwargs.get("email")
-        phone: str | None = kwargs.get("phone")
-        organization: str | None = kwargs.get("organization")
-        notes: str | None = kwargs.get("notes")
-        address: str | None = kwargs.get("address")
-
-        result = await client.update_contact(
-            resource_name=resource_name,
-            name=name,
-            email=email,
-            phone=phone,
-            organization=organization,
-            notes=notes,
-            address=address,
-        )
-
-        # Get display name from updated contact
-        names = result.get("names", [])
-        display_name = names[0].get("displayName") if names else name or "Contact"
-
-        logger.info(
-            "contact_updated_via_tool",
-            user_id=str(user_id),
-            resource_name=resource_name,
-        )
-
-        return {
-            "success": True,
-            "resource_name": resource_name,
-            "name": display_name,
-            "message": APIMessages.contact_updated_successfully(display_name),
-        }
-
-
 _update_contact_draft_tool_instance = UpdateContactDraftTool()
 
 
@@ -2755,41 +2635,6 @@ class DeleteContactDraftTool(ToolOutputMixin, ConnectorTool[GooglePeopleClient])
             source_tool="delete_contact_tool",
             user_language=self.get_user_language(),
         )
-
-
-# Direct delete tool for execute_fn callback
-class DeleteContactDirectTool(ConnectorTool[GooglePeopleClient]):
-    """Delete contact that executes immediately (for HITL callback)."""
-
-    connector_type = ConnectorType.GOOGLE_CONTACTS
-    client_class = GooglePeopleClient
-    functional_category = "contacts"
-
-    def __init__(self) -> None:
-        super().__init__(tool_name="delete_contact_direct_tool", operation="delete")
-
-    async def execute_api_call(
-        self,
-        client: GooglePeopleClient,
-        user_id: UUID,
-        **kwargs: Any,
-    ) -> dict[str, Any]:
-        """Execute delete contact API call - business logic only."""
-        resource_name: str = kwargs["resource_name"]
-
-        await client.delete_contact(resource_name)
-
-        logger.info(
-            "contact_deleted_via_tool",
-            user_id=str(user_id),
-            resource_name=resource_name,
-        )
-
-        return {
-            "success": True,
-            "resource_name": resource_name,
-            "message": APIMessages.contact_deleted_successfully(),
-        }
 
 
 _delete_contact_draft_tool_instance = DeleteContactDraftTool()
@@ -3009,11 +2854,8 @@ __all__ = [
     "ListContactsTool",
     "GetContactDetailsTool",
     "CreateContactDraftTool",
-    "CreateContactDirectTool",
     "UpdateContactDraftTool",
-    "UpdateContactDirectTool",
     "DeleteContactDraftTool",
-    "DeleteContactDirectTool",
     # Draft execution helpers
     "execute_contact_draft",
     "execute_contact_update_draft",

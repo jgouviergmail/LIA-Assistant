@@ -175,3 +175,13 @@ class TestTheRealCatalogue:
         self, catalogue: AgentRegistry, tool_name: str, channel: str
     ) -> None:
         assert catalogue.get_tool_manifest(tool_name).pipeline_data_channel == channel
+
+    def test_no_other_tool_keeps_its_data_out_of_the_block(self, catalogue: AgentRegistry) -> None:
+        """Adding a declaration is as visible a decision as removing one."""
+        declared = {
+            manifest.name: manifest.pipeline_data_channel
+            for manifest in catalogue.list_tool_manifests()
+            if manifest.pipeline_data_channel != DEFAULT_PIPELINE_DATA_CHANNEL
+        }
+
+        assert declared == DECLARED_CHANNELS

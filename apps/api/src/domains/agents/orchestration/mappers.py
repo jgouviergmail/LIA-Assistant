@@ -35,6 +35,7 @@ from src.domains.agents.orchestration.schemas import (
     PlacesResultData,
     StepResult,
 )
+from src.domains.agents.orchestration.tool_data_projection import without_tool_data
 from src.domains.agents.tools.common import ToolErrorCode, coerce_tool_error_code
 from src.infrastructure.observability.logging import get_logger
 
@@ -880,10 +881,13 @@ def map_execution_result_to_agent_result(
                 )
                 completed_steps_dict[step_id] = step_result.result
 
-        # Multi-domain: Use dedicated schema with distinct field names
+        # Multi-domain: Use dedicated schema with distinct field names. Its
+        # completed_steps copy never carries a data block: the response's
+        # section reads step_results (ADR-347), and a second copy would only
+        # double what the checkpoint stores.
         normalized_data = MultiDomainResultData(
             plan_id=plan_id,
-            completed_steps=completed_steps_dict,
+            completed_steps=without_tool_data(completed_steps_dict),
             total_steps=execution_result.total_steps,
             execution_time_ms=execution_result.total_execution_time_ms,
             # Contacts data with distinct field names

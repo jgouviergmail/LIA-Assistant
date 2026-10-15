@@ -28,7 +28,7 @@ import asyncio
 import json
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
-from typing import Any, TypeGuard
+from typing import Any, Literal, TypeGuard
 
 import structlog
 from langchain_core.tools import BaseTool
@@ -37,7 +37,9 @@ from pydantic import BaseModel, PrivateAttr
 logger = structlog.get_logger(__name__)
 
 
-def mark_untrusted_data(result: Any, data_for_llm: str, *, surface: str = "react") -> str:
+def mark_untrusted_data(
+    result: Any, data_for_llm: str, *, surface: Literal["react", "pipeline"] = "react"
+) -> str:
     """Wrap the Data block unless its provenance is established INTERNAL.
 
     The provenance travels with ``registry_updates`` (a typed
@@ -210,7 +212,7 @@ class _MCPDataProjection:
     omitted: object = field(default_factory=object)
 
     def collect(self, value: object, path: str, depth: int = 0) -> object:
-        if is_item_list(value) and isinstance(value, list):
+        if is_item_list(value):
             self.counts[path] = len(value)
             for index, item in enumerate(value):
                 if (

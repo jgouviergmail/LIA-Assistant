@@ -834,6 +834,9 @@ class CompleteTaskTool(ConnectorTool[GoogleTasksClient]):
     connector_type = ConnectorType.GOOGLE_TASKS
     client_class = GoogleTasksClient
     functional_category = "tasks"
+    # Registry mode: a legacy JSON string is a verdict no reader can read, so a
+    # refused completion was settled SUCCEEDED by the effect register (ADR-347).
+    registry_enabled = True
 
     def __init__(self) -> None:
         super().__init__(tool_name="complete_task_tool", operation="complete")
@@ -865,6 +868,13 @@ class CompleteTaskTool(ConnectorTool[GoogleTasksClient]):
             "title": result.get("title"),
             "message": f"Task '{result.get('title')}' marked as completed",
         }
+
+    def format_registry_response(self, result: dict[str, Any]) -> UnifiedToolOutput:
+        """A completed task, said in the payload's own words."""
+        return UnifiedToolOutput.action_success(
+            message=str(result.get("message") or "Task marked as completed"),
+            structured_data=result,
+        )
 
 
 _complete_task_tool_instance = CompleteTaskTool()

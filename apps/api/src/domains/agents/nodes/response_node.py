@@ -118,6 +118,9 @@ from src.domains.agents.nodes.post_response_extractions import (
 )
 from src.domains.agents.nodes.response_skill_runner import run_and_settle
 from src.domains.agents.orchestration.correlation_detector import detect_correlations
+from src.domains.agents.orchestration.tool_data_projection import (
+    previous_turns_without_tool_data,
+)
 from src.domains.agents.prompts import (
     escape_braces,
     get_error_fallback_message,
@@ -998,7 +1001,9 @@ def _merge_react_synthesis_result(
         current_registry: Registry items for this turn (drives HTML cards / display).
 
     Returns:
-        A new dict containing every existing entry plus the ``{turn}:react_agent`` one.
+        A new dict containing every existing entry plus the ``{turn}:react_agent`` one,
+        every OTHER turn's pipeline data blocks removed: this is the write the
+        checkpoint keeps on a ReAct turn, and a block serves its own turn alone (ADR-347).
     """
     merged = dict(agent_results or {})
     react_key = f"{current_turn}:react_agent"
@@ -1007,7 +1012,7 @@ def _merge_react_synthesis_result(
             "data": {FIELD_REACT_SYNTHESIS: react_message},
             "registry_updates": current_registry,
         }
-    return merged
+    return previous_turns_without_tool_data(merged, current_turn)
 
 
 class _SkillActivationResult(NamedTuple):

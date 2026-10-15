@@ -35,7 +35,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any, Final, Literal
+from typing import Any, Final, Literal, get_args
 
 from src.core.constants import (
     DEFAULT_TOOL_TIMEOUT_MS,
@@ -171,10 +171,11 @@ PipelineDataChannel = Literal[
     "sub_agent_analysis",
 ]
 
-PIPELINE_DATA_CHANNELS: frozenset[str] = frozenset({"data_block", "message", "sub_agent_analysis"})
+#: The same vocabulary as a set, derived so the two can never disagree.
+PIPELINE_DATA_CHANNELS: frozenset[str] = frozenset(get_args(PipelineDataChannel))
 
 #: The channel a read tool has unless it declares another, with a reason.
-DEFAULT_PIPELINE_DATA_CHANNEL: Final = "data_block"
+DEFAULT_PIPELINE_DATA_CHANNEL: Final[PipelineDataChannel] = "data_block"
 
 # System tools that should ALWAYS be included regardless of strategy
 SYSTEM_TOOL_NAMES = frozenset(
@@ -726,7 +727,7 @@ class ToolManifest:
     # renders that data, or that returns a sub-agent's analysis the response
     # formatter wraps, declares so with one English sentence saying why —
     # checked at boot by assert_pipeline_data_channel_completeness().
-    pipeline_data_channel: PipelineDataChannel = "data_block"
+    pipeline_data_channel: PipelineDataChannel = DEFAULT_PIPELINE_DATA_CHANNEL
     pipeline_data_channel_reason: str | None = None
 
     # Initiative eligibility: whether this tool can be used during the initiative phase.

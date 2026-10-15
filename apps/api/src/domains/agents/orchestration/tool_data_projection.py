@@ -45,6 +45,7 @@ from src.core.field_names import FIELD_TOOL_DATA
 from src.domains.agents.registry.catalogue import (
     ACTING_POLICIES,
     DEFAULT_PIPELINE_DATA_CHANNEL,
+    ToolManifest,
 )
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.react_tool_wrapper import (
@@ -88,7 +89,7 @@ class ToolDataRecord(TypedDict):
 def tool_data_fields(
     result: object,
     *,
-    manifest: object,
+    manifest: ToolManifest | None,
     tool_name: str,
     share: int = 1,
 ) -> dict[str, list[ToolDataRecord]]:
@@ -170,9 +171,17 @@ def _result_without_tool_data(result: object) -> object:
 
 
 def _entry_without_tool_data(entry: object) -> object:
-    if isinstance(entry, dict) and FIELD_TOOL_DATA in entry:
-        return {key: value for key, value in entry.items() if key != FIELD_TOOL_DATA}
-    return entry
+    """One step payload without its records, in either shape the section reads them."""
+    if not isinstance(entry, dict):
+        return entry
+    nested = entry.get("data")
+    if isinstance(nested, dict) and FIELD_TOOL_DATA in nested:
+        entry = {**entry, "data": _without_records(nested)}
+    return _without_records(entry) if FIELD_TOOL_DATA in entry else entry
+
+
+def _without_records(mapping: dict[str, object]) -> dict[str, object]:
+    return {key: value for key, value in mapping.items() if key != FIELD_TOOL_DATA}
 
 
 def beyond_the_registry(
@@ -204,7 +213,7 @@ def beyond_the_registry(
 
 
 def _record(
-    result: object, *, manifest: object, tool_name: str, share: int
+    result: object, *, manifest: ToolManifest | None, tool_name: str, share: int
 ) -> ToolDataRecord | None:
     if not isinstance(result, UnifiedToolOutput) or not _projects(result, manifest):
         return None
@@ -226,15 +235,14 @@ def _record(
     )
 
 
-def _projects(result: UnifiedToolOutput, manifest: object) -> bool:
+def _projects(result: UnifiedToolOutput, manifest: ToolManifest | None) -> bool:
     """A successful read whose manifest leaves its data to the data block."""
     return (
         result.success
         and bool(result.structured_data)
         and manifest is not None
-        and getattr(manifest, "mutation_policy", None) not in ACTING_POLICIES
-        and getattr(manifest, "pipeline_data_channel", DEFAULT_PIPELINE_DATA_CHANNEL)
-        == DEFAULT_PIPELINE_DATA_CHANNEL
+        and manifest.mutation_policy not in ACTING_POLICIES
+        and manifest.pipeline_data_channel == DEFAULT_PIPELINE_DATA_CHANNEL
     )
 
 

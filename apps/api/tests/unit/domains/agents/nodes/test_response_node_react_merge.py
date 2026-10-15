@@ -16,6 +16,7 @@ import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.runnables import RunnableLambda
 
+from src.core.field_names import FIELD_TOOL_DATA
 from src.domains.agents.nodes.response_node import (
     _apply_react_passthrough,
     _build_response_chain,
@@ -45,6 +46,24 @@ class TestMergeReactSynthesisResult:
         existing = {"4:initiative": {"status": "success"}}
         _merge_react_synthesis_result(existing, "answer", 4, {})
         assert "4:react_agent" not in existing
+
+    def test_another_turn_s_pipeline_data_blocks_leave_the_state(self) -> None:
+        """The ReAct turn's write is the one the checkpoint keeps (ADR-347).
+
+        A data block serves its own turn's response alone; an earlier pipeline
+        turn's blocks would otherwise ride every later ReAct turn's save.
+        """
+        record = {"tool": "get_route_matrix_tool", "text": "{}"}
+
+        def entry() -> dict[str, Any]:
+            return {"data": {"step_results": [{"result": "ok", FIELD_TOOL_DATA: [record]}]}}
+
+        merged = _merge_react_synthesis_result(
+            {"3:plan_executor": entry(), "4:initiative": entry()}, "the answer", 4, {}
+        )
+
+        assert merged["3:plan_executor"]["data"]["step_results"] == [{"result": "ok"}]
+        assert merged["4:initiative"] == entry()
 
 
 def _react_state(final_message: str) -> dict[str, Any]:
