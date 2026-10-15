@@ -155,6 +155,27 @@ REASON_INTERNAL_CONTEXT: Final[str] = (
     "Changes only LIA's own conversation context: no user data, no third party."
 )
 
+#: How a read tool's data reaches the response model in PIPELINE mode (ADR-347).
+#: The ReAct loop hands every tool result's data block to the model whatever
+#: this says (ADR-286); the pipeline response read a step's message and its
+#: registry items alone until ADR-347 gave it the same block.
+PipelineDataChannel = Literal[
+    # The default: what ``structured_data`` carries beyond the registry items
+    # is projected into the step's data block.
+    "data_block",
+    # The message IS the data, rendered for the model: the block would repeat
+    # it, or contradict it.
+    "message",
+    # A sub-agent's analysis, wrapped in ``<SubAgentAnalysis>`` by the response
+    # formatter itself.
+    "sub_agent_analysis",
+]
+
+PIPELINE_DATA_CHANNELS: frozenset[str] = frozenset({"data_block", "message", "sub_agent_analysis"})
+
+#: The channel a read tool has unless it declares another, with a reason.
+DEFAULT_PIPELINE_DATA_CHANNEL: Final = "data_block"
+
 # System tools that should ALWAYS be included regardless of strategy
 SYSTEM_TOOL_NAMES = frozenset(
     {
@@ -699,6 +720,15 @@ class ToolManifest:
     # send_email_tool sent nothing, while send_email_to_me_tool would have.
     stands_in_unattended_for: UnattendedStandIn | None = None
 
+    # ADR-347: how this tool's data reaches the response model in pipeline
+    # mode. A read tool's ``structured_data`` that no registry item carries is
+    # projected into its step's data block; a tool whose message already
+    # renders that data, or that returns a sub-agent's analysis the response
+    # formatter wraps, declares so with one English sentence saying why —
+    # checked at boot by assert_pipeline_data_channel_completeness().
+    pipeline_data_channel: PipelineDataChannel = "data_block"
+    pipeline_data_channel_reason: str | None = None
+
     # Initiative eligibility: whether this tool can be used during the initiative phase.
     # The initiative phase performs proactive cross-domain enrichment after plan execution.
     # Default: None → auto-determined from category (search/readonly = True, system = False).
@@ -1129,6 +1159,66 @@ def assert_mutation_policy_completeness(manifests: Iterable[Any]) -> None:
             + ". A non-read-only tool must SAY what confirmation it owes — declaring "
             "nothing is how 13 tools came to run unconfirmed in both execution modes. "
             "See MutationPolicy in src/domains/agents/registry/catalogue.py."
+        )
+
+
+def _pipeline_channel_problems(name: str, manifest: Any) -> list[str]:
+    """What is wrong with one manifest's pipeline data channel declaration.
+
+    Args:
+        name: The manifest's name, for the report.
+        manifest: Whatever the catalogue holds, read defensively.
+
+    Returns:
+        Zero or more problems, one sentence each.
+    """
+    channel = getattr(manifest, "pipeline_data_channel", DEFAULT_PIPELINE_DATA_CHANNEL)
+    reason = str(getattr(manifest, "pipeline_data_channel_reason", None) or "").strip()
+    if channel not in PIPELINE_DATA_CHANNELS:
+        return [f"{name}: unknown pipeline_data_channel {channel!r}"]
+    if channel == DEFAULT_PIPELINE_DATA_CHANNEL:
+        return [f"{name}: a pipeline_data_channel_reason with nothing to justify"] if reason else []
+    problems = [] if reason else [f"{name}: pipeline_data_channel={channel!r} without a reason"]
+    if getattr(manifest, "mutation_policy", None) in ACTING_POLICIES:
+        problems.append(
+            f"{name}: an acting tool's data never reaches the data block, so "
+            f"pipeline_data_channel={channel!r} decides nothing"
+        )
+    return problems
+
+
+def assert_pipeline_data_channel_completeness(manifests: Iterable[Any]) -> None:
+    """Assert every tool keeping its data out of the pipeline's data block says why (ADR-347).
+
+    A read tool's ``structured_data`` reaches the pipeline's response model
+    through its step's data block unless the manifest declares another
+    channel. A declaration silences that channel for the tool, so it carries a
+    written reason; a reason with no declaration, an unknown channel and a
+    declaration on an acting tool (whose data the block never carries) are
+    refused as well. Every offender is reported at once.
+
+    Called from ``init_agent_registry`` once the catalogue is loaded, beside
+    :func:`assert_mutation_policy_completeness` and for the same reason
+    (ADR-085 placement).
+
+    Args:
+        manifests: Tool manifests currently registered in the catalogue.
+
+    Raises:
+        AssertionError: Listing every offending manifest.
+    """
+    problems = [
+        problem
+        for manifest in manifests
+        for problem in _pipeline_channel_problems(
+            str(getattr(manifest, "name", "<unnamed>")), manifest
+        )
+    ]
+    if problems:
+        raise AssertionError(
+            f"{len(problems)} pipeline data channel problem(s): "
+            + "; ".join(sorted(problems))
+            + ". A read tool keeping its data out of the response's data block must say why."
         )
 
 

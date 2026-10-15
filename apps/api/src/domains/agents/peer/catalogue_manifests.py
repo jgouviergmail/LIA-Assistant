@@ -211,6 +211,12 @@ list_peer_connections_catalogue_manifest = ToolManifest(
 get_peer_availability_catalogue_manifest = ToolManifest(
     name="get_peer_availability_tool",
     mutation_policy="read",
+    pipeline_data_channel="message",
+    pipeline_data_channel_reason=(
+        "The message renders the busy slots in the asking user's timezone; the raw "
+        "slots keep the peer's own frame, and both side by side would give the "
+        "response model two clocks."
+    ),
     agent="peer_agent",
     description=(
         "Reads a CONNECTED user's calendar availability, at the level THEY "
@@ -277,6 +283,11 @@ get_peer_availability_catalogue_manifest = ToolManifest(
 get_peer_tasks_catalogue_manifest = ToolManifest(
     name="get_peer_tasks_tool",
     mutation_policy="read",
+    pipeline_data_channel="message",
+    pipeline_data_channel_reason=(
+        "The message renders the same titles, framed as the peer's shared data; "
+        "the block would only repeat them."
+    ),
     agent="peer_agent",
     description=(
         "Reads a CONNECTED user's pending task titles, if they share their "

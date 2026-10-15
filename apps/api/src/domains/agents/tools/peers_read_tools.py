@@ -277,11 +277,13 @@ async def get_peer_availability_tool(
         level=level,
     )
     return UnifiedToolOutput.data_success(
-        # The SLOTS themselves, not a sentence about them: `message` is
-        # `summary_for_llm`, the only one of the three payloads the response
-        # model ever reads. Shipping them in `structured_data` alone made the
-        # assistant answer "I have no detail about his slots" while holding six
-        # of them (defect 2026-07-30, request 2386ce1b).
+        # The SLOTS themselves, rendered in the asking user's timezone: the
+        # manifest declares this message the tool's pipeline data channel
+        # (ADR-347), because the raw slots below keep the peer's frame and
+        # both would give the response model two clocks. Shipped in
+        # `structured_data` alone, they once made the assistant answer "I have
+        # no detail about his slots" while holding six of them (defect
+        # 2026-07-30, request 2386ce1b).
         message=format_peer_availability(
             slots,
             peer_name=peer.full_name,

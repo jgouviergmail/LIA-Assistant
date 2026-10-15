@@ -47,6 +47,87 @@ async def init_checkpointer() -> InstrumentedAsyncPostgresSaver | None:
     return checkpointer
 
 
+#: One boot guard: the log event, the subject named in the refusal, the check.
+BootGuard = tuple[str, str, Callable[[], None]]
+
+
+def _run_boot_guards(guards: tuple[BootGuard, ...]) -> None:
+    """Run each guard in order; the first that refuses STOPS the boot.
+
+    One loop for every completeness guard of this step: a copy per guard is a
+    place for the re-raise to be forgotten, which is exactly the defect where
+    ``init_agent_registry`` caught its own guards and merely logged (ADR-263).
+
+    Args:
+        guards: ``(event, subject, guard)`` triples.
+
+    Raises:
+        StartupCompletenessError: Naming the subject of the guard that refused.
+    """
+    for event, subject, guard in guards:
+        try:
+            guard()
+        except AssertionError as exc:
+            logger.error(event, error=str(exc), exc_info=True)
+            raise StartupCompletenessError(f"{subject} incomplete: {exc}") from exc
+
+
+def _assert_catalogue_completeness(registry: Any) -> None:
+    """Run the guards that read the loaded catalogue, and let a failure STOP the boot.
+
+    They run here, not in ``startup/registries.py``, because the manifests only
+    become checkable once ``initialize_catalogue`` has loaded them (ADR-085):
+
+    - every user-invocable capability directive maps to a spec, and every spec
+      to a REGISTERED tool (ADR-191);
+    - every native manifest has a safety category (ADR-256): one with neither a
+      declared ``tool_category`` nor a naming convention falls back to
+      ``readonly``, which decides whether it counts as a mutation and whether
+      the read-only initiative may run it — four writing tools sat there;
+    - every acting tool says what confirmation it owes (ADR-263): measured
+      2026-09-03, 13 native mutations had no gate in either execution mode;
+    - every read tool keeping its data out of the pipeline's data block says
+      why (ADR-347).
+
+    Args:
+        registry: The registry whose catalogue was just loaded.
+
+    Raises:
+        StartupCompletenessError: On the first guard that refuses.
+    """
+    from src.domains.agents.capability_directives import assert_registry_completeness
+    from src.domains.agents.registry.catalogue import (
+        assert_mutation_policy_completeness,
+        assert_pipeline_data_channel_completeness,
+        assert_tool_category_completeness,
+    )
+
+    _run_boot_guards(
+        (
+            (
+                "capability_directive_registry_incomplete",
+                "Capability directive registry",
+                lambda: assert_registry_completeness(registry),
+            ),
+            (
+                "tool_category_registry_incomplete",
+                "Tool category registry",
+                lambda: assert_tool_category_completeness(registry.list_tool_manifests()),
+            ),
+            (
+                "mutation_policy_registry_incomplete",
+                "Mutation policy registry",
+                lambda: assert_mutation_policy_completeness(registry.list_tool_manifests()),
+            ),
+            (
+                "pipeline_data_channel_registry_incomplete",
+                "Pipeline data channel registry",
+                lambda: assert_pipeline_data_channel_completeness(registry.list_tool_manifests()),
+            ),
+        )
+    )
+
+
 def _assert_effect_completeness(registry: Any) -> None:
     """Run the ADR-263 boot guards, and let a failure STOP the boot.
 
@@ -82,7 +163,7 @@ def _assert_effect_completeness(registry: Any) -> None:
         assert_treatment_domain_completeness,
     )
 
-    guards: tuple[tuple[str, str, Callable[[], None]], ...] = (
+    guards: tuple[BootGuard, ...] = (
         ("effect_gate_incomplete", "Effect gate", assert_effect_gate_completeness),
         (
             "effect_labels_incomplete",
@@ -110,12 +191,7 @@ def _assert_effect_completeness(registry: Any) -> None:
             assert_stop_reason_wording_completeness,
         ),
     )
-    for event, subject, guard in guards:
-        try:
-            guard()
-        except AssertionError as exc:
-            logger.error(event, error=str(exc), exc_info=True)
-            raise StartupCompletenessError(f"{subject} incomplete: {exc}") from exc
+    _run_boot_guards(guards)
 
 
 async def init_agent_registry(
@@ -192,55 +268,10 @@ async def init_agent_registry(
         initialize_catalogue(registry)
         logger.info("catalogue_manifests_initialized")
 
-        # Validate user-invocable capability directives (ADR-085 pattern,
-        # ADR-191): every DirectiveCapability must map to a spec, and every
-        # spec to a REGISTERED tool — checked here rather than in
-        # startup/registries.py because the tool half only becomes checkable
-        # once the catalogue above is loaded.
-        try:
-            from src.domains.agents.capability_directives import (
-                assert_registry_completeness,
-            )
-
-            assert_registry_completeness(registry)
-        except AssertionError as exc:
-            logger.error("capability_directive_registry_incomplete", error=str(exc), exc_info=True)
-            raise StartupCompletenessError(
-                f"Capability directive registry incomplete: {exc}"
-            ) from exc
-
-        # Validate tool safety categories (ADR-085 pattern, ADR-256): a native
-        # manifest with neither a declared tool_category nor a naming convention
-        # would fall back to "readonly", which decides both whether the tool
-        # counts as a mutation and whether the read-only initiative phase may
-        # run it. Four writing tools had been sitting on that default. Checked
-        # here for the same reason as the block above — the manifests only
-        # become checkable once the catalogue is loaded.
-        try:
-            from src.domains.agents.registry.catalogue import (
-                assert_tool_category_completeness,
-            )
-
-            assert_tool_category_completeness(registry.list_tool_manifests())
-        except AssertionError as exc:
-            logger.error("tool_category_registry_incomplete", error=str(exc), exc_info=True)
-            raise StartupCompletenessError(f"Tool category registry incomplete: {exc}") from exc
-
-        # Validate what each acting tool OWES the user before it acts (ADR-263).
-        # The category above says what a tool does; the policy says what the
-        # user is asked. Measured 2026-09-03: 13 native tools classified as
-        # mutations had no confirmation gate in either execution mode, and
-        # nothing said whether that was a decision or an omission. Same
-        # placement and same reason as the two blocks above.
-        try:
-            from src.domains.agents.registry.catalogue import (
-                assert_mutation_policy_completeness,
-            )
-
-            assert_mutation_policy_completeness(registry.list_tool_manifests())
-        except AssertionError as exc:
-            logger.error("mutation_policy_registry_incomplete", error=str(exc), exc_info=True)
-            raise StartupCompletenessError(f"Mutation policy registry incomplete: {exc}") from exc
+        # The manifests only become checkable once the catalogue above is
+        # loaded: capability directives, safety categories, what an acting
+        # tool owes the user, and where a read tool's data goes (ADR-347).
+        _assert_catalogue_completeness(registry)
 
         # The draft executors register LAZILY (first use of ``DraftExecutor``),
         # so at this point the registry is empty — measured 2026-09-04: both

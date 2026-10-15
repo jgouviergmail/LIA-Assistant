@@ -15,6 +15,7 @@ PostgreSQL connection — a unit test must not.
 
 from __future__ import annotations
 
+from contextlib import AbstractContextManager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -32,7 +33,7 @@ def scheduler() -> MagicMock:
 
 
 @pytest.fixture
-def no_store() -> object:
+def no_store() -> AbstractContextManager[AsyncMock]:
     """Neutralise the AsyncPostgresStore acquisition for the whole boot step."""
     return patch(
         "src.domains.agents.context.get_tool_context_store",
@@ -41,11 +42,11 @@ def no_store() -> object:
 
 
 async def test_boot_refuses_a_catalogue_missing_a_policy(
-    scheduler: MagicMock, no_store: object
+    scheduler: MagicMock, no_store: AbstractContextManager[AsyncMock]
 ) -> None:
     """A manifest that declares no policy stops the boot with a named error."""
     with (
-        no_store,  # type: ignore[attr-defined]
+        no_store,
         patch(
             "src.domains.agents.registry.catalogue.assert_mutation_policy_completeness",
             side_effect=AssertionError("declare no mutation_policy: x_tool"),
@@ -55,12 +56,27 @@ async def test_boot_refuses_a_catalogue_missing_a_policy(
         await startup_agents.init_agent_registry(None, scheduler)
 
 
+async def test_boot_refuses_a_read_tool_keeping_its_data_out_without_a_reason(
+    scheduler: MagicMock, no_store: AbstractContextManager[AsyncMock]
+) -> None:
+    """A tool silencing its pipeline data channel unexplained stops the boot (ADR-347)."""
+    with (
+        no_store,
+        patch(
+            "src.domains.agents.registry.catalogue.assert_pipeline_data_channel_completeness",
+            side_effect=AssertionError("x_tool: pipeline_data_channel='message' without a reason"),
+        ),
+        pytest.raises(RuntimeError, match="Pipeline data channel registry incomplete"),
+    ):
+        await startup_agents.init_agent_registry(None, scheduler)
+
+
 async def test_boot_refuses_a_stand_in_that_cannot_help(
-    scheduler: MagicMock, no_store: object
+    scheduler: MagicMock, no_store: AbstractContextManager[AsyncMock]
 ) -> None:
     """A stand-in that would be refused too, or names nothing, stops the boot."""
     with (
-        no_store,  # type: ignore[attr-defined]
+        no_store,
         patch(
             "src.domains.agents.effects.gate.assert_unattended_stand_ins",
             side_effect=AssertionError("self_tool: needs a confirmation itself"),
@@ -71,7 +87,7 @@ async def test_boot_refuses_a_stand_in_that_cannot_help(
 
 
 async def test_boot_populates_the_executor_registry_before_asserting(
-    scheduler: MagicMock, no_store: object
+    scheduler: MagicMock, no_store: AbstractContextManager[AsyncMock]
 ) -> None:
     """Two boot asserts read the executor registry — it must not be empty.
 
@@ -89,7 +105,7 @@ async def test_boot_populates_the_executor_registry_before_asserting(
         seen.append(len(EXECUTOR_REGISTRY))
 
     with (
-        no_store,  # type: ignore[attr-defined]
+        no_store,
         patch(
             "src.domains.agents.effects.runtime.assert_effect_gate_completeness",
             side_effect=_record,
@@ -108,11 +124,11 @@ async def test_boot_populates_the_executor_registry_before_asserting(
 
 
 async def test_boot_refuses_an_unlabelled_capability(
-    scheduler: MagicMock, no_store: object
+    scheduler: MagicMock, no_store: AbstractContextManager[AsyncMock]
 ) -> None:
     """A capability that can act but cannot say what it did stops the boot."""
     with (
-        no_store,  # type: ignore[attr-defined]
+        no_store,
         patch(
             "src.domains.agents.effects.labels.assert_effect_label_completeness",
             side_effect=AssertionError("no label builder: x_tool"),
@@ -123,7 +139,7 @@ async def test_boot_refuses_an_unlabelled_capability(
 
 
 async def test_boot_refuses_an_unnameable_consultation(
-    scheduler: MagicMock, no_store: object
+    scheduler: MagicMock, no_store: AbstractContextManager[AsyncMock]
 ) -> None:
     """A capability a register could only show as a tool name stops the boot.
 
@@ -131,7 +147,7 @@ async def test_boot_refuses_an_unnameable_consultation(
     logged, a user simply reads ``get_calls_tool`` in their own journal.
     """
     with (
-        no_store,  # type: ignore[attr-defined]
+        no_store,
         patch(
             "src.domains.agents.effects.treatment_labels." "assert_treatment_domain_completeness",
             side_effect=AssertionError("no readable domain: x_tool"),
@@ -141,7 +157,9 @@ async def test_boot_refuses_an_unnameable_consultation(
         await startup_agents.init_agent_registry(None, scheduler)
 
 
-async def test_boot_succeeds_on_the_real_catalogue(scheduler: MagicMock, no_store: object) -> None:
+async def test_boot_succeeds_on_the_real_catalogue(
+    scheduler: MagicMock, no_store: AbstractContextManager[AsyncMock]
+) -> None:
     """The production catalogue satisfies the guards — no startup regression.
 
     This is the half that matters most: a guard that refuses the real catalogue
@@ -161,7 +179,7 @@ async def test_boot_succeeds_on_the_real_catalogue(scheduler: MagicMock, no_stor
     EXECUTOR_REGISTRY.clear()
     ensure_executors_registered()
 
-    with no_store:  # type: ignore[attr-defined]
+    with no_store:
         registry = await startup_agents.init_agent_registry(None, scheduler)
     assert registry is not None
     assert registry.list_tool_manifests()
@@ -179,10 +197,10 @@ class TestTheBootActuallyRefuses:
     """
 
     async def test_a_completeness_failure_propagates(
-        self, scheduler: MagicMock, no_store: object
+        self, scheduler: MagicMock, no_store: AbstractContextManager[AsyncMock]
     ) -> None:
         with (
-            no_store,  # type: ignore[attr-defined]
+            no_store,
             patch(
                 "src.domains.agents.registry.catalogue.assert_tool_category_completeness",
                 side_effect=AssertionError("x_tool"),

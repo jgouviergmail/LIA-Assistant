@@ -76,6 +76,11 @@ delegate_to_sub_agent_catalogue_manifest = ToolManifest(
     # owes no confirmation; hitl_required below still pauses ReAct, because
     # the loop is expensive — a different question, deliberately kept separate.
     mutation_policy="read",
+    pipeline_data_channel="sub_agent_analysis",
+    pipeline_data_channel_reason=(
+        "The response formatter wraps the full analysis in <SubAgentAnalysis> from "
+        "structured_data['analysis']; a data block would hand it over twice."
+    ),
     # ADR-256: the sub-agent runs a READ-ONLY tool subset by contract (ADR-083),
     # so the delegation itself mutates nothing.
     tool_category="readonly",

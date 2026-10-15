@@ -40,6 +40,7 @@ from src.domains.agents.registry.catalogue import (
     assert_mutation_policy_completeness,
 )
 from src.domains.agents.registry.catalogue_loader import initialize_catalogue
+from tests.unit.domains.agents.registry.catalogue_flags import enable_every_catalogue_flag
 
 pytestmark = [pytest.mark.unit]
 
@@ -372,29 +373,8 @@ class TestTheGuardCannotRefuseAProductionBoot:
     exists to prevent, pointing the other way.
     """
 
-    FLAGS = (
-        "health_metrics_enabled",
-        "sub_agents_enabled",
-        "image_generation_enabled",
-        "document_generation_enabled",
-        "devops_enabled",
-        "diagnostics_enabled",
-        "python_sandbox_tool_enabled",
-        "telephony_enabled",
-        # ``peers_enabled`` — NOT "peer_connections_enabled", which does not
-        # exist: the phantom name silently disabled this branch and four peer
-        # manifests escaped the guard entirely (measured 2026-09-04).
-        "peers_enabled",
-        "skills_enabled",
-        "mcp_enabled",
-    )
-
     def test_every_feature_flag_on_is_still_complete(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        from src.core.config import settings
-
-        for flag in self.FLAGS:
-            if hasattr(settings, flag):
-                monkeypatch.setattr(settings, flag, True, raising=False)
+        enable_every_catalogue_flag(monkeypatch)
 
         previous = registry_module._global_registry
         registry = AgentRegistry()
