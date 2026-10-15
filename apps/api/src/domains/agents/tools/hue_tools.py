@@ -28,7 +28,9 @@ from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg, tool
 from pydantic import BaseModel
 
+from src.core.field_names import FIELD_ERROR, FIELD_ERROR_CODE, FIELD_SUCCESS
 from src.core.i18n import _
+from src.core.tool_outcome import explicit_success
 from src.domains.agents.constants import AGENT_HUE, CONTEXT_DOMAIN_HUE
 from src.domains.agents.context.registry import ContextTypeDefinition, ContextTypeRegistry
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
@@ -40,6 +42,7 @@ from src.domains.agents.data_registry.models import (
 )
 from src.domains.agents.display.components.light_details import hue_display_fields
 from src.domains.agents.tools.base import ConnectorTool
+from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.connectors.clients.philips_hue_client import (
     PhilipsHueClient,
@@ -124,6 +127,45 @@ def _find_resource_by_name(
             return r
 
     return None
+
+
+def _not_found(message: str, language: str) -> dict[str, Any]:
+    """The payload of a command whose target the bridge does not hold.
+
+    The refusal is DECLARED (``success`` false, a typed code) so that every
+    reader of the verdict sees a failure: answered as a success saying it failed,
+    the effect register settled the act SUCCEEDED and the ReAct directive told
+    the response model it had switched the light.
+
+    Args:
+        message: The localised sentence naming what the bridge does hold.
+        language: The user's language, read back by the formatter.
+
+    Returns:
+        The refusal payload ``format_registry_response`` turns into a failure.
+    """
+    return {
+        FIELD_SUCCESS: False,
+        FIELD_ERROR_CODE: ToolErrorCode.NOT_FOUND.value,
+        FIELD_ERROR: message,
+        ConnectorTool._LANGUAGE_RESULT_KEY: language,
+    }
+
+
+def _refusal(result: dict[str, Any], fallback: str) -> UnifiedToolOutput:
+    """A refused command as the failure it is, its code kept.
+
+    Args:
+        result: The refusal payload of ``execute_api_call``.
+        fallback: The localised sentence used when the payload names no error.
+
+    Returns:
+        A failure the runtime failures directive words from its code.
+    """
+    return UnifiedToolOutput.failure(
+        message=result.get(FIELD_ERROR) or fallback,
+        error_code=str(result.get(FIELD_ERROR_CODE) or ToolErrorCode.NOT_FOUND.value),
+    )
 
 
 # =============================================================================
@@ -229,13 +271,12 @@ class ControlHueLightTool(ConnectorTool[PhilipsHueClient]):
         target = _find_resource_by_name(lights, light_name_or_id)
         if not target:
             available = [lt.get("metadata", {}).get("name", "?") for lt in lights]
-            return {
-                "success": False,
-                "error": _("Light '{name}' not found. Available: {available}", language).format(
+            return _not_found(
+                _("Light '{name}' not found. Available: {available}", language).format(
                     name=light_name_or_id, available=", ".join(available)
                 ),
-                self._LANGUAGE_RESULT_KEY: language,
-            }
+                language,
+            )
 
         light_id = target["id"]
         light_name = target.get("metadata", {}).get("name", light_id)
@@ -271,12 +312,8 @@ class ControlHueLightTool(ConnectorTool[PhilipsHueClient]):
         """Format light control result."""
         language = self._language_from_result(result)
 
-        if not result.get("success"):
-            return UnifiedToolOutput.data_success(
-                message=result.get("error") or _("Light control failed", language),
-                structured_data={"action": "control_light", "success": False},
-                metadata={"type": "hue_control", "success": False},
-            )
+        if not explicit_success(result):
+            return _refusal(result, _("Light control failed", language))
 
         data = result.get("data", {})
         parts = [f"'{data.get('name')}':"]
@@ -393,13 +430,12 @@ class ControlHueRoomTool(ConnectorTool[PhilipsHueClient]):
         target = _find_resource_by_name(rooms, room_name_or_id)
         if not target:
             available = [r.get("metadata", {}).get("name", "?") for r in rooms]
-            return {
-                "success": False,
-                "error": _("Room '{name}' not found. Available: {available}", language).format(
+            return _not_found(
+                _("Room '{name}' not found. Available: {available}", language).format(
                     name=room_name_or_id, available=", ".join(available)
                 ),
-                self._LANGUAGE_RESULT_KEY: language,
-            }
+                language,
+            )
 
         room_id = target["id"]
         room_name = target.get("metadata", {}).get("name", room_id)
@@ -426,12 +462,8 @@ class ControlHueRoomTool(ConnectorTool[PhilipsHueClient]):
         """Format room control result."""
         language = self._language_from_result(result)
 
-        if not result.get("success"):
-            return UnifiedToolOutput.data_success(
-                message=result.get("error") or _("Room control failed", language),
-                structured_data={"action": "control_room", "success": False},
-                metadata={"type": "hue_room_control", "success": False},
-            )
+        if not explicit_success(result):
+            return _refusal(result, _("Room control failed", language))
 
         data = result.get("data", {})
         parts = [_("Room '{name}':", language).format(name=data.get("name"))]
@@ -535,13 +567,12 @@ class ActivateHueSceneTool(ConnectorTool[PhilipsHueClient]):
         target = _find_resource_by_name(scenes, scene_name_or_id)
         if not target:
             available = [s.get("metadata", {}).get("name", "?") for s in scenes]
-            return {
-                "success": False,
-                "error": _("Scene '{name}' not found. Available: {available}", language).format(
+            return _not_found(
+                _("Scene '{name}' not found. Available: {available}", language).format(
                     name=scene_name_or_id, available=", ".join(available)
                 ),
-                self._LANGUAGE_RESULT_KEY: language,
-            }
+                language,
+            )
 
         scene_id = target["id"]
         scene_name = target.get("metadata", {}).get("name", scene_id)
@@ -565,12 +596,8 @@ class ActivateHueSceneTool(ConnectorTool[PhilipsHueClient]):
         """Format scene activation result."""
         language = self._language_from_result(result)
 
-        if not result.get("success"):
-            return UnifiedToolOutput.data_success(
-                message=result.get("error") or _("Scene activation failed", language),
-                structured_data={"action": "activate_scene", "success": False},
-                metadata={"type": "hue_scene", "success": False},
-            )
+        if not explicit_success(result):
+            return _refusal(result, _("Scene activation failed", language))
 
         data = result.get("data", {})
         return UnifiedToolOutput.data_success(

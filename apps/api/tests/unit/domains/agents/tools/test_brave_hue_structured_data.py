@@ -184,17 +184,8 @@ class TestHueControlToolsStructuredData:
         assert output.structured_data["on"] is True
         assert output.structured_data["brightness"] == 75
 
-    def test_control_light_failure_exposes_success_false(self) -> None:
-        tool = ControlHueLightTool(tool_name="control_hue_light", operation="control_light")
-        result: dict[str, Any] = {
-            "success": False,
-            "error": "Light not found",
-        }
-
-        output = tool.format_registry_response(result)
-
-        assert output.structured_data["action"] == "control_light"
-        assert output.structured_data["success"] is False
+    # A refused command is a failure, not an action payload carrying
+    # ``success: False``: test_hue_refused_commands.py pins it for the three tools.
 
     def test_control_room_exposes_action_payload(self) -> None:
         tool = ControlHueRoomTool(tool_name="control_hue_room", operation="control_room")
