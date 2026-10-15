@@ -96,6 +96,10 @@ FIELD_FAILED_STEPS = "failed_steps"
 #: Stamped by the FOR_EACH aggregator on the entry it writes under the original
 #: step id: a reader listing failures skips it — its items are listed one by one.
 FIELD_FOR_EACH_AGGREGATE = "_for_each_aggregate"
+#: The items of a FOR_EACH that failed, carried by its aggregate (``step_id``,
+#: ``error``, ``error_code`` each): the aggregate is built from the items that
+#: succeeded, and the mapper lists one failed step per entry (ADR-347).
+FIELD_FOR_EACH_FAILED_ITEMS = "_for_each_failed_items"
 FIELD_ERROR_MESSAGE = "error_message"
 FIELD_ERROR_TYPE = "error_type"
 FIELD_IS_ACTIVE = "is_active"

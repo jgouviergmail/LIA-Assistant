@@ -87,7 +87,6 @@ from src.core.field_names import (
     FIELD_CORRELATED_TO,
     FIELD_CORRELATION_PARENT_ID,
     FIELD_ERROR_CODE,
-    FIELD_FOR_EACH_AGGREGATE,
     FIELD_METADATA,
     FIELD_NODE_NAME,
     FIELD_REGISTRY_ID,
@@ -108,6 +107,7 @@ from src.domains.agents.orchestration.condition_evaluator import (
     ReferenceResolver,
 )
 from src.domains.agents.orchestration.dependency_graph import DependencyGraph
+from src.domains.agents.orchestration.for_each_aggregation import aggregate_for_each_results
 from src.domains.agents.orchestration.for_each_utils import (
     is_for_each_ready_for_expansion,
 )
@@ -3276,120 +3276,6 @@ def _merge_single_step_result(
         completed_steps[step_result.step_id] = {"success": False, "error": "Unknown step type"}
 
 
-def _aggregate_for_each_results(
-    completed_steps: dict[str, dict[str, Any]],
-    original_step_id: str,
-    expanded_step_ids: list[str],
-) -> None:
-    """
-    Aggregate results from FOR_EACH expanded steps under the original step_id.
-
-    After FOR_EACH expansion, step_2 becomes step_2_item_0, step_2_item_1, etc.
-    Downstream steps may still reference $steps.step_2.places in their parameters.
-    This function creates an aggregated result under the original step_id to
-    enable these parameter references to resolve correctly.
-
-    Args:
-        completed_steps: Results from completed steps (modified in-place)
-        original_step_id: The original FOR_EACH step_id (e.g., "step_2")
-        expanded_step_ids: List of expanded step_ids (e.g., ["step_2_item_0", "step_2_item_1"])
-
-    Example:
-        Before:
-            completed_steps["step_2_item_0"] = {"places": [place_a, place_b]}
-            completed_steps["step_2_item_1"] = {"places": [place_c, place_d]}
-
-        After:
-            completed_steps["step_2"] = {
-                "places": [place_a, place_b, place_c, place_d],
-                FIELD_FOR_EACH_AGGREGATE: True,
-            }
-
-    Algorithm:
-        1. Collect all expanded step results
-        2. For keys with list values: concatenate all lists
-        3. For other keys: use value from last expanded step
-        4. Mark the entry as an aggregate: it inherits ``success: false`` from a
-           failed item, and the failure readers must count the ITEMS, never it
-           (``diagnostics.failure_context``, ADR-346)
-        5. Store aggregated result under original_step_id
-    """
-    if not expanded_step_ids:
-        logger.debug(
-            "for_each_aggregation_skipped_empty",
-            original_step_id=original_step_id,
-            reason="No expanded steps to aggregate",
-        )
-        return
-
-    # Collect results from all expanded steps
-    expanded_results: list[dict[str, Any]] = []
-    for exp_id in expanded_step_ids:
-        if exp_id in completed_steps:
-            expanded_results.append(completed_steps[exp_id])
-
-    if not expanded_results:
-        logger.warning(
-            "for_each_aggregation_no_results",
-            original_step_id=original_step_id,
-            expanded_step_ids=expanded_step_ids,
-            reason="No expanded step results found in completed_steps",
-        )
-        return
-
-    # Aggregate: merge list values, collect action messages, keep last value for others
-    aggregated: dict[str, Any] = {}
-
-    # First pass: identify all keys and their types
-    all_keys: set[str] = set()
-    for result in expanded_results:
-        all_keys.update(result.keys())
-
-    # Second pass: aggregate each key
-    for key in all_keys:
-        values = [result.get(key) for result in expanded_results if key in result]
-
-        if not values:
-            continue
-
-        # Check if all values are lists
-        if all(isinstance(v, list) for v in values):
-            # Concatenate all lists
-            merged_list: list[Any] = []
-            for v in values:
-                merged_list.extend(v)
-            aggregated[key] = merged_list
-        elif key == FIELD_RESULT and all(isinstance(v, str) for v in values if v is not None):
-            # BugFix 2026-01-22: Collect ALL action confirmation messages into a list
-            # FOR_EACH expansion creates multiple steps, each with a "result" string message
-            # (e.g., "Reminder created for..."). Previously, only the LAST value was kept.
-            # Now we collect all non-None string values so response_node can show all messages.
-            non_none_values = [v for v in values if v is not None]
-            if len(non_none_values) > 1:
-                aggregated[key] = non_none_values  # List of all messages
-            elif non_none_values:
-                aggregated[key] = non_none_values[0]  # Single message, keep as string
-        else:
-            # Use last non-None value
-            for v in reversed(values):
-                if v is not None:
-                    aggregated[key] = v
-                    break
-
-    # The reader that excludes aggregates shares this constant: without it, one
-    # failed item was announced as two failures (the aggregate inherits it).
-    aggregated[FIELD_FOR_EACH_AGGREGATE] = True
-    completed_steps[original_step_id] = aggregated
-
-    logger.info(
-        "for_each_results_aggregated",
-        original_step_id=original_step_id,
-        expanded_count=len(expanded_step_ids),
-        aggregated_keys=list(aggregated.keys()),
-        list_keys=[k for k, v in aggregated.items() if isinstance(v, list)],
-    )
-
-
 # ============================================================================
 # CONDITIONAL Branching Support
 # ============================================================================
@@ -3661,7 +3547,7 @@ async def _expand_and_execute_for_each_if_ready(
         # Aggregate expanded results under original step_id for downstream parameter resolution
         # This enables $steps.step_2.places to resolve even after step_2 is expanded to step_2_item_N
         expanded_ids = expansion_map.get(original_step.step_id, [])
-        _aggregate_for_each_results(
+        aggregate_for_each_results(
             completed_steps=completed_steps,
             original_step_id=original_step.step_id,
             expanded_step_ids=expanded_ids,

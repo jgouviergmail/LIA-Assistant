@@ -10,31 +10,36 @@ Phase 3.2.5: Updated to use Pydantic AgentResult for runtime validation.
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any
 
 from src.core.field_names import (
     FIELD_ERROR,
     FIELD_ERROR_CODE,
+    FIELD_FOR_EACH_FAILED_ITEMS,
     FIELD_PLAN_ID,
     FIELD_RESOURCE_NAME,
     FIELD_TIMESTAMP,
     FIELD_TOOL_NAME,
 )
+from src.core.tool_outcome import explicit_success
 from src.domains.agents.constants import AgentResultStatus, make_agent_result_key
 from src.domains.agents.orchestration.schemas import (
     AgentResult,
     AgentResultData,
     ContactsResultData,
     EmailsResultData,
+    ExecutionResult,
     FailedStep,
     MultiDomainResultData,
     PlacesResultData,
+    StepResult,
 )
-from src.domains.agents.tools.common import coerce_tool_error_code
+from src.domains.agents.tools.common import ToolErrorCode, coerce_tool_error_code
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
-    from src.domains.agents.orchestration.schemas import ExecutionResult
+    from src.domains.agents.orchestration.plan_schemas import ExecutionStep
 
 logger = get_logger(__name__)
 
@@ -541,58 +546,134 @@ def _detect_and_normalize_places_result(
     )
 
 
+def build_execution_result(
+    plan_steps: Sequence[ExecutionStep], completed_steps: Mapping[str, object]
+) -> ExecutionResult:
+    """The ``ExecutionResult`` the mapper reads, rebuilt from a plan's completed steps.
+
+    One conversion for the two nodes that run a plan through the parallel
+    executor (``task_orchestrator_node`` and ``initiative_node``): it follows
+    the PLAN's steps, so a FOR_EACH is read through the aggregate written
+    under its own id, never through its items.
+
+    Args:
+        plan_steps: The plan's steps, in plan order.
+        completed_steps: What the executor stored per step id.
+
+    Returns:
+        A success only when every completed step succeeded; the first failure's
+        words and its position among the results otherwise.
+    """
+    step_results: list[StepResult] = []
+    for index, step in enumerate(plan_steps):
+        if step.step_id not in completed_steps:
+            continue
+        stored = completed_steps[step.step_id]
+        data = stored if isinstance(stored, dict) else {"data": stored}
+        step_results.append(
+            StepResult(
+                step_index=index,
+                tool_name=step.tool_name or step.step_id,
+                args=step.parameters or {},
+                result=data,
+                success=explicit_success(data),
+                error=data.get(FIELD_ERROR),
+            )
+        )
+    failed_index = next((i for i, result in enumerate(step_results) if not result.success), None)
+    return ExecutionResult(
+        success=failed_index is None,
+        step_results=step_results,
+        total_steps=len(plan_steps),
+        completed_steps=len(completed_steps),
+        failed_step_index=failed_index,
+        error=step_results[failed_index].error if failed_index is not None else None,
+        total_execution_time_ms=0,
+    )
+
+
 def _failed_steps_of(execution_result: ExecutionResult) -> list[FailedStep]:
     """Every step that did not succeed, with the code its payload carried.
 
     The typed ``StepResult.error_code`` is filled by the parallel executor, but
-    NOT by the two callers that rebuild an ``ExecutionResult`` from
-    ``completed_steps`` (``task_orchestrator_node`` and ``initiative_node``),
-    which pass the raw step dict as ``result``. Reading the dict as a fallback
-    fixes BOTH paths without touching either (ADR-303).
+    NOT by :func:`build_execution_result`, which passes the raw step dict as
+    ``result``: the dict is read as a fallback (ADR-303). A FOR_EACH lists one
+    failure per failed ITEM, carried by its aggregate whether the loop failed
+    whole or in part (ADR-347).
 
     Args:
         execution_result: The plan execution, whatever built it.
 
     Returns:
-        One ``FailedStep`` per failed step, in plan order.
+        One ``FailedStep`` per failed step or item, in plan order.
     """
     failed: list[FailedStep] = []
     for step_result in execution_result.step_results:
-        if step_result.success:
-            continue
         raw = step_result.result if isinstance(step_result.result, dict) else {}
-        code = step_result.error_code or coerce_tool_error_code(raw.get(FIELD_ERROR_CODE))
-        failed.append(
-            FailedStep(
-                step_index=getattr(step_result, "step_index", 0) or 0,
-                tool_name=str(getattr(step_result, "tool_name", "") or ""),
-                error=step_result.error or raw.get(FIELD_ERROR),
-                error_code=code.value if code else None,
+        items = raw.get(FIELD_FOR_EACH_FAILED_ITEMS)
+        if isinstance(items, list) and items:
+            failed.extend(
+                _failed_step(
+                    step_result,
+                    item.get(FIELD_ERROR),
+                    coerce_tool_error_code(item.get(FIELD_ERROR_CODE)),
+                )
+                for item in items
+                if isinstance(item, dict)
             )
-        )
+        elif not step_result.success:
+            failed.append(
+                _failed_step(
+                    step_result,
+                    step_result.error or raw.get(FIELD_ERROR),
+                    step_result.error_code or coerce_tool_error_code(raw.get(FIELD_ERROR_CODE)),
+                )
+            )
     return failed
 
 
-def _aggregate_status(execution_result: ExecutionResult, failed_count: int) -> str:
+def _failed_step(step_result: StepResult, error: object, code: ToolErrorCode | None) -> FailedStep:
+    """One failure as ``AgentResult.failed_steps`` carries it.
+
+    Args:
+        step_result: The plan step that failed, or whose item did.
+        error: The failure's own words.
+        code: Its code, when the taxonomy knows it.
+
+    Returns:
+        The step's position and tool, the failure's words and code.
+    """
+    return FailedStep(
+        step_index=getattr(step_result, "step_index", 0) or 0,
+        tool_name=str(getattr(step_result, "tool_name", "") or ""),
+        error=error if isinstance(error, str) else None,
+        error_code=code.value if code else None,
+    )
+
+
+def _aggregate_status(execution_result: ExecutionResult) -> str:
     """ERROR only when EVERY executed step failed (ADR-303).
 
     A plan that produced anything is a SUCCESS carrying its failed steps: the
     FIELD states the partial, never the status. Before this rule, one failed
     step out of five published ``failed``, and the formatter dropped the four
-    confirmations along with the error.
+    confirmations along with the error. Steps are counted, never items: a
+    FOR_EACH that kept one success out of three is a step that produced
+    something (ADR-347).
 
     With NO step at all the plan failed before running anything, and its own
     verdict is the only one there is.
 
     Args:
         execution_result: The plan execution.
-        failed_count: How many of its steps failed.
 
     Returns:
         A value of :class:`AgentResultStatus`.
     """
-    total = len(execution_result.step_results)
-    all_failed = (failed_count == total) if total else (not execution_result.success)
+    results = execution_result.step_results
+    all_failed = (
+        all(not result.success for result in results) if results else not execution_result.success
+    )
     return AgentResultStatus.ERROR.value if all_failed else AgentResultStatus.SUCCESS.value
 
 
@@ -898,7 +979,7 @@ def map_execution_result_to_agent_result(
             total_tokens_out += step_result.result.get("tokens_out", 0)
 
     failed_steps = _failed_steps_of(execution_result)
-    status = _aggregate_status(execution_result, len(failed_steps))
+    status = _aggregate_status(execution_result)
     agent_result = AgentResult(
         agent_name="plan_executor",
         status=status,
@@ -937,4 +1018,4 @@ def map_execution_result_to_agent_result(
     return {composite_key: agent_result.model_dump()}
 
 
-__all__ = ["map_execution_result_to_agent_result"]
+__all__ = ["build_execution_result", "map_execution_result_to_agent_result"]

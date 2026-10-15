@@ -751,10 +751,11 @@ async def _initiative_core(
         return state_update
 
     # ── 10. Build and execute plan ───────────────────────────────────
-    from src.domains.agents.orchestration.mappers import map_execution_result_to_agent_result
+    from src.domains.agents.orchestration.mappers import (
+        build_execution_result,
+        map_execution_result_to_agent_result,
+    )
     from src.domains.agents.orchestration.parallel_executor import execute_plan_parallel
-    from src.domains.agents.orchestration.schemas import ExecutionResult
-    from src.domains.agents.orchestration.schemas import StepResult as LegacyStepResult
     from src.domains.agents.semantic.param_guard import config_with_person_names
     from src.domains.agents.utils.state_cleanup import cleanup_dict_by_turn_id
 
@@ -775,29 +776,8 @@ async def _initiative_core(
     )
 
     # ── 11. Convert ParallelExecutionResult → ExecutionResult for mapper ─
-    # Same conversion as task_orchestrator_node (lines 1424-1464)
-    legacy_step_results = []
-    for idx, step in enumerate(plan.steps):
-        if step.step_id in par_result.completed_steps:
-            step_data = par_result.completed_steps[step.step_id]
-            legacy_step_results.append(
-                LegacyStepResult(
-                    step_index=idx,
-                    tool_name=step.tool_name or step.step_id,
-                    args=step.parameters or {},
-                    result=step_data if isinstance(step_data, dict) else {"data": step_data},
-                    success=(
-                        step_data.get("success", True) if isinstance(step_data, dict) else True
-                    ),
-                    error=step_data.get("error") if isinstance(step_data, dict) else None,
-                )
-            )
-    execution_result = ExecutionResult(
-        success=all(sr.success for sr in legacy_step_results) if legacy_step_results else True,
-        step_results=legacy_step_results,
-        total_steps=len(plan.steps),
-        completed_steps=len(par_result.completed_steps),
-    )
+    # The same conversion as task_orchestrator_node, one implementation.
+    execution_result = build_execution_result(plan.steps, par_result.completed_steps)
 
     turn_id = state.get(STATE_KEY_CURRENT_TURN_ID, 0)
     new_agent_results = map_execution_result_to_agent_result(

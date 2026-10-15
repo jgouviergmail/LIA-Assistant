@@ -85,12 +85,12 @@ class TestPipelineExtraction:
         green while the real aggregation announced one failure more than
         happened (measured: one failed item read as two).
         """
-        from src.domains.agents.orchestration.parallel_executor import (
-            _aggregate_for_each_results,
+        from src.domains.agents.orchestration.for_each_aggregation import (
+            aggregate_for_each_results,
         )
 
         steps = copy.deepcopy(items)
-        _aggregate_for_each_results(steps, "step_2", list(items))
+        aggregate_for_each_results(steps, "step_2", list(items))
         failed_items = sum(1 for item in items.values() if item.get("success") is False)
 
         failures = extract_failures_from_steps(steps, {"step_2": "create_reminder_tool"})

@@ -60,6 +60,7 @@ from src.domains.agents.nodes.for_each_preview_identity import (
     prepare_preview_context,
 )
 from src.domains.agents.orchestration import (
+    build_execution_result,
     create_orchestration_plan,
     map_execution_result_to_agent_result,
 )
@@ -653,58 +654,11 @@ async def _handle_execution_plan(
         # Prometheus view of a failure that happens before a tool is called.
         record_pipeline_step_failures(completed_steps)
 
-        # Convert completed_steps to agent_results format
-        # Reuse conversion logic from wave_aggregator
-        from src.domains.agents.orchestration.schemas import (
-            ExecutionResult,
-        )
-        from src.domains.agents.orchestration.schemas import (
-            StepResult as LegacyStepResult,
-        )
-
         turn_id = state.get(STATE_KEY_CURRENT_TURN_ID, 0)
-
-        # Build ExecutionResult-like structure for mapper
-        legacy_step_results = []
-        for idx, step in enumerate(execution_plan.steps):
-            if step.step_id in completed_steps:
-                step_data = completed_steps[step.step_id]
-                legacy_step_results.append(
-                    LegacyStepResult(
-                        step_index=idx,
-                        tool_name=step.tool_name or step.step_id,
-                        args=step.parameters or {},
-                        result=step_data if isinstance(step_data, dict) else {"data": step_data},
-                        success=(
-                            step_data.get("success", True) if isinstance(step_data, dict) else True
-                        ),
-                        error=step_data.get("error") if isinstance(step_data, dict) else None,
-                    )
-                )
-
-        # Calculate overall success: True only if ALL steps succeeded
-        all_steps_success = (
-            all(sr.success for sr in legacy_step_results) if legacy_step_results else True
-        )
-
-        # Find first failed step for error reporting
-        failed_step_index = None
-        first_error = None
-        for idx, sr in enumerate(legacy_step_results):
-            if not sr.success:
-                failed_step_index = idx
-                first_error = sr.error
-                break
-
-        execution_result = ExecutionResult(
-            success=all_steps_success,
-            step_results=legacy_step_results,
-            total_steps=len(execution_plan.steps),
-            completed_steps=len(completed_steps),
-            failed_step_index=failed_step_index,
-            error=first_error,
-            total_execution_time_ms=0,  # Already logged by parallel_executor
-        )
+        # The plan's steps as the mapper reads them: a FOR_EACH through the
+        # aggregate under its own id (ADR-347).
+        execution_result = build_execution_result(execution_plan.steps, completed_steps)
+        all_steps_success = execution_result.success
 
         # BugFix 2025-11-26: Pass data_registry for Data Registry mode fallback
         # When tools run with registry_enabled=True, step_results only contain summary text.

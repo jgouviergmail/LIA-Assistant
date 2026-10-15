@@ -441,12 +441,12 @@ class TestForEachEdgeCases:
 
 
 class TestForEachResultAggregation:
-    """Tests for _aggregate_for_each_results function."""
+    """Tests for aggregate_for_each_results."""
 
     def test_aggregate_list_values(self):
         """Lists from expanded steps should be concatenated."""
-        from src.domains.agents.orchestration.parallel_executor import (
-            _aggregate_for_each_results,
+        from src.domains.agents.orchestration.for_each_aggregation import (
+            aggregate_for_each_results,
         )
 
         completed_steps = {
@@ -454,7 +454,7 @@ class TestForEachResultAggregation:
             "step_2_item_1": {"places": ["restaurant_c", "restaurant_d"]},
         }
 
-        _aggregate_for_each_results(
+        aggregate_for_each_results(
             completed_steps=completed_steps,
             original_step_id="step_2",
             expanded_step_ids=["step_2_item_0", "step_2_item_1"],
@@ -470,8 +470,8 @@ class TestForEachResultAggregation:
 
     def test_aggregate_non_list_values_uses_last(self):
         """Non-list values should use the last non-None value."""
-        from src.domains.agents.orchestration.parallel_executor import (
-            _aggregate_for_each_results,
+        from src.domains.agents.orchestration.for_each_aggregation import (
+            aggregate_for_each_results,
         )
 
         completed_steps = {
@@ -479,7 +479,7 @@ class TestForEachResultAggregation:
             "step_2_item_1": {"count": 3, "status": "partial"},
         }
 
-        _aggregate_for_each_results(
+        aggregate_for_each_results(
             completed_steps=completed_steps,
             original_step_id="step_2",
             expanded_step_ids=["step_2_item_0", "step_2_item_1"],
@@ -490,8 +490,8 @@ class TestForEachResultAggregation:
 
     def test_aggregate_mixed_values(self):
         """Mix of lists and non-lists should be handled correctly."""
-        from src.domains.agents.orchestration.parallel_executor import (
-            _aggregate_for_each_results,
+        from src.domains.agents.orchestration.for_each_aggregation import (
+            aggregate_for_each_results,
         )
 
         completed_steps = {
@@ -499,7 +499,7 @@ class TestForEachResultAggregation:
             "step_2_item_1": {"places": ["c"], "message": "Found 1"},
         }
 
-        _aggregate_for_each_results(
+        aggregate_for_each_results(
             completed_steps=completed_steps,
             original_step_id="step_2",
             expanded_step_ids=["step_2_item_0", "step_2_item_1"],
@@ -510,13 +510,13 @@ class TestForEachResultAggregation:
 
     def test_aggregate_empty_expanded_steps(self):
         """Empty expanded_step_ids should not create aggregated entry."""
-        from src.domains.agents.orchestration.parallel_executor import (
-            _aggregate_for_each_results,
+        from src.domains.agents.orchestration.for_each_aggregation import (
+            aggregate_for_each_results,
         )
 
         completed_steps = {}
 
-        _aggregate_for_each_results(
+        aggregate_for_each_results(
             completed_steps=completed_steps,
             original_step_id="step_2",
             expanded_step_ids=[],
@@ -526,8 +526,8 @@ class TestForEachResultAggregation:
 
     def test_aggregate_missing_expanded_results(self):
         """Missing expanded step results should be handled gracefully."""
-        from src.domains.agents.orchestration.parallel_executor import (
-            _aggregate_for_each_results,
+        from src.domains.agents.orchestration.for_each_aggregation import (
+            aggregate_for_each_results,
         )
 
         completed_steps = {
@@ -535,7 +535,7 @@ class TestForEachResultAggregation:
             # step_2_item_1 is missing from completed_steps
         }
 
-        _aggregate_for_each_results(
+        aggregate_for_each_results(
             completed_steps=completed_steps,
             original_step_id="step_2",
             expanded_step_ids=["step_2_item_0", "step_2_item_1"],
@@ -547,13 +547,13 @@ class TestForEachResultAggregation:
 
     def test_aggregate_all_missing_results(self):
         """All missing expanded results should not crash."""
-        from src.domains.agents.orchestration.parallel_executor import (
-            _aggregate_for_each_results,
+        from src.domains.agents.orchestration.for_each_aggregation import (
+            aggregate_for_each_results,
         )
 
         completed_steps = {}
 
-        _aggregate_for_each_results(
+        aggregate_for_each_results(
             completed_steps=completed_steps,
             original_step_id="step_2",
             expanded_step_ids=["step_2_item_0", "step_2_item_1"],
@@ -564,8 +564,8 @@ class TestForEachResultAggregation:
 
     def test_aggregate_result_strings_into_list(self):
         """BugFix 2026-01-22: String 'result' values should be collected into a list."""
-        from src.domains.agents.orchestration.parallel_executor import (
-            _aggregate_for_each_results,
+        from src.domains.agents.orchestration.for_each_aggregation import (
+            aggregate_for_each_results,
         )
 
         # Simulating FOR_EACH reminders: each step returns a confirmation message
@@ -574,7 +574,7 @@ class TestForEachResultAggregation:
             "step_2_item_1": {"result": "🔔 Rappel créé pour samedi 31 janvier 2026 à 12:00"},
         }
 
-        _aggregate_for_each_results(
+        aggregate_for_each_results(
             completed_steps=completed_steps,
             original_step_id="step_2",
             expanded_step_ids=["step_2_item_0", "step_2_item_1"],
@@ -589,15 +589,15 @@ class TestForEachResultAggregation:
 
     def test_aggregate_single_result_stays_string(self):
         """Single 'result' value should remain a string (backward compatibility)."""
-        from src.domains.agents.orchestration.parallel_executor import (
-            _aggregate_for_each_results,
+        from src.domains.agents.orchestration.for_each_aggregation import (
+            aggregate_for_each_results,
         )
 
         completed_steps = {
             "step_2_item_0": {"result": "🔔 Rappel créé pour mardi 27 janvier 2026 à 11:30"},
         }
 
-        _aggregate_for_each_results(
+        aggregate_for_each_results(
             completed_steps=completed_steps,
             original_step_id="step_2",
             expanded_step_ids=["step_2_item_0"],

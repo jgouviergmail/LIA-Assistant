@@ -336,7 +336,7 @@ class DependencyGraph:
             valid_refs: References that exist in current plan (after filtering).
 
         See also:
-            - parallel_executor._aggregate_for_each_results() for aggregation logic
+            - for_each_aggregation.aggregate_for_each_results() for aggregation logic
             - docs/plan_planner.md Section 6.2 for FOR_EACH expansion
         """
         if valid_refs != referenced_steps:
