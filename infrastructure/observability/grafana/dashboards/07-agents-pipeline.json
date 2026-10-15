@@ -3392,7 +3392,7 @@
     {
       "id": 4300,
       "type": "row",
-      "title": "Tool result honesty (ADR-347)",
+      "title": "Tool results reaching the answer (ADR-347)",
       "collapsed": true,
       "gridPos": {
         "h": 1,
@@ -3510,6 +3510,59 @@
             }
           },
           "description": "The tools whose formatter was corrected over the range, so the defect can be found by name. Empty is the expected state (ADR-347)."
+        },
+        {
+          "id": 4303,
+          "type": "bargauge",
+          "title": "Pipeline data blocks not read whole, by tool and reason (range)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 189
+          },
+          "targets": [
+            {
+              "expr": "sum by (tool_name, reason) (increase(pipeline_tool_data_truncated_total[$__range])) > 0",
+              "legendFormat": "{{tool_name}} · {{reason}}",
+              "refId": "A",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "noValue": "0",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "value": null,
+                    "color": "orange"
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "orientation": "horizontal",
+            "displayMode": "basic",
+            "showUnfilled": true,
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            }
+          },
+          "description": "Data blocks of the pipeline's read steps the response model did not read whole: 'cut' when the projection paged a block at an item boundary, 'dropped' when the section left a block out to stay within the response slot's budget. Both are stated to the model. A steady rate on one tool means its data outgrows the budget (ADR-347)."
         }
       ]
     }

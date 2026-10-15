@@ -391,7 +391,7 @@ export const LANDING_STATS = {
   tools: 304,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 619,
+  metrics: 620,
   uiLanguages: 6,
   tests: 59000,
   adrs: 345,

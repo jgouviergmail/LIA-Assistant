@@ -13,6 +13,7 @@ from langchain_core.language_models.fake_chat_models import FakeListChatModel
 from langchain_core.messages import AIMessage, HumanMessage
 
 from src.core.constants import STATE_KEY_INITIATIVE_SUGGESTION
+from src.core.field_names import FIELD_TOOL_DATA
 from src.domains.agents.nodes.response_node import (
     _build_response_chain,
     _build_response_system_prompt,
@@ -198,6 +199,43 @@ def test_chain_states_the_performed_actions_before_the_data():
     blocks = _chain_system_blocks(performed_actions_block="ACTS", agent_results_summary="DATA")
     assert blocks[1] == "ACTS"
     assert "AUTHORITATIVE" in blocks[2]
+
+
+def _state_with_tool_data(text: str) -> dict:
+    return {
+        "current_turn_id": 3,
+        "agent_results": {
+            "3:plan_executor": {
+                "data": {
+                    "step_results": [{FIELD_TOOL_DATA: [{"tool": "probe_tool", "text": text}]}]
+                }
+            }
+        },
+    }
+
+
+def test_chain_hands_the_read_steps_data_after_the_summary():
+    """ADR-347: the turn's data blocks follow its summary, in the same block."""
+    blocks = _chain_system_blocks(
+        agent_results_summary="DATA", state=_state_with_tool_data("PEERS: Ada, Linus")
+    )
+    (turn_data,) = [block for block in blocks if "AUTHORITATIVE" in block]
+    assert turn_data.index("DATA") < turn_data.index("TOOL DATA") < turn_data.index("Linus")
+
+
+def test_chain_hands_the_data_even_without_a_summary():
+    blocks = _chain_system_blocks(state=_state_with_tool_data("PEERS: Ada"))
+    assert any("AUTHORITATIVE" in block and "PEERS: Ada" in block for block in blocks)
+
+
+def test_a_json_block_reaches_the_model_with_its_braces_intact():
+    """The block is escaped for the template once, and rendered back to single braces."""
+    state = {"messages": [], **_state_with_tool_data('{"connections": [{"name": "Linus"}]}')}
+
+    rendered = _real_chain(state, "BASE").first.format_messages(messages=[])
+    text = "\n".join(str(message.content) for message in rendered)
+
+    assert '{"connections": [{"name": "Linus"}]}' in text
 
 
 def test_chain_injects_skill_contract_block():

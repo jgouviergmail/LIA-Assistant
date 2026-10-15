@@ -111,6 +111,7 @@ from src.domains.agents.formatters.resolved_context import (
 from src.domains.agents.formatters.text_summary import (
     generate_data_for_filtering,
 )
+from src.domains.agents.formatters.tool_data import with_tool_data_section
 from src.domains.agents.models import MessagesState
 from src.domains.agents.nodes.post_response_extractions import (
     _schedule_post_response_extractions,
@@ -2290,7 +2291,9 @@ def _build_response_chain(
     # By constructing the template after knowing the values, we avoid sending
     # ("system", "") which causes 400 errors with strict providers.
     safe_rejection_override = escape_braces(rejection_override)
-    safe_agent_results = escape_braces(agent_results_summary)
+    # ADR-347: the read steps' data blocks join the summary here alone — the
+    # summary is also the text a confirmed draft's fast path shows the person.
+    safe_agent_results = escape_braces(with_tool_data_section(agent_results_summary, state))
     safe_skills_context = escape_braces(skills_context) if skills_context else ""
     # base_system_prompt embeds the user's query and the injected contexts
     # (RAG, memories, entities), which can contain literal curly braces

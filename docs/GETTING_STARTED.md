@@ -56,7 +56,7 @@ For ElevenLabs and Fish Audio speech, `ELEVENLABS_TTS_MAX_CONCURRENCY` and `FISH
 | Voice providers | ElevenLabs (STT/TTS), Fish Audio (STT/TTS), Edge TTS (free), OpenAI (STT/TTS), Gemini TTS + local Whisper STT |
 | Configurable LLM slots | 54 (admin UI, hot-reloaded) |
 | UI languages | 6 — fr, en, es, de, it, zh |
-| Prometheus metrics | 619 |
+| Prometheus metrics | 620 |
 | Grafana dashboards | 31 |
 | Built-in FAQ knowledge base | 200+ Q/A (auto-indexed at startup) |
 
