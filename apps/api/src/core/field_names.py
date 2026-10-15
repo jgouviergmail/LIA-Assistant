@@ -89,6 +89,9 @@ FIELD_ERROR_CODE = "error_code"
 # constant, not a convention.
 FIELD_SUCCESS = "success"
 FIELD_ERROR = "error"
+#: The words of a connector refusal that declares its failure by its code alone
+#: (``mailbox_draft_base.refusal``), read by the failure net (ADR-347).
+FIELD_MESSAGE = "message"
 FIELD_FAILED_STEPS = "failed_steps"
 #: Stamped by the FOR_EACH aggregator on the entry it writes under the original
 #: step id: a reader listing failures skips it — its items are listed one by one.

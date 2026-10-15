@@ -269,6 +269,14 @@ agent_tool_invocations = Counter(
     [FIELD_TOOL_NAME, FIELD_AGENT_NAME, "success"],  # success: true/false
 )
 
+tool_failure_verdict_corrected_total = Counter(
+    "tool_failure_verdict_corrected_total",
+    "Connector tool results whose payload declared a failure while the tool's formatter "
+    "returned a success, corrected to that failure at the execute chokepoint (ADR-347). "
+    "Expected 0: every increment is a formatter defect.",
+    [FIELD_TOOL_NAME],
+)
+
 agent_tool_duration_seconds = Histogram(
     "agent_tool_duration_seconds",
     "Agent tool execution duration",

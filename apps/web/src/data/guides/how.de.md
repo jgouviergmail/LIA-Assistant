@@ -72,7 +72,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Self-Hosting ARM64 | Docker Multi-Arch, semantische Embeddings (mehrsprachig), Playwright Chromium Cross-Platform |
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), mit Fernet verschlüsselte Zugangsdaten, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
-| Vollständige Transparenz | 618 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
+| Vollständige Transparenz | 619 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
 | Produktionszuverlässigkeit | 345 ADRs, über 59.000 automatisierte Tests in Backend und Frontend, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
@@ -95,7 +95,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | pytest-Fixtures | 1.082, davon 48 über conftest geteilt |
 | Dokumentationsdokumente | 716 |
 | ADRs (Architecture Decision Records) | 345 |
-| Prometheus-Metriken | 618 Definitionen |
+| Prometheus-Metriken | 619 Definitionen |
 | Grafana-Dashboards | 31 |
 | Unterstützte Sprachen (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -1124,7 +1124,7 @@ Eine erzeugte Datei kann ohne Frist bleiben, wenn sie innerhalb der veröffentli
 
 | Technologie | Rolle |
 |-------------|------|
-| Prometheus | 618 benutzerdefinierte Metriken (RED Pattern) |
+| Prometheus | 619 benutzerdefinierte Metriken (RED Pattern) |
 | Grafana | 31 produktionsreife Dashboards |
 | Loki | Aggregierte strukturierte JSON-Logs, von Grafana Alloy gesammelt (dieselbe Maskierung bei der Erfassung) |
 | Tempo | Verteiltes Cross-Service-Tracing (OTLP gRPC), nach der Routenvorlage benannt |
@@ -1132,7 +1132,7 @@ Eine erzeugte Datei kann ohne Frist bleiben, wenn sie innerhalb der veröffentli
 | Alertmanager | Kern aus 29 vitalen Alerts per E-Mail (verknüpfte Runbooks, Schwellenwerte je Umgebung) + Webhook zu LIA: jeder Alarm wird zum Vorfall im Produkt (ADR-247) |
 | structlog | Strukturiertes Logging mit PII-Filterung |
 
-**Eine Metrik, die kein Dashboard erreicht, ist eine Metrik, auf die niemand reagiert.** Der Abstand zwischen dem, was der Code ausgibt, und dem, was ein Operator sehen kann, wird gemessen, nie angenommen: `scripts/audit/measure_metric_coverage.py` liest jede Metrikdefinition per AST (nicht per Regex — eine Regex liest `ZoneInfo("UTC")` als `Info`-Metrik) und prüft jeden Namen gegen sämtliche Dashboard-Panels, Recording Rules und Alert-Ausdrücke. 618 definiert; die Metriken, die nichts erreichen, stehen ausdrücklich in einer **ausschließlich schrumpfenden** Baseline — eine neu erblindete Metrik lässt den Build rot werden, und eine sichtbar gewordene Metrik muss die Liste verlassen, sonst nimmt die nächste blinde stillschweigend ihren Platz ein. Ohne diesen Wächter kann eine offen ausfallende Heartbeat-Quelle tagelang einen Teil der Gesundheitssignale verwerfen, ohne dass eine Metrik es bemerkt (ADR-148). Zwei Fallen, die der Wächter konstruktiv schließt — ein Zähler mit Labels, der nie ausgelöst hat, liefert **überhaupt keine Serie**, sodass ein Panel für einen seltenen Fehler `or vector(0)` braucht, sonst zeigt es „No data“, wo ein Operator eine grüne Null erwartet; und Abdeckung wird ausschließlich aus **Ausdrücken** von Panels und Regeln gelesen, denn eine in einem Kommentar genannte Metrik ist nicht verdrahtet.
+**Eine Metrik, die kein Dashboard erreicht, ist eine Metrik, auf die niemand reagiert.** Der Abstand zwischen dem, was der Code ausgibt, und dem, was ein Operator sehen kann, wird gemessen, nie angenommen: `scripts/audit/measure_metric_coverage.py` liest jede Metrikdefinition per AST (nicht per Regex — eine Regex liest `ZoneInfo("UTC")` als `Info`-Metrik) und prüft jeden Namen gegen sämtliche Dashboard-Panels, Recording Rules und Alert-Ausdrücke. 619 definiert; die Metriken, die nichts erreichen, stehen ausdrücklich in einer **ausschließlich schrumpfenden** Baseline — eine neu erblindete Metrik lässt den Build rot werden, und eine sichtbar gewordene Metrik muss die Liste verlassen, sonst nimmt die nächste blinde stillschweigend ihren Platz ein. Ohne diesen Wächter kann eine offen ausfallende Heartbeat-Quelle tagelang einen Teil der Gesundheitssignale verwerfen, ohne dass eine Metrik es bemerkt (ADR-148). Zwei Fallen, die der Wächter konstruktiv schließt — ein Zähler mit Labels, der nie ausgelöst hat, liefert **überhaupt keine Serie**, sodass ein Panel für einen seltenen Fehler `or vector(0)` braucht, sonst zeigt es „No data“, wo ein Operator eine grüne Null erwartet; und Abdeckung wird ausschließlich aus **Ausdrücken** von Panels und Regeln gelesen, denn eine in einem Kommentar genannte Metrik ist nicht verdrahtet.
 
 ### 20.2. Eingebettetes Debug-Panel
 

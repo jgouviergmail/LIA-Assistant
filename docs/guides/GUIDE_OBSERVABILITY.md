@@ -5,7 +5,7 @@
 **Version**: 4.1 (2026-07-17)
 **Status**: Production-Ready
 **Architecture**: Prometheus + Grafana + Loki + Tempo + AlertManager
-**Total Metrics**: 618 definitions in the backend's metric modules
+**Total Metrics**: 619 definitions in the backend's metric modules
 **Dashboards**: one JSON per dashboard in `infrastructure/observability/grafana/dashboards/`, catalogued with their panels in [GRAFANA_DASHBOARDS.md](../technical/GRAFANA_DASHBOARDS.md)
 **Alert Rules**: the active core set, `alerts-core.yml` (ADR-119; legacy set pending recalibration)
 **Recording Rules**: 86 optimized rules
@@ -47,7 +47,7 @@ Observability is the ability to measure the internal states of a system by exami
 
 | Component | Purpose | Metrics | Retention | Port |
 |-----------|---------|---------|-----------|------|
-| **Prometheus** | Metrics collection & storage | 618 custom metrics (scraped from :9091) | 15 days | 9090 |
+| **Prometheus** | Metrics collection & storage | 619 custom metrics (scraped from :9091) | 15 days | 9090 |
 | **Grafana** | Visualization & dashboards | catalogued in [GRAFANA_DASHBOARDS.md](../technical/GRAFANA_DASHBOARDS.md) | N/A (queries only) | 3000 |
 | **Loki** | Log aggregation & storage | N/A (logs, not metrics) | 7 days | 3100 |
 | **Tempo** | Distributed tracing | Trace spans | 7 days | 3200 |

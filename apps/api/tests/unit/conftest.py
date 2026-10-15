@@ -74,6 +74,11 @@ def pytest_configure(config: pytest.Config) -> None:
         "real_io: unit test legitimately performs real external I/O — opts out "
         "of the F028 no-network guard (prefer moving it to tests/integration).",
     )
+    config.addinivalue_line(
+        "markers",
+        "failure_verdict_correction: unit test that proves the connector failure "
+        "net itself — opts out of the guard failing any corrected verdict (ADR-347).",
+    )
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -139,6 +144,52 @@ def _forbid_real_network(request: pytest.FixtureRequest) -> Any:
 def _fail_on_unawaited_asyncmock() -> Iterator[None]:
     """Fail any unit test that leaks an un-awaited AsyncMock coroutine (F028)."""
     yield from assert_no_unawaited_asyncmock()
+
+
+_VERDICT_METRICS_MODULE = "src.infrastructure.observability.metrics_agents"
+_VERDICT_SAMPLE = "tool_failure_verdict_corrected_total"
+
+
+def _corrected_failure_verdicts() -> float:
+    """Every verdict the connector failure net corrected so far in this process.
+
+    Reads ``sys.modules`` instead of importing, like ``_restore_process_globals``:
+    a test that never loads the metrics module pays one dictionary lookup.
+    """
+    import sys
+
+    counter = getattr(sys.modules.get(_VERDICT_METRICS_MODULE), _VERDICT_SAMPLE, None)
+    if counter is None:
+        return 0.0
+    return sum(
+        sample.value
+        for family in counter.collect()
+        for sample in family.samples
+        if sample.name == _VERDICT_SAMPLE
+    )
+
+
+@pytest.fixture(autouse=True)
+def _fail_on_corrected_failure_verdict(request: pytest.FixtureRequest) -> Iterator[None]:
+    """Fail any unit test whose tool formatted a declared failure as a success.
+
+    ``keep_declared_failure`` (ADR-347) corrects that verdict at the connector
+    chokepoints: in production it keeps the registers honest, in a test it
+    would hide the formatter defect behind a green run. The net's own tests
+    opt out with ``@pytest.mark.failure_verdict_correction``.
+    """
+    if request.node.get_closest_marker("failure_verdict_correction"):
+        yield
+        return
+    before = _corrected_failure_verdicts()
+    yield
+    if _corrected_failure_verdicts() > before:
+        pytest.fail(
+            f"unit test '{request.node.nodeid}' ran a connector tool whose formatter "
+            "answered a payload declaring a failure with a success; the chokepoint "
+            "corrected it (tool_failure_verdict_corrected_total). Fix the formatter "
+            "(ADR-347)."
+        )
 
 
 @pytest.fixture(autouse=True)

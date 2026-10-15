@@ -72,7 +72,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Auto-hospedaje ARM64 | Docker multi-arch, embeddings semánticos (multilingües), Playwright chromium cross-platform |
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), credenciales cifradas con Fernet, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
-| Transparencia total | 618 métricas Prometheus, debug panel integrado, seguimiento token por token |
+| Transparencia total | 619 métricas Prometheus, debug panel integrado, seguimiento token por token |
 | Fiabilidad en producción | 345 ADRs, más de 59.000 pruebas automatizadas de backend y frontend, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
@@ -95,7 +95,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Fixtures pytest | 1.082, de las cuales 48 compartidas mediante conftest |
 | Documentos de documentación | 716 |
 | ADRs (Architecture Decision Records) | 345 |
-| Métricas Prometheus | 618 definiciones |
+| Métricas Prometheus | 619 definiciones |
 | Dashboards Grafana | 31 |
 | Idiomas soportados (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -1124,7 +1124,7 @@ Un archivo generado puede carecer de vencimiento cuando se conserva dentro de lo
 
 | Tecnología | Rol |
 |-------------|------|
-| Prometheus | 618 métricas custom (RED pattern) |
+| Prometheus | 619 métricas custom (RED pattern) |
 | Grafana | 31 dashboards production-ready |
 | Loki | Logs estructurados JSON agregados, recogidos por Grafana Alloy (el mismo enmascaramiento en la recogida) |
 | Tempo | Trazas distribuidas cross-service (OTLP gRPC), nombradas por la plantilla de la ruta |
@@ -1132,7 +1132,7 @@ Un archivo generado puede carecer de vencimiento cuando se conserva dentro de lo
 | Alertmanager | Núcleo de 29 alertas vitales notificadas por correo (runbooks enlazados, umbrales por entorno) + webhook hacia LIA: cada alerta se convierte en un incidente dentro del producto (ADR-247) |
 | structlog | Logging estructurado con PII filtering |
 
-**Una métrica que no llega a ningún panel es una métrica sobre la que nadie actúa.** La distancia entre lo que el código emite y lo que un operador puede ver se mide, nunca se supone: `scripts/audit/measure_metric_coverage.py` analiza cada definición de métrica (por AST y no por expresión regular — una regex lee `ZoneInfo("UTC")` como una métrica `Info`) y coteja cada nombre con todos los paneles, reglas de registro y expresiones de alerta. 618 definidas; las que no llegan a nada figuran explícitamente en una base **que solo puede encogerse**, de modo que una métrica recién ciega hace fallar la compilación y una métrica que se vuelve visible debe salir de la lista — si no, la siguiente ciega ocupa su hueco en silencio. Sin esa guarda, una fuente de heartbeat que falla en abierto puede descartar parte de las señales de salud durante días sin que ninguna métrica lo advierta (ADR-148). Dos trampas que la guarda cierra por construcción — un contador con etiquetas que nunca se incrementó no expone **ninguna serie**, así que un panel que vigila un fallo raro necesita `or vector(0)` o mostrará «No data» donde el operador espera un cero verde; y la cobertura se lee únicamente de las **expresiones** de paneles y reglas, porque una métrica citada en un comentario no está cableada.
+**Una métrica que no llega a ningún panel es una métrica sobre la que nadie actúa.** La distancia entre lo que el código emite y lo que un operador puede ver se mide, nunca se supone: `scripts/audit/measure_metric_coverage.py` analiza cada definición de métrica (por AST y no por expresión regular — una regex lee `ZoneInfo("UTC")` como una métrica `Info`) y coteja cada nombre con todos los paneles, reglas de registro y expresiones de alerta. 619 definidas; las que no llegan a nada figuran explícitamente en una base **que solo puede encogerse**, de modo que una métrica recién ciega hace fallar la compilación y una métrica que se vuelve visible debe salir de la lista — si no, la siguiente ciega ocupa su hueco en silencio. Sin esa guarda, una fuente de heartbeat que falla en abierto puede descartar parte de las señales de salud durante días sin que ninguna métrica lo advierta (ADR-148). Dos trampas que la guarda cierra por construcción — un contador con etiquetas que nunca se incrementó no expone **ninguna serie**, así que un panel que vigila un fallo raro necesita `or vector(0)` o mostrará «No data» donde el operador espera un cero verde; y la cobertura se lee únicamente de las **expresiones** de paneles y reglas, porque una métrica citada en un comentario no está cableada.
 
 ### 20.2. Debug Panel integrado
 

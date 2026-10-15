@@ -67,6 +67,7 @@ from src.core.i18n_types import SupportedLanguage
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.dependencies import ToolDependencies, get_dependencies
 from src.domains.agents.tools.common import ToolErrorCode
+from src.domains.agents.tools.failure_verdict import keep_declared_failure
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import (
     describe_external_refusal,
@@ -415,9 +416,12 @@ class ConnectorTool[ClientType](_ToolLoggerMixin, LanguagePropagationMixin, ABC)
                 # Step 5: Execute API call (subclass-specific logic)
                 result = await self.execute_api_call(client, user_uuid, **kwargs)
 
-                # Step 6: Format response (Data Registry or legacy mode)
+                # Step 6: Format response (Data Registry or legacy mode); a failure
+                # the payload declared stays a failure whatever the formatter says.
                 if self.registry_enabled:
-                    return self.format_registry_response(result)
+                    return keep_declared_failure(
+                        result, self.format_registry_response(result), tool_name=self.tool_name
+                    )
                 else:
                     return self.format_response(result)
             else:
@@ -865,9 +869,12 @@ class APIKeyConnectorTool[ClientType](_ToolLoggerMixin, LanguagePropagationMixin
                 # Step 5: Execute API call (pass runtime for location resolution, etc.)
                 result = await self.execute_api_call(client, user_uuid, runtime=runtime, **kwargs)
 
-                # Step 6: Format response
+                # Step 6: Format response; a failure the payload declared stays a
+                # failure whatever the formatter says.
                 if self.registry_enabled:
-                    return self.format_registry_response(result)
+                    return keep_declared_failure(
+                        result, self.format_registry_response(result), tool_name=self.tool_name
+                    )
                 else:
                     return self.format_response(result)
             else:

@@ -3388,6 +3388,130 @@
           }
         }
       ]
+    },
+    {
+      "id": 4300,
+      "type": "row",
+      "title": "Tool result honesty (ADR-347)",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 180
+      },
+      "panels": [
+        {
+          "id": 4301,
+          "type": "stat",
+          "title": "Failure verdicts corrected (range)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 0,
+            "y": 181
+          },
+          "targets": [
+            {
+              "expr": "sum(increase(tool_failure_verdict_corrected_total[$__range])) or vector(0)",
+              "refId": "A",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "noValue": "0",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "value": null,
+                    "color": "green"
+                  },
+                  {
+                    "value": 1,
+                    "color": "red"
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "graphMode": "none",
+            "colorMode": "value",
+            "textMode": "auto",
+            "justifyMode": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            }
+          },
+          "description": "Connector tool results whose payload declared a failure while the tool's formatter answered a success, corrected to that failure at the execute chokepoint so the effect register, the tool metrics and the answer all read a failure. Expected 0: every increment is a formatter defect to fix (ADR-347)."
+        },
+        {
+          "id": 4302,
+          "type": "bargauge",
+          "title": "Corrected verdicts by tool (range)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 18,
+            "x": 6,
+            "y": 181
+          },
+          "targets": [
+            {
+              "expr": "sum by (tool_name) (increase(tool_failure_verdict_corrected_total[$__range])) > 0",
+              "legendFormat": "{{tool_name}}",
+              "refId": "A",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "noValue": "0",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "value": null,
+                    "color": "red"
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "orientation": "horizontal",
+            "displayMode": "basic",
+            "showUnfilled": true,
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            }
+          },
+          "description": "The tools whose formatter was corrected over the range, so the defect can be found by name. Empty is the expected state (ADR-347)."
+        }
+      ]
     }
   ]
 }
