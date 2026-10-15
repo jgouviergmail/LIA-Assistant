@@ -2563,6 +2563,13 @@
       "theme": "orchestration",
       "functional": ["f.planning"],
       "technical": ["t.planner", "t.metrics"]
+    },
+    {
+      "adr": 347,
+      "date": "2026-10-15",
+      "theme": "orchestration",
+      "functional": ["f.planning"],
+      "technical": ["t.toolsys", "t.planner", "t.response", "t.metrics"]
     }
   ]
 }

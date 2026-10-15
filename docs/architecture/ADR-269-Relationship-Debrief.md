@@ -159,3 +159,12 @@ avec le compte, exportée dans l'archive RGPD), nouveau type LLM
 panneaux sur le tableau de bord 05. Une fusion ou une scission **supprime** les
 débriefs concernés : la clé est l'identité, et un texte gardé décrirait quelqu'un
 que le CRM n'a plus.
+
+## Amendment 2026-10-15 — the overview's message is its header (ADR-347)
+
+`get_person_overview_tool` serialised its payload into `message`, the one
+channel the pipeline read; the ReAct loop then read it twice. Since
+[ADR-347](ADR-347-Read-Tool-Data-Reaches-The-Pipeline-Answer-A-Declared-Failure-Is-Never-A-Success.md) the payload reaches the answer as the tool's data block in both
+modes, wrapped as external content, and the message is the header — whose
+overview, and which blocks could not be read. The golden file's messages were
+re-derived by the tool's own function; its payloads are untouched.

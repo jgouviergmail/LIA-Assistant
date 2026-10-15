@@ -160,3 +160,13 @@ Le wrapper MCP (`_MCPReActWrapper`) passe par la même porte, `compose_tool_mess
   le condensé par message : ADR-287.
 - La rétention des checkpoints (ADR-283, laissée ouverte) : allégée ici, non
   résolue.
+
+## Amendment 2026-10-15 — the data block serves both modes (ADR-347)
+
+The pipeline projects the same block, in the executor, through
+`extract_data_block` and `mark_untrusted_data` (surface `pipeline`), under the
+response slot's budget ([ADR-347](ADR-347-Read-Tool-Data-Reaches-The-Pipeline-Answer-A-Declared-Failure-Is-Never-A-Success.md)): `slot_tool_result_budget(slot)` is
+now the one computation, shared by the loop (`react_agent`), the meeting reads
+and the pipeline (`response`). The budget note says the omitted items are
+complete in the registry only when the result filed registry items: a
+registry-less tool's omitted items are nowhere else.

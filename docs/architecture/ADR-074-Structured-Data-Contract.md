@@ -141,3 +141,14 @@ Per-tool corrections removed the anti-pattern of domain data in `metadata`:
 - [apps/api/src/domains/agents/orchestration/parallel_executor.py](../../apps/api/src/domains/agents/orchestration/parallel_executor.py) — merge gentle (~L2675) and `completed_steps` assignment (~L3025)
 - [ADR-070](ADR-070-ReAct-Execution-Mode.md) — Skill ReAct execution mode (upstream consumer)
 - [ADR-071](ADR-071-Skill-Semantic-Identification.md) — Skill semantic identification
+
+## Amendment 2026-10-15 — the response model reads `structured_data` too (ADR-347)
+
+The audience table gave `structured_data` to the orchestration alone, and the
+pipeline's response model read a step's `message` and the registry items: a
+read tool whose facts lived in `structured_data` handed the answer a sentence
+about them. Since [ADR-347](ADR-347-Read-Tool-Data-Reaches-The-Pipeline-Answer-A-Declared-Failure-Is-Never-A-Success.md), what a READ step's `structured_data`
+carries beyond its registry items is projected into the step's data block and
+read by the response model, in both execution modes. A tool whose `message`
+already renders its data declares so on its manifest (`pipeline_data_channel`,
+with a reason the boot checks).

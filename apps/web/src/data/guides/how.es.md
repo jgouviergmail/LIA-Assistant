@@ -73,7 +73,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), credenciales cifradas con Fernet, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
 | Transparencia total | 620 métricas Prometheus, debug panel integrado, seguimiento token por token |
-| Fiabilidad en producción | 345 ADRs, más de 59.000 pruebas automatizadas de backend y frontend, observabilidad nativa, HITL de 6 niveles |
+| Fiabilidad en producción | 346 ADRs, más de 59.000 pruebas automatizadas de backend y frontend, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
 ### 1.2. Principios arquitecturales
@@ -94,7 +94,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Tests | Más de 59.000 pruebas automatizadas con pytest y Vitest (umbrales de cobertura bloqueados, ADR-116) |
 | Fixtures pytest | 1.082, de las cuales 48 compartidas mediante conftest |
 | Documentos de documentación | 716 |
-| ADRs (Architecture Decision Records) | 345 |
+| ADRs (Architecture Decision Records) | 346 |
 | Métricas Prometheus | 620 definiciones |
 | Dashboards Grafana | 31 |
 | Idiomas soportados (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -1554,7 +1554,7 @@ Una regla CSS gobierna los espaciados del design system: los márgenes verticale
 
 ## 24. Arquitectura de decisiones (ADR)
 
-345 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
+346 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
 
 | ADR | Decisión | Problema resuelto | Impacto medido |
 |-----|----------|----------------|---------------|
@@ -1955,8 +1955,8 @@ Los estudios de oMLX, llama.cpp y LM Studio y el mundo isométrico son trabajos 
 
 LIA es un ejercicio de ingeniería de software que intenta resolver un problema concreto: construir un asistente IA multi-agente de calidad producción, transparente, seguro y extensible, capaz de funcionar en un Raspberry Pi.
 
-Los 345 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Las más de 59.000 pruebas automatizadas, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
+Los 346 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Las más de 59.000 pruebas automatizadas, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (700+ documentos), de los 345 ADRs y del changelog (v1.0 a v3.0.1). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (700+ documentos), de los 346 ADRs y del changelog (v1.0 a v3.0.1). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

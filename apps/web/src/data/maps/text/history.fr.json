@@ -1462,6 +1462,10 @@
     "346": {
       "title": "Le re-planificateur consultatif est retiré : un échec se dit, il ne se rejoue pas",
       "summary": "Mesuré en production, l'analyseur qui suivait chaque plan en échec qualifiait de passagers des échecs qui ne l'étaient pas, et la boucle de reprise qu'il attendait aurait rejoué l'irréparable. Il disparaît : un échec est dit dans la réponse, une panne passagère est retentée par le client qui l'a rencontrée, et un compteur typé montre chaque étape en échec, y compris avant l'appel d'un outil."
+    },
+    "347": {
+      "title": "Ce qu'un outil de lecture trouve atteint la réponse, et un refus n'est jamais un succès",
+      "summary": "En mode pipeline, la réponse s'écrivait à partir d'une phrase sur les données d'un outil — « 2 destinations » — tandis que les durées, les connexions ou la page suivante restaient de côté : sans elles, 0 réponse sur 9 donnait les temps de trajet, 27 sur 27 avec. Elles arrivent désormais comme en mode autonome, bornées et marquées comme contenu tiers. Et le refus d'un outil ne peut plus devenir un succès en chemin : les commandes Hue disaient avoir allumé une lampe qui n'existait pas."
     }
   }
 }

@@ -1827,6 +1827,11 @@
       "title": "El replanificador consultivo se retira: un fallo se dice, nunca se repite",
       "summary": "Medido en producción, el analizador que seguía a cada plan fallido calificaba de pasajeros fallos que no lo eran, y el bucle de recuperación que esperaba habría repetido lo irreparable. Desaparece: un fallo se dice en la respuesta, una caída pasajera la reintenta el cliente que la sufrió, y un contador tipado muestra cada paso fallido, incluso uno ocurrido antes de llamar a una herramienta.",
       "src": "185409f983b0"
+    },
+    "347": {
+      "title": "Lo que encuentra una herramienta de lectura llega a la respuesta, y un rechazo nunca es un éxito",
+      "summary": "En modo pipeline, la respuesta se escribía a partir de una frase sobre los datos de una herramienta — «2 destinos» — mientras los tiempos de trayecto, las conexiones o la página siguiente quedaban a un lado: sin ellos, 0 respuestas de 9 daban los tiempos, 27 de 27 con ellos. Ahora llegan como en el modo autónomo, acotados y marcados como contenido de terceros. Y el rechazo de una herramienta ya no puede convertirse en éxito por el camino: los comandos Hue decían haber encendido una lámpara que no existía.",
+      "src": "9c1a75d39f49"
     }
   }
 }

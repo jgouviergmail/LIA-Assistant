@@ -147,3 +147,12 @@ its executor exists.
 - **Correct and exploit** (a typed repair pass through the existing re-plan
   channel) — designed, deferred: see the reopening conditions.
 - **Keep the analyzer advisory but typed** — rejected: advice nobody reads.
+
+## Amendment 2026-10-15 — the aggregate is built from the items that succeeded (ADR-347)
+
+The aggregate merged every item, so a single failed item made the whole loop a
+failure and the mapper dropped every success with it. It is now built from the
+items that succeeded and carries the failed ones (`FIELD_FOR_EACH_FAILED_ITEMS`);
+only a loop whose every item failed is a failure ([ADR-347](ADR-347-Read-Tool-Data-Reaches-The-Pipeline-Answer-A-Declared-Failure-Is-Never-A-Success.md)). It is still
+marked, and the failures directive still counts the items, never the aggregate.
+The aggregation moved to `orchestration/for_each_aggregation.py`.

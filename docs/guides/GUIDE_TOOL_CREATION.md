@@ -1157,6 +1157,26 @@ class MyTool(ConnectorTool):
 > an untyped code on the step result (the raw string stays in the result
 > dict): prefer enum members so blockers can be phrased for the user.
 
+> **A connector payload's verdict is the verdict (ADR-347).** In a
+> `ConnectorTool`, the payload `execute_api_call` returns and the output
+> `format_registry_response` makes of it must agree. A payload with
+> `success: False` — or an `error_code` and no `success` key — that the
+> formatter turns into `data_success` / `action_success` is corrected at the
+> chokepoint to the payload's failure (`keep_declared_failure`), logged at ERROR
+> and counted (`tool_failure_verdict_corrected_total`), and any unit test that
+> triggers the correction fails. Answer a failure with
+> `UnifiedToolOutput.failure(message=..., error_code=...)`; an AST guard refuses a
+> success built in a branch that has just read a failure.
+
+> **What a read tool's `structured_data` carries reaches the answer (ADR-347).**
+> In both execution modes, the data a READ tool returns beyond its registry
+> items is projected into a data block the response model reads — paged item by
+> item under the slot's budget, wrapped as external content. Put the facts
+> there; the `message` is a header. A tool whose message already renders its
+> data — and whose raw data would contradict it, in another timezone for
+> instance — declares `pipeline_data_channel="message"` on its manifest with a
+> `pipeline_data_channel_reason`; the boot refuses a declaration without one.
+
 **Error Response** :
 
 ```python

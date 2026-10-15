@@ -1827,6 +1827,11 @@
       "title": "Il ripianificatore consultivo viene ritirato: un errore si dice, non si ripete",
       "summary": "Misurato in produzione, l'analizzatore che seguiva ogni piano fallito definiva passeggeri errori che non lo erano, e il ciclo di ripresa che attendeva avrebbe ripetuto l'irreparabile. Scompare: un errore viene detto nella risposta, un guasto passeggero viene ritentato dal client che lo ha incontrato, e un contatore tipizzato mostra ogni passo fallito, anche uno avvenuto prima della chiamata a uno strumento.",
       "src": "185409f983b0"
+    },
+    "347": {
+      "title": "Ciò che uno strumento di lettura trova arriva alla risposta, e un rifiuto non è mai un successo",
+      "summary": "In modalità pipeline la risposta nasceva da una frase sui dati di uno strumento — «2 destinazioni» — mentre i tempi di percorrenza, le connessioni o la pagina successiva restavano da parte: senza di essi, 0 risposte su 9 davano i tempi, 27 su 27 con essi. Ora arrivano come in modalità autonoma, limitati e marcati come contenuto di terzi. E il rifiuto di uno strumento non può più diventare un successo lungo la strada: i comandi Hue dicevano di aver acceso una lampada che non esisteva.",
+      "src": "9c1a75d39f49"
     }
   }
 }

@@ -84,6 +84,13 @@ its exchanges in one take.
   in the radio settings, automatic by default as before. A commentator never
   shares a voice with LIA, the anchor or another commentator: the settings grey those
   voices out and a save refuses them (`radio_voice_shared`).
+- 🧭 **What a read tool finds reaches the answer** ([ADR-347](docs/architecture/ADR-347-Read-Tool-Data-Reaches-The-Pipeline-Answer-A-Declared-Failure-Is-Never-A-Success.md)): in the
+  default mode the answer was written from a sentence about the data — « 2
+  destinations » — while the travel times, the connections or the next page
+  of a search sat beside it unread. The data now reaches it as in the
+  autonomous mode: everything the cards do not already show, wrapped as
+  third-party content, within a budget, every cut stated. Measured before:
+  0 of 9 answers gave the travel times, 27 of 27 with the data.
 
 ### Changed
 
@@ -135,6 +142,16 @@ its exchanges in one take.
   model, so every model change of the radio's voice slot handed you other voices — or
   automatic ones. They are kept per provider now, every model of which offers the same
   voices, and the choices made on an earlier model are still read.
+- 💡 **A light, room or scene that does not exist is no longer « switched »:**
+  the Hue commands answered a refused command as done, and LIA said so; they
+  now answer that the target was not found, naming the ones that exist. Every
+  connector tool is held to the same verdict ([ADR-347](docs/architecture/ADR-347-Read-Tool-Data-Reaches-The-Pipeline-Answer-A-Declared-Failure-Is-Never-A-Success.md)): a refusal
+  is never turned into a success on its way to the answer.
+- 🔁 **A repeated action with one failed item keeps the others:** creating
+  three reminders with one refused lost the confirmations of the two that
+  were created; the answer now confirms them and states the one that failed.
+- 🪞 **A person's 360° overview is read once** in the autonomous mode, where it
+  arrived twice.
 - ↩️ **A reply's confirmation shows, and sends to, whom it reaches:** a reply to
   all no longer loses its other recipients, a reply to your own message no
   longer goes back to you, and on Outlook and iCloud the card names the

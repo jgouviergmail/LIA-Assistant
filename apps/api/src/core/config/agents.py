@@ -935,8 +935,9 @@ class AgentsSettings(BaseSettings):
         ge=1_000,
         le=200_000,
         description=(
-            "Ceiling, in tokens, of ONE tool result handed to the ReAct model. Items "
-            "are never cut mid-way and a cut is stated to the model (ADR-286)."
+            "Ceiling, in tokens, of ONE tool result handed to the ReAct model, and of "
+            "the pipeline's tool data section (ADR-347). Items are never cut mid-way "
+            "and a cut is stated to the model (ADR-286)."
         ),
     )
     react_tool_result_window_fraction: float = Field(
@@ -944,8 +945,9 @@ class AgentsSettings(BaseSettings):
         ge=0.05,
         le=0.5,
         description=(
-            "Fraction of the ReAct slot's context window one tool result may occupy; "
-            "the effective budget is min(ceiling, window × fraction) (ADR-286)."
+            "Fraction of the reading slot's context window one tool result may occupy "
+            "(react_agent for the loop, response for the pipeline's tool data section); "
+            "the effective budget is min(ceiling, window × fraction) (ADR-286, ADR-347)."
         ),
     )
     react_cross_turn_cache_enabled: bool = Field(

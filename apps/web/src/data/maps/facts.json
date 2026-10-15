@@ -579,6 +579,7 @@
     "343": "ADR-343-Portrait-Reads-The-Whole-Material-And-Its-Brief-Is-A-Synthesis.md",
     "344": "ADR-344-Mailbox-Drafts-Kept-Freely-Sent-After-One-Confirmation.md",
     "345": "ADR-345-Fish-Audio-Served-Whole-One-Door-One-Allowance-Cues-Each-Engine-Reads.md",
-    "346": "ADR-346-Advisory-Replanner-Retired-A-Pipeline-Failure-Is-Said-Never-Replayed.md"
+    "346": "ADR-346-Advisory-Replanner-Retired-A-Pipeline-Failure-Is-Said-Never-Replayed.md",
+    "347": "ADR-347-Read-Tool-Data-Reaches-The-Pipeline-Answer-A-Declared-Failure-Is-Never-A-Success.md"
   }
 }

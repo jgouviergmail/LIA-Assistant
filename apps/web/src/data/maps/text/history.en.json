@@ -1827,6 +1827,11 @@
       "title": "The advisory replanner is retired: a failure is said, never replayed",
       "summary": "Measured in production, the analyzer that followed every failed plan called failures transient that were not, and the recovery loop it waited for would have replayed what cannot be repaired. It goes: a failure is stated in the answer, a passing outage is retried by the client that met it, and a typed counter shows every failed step, including one that happens before a tool is called.",
       "src": "185409f983b0"
+    },
+    "347": {
+      "title": "What a read tool finds reaches the answer, and a refusal is never a success",
+      "summary": "In pipeline mode, the answer was written from a sentence about a tool's data — “2 destinations” — while the travel times, the connections or the next page stayed aside: without them, 0 answers in 9 gave the travel times, 27 in 27 with them. They now arrive as in autonomous mode, bounded and marked as third-party content. And a tool's refusal can no longer turn into a success on the way: the Hue commands said they had switched on a lamp that did not exist.",
+      "src": "9c1a75d39f49"
     }
   }
 }

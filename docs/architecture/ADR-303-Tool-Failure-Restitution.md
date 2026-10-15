@@ -236,3 +236,15 @@ calculé à l'exécution. La carte réutilise son libellé d'annulation dans les
 langues ; un reçu indiquant une écriture déjà commise conserve la priorité et
 demande une vérification. Le recensement des refus inclut ce code calculé et
 exige une décision pour chaque code dynamique déclaré, comme pour les littéraux.
+
+## Amendment 2026-10-15 — a declared failure is never formatted as a success (ADR-347)
+
+`keep_declared_failure` sits at the two connector chokepoints ([ADR-347](ADR-347-Read-Tool-Data-Reaches-The-Pipeline-Answer-A-Declared-Failure-Is-Never-A-Success.md)):
+a payload that declared a failure (`success` false, or an `error_code` with no
+`success` key) and that its formatter answered with an explicit success becomes
+that failure, in the payload's words and typed code; each correction is logged,
+counted (`tool_failure_verdict_corrected_total`, expected 0) and fails the unit
+test that triggers it. And a FOR_EACH with failed items is a SUCCESS carrying
+them (`FIELD_FOR_EACH_FAILED_ITEMS`): the mapper lists one failed step per item
+and counts plan steps for the status — the field states the partial, never the
+status, for a loop too.
