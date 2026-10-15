@@ -1,30 +1,16 @@
 """Keep native pages usable under the existing result ceiling and slot window."""
 
 import json
-from contextlib import suppress
 
 import tiktoken
 
 from src.core.config import settings
-from src.domains.agents.utils.react_budget import tool_result_token_budget
+from src.domains.agents.utils.react_budget import slot_tool_result_budget
 from src.infrastructure.meeting_reads import MeetingReadPage
 
 
 def meeting_read_token_budget() -> int:
-    window: int | None = None
-    with suppress(Exception):
-        from src.core.llm_config_helper import get_effective_context_window_for_slot
-
-        window = get_effective_context_window_for_slot("react_agent")
-    return max(
-        1,
-        tool_result_token_budget(
-            window,
-            ceiling=settings.react_tool_result_max_tokens,
-            window_fraction=settings.react_tool_result_window_fraction,
-        )
-        - 64,
-    )
+    return max(1, slot_tool_result_budget("react_agent") - 64)
 
 
 def _tokens(page: MeetingReadPage) -> int:

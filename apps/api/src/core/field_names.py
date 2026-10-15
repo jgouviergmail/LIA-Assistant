@@ -100,6 +100,12 @@ FIELD_FOR_EACH_AGGREGATE = "_for_each_aggregate"
 #: ``error``, ``error_code`` each): the aggregate is built from the items that
 #: succeeded, and the mapper lists one failed step per entry (ADR-347).
 FIELD_FOR_EACH_FAILED_ITEMS = "_for_each_failed_items"
+#: The data blocks a read step's tool projected for the pipeline's response
+#: model, one record per tool call (a FOR_EACH concatenates its items'). Written
+#: by ``orchestration/tool_data_projection`` alone, read by the response's tool
+#: data section, removed from every persisted copy that is not the turn's own
+#: (ADR-347).
+FIELD_TOOL_DATA = "_tool_data"
 FIELD_ERROR_MESSAGE = "error_message"
 FIELD_ERROR_TYPE = "error_type"
 FIELD_IS_ACTIVE = "is_active"

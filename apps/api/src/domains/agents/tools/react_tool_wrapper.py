@@ -28,7 +28,7 @@ import asyncio
 import json
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
-from typing import Any
+from typing import Any, TypeGuard
 
 import structlog
 from langchain_core.tools import BaseTool
@@ -37,7 +37,7 @@ from pydantic import BaseModel, PrivateAttr
 logger = structlog.get_logger(__name__)
 
 
-def mark_untrusted_data(result: Any, data_for_llm: str) -> str:
+def mark_untrusted_data(result: Any, data_for_llm: str, *, surface: str = "react") -> str:
     """Wrap the Data block unless its provenance is established INTERNAL.
 
     The provenance travels with ``registry_updates`` (a typed
@@ -53,15 +53,17 @@ def mark_untrusted_data(result: Any, data_for_llm: str) -> str:
     tool-authored shape costs a few tokens; an unmarked third-party text is
     an injection vector.
 
-    Unlike the pipeline surface, this block is a JSON dump with no
+    Unlike the pipeline's registry lines, this block is a JSON dump with no
     per-item lines to prefix, so the whole block is wrapped with the
     canonical ``<external_content>`` markers already used by the browser and
     web-fetch tools (a tool that wrapped its own text is wrapped again; the
-    inner tags are escaped, never trusted).
+    inner tags are escaped, never trusted). The pipeline's data block is the
+    same block and goes through the same door (ADR-347).
 
     Args:
         result: The tool output being serialised.
         data_for_llm: The JSON data block extracted from it.
+        surface: ``"react"`` or ``"pipeline"``, for the injection counter.
 
     Returns:
         The block, wrapped and annotated unless every registry item is internal.
@@ -83,7 +85,7 @@ def mark_untrusted_data(result: Any, data_for_llm: str) -> str:
         wrap_external_content,
     )
 
-    notice = injection_notice(data_for_llm, item_type=source, surface="react")
+    notice = injection_notice(data_for_llm, item_type=source, surface=surface)
     return wrap_external_content(
         f"{data_for_llm}{notice}",
         source_url=source,
@@ -119,7 +121,8 @@ def _dumps(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, default=str)
 
 
-def _is_item_list(value: Any) -> bool:
+def is_item_list(value: object) -> TypeGuard[list[dict[str, Any]]]:
+    """A non-empty list of dicts: the item list a data block pages."""
     return isinstance(value, list) and bool(value) and all(isinstance(x, dict) for x in value)
 
 
@@ -156,7 +159,7 @@ def render_data_block(data: dict[str, Any], budget_tokens: int) -> DataBlock:
     """
     from src.domains.agents.utils.token_utils import count_tokens
 
-    candidates = [k for k, v in data.items() if _is_item_list(v)]
+    candidates = [k for k, v in data.items() if is_item_list(v)]
     key = max(candidates, key=lambda k: len(_dumps(data[k]))) if candidates else None
     if key is None:
         text = _dumps(data)
@@ -207,7 +210,7 @@ class _MCPDataProjection:
     omitted: object = field(default_factory=object)
 
     def collect(self, value: object, path: str, depth: int = 0) -> object:
-        if _is_item_list(value) and isinstance(value, list):
+        if is_item_list(value) and isinstance(value, list):
             self.counts[path] = len(value)
             for index, item in enumerate(value):
                 if (
@@ -264,18 +267,41 @@ def _prepare_model_data(data: dict[str, object], result: object) -> dict[str, ob
     return data
 
 
+def _carried_data(result: Any) -> dict[str, Any] | None:
+    """The data a tool result carries, in priority order.
+
+    1. structured_data (explicit, e.g., from UnifiedToolOutput.data_success)
+    2. registry_updates payloads (fallback — extract payloads from RegistryItems)
+    3. None (message-only, no extra data)
+    """
+    structured = getattr(result, "structured_data", None)
+    if structured and isinstance(structured, dict):
+        return structured
+
+    # getattr, not a bare attribute: the MCP sub-agent wrapper also feeds
+    # message-only outputs through here.
+    if not getattr(result, "registry_updates", None):
+        return None
+    grouped: dict[str, list[Any]] = {}
+    for item in result.registry_updates.values():
+        payload = getattr(item, "payload", None) or (
+            item.get("payload") if isinstance(item, dict) else None
+        )
+        if payload:
+            item_type = getattr(item, "type", None)
+            type_key = item_type.value.lower() + "s" if hasattr(item_type, "value") else "items"
+            grouped.setdefault(type_key, []).append(payload)
+    return grouped or None
+
+
 def extract_data_block(
     result: Any,
     budget_tokens: int,
     *,
     reshape: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
+    data: dict[str, Any] | None = None,
 ) -> DataBlock | None:
     """Pick the data a tool result carries and project it.
-
-    Priority:
-    1. structured_data (explicit, e.g., from UnifiedToolOutput.data_success)
-    2. registry_updates payloads (fallback — extract payloads from RegistryItems)
-    3. None (message-only, no extra data)
 
     Args:
         result: Tool output with structured_data and/or registry_updates.
@@ -283,31 +309,16 @@ def extract_data_block(
         reshape: An optional reduction of the data BEFORE the paging — the
             phone channel reduces every item to what a voice can say, so the
             budget is spent on words rather than on identifiers.
+        data: The data to project in place of what the result carries — the
+            pipeline hands what its registry items do not already show
+            (ADR-347). The result still decides the MCP row projection and the
+            visible connector cursor.
 
     Returns:
-        The projected block, or ``None`` when the result carries no data.
+        The projected block, or ``None`` when there is no data.
     """
-    data: dict[str, Any] | None = None
-
-    structured = getattr(result, "structured_data", None)
-    if structured and isinstance(structured, dict):
-        data = structured
-
-    # getattr, not a bare attribute: the MCP sub-agent wrapper also feeds
-    # message-only outputs through here.
-    if data is None and getattr(result, "registry_updates", None):
-        grouped: dict[str, list[Any]] = {}
-        for item in result.registry_updates.values():
-            payload = getattr(item, "payload", None) or (
-                item.get("payload") if isinstance(item, dict) else None
-            )
-            if payload:
-                item_type = getattr(item, "type", None)
-                type_key = item_type.value.lower() + "s" if hasattr(item_type, "value") else "items"
-                grouped.setdefault(type_key, []).append(payload)
-        if grouped:
-            data = grouped
-
+    if data is None:
+        data = _carried_data(result)
     if not data:
         return None
     data = _prepare_model_data(data, result)
@@ -373,7 +384,11 @@ def _budget_note(result: object, block: DataBlock) -> str:
             "Never report omitted data as missing."
         )
     return tool_result_budget_note(
-        shown=block.shown, total=block.total, key=block.key, budget_tokens=block.budget_tokens
+        shown=block.shown,
+        total=block.total,
+        key=block.key,
+        budget_tokens=block.budget_tokens,
+        in_registry=bool(getattr(result, "registry_updates", None)),
     )
 
 

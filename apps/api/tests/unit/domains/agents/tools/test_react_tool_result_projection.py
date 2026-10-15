@@ -38,6 +38,7 @@ from src.domains.agents.tools.mixins import ToolOutputMixin
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.react_tool_wrapper import (
     ReactToolWrapper,
+    compose_tool_message,
     extract_data_for_llm,
     render_data_block,
 )
@@ -226,11 +227,34 @@ class TestItemBoundary:
 
 class TestTheCutIsStated:
     def test_the_note_names_shown_total_and_the_way_out(self) -> None:
-        note = tool_result_budget_note(shown=2, total=9, key="emails", budget_tokens=1_000)
+        note = tool_result_budget_note(
+            shown=2, total=9, key="emails", budget_tokens=1_000, in_registry=True
+        )
         assert "2 of 9" in note
         assert "emails" in note
         assert "1000" in note
         assert "narrow" in note.lower()
+        assert "registry" in note
+
+    def test_a_cut_without_a_registry_never_claims_one(self) -> None:
+        """A registry-less tool's omitted items are nowhere else (ADR-347)."""
+        note = tool_result_budget_note(
+            shown=2, total=9, key="connections", budget_tokens=1_000, in_registry=False
+        )
+        assert "2 of 9" in note
+        assert "registry" not in note
+        assert "narrow" in note.lower()
+
+    def test_the_tool_message_says_where_the_rest_is(self) -> None:
+        rows = [{"name": f"row {i}", "notes": "x" * 400} for i in range(20)]
+        registry_less = UnifiedToolOutput.data_success(
+            message="20 rows", structured_data={"rows": rows}
+        )
+
+        rendered = compose_tool_message(registry_less, tool_name="probe_tool", budget_tokens=300)
+
+        assert " of 20 " in rendered
+        assert "registry" not in rendered.rpartition("</external_content>")[2]
 
     def test_the_tool_message_carries_the_note_outside_the_external_block(self) -> None:
         emails = [_gmail_full_message(i) for i in range(1, 11)]

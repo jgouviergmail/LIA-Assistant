@@ -122,6 +122,7 @@ from src.domains.agents.orchestration.step_timeouts import compute_step_timeout
 
 # 2026-01: Text compaction for token optimization (post-Jinja evaluation)
 from src.domains.agents.orchestration.text_compaction import compact_text_params
+from src.domains.agents.orchestration.tool_data_projection import tool_data_fields
 from src.domains.agents.semantic.argument_guard import guard_tool_arguments
 from src.domains.agents.semantic.param_guard import (
     person_names_from_config,
@@ -1634,6 +1635,7 @@ async def _execute_single_step_async(
     context: dict[str, Any] | None = None,
     accumulated_registry: dict[str, Any] | None = None,
     turn_id: int | None = None,
+    data_share: int = 1,
 ) -> StepResult:
     """
     Execute a single step (TOOL or CONDITIONAL) asynchronously.
@@ -1650,6 +1652,7 @@ async def _execute_single_step_async(
         context: Conversation context data (optional, for context.X reference resolution)
         accumulated_registry: INTELLIA LocalQueryEngine - registry items for local_query_engine_tool
         turn_id: Current turn ID to inject into RegistryItem.meta (for context resolution)
+        data_share: How many results share this step's data budget (a FOR_EACH's items)
 
     Returns:
         StepResult with execution result
@@ -1691,6 +1694,7 @@ async def _execute_single_step_async(
                     accumulated_registry=accumulated_registry,
                     context=context,  # Phase 8.5: Pass context for context.X reference resolution
                     turn_id=turn_id,  # BugFix 2025-12-19: For RegistryItem.meta injection
+                    data_share=data_share,
                 ),
                 timeout=timeout_seconds,
             )
@@ -2137,6 +2141,7 @@ async def _execute_tool_step(
     accumulated_registry: dict[str, Any] | None = None,
     context: dict[str, Any] | None = None,
     turn_id: int | None = None,
+    data_share: int = 1,
 ) -> StepResult:
     """
     Execute a TOOL step.
@@ -2161,6 +2166,7 @@ async def _execute_tool_step(
         accumulated_registry: INTELLIA LocalQueryEngine - registry items for local_query_engine_tool
         context: Conversation context data (optional, for context.X reference resolution)
         turn_id: Current turn ID to inject into RegistryItem.meta (for context resolution)
+        data_share: How many results share this step's data budget (a FOR_EACH's items)
 
     Returns:
         StepResult with tool execution result
@@ -2302,7 +2308,7 @@ async def _execute_tool_step(
     # point 38: it holds in both modes, and here the references are resolved.
 
     # 2. Get tool manifest from registry (Session 22 - Helper #7)
-    _manifest, error_result = _get_tool_manifest_for_step(
+    manifest, error_result = _get_tool_manifest_for_step(
         step=step,
         resolved_args=resolved_args,
         start_time=start_time,
@@ -2411,6 +2417,8 @@ async def _execute_tool_step(
         accumulated_registry=accumulated_registry,
         turn_id=turn_id,
         step_id=step.step_id,
+        manifest=manifest,
+        data_share=data_share,
     )
 
     # Data Registry LOT 5.2: Extract result and registry_updates from ToolExecutionResult
@@ -2533,6 +2541,8 @@ async def _execute_tool(
     accumulated_registry: dict[str, Any] | None = None,
     turn_id: int | None = None,
     step_id: str | None = None,
+    manifest: object = None,
+    data_share: int = 1,
 ) -> ToolExecutionResult:
     """
     Execute a LangChain tool with ToolRuntime injection.
@@ -2552,6 +2562,8 @@ async def _execute_tool(
         accumulated_registry: INTELLIA LocalQueryEngine - registry items to inject
         turn_id: Current turn ID to inject into RegistryItem.meta (for context resolution)
         step_id: Execution plan step ID to inject into RegistryItem.meta (for correlated display)
+        manifest: The tool's manifest, which decides whether its data is projected
+        data_share: How many results share this step's data budget (a FOR_EACH's items)
 
     Returns:
         ToolExecutionResult with result dict and optional registry_updates
@@ -2944,6 +2956,12 @@ async def _execute_tool(
                         tool_name=tool_name,
                         distinct_count=len(result.tool_metadata["distinct_values"]),
                     )
+
+            # ADR-347: what a READ tool's structured_data carries beyond its
+            # registry items, projected for the pipeline's response model.
+            structured_data.update(
+                tool_data_fields(result, manifest=manifest, tool_name=tool_name, share=data_share)
+            )
 
             # Propagate TCM flag and save mode so _auto_save_wave_contexts can
             # detect decorator-saved tools and skip the duplicate save path.
@@ -3666,6 +3684,8 @@ async def _execute_for_each_wave(
                 context=context,
                 accumulated_registry=accumulated_registry,
                 turn_id=turn_id,
+                # The items share one data budget (ADR-347).
+                data_share=len(expanded_steps),
             )
             for step in expanded_steps
         ]
@@ -3743,6 +3763,7 @@ async def _execute_for_each_wave(
                 context=context,
                 accumulated_registry=accumulated_registry,
                 turn_id=turn_id,
+                data_share=len(expanded_steps),
             )
             results.append(result)
 

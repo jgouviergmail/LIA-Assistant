@@ -75,7 +75,7 @@ from src.domains.agents.utils.react_budget import (
     abandoned_call_message,
     effective_react_budget,
     loop_cut_reason,
-    tool_result_token_budget,
+    slot_tool_result_budget,
 )
 from src.domains.agents.utils.react_budget import (
     loop_compute_seconds as _loop_compute_seconds,
@@ -313,27 +313,6 @@ def _observe_delivered_context(messages: list[BaseMessage]) -> None:
             react_context_window_utilization.observe(delivered / window)
 
 
-def _tool_result_budget() -> int:
-    """Tokens ONE tool result may occupy this pass: min(ceiling, window × fraction).
-
-    The window is the ReAct slot's own (ADR-278), read through the same seam as
-    the utilization metric above; a catalogue hiccup falls back to the ceiling
-    rather than breaking the loop (ADR-286).
-    """
-    window: int | None = None
-    # Best-effort read: an unreadable window means the ceiling alone bounds
-    # the result, which is the documented default.
-    with suppress(Exception):
-        from src.core.llm_config_helper import get_effective_context_window_for_slot
-
-        window = get_effective_context_window_for_slot("react_agent")
-    return tool_result_token_budget(
-        window,
-        ceiling=settings.react_tool_result_max_tokens,
-        window_fraction=settings.react_tool_result_window_fraction,
-    )
-
-
 @trace_node("react_call_model")
 @track_metrics(node_name="react_call_model", duration_metric=agent_node_duration_seconds)
 async def react_call_model_node(
@@ -504,7 +483,7 @@ async def _execute_react_calls(
         interrupt=interrupt,
         timeout=compute_step_timeout,
         draft=_extract_draft_info,
-        result_budget=_tool_result_budget(),
+        result_budget=slot_tool_result_budget("react_agent"),
         store=await get_tool_context_store(),
     )
     result = await execute_call(state, config, ports)

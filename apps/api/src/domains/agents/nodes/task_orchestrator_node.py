@@ -65,6 +65,10 @@ from src.domains.agents.orchestration import (
     map_execution_result_to_agent_result,
 )
 from src.domains.agents.orchestration.step_failure_metrics import record_pipeline_step_failures
+from src.domains.agents.orchestration.tool_data_projection import (
+    previous_turns_without_tool_data,
+    without_tool_data,
+)
 from src.domains.agents.utils.state_cleanup import (
     cleanup_dict_by_turn_id,
     cleanup_list_by_limit,
@@ -677,9 +681,12 @@ async def _handle_execution_plan(
         ).inc()
         orchestration_plan_agents_distribution.observe(len(execution_plan.steps))
 
-        # Cleanup state
+        # Cleanup state; a data block serves its own turn's response alone (ADR-347).
         cleaned_agent_results = cleanup_dict_by_turn_id(
-            {**state.get(STATE_KEY_AGENT_RESULTS, {}), **agent_results},
+            {
+                **previous_turns_without_tool_data(state.get(STATE_KEY_AGENT_RESULTS, {}), turn_id),
+                **agent_results,
+            },
             max_results=settings.max_agent_results,
             label="agent_results",
         )
@@ -695,8 +702,8 @@ async def _handle_execution_plan(
             STATE_KEY_AGENT_RESULTS: cleaned_agent_results,
             STATE_KEY_ROUTING_HISTORY: cleaned_routing_history,
             # Read back by the response node to weigh a stale validation
-            # verdict against what the turn actually ran.
-            STATE_KEY_COMPLETED_STEPS: completed_steps,
+            # verdict against what the turn actually ran — never its data.
+            STATE_KEY_COMPLETED_STEPS: without_tool_data(completed_steps),
         }
 
         # CRITICAL FIX: Update last_action_turn_id for context reference resolution
