@@ -400,7 +400,7 @@ services:
   # target from BLACKBOX_PUBLIC_PROBE_URL at startup. Leave the variable unset
   # in development — zero probe targets, PublicEndpointDown stays silent.
   prometheus:
-    image: prom/prometheus:v3.13.3@sha256:6976aa8a60fec930796ce5772b8d12da7a318a5daa8d40d69c5c7819a05eeed7
+    image: prom/prometheus:v3.15.0@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e
     container_name: lia-prometheus-dev
     security_opt:
       - no-new-privileges:true
