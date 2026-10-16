@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+from contextlib import closing
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
@@ -38,7 +39,9 @@ async def test_exact_peer_count_uses_visible_open_outbound_set_in_one_holder_rea
         (me.hex, None, "lia", "todo", None),
         (me.hex, me.hex, "human", "waiting", None),
     ] * copies
-    with sqlite3.connect(":memory:") as connection:
+    # `closing`: a sqlite3 connection's own `with` ends its TRANSACTION, never the
+    # connection, which the garbage collector then closes with a ResourceWarning.
+    with closing(sqlite3.connect(":memory:")) as connection:
         # The count runs the actual SQLAlchemy statement. Unrelated PostgreSQL
         # column types/constraints are unnecessary for this read-only fixture.
         columns = ", ".join(f'"{column.name}"' for column in WorkboardTicket.__table__.columns)

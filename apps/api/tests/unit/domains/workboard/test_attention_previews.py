@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+from contextlib import closing
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID, uuid4
@@ -42,7 +43,9 @@ async def test_each_preview_is_the_first_two_of_its_real_set_without_extra_reads
         (10, me, None, "lia", "todo", None, "Undated LIA"),
     ]
     statements: list[str] = []
-    with sqlite3.connect(":memory:") as connection:
+    # `closing`: a sqlite3 connection's own `with` ends its TRANSACTION, never the
+    # connection, which the garbage collector then closes with a ResourceWarning.
+    with closing(sqlite3.connect(":memory:")) as connection:
         columns = ", ".join(f'"{column.name}"' for column in WorkboardTicket.__table__.columns)
         connection.execute(f"CREATE TABLE workboard_tickets ({columns})")
         connection.executemany(
