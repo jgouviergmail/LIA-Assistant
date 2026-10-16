@@ -282,6 +282,20 @@ its exchanges in one take.
   suite:** it read one tick of the Windows thread clock (15.6 ms) as an infinite
   growth; it now reads CPU over batches of calls, alternating the two sizes,
   and decides on the median.
+- 🧪 **The API's timed tests no longer fail on a loaded host:** two asynchronous
+  tests ordered their steps with sleeps, which a starved event loop wakes in one
+  iteration, and now wait on the events themselves; the machine-tag filter's
+  linearity guard read the wall clock, which counts the wait for a processor as
+  work (a linear filter read ×8.6 and ×10.2 with every core busy), and now reads
+  the thread's CPU like the flatteners' guard, through a clock precise on
+  Windows too (`tests/support/thread_clock.py`); a cold-import check's 30 s
+  budget became the hang guard it was meant to be.
+- 🧪 **The browser's source guards no longer fail on a loaded suite:** eleven
+  guards read the whole `src/` tree inside a test, whose 15 s budget vitest
+  checks only after a synchronous body returns, so it measured the host — four
+  turned red on a clean tree, one file taking 49.6 s under coverage. They now
+  read it once, at collection, through one scanner
+  (`src/__tests__/source-scan.ts`) that refuses to run inside a test.
 - 📻 **The radio says the name you gave your station** ([ADR-324](docs/architecture/ADR-324-A-Personal-Radio-A-Grid-Decides-Models-Only-Write.md),
   amendment 2026-10-14): the host used to welcome you to « LIA » whatever the
   station was called — measured on dev, nine openings in ten — because the

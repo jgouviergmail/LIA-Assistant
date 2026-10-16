@@ -2681,7 +2681,7 @@ avertissement. Un test qu'on rejoue n'est plus un oracle : il transforme un
 défaut de production reproductible une fois sur deux en un signal muet.
 
 **Ce qu'il faut faire** : traiter l'instabilité comme le symptôme qu'elle est.
-Les quatre causes rencontrées ici, par fréquence décroissante :
+Les cinq causes rencontrées ici, par fréquence décroissante :
 
 | Cause | Signature | Où c'est déjà documenté |
 |---|---|---|
@@ -2689,6 +2689,16 @@ Les quatre causes rencontrées ici, par fréquence décroissante :
 | Session `AsyncSession` partagée entre tâches concurrentes | `InterfaceError`, `already in use` | règle systémique CLAUDE.md — une session par tâche |
 | Override de connexion posé pour tout le PROCESSUS | échecs par **lot** sous `--dist loadscope`, verts en isolation | fixture `psycopg_url_from_settings` (`tests/conftest.py`), dont le docstring décrit le cas mesuré |
 | Horloge ou fuseau réels | échoue à certaines heures seulement | `datetime.now(UTC)` + horloge injectée |
+| Le temps pris pour un oracle | échoue seulement sur un hôte chargé (la suite parallèle elle-même), vert seul | ordonner par événements (`asyncio.Event`), jamais par `sleep` ; mesurer une croissance au CPU du **thread** (`tests/support/thread_clock.py`), en paires alternées dont la médiane décide ; dimensionner un garde-fou de blocage comme tel, jamais comme un budget de vitesse |
+
+Le temps mural compte comme du travail l'attente d'un processeur : mesuré le
+2026-10-16 avec tous les cœurs saturés, un filtre linéaire lu ×8,6 et ×10,2
+pour un texte ×4, quand son compteur de cycles lisait ×3,88 à ×4,12. Sous
+Windows, `time.thread_time()` lit `GetThreadTimes()`, qui avance par ticks de
+15,6 ms (un appel de 9 ms y vaut 0 ou 15,6 ms) : `thread_clock` lit le
+compteur de cycles du thread (`QueryThreadCycleTime`), précis, et
+`time.thread_time()` ailleurs. Pour reproduire, saturer tous les cœurs (un
+processus occupé par cœur logique) pendant que le test tourne.
 
 Le réflexe de diagnostic, dans cet ordre — chaque étape retire une variable :
 
@@ -3090,6 +3100,7 @@ Le chantier de couverture des composants (≈ 280 composants, livré par lots à
 - **`lia-web-dev` ne voit PAS vos éditions sans redémarrage** (bind-mount Windows → conteneur Linux : les événements inotify ne traversent pas, Fast Refresh ne se déclenche jamais). Le fichier source *est* bien à jour dans le conteneur (`docker exec lia-web-dev grep … /monorepo/apps/web/src/…`), mais Next sert un bundle compilé **avant** l'édition. Conséquence vécue : une validation Playwright a conclu que la sémantique modale ajoutée à `ImageLightbox` était absente du DOM — alors qu'elle l'était seulement du bundle. **Toujours `docker restart lia-web-dev` avant une validation navigateur**, et attendre la recompilation (60–120 s par page). Symptôme distinctif : le DOM ne contient pas ce que la source contient.
 - **L'instantané d'échec de Playwright (`error-context.md`) est un instantané de l'arbre d'accessibilité, pas du DOM** : un élément présent dans le DOM peut y être élagué. Pour trancher, sonder le DOM (`page.evaluate(() => document.querySelectorAll('[role=dialog]').length)`) avant de conclure que le composant est en cause.
 - **Un import `import type` vers un module inexistant ne casse pas les tests** : il est effacé à la compilation, donc la suite passe au vert alors que `tsc` échoue (`Cannot find module '@/types/rag'`). Corollaire : **une suite verte ne vaut pas typage vert** — `tsc --noEmit --incremental false` est un gate distinct, et c'est lui qui a révélé que la fixture `RAGDocument` inventait la moitié de ses champs (`filename`/`file_type` au lieu de `original_filename`/`content_type`).
+- **Un garde qui lit l'arbre `src/` le lit à la COLLECTION, jamais dans un test.** vitest ne contrôle le budget d'un corps de test synchrone qu'**après** son retour (`withTimeout` de `@vitest/runner` : son minuteur ne peut pas sonner pendant que le corps bloque). Sur la lecture de l'arbre entier, les 15 s ne peuvent donc jamais interrompre un blocage : elles mesurent la machine. Mesuré le 2026-10-16 : un tel fichier a pris 49,6 s dans la suite complète avec couverture, et quatre gardes ont viré au rouge sur un arbre propre. Les onze gardes concernés déclarent leurs fichiers au niveau du module via `readSources(select)` (`src/__tests__/source-scan.ts` : une lecture par fichier, les types d'entrée de `readdirSync` sans `statSync`) et leurs tests ne lisent que la mémoire. `readSources` lève une erreur si on l'appelle pendant un test : la règle tient par construction. Un nouveau garde de ce type passe par là, jamais par un parcours privé.
 - **Ne jamais coder en dur un intervalle/seuil dans un test** : `useSpaceDocuments` sonde toutes les **5 s** (j'avais supposé 3 s, le test échouait à juste titre). Exporter la constante et l'importer dans le test — une modification de cadence casse alors le code, pas silencieusement l'assertion. Appliqué à `STATUS_POLL_INTERVAL_MS`, `AUTO_REFRESH_INTERVAL_MS`, `EXECUTING_REFRESH_INTERVAL_MS`.
 - **Un composant piloté par le contenu ne se teste pas avec le stub i18n global** : `FAQContent` lit `parseInt(t('faq.sections.X.count'))` ; avec un `t` qui renvoie la clé, tout vaut `NaN` et la page est vide — les tests seraient verts et vacants. Surcharger `@/i18n/client` **dans le fichier de test** avec un petit dictionnaire réaliste (accents + HTML) : la recherche, le *stripping* et le surlignage redeviennent observables sans coupler la suite au contenu éditorial.
 - **Un effet qui déplace le focus ne doit JAMAIS dépendre d'un callback de props.** Presque tous les `onClose`/`onSelect` sont passés en flèche inline (`onClose={() => setOpen(false)}`) : leur identité change à chaque rendu du parent, donc un `useEffect(..., [isOpen, onClose])` se ré-exécute à chaque rendu. Tant que l'effet ne fait qu'ajouter/retirer un écouteur, c'est gratuit ; dès qu'il **prend ou rend le focus**, chaque rendu du parent arrache le focus au contrôle que l'utilisateur clavier venait d'atteindre. Vécu sur `ImageLightbox` (2026-07-19), et le parent y est un message de chat qui re-rend en continu pendant le streaming — donc en permanence. Parade : scinder en deux effets, le clavier sur `[isOpen, onClose]`, la propriété du focus sur `[isOpen]` seul. Corollaire de test : monter le composant isolément ne révèle jamais ce défaut — il faut un **hôte qui re-rend**, et le déclencher par `rerender()`, pas par un clic (un clic pointeur donne le focus au bouton cliqué et masque exactement ce qu'on mesure).
