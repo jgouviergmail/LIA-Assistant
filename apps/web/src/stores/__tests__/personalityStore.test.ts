@@ -343,6 +343,23 @@ describe('request ownership and ordering', () => {
     expect(snapshot().currentPersonality).toEqual(SHARP);
   });
 
+  it('still refreshes after a pending selection fails, reading the preference that stayed', async () => {
+    await usePersonalityStore.getState().load('a');
+    const selected = deferred<UserPersonalityResponse>();
+    updateCurrentPersonality.mockReturnValueOnce(selected.promise);
+    const mutation = usePersonalityStore.getState().updatePersonality(SHARP.id);
+    const refresh = usePersonalityStore.getState().refetch();
+    selected.reject(new Error('refused'));
+    await expect(mutation).rejects.toThrow('refused');
+    // The refresh absorbs the save's failure (its caller already got it) and
+    // reads the server's word, which is still the previous style.
+    await expect(refresh).resolves.toBeUndefined();
+    expect(fetchCurrentPersonality).toHaveBeenCalledTimes(2);
+    expect(snapshot().currentPersonality).toEqual(CALM);
+    expect(snapshot().updating).toBe(false);
+    expect(snapshot().loading).toBe(false);
+  });
+
   it('no authenticated owner means no catalogue reads or mutations', async () => {
     await usePersonalityStore.getState().load(null);
     await usePersonalityStore.getState().refetch();

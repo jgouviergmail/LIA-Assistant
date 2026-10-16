@@ -129,9 +129,10 @@ export const usePersonalityStore = create<PersonalityStoreState>((set, get) => {
     }
   };
 
+  // Its two callers hold the owner precondition: `load` returns without an
+  // owner, and `refetch` re-reads it synchronously right before calling.
   const run = (): Promise<void> => {
     if (activeRead) return activeRead.promise;
-    if (!get().ownerId) return Promise.resolve();
     const request: ReadRequest = {
       generation,
       controller: new AbortController(),
