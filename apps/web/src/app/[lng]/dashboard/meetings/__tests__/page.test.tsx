@@ -107,6 +107,18 @@ describe('MeetingsPage', () => {
     expect(push).toHaveBeenCalledWith('/dashboard/chat');
   });
 
+  it('carries a validated list page and origin through a detail link', () => {
+    searchParams.value = new URLSearchParams('page=3&from=relations');
+    list.meetings = [summary()];
+    list.total = 60;
+    renderWithProviders(<MeetingsPage params={params} />);
+    expect(screen.getByRole('link', { name: 'Point projet' })).toHaveAttribute(
+      'href',
+      '/en/dashboard/meetings/m1?page=3&from=relations'
+    );
+    searchParams.value = new URLSearchParams();
+  });
+
   it('names every row after its meeting and opens it', async () => {
     list.meetings = [
       summary(),
@@ -134,9 +146,9 @@ describe('MeetingsPage', () => {
       'aria-disabled',
       'true'
     );
-    expect(screen.getByRole('button', { name: /^common.next/ })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /^common.next/ })).not.toHaveAttribute(
       'aria-disabled',
-      'false'
+      'true'
     );
   });
 });
@@ -239,7 +251,7 @@ describe('MeetingsPage — selection and bulk delete (ADR-259)', () => {
 });
 
 describe('MeetingsPage — toolbar and format (ADR-259)', () => {
-  it('records from the toolbar when the recorder is mounted, and reaches the templates', async () => {
+  it('records from the toolbar without a templates shortcut', async () => {
     const start = vi.fn().mockResolvedValue(undefined);
     recorder.value = { start, isLive: false, phase: 'idle' };
     list.meetings = [summary()];
@@ -247,8 +259,9 @@ describe('MeetingsPage — toolbar and format (ADR-259)', () => {
     const { user } = renderWithProviders(<MeetingsPage params={params} />);
     await user.click(screen.getByRole('button', { name: 'meetings.list.record' }));
     expect(start).toHaveBeenCalledTimes(1);
-    await user.click(screen.getByRole('button', { name: 'meetings.list.templates' }));
-    expect(push).toHaveBeenCalledWith('/dashboard/meetings/templates');
+    expect(
+      screen.queryByRole('button', { name: 'meetings.list.templates' })
+    ).not.toBeInTheDocument();
     recorder.value = null;
   });
 

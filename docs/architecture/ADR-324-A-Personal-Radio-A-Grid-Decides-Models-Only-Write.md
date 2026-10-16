@@ -1301,6 +1301,13 @@ aired`), and only those are remembered — an analysis that aired counts as its 
       (`voices_apart`: the page greys them out) and refused on write
       (`radio_voice_shared`); a test holds the three equal over every pair of roles.
 
+44. **The model verification is off by default** (owner decision 2026-10-15). A listener
+    who never chose gets no model check (`RADIO_VERIFICATION_DEFAULT` = `off`, read through
+    the settings field), because every check is billed and can delay the listening; the
+    other levels — the news, every programme — stay one choice away in the radio
+    settings, and a listener's stored choice is never rewritten. The deterministic editor
+    (decision 4) runs whatever the level: what no fact supports never airs.
+
 ## Consequences
 
 - A listener starts the radio — under the name they gave it — from the header, the logo

@@ -87,7 +87,7 @@ function SectionCard({
   const missing = !section.instruction.trim();
   const preview = section.instruction.split('\n').find(line => line.trim()) ?? '';
   return (
-    <li className="space-y-3 rounded-md border border-border/60 p-3">
+    <li className="space-y-3 rounded-md border border-border/60 bg-card p-3 [--lia-field-background:var(--color-background)]">
       <div className="flex items-center justify-between gap-2">
         <span className="text-xs font-medium text-muted-foreground">
           {t('meetings.settings.section_position', { position: index + 1 })}

@@ -6,6 +6,7 @@ interface Size {
 }
 interface Viewport extends Size {
   minimumTop: number;
+  minimumLeft?: number;
 }
 interface Obstacle {
   left: number;
@@ -24,9 +25,15 @@ function intersects(point: AnchorPosition, size: Size, rect: Obstacle) {
   );
 }
 
-function inside(point: AnchorPosition, maxLeft: number, minTop: number, maxTop: number) {
+function inside(
+  point: AnchorPosition,
+  minLeft: number,
+  maxLeft: number,
+  minTop: number,
+  maxTop: number
+) {
   return (
-    point.left >= MARGIN && point.left <= maxLeft && point.top >= minTop && point.top <= maxTop
+    point.left >= minLeft && point.left <= maxLeft && point.top >= minTop && point.top <= maxTop
   );
 }
 
@@ -37,18 +44,31 @@ export function unobstructedPlacement(
   viewport: Viewport,
   obstacles: readonly Obstacle[]
 ): AnchorPosition | null {
+  const minLeft = MARGIN + (viewport.minimumLeft ?? 0);
   const maxLeft = viewport.width - size.width - MARGIN;
   const maxTop = viewport.height - size.height - MARGIN;
   const minTop = Math.max(MARGIN, viewport.minimumTop);
-  if (maxLeft < MARGIN || maxTop < minTop) return null;
-  const xs = [preferred.left, maxLeft, MARGIN, (maxLeft + MARGIN) / 2];
-  const ys = [preferred.top, maxTop, minTop, (maxTop + minTop) / 2];
-  for (const top of ys) {
-    for (const left of xs) {
-      if (!inside({ left, top }, maxLeft, minTop, maxTop)) continue;
-      const blocked = obstacles.some(rect => intersects({ left, top }, size, rect));
-      if (!blocked) return { left, top };
+  if (maxLeft < minLeft || maxTop < minTop) return null;
+  const clamped = {
+    left: Math.min(maxLeft, Math.max(minLeft, preferred.left)),
+    top: Math.min(maxTop, Math.max(minTop, preferred.top)),
+  };
+  const xs = [clamped.left, maxLeft, minLeft, (maxLeft + minLeft) / 2];
+  const ys = [clamped.top, maxTop, minTop, (maxTop + minTop) / 2];
+  // Probe the four reference columns/rows at control boundaries. Avoid a
+  // Cartesian product of every control edge on a dense settings page.
+  const candidates = ys.flatMap(top => xs.map(left => ({ left, top })));
+  for (const rect of obstacles) {
+    for (const top of [rect.bottom + MARGIN, rect.top - size.height - MARGIN]) {
+      candidates.push(...xs.map(left => ({ left, top })));
     }
+    for (const left of [rect.right + MARGIN, rect.left - size.width - MARGIN]) {
+      candidates.push(...ys.map(top => ({ left, top })));
+    }
+  }
+  for (const point of candidates) {
+    if (!inside(point, minLeft, maxLeft, minTop, maxTop)) continue;
+    if (!obstacles.some(rect => intersects(point, size, rect))) return point;
   }
   return null;
 }

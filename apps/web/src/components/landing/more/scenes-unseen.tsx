@@ -36,6 +36,8 @@ import {
   Vibrate,
   Wind,
   type LucideIcon,
+  Loader2,
+  Search,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -1415,6 +1417,111 @@ function SlideNeverOverflowsScene({ active }: SceneProps) {
   );
 }
 
+type RoomPhase = 'covering' | 'stepping' | 'aside' | 'dot';
+const ROOM_STEPS: readonly TimelineStep<RoomPhase>[] = [
+  { at: 0, state: 'covering' },
+  { at: 900, state: 'stepping' },
+  { at: 1800, state: 'aside' },
+  { at: 2900, state: 'dot' },
+];
+
+/**
+ * The companion makes room: on a phone, LIA's eyes step away from the search
+ * field and the buttons, and shrink to a dot when no free spot is left —
+ * without ever rewriting the place you chose for them.
+ */
+function CompanionMakesRoomScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(ROOM_STEPS, { active });
+  const moved = phase !== 'covering';
+  const dot = phase === 'dot';
+  return (
+    <div className={cn(STAGE, 'justify-center')}>
+      <PhoneFrame className="relative">
+        <div className="flex items-center gap-1 rounded-md border border-border px-1 py-0.5">
+          <Search className="h-2 w-2 shrink-0 text-muted-foreground" />
+          <span className="truncate text-px-8 text-muted-foreground">{labels.search}</span>
+        </div>
+        <div className="mt-1.5 space-y-1">
+          <SkeletonLine w="w-full" className="h-1.5" />
+          <SkeletonLine w="w-4/5" className="h-1.5" />
+          <SkeletonLine
+            w="w-full"
+            className={cn('h-1.5 transition-opacity', dot ? 'opacity-100' : 'opacity-0')}
+          />
+        </div>
+        <span
+          className={cn(
+            'absolute flex items-center justify-center gap-0.5 rounded-full border border-primary/40 bg-background shadow-sm transition-all duration-700 ease-out',
+            dot ? 'h-2.5 w-2.5' : 'h-4 w-7',
+            moved ? 'bottom-2 right-1.5' : 'right-1.5 top-3',
+            phase === 'stepping' && active && 'animate-pulse'
+          )}
+        >
+          {!dot && (
+            <>
+              <span className="h-1.5 w-1 rounded-full bg-primary" />
+              <span className="h-1.5 w-1 rounded-full bg-primary" />
+            </>
+          )}
+        </span>
+      </PhoneFrame>
+    </div>
+  );
+}
+
+type ButtonPhase = 'idle' | 'pressed' | 'again' | 'done';
+const BUTTON_STEPS: readonly TimelineStep<ButtonPhase>[] = [
+  { at: 0, state: 'idle' },
+  { at: 800, state: 'pressed' },
+  { at: 1700, state: 'again' },
+  { at: 2700, state: 'done' },
+];
+
+/**
+ * A button that stays itself: while it waits it keeps its label, its size and
+ * its focus, shows a small spinner in its corner and ignores a second press.
+ */
+function ButtonStaysItselfScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(BUTTON_STEPS, { active });
+  const busy = phase === 'pressed' || phase === 'again';
+  return (
+    <div className={cn(STAGE, 'justify-center gap-2')}>
+      <span
+        className={cn(
+          'relative inline-flex items-center gap-1.5 rounded-md border border-primary/50 bg-primary/10 px-4 py-1.5 text-px-10 font-medium text-primary transition-shadow duration-300',
+          busy && 'ring-2 ring-primary/40'
+        )}
+      >
+        {phase === 'done' && <Check className="h-3 w-3" />}
+        {labels.save}
+        <Loader2
+          className={cn(
+            'absolute -right-1.5 -top-1.5 h-3 w-3 rounded-full bg-background text-primary transition-opacity',
+            busy ? 'opacity-100' : 'opacity-0',
+            busy && active && 'animate-spin'
+          )}
+        />
+      </span>
+      <MiniToast
+        icon={Check}
+        tone="success"
+        className={cn(
+          'transition-all duration-500',
+          phase === 'done' ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+        )}
+      >
+        {labels.saved}
+      </MiniToast>
+      <Cursor
+        className={cn(
+          busy ? 'left-[56%] top-[44%] opacity-100' : 'left-[70%] top-[70%] opacity-0',
+          phase === 'again' && 'scale-90'
+        )}
+      />
+    </div>
+  );
+}
+
 export const UNSEEN_SCENES: Readonly<Record<string, SceneComponent>> = {
   activity_timeline: ActivityTimelineScene,
   own_initiative: OwnInitiativeScene,
@@ -1439,4 +1546,6 @@ export const UNSEEN_SCENES: Readonly<Record<string, SceneComponent>> = {
   narrow_screens: NarrowScreensScene,
   local_model_fit: LocalModelFitScene,
   slide_never_overflows: SlideNeverOverflowsScene,
+  companion_makes_room: CompanionMakesRoomScene,
+  button_stays_itself: ButtonStaysItselfScene,
 };

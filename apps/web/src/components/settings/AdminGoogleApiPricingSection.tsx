@@ -433,7 +433,7 @@ export default function AdminGoogleApiPricingSection({ lng }: BaseSettingsProps)
               </th>
             </tr>
           </thead>
-          <tbody className="bg-card divide-y divide-border">
+          <tbody className="bg-background divide-y divide-border">
             {optimisticEntries.map(entry => (
               <tr
                 key={entry.id}
@@ -574,7 +574,7 @@ function GoogleApiPricingModal({ lng, entry, onClose, onSubmit }: GoogleApiPrici
       aria-labelledby="modal-title"
     >
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="bg-card rounded-xl border border-border shadow-xl p-6 max-w-md w-full">
+        <div className="bg-card [--lia-field-background:var(--color-background)] rounded-xl border border-border shadow-xl p-6 max-w-md w-full">
           <h3 id="modal-title" className="text-lg font-bold mb-4 text-foreground">
             {entry
               ? t('settings.admin.google_api.modal.title_edit', {

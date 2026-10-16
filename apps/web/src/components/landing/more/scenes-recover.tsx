@@ -520,6 +520,58 @@ function ReconnectAllScene({ active, labels }: SceneProps) {
   );
 }
 
+type ErrorListPhase = 'rows' | 'refresh' | 'failed' | 'retried';
+const ERROR_LIST_STEPS: readonly TimelineStep<ErrorListPhase>[] = [
+  { at: 0, state: 'rows' },
+  { at: 900, state: 'refresh' },
+  { at: 1800, state: 'failed' },
+  { at: 3200, state: 'retried' },
+];
+
+/**
+ * An error is not an empty list: a refresh that fails says so, offers Retry,
+ * and keeps every row already shown instead of pretending there is nothing.
+ */
+function ErrorNotEmptyScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(ERROR_LIST_STEPS, { active });
+  const failed = phase === 'failed';
+  return (
+    <div className={cn(STAGE, 'justify-center')}>
+      <div className="w-full max-w-[210px] space-y-1.5 rounded-lg border border-border bg-background p-2.5 shadow-sm">
+        <div className="flex items-center justify-between gap-2">
+          <SkeletonLine w="w-1/3" />
+          <RefreshCw
+            className={cn(
+              'h-2.5 w-2.5 text-muted-foreground',
+              phase === 'refresh' && active && 'animate-spin'
+            )}
+          />
+        </div>
+        <div
+          className={cn(
+            'flex items-center gap-1.5 overflow-hidden rounded-md border px-2 text-px-9 font-medium transition-all duration-500',
+            failed
+              ? 'max-h-8 border-warning/40 py-1 text-warning opacity-100'
+              : 'max-h-0 border-transparent py-0 opacity-0'
+          )}
+        >
+          <AlertTriangle className="h-2.5 w-2.5 shrink-0" />
+          <span className="truncate">{labels.error}</span>
+          <span className="ml-auto shrink-0 rounded border border-primary/50 px-1 text-primary">
+            {labels.retry}
+          </span>
+        </div>
+        {['w-4/5', 'w-3/5', 'w-2/3'].map(width => (
+          <div key={width} className="flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary/40" />
+            <SkeletonLine w={width} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export const RECOVER_SCENES: Readonly<Record<string, SceneComponent>> = {
   meeting_banner: MeetingBannerScene,
   diagnosis_evidence: DiagnosisEvidenceScene,
@@ -532,4 +584,5 @@ export const RECOVER_SCENES: Readonly<Record<string, SceneComponent>> = {
   image_expiry: ImageExpiryScene,
   attachment_limits: AttachmentLimitsScene,
   fix_commitment: FixCommitmentScene,
+  error_not_empty: ErrorNotEmptyScene,
 };

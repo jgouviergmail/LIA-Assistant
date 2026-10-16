@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version**: 6.3
-**Datum**: 2026-10-13
-**Anwendung**: LIA v3.0.1
+**Datum**: 2026-10-17
+**Anwendung**: LIA v3.1.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -140,7 +140,7 @@ Die Karten zeigen außerdem, woher ein fremdes MCP-Ergebnis stammt und welche Me
 
 ### 3.2. Persönliche verbundene Dienste
 
-- **E-Mail**: Lesen, Suchen, Verfassen, Senden, Antworten, Weiterleiten — via Gmail, Outlook oder Apple Mail; eine Nachricht kommt als sauberer Text an, und viele werden Nachricht für Nachricht zusammengefasst („fasse meine ungelesenen Mails zusammen“, „eine Synthese der Newsletter dieser Woche“); ein Anhang wird auf Wunsch gelesen — ein Dokument als Text, ein Foto oder ein Scan über das Vision-Modell
+- **E-Mail**: Lesen, Suchen, Verfassen, Senden, Antworten, Weiterleiten — via Gmail, Outlook oder Apple Mail; eine Nachricht kommt als sauberer Text an, und viele werden Nachricht für Nachricht zusammengefasst („fasse meine ungelesenen Mails zusammen“, „eine Synthese der Newsletter dieser Woche“); ein Anhang wird auf Wunsch gelesen — ein Dokument als Text, ein Foto oder ein Scan über das Vision-Modell; und LIA führt die Entwürfe deines Postfachs — sie speichert, bearbeitet und verwirft sie, ohne dich zu fragen, und sendet sie erst nach einer einzigen Bestätigung
 - **Kalender**: Termine einsehen, erstellen, bearbeiten, löschen — via Google Calendar, Outlook Calendar oder Apple Calendar
 - **Kontakte**: Kontakte suchen, erstellen, bearbeiten — via Google Contacts, Outlook Contacts oder Apple Contacts
 - **Aufgaben**: Deine Aufgabenlisten verwalten — via Google Tasks oder Microsoft To Do
@@ -164,7 +164,7 @@ LIA bietet einen vollständigen Sprachmodus:
 
 - **Push-to-Talk**: Halte die Mikrofon-Schaltfläche gedrückt, um zu sprechen — optimiert für Mobilgeräte
 - **„Dis LIA“, in deinem Browser gehört**: Die freihändige Erkennung läuft **vollständig auf deinem Gerät** — kein Ton wird übertragen, bevor die Phrase gehört wurde — und „LIA, stop“ unterbricht LIAs Stimme, wenn sie eine Antwort vorliest. Dieses Aktivierungswort gibt es vorerst auf Französisch, in der Beta: die Erkennung wird noch verbessert; in den anderen Sprachen genügt ein Tippen
-- **Sprachsynthese**: fünf admin-konfigurierbare Provider — Edge TTS (kostenlos), OpenAI TTS (`tts-1` / `tts-1-hd`), ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`), Gemini oder Fish Audio (`s2.1-pro`, `s2-pro`, `drama-3`); auf den Engines, die sie spielen, tragen LIAs gesprochene Kommentare ein paar expressive Marker (ein Seufzer, ein Lachen, ein Flüstern)
+- **Sprachsynthese**: fünf admin-konfigurierbare Provider — Edge TTS (kostenlos), OpenAI TTS (`tts-1` / `tts-1-hd`), ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`), Gemini oder Fish Audio (`s2.1-pro`, `s2-pro`, `drama-3`); auf den Engines, die sie spielen, tragen LIAs gesprochene Kommentare ein paar expressive Marker (ein Seufzer, ein Lachen, ein Flüstern); jede Person wählt LIAs männliche und weibliche Stimme unter den Stimmen der Engine und kann jede Stimmenliste auf ihre Sprache beschränken
 - **Telegram-Sprachnachrichten**: Sende Audiobotschaften, LIA transkribiert sie und antwortet
 - **Live-Modus**: ein Echtzeitgespräch von Stimme zu Stimme auf einem Live-Modell, das du mit **deinem eigenen Schlüssel** verbindest – Gemini Live, GPT-Live oder ein ElevenLabs-Agent. Die Stimme führt das Gespräch und reicht jede Bitte an LIA weiter, die sie als gewöhnlichen Chat-Zug ausführt, während du sprichst; eine direkte Sitzung lässt die Stimme deine Daten selbst lesen, ohne zu handeln. Was der Anbieter berechnet, wird dir gezeigt, nie aufgezeichnet. Eine Stille beendet keine Sitzung mehr: sie versetzt sie in den Standby — Verbindung geschlossen, nichts berechnet —, bis ein Tippen sie mit LIAs Kontext weckt; beenden tust immer du sie.
 
@@ -224,7 +224,7 @@ Du bleibst stets eingebunden: Vor dem Wählen sagt dir LIA genau, **wen** sie an
 
 Und es bleibt konstruktionsbedingt privat. Während eines Anrufs kann LIA nur mitteilen, ob du zu einem bestimmten Zeitpunkt frei oder gebucht bist — nie die Titel, Gäste oder Orte in deinem Kalender. Nichts wird aufgezeichnet, das Gespräch wird nie gespeichert, und nur eine kurze Zusammenfassung bleibt erhalten, bevor sie abläuft. Anrufe laufen über deinen eigenen ElevenLabs-Connector, abgerechnet über dein Konto, und die Funktion ist nur vorhanden, wenn dein Administrator sie aktiviert hat.
 
-Und LIA kann _dich_ anrufen. Hinterlege deine Nummer unter _Telefonie · Meine Identität_, lass LIA sie anrufen und einen Code vorlesen, den du eintippst, und von da an lässt „ruf mich um acht an, um meinen Tag durchzugehen“ — oder eine Routine, die das sagt — dein Telefon ohne Bestätigungskarte klingeln: die Person, die bestätigen würde, ist die, die abnimmt. Wie der Anruf verläuft, ist deine Wahl, in denselben Einstellungen, und es ist dieselbe Wahl wie bei den Live-Sitzungen im Browser. In **Live**, dem Standard, bearbeitet LIA alles, worum du in der Leitung bittest, während du sprichst, als Chat-Zug von dir – die Stimme kündigt es an, spricht weiter, liest die Antwort vor, sobald sie da ist; eine Bestätigung, die LIA braucht, wird in der Leitung erfragt, eine Frage, die sie stellt, ist die Antwort, und alles steht im Verlauf mit einem Telefon-Abzeichen. In **Live direkt** liest die Stimme für dich – deinen Kalender, eine E-Mail, einen Kontakt, einen Ort in der Nähe, das Wetter, was sie behält – und handelt in nichts; jeder Bereich hat einen Schalter, der dir gehört, und was du gesagt hast, kommt danach als deine eigene Nachricht zurück. Live gibt es nur dort, wo der Telefonanbieter deine Instanz zurückrufen kann; anderswo sagt es die Einstellung, und der Anruf läuft direkt. In beiden Fällen spricht die Assistentin mit der Persönlichkeit, die du ihr gegeben hast, und was auf deinem ElevenLabs-Schlüssel läuft, wird dort abgerechnet, hier nie gezählt.
+Und LIA kann _dich_ anrufen. Hinterlege deine Nummer unter _Mein Telefon_, lass LIA sie anrufen und einen Code vorlesen, den du eintippst, und von da an lässt „ruf mich um acht an, um meinen Tag durchzugehen“ — oder eine Routine, die das sagt — dein Telefon ohne Bestätigungskarte klingeln: die Person, die bestätigen würde, ist die, die abnimmt. Wie der Anruf verläuft, ist deine Wahl, in denselben Einstellungen, und es ist dieselbe Wahl wie bei den Live-Sitzungen im Browser. In **Live**, dem Standard, bearbeitet LIA alles, worum du in der Leitung bittest, während du sprichst, als Chat-Zug von dir – die Stimme kündigt es an, spricht weiter, liest die Antwort vor, sobald sie da ist; eine Bestätigung, die LIA braucht, wird in der Leitung erfragt, eine Frage, die sie stellt, ist die Antwort, und alles steht im Verlauf mit einem Telefon-Abzeichen. In **Live direkt** liest die Stimme für dich – deinen Kalender, eine E-Mail, einen Kontakt, einen Ort in der Nähe, das Wetter, was sie behält – und handelt in nichts; jeder Bereich hat einen Schalter, der dir gehört, und was du gesagt hast, kommt danach als deine eigene Nachricht zurück. Live gibt es nur dort, wo der Telefonanbieter deine Instanz zurückrufen kann; anderswo sagt es die Einstellung, und der Anruf läuft direkt. In beiden Fällen spricht die Assistentin mit der Persönlichkeit, die du ihr gegeben hast, und was auf deinem ElevenLabs-Schlüssel läuft, wird dort abgerechnet, hier nie gezählt.
 
 ### 3.11. Mit deinen Menschen sprechen, von Assistent zu Assistent
 
@@ -367,13 +367,11 @@ Und dieses Prinzip reicht weiter, als es scheint. Auch ein Test, der nie läuft,
 
 Diese Ehrlichkeit beginnt, bevor du überhaupt eintrittst. Die Seite, die dir den öffentlichen Demonstrator anbietet, listet, was dort eingeschaltet ist und was nicht — und diese Liste schreibt niemand, der vergessen könnte, sie zu aktualisieren: sie wird aus der Konfiguration des Demonstrators selbst gelesen, und antwortet er nicht, sagt die Seite das, statt eine leere Spalte zu zeigen. Du weißt, was du vorfinden wirst und was nicht, bevor du ein Konto anlegst.
 
-### 6.5. Warum LIA das denkt
+### 6.5. Was LIA folgert, korrigierst du
 
-Ein Assistent, der sich Dinge merkt, behauptet sie am Ende auch. „Du bevorzugst Vormittagstermine“, „dieses Thema interessiert dich“: nützliche Schlussfolgerungen, aber unüberprüfbar, solange man nicht zurückverfolgen kann, was sie hervorgebracht hat.
+Ein Assistent, der sich Dinge merkt, behauptet sie am Ende auch. „Du bevorzugst Vormittagstermine“, „dieses Thema interessiert dich“: nützliche Schlussfolgerungen, die aber falsch sein können — und eine falsche Schlussfolgerung, die man nicht korrigieren kann, entscheidet am Ende an deiner Stelle.
 
-Unter jeder Erinnerung, jedem Journaleintrag und jedem Interesse zeigt LIA deshalb die Signale, die dorthin geführt haben: die Unterhaltung, das Datum und die Rolle des Signals — was die Schlussfolgerung hervorgebracht, was sie bestätigt, was sie in Zweifel gezogen hat. Eine Schaltfläche erlaubt es, die Schlussfolgerung an ihrer Quelle zu korrigieren.
-
-Aufbewahrt wird ein **Verweis, niemals eine Kopie**. Dein Text bleibt dort, wo du ihn geschrieben hast, und wenn du die Unterhaltung löschst, kehrt er nirgends zurück: Der Verweis leert sich, die Zeile bleibt datiert, und LIA sagt schlicht, das Signal sei gelöscht worden. Eine Löschung muss eine Löschung bleiben — sonst würde dir auf der einen Seite wieder vorgesetzt, was du auf der anderen getilgt hast.
+Jede Erinnerung, jeder Journaleintrag und jedes Interesse lässt sich deshalb in deinen Einstellungen nachlesen, korrigieren und löschen, und was du korrigierst, gilt überall. Dahinter bewahrt LIA die Signale, die sie dorthin geführt haben, als **Verweis, niemals als Kopie** auf: Der Text bleibt dort, wo du ihn geschrieben hast, und wenn du die Unterhaltung löschst, kehrt er nirgends zurück. Eine Löschung muss eine Löschung bleiben — sonst würde dir auf der einen Seite wieder vorgesetzt, was du auf der anderen getilgt hast.
 
 Dasselbe Prinzip gilt für das Gewicht eines Interesses: Es erklärt sich, statt sich zu benoten. Das ursprüngliche Signal, die letzte Erwähnung, die Berechnung selbst — genug, um die Rechnung nachzuvollziehen. Diese Unsicherheit in eine Punktzahl zu verwandeln lüde zu einem Wettbewerb ein, den niemand verlangt hat, und lehrte dabei nichts weiter.
 
@@ -454,6 +452,8 @@ Und zwischen zwei Antworten schaltet dieses Gesicht nicht ab. Die Brauen sitzen 
 Der Begleiter folgt auch der tatsächlich geleisteten Arbeit, nicht einer bloß vorbereiteten Aktion. Kopf, Augen, Brauen und Mund bewegen sich gemeinsam; Ortszeit des Kontos und bereits für das Briefing gespeichertes Wetter können seine ruhige Szene dezent prägen. Dafür braucht es weder einen neuen Modell- noch einen Wetteraufruf, und bei reduzierter Bewegung bleibt der Kontext in einer stillen Pose.
 
 Und diese Präsenz folgt dir: Außerhalb des Chats hält ein schwebender Begleiter LIA im gesamten Dashboard an deiner Seite — ruhend, arbeitend oder mit einer Benachrichtigung.
+
+Die Psyche Engine lernt auch, wo LIA verlässlich ist — und sie lernt es aus Belegen, nie aus der Note, die sie sich selbst geben würde. Pro Bereich hält sie getrennt fest, was ihre Antworten wirklich festgestellt haben und welchen Nutzen du ihnen beigemessen hast; wo Belege fehlen, prüft LIA einen Punkt nach, stellt eine Frage oder benennt ihre Grenze, ohne je sicherer zu wirken, als sie ist. Das ist keine Leistungsbewertung, die zum Beeindrucken angezeigt wird: Es ist eine Vorsicht, die sich nach den Fakten richtet.
 
 ### 7.3. Die Journale
 

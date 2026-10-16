@@ -168,7 +168,10 @@ describe('JournalsSettings — manual consolidation', () => {
   it('locks the trigger while a consolidation is running', async () => {
     useJournals.mockReturnValue(hook({ isConsolidating: true }));
     render();
-    expect(await screen.findByRole('button', { name: 'journals.consolidating' })).toBeDisabled();
+    expect(await screen.findByRole('button', { name: CONSOLIDATE })).toHaveAttribute(
+      'aria-disabled',
+      'true'
+    );
   });
 });
 

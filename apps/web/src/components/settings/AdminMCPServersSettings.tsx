@@ -89,7 +89,7 @@ function AccountAdminMCPServersSettings({ lng }: AdminMCPServersSettingsProps) {
       ) : (
         <div className="space-y-3">
           {servers.map(server => (
-            <div key={server.server_key} className="rounded-lg border bg-card p-4">
+            <div key={server.server_key} className="rounded-lg border bg-background p-4">
               {/* Server header with toggle */}
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
@@ -140,7 +140,7 @@ function AccountAdminMCPServersSettings({ lng }: AdminMCPServersSettingsProps) {
                   {expandedServer === server.server_key && (
                     <div className="mt-2 space-y-1.5">
                       {server.tools.map(tool => (
-                        <div key={tool.name} className="rounded border bg-muted/50 px-3 py-2">
+                        <div key={tool.name} className="rounded border bg-card px-3 py-2">
                           <p className="text-sm break-words">
                             <ToolDisplayName title={tool.title} name={tool.name} />
                           </p>

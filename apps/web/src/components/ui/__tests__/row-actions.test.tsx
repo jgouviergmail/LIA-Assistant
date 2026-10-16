@@ -75,14 +75,20 @@ describe('RowActions', () => {
     expect(onDelete).toHaveBeenCalledTimes(1);
   });
 
-  it('disables both renderings of a disabled or loading action', () => {
+  it('keeps a loading action focusable but guards activation', async () => {
     const actions = [
       { key: 'edit', label: 'Edit', icon: Pencil, onSelect: vi.fn(), disabled: true },
       { key: 'delete', label: 'Delete', icon: Trash2, onSelect: vi.fn(), loading: true },
     ];
-    renderWithProviders(<RowActions actions={actions} menuLabel="A" />);
+    const { user } = renderWithProviders(<RowActions actions={actions} menuLabel="A" />);
     expect(screen.getByRole('button', { name: 'Edit' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Delete' })).toBeDisabled();
+    const pending = screen.getByRole('button', { name: 'Delete' });
+    expect(pending).toHaveAttribute('aria-disabled', 'true');
+    pending.focus();
+    await user.keyboard('{Enter}');
+    await user.click(pending);
+    expect(pending).toHaveFocus();
+    expect(actions[1].onSelect).not.toHaveBeenCalled();
   });
 });
 

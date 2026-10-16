@@ -17,7 +17,7 @@
  * actions sit in the footer where they never compete with the name.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { ExpandableDescription } from '@/components/ui/expandable-description';
 import type { TFunction } from 'i18next';
 import { AlertTriangle, Pencil, Plug, Server, Trash2, Unplug, Zap } from 'lucide-react';
 
@@ -75,58 +75,6 @@ function getAuthTypeLabel(authType: UserMCPAuthType, t: TFunction): string {
     default:
       return authType;
   }
-}
-
-/**
- * The server's description, clamped to three lines.
- *
- * The toggle appears only when the clamp actually HIDES something — measured
- * on the rendered box (`scrollHeight > clientHeight`), re-measured when the
- * card changes width, because the same sentence fits a full-width phone card
- * and overflows a half-width desktop one. A character-count threshold would be
- * wrong at one of the two widths. `title` carries the whole text for a pointer.
- */
-function ServerDescription({ text, t }: { text: string; t: TFunction }) {
-  const ref = useRef<HTMLParagraphElement>(null);
-  const [expanded, setExpanded] = useState(false);
-  const [overflows, setOverflows] = useState(false);
-
-  useEffect(() => {
-    const element = ref.current;
-    // Expanded, nothing is clipped: keep the last verdict so "show less" stays.
-    if (!element || expanded || typeof ResizeObserver === 'undefined') return;
-    // A ResizeObserver reports every observed element once on `observe()`, so
-    // the first measurement needs no synchronous call here.
-    const observer = new ResizeObserver(() => {
-      setOverflows(element.scrollHeight > element.clientHeight + 1);
-    });
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [text, expanded]);
-
-  return (
-    <div>
-      <p
-        ref={ref}
-        title={text}
-        className={`whitespace-pre-line break-words text-sm text-muted-foreground ${
-          expanded ? '' : 'line-clamp-3'
-        }`}
-      >
-        {text}
-      </p>
-      {overflows && (
-        <button
-          type="button"
-          aria-expanded={expanded}
-          onClick={() => setExpanded(value => !value)}
-          className="mt-1 text-xs font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
-        >
-          {expanded ? t('common.show_less') : t('common.show_more')}
-        </button>
-      )}
-    </div>
-  );
 }
 
 export interface MCPServerCardProps {
@@ -243,17 +191,19 @@ export function MCPServerCard(props: MCPServerCardProps) {
   ];
 
   return (
-    <li className="flex h-full min-w-0 flex-col gap-3 rounded-lg border bg-card p-4">
+    <li className="flex h-full min-w-0 flex-col gap-3 rounded-[var(--lia-radius-lg)] border bg-background p-4">
       <div className="flex items-start gap-3">
         <div className="shrink-0 rounded-lg bg-primary/10 p-2">
           <Server className="h-4 w-4 text-primary" aria-hidden="true" />
         </div>
         <div className="min-w-0 flex-1 space-y-1.5">
-          <h4 className="truncate font-medium leading-8" title={server.name}>
-            {server.name}
-          </h4>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap items-center gap-2">
             <Badge variant={getStatusBadgeVariant(server)}>{getStatusLabel(server, t)}</Badge>
+            <h4 className="min-w-0 break-words font-medium leading-8" title={server.name}>
+              {server.name}
+            </h4>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
             {server.plugin_id && (
               <Badge variant="outline">{t('settings.plugins.via_plugin')}</Badge>
             )}
@@ -267,24 +217,25 @@ export function MCPServerCard(props: MCPServerCardProps) {
         />
       </div>
 
-      {server.domain_description && <ServerDescription text={server.domain_description} t={t} />}
-
-      <ServerFacts server={server} lng={lng} t={t} />
+      {server.domain_description && <ExpandableDescription text={server.domain_description} />}
 
       {/* `mt-auto`: in a grid row the footers line up whatever each card holds. */}
-      <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t pt-3">
-        <OAuthAction
-          server={server}
-          t={t}
-          disconnecting={props.disconnecting}
-          onConnectOAuth={props.onConnectOAuth}
-          onDisconnectOAuth={props.onDisconnectOAuth}
-        />
-        <RowActions
-          className="ml-auto"
-          actions={actions}
-          menuLabel={t('common.actions_for', { name: server.name })}
-        />
+      <div className="mt-auto space-y-3 border-t pt-3">
+        <ServerFacts server={server} lng={lng} t={t} />
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <OAuthAction
+            server={server}
+            t={t}
+            disconnecting={props.disconnecting}
+            onConnectOAuth={props.onConnectOAuth}
+            onDisconnectOAuth={props.onDisconnectOAuth}
+          />
+          <RowActions
+            className="ml-auto"
+            actions={actions}
+            menuLabel={t('common.actions_for', { name: server.name })}
+          />
+        </div>
       </div>
     </li>
   );

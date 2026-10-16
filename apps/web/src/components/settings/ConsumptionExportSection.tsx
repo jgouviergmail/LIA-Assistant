@@ -268,13 +268,12 @@ function ConsumptionExportContent({
       value={mode === 'admin' ? 'admin-consumption-export' : 'user-consumption-export'}
       title={t(`${i18n}.title`)}
       icon={FileSpreadsheet}
-      className="border-0 bg-transparent shadow-none"
       contentClassName="space-y-5"
     >
       <p className="-mt-2 text-sm leading-relaxed text-muted-foreground sm:pl-[60px]">
         {t(`${i18n}.description`)}
       </p>
-      <div className="rounded-2xl border border-border/70 bg-card p-4 sm:p-5">
+      <div className="rounded-2xl border border-border/70 bg-background [--lia-field-background:var(--color-card)] p-4 sm:p-5">
         <FormSection icon={CalendarRange} title={t(`${i18n}.period_title`)}>
           <p className="text-sm leading-relaxed text-muted-foreground">
             {t(`${i18n}.period_description`)}
@@ -365,7 +364,7 @@ function ConsumptionExportContent({
       <ul
         aria-label={t(`${i18n}.title`)}
         aria-busy={exporting !== null}
-        className="divide-y divide-border/70 overflow-hidden rounded-2xl border border-border/70 bg-card"
+        className="divide-y divide-border/70 overflow-hidden rounded-2xl border border-border/70 bg-background [--lia-field-background:var(--color-card)]"
       >
         {EXPORT_TYPES.map(item => (
           <ExportRow

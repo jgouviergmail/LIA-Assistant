@@ -4,9 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { AArrowDown, AArrowUp, ALargeSmall, Eye, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { InfoBox } from '@/components/ui/info-box';
 import { Slider } from '@/components/ui/slider';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import {
@@ -103,7 +101,7 @@ export function FontSizeSettings({ lng }: FontSizeSettingsProps) {
           <div
             data-testid="font-size-preview"
             aria-hidden="true"
-            className="space-y-3 overflow-hidden rounded-lg border border-border bg-background/60 p-4"
+            className="space-y-3 overflow-hidden rounded-lg border border-border bg-background p-4"
             style={{ fontSize: `${shown}px` }}
           >
             {/* The person on the LEFT, LIA on the RIGHT — the chat's own layout. */}
@@ -113,7 +111,7 @@ export function FontSizeSettings({ lng }: FontSizeSettingsProps) {
               </p>
             </div>
             <div className="flex justify-end">
-              <div className="max-w-[85%] rounded-xl rounded-tr-none border border-border/20 bg-card/70 px-4 py-3 text-foreground shadow-sm">
+              <div className="max-w-[85%] rounded-xl rounded-tr-none border border-border/20 bg-card px-4 py-3 text-foreground shadow-sm">
                 <p className="text-[0.875em] leading-normal">
                   {t('settings.font_size.preview_answer')}
                 </p>
@@ -165,11 +163,7 @@ export function FontSizeSettings({ lng }: FontSizeSettingsProps) {
           </Button>
         </div>
 
-        <div className="flex min-h-9 flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium tabular-nums text-foreground">{valueLabel}</span>
-            {isDefault && <Badge>{t('settings.font_size.default_badge')}</Badge>}
-          </div>
+        <div className="flex justify-end">
           {!isDefault && (
             <Button
               type="button"
@@ -182,10 +176,6 @@ export function FontSizeSettings({ lng }: FontSizeSettingsProps) {
             </Button>
           )}
         </div>
-
-        <InfoBox>
-          <p className="text-xs text-muted-foreground">{t('settings.font_size.info_note')}</p>
-        </InfoBox>
       </div>
     </SettingsSection>
   );

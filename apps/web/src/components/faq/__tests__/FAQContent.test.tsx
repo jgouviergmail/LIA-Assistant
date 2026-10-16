@@ -350,3 +350,24 @@ describe('FAQContent — actionable examples (W1)', () => {
     );
   });
 });
+
+it('states editorial fold state and places changelog before introduction', () => {
+  render();
+  const changelog = screen.getByRole('button', { name: /Nouveautés/ });
+  const intro = screen.getByRole('button', { name: /Comment ça marche/ });
+  expect(changelog).toHaveAttribute('aria-expanded', 'false');
+  expect(intro).toHaveAttribute('aria-expanded', 'false');
+  expect(changelog.compareDocumentPosition(intro) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});
+
+it('opens matching answers on successive searches and restores browse folds', async () => {
+  const { user } = render();
+  await search(user, 'préférence');
+  expect(question('Comment gérer ma préférence ?')).toHaveAttribute('aria-expanded', 'true');
+  await user.clear(searchBox());
+  await search(user, 'interrompre');
+  expect(question('Puis-je interrompre une réponse ?')).toHaveAttribute('aria-expanded', 'true');
+  expect(screen.getByRole('status')).toHaveTextContent('1 résultat(s)');
+  await user.clear(searchBox());
+  expect(question('Puis-je interrompre une réponse ?')).toHaveAttribute('aria-expanded', 'false');
+});

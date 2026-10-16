@@ -109,9 +109,9 @@
     },
     "f.psyche": {
       "name": "Psyche und Gesicht",
-      "role": "Ein emotionaler Zustand, der sich im Lauf der Gespräche entwickelt, Ton und Stimme moduliert und LIAs Augen und Gesicht belebt.",
+      "role": "Ein emotionaler Zustand, der sich im Lauf der Gespräche entwickelt, Ton und Stimme moduliert, LIAs Augen und Gesicht belebt, und eine Erfahrung pro Bereich, die aus Belegen statt aus der eigenen Note gelernt wird.",
       "goal": "Eine stimmige Präsenz statt eines Automaten mit immer gleichem Ton.",
-      "src": "b306b381d1ee"
+      "src": "eecafceda247"
     },
     "f.personality": {
       "name": "Persönlichkeiten",
@@ -163,9 +163,9 @@
     },
     "f.mail": {
       "name": "E-Mails",
-      "role": "Bereinigte E-Mails lesen, sie ein einziges Mal zusammenfassen, suchen, verfassen, antworten und Anhänge lesen — an andere wird immer über einen freigegebenen Entwurf gesendet; eine E-Mail an dich selbst geht direkt hinaus.",
+      "role": "Bereinigte E-Mails lesen, sie ein einziges Mal zusammenfassen, suchen, verfassen, antworten, Anhänge lesen und die Entwürfe deines Postfachs führen — an andere wird immer erst nach einer Bestätigung gesendet; eine E-Mail an dich selbst geht direkt hinaus.",
       "goal": "Dein Postfach in ein paar Sätzen abarbeiten.",
-      "src": "8b1872b98aa6"
+      "src": "ccd1f55a607d"
     },
     "f.calendar": {
       "name": "Kalender",
@@ -301,9 +301,9 @@
     },
     "f.voice": {
       "name": "Sprachmodus",
-      "role": "Deine Nachrichten diktieren, die Antworten anhören, LIA mit einem Wort wecken; die Stimme folgt der Stimmung.",
+      "role": "Deine Nachrichten diktieren, die Antworten mit den Stimmen anhören, die du für LIA wählst, LIA mit einem Wort wecken; die Stimme folgt der Stimmung.",
       "goal": "LIA nutzen, auch wenn du die Hände voll hast.",
-      "src": "3fc0f86339b5"
+      "src": "0c7d1444684c"
     },
     "f.live": {
       "name": "Live-Modus",

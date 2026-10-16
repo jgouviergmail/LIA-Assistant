@@ -11,8 +11,6 @@
 
 import {
   Blocks,
-  Trash2,
-  HelpCircle,
   ChevronDown,
   ArrowDown,
   Bookmark,
@@ -38,6 +36,7 @@ import {
   ThumbsUp,
   User,
   Users,
+  Volume2,
   Wrench,
 } from 'lucide-react';
 
@@ -782,64 +781,59 @@ function PeerActionsScene({ active, labels }: SceneProps) {
   );
 }
 
-type ProvenancePhase = 'shut' | 'opening' | 'signals' | 'tombstone';
-const PROVENANCE_STEPS: readonly TimelineStep<ProvenancePhase>[] = [
-  { at: 0, state: 'shut' },
-  { at: 900, state: 'opening' },
-  { at: 1600, state: 'signals' },
-  { at: 2900, state: 'tombstone' },
+type VoiceFollowsPhase = 'answer' | 'pick' | 'speak' | 'rest';
+const VOICE_FOLLOWS_STEPS: readonly TimelineStep<VoiceFollowsPhase>[] = [
+  { at: 0, state: 'answer' },
+  { at: 900, state: 'pick' },
+  { at: 1900, state: 'speak' },
+  { at: 3300, state: 'rest' },
 ];
 
 /**
- * Why LIA thinks that: a folded block opens onto its signals, and the last one
- * becomes a tombstone — the source was deleted, and the trace stays dated.
+ * The voice says what the text kept: the written answer keeps one result
+ * among several, and the spoken comment names that same one — never a result
+ * the answer left out.
  */
-function ProvenanceWhyScene({ active }: SceneProps) {
-  const phase = useLoopedTimeline(PROVENANCE_STEPS, { active });
-  const open = phase !== 'shut';
-  const shown = phase === 'signals' || phase === 'tombstone';
+function VoiceFollowsAnswerScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(VOICE_FOLLOWS_STEPS, { active });
+  const picked = phase !== 'answer';
+  const speaking = phase === 'speak' || phase === 'rest';
 
   return (
-    <div className={cn(STAGE, 'justify-center')}>
-      <div className="w-full max-w-[210px] space-y-1.5">
-        <div className="rounded-md border border-border bg-background px-2 py-1.5">
-          <SkeletonLine w="w-4/5" />
-          <SkeletonLine w="w-1/2" className="mt-1" />
-        </div>
-
-        <div className="flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1">
-          <HelpCircle className="h-3 w-3 shrink-0 text-primary" />
-          <SkeletonLine w="w-2/5" />
-          <ChevronDown
-            className={cn(
-              'ml-auto h-3 w-3 text-muted-foreground transition-transform duration-500',
-              open && 'rotate-180'
-            )}
-          />
-        </div>
-
+    <div className={cn(STAGE, 'items-stretch justify-center gap-2')}>
+      <MiniBubble side="assistant" className="w-4/5 space-y-1">
         <div
           className={cn(
-            'space-y-1 overflow-hidden transition-all duration-500 ease-out',
-            shown ? 'max-h-24 opacity-100' : 'max-h-0 opacity-0'
+            'flex items-center gap-1.5 rounded-md px-1.5 py-0.5 transition-colors duration-500',
+            picked ? 'bg-primary/10 text-primary' : 'text-foreground/80'
           )}
         >
-          <div className="flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/30 px-2 py-1">
-            <span className="rounded bg-primary/15 px-1 py-px text-px-8 font-medium uppercase tracking-wide text-primary">
-              ●
-            </span>
-            <SkeletonLine w="w-3/5" />
-          </div>
-          <div
-            className={cn(
-              'flex items-center gap-1.5 rounded-md border border-dashed border-border/60 px-2 py-1 transition-opacity duration-500',
-              phase === 'tombstone' ? 'opacity-100' : 'opacity-40'
-            )}
-          >
-            <Trash2 className="h-2.5 w-2.5 shrink-0 text-muted-foreground" />
-            <SkeletonLine w="w-2/5" className="opacity-60" />
-          </div>
+          <Check className={cn('h-2.5 w-2.5 shrink-0', !picked && 'opacity-0')} />
+          <span className="truncate text-px-10 font-medium">{labels.first}</span>
         </div>
+        <SkeletonLine w="w-3/4" className={cn('ml-5 transition-opacity', picked && 'opacity-40')} />
+        <SkeletonLine w="w-2/3" className={cn('ml-5 transition-opacity', picked && 'opacity-40')} />
+      </MiniBubble>
+      <div
+        className={cn(
+          'flex items-center gap-1.5 self-start rounded-full border border-primary/40 bg-background px-2.5 py-1 shadow-sm transition-all duration-500',
+          speaking ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+        )}
+      >
+        <Volume2 className="h-3 w-3 shrink-0 text-primary" />
+        <span className="flex items-end gap-0.5" aria-hidden="true">
+          {[0, 1, 2].map(bar => (
+            <span
+              key={bar}
+              className={cn(
+                'w-0.5 rounded-full bg-primary/70',
+                bar === 1 ? 'h-2.5' : 'h-1.5',
+                phase === 'speak' && active && 'animate-pulse'
+              )}
+            />
+          ))}
+        </span>
+        <span className="truncate text-px-10 text-foreground/80">{labels.spoken}</span>
       </div>
     </div>
   );
@@ -1238,7 +1232,7 @@ function CardComposeScene({ active, labels }: SceneProps) {
 export const RESPOND_SCENES: Readonly<Record<string, SceneComponent>> = {
   card_details: CardDetailsScene,
   card_compose: CardComposeScene,
-  provenance_why: ProvenanceWhyScene,
+  voice_follows_answer: VoiceFollowsAnswerScene,
   expressive_eyes: ExpressiveEyesScene,
   living_face: LivingFaceScene,
   composed_page: ComposedPageScene,

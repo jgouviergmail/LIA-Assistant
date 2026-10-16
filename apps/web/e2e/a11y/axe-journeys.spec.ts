@@ -1099,6 +1099,16 @@ ${summary}`
             all: ['headlines', 'column', 'journal'],
           },
           roles: ['host', 'anchor', 'expert', 'columnist'],
+          commentator_roles: ['speaker_a', 'speaker_b', 'speaker_c'],
+          voices_apart: {
+            host: ['speaker_a', 'speaker_b', 'speaker_c'],
+            anchor: ['speaker_a', 'speaker_b', 'speaker_c'],
+            expert: [],
+            columnist: [],
+            speaker_a: ['host', 'anchor', 'speaker_b', 'speaker_c'],
+            speaker_b: ['host', 'anchor', 'speaker_a', 'speaker_c'],
+            speaker_c: ['host', 'anchor', 'speaker_a', 'speaker_b'],
+          },
           voices: [
             { voice_id: 'en-A', label: 'Aria', gender: 'female', language: 'en' },
             { voice_id: 'en-B', label: 'Bruno', gender: 'male', language: 'en' },
@@ -1109,6 +1119,7 @@ ${summary}`
           timer_max_minutes: 120,
           custom_sources_max: 10,
           source_address_max_chars: 2048,
+          source_title_max_chars: 120,
           category_outlets: {
             world: [{ name: 'BBC News', language: 'en' }],
             investigation: [{ name: 'OCCRP', language: 'en' }],
@@ -1125,6 +1136,7 @@ ${summary}`
         json: {
           frequencies: {},
           disabled_sources: [],
+          disabled_feeds: [],
           news_categories: null,
           news_languages: null,
           voices: {},

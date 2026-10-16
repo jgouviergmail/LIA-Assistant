@@ -826,10 +826,7 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
                 />
                 <div className="grid gap-3 pl-9">
                   {(['prompt_expert', 'advisory', 'plan_template'] as const).map(arch => (
-                    <div
-                      key={arch}
-                      className="rounded-lg border p-3 bg-card/50 hover:bg-card transition-colors"
-                    >
+                    <div key={arch} className="rounded-lg border p-3 bg-card transition-colors">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-sm font-semibold">
                           {t(`settings.skills.guide_archetype_${arch}_name`)}
@@ -856,7 +853,7 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
                 <p className="text-sm text-muted-foreground leading-relaxed pl-9">
                   {t('settings.skills.guide_activation_body')}
                 </p>
-                <div className="rounded-xl bg-muted/40 border p-4 ml-9 space-y-2">
+                <div className="rounded-xl bg-card border p-4 ml-9 space-y-2">
                   {(['l1', 'l2', 'l3'] as const).map(tier => (
                     <div key={tier} className="flex gap-3 text-xs">
                       <code className="shrink-0 font-mono text-primary/90 w-6 font-bold">
@@ -907,7 +904,7 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
                 </p>
 
                 {/* Frontmatter fields */}
-                <div className="rounded-xl bg-muted/40 border p-4 space-y-2">
+                <div className="rounded-xl bg-card border p-4 space-y-2">
                   <p className="text-xs font-semibold text-foreground/80 mb-2">
                     {t('settings.skills.guide_frontmatter_title')}
                   </p>
@@ -1010,7 +1007,7 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
                 <p className="text-sm text-muted-foreground leading-relaxed pl-9">
                   {t('settings.skills.guide_modal_struct_body')}
                 </p>
-                <div className="rounded-xl bg-muted/50 border p-4 text-xs font-mono space-y-1 ml-9">
+                <div className="rounded-xl bg-card border p-4 text-xs font-mono space-y-1 ml-9">
                   <div className="text-foreground font-medium">mon-skill/</div>
                   <div className="pl-5 text-foreground">
                     SKILL.md{' '}
@@ -1054,10 +1051,7 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
                 />
                 <div className="space-y-3 pl-9">
                   {(['references', 'scripts', 'assets'] as const).map(res => (
-                    <div
-                      key={res}
-                      className="rounded-lg border p-3 bg-card/50 hover:bg-card transition-colors"
-                    >
+                    <div key={res} className="rounded-lg border p-3 bg-card transition-colors">
                       <div className="flex items-center gap-2 mb-1">
                         <code className="text-xs font-mono font-semibold text-primary/90">
                           {res}/
@@ -1104,7 +1098,7 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
                 </p>
 
                 <div className="pl-9 space-y-3">
-                  <div className="rounded-lg border p-3 bg-card/50">
+                  <div className="rounded-lg border p-3 bg-card">
                     <div className="flex items-center gap-2 mb-1">
                       <code className="text-xs font-mono font-semibold text-primary/90">
                         _lang / _tz
@@ -1121,7 +1115,7 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
                     </p>
                   </div>
 
-                  <div className="rounded-lg border p-3 bg-card/50">
+                  <div className="rounded-lg border p-3 bg-card">
                     <div className="flex items-center gap-2 mb-1">
                       <code className="text-xs font-mono font-semibold text-primary/90">
                         html[data-theme=&quot;dark&quot;]
@@ -1135,7 +1129,7 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
                     </p>
                   </div>
 
-                  <div className="rounded-lg border p-3 bg-card/50">
+                  <div className="rounded-lg border p-3 bg-card">
                     <div className="flex items-center gap-2 mb-1">
                       <code className="text-xs font-mono font-semibold text-primary/90">
                         ui/notifications/size-changed
@@ -1199,7 +1193,7 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
                 <CodeBlock>{PLAN_TEMPLATE_EXAMPLE}</CodeBlock>
 
                 {/* Step fields legend */}
-                <div className="rounded-xl bg-muted/40 border p-4 space-y-2">
+                <div className="rounded-xl bg-card border p-4 space-y-2">
                   <p className="text-xs font-semibold text-foreground/80 mb-2">
                     {t('settings.skills.guide_modal_plan_fields_title')}
                   </p>
@@ -1282,7 +1276,7 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
                   {t('settings.skills.guide_scripts_body')}
                 </p>
                 <CodeBlock>{SCRIPT_EXAMPLE}</CodeBlock>
-                <div className="rounded-xl bg-muted/40 border p-4 space-y-1.5 text-xs">
+                <div className="rounded-xl bg-card border p-4 space-y-1.5 text-xs">
                   <p className="font-semibold text-foreground/80">
                     {t('settings.skills.guide_scripts_rules_title')}
                   </p>
@@ -1305,7 +1299,7 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
                 <p className="text-sm text-muted-foreground leading-relaxed pl-9">
                   {t('settings.skills.guide_skill_tools_body')}
                 </p>
-                <div className="rounded-xl bg-muted/40 border p-4 space-y-3 text-xs">
+                <div className="rounded-xl bg-card border p-4 space-y-3 text-xs">
                   {(
                     [
                       ['activate_skill_tool', 'guide_skilltool_activate'],
@@ -1354,7 +1348,7 @@ function SectionHeader({
 
 function CodeBlock({ children }: { children: string }) {
   return (
-    <pre className="rounded-xl bg-muted/70 border p-4 text-xs font-mono overflow-x-auto leading-relaxed text-foreground/80">
+    <pre className="rounded-xl bg-card border p-4 text-xs font-mono overflow-x-auto leading-relaxed text-foreground/80">
       {children}
     </pre>
   );
@@ -1362,7 +1356,7 @@ function CodeBlock({ children }: { children: string }) {
 
 function AgentToolsBlock({ agent, t }: { agent: AgentDef; t: (key: string) => string }) {
   return (
-    <div className="rounded-lg border bg-card/50 p-3 space-y-2">
+    <div className="rounded-lg border bg-card p-3 space-y-2">
       <div className="flex items-center gap-2 flex-wrap">
         <code className="font-mono text-xs text-blue-600 dark:text-blue-400 font-semibold">
           {agent.agent}

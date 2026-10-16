@@ -5,7 +5,6 @@ import { MessageSquare, MessagesSquare, UserCog } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { SettingsSection } from '@/components/settings/SettingsSection';
-import { InfoBox } from '@/components/ui/info-box';
 import { useAuth } from '@/hooks/useAuth';
 import { useTranslation } from '@/i18n/client';
 import apiClient from '@/lib/api-client';
@@ -78,7 +77,7 @@ export function UsagePreferencesSettings({ lng }: BaseSettingsProps) {
                     'flex cursor-pointer flex-col gap-1.5 rounded-lg border-2 p-3 transition-all hover:bg-accent',
                     'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-background',
                     'has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60',
-                    selected ? 'border-primary bg-primary/5' : 'border-border bg-card'
+                    selected ? 'border-primary bg-primary/5' : 'border-border bg-background'
                   )}
                 >
                   <input
@@ -117,10 +116,6 @@ export function UsagePreferencesSettings({ lng }: BaseSettingsProps) {
             })}
           </div>
         </fieldset>
-
-        <InfoBox>
-          <p className="text-xs text-muted-foreground">{t(`${PREFIX}.fallback`)}</p>
-        </InfoBox>
       </div>
     </SettingsSection>
   );

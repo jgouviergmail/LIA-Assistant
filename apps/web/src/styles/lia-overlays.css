@@ -2,6 +2,7 @@
 @layer components {
   .lia-overlay-surface {
     --lia-overlay-fill: var(--color-background);
+    --lia-field-background: var(--color-card);
     --lia-overlay-opacity: 86%;
     --lia-overlay-blur: 24px;
     background-color: var(--lia-overlay-fill);

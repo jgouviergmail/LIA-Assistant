@@ -18,7 +18,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { renderWithProviders, screen, waitFor, within } from '@/__tests__/test-utils';
-import { settingsSectionHref } from '@/lib/settings-sections';
 
 const { useApiQuery } = vi.hoisted(() => ({ useApiQuery: vi.fn() }));
 const { patchMock } = vi.hoisted(() => ({ patchMock: vi.fn() }));
@@ -85,6 +84,21 @@ beforeEach(() => {
 });
 
 describe('NotificationsHub', () => {
+  it('states a failed count read separately and retries without unfolding histories', async () => {
+    const refetch = vi.fn();
+    useApiQuery.mockImplementation((endpoint: string) => ({
+      data: endpoint === '/notifications/hub-counts' ? { proactive: 7 } : undefined,
+      error: endpoint === '/notifications/hub-counts' ? new Error('offline') : null,
+      loading: false,
+      refetch,
+    }));
+    const { user } = renderWithProviders(<NotificationsHub lng="fr" />);
+    expect(screen.getByRole('alert')).toHaveTextContent('notifications_hub.counts_error');
+    expect(screen.getByText('7')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'common.retry' }));
+    expect(refetch).toHaveBeenCalledOnce();
+    expect(fetched()).toEqual([]);
+  });
   it('shows the five sections folded, and fetches no PAGE', () => {
     renderWithProviders(<NotificationsHub lng="fr" />);
 
@@ -158,19 +172,10 @@ describe('NotificationsHub', () => {
     expect(screen.getByText('notifications_hub.sections.scheduled.subtitle')).toBeInTheDocument();
   });
 
-  it('keeps the existing settings deep links in the top settings disclosure', async () => {
-    const { user } = renderWithProviders(<NotificationsHub lng="fr" />);
-    await user.click(screen.getByText('notifications_hub.advanced_title'));
-
-    // Named after the DESTINATION, not after the hub section: the same words
-    // twice on one page, meaning two different things, is how a reader loses
-    // track of where a link goes.
-    expect(
-      screen.getByRole('link', { name: 'notifications_hub.advanced_links.proactive' })
-    ).toHaveAttribute('href', settingsSectionHref('fr', 'heartbeat'));
-    expect(
-      screen.getByRole('link', { name: 'notifications_hub.advanced_links.device' })
-    ).toHaveAttribute('href', settingsSectionHref('fr', 'notifications'));
+  it('removes advanced settings shortcuts without fetching notification pages', () => {
+    renderWithProviders(<NotificationsHub lng="fr" />);
+    expect(screen.queryByText('notifications_hub.advanced_title')).not.toBeInTheDocument();
+    expect(fetched()).toEqual([]);
   });
 
   it('shows a dash rather than a zero before a section has ever been read', () => {
@@ -237,18 +242,6 @@ describe('notification registers', () => {
     }
     const offers = screen.getByText('notifications_hub.sections.offers.title');
     expect(offers.compareDocumentPosition(future) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(fetched()).toEqual([]);
-  });
-
-  it('places settings before notification data and fetches no page when opened', async () => {
-    const { user } = renderWithProviders(<NotificationsHub lng="fr" />);
-    const controls = screen.getByText('notifications_hub.advanced_title');
-    const offers = screen.getByText('notifications_hub.sections.offers.title');
-    expect(
-      controls.compareDocumentPosition(offers) & Node.DOCUMENT_POSITION_FOLLOWING
-    ).toBeTruthy();
-    await user.click(controls);
-    expect(screen.getAllByRole('link')).toHaveLength(5);
     expect(fetched()).toEqual([]);
   });
 });

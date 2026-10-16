@@ -101,8 +101,8 @@ export function HealthMetricsCharts({ lng, aggregate, period }: HealthMetricsCha
   return (
     <div className="space-y-8">
       {/* Heart rate */}
-      <div>
-        <div className="flex items-baseline justify-between mb-3">
+      <div className="rounded-lg border bg-card p-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
           <h4 className="text-sm font-semibold">
             {t('healthMetrics.charts.heartRate', 'Fréquence cardiaque (bpm)')}
           </h4>
@@ -162,8 +162,8 @@ export function HealthMetricsCharts({ lng, aggregate, period }: HealthMetricsCha
       </div>
 
       {/* Steps */}
-      <div>
-        <div className="flex items-baseline justify-between mb-3">
+      <div className="rounded-lg border bg-card p-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
           <h4 className="text-sm font-semibold">
             {t('healthMetrics.charts.steps', 'Pas par période')}
           </h4>

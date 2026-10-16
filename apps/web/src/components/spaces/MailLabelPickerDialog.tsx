@@ -74,7 +74,7 @@ export function MailLabelPickerDialog({
           <DialogDescription>{t('spaces.mail.picker_description')}</DialogDescription>
         </DialogHeader>
 
-        <p className="rounded-md bg-muted/60 p-3 text-xs text-muted-foreground">
+        <p className="rounded-md bg-card p-3 text-xs text-muted-foreground">
           {t('spaces.mail.privacy_note')}
         </p>
 

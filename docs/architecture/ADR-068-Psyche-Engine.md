@@ -117,3 +117,40 @@ Four changes to how psyche context reaches prompts:
 4. **Safety guardrail**: `build_psyche_prompt_block()` now includes: "NEVER attribute your emotions or mood to the user. These are YOUR internal states." Triple protection: guardrail in PsycheContext itself + wrapper directive in each prompt + removal from non-pertinent contexts.
 
 No changes to the core engine, models, or computation logic.
+
+## Amendment 2026-10-16 — the stock personalities' traits are repaired, and an account without a choice follows the default
+
+**Defect.** The reference seed (`personalities_seed.sql`) deletes the stock
+personalities and re-inserts them, and its rows never carried the eight OCEAN and
+PAD columns the trait migration `psyche_traits_001` (2026-04-01) had added. Every
+instance seeded after that migration therefore held its 14 personalities with NULL
+traits, and the engine read every one of them as the neutral profile
+(`PersonalityTraits()`, 0.5 everywhere): the cynic, the coach or the poet reacted,
+and drifted back to rest, exactly like « Normal ».
+
+**Decision.**
+
+- The seed inserts the eight columns, and `verify_reference_seeds.sql` now refuses a
+  reference bundle whose named profiles lack valid traits.
+- Migration `b62a8d193f04` restores the last published profiles on instances already
+  installed, matching a stock row by its UUID **and** its code (plus the legacy
+  antagonist UUID), and **only where all eight columns are NULL**: an
+  administrator's explicit value, zero included, wins. It then aligns the psyche
+  state of an account whose effective personality it repaired only while that
+  state's five traits are still exactly the neutral 0.5 — mood, relationship,
+  emotions, efficacy and history are never rewritten. Its downgrade keeps the data.
+- An account that never chose a personality (`personality_id` NULL) takes the
+  traits of the instance's **default** personality instead of the neutral profile,
+  and going back to the default re-synchronises them.
+
+**Consequence.** After the upgrade, an affected instance's personalities shape the
+mood baseline and the emotional reactivity again: the behaviour changes, on purpose.
+
+## Amendment 2026-10-16 (b) — layer 5 no longer learns from the self-rating
+
+The self-efficacy of layer 5 is replaced by evidence kept per domain on two separate
+axes — the verified result and the usefulness the owner expressed — and read by the
+planner, the ReAct loop and the synthesis through one bounded adjustment. The
+self-report keeps feeding the relationship and the emotions only, and no
+strengths / weaknesses confidence is injected any more. See
+[ADR-348](ADR-348-Efficacy-Learned-From-Evidence-Results-And-Usefulness-Kept-Apart.md).

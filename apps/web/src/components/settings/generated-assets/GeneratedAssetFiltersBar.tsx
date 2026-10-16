@@ -201,7 +201,7 @@ export function GeneratedAssetFiltersBar({
   return (
     <section
       aria-label={t('settings.generated_assets.filters.title')}
-      className="rounded-xl border border-border/50 bg-muted/20 p-3"
+      className="rounded-xl border border-border/50 bg-background p-3 [--lia-field-background:var(--color-card)]"
     >
       {/* A title always carries an icon, in the theme colour. « Clear » belongs
           on the title's own line: at the end of a wrapping row of controls it
@@ -238,6 +238,7 @@ function FoldedFilters({
   const described = describeAssetFilters(filters, t);
   return (
     <Disclosure
+      surface="nested"
       icon={Filter}
       title={t('settings.generated_assets.filters.title')}
       badge={count > 0 ? count : undefined}

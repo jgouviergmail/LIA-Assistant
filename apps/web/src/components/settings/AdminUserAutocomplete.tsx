@@ -180,7 +180,7 @@ export function AdminUserAutocomplete({
   if (selectedUser) {
     return (
       <div ref={dropdownRef} className="relative">
-        <div className="flex items-center gap-2 p-2 border border-border rounded-md bg-muted/50">
+        <div className="flex items-center gap-2 p-2 border border-border rounded-md bg-[color:var(--lia-field-background,var(--color-background))]">
           <User className="h-4 w-4 text-muted-foreground shrink-0" />
           <div className="flex-1 min-w-0">
             <div className="text-sm font-medium truncate">{selectedUser.email}</div>

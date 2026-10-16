@@ -22,7 +22,6 @@ import { Scale } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { ProvenanceDisclosure } from '@/components/provenance/ProvenanceDisclosure';
 import { Disclosure } from '@/components/ui/disclosure';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { formatInstant } from '@/lib/format-instant';
@@ -75,6 +74,7 @@ export function InterestExplanation({ interestId, locale }: InterestExplanationP
 
   return (
     <Disclosure
+      surface="nested"
       icon={Scale}
       title={t('interests.explanation.title')}
       onOpenChange={setOpen}
@@ -156,7 +156,6 @@ export function InterestExplanation({ interestId, locale }: InterestExplanationP
 
       {/* Where it came from — the same block journals and memories use, so one
           question has one answer everywhere in the product. */}
-      <ProvenanceDisclosure endpoint={`/interests/${interestId}/provenance`} locale={locale} />
     </Disclosure>
   );
 }

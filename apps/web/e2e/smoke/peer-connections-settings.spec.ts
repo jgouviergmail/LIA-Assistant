@@ -411,7 +411,7 @@ for (const [width, theme] of [
     const audit = await scanPage(page, info, `peer-connections-${width}-${theme}`);
     expect(audit.blocking, audit.summary).toHaveLength(0);
     await section(page)
-      .getByRole('button', { name: copy('settings.peers.connections.remove'), exact: true })
+      .getByRole('button', { name: copy('common.delete'), exact: true })
       .click();
     await page
       .getByRole('alertdialog')
@@ -420,7 +420,7 @@ for (const [width, theme] of [
     expect(deletes).toBe(0);
     await expect(identity).toBeVisible();
     await section(page)
-      .getByRole('button', { name: copy('settings.peers.connections.remove'), exact: true })
+      .getByRole('button', { name: copy('common.delete'), exact: true })
       .click();
     await page
       .getByRole('alertdialog')

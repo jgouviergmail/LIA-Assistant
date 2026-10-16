@@ -2,16 +2,10 @@
 'use client';
 
 import { useEffect, useId, useState, type ReactNode } from 'react';
-import {
-  ChartScatter,
-  Compass,
-  Brain,
-  Heart,
-  MessageCircle,
-  type LucideIcon,
-} from 'lucide-react';
+import { ChartScatter, Compass, Brain, Heart, MessageCircle, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AnimatedEmoji } from '@/components/ui/animated-emoji';
+import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Disclosure } from '@/components/ui/disclosure';
 import {
@@ -20,7 +14,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { getMoodColor } from '@/lib/psyche-colors';
 import { usePsycheStore } from '@/stores/psycheStore';
 import apiClient from '@/lib/api-client';
@@ -84,12 +77,10 @@ function StateOverview({
   summary?: ReactNode;
 }) {
   const { t } = useTranslation(lng, 'translation');
-  const desktop = useMediaQuery('(min-width: 768px)');
-  const [open, setOpen] = useState<string | null>(null);
-  const moodOpen = open ?? (desktop ? 'mood' : '');
+  const [moodOpen, setOpen] = useState('mood');
   return (
     <div className="min-w-0 space-y-4">
-      <div className="min-w-0 rounded-xl border border-border/70 bg-card px-4 sm:px-6">
+      <Card surface="nested" variant="flat" className="min-w-0 border-border/70 px-4 sm:px-6">
         {summary && <div className="border-b border-border/60 py-5">{summary}</div>}
         {state ? (
           <>
@@ -118,7 +109,7 @@ function StateOverview({
             {t(enabled ? 'psyche.stateUnavailable' : 'psyche.enableDescription')}
           </p>
         )}
-      </div>
+      </Card>
       {state && (
         <>
           <BehaviorOverview state={state} lng={lng} />
@@ -142,7 +133,11 @@ function EmotionOrbits({ state, lng }: { state: PsycheState; lng: Language }) {
   const emotions = [...state.active_emotions].sort((a, b) => b.intensity - a.intensity);
   const hintId = useId();
   return (
-    <section aria-label={t('psyche.activeEmotion')} aria-describedby={hintId} className="min-w-0">
+    <section
+      aria-label={t('psyche.activeEmotion')}
+      aria-describedby={hintId}
+      className="min-w-0 rounded-lg border border-border/60 bg-card p-3"
+    >
       <div
         className="relative mx-auto aspect-square w-full max-w-[280px]"
         role="presentation"
@@ -247,7 +242,7 @@ function PadPlane({ state, lng }: { state: PsycheState; lng: Language }) {
     [t('psyche.education.mood.dominance'), state.mood_dominance],
   ] as const;
   return (
-    <section className="min-w-0 md:border-l md:border-border/60 md:pl-8">
+    <section className="min-w-0 rounded-lg border border-border/60 bg-card p-3">
       <InstrumentHeading icon={ChartScatter} title={t('psyche.presentation.padTitle')} />
       <svg
         viewBox="0 0 330 258"
@@ -351,54 +346,57 @@ function PadPlane({ state, lng }: { state: PsycheState; lng: Language }) {
 
 function BehaviorOverview({ state, lng }: { state: PsycheState; lng: Language }) {
   const { t } = useTranslation(lng, 'translation');
-  const desktop = useMediaQuery('(min-width: 768px)');
-  const [open, setOpen] = useState<string[] | null>(null);
+  const [open, setOpen] = useState<string[]>(['relationship', 'drives']);
   const stageId = useId();
   const relationshipTitle = t('psyche.presentation.relationship');
   const drivesTitle = t('psyche.presentation.drivesTitle');
   return (
-    <Accordion
-      type="multiple"
-      value={open ?? (desktop ? ['relationship', 'drives'] : [])}
-      onValueChange={setOpen}
-      className="grid min-w-0 rounded-xl border border-border/70 bg-card md:grid-cols-2"
-    >
-      <AccordionItem
-        value="relationship"
-        className="min-w-0 border-b border-border/60 px-4 sm:px-6 md:border-b-0 md:border-r"
+    <Card surface="nested" variant="flat" className="min-w-0 border-border/70">
+      <Accordion
+        type="multiple"
+        value={open}
+        onValueChange={setOpen}
+        className="grid min-w-0 md:grid-cols-2"
       >
-        <AccordionTrigger
-          aria-label={relationshipTitle}
-          aria-describedby={stageId}
-          className="gap-3 py-5 text-left text-sm font-semibold hover:no-underline"
+        <AccordionItem
+          value="relationship"
+          className="min-w-0 border-b border-border/60 px-4 sm:px-6 md:border-b-0 md:border-r"
         >
-          <span className="flex min-w-0 flex-1 items-center gap-2">
-            <Heart aria-hidden="true" className="size-4 shrink-0 text-primary" />
-            <span className="min-w-0 break-words">{relationshipTitle}</span>
-          </span>
-          <Badge id={stageId} variant="default" className="shrink-0">
-            {t(`psyche.stages.${state.relationship_stage}`, state.relationship_stage)}
-          </Badge>
-        </AccordionTrigger>
-        <AccordionContent className="min-w-0 pb-5">
-          <Relationship state={state} lng={lng} />
-        </AccordionContent>
-      </AccordionItem>
-      <AccordionItem value="drives" className="min-w-0 border-0 px-4 sm:px-6">
-        <AccordionTrigger
-          aria-label={drivesTitle}
-          className="gap-3 py-5 text-left text-sm font-semibold hover:no-underline"
-        >
-          <span className="flex min-w-0 items-center gap-2">
-            <Compass aria-hidden="true" className="size-4 shrink-0 text-primary" />
-            <span className="min-w-0 break-words">{drivesTitle}</span>
-          </span>
-        </AccordionTrigger>
-        <AccordionContent className="min-w-0 pb-5">
-          <DriveLevels state={state} lng={lng} />
-        </AccordionContent>
-      </AccordionItem>
-    </Accordion>
+          <AccordionTrigger
+            aria-label={relationshipTitle}
+            aria-describedby={stageId}
+            className="gap-3 py-5 text-left text-base font-semibold hover:no-underline"
+          >
+            <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
+              <span className="flex min-w-0 flex-[1_1_12rem] items-center gap-2">
+                <Heart aria-hidden="true" className="size-4 shrink-0 text-primary" />
+                <span className="min-w-0 break-words">{relationshipTitle}</span>
+              </span>
+              <Badge id={stageId} variant="default" className="max-w-full whitespace-normal">
+                {t(`psyche.stages.${state.relationship_stage}`, state.relationship_stage)}
+              </Badge>
+            </span>
+          </AccordionTrigger>
+          <AccordionContent className="min-w-0 pb-5">
+            <Relationship state={state} lng={lng} />
+          </AccordionContent>
+        </AccordionItem>
+        <AccordionItem value="drives" className="min-w-0 border-0 px-4 sm:px-6">
+          <AccordionTrigger
+            aria-label={drivesTitle}
+            className="gap-3 py-5 text-left text-base font-semibold hover:no-underline"
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <Compass aria-hidden="true" className="size-4 shrink-0 text-primary" />
+              <span className="min-w-0 break-words">{drivesTitle}</span>
+            </span>
+          </AccordionTrigger>
+          <AccordionContent className="min-w-0 pb-5">
+            <DriveLevels state={state} lng={lng} />
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+    </Card>
   );
 }
 
@@ -407,7 +405,7 @@ function Relationship({ state, lng }: { state: PsycheState; lng: Language }) {
   return (
     <div className="min-w-0">
       {' '}
-      <div className="my-6 grid grid-cols-3 gap-2 sm:gap-4">
+      <div className="my-6 grid grid-cols-[repeat(auto-fit,minmax(min(100%,5em),1fr))] gap-2 sm:gap-4">
         <RingMeter label={t('psyche.depth')} value={state.relationship_depth} />
         <RingMeter label={t('psyche.warmth')} value={state.relationship_warmth_active} />
         <RingMeter label={t('psyche.trust')} value={state.relationship_trust} />
@@ -437,7 +435,7 @@ function RingMeter({ label, value }: { label: string; value: number }) {
       aria-valuetext={`${percent}%`}
       className="flex min-w-0 flex-col items-center gap-2"
     >
-      <div className="relative aspect-square w-full max-w-[92px]">
+      <div className="relative aspect-square w-full max-w-[5.75em]">
         <svg viewBox="0 0 92 92" aria-hidden="true" className="block size-full">
           <circle cx="46" cy="46" r="37" fill="none" stroke="var(--color-border)" strokeWidth="4" />
           <circle
@@ -501,10 +499,12 @@ function OceanTraits({ state, lng }: { state: PsycheState; lng: Language }) {
   const current = traits.map(([, , value], index) => position(index, clampUnit(value)));
   return (
     <Disclosure
+      defaultOpen
       icon={Brain}
       title={t('psyche.education.traits.title')}
-      titleClassName="whitespace-normal"
-      className="border-0 bg-transparent px-0"
+      titleClassName="whitespace-normal text-base font-semibold"
+      surface="primary"
+      className="border-border/60 px-3"
     >
       <div className="grid min-w-0 items-center gap-5 pt-3 md:grid-cols-2">
         <svg
@@ -548,14 +548,14 @@ function OceanTraits({ state, lng }: { state: PsycheState; lng: Language }) {
         </svg>
         <dl className="min-w-0 divide-y divide-border/50">
           {traits.map(([key, label, value]) => (
-            <div key={key} className="flex min-w-0 items-start gap-2 py-3 text-sm">
-              <dt className="flex min-w-0 flex-1 items-start gap-2">
-                <span aria-hidden="true" className="w-4 shrink-0 font-semibold text-primary">
+            <div key={key} className="flex min-w-0 flex-wrap items-start gap-2 py-3 text-sm">
+              <dt className="flex min-w-0 flex-[1_1_10em] flex-wrap items-start gap-2">
+                <span aria-hidden="true" className="w-[1em] shrink-0 font-semibold text-primary">
                   {key}
                 </span>
-                <span className="min-w-0 break-words">{label}</span>
+                <span className="min-w-0 flex-[1_1_min-content] break-words">{label}</span>
               </dt>
-              <dd className="shrink-0 font-semibold tabular-nums">
+              <dd className="ml-auto shrink-0 font-semibold tabular-nums">
                 <span
                   role="meter"
                   aria-label={label}

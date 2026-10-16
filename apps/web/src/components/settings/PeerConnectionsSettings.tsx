@@ -16,6 +16,7 @@ import { useRef, useState } from 'react';
 import { Eye, Handshake, Inbox, Radar, ShieldOff, UserSearch } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { Card } from '@/components/ui/card';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
@@ -127,7 +128,7 @@ function OwnedPeerConnectionsSettings({ lng }: BaseSettingsProps) {
   // user mid-search — losing their typed query, their results and their
   // keyboard focus. Refreshes are announced with aria-busy instead.
   const commandClass =
-    'rounded-none border-0 border-b border-border/50 bg-transparent px-0 [&>summary]:min-h-11';
+    'rounded-[var(--lia-radius-lg)] border border-border/60 px-4 [&>summary]:min-h-11';
   const content =
     (error || retrying) && !hasCompleteData ? null : initialLoading ? (
       <div className="space-y-4" aria-busy="true">
@@ -137,8 +138,9 @@ function OwnedPeerConnectionsSettings({ lng }: BaseSettingsProps) {
       </div>
     ) : (
       <div className="space-y-5" aria-busy={loading}>
-        <div>
+        <div className="space-y-3">
           <Disclosure
+            surface="nested"
             icon={Radar}
             title={t('settings.peers.visibility_title')}
             className={commandClass}
@@ -158,6 +160,7 @@ function OwnedPeerConnectionsSettings({ lng }: BaseSettingsProps) {
             />
           </Disclosure>
           <Disclosure
+            surface="nested"
             icon={ShieldOff}
             title={t('settings.peers.blocks.title')}
             summaryRef={blocksSummary}
@@ -175,6 +178,7 @@ function OwnedPeerConnectionsSettings({ lng }: BaseSettingsProps) {
             />
           </Disclosure>
           <Disclosure
+            surface="nested"
             icon={Eye}
             title={t('settings.peers.access_log.title')}
             badge={accessLog.length}
@@ -188,8 +192,11 @@ function OwnedPeerConnectionsSettings({ lng }: BaseSettingsProps) {
           </Disclosure>
         </div>
 
-        <section
-          className="space-y-4 rounded-2xl border border-border/60 bg-card p-4 sm:p-5"
+        <Card
+          surface="nested"
+          variant="flat"
+          role="region"
+          className="space-y-4 border-border/60 p-4 sm:p-5"
           aria-labelledby="peers-search-title"
         >
           <h4 id="peers-search-title" className="flex items-center gap-2 font-semibold">
@@ -204,9 +211,10 @@ function OwnedPeerConnectionsSettings({ lng }: BaseSettingsProps) {
               settle(sendRequest(peerId, contextMessage), 'settings.peers.discovery.request_sent')
             }
           />
-        </section>
+        </Card>
 
         <Disclosure
+          surface="nested"
           icon={Inbox}
           title={t('settings.peers.requests.title')}
           summaryRef={requestsSummary}
@@ -230,7 +238,13 @@ function OwnedPeerConnectionsSettings({ lng }: BaseSettingsProps) {
           />
         </Disclosure>
 
-        <section className="space-y-3" aria-labelledby="peers-connections-title">
+        <Card
+          surface="nested"
+          variant="flat"
+          role="region"
+          className="space-y-3 border-border/60 p-4 sm:p-5"
+          aria-labelledby="peers-connections-title"
+        >
           <h4
             ref={connectionsHeading}
             tabIndex={-1}
@@ -266,7 +280,7 @@ function OwnedPeerConnectionsSettings({ lng }: BaseSettingsProps) {
               ))}
             </ul>
           )}
-        </section>
+        </Card>
       </div>
     );
 
@@ -276,7 +290,6 @@ function OwnedPeerConnectionsSettings({ lng }: BaseSettingsProps) {
       title={t('settings.peers.title')}
       description={t('settings.peers.description')}
       icon={Handshake}
-      className="border-0 bg-transparent shadow-none"
     >
       {(error || retrying) && (
         <Alert variant="error" className="mb-5">

@@ -1,10 +1,10 @@
 /**
- * Single source of truth for the "/more" small-attentions page: 90 cards in
+ * Single source of truth for the "/more" small-attentions page: 97 cards in
  * 6 moment sections, each card carrying one lucide icon and the list of
  * translated micro-labels its animated scene needs.
  *
  * ANTI-REGRESSION CONTRACT: the guard test
- * `__tests__/more-content-coverage.test.ts` asserts the structure (90 unique
+ * `__tests__/more-content-coverage.test.ts` asserts the structure (97 unique
  * cards, icon/scene-label completeness), the level contract (keys disjoint
  * from the editorial landing's REQUIRED_FEATURE_KEYS — this page presents
  * craft, one level below capabilities), and the i18n content (every
@@ -82,7 +82,6 @@ import {
   Reply,
   RotateCcw,
   ScrollText,
-  Search,
   SearchX,
   Send,
   Share2,
@@ -102,6 +101,12 @@ import {
   Wind,
   Zap,
   Pin,
+  CalendarClock,
+  FileText,
+  Languages,
+  ListX,
+  MousePointerClick,
+  Undo2,
 } from 'lucide-react';
 
 export interface MoreSectionConfig {
@@ -140,7 +145,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'followup_chips',
       'scroll_return',
       'bubble_actions',
-      'provenance_why',
+      'voice_follows_answer',
       'selection_actions',
       'peer_actions',
       'share_export',
@@ -163,6 +168,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'reconnect_all',
       'retry_turn',
       'honest_freshness',
+      'error_not_empty',
       'honest_gaps',
       'quota_warning',
       'image_expiry',
@@ -183,6 +189,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'settings_search',
       'frozen_columns',
       'deep_links',
+      'back_where_you_were',
       'history_search',
       'template_library',
       'mail_label_source',
@@ -206,13 +213,16 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'card_actions',
       'alerts_hub',
       'week_grid',
+      'day_timeline',
       'folded_settings',
+      'document_first_page',
       'exchange_rhythm',
       'starter_checklist',
       'empty_starters',
       'pwa',
       'phone_channel',
       'wake_phrase',
+      'voices_in_language',
       'live_band',
       'live_standby',
       'radio_companion',
@@ -244,8 +254,10 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'oled_black',
       'text_size',
       'a11y_care',
+      'button_stays_itself',
       'frosted_glass',
       'narrow_screens',
+      'companion_makes_room',
       'local_model_fit',
       'slide_never_overflows',
     ],
@@ -257,6 +269,13 @@ export const MORE_CARD_KEYS: readonly string[] = MORE_SECTIONS.flatMap(s => [...
 
 /** One lucide icon per card (guard-enforced completeness). */
 export const CARD_ICONS: Record<string, LucideIcon> = {
+  error_not_empty: ListX,
+  back_where_you_were: Undo2,
+  day_timeline: CalendarClock,
+  voices_in_language: Languages,
+  document_first_page: FileText,
+  companion_makes_room: Eye,
+  button_stays_itself: MousePointerClick,
   draft_survives: PenLine,
   slash_commands: SlashSquare,
   paste_screenshot: ClipboardPaste,
@@ -334,7 +353,7 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   folded_settings: ChevronsDownUp,
   exchange_rhythm: Metronome,
   frosted_glass: PanelTop,
-  provenance_why: Search,
+  voice_follows_answer: AudioLines,
   alerts_hub: BellRing,
   week_grid: CalendarRange,
   capability_map: Orbit,
@@ -355,6 +374,13 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
  * and icons — scenes stay language-light by design.
  */
 export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
+  error_not_empty: ['error', 'retry'],
+  back_where_you_were: ['query', 'filter', 'back'],
+  day_timeline: ['morning', 'afternoon', 'live'],
+  voices_in_language: ['only_mine', 'female', 'male'],
+  document_first_page: ['pdf', 'excerpt'],
+  companion_makes_room: ['search'],
+  button_stays_itself: ['save', 'saved'],
   draft_survives: ['typing'],
   slash_commands: [],
   paste_screenshot: [],
@@ -433,7 +459,7 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   text_size: [],
   a11y_care: [],
   frosted_glass: [],
-  provenance_why: [],
+  voice_follows_answer: ['first', 'spoken'],
   alerts_hub: [],
   capability_map: [],
   capability_honesty: ['capability', 'reason'],

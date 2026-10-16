@@ -3,8 +3,8 @@
 > Erfahrungsbericht — ein vollständiges System, vom Entwurf bis zur Produktion.
 
 **Version**: 2.3
-**Datum**: 2026-10-13
-**Anwendung**: LIA v3.0.1
+**Datum**: 2026-10-17
+**Anwendung**: LIA v3.1.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | Indikator | Wert |
 | --- | --- |
 | Von einer KI geschriebener Code — geführt, gerahmt, kontrolliert | **≈ 100 %** |
-| Quellcodezeilen (ohne Tests) — 55 Fachdomänen | **931.000+** |
-| Inventarisierte automatisierte Tests; passende Suiten für Commit und Release | **59.000+** |
-| Dokumentierte Architekturentscheidungen (ADR) | **346** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **280** |
+| Quellcodezeilen (ohne Tests) — 55 Fachdomänen | **960.000+** |
+| Inventarisierte automatisierte Tests; passende Suiten für Commit und Release | **63.000+** |
+| Dokumentierte Architekturentscheidungen (ADR) | **347** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **281** |
 | Sprachen, Parität automatisch geprüft | **6** |
 | Technisches Audit über 24 Bereiche | **8,3/10** |
 
@@ -58,11 +58,15 @@ Eine Gesprächsoberfläche wird nützlich, wenn sie ihre eigenen Werkzeuge bedie
 
 Dieselbe Regel gilt für die Darstellung: Vorbereiten ist nicht Abschließen. Warten, gespeicherte Änderung und Konflikt müssen getrennt benannt werden. Animierte Begleiter machen diese Arbeit mit originalen Designs und aktivitätsbezogenen Ausdrücken sichtbar, ohne aus Absicht einen Ausführungsnachweis zu machen.
 
+### Mehrere Agenten, ein gemeinsamer Bezugsrahmen
+
+Das Projekt wird inzwischen mit mehreren Entwicklungsagenten parallel geführt — jeder an seiner eigenen Baustelle, manchmal im selben Arbeitsbaum. Was sie zusammenhält, ist nicht die Abstimmung untereinander, sondern der gemeinsame Bezugsrahmen: dieselben schriftlichen Regeln, dieselben Wächter, dieselben Prüftore vor jeder Auslieferung. Ein Agent kann eine Schaltfläche umbenennen; es ist ein Wächter, der daran erinnert, dass die Hilfe, die Suche in den Einstellungen und das Vokabular, mit dem LIA sich selbst beschreibt, folgen müssen. Und die Auslieferung, die diese Baustellen zusammenführt, beginnt mit einer Bestandsaufnahme dessen, was jeder tatsächlich geändert hat — nie mit dem, was er ankündigt.
+
 ---
 
 ## 4. Die Abwägungen
 
-Drei strukturelle Entscheidungen, unter den 346 dokumentierten:
+Drei strukturelle Entscheidungen, unter den 347 dokumentierten:
 
 **Souveränität & Reversibilität — keine irreversible Anbieterabhängigkeit.** Die KI-Modelle (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, lokale Modelle über Ollama) stehen hinter einer einzigen Abstraktion: Jede Nutzung kann per Konfiguration den Anbieter wechseln, mit Kostenvergleich. Dasselbe Prinzip auf Fachseite: Google, Apple und Microsoft sind pro Funktionskategorie austauschbar. Selbsthosting gibt dir die Kontrolle über den Server; Kontodaten liegen auf der Instanz und Konnektor-Zugangsdaten sind verschlüsselt. Die gewählten externen Dienste erhalten weiterhin die Daten, die sie für ihren Teil einer Anfrage benötigen.
 
@@ -106,7 +110,7 @@ Der Maßnahmenplan ist in Wellen organisiert, jede mit messbaren Abschlusskriter
 
 Dieser Anspruch hat eine Folge, die das Projekt auf die harte Tour gelernt hat: **Eine grüne Testsuite beweist nicht, dass eine Funktion funktioniert.** Sie beweist, dass sich das Getestete so verhält, wie es geschrieben wurde. Die Fehler, die die Prüfungen überleben, sind genau jene, nach denen nie gefragt wurde — eine Fähigkeit, die niemand aufruft, eine Zahl, die niemand zusammenzählt, eine Wache, die einen Namen erkennt statt eines Mechanismus. Das sind fast nie Programmierfehler: Es sind Fragen, die nie gestellt worden waren.
 
-Daher eine Arbeitsregel: **Nichts gilt, bevor es gelaufen ist** — an echten Daten und auf dem Weg, den eine Nutzerin nimmt. Eine Komponente kann korrekt und ihre Seite leer sein; ein Zähler kann exakt und seine Frage falsch sein. Jede Auslieferung endet deshalb mit einer kalt geführten Gegenprüfung, deren Zweck nicht das Durchlaufen der Tests ist, sondern die Suche nach dem, was sie nicht abdecken. Und die Abläufe der Oberfläche laufen bei jeder Auslieferung unter Chromium, dann jede Woche unter Firefox und WebKit, mit automatischer Barrierefreiheitsprüfung: Eine Browser-Engine mehr sieht, was die anderen durchlassen.
+Daher eine Arbeitsregel: **Nichts gilt, bevor es gelaufen ist** — an echten Daten und auf dem Weg, den eine Nutzerin nimmt. Eine Komponente kann korrekt und ihre Seite leer sein; ein Zähler kann exakt und seine Frage falsch sein. Jede Auslieferung endet deshalb mit einer kalt geführten Gegenprüfung, deren Zweck nicht das Durchlaufen der Tests ist, sondern die Suche nach dem, was sie nicht abdecken. Und die Abläufe der Oberfläche laufen bei jeder Auslieferung unter Chromium, dann jede Woche unter Firefox und WebKit, mit automatischer Barrierefreiheitsprüfung: Eine Browser-Engine mehr sieht, was die anderen durchlassen. Und wenn eine Funktion behauptet, LIAs Verhalten zu verbessern, bleibt sie ein Pilot, bis ein Vorher-Nachher-Vergleich an einem separat gehaltenen Korpus es gezeigt hat.
 
 Was diese Prüfung hervorbringt, endet nicht bei der Korrektur. Jeder gefundene Fehler hinterlässt eine **strukturelle Wache** — eine Prüfung beim Start, eine fortlaufend verifizierte Invariante, einen Test, der fehlschlägt, sobald die ganze Fehlerklasse wiederkehrt. Das ist die einzige Art Fortschritt, die den überlebt, der sie geschrieben hat: Eine Korrektur schützt eine Zeile, eine Wache schützt die Regel.
 
@@ -121,4 +125,4 @@ Was diese Erfahrung in einer Führungspraxis verändert:
 - **Zwischen Generalverbot und blindem Vertrauen gibt es einen steuerbaren Weg.** Abgestufte menschliche Kontrolle lässt sich spezifizieren, testen und auditieren; es ist der Ansatz, auf den die regulatorischen Anforderungen zulaufen, und er ist heute einsatzbereit.
 - **Eine Führungskraft, die praktiziert, entscheidet besser.** Selbst machen oder machen lassen, akzeptable Schulden oder nicht, glaubwürdiges Anbieterversprechen oder nicht — diese Entscheidungen gewinnen an Treffsicherheit, wenn man die Materie selbst erprobt hat. Dieses Projekt ist eine Art, diese Nähe zum Terrain zu pflegen.
 
-*Persönliches Projekt, außerhalb jeder beruflichen Tätigkeit durchgeführt. Technische Bewertung aus dem Audit von Juli 2026, Befunde gegengeprüft. Strukturelle Zahlen folgen dem Repository; Quellcodezeilen wurden am 2026-10-12 erneut gemessen. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*
+*Persönliches Projekt, außerhalb jeder beruflichen Tätigkeit durchgeführt. Technische Bewertung aus dem Audit von Juli 2026, Befunde gegengeprüft. Strukturelle Zahlen folgen dem Repository; Quellcodezeilen wurden am 2026-10-16 erneut gemessen. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*

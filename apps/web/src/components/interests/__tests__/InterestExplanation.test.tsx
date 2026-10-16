@@ -195,13 +195,16 @@ describe('InterestExplanation', () => {
     }
   });
 
-  it('offers the same provenance block the rest of the product uses', async () => {
+  it('keeps the weight explanation without a provenance block or request', async () => {
     answer(RICH);
     const { user } = render();
 
     await open(user);
 
-    expect(screen.getByText('provenance.title')).toBeInTheDocument();
+    expect(screen.queryByText('provenance.title')).not.toBeInTheDocument();
+    expect(
+      useApiQuery.mock.calls.every(([endpoint]) => !String(endpoint).endsWith('/provenance'))
+    ).toBe(true);
   });
 });
 

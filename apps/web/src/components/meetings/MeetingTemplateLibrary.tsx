@@ -204,7 +204,7 @@ function TemplateSection({
               {barActions(chosen, clear)}
             </SelectionBar>
           )}
-          <Accordion type="multiple" className="rounded-lg border px-3">
+          <Accordion type="multiple" className="rounded-lg border bg-card px-3">
             {[...groups.entries()].map(([category, members]) => {
               return (
                 <AccordionItem key={category} value={category} className="last:border-b-0">
@@ -223,7 +223,7 @@ function TemplateSection({
                     </span>
                   </AccordionTrigger>
                   <AccordionContent className="pb-2">
-                    <ul className="divide-y divide-border/60 rounded-md border border-border/60 bg-card">
+                    <ul className="divide-y divide-border/60 rounded-md border border-border/60 bg-background">
                       {members.map(template => (
                         <TemplateRow
                           key={template.ref}

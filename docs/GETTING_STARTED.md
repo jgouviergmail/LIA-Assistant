@@ -5,7 +5,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-10-12
-**Compatibility**: LIA v3.0.1
+**Compatibility**: LIA v3.1.0
 
 ## Table of Contents
 
@@ -29,7 +29,7 @@
 
 ## Project Overview
 
-**LIA** is a multi-agent conversational AI assistant built with **FastAPI**, **Next.js** and **LangGraph**. It orchestrates 20+ specialized agents and 123 exposed tools across Google, Microsoft and Apple services (contacts, emails, calendar, files, tasks), plus Places, Routes, Weather, Wikipedia, Perplexity, Brave Search, web fetch, browser control, Philips Hue, image generation and per-user MCP servers.
+**LIA** is a multi-agent conversational AI assistant built with **FastAPI**, **Next.js** and **LangGraph**. It orchestrates 20+ specialized agents and 300+ exposed tools across Google, Microsoft and Apple services (contacts, emails, calendar, files, tasks), plus Places, Routes, Weather, Wikipedia, Perplexity, Brave Search, web fetch, browser control, Philips Hue, image generation and per-user MCP servers.
 
 Two user-toggleable execution modes (switchable in the chat header):
 
@@ -51,7 +51,7 @@ For ElevenLabs and Fish Audio speech, `ELEVENLABS_TTS_MAX_CONCURRENCY` and `FISH
 | | |
 |---|---|
 | Specialized agents | 20+ |
-| Tools | 123 |
+| Tools | 311 (tool manifests registered at startup, measured 2026-10-16 on Docker dev) |
 | LLM providers (text) | 7 — OpenAI, Anthropic, DeepSeek, Google Gemini, Qwen, Perplexity, Ollama |
 | Voice providers | ElevenLabs (STT/TTS), Fish Audio (STT/TTS), Edge TTS (free), OpenAI (STT/TTS), Gemini TTS + local Whisper STT |
 | Configurable LLM slots | 54 (admin UI, hot-reloaded) |
@@ -65,7 +65,7 @@ For ElevenLabs and Fish Audio speech, `ELEVENLABS_TTS_MAX_CONCURRENCY` and `FISH
 | Layer | Technologies | Versions |
 |-------|--------------|----------|
 | **Backend** | FastAPI + LangGraph + SQLAlchemy | FastAPI 0.141.1, LangGraph 1.2.14, LangChain 1.3.15, SQLAlchemy 2.0.54, Python 3.14 |
-| **Frontend** | Next.js + React + TailwindCSS | Next.js 16.3.8, React 19.3.0 |
+| **Frontend** | Next.js + React + TailwindCSS | Next.js 16.4.1, React 19.3.0 |
 | **Database** | PostgreSQL + pgvector | PostgreSQL 16 (`pgvector/pgvector`, pinned by version and digest) |
 | **Cache/Sessions** | Redis | Redis 7.4 |
 | **Observability** | Prometheus + Grafana + Loki + Tempo (+ Langfuse in dev) | Prometheus 3.13.3, Grafana 12.4.11, Loki 3.7.8, Tempo 2.10.8 |
@@ -867,6 +867,7 @@ Every subsystem below ships with working defaults; the values shown are the **pr
 | `SUB_AGENTS_ENABLED` | Persistent specialized sub-agents | `true` |
 | `JOURNALS_ENABLED` | Assistant introspective journals | `true` |
 | `PSYCHE_ENABLED` | Dynamic psychological state | `true` |
+| `PSYCHE_EFFICACY_COLLECTION_ENABLED` / `PSYCHE_EFFICACY_INFLUENCE_ENABLED` | Private efficacy evidence collected from final answers / its bounded verify-clarify-state-limit guidance; each also needs the Psyche capability and the owner's preference (ADR-348) | `true` / `true` |
 | `USAGE_LIMITS_ENABLED` | Per-user usage quotas | `true` |
 | `IMAGE_GENERATION_ENABLED` | AI image generation | `true` |
 | `HEALTH_METRICS_ENABLED` | iPhone health metrics ingestion | `true` |

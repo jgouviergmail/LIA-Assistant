@@ -1,12 +1,19 @@
 'use client';
 
 import { useId, useRef, useState } from 'react';
-import { BookOpen, Brain, ChartLine, RefreshCw, RotateCcw, SlidersHorizontal } from 'lucide-react';
+import {
+  BookOpen,
+  Brain,
+  ChartLine,
+  RefreshCw,
+  RotateCcw,
+  SlidersHorizontal,
+  Sparkles,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { usePsyche } from '@/hooks/usePsyche';
 import { useAuth } from '@/hooks/useAuth';
 import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
-import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import type { PsycheSettings as PsychePreferencesData, PsycheSettingsUpdate } from '@/types/psyche';
@@ -32,6 +39,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { Card } from '@/components/ui/card';
+import { Disclosure } from '@/components/ui/disclosure';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
@@ -66,9 +75,8 @@ function OwnedPsycheSettings({
     refetchState,
     refetchSettings,
   } = usePsyche();
-  const desktop = useMediaQuery('(min-width: 768px)');
-  const [open, setOpen] = useState<string[] | null>(null);
-  const openObservations = open ?? (desktop ? ['evolution'] : []);
+  const [openObservations, setOpen] = useState<string[]>(['evolution']);
+  const [summaryOpen, setSummaryOpen] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
   const [resetVersion, setResetVersion] = useState(0);
   const [pending, setPending] = useState(false);
@@ -127,7 +135,6 @@ function OwnedPsycheSettings({
   return (
     <SettingsSection
       value="psyche"
-      className="border-0 bg-transparent shadow-none"
       icon={Brain}
       title={<PsycheHeading lng={lng} settings={settings} busy={busy || !ownerId} save={save} />}
       description={t('psyche.description')}
@@ -156,7 +163,7 @@ function OwnedPsycheSettings({
         )}
         {settings && (
           <>
-            <Accordion type="multiple" className="w-full divide-y border-y border-border/60">
+            <Accordion type="multiple" className="w-full space-y-3">
               <PsychePanel value="education" title={t('psyche.education.title')} icon={BookOpen}>
                 <PsycheEducation lng={lng} />
               </PsychePanel>
@@ -176,15 +183,26 @@ function OwnedPsycheSettings({
                 <PsycheStateSummary
                   lng={lng}
                   summary={
-                    <PsycheLLMSummary
-                      key={resetVersion}
-                      lng={lng}
-                      isOpen
-                      refreshKey={refreshKey}
-                      onGenerated={() => {
-                        if (!state && isCurrent()) void refetchState().catch(() => {});
-                      }}
-                    />
+                    <Disclosure
+                      surface="primary"
+                      className="border-border/60 px-3"
+                      icon={Sparkles}
+                      title={t('psyche.presentation.point')}
+                      titleClassName="text-base font-semibold whitespace-normal"
+                      defaultOpen
+                      onOpenChange={setSummaryOpen}
+                    >
+                      <PsycheLLMSummary
+                        key={resetVersion}
+                        lng={lng}
+                        isOpen={summaryOpen}
+                        hideHeading
+                        refreshKey={refreshKey}
+                        onGenerated={() => {
+                          if (!state && isCurrent()) void refetchState().catch(() => {});
+                        }}
+                      />
+                    </Disclosure>
                   }
                 />
                 <Accordion
@@ -197,7 +215,6 @@ function OwnedPsycheSettings({
                     value="evolution"
                     title={t('psyche.presentation.evolution')}
                     icon={ChartLine}
-                    framed
                   >
                     <PsycheHistory
                       lng={lng}
@@ -223,36 +240,24 @@ function PsychePanel({
   title,
   icon: Icon,
   children,
-  framed = false,
 }: {
   value: string;
   title: string;
   icon: typeof Brain;
   children: React.ReactNode;
-  framed?: boolean;
 }) {
   return (
-    <AccordionItem
-      value={value}
-      className={framed ? 'min-w-0 rounded-xl border px-3 sm:px-4' : 'min-w-0 border-0'}
-    >
-      <AccordionTrigger
-        className={
-          framed
-            ? 'gap-3 py-4 text-left text-base font-semibold hover:no-underline'
-            : 'gap-3 py-4 text-left text-sm font-semibold hover:no-underline'
-        }
-      >
-        <span className="flex min-w-0 items-center gap-2">
-          <Icon
-            className={framed ? 'size-5 shrink-0 text-primary' : 'size-4 shrink-0 text-primary'}
-            aria-hidden="true"
-          />
-          <span className="min-w-0 [overflow-wrap:anywhere]">{title}</span>
-        </span>
-      </AccordionTrigger>
-      <AccordionContent className="min-w-0 pb-4">{children}</AccordionContent>
-    </AccordionItem>
+    <Card surface="nested" variant="flat" className="min-w-0 px-3 sm:px-4">
+      <AccordionItem value={value} className="min-w-0 border-0">
+        <AccordionTrigger className="gap-3 py-4 text-left text-base font-semibold hover:no-underline">
+          <span className="flex min-w-0 items-center gap-2">
+            <Icon className="size-5 shrink-0 text-primary" aria-hidden="true" />
+            <span className="min-w-0 [overflow-wrap:anywhere]">{title}</span>
+          </span>
+        </AccordionTrigger>
+        <AccordionContent className="min-w-0 pb-4">{children}</AccordionContent>
+      </AccordionItem>
+    </Card>
   );
 }
 

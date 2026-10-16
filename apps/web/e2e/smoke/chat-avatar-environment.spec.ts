@@ -218,7 +218,13 @@ for (const style of styles) {
     await page.addInitScript(model => {
       // Keep spontaneous gestures/blinks outside this geometry interval.
       // Their random 1.9–5.6s cadence otherwise competes with the gaze oracle.
-      Math.random = () => 0.99;
+      // React also uses randomness for renderer/listener identity. Keep these
+      // identifiers distinct while pinning avatar gestures to the late range.
+      let randomState = 0x12345678;
+      Math.random = () => {
+        randomState = (Math.imul(randomState, 1664525) + 1013904223) >>> 0;
+        return 0.99 + (randomState / 0x100000000) * 0.009;
+      };
       localStorage.setItem(
         'lia_eyes_widget_prefs',
         JSON.stringify({
@@ -356,7 +362,10 @@ for (const style of styles) {
       const widget = page.getByRole('group', { name: /LIA's expressive eyes/ });
       await widget.focus();
       for (let move = 0; move < 20; move++) await page.keyboard.press('ArrowLeft');
+      await page.clock.runFor(232);
       const box = await avatar.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.x + box!.width / 2).toBeLessThan(200);
       await page.mouse.move(370, box!.y + box!.height / 2);
       await page.clock.runFor(32);
       await expect
@@ -375,7 +384,7 @@ for (const style of styles) {
       expect(turned.containment!.canvasWidth).toBe(buffer);
       expect(turned.containment!.canvasHeight).toBe(buffer);
       expect(turned.containment!.mask).toBe('none');
-      expect(turned.containment!.clip).toBe('circle(49%)');
+      expect(['circle(49%)', 'circle(49% at 50% 50%)']).toContain(turned.containment!.clip);
       expect(turned.containment!.sharedHead).toBe(true);
       expect(turned.containment!.bodyTransform).toBe('none');
       expect(turned.containment!.eyesInside).toBe(true);

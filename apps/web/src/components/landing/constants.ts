@@ -9,7 +9,10 @@
  *   2026-07-25: `grep -c 'register_agent(' agents.py` — the telephony agent
  *   had landed without this counter following it.
  * - tools: tool manifests the running catalogue actually EXPOSES, not the count
- *   Re-measured 2026-10-12 (v3.0.0) at Docker dev startup: 304 registered
+ *   Re-measured 2026-10-16 (v3.1.0) at Docker dev startup: 311 registered
+ *   manifests (`catalogue_initialized`, 2026-10-16T19:04:21Z): the seven mailbox-draft
+ *   tools (ADR-344) joined the catalogue.
+ *   Previous re-measure 2026-10-12 (v3.0.0) at Docker dev startup: 304 registered
  *   manifests (`catalogue_initialized`, 2026-10-12T02:32:09.503568Z).
  *   This is the instance catalogue, not the tools available to each account.
  *   Re-measured 2026-09-30 (v2.2.0) on the dev instance = 124 (`"tool_manifests": 124`
@@ -94,6 +97,9 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
+ *   Re-measured 2026-10-16 (v3.1.0): backend 50,010 collected in 3,275 files
+ *   (pytest --collect-only -q --no-cov); frontend coverage: 13,098 tests in
+ *   1,061 files, for a combined inventory of 63,108 -> 63000.
  *   Re-measured 2026-10-13 (v3.0.1): backend 47,023 collected in 3,134 files
  *   (pytest --collect-only -q --no-cov); frontend coverage: 12,510 tests in
  *   1,032 files, for a combined inventory of 59,533 -> 59000 (unchanged).
@@ -388,14 +394,14 @@
 
 export const LANDING_STATS = {
   agents: 20,
-  tools: 304,
+  tools: 311,
   providers: 7,
   voiceLanguages: 99,
   metrics: 620,
   uiLanguages: 6,
-  tests: 59000,
-  adrs: 346,
-  releases: 280,
+  tests: 63000,
+  adrs: 347,
+  releases: 281,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

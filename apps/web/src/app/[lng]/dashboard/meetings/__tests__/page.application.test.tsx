@@ -155,7 +155,12 @@ describe('meetings list application recovery', () => {
     invalidate();
 
     await screen.findByText('Remaining meeting');
-    expect(list.mock.calls).toEqual([[20, 0], [20, 20], [20, 20], [20, 0]]);
+    expect(list.mock.calls).toEqual([
+      [20, 0],
+      [20, 20],
+      [20, 20],
+      [20, 0],
+    ]);
     expect(screen.queryByText('meetings.list.empty_title')).not.toBeInTheDocument();
     expect(bulkDelete).not.toHaveBeenCalled();
   });
@@ -175,7 +180,9 @@ describe('meetings list state and account boundaries', () => {
 
     await user.click(rowBox('Select and clear'));
     const clearAction = screen.getByRole('button', { name: 'meetings.list.clear_selection' });
-    expect(screen.getByRole('button', { name: 'meetings.list.delete_selected' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'meetings.list.delete_selected' })
+    ).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: 'meetings.list.select_all_page' })).toBe(all);
     all.focus();
     await user.tab();
@@ -299,7 +306,13 @@ describe('meetings list state and account boundaries', () => {
     rerender(page('one'));
     await screen.findByText('Fresh A');
     expect(rowBox('Fresh A')).not.toBeChecked();
-    expect(list.mock.calls).toEqual([[20, 0], [20, 20], [20, 20], [20, 0], [20, 0]]);
+    expect(list.mock.calls).toEqual([
+      [20, 0],
+      [20, 20],
+      [20, 20],
+      [20, 0],
+      [20, 0],
+    ]);
     expect(bulkDelete).not.toHaveBeenCalled();
   });
 
@@ -433,7 +446,7 @@ describe('meetings list retry focus', () => {
       await screen.findByText('meetings.list.load_error');
       const retryAction = screen.getByRole('button', { name: 'common.retry' });
       const heading = screen.getByRole('heading', { name: 'meetings.list.title', level: 1 });
-      const templates = screen.getByRole('button', { name: 'meetings.list.templates' });
+      const backToChat = screen.getByRole('button', { name: 'navigation.chat' });
       await user.click(retryAction);
       expect(retryAction).toHaveFocus();
       expect(retryAction).toHaveAttribute('aria-busy', 'true');
@@ -441,13 +454,13 @@ describe('meetings list retry focus', () => {
       expect(list).toHaveBeenCalledTimes(2);
       if (!keepRetryFocus) {
         await user.tab({ shift: true });
-        expect(templates).toHaveFocus();
+        expect(backToChat).toHaveFocus();
       }
 
       await act(async () => retryRead.resolve(response([meeting('Recovered after retry')])));
       await screen.findByText('Recovered after retry');
 
-      await waitFor(() => expect(keepRetryFocus ? heading : templates).toHaveFocus());
+      await waitFor(() => expect(keepRetryFocus ? heading : backToChat).toHaveFocus());
       expect(screen.queryByText('meetings.list.load_error')).not.toBeInTheDocument();
       expect(list).toHaveBeenCalledTimes(2);
       expect(bulkDelete).not.toHaveBeenCalled();

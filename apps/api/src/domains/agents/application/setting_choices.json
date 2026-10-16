@@ -98,37 +98,37 @@
       "light": "Clair",
       "dark": "Sombre",
       "system": "Système",
-      "oled": "Noir absolu (OLED)"
+      "oled": "Noir absolu"
     },
     "en": {
       "light": "Light",
       "dark": "Dark",
       "system": "System",
-      "oled": "Absolute black (OLED)"
+      "oled": "Absolute black"
     },
     "de": {
       "light": "Hell",
       "dark": "Dunkel",
       "system": "System",
-      "oled": "Absolutes Schwarz (OLED)"
+      "oled": "Absolutes Schwarz"
     },
     "es": {
       "light": "Claro",
       "dark": "Oscuro",
       "system": "Sistema",
-      "oled": "Negro absoluto (OLED)"
+      "oled": "Negro absoluto"
     },
     "it": {
       "light": "Chiaro",
       "dark": "Scuro",
       "system": "Sistema",
-      "oled": "Nero assoluto (OLED)"
+      "oled": "Nero assoluto"
     },
     "zh-CN": {
       "light": "浅色",
       "dark": "深色",
       "system": "系统",
-      "oled": "纯黑（OLED）"
+      "oled": "纯黑"
     }
   },
   "font_family": {
@@ -279,37 +279,37 @@
   },
   "response_display_mode": {
     "fr": {
-      "cards": "Cartes HTML",
+      "cards": "Cartes",
       "html": "HTML",
       "html_cards": "HTML + cartes",
       "markdown": "Markdown"
     },
     "en": {
-      "cards": "HTML Cards",
+      "cards": "Cards",
       "html": "HTML",
       "html_cards": "HTML + cards",
       "markdown": "Markdown"
     },
     "de": {
-      "cards": "HTML-Karten",
+      "cards": "Karten",
       "html": "HTML",
       "html_cards": "HTML + Karten",
       "markdown": "Markdown"
     },
     "es": {
-      "cards": "Tarjetas HTML",
+      "cards": "Tarjetas",
       "html": "HTML",
       "html_cards": "HTML + tarjetas",
       "markdown": "Markdown"
     },
     "it": {
-      "cards": "Schede HTML",
+      "cards": "Schede",
       "html": "HTML",
       "html_cards": "HTML + schede",
       "markdown": "Markdown"
     },
     "zh-CN": {
-      "cards": "HTML卡片",
+      "cards": "卡片",
       "html": "HTML",
       "html_cards": "HTML + 卡片",
       "markdown": "Markdown"

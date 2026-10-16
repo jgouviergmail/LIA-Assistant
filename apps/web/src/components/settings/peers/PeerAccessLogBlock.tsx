@@ -42,7 +42,7 @@ export function PeerAccessLogBlock({ lng, entries }: PeerAccessLogBlockProps) {
           {entries.map((entry, index) => (
             <li
               key={`${entry.created_at}-${index}`}
-              className="space-y-1 rounded-xl border border-border/50 p-3 text-sm"
+              className="space-y-1 rounded-xl border border-border/50 bg-card p-3 text-sm"
             >
               <span className="block break-words font-medium">{entry.accessor_display_name}</span>
               <span className="block text-muted-foreground">

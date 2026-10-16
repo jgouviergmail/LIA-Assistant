@@ -14,7 +14,7 @@ the quotas, filed in the registers.
 - Architecture decisions: [ADR-299](../architecture/ADR-299-Live-Voice-Mode-Two-Intelligences-One-Seam.md) (the seam), [ADR-300](../architecture/ADR-300-A-Second-Live-Provider-One-Seam-Two-Wires.md) (the second provider, the additive category, the offer connection), [ADR-329](../architecture/ADR-329-Live-Standby-And-Multilingual-Wake-Word.md) (the standby and the wake word)
 - Specs (arbitrated with the owner, measured): `docs/superpowers/specs/2026-09-18-live-llm-connector-design.md` (§ 9), `docs/superpowers/specs/2026-09-19-live-wave2-design.md` (§ 6)
 - Feature flag: `LIVE_ENABLED` (default off); capability `live` (route-enforced, family *media*).
-- Per-user connectors `GEMINI_LIVE`, `GPT_LIVE` and `ELEVENLABS_LIVE`, category `live` (additive), in *Préférences → Mes Connecteurs*; the sessions' provider in *Préférences → Mode Live* (choosing a model IS choosing its provider).
+- Per-user connectors `GEMINI_LIVE`, `GPT_LIVE` and `ELEVENLABS_LIVE`, category `live` (additive), in *Préférences → Mes connecteurs*; the sessions' provider in *Préférences → Mode vocal live* (choosing a model IS choosing its provider).
 - Provider probe (Gemini): `task live:probe` (`apps/api/scripts/live/probe.py`, reads `LIVE_PROBE_API_KEY`).
 
 ## Architecture

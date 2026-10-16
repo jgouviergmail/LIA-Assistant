@@ -488,9 +488,7 @@ test.describe('Notifications — targeted presentation', () => {
       name: copy('common.pagination.label'),
       exact: true,
     });
-    await pager
-      .getByRole('button', { name: `${copy('common.next')}, page 2`, exact: true })
-      .click();
+    await pager.getByRole('button', { name: copy('common.next'), exact: true }).click();
     await expect(routines.getByRole('listitem')).toHaveCount(2);
     await expect(routines.getByText(notificationRoutineName(10), { exact: true })).toBeVisible();
     await expect(routines.getByText(notificationRoutineName(0), { exact: true })).toHaveCount(0);
@@ -515,9 +513,7 @@ test.describe('Notifications — targeted presentation', () => {
     await ready(page);
     const messages = await openFamily(page, 'peer_messages');
     await expect(messages.getByText(NOTIFICATION_LONG_MESSAGE, { exact: true })).toBeVisible();
-    await messages
-      .getByRole('button', { name: `${copy('common.next')}, page 2`, exact: true })
-      .click();
+    await messages.getByRole('button', { name: copy('common.next'), exact: true }).click();
     await expect(messages.getByText(notificationPeerName(10), { exact: true })).toBeVisible();
     await expect(messages.getByRole('listitem')).toHaveCount(2);
     expect(reads.filter(read => read.path === '/peers/messages').map(read => read.query)).toEqual([
@@ -546,7 +542,7 @@ test.describe('Notifications — targeted presentation', () => {
     await expectNoOverflow(page, 'recovered independent history');
   });
 
-  test('settings remain native single-level deep links and feature gates do not expose unavailable sources', async ({
+  test('removed advanced links stay absent and feature gates do not expose unavailable sources', async ({
     page,
     authenticate,
     mockApi,
@@ -562,33 +558,18 @@ test.describe('Notifications — targeted presentation', () => {
     await expect(
       page.getByRole('link', { name: copy('activity.hub_cta'), exact: true })
     ).toHaveCount(0);
-    const settings = page.locator('details').filter({
-      has: page
-        .locator('summary')
-        .getByText(copy('notifications_hub.advanced_title'), { exact: true }),
-    });
-    const summary = settings.locator(':scope > summary');
-    await summary.focus();
-    await page.keyboard.press('Enter');
-    await expect(settings).toHaveAttribute('open', '');
-    await expect(settings.locator('details, [role="menu"]')).toHaveCount(0);
-    const destinations = [
-      ['peer_messages', 'peer-connections'],
-      ['proactive', 'heartbeat'],
-      ['interests', 'interests'],
-      ['scheduled', 'scheduled-actions'],
-      ['device', 'notifications'],
-    ] as const;
-    for (const [key, token] of destinations) {
-      const link = settings.getByRole('link', {
-        name: copy(`notifications_hub.advanced_links.${key}`),
-        exact: true,
-      });
-      await expect(link).toHaveAttribute('href', `/fr/dashboard/settings?section=${token}`);
+    await expect(
+      page.getByText(copy('notifications_hub.advanced_title'), { exact: true })
+    ).toHaveCount(0);
+    for (const key of ['peer_messages', 'proactive', 'interests', 'scheduled', 'device']) {
+      await expect(
+        page.getByRole('link', {
+          name: copy(`notifications_hub.advanced_links.${key}`),
+          exact: true,
+        })
+      ).toHaveCount(0);
     }
-    await page.keyboard.press('Tab');
-    await expect(settings.getByRole('link').first()).toBeFocused();
     await expectReadOnly(reads, ['/notifications/hub-counts']);
-    await expectNoOverflow(page, 'native settings links');
+    await expectNoOverflow(page, 'notifications without removed advanced links');
   });
 });

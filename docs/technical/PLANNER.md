@@ -1067,6 +1067,14 @@ async def _expand_for_each_step(
     ...
 ```
 
+**Un FOR_EACH partiel garde ses réussites (ADR-347).** Quand une partie des éléments échoue,
+l'agrégat est construit à partir des éléments réussis et reste un succès qui porte ses
+éléments en échec (`AgentResult.failed_steps`, ADR-303) : la réponse confirme ce qui a été
+fait et nomme chaque élément refusé, au lieu de perdre les confirmations réussies. Le
+résumé de la boucle est marqué par son producteur, si bien qu'un élément en échec n'est
+compté qu'une fois (ADR-346). La substitution de `$item` est **structurelle** : un élément
+chaîne, objet ou liste atteint son étape entier, jamais une chaîne JSON réanalysée.
+
 ---
 
 ## ✅ Plan Validator
@@ -3100,7 +3108,7 @@ grep "get_place_details_tool\|get_contact_details_tool" docker-logs.txt
 |----------|---------|-------------|
 | `PLANNER_MAX_STEPS` | 10 | Max steps dans un plan |
 | `PLANNER_MAX_COST_USD` | 1.0 | Budget limite USD par plan |
-| `PLANNER_MAX_REPLANS` | 2 | Max tentatives retry |
+| `PLANNER_MAX_REPLANS` | 2 | Re-planifications bornées d'un plan refusé par le validateur, avant exécution (jamais un rejeu après exécution — ADR-346) |
 | `PLANNER_TIMEOUT_SECONDS` | 30 | Timeout LLM response |
 
 ```python

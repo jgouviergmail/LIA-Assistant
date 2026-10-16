@@ -75,10 +75,12 @@ export function PsycheEfficacy({
   const { user } = useAuth();
   return (
     <Disclosure
+      defaultOpen
+      surface="nested"
       icon={ShieldCheck}
       title={t('psyche.education.drives.efficacy_title')}
-      titleClassName="whitespace-normal"
-      className="border-border/70 bg-card px-4 sm:px-6"
+      titleClassName="whitespace-normal text-base font-semibold"
+      className="border-border/70 px-4 sm:px-6"
     >
       <div className="space-y-4 pt-2">
         {profile ? (
@@ -109,7 +111,9 @@ export function PsycheEfficacy({
             <DomainEvidence
               key={domain}
               domain={domain}
-              entry={profile?.domains.find(entry => entry.domain === domain) ?? unobservedDomain(domain)}
+              entry={
+                profile?.domains.find(entry => entry.domain === domain) ?? unobservedDomain(domain)
+              }
               lng={lng}
               timezone={user?.timezone}
             />
@@ -151,7 +155,7 @@ function DomainEvidence({
   return (
     <section
       aria-label={title}
-      className="min-w-0 rounded-lg border border-border/60 px-3 py-3 sm:px-4"
+      className="min-w-0 rounded-lg border border-border/60 bg-card px-3 py-3 sm:px-4"
     >
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
         <h4 className="flex min-w-0 items-center gap-2 text-sm font-semibold">
@@ -256,9 +260,13 @@ function EvidenceAxis({
           />
         </div>
       )}
-      <p className="text-xs text-muted-foreground">{count > 0 ? basis : t('psyche.efficacy.noBasis')}</p>
+      <p className="text-xs text-muted-foreground">
+        {count > 0 ? basis : t('psyche.efficacy.noBasis')}
+      </p>
       {count > 0 && <p className="text-xs leading-relaxed text-muted-foreground">{detail}</p>}
-      {supplementary && <p className="text-xs leading-relaxed text-muted-foreground">{supplementary}</p>}
+      {supplementary && (
+        <p className="text-xs leading-relaxed text-muted-foreground">{supplementary}</p>
+      )}
     </div>
   );
 }

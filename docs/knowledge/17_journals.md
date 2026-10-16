@@ -65,7 +65,7 @@ In the debug panel (if enabled in Settings > Debug), a "Personal Journals" secti
 - **Background Extraction** — What the assistant wrote after the conversation: action type (create/update/delete), theme, title, mood. This data arrives slightly after the main response (once background processing completes).
 
 ## Can I read and edit the assistant's journals?
-Yes! In **Settings > Features > Personal Journals**, you can:
+Yes! In **Settings > Features > LIA’s journal**, you can:
 
 **👁️ Read:** Browse entries organized by theme **or by abstraction level** (toggle at the top of the accordion)
 **✏️ Edit:** Modify title, content, mood, **level**, and **confidence** of any entry
@@ -108,7 +108,7 @@ Journal operations use **background LLM calls**:
 • **Consolidation**: One call, at most once per cooldown (a few hours) and only when your journals or their sources moved — the same call also produces the compiled portrait, so portrait diffusion costs nothing extra in LLM dollars.
 • Per-turn diffusion adds the portrait's size to the prompts — the full version on the conversation/planner prompts, the brief one on secondary flows (voice, reminders, heartbeat, proactive, ReAct, fallback) — plus one database read per flow.
 • LLM models are configurable in **Admin > LLM Configuration** (category: Background)
-• Real costs visible in Settings > Features > Personal Journals (tokens in/out + EUR)
+• Real costs visible in Settings > Features > LIA’s journal (tokens in/out + EUR)
 • Costs integrated into the global dashboard consumption
 
 ## What about privacy?
@@ -124,15 +124,13 @@ Yes. That was not the case before: a conversation held from an external messenge
 Now whatever you switched on applies identically wherever you write from: long-term memory, logbooks and mood. If you had turned them off, they stay off everywhere — it is your setting that travels, not a default value. With no identified account, nothing is written at all.
 
 ## Why did LIA write that in my journal?
-Every entry carries a folded "**Why does LIA think this?**" block listing the
-signals behind the conclusion: the conversation, the date, and the signal's
-role — **origin** (what produced it), **evidence** (what confirmed it) or
-**contradiction** (what cast doubt on it). A **Correct** button opens the entry
-for editing, so you fix the conclusion rather than the trace.
+Journals reflect LIA's observations and interpretations; they can contain
+mistakes. You can read and edit an entry from **Settings → Journals**. If a
+conclusion does not fit you, correct its text or delete the entry.
 
-What is kept is a **reference, never a copy** of your words. If you delete the
-source conversation, the reference empties and the dated row stays, saying the
-signal was deleted — a tombstone. Your deletion stays a deletion.
+Behind an entry, LIA keeps the signals that led to it as a **reference, never a
+copy** of your words. If you delete the source conversation, nothing comes back
+anywhere — your deletion stays a deletion.
 
 The trail is capped at the five most recent signals per entry, and that cap is
 stated under the list rather than applied in silence.

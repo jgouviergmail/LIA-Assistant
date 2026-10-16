@@ -59,6 +59,7 @@ export function RadioSourceFields({ lng, options, preferences, onChange }: Radio
   const { t } = useTranslation(lng);
   return (
     <Disclosure
+      surface="nested"
       icon={CalendarHeart}
       title={t('radio.settings.sources.title')}
       description={t('radio.settings.sources.description')}
@@ -71,7 +72,7 @@ export function RadioSourceFields({ lng, options, preferences, onChange }: Radio
           return (
             <li
               key={source}
-              className="flex items-start justify-between gap-3 rounded-lg border p-3"
+              className="flex items-start justify-between gap-3 rounded-lg border bg-card p-3"
             >
               <div className="flex min-w-0 items-start gap-2.5">
                 <Icon className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />

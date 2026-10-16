@@ -128,7 +128,7 @@ function ProviderKeyRow({
   };
 
   return (
-    <div className="flex items-center justify-between rounded-lg border p-3">
+    <div className="flex items-center justify-between rounded-lg border bg-background p-3">
       <div className="flex items-center gap-3">
         <Key className="h-4 w-4 text-muted-foreground" />
         <div>
@@ -820,7 +820,7 @@ function TTSProviderConfigBlock({
   const voices = voicesData?.voices ?? [];
 
   return (
-    <div className="space-y-4 rounded-md border p-3 bg-muted/20">
+    <div className="space-y-4 rounded-md border p-3 bg-background [--lia-field-background:var(--color-card)]">
       <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
         {t('settings.admin.llmConfig.voiceTts.sectionTitle')}
       </div>

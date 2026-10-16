@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { StrictMode } from 'react';
 import { cleanup, render } from '@testing-library/react';
 import { SmileySphere } from '../smiley/SmileySphere';
 import { bindSmileySphere, paintSmileySphere } from '../smiley/sphere-binding';
@@ -24,13 +25,44 @@ function host() {
 }
 
 describe('Sphere context belongs to the native rig, with a fixed-image fallback', () => {
+  it('keeps a connected canvas context usable through StrictMode replay and releases it on actual removal', () => {
+    const gl = smileyClothGraphics();
+    let lost = false;
+    const loseContext = vi.fn(() => {
+      lost = true;
+    });
+    const allocate = gl.createProgram.getMockImplementation();
+    gl.createProgram.mockImplementation((...args) => (lost ? null : (allocate?.(...args) ?? null)));
+    gl.getExtension.mockReturnValue({ loseContext });
+    vi.stubGlobal('WebGLRenderingContext', class {});
+    const native = Object.assign(new WebGLRenderingContext(), gl);
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(native);
+    const view = render(
+      <StrictMode>
+        <span className="lia-smiley">
+          <SmileySphere size="sm" />
+        </span>
+      </StrictMode>
+    );
+    expect(view.container.querySelector('[data-sphere-ready]')).toHaveAttribute(
+      'data-sphere-ready',
+      'true'
+    );
+    expect(loseContext).not.toHaveBeenCalled();
+    expect(gl.deleteProgram).toHaveBeenCalled();
+    view.unmount();
+    expect(loseContext).toHaveBeenCalledTimes(1);
+    expect(gl.deleteProgram.mock.invocationCallOrder.at(-1)).toBeLessThan(
+      loseContext.mock.invocationCallOrder[0]
+    );
+  });
   it('releases its native context only after unmount disposal and removing restoration listeners', async () => {
     const { root, canvas } = host(),
       gl = smileyClothGraphics(),
       loseContext = vi.fn();
     vi.stubGlobal('WebGLRenderingContext', class {});
     gl.getExtension.mockReturnValue({ loseContext });
-    vi.spyOn(canvas, 'getContext').mockReturnValue(gl as never);
+    vi.spyOn(canvas, 'getContext').mockReturnValue(Object.assign(new WebGLRenderingContext(), gl));
     const dispose = bindSmileySphere(canvas, root);
     root.dataset.rigVisible = 'false';
     await Promise.resolve();
@@ -44,6 +76,54 @@ describe('Sphere context belongs to the native rig, with a fixed-image fallback'
     const allocations = gl.createProgram.mock.calls.length;
     canvas.dispatchEvent(new Event('webglcontextrestored'));
     expect(gl.createProgram).toHaveBeenCalledTimes(allocations);
+  });
+  it('releases each replaced canvas on variant, size and enabled changes while rebinding a usable context', () => {
+    vi.stubGlobal('WebGLRenderingContext', class {});
+    const drivers = Array.from({ length: 4 }, () => {
+      const gl = smileyClothGraphics();
+      const loseContext = vi.fn();
+      gl.getExtension.mockReturnValue({ loseContext });
+      return { gl, loseContext, native: Object.assign(new WebGLRenderingContext(), gl) };
+    });
+    const context = vi.spyOn(HTMLCanvasElement.prototype, 'getContext');
+    for (const driver of drivers) context.mockReturnValueOnce(driver.native);
+    const view = render(
+      <span className="lia-smiley">
+        <SmileySphere size="sm" />
+      </span>
+    );
+    view.rerender(
+      <span className="lia-smiley">
+        <SmileySphere size="sm" variant="female" />
+      </span>
+    );
+    view.rerender(
+      <span className="lia-smiley">
+        <SmileySphere size="md" variant="female" />
+      </span>
+    );
+    view.rerender(
+      <span className="lia-smiley">
+        <SmileySphere size="md" variant="female" enabled={false} />
+      </span>
+    );
+    expect(view.container.querySelector('canvas')).toBeNull();
+    view.rerender(
+      <span className="lia-smiley">
+        <SmileySphere size="md" variant="female" />
+      </span>
+    );
+    expect(view.container.querySelector('[data-sphere-ready]')).toHaveAttribute(
+      'data-sphere-ready',
+      'true'
+    );
+    view.unmount();
+    for (const { gl, loseContext } of drivers) {
+      expect(loseContext).toHaveBeenCalledTimes(1);
+      expect(gl.deleteProgram.mock.invocationCallOrder.at(-1)).toBeLessThan(
+        loseContext.mock.invocationCallOrder[0]
+      );
+    }
   });
   it('paints the current native pose, falls back on context loss and restores once without a retry clock', () => {
     const { root, body, canvas } = host();

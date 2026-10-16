@@ -483,7 +483,7 @@ function QuickActions({ detail, lng }: { detail: RelationDetail; lng: string }) 
   ];
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap justify-center gap-2">
       {actions.map(({ key, icon: Icon, label, draft }) => (
         <Button
           key={key}
@@ -537,7 +537,7 @@ function MemoriesSection({
         <Link
           key={memory.id}
           href={settingsSectionHref(lng, 'memories')}
-          className="block rounded-lg border border-border/40 bg-muted/30 px-3 py-2 text-sm text-foreground/90 transition-colors hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="block rounded-lg border border-border/40 bg-background px-3 py-2 text-sm text-foreground/90 transition-colors hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {memory.content}
         </Link>

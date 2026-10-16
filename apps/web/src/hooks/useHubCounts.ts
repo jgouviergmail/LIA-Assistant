@@ -38,19 +38,18 @@ export interface UseHubCountsResult {
   /**
    * The five totals, or `undefined` while they are NOT KNOWN YET.
    *
-   * Deliberately the only thing exposed. A loading flag and a refetch would
-   * both be surface nobody reads: the badge distinguishes "unknown" from a
-   * real 0 by the absence of the payload itself, and a section that has been
-   * opened shows its own total from then on — the one that follows a
-   * deletion. An unused API is a promise the next reader has to check.
+   * Kept through a failed refresh; an error is never an invented zero.
    */
   counts: HubCounts | undefined;
+  error: Error | null;
+  loading: boolean;
+  refetch: () => Promise<void>;
 }
 
 export function useHubCounts(): UseHubCountsResult {
-  const { data } = useApiQuery<HubCounts>('/notifications/hub-counts', {
+  const { data, error, loading, refetch } = useApiQuery<HubCounts>('/notifications/hub-counts', {
     componentName: 'useHubCounts',
   });
 
-  return { counts: data };
+  return { counts: data, error, loading, refetch };
 }

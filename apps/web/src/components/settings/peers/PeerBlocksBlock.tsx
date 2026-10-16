@@ -57,7 +57,10 @@ export function PeerBlocksBlock({
       ) : (
         <ul className="space-y-2">
           {blocks.map(block => (
-            <li key={block.blocked_id} className="space-y-3 rounded-xl border border-border/50 p-3">
+            <li
+              key={block.blocked_id}
+              className="space-y-3 rounded-xl border border-border/50 bg-card p-3"
+            >
               <span className="block break-words text-sm">
                 {block.blocked_display_name ?? t('settings.peers.blocks.unknown_user')}
               </span>

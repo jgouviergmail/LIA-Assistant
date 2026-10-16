@@ -55,7 +55,10 @@ export function LiveConnectorGroup({
   return (
     <>
       {connected.length > 0 && (
-        <AccordionItem value="connected-live" className="border rounded-lg px-3">
+        <AccordionItem
+          value="connected-live"
+          className="border rounded-lg bg-background [--lia-field-background:var(--color-card)] px-3"
+        >
           <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3">
             <ConnectorGroupTrigger
               state="connected"
@@ -82,7 +85,10 @@ export function LiveConnectorGroup({
         </AccordionItem>
       )}
       {available.length > 0 && (
-        <AccordionItem value="available-live" className="border rounded-lg px-3">
+        <AccordionItem
+          value="available-live"
+          className="border rounded-lg bg-background [--lia-field-background:var(--color-card)] px-3"
+        >
           <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3">
             <ConnectorGroupTrigger
               state="available"

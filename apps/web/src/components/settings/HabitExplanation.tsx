@@ -50,6 +50,7 @@ export function HabitExplanation({ lng, habitId }: { lng: Language; habitId: str
 
   return (
     <Disclosure
+      surface="nested"
       icon={Scale}
       title={t('settings.habits.explanation.title')}
       onOpenChange={setOpen}

@@ -72,6 +72,8 @@ export interface DisclosureProps {
   summaryRef?: Ref<HTMLElement>;
   /** Open on arrival. Default false, deliberately. */
   defaultOpen?: boolean;
+  /** Alternate neutral surface when this block sits inside a primary panel. */
+  surface?: 'primary' | 'nested';
   /** Notified on every state change, so a caller can enable its query. */
   onOpenChange?: (open: boolean) => void;
   className?: string;
@@ -89,6 +91,7 @@ export function Disclosure({
   titleClassName,
   summaryRef,
   defaultOpen = false,
+  surface = 'primary',
   onOpenChange,
   className,
   children,
@@ -97,7 +100,13 @@ export function Disclosure({
 
   return (
     <details
-      className={cn('group rounded-lg border border-border/40 bg-card px-3', className)}
+      className={cn(
+        'group rounded-lg border border-border/40 px-3',
+        surface === 'nested'
+          ? 'bg-background [--lia-field-background:var(--color-card)]'
+          : 'bg-card [--lia-field-background:var(--color-background)]',
+        className
+      )}
       // Fully controlled: React and the DOM always agree. Passing the
       // CONSTANT `defaultOpen` here would work only by accident — React skips
       // an unchanged prop, so the element the user opened keeps its attribute

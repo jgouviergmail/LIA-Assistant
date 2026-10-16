@@ -2,7 +2,7 @@
 
 **Document de reference technique - Observabilite Production avec Grafana**
 
-> **Version 4.9** | 2026-10-03 | 31 dashboards, 831 panels (rows excluded)
+> **Version 4.9** | 2026-10-03 (panel counts re-measured 2026-10-16) | 31 dashboards, 840 panels (rows excluded)
 
 ---
 
@@ -38,7 +38,7 @@ Les **31 dashboards Grafana** fournissent une observabilite complete pour :
 | Indicateur | Valeur |
 |------------|--------|
 | Dashboards | 31 |
-| Panels total | 837 |
+| Panels total | 840 (rows excluded) |
 | Recording rules | 86 |
 | Schema version | 38 (Grafana 12.4) |
 | graphTooltip | 1 (shared crosshair) sur tous les dashboards |
@@ -140,11 +140,11 @@ Dans le fichier de provisioning, un `$` litteral s'ecrit `$$` (sinon `$__tags` e
 | 04 | HTTP & API Performance | `04-http-api` | lia, http, api, latency || 17 | Trafic, latence, erreurs, rate limiting |
 | 05 | LLM Tokens & Cost | `05-llm-tokens-cost` | lia, llm, tokens, cost || 62 | Headlines couts, ventilation, consommation tokens, efficacite, suivi par utilisateur (Loki), performance API LLM, cache LLM et economies, pricing, metriques cumulees, embeddings (issues, regulateur, refus fournisseur par raison), completude comptable des familles payees par la plateforme (appels Google Maps non comptabilises, attendu 0) |
 | 06 | Logs, Traces & Correlations | `06-logs-traces` | lia, logs, traces, debug || 17 | Logs, traces, correlation metrique-log, vue correlee, jobs background, recherche |
-| 07 | Agent Orchestration Pipeline | `07-agents-pipeline` | lia, agents, langgraph, orchestration || 63 | Router, planner et orchestrateur, execution nodes agent, execution outils, contexte et etat, SSE streaming, background runs (ADR-117), couche semantique (ADR-120/121), echecs d'outils RETOURNES par outil (ADR-303) |
+| 07 | Agent Orchestration Pipeline | `07-agents-pipeline` | lia, agents, langgraph, orchestration || 66 | Router, planner et orchestrateur, execution nodes agent, execution outils, contexte et etat, SSE streaming, background runs (ADR-117), couche semantique (ADR-120/121), echecs d'outils RETOURNES par outil (ADR-303), pipeline step failures by typed code (ADR-346), tool results reaching the answer — corrected failure verdicts and data blocks not read whole (ADR-347) |
 | 08 | HITL Human-in-the-Loop | `08-hitl` | lia, hitl, approval || 29 | Vue d'ensemble HITL, qualite classification, comportement utilisateur, editions et rejets, reprise |
 | 09 | Conversations & Users | `09-conversations-users` | lia, conversations, users, engagement || 42 | Activite utilisateurs, cycle de vie conversations, analyse abandon, succes et qualite agents, attachments, inscriptions, purge du reset par famille de cles (ADR-260) |
 | 10 | OAuth, Connectors & MCP | `10-oauth-connectors-mcp` | lia, oauth, connectors, mcp || 50 | Flux OAuth, performance OAuth, sante connecteurs, APIs Google, serveurs MCP, formes de requetes contacts/email |
-| 11 | Voice & WebSocket | `11-voice-websocket` | lia, voice, tts, stt, websocket || 25 | TTS, streaming audio, STT, WebSocket |
+| 11 | Voice & WebSocket | `11-voice-websocket` | lia, voice, tts, stt, websocket || 25 | TTS (including socket sessions answered over HTTP, ADR-345), streaming audio, STT, WebSocket |
 | 12 | Channels / Telegram | `12-channels` | lia, channels, telegram || 13 | Flux messages, bindings et securite, fonctionnalites canal |
 | 13 | Proactive & Heartbeat | `13-proactive-heartbeat` | lia, proactive, heartbeat || 38 | Vue d'ensemble taches, notifications et couts, eligibilite et feedback, presence en lecture et reveils push (ADR-214/261), moments anticipes (ADR-281), ce que le job nocturne des habitudes a appris (ADR-214 c), reveils push mis en file ET servis (ADR-304) |
 | 14 | Data Registry & Checkpoints | `14-registry-checkpoints` | lia, registry, checkpoints || 26 | Data registry, moteur de requetes, checkpoints LangGraph, recherche hybride, sante repository |
@@ -152,8 +152,8 @@ Dans le fichier de provisioning, un `$` litteral s'ecrit `$$` (sinon `$__tags` e
 | 16 | Recording Rules & Alerts Health | `16-meta-health` | lia, meta, operational || 40 | Sante des recording rules, sante des alertes, validation et securite, integrite du registre d'outils, auto-diagnostic (verdicts, incidents, duree du tick, cout LLM, sources de preuves lues), pipeline d'observabilite (Alloy, Loki, Tempo, Prometheus) |
 | 17 | User Analytics & Geo | `17-user-analytics-geo` | lia, users, analytics, geo || 27 | Vue geographique (Geomap), engagement utilisateur, patterns d'activite, usage outils et agents, qualite et cout conversations, logs geo detailles |
 | 18 | RAG Spaces / Knowledge Documents | `18-rag-spaces` | lia, rag, spaces, knowledge || 37 | Vue d'ensemble RAG, pipeline de traitement documents, performance retrieval, couts embedding, reindexation, recuperation de jobs, reindexation Drive ciblee et source libelle Gmail (ADR-261/262), drainages bornes du flux Drive pousse par issue (ADR-304) |
-| 19 | Sub-agents & Skills | `19-subagents-skills` | lia, subagents, skills || 21 | Executions de sous-agents ReAct (spawns, duree, tokens, erreurs), skills |
-| 20 | ReAct Agent & Browser | `20-react-browser` | lia, react, browser || 33 | Boucle ReAct (iterations, outils, HITL tool-level, passes de reprise par issue — ADR-310, replis du cache inter-tours par raison — ADR-308), sessions navigateur, snapshots |
+| 19 | Sub-agents & Skills | `19-subagents-skills` | lia, subagents, skills || 21 | Executions de sous-agents ReAct (spawns, duree, tokens, erreurs, how each run ended — ADR-083 amendment 2026-10-13), skills |
+| 20 | ReAct Agent & Browser | `20-react-browser` | lia, react, browser || 33 | Boucle ReAct (iterations, outils, HITL tool-level, passes de reprise par issue — ADR-310, replis du cache inter-tours par raison — ADR-308), sessions navigateur, snapshots, API workers' resident memory |
 | 21 | Health Metrics | `21-health-metrics` | lia, health-metrics || 10 | Ingestion des echantillons sante (auth, validation, doublons), variations detectees |
 | 22 | Compaction | `22-compaction` | lia, compaction || 13 | Sante compaction (executions, fallbacks truncation, writer unavailable), timeouts, volume et economies de tokens |
 | 23 | Journals & User Model | `23-journals-user-model` | lia, journals, user-model || 18 | Extraction, actions sur entrees, consolidation par niveaux, portrait utilisateur |
@@ -164,7 +164,7 @@ Dans le fichier de provisioning, un `$` litteral s'ecrit `$$` (sinon `$__tags` e
 | 28 | Effect Ledger & Registers | `28-effect-ledger` | lia, ledger, transparency, ai-act || 27 | Effets reclames / clos / abandonnes, consultations par domaine, lacunes du registre, retard de scellement de la chaine, croissance des registres (ADR-263, ADR-270) |
 | 29 | Workboard | `29-workboard` | lia, workboard, adr-276 | 13 | Ce que LIA fait du tableau (tickets aboutis, rendus, echecs, runs ecartes faute de quota ou conversation occupee, duree et issues des runs), notifications du tableau dans le chat, poids des transcriptions cachees (ADR-276) |
 | 30 | Live | `30-live` | lia, live, voice | 16 | Sessions Live par issue, sessions actives, cles frappees et refusees, duree des sessions, echanges vocaux archives, prolongations, echantillons de voix, echanges d'offre WebRTC, consultations et relais des sessions directes (ADR-299, ADR-300, ADR-301) |
-| 31 | Radio | `31-radio` | lia, radio, voice | 17 | Radio personnelle : departs et refus par code, fins de session par raison, segments par format et par issue, duree de production (p50/p95), boucles cassees, redaction (tics par issue, age du dernier tic, flux lus, sujets classes et purges, textes integraux), recherches de sites, audio orphelin balaye (ADR-324) |
+| 31 | Radio | `31-radio` | lia, radio, voice | 17 | Radio personnelle : departs et refus par code, fins de session par raison, segments par format et par issue, dialogue takes by outcome (ADR-345), duree de production (p50/p95), boucles cassees, redaction (tics par issue, age du dernier tic, flux lus, sujets classes et purges, textes integraux), recherches de sites, audio orphelin balaye (ADR-324) |
 
 ---
 
@@ -226,9 +226,11 @@ Les traces : la duree des spans serveur de l'API (P50/P95/P99) et leur volume pa
 
 **Datasources** : Prometheus + Loki + Tempo.
 
-### 07 - Agent Orchestration Pipeline (63 panels)
+### 07 - Agent Orchestration Pipeline (66 panels)
 
 Coeur du monitoring agent. Sections pour chaque etape du pipeline : router (decisions, confiance, latence), planner (plans crees, retries, validation, succes), orchestrateur (vagues d'execution, parallellisme), execution des nodes agent (duree, statut, erreurs), execution des outils (taux succes, latence par outil), contexte et etat (taille state, checkpoints), SSE streaming (TTFT, tokens/s, erreurs). Deux sections repliees completent le perimetre : background runs ADR-117 (producteurs detaches, statuts terminaux, resolution de contexte) et couche semantique ADR-120/121 (blocages du garde de parametres, expansion par evidence, fuites de termes semantiques detectees/autocorrigees, clarifications du validateur).
+
+Two more collapsed rows close the pipeline's account of what it did. **Pipeline Step Failures** (ADR-346, which replaced the retired « Adaptive Replanner » row): the failed steps of executed plans over the range, as a total and by typed code (`pipeline_step_failures_total{error_code}` — a FOR_EACH item counted, its aggregate never, failures BEFORE the tool call included, `unclassified` for a free-form code). **Tool results reaching the answer** (ADR-347): failure verdicts corrected at the connector chokepoint, as a total and by tool (`tool_failure_verdict_corrected_total{tool_name}` — expected 0, every increment a formatter defect), and the pipeline data blocks the response did not read whole, by tool and reason (`pipeline_tool_data_truncated_total{tool_name, reason}` — `cut` or `dropped`, both stated to the model). The two totals read `or vector(0)`; the two ADR-347 bars keep only the tools above zero (`> 0`), so an empty bar is the expected state.
 
 ### 08 - HITL Human-in-the-Loop (29 panels)
 
@@ -244,7 +246,7 @@ Flux OAuth complet (initiations, callbacks, succes/echec, types d'erreurs), perf
 
 ### 11 - Voice & WebSocket (25 panels)
 
-TTS : requetes et latence p95 par voix, taux et types d'erreurs, et les sessions WebSocket Fish Audio repondues en HTTP (`voice_tts_transport_fallbacks_total{provider, reason}`, ADR-345 : un echec en transit ou un silence, jamais un quota ni un refus), et les replis de la voix par raison (`voice_fallback_total{reason}`, dont `timeout` : la voix d'un tour qui a depasse son attente, redite par le chemin direct). Streaming audio : debit, qualite. STT : transcriptions via Sherpa-onnx Whisper (duree, precision). WebSocket : connexions actives, tickets d'authentification, latence.
+TTS : requetes et latence p95 par voix, taux et types d'erreurs, et les sessions WebSocket Fish Audio repondues en HTTP (`voice_tts_transport_fallbacks_total{provider, reason}`, ADR-345 : un echec en transit ou un silence, jamais un quota ni un refus), et les replis de la voix par raison (`voice_fallback_total{reason}`, dont `timeout` : la voix d'un tour qui a depasse son attente, redite par le chemin direct). Spoken comment: tokens of its model call by type, read from the shared `llm_tokens_consumed_total{node_name="voice_comment"}` like every model call (the dedicated `voice_comment_tokens_total` no longer exists), generation duration p95 and sentences per comment. Streaming audio : debit, qualite. STT : transcriptions via Sherpa-onnx Whisper (duree, precision). WebSocket : connexions actives, tickets d'authentification, latence.
 
 ### 12 - Channels / Telegram (13 panels)
 
@@ -284,11 +286,11 @@ Vue d'ensemble des espaces de connaissances RAG : espaces actifs, documents trai
 
 ### 19 - Sub-agents & Skills (21 panels)
 
-Executions de sous-agents ReAct via `ReactSubAgentRunner` (ADR-083) : spawns par agent et mode, duree (p50/p95/p99), tokens entrants/sortants, sous-agents actifs, erreurs par type. Vision de la delegation de taches aux agents parametres.
+Executions de sous-agents ReAct via `ReactSubAgentRunner` (ADR-083) : spawns par agent et mode, duree (p50/p95/p99), tokens entrants/sortants, sous-agents actifs, erreurs par type. Vision de la delegation de taches aux agents parametres. How every sub-loop run ended (`subagent_outcomes_total{agent_name, outcome}` — `answered`, `closed_on_budget`, `truncated`, `empty`, `error`, ADR-083 amendment 2026-10-13), with a « Closed on budget (24h) » stat: runs whose budget ended the research and whose closing pass wrote the answer without tools, from what the loop had gathered — a rising count says the budget is too tight for the delegated tasks, or that tools keep failing.
 
 ### 20 - ReAct Agent & Browser (33 panels)
 
-Mode d'execution ReAct : iterations par tour, appels d'outils, interruptions HITL tool-level, erreurs. Sessions navigateur headless (actions, navigation, memoire, tokens des snapshots). **Passes de reprise par issue** (`react_recovery_turns_total{outcome}` : `resolved`, `partial`, `still_unresolved`, `cut` — ADR-310) et **replis du cache inter-tours** (`react_cross_turn_cache_fallback_total{reason}` : `cap`, `window` — ADR-308), tous deux avec `or vector(0)`.
+Mode d'execution ReAct : iterations par tour, appels d'outils, interruptions HITL tool-level, erreurs. Sessions navigateur headless (actions, navigation, tokens des snapshots). The overview's memory stat is « API Workers RSS (MiB) »: the sum of the live API workers' resident memory (`lia_worker_memory_bytes`, sampled from `/proc`, ADR-283) — it replaced « Browser Memory (MB) », whose `browser_memory_bytes` is gone; it excludes the Chromium child processes and is not a browser memory cap. **Passes de reprise par issue** (`react_recovery_turns_total{outcome}` : `resolved`, `partial`, `still_unresolved`, `cut` — ADR-310) et **replis du cache inter-tours** (`react_cross_turn_cache_fallback_total{reason}` : `cap`, `window` — ADR-308), tous deux avec `or vector(0)`.
 
 ### 21 - Health Metrics (10 panels)
 

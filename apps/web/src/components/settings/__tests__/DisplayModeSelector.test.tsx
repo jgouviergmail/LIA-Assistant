@@ -6,10 +6,7 @@
  * starts. Without this panel one press of the header toggle would lose it for
  * good.
  *
- * The subtle rule under test: OLED is offered only under an EXPLICIT dark mode.
- * `users.theme` encodes `'oled'` as "dark, with OLED", so `system + OLED` has
- * nowhere to be stored — enabling it from `system` would have to silently pin
- * the user to dark.
+ * Absolute black is a fourth radio and commits dark + OLED atomically.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -39,10 +36,10 @@ beforeEach(() => {
 });
 
 describe('DisplayModeSelector — mode choice', () => {
-  it('offers the three modes as a real radio group', () => {
+  it('offers the four modes as a real radio group', () => {
     renderWithProviders(<DisplayModeSelector lng="fr" />);
     const radios = screen.getAllByRole('radio');
-    expect(radios).toHaveLength(3);
+    expect(radios).toHaveLength(4);
     // Native radios: the browser supplies arrow-key navigation and roving
     // focus, so no keyboard handler of ours can be missing or wrong.
     expect(radios.every(r => r.getAttribute('name') === 'display-mode')).toBe(true);
@@ -67,68 +64,27 @@ describe('DisplayModeSelector — mode choice', () => {
     expect(apply).toHaveBeenCalledWith({ mode: 'light', oled: false });
   });
 
-  it('keeps OLED when re-selecting dark', async () => {
+  it('selecting dark explicitly drops OLED', async () => {
     setMode('light', true);
     const { user } = renderWithProviders(<DisplayModeSelector lng="fr" />);
     await user.click(screen.getByRole('radio', { name: /settings.theme.dark/ }));
-    expect(apply).toHaveBeenCalledWith({ mode: 'dark', oled: true });
+    expect(apply).toHaveBeenCalledWith({ mode: 'dark', oled: false });
   });
 });
 
 describe('DisplayModeSelector — OLED', () => {
-  it('is disabled outside an explicit dark mode', () => {
-    renderWithProviders(<DisplayModeSelector lng="fr" />);
-    expect(screen.getByRole('switch')).toBeDisabled();
-  });
-
-  it('stays disabled under system even when the OS resolves to dark', () => {
-    // The trap: `resolved` is dark, but the stored value would have to be
-    // 'oled', which means dark — silently overwriting the user's 'system'.
-    modeState.mode = 'system';
-    modeState.resolved = 'dark';
-    renderWithProviders(<DisplayModeSelector lng="fr" />);
-    expect(screen.getByRole('switch')).toBeDisabled();
-  });
-
-  it('explains why it is unavailable rather than just greying out', () => {
-    renderWithProviders(<DisplayModeSelector lng="fr" />);
-    expect(screen.getByText('settings.theme.oled_requires_dark')).toBeInTheDocument();
-  });
-
-  it('becomes available under dark and describes what it does', () => {
-    setMode('dark');
-    renderWithProviders(<DisplayModeSelector lng="fr" />);
-    expect(screen.getByRole('switch')).toBeEnabled();
-    expect(screen.getByText('settings.theme.oled_description')).toBeInTheDocument();
-  });
-
-  it('turns OLED on without changing the mode', async () => {
-    setMode('dark');
+  it('offers absolute black directly without a separate switch', async () => {
     const { user } = renderWithProviders(<DisplayModeSelector lng="fr" />);
-    await user.click(screen.getByRole('switch'));
+    expect(screen.queryByRole('switch')).toBeNull();
+    await user.click(screen.getByRole('radio', { name: 'settings.theme.oled' }));
     expect(apply).toHaveBeenCalledWith({ mode: 'dark', oled: true });
   });
 
-  it('turns OLED back off', async () => {
+  it('marks only absolute black when the stored preference is OLED', () => {
     setMode('dark', true);
-    const { user } = renderWithProviders(<DisplayModeSelector lng="fr" />);
-    expect(screen.getByRole('switch')).toBeChecked();
-    await user.click(screen.getByRole('switch'));
-    expect(apply).toHaveBeenCalledWith({ mode: 'dark', oled: false });
-  });
-
-  it('never shows itself as on while it is unavailable', () => {
-    // A stored flag from a previous dark session must not display as active
-    // under light — the page would plainly not be black.
-    setMode('light', true);
     renderWithProviders(<DisplayModeSelector lng="fr" />);
-    expect(screen.getByRole('switch')).not.toBeChecked();
-  });
-
-  it('carries an accessible name', () => {
-    setMode('dark');
-    renderWithProviders(<DisplayModeSelector lng="fr" />);
-    expect(screen.getByRole('switch')).toHaveAccessibleName('settings.theme.oled');
+    expect(screen.getByRole('radio', { name: 'settings.theme.oled' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: 'settings.theme.dark' })).not.toBeChecked();
   });
 });
 

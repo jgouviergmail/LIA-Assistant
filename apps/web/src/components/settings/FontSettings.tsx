@@ -69,7 +69,7 @@ export function FontSettings({ lng }: FontSettingsProps) {
                   className={`
                     relative flex items-start gap-3 rounded-lg border-2 p-4 text-left transition-all
                     hover:bg-accent hover:shadow-sm
-                    ${isSelected ? 'border-primary bg-primary/5 shadow-sm' : 'border-border bg-card'}
+                    ${isSelected ? 'border-primary bg-primary/5 shadow-sm' : 'border-border bg-background'}
                   `}
                   aria-label={t(`settings.font.fonts.${fontOption.name}.label`)}
                 >

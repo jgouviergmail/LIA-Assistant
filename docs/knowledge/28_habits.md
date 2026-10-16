@@ -34,7 +34,7 @@ Yes — full control, immediately:
 • **Pause** a habit (kept, but not used)
 • **Block** it permanently (never relearned — a definitive veto)
 • **Delete** one habit or **forget everything** at once
-• **Recompute now** relaunches learning over your existing history, immediately and retroactively
+• **Recalculate** relaunches learning over your existing history, immediately and retroactively
 • The **master toggle** turns the whole feature off: nothing is recorded, suggested or seeded, and the keys you refused are never proposed again. What was already learned stays readable and editable, switch on or off
 
 **A status holds everywhere.** The proactive notifications, their scheduling and the assistant's context all read the same rows you edit here, so a paused or blocked habit is paused or blocked for real — not only on the panel.

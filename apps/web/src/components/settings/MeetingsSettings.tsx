@@ -1,12 +1,12 @@
 'use client';
 
 /**
- * Meetings settings (ADR-258, library ADR-259), one page in three folded
- * blocks (owner, 2026-10-03): « Settings » — engine, language, retention and
+ * Meetings settings (ADR-258, library ADR-259), one page in two folded
+ * blocks: « Settings » — engine, language, retention and
  * the default minutes format — open on arrival; « Templates » — the template
  * library itself, managed here through the same `MeetingTemplateManager` as
- * the standalone page; « Minutes » — the recent meetings and the door to all
- * of them.
+ * the standalone page. The meetings themselves live on the meetings page,
+ * which this section no longer repeats.
  *
  * Self-gated on the instance flag `features.meetings_enabled` (the
  * OpenLoopsSection precedent): off, it renders nothing and the settings shell
@@ -15,11 +15,10 @@
  */
 
 import { useMemo } from 'react';
-import { ClipboardList, ExternalLink, LibraryBig, Save, Wand2 } from 'lucide-react';
+import { ClipboardList, LibraryBig, Save, Wand2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { SettingsSection } from '@/components/settings/SettingsSection';
-import { MeetingStatusBadge } from '@/components/meetings/MeetingStatusBadge';
 import { MeetingTemplateManager } from '@/components/meetings/MeetingTemplateManager';
 import { TemplateSelect } from '@/components/meetings/TemplateSelect';
 import { Button } from '@/components/ui/button';
@@ -38,14 +37,10 @@ import { Switch } from '@/components/ui/switch';
 import { useAppConfig } from '@/hooks/useAppConfig';
 import { useAuth } from '@/hooks/useAuth';
 import { useApplicationAccountState } from '@/hooks/useApplicationAccountState';
-import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
-import { useMeetingList } from '@/hooks/useMeetings';
 import { useMeetingPreferences } from '@/hooks/useMeetingPreferences';
 import { useMeetingTemplates } from '@/hooks/useMeetingTemplates';
 import { useTranslation } from '@/i18n/client';
-import { withOrigin } from '@/lib/back-origin';
 import type { Language } from '@/i18n/settings';
-import { formatElapsed } from '@/lib/meetings/format';
 import { userTemplateCount } from '@/lib/meetings/templates';
 import type { BaseSettingsProps } from '@/types/settings';
 import type {
@@ -58,7 +53,6 @@ import type {
 /** ISO-639-1 hints the engines accept, offered next to auto-detection. */
 const LANGUAGE_HINTS: readonly string[] = ['en', 'fr', 'de', 'es', 'it', 'zh', 'pt', 'nl'];
 const ENGINES: readonly MeetingSttEnginePreference[] = ['auto', 'remote', 'local'];
-const RECENT_LIMIT = 5;
 
 /** A count that holds something reads tinted; an empty one stays neutral. */
 function countTone(count: number): string | undefined {
@@ -117,19 +111,18 @@ function DefaultTemplateSelect({
 function PreferencesForm({
   lng,
   templates,
+  draft,
+  setDraft,
+  preferencesState,
 }: {
   lng: Language;
   templates: MeetingTemplateSummary[];
+  preferencesState: ReturnType<typeof useMeetingPreferences>;
+  draft: MeetingPreferencesUpdate | null;
+  setDraft: React.Dispatch<React.SetStateAction<MeetingPreferencesUpdate | null>>;
 }) {
   const { t } = useTranslation(lng);
-  const { preferences, isLoading, isSaving, save } = useMeetingPreferences();
-  const { user } = useAuth();
-  // The draft is DERIVED during render: null means "what the server holds";
-  // an edit materialises it, a save clears it (no setState inside an effect).
-  const [draft, setDraft] = useApplicationAccountState<MeetingPreferencesUpdate | null>(
-    user?.id,
-    null
-  );
+  const { preferences, isLoading, isSaving, save } = preferencesState;
 
   if (preferences === null) {
     return <Skeleton className="h-40 w-full" />;
@@ -144,7 +137,7 @@ function PreferencesForm({
     if (isSaving || !dirty) return;
     const result = await save(value);
     if (result) {
-      setDraft(null);
+      setDraft(current => (current === draft ? null : current));
       toast.success(t('meetings.settings.saved'));
     } else {
       toast.error(t('common.error'));
@@ -252,54 +245,6 @@ function PreferencesForm({
   );
 }
 
-/** The recent meetings: mounted only while « Minutes » is open, so a folded
- * block costs no request. */
-function RecentMeetings({ lng }: { lng: Language }) {
-  const { t } = useTranslation(lng);
-  const router = useLocalizedRouter();
-  const { meetings, total, isLoading } = useMeetingList(RECENT_LIMIT);
-  if (isLoading) return <Skeleton className="h-24 w-full" />;
-  return (
-    <div className="space-y-3">
-      {meetings.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{t('meetings.settings.no_meetings')}</p>
-      ) : (
-        <ul className="divide-y divide-border/60 rounded-md border border-border/60">
-          {meetings.map(meeting => (
-            <li key={meeting.id} className="flex flex-wrap items-center gap-2 px-3 py-2">
-              <button
-                type="button"
-                className="min-w-0 flex-1 truncate text-left text-sm font-medium hover:underline"
-                onClick={() =>
-                  router.push(withOrigin(`/dashboard/meetings/${meeting.id}`, 'settings'))
-                }
-              >
-                {meeting.title ?? t('meetings.list.untitled')}
-              </button>
-              <span className="text-xs text-muted-foreground">
-                {new Date(meeting.started_at).toLocaleDateString(lng)}
-                {meeting.audio_duration_seconds
-                  ? ` · ${formatElapsed(meeting.audio_duration_seconds)}`
-                  : ''}
-              </span>
-              <MeetingStatusBadge lng={lng} status={meeting.status} stage={meeting.stage} />
-            </li>
-          ))}
-        </ul>
-      )}
-      <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        onClick={() => router.push(withOrigin('/dashboard/meetings', 'settings'))}
-      >
-        <ExternalLink className="mr-1 h-4 w-4" aria-hidden="true" />
-        {t('meetings.settings.view_all', { count: total })}
-      </Button>
-    </div>
-  );
-}
-
 export function MeetingsSettings({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   const { config, loading } = useAppConfig();
@@ -307,6 +252,12 @@ export function MeetingsSettings({ lng }: BaseSettingsProps) {
   // One library read for the section: the default-format select and the
   // embedded library share it, so a template created below is offered above.
   const library = useMeetingTemplates(enabled);
+  const preferencesState = useMeetingPreferences(enabled);
+  const { user } = useAuth();
+  const [draft, setDraft] = useApplicationAccountState<MeetingPreferencesUpdate | null>(
+    user?.id,
+    null
+  );
   if (loading || !enabled) return null;
 
   return (
@@ -317,10 +268,22 @@ export function MeetingsSettings({ lng }: BaseSettingsProps) {
       icon={ClipboardList}
     >
       <div className="space-y-3">
-        <Disclosure icon={Wand2} title={t('meetings.settings.preferences_title')} defaultOpen>
-          <PreferencesForm lng={lng} templates={library.templates} />
+        <Disclosure
+          surface="nested"
+          icon={Wand2}
+          title={t('meetings.settings.preferences_title')}
+          defaultOpen
+        >
+          <PreferencesForm
+            lng={lng}
+            templates={library.templates}
+            draft={draft}
+            setDraft={setDraft}
+            preferencesState={preferencesState}
+          />
         </Disclosure>
         <Disclosure
+          surface="nested"
           icon={LibraryBig}
           title={t('meetings.settings.templates_title')}
           description={t('meetings.settings.templates_description')}
@@ -328,9 +291,6 @@ export function MeetingsSettings({ lng }: BaseSettingsProps) {
           badgeClassName={countTone(userTemplateCount(library.templates))}
         >
           <MeetingTemplateManager lng={lng} library={library} nested />
-        </Disclosure>
-        <Disclosure icon={ClipboardList} title={t('meetings.settings.recent_title')}>
-          <RecentMeetings lng={lng} />
         </Disclosure>
       </div>
     </SettingsSection>

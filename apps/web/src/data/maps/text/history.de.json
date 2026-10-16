@@ -1832,6 +1832,11 @@
       "title": "Was ein Lese-Tool findet, erreicht die Antwort, und eine Ablehnung ist nie ein Erfolg",
       "summary": "Im Pipeline-Modus entstand die Antwort aus einem Satz über die Daten eines Tools — „2 Ziele“ —, während die Fahrzeiten, die Verbindungen oder die nächste Seite liegen blieben: Ohne sie nannten 0 von 9 Antworten die Fahrzeiten, mit ihnen 27 von 27. Sie kommen nun wie im autonomen Modus an, begrenzt und als Inhalt Dritter gekennzeichnet. Und die Ablehnung eines Tools kann unterwegs nicht mehr zum Erfolg werden: Die Hue-Befehle meldeten, eine Lampe eingeschaltet zu haben, die es nicht gab.",
       "src": "9c1a75d39f49"
+    },
+    "348": {
+      "title": "LIAs Erfahrung wird aus Belegen gelernt, nie aus ihrer eigenen Note",
+      "summary": "Die alte Selbstwirksamkeit bewegte sich nur durch LIAs Selbstbewertung, ein einziger Austausch genügte für eine Stärke oder eine Schwäche, und nur die finale Antwort las sie. Sieben Bereiche führen jetzt zwei getrennte Achsen: was ein Durchgang nachweislich erreicht hat, und den Nutzen, den die Person mit 👍/👎 ausgedrückt hat. Ab fünf Beobachtungen kann LIA einen Punkt prüfen, eine Frage stellen oder eine Grenze benennen — ohne Modell, Werkzeug oder Budget zu ändern.",
+      "src": "a453c8b066ef"
     }
   }
 }

@@ -15,7 +15,6 @@ import {
   MessageSquare,
   Sparkles,
   Star,
-  SlidersHorizontal,
   type LucideIcon,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -30,27 +29,16 @@ import { PendingRemindersList } from '@/components/notifications/PendingReminder
 import { RelayedMessagesList } from '@/components/notifications/RelayedMessagesList';
 import { ScheduledActionsList } from '@/components/notifications/ScheduledActionsList';
 import { Button } from '@/components/ui/button';
-import { Disclosure } from '@/components/ui/disclosure';
 import { SectionHeader } from '@/components/ui/section-header';
 import { useAppConfig } from '@/hooks/useAppConfig';
 import { useHubCounts, type HubCounts } from '@/hooks/useHubCounts';
 import { usePagedSection, type PagedSection } from '@/hooks/usePagedSection';
 import { getIntlLocale, type Language } from '@/i18n/settings';
-import { settingsSectionHref, type SettingsSectionToken } from '@/lib/settings-sections';
 import type { HeartbeatNotification } from '@/hooks/useHeartbeatHistory';
 import type { InterestNotification } from '@/hooks/useInterestNotificationHistory';
 import type { PendingReminder } from '@/components/notifications/PendingRemindersList';
 import type { RelayedMessage } from '@/components/notifications/RelayedMessagesList';
 import type { ScheduledActionRow } from '@/components/notifications/ScheduledActionsList';
-
-/** Where each section is tuned in detail — the deep links stay unchanged. */
-const ADVANCED: readonly { key: string; token: SettingsSectionToken; icon: LucideIcon }[] = [
-  { key: 'peer_messages', token: 'peer-connections', icon: MessageSquare },
-  { key: 'proactive', token: 'heartbeat', icon: Sparkles },
-  { key: 'interests', token: 'interests', icon: Star },
-  { key: 'scheduled', token: 'scheduled-actions', icon: CalendarClock },
-  { key: 'device', token: 'notifications', icon: Bell },
-];
 
 /**
  * The section queries, and the fold state that gates them.
@@ -63,7 +51,12 @@ function useHubSections() {
   const heartbeatEnabled = Boolean(config?.features?.heartbeat_enabled);
   // ONE read for all badges, so a folded section can be chosen from
   // rather than opened to find out whether it holds anything.
-  const { counts } = useHubCounts();
+  const {
+    counts,
+    error: countsError,
+    loading: countsLoading,
+    refetch: retryCounts,
+  } = useHubCounts();
 
   // One open-state per section: `Disclosure` unmounts its children
   // when closed, and these flags are what gate each query.
@@ -147,6 +140,9 @@ function useHubSections() {
   return {
     config,
     counts,
+    countsError,
+    countsLoading,
+    retryCounts,
     track,
     offers,
     peers,
@@ -359,35 +355,24 @@ export function NotificationsHub({ lng }: { lng: string }) {
                 </Link>
               </Button>
             )}
-            <Disclosure
-              icon={SlidersHorizontal}
-              title={t('notifications_hub.advanced_title')}
-              className="w-full sm:max-w-sm"
-              titleClassName="whitespace-normal"
-            >
-              <p className="mb-3 text-xs leading-relaxed text-muted-foreground">
-                {t('notifications_hub.advanced_hint')}
-              </p>
-              <ul className="space-y-2" role="list">
-                {ADVANCED.map(({ key, token, icon: Icon }) => (
-                  <li key={key}>
-                    <Button
-                      asChild
-                      size="sm"
-                      className="h-auto min-h-11 w-full justify-start whitespace-normal py-2 text-left"
-                    >
-                      <Link href={settingsSectionHref(lng, token)}>
-                        <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                        {t(`notifications_hub.advanced_links.${key}`)}
-                      </Link>
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            </Disclosure>
           </>
         }
       />
+
+      {sections.countsError && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+          <p role="alert" className="text-sm text-destructive">
+            {t('notifications_hub.counts_error')}
+          </p>
+          <Button
+            size="sm"
+            onClick={() => void sections.retryCounts()}
+            isLoading={sections.countsLoading}
+          >
+            {t('common.retry')}
+          </Button>
+        </div>
+      )}
 
       {config?.features?.heartbeat_enabled && (
         <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 sm:px-5">

@@ -26,7 +26,7 @@ Yes. In **Settings -> Voice mode** you can switch from **Local** (default, free,
 
 ## Which voices does LIA use for speech, and what does TTS cost?
 
-LIA's voice synthesis is configured by the administrator from a single catalogue with five providers: **Edge TTS** (Microsoft neural voices, free, default), **OpenAI TTS** (`tts-1` / `tts-1-hd`, premium voices: alloy, echo, nova, ...), **ElevenLabs** (`eleven_multilingual_v2` / `eleven_turbo_v2_5` / `eleven_flash_v2_5`, including custom and library voices from the configured account), **Google Gemini**, and **Fish Audio** (`s2.1-pro`, `s2-pro`, `drama-3`, with the vendor's licensed voices and the instance's own cloned or designed ones). For paid providers, a 🔊 badge on the assistant message shows the character count and the EUR cost; Edge stays free with no badge. Latency-side: a sentence-level streamer starts playing the first sentence in about 1 second, while the assistant is still composing the rest of the answer.
+LIA's voice synthesis is configured by the administrator from a single catalogue with five providers: **Edge TTS** (Microsoft neural voices, free, default), **OpenAI TTS** (`tts-1` / `tts-1-hd`, premium voices: alloy, echo, nova, ...), **ElevenLabs** (`eleven_multilingual_v2` / `eleven_turbo_v2_5` / `eleven_flash_v2_5`, including custom and library voices from the configured account), **Google Gemini**, and **Fish Audio** (`s2.1-pro`, `s2-pro`, `drama-3`, with the vendor's licensed voices, the instance's own cloned or designed ones and the public voices an administrator pinned for every voice configuration). Everyone can choose LIA's male and female voice among the engine's voices in Settings → Voice mode, and narrow every voice list to their language and the multilingual voices. For paid providers, a 🔊 badge on the assistant message shows the character count and the EUR cost; Edge stays free with no badge. Latency-side: a sentence-level streamer starts playing the first sentence in about 1 second, while the assistant is still composing the rest of the answer.
 
 ## Does LIA read numbers, prices and addresses correctly?
 
@@ -48,7 +48,7 @@ the voice holds the conversation; every request for data or action is handed to 
 
 **🎧 Live session** — the voice delegates: each thing you ask becomes a chat turn of yours, run by LIA while you speak, with confirmations for anything that acts and every answer drawn in the thread. This is the mode that can DO things.
 
-**🎯 Direct live session** — the voice reads your data itself, without going through the chat: your agenda, mails, contacts, tasks, places, the weather, what LIA remembers — the domains you allow in **Settings → Telephony · My identity**, the same switches as the phone. It acts on nothing: a request is noted, and at the end everything you said is relayed to the conversation as a message from you, which LIA answers. It buys latency, not economy: the tools' declarations are re-billed on every turn by the provider, about nine times the text prompt of a delegated session in our measurement. Offered only where the model's wire carries a tool schema (an ElevenLabs agent does not).
+**🎯 Direct live session** — the voice reads your data itself, without going through the chat: your agenda, mails, contacts, tasks, places, the weather, what LIA remembers — the domains you allow in **Settings → My phone**, the same switches as the phone. It acts on nothing: a request is noted, and at the end everything you said is relayed to the conversation as a message from you, which LIA answers. It buys latency, not economy: the tools' declarations are re-billed on every turn by the provider, about nine times the text prompt of a delegated session in our measurement. Offered only where the model's wire carries a tool schema (an ElevenLabs agent does not).
 
 ## What does a Live session cost, and who pays?
 
@@ -56,7 +56,7 @@ Two bills, one of which is yours alone.
 
 **🔑 What the provider charges — on your key:**
 
-the live model's audio, in and out, is billed by the provider on your own account. The band shows an **indicative** meter folded from the provider's own usage reports and the tariff your administrator declared, with the context size; a cost that would need an undeclared rate is shown as unavailable, never as a partial figure. On an ElevenLabs agent the platform prices nothing: the clock alone runs, and the provider's own bill is shown once at the end. Nothing of this is recorded anywhere — it is your key. Settings › Live mode lets you set an optional spend ceiling per session.
+the live model's audio, in and out, is billed by the provider on your own account. The band shows an **indicative** meter folded from the provider's own usage reports and the tariff your administrator declared, with the context size; a cost that would need an undeclared rate is shown as unavailable, never as a partial figure. On an ElevenLabs agent the platform prices nothing: the clock alone runs, and the provider's own bill is shown once at the end. Nothing of this is recorded anywhere — it is your key. Settings › Live voice mode lets you set an optional spend ceiling per session.
 
 **💶 What LIA counts:**
 

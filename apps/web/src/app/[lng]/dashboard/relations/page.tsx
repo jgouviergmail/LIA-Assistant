@@ -13,7 +13,8 @@
  * back and toasts.
  */
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 import { Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -26,6 +27,11 @@ import { useRelationsOverview } from '@/hooks/useRelations';
 import { useLanguageParam } from '@/hooks/useLanguageParam';
 
 export default function RelationsPage({ params }: { params: Promise<{ lng: string }> }) {
+  const { user } = useAuth();
+  return <AccountRelationsPage key={user?.id ?? 'signed-out'} params={params} />;
+}
+
+function AccountRelationsPage({ params }: { params: Promise<{ lng: string }> }) {
   const lng = useLanguageParam(params);
   const { t } = useTranslation();
   const {
@@ -39,6 +45,30 @@ export default function RelationsPage({ params }: { params: Promise<{ lng: strin
     setDebriefEnabled,
   } = useRelationsOverview();
   const [selected, setSelected] = useState<string | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const returnRef = useRef<{ element: HTMLElement | null; scroll: number }>({
+    element: null,
+    scroll: 0,
+  });
+  const openRelation = (name: string) => {
+    returnRef.current = {
+      element: document.activeElement instanceof HTMLElement ? document.activeElement : null,
+      scroll: window.scrollY,
+    };
+    setSelected(name);
+    window.scrollTo({ top: 0 });
+  };
+  const closeRelation = () => {
+    setSelected(null);
+    requestAnimationFrame(() => {
+      const previous = returnRef.current;
+      const target = previous.element?.isConnected
+        ? previous.element
+        : listRef.current?.querySelector<HTMLElement>('button');
+      target?.focus({ preventScroll: true });
+      window.scrollTo({ top: previous.scroll });
+    });
+  };
 
   const handleToggleFavorite = async (name: string, nextValue: boolean) => {
     const { ok } = await toggleFavorite(name, nextValue);
@@ -60,7 +90,7 @@ export default function RelationsPage({ params }: { params: Promise<{ lng: strin
           <p className="mt-1 text-sm text-muted-foreground">{t('relations.subtitle')}</p>
         </div>
 
-        {selected ? (
+        {selected && (
           <RelationDetailPanel
             name={selected}
             lng={lng}
@@ -75,9 +105,10 @@ export default function RelationsPage({ params }: { params: Promise<{ lng: strin
             // relationships exist.
             candidates={relations.map(relation => relation.display_name)}
             onMerged={refetch}
-            onBack={() => setSelected(null)}
+            onBack={closeRelation}
           />
-        ) : initialLoading ? (
+        )}
+        {initialLoading ? (
           <div className="flex justify-center py-12">
             <LoadingSpinner className="h-6 w-6" />
           </div>
@@ -85,11 +116,11 @@ export default function RelationsPage({ params }: { params: Promise<{ lng: strin
           // `initialLoading`, never `loading`: starring refetches the overview,
           // and staging a spinner then would unmount the toolbar mid-use —
           // the user's search text, sort choice and filters, gone on a star.
-          <div aria-busy={loading}>
+          <div ref={listRef} hidden={selected !== null} aria-busy={loading}>
             <RelationCardList
               relations={relations}
               relationsTotal={relationsTotal}
-              onOpen={setSelected}
+              onOpen={openRelation}
               onToggleFavorite={handleToggleFavorite}
             />
           </div>

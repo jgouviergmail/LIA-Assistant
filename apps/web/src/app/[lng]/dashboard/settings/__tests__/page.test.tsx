@@ -100,6 +100,17 @@ describe('Settings page — master-detail shell', () => {
     expect(document.querySelector('[id^="settings-section-"]')).toBeNull();
   });
 
+  it('returns mobile focus and scroll to the rail entry after viewing a section', async () => {
+    const { user } = renderPage();
+    const nav = await screen.findByRole('navigation', { name: 'settings.shell.nav_label' });
+    const pick = within(nav).getByRole('button', { name: /settings\.chat_shortcuts\.title/ });
+    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(430);
+    await user.click(pick);
+    await user.click(screen.getByRole('button', { name: 'settings.shell.back' }));
+    await waitFor(() => expect(pick).toHaveFocus());
+    expect(window.scrollTo).toHaveBeenLastCalledWith({ top: 430 });
+  });
+
   it('opens the picked section and records it in the URL', async () => {
     const { user } = renderPage();
     const nav = await screen.findByRole('navigation', { name: 'settings.shell.nav_label' });

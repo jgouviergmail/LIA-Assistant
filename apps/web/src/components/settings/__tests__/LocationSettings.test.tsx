@@ -98,6 +98,15 @@ describe('LocationSettings — standalone section', () => {
 });
 
 describe('LocationSettings — geolocation', () => {
+  it.each([
+    { isEnabled: true, permission: 'prompt' },
+    { isEnabled: false, permission: 'denied' },
+  ] as const)('does not claim active without a granted enabled position (%j)', state => {
+    useGeolocation.mockReturnValue(geo(state));
+    renderWithProviders(<LocationSettings lng="en" />);
+    expect(screen.getByRole('status')).toHaveTextContent('common.inactive');
+    expect(screen.getByRole('switch')).toHaveAccessibleName('settings.location.geolocation.title');
+  });
   it('enabling a granted geolocation confirms success', async () => {
     const enable = vi.fn().mockResolvedValue({ lat: 1, lon: 2, accuracy: 5, timestamp: 0 });
     useGeolocation.mockReturnValue(geo({ isEnabled: false, enable }));

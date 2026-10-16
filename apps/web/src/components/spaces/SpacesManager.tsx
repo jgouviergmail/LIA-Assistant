@@ -182,6 +182,7 @@ export function SpacesManager({ variant }: SpacesManagerProps) {
             {spaces.map(space => (
               <SpaceCard
                 key={space.id}
+                surface={variant === 'page' ? 'primary' : 'nested'}
                 space={space}
                 onClick={() => router.push(`/dashboard/spaces/${space.id}`)}
                 onEdit={() => setEditSpace(space)}

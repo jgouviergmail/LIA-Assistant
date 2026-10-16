@@ -1832,6 +1832,11 @@
       "title": "Ciò che uno strumento di lettura trova arriva alla risposta, e un rifiuto non è mai un successo",
       "summary": "In modalità pipeline la risposta nasceva da una frase sui dati di uno strumento — «2 destinazioni» — mentre i tempi di percorrenza, le connessioni o la pagina successiva restavano da parte: senza di essi, 0 risposte su 9 davano i tempi, 27 su 27 con essi. Ora arrivano come in modalità autonoma, limitati e marcati come contenuto di terzi. E il rifiuto di uno strumento non può più diventare un successo lungo la strada: i comandi Hue dicevano di aver acceso una lampada che non esisteva.",
       "src": "9c1a75d39f49"
+    },
+    "348": {
+      "title": "L'esperienza di LIA si impara dalle prove, mai dal suo stesso voto",
+      "summary": "La vecchia autoefficacia si muoveva solo con l'autovalutazione di LIA, un solo scambio bastava a creare un punto di forza o una debolezza, e solo la risposta finale la leggeva. Sette domini tengono ora due assi separati: ciò che un turno ha ottenuto in modo verificabile e l'utilità che la persona ha espresso con 👍/👎. Da cinque osservazioni, LIA può verificare un punto, fare una domanda o dichiarare un limite, senza cambiare modello, strumento o budget.",
+      "src": "a453c8b066ef"
     }
   }
 }

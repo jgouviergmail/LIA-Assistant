@@ -110,7 +110,7 @@
 **Description**: Architecture système globale avec:
 - **Frontend**: Next.js 16 + React 19 + TypeScript 6 + Tailwind 4
 - **Backend**: FastAPI + Uvicorn (Python 3.14)
-- **AI/ML**: LangGraph 1.2 + LLM Providers catalogue-driven (OpenAI, Anthropic, Gemini, DeepSeek, Perplexity, Qwen, Ollama, ElevenLabs, Edge) + embeddings Gemini (ADR-069)
+- **AI/ML**: LangGraph 1.2 + LLM Providers catalogue-driven (OpenAI, Anthropic, Gemini, DeepSeek, Perplexity, Qwen, Ollama, ElevenLabs, Edge, Fish Audio) + embeddings Gemini (ADR-069) + voice: local Whisper or the `voice_transcription` slot's provider for STT (ElevenLabs, OpenAI, Fish Audio), Edge/OpenAI/ElevenLabs/Gemini/Fish Audio TTS (ADR-081, ADR-345)
 - **Data**: PostgreSQL 16 + pgvector, Redis 7.4 (sessions, cache, patterns, Streams)
 - **External APIs**: Google (Gmail, Calendar, Contacts, Drive, Tasks, Places, Routes), Apple iCloud, Microsoft 365, OpenWeatherMap, Wikipedia, Perplexity, Brave
 - **Observability**: Prometheus, Grafana, Loki, Tempo, Langfuse, OpenTelemetry

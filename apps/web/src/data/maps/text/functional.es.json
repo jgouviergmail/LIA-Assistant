@@ -109,9 +109,9 @@
     },
     "f.psyche": {
       "name": "Psique y rostro",
-      "role": "Un estado emocional que evoluciona a lo largo de los intercambios, modula el tono y la voz, y anima los ojos y el rostro de LIA.",
+      "role": "Un estado emocional que evoluciona a lo largo de los intercambios, modula el tono y la voz, anima los ojos y el rostro de LIA, y una experiencia por dominio aprendida de pruebas y no de su propia nota.",
       "goal": "Una presencia coherente en lugar de un autómata de tono invariable.",
-      "src": "b306b381d1ee"
+      "src": "eecafceda247"
     },
     "f.personality": {
       "name": "Personalidades",
@@ -163,9 +163,9 @@
     },
     "f.mail": {
       "name": "Correos electrónicos",
-      "role": "Leer correos depurados, resumirlos una sola vez, buscar, redactar, responder y leer los adjuntos — el envío a otra persona pasa siempre por un borrador validado; un correo a tu propia dirección sale directamente.",
+      "role": "Leer correos depurados, resumirlos una sola vez, buscar, redactar, responder, leer los adjuntos y llevar los borradores de tu buzón — el envío a otra persona pide siempre una confirmación; un correo a tu propia dirección sale directamente.",
       "goal": "Gestionar tu bandeja en unas pocas frases.",
-      "src": "8b1872b98aa6"
+      "src": "ccd1f55a607d"
     },
     "f.calendar": {
       "name": "Calendario",
@@ -301,9 +301,9 @@
     },
     "f.voice": {
       "name": "Modo de voz",
-      "role": "Dictar tus mensajes, escuchar las respuestas, despertar a LIA con una palabra; la voz sigue el estado de ánimo.",
+      "role": "Dictar tus mensajes, escuchar las respuestas con las voces que eliges para LIA, despertar a LIA con una palabra; la voz sigue el estado de ánimo.",
       "goal": "Usar LIA con las manos ocupadas.",
-      "src": "3fc0f86339b5"
+      "src": "0c7d1444684c"
     },
     "f.live": {
       "name": "Modo Live",

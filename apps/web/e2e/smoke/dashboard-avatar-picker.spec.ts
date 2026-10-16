@@ -53,9 +53,14 @@ const dashboardData: MockRoute[] = [
 /** One visible opposite portrait, below the selected native animated avatar. */
 const pair = (page: Page) => page.getByRole('group', { name: "Choose LIA's avatar", exact: true });
 async function femaleStart(page: Page) {
-  await page
-    .context()
-    .addCookies([{ name: 'lia_gender', value: 'female', domain: 'localhost', path: '/' }]);
+  await page.context().addCookies([
+    {
+      name: 'lia_gender',
+      value: 'female',
+      domain: new URL(test.info().project.use.baseURL!).hostname,
+      path: '/',
+    },
+  ]);
   await page.goto('/en/dashboard');
   await waitForHydration(page, 'main');
   await expect(
@@ -114,16 +119,18 @@ test.describe('hero animated avatar pair', () => {
     await expect(group.getByRole('img', { name: 'Masculine portrait', exact: true })).toBeVisible();
     await expect(trigger).toHaveAccessibleName('Feminine portrait');
     await expect(trigger).toBeFocused();
-    expect((await page.context().cookies()).find(c => c.name === 'lia_gender')?.value).toBe('male');
+    expect(
+      (await page.context().cookies(page.url())).find(c => c.name === 'lia_gender')?.value
+    ).toBe('male');
     await page.reload();
     await waitForHydration(page, 'main');
     await expect(group.getByRole('img', { name: 'Masculine portrait', exact: true })).toBeVisible();
     await trigger.click();
     await expect(group.getByRole('img', { name: 'Feminine portrait', exact: true })).toBeVisible();
     await expect(trigger).toHaveAccessibleName('Masculine portrait');
-    expect((await page.context().cookies()).find(c => c.name === 'lia_gender')?.value).toBe(
-      'female'
-    );
+    expect(
+      (await page.context().cookies(page.url())).find(c => c.name === 'lia_gender')?.value
+    ).toBe('female');
   });
 
   test('is reached directly by keyboard and keeps focus when the images exchange', async ({
@@ -163,9 +170,9 @@ test.describe('hero animated avatar pair', () => {
     expect(target!.height).toBeGreaterThanOrEqual(44);
     await group.getByRole('img', { name: 'Feminine portrait', exact: true }).click();
     await expect(trigger).toBeVisible();
-    expect((await page.context().cookies()).find(c => c.name === 'lia_gender')?.value).toBe(
-      'female'
-    );
+    expect(
+      (await page.context().cookies(page.url())).find(c => c.name === 'lia_gender')?.value
+    ).toBe('female');
     await trigger.click();
     await expect(group.getByRole('img', { name: 'Masculine portrait', exact: true })).toBeVisible();
   });

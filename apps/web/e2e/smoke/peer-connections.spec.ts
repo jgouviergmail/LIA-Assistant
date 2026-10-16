@@ -201,7 +201,9 @@ test.describe('peer connections section', () => {
 
     // Search by EMAIL (Bloc B): the address travels verbatim in `query` — the
     // frontend holds no opinion on which identity was typed.
-    await section.locator('summary').filter({ hasText: "Trouver quelqu'un" }).click();
+    await expect(
+      section.getByRole('heading', { name: "Trouver quelqu'un", exact: true })
+    ).toBeVisible();
     const searchBox = section.getByLabel(/nom complet ou email/i);
     await searchBox.fill('  Marie.Dupont@Gmail.com  ');
     await section.getByRole('button', { name: /rechercher/i }).click();
@@ -215,6 +217,7 @@ test.describe('peer connections section', () => {
 
     // Request the connection → it lands in the outgoing pending list.
     await section.getByRole('button', { name: /demander la connexion/i }).click();
+    await section.locator('summary').filter({ hasText: 'Demandes en attente' }).click();
     await expect(section.getByText(/en attente de réponse/i)).toBeVisible();
 
     // Accept the seeded incoming request → connection card appears with BOTH
@@ -222,7 +225,8 @@ test.describe('peer connections section', () => {
     // value row (the badge soup became mirrored rows, owner arbitration
     // 2026-08-05).
     await section.getByRole('button', { name: /^accepter$/i }).click();
-    await section.locator('summary').filter({ hasText: 'Mes connexions' }).click();
+    await expect(section.getByRole('heading', { name: /Mes connexions/ })).toBeVisible();
+    await section.getByRole('button', { name: /Peer Beta/ }).click();
     await expect(section.getByText('Partagé', { exact: true })).toBeVisible({ timeout: 10_000 });
 
     // Change my calendar share level through the design-system Select
@@ -257,9 +261,11 @@ test.describe('peer connections section', () => {
     await expect(section).toBeAttached({ timeout: 20_000 });
     await expect(section).toBeVisible({ timeout: 10_000 });
 
-    // Both zones open first: folded children are unmounted (ADR-208 index).
+    // Visibility opens explicitly; the discovery form stays available.
     await section.locator('summary').filter({ hasText: 'Ma visibilité' }).click();
-    await section.locator('summary').filter({ hasText: "Trouver quelqu'un" }).click();
+    await expect(
+      section.getByRole('heading', { name: "Trouver quelqu'un", exact: true })
+    ).toBeVisible();
 
     const searchBox = section.getByLabel(/nom complet ou email/i);
     await searchBox.fill('marie.dupont@gmail.com');
@@ -282,6 +288,12 @@ test.describe('peer connections section', () => {
     mockApi,
   }) => {
     const state = buildState();
+    state.connections.push({
+      ...state.requests[0],
+      status: 'accepted',
+      direction: null,
+      their_shares: [{ domain: 'task', level: 'titles' }],
+    });
     await page.setViewportSize({ width: 390, height: 844 });
     await authenticate({ language: 'fr' });
     await mockApi(buildRoutes(state));
@@ -296,6 +308,9 @@ test.describe('peer connections section', () => {
     for (const summary of await section.locator('summary').all()) {
       await summary.click();
     }
+
+    await section.getByRole('button', { name: /Peer Beta/ }).click();
+    await expect(section.getByText('Partagé', { exact: true })).toBeVisible();
 
     // The overflow guard (landing-responsive precedent): the page body must
     // never scroll horizontally at mobile width.

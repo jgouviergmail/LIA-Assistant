@@ -381,7 +381,7 @@ reported "reindexed (0 chunks)".
 
 ### Admin UI
 
-System space management is available in the frontend at **Settings > Administration > RAG Spaces**. The admin section includes:
+System space management is available in the frontend at **Settings > Administration > System RAG admin**. The admin section includes:
 
 - **System Spaces panel**: Read-only list of system spaces with document count, last indexed timestamp, and staleness indicator
 - **Reindex button**: Triggers `POST /rag-spaces/admin/system-spaces/{space_name}/reindex`, with a distinct message per outcome (rebuilt / already current / a reindexation is already running)

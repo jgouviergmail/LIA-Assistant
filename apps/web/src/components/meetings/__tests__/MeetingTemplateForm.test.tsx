@@ -77,8 +77,9 @@ describe('MeetingTemplateForm', () => {
   it('shows the save in flight and cannot submit twice', async () => {
     const { user, onSubmit } = render({ isSaving: true });
     expect(screen.getByRole('form', { busy: true })).toBeInTheDocument();
-    const save = screen.getByRole('button', { name: /common\.saving/ });
-    expect(save).toBeDisabled();
+    const save = screen.getByRole('button', { name: 'common.save' });
+    expect(save).toHaveAttribute('aria-disabled', 'true');
+    expect(save).toHaveAccessibleDescription('common.saving');
     await user.click(save);
     expect(onSubmit).not.toHaveBeenCalled();
   });

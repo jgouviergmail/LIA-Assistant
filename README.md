@@ -44,7 +44,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 3.0.1</strong> — <strong>A portrait that reads everything LIA keeps, and lighter ReAct turns.</strong> The compiled portrait is an analysis again, fed by nine sources read whole, with a brief written as a summary of its own and a journal change that marks it stale instead of erasing it; ReAct binds fewer tools, skips recovery passes over pages a tool capped on purpose and checkpoints only what a turn changed, while API workers keep their vectors compact — 13 October 2026.
+  <strong>Version 3.1.0</strong> — <strong>Your mailbox drafts, a fifth voice, and an experience learned from evidence.</strong> LIA keeps, edits and trashes your Gmail, Outlook and iCloud drafts and sends one only after a confirmation; Fish Audio joins as a fifth voice engine with a voice library, and everyone chooses LIA's voices in their own language; the psyche learns, domain by domain, from what answers verifiably achieved and what you found useful; the home page, the settings and the lists are redrawn for reading — 17 October 2026.
 </p>
 
 ---
@@ -250,6 +250,7 @@ Every capability below is documented in an architecture decision record (ADR) or
 - Spoken answers from a catalogue-driven TTS (Edge, free; OpenAI; ElevenLabs; Gemini; Fish Audio), streamed sentence by sentence. Playback can begin before the complete answer is available; startup latency depends on the model, provider and connection ([VOICE](docs/technical/VOICE.md), [ADR-081](docs/architecture/ADR-081-Voice-TTS-Catalogue-Driven.md), [ADR-082](docs/architecture/ADR-082-Progressive-Sentence-Streaming.md)).
 - Every heard sentence is billed once, by the engine that spoke it; ElevenLabs synthesis and every Fish Audio request share an administrator-set allowance per vendor account across API workers and speech surfaces; the browser plays queued audio in sequence, even when synthesis completes out of order.
 - On the engines that perform them, LIA's spoken comments carry a few expressive cues (a sigh, a laugh, a whisper) in each engine's own syntax, while text it reads aloud never turns a bracket into a cue. Administrators manage the instance's Fish Audio voices: clone one under a consent attestation filed in the audit log, design one from a description, rename or delete ([ADR-345](docs/architecture/ADR-345-Fish-Audio-Served-Whole-One-Door-One-Allowance-Cues-Each-Engine-Reads.md)).
+- Each person picks LIA's male and female voice among the voices of the engine that speaks in the chat, kept per provider so a change of model keeps them; every voice picker — LIA's, the radio's, the administrator's slots — can be narrowed to the person's language and the multilingual voices, never hiding a voice already chosen ([ADR-345](docs/architecture/ADR-345-Fish-Audio-Served-Whole-One-Door-One-Allowance-Cues-Each-Engine-Reads.md)).
 
 #### A personal speaking avatar, experimental
 
@@ -275,6 +276,7 @@ Every capability below is documented in an architecture decision record (ADR) or
 - Models write and voice the segments, while verification decides what may air. The listener chooses subjects, sources, voices and verification, sees sources and live cost, and ends the session with a timer. Production runs only while someone listens.
 - An administrator controls the capability and the guided self-host installer asks before enabling it ([ADR-324](docs/architecture/ADR-324-A-Personal-Radio-A-Grid-Decides-Models-Only-Write.md), [RADIO](docs/technical/RADIO.md)).
 - The radio settings group programme, sources, verification, voices and spending so a listener can see what will be used before starting.
+- Debates and discussions are voiced in one take on the engines that voice several speakers, each commentator with the voice the listener chose — never one shared with LIA, the anchor or another commentator. The second-model verification is off unless the listener chooses it, because every check is billed ([ADR-324](docs/architecture/ADR-324-A-Personal-Radio-A-Grid-Decides-Models-Only-Write.md)).
 - Editorial selection excludes advertisements, sponsorships and purchase pitches while retaining genuine news, scientific reporting, invoices, reservations and appointments. Raw PCM and µ-law speech are wrapped with their actual format before mixing.
 
 #### An expressive companion
@@ -292,7 +294,8 @@ for projection and performance limits.
 #### A psyche of its own
 
 - Big Five traits, a mood space, discrete emotions, a relationship stage and curiosity drives shape word choice and rhythm without ever being announced.
-- A four-chart dashboard, temperament sliders and two reset scopes in Settings ([PSYCHE_ENGINE](docs/technical/PSYCHE_ENGINE.md)).
+- Settings › LIA's psyche draws it — emotion rings around the mood, a pleasure × arousal plane, the Big Five pentagon, relationship and drive meters, an evolution chart on a true time axis — beside the temperament sliders and two reset scopes ([PSYCHE_ENGINE](docs/technical/PSYCHE_ENGINE.md)).
+- An experience per domain learned from evidence, never from its own grade: what an answer verifiably established and the usefulness you expressed (👍/👎) are kept apart, and an index needs several recent observations. Where evidence is thin, LIA checks a point, asks one question or names its limit — a pilot, no gain claimed before a held-out comparison ([ADR-348](docs/architecture/ADR-348-Efficacy-Learned-From-Evidence-Results-And-Usefulness-Kept-Apart.md)).
 
 #### Wherever you are
 
@@ -314,6 +317,7 @@ for projection and performance limits.
 - The three providers speak one vocabulary at the client boundary: a text body, never HTML, with quoted history and signature removed, measured on real payloads.
 - The assistant chooses how much to read from the question: headers to list, a body paginated by paragraph to read, or a digest per message to reason over many. A small model computes each digest once; it is cached thirty days and counted in your usage. If digest generation fails or is truncated, the original body remains available ([ADR-287](docs/architecture/ADR-287-Email-Content-First-Detail-Levels-Digests-And-Neutral-Message.md), [EMAIL_FORMATTER](docs/technical/EMAIL_FORMATTER.md)).
 - An attachment is read too — its text when it has one, the vision slot for a picture or a scan — bounded, paginated and treated as what a stranger sent ([ADR-296](docs/architecture/ADR-296-Mail-Attachments-Read-By-Text-Or-Vision.md)).
+- Your mailbox drafts — Gmail, Outlook, iCloud — are saved, listed, edited and trashed from the conversation without a confirmation, since nothing reaches anyone; sending one asks once, on a card that shows the draft as the mailbox holds it, and a draft edited elsewhere since is not sent ([ADR-344](docs/architecture/ADR-344-Mailbox-Drafts-Kept-Freely-Sent-After-One-Confirmation.md)).
 
 #### Connected from the first day
 
@@ -367,6 +371,7 @@ the supported surfaces and secure continuation contract.
 - _ReAct_ adapts its next steps to tool results for exploratory or ambiguous requests. Token use and latency depend on the task and configured models.
 - Both stream through the same response node ([ADR-070](docs/architecture/ADR-070-ReAct-Execution-Mode.md), [PLANNER](docs/technical/PLANNER.md)).
 - A ReAct tool result is projected item by item under a token budget derived from the slot's own window, never cut mid-item, the cut stated to the model and counted ([ADR-286](docs/architecture/ADR-286-Tool-Result-Projected-Per-Item-Under-A-Token-Budget.md)).
+- In the pipeline too, what a read step found beyond the cards — durations, connections, a next page — reaches the answer through the same projection, and a tool's declared failure is never returned as a success; a for-each with failed items keeps its successes ([ADR-347](docs/architecture/ADR-347-Read-Tool-Data-Reaches-The-Pipeline-Answer-A-Declared-Failure-Is-Never-A-Success.md)).
 - The loop binds its tools by relevance — the detected domains' tools, the best-ranked doors of every other family, the top of the turn's global ranking, a large catalogue such as the settings reached through its own domain — so no family falls off a blind cap and the schemas stop being most of the prompt, and it reads the same knowledge spaces the pipeline reads ([ADR-293](docs/architecture/ADR-293-React-Tools-Bound-By-Relevance.md)).
 - A ReAct turn is judged on its result: every fact the loop set out to obtain ends obtained or declared with the rungs tried. A declared gap buys one bounded recovery pass through a node that calls no model ([ADR-310](docs/architecture/ADR-310-ReAct-Turn-Judged-On-Its-Result.md)).
 - Requested outcomes are checked against canonical structured observations, including the value, operation, account and completeness expected. A draft, opaque result or delegated announcement does not prove completion. Independent eligible reads return checkpointed segments; exact fresh reads may be reused within the same turn, with mutation invalidation and bounded budgets ([ADR-336](docs/architecture/ADR-336-Requested-Outcomes-Checked-Against-Canonical-Observations.md), [ADR-337](docs/architecture/ADR-337-Checkpointed-ReAct-Read-Segments-And-Turn-Local-Reuse.md)).
@@ -404,7 +409,7 @@ the supported surfaces and secure continuation contract.
 
 - Browser control with progressive screenshot streaming ([ADR-059](docs/architecture/ADR-059-Browser-Control.md)).
 - A short Python script run in the skills sandbox when a step needs real computation, ReAct only ([ADR-249](docs/architecture/ADR-249-Ephemeral-Python-In-The-Existing-Sandbox.md)) — and, when the person allows it, reaching the web through one egress proxy that swaps per-run tokens for the person's own connector keys, an unknown host asked with three answers and settled inside the loop ([ADR-298](docs/architecture/ADR-298-Sandbox-Egress-Toolbox.md)).
-- Persistent read-only sub-agents with their own instructions, skills and budgets ([SUB_AGENTS](docs/technical/SUB_AGENTS.md)).
+- Persistent read-only sub-agents with their own instructions, skills and budgets; at their step limit they still write their deliverable from what they found, and a failure says how far it got ([SUB_AGENTS](docs/technical/SUB_AGENTS.md), [ADR-083](docs/architecture/ADR-083-Sub-Agent-Delegation-React.md)).
 
 #### The workboard
 
@@ -440,7 +445,7 @@ A ticket has a lifecycle, a holder and a result ([ADR-276](docs/architecture/ADR
 
 #### A daily briefing
 
-The home page aggregates your sources in parallel with a per-section cache and an LLM synthesis — including a Workboard card with exact counts of what waits on you, what LIA holds and what is overdue — served by a read-only domain outside the agent graph ([BRIEFING_DOMAIN](docs/technical/BRIEFING_DOMAIN.md)).
+The home page opens on the date and LIA's living face, then aggregates your sources in parallel with a per-section cache and an LLM synthesis — an agenda on a timeline, an illustrated weather, a Workboard card with exact counts of what waits on you, what LIA holds, what your connections hold and what is overdue — served by a read-only domain outside the agent graph ([BRIEFING_DOMAIN](docs/technical/BRIEFING_DOMAIN.md)). Meetings and calls read as timelines by day and part of day, and a list that cannot load says so instead of looking empty.
 
 ### Remember
 
@@ -512,7 +517,7 @@ The home page aggregates your sources in parallel with a per-section cache and a
 #### Your data, by construction
 
 - Credentials are encrypted with Fernet. Logs keep facts, never the words of the people they concern; the guard checks the value rather than the field name ([ADR-317](docs/architecture/ADR-317-A-Log-Line-Carries-Facts-Never-The-Words.md)).
-- A full-account GDPR export is available ([ADR-145](docs/architecture/ADR-145-Account-Export.md)). External content keeps its provenance through compaction.
+- A full-account GDPR export is available ([ADR-145](docs/architecture/ADR-145-Account-Export.md)). External content keeps its provenance through compaction, and its envelope holds in every spelling ([ADR-167](docs/architecture/ADR-167-Content-Trust-Registry.md)); mail servers present a verified certificate before any login.
 - Skill scripts run in a throwaway container. Automated backups have a tested one-command restore ([ADR-109](docs/architecture/ADR-109-PostgreSQL-Backup-Strategy.md), [SECURITY](docs/technical/SECURITY.md)).
 
 #### Exact where it must be
@@ -528,6 +533,7 @@ Arithmetic, dates and currencies use tools in both execution modes, never a mode
 - One status vocabulary whose every member is produced and read, one success predicate for the register, the metrics and the ReAct loop, a structural failure marker on the ReAct message, and an honesty directive that names the tool that failed and the exact total, so the response has the recorded failure evidence instead of an unexplained gap ([ADR-303](docs/architecture/ADR-303-Tool-Failure-Restitution.md)).
 - Every act is filed under its own turn and stated to the response as the assistant's own ([ADR-263](docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md)).
 - No database transaction stays open while a provider answers ([ADR-304](docs/architecture/ADR-304-No-Transaction-Across-A-Network-Call.md)).
+- A routine never asks a question nobody can see and never repeats an action after a timeout; an e-mail is sent once, and a provider's rate limit is waited out rather than reported as an outage ([ADR-276](docs/architecture/ADR-276-Workboard.md)).
 
 #### Switches, not redeploys
 
@@ -613,10 +619,10 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                                         |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------- |
-| **55** functional domains | **931,000+** source lines (excl. tests) | **59,000+** inventoried automated tests | **346** ADRs                                                            |
-| **280** versions shipped  | **6 languages**, parity enforced in CI  | **620** Prometheus metrics              | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **55** functional domains | **960,000+** source lines (excl. tests) | **63,000+** inventoried automated tests | **347** ADRs                                                            |
+| **281** versions shipped  | **6 languages**, parity enforced in CI  | **620** Prometheus metrics              | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
-Source-line figure: 932,910 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-10-12). Test inventory combines backend collection and the frontend suite; release qualification executes the repository's required gates. The published technical audit does not score security.
+Source-line figure: 960,002 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-10-16). Test inventory combines backend collection and the frontend suite; release qualification executes the repository's required gates. The published technical audit does not score security.
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -824,7 +830,7 @@ docs/                     # Architecture, technical documents, guides, runbooks,
 | Backend       | Python 3.14 · FastAPI 0.141.1 · Pydantic 2.13.4 · SQLAlchemy 2.0.54 · Alembic                                         | REST API, SSE streaming, validation, async ORM, migrations        |
 | Orchestration | LangGraph 1.2.14 · LangChain 1.3.15 · `mcp` SDK (Streamable HTTP)                                                     | Multi-agent graph, LLM abstraction, Model Context Protocol        |
 | Data          | PostgreSQL 16 + pgvector · Redis 7.4                                                                                  | Data, checkpoints, vector search · cache, sessions, locks         |
-| Frontend      | Node.js 24 LTS · Next.js 16.3.8 · React 19.3.0 · TypeScript · TailwindCSS · Radix UI · TanStack Query · react-i18next | App Router UI, accessible primitives, server state, six languages |
+| Frontend      | Node.js 24 LTS · Next.js 16.4.1 · React 19.3.0 · TypeScript · TailwindCSS · Radix UI · TanStack Query · react-i18next | App Router UI, accessible primitives, server state, six languages |
 | Voice         | ONNX Runtime Web (wake word) · sherpa-onnx (offline Whisper) · Edge TTS · OpenAI · ElevenLabs · Gemini · Fish Audio   | In-browser detection, server transcription, speech synthesis      |
 | Observability | Prometheus · Grafana · Loki · Tempo · Langfuse · structlog                                                            | Metrics, dashboards, logs, traces, LLM tracing                    |
 | Delivery      | Docker (multi-arch amd64/arm64) · GitHub Actions · Task                                                               | Images, CI/CD, one build tool for every command                   |
@@ -970,7 +976,7 @@ Instrumentation and caching are in place — per-node message windowing, LLM con
 
 ### Architecture Decision Records
 
-346 ADR files (ADR-001 through ADR-347 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
+347 ADR files (ADR-001 through ADR-348 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
 
 - [ADR-070: ReAct Execution Mode](docs/architecture/ADR-070-ReAct-Execution-Mode.md) — why two execution modes rather than one
 - [ADR-263: Execution Authority Chain and Effect Register](docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md) — how every act is claimed, closed and recorded

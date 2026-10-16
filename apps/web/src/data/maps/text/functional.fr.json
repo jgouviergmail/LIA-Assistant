@@ -90,7 +90,7 @@
     },
     "f.psyche": {
       "name": "Psyché et visage",
-      "role": "Un état émotionnel qui évolue au fil des échanges, module le ton et la voix, et anime les yeux et le visage de LIA.",
+      "role": "Un état émotionnel qui évolue au fil des échanges, module le ton et la voix, anime les yeux et le visage de LIA, et une expérience par domaine apprise sur des preuves plutôt que sur sa propre note.",
       "goal": "Une présence cohérente plutôt qu'un automate au ton constant."
     },
     "f.personality": {
@@ -135,7 +135,7 @@
     },
     "f.mail": {
       "name": "E-mails",
-      "role": "Lire des e-mails nettoyés, les résumer une seule fois, chercher, rédiger, répondre et lire les pièces jointes — l'envoi à autrui passe toujours par un brouillon validé ; un e-mail à soi-même part directement.",
+      "role": "Lire des e-mails nettoyés, les résumer une seule fois, chercher, rédiger, répondre, lire les pièces jointes et tenir les brouillons de ta boîte — l'envoi à autrui passe toujours par une confirmation ; un e-mail à soi-même part directement.",
       "goal": "Traiter ta boîte en quelques phrases."
     },
     "f.calendar": {
@@ -250,7 +250,7 @@
     },
     "f.voice": {
       "name": "Mode vocal",
-      "role": "Dicter tes messages, écouter les réponses, réveiller LIA par un mot ; la voix suit l'humeur.",
+      "role": "Dicter tes messages, écouter les réponses avec les voix que tu choisis pour LIA, réveiller LIA par un mot ; la voix suit l'humeur.",
       "goal": "Utiliser LIA les mains occupées."
     },
     "f.live": {

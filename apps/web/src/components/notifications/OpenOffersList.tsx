@@ -120,7 +120,7 @@ export function OpenOffersList({ offers, locale, decisions }: OpenOffersListProp
             <p className="break-words whitespace-pre-line text-sm leading-relaxed text-foreground/90">
               {offer.content}
             </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
+            <p className="mt-0.5 text-xs font-bold text-muted-foreground">
               {formatInstant(offer.created_at, locale)}
             </p>
           </div>

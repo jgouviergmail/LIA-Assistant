@@ -57,7 +57,7 @@ export function HueBridgePairingForm({
           <button
             onClick={discoverBridges}
             disabled={isLoading}
-            className="flex w-full items-center gap-3 rounded-lg border border-gray-200 p-3 text-left transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
+            className="flex w-full items-center gap-3 rounded-lg border border-gray-200 bg-card p-3 text-left transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
           >
             <Wifi className="h-5 w-5 text-yellow-500" />
             <div>
@@ -72,7 +72,7 @@ export function HueBridgePairingForm({
           <button
             onClick={connectRemote}
             disabled={isLoading}
-            className="flex w-full items-center gap-3 rounded-lg border border-gray-200 p-3 text-left transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
+            className="flex w-full items-center gap-3 rounded-lg border border-gray-200 bg-card p-3 text-left transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
           >
             <Radio className="h-5 w-5 text-blue-500" />
             <div>
@@ -99,7 +99,7 @@ export function HueBridgePairingForm({
               className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors ${
                 selectedBridge === bridge.internalipaddress
                   ? 'border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20'
-                  : 'border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800'
+                  : 'border-gray-200 bg-card hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800'
               }`}
             >
               <Lightbulb className="h-5 w-5 text-yellow-500" />

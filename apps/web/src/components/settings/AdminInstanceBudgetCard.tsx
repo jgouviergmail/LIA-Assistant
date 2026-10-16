@@ -42,7 +42,7 @@ export function AdminInstanceBudgetCard({ lng }: AdminInstanceBudgetCardProps = 
   const isCapped = typed !== null && effective !== null && typed > effective;
 
   return (
-    <div className="mb-6 rounded-lg border bg-muted/20 p-4">
+    <div className="mb-6 rounded-lg border bg-background [--lia-field-background:var(--color-card)] p-4">
       <div className="mb-3 flex items-center gap-2">
         <Wallet className="h-4 w-4 text-primary" aria-hidden="true" />
         <h3 className="text-sm font-medium">{t('usage_limits.instance_budget.title')}</h3>

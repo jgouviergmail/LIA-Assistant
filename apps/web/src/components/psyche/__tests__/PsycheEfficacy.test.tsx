@@ -14,7 +14,9 @@ const auth = vi.hoisted((): { user: TestOwner | null } => ({
   user: { id: 'owner-a', timezone: 'Europe/Paris' },
 }));
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: auth.user }) }));
-beforeEach(() => { auth.user = { id: 'owner-a', timezone: 'Europe/Paris' }; });
+beforeEach(() => {
+  auth.user = { id: 'owner-a', timezone: 'Europe/Paris' };
+});
 
 vi.mock('@/i18n/client', () => ({
   useTranslation: (lng: Language) => ({
@@ -60,8 +62,7 @@ function profile(overrides: Partial<PsycheEfficacyProfile> = {}): PsycheEfficacy
 async function open(lng: Language = 'en', data?: PsycheEfficacyProfile) {
   const result = renderWithProviders(<PsycheEfficacy lng={lng} profile={data} />);
   const control = screen.getByText(lng === 'fr' ? 'Auto-efficacité' : 'Self-efficacy');
-  expect(control.closest('details')).not.toHaveAttribute('open');
-  await result.user.click(control);
+  expect(control.closest('details')).toHaveAttribute('open');
   return result;
 }
 
@@ -77,12 +78,15 @@ describe('PsycheEfficacy evidence display', () => {
     expect(screen.queryByRole('meter')).not.toBeInTheDocument();
   });
 
-  it.each([undefined, 'Invalid/Timezone'])('omits the observation date when account timezone is %s', async timezone => {
-    auth.user = { id: 'owner-a', timezone };
-    await open('fr', profile());
-    expect(screen.queryByText(/Dernière observation/)).not.toBeInTheDocument();
-    expect(screen.getAllByRole('meter')).toHaveLength(2);
-  });
+  it.each([undefined, 'Invalid/Timezone'])(
+    'omits the observation date when account timezone is %s',
+    async timezone => {
+      auth.user = { id: 'owner-a', timezone };
+      await open('fr', profile());
+      expect(screen.queryByText(/Dernière observation/)).not.toBeInTheDocument();
+      expect(screen.getAllByRole('meter')).toHaveLength(2);
+    }
+  );
 
   it('keeps all seven domains unknown when no evidence profile exists', async () => {
     await open();
@@ -123,20 +127,23 @@ describe('PsycheEfficacy evidence display', () => {
     expect(within(planning).queryByRole('meter')).not.toBeInTheDocument();
   });
 
-  it.each(['fr', 'en'] as const)('provides translated meter names and collection state in %s', async lng => {
-    await open(lng, profile({ collection_enabled: false, influence_enabled: false }));
-    const name = lng === 'fr' ? 'Technique · Résultats' : 'Technical · Results';
-    expect(screen.getByRole('meter', { name })).toHaveAttribute(
-      'aria-valuetext',
-      expect.stringContaining('71')
-    );
-    expect(
-      screen.getByText(lng === 'fr' ? 'Collecte en pause' : 'Collection paused')
-    ).toBeVisible();
-    expect(
-      screen.getByText(lng === 'fr' ? 'Influence désactivée' : 'Influence off')
-    ).toBeVisible();
-  });
+  it.each(['fr', 'en'] as const)(
+    'provides translated meter names and collection state in %s',
+    async lng => {
+      await open(lng, profile({ collection_enabled: false, influence_enabled: false }));
+      const name = lng === 'fr' ? 'Technique · Résultats' : 'Technical · Results';
+      expect(screen.getByRole('meter', { name })).toHaveAttribute(
+        'aria-valuetext',
+        expect.stringContaining('71')
+      );
+      expect(
+        screen.getByText(lng === 'fr' ? 'Collecte en pause' : 'Collection paused')
+      ).toBeVisible();
+      expect(
+        screen.getByText(lng === 'fr' ? 'Influence désactivée' : 'Influence off')
+      ).toBeVisible();
+    }
+  );
 
   it('does not retain the old owner’s indices when the profile changes', async () => {
     const { rerender } = await open('en', profile());
@@ -144,7 +151,9 @@ describe('PsycheEfficacy evidence display', () => {
     rerender(<PsycheEfficacy lng="en" />);
     expect(screen.queryByRole('meter')).not.toBeInTheDocument();
     expect(screen.queryByText('5 assessed outcomes')).not.toBeInTheDocument();
-    expect(screen.queryByText('2 ratings could not be assigned to one domain.')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('2 ratings could not be assigned to one domain.')
+    ).not.toBeInTheDocument();
   });
 
   it('keeps partial and unknown outcomes visible without inventing a scorable outcome', async () => {

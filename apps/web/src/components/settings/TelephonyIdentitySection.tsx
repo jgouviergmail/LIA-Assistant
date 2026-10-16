@@ -110,7 +110,7 @@ function NumberPanel({ lng, identity, busy, onSave, onClear }: NumberPanelProps)
           {t('common.save')}
         </Button>
         {identity.phone_number && (
-          <Button type="button" size="sm" variant="ghost" onClick={clear} disabled={busy}>
+          <Button type="button" size="sm" variant="destructive" onClick={clear} disabled={busy}>
             {t('settings.telephony.identity.remove')}
           </Button>
         )}
@@ -263,7 +263,7 @@ function VerificationPanel(props: VerificationPanelProps) {
   const { lng, identity } = props;
   const { t } = useTranslation(lng);
   return (
-    <div className="rounded-lg border border-border/60 bg-card/50 p-3 space-y-2">
+    <div className="rounded-lg border border-border/60 bg-background [--lia-field-background:var(--color-card)] p-3 space-y-2">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm font-medium">
           {t('settings.telephony.identity.verification_title')}
@@ -296,7 +296,7 @@ function RichContextSwitch({
 }) {
   const { t } = useTranslation(lng);
   return (
-    <div className="flex items-center justify-between gap-3 rounded-lg border bg-card p-3">
+    <div className="flex items-center justify-between gap-3 rounded-lg border bg-background p-3">
       <div className="flex-1">
         <p className="text-sm font-medium">{t('settings.telephony.identity.rich_context_label')}</p>
         <p className="text-xs text-muted-foreground">
@@ -352,7 +352,7 @@ function DomainsPanel({
   rows.sort((a, b) => a.label.localeCompare(b.label, lng));
 
   return (
-    <fieldset className="space-y-2 rounded-lg border bg-card p-3">
+    <fieldset className="space-y-2 rounded-lg border bg-background p-3">
       <legend className="px-1 text-sm font-medium">
         {t('settings.telephony.identity.domains_title')}
       </legend>

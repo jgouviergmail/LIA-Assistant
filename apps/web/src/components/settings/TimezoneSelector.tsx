@@ -76,13 +76,6 @@ export function TimezoneSelector({ lng }: BaseSettingsProps) {
     onSuccess: async updatedUser => {
       toast.success(t('settings.timezone.update_success'));
 
-      // Show info about conversation history
-      toast.info(t('settings.timezone.history_info'), {
-        duration: 6000,
-      });
-
-      // Refresh user context
-      await refreshUser?.();
       if (updatedUser.timezone) {
         setSelectedTimezone(updatedUser.timezone);
       }
@@ -92,6 +85,18 @@ export function TimezoneSelector({ lng }: BaseSettingsProps) {
         old_timezone: user?.timezone,
         new_timezone: updatedUser.timezone,
       });
+
+      // The confirmed preference remains selected even if its context refresh
+      // fails; retrying that read must never replay the successful PATCH.
+      try {
+        await refreshUser?.();
+      } catch (error) {
+        logger.error(
+          'Failed to refresh account after saving timezone',
+          error instanceof Error ? error : new Error(String(error)),
+          { component: 'TimezoneSelector' }
+        );
+      }
     },
     onError: error => {
       toast.error(t('settings.timezone.update_error'));
@@ -123,7 +128,6 @@ export function TimezoneSelector({ lng }: BaseSettingsProps) {
       newTimezone: timezone,
     });
 
-    setSelectedTimezone(timezone);
     await updateTimezone(`/users/${user.id}`, { timezone });
   };
 
@@ -194,8 +198,10 @@ export function TimezoneSelector({ lng }: BaseSettingsProps) {
                   </p>
                   <button
                     type="button"
-                    onClick={() => handleTimezoneChange(browserTimezone)}
-                    disabled={updating}
+                    onClick={() => {
+                      if (!updating) void handleTimezoneChange(browserTimezone);
+                    }}
+                    aria-disabled={updating}
                     className="text-sm font-medium text-blue-700 dark:text-blue-300 hover:underline disabled:opacity-50"
                   >
                     {t('settings.timezone.use_browser')} ({formatTimezoneDisplay(browserTimezone)})
@@ -248,7 +254,7 @@ export function TimezoneSelector({ lng }: BaseSettingsProps) {
                             if (updating || isSelected) return;
                             handleTimezoneChange(timezone);
                           }}
-                          disabled={updating}
+                          aria-disabled={updating}
                           aria-current={isSelected ? 'true' : undefined}
                           className={`
                             relative flex items-start gap-3 rounded-lg border-2 p-3 text-left transition-all
@@ -257,7 +263,7 @@ export function TimezoneSelector({ lng }: BaseSettingsProps) {
                             ${
                               isSelected
                                 ? 'border-primary bg-primary/5 shadow-sm'
-                                : 'border-border bg-card'
+                                : 'border-border bg-background'
                             }
                           `}
                         >

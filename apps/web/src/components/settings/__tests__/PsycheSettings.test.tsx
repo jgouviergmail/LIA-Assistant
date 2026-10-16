@@ -103,12 +103,22 @@ describe('PsycheSettings', () => {
 });
 
 describe('psyche presentation and confirmations', () => {
-  it('keeps the point visible and separates the three commands in the requested order', () => {
+  it('opens the point and evolution but keeps commands folded and separates the three commands in the requested order', () => {
     const data = hook();
     data.settings.psyche_enabled = true;
     usePsyche.mockReturnValue(data);
     renderPsyche();
     expect(screen.getByRole('region', { name: 'point' })).toBeInTheDocument();
+    for (const name of [
+      'psyche.education.title',
+      'psyche.settingsSection.title',
+      'psyche.presentation.resets',
+    ])
+      expect(screen.getByRole('button', { name })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByRole('button', { name: 'psyche.presentation.evolution' })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
     const names = screen.getAllByRole('button').map(button => button.textContent);
     expect(names.indexOf('psyche.education.title')).toBeLessThan(
       names.indexOf('psyche.settingsSection.title')

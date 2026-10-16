@@ -73,6 +73,48 @@ export interface PaginationProps {
   className?: string;
 }
 
+function PageSizeControl({
+  pageSize,
+  onPageSizeChange,
+  onPageChange,
+  loading,
+  label,
+}: {
+  pageSize?: number;
+  onPageSizeChange: (size: number) => void;
+  onPageChange: (page: number) => void;
+  loading: boolean;
+  label: string;
+}) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <select
+        value={pageSize ?? DEFAULT_PAGE_SIZE}
+        onChange={event => {
+          if (loading) return;
+          onPageSizeChange(Number(event.target.value));
+          onPageChange(1);
+        }}
+        aria-disabled={loading}
+        aria-busy={loading || undefined}
+        onKeyDown={event => {
+          if (loading && ['ArrowUp', 'ArrowDown', 'Home', 'End', ' ', 'Enter'].includes(event.key))
+            event.preventDefault();
+        }}
+        className="h-8 rounded-md border border-input bg-background px-2 py-1 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 aria-disabled:cursor-wait aria-disabled:opacity-50"
+        aria-label={label}
+      >
+        {PAGE_SIZE_OPTIONS.map(size => (
+          <option key={size} value={size}>
+            {size}
+          </option>
+        ))}
+      </select>
+      <span className="text-xs text-muted-foreground">{label}</span>
+    </div>
+  );
+}
+
 /**
  * Pagination component with accessibility support and optional page size selector.
  *
@@ -110,13 +152,13 @@ export function Pagination({
   } = labels;
 
   const handlePrevious = () => {
-    if (currentPage > 1) {
+    if (!loading && currentPage > 1) {
       onPageChange(currentPage - 1);
     }
   };
 
   const handleNext = () => {
-    if (currentPage < totalPages) {
+    if (!loading && currentPage < totalPages) {
       onPageChange(currentPage + 1);
     }
   };
@@ -139,25 +181,13 @@ export function Pagination({
 
   // Page size selector element (reused across variants)
   const pageSizeSelector = onPageSizeChange ? (
-    <div className="flex items-center gap-1.5">
-      <select
-        value={pageSize ?? DEFAULT_PAGE_SIZE}
-        onChange={e => {
-          onPageSizeChange(Number(e.target.value));
-          onPageChange(1);
-        }}
-        disabled={loading}
-        className="h-8 rounded-md border border-input bg-background px-2 py-1 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-        aria-label={itemsPerPage}
-      >
-        {PAGE_SIZE_OPTIONS.map(size => (
-          <option key={size} value={size}>
-            {size}
-          </option>
-        ))}
-      </select>
-      <span className="text-xs text-muted-foreground">{itemsPerPage}</span>
-    </div>
+    <PageSizeControl
+      pageSize={pageSize}
+      onPageSizeChange={onPageSizeChange}
+      onPageChange={onPageChange}
+      loading={loading}
+      label={itemsPerPage}
+    />
   ) : null;
 
   // Page info text
@@ -176,9 +206,9 @@ export function Pagination({
         size="sm"
         onClick={handlePrevious}
         onKeyDown={e => handleKeyDown(e, 'prev')}
-        disabled={currentPage === 1 || loading}
-        aria-label={`${previous}, page ${currentPage - 1}`}
-        aria-disabled={currentPage === 1}
+        aria-label={previous}
+        aria-disabled={currentPage <= 1 || loading}
+        aria-busy={loading || undefined}
       >
         {previous}
       </Button>
@@ -187,9 +217,9 @@ export function Pagination({
         size="sm"
         onClick={handleNext}
         onKeyDown={e => handleKeyDown(e, 'next')}
-        disabled={currentPage === totalPages || totalPages === 0 || loading}
-        aria-label={`${next}, page ${currentPage + 1}`}
-        aria-disabled={currentPage === totalPages}
+        aria-label={next}
+        aria-disabled={currentPage >= totalPages || loading}
+        aria-busy={loading || undefined}
       >
         {next}
       </Button>

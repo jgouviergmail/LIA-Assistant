@@ -58,7 +58,7 @@ export function PortraitCard({
   const text = format === 'full' ? portrait.full : portrait.brief;
 
   return (
-    <div className="rounded-lg border bg-card p-3 space-y-2">
+    <div className="rounded-lg border bg-background p-3 space-y-2">
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <UserSquare2 className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />

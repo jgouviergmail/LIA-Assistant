@@ -309,3 +309,63 @@ for (const iteration of [1, 2, 3, 4, 5]) {
     expect(localServer.escaped).toEqual([]);
   });
 }
+
+test('dev HMR stays in an open local sink while another WebSocket reaches only the rejecting guard', async ({
+  page,
+  localServer,
+  apiNetworkGuard,
+  baseURL,
+}) => {
+  test.skip(process.env.E2E_MANAGED_SERVER !== '0', 'Only the isolated local dev runtime has HMR');
+  if (!baseURL) throw new Error('Expected local app URL');
+  await page.goto(localServer.origin);
+  const hmr = new URL('/_next/hmr?fixture=isolation', baseURL);
+  hmr.protocol = 'ws:';
+  const hmrTransports = [
+    `CONNECT ${hmr.host}`,
+    `UPGRADE ${hmr.href}`,
+    `UPGRADE ${hmr.pathname}${hmr.search}`,
+  ];
+  const opened = await page.evaluate(
+    url =>
+      new Promise<boolean>(resolve => {
+        const socket = new WebSocket(url);
+        socket.onopen = () => {
+          socket.send('local sink proof');
+          setTimeout(() => {
+            resolve(socket.readyState === WebSocket.OPEN);
+            socket.close();
+          }, 50);
+        };
+        socket.onerror = () => resolve(false);
+        socket.onclose = () => resolve(false);
+      }),
+    hmr.href
+  );
+  expect(opened).toBe(true);
+  // Unrelated browser-origin CONNECT retries may occur asynchronously; the
+  // exact app HMR transport must never reach the rejecting proxy.
+  for (const transport of hmrTransports)
+    expect(apiNetworkGuard.blockedRequests).not.toContain(transport);
+  const apiSocket = new URL('/api/v1/isolation/socket', localServer.origin);
+  apiSocket.protocol = 'ws:';
+  const refused = await page.evaluate(
+    url =>
+      new Promise<boolean>(resolve => {
+        const socket = new WebSocket(url);
+        socket.onerror = () => resolve(true);
+        socket.onopen = () => resolve(false);
+      }),
+    apiSocket.href
+  );
+  expect(refused).toBe(true);
+  const apiTransports = [
+    `CONNECT ${apiSocket.host}`,
+    `UPGRADE ${apiSocket.href}`,
+    `UPGRADE ${apiSocket.pathname}`,
+  ];
+  await expect
+    .poll(() => apiNetworkGuard.blockedRequests.some(record => apiTransports.includes(record)))
+    .toBe(true);
+  expect(localServer.escaped).toEqual([]);
+});

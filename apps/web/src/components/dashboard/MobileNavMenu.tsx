@@ -31,7 +31,7 @@
  */
 
 import Link from 'next/link';
-import type { LucideIcon } from 'lucide-react';
+import { Menu, type LucideIcon } from 'lucide-react';
 
 import {
   DropdownMenu,
@@ -108,7 +108,7 @@ export function MobileNavMenu({
           // reachability spec enforces — it caught exactly that. The two forms
           // never show together, so the 4 px difference is invisible.
           className={cn(
-            'flex h-11 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br shadow-md transition-all hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+            'flex h-11 w-12 gap-0.5 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br shadow-md transition-all hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
             live ? 'from-destructive to-destructive/80 animate-pulse' : 'from-primary to-primary/80'
           )}
         >
@@ -120,6 +120,7 @@ export function MobileNavMenu({
           >
             LIA
           </span>
+          <Menu aria-hidden="true" className="h-3 w-3 text-primary-foreground" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-48">

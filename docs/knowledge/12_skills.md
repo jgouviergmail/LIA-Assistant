@@ -11,7 +11,7 @@ A skill is a **SKILL.md** file that extends the assistant's capabilities with ex
 - **Generator**: Python script emits an image artifact (QR code, chart) via the SkillScriptOutput JSON contract
 
 ## How do I import a skill?
-In **Settings > Features > My skills**, click **Import** and select a .md or .zip file. Compatible skills are available on **skillsmp.com** or GitHub — and **Find skills**, in the same section, searches the public **skills.sh** library directly. Limits: 100 KB for SKILL.md, 50 KB per resource file, 20 skills max per user.
+In **Settings > Features > Skills**, click **Import** and select a .md or .zip file. Compatible skills are available on **skillsmp.com** or GitHub — and the public library's **Search** button, in the same section, searches the public **skills.sh** library directly. Limits: 100 KB for SKILL.md, 50 KB per resource file, 20 skills max per user.
 
 ## How do I create my own skill?
 **The easiest way: just ask LIA!** Say something like "*create a skill for [your need]*" and the built-in **Skill Generator** will guide you step by step: need analysis, archetype selection (any of the 5 archetypes), generation, automatic validation — then a **proposal card** in the chat: you read its name, description and files, and one click on **Install** puts it in **My Skills**, ready to use. Nothing is installed without your click; a ticket or a messaging channel sends you back to the chat, where the card can be shown.
@@ -75,7 +75,7 @@ Yes. Many skills written for other assistants say to **run a command**: a Python
 
 What comes back is checked before it reaches you. A document or an image keeps its type only if its content matches it; a page the skill wrote (Markdown, HTML, SVG) comes back as plain text; anything else is left out, and the answer says so. A command has a time budget and size limits.
 
-A command runs **offline by default**. One that must install a package or fetch a repository names the hosts it reaches (npm, pip, git…) and goes out through a dedicated proxy: HTTPS only, to those hosts and nowhere else, and only once your administrator or you have allowed them — LIA asks you in ReAct mode, and you can allow a host yourself in **Settings › Sandbox network**. A skill written elsewhere never receives your connectors or their keys.
+A command runs **offline by default**. One that must install a package or fetch a repository names the hosts it reaches (npm, pip, git…) and goes out through a dedicated proxy: HTTPS only, to those hosts and nowhere else, and only once your administrator or you have allowed them — LIA asks you in ReAct mode, and you can allow a host yourself in **Settings › Skill permissions**. A skill written elsewhere never receives your connectors or their keys.
 
 ## Rich outputs (frames + images)
 
@@ -156,7 +156,7 @@ Settings → Skills now displays your skills as **cards**. Opening one shows its
 Yes — "From URL" in Settings → Skills. Paste an **https** address serving a SKILL.md file or a .zip package. The server validates everything: https only, no private/internal addresses, no redirects, size cap, and the **same strict import pipeline** as a file upload (name conflicts, quota, content validation). Failed attempts are rate-limited per user. A skill installed from an address is treated as **written elsewhere** (see below).
 
 ## Can I find skills in a public library?
-Yes — **Find skills** in Settings → Skills searches **skills.sh**, the public skill library, or reads any GitHub address you paste (`owner/repo`, or a github.com link to a repository or to one skill's folder). You read a skill **before** installing it: where it comes from, the exact commit, every file with its size, and what the published audits say. A skill an audit rates at or above the instance's refusal level (high risk by default) is refused. A skill the portal lists on a website rather than on GitHub is shown but cannot be installed.
+Yes — the library's **Search** button, in Settings → Skills, searches **skills.sh**, the public skill library, or reads any GitHub address you paste (`owner/repo`, or a github.com link to a repository or to one skill's folder). You read a skill **before** installing it: where it comes from, the exact commit, every file with its size, and what the published audits say. A skill an audit rates at or above the instance's refusal level (high risk by default) is refused. A skill the portal lists on a website rather than on GitHub is shown but cannot be installed.
 
 What is installed is exactly what you read: the install sends back the commit the preview showed, and every file is checked against GitHub's own fingerprint. The **Installed** tab says which skills have an update (their folder changed at the source), and « Review the update » lists the files it adds, changes and removes before anything is replaced. A library skill never takes the name of a built-in skill, and is removed like any of your skills.
 

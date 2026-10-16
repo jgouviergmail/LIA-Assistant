@@ -86,7 +86,7 @@ function LiaVoicePicker({
     <div className="space-y-2">
       <Label htmlFor={id}>{t(`${KEY}.${gender}`)}</Label>
       <Select value={value ?? DEFAULT_VOICE} onValueChange={onChange}>
-        <SelectTrigger id={id} className="w-full">
+        <SelectTrigger id={id} className="w-full bg-card">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -133,7 +133,11 @@ function LiaVoicesBlock({
       });
   };
   return (
-    <div role="group" aria-labelledby={titleId} className="space-y-3 rounded-lg border bg-card p-3">
+    <div
+      role="group"
+      aria-labelledby={titleId}
+      className="space-y-3 rounded-lg border bg-background p-3"
+    >
       <p id={titleId} className="flex items-center gap-2 text-sm font-medium">
         <MicVocal className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
         {t(`${KEY}.title`)}

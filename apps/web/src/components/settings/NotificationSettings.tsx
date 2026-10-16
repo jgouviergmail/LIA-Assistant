@@ -127,7 +127,7 @@ function AccountNotificationSettings({
       >
         <div className="space-y-6">
           {/* Status Section - Switch toggle */}
-          <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
+          <div className="flex items-center justify-between p-3 rounded-lg border bg-background">
             <div className="flex-1">
               <Label htmlFor="notifications-switch" className="text-sm font-medium cursor-pointer">
                 {t('settings.notifications.enable_notifications')}
@@ -191,10 +191,10 @@ function AccountNotificationSettings({
                 {registeredTokens.map(token => (
                   <div
                     key={token.id}
-                    className="flex items-center justify-between rounded-lg border p-3"
+                    className="flex items-center justify-between rounded-lg border bg-background p-3"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="rounded-lg bg-muted p-2">
+                      <div className="rounded-lg bg-card p-2">
                         <DeviceIcon type={token.device_type} />
                       </div>
                       <div>
@@ -263,11 +263,6 @@ function AccountNotificationSettings({
               <LoadingSpinner size="lg" spinnerColor="muted" />
             </div>
           )}
-
-          {/* Info text */}
-          <InfoBox className="p-4">
-            <p className="text-sm text-muted-foreground">{t('settings.notifications.info_text')}</p>
-          </InfoBox>
         </div>
       </SettingsSection>
 

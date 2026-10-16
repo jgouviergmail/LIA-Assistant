@@ -107,7 +107,7 @@ export function PeerVisibilityCard({
       {/* Lot 7: users could not SEE their own name — the identity peers
           search for. Shown at the point of need, with one-click copy; empty
           name = undiscoverable, said plainly. */}
-      <div className="rounded-md border border-border/40 bg-muted/40 px-3 py-2 text-sm">
+      <div className="rounded-md border border-border/40 bg-card px-3 py-2 text-sm">
         {fullName ? (
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-muted-foreground">{t('settings.peers.my_name.label')}</span>

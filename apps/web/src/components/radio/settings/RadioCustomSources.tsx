@@ -121,6 +121,7 @@ export function RadioCustomSources({
         <form onSubmit={check} className="flex items-end gap-2" aria-busy={busy}>
           <div className="min-w-0 flex-1">
             <Input
+              className="bg-card"
               label={t('radio.settings.sites.address')}
               value={address}
               maxLength={addressMax}
@@ -180,7 +181,7 @@ function SourceList({
         return (
           <li
             key={source.id}
-            className="flex items-stretch justify-between gap-3 rounded-md border p-2"
+            className="flex items-stretch justify-between gap-3 rounded-md border bg-card p-2"
           >
             <div className="flex min-w-0 items-stretch gap-2">
               <Checkbox

@@ -39,7 +39,24 @@ export const test = base.extend<Fixtures>({
     await provide(apiNetworkGuard.proxy);
   },
   _apiIsolation: [
-    async ({ page, apiNetworkGuard }, provide) => {
+    async ({ page, apiNetworkGuard, baseURL }, provide) => {
+      // Terminate the exact local dev HMR channel without connecting to a server.
+      // Keeping this local sink open prevents Next's reconnect-limit page reload;
+      // the transport guard still rejects every unmocked API socket and tunnel.
+      if (
+        baseURL &&
+        process.env.E2E_MANAGED_SERVER === '0' &&
+        ['localhost', '127.0.0.1', '[::1]'].includes(new URL(baseURL).hostname)
+      ) {
+        const hmr = new URL('/_next/hmr', baseURL);
+        hmr.protocol = hmr.protocol === 'https:' ? 'wss:' : 'ws:';
+        await page.routeWebSocket(
+          url => url.origin === hmr.origin && url.pathname === hmr.pathname,
+          () => {
+            // No connectToServer, forwarding, or synthetic HMR messages.
+          }
+        );
+      }
       await installOfflineFonts(page);
       await installApiCatchAll(page);
       await provide();

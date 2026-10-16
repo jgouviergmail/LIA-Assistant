@@ -109,9 +109,9 @@
     },
     "f.psyche": {
       "name": "Psyche and face",
-      "role": "An emotional state that evolves over your exchanges, shapes tone and voice, and animates LIA's eyes and face.",
+      "role": "An emotional state that evolves over your exchanges, shapes tone and voice, animates LIA's eyes and face, and an experience per domain learned from evidence rather than from its own grade.",
       "goal": "A coherent presence rather than a monotone machine.",
-      "src": "b306b381d1ee"
+      "src": "eecafceda247"
     },
     "f.personality": {
       "name": "Personalities",
@@ -163,9 +163,9 @@
     },
     "f.mail": {
       "name": "Emails",
-      "role": "Read cleaned-up emails, summarize each one only once, search, write, reply and read attachments — sending to someone else always goes through an approved draft; an email to yourself goes straight out.",
+      "role": "Read cleaned-up emails, summarize each one only once, search, write, reply, read attachments and keep your mailbox drafts — sending to someone else always asks for a confirmation; an email to yourself goes straight out.",
       "goal": "Handle your inbox in a few sentences.",
-      "src": "8b1872b98aa6"
+      "src": "ccd1f55a607d"
     },
     "f.calendar": {
       "name": "Calendar",
@@ -301,9 +301,9 @@
     },
     "f.voice": {
       "name": "Voice mode",
-      "role": "Dictate your messages, listen to the answers, wake LIA with a word; the voice follows the mood.",
+      "role": "Dictate your messages, listen to the answers in the voices you choose for LIA, wake LIA with a word; the voice follows the mood.",
       "goal": "Use LIA with your hands full.",
-      "src": "3fc0f86339b5"
+      "src": "0c7d1444684c"
     },
     "f.live": {
       "name": "Live mode",

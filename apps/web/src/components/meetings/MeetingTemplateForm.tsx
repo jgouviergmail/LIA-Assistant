@@ -89,7 +89,7 @@ export function MeetingTemplateForm({
     <form
       onSubmit={submit}
       noValidate
-      className="space-y-6"
+      className="space-y-6 [--lia-field-background:var(--color-card)]"
       aria-labelledby={titleId}
       aria-busy={isSaving || undefined}
     >

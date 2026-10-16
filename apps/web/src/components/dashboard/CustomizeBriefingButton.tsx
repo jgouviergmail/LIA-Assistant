@@ -5,7 +5,7 @@ import { SlidersHorizontal } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { buttonVariants } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button-variants';
 import { settingsSectionHref } from '@/lib/settings-sections';
 
 interface CustomizeBriefingButtonProps {

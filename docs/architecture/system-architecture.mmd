@@ -14,9 +14,9 @@ graph TB
 
     subgraph AI["AI / ML Layer"]
         LangGraph["LangGraph 1.2<br/>Agent Orchestration"]
-        LLMProviders["LLM Providers (catalogue-driven)<br/>OpenAI, Anthropic, Gemini, DeepSeek<br/>Perplexity, Qwen, Ollama, ElevenLabs, Edge"]
+        LLMProviders["LLM Providers (catalogue-driven)<br/>OpenAI, Anthropic, Gemini, DeepSeek<br/>Perplexity, Qwen, Ollama, ElevenLabs, Edge, Fish Audio"]
         Embeddings["Gemini gemini-embedding-001<br/>Embeddings (1536 dims, ADR-069)"]
-        Voice["Voice: Sherpa-onnx STT (local)<br/>+ ElevenLabs Scribe STT (remote, opt-in)<br/>+ Edge/OpenAI/ElevenLabs TTS (ADR-081)"]
+        Voice["Voice: Sherpa-onnx STT (local)<br/>+ remote STT, opt-in: ElevenLabs Scribe / OpenAI / Fish Audio<br/>+ Edge/OpenAI/ElevenLabs/Gemini/Fish Audio TTS (ADR-081, ADR-345)"]
     end
 
     subgraph Orchestration["Orchestration Layer"]

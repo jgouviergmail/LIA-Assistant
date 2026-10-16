@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { InterestExplanation } from '@/components/interests/InterestExplanation';
 import { Input } from '@/components/ui/input';
@@ -344,7 +345,7 @@ export function InterestsSettings({ lng }: BaseSettingsProps) {
       ) : (
         <>
           {/* Global Toggle */}
-          <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
+          <Card surface="nested" variant="flat" className="flex items-center justify-between p-3">
             <div className="flex-1">
               <p className="text-sm font-medium">{t('interests.enable_proactive')}</p>
               <p className="text-xs text-muted-foreground">{t('interests.enable_description')}</p>
@@ -354,12 +355,12 @@ export function InterestsSettings({ lng }: BaseSettingsProps) {
               onCheckedChange={handleToggleEnabled}
               disabled={updatingSettings}
             />
-          </div>
+          </Card>
 
           {/* Settings Panel — shared FrequencyControls (one implementation
               with Heartbeat, and the selects finally have names). */}
           {settings && (
-            <div className="space-y-4 p-4 rounded-lg border bg-muted/30">
+            <Card surface="nested" variant="flat" className="space-y-4 p-4">
               <div className="space-y-3">
                 <HourWindow
                   label={
@@ -392,7 +393,7 @@ export function InterestsSettings({ lng }: BaseSettingsProps) {
                 limit={10}
                 onChange={handleUpdateFrequency}
               />
-            </div>
+            </Card>
           )}
 
           {/* Stats and Actions — unified section toolbar (labelled CTA at
@@ -476,56 +477,132 @@ export function InterestsSettings({ lng }: BaseSettingsProps) {
             <Accordion type="multiple" defaultValue={[]} className="space-y-2">
               {/* Active Interests by Category */}
               {Object.entries(groupedByCategory).map(([category, categoryInterests]) => (
-                <AccordionItem key={category} value={category} className="border rounded-lg px-3">
-                  <AccordionTrigger className="py-3 hover:no-underline">
-                    <div className="flex items-center gap-2">
-                      <span>{INTEREST_CATEGORY_ICONS[category as InterestCategory]}</span>
-                      <span className="font-medium">
-                        {getCategoryLabel(category as InterestCategory)}
-                      </span>
-                      <span className="text-muted-foreground text-sm">
-                        ({categoryInterests.length})
-                      </span>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="space-y-2">
-                      {categoryInterests.map(interest => (
-                        <div key={interest.id} className="rounded-lg border p-3 bg-card">
-                          <div className="flex items-center gap-3">
-                            {/* Content */}
+                <Card key={category} surface="nested" variant="flat" className="px-3">
+                  <AccordionItem value={category} className="border-0">
+                    <AccordionTrigger className="py-3 hover:no-underline">
+                      <div className="flex items-center gap-2">
+                        <span>{INTEREST_CATEGORY_ICONS[category as InterestCategory]}</span>
+                        <span className="font-medium">
+                          {getCategoryLabel(category as InterestCategory)}
+                        </span>
+                        <span className="text-muted-foreground text-sm">
+                          ({categoryInterests.length})
+                        </span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="space-y-2">
+                        {categoryInterests.map(interest => (
+                          <div key={interest.id} className="rounded-lg border p-3 bg-card">
+                            <div className="flex items-center gap-3">
+                              {/* Content */}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">{interest.topic}</p>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <Badge
+                                    variant={getWeightBadgeVariant(interest.weight)}
+                                    className="text-xs"
+                                  >
+                                    {(interest.weight * 100).toFixed(0)}%
+                                  </Badge>
+                                  {interest.last_mentioned_at && (
+                                    <span className="text-xs text-muted-foreground hidden sm:inline">
+                                      {formatInterestDate(interest.last_mentioned_at, lng)}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <RowActions
+                                menuLabel={t('common.actions_for', { name: interest.topic })}
+                                actions={[
+                                  {
+                                    key: 'edit',
+                                    label: t('interests.edit'),
+                                    icon: Pencil,
+                                    disabled: updating,
+                                    onSelect: () => handleOpenEdit(interest),
+                                  },
+                                  {
+                                    key: 'block',
+                                    label: t('interests.block'),
+                                    icon: Ban,
+                                    disabled: submittingFeedback,
+                                    onSelect: () => void handleFeedback(interest, 'block'),
+                                  },
+                                  {
+                                    key: 'delete',
+                                    label: t('interests.delete'),
+                                    icon: Trash2,
+                                    tone: 'destructive',
+                                    disabled: deleting,
+                                    onSelect: () => setPendingDelete(interest),
+                                  },
+                                ]}
+                              />
+                            </div>
+                            {/* Back INSIDE the card: the tap-anywhere handler
+                              that once exiled it (it opened the action sheet
+                              on every attempt to read) is gone. */}
+                            <InterestExplanation interestId={interest.id} locale={lng} />
+                          </div>
+                        ))}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Card>
+              ))}
+
+              {/* Dormant Interests */}
+              {dormantInterests.length > 0 && (
+                <Card surface="nested" variant="flat" className="px-3">
+                  <AccordionItem value="dormant" className="border-0">
+                    <AccordionTrigger className="py-3 hover:no-underline">
+                      <div className="flex items-center gap-2">
+                        <Moon className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium text-muted-foreground">
+                          {t('interests.dormant_section')}
+                        </span>
+                        <span className="text-muted-foreground text-sm">
+                          ({dormantInterests.length})
+                        </span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="space-y-2 opacity-70">
+                        {dormantInterests.map(interest => (
+                          <div
+                            key={interest.id}
+                            className="group flex items-center gap-3 rounded-lg border border-dashed p-3 bg-card"
+                          >
+                            <span className="text-lg shrink-0">
+                              {INTEREST_CATEGORY_ICONS[interest.category]}
+                            </span>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium truncate">{interest.topic}</p>
                               <div className="flex items-center gap-2 mt-1">
-                                <Badge
-                                  variant={getWeightBadgeVariant(interest.weight)}
-                                  className="text-xs"
-                                >
-                                  {(interest.weight * 100).toFixed(0)}%
+                                <Badge variant="outline" className="text-xs">
+                                  <Moon className="h-3 w-3 mr-1" />
+                                  {t('interests.dormant_badge')}
                                 </Badge>
-                                {interest.last_mentioned_at && (
-                                  <span className="text-xs text-muted-foreground hidden sm:inline">
-                                    {formatInterestDate(interest.last_mentioned_at, lng)}
-                                  </span>
-                                )}
                               </div>
                             </div>
                             <RowActions
                               menuLabel={t('common.actions_for', { name: interest.topic })}
                               actions={[
                                 {
+                                  key: 'reactivate',
+                                  label: t('interests.reactivate'),
+                                  icon: RotateCcw,
+                                  disabled: reactivating,
+                                  iconClassName: 'text-primary hover:text-primary',
+                                  onSelect: () => void handleReactivate(interest),
+                                },
+                                {
                                   key: 'edit',
                                   label: t('interests.edit'),
                                   icon: Pencil,
                                   disabled: updating,
                                   onSelect: () => handleOpenEdit(interest),
-                                },
-                                {
-                                  key: 'block',
-                                  label: t('interests.block'),
-                                  icon: Ban,
-                                  disabled: submittingFeedback,
-                                  onSelect: () => void handleFeedback(interest, 'block'),
                                 },
                                 {
                                   key: 'delete',
@@ -538,129 +615,59 @@ export function InterestsSettings({ lng }: BaseSettingsProps) {
                               ]}
                             />
                           </div>
-                          {/* Back INSIDE the card: the tap-anywhere handler
-                              that once exiled it (it opened the action sheet
-                              on every attempt to read) is gone. */}
-                          <InterestExplanation interestId={interest.id} locale={lng} />
-                        </div>
-                      ))}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-
-              {/* Dormant Interests */}
-              {dormantInterests.length > 0 && (
-                <AccordionItem value="dormant" className="border rounded-lg px-3">
-                  <AccordionTrigger className="py-3 hover:no-underline">
-                    <div className="flex items-center gap-2">
-                      <Moon className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium text-muted-foreground">
-                        {t('interests.dormant_section')}
-                      </span>
-                      <span className="text-muted-foreground text-sm">
-                        ({dormantInterests.length})
-                      </span>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="space-y-2 opacity-70">
-                      {dormantInterests.map(interest => (
-                        <div
-                          key={interest.id}
-                          className="group flex items-center gap-3 rounded-lg border border-dashed p-3 bg-muted/20"
-                        >
-                          <span className="text-lg shrink-0">
-                            {INTEREST_CATEGORY_ICONS[interest.category]}
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">{interest.topic}</p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <Badge variant="outline" className="text-xs">
-                                <Moon className="h-3 w-3 mr-1" />
-                                {t('interests.dormant_badge')}
-                              </Badge>
-                            </div>
-                          </div>
-                          <RowActions
-                            menuLabel={t('common.actions_for', { name: interest.topic })}
-                            actions={[
-                              {
-                                key: 'reactivate',
-                                label: t('interests.reactivate'),
-                                icon: RotateCcw,
-                                disabled: reactivating,
-                                iconClassName: 'text-primary hover:text-primary',
-                                onSelect: () => void handleReactivate(interest),
-                              },
-                              {
-                                key: 'edit',
-                                label: t('interests.edit'),
-                                icon: Pencil,
-                                disabled: updating,
-                                onSelect: () => handleOpenEdit(interest),
-                              },
-                              {
-                                key: 'delete',
-                                label: t('interests.delete'),
-                                icon: Trash2,
-                                tone: 'destructive',
-                                disabled: deleting,
-                                onSelect: () => setPendingDelete(interest),
-                              },
-                            ]}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
+                        ))}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Card>
               )}
 
               {/* Blocked Interests */}
               {blockedInterests.length > 0 && (
-                <AccordionItem value="blocked" className="border rounded-lg px-3">
-                  <AccordionTrigger className="py-3 hover:no-underline">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-muted-foreground">
-                        {t('interests.blocked_section')}
-                      </span>
-                      <span className="text-muted-foreground text-sm">
-                        ({blockedInterests.length})
-                      </span>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="space-y-2 opacity-60">
-                      {blockedInterests.map(interest => (
-                        <div
-                          key={interest.id}
-                          className="group flex items-center gap-3 rounded-lg border p-3 bg-muted/30"
-                        >
-                          <span className="text-lg shrink-0">
-                            {INTEREST_CATEGORY_ICONS[interest.category]}
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm line-through">{interest.topic}</p>
+                <Card surface="nested" variant="flat" className="px-3">
+                  <AccordionItem value="blocked" className="border-0">
+                    <AccordionTrigger className="py-3 hover:no-underline">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-muted-foreground">
+                          {t('interests.blocked_section')}
+                        </span>
+                        <span className="text-muted-foreground text-sm">
+                          ({blockedInterests.length})
+                        </span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="space-y-2 opacity-60">
+                        {blockedInterests.map(interest => (
+                          <div
+                            key={interest.id}
+                            className="group flex items-center gap-3 rounded-lg border p-3 bg-card"
+                          >
+                            <span className="text-lg shrink-0">
+                              {INTEREST_CATEGORY_ICONS[interest.category]}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm line-through">{interest.topic}</p>
+                            </div>
+                            <RowActions
+                              menuLabel={t('common.actions_for', { name: interest.topic })}
+                              actions={[
+                                {
+                                  key: 'delete',
+                                  label: t('interests.delete'),
+                                  icon: Trash2,
+                                  tone: 'destructive',
+                                  disabled: deleting,
+                                  onSelect: () => setPendingDelete(interest),
+                                },
+                              ]}
+                            />
                           </div>
-                          <RowActions
-                            menuLabel={t('common.actions_for', { name: interest.topic })}
-                            actions={[
-                              {
-                                key: 'delete',
-                                label: t('interests.delete'),
-                                icon: Trash2,
-                                tone: 'destructive',
-                                disabled: deleting,
-                                onSelect: () => setPendingDelete(interest),
-                              },
-                            ]}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
+                        ))}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Card>
               )}
             </Accordion>
           )}
@@ -818,7 +825,7 @@ export function InterestsSettings({ lng }: BaseSettingsProps) {
                 <AlertDialogDescription>
                   {t('interests.confirm_delete_description')}
                   {pendingDelete && (
-                    <span className="block mt-2 p-2 bg-muted rounded text-foreground text-sm">
+                    <span className="block mt-2 p-2 bg-card rounded text-foreground text-sm">
                       {pendingDelete.topic}
                     </span>
                   )}
@@ -852,6 +859,7 @@ export function InterestsSettings({ lng }: BaseSettingsProps) {
           not cost a request. */}
       <div className="border-t pt-4">
         <Disclosure
+          surface="nested"
           icon={History}
           title={t('interests.history.title')}
           onOpenChange={setHistoryOpen}

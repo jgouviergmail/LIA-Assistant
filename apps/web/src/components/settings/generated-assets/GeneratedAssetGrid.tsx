@@ -23,8 +23,8 @@
  * - **An image shows itself.** A gallery of filenames is a list, not a gallery;
  *   the thumbnail IS the identification, described by the file's own title.
  *
- * A file may be KEPT past its deadline (ADR-319): the card then says so where
- * the deadline was, and its pin is a toggle (`aria-pressed`) whose name stays
+ * A file may be KEPT past its deadline (ADR-319): its tinted card and pin
+ * communicate retention. Its pin is a toggle (`aria-pressed`) whose name stays
  * « Keep <file> » in both states — the state is announced, not the label.
  */
 
@@ -38,7 +38,7 @@ import { useConfirm } from '@/components/ui/use-confirm';
 import { useApiMutation } from '@/hooks/useApiMutation';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
-import { documentTypeIcon } from '@/components/chat/document-card-icon';
+import { AssetDocumentPreview } from './AssetDocumentPreview';
 import { apiImageProps, apiResourceUrl } from '@/lib/utils/api-resource-url';
 import { formatDate, formatFileSize } from '@/lib/format';
 import { refusalSentence } from '@/lib/api-error';
@@ -64,14 +64,7 @@ export interface GeneratedAssetGridProps {
 /** Where a file's deadline is stated — or, for a kept file, that it has none. */
 function AssetLifetimeLine({ lng, asset }: { lng: Language; asset: GeneratedAsset }) {
   const { t } = useTranslation(lng);
-  if (asset.expires_at === null) {
-    return (
-      <p className="flex items-center gap-1 text-xs text-primary">
-        <Pin className="h-3 w-3 shrink-0 fill-current" aria-hidden="true" />
-        {t('settings.generated_assets.kept_line')}
-      </p>
-    );
-  }
+  if (asset.expires_at === null) return null;
   // The deadline is STATED: a file that vanishes with nothing said is the
   // defect this line exists for.
   return (
@@ -164,14 +157,11 @@ export function GeneratedAssetGrid({
         {items.map(asset => {
           const label = assetLabel(asset);
           const isImage = asset.mime_type.startsWith('image/');
-          const TypeMark = documentTypeIcon(
-            asset.original_filename.split('.').pop()?.toLowerCase() ?? ''
-          );
           return (
             <li
               key={asset.id}
               data-testid="generated-asset-card"
-              className="relative flex flex-col gap-2 rounded-xl border border-border bg-card p-3 shadow-sm transition-shadow hover:shadow-md"
+              className={`relative flex flex-col gap-2 rounded-xl border p-3 shadow-sm transition-shadow hover:shadow-md ${isKept(asset) ? 'bg-primary/10 border-primary/25' : 'border-border bg-background'}`}
             >
               <div className="flex items-start gap-2">
                 <Checkbox
@@ -202,17 +192,7 @@ export function GeneratedAssetGrid({
                 </a>
               </div>
 
-              {!isImage && (
-                <div
-                  data-testid="generated-asset-typemark"
-                  // The MARK of its type, where an image shows its thumbnail
-                  // (ADR-279). Drawn at the thumbnail's height so a page mixing
-                  // families keeps one rhythm instead of going ragged.
-                  className="flex h-36 w-full items-center justify-center rounded-lg border border-border/60 bg-muted/40"
-                >
-                  <TypeMark className="h-10 w-10 text-muted-foreground" aria-hidden="true" />
-                </div>
-              )}
+              {!isImage && <AssetDocumentPreview key={asset.id} asset={asset} label={label} />}
 
               {isImage && (
                 <div className="overflow-hidden rounded-lg border border-border/60">

@@ -5,8 +5,8 @@
 > Technical presentation documentation for architects, engineers and technical experts.
 
 **Version**: 5.3
-**Date**: 2026-10-13
-**Application**: LIA v3.0.1
+**Date**: 2026-10-17
+**Application**: LIA v3.1.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -73,7 +73,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), credentials encrypted with Fernet, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 620 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 346 ADRs, 59,000+ automated backend and frontend tests, native observability, 6-level HITL |
+| Production reliability | 347 ADRs, 63,000+ automated backend and frontend tests, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -91,10 +91,10 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | 59,000+ automated tests with pytest and Vitest (ratcheted coverage thresholds, ADR-116) |
+| Tests | 63,000+ automated tests with pytest and Vitest (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 1,082, 48 of them shared through conftest |
 | Documentation documents | 716 |
-| ADRs (Architecture Decision Records) | 346 |
+| ADRs (Architecture Decision Records) | 347 |
 | Prometheus metrics | 620 definitions |
 | Grafana dashboards | 31 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -124,7 +124,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Technology | Version | Role |
 |------------|---------|------|
-| Next.js | 16.3.8 | App Router, SSR, ISR |
+| Next.js | 16.4.1 | App Router, SSR, ISR |
 | React | 19.3.0 | UI with Server Components |
 | TypeScript | 6.0.3 | Strict typing |
 | TailwindCSS | 4.3.3 | Utility-first CSS |
@@ -374,6 +374,10 @@ A loop is **judged on its result** (ADR-310). Stopping as soon as the model call
 
 A tool failure is read **structurally** there (ADR-303): a `ToolMessage` body carries the tool's prose, so the only honest verdict is a marker the message carries itself — `status="error"`, which survives the checkpoint. One success predicate, `core/tool_outcome.explicit_success`, serves the loop, the consultation register and the metrics: a declared failure, like an empty result, buys no iteration. And when a person chooses frequent exchanges in their settings (ADR-311; `REACT_CROSS_TURN_CACHE_ENABLED` only sets the default of an account that has not chosen, ADR-308), the loop binds every tool in registration order and places the turn's context after the question — in the shape each provider accepts, declared and checked at startup —, so that one turn's prefix is the next one's: on a bench of 396 real turns, the saving ranges from 18 to 42 % per turn depending on the cache mechanism, a model with no cache pays extra, and a counted fallback to the relevance selection takes over when the catalogue exceeds the cap or the window. The history then drops by blocks too, anchored on the turn counter, so that each turn extends the previous one: the three travel together because none of them pays alone, and occasional exchanges keep the relevance selection, whose cost does not depend on the gap between two turns.
 
+### A delegation always returns its deliverable (ADR-083)
+
+A delegated expert, a browser task or an iterative MCP task opens its own model loop behind a single tool call, bounded in graph steps: N steps buy N÷2 model calls. When the loop reaches its bound it no longer stops on LangGraph's generic sentence, which used to pass for a success: its last call runs with no tool and writes the deliverable from what it found. Every reader — the delegation, the browser task, the MCP task, the skill runner — maps a typed outcome (answered, empty, error, closed on budget) instead of reading text, and a failure says how far it got. The planner and the ReAct loop are told the same facts about what the expert can reach, and the instruction's size cap is enforced by the tool itself in both modes: an impossible delegation is refused before any model runs.
+
 ### 5.4. Detached executions: generation survives the connection (ADR-117)
 
 Classic SSE streaming has a structural flaw: generation lives *inside* the HTTP response generator. Closing the tab, navigating away or losing the network kills the connection — and, with it, the whole conversation turn. LIA decouples the two: a **detached producer** (an asyncio task independent of the request) executes the graph and publishes every chunk to a **per-run Redis Stream**; the SSE endpoint is reduced to a **subscriber** relaying that stream.
@@ -498,6 +502,12 @@ A plan is born from text. But when the request comes from a **button** — a nam
 The request therefore carries, alongside the displayed sentence, the **invoked capability**: a `{capability, subject}` pair. `capability` is a **closed** `Literal`, rejected by Pydantic at the HTTP boundary — the browser names a capability, **never** a tool, and the server decides which read-only tool implements it. This door does not lead to a mutating tool. Transport to the planner is a request-scoped `ContextVar`, set in the same place and with the same discipline as the skill preferences.
 
 It is applied **before validation**, exactly like clamping out-of-range parameters: what is mechanically repairable is repaired, never reported as a defect. The plan is **enriched, not replaced** — everything the planner intended that adds something stays; what it intended that the capability already covers is dropped, because an unrelated answer placed next to a stated gap contradicts it. Two guards: a step another one still reads — through a declared dependency **or** a `$steps` reference — is kept, and a plan with no steps (pending clarification, execution delegated to a skill) is never turned into an execution. A guarantee that overrides a question is not a guarantee.
+
+### What a read step found reaches the answer (ADR-347)
+
+In Pipeline mode, the answer is written by a model that never sees the tools: it reads each step's message and the items the turn recorded. Yet a read tool keeps its facts in `structured_data` — a route matrix's durations, a journey's connections, a search's next page. The executor therefore projects what that block carries beyond the cards already shown, through the ReAct mode's own functions (ADR-286): compared by content, cut at item boundaries, wrapped as third-party content, under the response slot's token budget, every cut stated and counted. The answer reads it in one section joined to the execution summary, and the persisted state keeps no other turn's block. A tool whose message already renders its data declares so, with a reason checked at startup.
+
+The same contract closes the opposite door: a failure a connector's payload declares is never returned as a success — a net at the connector chokepoints corrects it, logs it and counts it —, and a FOR_EACH loop whose items partly fail keeps its successes and names each failed item. An item reaches its step whole: the `$item` substitution is structural, never a re-parsed JSON string.
 
 ---
 
@@ -854,7 +864,7 @@ LIA can place an outbound phone call on the user's behalf, hold a goal-directed 
 
 **The phone as a channel (ADR-290).** The confirmation card protects a third party who never asked for anything; when LIA calls *the person*, the one who would confirm is the one who picks up — provided the number is proven theirs. The identity is therefore a number declared in the settings, shown whole, then verified by a call in which LIA reads a code the person types back (bounded attempts, a short-lived code bound to the number, a constant-time comparison, the same hourly cap as every paid call); never a name match, and the third-party tool refuses that number. The **same** vendor agent serves three mandates — the third-party one baked in, the owner's and the verification one sent as a per-call override rendered on the server — so nothing of the person's context is ever baked into an agent that also phones strangers; and what the agent *sounds like* (its model, language, voice, audio format, duration cap) is the vendor portal's, never a setting, because the vendor merges a PATCH with what it stores and a pinned model would collide with the portal's reasoning effort on every sync. `call_me` carries no card by construction, which is also what lets a routine plan it. The call takes the chat's own context under a token budget (memories, agenda, reminders, open loops, recent exchanges — a switch turns it off) and the personality configured for the assistant, every read filed in the consultation register. Behind a second flag, the agent **reads LIA live** during the call, and acts on nothing: the tool set is a rule over the catalogue rather than a list — every tool that only reads, in a domain the phone offers, whose required parameters a voice can speak (55 tools over 22 domains, plus a native memory recall) — attached to the agent for the owner's call only, since the vendor refuses tool ids inside a per-call override, and each result is reduced to what a voice can say before the item-by-item paging (an identifier, a link, a nested structure never reach the voice; four weekend events fit where a single raw one would). Each domain has a switch of the person's own, read from their row at every call-back. When the call ends, what was said comes back as **the person's own message**: the transcript is synthesised, then replayed through the out-of-turn engine as a turn *spoken by the person* — memory, journal and psyche extractions run as in the chat, the message wears a phone badge, a draft waits for confirmation in the chat. The relay is claimed before the turn and settled by conditional update, a crash mid-relay is swept back to a notification that says why, and ten relay verdicts are counted and drawn on the calls list — « nobody picked up » and « the line failed » told apart from « someone else answered ». Every euro of a call lands under one run id — the live lookups, the synthesis, the relayed turn — so the per-run summary the chat meter already reads is the call's bill, on the relayed answer and on the calls list; what runs on the person's own vendor key is billed there and never counted here.
 
-**One policy per mode, whichever the line (ADR-301).** Relaying the conversation at its *end* on one line while the other hands every request to the chat *during* it would make two truths for one word. A voice session therefore has a mode, and the policy follows it alone: in **Live** (the phone's default, chosen in Settings › Telephony · My identity) the voice holds neither context nor tool and hands every request to LIA through one function — the very one the browser's Live declares to its provider — which the server turns into a chat turn of the person while they speak: LIA's questions (a question IS the result, the next request resumes the turn that asked), the confirmations, the registers, the quotas and the trace in the conversation come with it; in **Live direct** the voice reads for the person, acts on nothing, and their words are relayed at the end as a message from them — on the line as in the browser. One closing keeps both lines' books: the voice-only exchanges archived, the card with exact figures, the decision, the learning — or the synthesis, the relayed turn and the card rewritten when it settles, its cost re-read. Live is offered only where the phone provider can call the instance back; otherwise the settings say so and the call runs direct. The provider's engine sets three rules: the voice announces the call and keeps the conversation going, a late answer would be lost past the provider's timeout — so the bridge answers before it —, and an exchange holding a delegation belongs to the graph whole.
+**One policy per mode, whichever the line (ADR-301).** Relaying the conversation at its *end* on one line while the other hands every request to the chat *during* it would make two truths for one word. A voice session therefore has a mode, and the policy follows it alone: in **Live** (the phone's default, chosen in Settings › My phone) the voice holds neither context nor tool and hands every request to LIA through one function — the very one the browser's Live declares to its provider — which the server turns into a chat turn of the person while they speak: LIA's questions (a question IS the result, the next request resumes the turn that asked), the confirmations, the registers, the quotas and the trace in the conversation come with it; in **Live direct** the voice reads for the person, acts on nothing, and their words are relayed at the end as a message from them — on the line as in the browser. One closing keeps both lines' books: the voice-only exchanges archived, the card with exact figures, the decision, the learning — or the synthesis, the relayed turn and the card rewritten when it settles, its cost re-read. Live is offered only where the phone provider can call the instance back; otherwise the settings say so and the call runs direct. The provider's engine sets three rules: the voice announces the call and keeps the conversation going, a late answer would be lost past the provider's timeout — so the bridge answers before it —, and an exchange holding a delegation belongs to the graph whole.
 
 ### 13.6. Reading an attachment: its text when it has one, the vision slot otherwise
 
@@ -865,6 +875,10 @@ The bytes are read by a module that touches no client. The MIME type comes from 
 ### An address book read whole, matched once
 
 Typing a recipient in "Send by e-mail" suggests the person's contacts. The three providers each search their own way — three ways of matching a name —, so every contacts client reads the **whole book** behind one interface (Google People's pagination with every parameter repeated, Graph's `@odata.nextLink`, the CardDAV cache), under a declared ceiling whose cut is stated. The book is compacted — names, addresses, numbers —, cached in a declared Redis family with a version stamp, built once across workers and dropped by every contacts write; a keystroke reads the stamp first and opens neither the book nor the connector when that version is already projected. Matching has one implementation: names through the product's identity folding, addresses through their normalised form, digits through the telephony domain's number variants. Reading the book is a consultation in the register, never on a cache hit, and nothing of a contact reaches a log.
+
+### A provider that slows down is not a provider that is down
+
+A 429 refusal on a person's key — Brave, Perplexity — is backpressure on that key, not the service's health: the client waits it out with jitter and, when it persists, hands it back typed with its delay, instead of opening the breaker every account shares. On the mail side, a send, a reply or a forward is never retried after a lost acknowledgement — a failure stated is better than an e-mail sent twice —, a send accepted for part of its recipients says so, and a forward refuses before writing rather than lose an attachment. An iCloud message carries a digest of its folder, the trash is found by its role, and the connection test checks every protocol chosen rather than the first one.
 
 ---
 
@@ -984,6 +998,10 @@ The same wake serves the **watches**: a condition routine "mail from this sender
 ### A routine has one clock
 
 The studio makes schedule and condition exclusive. A scheduled routine uses the recurrence engine; a condition routine has no recurrence and is checked at a cadence determined by its source. A check without a new matching fact writes no run. Both use the same execution limits, approval rules and visible week history when they actually act. A weather condition always reads Google Weather, the one source the platform guarantees: a single rule, shared with the briefing card, keeps the first hourly slot of a watched phenomenon within the horizon (4 hours by default) whose chance of precipitation is strictly above the published threshold (50%), and the note handed to the run names the hour, the day, the timezone, the chance and the source. A check cadence longer than the horizon is refused at boot, so no window goes unwatched.
+
+### A routine never asks a question nobody will see
+
+A routine runs with nobody in front of the screen. A confirmation, or a sandbox-network question, asked in that context would hang on the thread, and the person's next message would serve as its answer. A turn with nobody to ask therefore refuses and says where to allow the action; a ticket, for its part, knows how to ask. A routine's reservation is held by a token: the recovery never frees a run still alive, a late settle never overwrites another tick's, and a retry after a timeout is refused as soon as the effect register shows an action already done — a routine never repeats what it did. A scheduler leader that loses its lease pauses until it is re-elected, and a server shutdown starts no job any more.
 
 ---
 
@@ -1113,6 +1131,10 @@ Above debug level, a log line carries **facts** — counts, lengths, identifiers
 ### Generated files have an explicit lifetime
 
 A generated file's deadline is nullable: a person may keep it within published per-account count and size limits. Cleanup deletes only rows whose deadlines have passed in one conditional statement, then removes their disk files; keeping wins if it commits first. Releasing a kept file gives it a fresh deadline, and chat cards read the current state. For e-mail delivery, one outgoing attachment contract serves the mailbox providers; the connected mailbox may reach selected recipients, while LIA's relay is restricted to the account's verified address. Each route exposes its file-size ceiling before the send.
+
+### What goes into a provider, and what comes out
+
+Third-party content travels in an envelope the model knows not to obey; its tag is neutralised in every spelling — case, full width, invisible characters, NFKC normalisation — and the injection scan reads the text as a model would. The other way round, a provider's refusal — connectors, Places, Routes, geocoding, telephony, voice engines — travels by its facts, status and code, never by its prose, which can quote a private field. The log filter also masks provider keys and bearer tokens quoted in an error, and a sandbox network script can no longer bring out the key a remote service echoes back. Mail servers — the instance's SMTP relay, iCloud's IMAP and SMTP — present a verified certificate before any authentication.
 
 ---
 
@@ -1546,9 +1568,13 @@ The same doctrine answers a subtler failure: a surface that quietly stops descri
 
 One CSS rule governs the design system's spacing: vertical margins on an `inline` element are **computed but never rendered**. A `<label>` is inline by browser default, so the label primitive is declared `block` — without it, every `space-y-*` above a control produces the same three-pixel gap whatever its value, and a recalibration changes the code without moving a pixel. The reflex follows: when a visual setting has no effect, measure the element's `display` and its DOM geometry in a real browser before suspecting the delivery chain. A guard pins it.
 
+### A depth you can read, a button that stays itself
+
+Two interface rules became component contracts rather than habits. The first is about depth: a panel declares its surface — primary or nested —, surfaces alternate light, darker, light in every theme, absolute black included, and a field takes the opposite tone of the panel holding it, through a single CSS variable; a browser test measures the computed colours rather than the classes. The second is about waiting: a busy button keeps its label, its size and the focus, declares itself `aria-busy`, ignores a second press without disabling itself, and pagination and row actions follow the same rule. Chronological lists — meetings, calls — line up by local day and part of day, with a start and an end never guessed from a duration, and a loading error keeps the rows already shown instead of passing for an empty list. On a phone, LIA's companion computes a free spot away from fields, buttons and headings, shrinks to a dot when it finds none, and never rewrites the position the person chose.
+
 ## 24. Architecture Decision Records (ADR)
 
-346 ADRs in MADR format document the major architectural decisions. Some representative examples:
+347 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1600,7 +1626,7 @@ The Psyche Engine gives the assistant a dynamic psychological state that evolves
 | 2 — Mood | Hours | Position in PAD space (Pleasure/Arousal/Dominance) → 14 distinct moods. Decays toward personality baseline. |
 | 3 — Emotions | Minutes | 22 discrete emotions (max 4 simultaneous) with intensity [0-100%]. Push mood via their PAD vector. Cross-suppression ±30%. |
 | 4 — Relationship | Weeks | 4 stages (Orientation → Exploratory → Affective → Stable). One-way progression. Depth, warmth, trust. |
-| 5 — Drives | Per session | Curiosity (exchange energy) and engagement (quality). Bayesian self-efficacy per domain. |
+| 5 — Drives | Per session | Curiosity (exchange energy) and engagement (quality). Experience per domain learned from evidence (see below). |
 
 ### 26.2. Core Principle: "Show, Don't Tell"
 
@@ -1613,14 +1639,13 @@ Each message generates a `<PsycheDirectives>` block (~100-120 tokens) with:
 - **EMOTIONS**: top 3 emotions with their directives (e.g. "empathy (72%): Mirror the user's emotional tone.")
 - **RELATIONSHIP**: stage + relational directive
 - **DRIVES**: curiosity/engagement with their trigger thresholds
-- **CONFIDENCE**: domains of strong and weak self-efficacy, with a call for extra care on the weak ones
 - **EVOLUTION**: mood/emotion shift since the last message
 
 A 540-word incarnation guide (`psyche_usage_directive.txt`) teaches the LLM how to translate each state into concrete behavior — mood by mood, intensities, transitions, social distance per relationship stage.
 
 ### 26.4. Zero-Cost Self-Evaluation
 
-After each response, the LLM self-evaluates via a hidden `<psyche_eval/>` XML tag: user valence, triggered emotion, intensity, exchange quality. The tag is stripped before sending to the user. No additional LLM call — the evaluation is part of generating the response.
+After each response, the LLM self-evaluates via a hidden `<psyche_eval/>` XML tag: user valence, triggered emotion, intensity, exchange quality. The tag is stripped before sending to the user. No additional LLM call — the evaluation is part of generating the response. This self-assessment feeds the mood, the emotions and the relationship — never a competence.
 
 ### 26.5. Global Injection
 
@@ -1638,6 +1663,14 @@ Psyche context is injected into **all** user-facing generation points: main resp
 The Mehrabian mapping rests **all 14** catalogue personalities at D > 0 (spread +0.063 to +0.349), and damping, being a homothety, cannot fix that: with no other knob, the five mood centroids requiring negative dominance would stay unreachable at rest. Two knobs answer it — a translation applied after damping, and a gate on the sustained-quality joy pulse — and their defaults come from a measurement over real snapshots rather than from an intuition.
 
 At 0.20 the catalogue straddles zero — 7 of the 14 rest below it, their ordering exactly preserved, P and A untouched — and the reported appraisal owns the emotion channel, instead of a pulse crowning joy whatever the appraisal. The limit is recorded too: arousal stays locked, not by resting-point geometry but by an appraisal stream that never reports low-arousal emotions — this knob does not fix it, and must not be read as if it did.
+
+### An experience learned from evidence, never from its own grade (ADR-348)
+
+Seven cognitive domains — planning, information, emotional support, creativity, technical, social, organization — each keep a private experience on two axes that are never merged: the **verified result**, meaning what the final coverage of the requested outcomes established (never an HTTP status nor a generic success flag), and the **expressed usefulness**, the 👍/👎 given to the final answer. A turn is an episode; the query analyzer that already runs assigns it at most two domains, with no extra model call. A pending confirmation, a refusal, a quota or a missing connector are excluded: they are not cognitive failures. An index exists only from five observations of its own axis within 90 days, within a limit of 500 episodes: a single exchange no longer makes a strength or a weakness.
+
+A pure function derives at most one adjustment from it: check a point the turn leaves open if an authorised read exists within budget, name the limit otherwise, or ask a single question about the current ambiguity when the domain's usefulness is weak. The planner, every ReAct call and the synthesis read that same versioned block; it changes no model, tool, permission, budget or confirmation, and the turn's facts always prevail over the history. The evidence is private, exported with the account, erased by a full reset or a purge; the Psyche screen shows it as “no index yet”, “learning” or “observed”, never as an accuracy percentage. It is a pilot: no gain is claimed before a comparison on a held-out corpus.
+
+The fourteen personalities carry their traits in the reference dataset, checked at installation, and an account that never chose follows the default personality's profile.
 
 ---
 
@@ -1949,8 +1982,8 @@ The oMLX, llama.cpp and LM Studio studies and the isometric world are qualificat
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 346 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The 59,000+ automated tests, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 347 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The 63,000+ automated tests, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (700+ documents), 346 ADRs, and the changelog (v1.0 to v3.0.1). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (700+ documents), 347 ADRs, and the changelog (v1.0 to v3.1.0). All metrics, versions, and patterns cited are verifiable in the codebase.*

@@ -90,7 +90,7 @@ LIA uses a **5-layer defense-in-depth** architecture:
 **Fail-open:** If Redis/DB is down, access is allowed (cost control, not security).
 
 ## Can I export my consumption data?
-Yes. Go to **Settings > Features > My Consumption Export** to download your personal data as CSV:
+Yes. Go to **Settings > Features > Usage export** to download your personal data as CSV:
 
 - **LLM Token Usage** — detailed per-call breakdown (model, tokens, cost)
 - **Google API Usage** — detailed per-call breakdown (API, endpoint, cost)

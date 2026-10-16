@@ -119,7 +119,7 @@ function CallRow({ entry, lng }: { entry: TimelineItem; lng: Language }) {
       <details
         open={open}
         onToggle={event => setOpen(event.currentTarget.open)}
-        className="min-w-0 bg-card"
+        className="min-w-0 bg-background"
       >
         <summary
           aria-label={call.callee_display}
@@ -154,7 +154,7 @@ function CallRow({ entry, lng }: { entry: TimelineItem; lng: Language }) {
           </span>
         </summary>
         {open && (
-          <div className="min-w-0 space-y-4 border-t border-border/60 p-3 [overflow-wrap:anywhere] sm:p-4">
+          <div className="min-w-0 space-y-4 bg-card border-t border-border/60 p-3 [overflow-wrap:anywhere] sm:p-4">
             {call.usage && (
               <p className="text-xs text-muted-foreground">
                 {t('settings.telephony.calls.usage', {

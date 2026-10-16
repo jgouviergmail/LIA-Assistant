@@ -600,7 +600,7 @@ person's own active API-key connectors, derived from the client classes), `opera
   on with its plan — a dispatched draft would have answered from the run's result and dropped
   every later step (measured 2026-09-18). A question costs none of the turn's runs. The answer
   becomes a grant (`sandbox_egress_grants`); past `PYTHON_SANDBOX_MAX_GRANTS_PER_USER` it holds
-  for its run alone. The person reviews and revokes grants from *Settings › Sandbox network*,
+  for its run alone. The person reviews and revokes grants from *Settings › Skill permissions*,
   and allows a host there by hand (ADR-327 lot 3). The question is settled for ANY sandbox
   tool that declares hosts — `run_python_tool` and a skill's `run_skill_command` alike, the
   card's purpose then being the skill and its command — and ONLY here: outside the loop (the skill runner in the response

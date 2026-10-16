@@ -1,6 +1,6 @@
 /**
  * The meetings settings section (ADR-258, library ADR-259): gated on the
- * instance flag, one page in three folded blocks (owner, 2026-10-03) —
+ * instance flag, one page in two folded blocks (owner, 2026-10-03) —
  * « Settings » open, « Templates » embedding the library itself, « Minutes »
  * listing the recent meetings — preferences saved only when dirty, the
  * default minutes format among them.
@@ -8,6 +8,7 @@
 
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
+import { act } from '@testing-library/react';
 import { renderWithProviders, screen, waitFor, within } from '@/__tests__/test-utils';
 import type { MeetingPreferences, MeetingSummary, MeetingTemplateSummary } from '@/types/meetings';
 
@@ -142,7 +143,7 @@ describe('MeetingsSettings', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('presents one page in three folded blocks, only the settings open', () => {
+  it('presents one page in two folded blocks, only the settings open', () => {
     renderWithProviders(<MeetingsSettings lng="en" />);
     expect(screen.getByRole('heading', { name: 'settings.meetings.title' })).toBeInTheDocument();
     const titles = [...document.querySelectorAll('summary')].map(
@@ -151,11 +152,10 @@ describe('MeetingsSettings', () => {
     expect(titles).toEqual([
       'meetings.settings.preferences_title',
       'meetings.settings.templates_title',
-      'meetings.settings.recent_title',
     ]);
     expect(block('meetings.settings.preferences_title').open).toBe(true);
     expect(block('meetings.settings.templates_title').open).toBe(false);
-    expect(block('meetings.settings.recent_title').open).toBe(false);
+    expect(screen.queryByText('meetings.settings.recent_title')).not.toBeInTheDocument();
     // Folded blocks mount nothing: no library, no recent-meetings read.
     expect(screen.queryByText('meetings.templates.mine_title')).not.toBeInTheDocument();
     expect(screen.queryByText('meetings.settings.no_meetings')).not.toBeInTheDocument();
@@ -226,47 +226,6 @@ describe('MeetingsSettings', () => {
     expect(push).not.toHaveBeenCalled();
   });
 
-  it('links each recent meeting to its page', async () => {
-    list.meetings = [
-      {
-        id: 'm1',
-        status: 'ready',
-        stage: null,
-        title: 'Point projet',
-        started_at: '2026-09-02T10:00:00Z',
-        stopped_at: null,
-        audio_duration_seconds: 125,
-        participants_count: 2,
-        action_items_count: 1,
-        index_state: 'indexed',
-        stt_provider: 'elevenlabs',
-        total_cost_eur: null,
-        last_error_code: null,
-        template_ref: null,
-        template_name: null,
-        template_selection: null,
-        source_meeting_id: null,
-      },
-    ];
-    list.total = 1;
-    const { user } = renderWithProviders(<MeetingsSettings lng="en" />);
-    await openBlock(user, 'meetings.settings.recent_title');
-    await user.click(screen.getByRole('button', { name: 'Point projet' }));
-    expect(push).toHaveBeenCalledWith('/dashboard/meetings/m1?from=settings');
-    await user.click(screen.getByRole('button', { name: /meetings\.settings\.view_all/ }));
-    expect(push).toHaveBeenCalledWith('/dashboard/meetings?from=settings');
-  });
-});
-
-describe('MeetingsSettings — the minutes block', () => {
-  it('says when no meeting was recorded yet, once opened', async () => {
-    const { user } = renderWithProviders(<MeetingsSettings lng="en" />);
-    await openBlock(user, 'meetings.settings.recent_title');
-    expect(screen.getByText('meetings.settings.no_meetings')).toBeInTheDocument();
-  });
-});
-
-describe('MeetingsSettings — the retention field and its caption', () => {
   it('bounds the field WRAPPER so the caption stays beside it', () => {
     // `Input` wraps itself in `FieldFrame`, which is `w-full`: inside a flex
     // row that wrapper claims every spare pixel, and the caption is pushed
@@ -290,4 +249,32 @@ describe('MeetingsSettings — the retention field and its caption', () => {
     // The caption is a sentence built from two keys; the label is separate.
     expect(screen.getByText(/keep_audio_max/)).toBeInTheDocument();
   });
+});
+
+it('preserves a draft across folding and edits made while an earlier save is pending', async () => {
+  let finish: (value: MeetingPreferences) => void = () => {};
+  prefs.save.mockImplementationOnce(
+    () =>
+      new Promise<MeetingPreferences>(resolve => {
+        finish = resolve;
+      })
+  );
+  const { user } = renderWithProviders(<MeetingsSettings lng="en" />);
+  const input = screen.getByLabelText('meetings.settings.keep_audio_label');
+  await user.clear(input);
+  await user.type(input, '12');
+  await user.click(screen.getByRole('button', { name: 'common.save' }));
+  await user.clear(input);
+  await user.type(input, '24');
+  await user.click(screen.getByText('meetings.settings.preferences_title'));
+  await waitFor(() =>
+    expect(screen.queryByLabelText('meetings.settings.keep_audio_label')).not.toBeInTheDocument()
+  );
+  await act(async () => finish(preferences({ keep_audio_hours: 12 })));
+  await openBlock(user, 'meetings.settings.preferences_title');
+  expect(screen.getByLabelText('meetings.settings.keep_audio_label')).toHaveValue(24);
+  expect(screen.getByRole('button', { name: 'common.save' })).toHaveAttribute(
+    'aria-disabled',
+    'false'
+  );
 });

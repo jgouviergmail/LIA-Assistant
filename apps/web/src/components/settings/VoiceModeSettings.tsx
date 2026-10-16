@@ -19,6 +19,7 @@
 import { useState, useEffect, useId } from 'react';
 import { Mic, Cloud, Server, AlertTriangle, AudioLines, Ear } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
+import { Card } from '@/components/ui/card';
 import { InfoBox } from '@/components/ui/info-box';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { LiaVoicesFields } from '@/components/settings/voice-mode/LiaVoicesFields';
@@ -190,7 +191,7 @@ export function VoiceModeSettings({ lng }: BaseSettingsProps) {
       <div
         role="group"
         aria-labelledby={sttTitleId}
-        className="rounded-lg border bg-card p-3 space-y-3"
+        className="rounded-lg border bg-background p-3 space-y-3"
       >
         <p id={sttTitleId} className="flex items-center gap-2 text-sm font-medium">
           <AudioLines className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
@@ -226,7 +227,7 @@ export function VoiceModeSettings({ lng }: BaseSettingsProps) {
         )}
 
         {serverSttMode === 'remote' && !remoteDisabled && (
-          <InfoBox>
+          <InfoBox className="bg-card">
             <p className="text-xs text-muted-foreground">
               {t('settings.voice_mode.stt_remote_privacy_notice', { provider: remote.name })}
             </p>
@@ -237,40 +238,41 @@ export function VoiceModeSettings({ lng }: BaseSettingsProps) {
       {/* Wake-word voice mode toggle — opt-in for hands-free, uses the STT
           backend selected above. Push-to-talk works regardless of this. The
           phrase is the interface language's own (ADR-329). */}
-      <div className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-card">
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium flex flex-wrap items-center gap-2">
-            <Ear className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-            <span id={wakeTitleId}>{t('settings.voice_mode.enable')}</span>
-            {/* A trait of a working feature, not an inactive one: theme tone. */}
-            {wake.beta && <Badge variant="default">{t('settings.voice_mode.wake_beta')}</Badge>}
-          </p>
-          <p className="text-xs text-muted-foreground">{wake.description}</p>
-          {wake.beta && (
-            <p className="text-xs text-muted-foreground mt-1">
-              {t('settings.voice_mode.wake_beta_note')}
+      <Card surface="nested" className="p-3 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium flex flex-wrap items-center gap-2">
+              <Ear className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+              <span id={wakeTitleId}>{t('settings.voice_mode.enable')}</span>
+              {/* A trait of a working feature, not an inactive one: theme tone. */}
+              {wake.beta && <Badge variant="default">{t('settings.voice_mode.wake_beta')}</Badge>}
             </p>
-          )}
+            <p className="text-xs text-muted-foreground">{wake.description}</p>
+            {wake.beta && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {t('settings.voice_mode.wake_beta_note')}
+              </p>
+            )}
+          </div>
+          <Switch
+            aria-labelledby={wakeTitleId}
+            checked={user?.voice_mode_enabled ?? false}
+            onCheckedChange={handleToggleEnabled}
+            disabled={updating}
+          />
         </div>
-        <Switch
-          aria-labelledby={wakeTitleId}
-          checked={user?.voice_mode_enabled ?? false}
-          onCheckedChange={handleToggleEnabled}
-          disabled={updating}
-        />
-      </div>
+        {/* Generic voice mode info */}
+        <InfoBox className="bg-card">
+          <p className="text-xs text-muted-foreground">{t('settings.voice_mode.info')}</p>
+          <p className="text-xs text-muted-foreground mt-2">
+            {t('settings.voice_mode.wake_privacy_note')}
+          </p>
+          {wake.stopNote && <p className="text-xs text-muted-foreground mt-2">{wake.stopNote}</p>}
+        </InfoBox>
+      </Card>
 
       {/* The voices LIA answers with — the person's own, or the administrator's. */}
       <LiaVoicesFields lng={lng} />
-
-      {/* Generic voice mode info */}
-      <InfoBox>
-        <p className="text-xs text-muted-foreground">{t('settings.voice_mode.info')}</p>
-        <p className="text-xs text-muted-foreground mt-2">
-          {t('settings.voice_mode.wake_privacy_note')}
-        </p>
-        {wake.stopNote && <p className="text-xs text-muted-foreground mt-2">{wake.stopNote}</p>}
-      </InfoBox>
     </div>
   );
 
@@ -313,7 +315,7 @@ function SttModeOption({
         'flex flex-col items-start gap-1 rounded-md border p-3 text-left transition-colors',
         selected
           ? 'border-primary bg-primary/5 ring-1 ring-primary'
-          : 'border-border bg-background hover:bg-muted',
+          : 'border-border bg-card hover:bg-muted',
         disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
       ].join(' ')}
     >

@@ -137,7 +137,7 @@ test.describe('the shortcuts dock', () => {
     await expect(police).toBeVisible();
     await expect(page.getByRole('checkbox', { name: 'Apparence', exact: true })).toBeChecked();
     // The picker never offers itself.
-    await expect(page.getByRole('checkbox', { name: 'Mes raccourcis' })).toHaveCount(0);
+    await expect(page.getByRole('checkbox', { name: 'Mes favoris' })).toHaveCount(0);
 
     const put = page.waitForRequest(
       request =>

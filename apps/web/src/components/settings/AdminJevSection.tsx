@@ -34,7 +34,7 @@ function RoutingSwitch({
   onChange: (enabled: boolean) => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-lg border border-border p-4">
+    <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-background p-4">
       <div className="min-w-0 space-y-1">
         <Label htmlFor={id} className="cursor-pointer text-sm font-medium">
           {label}

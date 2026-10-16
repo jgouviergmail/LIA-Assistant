@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useId } from 'react';
 import Image from 'next/image';
 import { useTranslation } from '@/i18n/client';
 import { type Language } from '@/i18n/settings';
@@ -306,6 +306,9 @@ export function FAQContent({ lng, onShowWelcome, showWelcomeButton = false }: FA
   const [searchQuery, setSearchQuery] = useState('');
   const [showIntro, setShowIntro] = useState(false);
   const [showChangelog, setShowChangelog] = useState(false);
+  const introId = useId();
+  const changelogId = useId();
+  const [browseOpen, setBrowseOpen] = useState<Record<string, string[]>>({});
 
   // W1: a written example becomes a real intent. The phrase is handed to the
   // chat composer through the shared `?draft=` rail — prefilled, NEVER sent, so
@@ -397,8 +400,10 @@ export function FAQContent({ lng, onShowWelcome, showWelcomeButton = false }: FA
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-muted hover:bg-muted-foreground/20 flex items-center justify-center transition-colors"
+                className="absolute right-0 top-1/2 -translate-y-1/2 h-11 w-11 sm:h-7 sm:w-7 rounded-full bg-muted hover:bg-muted-foreground/20 flex items-center justify-center transition-colors"
                 title={t('faq.search.clear')}
+                aria-label={t('faq.search.clear')}
+                type="button"
               >
                 <X className="h-3 w-3 text-muted-foreground" />
               </button>
@@ -406,7 +411,7 @@ export function FAQContent({ lng, onShowWelcome, showWelcomeButton = false }: FA
           </div>
         </div>
         {isSearching && (
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p role="status" aria-live="polite" className="mt-2 text-sm text-muted-foreground">
             {resultsCount > 0
               ? t('faq.search.results_count', { count: resultsCount })
               : t('faq.search.no_results', { query: searchQuery })}
@@ -414,83 +419,13 @@ export function FAQContent({ lng, onShowWelcome, showWelcomeButton = false }: FA
         )}
       </Card>
 
-      {/* How it Works Section - Collapsible */}
-      {!isSearching && (
-        <Card className="overflow-hidden">
-          <button
-            onClick={() => setShowIntro(!showIntro)}
-            className="w-full p-6 flex items-center justify-between hover:bg-muted/50 transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 p-2">
-                <Cpu className="h-5 w-5 text-primary" />
-              </div>
-              <div className="text-left">
-                <h2 className="text-xl font-semibold">{t('faq.intro.title')}</h2>
-                <p className="text-sm text-muted-foreground">{t('faq.intro.description')}</p>
-              </div>
-            </div>
-            {showIntro ? (
-              <ChevronUp className="h-5 w-5 text-muted-foreground" />
-            ) : (
-              <ChevronDown className="h-5 w-5 text-muted-foreground" />
-            )}
-          </button>
-
-          {showIntro && (
-            <div className="px-6 pb-6 pt-2 border-t">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {featureKeys.map(featureKey => {
-                  const Icon = featureIcons[featureKey as keyof typeof featureIcons];
-                  return (
-                    <div
-                      key={featureKey}
-                      className="flex gap-3 p-4 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
-                    >
-                      <div className="rounded-md bg-primary/10 p-2 h-fit">
-                        <Icon className="h-4 w-4 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-sm mb-1">
-                          {t(`faq.intro.features.${featureKey}.title`)}
-                        </h3>
-                        {/* Same rendering contract as the section answers and
-                            changelog items below: authored HTML compiled from
-                            the repo locales (the charter's app-controlled
-                            exemption). 14 of the cards carry <b>/<i> markup
-                            that used to display as literal tags. */}
-                        <p
-                          className="text-xs text-muted-foreground leading-relaxed"
-                          dangerouslySetInnerHTML={{
-                            __html: t(`faq.intro.features.${featureKey}.description`),
-                          }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              {/* Architecture diagram */}
-              <div className="mt-6 rounded-lg overflow-hidden border bg-background relative">
-                <Image
-                  src="/schema2.png"
-                  alt={t('faq.intro.diagram_alt')}
-                  width={1200}
-                  height={800}
-                  className="w-full h-auto"
-                  priority={false}
-                />
-              </div>
-            </div>
-          )}
-        </Card>
-      )}
-
       {/* Changelog Section - Collapsible */}
       {!isSearching && (
         <Card className="overflow-hidden">
           <button
             onClick={() => setShowChangelog(!showChangelog)}
+            aria-expanded={showChangelog}
+            aria-controls={changelogId}
             className="w-full p-6 flex items-center justify-between hover:bg-muted/50 transition-colors"
           >
             <div className="flex items-center gap-3">
@@ -509,27 +444,105 @@ export function FAQContent({ lng, onShowWelcome, showWelcomeButton = false }: FA
             )}
           </button>
 
-          {showChangelog && (
-            <div className="px-6 pb-6 pt-2 border-t">
-              <Accordion type="multiple" className="w-full">
-                {changelogVersionKeys.map(versionKey => (
-                  <AccordionItem key={versionKey} value={`changelog-${versionKey}`}>
-                    <AccordionTrigger className="text-left">
-                      <div className="flex items-center gap-3">
-                        <span className="font-semibold">{t(changelogTitleKey(versionKey))}</span>
-                        <span className="text-xs text-muted-foreground font-normal">
-                          {t(changelogDateKey(versionKey))}
-                        </span>
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <ChangelogItems version={versionKey} t={t} />
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
+          <div id={changelogId} hidden={!showChangelog}>
+            {showChangelog && (
+              <div className="px-6 pb-6 pt-2 border-t">
+                <Accordion type="multiple" className="w-full">
+                  {changelogVersionKeys.map(versionKey => (
+                    <AccordionItem key={versionKey} value={`changelog-${versionKey}`}>
+                      <AccordionTrigger className="text-left">
+                        <div className="flex items-center gap-3">
+                          <span className="font-semibold">{t(changelogTitleKey(versionKey))}</span>
+                          <span className="text-xs text-muted-foreground font-normal">
+                            {t(changelogDateKey(versionKey))}
+                          </span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <ChangelogItems version={versionKey} t={t} />
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
+
+      {/* How it Works Section - Collapsible */}
+      {!isSearching && (
+        <Card className="overflow-hidden">
+          <button
+            onClick={() => setShowIntro(!showIntro)}
+            aria-expanded={showIntro}
+            aria-controls={introId}
+            className="w-full p-6 flex items-center justify-between hover:bg-muted/50 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 p-2">
+                <Cpu className="h-5 w-5 text-primary" />
+              </div>
+              <div className="text-left">
+                <h2 className="text-xl font-semibold">{t('faq.intro.title')}</h2>
+                <p className="text-sm text-muted-foreground">{t('faq.intro.description')}</p>
+              </div>
             </div>
-          )}
+            {showIntro ? (
+              <ChevronUp className="h-5 w-5 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-5 w-5 text-muted-foreground" />
+            )}
+          </button>
+
+          <div id={introId} hidden={!showIntro}>
+            {showIntro && (
+              <div className="px-6 pb-6 pt-2 border-t">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {featureKeys.map(featureKey => {
+                    const Icon = featureIcons[featureKey as keyof typeof featureIcons];
+                    return (
+                      <div
+                        key={featureKey}
+                        className="flex gap-3 p-4 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="rounded-md bg-primary/10 p-2 h-fit">
+                          <Icon className="h-4 w-4 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-sm mb-1">
+                            {t(`faq.intro.features.${featureKey}.title`)}
+                          </h3>
+                          {/* Same rendering contract as the section answers and
+                            changelog items below: authored HTML compiled from
+                            the repo locales (the charter's app-controlled
+                            exemption). 14 of the cards carry <b>/<i> markup
+                            that used to display as literal tags. */}
+                          <p
+                            className="text-xs text-muted-foreground leading-relaxed"
+                            dangerouslySetInnerHTML={{
+                              __html: t(`faq.intro.features.${featureKey}.description`),
+                            }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {/* Architecture diagram */}
+                <div className="mt-6 rounded-lg overflow-hidden border bg-background relative">
+                  <Image
+                    src="/schema2.png"
+                    alt={t('faq.intro.diagram_alt')}
+                    width={1200}
+                    height={800}
+                    className="w-full h-auto"
+                    priority={false}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
         </Card>
       )}
 
@@ -573,11 +586,14 @@ export function FAQContent({ lng, onShowWelcome, showWelcomeButton = false }: FA
             <Accordion
               type="multiple"
               className="w-full"
-              defaultValue={
+              value={
                 isSearching && matchingKeys
                   ? Array.from(matchingKeys).map(k => `${section}-${k}`)
-                  : []
+                  : (browseOpen[section] ?? [])
               }
+              onValueChange={value => {
+                if (!isSearching) setBrowseOpen(previous => ({ ...previous, [section]: value }));
+              }}
             >
               {Array.from({ length: questionCount }, (_, i) => i + 1).map(num => {
                 const questionKey = `q${num}`;

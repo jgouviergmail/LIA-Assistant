@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.1.0] - 2026-10-17
 
 **Your mailbox drafts, managed from the conversation.**
 LIA now keeps drafts in your own Gmail, Outlook or iCloud mailbox: it saves a
@@ -20,6 +20,18 @@ the voice mode and the meetings, and a voice library administrators clone and
 design into. A sentence heard is billed once, by the engine that spoke it; LIA
 writes a few expressive cues where an engine performs them, and the radio voices
 its exchanges in one take.
+
+**An assistant that learns where it is reliable — from evidence, never from its own grade.**
+LIA keeps a private experience per domain on two axes that are never merged:
+what a turn verifiably achieved, and what you found useful. Where the evidence
+is thin it checks once, asks one question or names what it could not verify;
+its own mood score no longer passes for competence.
+
+**A home page, settings and lists redrawn for reading.**
+Today opens on the date and LIA's living face; meetings and calls read as
+timelines; LIA's psyche is drawn; panels alternate their depth, a button keeps
+its label while it waits, documents show their first page, and an error is
+never shown as an empty list.
 
 ### Added
 
@@ -91,6 +103,52 @@ its exchanges in one take.
   autonomous mode: everything the cards do not already show, wrapped as
   third-party content, within a budget, every cut stated. Measured before:
   0 of 9 answers gave the travel times, 27 of 27 with the data.
+- 🧭 **LIA learns where it is reliable, from evidence** ([ADR-348](docs/architecture/ADR-348-Efficacy-Learned-From-Evidence-Results-And-Usefulness-Kept-Apart.md)):
+  seven domains — planning, information, emotional support, creativity,
+  technical, social, organization — keep a private experience on two axes never
+  merged: what a turn verifiably achieved (the final coverage of the requested
+  outcomes, never an HTTP status) and the usefulness you expressed (👍/👎 on the
+  final answer). An index exists only from five observations within ninety days.
+  With that evidence, LIA may verify a point the turn left open, ask one
+  clarifying question or name what it could not check — in the pipeline, the
+  autonomous mode and the answer alike — and changes no model, permission,
+  budget or confirmation. Settings › LIA's psyche shows « No index yet »,
+  « Learning » or « Observed » with each axis' basis; the evidence is exported
+  with your account and erased by a full psyche reset or a purge.
+  `PSYCHE_EFFICACY_COLLECTION_ENABLED` and `PSYCHE_EFFICACY_INFLUENCE_ENABLED`
+  switch each half off. A pilot: no gain is claimed before a held-out comparison.
+- 🔊 **Gemini voices the chat too** ([ADR-345](docs/architecture/ADR-345-Fish-Audio-Served-Whole-One-Door-One-Allowance-Cues-Each-Engine-Reads.md)):
+  a chat voice slot set to Gemini used to speak through Edge, because the chat
+  could not record a token-billed voice; every speaking surface now records
+  through one door, so the chat speaks with the voice configured.
+- 🏠 **A home page that opens on your day:** the date is the page title and
+  rolls over at midnight in your time zone; a compact welcome card carries
+  LIA's live face, a one-click switch to the other avatar, the greeting and its
+  cost; the radio, your shortcuts and « My dashboard » follow, and they still
+  render when the briefing fails. LIA's briefing can be folded, listened to and
+  cancelled while its voice loads, and says when a refresh failed. The agenda
+  groups events by day on a timeline, each one an interval with its time-zone
+  offset when a clock change falls inside; birthdays say the age, documents
+  their type, the weather draws its sky, health colours its figures, and the
+  workboard card counts the tickets held with your connections and previews the
+  first two of each count. Consumption is one table, with input, output and
+  cached tokens and the Google API requests.
+- 🗓️ **Meetings and calls read as timelines:** grouped by local day and by
+  period (night, morning, midday, afternoon, evening), with start and end
+  times — an end is never guessed from a duration — and, for meetings, how the
+  format was chosen, the indexing state and the engine that transcribed it.
+- 🔔 **The alerts hub in two groups:** « Upcoming and to follow up » and
+  « Already received », proposals answered by two visible buttons, full texts,
+  and readable source names in the histories.
+- 🧠 **LIA's psyche, drawn:** emotion rings around the mood, a pleasure ×
+  arousal plane, the personality's Big Five pentagon, ring meters for the
+  relationship, the drives, the new experience panel and an evolution chart on
+  a true time axis — every instrument a labelled meter.
+- 👁️ **A preview before you choose a display mode:** Settings › Display mode
+  draws a sample answer in each format.
+- 📄 **Generated documents show their first page:** in the gallery, a PDF shows
+  its real first page and a text or Office file an excerpt labelled as such,
+  loaded only when the card nears the screen.
 
 ### Changed
 
@@ -114,6 +172,88 @@ its exchanges in one take.
 - ⏱️ **The ElevenLabs voices offered in the voice mode and radio settings are
   read from a ten-minute cache,** so a voice turn never waits on the vendor's
   listing; the administration's picker still reads the account live.
+- 🧠 **LIA's self-rating no longer counts as competence** ([ADR-348](docs/architecture/ADR-348-Efficacy-Learned-From-Evidence-Results-And-Usefulness-Kept-Apart.md),
+  [ADR-068](docs/architecture/ADR-068-Psyche-Engine.md) amendment 2026-10-16 b):
+  the old self-efficacy score, fed by LIA's own rating of a conversation into
+  « emotional support », and the caution it injected on « weak domains » are
+  retired; the self-report keeps feeding the mood, the emotions and the
+  relationship. Old scores stay readable and are not converted.
+  `PSYCHE_SELF_EFFICACY_PRIOR_WEIGHT` has no effect any more.
+- 🎙️ **The remote dictation cap names no vendor:**
+  `ELEVENLABS_STT_MAX_AUDIO_DURATION_SECONDS` becomes
+  `REMOTE_STT_MAX_AUDIO_DURATION_SECONDS` (the old name is still read), and
+  `FISHAUDIO_STT_ENABLED` switches Fish Audio transcription off like its
+  ElevenLabs sibling.
+- 🎧 **Dialogue takes are bounded and counted:** `RADIO_DIALOGUE_MAX_BYTES`
+  (`0` voices every line alone) and `radio_dialogue_takes_total` (dashboard 31);
+  a Fish Audio socket answered over HTTP is counted by
+  `voice_tts_transport_fallbacks_total` (dashboard 11).
+- ⏸️ **A personal MCP server that fails to connect is paused** ([ADR-224](docs/architecture/ADR-224-Conformite-MCP-2026-07-28-SDK-v2.md),
+  amendment 2026-10-13): it used to be retried at every turn, each attempt up to
+  its timeout. The pause starts at `MCP_USER_FAILURE_PAUSE_BASE_SECONDS`, doubles
+  up to `MCP_USER_FAILURE_PAUSE_MAX_SECONDS` and is shared by every worker; a
+  success, an edit or a re-authorisation lifts it, and the manual test ignores it.
+- 🗜️ **A compacted conversation keeps its identifiers** ([ADR-086](docs/architecture/ADR-086-Conversation-History-Compaction-v2.md),
+  amendment 2026-10-13): an id, a URL or an address the summary dropped is
+  written back under it, marked untrusted when it came from third-party content,
+  up to `COMPACTION_IDENTIFIERS_REINSERT_MAX` per list.
+- 🧩 **The step limits of the expert, browser and MCP loops count graph steps**
+  ([ADR-083](docs/architecture/ADR-083-Sub-Agent-Delegation-React.md),
+  amendment 2026-10-13 b): N steps buy N÷2 model calls, the last one writing the
+  answer. The lowest accepted values rise — `SUBAGENT_DEFAULT_MAX_ITERATIONS` ≥ 2,
+  `BROWSER_REACT_MAX_ITERATIONS` and `MCP_REACT_MAX_ITERATIONS` ≥ 4 —, and a
+  `.env` below them now refuses to start.
+- 🔐 **Mail servers must present a valid certificate:** LIA's own SMTP relay and
+  iCloud's SMTP and IMAP verify the certificate and the host name before logging
+  in, where `STARTTLS` used to accept any certificate. A relay with a
+  self-signed certificate must be given a trusted one, or the verification and
+  notification e-mails will not leave.
+- 🌐 **Browser sessions are admitted atomically** ([ADR-059](docs/architecture/ADR-059-Browser-Control.md),
+  amendment 2026-10-15): one Redis registry with per-entry expiry (Redis 7.4, as
+  Compose and the installer ship), so a stale worker can no longer overwrite a
+  newer context and every worker cleans its own idle ones.
+- 🎨 **Panels read their depth:** a panel inside a panel takes the darker tone,
+  then the lighter one again, in light, dark and absolute black alike, and a
+  field takes the opposite tone of the panel it sits in.
+- ⏳ **A button keeps its label while it waits:** it shows a small spinner,
+  keeps its size and its focus, and ignores a second press; pagination,
+  toolbars and row actions follow the same rule.
+- ⚙️ **Settings, tidied:** absolute black is a fourth choice beside light, dark
+  and system (no separate switch); the avatar saves itself as you choose, the
+  last choice winning and a failure rolling back with Retry; the geolocation
+  status is a badge beside its title; LIA's voice, the hands-free panel and the
+  voice-mode description are grouped; avatar style moves to Features › Identity
+  & Memory beside LIA Style, both redrawn; the connections, the consumption
+  export, the knowledge spaces and the MCP servers are laid out as cards; the
+  routines' week view starts closed; « Rich HTML » is « HTML » and « HTML Cards »
+  « Cards »; in French the page is « Réglages » and in Spanish « Ajustes », like
+  the navigation.
+- 🏷️ **Shorter section names, the old ones still found:** seventeen settings
+  sections take the name their menu shows — « Skill permissions », « My phone »,
+  « Data export », « Usage export », « My favorites », « Live voice mode »… — in
+  the six languages, the FAQ, the help corpus and the guides; the settings
+  search still finds each one by its former name.
+- 📱 **On a phone, the companion makes room:** LIA's eyes step away from the
+  search field, buttons and headings, and shrink to a dot when there is no free
+  space — your chosen spot is never overwritten. Opening a settings section
+  moves the focus to it, and « Back » returns to the item you came from.
+- 🧭 **Back where you were:** opening a person in Relations keeps the search,
+  the filters and the scroll, accents are ignored and « Clear filters » is one
+  tap; the meetings list keeps its page in the address, and « Back » from a
+  meeting returns to it. The FAQ opens on its version history.
+- 🔔 **The notifications hub is « Alerts »**, like its navigation entry (« Alertes »,
+  « Hinweise », « Avisos », « Avvisi »).
+- 🏗️ **Build and scan:** the image scan (`task security:scan:docker`) now fails on
+  a HIGH or CRITICAL finding, and the web production image no longer copies the
+  whole package store into its build stage.
+- 🔒 **Next.js 16.4.1:** the web front moves to the release that closes the
+  advisories published with it — two critical remote code executions and a
+  denial of service through Server Actions, which the settings pages use — and
+  `undici` gets a floor of 7.30.1. The new router's route prediction is switched
+  off (`experimental.optimisticRouting`): the language middleware rewrites every
+  default-language path, and a predicted route made a public page fetch its
+  1.8 MB layout segment again several times a second; a browser test now names
+  that loop.
 
 ### Removed
 
@@ -135,9 +275,23 @@ its exchanges in one take.
   step types equal to what the executor runs.
 - 🗑️ **The stale `apps/api/coverage.json`**, a February coverage report at
   39 % that nothing read; coverage JSON output is now ignored like the others.
+- 🧹 **`BROWSER_MEMORY_LIMIT_MB` and the `browser_memory_bytes` gauge**, which
+  nothing enforced or sampled ([ADR-059](docs/architecture/ADR-059-Browser-Control.md),
+  amendment 2026-10-15); the dashboard shows the API workers' memory instead.
+- 🗂️ **The « Why does LIA think this? » block under memories, interests and
+  journal entries:** the lists show the entries and their editing actions; the
+  references stay available through the API
+  ([PROVENANCE_AND_CAPABILITIES](docs/technical/PROVENANCE_AND_CAPABILITIES.md)).
+- ✂️ **Screen elements that repeated another one:** the recent-meetings block of
+  the meetings settings and the templates shortcut of the meetings list (both
+  stay reachable from Settings), the alerts hub's « Advanced settings » links,
+  the home page's large photo hero.
 
 ### Fixed
 
+- 🏷️ **The FAQ version history wears its emoji again:** the eleven releases from
+  v2.1.0 to v3.1.0 had lost the emoji that opens every title, in all six
+  languages; a test now holds every title since v1.20.12 to it.
 - 🎚️ **The radio's voices survive a change of model:** they were kept per provider AND
   model, so every model change of the radio's voice slot handed you other voices — or
   automatic ones. They are kept per provider now, every model of which offers the same
@@ -332,6 +486,151 @@ its exchanges in one take.
   offered `REPLAN` and `HUMAN` in six languages and the generator `PARALLEL`
   and `RESPONSE`, none of which ran. Any other type now refuses the template
   before execution, and the request goes to the regular planner.
+- 🎭 **Personalities have their character back** ([ADR-068](docs/architecture/ADR-068-Psyche-Engine.md),
+  amendment 2026-10-16): the reference seed re-created the 14 stock
+  personalities without their Big Five and mood profile, so on every instance
+  seeded after the traits arrived, all of them reacted like « Normal ».
+  Migration `b62a8d193f04` restores the profiles where no administrator set a
+  value and aligns a psyche still at the neutral profile — mood, emotions and
+  relationship untouched —, the seed check now refuses a profile without traits,
+  and an account that never chose a personality follows the default one.
+- 🔬 **A delegated expert that runs out of steps still delivers** ([ADR-083](docs/architecture/ADR-083-Sub-Agent-Delegation-React.md),
+  amendment 2026-10-13 b): its last call writes the analysis from what it found,
+  where it used to end on LangGraph's « Sorry, need more steps to process this
+  request », reported as a success. Browser and MCP tasks say how far they got
+  when they fail, an MCP task keeps the widgets it created, and a skill that
+  produced no answer says why (`subagent_outcomes_total{agent_name,outcome}`,
+  dashboard 19).
+- 📏 **Both modes tell an expert's reach the same way** ([ADR-083](docs/architecture/ADR-083-Sub-Agent-Delegation-React.md),
+  amendment 2026-10-13): the autonomous mode no longer delegates « analyse my
+  e-mails » to an expert that cannot read them, and the instruction's size cap
+  is enforced by the tool in both modes, before any model runs.
+- 🚦 **Web searches wait out a provider's rate limit instead of failing**
+  ([ADR-108](docs/architecture/ADR-108-BaseAPIKeyClient-Adoption.md),
+  amendment 2026-10-13): a 429 on one person's Brave or Perplexity key opened a
+  breaker every account shares and refused 13 searches of 15 in one run, read as
+  « service unavailable ». It is now retried with jitter; when it persists it
+  reads « rate limit » — the briefing's weather card included — and Perplexity
+  failures are no longer counted as successes.
+- ⏱️ **A tool LIA's own limiter refuses is a refusal** ([ADR-303](docs/architecture/ADR-303-Tool-Failure-Restitution.md),
+  amendment 2026-10-13): it was recorded as a consulted source, a successful call
+  and a productive iteration; it now states the limit, whose it is and when it
+  lifts.
+- 🔁 **A routine never asks a question nobody can see** ([ADR-263](docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md),
+  [ADR-276](docs/architecture/ADR-276-Workboard.md),
+  [ADR-298](docs/architecture/ADR-298-Sandbox-Egress-Toolbox.md), amendments
+  2026-10-13): thirteen routine runs had stopped on a confirmation or a
+  sandbox-network question that took your next message as its answer and held
+  back later routines. A routine now refuses and says where to allow it; a
+  ticket still asks.
+- 🛑 **A routine or a ticket retried after a timeout never repeats what it did**
+  ([ADR-276](docs/architecture/ADR-276-Workboard.md), amendment 2026-10-13 b,
+  [ADR-265](docs/architecture/ADR-265-Routine-Week-Timeline-And-Run-History.md)):
+  a retry replayed the whole turn, browser tasks included; it is refused once
+  the register shows an action. A routine's reservation is held by its token,
+  so the recovery never hands a live run to a second tick and a late settle
+  never overwrites another tick's routine.
+- 💬 **« LIA is already working on this conversation »** ([ADR-117](docs/architecture/ADR-117-Background-Chat-Runs.md),
+  amendment 2026-10-13): while a ticket or a voice relay runs on your
+  conversation, the chat says LIA is busy; it no longer attaches to a stream
+  nobody writes or claims a Stop worked, and a message sent meanwhile says it
+  was not sent.
+- 📡 **Live streams through a compressing proxy** ([ADR-117](docs/architecture/ADR-117-Background-Chat-Runs.md),
+  amendment 2026-10-15): event streams carry `Cache-Control: no-transform`, so a
+  gzip proxy no longer holds the notifications and the chat until they end.
+- 🔕 **Signing a device out also stops its notifications** ([ADR-144](docs/architecture/ADR-144-Device-Sessions.md),
+  amendment 2026-10-13): the notification stream kept flowing to a revoked tab;
+  it now closes with `session_revoked` and the page returns to the sign-in
+  instead of reconnecting into refusals.
+- 🗓️ **One scheduler, even after a lost lease** ([ADR-046](docs/architecture/ADR-046-Background-Job-Scheduling.md),
+  [ADR-123](docs/architecture/ADR-123-Lifespan-Startup-Decomposition.md),
+  amendments 2026-10-13): a worker that lost its lease kept running every job
+  beside the new leader; it now pauses until it is re-elected, and a shutdown
+  starts no job and stops the scheduler before what its jobs need.
+- 🌍 **Web pages load on hosts without IPv6** ([ADR-326](docs/architecture/ADR-326-Linear-Flatteners-And-Pinned-Fetches.md),
+  amendment 2026-10-13): the validated address was picked in hash order and could
+  be an unreachable IPv6 one; the resolver's order is kept, and a refused
+  connection moves to the next validated address.
+- ✉️ **An e-mail is sent once:** sends, replies and forwards on Gmail, Outlook
+  and iCloud are no longer retried after a lost acknowledgement, which could
+  deliver them twice; a send some recipients refused says how many received it.
+- 📎 **A forward never drops a file silently, and a reply honours Reply-To**
+  ([ADR-344](docs/architecture/ADR-344-Mailbox-Drafts-Kept-Freely-Sent-After-One-Confirmation.md)):
+  a file that cannot be downloaded refuses the forward before anything is
+  written.
+- 🗑️ **iCloud moves mail to its real trash:** found by its role, never a folder
+  named « Trash », and without expunging what other mail apps had marked
+  deleted; a « not found » answers at once instead of after seconds of retries.
+- 🍏 **The iCloud connection test checks every service you selected** — mail,
+  calendars, contacts — and says in your language whether the password, the
+  certificate or the connection failed.
+- 🔒 **A connector cannot be activated past a revocation** ([ADR-302](docs/architecture/ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md),
+  amendment 2026-10-15): an activation re-reads your account and the
+  administrator's switch under locks once the provider has answered, and a
+  provider key is written in one atomic step ([ADR-215](docs/architecture/ADR-215-Self-Host-Installer.md),
+  amendment 2026-10-15).
+- 📨 **« Send me this by e-mail » no longer asks for a recipient**, and « prepare
+  a draft » no longer asks for content LIA writes itself: the missing-content
+  check matched tool names by fragment.
+- 📭 **A mailbox that could not be read is not « empty »:** when every message
+  read fails, LIA says so instead of answering that you have no mail.
+- 📲 **Long Telegram messages keep their formatting:** a long HTML message is
+  split between tags, each part closing what it opened; parts used to be refused
+  and resent as raw text with the tags visible.
+- 🛡️ **The third-party content envelope holds in every spelling** ([ADR-167](docs/architecture/ADR-167-Content-Trust-Registry.md),
+  amendment 2026-10-13): a closing tag written in another case, full-width or
+  with invisible characters can no longer break out of it, and the injection scan
+  reads the text as a model does.
+- 🔑 **Secrets stay out of logs and answers** ([ADR-317](docs/architecture/ADR-317-A-Log-Line-Carries-Facts-Never-The-Words.md),
+  amendments 2026-10-13 and 2026-10-15): provider keys, a quoted `Bearer` or
+  `api_key` and card numbers are masked; connector, Places, Routes, geocoding,
+  Microsoft Graph and telephony refusals carry their status and code, never the
+  provider's text; a sandbox run or a network skill command removes a key the
+  remote service echoed ([ADR-298](docs/architecture/ADR-298-Sandbox-Egress-Toolbox.md),
+  amendment 2026-10-13 b); the web app no longer logs push tokens.
+- 🖱️ **Browser refusals are typed** ([ADR-303](docs/architecture/ADR-303-Tool-Failure-Restitution.md),
+  amendment 2026-10-14): a page that could not be read is no longer « empty »,
+  and the browser agent's prompt names the click and fill argument as the tools
+  do.
+- 📉 **Compaction's token counts are recorded:** `compaction_cost_tokens_total`
+  read 0 on every real call.
+- 🔇 **The chat keeps speaking when its voice engine cannot be served:** Edge
+  stood in with the configured engine's voice ids, which mean nothing to it, so
+  the answer was silent; it now speaks with Edge's own voices.
+- 📻 **The briefing's « Read aloud » reads the whole text** on an engine that
+  returns raw audio: each sentence came back as its own file and the joined
+  file played only the first; the sentences are now encoded as one MP3.
+- 🛂 **A voice slot names a model its provider serves:** saving Fish Audio with
+  an ElevenLabs model, a transcription model on a speech slot or a model priced
+  in a unit the recorder cannot read is refused; such a slot used to be served
+  as the vendor's default model while LIA priced it at another tariff.
+- 🔐 **A voice-library act stops when its author loses the right to it**
+  ([ADR-345](docs/architecture/ADR-345-Fish-Audio-Served-Whole-One-Door-One-Allowance-Cues-Each-Engine-Reads.md),
+  amendments 2026-10-15): clone, design, save, rename, delete, pin and unpin
+  re-read the administrator's role when they act, a designed voice is saved
+  once, and a preview never goes to another vendor account than the one that
+  generated it. Deleting a voice gives everyone who had chosen it the
+  instance's voice back.
+- 🎙️ **A meeting on a transcription account without credit fails at once**
+  instead of retrying until its attempts run out.
+- 🔄 **Briefing cards retry where they failed:** on a network or rate-limit
+  error, « Retry » refreshes the card, where the agenda, mail and weather cards
+  sent you to the connectors settings.
+- 🧾 **An error is never an empty list:** meetings that could not load no
+  longer read « No meeting yet », calls « hidden », plugins « No plugin
+  installed » or the alerts counts « — »; each says it could not load, offers
+  Retry and keeps the rows already shown. The scheduled section of the alerts
+  shows different rows on each page.
+- 🎧 **A second press cancels a briefing that is still loading its voice**,
+  which could otherwise start playing late.
+- 👀 **The Smiley companion keeps its 3D context** when the page re-mounts it,
+  and a preferred spot just outside the margin no longer sends the companion to
+  the opposite edge.
+- 🌐 **Language and time zone follow the server's confirmation:** a refused
+  change no longer stays displayed, and changing the language keeps the open
+  settings section.
+- 🧩 **A plugin manifest with an explicit `null` in an optional field is
+  refused**, like a wrong type.
 
 ## [3.0.1] - 2026-10-13
 

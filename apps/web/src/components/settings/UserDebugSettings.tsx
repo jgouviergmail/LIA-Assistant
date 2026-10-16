@@ -42,7 +42,7 @@ export function UserDebugSettings({ lng }: BaseSettingsProps) {
   const content = (
     <div className="space-y-4">
       {/* Toggle */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between p-3 rounded-lg border bg-card">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between p-3 rounded-lg border bg-background">
         <div className="flex-1">
           <p className="text-sm font-medium">{t('settings.preferences.debug.enable')}</p>
           <p className="text-xs text-muted-foreground">

@@ -138,7 +138,7 @@ You can download a **complete archive of your data** at any time (GDPR right to 
 
 **🚫 What it never contains:** connector credentials, security keys, push tokens — secret material is unexportable by design.
 
-**⚙️ How:** **Settings > Security > Export my data** → Request an export → a push notification tells you when the ZIP is ready (downloadable for 24 h).
+**⚙️ How:** **Settings > Security > Data export** → Request an export → a push notification tells you when the ZIP is ready (downloadable for 24 h).
 
 ## What is left on the device when I sign out?
 

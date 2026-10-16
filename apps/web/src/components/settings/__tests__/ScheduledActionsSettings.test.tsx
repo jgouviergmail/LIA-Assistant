@@ -600,13 +600,15 @@ describe('ScheduledActionsSettings — chronological order and rank (ADR-265)', 
     expect(cards[1]?.querySelector('[data-tone]')).toHaveAttribute('data-tone', 'idle');
   });
 
-  it('draws the week above the list, open on arrival', () => {
+  it('keeps the week folded until requested', async () => {
     useScheduledActions.mockReturnValue(hook({ actions: [morning], total: 1 }));
-    render();
+    const { user } = render();
 
     const fold = screen.getByText('scheduled_actions.timeline.title').closest('details');
-    expect(fold).toHaveAttribute('open');
-    expect(screen.getByRole('table')).toBeInTheDocument();
+    expect(fold).not.toHaveAttribute('open');
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    await user.click(screen.getByText('scheduled_actions.timeline.title'));
+    expect(await screen.findByRole('table')).toBeInTheDocument();
   });
 
   it('draws no week while the list is empty', () => {
@@ -622,6 +624,8 @@ describe('ScheduledActionsSettings — chronological order and rank (ADR-265)', 
     Element.prototype.scrollIntoView = scrollIntoView;
     const { user } = render();
 
+    await user.click(screen.getByText('scheduled_actions.timeline.title'));
+    await screen.findByRole('table');
     // The grid names its chips by rank; the second chip is the evening routine.
     const chips = screen.getAllByRole('button', { name: 'scheduled_actions.timeline.chip_aria' });
     await user.click(chips[chips.length - 1] as HTMLElement);

@@ -65,6 +65,12 @@ const psycheState = {
 const unlimited = { current: 0, limit: null, usage_pct: null, exceeded: false };
 
 export const dashboardShellMocks: MockRoute[] = [
+  // Runtime presentation config is local app data, and stays mocked like the API shell.
+  { url: '**/api/runtime-ui', json: { avatarStyleRolloutId: null } },
+  {
+    url: '**/api/v1/journals/portrait',
+    json: { full: null, brief: null, compiled_at: null, sources: null },
+  },
   // App config (src/hooks/useAppConfig.ts) — chat page feature flags.
   { url: '**/api/v1/config', json: appConfig },
   {

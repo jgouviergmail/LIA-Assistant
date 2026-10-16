@@ -32,7 +32,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-import { cn } from '@/lib/utils';
+import { cn, normalizeSearchText } from '@/lib/utils';
 import { timeAgoLabel } from '@/lib/briefing-utils';
 import { RelationAvatar } from '@/components/relations/RelationAvatar';
 import type { RelationSummary } from '@/hooks/useRelations';
@@ -96,24 +96,15 @@ function RelationCard({
       <button
         type="button"
         onClick={() => onOpen(relation.display_name)}
-        className="w-full rounded-xl border border-border/50 bg-card p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex w-full flex-wrap items-center gap-3 rounded-xl border border-border/50 bg-card p-4 pr-14 text-left transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 flex-1 basis-32 items-center gap-3">
           <RelationAvatar name={relation.display_name} />
-          <div className="min-w-0 flex-1 pr-10">
+          <div className="min-w-0 flex-1">
             <span className="flex items-center gap-1.5">
-              <span className="truncate font-semibold text-foreground">
+              <span className="break-words font-semibold text-foreground">
                 {relation.display_name}
               </span>
-              {relation.is_peer && (
-                <span
-                  className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-primary/25 bg-primary/10 px-1.5 py-px text-px-9 font-semibold text-primary"
-                  title={t('relations.peer_badge_hint')}
-                >
-                  <Handshake className="h-2.5 w-2.5" aria-hidden="true" />
-                  LIA
-                </span>
-              )}
             </span>
             {relation.last_interaction_at ? (
               <span className="flex flex-wrap items-center gap-1.5">
@@ -139,21 +130,31 @@ function RelationCard({
             )}
           </div>
         </div>
-        {(relation.open_loops_count > 0 ||
+        {(relation.is_peer ||
+          relation.open_loops_count > 0 ||
           relation.calls_count > 0 ||
           relation.peer_messages_count > 0) && (
-          <div className="mt-3 flex flex-wrap gap-1.5 text-px-11">
+          <div className="ml-auto flex max-w-full flex-wrap justify-end gap-1.5 text-px-11">
+            {relation.is_peer && (
+              <span
+                className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-primary/25 bg-primary/10 px-1.5 py-px text-px-9 font-semibold text-primary"
+                title={t('relations.peer_badge_hint')}
+              >
+                <Handshake className="h-2.5 w-2.5" aria-hidden="true" />
+                LIA
+              </span>
+            )}
             {/* amber-800, not -700: at 11px on the tinted background the -700
                 pair measures 4.34:1, under the 4.5:1 AA floor (axe, production
                 bundle). Same fix as the v1.27.0 pills. */}
             {relation.open_loops_count > 0 && (
-              <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 font-medium text-amber-800 dark:text-amber-300">
+              <span className="inline-flex max-w-full items-center gap-1 rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 font-medium text-amber-800 dark:text-amber-300">
                 <ListTodo className="h-3 w-3" aria-hidden="true" />
                 {t('relations.open_loops_count', { count: relation.open_loops_count })}
               </span>
             )}
             {relation.calls_count > 0 && (
-              <span className="inline-flex items-center gap-1 rounded-full border border-sky-500/25 bg-sky-500/10 px-2 py-0.5 font-medium text-sky-700 dark:text-sky-300">
+              <span className="inline-flex max-w-full items-center gap-1 rounded-full border border-sky-500/25 bg-sky-500/10 px-2 py-0.5 font-medium text-sky-700 dark:text-sky-300">
                 <PhoneCall className="h-3 w-3" aria-hidden="true" />
                 {t('relations.calls_count', { count: relation.calls_count })}
               </span>
@@ -161,7 +162,7 @@ function RelationCard({
             {/* Primary tint: everything relayed through LIA shares the peers
                 identity colour (the "LIA" badge above, the chat bubbles). */}
             {relation.peer_messages_count > 0 && (
-              <span className="inline-flex items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-2 py-0.5 font-medium text-primary">
+              <span className="inline-flex max-w-full items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-2 py-0.5 font-medium text-primary">
                 <MessageSquare className="h-3 w-3" aria-hidden="true" />
                 {t('relations.peer_messages_count', { count: relation.peer_messages_count })}
               </span>
@@ -236,7 +237,7 @@ function FilterChip({
       onClick={onToggle}
       aria-pressed={active}
       className={cn(
-        'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        'inline-flex max-w-full items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         active
           ? 'border-primary/40 bg-primary/10 text-primary'
           : 'border-border/60 text-muted-foreground hover:bg-muted/60'
@@ -336,14 +337,20 @@ export function RelationCardList({
   const [onlyPeers, setOnlyPeers] = useState(false);
   const [onlyDormant, setOnlyDormant] = useState(false);
 
-  if (relations.length === 0) {
+  const hasFilter = Boolean(filter || onlyPeers || onlyDormant);
+  const resetFilters = () => {
+    setFilter('');
+    setOnlyPeers(false);
+    setOnlyDormant(false);
+  };
+  if (relations.length === 0 && !hasFilter) {
     return <EmptyState icon={Users} description={t('relations.empty')} />;
   }
 
-  const needle = filter.trim().toLowerCase();
+  const needle = normalizeSearchText(filter.trim());
   const matching = relations.filter(
     relation =>
-      (!needle || relation.display_name.toLowerCase().includes(needle)) &&
+      (!needle || normalizeSearchText(relation.display_name).includes(needle)) &&
       (!onlyPeers || relation.is_peer) &&
       (!onlyDormant || isDormant(relation))
   );
@@ -353,7 +360,7 @@ export function RelationCardList({
 
   return (
     <div className="space-y-7">
-      {relations.length >= FILTER_THRESHOLD && (
+      {(relations.length >= FILTER_THRESHOLD || hasFilter) && (
         <Toolbar
           filter={filter}
           onFilter={setFilter}
@@ -366,8 +373,18 @@ export function RelationCardList({
         />
       )}
 
+      {typeof relationsTotal === 'number' && relationsTotal > relations.length && (
+        <p className="text-xs text-muted-foreground">
+          {t('relations.more_not_shown', { count: relationsTotal - relations.length })}
+        </p>
+      )}
+
       {visible.length === 0 ? (
-        <EmptyState reason="no-match" description={t('relations.filter_no_match')} />
+        <EmptyState
+          reason="no-match"
+          description={t('relations.filter_no_match')}
+          action={{ label: t('relations.clear_filters'), onClick: resetFilters }}
+        />
       ) : (
         <>
           {favorites.length > 0 && (
@@ -399,16 +416,6 @@ export function RelationCardList({
             </Band>
           )}
         </>
-      )}
-
-      {/* The list is a page too: past the server cap people would simply
-          vanish, so what it left out is stated rather than applied in
-          silence (ADR-185). Counted against the WHOLE list, never against
-          the client-side filter — which the user chose and can undo. */}
-      {typeof relationsTotal === 'number' && relationsTotal > relations.length && (
-        <p className="text-center text-xs text-muted-foreground">
-          {t('relations.more_not_shown', { count: relationsTotal - relations.length })}
-        </p>
       )}
     </div>
   );

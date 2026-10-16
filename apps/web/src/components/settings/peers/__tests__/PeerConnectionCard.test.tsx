@@ -121,7 +121,7 @@ describe('PeerConnectionCard', () => {
   it('remove asks for confirmation and calls onRemove when confirmed', async () => {
     const { props, user } = setup();
     await user.click(screen.getByRole('button', { name: /Marie Dupont/ }));
-    await user.click(screen.getByRole('button', { name: 'settings.peers.connections.remove' }));
+    await user.click(screen.getByRole('button', { name: 'common.delete' }));
     expect(confirm).toHaveBeenCalled();
     expect(props.onRemove).toHaveBeenCalledWith('conn-1');
     expect(props.onResolved).toHaveBeenCalledOnce();
@@ -131,7 +131,7 @@ describe('PeerConnectionCard', () => {
     confirm.mockResolvedValueOnce(false);
     const { props, user } = setup();
     await user.click(screen.getByRole('button', { name: /Marie Dupont/ }));
-    await user.click(screen.getByRole('button', { name: 'settings.peers.connections.remove' }));
+    await user.click(screen.getByRole('button', { name: 'common.delete' }));
     expect(props.onRemove).not.toHaveBeenCalled();
     expect(props.onResolved).not.toHaveBeenCalled();
   });
@@ -154,9 +154,10 @@ describe('PeerConnectionCard', () => {
     expect(
       screen.getByRole('switch', { name: 'settings.peers.shares.task_label' })
     ).toHaveAttribute('aria-disabled', 'true');
-    expect(
-      screen.getByRole('button', { name: 'settings.peers.connections.remove' })
-    ).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByRole('button', { name: 'common.delete' })).toHaveAttribute(
+      'aria-disabled',
+      'true'
+    );
     const toggle = screen.getByRole('switch', { name: 'settings.peers.shares.task_label' });
     toggle.focus();
     await user.keyboard('{Enter}');

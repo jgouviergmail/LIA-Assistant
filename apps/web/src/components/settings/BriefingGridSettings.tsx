@@ -86,7 +86,7 @@ export function BriefingGridSettings({ lng }: BaseSettingsProps) {
               }}
               onDragOver={event => event.preventDefault()}
               onDrop={() => handleDrop(name)}
-              className="flex items-center gap-2 rounded-lg border border-border/40 bg-card/60 px-3 py-2"
+              className="flex items-center gap-2 rounded-lg border border-border/40 bg-background px-3 py-2"
             >
               <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground/60" aria-hidden />
               {/* The card's own icon, theme-coloured (owner rule 2026-08-05:
@@ -99,7 +99,7 @@ export function BriefingGridSettings({ lng }: BaseSettingsProps) {
                 onClick={() => void handleMove(name, 'up')}
                 disabled={index === 0}
                 aria-label={t('settings.briefing_grid.move_up', { card: cardTitle(name) })}
-                className="p-1.5 rounded-md border border-border/30 bg-background/80 hover:bg-background disabled:opacity-30 disabled:cursor-not-allowed"
+                className="p-1.5 rounded-md border border-border/30 bg-card hover:bg-card/80 disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <ArrowUp className="h-3.5 w-3.5" aria-hidden />
               </button>
@@ -108,7 +108,7 @@ export function BriefingGridSettings({ lng }: BaseSettingsProps) {
                 onClick={() => void handleMove(name, 'down')}
                 disabled={index === preferences.order.length - 1}
                 aria-label={t('settings.briefing_grid.move_down', { card: cardTitle(name) })}
-                className="p-1.5 rounded-md border border-border/30 bg-background/80 hover:bg-background disabled:opacity-30 disabled:cursor-not-allowed"
+                className="p-1.5 rounded-md border border-border/30 bg-card hover:bg-card/80 disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <ArrowDown className="h-3.5 w-3.5" aria-hidden />
               </button>

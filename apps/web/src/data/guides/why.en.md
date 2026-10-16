@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version**: 6.3
-**Date**: 2026-10-13
-**Application**: LIA v3.0.1
+**Date**: 2026-10-17
+**Application**: LIA v3.1.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -140,7 +140,7 @@ The cards also show where a third-party MCP result came from and which method pr
 
 ### 3.2. Personal connected services
 
-- **Email**: read, search, compose, send, reply, forward — via Gmail, Outlook or Apple Mail; a message arrives as clean text, and many of them are summarised message by message ("summarise my unread mail", "a synthesis of this week's newsletters"); an attachment is read on request — a document as text, a photo or a scan through the vision model
+- **Email**: read, search, compose, send, reply, forward — via Gmail, Outlook or Apple Mail; a message arrives as clean text, and many of them are summarised message by message ("summarise my unread mail", "a synthesis of this week's newsletters"); an attachment is read on request — a document as text, a photo or a scan through the vision model; and LIA keeps your mailbox drafts — it saves, edits and trashes them without asking, and sends them only after one confirmation
 - **Calendar**: view, create, modify, delete events — via Google Calendar, Outlook Calendar or Apple Calendar
 - **Contacts**: search, create, modify contacts — via Google Contacts, Outlook Contacts or Apple Contacts
 - **Tasks**: manage your task lists — via Google Tasks or Microsoft To Do
@@ -164,7 +164,7 @@ LIA offers a complete voice mode:
 
 - **Push-to-Talk**: hold the microphone button to speak, optimized for mobile
 - **"Dis LIA", heard in your browser**: hands-free detection runs **entirely on your device** — no audio is transmitted until the phrase is heard — and "LIA, stop" cuts LIA's voice while it reads an answer. This wake word exists in French for now, in beta: its recognition is still improving; in the other languages, a tap is enough
-- **Voice synthesis**: five admin-configurable providers — Edge TTS (free), OpenAI TTS (`tts-1` / `tts-1-hd`), ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`), Gemini or Fish Audio (`s2.1-pro`, `s2-pro`, `drama-3`); on the engines that perform them, LIA's spoken comments carry a few expressive cues (a sigh, a laugh, a whisper)
+- **Voice synthesis**: five admin-configurable providers — Edge TTS (free), OpenAI TTS (`tts-1` / `tts-1-hd`), ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`), Gemini or Fish Audio (`s2.1-pro`, `s2-pro`, `drama-3`); on the engines that perform them, LIA's spoken comments carry a few expressive cues (a sigh, a laugh, a whisper); everyone chooses LIA's male and female voice among the engine's voices, and can narrow every voice list to their language
 - **Telegram voice messages**: send audio messages, LIA transcribes and responds
 - **Live mode**: a real-time, voice-to-voice conversation on a live model you connect with **your own key** — Gemini Live, GPT-Live or an ElevenLabs agent. The voice holds the conversation and hands every request to LIA, which runs it as an ordinary chat turn while you speak; a direct session lets the voice read your data itself and act on nothing. What the provider bills is shown to you, never recorded. A silence no longer closes a session: it puts it on standby — connection closed, nothing billed — until a tap wakes it with LIA's context; ending it is always yours.
 
@@ -224,7 +224,7 @@ You are always in the loop: before dialing, LIA tells you exactly **who** it wil
 
 And it stays private by construction. During a call LIA can only tell whether you're free or busy at a given time — never the titles, guests or places on your calendar. Nothing is recorded, the conversation is never stored, and only a short summary is kept before it expires. Phone calls run through your own ElevenLabs connector, billed on your account, and the feature is there only if your administrator turned it on.
 
-And LIA can call _you_. Declare your number under _Telephony · My identity_, let LIA call it and read a code you type back, and from then on "call me at eight to go over my day" — or a routine that says so — rings your phone with no confirmation card: the person who would confirm is the one who picks up. How the call goes is your choice, in the same settings, and it is the same choice as the browser's live sessions. In **Live**, the default, each thing you ask on the line is handled by LIA while you speak, as a chat turn of yours — the voice announces it, keeps talking, reads the answer when it lands; a confirmation LIA needs is asked on the line, a question it asks is the answer, and everything sits in the thread with a phone badge. In **Live direct**, the voice reads for you — your agenda, an e-mail, a contact, a place nearby, the weather, what it retains — and acts on nothing; each domain has a switch that is yours, and what you said comes back afterwards as your own message. Live exists only where the phone provider can reach your instance back; elsewhere the setting says so and the call runs direct. Either way the assistant speaks with the personality you gave it, and what runs on your ElevenLabs key is billed there, never counted here.
+And LIA can call _you_. Declare your number under _My phone_, let LIA call it and read a code you type back, and from then on "call me at eight to go over my day" — or a routine that says so — rings your phone with no confirmation card: the person who would confirm is the one who picks up. How the call goes is your choice, in the same settings, and it is the same choice as the browser's live sessions. In **Live**, the default, each thing you ask on the line is handled by LIA while you speak, as a chat turn of yours — the voice announces it, keeps talking, reads the answer when it lands; a confirmation LIA needs is asked on the line, a question it asks is the answer, and everything sits in the thread with a phone badge. In **Live direct**, the voice reads for you — your agenda, an e-mail, a contact, a place nearby, the weather, what it retains — and acts on nothing; each domain has a switch that is yours, and what you said comes back afterwards as your own message. Live exists only where the phone provider can reach your instance back; elsewhere the setting says so and the call runs direct. Either way the assistant speaks with the personality you gave it, and what runs on your ElevenLabs key is billed there, never counted here.
 
 ### 3.11. Talking to your people, assistant to assistant
 
@@ -367,13 +367,11 @@ And that principle reaches further than it looks. Nor does a test that never run
 
 That honesty starts before you even walk in. The page that offers you the public demonstrator lists what is switched on there and what is not — and that list is not written by someone who might forget to update it: it is read from the demonstrator's own configuration, and if it does not answer, the page says so rather than showing an empty column. You know what you will find, and what you will not, before creating an account.
 
-### 6.5. Why LIA thinks that
+### 6.5. What LIA concludes, you correct
 
-An assistant that remembers things ends up asserting them. “You prefer morning meetings”, “this topic interests you”: useful conclusions, but unverifiable as long as you cannot trace back to what produced them.
+An assistant that remembers things ends up asserting them. “You prefer morning meetings”, “this topic interests you”: useful conclusions, but ones that can be wrong — and a wrong conclusion you cannot correct ends up deciding for you.
 
-Under every memory, every journal entry and every interest, LIA therefore shows the signals that led it there: the conversation, the date, and the signal's role — what gave rise to the conclusion, what confirmed it, what cast doubt on it. A button lets you correct the conclusion at its source.
-
-What is kept is a **reference, never a copy**. Your text stays where you wrote it, and if you delete the conversation it comes back nowhere: the reference empties, the row stays dated, and LIA simply says the signal was deleted. A deletion must remain a deletion — otherwise what you erase on one side would be served back to you on the other.
+Every memory, every journal entry and every interest can therefore be read, corrected and deleted from your settings, and what you correct holds everywhere. Behind them, LIA keeps the signals that led it there as a **reference, never a copy**: the text stays where you wrote it, and if you delete the conversation it comes back nowhere. A deletion must stay a deletion — otherwise what you erase on one side would be served back to you on the other.
 
 The same principle applies to an interest's weight: it explains itself instead of scoring itself. The originating signal, the last mention, the calculation itself — enough to redo the arithmetic. Turning that uncertainty into a score would invite a competition nobody asked for, while teaching nothing more.
 
@@ -454,6 +452,8 @@ And between two answers, that face does not switch off. The brows sit on the eye
 The companion also follows the work that actually happened, not the work merely prepared. Its head, eyes, brows and mouth move together; the account's local time and weather already cached for the briefing can gently colour its resting scene. No new model or weather request is made for that effect, and reduced-motion settings keep the context in a still pose.
 
 And this presence follows you: outside the chat, a floating companion keeps LIA at your side across the whole dashboard — at rest, at work, or carrying a notification.
+
+The Psyche Engine also learns where LIA is reliable — and it learns it from evidence, never from the grade it would give itself. Per domain, it keeps apart what its answers truly established and the usefulness you gave them; where evidence is thin, LIA checks a point, asks one question or names its limit, never sounding surer than it is. It is not a performance score displayed to impress: it is a caution that sets itself by the facts.
 
 ### 7.3. Personal journals
 

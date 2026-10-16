@@ -17,41 +17,33 @@
   },
   {
     "kind": "advisory",
-    "subject": "npm:next@16.3.8",
-    "ref": "GHSA-cjq9-62q9-8jv4",
-    "reason": "Needs images.remotePatterns, which apps/web/next.config.ts does not set (the advisory: 'If no images.remotePatterns are configured, your app is not affected'). 16.3.8 is the latest 16.x; take the 16.3 fix when it is published.",
-    "owner": "maintainer",
-    "review_by": "2026-10-31"
-  },
-  {
-    "kind": "advisory",
-    "subject": "npm:next@16.3.8",
+    "subject": "npm:next@16.4.1",
     "ref": "GHSA-39w2-rjm5-chcv",
-    "reason": "The MCP endpoint of `next dev` only; production deployments do not serve it. Take the 16.3 fix when it is published.",
+    "reason": "The MCP endpoint of `next dev` only; production deployments do not serve it. The advisory still names no patched version (‘16.3.?’); re-read it when it does.",
     "owner": "maintainer",
     "review_by": "2026-10-31"
   },
   {
     "kind": "advisory",
-    "subject": "npm:next@16.3.8",
+    "subject": "npm:next@16.4.1",
     "ref": "GHSA-4jqv-mc3x-m676",
-    "reason": "Needs the Pages Router; apps/web is App Router only (no src/pages). Take the 16.3 fix when it is published.",
+    "reason": "Needs the Pages Router; apps/web is App Router only (no src/pages). The advisory still names no patched version (‘16.3.?’); re-read it when it does.",
     "owner": "maintainer",
     "review_by": "2026-10-31"
   },
   {
     "kind": "advisory",
-    "subject": "npm:next@16.3.8",
+    "subject": "npm:next@16.4.1",
     "ref": "GHSA-f87g-xv8r-7p7x",
-    "reason": "Needs metadata image routes (opengraph-image, twitter-image); apps/web has none. Take the 16.3 fix when it is published.",
+    "reason": "Needs metadata image routes (opengraph-image, twitter-image); apps/web has none. The advisory still names no patched version (‘16.3.?’); re-read it when it does.",
     "owner": "maintainer",
     "review_by": "2026-10-31"
   },
   {
     "kind": "advisory",
-    "subject": "npm:next@16.3.8",
+    "subject": "npm:next@16.4.1",
     "ref": "GHSA-mcj8-r9mp-w47p",
-    "reason": "Needs a root-level catch-all page; apps/web has no catch-all route and no ISR (no revalidate, no 'use cache'). Take the 16.3 fix when it is published.",
+    "reason": "Needs a root-level catch-all page; apps/web has no catch-all route and no ISR (no revalidate, no 'use cache'). The advisory still names no patched version (‘16.3.?’); re-read it when it does.",
     "owner": "maintainer",
     "review_by": "2026-10-31"
   },
@@ -121,5 +113,29 @@
     "reason": "The deprecation is the end of life of ESLint 9: same condition as the end-of-life acceptance of eslint 9.",
     "owner": "maintainer",
     "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "npm:@vitest/mocker@4.1.11",
+    "ref": "GHSA-qxg6-89mg-rqv8",
+    "reason": "Test tooling only: @vitest/mocker ships with vitest, which runs the web suite under jsdom on a developer machine and in CI. The advisory needs vitest's manual-mock registration reachable by an attacker (browser mode or an exposed vitest server); LIA runs neither browser mode nor `vitest --api`/UI, and nothing of vitest reaches a production image. Take 4.1.12 at the next frontend tooling refresh.",
+    "owner": "maintainer",
+    "review_by": "2026-11-15"
+  },
+  {
+    "kind": "advisory",
+    "subject": "npm:@vitest/mocker@4.1.11",
+    "ref": "GHSA-xp26-3454-mjgp",
+    "reason": "Same path and same condition as GHSA-qxg6-89mg-rqv8: the redirect allowlist of vitest's mocker, test tooling only, no browser mode and no exposed vitest server; never in a production image.",
+    "owner": "maintainer",
+    "review_by": "2026-11-15"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:caldav@3.3.1",
+    "ref": "GHSA-5h4q-xm57-3mh5",
+    "reason": "Low: `vcal.fix` normalisation is quadratic on a very large iCalendar object. Its only input is the calendar server of the person's own iCloud connector, read for that person alone; no third party reaches it. 3.3.2 lands at the next Python refresh, after its cooldown, rather than as a release-day lock change.",
+    "owner": "maintainer",
+    "review_by": "2026-11-15"
   }
 ]

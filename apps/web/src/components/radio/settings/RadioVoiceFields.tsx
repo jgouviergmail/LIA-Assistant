@@ -81,6 +81,7 @@ function StationNameField({ lng, options, preferences, onChange }: RadioFieldsPr
   return (
     <div className="space-y-2">
       <Input
+        className="bg-card"
         label={t('radio.settings.voices.station_name')}
         value={draft}
         maxLength={options.station_name_max_chars}
@@ -125,7 +126,7 @@ function VoiceSelect({
   const { t } = useTranslation(lng);
   const id = `radio-voice-${role}`;
   return (
-    <div className="space-y-3 rounded-lg border p-4">
+    <div className="space-y-3 rounded-lg border bg-card p-4">
       <Label htmlFor={id} className="flex items-center gap-2">
         <Icon className="size-4 shrink-0 text-primary" aria-hidden="true" />
         {t(`radio.roles.${role}`)}
@@ -136,7 +137,7 @@ function VoiceSelect({
           onChange(withVoice(preferences, role, value === AUTOMATIC_VOICE ? null : value))
         }
       >
-        <SelectTrigger id={id} className="w-full" aria-describedby={describedBy}>
+        <SelectTrigger id={id} className="w-full bg-background" aria-describedby={describedBy}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -185,6 +186,7 @@ export function RadioVoiceFields({ lng, options, preferences, onChange }: RadioF
   );
   return (
     <Disclosure
+      surface="nested"
       icon={Mic}
       title={t('radio.settings.voices.title')}
       description={t('radio.settings.voices.description')}
@@ -207,7 +209,7 @@ export function RadioVoiceFields({ lng, options, preferences, onChange }: RadioF
               })
             }
           >
-            <SelectTrigger id="radio-personality" className="w-full">
+            <SelectTrigger id="radio-personality" className="w-full bg-card">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

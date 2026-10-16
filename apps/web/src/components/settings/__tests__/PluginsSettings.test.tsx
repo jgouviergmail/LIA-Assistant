@@ -211,3 +211,21 @@ describe('PluginsSettings', () => {
     expect(screen.queryByText('settings.plugins.report_title')).not.toBeInTheDocument();
   });
 });
+
+it('shows a retryable first-load error instead of claiming the plugin list is empty', async () => {
+  const refetch = vi.fn();
+  usePlugins.mockReturnValue(
+    hook({ plugins: [], hasLoaded: false, error: new Error('offline'), refetch })
+  );
+  const { user } = renderWithProviders(<PluginsSettings lng="en" />);
+  expect(screen.getByRole('alert')).toHaveTextContent('settings.plugins.load_error');
+  expect(screen.queryByText('settings.plugins.empty')).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'common.retry' }));
+  expect(refetch).toHaveBeenCalledOnce();
+});
+it('retains the installed list when a refresh fails', () => {
+  usePlugins.mockReturnValue(hook({ error: new Error('offline') }));
+  renderWithProviders(<PluginsSettings lng="en" />);
+  expect(screen.getByRole('alert')).toBeVisible();
+  expect(screen.getByText('acme.tools')).toBeVisible();
+});

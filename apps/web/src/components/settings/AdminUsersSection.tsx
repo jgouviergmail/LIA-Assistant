@@ -151,14 +151,14 @@ type SortableColumn =
  * almost nothing to scroll. The name's offset is the email column's width
  * (`--admin-email-w`, set on the table) plus its horizontal padding. A frozen
  * cell is opaque, or the columns scrolling under it would show through, and
- * its hover tint is the row's own (`muted` at 30 % over `card`).
+ * its hover tint is the row's own (`muted` at 30 % over `background`).
  */
 const EMAIL_FROZEN =
   'sticky left-0 z-[1] shadow-[inset_-1px_0_0_var(--color-border)] mobile:shadow-none';
 const NAME_FROZEN =
   'mobile:sticky mobile:left-[calc(var(--admin-email-w)+2rem)] mobile:z-[1] mobile:shadow-[inset_-1px_0_0_var(--color-border)]';
 const FROZEN_BODY_BG =
-  'bg-card group-hover:bg-[color-mix(in_srgb,var(--color-muted)_30%,var(--color-card))]';
+  'bg-background group-hover:bg-[color-mix(in_srgb,var(--color-muted)_30%,var(--color-background))]';
 
 interface UserListResponse {
   users: AdminUserRow[];
@@ -507,7 +507,7 @@ export default function AdminUsersSection({ lng }: BaseSettingsProps) {
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border bg-card">
+              <tbody className="divide-y divide-border bg-background">
                 {optimisticUsers.map(user => (
                   <UserRow
                     key={user.id}

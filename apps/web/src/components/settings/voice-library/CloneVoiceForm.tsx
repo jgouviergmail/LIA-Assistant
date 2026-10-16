@@ -99,7 +99,7 @@ function SampleRow({
   onRemove,
 }: SampleRowProps) {
   return (
-    <li className="space-y-3 rounded-lg border border-border p-3">
+    <li className="space-y-3 rounded-lg border border-border bg-background [--lia-field-background:var(--color-card)] p-3">
       <div className="flex items-center justify-between gap-2">
         <p className="flex min-w-0 items-center gap-2 text-sm">
           <FileAudio className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />

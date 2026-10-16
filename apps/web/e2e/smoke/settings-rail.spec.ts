@@ -70,7 +70,7 @@ test.describe('settings rail — desktop', () => {
     const memories = page.getByRole('button', { name: /^Mémoire/ }).last();
     await expect(memories).toContainText('12', { timeout: APPEARS_COLD });
 
-    const connectors = page.getByRole('button', { name: /^Mes Connecteurs/ }).last();
+    const connectors = page.getByRole('button', { name: /^Mes connecteurs/ }).last();
     await expect(connectors).toContainText('À configurer');
 
     // A section the aggregate says nothing about claims nothing.
@@ -149,9 +149,7 @@ test.describe('settings rail — drill-down below lg', () => {
     await expect(nav).toBeVisible({ timeout: APPEARS_COLD });
     // The overview cards are a desktop surface: on a phone the rail IS the
     // landing (asserted through the personalization heading of the overview).
-    await expect(
-      page.getByRole('heading', { level: 2, name: 'Personnalisation' })
-    ).toBeHidden();
+    await expect(page.getByRole('heading', { level: 2, name: 'Personnalisation' })).toBeHidden();
 
     await nav.getByRole('button', { name: 'Apparence' }).click();
 

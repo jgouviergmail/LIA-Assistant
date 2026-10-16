@@ -285,7 +285,7 @@ async function expectSharedProjection(face: Locator, raster: boolean) {
     if (view.sphere) {
       expect(view.sphereReady).toBe('true');
       expect(view.boundary.mask).toBe('none');
-      expect(view.boundary.clip).toBe('circle(49%)');
+      expect(['circle(49%)', 'circle(49% at 50% 50%)']).toContain(view.boundary.clip);
       await expectSmileyProjection(face);
     } else if (view.volume) {
       expect(view.boundary.mask).toBe('none');
@@ -445,7 +445,11 @@ for (const [variant, theme] of [
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await mockApi(portraitRoutes());
     await page.addInitScript(() => {
-      Math.random = () => 0.99;
+      let randomState = 0x12345678;
+      Math.random = () => {
+        randomState = (Math.imul(randomState, 1664525) + 1013904223) >>> 0;
+        return 0.99 + (randomState / 0x100000000) * 0.009;
+      };
     });
     await page.clock.install({ time: new Date('2026-10-07T12:00:00Z') });
     await page.clock.pauseAt(await page.evaluate(() => Date.now() + 100));
@@ -650,7 +654,11 @@ for (const style of MONITOR_STYLES) {
     await mockApi(chatRoutes([]));
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await page.addInitScript(() => {
-      Math.random = () => 0.99;
+      let randomState = 0x12345678;
+      Math.random = () => {
+        randomState = (Math.imul(randomState, 1664525) + 1013904223) >>> 0;
+        return 0.99 + (randomState / 0x100000000) * 0.009;
+      };
     });
     await page.clock.install({ time: new Date('2026-10-07T12:00:00Z') });
     await page.clock.pauseAt(await page.evaluate(() => Date.now() + 100));
@@ -748,7 +756,11 @@ test('smiley projects its original sphere and keeps facial organs within the bod
   await mockApi(chatRoutes([]));
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.addInitScript(() => {
-    Math.random = () => 0.99;
+    let randomState = 0x12345678;
+    Math.random = () => {
+      randomState = (Math.imul(randomState, 1664525) + 1013904223) >>> 0;
+      return 0.99 + (randomState / 0x100000000) * 0.009;
+    };
   });
   await page.clock.install({ time: new Date('2026-10-07T12:00:00Z') });
   await page.clock.pauseAt(await page.evaluate(() => Date.now() + 100));

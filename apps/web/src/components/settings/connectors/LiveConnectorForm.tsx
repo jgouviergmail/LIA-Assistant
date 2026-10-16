@@ -142,7 +142,7 @@ export function LiveConnectorForm({ lng, provider, onSuccess, onCancel }: LiveCo
               value={form.apiKey}
               onChange={event => form.setApiKey(event.target.value)}
               placeholder={t('settings.connectors.live.key_placeholder', { brand })}
-              className="w-full rounded-lg border border-input bg-background py-2 pl-9 pr-3 text-sm"
+              className="w-full rounded-lg border border-input bg-[var(--lia-field-background,var(--color-background))] py-2 pl-9 pr-3 text-sm"
             />
           </div>
           {/* aria-label keeps the button named while the spinner replaces its text. */}

@@ -32,7 +32,7 @@ Le Heartbeat Autonome (Feature F5 du roadmap evolution) permet au LLM de contact
 2. **Laisse le LLM decider** s'il y a quelque chose d'utile a communiquer (structured output)
 3. **Genere un message personnalise** avec la personnalite et la langue de l'utilisateur
 
-Le nom cote utilisateur est **"Notifications proactives"** dans l'UI et les push notifications.
+La section de reglages cote utilisateur se nomme **"Notifications"** dans l'UI ; le mecanisme et les messages restent des notifications proactives.
 
 ### Positionnement dans l'infrastructure
 

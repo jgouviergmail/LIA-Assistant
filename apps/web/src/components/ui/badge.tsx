@@ -28,13 +28,13 @@ const badgeVariants = cva(
         // pair as `Button variant="destructive"`, which the guard covers.
         alert: 'bg-destructive text-destructive-foreground border border-destructive shadow-sm',
         info: 'bg-primary/10 text-primary border border-primary/20 shadow-sm',
-        outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
-        ghost: 'hover:bg-accent hover:text-accent-foreground',
+        outline: 'border border-input bg-background',
+        ghost: '',
       },
       size: {
-        default: 'h-5',
-        sm: 'h-4 text-px-10 px-2',
-        lg: 'h-6 text-sm px-3',
+        default: 'min-h-5',
+        sm: 'min-h-4 text-px-10 px-2',
+        lg: 'min-h-6 text-sm px-3',
       },
     },
     defaultVariants: {

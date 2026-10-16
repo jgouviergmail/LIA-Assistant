@@ -255,7 +255,7 @@ export default function SpaceDetailPage({ params }: SpaceDetailPageProps) {
 
         {/* Documents list */}
         {space.documents.length === 0 ? (
-          <div className="rounded-lg border border-dashed p-8 text-center">
+          <div className="rounded-lg border border-dashed bg-card p-8 text-center">
             <p className="text-sm text-muted-foreground">{t('spaces.documents.empty')}</p>
           </div>
         ) : (

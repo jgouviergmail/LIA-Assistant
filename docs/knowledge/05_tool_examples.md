@@ -442,3 +442,19 @@ The recipient is you, and it is not a parameter: neither a mistake nor a text sl
 
 **🔁 In a scheduled action:**
 A routine can e-mail you its result every morning: it is one of the few actions it can take without you.
+
+## How do I manage the drafts in my mailbox?
+LIA keeps the drafts of your own mailbox — Gmail, Outlook or iCloud — the way you would from your mail app:
+• "*Prepare a draft for Marie about Thursday's meeting*"
+• "*Reply to this e-mail as a draft, I'll send it later*"
+• "*Show my last 5 drafts*" or "*my drafts for Marie*"
+• "*Add Paul in copy of the draft*", "*delete my drafts from last week*"
+
+**📝 No confirmation:**
+Saving, preparing a reply or a forward, listing, editing and trashing reach nobody: the draft stays in your mailbox, where you also find it. When you don't dictate the reply, LIA writes it from the received e-mail, keeping the quoted message.
+
+**📤 Sending asks for a confirmation:**
+The card shows the draft as your mailbox holds it. If it was edited in your mail app since, it is not sent; a change asked on the card is written to the draft before it leaves. Several drafts are confirmed as one lot.
+
+**🗑️ Bulk deletions:**
+A request aimed at many drafts handles them in bounded batches and says how many remain.

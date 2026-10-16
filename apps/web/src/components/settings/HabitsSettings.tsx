@@ -221,7 +221,7 @@ function HabitsOverviewBody({
       {/* Streak block (Lot 1-A4): rendered only when a run is CURRENT —
           a broken streak is not a fact worth a permanent banner. */}
       {overview.streak.current > 0 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-card px-4 py-3">
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-background px-4 py-3">
           <Flame className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
           <span className="text-sm font-semibold text-foreground">
             {t('settings.habits.streak_current', { count: overview.streak.current })}
@@ -242,6 +242,7 @@ function HabitsOverviewBody({
         </div>
       )}
       <Disclosure
+        surface="nested"
         icon={ListChecks}
         title={t('settings.habits.rows_title')}
         badge={overview.habits.length}
@@ -276,6 +277,7 @@ function HabitsOverviewBody({
       {/* Folded: the caption under the title (when it was computed, how many
           days were active) is what the reader scans while it is closed. */}
       <Disclosure
+        surface="nested"
         icon={Activity}
         title={t('settings.habits.rhythm_title')}
         description={rhythmCaption(t, i18n.language, overview)}
@@ -296,6 +298,7 @@ function HabitsOverviewBody({
 
       {(overview.candidates.length > 0 || overview.candidates_more > 0) && (
         <Disclosure
+          surface="nested"
           icon={Telescope}
           title={t('settings.habits.observing_title')}
           // The exact total: the rows shown plus the ones the cap folded.
@@ -393,7 +396,7 @@ function CandidateRow({ lng, candidate }: { lng: Language; candidate: HabitCandi
   const { t } = useTranslation(lng);
   const volumeReached = candidate.observed_days >= candidate.required_days;
   return (
-    <li className="flex flex-wrap items-center gap-2 rounded-lg border border-border/40 bg-card/60 px-3 py-2">
+    <li className="flex flex-wrap items-center gap-2 rounded-lg border border-border/40 bg-card px-3 py-2">
       <span className="min-w-0 flex-1 truncate text-sm font-medium">
         {domainsLabel(t, candidate.key)}
         {candidate.origin === 'seed' && (
@@ -432,7 +435,7 @@ function ClassRhythmLine({
 }) {
   const { t } = useTranslation(lng);
   return (
-    <div className="space-y-1">
+    <div className="space-y-1 rounded-lg border border-border/40 bg-card p-3">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm font-medium">{t(labelKey)}</span>
         {rhythm.verdict === 'windows' ? (
@@ -614,7 +617,7 @@ function HabitRow({
   const { t, i18n } = useTranslation(lng);
   const label = habitLabel(t, i18n.language, habit);
   return (
-    <li className="rounded-lg border border-border/40 bg-card/60 px-3 py-2">
+    <li className="rounded-lg border border-border/40 bg-card px-3 py-2">
       <div className="flex items-center gap-2">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium" title={label}>

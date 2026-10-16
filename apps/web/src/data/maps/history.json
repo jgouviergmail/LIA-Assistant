@@ -2570,6 +2570,13 @@
       "theme": "orchestration",
       "functional": ["f.planning"],
       "technical": ["t.toolsys", "t.planner", "t.response", "t.metrics"]
+    },
+    {
+      "adr": 348,
+      "date": "2026-10-16",
+      "theme": "memory",
+      "functional": ["f.psyche", "f.personality"],
+      "technical": ["t.promptsys", "t.planner", "t.react", "t.postgres"]
     }
   ]
 }

@@ -60,7 +60,10 @@ export function PeerRequestsBlock({
       ) : (
         <ul className="space-y-2">
           {requests.map(request => (
-            <li key={request.id} className="space-y-3 rounded-xl border border-border/50 p-4">
+            <li
+              key={request.id}
+              className="space-y-3 rounded-xl border border-border/50 bg-card p-4 [--lia-field-background:var(--color-background)]"
+            >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-3">
                   <Avatar

@@ -5,7 +5,7 @@ import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { Dialog } from './dialog';
 import { useDialogFocusReturn } from './dialog-focus';
 import { cn } from '@/lib/utils';
-import { buttonVariants } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button-variants';
 import type { VariantProps } from 'class-variance-authority';
 
 /**

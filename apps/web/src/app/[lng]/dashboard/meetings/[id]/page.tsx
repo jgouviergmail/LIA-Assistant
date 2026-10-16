@@ -39,6 +39,8 @@ import { useMeeting } from '@/hooks/useMeetings';
 import { useAuth } from '@/hooks/useAuth';
 import { useTranslation } from '@/i18n/client';
 import { withOrigin } from '@/lib/back-origin';
+import { useSearchParams } from 'next/navigation';
+import { meetingListPage } from '@/lib/meetings/list-location';
 import type { MeetingDetail, MeetingReport } from '@/types/meetings';
 
 interface MeetingPageProps {
@@ -75,7 +77,8 @@ function AccountMeetingPage({ params }: MeetingPageProps) {
   // back means one hop returns to the screen the reader actually came from,
   // not to a list they never chose to visit.
   const origin = useBackOrigin();
-  const listHref = withOrigin('/dashboard/meetings', origin);
+  const page = meetingListPage(useSearchParams().get('page'));
+  const listHref = withOrigin(`/dashboard/meetings${page > 1 ? `?page=${page}` : ''}`, origin);
   const { confirm, confirmDialog } = useConfirm();
   const [showTranscript, setShowTranscript] = useState(false);
   const [draft, setDraft] = useState<MeetingReport | null>(null);
@@ -116,12 +119,7 @@ function AccountMeetingPage({ params }: MeetingPageProps) {
     <div className="space-y-6" aria-busy={isActing || regenerating}>
       {confirmDialog}
       <div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => router.push(listHref)}
-        >
+        <Button type="button" variant="ghost" size="sm" onClick={() => router.push(listHref)}>
           <ArrowLeft className="mr-1 h-4 w-4" aria-hidden="true" />
           {t('meetings.detail.back')}
         </Button>

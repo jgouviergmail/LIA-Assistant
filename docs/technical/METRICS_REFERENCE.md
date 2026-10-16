@@ -21,12 +21,12 @@
 6. [Agent Nodes (2 métriques)](#agent-nodes)
 7. [Context & State (2 métriques)](#context--state)
 8. [Google Contacts API (5 métriques)](#google-contacts-api)
-9. [Agent Tools (3 métriques)](#agent-tools)
+9. [Agent Tools (5 métriques)](#agent-tools)
 10. [Task Orchestrator (2 métriques)](#task-orchestrator)
 11. [HITL Classification (10 métriques)](#hitl-classification)
 12. [HITL Plan-Level (6 métriques)](#hitl-plan-level)
 13. [Planner Node (12 métriques)](#planner-node)
-14. [Plan Execution (3 métriques)](#plan-execution)
+14. [Plan Execution (5 métriques)](#plan-execution)
 15. [Checkpoints (3 métriques)](#checkpoints)
 16. [Conversations (6 métriques)](#conversations)
 17. [Voice TTS (12 métriques)](#voice-tts-text-to-speech)
@@ -142,11 +142,11 @@ api:slo:availability:ratio_5m           # SLO availability 5min
 | Langfuse (`langfuse_*`) | `metrics_langfuse.py` |
 | Lifetime gauges DB-backed | `lifetime_metrics.py` |
 | OAuth (`oauth_*`) | `metrics_oauth.py` |
-| Pipeline (`pipeline_step_failures_total` — étapes en échec des plans exécutés, par code typé, ADR-346) | `metrics_pipeline.py` |
 | Produit (`product_*` — outcomes E1/E2/E3, gauges DB-backed North Star/funnel/rétention, télémétrie client Web Vitals/recherche, ADR-178) | `metrics_product.py` |
+| Radio (`radio_*` — sessions, segments, production time, newsroom; `radio_dialogue_takes_total{outcome}`: several voices in one request — `voiced`, `unplaced`, `failed`, ADR-345) | `metrics_radio.py` |
 | Redis (`redis_*`) | `metrics_redis.py` |
 | Registry/checkpoints (`registry_*`) | `metrics_registry.py` |
-| Sub-agents (`subagent_*`) | `metrics_subagent.py` |
+| Sub-agents (`subagent_*` — including `subagent_outcomes_total{agent_name, outcome}`: how each sub-loop ended — `answered`, `closed_on_budget`, `truncated`, `empty`, `error`, ADR-083 amendment 2026-10-13) | `metrics_subagent.py` |
 | Usage limits (`usage_limit_*`) | `metrics_usage_limits.py` |
 | ReAct (`react_*` — budgets, contexte délivré, plafond d'outils) | `metrics_react.py` |
 | Voice (`voice_*`, `stt_*`, `tts_*`, `websocket_*`) | `metrics_voice.py` |
@@ -1425,6 +1425,23 @@ sum by (module) (increase(tool_module_import_failures_total[1h]))
 
 ---
 
+### tool_failure_verdict_corrected_total
+
+**Type**: Counter
+**Description**: Connector tool results whose payload declared a failure while the tool's formatter returned a success, corrected to that failure at the execute chokepoint (ADR-347)
+**Labels**: `tool_name`
+
+`keep_declared_failure` (`apps/api/src/domains/agents/tools/failure_verdict.py`) runs at the two chokepoints every connector tool goes through (`ConnectorTool.execute`, `APIKeyConnectorTool.execute`): when the payload declared a failure (`success` false, or an `error_code` with no `success` key) and the formatter answered a success, the payload's verdict wins, so the effect register, the tool metrics and the answer all read a failure. Each correction is logged at ERROR and counted here. **Expected 0**: every increment is a formatter defect to fix at its source (dashboard 07, row « Tool results reaching the answer (ADR-347) »).
+
+**Query PromQL:**
+
+```promql
+# Formatters corrected over the last day, by tool (expected: empty)
+sum by (tool_name) (increase(tool_failure_verdict_corrected_total[24h])) > 0
+```
+
+---
+
 ## Task Orchestrator
 
 ### task_orchestrator_plans_created_total
@@ -2011,6 +2028,40 @@ langgraph_plan_execution_efficiency.labels(
 ```
 
 **Target**: Efficiency 0.6-0.8 (40-20% skipped steps from conditional branching)
+
+---
+
+### pipeline_step_failures_total
+
+**Type**: Counter
+**Description**: Failed steps of executed pipeline plans, by typed error code (ADR-346)
+**Labels**: `error_code`
+
+One increment per failed step, counted once per executed plan by `record_pipeline_step_failures` (`apps/api/src/domains/agents/orchestration/step_failure_metrics.py`, called by the task orchestrator) through the honesty directive's own predicate (`diagnostics.failure_context`): the count is what the model is told — a FOR_EACH item counts, its aggregate never. It is the one Prometheus view of a failure that happens BEFORE a tool is called (an unresolved reference, a refused parameter, an empty template), which no tool metric and no register row sees. The label set is closed: a `ToolErrorCode` member, or `unclassified` (`PIPELINE_STEP_FAILURE_UNCLASSIFIED`) for a tool's free-form code or none.
+
+**Query PromQL:**
+
+```promql
+# Failed pipeline steps by code over the last day
+sum by (error_code) (increase(pipeline_step_failures_total[24h]))
+```
+
+---
+
+### pipeline_tool_data_truncated_total
+
+**Type**: Counter
+**Description**: Pipeline data blocks a response prompt carried incomplete (ADR-347)
+**Labels**: `tool_name`, `reason`
+
+Counted when the response prompt is assembled (`apps/api/src/domains/agents/formatters/tool_data.py`): `cut` when the projection paged a read step's data block at an item boundary, `dropped` when the tool data section left a block out to stay within the `response` slot's tool-result budget. Both are stated to the model. A steady rate on one tool means its data outgrows the budget. The pipeline twin of `react_tool_result_truncated_total` — see [RESPONSE.md](RESPONSE.md) § « Tool data section (ADR-347) ».
+
+**Query PromQL:**
+
+```promql
+# Blocks not read whole, by tool and reason, over the last day
+sum by (tool_name, reason) (increase(pipeline_tool_data_truncated_total[24h])) > 0
+```
 
 ---
 

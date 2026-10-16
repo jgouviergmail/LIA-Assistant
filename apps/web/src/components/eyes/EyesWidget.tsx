@@ -37,7 +37,7 @@ import { useEyesAnchor, type AnchorPosition } from '@/components/eyes/useEyesAnc
 import { useEyesDrag, type EyesDrag } from '@/components/eyes/useEyesDrag';
 import { useEyesParallax } from '@/components/eyes/useEyesParallax';
 import { useCompanionEnvironment } from './useCompanionEnvironment';
-import { useEyesAvoidance } from './useEyesAvoidance';
+import { useEyesAvoidance, type CompactPolicy } from './useEyesAvoidance';
 import {
   useEyesWidgetStore,
   type EyesSurface,
@@ -106,6 +106,42 @@ function widgetStyle(
   return anchorPos ?? undefined;
 }
 
+function preferredWidgetPosition(position: EyesPosition | null, anchor: AnchorPosition | null) {
+  if (!position || typeof window === 'undefined') return anchor;
+  return {
+    left: (position.xPct / 100) * window.innerWidth,
+    top: (position.yPct / 100) * window.innerHeight,
+  };
+}
+
+function displayedWidgetPlacement(
+  drag: EyesDrag,
+  position: EyesPosition | null,
+  anchor: AnchorPosition | null,
+  avoidance: ReturnType<typeof useEyesAvoidance>
+): { placement: React.CSSProperties | undefined; style: React.CSSProperties; compact: boolean } {
+  const natural = widgetStyle(drag.displayPos, position, anchor);
+  const placement = drag.dragPos ? natural : (avoidance.position ?? natural);
+  return {
+    placement,
+    style: {
+      ...placement,
+      ...(avoidance.compact ? avoidance.compactSize : {}),
+      pointerEvents: avoidance.blocked ? 'none' : undefined,
+    },
+    compact: avoidance.compact,
+  };
+}
+
+/**
+ * Only a small screen trades the face for its compact presence: a wide screen
+ * keeps the companion whole and, with no free spot, lets clicks through it.
+ */
+function compactPolicy(mobile: boolean, dockToChat: boolean | undefined): CompactPolicy {
+  if (!mobile) return 'never';
+  return dockToChat === false ? 'only' : 'fallback';
+}
+
 /** Dock and fallback avoidance share the same ownership of default placement. */
 function useWidgetPlacement(
   root: React.RefObject<HTMLDivElement | null>,
@@ -114,15 +150,18 @@ function useWidgetPlacement(
   dockToChat: boolean | undefined,
   position: EyesPosition | null,
   drag: EyesDrag
-): { placement: React.CSSProperties | undefined; style: React.CSSProperties } {
+): { placement: React.CSSProperties | undefined; style: React.CSSProperties; compact: boolean } {
   const defaultPosition = active && surface === 'chat' && !position && !drag.dragPos;
   const anchor = useEyesAnchor(root, defaultPosition && dockToChat !== false);
-  const avoidance = useEyesAvoidance(root, defaultPosition && !anchor);
-  const placement = widgetStyle(drag.displayPos, position, anchor ?? avoidance.position);
-  return {
-    placement,
-    style: { ...placement, pointerEvents: avoidance.blocked ? 'none' : undefined },
-  };
+  const mobile = useMediaQuery('(max-width: 1023px)');
+  const preferred = preferredWidgetPosition(position, anchor);
+  const avoidance = useEyesAvoidance(
+    root,
+    active && surface === 'chat' && !drag.dragPos && (mobile || (defaultPosition && !anchor)),
+    preferred,
+    { compact: compactPolicy(mobile, dockToChat), protectHeadings: mobile }
+  );
+  return displayedWidgetPlacement(drag, position, anchor, avoidance);
 }
 
 /** Being carried startles: wide eyes while dragging, everything else paused. */
@@ -164,6 +203,7 @@ function eyesDisplayProps(
 
 /** Hover/focus/tap-revealed toolbar — inert while invisible. */
 function EyesToolbar(props: {
+  compact: boolean;
   tapVisible: boolean;
   cycleLabel: string;
   sizeLabel: string;
@@ -176,7 +216,8 @@ function EyesToolbar(props: {
   return (
     <div
       className={cn(
-        'lia-eyes-toolbar absolute -top-3 left-1/2 flex -translate-x-1/2 items-center gap-1 transition-opacity',
+        'lia-eyes-toolbar absolute left-1/2 flex -translate-x-1/2 items-center gap-1 transition-opacity',
+        props.compact ? 'top-0' : '-top-3',
         'group-hover:pointer-events-auto group-hover:opacity-100',
         'group-focus-within:pointer-events-auto group-focus-within:opacity-100',
         props.tapVisible ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
@@ -219,6 +260,20 @@ function EyesRestoreDot(props: { label: string; onShow: () => void; surface: Eye
     props.surface === 'landing' ? s.landingPosition : s.position
   );
   const drag = useEyesDrag(ref, props.surface);
+  const mobile = useMediaQuery('(max-width: 1023px)');
+  const preferred =
+    position && typeof window !== 'undefined'
+      ? {
+          left: (position.xPct / 100) * window.innerWidth,
+          top: (position.yPct / 100) * window.innerHeight,
+        }
+      : null;
+  const avoidance = useEyesAvoidance(
+    ref,
+    mobile && props.surface === 'chat' && !drag.dragPos,
+    preferred
+  );
+  const displayed = avoidance.position ?? widgetStyle(drag.displayPos, position, null);
   return (
     <button
       ref={ref}
@@ -233,10 +288,10 @@ function EyesRestoreDot(props: { label: string; onShow: () => void; surface: Eye
       onPointerCancel={drag.onPointerUp}
       onKeyDown={drag.onKeyDown}
       aria-label={props.label}
-      style={widgetStyle(drag.displayPos, position, null)}
+      style={{ ...displayed, pointerEvents: avoidance.blocked ? 'none' : undefined }}
       className={cn(
         'group fixed z-30 flex h-11 w-11 cursor-grab touch-none items-end justify-end active:cursor-grabbing',
-        !drag.dragPos && !position && FALLBACK_ANCHOR_CLASSES[props.surface]
+        !displayed && FALLBACK_ANCHOR_CLASSES[props.surface]
       )}
     >
       <span className="h-3 w-3 rounded-full bg-primary/60 shadow-md ring-2 ring-background transition-colors group-hover:bg-primary" />
@@ -330,14 +385,11 @@ export const EyesWidget = memo(function EyesWidget(props: EyesWidgetProps) {
   // Default docked spot: centered between the header's left cluster and the
   // delete button. Only measured while no custom position is stored — and
   // only on the chat: the landing has no dock, its default is a corner.
-  const { placement, style: placementStyle } = useWidgetPlacement(
-    rootRef,
-    active,
-    surface,
-    props.dockToChat,
-    position,
-    drag
-  );
+  const {
+    placement,
+    style: placementStyle,
+    compact,
+  } = useWidgetPlacement(rootRef, active, surface, props.dockToChat, position, drag);
 
   // Desktop cursor parallax — gated, expiring (see useEyesParallax).
   const gazeFree =
@@ -382,6 +434,7 @@ export const EyesWidget = memo(function EyesWidget(props: EyesWidgetProps) {
   return (
     <div
       ref={rootRef}
+      data-compact={compact}
       role="group"
       aria-label={t('eyes.widget_label')}
       tabIndex={0}
@@ -396,24 +449,34 @@ export const EyesWidget = memo(function EyesWidget(props: EyesWidgetProps) {
       className={cn(
         'lia-eyes-widget group fixed z-30 select-none touch-none rounded-2xl p-1.5',
         'cursor-grab active:cursor-grabbing',
+        compact && 'flex items-end justify-center',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60',
         // No stored position and the composer anchor not measured yet →
         // CSS fallback corner above the input area.
         !placement && FALLBACK_ANCHOR_CLASSES[surface]
       )}
     >
-      <EyesFace
-        {...eyesDisplayProps(
-          drag.dragPos !== null,
-          behavior,
-          resolved,
-          presentation.size,
-          presentation.styleId
-        )}
-        variant={presentation.variant}
-        allowSleep={allowSleep}
-      />
+      {compact && (
+        <span
+          aria-hidden="true"
+          className="h-3 w-3 rounded-full bg-primary/60 ring-2 ring-background"
+        />
+      )}
+      <div hidden={compact}>
+        <EyesFace
+          {...eyesDisplayProps(
+            drag.dragPos !== null,
+            behavior,
+            resolved,
+            presentation.size,
+            presentation.styleId
+          )}
+          variant={presentation.variant}
+          allowSleep={allowSleep}
+        />
+      </div>
       <EyesToolbar
+        compact={compact}
         tapVisible={toolbarTapVisible}
         cycleLabel={t('eyes.cycle_size')}
         sizeLabel={t(`eyes.sizes.${presentation.size}`)}

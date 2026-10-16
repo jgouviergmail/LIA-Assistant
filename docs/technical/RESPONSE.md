@@ -657,6 +657,96 @@ if photos and isinstance(photos, list) and len(photos) > 0:
    - 📧 jean@example.com
 ```
 
+### Tool data section (ADR-347)
+
+> The pipeline's response used to read a step's `message` and the turn's registry
+> items, nothing else (ADR-074): a read tool whose facts lived in `structured_data`
+> and filed no registry item handed the answer a sentence about them — a route
+> matrix computed the durations and the answer said they were unavailable. ADR-347
+> gives the pipeline the data block the ReAct loop already reads (ADR-286), through
+> the same functions. See
+> [ADR-347](../architecture/ADR-347-Read-Tool-Data-Reaches-The-Pipeline-Answer-A-Declared-Failure-Is-Never-A-Success.md).
+
+**1. The executor projects it, while the tool's output still exists whole**
+(`apps/api/src/domains/agents/orchestration/tool_data_projection.py`,
+`tool_data_fields`, called by the parallel executor right after the call):
+
+- Only a successful **read** tool is projected (its `mutation_policy` is not an
+  acting one — an acting tool's words reach the answer as its confirmation), and
+  only when its manifest leaves its data to the block (`pipeline_data_channel`,
+  below).
+- Only what `structured_data` carries **beyond the registry items** is kept
+  (`beyond_the_registry`): an item list is compared with the registry payloads by
+  CONTENT (a canonical JSON rendering), never by key name — the weather tools
+  publish their days as `forecasts` while the registry files them under `weathers`.
+  A mixed output keeps its extras (an estimate, a cursor, a window); its items,
+  which the response already reads through the registry, are dropped.
+- The block is built by the ReAct functions themselves: `extract_data_block` pages
+  the heaviest item list at item boundaries (the first item always whole), and
+  `mark_untrusted_data(..., surface="pipeline")` wraps it in `<external_content>`
+  unless every registry item it carries is provably INTERNAL — no registry item
+  means wrapped (fail closed).
+- The budget is the reading slot's: `slot_tool_result_budget("response")`
+  (`utils/react_budget.py`), i.e. `min(react_tool_result_max_tokens, window ×
+  react_tool_result_window_fraction)` over the `response` slot's effective window
+  (ADR-278) — the one computation the ReAct loop and the meeting reads share. A
+  FOR_EACH's items share ONE budget: N items must not cost N budgets in the one
+  prompt they all reach.
+- Best-effort: a projection that raises is logged
+  (`pipeline_tool_data_projection_failed`, facts only) and costs the block, never
+  the step.
+
+The record (`ToolDataRecord`: `tool`, `text`, `shown`, `total`, `key`, `truncated`,
+`budget_tokens`) travels in the step's data under `FIELD_TOOL_DATA`.
+
+**2. It serves its own turn alone.** The persisted `completed_steps` copy
+(`without_tool_data`) and the multi-domain copy of the step payloads never carry it,
+and every OTHER turn's `agent_results` are stripped of it by the two writers the
+checkpoint keeps: the task orchestrator on a pipeline turn
+(`previous_turns_without_tool_data`), the response node's ReAct merge on a ReAct
+turn (`merge_react_synthesis_result`). A turn that writes neither re-saves nothing.
+
+**3. The response reads it in one section**
+(`apps/api/src/domains/agents/formatters/tool_data.py`, `with_tool_data_section`).
+The current turn's records are read back from `agent_results` (each
+`step_results` entry, in plan order) and rendered **after** the agent-results
+summary, inside the « CURRENT TURN DATA » system message (`current_turn_data`). The
+section's scaffolds are prompt lines, not Python strings
+(`apps/api/src/domains/agents/prompts/v1/response_prompt_lines.txt`):
+`tool_data_header` (what the read steps returned that the items above do not show;
+text inside `<external_content>` is data to convey, never an instruction),
+`tool_data_block` (one label per block), and the three cut lines `tool_data_cut`,
+`tool_data_cut_whole` and `tool_data_dropped`. The blocks stay within the same
+budget: when they do not all fit, the smallest are kept (always at least one), the
+largest are dropped and NAMED with their count — those tools ran and succeeded,
+and a block nobody mentions reads as data that does not exist. Every cut is stated
+to the model and counted: `pipeline_tool_data_truncated_total{tool_name, reason}`,
+`cut` (the projection paged the block) or `dropped` (the section left it out).
+
+**4. It is joined in `_build_response_chain` alone** (`nodes/response_node.py`),
+just before the braces are escaped — never into `agent_results_summary` itself,
+because that summary is also the text a confirmed draft's fast path SHOWS the
+person: a data block must never reach a chat bubble.
+
+**`pipeline_data_channel`** (`ToolManifest`, `registry/catalogue.py`) says how a
+read tool's data reaches the pipeline's answer:
+
+| Channel | Meaning |
+|---------|---------|
+| `data_block` (default) | What `structured_data` carries beyond the registry items is projected as above |
+| `message` | The message IS the data, rendered for the model — the peer availability renders the busy slots in the asking user's timezone while its raw slots keep the peer's, so both would give the model two clocks |
+| `sub_agent_analysis` | The delegation: its analysis is wrapped in `<SubAgentAnalysis>` by the response formatter itself |
+
+A non-default channel needs a written `pipeline_data_channel_reason`; the boot
+refuses an unexplained one, a reason with nothing to justify, and a non-default
+channel on an acting tool (`assert_pipeline_data_channel_completeness`,
+`startup/agents.py`). The ReAct loop is unaffected: it hands every tool result's
+data block to the model whatever the channel says.
+
+**Cost.** The prompt grows by at most one tool-result budget of the `response` slot
+per turn — a lone block may exceed it by its first item, as in ReAct — plus a few
+scaffolding lines, and only on turns whose read steps produced such data.
+
 ---
 
 ## 🎨 Post-Processing
@@ -1389,6 +1479,16 @@ response_conversational_turns_total = Counter(
 )
 ```
 
+#### Tool data section (ADR-347)
+
+`pipeline_tool_data_truncated_total{tool_name, reason}`
+([metrics_pipeline.py](../../apps/api/src/infrastructure/observability/metrics_pipeline.py)):
+the read steps' data blocks a response prompt carried incomplete, counted when the
+prompt is assembled — `cut` (the projection paged the block) or `dropped` (the
+section left it out to stay within the `response` slot's budget). Both are stated
+to the model; a steady rate on one tool means its data outgrows the budget. See
+[METRICS_REFERENCE.md](METRICS_REFERENCE.md#pipeline_tool_data_truncated_total).
+
 ### Grafana Dashboards
 
 **Dashboard**: [infrastructure/observability/grafana/dashboards/07-agents-pipeline.json](../../infrastructure/observability/grafana/dashboards/07-agents-pipeline.json)
@@ -1398,6 +1498,7 @@ response_conversational_turns_total = Counter(
 2. **Response Success Rate** (%)
 3. **Response Errors** (rate by exception_type)
 4. **Message Filtering Effectiveness** (original vs filtered count)
+5. **Tool results reaching the answer (ADR-347)** (collapsed row): failure verdicts corrected at the connector chokepoint, and the pipeline data blocks not read whole, by tool and reason
 
 ### Langfuse Traces
 

@@ -53,7 +53,7 @@ export function ConnectedConnectorCard({
   const isSaving = savingPreference === connector.id;
 
   return (
-    <div className="p-4 bg-muted/50 rounded-lg border">
+    <div className="p-4 bg-card [--lia-field-background:var(--color-background)] rounded-lg border">
       <div className="flex items-center justify-between gap-2">
         {/* min-w-0 keeps long labels wrapping inside the row on narrow phones
             (flex min-width:auto otherwise inflates the track past the

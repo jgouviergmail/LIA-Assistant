@@ -94,6 +94,8 @@ export function bindSmileySphere(
     canvas.removeEventListener('webglcontextlost', lost);
     canvas.removeEventListener('webglcontextrestored', start);
     stop();
-    releaseNativeContext(context);
+    // StrictMode replays effects on the same connected canvas. Its native
+    // context must stay usable for the next binding after resources dispose.
+    if (!canvas.isConnected) releaseNativeContext(context);
   };
 }

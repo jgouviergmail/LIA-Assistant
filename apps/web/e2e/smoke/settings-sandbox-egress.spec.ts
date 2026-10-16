@@ -85,7 +85,7 @@ test.describe('sandbox network settings panel', () => {
     await mockApi(ROUTES);
     await page.goto('/en/dashboard/settings?section=sandbox-egress');
 
-    await expect(page.getByRole('heading', { name: 'Sandbox network' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Skill permissions' })).toBeVisible({
       timeout: 20_000,
     });
     await expect(page.getByText('api.search.brave.com')).toHaveCount(0);

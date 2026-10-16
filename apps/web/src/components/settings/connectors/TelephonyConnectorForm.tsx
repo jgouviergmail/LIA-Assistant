@@ -98,7 +98,7 @@ export function TelephonyConnectorForm({
               value={apiKey}
               onChange={e => setApiKey(e.target.value)}
               placeholder={t('settings.connectors.telephony.key_placeholder')}
-              className="w-full rounded-lg border border-input bg-background py-2 pl-9 pr-3 text-sm"
+              className="w-full rounded-lg border border-input bg-[var(--lia-field-background,var(--color-background))] py-2 pl-9 pr-3 text-sm"
             />
           </div>
           {/* aria-label keeps the button named while isValidating swaps its
@@ -158,7 +158,7 @@ export function TelephonyConnectorForm({
         <p className="text-xs text-gray-500">
           {t('settings.connectors.telephony.webhook_instructions')}
         </p>
-        <div className="flex items-center gap-2 rounded-lg border border-input bg-muted p-2">
+        <div className="flex items-center gap-2 rounded-lg border border-input bg-card p-2">
           <code className="flex-1 truncate text-xs text-gray-700 dark:text-gray-300">
             {webhookUrl}
           </code>
@@ -184,7 +184,7 @@ export function TelephonyConnectorForm({
           value={webhookSecret}
           onChange={e => setWebhookSecret(e.target.value)}
           placeholder={t('settings.connectors.telephony.secret_placeholder')}
-          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+          className="w-full rounded-lg border border-input bg-[var(--lia-field-background,var(--color-background))] px-3 py-2 text-sm"
         />
       </div>
 

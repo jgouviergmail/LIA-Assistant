@@ -18,8 +18,16 @@ voice, the interface tells you.
 ## What can I choose?
 Choose the parts of your day the radio may read, news subjects and sources, the
 sites you add, voices and personality, and a verification level: off, news, or
-all. You can pause a site without deleting it. A model verification pass costs
-extra and is never hidden; the settings describe it before you choose.
+all. The model verification is off unless you choose it, because each pass
+costs extra and can delay the listening; the settings describe it before you
+choose. You can pause a site without deleting it.
+
+You choose the voices of LIA, the anchor and each of the three commentators of
+debates and discussions — automatic by default. A commentator never shares a
+voice with LIA, the anchor or another commentator: the settings grey those
+voices out. Your choices are kept when the administrator changes the model of
+the same provider, and on the engines that voice several speakers a debate is
+played in one take.
 
 When a session starts and you have your own Brave or Perplexity key, up to
 five of your strongest interests are searched with it, and every story found
@@ -44,7 +52,7 @@ obtain.
 
 ## Does Radio include commercial content or the Simli avatar?
 
-Start Radio from the header, dashboard or Radio page if your instance offers it. Choose topics, sources, voices and an optional verification level. It speaks about your day and cited news only while you listen, shows sources and spending, and ends at your timer; there is no replay or scheduled edition.
+Start Radio from the header, dashboard or Radio page if your instance offers it. Choose topics, sources, voices and a verification level. It speaks about your day and cited news only while you listen, shows sources and spending, and ends at your timer; there is no replay or scheduled edition.
 
 Advertising, sponsorships, deals and purchase pitches are filtered. Genuine invoices, reservations and editorial, scientific or economic reporting remain eligible. A speaking Simli avatar does not accompany Radio.
 

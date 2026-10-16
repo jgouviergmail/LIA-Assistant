@@ -247,7 +247,7 @@ function HistoryHeading({
       <time
         dateTime={row.createdAt}
         className={cn(
-          'text-xs tabular-nums text-muted-foreground',
+          'text-xs font-bold tabular-nums text-muted-foreground',
           timeline && 'break-words',
           timeline && !headerMetadata && 'w-full'
         )}
@@ -260,7 +260,7 @@ function HistoryHeading({
           size="sm"
           icon={row.badge.icon}
           className={cn(
-            'uppercase tracking-wide',
+            'font-bold uppercase tracking-wide',
             timeline && 'h-auto min-w-0 max-w-full py-1 normal-case leading-relaxed tracking-normal'
           )}
         >
@@ -290,10 +290,10 @@ function HistoryChips({
         <span
           key={chip.key}
           className={cn(
-            'rounded border px-1.5 py-0.5 text-px-10 font-medium',
+            'rounded border px-1.5 py-0.5 text-px-10 font-bold',
             chip.tone ?? THEME_CHIP_TONE,
             timeline &&
-              'min-w-0 max-w-full break-words rounded-none border-0 bg-transparent px-0 py-0 text-xs font-normal leading-relaxed'
+              'min-w-0 max-w-full break-words rounded-none border-0 bg-transparent px-0 py-0 text-xs font-bold leading-relaxed'
           )}
         >
           {chip.label}
@@ -314,7 +314,7 @@ function FeedbackMark({
   const { t } = useTranslation();
   if (verdict === 'thumbs_up') {
     return (
-      <span className="flex items-center gap-1 text-xs text-success">
+      <span className="flex items-center gap-1 text-xs font-bold text-success">
         <ThumbsUp className="h-3 w-3" aria-hidden="true" />
         {t('heartbeat.history.feedback_thumbs_up')}
       </span>
@@ -324,7 +324,7 @@ function FeedbackMark({
     return (
       <span
         className={cn(
-          'flex items-center gap-1 text-xs',
+          'flex items-center gap-1 text-xs font-bold',
           negativeIsDestructive ? 'text-destructive' : 'text-warning'
         )}
       >

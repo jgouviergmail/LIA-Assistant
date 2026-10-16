@@ -32,7 +32,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { useLanguageParam } from '@/hooks/useLanguageParam';
 import { useSearchParams } from 'next/navigation';
 import { CONNECTOR_LABELS, isValidConnectorType } from '@/constants/connectors';
-import { MCP_OAUTH_TOAST, resolveMcpOAuthOutcome, resumeApplicationMCPOAuthReturn } from '@/lib/mcp-oauth-callback';
+import {
+  MCP_OAUTH_TOAST,
+  resolveMcpOAuthOutcome,
+  resumeApplicationMCPOAuthReturn,
+} from '@/lib/mcp-oauth-callback';
 import { FeatureErrorBoundary } from '@/components/errors';
 import { PortraitShortcut } from '@/components/settings/PortraitShortcut';
 import { SettingsOverview } from '@/components/settings/SettingsOverview';
@@ -71,9 +75,12 @@ function showBulkReconnectOutcome(
   if (
     (provider !== 'google' && provider !== 'microsoft') ||
     (mode !== 'connect' && mode !== 'reconnect') ||
-    activatedText === null || !/^\d{1,3}$/.test(activatedText) ||
-    deniedText === null || !/^\d{1,3}$/.test(deniedText)
-  ) return false;
+    activatedText === null ||
+    !/^\d{1,3}$/.test(activatedText) ||
+    deniedText === null ||
+    !/^\d{1,3}$/.test(deniedText)
+  )
+    return false;
 
   const activated = Number(activatedText);
   const denied = Number(deniedText);
@@ -94,15 +101,15 @@ function showBulkReconnectOutcome(
   return true;
 }
 
-function showConnectorOAuthError(
-  error: string,
-  t: ReturnType<typeof useTranslation>['t']
-): void {
-  const key = error === 'account_mismatch'
-    ? 'settings.connectors.bulk_reconnect.account_mismatch'
-    : `settings.connectors.oauth_errors.${[
-        'invalid_state', 'connector_disabled', 'code_exchange_failed',
-      ].includes(error) ? error : 'default'}`;
+function showConnectorOAuthError(error: string, t: ReturnType<typeof useTranslation>['t']): void {
+  const key =
+    error === 'account_mismatch'
+      ? 'settings.connectors.bulk_reconnect.account_mismatch'
+      : `settings.connectors.oauth_errors.${
+          ['invalid_state', 'connector_disabled', 'code_exchange_failed'].includes(error)
+            ? error
+            : 'default'
+        }`;
   toast.error(t(key));
   const url = new URL(window.location.href);
   url.searchParams.delete('connector_error');
@@ -119,6 +126,11 @@ export default function SettingsPage({ params }: SettingsPageProps) {
   const [active, setActive] = React.useState<SettingsSectionToken | null>(null);
   /** Monotonic counter: each search pick asks the pane for one focus move. */
   const [focusRequest, setFocusRequest] = React.useState(0);
+  const returnRef = React.useRef<{ element: HTMLElement | null; scroll: number }>({
+    element: null,
+    scroll: 0,
+  });
+  const railRef = React.useRef<HTMLElement>(null);
 
   // Track if OAuth callback toast has been shown (prevents duplicate toasts)
   const oauthToastShownRef = React.useRef(false);
@@ -131,6 +143,13 @@ export default function SettingsPage({ params }: SettingsPageProps) {
 
   const openSection = React.useCallback(
     (token: SettingsSectionToken, { focus = false }: { focus?: boolean } = {}) => {
+      if (!window.matchMedia('(min-width: 1024px)').matches) {
+        returnRef.current = {
+          element: document.activeElement instanceof HTMLElement ? document.activeElement : null,
+          scroll: window.scrollY,
+        };
+        focus = true;
+      }
       setActive(token);
       if (focus) setFocusRequest(count => count + 1);
       writeSectionParam(token);
@@ -144,7 +163,14 @@ export default function SettingsPage({ params }: SettingsPageProps) {
   const closeSection = React.useCallback(() => {
     setActive(null);
     writeSectionParam(null);
-    window.scrollTo({ top: 0 });
+    requestAnimationFrame(() => {
+      const previous = returnRef.current;
+      const target = previous.element?.isConnected
+        ? previous.element
+        : railRef.current?.querySelector<HTMLElement>('button');
+      target?.focus({ preventScroll: true });
+      window.scrollTo({ top: previous.scroll });
+    });
   }, []);
 
   // `?section=` arrivals — a deep link, the starter checklist, a briefing
@@ -261,8 +287,8 @@ export default function SettingsPage({ params }: SettingsPageProps) {
           away with the page (measured in the browser, first e2e pass). */}
       <div className="lg:flex lg:gap-8">
         {/* The rail — the landing screen below `lg`, a sticky sidebar above. */}
-        <aside className={cn('lg:w-64 lg:shrink-0', active && 'hidden lg:block')}>
-          <div className="space-y-4 lg:sticky lg:top-20 lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:pb-4 lg:pr-1">
+        <aside ref={railRef} className={cn('lg:w-64 lg:shrink-0', active && 'hidden lg:block')}>
+          <div className="space-y-4 lg:sticky lg:top-[calc(5rem+var(--meeting-banner-h,0px)+var(--radio-banner-h,0px))] lg:max-h-[calc(100dvh-6rem-var(--meeting-banner-h,0px)-var(--radio-banner-h,0px))] lg:overflow-y-auto lg:pb-4 lg:pr-1">
             <SettingsSearch
               lng={lng}
               availability={availability}

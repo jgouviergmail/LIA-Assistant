@@ -52,6 +52,7 @@ export function RadioProgrammeFields({ lng, options, preferences, onChange }: Ra
   const { t } = useTranslation(lng);
   return (
     <Disclosure
+      surface="nested"
       icon={ListMusic}
       title={t('radio.settings.programmes.title')}
       description={t('radio.settings.programmes.summary')}
@@ -70,7 +71,7 @@ export function RadioProgrammeFields({ lng, options, preferences, onChange }: Ra
               if (frequency) onChange(withFrequency(preferences, item.format, frequency));
             };
             return (
-              <div key={item.format} className="flex h-full flex-col rounded-lg border p-4">
+              <div key={item.format} className="flex h-full flex-col rounded-lg border bg-card p-4">
                 <div className="flex items-start gap-2.5">
                   <Icon className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
                   <div className="min-w-0 space-y-1">
@@ -89,7 +90,11 @@ export function RadioProgrammeFields({ lng, options, preferences, onChange }: Ra
                     value={preferences.frequencies[item.format] ?? item.default_frequency}
                     onValueChange={choose}
                   >
-                    <SelectTrigger id={id} className="w-full" aria-describedby={hintId}>
+                    <SelectTrigger
+                      id={id}
+                      className="w-full bg-background"
+                      aria-describedby={hintId}
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>

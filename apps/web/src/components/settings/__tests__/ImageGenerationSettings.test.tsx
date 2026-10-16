@@ -23,6 +23,21 @@ vi.mock('@/lib/api-client', () => ({ default: { patch } }));
 const { toast } = vi.hoisted(() => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('sonner', () => ({ toast }));
 
+import en from '../../../../locales/en/translation.json';
+import fr from '../../../../locales/fr/translation.json';
+const { translatedNames } = vi.hoisted(() => ({ translatedNames: { enabled: false } }));
+vi.mock('@/i18n/client', () => ({
+  useTranslation: (lng: 'en' | 'fr') => ({
+    t: (key: string) => {
+      if (!translatedNames.enabled) return key;
+      const fields = (lng === 'fr' ? fr : en).settings.image_generation;
+      if (key === 'settings.image_generation.quality') return fields.quality;
+      if (key === 'settings.image_generation.size') return fields.size;
+      if (key === 'settings.image_generation.format') return fields.format;
+      return key;
+    },
+  }),
+}));
 import { ImageGenerationSettings } from '../ImageGenerationSettings';
 
 const OPTIONS: ImageGenerationOptions = {
@@ -80,6 +95,7 @@ function authed(over: Partial<User> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  translatedNames.enabled = false;
   patch.mockResolvedValue({});
   useAuth.mockReturnValue(authed());
 });
@@ -218,4 +234,14 @@ describe('ImageGenerationSettings — prompt enhancement (ADR-315)', () => {
       })
     );
   });
+});
+
+it.each(['en', 'fr'] as const)('names the quality, size and format selectors in %s', lng => {
+  useImageGenerationOptions.mockReturnValue(dataQuery(OPTIONS));
+  translatedNames.enabled = true;
+  renderWithProviders(<ImageGenerationSettings lng={lng} />);
+  const labels = (lng === 'fr' ? fr : en).settings.image_generation;
+  for (const field of ['quality', 'size', 'format'] as const) {
+    expect(screen.getByRole('combobox', { name: labels[field] })).toBeInTheDocument();
+  }
 });

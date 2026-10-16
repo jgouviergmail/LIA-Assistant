@@ -117,7 +117,7 @@ export function LastKnownLocationSection({ t }: LastKnownLocationSectionProps) {
             </InfoBox>
           )}
 
-          <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+          <div className="rounded-lg border bg-background p-3 space-y-2">
             <p className="text-xs font-medium">{t('settings.location.last_known.stored_title')}</p>
             {readFailed ? (
               <p role="status" className="text-xs text-muted-foreground">
@@ -144,11 +144,10 @@ export function LastKnownLocationSection({ t }: LastKnownLocationSectionProps) {
                 )}
                 <div className="pt-2">
                   <Button
-                    variant="outline"
+                    variant="destructive"
                     size="sm"
-                    className="text-destructive hover:text-destructive"
                     onClick={handleClearNow}
-                    disabled={updating}
+                    isLoading={updating}
                   >
                     <Trash2 className="mr-2 h-3 w-3" />
                     {t('settings.location.last_known.clear_button')}

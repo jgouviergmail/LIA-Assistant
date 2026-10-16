@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version** : 6.3
-**Date** : 2026-10-13
-**Application** : LIA v3.0.1
+**Date** : 2026-10-17
+**Application** : LIA v3.1.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -140,7 +140,7 @@ Les cartes montrent aussi d’où vient un résultat MCP tiers et quelle méthod
 
 ### 3.2. Services connectés personnels
 
-- **Email** : lire, rechercher, rédiger, envoyer, répondre, transférer — via Gmail, Outlook ou Apple Mail ; un message arrive en texte propre, et beaucoup se résument message par message (« résume mes non lus », « une synthèse des newsletters de la semaine ») ; une pièce jointe se lit sur demande — un document en texte, une photo ou un scan par le modèle de vision
+- **Email** : lire, rechercher, rédiger, envoyer, répondre, transférer — via Gmail, Outlook ou Apple Mail ; un message arrive en texte propre, et beaucoup se résument message par message (« résume mes non lus », « une synthèse des newsletters de la semaine ») ; une pièce jointe se lit sur demande — un document en texte, une photo ou un scan par le modèle de vision ; et LIA tient les brouillons de ta boîte — elle les garde, les modifie et les jette sans te demander, et ne les envoie qu'après une seule confirmation
 - **Calendrier** : consulter, créer, modifier, supprimer des événements — via Google Calendar, Outlook Calendar ou Apple Calendar
 - **Contacts** : rechercher, créer, modifier des contacts — via Google Contacts, Outlook Contacts ou Apple Contacts
 - **Tâches** : gérer tes listes de tâches — via Google Tasks ou Microsoft To Do
@@ -164,7 +164,7 @@ LIA propose un mode vocal complet :
 
 - **Push-to-Talk** : maintiens le bouton microphone pour parler, optimisé pour le mobile
 - **« Dis LIA », entendu dans ton navigateur** : la détection mains libres tourne **entièrement sur ton appareil** — aucun son n'est transmis tant que la phrase n'est pas entendue — et « LIA, stop » coupe la voix de LIA quand elle lit une réponse. Ce mot d'activation existe pour l'instant en français, en bêta : sa reconnaissance s'améliore encore ; dans les autres langues, un toucher suffit
-- **Synthèse vocale** : cinq providers configurables côté admin — Edge TTS (gratuit), OpenAI TTS (`tts-1` / `tts-1-hd`), ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`), Gemini ou Fish Audio (`s2.1-pro`, `s2-pro`, `drama-3`) ; sur les moteurs qui les jouent, les commentaires parlés de LIA portent quelques balises expressives (un soupir, un rire, un murmure)
+- **Synthèse vocale** : cinq providers configurables côté admin — Edge TTS (gratuit), OpenAI TTS (`tts-1` / `tts-1-hd`), ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`), Gemini ou Fish Audio (`s2.1-pro`, `s2-pro`, `drama-3`) ; sur les moteurs qui les jouent, les commentaires parlés de LIA portent quelques balises expressives (un soupir, un rire, un murmure) ; chacun choisit la voix masculine et la voix féminine de LIA parmi celles du moteur, et peut limiter chaque liste de voix à sa langue
 - **Messages vocaux Telegram** : envoie des messages audio, LIA les transcrit et répond
 - **Mode Live** : une conversation en temps réel, de vive voix, sur un modèle live que tu connectes avec **ta propre clé** — Gemini Live, GPT-Live ou un agent ElevenLabs. La voix tient la conversation et confie chaque demande à LIA, qui la traite comme un tour de chat ordinaire pendant que tu parles ; une session directe laisse la voix lire tes données elle-même sans agir sur rien. Ce que le fournisseur facture t'est montré, jamais enregistré. Un silence ne clôt plus une session : il la met en veille — connexion fermée, rien de facturé — jusqu'à ce qu'un toucher la réveille avec le contexte de LIA ; c'est toujours toi qui la termines.
 
@@ -224,7 +224,7 @@ Tu gardes toujours la main : avant de composer, LIA t’indique précisément **
 
 Et cela reste confidentiel par construction. Pendant un appel, LIA peut seulement indiquer si tu es libre ou occupé à un moment donné — jamais les titres, invités ou lieux de ton agenda. Rien n'est enregistré, la conversation n'est jamais conservée, et seul un résumé court est gardé avant d'expirer. Les appels passent par ton propre connecteur ElevenLabs, facturés sur ton compte, et la fonctionnalité n'est là que si ton administrateur l'a activée.
 
-Et LIA peut *t'*appeler. Déclare ton numéro dans _Téléphonie · Mon identité_, laisse LIA l'appeler et lire un code que tu retapes, et dès lors « appelle-moi à huit heures pour faire le point sur ma journée » — ou une routine qui le dit — fait sonner ton téléphone sans carte de confirmation : la personne qui confirmerait est celle qui décroche. La façon dont l'appel se passe est un choix qui t'appartient, dans les mêmes réglages, et c'est le même choix que pour les sessions live du navigateur. En **Live**, le défaut, chaque chose que tu demandes en ligne est traitée par LIA pendant que tu parles, comme un tour de chat de toi — la voix l'annonce, continue de parler, lit la réponse quand elle arrive ; une confirmation dont LIA a besoin est demandée sur la ligne, une question qu'elle pose est la réponse, et tout est dans le fil avec un badge téléphone. En **Live direct**, la voix lit pour toi — ton agenda, un e-mail, un contact, un lieu à proximité, la météo, ce qu'elle retient — et n'agit sur rien ; chaque domaine a un interrupteur qui est à toi, et ce que tu as dit revient ensuite comme ton propre message. Live n'existe que là où le fournisseur téléphonique peut rappeler ton instance ; ailleurs le réglage le dit et l'appel part en direct. Dans les deux cas l'assistante parle avec la personnalité que tu lui as donnée, et ce qui tourne sur ta clé ElevenLabs y est facturé, jamais compté ici.
+Et LIA peut *t'*appeler. Déclare ton numéro dans _Mon téléphone_, laisse LIA l'appeler et lire un code que tu retapes, et dès lors « appelle-moi à huit heures pour faire le point sur ma journée » — ou une routine qui le dit — fait sonner ton téléphone sans carte de confirmation : la personne qui confirmerait est celle qui décroche. La façon dont l'appel se passe est un choix qui t'appartient, dans les mêmes réglages, et c'est le même choix que pour les sessions live du navigateur. En **Live**, le défaut, chaque chose que tu demandes en ligne est traitée par LIA pendant que tu parles, comme un tour de chat de toi — la voix l'annonce, continue de parler, lit la réponse quand elle arrive ; une confirmation dont LIA a besoin est demandée sur la ligne, une question qu'elle pose est la réponse, et tout est dans le fil avec un badge téléphone. En **Live direct**, la voix lit pour toi — ton agenda, un e-mail, un contact, un lieu à proximité, la météo, ce qu'elle retient — et n'agit sur rien ; chaque domaine a un interrupteur qui est à toi, et ce que tu as dit revient ensuite comme ton propre message. Live n'existe que là où le fournisseur téléphonique peut rappeler ton instance ; ailleurs le réglage le dit et l'appel part en direct. Dans les deux cas l'assistante parle avec la personnalité que tu lui as donnée, et ce qui tourne sur ta clé ElevenLabs y est facturé, jamais compté ici.
 
 ### 3.11. Parler à tes proches, d’assistant à assistant
 
@@ -367,13 +367,11 @@ Et ce principe va plus loin qu'il n'y paraît. Un test qui ne tourne pas ne prou
 
 Cette honnêteté commence avant même que tu entres. La page qui te propose d'essayer le démonstrateur public liste ce qui y est activé et ce qui ne l'est pas — et cette liste n'est pas écrite par quelqu'un qui pourrait oublier de la mettre à jour : elle est lue dans la configuration du démonstrateur lui-même, et s'il ne répond pas, la page le dit plutôt que d'afficher une colonne vide. Tu sais ce que tu vas trouver, et ce que tu ne trouveras pas, avant de créer un compte.
 
-### 6.5. Pourquoi LIA pense cela
+### 6.5. Ce que LIA conclut, tu le corriges
 
-Un assistant qui retient des choses finit par en affirmer. « Tu préfères les réunions le matin », « ce sujet t'intéresse » : des conclusions utiles, mais invérifiables tant qu'on ne peut pas remonter à ce qui les a produites.
+Un assistant qui retient des choses finit par en affirmer. « Tu préfères les réunions le matin », « ce sujet t'intéresse » : des conclusions utiles, mais qui peuvent être fausses — et une conclusion fausse qu'on ne peut pas corriger finit par décider à ta place.
 
-Sous chaque souvenir, chaque entrée de journal et chaque centre d'intérêt, LIA montre donc les signaux qui l'ont amenée là : la conversation, la date, et le rôle du signal — ce qui a fait naître la conclusion, ce qui l'a confirmée, ce qui l'a mise en doute. Un bouton permet de corriger la conclusion à sa source.
-
-Ce qui est conservé est un **renvoi, jamais une copie**. Le texte reste là où tu l'as écrit, et si tu supprimes la conversation, il ne revient nulle part : le renvoi se vide, la ligne reste datée, et LIA dit simplement que le signal a été supprimé. Une suppression doit rester une suppression — autrement, ce que tu effaces d'un côté te serait resservi de l'autre.
+Chaque souvenir, chaque entrée de journal et chaque centre d'intérêt se relit donc, se corrige et se supprime depuis tes réglages, et ce que tu corriges vaut partout. Derrière, LIA garde les signaux qui l'ont amenée là sous forme de **renvoi, jamais de copie** : le texte reste là où tu l'as écrit, et si tu supprimes la conversation, il ne revient nulle part. Une suppression doit rester une suppression — autrement, ce que tu effaces d'un côté te serait resservi de l'autre.
 
 Le même principe s'applique au poids d'un centre d'intérêt : il s'explique au lieu de se noter. Le signal d'origine, la dernière mention, le calcul lui-même — de quoi refaire l'opération. Transformer cette incertitude en score inviterait à une compétition que personne n'a demandée, alors qu'elle n'apprend rien de plus.
 
@@ -454,6 +452,8 @@ Et entre deux réponses, ce visage ne s'éteint pas. Les sourcils sont posés su
 Le compagnon suit aussi le travail réellement effectué, pas celui qui n'est encore que préparé. Sa tête, ses yeux, ses sourcils et sa bouche bougent ensemble ; l'heure locale du compte et la météo déjà en cache pour le briefing peuvent teinter discrètement sa présence au repos. Aucun nouvel appel au modèle ni à la météo n'est nécessaire, et la réduction des mouvements conserve le contexte dans une pose immobile.
 
 Et cette présence te suit : hors du chat, un compagnon flottant garde LIA à tes côtés sur tout le tableau de bord — au repos, au travail, ou porteur d'une notification.
+
+Le Psyche Engine apprend aussi où LIA est fiable — et il l'apprend sur des preuves, jamais sur la note qu'elle se donnerait. Par domaine, il garde séparément ce que ses réponses ont vraiment établi et l'utilité que tu leur as donnée ; là où les preuves manquent, LIA vérifie un point, pose une question ou nomme sa limite, sans jamais se montrer plus sûre qu'elle ne l'est. Ce n'est pas un score de performance affiché pour impressionner : c'est une prudence qui se règle sur les faits.
 
 ### 7.3. Les carnets de bord
 

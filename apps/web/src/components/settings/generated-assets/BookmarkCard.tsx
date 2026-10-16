@@ -102,7 +102,7 @@ export function BookmarkCard({ lng, bookmark, onDeleted }: BookmarkCardProps) {
   return (
     <li
       data-testid="bookmark-card"
-      className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 shadow-sm"
+      className="flex flex-col gap-3 rounded-xl border border-border bg-background p-4 shadow-sm"
     >
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
         <span>{t('settings.bookmarks.answered_at', { when: answeredOn })}</span>
@@ -150,7 +150,7 @@ export function BookmarkCard({ lng, bookmark, onDeleted }: BookmarkCardProps) {
 
       <div
         className={cn(
-          'relative overflow-hidden rounded-lg border border-border/60 bg-background px-3 py-2 text-sm',
+          'relative overflow-hidden rounded-lg border border-border/60 bg-card px-3 py-2 text-sm',
           foldable && !expanded && 'max-h-64'
         )}
       >
@@ -158,7 +158,7 @@ export function BookmarkCard({ lng, bookmark, onDeleted }: BookmarkCardProps) {
         {foldable && !expanded && (
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-background to-transparent"
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-card to-transparent"
           />
         )}
       </div>

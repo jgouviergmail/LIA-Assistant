@@ -343,7 +343,7 @@ export default function AdminPersonalitiesSection({ lng }: BaseSettingsProps) {
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-card divide-y divide-border">
+            <tbody className="bg-background divide-y divide-border">
               {personalities.map(personality => {
                 const frTranslation = personality.translations.find(
                   t => t.language_code === fallbackLng

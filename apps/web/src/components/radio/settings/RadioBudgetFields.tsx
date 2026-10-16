@@ -21,6 +21,7 @@ export function RadioBudgetFields({ lng }: { lng: BaseSettingsProps['lng'] }) {
   if (budget === null || budget.limit_eur <= 0) return null;
   return (
     <Disclosure
+      surface="nested"
       icon={Wallet}
       title={t('radio.settings.budget.title')}
       description={t('radio.settings.budget.description')}

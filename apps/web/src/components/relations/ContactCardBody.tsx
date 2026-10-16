@@ -228,7 +228,7 @@ export function ContactCardBody({ card, locale }: { card: ContactCard; locale: s
         <ContactBlock icon={MessageCircle} values={card.messaging} />
       </ContactGroup>
       {card.biography && (
-        <p className="flex gap-2 rounded-lg border-l-2 border-border/60 bg-muted/20 px-3 py-2 text-sm italic text-muted-foreground">
+        <p className="flex gap-2 rounded-lg border-l-2 border-border/60 bg-background px-3 py-2 text-sm italic text-muted-foreground">
           <Quote className="mt-1 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           <span className="whitespace-pre-line">{card.biography}</span>
         </p>
@@ -273,7 +273,7 @@ function ContactGroup({
   return (
     <div
       className={cn(
-        'divide-y divide-border/40 overflow-hidden rounded-lg border border-border/40 bg-muted/10',
+        'divide-y divide-border/40 overflow-hidden rounded-lg border border-border/40 bg-background',
         tone
       )}
     >

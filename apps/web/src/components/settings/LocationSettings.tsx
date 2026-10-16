@@ -15,6 +15,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { InfoBox } from '@/components/ui/info-box';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -32,6 +33,18 @@ import { LastKnownLocationSection } from './LastKnownLocationSection';
 import { useHomeLocationSettings } from '@/hooks/useHomeLocationSettings';
 export type { HomeLocation } from '@/hooks/useHomeLocationSettings';
 
+function geolocationState({
+  isEnabled,
+  permission,
+  error,
+}: Pick<ReturnType<typeof useGeolocation>, 'isEnabled' | 'permission' | 'error'>) {
+  if (error) return 'error';
+  if (!isEnabled) return 'inactive';
+  if (permission === 'granted') return 'active';
+  return permission === 'prompt' ? 'inactive' : 'error';
+}
+const GEO_STATE_TONE = { error: 'destructive', active: 'success', inactive: 'secondary' } as const;
+
 export function LocationSettings({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   const {
@@ -42,6 +55,7 @@ export function LocationSettings({ lng }: BaseSettingsProps) {
     enable,
     disable,
   } = useGeolocation();
+  const geoState = geolocationState({ isEnabled, permission, error: geoError });
 
   const {
     homeLocation,
@@ -83,46 +97,35 @@ export function LocationSettings({ lng }: BaseSettingsProps) {
       <div className="space-y-6">
         {/* Geolocation Settings */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
               <Navigation className="h-4 w-4 text-primary" />
-              <Label className="text-sm text-muted-foreground">
+              <Label id="geolocation-label" className="text-sm text-muted-foreground">
                 {t('settings.location.geolocation.title')}
               </Label>
+              <Badge variant={GEO_STATE_TONE[geoState]} role="status">
+                {t(geoLoading ? 'common.loading' : `common.${geoState}`)}
+              </Badge>
             </div>
             <Switch
               checked={isEnabled}
               onCheckedChange={handleGeoToggle}
               disabled={geoLoading || permission === 'unsupported'}
+              aria-labelledby="geolocation-label"
             />
           </div>
-
-          {/* Permission status - simple colored circle */}
-          {permission !== 'prompt' && (
-            <div className="flex items-center justify-between">
-              <Label className="text-xs text-muted-foreground">
-                {t('settings.location.geolocation.permission_status')}
-              </Label>
-              <span
-                className="text-base"
-                title={
-                  permission === 'granted'
-                    ? t('settings.location.geolocation.permission_granted')
-                    : permission === 'denied'
-                      ? t('settings.location.geolocation.permission_denied')
-                      : t('settings.location.geolocation.unsupported')
-                }
-              >
-                {permission === 'granted' ? '🟢' : permission === 'denied' ? '🔴' : '🟡'}
-              </span>
-            </div>
-          )}
 
           {/* Geolocation error */}
           {geoError && (
             <InfoBox variant="error">
               <p className="text-sm text-red-700 dark:text-red-400">{geoError}</p>
             </InfoBox>
+          )}
+
+          {permission === 'unsupported' && (
+            <p className="text-xs text-muted-foreground">
+              {t('settings.location.geolocation.unsupported')}
+            </p>
           )}
 
           {/* Permission denied help */}

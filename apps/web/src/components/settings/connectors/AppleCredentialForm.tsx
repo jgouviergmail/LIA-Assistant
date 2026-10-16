@@ -72,7 +72,7 @@ export function AppleCredentialForm({
   const isBulk = services.length > 1;
 
   return (
-    <div className="space-y-4 p-4 border rounded-lg bg-card">
+    <div className="space-y-4 p-4 border rounded-lg bg-card [--lia-field-background:var(--color-background)]">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {isBulk ? (
@@ -103,7 +103,7 @@ export function AppleCredentialForm({
       </p>
 
       {/* Security notice */}
-      <div className="flex items-start gap-2 p-3 bg-muted/50 rounded-md">
+      <div className="flex items-start gap-2 p-3 bg-background rounded-md">
         <Shield className="h-4 w-4 mt-0.5 text-green-600" />
         <div className="text-xs text-muted-foreground space-y-1">
           <p>{t('settings.connectors.apple.two_fa_required')}</p>
@@ -168,7 +168,10 @@ export function AppleCredentialForm({
             {services.map(type => {
               const meta = APPLE_CONNECTORS_METADATA.find(m => m.type === type);
               return (
-                <div key={type} className="flex items-center gap-1.5 px-2 py-1 bg-muted rounded-md">
+                <div
+                  key={type}
+                  className="flex items-center gap-1.5 px-2 py-1 bg-background rounded-md"
+                >
                   <ConnectorIcon connectorType={type} className="h-4 w-4" />
                   <span className="text-xs font-medium">{meta ? t(meta.labelKey) : type}</span>
                 </div>

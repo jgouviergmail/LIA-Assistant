@@ -210,8 +210,11 @@ describe('MeetingTemplateLibrary — selection', () => {
     const row = within(builtins).getByRole('listitem', { name: 'Meeting minutes' });
     await user.click(within(row).getByRole('button', { name: 'meetings.templates.add_to_mine' }));
     expect(onAddToMine).not.toHaveBeenCalled();
-    // The fetched row's preview is stated busy (spinner + disabled), the others are not.
-    expect(within(row).getByRole('button', { name: 'meetings.templates.preview' })).toBeDisabled();
+    // The pending row stays focusable while repeated activation is guarded.
+    expect(within(row).getByRole('button', { name: 'meetings.templates.preview' })).toHaveAttribute(
+      'aria-busy',
+      'true'
+    );
     const other = within(builtins).getByRole('listitem', { name: 'Daily standup' });
     expect(within(other).getByRole('button', { name: 'meetings.templates.preview' })).toBeEnabled();
   });

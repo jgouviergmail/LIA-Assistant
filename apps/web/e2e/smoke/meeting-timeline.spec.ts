@@ -138,12 +138,18 @@ async function readyList(page: Page, rows: readonly MeetingSummary[]) {
 
 /**
  * The existing layout can first mount with config absent, then replace its
- * fragment by RecorderShell when meetings becomes enabled. Bound that startup
- * to two reads, and require every subsequent presentation interaction to add none.
+ * fragment by RecorderShell when meetings becomes enabled. Bound startup to
+ * at most two mounts: one effect per mount in production, or the StrictMode
+ * probe when development is explicit. Every presentation interaction adds none.
  */
 function startupReads(reads: readonly MeetingPageRead[]): MeetingPageRead[] {
   expect(reads.length).toBeGreaterThanOrEqual(1);
-  expect(reads.length).toBeLessThanOrEqual(2);
+  // StrictMode replays each initial effect in the unmanaged Next dev runtime.
+  // Config readiness can also move the page from Fragment into RecorderShell:
+  // at most two mounts, each with two initial reads. Presentation interactions
+  // below still assert no additional reads against this exact startup baseline.
+  const maximumStartupReads = process.env.E2E_NEXT_DEV === '1' ? 2 * 2 : 2;
+  expect(reads.length).toBeLessThanOrEqual(maximumStartupReads);
   for (const read of reads) expect(read).toEqual({ limit: 20, offset: 0 });
   return reads.map(read => ({ ...read }));
 }
@@ -234,18 +240,23 @@ async function assertGeometry(page: Page, rows: readonly MeetingSummary[], width
     name: translated('meetings.list.record'),
     exact: true,
   });
-  const templates = main(page).getByRole('button', {
-    name: translated('meetings.list.templates'),
-    exact: true,
-  });
-  const [h, a, b] = await Promise.all([box(heading), box(record), box(templates)]);
+  await expect(
+    main(page).getByRole('button', {
+      name: translated('meetings.list.templates'),
+      exact: true,
+    })
+  ).toHaveCount(0);
+  const [h, a, firstRow] = await Promise.all([
+    box(heading),
+    box(record),
+    box(rowFor(page, rows[0])),
+  ]);
   expect(a.y).toBeGreaterThanOrEqual(h.y + h.height);
-  expect(b.y).toBeGreaterThanOrEqual(a.y + a.height);
-  expect(Math.abs(a.x - b.x)).toBeLessThanOrEqual(2);
-  for (const control of [a, b]) {
-    expect(control.width).toBeGreaterThanOrEqual(44);
-    expect(control.height).toBeGreaterThanOrEqual(44);
-  }
+  expect(firstRow.y).toBeGreaterThanOrEqual(a.y + a.height);
+  expect(a.x).toBeGreaterThanOrEqual(0);
+  expect(a.x + a.width).toBeLessThanOrEqual(width);
+  expect(a.width).toBeGreaterThanOrEqual(44);
+  expect(a.height).toBeGreaterThanOrEqual(44);
   // The collection itself must not be behind a disclosure or a redundant open command.
   await expect(
     main(page)
@@ -660,7 +671,10 @@ test('disclosure, selection and title navigation keep separate keyboard owners',
   await expect(
     main(page).getByText(translated('meetings.detail.not_found'), { exact: true })
   ).toBeVisible();
-  expect(detailReads.get(page)).toEqual([`GET /api/v1/meetings/${id}`]);
+  const detailMountReads = process.env.E2E_NEXT_DEV === '1' ? 2 : 1;
+  expect(detailReads.get(page)).toEqual(
+    Array.from({ length: detailMountReads }, () => `GET /api/v1/meetings/${id}`)
+  );
 });
 
 test('server pagination stays below each page and resets only the page selection', async ({

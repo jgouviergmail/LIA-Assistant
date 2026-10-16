@@ -50,7 +50,7 @@ interface RowProps {
 function VoiceRow({ voice, locale, t, onRename, onDelete }: RowProps) {
   const inUse = voice.used_by_slots.length > 0;
   return (
-    <li className="flex items-start justify-between gap-3 rounded-lg border border-border p-3">
+    <li className="flex items-start justify-between gap-3 rounded-lg border border-border bg-background p-3">
       <div className="min-w-0 space-y-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className="break-words text-sm font-medium">{voice.title}</span>

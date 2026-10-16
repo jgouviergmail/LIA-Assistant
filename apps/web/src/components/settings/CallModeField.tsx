@@ -51,7 +51,7 @@ export function CallModeField({ lng, id, identity, busy, onChange }: CallModeFie
   const unavailable = !identity.live_available;
 
   return (
-    <div className="space-y-2 rounded-lg border bg-card p-3">
+    <div className="space-y-2 rounded-lg border bg-background [--lia-field-background:var(--color-card)] p-3">
       <GlyphSelect
         id={id}
         hideLabel={false}

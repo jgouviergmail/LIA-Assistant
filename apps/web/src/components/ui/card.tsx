@@ -27,9 +27,15 @@ import { type DomainAccent, DOMAIN_ACCENTS } from '@/constants/card';
  */
 const cardVariants = cva(
   // Base: use LIA tokens for consistency with domain cards
-  'rounded-[var(--lia-radius-lg)] border bg-card text-card-foreground transition-all duration-200',
+  'rounded-[var(--lia-radius-lg)] border text-card-foreground transition-all duration-200',
   {
     variants: {
+      surface: {
+        // Only painted panels establish a depth. Transparent layout wrappers
+        // inherit this field background without creating another level.
+        primary: 'bg-card [--lia-field-background:var(--color-background)]',
+        nested: 'bg-background [--lia-field-background:var(--color-card)]',
+      },
       // Visual variants (elevation/interaction)
       variant: {
         default: 'shadow-[var(--lia-shadow-sm)]',
@@ -57,6 +63,7 @@ const cardVariants = cva(
       },
     },
     defaultVariants: {
+      surface: 'primary',
       variant: 'default',
       status: 'default',
       size: 'none',
@@ -76,13 +83,13 @@ export interface CardProps
 }
 
 const Card = React.forwardRef<HTMLDivElement, CardProps>(
-  ({ className, variant, status, size, domainAccent, ...props }, ref) => {
+  ({ className, variant, status, size, surface, domainAccent, ...props }, ref) => {
     const domainClass = domainAccent ? domainAccentClasses[domainAccent] : '';
 
     return (
       <div
         ref={ref}
-        className={cn(cardVariants({ variant, status, size }), domainClass, className)}
+        className={cn(cardVariants({ variant, status, size, surface }), domainClass, className)}
         {...props}
       />
     );

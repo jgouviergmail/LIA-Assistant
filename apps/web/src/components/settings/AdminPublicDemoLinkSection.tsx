@@ -79,7 +79,7 @@ export default function AdminPublicDemoLinkSection({ lng }: BaseSettingsProps) {
     <div className="space-y-4">
       <InfoBox>{t('settings.admin.publicDemoLink.intro')}</InfoBox>
 
-      <div className="flex flex-col gap-3 rounded-lg border border-border p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 rounded-lg border border-border bg-background p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex-1 space-y-1">
           <Label htmlFor={SWITCH_ID} className="text-sm font-medium">
             {t('settings.admin.publicDemoLink.switchLabel')}

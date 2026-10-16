@@ -405,6 +405,7 @@ class User(BaseModel):
 - **memory_enabled**: Préférence mémoire long-terme (default: true)
 - **voice_enabled**: Préférence TTS/voice (default: false, opt-in)
 - **last_login**: Timestamp dernière connexion (audit/analytics)
+- **lia_voices** (JSONB, nullable, `none_as_null`, ADR-345): the voices LIA speaks with in the chat for this account, kept per voice PROVIDER — `{provider: {male, female}}`, every model of a provider offering the same voices. NULL until the person chooses; a gender left out speaks with the instance's voice. An entry an older release keyed `provider/model` is still read and replaced at the next save. Declared by the `VoicePreferencesColumns` mixin (`src/domains/users/voice_preferences_columns.py`), written as a new mapping by `src/domains/voice/lia_voices.py`, scrubbed by account deletion
 
 **Migration Clé:**
 
@@ -416,6 +417,8 @@ class User(BaseModel):
 - **2025_12_21_0000**: Ajout `memory_enabled` + embedding pricing
 - **2025_12_24_0001**: Ajout `voice_enabled`
 - **2025_12_27_0001**: Ajout `last_login`
+- **2026_10_14_1900** (`4c2e8a6f1d3b`): adds `lia_voices` (nothing backfilled)
+- **2026_10_16_1300** (`1ed6c591761a`): `lia_voices` column comment names the per-provider key (no row rewritten)
 
 ---
 
@@ -1117,7 +1120,7 @@ CREATE TABLE llm_models (
 
     -- Identity
     model_name VARCHAR(100) NOT NULL UNIQUE,  -- 'gpt-4.1-mini', 'claude-sonnet-4-5', …
-    provider llm_provider_enum NOT NULL,      -- openai|anthropic|deepseek|perplexity|ollama|gemini|qwen
+    provider llm_provider_enum NOT NULL,      -- LLMProviderEnum (domains/llm/models.py): openai|anthropic|deepseek|perplexity|ollama|gemini|qwen|elevenlabs|edge|typesafe|fishaudio
 
     -- Capabilities (8 columns)
     max_input_tokens INTEGER NOT NULL,
@@ -1149,6 +1152,7 @@ CREATE INDEX ix_llm_models_is_active ON llm_models(is_active);
 - **2026_05_05_0001** (`llm_models_schema`) : crée la table, ajoute les colonnes nullables sur `llm_model_pricing`/`image_generation_pricing`
 - **2026_05_05_0002** (`llm_models_backfill`) : insère 47 modèles depuis `MODELS_DATA` figé, backfill `model_id` via JOIN sur `model_name`
 - **2026_05_05_0003** (`llm_models_constraints`) : flip NOT NULL, drop legacy `llm_model_pricing.model_name`, contrainte unique composite
+- **2026_10_14_1000** (`cec87eda4868`, ADR-345): adds the `fishaudio` value to `llm_provider_enum`, committed in its own autocommit block so the catalogue migration that follows (`a9326a120b55`, Fish Audio speech and transcription rows) can use it; the downgrade keeps the label, as for `typesafe`
 
 ---
 
@@ -2781,7 +2785,8 @@ Per-user usage quota configuration. One record per user (1:1 relationship with `
 | `journal_entries` | `src/domains/journals/models.py` | Carnets de bord introspectifs stratifiés L0–L3 (ADR-079/088) |
 | `journal_evidence_events` | `src/domains/journals/evidence_models.py` | Événements indépendants pour une révision de règle ; unicité `(journal_entry_id, rule_revision, event_key)`, propriétaire en `CASCADE`, conversation en `SET NULL` |
 | `application_commands` | `src/domains/agents/application/command_models.py` | Commandes durables : contenu et résultat chiffrés, digest, phase, expiration, origine liée et claim token ; propriétaire obligatoire |
-| `psyche_states` / `psyche_history` | `src/domains/psyche/models.py` | État psychologique dynamique courant + snapshots historiques (ADR-068) |
+| `psyche_states` / `psyche_history` | `src/domains/psyche/models.py` | État psychologique dynamique courant + snapshots historiques (ADR-068). Since ADR-348 `psyche_states` also carries the efficacy evidence's fences: `efficacy_generation` (UUID, NOT NULL — its own epoch, renewed by a full reset so a delayed turn can never revive a reset ledger; backfilled by the migration's `gen_random_uuid()` default, then the server default is dropped), `efficacy_profile` (JSONB, nullable — the aggregated profile rebuilt from the retained episodes; no historical `self_efficacy` score is converted into it), `efficacy_evicted_at` / `efficacy_evicted_message_id` (nullable — the replay floor: an episode at or below the last evicted `(terminal_at, message_id)` is never accepted again). Migration `c8d1f4260e77` |
+| `psyche_efficacy_episodes` | `src/domains/psyche/efficacy_models.py` | **Private efficacy evidence** (ADR-348): one row per logical run of the owner — `user_id` and `state_id` in `CASCADE`, `generation` (the state's epoch), `run_id` (128), `message_id` (deliberately no foreign key: clearing a conversation keeps what was learned), `terminal_at`, `observations` (JSONB array of at most two domain observations, `CHECK`), `config_fingerprint` (64), `feedback` (`helpful` \| `unhelpful` \| NULL, `CHECK`). Unique `(user_id, generation, run_id)` and `(user_id, generation, message_id)`; index `ix_efficacy_episode_owner_time (user_id, generation, terminal_at, message_id)`. No conversation text and no tool arguments. Retention is a window and a per-owner cap (`EFFICACY_WINDOW_DAYS`, `EFFICACY_MAX_EPISODES` in `src/domains/psyche/constants.py`), enforced by `efficacy_repository.py`, which advances the state's replay floor on every eviction. Migration `c8d1f4260e77` |
 | `reminders` | `src/domains/reminders/models.py` | Rappels, ponctuels ou récurrents ; supprimés quand plus rien ne suit (ADR-051) |
 | `attachments` | `src/domains/attachments/models.py` | Pièces jointes chat (images/PDF) + analyse vision. `shared_by_name` : sur la copie reçue d'une connexion, le nom de qui l'a partagée, instantané affiché par la galerie (ADR-316) |
 | `rag_spaces` / `rag_documents` / `rag_chunks` / `rag_drive_sources` / `rag_mail_sources` | `src/domains/rag_spaces/models.py` | Espaces de connaissances RAG, documents, chunks vectorisés, sync Drive (ADR-055/056 ; ADR-297 : un dossier lié est un ARBRE — `rag_drive_sources.folder_ids`, JSONB, l'ensemble des dossiers parcourus sur lequel le push route un changement), source « libellé Gmail » opt-in (ADR-262 : `rag_mail_sources`, colonnes `mail_source_id` / `mail_thread_id` / `mail_last_message_at` de `rag_documents`) |
@@ -3052,6 +3057,14 @@ class User(BaseModel):
 | 2026-03-20 | hue_global_config_001 | Add Philips Hue to connector_global_config |
 | 2026-03-21 | usage_limits_001 | Add user_usage_limits table (per-user quotas) |
 | 2026-05-05 | journals_stratified_001 | ADR-079: add `level`, `confidence`, `evidence_count`, `contradiction_count` to journal_entries; add `journal_portrait_full`, `journal_portrait_brief`, `journal_portrait_compiled_at` to users (all nullable / server_default — fully reversible) |
+| 2026-10-14 | cec87eda4868 | ADR-345: add `fishaudio` to `llm_provider_enum` (autocommit block; the downgrade keeps the label) |
+| 2026-10-14 | a9326a120b55 | ADR-345: Fish Audio speech and transcription models (and the ElevenLabs v4 pair) join `llm_models` / `llm_model_pricing` — data only, inserted only where unknown |
+| 2026-10-14 | 8ba7655b548b | ADR-345: add `fishaudio_pinned_voices`; the pins held in the `voice_tts` / `radio_voice` slots' `provider_config.pinned_voices` move into it and the key is removed (the downgrade writes them back) |
+| 2026-10-14 | 4c2e8a6f1d3b | ADR-345: add `users.lia_voices` (JSONB, nullable, nothing backfilled) |
+| 2026-10-15 | 7f428c3e0a19 | ADR-345: add the singleton `fishaudio_catalogue_revisions` (revision UUID + pending removals) |
+| 2026-10-16 | b62a8d193f04 | Data only: restore the stock personalities' OCEAN/PAD traits the reference seed had dropped, only where all eight columns are absent |
+| 2026-10-16 | c8d1f4260e77 | ADR-348: add the efficacy fences to `psyche_states` and the `psyche_efficacy_episodes` table |
+| 2026-10-16 | 1ed6c591761a | ADR-345: `users.lia_voices` comment names the per-provider key (no row rewritten) |
 
 ### Alembic Commands
 

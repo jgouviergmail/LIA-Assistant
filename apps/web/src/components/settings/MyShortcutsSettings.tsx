@@ -20,6 +20,7 @@ import { toast } from 'sonner';
 
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
 import { useSettingsAvailability } from '@/hooks/useSettingsAvailability';
 import { MY_SHORTCUTS_TOKEN, useSettingsShortcuts } from '@/hooks/useSettingsShortcuts';
 import { useTranslation } from '@/i18n/client';
@@ -56,7 +57,7 @@ function SectionRow({
           'flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm transition-colors',
           checked
             ? 'border-primary/40 bg-primary/5'
-            : 'border-border/40 bg-card/60 hover:bg-accent/40',
+            : 'border-border/40 bg-background hover:bg-accent/40',
           blocked && 'cursor-not-allowed opacity-60'
         )}
       >
@@ -74,7 +75,7 @@ function SectionRow({
         >
           <Icon className={cn('h-4 w-4', tone.glyph)} aria-hidden="true" />
         </span>
-        <span className="min-w-0 truncate">{label}</span>
+        <span className="min-w-0 break-words">{label}</span>
       </label>
     </li>
   );
@@ -101,15 +102,24 @@ export function MyShortcutsSettings({ lng }: BaseSettingsProps) {
       title={t('settings.my_shortcuts.title')}
       description={t('settings.my_shortcuts.description')}
       icon={Pin}
+      headerAccessory={
+        maxCount > 0 && (
+          <Badge
+            aria-live="polite"
+            aria-atomic="true"
+            aria-describedby={atCap ? 'shortcuts-limit' : undefined}
+          >
+            {t('settings.my_shortcuts.count', { current: shortcuts.length, max: maxCount })}
+          </Badge>
+        )
+      }
     >
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
         {/* The counter is the one live region: it says how many, and at the
             cap it says why the other boxes are not takeable. */}
-        <p className="text-sm font-medium tabular-nums" aria-live="polite">
-          {maxCount > 0 &&
-            t('settings.my_shortcuts.count', { current: shortcuts.length, max: maxCount })}
+        <p id="shortcuts-limit" className="text-sm">
           {atCap && (
-            <span className="ms-2 font-normal text-muted-foreground">
+            <span className="text-muted-foreground">
               {t('settings.my_shortcuts.limit_reached')}
             </span>
           )}

@@ -116,7 +116,7 @@ function CapabilityRow({
   const switchId = `capability-${capability.capability}`;
   const blockedByDeployment = !capability.deployment_available;
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-border p-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 rounded-lg border border-border bg-background p-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0 flex-1 space-y-1">
         <div className="flex flex-wrap items-center gap-2">
           <Label htmlFor={switchId} className="text-sm font-medium">

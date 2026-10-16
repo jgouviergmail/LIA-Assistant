@@ -1466,6 +1466,10 @@
     "347": {
       "title": "Ce qu'un outil de lecture trouve atteint la réponse, et un refus n'est jamais un succès",
       "summary": "En mode pipeline, la réponse s'écrivait à partir d'une phrase sur les données d'un outil — « 2 destinations » — tandis que les durées, les connexions ou la page suivante restaient de côté : sans elles, 0 réponse sur 9 donnait les temps de trajet, 27 sur 27 avec. Elles arrivent désormais comme en mode autonome, bornées et marquées comme contenu tiers. Et le refus d'un outil ne peut plus devenir un succès en chemin : les commandes Hue disaient avoir allumé une lampe qui n'existait pas."
+    },
+    "348": {
+      "title": "L'expérience de LIA s'apprend sur des preuves, jamais sur sa propre note",
+      "summary": "L'ancienne auto-efficacité ne bougeait que sur l'auto-évaluation de LIA, un seul échange suffisait à faire une force ou une faiblesse, et seule la réponse finale la lisait. Sept domaines gardent désormais deux axes séparés : ce qu'un tour a vérifiablement accompli, et l'utilité que la personne a exprimée par 👍/👎. À partir de cinq observations, LIA peut vérifier un point, poser une question ou nommer une limite — sans changer ni modèle, ni outil, ni budget."
     }
   }
 }

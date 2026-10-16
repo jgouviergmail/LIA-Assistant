@@ -3,8 +3,8 @@
 > Field report — a complete system, from design to production.
 
 **Version**: 2.3
-**Date**: 2026-10-13
-**Application**: LIA v3.0.1
+**Date**: 2026-10-17
+**Application**: LIA v3.1.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | Indicator | Value |
 | --- | --- |
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
-| Source lines (excluding tests) — 55 functional domains | **931,000+** |
-| Inventoried automated tests; suites selected for commits and releases | **59,000+** |
-| Documented architecture decisions (ADR) | **346** |
-| Versions shipped at a steady pace | **280** |
+| Source lines (excluding tests) — 55 functional domains | **960,000+** |
+| Inventoried automated tests; suites selected for commits and releases | **63,000+** |
+| Documented architecture decisions (ADR) | **347** |
+| Versions shipped at a steady pace | **281** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **8.3/10** |
 
@@ -58,11 +58,15 @@ A conversational interface becomes useful when it can act on its own tools. “S
 
 The same rule governs the story: preparation is not completion. A waiting request, a recorded change and a conflict must be named separately. Animated companions make this work visible through original designs and activity-driven expressions, without turning intention into evidence of execution.
 
+### Several agents, one shared frame
+
+The project is now run with several development agents in parallel — each on its own work, sometimes in the same working tree. What holds them together is not coordination between them but the shared frame: the same written rules, the same guards, the same gates before any delivery. An agent may rename a button; it is a guard that reminds everyone that the help, the settings search and the vocabulary LIA uses to describe itself must follow. And the delivery that brings this work together starts with an inventory of what each one actually changed — never with what it announces.
+
 ---
 
 ## 4. The trade-offs
 
-Three structural decisions, among the 346 documented:
+Three structural decisions, among the 347 documented:
 
 **Sovereignty & reversibility — no irreversible vendor dependency.** AI models (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, local models via Ollama) sit behind a single abstraction: any usage can switch provider through configuration, with cost comparison. The same principle applies to business services: Google, Apple and Microsoft are interchangeable per functional category. Self-hosting gives you control of the server; account data is stored on the instance and connector credentials are encrypted. The remote services you choose still receive the data needed for their part of a request.
 
@@ -106,7 +110,7 @@ The action plan is organized in waves, each with measurable exit criteria. That 
 
 That requirement carries a consequence the project learned the hard way: **a green test suite does not prove a feature works**. It proves that what was tested behaves as written. The defects that survive the gates are exactly the ones the gates were never asked about — a capability nobody calls, a figure nobody adds up, a guard that recognises a name rather than a mechanism. These are almost never coding mistakes: they are questions that had never been asked.
 
-Hence a working rule: **nothing is believed until it has run**, against real data and along the path a user takes. A component can be correct and its page empty; a counter can be exact and its question wrong. Every release therefore ends with an adversarial review, conducted cold, whose purpose is not to run the tests but to look for what they do not cover. And the interface journeys run on Chromium with every release, then every week on Firefox and WebKit, with an automated accessibility check: one more browser engine sees what the others let through.
+Hence a working rule: **nothing is believed until it has run**, against real data and along the path a user takes. A component can be correct and its page empty; a counter can be exact and its question wrong. Every release therefore ends with an adversarial review, conducted cold, whose purpose is not to run the tests but to look for what they do not cover. And the interface journeys run on Chromium with every release, then every week on Firefox and WebKit, with an automated accessibility check: one more browser engine sees what the others let through. And when a feature claims to improve LIA's behaviour, it stays a pilot until a before/after comparison on a held-out corpus has shown it.
 
 What that review produces does not stop at the fix. Every defect found leaves behind a **structural guard** — a start-up check, a continuously verified invariant, a test that fails if the whole class of problem reappears. It is the only kind of progress that outlives the person who wrote it: a fix protects one line, a guard protects the rule.
 
@@ -121,4 +125,4 @@ What this experience changes in a management practice:
 - **Between blanket prohibition and blind trust, there is a governable path.** Graded human control can be specified, tested and audited; it is the approach regulatory requirements are converging on, and it is operational today.
 - **A leader who practices arbitrates better.** Build or buy, acceptable debt or not, credible vendor promise or not — these decisions gain accuracy when you have worked the material yourself. This project is a way of maintaining that proximity to the field.
 
-*Personal project, carried out outside any professional activity. Technical assessment from the July 2026 audit, with findings cross-checked. Structural counts follow the repository; source lines were measured again on 2026-10-12. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*
+*Personal project, carried out outside any professional activity. Technical assessment from the July 2026 audit, with findings cross-checked. Structural counts follow the repository; source lines were measured again on 2026-10-16. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*

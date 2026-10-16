@@ -256,7 +256,7 @@ function ScopeDisclosure(props: {
 }) {
   const { icon, title, skills, lng, t, onOpenSkill, onToggle, toggling } = props;
   return (
-    <Disclosure icon={icon} title={title} badge={skills.length}>
+    <Disclosure surface="nested" icon={icon} title={title} badge={skills.length}>
       {skills.length === 0 ? (
         <EmptyState description={t('settings.skills.empty')} />
       ) : (

@@ -41,22 +41,42 @@ describe('Pagination — rendering guards', () => {
 describe('Pagination — boundary disabling', () => {
   it('disables Previous on the first page', () => {
     renderWithProviders(<Pagination currentPage={1} totalPages={5} onPageChange={vi.fn()} />);
-    expect(screen.getByRole('button', { name: /common.previous/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /common.previous/ })).toHaveAttribute(
+      'aria-disabled',
+      'true'
+    );
     expect(screen.getByRole('button', { name: /common.next/ })).toBeEnabled();
   });
 
   it('disables Next on the last page', () => {
     renderWithProviders(<Pagination currentPage={5} totalPages={5} onPageChange={vi.fn()} />);
-    expect(screen.getByRole('button', { name: /common.next/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /common.next/ })).toHaveAttribute(
+      'aria-disabled',
+      'true'
+    );
     expect(screen.getByRole('button', { name: /common.previous/ })).toBeEnabled();
   });
 
-  it('disables both navigation buttons while loading', () => {
-    renderWithProviders(
-      <Pagination currentPage={3} totalPages={5} onPageChange={vi.fn()} loading />
+  it('keeps focus and refuses repeated navigation while loading', async () => {
+    const onPageChange = vi.fn();
+    const { user, rerender } = renderWithProviders(
+      <Pagination currentPage={3} totalPages={5} onPageChange={onPageChange} />
     );
-    expect(screen.getByRole('button', { name: /common.previous/ })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /common.next/ })).toBeDisabled();
+    const next = screen.getByRole('button', { name: /common.next/ });
+    next.focus();
+    rerender(<Pagination currentPage={3} totalPages={5} onPageChange={onPageChange} loading />);
+    expect(next).toHaveFocus();
+    await user.keyboard('{Enter}');
+    await user.click(next);
+    expect(onPageChange).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: /common.previous/ })).toHaveAttribute(
+      'aria-disabled',
+      'true'
+    );
+    expect(screen.getByRole('button', { name: /common.next/ })).toHaveAttribute(
+      'aria-disabled',
+      'true'
+    );
   });
 });
 
@@ -90,6 +110,36 @@ describe('Pagination — navigation callbacks', () => {
 });
 
 describe('Pagination — page-size selector', () => {
+  it('retains the focused selector and refuses changes during a refresh', async () => {
+    const onPageChange = vi.fn();
+    const onPageSizeChange = vi.fn();
+    const { user, rerender } = renderWithProviders(
+      <Pagination
+        currentPage={3}
+        totalPages={5}
+        pageSize={20}
+        onPageChange={onPageChange}
+        onPageSizeChange={onPageSizeChange}
+      />
+    );
+    const selector = screen.getByRole('combobox');
+    selector.focus();
+    rerender(
+      <Pagination
+        currentPage={3}
+        totalPages={5}
+        pageSize={20}
+        onPageChange={onPageChange}
+        onPageSizeChange={onPageSizeChange}
+        loading
+      />
+    );
+    expect(selector).toHaveFocus();
+    await user.selectOptions(selector, '50');
+    expect(selector).toHaveValue('20');
+    expect(onPageSizeChange).not.toHaveBeenCalled();
+    expect(onPageChange).not.toHaveBeenCalled();
+  });
   it('is absent when no onPageSizeChange handler is provided', () => {
     renderWithProviders(<Pagination currentPage={2} totalPages={5} onPageChange={vi.fn()} />);
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();

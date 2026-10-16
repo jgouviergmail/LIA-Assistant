@@ -153,11 +153,14 @@ export function MeetingTimelineEntry({
   lng,
   selected,
   onToggle,
+  detailHref,
 }: {
   item: MeetingTimelineItem;
   lng: Language;
   selected: boolean;
   onToggle: () => void;
+  /** Optional localized return-context URL, supplied by a paged list. */
+  detailHref?: string;
 }) {
   const { t } = useTranslation(lng);
   const { meeting } = item;
@@ -186,7 +189,10 @@ export function MeetingTimelineEntry({
           </label>
           <Link
             prefetch={false}
-            href={buildLocalizedPath(`/dashboard/meetings/${encodeURIComponent(meeting.id)}`, lng)}
+            href={
+              detailHref ??
+              buildLocalizedPath(`/dashboard/meetings/${encodeURIComponent(meeting.id)}`, lng)
+            }
             className="min-w-0 flex-1 py-2.5 font-medium leading-relaxed text-primary underline-offset-4 [overflow-wrap:anywhere] hover:underline focus-visible:rounded focus-visible:outline-2 focus-visible:outline-ring"
           >
             {title}
@@ -199,6 +205,7 @@ export function MeetingTimelineEntry({
           <RecordingFacts meeting={meeting} lng={lng} />
         </div>
         <Disclosure
+          surface="nested"
           icon={Info}
           title={t('common.details')}
           className="mt-2 rounded-none border-x-0 border-b-0 px-0 md:hidden [&>summary]:ml-auto [&>summary]:min-h-11 [&>summary]:w-fit [&>summary]:text-sm [&>summary]:font-semibold [&>summary]:text-muted-foreground"

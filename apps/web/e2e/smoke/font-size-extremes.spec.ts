@@ -152,7 +152,10 @@ test.describe('text size — the text follows, the panels do not', () => {
       await openFontSizeSection(page, 'fr');
       await awaitStyledPage(page, `settings @ ${size}px`);
       expect(await panelBoxes(page, SETTINGS_PANELS, 'horizontal')).toEqual(settingsAtDefault);
-      expect(await fontSizeOf(page, 'span.tabular-nums.text-sm')).toBeCloseTo(size * 0.875, 2);
+      expect(await fontSizeOf(page, '[data-testid="font-size-preview"] p')).toBeCloseTo(
+        size * 0.875,
+        2
+      );
     });
   }
 });

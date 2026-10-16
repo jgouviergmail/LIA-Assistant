@@ -453,7 +453,7 @@ your voice is on: a reply read aloud stays plain text, or the voice would read
 tags. Pick the mode under **Settings > Answer display**.
 
 ## Can a script LIA writes reach the Internet? What does the three-answer question mean?
-Yes, since v1.46.0 and only in ReAct mode (⚡). When a step needs a service no tool covers, the short Python script LIA writes may reach it — through one dedicated proxy, HTTPS only, to the hosts it declares and nowhere else; a script that declares no host stays fully offline. The services you connected with your own API key are reachable without a question, the key never entering the script. When the script wants a host you never allowed, LIA stops and asks with three answers — **allow with the data** of this turn, **allow without it** (the script then receives nothing of what LIA gathered), or **refuse** — then the rest of your request goes on, and your answer is remembered as a permission you can revoke in **Settings → Sandbox network**. Every network run is written to your register before it starts. See *Computed Answers* for the details.
+Yes, since v1.46.0 and only in ReAct mode (⚡). When a step needs a service no tool covers, the short Python script LIA writes may reach it — through one dedicated proxy, HTTPS only, to the hosts it declares and nowhere else; a script that declares no host stays fully offline. The services you connected with your own API key are reachable without a question, the key never entering the script. When the script wants a host you never allowed, LIA stops and asks with three answers — **allow with the data** of this turn, **allow without it** (the script then receives nothing of what LIA gathered), or **refuse** — then the rest of your request goes on, and your answer is remembered as a permission you can revoke in **Settings → Skill permissions**. Every network run is written to your register before it starts. See *Computed Answers* for the details.
 
 ## What are the little animated eyes on the chat page?
 
@@ -486,3 +486,8 @@ A prepared request, an awaited confirmation and a recorded change are different 
 In ReAct, an exact, complete and still fresh read may be reused within the same request. A change invalidates affected observations; a different request may need a new read. References retain their type and source: a city is not a contact. Dates follow the request context and time zone; weather declares its units rather than guessing a conversion for an unknown value.
 
 Independent reads explicitly eligible for parallel execution can run in checkpointed segments with bounded concurrency. Mutations do not gain that permission merely by appearing nearby in a plan. A stop before checkpoint can still cause a source to be read again; local reuse therefore promises neither one global read nor permanently fresh state.
+
+## Why does LIA say it is already working on this conversation?
+A routine, a ticket or the relay of a voice call can make LIA work **on your conversation** while you are elsewhere. The chat shows it: LIA appears busy, and a message you send meanwhile clearly tells you it **was not sent** — nothing is lost silently.
+
+Wait for that work to finish, then send your message again. The stop button never claims to have cancelled work it could not interrupt.

@@ -98,7 +98,7 @@ export function SettingsRail({ lng, model, activeToken, onSelect }: SettingsRail
                           aria-current={active ? 'true' : undefined}
                           onClick={() => onSelect(section.token)}
                           className={cn(
-                            'flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm transition-colors',
+                            'flex min-h-11 lg:min-h-0 w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm transition-colors',
                             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background',
                             active
                               ? 'bg-primary/10 font-medium text-primary'
@@ -118,7 +118,7 @@ export function SettingsRail({ lng, model, activeToken, onSelect }: SettingsRail
                             className={cn('h-4 w-4 shrink-0', active ? 'text-primary' : tone.glyph)}
                             aria-hidden="true"
                           />
-                          <span className="min-w-0 flex-1 truncate">{t(section.titleKey)}</span>
+                          <span className="min-w-0 flex-1 break-words">{t(section.titleKey)}</span>
                         </button>
                       </li>
                     );

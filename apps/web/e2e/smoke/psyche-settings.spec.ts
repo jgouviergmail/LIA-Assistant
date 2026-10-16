@@ -1,4 +1,4 @@
-/** Psyché: automatic point, complete state, historical charts and safe settings/reset actions. */
+/** Psyché: on-demand point, complete state, historical charts and safe settings/reset actions. */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import type { Locator, Page, TestInfo } from '@playwright/test';
@@ -139,9 +139,10 @@ async function revealDetail(page: Page, key: string): Promise<Locator> {
     .filter({ hasText: copy(key) });
   await expect(control).toBeVisible();
   const details = control.locator('..');
-  await expect(details).not.toHaveAttribute('open', '');
-  await control.focus();
-  await page.keyboard.press('Enter');
+  if (!(await details.evaluate(node => (node as HTMLDetailsElement).open))) {
+    await control.focus();
+    await page.keyboard.press('Enter');
+  }
   await expect(details).toHaveAttribute('open', '');
   return details;
 }
@@ -166,6 +167,12 @@ async function open(page: Page): Promise<void> {
   await expect(section(page), 'visible interface labels are translated').not.toContainText(
     /\b(?:psyche|common)\.[a-zA-Z_]+/
   );
+  // The user now asks the point to open on arrival, with one mocked summary read.
+  const point = section(page)
+    .locator('summary')
+    .filter({ hasText: copy('psyche.presentation.point') });
+  await expect(point).toBeVisible();
+  await expect(point.locator('..')).toHaveAttribute('open', '');
 }
 async function presentation(page: Page, desktop: boolean): Promise<void> {
   const controls = await Promise.all(CONTROLS.map(key => measured(disclosure(page, key))));
@@ -196,10 +203,14 @@ async function presentation(page: Page, desktop: boolean): Promise<void> {
     'master activation aligns vertically with the title'
   ).toBeLessThan(8);
   await expect(
-    section(page).getByRole('heading', { name: copy('psyche.presentation.point'), exact: true })
+    section(page)
+      .locator('summary')
+      .filter({ hasText: copy('psyche.presentation.point') })
   ).toBeVisible();
   const point = await measured(
-    section(page).getByRole('heading', { name: copy('psyche.presentation.point'), exact: true })
+    section(page)
+      .locator('summary')
+      .filter({ hasText: copy('psyche.presentation.point') })
   );
   const mood = await measured(disclosure(page, 'psyche.presentation.mood'));
   const evolution = await measured(disclosure(page, 'psyche.presentation.evolution'));
@@ -211,7 +222,8 @@ async function presentation(page: Page, desktop: boolean): Promise<void> {
     'psyche.presentation.drivesTitle',
     'psyche.presentation.evolution',
   ])
-    await expanded(disclosure(page, key), desktop);
+    await expanded(disclosure(page, key), true);
+  for (const key of CONTROLS) await expanded(disclosure(page, key), false);
   await expectNoOverflow(page, desktop ? 'psyche desktop' : 'psyche mobile');
 }
 async function capture(page: Page, info: TestInfo, name: string): Promise<void> {
@@ -340,24 +352,46 @@ for (const layout of [
     await expect(usefulness).toHaveAttribute('aria-valuenow', '40');
     await expect(efficacy.getByRole('meter')).toHaveCount(2);
     await expect(
-      efficacy.getByText(copy('psyche.efficacy.resultBasis_other').replace('{{count}}', '5'), { exact: true })
+      efficacy.getByText(copy('psyche.efficacy.resultBasis_other').replace('{{count}}', '5'), {
+        exact: true,
+      })
     ).toBeVisible();
     await expect(
-      efficacy.getByText(copy('psyche.efficacy.feedbackBasis_other').replace('{{count}}', '3'), { exact: true })
+      efficacy.getByText(copy('psyche.efficacy.feedbackBasis_other').replace('{{count}}', '3'), {
+        exact: true,
+      })
     ).toBeVisible();
     await expect(
-      efficacy.getByText(copy('psyche.efficacy.unassigned_other').replace('{{count}}', '2'), { exact: true })
+      efficacy.getByText(copy('psyche.efficacy.unassigned_other').replace('{{count}}', '2'), {
+        exact: true,
+      })
     ).toBeVisible();
     await expect(
-      efficacy.getByRole('region', { name: copy('psyche.domains.planning'), exact: true }).getByRole('meter')
+      efficacy
+        .getByRole('region', { name: copy('psyche.domains.planning'), exact: true })
+        .getByRole('meter')
     ).toHaveCount(0);
-    const [resultBounds, feedbackBounds] = await Promise.all([measured(results), measured(usefulness)]);
+    const [resultBounds, feedbackBounds] = await Promise.all([
+      measured(results),
+      measured(usefulness),
+    ]);
     if (layout.width < 768) {
-      expect(feedbackBounds.y, 'mobile axes stack into independently readable rows').toBeGreaterThan(resultBounds.y);
-      expect(Math.abs(feedbackBounds.x - resultBounds.x), 'mobile axes share a left edge').toBeLessThan(2);
+      expect(
+        feedbackBounds.y,
+        'mobile axes stack into independently readable rows'
+      ).toBeGreaterThan(resultBounds.y);
+      expect(
+        Math.abs(feedbackBounds.x - resultBounds.x),
+        'mobile axes share a left edge'
+      ).toBeLessThan(2);
     } else {
-      expect(feedbackBounds.x, 'desktop axes have distinct aligned columns').toBeGreaterThan(resultBounds.x);
-      expect(Math.abs(feedbackBounds.y - resultBounds.y), 'desktop indices share a baseline').toBeLessThan(2);
+      expect(feedbackBounds.x, 'desktop axes have distinct aligned columns').toBeGreaterThan(
+        resultBounds.x
+      );
+      expect(
+        Math.abs(feedbackBounds.y - resultBounds.y),
+        'desktop indices share a baseline'
+      ).toBeLessThan(2);
     }
     expect(summaries, 'opening experience does not generate another point').toBe(1);
     await expectNoOverflow(page, `efficacy ${layout.name}`);
@@ -369,7 +403,7 @@ for (const layout of [
   });
 }
 
-test('1440px light: one automatic point, refresh on demand and all four historical charts/periods retained', async ({
+test('1440px light: one initially open point, refresh on demand and all four historical charts/periods retained', async ({
   page,
   authenticate,
   mockApi,
@@ -379,8 +413,22 @@ test('1440px light: one automatic point, refresh on demand and all four historic
   await authenticate({ language: 'fr', theme: 'light' });
   const preferences = settings();
   const styles = [
-    { id: '00000000-0000-4000-8000-000000000501', code: 'normal', title: 'Normal', description: 'Équilibrée', emoji: '⚖️', is_default: true },
-    { id: '00000000-0000-4000-8000-000000000502', code: 'curious', title: 'Curieuse', description: 'Une curiosité affirmée', emoji: '🤔', is_default: false },
+    {
+      id: '00000000-0000-4000-8000-000000000501',
+      code: 'normal',
+      title: 'Normal',
+      description: 'Équilibrée',
+      emoji: '⚖️',
+      is_default: true,
+    },
+    {
+      id: '00000000-0000-4000-8000-000000000502',
+      code: 'curious',
+      title: 'Curieuse',
+      description: 'Une curiosité affirmée',
+      emoji: '🤔',
+      is_default: false,
+    },
   ];
   let currentStyle = styles[0];
   let observedState = state();
@@ -392,14 +440,29 @@ test('1440px light: one automatic point, refresh on demand and all four historic
     release = resolve;
   });
   await mockApi([
-    { url: '**/api/v1/personalities', method: 'GET', json: { personalities: styles, total: styles.length } },
-    { url: '**/api/v1/personalities/current', method: 'GET', handler: route => route.fulfill({ json: { personality: currentStyle, personality_id: currentStyle.id } }) },
-    { url: '**/api/v1/personalities/current', method: 'PATCH', handler: async route => {
-      expect(route.request().postDataJSON()).toEqual({ personality_id: styles[1].id });
-      currentStyle = styles[1];
-      observedState = { ...observedState, trait_openness: 0.91, trait_conscientiousness: 0.37 };
-      await route.fulfill({ json: { personality: currentStyle, personality_id: currentStyle.id } });
-    } },
+    {
+      url: '**/api/v1/personalities',
+      method: 'GET',
+      json: { personalities: styles, total: styles.length },
+    },
+    {
+      url: '**/api/v1/personalities/current',
+      method: 'GET',
+      handler: route =>
+        route.fulfill({ json: { personality: currentStyle, personality_id: currentStyle.id } }),
+    },
+    {
+      url: '**/api/v1/personalities/current',
+      method: 'PATCH',
+      handler: async route => {
+        expect(route.request().postDataJSON()).toEqual({ personality_id: styles[1].id });
+        currentStyle = styles[1];
+        observedState = { ...observedState, trait_openness: 0.91, trait_conscientiousness: 0.37 };
+        await route.fulfill({
+          json: { personality: currentStyle, personality_id: currentStyle.id },
+        });
+      },
+    },
     { url: SETTINGS, method: 'GET', handler: route => route.fulfill({ json: preferences }) },
     {
       url: STATE,
@@ -437,6 +500,13 @@ test('1440px light: one automatic point, refresh on demand and all four historic
   ]);
   await open(page);
   await presentation(page, true);
+  for (const key of [
+    'psyche.presentation.mood',
+    'psyche.presentation.relationship',
+    'psyche.presentation.drivesTitle',
+    'psyche.presentation.evolution',
+  ])
+    await reveal(page, key);
   await expect.poll(() => summaries).toBe(1);
   const point = section(page).getByRole('region', {
     name: copy('psyche.presentation.point'),
@@ -491,12 +561,27 @@ test('1440px light: one automatic point, refresh on demand and all four historic
   expect(summaries, 'chart and period navigation do not regenerate prose').toBe(2);
   await expectNoOverflow(page, 'psyche desktop all historical controls');
   const beforeStyleChange = stateReads;
-  await page.getByRole('button', { name: copy('personality.selector_label').replace('{{name}}', styles[0].title), exact: true }).click();
+  await page
+    .getByRole('button', {
+      name: copy('personality.selector_label').replace('{{name}}', styles[0].title),
+      exact: true,
+    })
+    .click();
   await page.getByRole('menuitem').filter({ hasText: styles[1].title }).click();
   await expect.poll(() => stateReads).toBeGreaterThan(beforeStyleChange);
   await revealDetail(page, 'psyche.education.traits.title');
-  await expect(section(page).getByRole('meter', { name: copy('psyche.education.traits.openness'), exact: true })).toHaveAttribute('aria-valuenow', '91');
-  await expect(section(page).getByRole('meter', { name: copy('psyche.education.traits.conscientiousness'), exact: true })).toHaveAttribute('aria-valuenow', '37');
+  await expect(
+    section(page).getByRole('meter', {
+      name: copy('psyche.education.traits.openness'),
+      exact: true,
+    })
+  ).toHaveAttribute('aria-valuenow', '91');
+  await expect(
+    section(page).getByRole('meter', {
+      name: copy('psyche.education.traits.conscientiousness'),
+      exact: true,
+    })
+  ).toHaveAttribute('aria-valuenow', '37');
   expect(summaries, 'a style change rereads traits without another model generation').toBe(2);
   await capture(page, info, 'psyche-desktop-light');
   const audit = await scanPage(page, info, 'psyche-desktop-light');
@@ -637,7 +722,7 @@ test('320px light: folded sections, preference error recovery and confirmed soft
   await capture(page, info, 'psyche-mobile-320-controls');
 });
 
-test('390px OLED20px: automatic point failure retries from page refresh; full metrics and charts reflow', async ({
+test('390px OLED20px: initial point failure retries from page refresh; full metrics and charts reflow', async ({
   page,
   authenticate,
   mockApi,
@@ -735,12 +820,27 @@ test('390px OLED20px: automatic point failure retries from page refresh; full me
     );
   }
   await expect(efficacy.getByRole('meter')).toHaveCount(2);
-  await expect(efficacy.getByText(copy('psyche.efficacy.resultBasis_other').replace('{{count}}', '5'), { exact: true })).toBeVisible();
-  await expect(efficacy.getByText(copy('psyche.efficacy.feedbackBasis_other').replace('{{count}}', '3'), { exact: true })).toBeVisible();
-  await expect(efficacy.getByText(copy('psyche.efficacy.unassigned_other').replace('{{count}}', '2'), { exact: true })).toBeVisible();
+  await expect(
+    efficacy.getByText(copy('psyche.efficacy.resultBasis_other').replace('{{count}}', '5'), {
+      exact: true,
+    })
+  ).toBeVisible();
+  await expect(
+    efficacy.getByText(copy('psyche.efficacy.feedbackBasis_other').replace('{{count}}', '3'), {
+      exact: true,
+    })
+  ).toBeVisible();
+  await expect(
+    efficacy.getByText(copy('psyche.efficacy.unassigned_other').replace('{{count}}', '2'), {
+      exact: true,
+    })
+  ).toBeVisible();
   await expectNoOverflow(page, 'psyche OLED20px independent experience axes');
   await expect(
-    section(page).getByRole('region', { name: copy('psyche.presentation.relationship'), exact: true })
+    section(page).getByRole('region', {
+      name: copy('psyche.presentation.relationship'),
+      exact: true,
+    })
   ).toContainText('127');
   await reveal(page, 'psyche.presentation.evolution');
   for (const chart of CHARTS) {

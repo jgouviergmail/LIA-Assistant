@@ -95,7 +95,7 @@ export function DriveFolderPickerDialog({
         </nav>
 
         {/* Folder list */}
-        <div className="min-h-[200px] max-h-[320px] overflow-y-auto rounded-md border">
+        <div className="min-h-[200px] max-h-[320px] overflow-y-auto rounded-md border bg-card">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />

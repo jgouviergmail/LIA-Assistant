@@ -50,7 +50,7 @@ export function CatalogueStatusPanel({ status, t }: CatalogueStatusPanelProps) {
     : null;
 
   return (
-    <div className="rounded-lg border border-border bg-muted/20 px-4 py-3 space-y-2">
+    <div className="rounded-lg border border-border bg-background px-4 py-3 space-y-2">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <span className="inline-flex items-center gap-2 text-sm font-medium text-foreground">
           <Database className="h-4 w-4 text-primary" aria-hidden="true" />

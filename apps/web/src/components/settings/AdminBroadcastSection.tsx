@@ -364,7 +364,7 @@ export default function AdminBroadcastSection({ lng }: BaseSettingsProps) {
                   })}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="my-4 p-4 bg-muted rounded-lg max-h-48 overflow-y-auto">
+          <div className="my-4 p-4 bg-background rounded-lg max-h-48 overflow-y-auto">
             <p className="whitespace-pre-wrap text-sm">{message}</p>
           </div>
           {!sendToAll && selectedUsers.length > 0 && (

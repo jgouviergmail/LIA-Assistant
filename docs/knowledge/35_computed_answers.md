@@ -30,7 +30,7 @@ When a script wants a host that is neither one of your connectors nor on your in
 The rest of your request then goes on — a question is not the end of the answer — and your answer is remembered as a permission. Past a number of permissions, a new approval holds for its run only.
 
 ## Where do I see and revoke the hosts I allowed?
-In **Settings → Sandbox network**, which appears once your administrator enabled the network. It lists the hosts a script may reach without asking (your connectors, the hosts your instance allows for everyone) and every permission you gave, each with the date it was last used, a switch to change its scope — with or without the data of the turn — and a **Revoke** button; LIA will ask again the next time a script wants that host. Deleting your account deletes them all.
+In **Settings → Skill permissions**, which appears once your administrator enabled the network. It lists the hosts a script may reach without asking (your connectors, the hosts your instance allows for everyone) and every permission you gave, each with the date it was last used, a switch to change its scope — with or without the data of the turn — and a **Revoke** button; LIA will ask again the next time a script wants that host. Deleting your account deletes them all.
 
 ## What roles does a script serve?
 Four, stated to the assistant: **compute** (arithmetic over many rows, joins, durations across timezones), **diagnose** (check that a service answers, read a status endpoint), **fill a gap** no tool covers (call an API you use), and **transform** data (parse a feed, a calendar file, an XML, a spreadsheet). Twenty-two libraries are declared to the assistant and verified in the built image on every CI run.

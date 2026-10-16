@@ -1,7 +1,7 @@
 {
-  "version": "3.0.1",
-  "releaseDate": "2026-10-13",
-  "releases": 280,
+  "version": "3.1.0",
+  "releaseDate": "2026-10-17",
+  "releases": 281,
   "milestones": [
     {
       "version": "1.0.0",
@@ -228,8 +228,8 @@
       "date": "2026-10-12"
     },
     {
-      "version": "3.0.1",
-      "date": "2026-10-13"
+      "version": "3.1.0",
+      "date": "2026-10-17"
     }
   ],
   "domains": 55,
@@ -580,6 +580,7 @@
     "344": "ADR-344-Mailbox-Drafts-Kept-Freely-Sent-After-One-Confirmation.md",
     "345": "ADR-345-Fish-Audio-Served-Whole-One-Door-One-Allowance-Cues-Each-Engine-Reads.md",
     "346": "ADR-346-Advisory-Replanner-Retired-A-Pipeline-Failure-Is-Said-Never-Replayed.md",
-    "347": "ADR-347-Read-Tool-Data-Reaches-The-Pipeline-Answer-A-Declared-Failure-Is-Never-A-Success.md"
+    "347": "ADR-347-Read-Tool-Data-Reaches-The-Pipeline-Answer-A-Declared-Failure-Is-Never-A-Success.md",
+    "348": "ADR-348-Efficacy-Learned-From-Evidence-Results-And-Usefulness-Kept-Apart.md"
   }
 }

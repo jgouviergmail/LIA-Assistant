@@ -1,6 +1,5 @@
 /**
- * Button — variant wiring, the loading state (disabled + spinner + optional
- * text), the `asChild` slot polymorphism and click dispatch.
+ * Button — stable loading name/focus, guarded activation, slot polymorphism.
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -24,11 +23,23 @@ describe('Button — rendering', () => {
 });
 
 describe('Button — loading state', () => {
-  it('disables the button and shows a spinner while loading', () => {
-    renderWithProviders(<Button isLoading>Save</Button>);
-    expect(screen.getByRole('button')).toBeDisabled();
-    // The spinner exposes role="status"; the label text is not rendered here.
-    expect(screen.getByRole('status')).toBeInTheDocument();
+  it('keeps its name and focus while preventing another activation during loading', async () => {
+    const onClick = vi.fn();
+    const { rerender, user } = renderWithProviders(<Button onClick={onClick}>Save</Button>);
+    const button = screen.getByRole('button', { name: 'Save' });
+    button.focus();
+    rerender(
+      <Button isLoading onClick={onClick}>
+        Save
+      </Button>
+    );
+    expect(button).toHaveFocus();
+    expect(button).not.toBeDisabled();
+    expect(button).toHaveAttribute('aria-busy', 'true');
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    await user.click(button);
+    await user.keyboard('{Enter}');
+    expect(onClick).not.toHaveBeenCalled();
   });
 
   it('renders the loading text when provided', () => {
@@ -37,7 +48,7 @@ describe('Button — loading state', () => {
         Save
       </Button>
     );
-    expect(screen.getByText('Saving…')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save' })).toHaveAccessibleDescription('Saving…');
   });
 });
 
@@ -72,5 +83,22 @@ describe('Button — interaction & polymorphism', () => {
     expect(link).toHaveAttribute('href', 'https://example.com/next');
     expect(link.className).toContain('inline-flex');
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('guards the slotted link handler while loading without replacing its child', async () => {
+    const onClick = vi.fn();
+    const { user } = renderWithProviders(
+      <Button asChild isLoading>
+        <a href="#next" onClick={onClick}>
+          Continue
+        </a>
+      </Button>
+    );
+    const link = screen.getByRole('link', { name: 'Continue' });
+    link.focus();
+    await user.click(link);
+    await user.keyboard('{Enter}');
+    expect(link).toHaveFocus();
+    expect(onClick).not.toHaveBeenCalled();
   });
 });

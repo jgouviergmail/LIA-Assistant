@@ -32,7 +32,7 @@ export function AvailableConnectorCard({
   blockedMessage,
 }: AvailableConnectorCardProps) {
   return (
-    <div className="flex items-center justify-between gap-2 p-4 border rounded-lg hover:bg-accent/50 transition-colors">
+    <div className="flex items-center justify-between gap-2 p-4 border rounded-lg bg-card hover:bg-accent/50 transition-colors">
       {/* min-w-0 lets the text column wrap INSIDE the row on narrow phones —
           without it the flex track inflates to the description's intrinsic
           width and silently overflows the viewport (same mechanism as the

@@ -623,7 +623,7 @@ function RoutineCard({
       id={routineCardId(action.id)}
       tabIndex={-1}
       data-routine-card={action.id}
-      className="rounded-lg border bg-card p-4 space-y-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      className="rounded-lg border bg-background p-4 space-y-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
     >
       {/* Row 1: Rank + Title + Status + Actions + Toggle */}
       <div className="flex items-center justify-between gap-2">
@@ -1051,16 +1051,14 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
           />
         )}
 
-        {/* The week, hours down and days across (ADR-265): open on arrival,
-            because it is what the reader came to see; foldable, because a
-            24-row grid above a long list is a wall on a phone. */}
+        {/* The week stays folded until requested, keeping the action list in view. */}
         {!initialLoading && numbered.length > 0 && (
           <Disclosure
+            surface="nested"
             icon={CalendarRange}
             title={t('scheduled_actions.timeline.title')}
             description={t('scheduled_actions.timeline.description')}
             badge={total}
-            defaultOpen
             className="mb-4"
           >
             <ScheduledActionsTimeline

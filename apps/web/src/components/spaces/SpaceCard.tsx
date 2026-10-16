@@ -2,7 +2,8 @@
 
 import { useTranslation } from 'react-i18next';
 import { Library, Pencil, ShieldCheck, Trash2 } from 'lucide-react';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { ExpandableDescription } from '@/components/ui/expandable-description';
+import { Card, CardContent, CardHeader, type CardProps } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { RowActions, type RowAction } from '@/components/ui/row-actions';
 import { SpaceActivationToggle } from './SpaceActivationToggle';
@@ -17,6 +18,7 @@ interface SpaceCardProps {
   onDelete: () => void;
   onToggle: () => void;
   toggling?: boolean;
+  surface?: CardProps['surface'];
 }
 
 export function SpaceCard({
@@ -26,6 +28,7 @@ export function SpaceCard({
   onDelete,
   onToggle,
   toggling,
+  surface = 'primary',
 }: SpaceCardProps) {
   const { t } = useTranslation();
   // A space another domain manages by role (meetings, kept answers): the
@@ -49,8 +52,9 @@ export function SpaceCard({
 
   return (
     <Card
+      surface={surface}
       variant="interactive"
-      className="group cursor-pointer"
+      className="group flex h-full min-w-0 flex-col cursor-pointer"
       role="link"
       tabIndex={0}
       onClick={onClick}
@@ -64,7 +68,7 @@ export function SpaceCard({
         }
       }}
     >
-      <CardHeader className="p-4 sm:p-6 flex-row items-start gap-3 space-y-0">
+      <CardHeader className="p-4 flex-row items-start gap-3 space-y-0">
         {/* Icon */}
         <div className="rounded-lg bg-primary/10 p-2.5 shrink-0">
           <Library className="h-5 w-5 text-primary" />
@@ -72,7 +76,7 @@ export function SpaceCard({
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          <h3 className="text-base font-semibold truncate">{space.name}</h3>
+          <h3 className="text-base font-semibold break-words">{space.name}</h3>
           {managed && (
             <p className="mt-0.5 inline-flex items-center gap-1 text-xs text-muted-foreground">
               <ShieldCheck className="h-3 w-3" aria-hidden="true" />
@@ -80,7 +84,9 @@ export function SpaceCard({
             </p>
           )}
           {space.description && (
-            <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{space.description}</p>
+            <div className="mt-1">
+              <ExpandableDescription text={space.description} />
+            </div>
           )}
         </div>
 
@@ -88,7 +94,7 @@ export function SpaceCard({
         <SpaceActivationToggle isActive={space.is_active} onToggle={onToggle} disabled={toggling} />
       </CardHeader>
 
-      <CardContent className="p-4 sm:p-6 pt-0">
+      <CardContent className="mt-auto p-4 pt-0">
         {/* Stats + Actions */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">

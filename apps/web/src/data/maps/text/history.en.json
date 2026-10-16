@@ -1832,6 +1832,11 @@
       "title": "What a read tool finds reaches the answer, and a refusal is never a success",
       "summary": "In pipeline mode, the answer was written from a sentence about a tool's data — “2 destinations” — while the travel times, the connections or the next page stayed aside: without them, 0 answers in 9 gave the travel times, 27 in 27 with them. They now arrive as in autonomous mode, bounded and marked as third-party content. And a tool's refusal can no longer turn into a success on the way: the Hue commands said they had switched on a lamp that did not exist.",
       "src": "9c1a75d39f49"
+    },
+    "348": {
+      "title": "LIA's experience is learned from evidence, never from its own grade",
+      "summary": "The old self-efficacy moved only on LIA's self-rating, a single exchange was enough to make a strength or a weakness, and only the final answer read it. Seven domains now keep two separate axes: what a turn verifiably achieved, and the usefulness the person expressed with 👍/👎. From five observations, LIA may verify a point, ask a question or name a limit — without changing any model, tool or budget.",
+      "src": "a453c8b066ef"
     }
   }
 }

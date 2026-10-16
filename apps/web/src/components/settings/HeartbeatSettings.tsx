@@ -158,6 +158,7 @@ export function HeartbeatSettings({ lng }: BaseSettingsProps) {
               whether anything was silenced. */}
           <div className="border-t pt-4">
             <Disclosure
+              surface="nested"
               icon={SlidersHorizontal}
               title={t('heartbeat.sources_permission_title')}
               badge={
@@ -190,6 +191,7 @@ export function HeartbeatSettings({ lng }: BaseSettingsProps) {
 
           <div className="border-t pt-4">
             <Disclosure
+              surface="nested"
               icon={History}
               title={t('heartbeat.history.title')}
               onOpenChange={setHistoryOpen}
@@ -198,6 +200,7 @@ export function HeartbeatSettings({ lng }: BaseSettingsProps) {
                 {t('heartbeat.history.description')}
               </p>
               <HeartbeatHistory
+                presentation="timeline"
                 notifications={history.notifications}
                 total={history.total}
                 firstLoad={history.firstLoad}

@@ -142,6 +142,54 @@ afterEach(() => {
 });
 
 describe('EyesWidget — chrome & preferences', () => {
+  it('keeps keyboard focus and movement available when no pointer-safe frame exists', async () => {
+    renderWidget();
+    const group = screen.getByRole('group', { name: 'eyes.widget_label' });
+    vi.spyOn(group, 'getBoundingClientRect').mockReturnValue(new DOMRect(10, 100, 200, 180));
+    const input = document.createElement('input');
+    input.getBoundingClientRect = () => new DOMRect(0, 0, innerWidth, innerHeight);
+    document.body.append(input);
+    group.focus();
+    window.dispatchEvent(new Event('resize'));
+    await act(() => vi.advanceTimersByTimeAsync(200));
+    expect(group).toHaveStyle({ pointerEvents: 'none' });
+    // A wide screen keeps the face whole: only a small screen folds it.
+    expect(group).toHaveAttribute('data-compact', 'false');
+    expect(eyesRoot().parentElement).toBeVisible();
+    expect(group).toHaveFocus();
+    expect(group.tabIndex).toBe(0);
+    fireEvent.keyDown(group, { key: 'ArrowRight' });
+    expect(useEyesWidgetStore.getState().position).not.toBeNull();
+    expect(group).toHaveFocus();
+    input.remove();
+  });
+
+  it('keeps an outside-chat mobile presence compact and clear of headings without changing the saved position', async () => {
+    const media = window.matchMedia('');
+    vi.spyOn(window, 'matchMedia').mockImplementation(query => ({
+      ...media,
+      media: query,
+      matches: query === '(max-width: 1023px)',
+    }));
+    const saved = { xPct: 10, yPct: 20 };
+    useEyesWidgetStore.getState().setPosition(saved);
+    renderWidget({ dockToChat: false });
+    const group = screen.getByRole('group', { name: 'eyes.widget_label' });
+    vi.spyOn(group, 'getBoundingClientRect').mockReturnValue(new DOMRect(100, 150, 200, 180));
+    const heading = document.createElement('h1');
+    heading.textContent = 'Settings';
+    heading.getBoundingClientRect = () => new DOMRect(0, 100, innerWidth, 100);
+    document.body.append(heading);
+    window.dispatchEvent(new Event('resize'));
+    await act(() => vi.advanceTimersByTimeAsync(200));
+    expect(group).toHaveAttribute('data-compact', 'true');
+    expect(eyesRoot().parentElement).not.toBeVisible();
+    const top = Number.parseFloat(group.style.top);
+    expect(top >= 208 || top + Number.parseFloat(group.style.height) <= 92).toBe(true);
+    expect(useEyesWidgetStore.getState().position).toEqual(saved);
+    heading.remove();
+  });
+
   it('renders a focusable group with a translated name and the two eyes', () => {
     renderWidget();
     const group = screen.getByRole('group', { name: 'eyes.widget_label' });

@@ -89,7 +89,7 @@ export function RowActions({ actions, menuLabel, compact, className }: RowAction
         {actions.map(action => {
           const Icon = action.icon;
           const glyph = action.loading ? (
-            <LoadingSpinner size="default" />
+            <LoadingSpinner size="default" aria-hidden="true" />
           ) : (
             <Icon className="h-4 w-4" aria-hidden="true" />
           );
@@ -114,9 +114,12 @@ export function RowActions({ actions, menuLabel, compact, className }: RowAction
               size="icon"
               aria-label={action.label}
               title={action.label}
-              disabled={action.disabled || action.loading}
-              aria-disabled={action.blocked || undefined}
-              onClick={action.onSelect}
+              disabled={action.disabled}
+              aria-busy={action.loading || undefined}
+              aria-disabled={action.loading || action.blocked || undefined}
+              onClick={() => {
+                if (!action.loading) action.onSelect();
+              }}
               className={className}
             >
               {glyph}

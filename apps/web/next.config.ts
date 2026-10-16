@@ -83,6 +83,15 @@ const nextConfig: NextConfig = {
     // Increase proxy body size limit for RAG document uploads (default: 10MB)
     // Must match RAG_SPACES_MAX_FILE_SIZE_MB (20MB) + overhead for multipart encoding
     proxyClientMaxBodySize: '25mb',
+    // No route is predicted from the SHAPE of a URL: the i18n middleware
+    // rewrites every default-language path (`/more` → `/fr/more`), so once the
+    // client had learned `/` as `/[lng]`, a link prefetched afterwards read
+    // `/more` as `lng = more`, asked for a segment that does not exist (404)
+    // and re-fetched the 1.8 MB `[lng]` layout segment forever — measured on
+    // Next 16.4.1: ~6 requests per second per link for /login, /register and
+    // /more, so a public page never went idle. Each link fetches its own tree
+    // instead, as the links prefetched before that learning already did.
+    optimisticRouting: false,
     // qemu-emulated cross-arch Docker builds (the arm64 image built on the
     // amd64 CI runner) flakily kill Next's parallel build workers with SIGILL
     // ("qemu: uncaught target signal 4"). Dockerfile.prod sets

@@ -41,7 +41,7 @@ function SeriesChips({
         return (
           <span
             key={label || 'value'}
-            className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5"
+            className="inline-flex items-center gap-1 rounded bg-card px-1.5 py-0.5"
           >
             {label ? <span className="font-mono">{label}</span> : null}
             <span className="tabular-nums">{`${sample.value}${suffix}`}</span>
@@ -139,6 +139,7 @@ export function DiagnosisEvidence({
   const runtime = context.runtime;
   return (
     <Disclosure
+      surface="nested"
       icon={ScrollText}
       title={t('settings.admin.diagnostics.contextTitle')}
       className="mt-2"

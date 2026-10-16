@@ -164,7 +164,12 @@ analyst's points of ONE story alone also cites that story's own fact
 (`_with_story`): the anchor tells the article's details, which live in the points,
 and half its fact lines cited them alone, even when told not to (decision 34).
 
-**The model verifier** (`checking.py`, optional per listener: off, news, all)
+**The model verifier** (`checking.py`, optional per listener: off, news, all —
+« No check », « Check the news », « Check every programme » under « Checking by a
+second model » in the listening settings). A listener who chose nothing gets
+`RADIO_VERIFICATION_DEFAULT`, which is `off` (owner decision 2026-10-15): every
+reading is billed, so the listener opts in, the page stating how many kinds of
+programme a choice re-reads; the two other levels stay theirs to choose. It
 applies two tests by kind: the strict test to facts, analyses and transitions
 (nothing beyond the cited facts, nothing said about the listener that no fact
 states), the view test to opinions (a commentator's judgement, images,
@@ -666,6 +671,7 @@ Every code has a sentence in the six languages (`tests/unit/domains/radio/test_e
 the `radio` capability), the session bounds (`RADIO_TIMER_*`, `RADIO_IDLE_TIMEOUT_SECONDS`,
 `RADIO_PAUSE_TIMEOUT_SECONDS`, `RADIO_MAX_ACTIVE_SESSIONS`, `RADIO_FAILURES_MAX`), the
 look-ahead (`RADIO_STAGE_*`, `RADIO_LOOKAHEAD_*`), production (`RADIO_TTS_*`,
+`RADIO_DIALOGUE_MAX_BYTES` — a dialogue take's bound, `0` voicing every line alone —,
 `RADIO_MIX_TIMEOUT_SECONDS`, `RADIO_QUOTE_MAX_CHARS`, `RADIO_ANALYSIS_*`,
 `RADIO_VERIFICATION_DEFAULT`), the newsroom (`RADIO_NEWSROOM_*`), the listener's sites
 (`RADIO_CUSTOM_SOURCES_MAX`, `RADIO_SOURCE_PREVIEW_RATE_LIMIT_*`) and the media

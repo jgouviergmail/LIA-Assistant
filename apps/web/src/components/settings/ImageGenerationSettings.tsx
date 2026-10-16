@@ -16,7 +16,7 @@
  * for a vendor that bills by resolution, its tier (1K/2K).
  */
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { ImageIcon } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -44,6 +44,7 @@ export function ImageGenerationSettings({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   const { user, refreshUser } = useAuth();
   const [updating, setUpdating] = useState(false);
+  const fieldId = useId();
 
   const { data: options, loading, error } = useImageGenerationOptions();
 
@@ -89,7 +90,7 @@ export function ImageGenerationSettings({ lng }: BaseSettingsProps) {
   const content = (
     <div className="space-y-4">
       {/* Enable toggle */}
-      <div className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-card">
+      <div className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-background">
         <div className="flex-1">
           <p id="image-generation-enable-label" className="text-sm font-medium">
             {t('settings.image_generation.enable')}
@@ -110,11 +111,11 @@ export function ImageGenerationSettings({ lng }: BaseSettingsProps) {
       {/* Loading state for pricing-driven dropdowns */}
       {loading && (
         <>
-          <div className="p-3 rounded-lg border bg-card space-y-2">
+          <div className="p-3 rounded-lg border bg-background space-y-2">
             <p className="text-sm font-medium">{t('settings.image_generation.quality')}</p>
             <Skeleton className="h-10 w-full" />
           </div>
-          <div className="p-3 rounded-lg border bg-card space-y-2">
+          <div className="p-3 rounded-lg border bg-background space-y-2">
             <p className="text-sm font-medium">{t('settings.image_generation.size')}</p>
             <Skeleton className="h-10 w-full" />
           </div>
@@ -130,14 +131,16 @@ export function ImageGenerationSettings({ lng }: BaseSettingsProps) {
 
       {/* Quality selector — driven by /image-generation/options */}
       {!loading && !error && options && options.qualities.length > 0 && (
-        <div className="p-3 rounded-lg border bg-card space-y-2">
-          <p className="text-sm font-medium">{t('settings.image_generation.quality')}</p>
+        <div className="p-3 rounded-lg border bg-background space-y-2">
+          <p id={`${fieldId}-quality`} className="text-sm font-medium">
+            {t('settings.image_generation.quality')}
+          </p>
           <Select
             value={shownQuality}
             onValueChange={value => updatePreference('image_generation_default_quality', value)}
             disabled={updating}
           >
-            <SelectTrigger className="w-full">
+            <SelectTrigger className="w-full bg-card" aria-labelledby={`${fieldId}-quality`}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -154,14 +157,16 @@ export function ImageGenerationSettings({ lng }: BaseSettingsProps) {
 
       {/* Size selector — driven by /image-generation/options */}
       {!loading && !error && options && options.sizes.length > 0 && (
-        <div className="p-3 rounded-lg border bg-card space-y-2">
-          <p className="text-sm font-medium">{t('settings.image_generation.size')}</p>
+        <div className="p-3 rounded-lg border bg-background space-y-2">
+          <p id={`${fieldId}-size`} className="text-sm font-medium">
+            {t('settings.image_generation.size')}
+          </p>
           <Select
             value={shownSize}
             onValueChange={value => updatePreference('image_generation_default_size', value)}
             disabled={updating}
           >
-            <SelectTrigger className="w-full">
+            <SelectTrigger className="w-full bg-card" aria-labelledby={`${fieldId}-size`}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -176,14 +181,16 @@ export function ImageGenerationSettings({ lng }: BaseSettingsProps) {
       )}
 
       {/* Format selector — every generated or edited image is delivered in it */}
-      <div className="p-3 rounded-lg border bg-card space-y-2">
-        <p className="text-sm font-medium">{t('settings.image_generation.format')}</p>
+      <div className="p-3 rounded-lg border bg-background space-y-2">
+        <p id={`${fieldId}-format`} className="text-sm font-medium">
+          {t('settings.image_generation.format')}
+        </p>
         <Select
           value={user?.image_generation_output_format ?? 'png'}
           onValueChange={value => updatePreference('image_generation_output_format', value)}
           disabled={updating}
         >
-          <SelectTrigger className="w-full">
+          <SelectTrigger className="w-full bg-card" aria-labelledby={`${fieldId}-format`}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -247,7 +254,7 @@ function PromptEnhancementRow({
   const { t } = useTranslation(lng);
   if (!offered) return null;
   return (
-    <div className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-card">
+    <div className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-background">
       <div className="flex-1">
         <p id="image-generation-enhancement-label" className="text-sm font-medium">
           {t('settings.image_generation.prompt_enhancement')}

@@ -207,7 +207,7 @@ and every action that writes to an external service keeps its own confirmation
 prompt. No path turns "the other party proposed X" into "you accepted X".
 
 ## Can LIA call me?
-Yes. Under **Settings → Telephony · My identity**, type your own number
+Yes. Under **Settings → My phone**, type your own number
 (international format preferred) and ask for a verification call: LIA calls
 you, reads a four-digit code aloud, and you type it in. From then on, "call
 me", "call me at eight to go over my day" or a routine that says it places a
@@ -220,7 +220,7 @@ someone else answers, the assistant apologises, shares nothing and hangs up.
 Changing the number cancels the verification.
 
 ## What does LIA know during a call with me?
-It depends on the mode you chose in **Settings → Telephony · My identity**
+It depends on the mode you chose in **Settings → My phone**
 (see « Live or Live direct » below).
 
 **🎧 In Live (the default):** the voice knows nothing and reads nothing by
@@ -234,7 +234,7 @@ administrator enabled live lookups, the voice reads your data itself during
 the call — the latest e-mails, a day of agenda, a contact, a file, a place
 nearby, the weather, what it retains about a topic — and reads the result to
 you in words. It reads and never acts: no message sent, no event created,
-nothing deleted. In **My identity**, each domain has its switch — the same
+nothing deleted. In **My phone**, each domain has its switch — the same
 switches govern a direct live session in the browser. The assistant speaks
 with the personality you configured for LIA.
 
@@ -268,7 +268,7 @@ on your account and is never counted nor shown in LIA. Same rule for every
 service you use with your own keys.
 
 ## Live or Live direct: how does LIA conduct my calls?
-A choice of yours, in **Settings → Telephony · My identity**, and the same two
+A choice of yours, in **Settings → My phone**, and the same two
 modes as the browser's live sessions.
 
 **🎧 Live (the default):** what you ask on the phone is handled by LIA **while

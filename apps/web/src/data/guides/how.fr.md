@@ -5,8 +5,8 @@
 > Documentation de présentation technique destinée aux architectes, ingénieurs et experts techniques.
 
 **Version** : 5.3
-**Date** : 2026-10-13
-**Application** : LIA v3.0.1
+**Date** : 2026-10-17
+**Application** : LIA v3.1.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -73,7 +73,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), identifiants chiffrés avec Fernet, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
 | Transparence totale | 620 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 346 ADRs, plus de 59 000 tests automatisés côté backend et frontend, observabilité native, HITL à 6 niveaux |
+| Fiabilité en production | 347 ADRs, plus de 63 000 tests automatisés côté backend et frontend, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -91,10 +91,10 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests | Plus de 59 000 tests automatisés avec pytest et Vitest (seuils de couverture verrouillés, ADR-116) |
+| Tests | Plus de 63 000 tests automatisés avec pytest et Vitest (seuils de couverture verrouillés, ADR-116) |
 | Fixtures pytest | 1 082, dont 48 partagées via conftest |
 | Documents de documentation | 716 |
-| ADRs (Architecture Decision Records) | 346 |
+| ADRs (Architecture Decision Records) | 347 |
 | Métriques Prometheus | 620 définitions |
 | Dashboards Grafana | 31 |
 | Langues supportées (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -124,7 +124,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Technologie | Version | Rôle |
 |-------------|---------|------|
-| Next.js | 16.3.8 | App Router, SSR, ISR |
+| Next.js | 16.4.1 | App Router, SSR, ISR |
 | React | 19.3.0 | UI avec Server Components |
 | TypeScript | 6.0.3 | Typage strict |
 | TailwindCSS | 4.3.3 | Utility-first CSS |
@@ -374,6 +374,10 @@ Une boucle est **jugée sur son résultat** (ADR-310). S'arrêter dès que le mo
 
 Un échec d'outil s'y lit **structurellement** (ADR-303) : le corps d'un `ToolMessage` porte la prose de l'outil, donc le seul verdict honnête est un marqueur que le message porte lui-même — `status="error"`, qui survit au checkpoint. Un prédicat de succès unique, `core/tool_outcome.explicit_success`, sert la boucle, le registre des consultations et les métriques : un échec déclaré, comme un résultat vide, n'achète aucune itération. Et quand une personne choisit les échanges fréquents dans ses réglages (ADR-311 ; `REACT_CROSS_TURN_CACHE_ENABLED` ne fixe que le défaut d'un compte qui n'a pas choisi, ADR-308), la boucle lie tous les outils dans leur ordre d'enregistrement et place le contexte du tour après la question — dans la forme que chaque fournisseur accepte, déclarée et vérifiée au démarrage —, pour que le préfixe d'un tour soit celui du suivant : sur un banc de 396 tours réels, l'économie va de 18 à 42 % par tour selon le mécanisme de cache, un modèle sans cache paie un surcoût, et un repli compté sur la sélection par pertinence prend le relais quand le catalogue dépasse le plafond ou la fenêtre. L'historique tombe alors lui aussi par blocs, ancrés sur le compteur de tours, pour que chaque tour prolonge le précédent : les trois vont ensemble parce qu'aucun ne paie seul, et les échanges ponctuels gardent la sélection par pertinence, dont le coût ne dépend pas de l'écart entre deux tours.
 
+### Une délégation rend toujours son livrable (ADR-083)
+
+Un expert délégué, une tâche de navigateur ou une tâche MCP itérative ouvre sa propre boucle de modèle derrière un unique appel d'outil, bornée en étapes de graphe : N étapes achètent N÷2 appels de modèle. Arrivée à sa borne, la boucle ne s'arrête plus sur la phrase générique de LangGraph, qui passait pour un succès : son dernier appel se fait sans outil et rédige le livrable à partir de ce qu'elle a trouvé. Chaque lecteur — la délégation, la tâche de navigateur, la tâche MCP, le runner de skill — traduit une issue typée (répondu, vide, erreur, close sur budget) au lieu de lire du texte, et un échec dit jusqu'où il est allé. Le planificateur et la boucle ReAct reçoivent les mêmes faits sur ce que l'expert peut atteindre, et la borne de taille de l'instruction est appliquée par l'outil lui-même dans les deux modes : une délégation impossible est refusée avant qu'un modèle ne tourne.
+
 ### 5.4. Exécutions détachées : la génération survit à la connexion (ADR-117)
 
 Le streaming SSE classique a un défaut structurel : la génération vit *dans* le générateur de la réponse HTTP. Fermer l'onglet, naviguer ou perdre le réseau tue la connexion — et, avec elle, le tour de conversation entier. LIA découple les deux : un **producteur détaché** (tâche asyncio indépendante de la requête) exécute le graphe et publie chaque chunk dans un **Redis Stream par run** ; l'endpoint SSE n'est plus qu'un **abonné** qui relaie ce stream.
@@ -498,6 +502,12 @@ Un plan naît d'un texte. Mais lorsque la demande vient d'un **bouton** — une 
 La demande porte donc, à côté de la phrase affichée, la **capacité invoquée** : un couple `{capability, subject}`. `capability` est un `Literal` **fermé**, rejeté par Pydantic à la frontière HTTP — le navigateur nomme une capacité, **jamais** un outil, et le serveur choisit quel outil en lecture seule l'implémente. Cette porte ne mène pas à un outil de mutation. Le transport jusqu'au planificateur est un `ContextVar` de requête, posé au même endroit et avec la même discipline que les préférences de skills.
 
 L'application se fait **avant la validation**, au même titre que le clamp des paramètres hors bornes : ce qui est mécaniquement réparable est réparé, jamais rapporté comme un défaut. Le plan est **enrichi, pas remplacé** — ce que le planificateur a prévu et qui apporte quelque chose demeure ; ce qu'il a prévu et que la capacité recouvre déjà s'en va, parce qu'une réponse sans rapport posée à côté d'un manque annoncé le contredit. Deux garde-fous : une étape qu'une autre lit encore — par dépendance déclarée **ou** par référence `$steps` — est conservée, et un plan sans étape (clarification en attente, exécution déléguée à un skill) n'est jamais transformé en exécution. Une garantie qui écrase une question n'est pas une garantie.
+
+### Ce qu'une lecture a trouvé atteint la réponse (ADR-347)
+
+En mode Pipeline, la réponse est rédigée par un modèle qui ne voit pas les outils : il lit le message de chaque étape et les éléments que le tour a enregistrés. Or un outil de lecture range ses faits dans `structured_data` — les durées d'une matrice d'itinéraires, les correspondances d'un trajet, la page suivante d'une recherche. L'exécuteur projette donc ce que ce bloc apporte au-delà des cartes déjà affichées, avec les fonctions mêmes du mode ReAct (ADR-286) : comparé par contenu, découpé aux frontières d'éléments, enveloppé comme contenu tiers, sous le budget de jetons du créneau de réponse, chaque coupe énoncée et comptée. La réponse le lit dans une section unique jointe au résumé de l'exécution, et l'état persisté ne garde aucun bloc d'un autre tour. Un outil dont le message rend déjà ses données le déclare, avec une raison vérifiée au démarrage.
+
+Le même contrat ferme la porte inverse : un échec que la charge utile d'un connecteur déclare n'est jamais rendu comme un succès — un filet posé aux points de passage des connecteurs le corrige, le journalise et le compte —, et une boucle FOR_EACH dont certains éléments échouent garde ses réussites et nomme chaque élément en échec. Un élément atteint son étape entier : la substitution de `$item` est structurelle, jamais une chaîne JSON réanalysée.
 
 ---
 
@@ -854,7 +864,7 @@ LIA peut passer un appel sortant à la place de l'utilisateur, mener une convers
 
 **Le téléphone comme canal (ADR-290).** La carte de confirmation protège un tiers qui n'a rien demandé ; quand LIA appelle *la personne elle-même*, celle qui confirmerait est celle qui décroche — à condition que le numéro soit prouvé le sien. L'identité est donc un numéro déclaré dans les réglages, affiché en entier, puis vérifié par un appel où LIA lit un code que la personne retape (essais bornés, code éphémère lié au numéro, comparaison en temps constant, le plafond horaire de tout appel payant) ; jamais une reconnaissance par nom, et l'outil d'appel tiers refuse ce numéro. Le **même** agent vocal sert trois mandats — celui du tiers cuit dans l'agent, celui du titulaire et celui de la vérification envoyés par un override par appel rendu côté serveur — pour que rien du contexte de la personne ne soit jamais cuit dans un agent qui appelle aussi des inconnus ; et ce que l'agent *a dans la voix* (modèle, langue, voix, format audio, plafond de durée) appartient au portail du fournisseur, jamais à un réglage, parce que le fournisseur fusionne un PATCH avec ce qu'il stocke et qu'un modèle épinglé heurterait l'effort de raisonnement du portail à chaque synchronisation. `call_me` n'a pas de carte par construction, ce qui permet aussi à une routine de le planifier. L'appel emporte le contexte du chat sous un budget de jetons (mémoires, agenda, rappels, boucles ouvertes, derniers échanges — un commutateur le coupe) et la personnalité configurée pour l'assistante, chaque lecture consignée au registre des consultations. Derrière un second drapeau, l'agent **lit LIA en direct** pendant l'appel, et n'agit sur rien : l'ensemble d'outils est une règle sur le catalogue plutôt qu'une liste — tout outil qui ne fait que lire, d'un domaine que le téléphone offre, dont les paramètres obligatoires se disent à la voix (55 outils sur 22 domaines, plus un rappel natif de la mémoire) — rattaché à l'agent le temps de l'appel du titulaire, puisque le fournisseur refuse des identifiants d'outils dans un override par appel, et chaque résultat est réduit à ce qu'une voix peut dire avant la pagination item par item (un identifiant, un lien, une structure imbriquée n'atteignent jamais la voix ; quatre événements de week-end tiennent là où un seul passerait brut). Chaque domaine a un interrupteur propre à la personne, relu sur sa ligne à chaque rappel. À la fin de l'appel, ce qui a été dit revient comme **le propre message de la personne** : la transcription est synthétisée puis rejouée par le moteur hors tour comme un tour *parlé par la personne* — les extractions de mémoire, de journal et de psyché tournent comme dans le chat, le message porte un badge téléphone, un brouillon attend sa confirmation dans le chat. Le relais est réclamé avant le tour et réglé par mise à jour conditionnelle, un plantage en plein relais est rendu à une notification qui dit pourquoi, et dix verdicts de relais sont comptés et dessinés sur la liste des appels — « personne n'a décroché » et « la ligne a échoué » distingués de « quelqu'un d'autre a répondu ». Chaque euro d'un appel tombe sous un run id unique — les recherches en direct, la synthèse, le tour relayé — si bien que le résumé par run que le compteur du chat lit déjà est la facture de l'appel, sur la réponse relayée et sur la liste des appels ; ce qui tourne sur la clé personnelle du fournisseur y est facturé et n'est jamais compté ici.
 
-**Une politique par mode, quelle que soit la ligne (ADR-301).** Relayer la conversation à la *fin* sur une ligne et confier chaque demande au chat *pendant* sur l'autre ferait deux vérités pour un même mot. Une session vocale a donc un mode, et la politique ne suit que lui : en **Live** (le défaut du téléphone, choisi dans Réglages › Téléphonie · Mon identité), la voix ne tient ni contexte ni outil et remet chaque demande à LIA par une seule fonction — celle-là même que le Live du navigateur déclare à son fournisseur — que le serveur transforme en un tour de chat de la personne pendant qu'elle parle : les questions de LIA (une question EST le résultat, la réponse suivante reprend le tour qui l'a posée), les confirmations, les registres, les quotas et la trace dans la conversation viennent avec ; en **Live direct**, la voix lit pour la personne, n'agit sur rien, et ses mots sont relayés à la fin comme un message d'elle — sur la ligne comme dans le navigateur. Une seule clôture ferme les livres des deux lignes : les échanges purement vocaux archivés, la carte aux chiffres exacts, la décision, l'apprentissage — ou la synthèse, le tour relayé et la carte réécrite quand il se règle, sa dépense relue. Live n'est offert que là où le fournisseur téléphonique peut rappeler l'instance ; sinon les réglages le disent et l'appel part en direct. Le comportement du moteur du fournisseur fixe trois règles : la voix annonce l'appel et poursuit la conversation, une réponse tardive serait perdue passé le délai du fournisseur — le pont répond donc avant —, et un échange qui contient une délégation appartient au graphe en entier.
+**Une politique par mode, quelle que soit la ligne (ADR-301).** Relayer la conversation à la *fin* sur une ligne et confier chaque demande au chat *pendant* sur l'autre ferait deux vérités pour un même mot. Une session vocale a donc un mode, et la politique ne suit que lui : en **Live** (le défaut du téléphone, choisi dans Réglages › Mon téléphone), la voix ne tient ni contexte ni outil et remet chaque demande à LIA par une seule fonction — celle-là même que le Live du navigateur déclare à son fournisseur — que le serveur transforme en un tour de chat de la personne pendant qu'elle parle : les questions de LIA (une question EST le résultat, la réponse suivante reprend le tour qui l'a posée), les confirmations, les registres, les quotas et la trace dans la conversation viennent avec ; en **Live direct**, la voix lit pour la personne, n'agit sur rien, et ses mots sont relayés à la fin comme un message d'elle — sur la ligne comme dans le navigateur. Une seule clôture ferme les livres des deux lignes : les échanges purement vocaux archivés, la carte aux chiffres exacts, la décision, l'apprentissage — ou la synthèse, le tour relayé et la carte réécrite quand il se règle, sa dépense relue. Live n'est offert que là où le fournisseur téléphonique peut rappeler l'instance ; sinon les réglages le disent et l'appel part en direct. Le comportement du moteur du fournisseur fixe trois règles : la voix annonce l'appel et poursuit la conversation, une réponse tardive serait perdue passé le délai du fournisseur — le pont répond donc avant —, et un échange qui contient une délégation appartient au graphe en entier.
 
 ### 13.6. Lire une pièce jointe : le texte quand il y en a, la vision sinon
 
@@ -865,6 +875,10 @@ Les octets sont lus par un module qui ne touche aucun client. Le type MIME vient
 ### Un carnet lu en entier, comparé une seule fois
 
 Taper un destinataire dans « Envoyer par e-mail » suggère les contacts de la personne. Les trois fournisseurs cherchent chacun à leur manière — trois façons de faire correspondre un nom —, alors chaque client de contacts lit le **carnet entier** sous une même interface (pagination de Google People avec chaque paramètre répété, `@odata.nextLink` de Graph, cache CardDAV), sous un plafond déclaré dont la coupure est dite. Le carnet est compacté — noms, adresses, numéros —, mis en cache dans une famille Redis déclarée avec un tampon de version, construit une seule fois entre workers et invalidé par toute écriture de contacts ; une frappe lit d'abord le tampon et n'ouvre ni le carnet ni le connecteur quand cette version est déjà projetée. La correspondance a une seule implémentation : les noms par le repli d'identité du produit, les adresses par leur forme normalisée, les chiffres par les variantes de numéro du domaine téléphonie. Lire le carnet est une consultation au registre, jamais sur un succès de cache, et rien d'un contact n'entre dans un journal.
+
+### Un fournisseur qui ralentit n'est pas un fournisseur en panne
+
+Un refus 429 sur la clé d'une personne — Brave, Perplexity — est une contre-pression sur cette clé, pas l'état de santé du service : le client l'attend avec une gigue et, s'il persiste, le rend typé avec son délai, au lieu d'ouvrir le disjoncteur que partagent tous les comptes. Côté messagerie, un envoi, une réponse ou un transfert ne sont jamais retentés après un accusé de réception perdu — mieux vaut un échec dit qu'un e-mail parti deux fois —, un envoi accepté pour une partie des destinataires le dit, et un transfert refuse avant d'écrire plutôt que de perdre une pièce jointe. Un message iCloud porte l'empreinte de son dossier, la corbeille est trouvée par son rôle, et le test de connexion vérifie chaque protocole choisi plutôt que le premier.
 
 ---
 
@@ -984,6 +998,10 @@ Le même réveil sert les **veilles** : une routine à condition « courrier de 
 ### Une routine possède une seule horloge
 
 Le studio rend calendrier et condition exclusifs. Une routine planifiée suit le moteur de récurrence ; une routine à condition n'a pas de récurrence et est vérifiée à la cadence de sa source. Une vérification sans nouveau fait correspondant n'écrit aucune exécution. Les deux suivent les mêmes limites, validations humaines et historiques visibles lorsqu'elles agissent réellement. Une condition météo lit toujours Google Weather, la seule source que la plateforme garantit : une règle unique, partagée avec la carte du briefing, retient le premier créneau horaire d'un phénomène surveillé dans l'horizon (4 heures par défaut) dont la probabilité de précipitations dépasse strictement le seuil publié (50 %), et la note transmise à l'exécution nomme l'heure, le jour, le fuseau, la probabilité et la source. Une cadence de vérification plus longue que l'horizon est refusée au démarrage, pour qu'aucune fenêtre ne reste sans regard.
+
+### Une routine ne pose jamais une question que personne ne verra
+
+Une routine tourne sans personne devant l'écran. Une confirmation, ou une question de réseau du bac à sable, posée dans ce contexte resterait suspendue sur le fil, et le message suivant de la personne lui servirait de réponse. Un tour qui n'a personne à qui demander refuse donc et dit où autoriser l'action ; un ticket, lui, sait demander. La réservation d'une routine est tenue par un jeton : la reprise ne libère jamais un tour encore vivant, un règlement tardif n'écrase pas celui d'un autre tick, et une nouvelle tentative après un délai dépassé est refusée dès que le registre des effets montre une action déjà accomplie — une routine ne refait jamais ce qu'elle a fait. Un leader du planificateur qui perd son bail se met en pause jusqu'à sa réélection, et l'arrêt du serveur ne lance plus aucune tâche.
 
 ---
 
@@ -1116,6 +1134,10 @@ Au-dessus du niveau debug, une ligne de journal porte des **faits** — nombres,
 ### La durée de vie d'un fichier est explicite
 
 L'échéance d'un fichier généré peut être absente : la personne le garde sous des plafonds publiés de nombre et de taille. Le nettoyage supprime en une instruction conditionnelle les lignes échues, puis leurs fichiers ; une conservation validée d'abord gagne. Cesser de garder donne un nouveau délai, et les cartes du chat lisent l'état courant. Pour l'e-mail, un contrat de pièce jointe sert les fournisseurs ; la boîte connectée écrit aux destinataires choisis, le relais de LIA seulement à l'adresse vérifiée du compte. Chaque chemin affiche sa limite de taille avant l'envoi.
+
+### Ce qui entre chez un fournisseur, et ce qui en sort
+
+Le contenu tiers voyage dans une enveloppe que le modèle sait ne pas obéir ; sa balise est neutralisée sous toutes ses graphies — casse, pleine chasse, caractères invisibles, normalisation NFKC — et la détection d'injection lit le texte comme un modèle le lirait. Dans l'autre sens, le refus d'un fournisseur — connecteurs, Places, Routes, géocodage, téléphonie, moteurs de voix — voyage par ses faits, statut et code, jamais par sa prose, qui peut citer un champ privé. Le filtre des journaux masque aussi les clés de fournisseurs et les jetons porteurs cités dans une erreur, et un script réseau du bac à sable ne peut plus faire ressortir la clé que le service distant lui renvoie en écho. Les serveurs de messagerie — le relais SMTP de l'instance, l'IMAP et le SMTP d'iCloud — présentent un certificat vérifié avant toute authentification.
 
 ---
 
@@ -1559,9 +1581,13 @@ La même doctrine répond à une défaillance plus discrète : une surface qui c
 
 Une règle CSS gouverne les espacements du design system : les marges verticales d’un élément `inline` sont **calculées mais jamais rendues**. Un `<label>` est inline par défaut du navigateur, la primitive d’étiquette est donc déclarée `block` — sans quoi tout `space-y-*` au-dessus d’un contrôle produit le même écart de trois pixels quelle que soit sa valeur, et un recalibrage modifie le code sans déplacer un pixel. Le réflexe en découle : quand un réglage visuel n’a aucun effet, mesurer le `display` et la géométrie DOM dans un vrai navigateur avant de soupçonner la livraison. Une garde le verrouille.
 
+### Une profondeur qui se lit, un bouton qui reste lui-même
+
+Deux règles d'interface sont devenues des contrats de composants plutôt que des habitudes. La première porte sur la profondeur : un panneau déclare sa surface — principale ou imbriquée —, les surfaces alternent clair, plus sombre, clair dans chaque thème, noir absolu compris, et un champ prend le ton opposé du panneau qui le porte, par une seule variable CSS ; un test de navigateur mesure les couleurs calculées plutôt que les classes. La seconde porte sur l'attente : un bouton occupé garde son libellé, sa taille et le focus, se déclare `aria-busy`, ignore un second appui sans se désactiver, et la pagination comme les actions de ligne suivent la même règle. Les listes chronologiques — réunions, appels — se rangent par jour et par moment local, avec un début et une fin jamais devinée d'une durée, et une erreur de chargement garde les lignes déjà affichées au lieu de se faire passer pour une liste vide. Sur téléphone, le compagnon de LIA calcule une place libre loin des champs, des boutons et des titres, se réduit à un point quand il n'en trouve pas, et ne réécrit jamais la position que la personne a choisie.
+
 ## 24. Architecture des décisions (ADR)
 
-346 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+347 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1613,7 +1639,7 @@ Le Psyche Engine donne à l'assistant un état psychologique dynamique qui évol
 | 2 — Humeur | Heures | Position dans l'espace PAD (Plaisir/Activation/Dominance) → 14 humeurs distinctes. Décroît vers la baseline de personnalité. |
 | 3 — Émotions | Minutes | 22 émotions discrètes (max 4 simultanées) avec intensité [0-100%]. Poussent l'humeur via leur vecteur PAD. Suppression croisée ±30%. |
 | 4 — Relation | Semaines | 4 stades (Orientation → Exploratoire → Affective → Stable). Progression unidirectionnelle. Profondeur, chaleur, confiance. |
-| 5 — Motivations | Par session | Curiosité (énergie de l'échange) et engagement (qualité). Auto-efficacité bayésienne par domaine. |
+| 5 — Motivations | Par session | Curiosité (énergie de l'échange) et engagement (qualité). Expérience par domaine apprise sur des preuves (voir plus bas). |
 
 ### 26.2. Principe fondamental : « Show, Don't Tell »
 
@@ -1626,14 +1652,13 @@ Chaque message génère un bloc `<PsycheDirectives>` (~100-120 tokens) avec :
 - **EMOTIONS** : top 3 émotions avec directives (ex: « empathy (72%): Mirror the user's emotional tone. »)
 - **RELATIONSHIP** : stade + directive relationnelle
 - **DRIVES** : curiosité/engagement avec seuils d'activation
-- **CONFIDENCE** : domaines d'auto-efficacité forte et faible, avec une consigne de rigueur accrue pour les faibles
 - **EVOLUTION** : shift de mood/émotion depuis le dernier message
 
 Un guide d'incarnation de 540 mots (`psyche_usage_directive.txt`) explique au LLM comment traduire chaque état en comportement concret — humeur par humeur, intensités, transitions, distances sociales par stade relationnel.
 
 ### 26.4. Auto-évaluation à coût zéro
 
-Après chaque réponse, le LLM s'auto-évalue via un tag XML caché `<psyche_eval/>` : valence utilisateur, émotion déclenchée, intensité, qualité de l'échange. Ce tag est strippé avant l'envoi à l'utilisateur. Aucun appel LLM supplémentaire — l'évaluation fait partie de la génération de réponse.
+Après chaque réponse, le LLM s'auto-évalue via un tag XML caché `<psyche_eval/>` : valence utilisateur, émotion déclenchée, intensité, qualité de l'échange. Ce tag est strippé avant l'envoi à l'utilisateur. Aucun appel LLM supplémentaire — l'évaluation fait partie de la génération de réponse. Cette auto-évaluation nourrit l'humeur, les émotions et la relation — jamais une compétence.
 
 ### 26.5. Injection globale
 
@@ -1651,6 +1676,14 @@ Le contexte psyché est injecté dans **tous** les points de génération utilis
 La projection de Mehrabian repose **les 14** personnalités du catalogue à D > 0 (étendue +0,063 à +0,349), et l'amortissement, une homothétie, ne peut pas corriger cela : sans autre réglage, les cinq centroïdes d'humeur qui exigent une dominance négative resteraient hors d'atteinte au repos. Deux réglages y répondent — une translation appliquée après amortissement, et une porte sur l'impulsion de joie liée à la qualité soutenue — et leurs défauts viennent d'une mesure sur des instantanés réels plutôt que d'une intuition.
 
 À 0,20, le catalogue encadre zéro — 7 personnalités sur 14 se reposent en dessous, leur ordre exactement préservé, P et A intacts — et l'évaluation rapportée garde la main sur le canal émotionnel, au lieu qu'une impulsion couronne la joie quelle que soit l'évaluation. La limite est consignée aussi : l'activation reste verrouillée, non par la géométrie des points de repos, mais par un flux d'évaluation qui ne rapporte jamais d'émotion à faible activation — ce réglage ne la corrige pas, et ne doit pas être lu comme s'il le faisait.
+
+### Une expérience apprise sur des preuves, jamais sur sa propre note (ADR-348)
+
+Sept domaines cognitifs — planification, information, soutien émotionnel, créativité, technique, social, organisation — gardent chacun une expérience privée sur deux axes qui ne sont jamais fusionnés : le **résultat vérifié**, c'est-à-dire ce que la couverture finale des résultats demandés a établi (jamais un code HTTP ni un drapeau de succès générique), et l'**utilité exprimée**, le 👍/👎 posé sur la réponse finale. Un tour forme un épisode ; l'analyseur de requête déjà exécuté lui attribue au plus deux domaines, sans appel de modèle supplémentaire. Une attente de confirmation, un refus, un quota ou un connecteur absent sont exclus : ce ne sont pas des échecs cognitifs. Un indice n'existe qu'à partir de cinq observations de son propre axe sur 90 jours, dans une limite de 500 épisodes : un seul échange ne fait plus une force ni une faiblesse.
+
+Une fonction pure en tire au plus un ajustement : vérifier un point que le tour laisse ouvert si une lecture autorisée existe dans le budget, nommer la limite sinon, ou poser une seule question sur l'ambiguïté courante quand l'utilité du domaine est faible. Le planificateur, chaque appel ReAct et la synthèse lisent ce même bloc versionné ; il ne change ni modèle, ni outil, ni permission, ni budget, ni confirmation, et les faits du tour priment toujours sur l'historique. Les preuves sont privées, exportées avec le compte, effacées par une réinitialisation complète ou une purge ; l'écran Psyché les montre en « pas encore d'indice », « en apprentissage » ou « observé », jamais en pourcentage d'exactitude. C'est un pilote : aucun gain n'est revendiqué avant une comparaison sur un corpus tenu à part.
+
+Les quatorze personnalités portent leurs traits dans le jeu de données de référence, vérifié à l'installation, et un compte qui n'a jamais choisi suit le profil de la personnalité par défaut.
 
 ---
 
@@ -1962,8 +1995,8 @@ Les études oMLX, llama.cpp et LM Studio ainsi que le monde isométrique sont de
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 346 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Plus de 59 000 tests automatisés, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 347 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Plus de 63 000 tests automatisés, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (700+ documents), des 346 ADRs, et du changelog (v1.0 à v3.0.1). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (700+ documents), des 347 ADRs, et du changelog (v1.0 à v3.1.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

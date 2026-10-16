@@ -223,7 +223,7 @@ export default function AdminRAGSpacesSection({ lng }: BaseSettingsProps) {
   const content = (
     <div className="space-y-6">
       {/* System Knowledge Spaces */}
-      <div className="p-4 border border-border rounded-lg space-y-4">
+      <div className="p-4 border border-border rounded-lg bg-background [--lia-field-background:var(--color-card)] space-y-4">
         <div className="space-y-1">
           <div className="text-base font-medium">
             {t('settings.admin.ragSpaces.systemSpaces.title')}
@@ -245,7 +245,7 @@ export default function AdminRAGSpacesSection({ lng }: BaseSettingsProps) {
               return (
                 <div
                   key={space.id}
-                  className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between p-3 bg-muted/50 rounded-md"
+                  className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between p-3 bg-card rounded-md"
                 >
                   <div className="flex-1 space-y-1">
                     <div className="flex items-center gap-2">
@@ -301,7 +301,7 @@ export default function AdminRAGSpacesSection({ lng }: BaseSettingsProps) {
       </div>
 
       {/* Embedding Model */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between p-4 border border-border rounded-lg">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between p-4 border border-border rounded-lg bg-background">
         <div className="flex-1 space-y-1">
           <div className="text-base font-medium">
             {t('settings.admin.ragSpaces.embeddingModel')}
@@ -318,7 +318,7 @@ export default function AdminRAGSpacesSection({ lng }: BaseSettingsProps) {
       </div>
 
       {/* Reindex Section */}
-      <div className="p-4 border border-border rounded-lg space-y-4">
+      <div className="p-4 border border-border rounded-lg bg-background [--lia-field-background:var(--color-card)] space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex-1 space-y-1">
             <div className="text-base font-medium">

@@ -3,7 +3,7 @@ import { Activity, Cpu, BellRing, Users } from 'lucide-react';
 import { initI18next } from '@/i18n';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import type { Language } from '@/i18n/settings';
-import { buttonVariants } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button-variants';
 import { cn } from '@/lib/utils';
 import { ScreenshotsSection } from '../ScreenshotsSection';
 

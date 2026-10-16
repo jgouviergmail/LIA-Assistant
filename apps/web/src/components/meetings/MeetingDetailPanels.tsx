@@ -344,7 +344,7 @@ export function MinutesPanel(props: MinutesPanelProps) {
 function TranscriptList({ lng, turns }: { lng: Language; turns: TranscriptTurn[] }) {
   const { t } = useTranslation(lng);
   return (
-    <ol className="max-h-96 space-y-2 overflow-y-auto rounded-md border border-border/60 p-3 text-sm">
+    <ol className="max-h-96 space-y-2 overflow-y-auto rounded-md border border-border/60 bg-background p-3 text-sm">
       {turns.map((turn, index) => (
         <li key={`${turn.start}-${index}`} className="grid grid-cols-[3.5rem_4rem_1fr] gap-2">
           <span className="tabular-nums text-muted-foreground">{formatElapsed(turn.start)}</span>

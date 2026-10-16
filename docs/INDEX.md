@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 45 |
-| ADRs | 346 ADR files (ADR-347 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
+| ADRs | 347 ADR files (ADR-348 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
 | Fiches knowledge (RAG système) | 40 |
 
 ---
@@ -53,7 +53,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (346 ADR files) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (347 ADR files) |
 
 ### Pour les Product Managers
 
@@ -99,6 +99,9 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [Addendum audit installateur](./superpowers/specs/2026-08-05-self-host-installer-audit-addendum.md) | 15 bloqueurs + gates G0-G6 du self-host (ADR-215 réservé) | ✅ |
 | [Plan d'activation installateur](./superpowers/plans/2026-08-05-self-host-installer-activation.md) | Exécution TDD de l'installateur (B01-B15) | ✅ |
 | [Serveurs de modèles locaux](./superpowers/plans/2026-10-06-openai-compatible-servers.md) | Analyse et plan TDD : oMLX, llama.cpp, LM Studio et Ollama natif ; coûts locaux zéro et preuves des sondes API stables | Proposition + qualification |
+| [Ajustements des interfaces : spécification](./superpowers/specs/2026-10-16-ajustements-interfaces-design.md) | Matrice des demandes, alternance des fonds, comportements et suggestions UX | Implémentée (R00–R30), livrée en v3.1.0 |
+| [Ajustements des interfaces : plan](./superpowers/plans/2026-10-16-ajustements-interfaces.md) | Lots par composants, sauvegarde avatar, aperçus et validations | Exécuté et qualifié (Chromium), livré en v3.1.0 |
+| [Réanalyse de l'expérience UI](./superpowers/specs/2026-10-16-experience-ui-review.md) | Cohérence visuelle et comportementale, continuité de navigation et observation mobile | Axes acceptés implémentés en v3.1.0 |
 | [Application tools design](./superpowers/specs/2026-10-06-lia-application-tools-design.md) | Source-backed application parity, mandatory HITL, administrative authority and device interactions | Proposed |
 | [Application tools TDD plan](./superpowers/plans/2026-10-06-lia-application-tools.md) | Sequenced implementation and qualification of the application tools | Proposed |
 | [LIA isometric world analysis](./superpowers/specs/2026-10-09-lia-isometric-world-analysis.md) | Source-backed functional/technical design, one common world, five-to-ten admission, privacy, 2.5D rendering and TDD qualification | Proposed |
@@ -138,7 +141,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [TOOLS.md](./technical/TOOLS.md) | Architecture tools, @connector_tool ; calcul exact, dates, devises, journal, activité, fichiers générés (ADR-318) | ✅ |
 | [AGENT_MANIFEST.md](./technical/AGENT_MANIFEST.md) | ToolManifest, catalogue, domain taxonomy | ✅ |
 | [GOOGLE_CONTACTS_INTEGRATION.md](./technical/GOOGLE_CONTACTS_INTEGRATION.md) | Intégration Google Contacts | ✅ |
-| [EMAIL_FORMATTER.md](./technical/EMAIL_FORMATTER.md) | E-mails : vocabulaire `EmailMessage`, niveaux de détail, condensés (ADR-287), formatage et dates | ✅ |
+| [EMAIL_FORMATTER.md](./technical/EMAIL_FORMATTER.md) | E-mails : vocabulaire `EmailMessage`, niveaux de détail, condensés (ADR-287), formatage et dates ; brouillons de boîte mail (ADR-344) | ✅ |
 | [CONNECTORS_PATTERNS.md](./technical/CONNECTORS_PATTERNS.md) | Patterns connecteurs OAuth/API Key ; les connecteurs sans clé appartiennent à l'instance, sans ligne par compte ([ADR-307](./architecture/ADR-307-Keyless-Connectors-Belong-To-The-Instance.md)) | ✅ |
 | [CONNECTOR_PHILIPS_HUE.md](./technical/CONNECTOR_PHILIPS_HUE.md) | Philips Hue smart lighting connector (local + remote) | ✅ |
 | [APPLE_ICLOUD_INTEGRATION.md](./technical/APPLE_ICLOUD_INTEGRATION.md) | Intégration Apple iCloud (Mail, Calendar, Contacts — app-specific password) | ✅ |
@@ -186,10 +189,10 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [LLM_PROVIDERS.md](./technical/LLM_PROVIDERS.md) | Providers LLM, modèles, configuration (Admin UI + .env fallback), compatibilité ; Ollama en client natif aux capacités lues sur le serveur (ADR-267) ; la surface de requête Claude déclarée une fois et le cache de prompt façonné pour payer (ADR-306) | ✅ |
 | [LLM_PROVIDER_CONSTRAINTS.md](./technical/LLM_PROVIDER_CONSTRAINTS.md) | Contraintes de paramétrage LLM par provider et par modèle (matrice complète) | ✅ |
 | [PROMPTS.md](./technical/PROMPTS.md) | Système prompts, versioning, unified planner, memory extraction prompt ; une mise en page pour tous les mécanismes de cache — le stable avant le volatil, une frontière lue une fois (ADR-309) | ✅ |
-| [PLANNER.md](./technical/PLANNER.md) | Planner node, ExecutionPlan DSL, FOR_EACH | ✅ |
+| [PLANNER.md](./technical/PLANNER.md) | Planner node, ExecutionPlan DSL, FOR_EACH (un échec dit, jamais rejoué — ADR-346 ; un FOR_EACH partiel garde ses réussites — ADR-347) | ✅ |
 | [PLAN_PATTERN_LEARNER.md](./technical/PLAN_PATTERN_LEARNER.md) | Apprentissage patterns, Bayesian | ✅ |
 | [PATTERN_LEARNER_TRAINING.md](./technical/PATTERN_LEARNER_TRAINING.md) | Training automatisé, Golden Patterns | ✅ |
-| [RESPONSE.md](./technical/RESPONSE.md) | Response node, anti-hallucination ; un échec d'outil dit par un seul canal (ADR-303), les actes réussis d'un tour dits comme les siens (ADR-263 §23) | ✅ |
+| [RESPONSE.md](./technical/RESPONSE.md) | Response node, anti-hallucination ; un échec d'outil dit par un seul canal (ADR-303), les actes réussis d'un tour dits comme les siens (ADR-263 §23), la section des données d'outils de lecture du pipeline (ADR-347) | ✅ |
 | [ROUTER.md](./technical/ROUTER.md) | Router node, binary routing | ✅ |
 | [SMART_SERVICES.md](./technical/SMART_SERVICES.md) | QueryAnalyzer, SmartPlanner, SmartCatalogue | ✅ |
 | [SEMANTIC_ROUTER.md](./technical/SEMANTIC_ROUTER.md) | Semantic Tool Router, max-pooling | ✅ |
@@ -215,7 +218,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [HYBRID_SEARCH.md](./technical/HYBRID_SEARCH.md) | Recherche hybride BM25 + sémantique (**historique** — supprimé en ADR-168 ; le BM25 vivant est celui des RAG Spaces) | 🗄️ |
 | [JOURNALS.md](./technical/JOURNALS.md) | Personal Journals — carnets de bord introspectifs, injection sémantique ; recherche active dans le journal sur le seuil configuré (`search_journal_tool`, ADR-318) | ✅ |
 | [USAGE_LIMITS.md](./technical/USAGE_LIMITS.md) | Per-user usage limits — tokens, messages, cost quotas with 5-layer enforcement | ✅ |
-| [PSYCHE_ENGINE.md](./technical/PSYCHE_ENGINE.md) | Psyche Engine — complete functional & technical documentation with scenarios | ✅ |
+| [PSYCHE_ENGINE.md](./technical/PSYCHE_ENGINE.md) | Psyche Engine — complete functional & technical documentation with scenarios ; expérience par domaine apprise sur des preuves (ADR-348), traits des personnalités réparés (ADR-068) | ✅ |
 | [ADR-068-Psyche-Engine.md](./architecture/ADR-068-Psyche-Engine.md) | Psyche Engine — architectural decision record | ✅ |
 | [ADR-104-Psyche-De-Saturation.md](./architecture/ADR-104-Psyche-De-Saturation.md) | Psyche de-saturation — source-level fix for the confined-mood failure (prod baseline, decisions, readjustment matrix) | ✅ |
 | [ADR-105-Psyche-Embodied-Expression.md](./architecture/ADR-105-Psyche-Embodied-Expression.md) | Psyche embodied expression layer (A-E) — concrete voice grammar replacing adjective directives (blind-eval validated) | ✅ |
@@ -249,7 +252,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | Document | Description | Statut |
 |----------|-------------|--------|
-| [HITL.md](./technical/HITL.md) | Architecture HITL, 6 couches, plan approval, suite de brouillons un par un (ADR-288), cartes décrites une fois et dessinées par surface (ADR-289) | ✅ |
+| [HITL.md](./technical/HITL.md) | Architecture HITL, 6 couches, plan approval, suite de brouillons un par un (ADR-288), cartes décrites une fois et dessinées par surface (ADR-289), envoi d'un brouillon de boîte mail après une seule confirmation (ADR-344) | ✅ |
 
 ### Sécurité & Authentification
 
@@ -355,6 +358,11 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| ADR-348 | **L'expérience de LIA s'apprend sur des preuves, jamais sur sa propre note** : sept domaines gardent deux axes jamais fusionnés — le résultat vérifié et l'utilité exprimée par 👍/👎 — sous un minimum d'observations ; un seul ajustement borné (vérifier, clarifier, nommer une limite) lu par le planificateur, ReAct et la synthèse, sans modèle, outil, budget ni confirmation de plus ; pilote, aucun gain revendiqué | 2026-10 |
+| ADR-347 | **Ce qu'un outil de lecture trouve atteint la réponse du pipeline, et un échec déclaré n'est jamais un succès** : projection du bloc de données (ADR-286) sous le budget du créneau de réponse, filet aux points de passage des connecteurs, FOR_EACH partiel qui garde ses réussites | 2026-10 |
+| ADR-346 | **Le replanificateur consultatif est retiré : un échec du pipeline se dit, il ne se rejoue pas** — remplace ADR-128 ; `pipeline_step_failures_total{error_code}` compte chaque étape en échec | 2026-10 |
+| ADR-345 | **Fish Audio servi en entier** : une porte de synthèse facturée par le moteur qui a parlé, une allocation par compte fournisseur, des indications expressives dans le dialecte de chaque moteur, une bibliothèque de voix sous attestation, les voix de LIA choisies par personne | 2026-10 |
+| ADR-344 | **Un brouillon de boîte mail appartient à la personne** : gardé, modifié, mis à la corbeille sans confirmation ; envoyé après une seule, sur la carte du brouillon tel que la boîte le garde | 2026-10 |
 | ADR-219 | **Une position mémorisée ne vaut que si tout le monde la lit — et si son âge voyage avec elle** : la dernière position navigateur (ADR-073, opt-in chiffré) était cloisonnée aux jobs proactifs — en déplacement, chat et actions planifiées répondaient depuis le domicile. Cascade généralisée dans `resolve_location` (navigateur > last_known fraîche > domicile ; « où suis-je » reçoit la position datée AVEC son âge, jamais le domicile), cycle de vie PWA (`visibilitychange` → refresh silencieux si permission accordée, bannière de réactivation proactive sinon — la feuille native exige un geste), push global hors page réglages, réglage déplacé sur le connecteur Google Places | 2026-08 |
 | ADR-166 | **Demander est une tâche, pas un goût** : la règle n°1 du prompt d'intérêts déclarait qu'une demande d'information *est* un centre d'intérêt — **7 des 10 intérêts de juillet bloqués par l'utilisateur**. Une création exige désormais un **fondement nommé** parmi quatre et la citation des mots qui le portent ; la déduplication voit **tous les statuts** (un intérêt bloqué était recréé 25 min plus tard à 0,9821 de similarité) ; un **plafond de suppressions** écarte les lots qui en proposent dix-neuf | 2026-07 |
 | ADR-165 | Modifier une skill, c'est la **régénérer entièrement** : le moteur d'écriture existait déjà (upsert d'ADR-118) mais le manifeste était illisible, un remplacement perdait la vignette que le chat ne peut pas transporter, et le prompt ordonnait de renommer. Confirmation **en deux temps dans l'outil** — le HITL est inopérant dans le sous-agent isolé où tourne le générateur ; remplacée le 2026-09-30 par la carte de proposition qu'installe le clic de la personne (ADR-327) | 2026-07 |
@@ -579,7 +587,7 @@ section ne référence.
 
 | Technologie | Version | Usage |
 |-------------|---------|-------|
-| Next.js | 16.3.8 | Framework React |
+| Next.js | 16.4.1 | Framework React |
 | React | 19.3.0 | UI Library |
 | TypeScript | 6.0.3 | Typage |
 | Tailwind CSS | 4.3.3 | Styling |

@@ -77,7 +77,7 @@ function IncidentRow({
   const detail = useDiagnosticsIncidentDetail(open ? incident.id : null);
   const openedAt = new Date(incident.opened_at);
   return (
-    <div className="rounded-lg border border-border p-3">
+    <div className="rounded-lg border border-border bg-background p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="truncate text-sm font-medium">{incident.title}</p>

@@ -35,7 +35,7 @@ function WeatherPreviewCard({ copy }: { copy: PreviewCopy['weather'] }) {
 
 function MeetingPreviewCard({ copy }: { copy: PreviewCopy['meeting'] }) {
   return (
-    <article className="min-w-0 rounded-xl border border-primary/15 bg-card p-4">
+    <article className="min-w-0 rounded-xl border border-primary/15 bg-background p-4">
       <h4 className="flex items-center gap-2 text-sm font-medium">
         <CalendarDays className="size-4 shrink-0 text-primary" aria-hidden="true" />
         {copy.title}
@@ -171,11 +171,11 @@ export function ResponseDisplayPreview({
           {t(`${prefix}.example_label`)}
         </span>
       </figcaption>
-      <div className="flex items-start gap-2.5 rounded-xl bg-muted/40 px-3 py-3 text-sm leading-relaxed">
+      <div className="flex items-start gap-2.5 rounded-xl bg-card px-3 py-3 text-sm leading-relaxed">
         <MessageCircle className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
         <p className="min-w-0">{t(`${prefix}.question`)}</p>
       </div>
-      <div className="min-w-0 rounded-xl border border-border/60 bg-background/70 p-4 sm:p-5">
+      <div className="min-w-0 rounded-xl border border-border/60 bg-card p-4 sm:p-5">
         <p className="mb-4 flex items-center gap-2 text-xs font-semibold text-primary">
           <span aria-hidden="true" className="size-1.5 rounded-full bg-primary" />
           LIA

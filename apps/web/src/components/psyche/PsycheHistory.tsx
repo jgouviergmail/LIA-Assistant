@@ -132,7 +132,7 @@ export function PsycheHistory({ lng, isOpen, refreshKey = 0 }: PsycheHistoryProp
           <CalendarDays aria-hidden="true" className="size-4 text-primary" />
           {t('psyche.history.periodLabel')}
         </p>
-        <div className="grid grid-cols-4 gap-1 rounded-xl border border-border/70 bg-muted/30 p-1">
+        <div className="grid grid-cols-4 gap-1 rounded-xl border border-border/70 bg-card p-1">
           {ranges.map(range => (
             <button
               key={range}
@@ -168,7 +168,7 @@ export function PsycheHistory({ lng, isOpen, refreshKey = 0 }: PsycheHistoryProp
                 'flex min-w-0 items-center justify-center gap-2 rounded-lg border px-2 py-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 activeTab === tab
                   ? 'border-primary/25 bg-primary/10 font-medium text-primary'
-                  : 'border-border/70 text-muted-foreground hover:bg-muted/40 hover:text-foreground'
+                  : 'border-border/70 bg-card text-muted-foreground hover:bg-muted/40 hover:text-foreground'
               )}
             >
               <Icon aria-hidden="true" className="size-4 shrink-0" />
@@ -199,13 +199,13 @@ export function PsycheHistory({ lng, isOpen, refreshKey = 0 }: PsycheHistoryProp
       {loading && !data && (
         <div
           role="status"
-          className="flex min-h-64 items-center justify-center rounded-xl bg-muted/20 text-sm text-muted-foreground"
+          className="flex min-h-64 items-center justify-center rounded-xl bg-card text-sm text-muted-foreground"
         >
           {t('psyche.history.loading')}
         </div>
       )}
       {!loading && !error && history.points.length === 0 && (
-        <p className="rounded-xl border border-dashed px-5 py-12 text-center text-sm text-muted-foreground">
+        <p className="rounded-xl border border-dashed bg-card px-5 py-12 text-center text-sm text-muted-foreground">
           {t('psyche.history.empty')}
         </p>
       )}
@@ -252,7 +252,7 @@ function HistoryChart({ lng, label, activeTab, data, resets, series, busy }: His
       aria-label={label}
       aria-busy={busy}
       aria-describedby={descriptionId}
-      className="min-w-0 rounded-xl border border-border/70 bg-background/50 p-2 pt-5 sm:p-4"
+      className="min-w-0 rounded-xl border border-border/70 bg-card p-2 pt-5 sm:p-4"
     >
       <p id={descriptionId} className="sr-only">
         {t('psyche.history.chartDescription')}

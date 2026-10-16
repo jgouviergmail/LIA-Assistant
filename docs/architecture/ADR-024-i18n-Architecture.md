@@ -475,13 +475,35 @@ msgstr "Compte inactif"
 
 ---
 
+## Amendment 2026-10-16 — no route is predicted from the shape of a URL
+
+The proxy (`apps/web/src/proxy.ts`, next-i18n-router with `prefixDefault: false`)
+REWRITES every default-language path: `/more` is served by `/[lng]/more` with
+`lng = fr`, and the URL a link carries says nothing of that. Next 16.4's client
+router predicts a route from the patterns it has already learned
+(`experimental.optimisticRouting`, on by default). Once it had learned `/` as
+`/[lng]`, a link prefetched afterwards read `/more` as `lng = more`, asked for a
+page segment that does not exist (404) and fetched the `[lng]` layout segment
+again — 1.8 MB, about six times per second per link, for as long as the page
+stayed open (measured on 16.4.1 for `/login`, `/register` and `/more`; the links
+prefetched before that learning fetched their own tree and settled).
+
+The prediction is therefore OFF (`apps/web/next.config.ts`): each link asks for
+its own route tree, at the cost of one small request per link. It may come back
+only when no path is rewritten any more — a prefixed default language, or a Next
+release whose prediction follows the rewrite. `apps/web/e2e/smoke/public-prefetch-settles.spec.ts`
+names the loop: a bounded number of prefetches per link and segment, and none
+that misses its segment.
+
+---
+
 ## References
 
 ### Source Code
 - **Frontend Settings**: `apps/web/src/i18n/settings.ts`
 - **Frontend Server**: `apps/web/src/i18n/index.ts`
 - **Frontend Client**: `apps/web/src/i18n/client.ts`
-- **Frontend Middleware**: `apps/web/src/middleware.ts`
+- **Frontend Proxy** (the i18n router, called middleware before Next 16): `apps/web/src/proxy.ts`
 - **Backend i18n**: `apps/api/src/core/i18n.py`
 - **Backend Dates**: `apps/api/src/core/i18n_dates.py`
 - **Backend Patterns**: `apps/api/src/core/i18n_patterns.py`

@@ -15,7 +15,6 @@ import {
   AlertCircle,
   CalendarDays,
   ClipboardList,
-  LibraryBig,
   MessageSquare,
   Mic,
   Moon,
@@ -46,7 +45,10 @@ import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLife
 import { useApplicationAccountToast } from '@/hooks/useApplicationAccountToast';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
-import { backDestination } from '@/lib/back-origin';
+import { backDestination, withOrigin } from '@/lib/back-origin';
+import { useSearchParams } from 'next/navigation';
+import { buildLocalizedPath } from '@/utils/i18n-path-utils';
+import { meetingListPage } from '@/lib/meetings/list-location';
 import { projectMeetingTimeline, type MeetingPeriod } from '@/lib/meetings/timeline';
 import { isSelectable, pageSelectionState, toggleId } from '@/lib/meetings/selection';
 
@@ -69,10 +71,14 @@ function MeetingRows({
   lng,
   list,
   onDeleted,
+  page,
+  origin,
 }: {
   lng: Language;
   list: UseMeetingListReturn;
   onDeleted: (deletedCount: number) => Promise<void>;
+  page: number;
+  origin: string | null;
 }) {
   const { t } = useTranslation(lng);
   const { confirm, confirmDialog } = useConfirm();
@@ -165,6 +171,13 @@ function MeetingRows({
                       key={item.meeting.id}
                       item={item}
                       lng={lng}
+                      detailHref={buildLocalizedPath(
+                        withOrigin(
+                          `/dashboard/meetings/${encodeURIComponent(item.meeting.id)}${page > 1 ? `?page=${page}` : ''}`,
+                          origin
+                        ),
+                        lng
+                      )}
                       selected={selected.has(item.meeting.id)}
                       onToggle={() => setSelected(toggleId(selected, item.meeting.id))}
                     />
@@ -180,19 +193,9 @@ function MeetingRows({
 }
 
 /** The list header's actions: record (when the recorder is mounted) and the templates. */
-function useToolbarActions(
-  t: (key: string) => string,
-  router: ReturnType<typeof useLocalizedRouter>
-): { primary: ToolbarAction; secondary: ToolbarAction[] } {
+function useToolbarActions(t: (key: string) => string): ToolbarAction[] {
   const recorder = useMeetingRecorderContext();
-  const templates: ToolbarAction = {
-    key: 'templates',
-    label: t('meetings.list.templates'),
-    icon: LibraryBig,
-    onSelect: () => router.push('/dashboard/meetings/templates'),
-    pinned: true,
-  };
-  if (recorder === null) return { primary: templates, secondary: [] };
+  if (recorder === null) return [];
   const record: ToolbarAction = {
     key: 'record',
     label: t('meetings.list.record'),
@@ -203,7 +206,7 @@ function useToolbarActions(
       if (!recorder.isLive) void recorder.start();
     },
   };
-  return { primary: record, secondary: [templates] };
+  return [record];
 }
 
 export default function MeetingsPage({ params }: MeetingsPageProps) {
@@ -215,9 +218,27 @@ function AccountMeetingsPage({ params }: MeetingsPageProps) {
   const lng = useLanguageParam(params);
   const { t } = useTranslation(lng);
   const router = useLocalizedRouter();
-  const back = backDestination(useBackOrigin());
-  const toolbar = useToolbarActions(t, router);
-  const [offset, setOffset] = useState(0);
+  const origin = useBackOrigin();
+  const back = backDestination(origin);
+  const searchParams = useSearchParams();
+  const toolbar = useToolbarActions(t);
+  const [offset, setOffset] = useState(
+    () => (meetingListPage(searchParams.get('page')) - 1) * PAGE_SIZE
+  );
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (offset > 0) url.searchParams.set('page', String(offset / PAGE_SIZE + 1));
+    else url.searchParams.delete('page');
+    window.history.replaceState(window.history.state, '', url);
+  }, [offset]);
+  useEffect(() => {
+    const restore = () =>
+      setOffset(
+        (meetingListPage(new URLSearchParams(window.location.search).get('page')) - 1) * PAGE_SIZE
+      );
+    window.addEventListener('popstate', restore);
+    return () => window.removeEventListener('popstate', restore);
+  }, []);
   const list = useMeetingList(PAGE_SIZE, offset);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const { meetings, total, isLoading, isUnavailable, error } = list;
@@ -254,21 +275,23 @@ function AccountMeetingsPage({ params }: MeetingsPageProps) {
           title={t('meetings.list.title')}
           description={t('meetings.list.subtitle')}
           actions={
-            <>
-              {[toolbar.primary, ...toolbar.secondary].map(action => (
-                <Button
-                  key={action.key}
-                  type="button"
-                  variant={action.key === 'record' ? 'default' : 'secondary'}
-                  aria-disabled={action.blocked}
-                  className="h-auto min-h-11 w-full whitespace-normal sm:w-auto"
-                  onClick={action.onSelect}
-                >
-                  <action.icon aria-hidden="true" />
-                  {action.label}
-                </Button>
-              ))}
-            </>
+            toolbar.length ? (
+              <>
+                {toolbar.map(action => (
+                  <Button
+                    key={action.key}
+                    type="button"
+                    variant="default"
+                    aria-disabled={action.blocked}
+                    className="h-auto min-h-11 w-full whitespace-normal sm:w-auto"
+                    onClick={action.onSelect}
+                  >
+                    <action.icon aria-hidden="true" />
+                    {action.label}
+                  </Button>
+                ))}
+              </>
+            ) : undefined
           }
         />
         {total > 0 && (
@@ -306,7 +329,14 @@ function AccountMeetingsPage({ params }: MeetingsPageProps) {
           }}
         />
       ) : (
-        <MeetingRows key={offset} lng={lng} list={list} onDeleted={afterDelete} />
+        <MeetingRows
+          key={offset}
+          lng={lng}
+          list={list}
+          onDeleted={afterDelete}
+          page={offset / PAGE_SIZE + 1}
+          origin={origin}
+        />
       )}
 
       <Pagination

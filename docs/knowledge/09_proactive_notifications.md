@@ -22,7 +22,7 @@ LIA only sends a notification when it is **genuinely useful** — quality over q
 Enable the feature in just a few clicks:
 
 **⚙️ Access:**
-Settings → "*Proactive Notifications*" section → Enable the toggle
+Settings → "*Notifications*" section → Enable the toggle
 
 **📝 Available options:**
 • **Time window**: configure your own start hour (default: 9 AM) and end hour (default: 10 PM) — independent from interest notification hours
@@ -41,7 +41,7 @@ LIA aggregates **thirteen sources** in parallel to decide whether to notify you.
 **✅ Tasks** — pending or overdue tasks; needs Google Tasks or Microsoft To Do
 
 **🌤️ Weather** — current conditions and transitions (rain starting or stopping, a temperature drop or rise for tomorrow compared on daily averages, strong wind); needs an OpenWeatherMap connector and a home address
-• **Travel-aware location (opt-in)** — if you enable "Use my current location for weather alerts" in Settings > Proactive notifications, LIA uses your browser position instead of your home address when you're more than 50 km away from home and the position is less than 24 h old. The notification always mentions the city it's referring to. Your location is encrypted, never historized (each update overwrites the previous one), and wiped immediately if you disable the option or remove your home address.
+• **Travel-aware location (opt-in)** — if you enable "Use my current location for weather alerts" in Settings > Notifications, LIA uses your browser position instead of your home address when you're more than 50 km away from home and the position is less than 24 h old. The notification always mentions the city it's referring to. Your location is encrypted, never historized (each update overwrites the previous one), and wiped immediately if you disable the option or remove your home address.
 
 **⭐ Interests** — a varied sample of your active interests, one per theme, least recently covered first
 
@@ -200,7 +200,7 @@ Yes. The regular proactive pass is periodic, so it could not return to a precise
 • two back-to-back meetings earn one question, at the end of the block, never in the middle of the next one
 • your notification hours and pauses still apply
 
-**Where to control it:** Settings → *Proactive Notifications* → *Anticipated moments*. Each kind has its own switch ("After a meeting" needs a connected calendar), and your administrator can switch the whole capability off.
+**Where to control it:** Settings → *Notifications* → *Anticipated moments*. Each kind has its own switch ("After a meeting" needs a connected calendar), and your administrator can switch the whole capability off.
 
 
 ## Can LIA offer to run a request I usually make and forgot today?

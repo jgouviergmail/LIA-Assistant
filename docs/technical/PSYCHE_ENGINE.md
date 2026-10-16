@@ -34,7 +34,7 @@
 
 ## Evidence-based efficacy pilot
 
-The legacy appraisal-quality proxy is retired. The [pilot specification](../superpowers/specs/2026-10-16-psyche-efficacy-pilot-design.md) and [implementation plan](../superpowers/plans/2026-10-16-psyche-efficacy-pilot.md) describe the private, bounded evidence ledger, separate result/usefulness axes and shared work adjustment. Legacy numerical scores remain readable for compatibility but are not converted into experience or injected as confidence. Existing emotion/relationship appraisal remains active.
+The legacy appraisal-quality proxy is retired ([ADR-348](../architecture/ADR-348-Efficacy-Learned-From-Evidence-Results-And-Usefulness-Kept-Apart.md)). The [pilot specification](../superpowers/specs/2026-10-16-psyche-efficacy-pilot-design.md) and [implementation plan](../superpowers/plans/2026-10-16-psyche-efficacy-pilot.md) describe the private, bounded evidence ledger, separate result/usefulness axes and shared work adjustment. Legacy numerical scores remain readable for compatibility but are not converted into experience or injected as confidence. Existing emotion/relationship appraisal remains active.
 
 `PSYCHE_EFFICACY_COLLECTION_ENABLED` controls new evidence; `PSYCHE_EFFICACY_INFLUENCE_ENABLED` controls prompt influence independently. Both also require the operator Psyche capability and an active owner's preference. The obsolete `PSYCHE_SELF_EFFICACY_PRIOR_WEIGHT` remains parse-compatible for old deployments, with no effect on this pilot. New observations aggregate the assistant's actual execution configurations; the indices are not a calibration of one model or a probability of factual truth. Provider errors and unknown provenance remain neutral. Repeated partial coverage can justify a targeted check only when a current gap exists. No extra judge call, permission, model budget or recovery loop is introduced.
 
@@ -103,7 +103,7 @@ Each layer operates on a different timescale. Lower layers change slowly (person
 
 ### Layer 1 — Personality (permanent)
 
-**What:** Big Five traits (Openness, Conscientiousness, Extraversion, Agreeableness, Neuroticism) scored 0.0–1.0. Each of the 14 personalities has a unique profile.
+**What:** Big Five traits (Openness, Conscientiousness, Extraversion, Agreeableness, Neuroticism) scored 0.0–1.0. Each of the 14 personalities has a unique profile, carried by the reference seed and checked by `verify_reference_seeds.sql`; an account that never chose a personality takes the instance default's profile. Migration `b62a8d193f04` restored the profiles on instances whose seed had left them empty, where no administrator had set a value ([ADR-068](../architecture/ADR-068-Psyche-Engine.md), amendment 2026-10-16).
 
 **Impact:** The Big Five traits actively modulate 4 aspects of behavior:
 
@@ -146,7 +146,7 @@ Additionally, the Big Five compute the **PAD baseline** — the mood the assista
 
 **Impact:** High curiosity (>0.6) triggers "explore new angles" directive. High engagement (>0.6) triggers "be thorough and proactive" directive.
 
-**Self-Efficacy:** 7 domains (planning, information, emotional_support, creativity, technical, social, organization). Each has a Bayesian score [0,1] and weight. Updated after each message: quality > 0.6 = success, quality < 0.4 = failure (emotional_support domain). Strengths (>0.65) and weaknesses (<0.35) are injected into the rich prompt.
+**Self-Efficacy (evidence pilot, [ADR-348](../architecture/ADR-348-Efficacy-Learned-From-Evidence-Results-And-Usefulness-Kept-Apart.md)):** 7 domains (planning, information, emotional_support, creativity, technical, social, organization). An episode (one turn's run) feeds at most two domains, attributed by the query analyzer, on two axes never merged: the **verified result** (final coverage of the requested outcomes) and the **usefulness** the owner expressed (👍/👎 on the final message). An index exists only from 5 observations of its own axis within 90 days (at most 500 episodes per owner, `psyche_efficacy_episodes`). One pure policy (`efficacy_policy.choose_policy`) returns `verify`, `state_limit`, `clarify` or `none`, read by the planner, every ReAct call and the synthesis through `psyche_efficacy_directive.txt`. The self-report no longer moves any efficacy score, and no strengths / weaknesses confidence is injected any more; the legacy Bayesian scores stay readable and are not converted.
 
 **Narrative Identity:** A brief first-person self-narrative generated weekly (Sundays at 03:00 UTC) via LLM. Reflects on emotional tendencies, relationship quality, and confidence. Stored in `PsycheState.narrative_identity`.
 
@@ -585,7 +585,7 @@ Psyche Engine v2 introduces 8 enhancements that deepen emotional realism:
 
 7. **Computed Resonance**: Alignment metric [-1, +1] between user valence and assistant emotion. Positive resonance (empathetic match) boosts relationship warmth. Negative resonance in STABLE stage boosts trust (honest disagreement). Special handling for concern/empathy/protectiveness responses.
 
-8. **Proactive Emotions**: Pre-response emotion pulses based on drives and context. High curiosity + new user → curiosity pulse. High engagement → enthusiasm pulse (with anti-inflation guard at 0.50). Quality + engagement → joy pulse. High self-efficacy → pride pulse (once only).
+8. **Proactive Emotions**: Pre-response emotion pulses based on drives and context. High curiosity + new user → curiosity pulse. High engagement → enthusiasm pulse (with anti-inflation guard at 0.50). Quality + engagement → joy pulse. High self-efficacy → pride pulse (once only) — removed by ADR-104; since ADR-348 no efficacy index ever produces an emotion or an attachment gain.
 
 ---
 
@@ -633,7 +633,9 @@ Psyche Engine v2 introduces 8 enhancements that deepen emotional realism:
 | `PSYCHE_APPRAISAL_SENSITIVITY` | `0.7` | System-level sensitivity multiplier |
 | `PSYCHE_CIRCADIAN_AMPLITUDE` | `0.08` | Circadian pleasure modulation |
 | `PSYCHE_RELATIONSHIP_WARMTH_DECAY_RATE` | `0.02` | Warmth decay per hour of absence |
-| `PSYCHE_SELF_EFFICACY_PRIOR_WEIGHT` | `5.0` | Bayesian prior weight for self-efficacy |
+| `PSYCHE_EFFICACY_COLLECTION_ENABLED` | `true` | Collect private efficacy evidence from canonical final answers (ADR-348) |
+| `PSYCHE_EFFICACY_INFLUENCE_ENABLED` | `true` | Allow the bounded verify / clarify / state-limit adjustment (ADR-348) |
+| `PSYCHE_SELF_EFFICACY_PRIOR_WEIGHT` | `5.0` | **Inert** since ADR-348 — still parsed for old deployments, read by nothing |
 | `PSYCHE_HISTORY_SNAPSHOT_ENABLED` | `true` | Record snapshots after each message |
 | `PSYCHE_HISTORY_RETENTION_DAYS` | `90` | Rolling retention window; snapshots older are purged on write per user (`0` = keep forever) |
 

@@ -264,7 +264,7 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
           {/* =================================================================== */}
           {/* 1. Ingestion API */}
           {/* =================================================================== */}
-          <AccordionItem value="ingestion" className="border rounded-lg px-3">
+          <AccordionItem value="ingestion" className="border rounded-lg bg-background px-3">
             <AccordionTrigger className="py-3 text-sm font-medium hover:no-underline">
               <span className="flex items-center gap-2">
                 <Key className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
@@ -286,11 +286,12 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
                       id="health-ingest-steps-url"
                       value={ingestStepsUrl}
                       readOnly
-                      className="font-mono text-xs"
+                      className="bg-card font-mono text-xs"
                     />
                     <Button
                       type="button"
                       variant="outline"
+                      className="bg-card"
                       size="icon"
                       onClick={() =>
                         handleCopy(
@@ -320,11 +321,12 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
                       aria-describedby="health-ingest-payload-hint"
                       value={ingestHeartRateUrl}
                       readOnly
-                      className="font-mono text-xs"
+                      className="bg-card font-mono text-xs"
                     />
                     <Button
                       type="button"
                       variant="outline"
+                      className="bg-card"
                       size="icon"
                       onClick={() =>
                         handleCopy(
@@ -366,7 +368,7 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
                         type={showJustCreated ? 'text' : 'password'}
                         value={justCreatedToken}
                         readOnly
-                        className="font-mono text-xs"
+                        className="bg-card font-mono text-xs"
                       />
                       <Button
                         type="button"
@@ -413,6 +415,7 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
                   <div className="flex gap-2">
                     <Input
                       id="health-new-token-label"
+                      className="bg-card"
                       value={newTokenLabel}
                       onChange={e => setNewTokenLabel(e.target.value)}
                       placeholder={t('healthMetrics.tokens.labelPlaceholder', 'iPhone perso')}
@@ -439,7 +442,7 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
                       {tokens.map(token => (
                         <li
                           key={token.id}
-                          className="flex items-center justify-between gap-3 rounded-md border px-3 py-2"
+                          className="flex items-center justify-between gap-3 rounded-md border bg-card px-3 py-2"
                         >
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
@@ -489,7 +492,7 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
           {/* =================================================================== */}
           {/* 2. Assistant toggle (v1.17.2) */}
           {/* =================================================================== */}
-          <AccordionItem value="assistant" className="border rounded-lg px-3">
+          <AccordionItem value="assistant" className="border rounded-lg bg-background px-3">
             <AccordionTrigger className="py-3 text-sm font-medium hover:no-underline">
               <span className="flex items-center gap-2">
                 <Bot className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
@@ -504,7 +507,7 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
                     'Autorisez l’assistant à lire vos données de santé pour répondre à vos questions, les intégrer aux notifications proactives, et enrichir ses journaux et mémoires.'
                   )}
                 </p>
-                <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/30 p-3">
+                <div className="flex items-center justify-between gap-3 rounded-md border bg-card p-3">
                   <div className="space-y-0.5">
                     <Label htmlFor="health-metrics-agents-toggle" className="text-sm font-medium">
                       {t('healthMetrics.agents.toggle', 'Accès de l’assistant')}
@@ -535,7 +538,7 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
           {/* =================================================================== */}
           {/* 3. Statistics (above the charts: the figures read first) */}
           {/* =================================================================== */}
-          <AccordionItem value="stats" className="border rounded-lg px-3">
+          <AccordionItem value="stats" className="border rounded-lg bg-background px-3">
             <AccordionTrigger className="py-3 text-sm font-medium hover:no-underline">
               <span className="flex items-center gap-2">
                 <Activity className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
@@ -577,7 +580,7 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
           {/* =================================================================== */}
           {/* 4. Charts */}
           {/* =================================================================== */}
-          <AccordionItem value="charts" className="border rounded-lg px-3">
+          <AccordionItem value="charts" className="border rounded-lg bg-background px-3">
             <AccordionTrigger className="py-3 text-sm font-medium hover:no-underline">
               <span className="flex items-center gap-2">
                 <BarChart3 className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
@@ -594,7 +597,7 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
           {/* =================================================================== */}
           {/* 5. Management */}
           {/* =================================================================== */}
-          <AccordionItem value="management" className="border rounded-lg px-3">
+          <AccordionItem value="management" className="border rounded-lg bg-background px-3">
             <AccordionTrigger className="py-3 text-sm font-medium hover:no-underline">
               <span className="flex items-center gap-2">
                 <Trash2 className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
@@ -661,7 +664,7 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
 
 function StatTile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border px-3 py-2">
+    <div className="rounded-md border bg-card px-3 py-2">
       <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className="mt-1 text-lg font-semibold tabular-nums">{value}</p>
     </div>
@@ -695,7 +698,7 @@ function DeleteTile({
           type="button"
           variant={destructive ? 'destructive' : 'outline'}
           disabled={disabled}
-          className="w-full justify-start"
+          className={destructive ? 'w-full justify-start' : 'w-full justify-start bg-card'}
         >
           <Trash2 className="h-4 w-4 mr-2" />
           {triggerLabel}

@@ -65,7 +65,7 @@ function FigureTile({
     <Link
       href={href}
       className={cn(
-        'flex items-center gap-3 rounded-xl border border-border/60 bg-muted/20 p-3 transition-colors hover:bg-accent/40',
+        'flex items-center gap-3 rounded-xl border border-border/60 bg-background p-3 transition-colors hover:bg-accent/40',
         FOCUS
       )}
     >
@@ -204,7 +204,7 @@ function Glance({ lng, summary }: { lng: BaseSettingsProps['lng']; summary: Boar
       />
 
       {showCost && (
-        <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
+        <div className="rounded-xl border border-border/60 bg-background [--lia-field-background:var(--color-card)] p-3">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <h4 className="flex items-center gap-2 text-sm font-semibold">
               <Coins className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />

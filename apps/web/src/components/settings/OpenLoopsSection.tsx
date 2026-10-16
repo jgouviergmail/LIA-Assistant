@@ -24,6 +24,7 @@ import { toast } from 'sonner';
 
 import { CommitmentEditor } from '@/components/commitments/CommitmentEditor';
 import { RowActions } from '@/components/ui/row-actions';
+import { Card } from '@/components/ui/card';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { haptic } from '@/lib/haptics';
 import { useAppConfig } from '@/hooks/useAppConfig';
@@ -153,85 +154,88 @@ function LoopGroup({
   };
 
   return (
-    <div>
+    <Card surface="nested" variant="flat" className="space-y-2 p-3">
       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
         {t(titleKey)}
       </p>
       <ul className="space-y-1" role="list">
         {loops.map(loop => (
-          <li
-            key={loop.id}
-            className="flex items-center gap-2 rounded-lg border border-border/40 bg-card/60 px-3 py-2"
-          >
-            {editingId === loop.id ? (
-              <div className="min-w-0 flex-1">
-                <CommitmentEditor
-                  lng={lng}
-                  subject={loop.subject}
-                  dueHint={loop.due_hint ?? null}
-                  saving={savingId === loop.id}
-                  onCancel={() => setEditingId(null)}
-                  onSave={patch => void handleSave(loop, patch)}
-                />
-              </div>
-            ) : (
-              <>
+          <li key={loop.id}>
+            <Card
+              surface="primary"
+              variant="flat"
+              className="flex items-center gap-2 border-border/40 px-3 py-2"
+            >
+              {editingId === loop.id ? (
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium" title={loop.subject}>
-                    {loop.subject}
-                  </p>
-                  <p className="text-px-11 text-muted-foreground">
-                    {loop.counterparty ? `${loop.counterparty} · ` : ''}
-                    {loop.due_hint
-                      ? new Intl.DateTimeFormat(i18n.language, {
-                          day: '2-digit',
-                          month: 'short',
-                        }).format(new Date(loop.due_hint)) + ' · '
-                      : ''}
-                    {t('dashboard.briefing.cards.for_you.days_open', {
-                      count: daysOpen(loop.created_at, new Date()),
-                    })}
-                  </p>
+                  <CommitmentEditor
+                    lng={lng}
+                    subject={loop.subject}
+                    dueHint={loop.due_hint ?? null}
+                    saving={savingId === loop.id}
+                    onCancel={() => setEditingId(null)}
+                    onSave={patch => void handleSave(loop, patch)}
+                  />
                 </div>
-                {/* ADR-208 (owner request 2026-08-05): the ONE row-action
+              ) : (
+                <>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium" title={loop.subject}>
+                      {loop.subject}
+                    </p>
+                    <p className="text-px-11 text-muted-foreground">
+                      {loop.counterparty ? `${loop.counterparty} · ` : ''}
+                      {loop.due_hint
+                        ? new Intl.DateTimeFormat(i18n.language, {
+                            day: '2-digit',
+                            month: 'short',
+                          }).format(new Date(loop.due_hint)) + ' · '
+                        : ''}
+                      {t('dashboard.briefing.cards.for_you.days_open', {
+                        count: daysOpen(loop.created_at, new Date()),
+                      })}
+                    </p>
+                  </div>
+                  {/* ADR-208 (owner request 2026-08-05): the ONE row-action
                     grammar — ghost icons from `sm` up, a right-aligned named
                     "⋮" menu on phones, like the interests rows. The four
                     hand-rolled bordered buttons (with their raw green/orange
                     hover codes) predated the pattern and crowded a 390px row. */}
-                <RowActions
-                  menuLabel={t('common.actions_for', { name: loop.subject })}
-                  actions={[
-                    {
-                      key: 'edit',
-                      label: t('settings.open_loops.edit_label'),
-                      icon: Pencil,
-                      onSelect: () => setEditingId(loop.id),
-                    },
-                    {
-                      key: 'done',
-                      label: t('settings.open_loops.done_label'),
-                      icon: Check,
-                      onSelect: () => void handleClose(loop, 'done'),
-                    },
-                    {
-                      key: 'relaunch',
-                      label: t('settings.open_loops.relaunch_label'),
-                      icon: Send,
-                      onSelect: () => relaunch(loop),
-                    },
-                    {
-                      key: 'dismiss',
-                      label: t('settings.open_loops.dismiss_label'),
-                      icon: CircleSlash,
-                      onSelect: () => void handleClose(loop, 'dismissed'),
-                    },
-                  ]}
-                />
-              </>
-            )}
+                  <RowActions
+                    menuLabel={t('common.actions_for', { name: loop.subject })}
+                    actions={[
+                      {
+                        key: 'edit',
+                        label: t('settings.open_loops.edit_label'),
+                        icon: Pencil,
+                        onSelect: () => setEditingId(loop.id),
+                      },
+                      {
+                        key: 'done',
+                        label: t('settings.open_loops.done_label'),
+                        icon: Check,
+                        onSelect: () => void handleClose(loop, 'done'),
+                      },
+                      {
+                        key: 'relaunch',
+                        label: t('settings.open_loops.relaunch_label'),
+                        icon: Send,
+                        onSelect: () => relaunch(loop),
+                      },
+                      {
+                        key: 'dismiss',
+                        label: t('settings.open_loops.dismiss_label'),
+                        icon: CircleSlash,
+                        onSelect: () => void handleClose(loop, 'dismissed'),
+                      },
+                    ]}
+                  />
+                </>
+              )}
+            </Card>
           </li>
         ))}
       </ul>
-    </div>
+    </Card>
   );
 }

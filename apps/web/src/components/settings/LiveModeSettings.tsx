@@ -508,7 +508,7 @@ function PreferencesPanel({
   return (
     <div className="space-y-4">
       {configurableVad && (
-        <div className="flex items-center justify-between gap-4 rounded-lg border bg-card p-3">
+        <div className="flex items-center justify-between gap-4 rounded-lg border bg-background p-3">
           <div className="flex-1 space-y-1">
             <Label htmlFor="live-interruptions">{t('settings.live_mode.interruptions')}</Label>
             <p id="live-interruptions-help" className="text-xs text-muted-foreground">

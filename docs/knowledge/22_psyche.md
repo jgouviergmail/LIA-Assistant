@@ -66,3 +66,23 @@ After each response, LIA self-evaluates: what emotion did this exchange trigger?
 **Why does LIA often seem upbeat, or never quite calm?** Until August 2026 that was a real defect, not an impression. The mapping from the psychological state to a mood left every personality resting on the assertive side of the scale, so five of the fourteen moods were unreachable at rest; and an internal pulse tied to sustained conversation quality crowned joy the dominant emotion on 31 % of turns regardless of what LIA had actually appraised. Both were corrected in v1.38.0 after measuring real usage: half the personalities now rest in a calmer register, and the emotion you see is the one LIA appraised. Assertive personalities stay assertive — the ordering between them is unchanged.
 
 **Is the whole range of moods actually reachable?** Yes, at rest as well as in conversation. That was the point of the correction above: a mood the engine can name but never reach is a mood that does not exist.
+
+## What does the « Self-efficacy » panel show?
+In **Settings › LIA's psyche**, this panel shows what LIA has learned from its own work, domain by domain — planning, information, emotional support, creativity, technical, social, organization.
+
+**📏 Two measures, never mixed:**
+• **Results**: what an answer truly established against what you asked — never the mere fact that a tool replied
+• **Usefulness**: what you expressed with 👍/👎 on the final answer
+A pending confirmation, a quota or a service that is not connected never counts as a failure.
+
+**🌱 No index yet, learning, observed:**
+An index appears only after several recent observations: a single exchange makes neither a strength nor a weakness. Each index says what it rests on; it is not a probability of being right.
+
+**🧭 What it changes:**
+Where evidence is thin, LIA may check a point the answer left open, ask a single question or name what it could not verify. It changes no model, no tool and no budget, and asks you no extra confirmation. LIA's own self-assessment keeps feeding its mood, its emotions and the relationship — never a competence.
+
+**🔒 Private:**
+This evidence stays in your account, goes with your export and is erased by a full psyche reset.
+
+## Does my personality choice change LIA's emotional reactions?
+Yes. Each of the fourteen personalities carries its own Big Five profile, which shapes LIA's baseline mood, its emotional reactivity and how quickly it recovers. An account that never chose a personality follows the instance's default one.

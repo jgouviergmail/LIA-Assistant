@@ -3,7 +3,7 @@
 import { ScanFace } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { SettingsSection } from './SettingsSection';
@@ -22,11 +22,30 @@ import { Switch } from '@/components/ui/switch';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { useAppConfig } from '@/hooks/useAppConfig';
 import { useAuth } from '@/hooks/useAuth';
-import apiClient from '@/lib/api-client';
+import { useAvatarPreferenceSave } from '@/components/avatars/AvatarPreferenceSaveProvider';
 import type { AvatarConfig, AvatarFace } from '@/lib/avatars/types';
 import { settingsSectionHref } from '@/lib/settings-sections';
-import { bumpRevision, useResourceRevision } from '@/stores/revisionStore';
+import { useResourceRevision } from '@/stores/revisionStore';
 import type { Language } from '@/i18n/settings';
+
+function avatarFormState(
+  confirmed: AvatarConfig | null,
+  incoming: AvatarConfig | undefined,
+  desired: Pick<AvatarConfig, 'enabled' | 'face_id'> | null,
+  editedFace: string | null
+) {
+  // Live availability comes from the read; confirmed preferences survive navigation.
+  const config = confirmed
+    ? { ...confirmed, ...incoming, enabled: confirmed.enabled, face_id: confirmed.face_id }
+    : incoming;
+  const preference = desired ?? config;
+  return {
+    config,
+    preference,
+    face: editedFace ?? preference?.face_id ?? '',
+    enabled: preference?.enabled ?? false,
+  };
+}
 
 export function AvatarSettings({ lng }: { lng: Language }) {
   const { user } = useAuth();
@@ -37,7 +56,7 @@ export function AvatarSettings({ lng }: { lng: Language }) {
 
 function AvatarAccountSettings({ lng }: { lng: Language }) {
   const { t } = useTranslation();
-  const { refreshUser } = useAuth();
+  const persistence = useAvatarPreferenceSave();
   const revision = useResourceRevision('avatar');
   const query = useApiQuery<AvatarConfig>('/avatars/config', {
     componentName: 'AvatarSettings',
@@ -49,50 +68,30 @@ function AvatarAccountSettings({ lng }: { lng: Language }) {
     deps: [revision],
   });
   const [editedFace, setEditedFace] = useState<string | null>(null);
-  const [editedEnabled, setEditedEnabled] = useState<boolean | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [failed, setFailed] = useState(false);
-  const request = useRef<AbortController | null>(null);
-  useEffect(() => () => request.current?.abort(), []);
-  const config = query.data;
-  const face = editedFace ?? config?.face_id ?? '';
-  const enabled = editedEnabled ?? config?.enabled ?? false;
-
-  async function save() {
-    if (request.current || !config) return;
-    const identity = face.trim();
+  const [invalid, setInvalid] = useState(false);
+  const { config, preference, face, enabled } = avatarFormState(
+    persistence.confirmed,
+    query.data,
+    persistence.desired,
+    editedFace
+  );
+  useEffect(() => {
+    if (query.data) persistence.initialize(query.data);
+  }, [query.data, persistence]);
+  const saving = persistence.saving;
+  function saveFace(identity: string) {
+    const value = identity.trim().toLowerCase();
     if (
-      (identity && !/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(identity)) ||
-      (enabled && !identity)
+      (value && !/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(value)) ||
+      (enabled && !value)
     ) {
-      setFailed(true);
+      setInvalid(true);
       return;
     }
-    const controller = new AbortController();
-    request.current = controller;
-    setSaving(true);
-    setFailed(false);
-    try {
-      const updated = await apiClient.put<AvatarConfig>(
-        '/avatars/settings',
-        {
-          enabled,
-          face_id: identity || null,
-        },
-        { signal: controller.signal }
-      );
-      if (controller.signal.aborted) return;
-      query.setData(updated);
-      setEditedFace(null);
-      setEditedEnabled(null);
-      bumpRevision('avatar');
-      await refreshUser();
-    } catch {
-      if (!controller.signal.aborted) setFailed(true);
-    } finally {
-      if (request.current === controller) request.current = null;
-      if (!controller.signal.aborted) setSaving(false);
-    }
+    setInvalid(false);
+    setEditedFace(null);
+    if (value !== (preference?.face_id ?? ''))
+      persistence.change({ enabled, face_id: value || null });
   }
 
   return (
@@ -103,7 +102,7 @@ function AvatarAccountSettings({ lng }: { lng: Language }) {
       icon={ScanFace}
     >
       {query.loading && !config ? <p role="status">{t('common.loading')}</p> : null}
-      {query.error || failed ? (
+      {query.error || persistence.failed || invalid ? (
         <p role="alert" className="text-sm text-destructive">
           {t('settings.avatar.error')}
         </p>
@@ -118,8 +117,18 @@ function AvatarAccountSettings({ lng }: { lng: Language }) {
           facesError={!!faces.error}
           saving={saving}
           onFaceChange={setEditedFace}
-          onEnabledChange={setEditedEnabled}
-          onSave={() => void save()}
+          onFaceCommit={saveFace}
+          onEnabledChange={next => {
+            if (next && !preference?.face_id) {
+              setInvalid(true);
+              return;
+            }
+            setInvalid(false);
+            persistence.change({ enabled: next, face_id: preference?.face_id ?? null });
+          }}
+          onRetry={persistence.retry}
+          failed={persistence.failed}
+          saved={persistence.saved}
         />
       ) : null}
     </SettingsSection>
@@ -136,7 +145,10 @@ function AvatarPreferencesForm({
   saving,
   onFaceChange,
   onEnabledChange,
-  onSave,
+  onRetry,
+  failed,
+  saved,
+  onFaceCommit,
 }: {
   config: AvatarConfig;
   lng: Language;
@@ -147,19 +159,23 @@ function AvatarPreferencesForm({
   saving: boolean;
   onFaceChange: (face: string) => void;
   onEnabledChange: (enabled: boolean) => void;
-  onSave: () => void;
+  onRetry: () => Promise<boolean>;
+  failed: boolean;
+  saved: boolean;
+  onFaceCommit: (face: string) => void;
 }) {
   const { t } = useTranslation();
+  const formRef = useRef<HTMLDivElement>(null);
   return (
     <FormSection icon={ScanFace} title={t('settings.avatar.title')}>
-      <div className="space-y-4" aria-busy={saving}>
+      <div ref={formRef} className="space-y-4" aria-busy={saving}>
         <div className="flex items-center justify-between gap-4">
           <Label htmlFor="avatar-enabled">{t('settings.avatar.enabled')}</Label>
           <Switch
             id="avatar-enabled"
             checked={enabled}
             onCheckedChange={onEnabledChange}
-            disabled={saving || (!enabled && (!config.connected || !config.available))}
+            disabled={!enabled && (!config.connected || !config.available)}
           />
         </div>
         {!config.available ? (
@@ -174,7 +190,12 @@ function AvatarPreferencesForm({
             </Link>
           </Button>
         ) : (
-          <AvatarFaceFields face={face} faces={faces} disabled={saving} onChange={onFaceChange} />
+          <AvatarFaceFields
+            face={face}
+            faces={faces}
+            onChange={onFaceChange}
+            onCommit={onFaceCommit}
+          />
         )}
         {facesError ? (
           <p role="alert" className="text-sm text-destructive">
@@ -184,24 +205,70 @@ function AvatarPreferencesForm({
         <p role="note" className="text-xs text-muted-foreground">
           {t('settings.avatar.cost_note')}
         </p>
-        <Button onClick={onSave} aria-disabled={saving}>
-          {t(saving ? 'settings.avatar.saving' : 'settings.avatar.save')}
-        </Button>
+        {saving || saved ? (
+          <p role="status" className="text-xs text-muted-foreground">
+            {t(saving ? 'settings.avatar.saving' : 'settings.avatar.saved')}
+          </p>
+        ) : null}
+        <AvatarRetryAction failed={failed} saving={saving} onRetry={onRetry} formRef={formRef} />
       </div>
     </FormSection>
+  );
+}
+
+/** Keep the event's target alive until retry settles, including navigation-safe focus return. */
+function AvatarRetryAction({
+  failed,
+  saving,
+  onRetry,
+  formRef,
+}: {
+  failed: boolean;
+  saving: boolean;
+  onRetry: () => Promise<boolean>;
+  formRef: RefObject<HTMLDivElement | null>;
+}) {
+  const { t } = useTranslation();
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const pending = useRef(false);
+  const [retrying, setRetrying] = useState(false);
+  async function retry() {
+    if (pending.current || saving) return;
+    pending.current = true;
+    setRetrying(true);
+    const button = buttonRef.current;
+    const confirmed = await onRetry();
+    // The provider outlives route content. A departed form owns no focus and
+    // must not publish local UI state when its outstanding save completes.
+    if (!button?.isConnected) return;
+    if (confirmed && document.activeElement === button) {
+      formRef.current
+        ?.querySelector<HTMLElement>(
+          '[role="switch"]:not(:disabled),#avatar-face,#avatar-face-custom,a[href]'
+        )
+        ?.focus();
+    }
+    pending.current = false;
+    setRetrying(false);
+  }
+  if (!failed && !retrying) return null;
+  return (
+    <Button ref={buttonRef} onClick={() => void retry()} isLoading={retrying}>
+      {t('common.retry')}
+    </Button>
   );
 }
 
 function AvatarFaceFields({
   face,
   faces,
-  disabled,
   onChange,
+  onCommit,
 }: {
   face: string;
   faces: readonly AvatarFace[];
-  disabled: boolean;
   onChange: (face: string) => void;
+  onCommit: (face: string) => void;
 }) {
   const { t } = useTranslation();
   const selected = faces.find(item => item.id === face.trim().toLowerCase());
@@ -210,7 +277,7 @@ function AvatarFaceFields({
       {faces.length > 0 ? (
         <div className="space-y-2">
           <Label htmlFor="avatar-face">{t('settings.avatar.face')}</Label>
-          <Select value={face} onValueChange={onChange} disabled={disabled}>
+          <Select value={face} onValueChange={onCommit}>
             <SelectTrigger id="avatar-face">
               <SelectValue />
             </SelectTrigger>
@@ -237,7 +304,13 @@ function AvatarFaceFields({
           id="avatar-face-custom"
           value={face}
           onChange={event => onChange(event.target.value)}
-          disabled={disabled}
+          onBlur={event => onCommit(event.target.value)}
+          onKeyDown={event => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              onCommit(event.currentTarget.value);
+            }
+          }}
           maxLength={36}
           autoComplete="off"
           spellCheck={false}
@@ -251,7 +324,7 @@ function AvatarFacePreview({ selected }: { selected: AvatarFace | undefined }) {
   const { t } = useTranslation();
   const [failed, setFailed] = useState(false);
   return (
-    <figure className="flex flex-col items-center gap-2 rounded-lg border bg-muted/30 p-3">
+    <figure className="flex flex-col items-center gap-2 rounded-lg border bg-background p-3">
       {selected?.preview_image_url && !failed ? (
         <Image
           src={selected.preview_image_url}

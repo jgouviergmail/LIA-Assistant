@@ -33,6 +33,7 @@ export function RadioListeningFields({ lng, options, preferences, onChange }: Ra
   const reread = options.verification_checked[verification];
   return (
     <Disclosure
+      surface="nested"
       icon={Headphones}
       title={t('radio.settings.listening.title')}
       description={t('radio.settings.listening.description')}
@@ -83,7 +84,7 @@ export function RadioListeningFields({ lng, options, preferences, onChange }: Ra
               })
             }
           >
-            <SelectTrigger id="radio-timer" className="w-full">
+            <SelectTrigger id="radio-timer" className="w-full bg-card">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

@@ -198,5 +198,5 @@ a floor — it never disappears entirely. You can redo the arithmetic yourself.
 There is no level, no ranking and no comparison with other accounts. Explaining
 uncertainty is more useful than turning it into a competition.
 
-The same interest also carries its own "Why does LIA think this?" block, with
-the conversations that first raised the subject.
+You can edit or delete an interest from its settings; the conversations that
+first raised the subject are kept as references, never as copies of your words.

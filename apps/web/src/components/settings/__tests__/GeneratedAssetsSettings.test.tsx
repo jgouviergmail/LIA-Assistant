@@ -190,7 +190,7 @@ describe('what a gallery states', () => {
 
     const mark = screen.getByTestId('generated-asset-typemark');
     // Same height as a thumbnail, so a mixed page keeps one rhythm.
-    expect(mark.className).toContain('h-36');
+    expect(mark.parentElement?.className).toContain('h-36');
   });
 
   it('makes the card its own door: ONE open link, no separate « Open » button', () => {
@@ -275,14 +275,18 @@ describe('keeping a file past its deadline (ADR-319)', () => {
   };
   const SECOND = 'a1b2c3d4-0000-4000-8000-000000000002';
 
-  it('says a kept file is kept, where its deadline was', () => {
+  it('communicates retention through the pressed pin without a repeated lifetime sentence', () => {
     gallery.items = [asset({ expires_at: null })];
     gallery.total = 1;
     gallery.keep = KEEP_ON;
 
     renderWithProviders(<GeneratedAssetsSettings lng="fr" />);
 
-    expect(screen.getByText('settings.generated_assets.kept_line')).toBeInTheDocument();
+    expect(screen.queryByText('settings.generated_assets.kept_line')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'settings.generated_assets.keep' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
     expect(screen.queryByText(/settings.generated_assets.expires_at/)).not.toBeInTheDocument();
   });
 

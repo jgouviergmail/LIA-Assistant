@@ -93,6 +93,7 @@ export function MomentKindsSection({
   return (
     <div className="border-t pt-4">
       <Disclosure
+        surface="nested"
         icon={CalendarClock}
         title={t('moments.settings_title')}
         badge={disabledKinds.length > 0 ? disabledKinds.length : undefined}

@@ -18,8 +18,8 @@ import {
 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ProvenanceDisclosure } from '@/components/provenance/ProvenanceDisclosure';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { InfoBox } from '@/components/ui/info-box';
@@ -379,7 +379,7 @@ export function MemorySettings({ lng }: BaseSettingsProps) {
       ) : (
         <>
           {/* Global Toggle */}
-          <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
+          <Card surface="nested" variant="flat" className="flex items-center justify-between p-3">
             <div className="flex-1">
               <p className="text-sm font-medium">{t('memories.enable_memory')}</p>
               <p className="text-xs text-muted-foreground">{t('memories.enable_description')}</p>
@@ -390,7 +390,7 @@ export function MemorySettings({ lng }: BaseSettingsProps) {
               disabled={updatingMemoryEnabled}
               aria-label={t('memories.enable_memory')}
             />
-          </div>
+          </Card>
 
           {/* Stats and Actions — the unified section toolbar: labelled CTA at
               every size, export present on phones too (it was `hidden lg:flex`
@@ -462,7 +462,7 @@ export function MemorySettings({ lng }: BaseSettingsProps) {
 
           {/* Memories List */}
           {total === 0 ? (
-            <div className="rounded-lg border border-dashed p-6 text-center text-muted-foreground">
+            <div className="rounded-lg border border-dashed bg-background p-6 text-center text-muted-foreground">
               <Brain className="h-8 w-8 mx-auto mb-2 opacity-50" />
               <p>{t('memories.empty')}</p>
               <p className="text-xs mt-1">{t('memories.empty_hint')}</p>
@@ -470,187 +470,180 @@ export function MemorySettings({ lng }: BaseSettingsProps) {
           ) : (
             <Accordion type="multiple" defaultValue={[]} className="space-y-2">
               {Object.entries(groupedMemories).map(([category, categoryMemories]) => (
-                <AccordionItem key={category} value={category} className="border rounded-lg px-3">
-                  <AccordionTrigger className="py-3 hover:no-underline">
-                    <div className="flex items-center gap-2">
-                      <span>{CATEGORY_ICONS[category as MemoryCategory]}</span>
-                      <span className="font-medium">
-                        {getCategoryLabel(category as MemoryCategory)}
-                      </span>
-                      <span className="text-muted-foreground text-sm">
-                        ({categoryMemories.length})
-                      </span>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="space-y-2">
-                      {/* A directive was DICTATED, not inferred: nothing
+                <Card key={category} surface="nested" variant="flat" className="px-3">
+                  <AccordionItem value={category} className="border-0">
+                    <AccordionTrigger className="py-3 hover:no-underline">
+                      <div className="flex items-center gap-2">
+                        <span>{CATEGORY_ICONS[category as MemoryCategory]}</span>
+                        <span className="font-medium">
+                          {getCategoryLabel(category as MemoryCategory)}
+                        </span>
+                        <span className="text-muted-foreground text-sm">
+                          ({categoryMemories.length})
+                        </span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="space-y-2">
+                        {/* A directive was DICTATED, not inferred: nothing
                           automated takes it back (owner, 2026-09-10). Said
                           here because the guarantee is invisible otherwise —
                           the reader would have to notice an absence. */}
-                      {category === 'procedural' && (
-                        <p className="text-xs text-muted-foreground">
-                          {t('memories.procedural_never_deleted')}
-                        </p>
-                      )}
-                      {categoryMemories.map(memory => (
-                        <div
-                          key={memory.id}
-                          // A pinned memory wears the theme tint (owner request
-                          // 2026-08-05) — the peer-bubble pair, solid enough
-                          // against the plain bg-card of its neighbours.
-                          className={
-                            memory.pinned
-                              ? 'flex items-start gap-3 rounded-lg border p-3 bg-primary/10 border-primary/25'
-                              : 'flex items-start gap-3 rounded-lg border p-3 bg-card'
-                          }
-                        >
-                          <div className="flex shrink-0 items-center self-center sm:self-start">
-                            <span
-                              className="text-lg"
-                              title={`${t('memories.field_emotional_weight')}: ${memory.emotional_weight}`}
-                            >
-                              {getEmotionalEmoji(memory.emotional_weight)}
-                            </span>
-                          </div>
+                        {category === 'procedural' && (
+                          <p className="text-xs text-muted-foreground">
+                            {t('memories.procedural_never_deleted')}
+                          </p>
+                        )}
+                        {categoryMemories.map(memory => (
+                          <div
+                            key={memory.id}
+                            // A pinned memory wears the theme tint (owner request
+                            // 2026-08-05) — the peer-bubble pair, solid enough
+                            // against the plain bg-card of its neighbours.
+                            className={
+                              memory.pinned
+                                ? 'flex items-start gap-3 rounded-lg border p-3 bg-primary/10 border-primary/25'
+                                : 'flex items-start gap-3 rounded-lg border p-3 bg-card'
+                            }
+                          >
+                            <div className="flex shrink-0 items-center self-center sm:self-start">
+                              <span
+                                className="text-lg"
+                                title={`${t('memories.field_emotional_weight')}: ${memory.emotional_weight}`}
+                              >
+                                {getEmotionalEmoji(memory.emotional_weight)}
+                              </span>
+                            </div>
 
-                          {/* Content */}
-                          <div className="flex-1 min-w-0">
-                            {/* The pin sits IN FRONT of the content, on the
+                            {/* Content */}
+                            <div className="flex-1 min-w-0">
+                              {/* The pin sits IN FRONT of the content, on the
                                 emoji's line (owner request 2026-08-05) —
                                 inline, so wrapped text flows under it instead
                                 of opening a gutter. Every size: the ⋮ menu
                                 hides the pin BUTTON on phones, and on sm+ the
                                 tinted action alone was a state easy to miss. */}
-                            <p className="text-sm">
-                              {memory.pinned && (
-                                <Pin
-                                  className="mr-1 inline-block h-3.5 w-3.5 align-text-bottom text-primary"
-                                  aria-hidden="true"
-                                />
-                              )}
-                              {memory.content}
-                            </p>
-                            {memory.usage_nuance && (
-                              <p className="text-xs text-muted-foreground mt-1 italic">
-                                {memory.usage_nuance}
+                              <p className="text-sm">
+                                {memory.pinned && (
+                                  <Pin
+                                    className="mr-1 inline-block h-3.5 w-3.5 align-text-bottom text-primary"
+                                    aria-hidden="true"
+                                  />
+                                )}
+                                {memory.content}
                               </p>
-                            )}
-                            {/* Trigger topic badge */}
-                            {memory.trigger_topic && (
-                              <div className="mt-1">
-                                {/* Theme-coloured, not grey: an active trigger
+                              {memory.usage_nuance && (
+                                <p className="text-xs text-muted-foreground mt-1 italic">
+                                  {memory.usage_nuance}
+                                </p>
+                              )}
+                              {/* Trigger topic badge */}
+                              {memory.trigger_topic && (
+                                <div className="mt-1">
+                                  {/* Theme-coloured, not grey: an active trigger
                                     topic is not an inactive element (owner
                                     rule 2026-08-05). */}
-                                <Badge variant="default" className="text-xs">
-                                  {memory.trigger_topic}
-                                </Badge>
-                              </div>
-                            )}
-                            {/* A memory carried NO provenance at all: "why do
-                                you think I am allergic to shellfish?" had no
-                                answer, and a wrong one could not be argued
-                                with. The correction is offered right where the
-                                reason is read. */}
-                            <ProvenanceDisclosure
-                              endpoint={`/memories/${memory.id}/provenance`}
-                              locale={lng}
-                              onCorrect={() => handleOpenEdit(memory)}
-                            />
-                            {/* Metadata, ONE line worth reading: created date,
+                                  <Badge variant="default" className="text-xs">
+                                    {memory.trigger_topic}
+                                  </Badge>
+                                </div>
+                              )}
+                              {/* Metadata, ONE line worth reading: created date,
                                 usage, importance, purge risk. The update and
                                 last-access dates (two more full timestamps,
                                 glyph-prefixed) said little and doubled the
                                 row's footprint — a 390px screen wrapped this
                                 into three lines of fragments. */}
-                            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1">
-                              {memory.created_at && (
-                                <span
-                                  className="text-xs text-muted-foreground flex items-center gap-1"
-                                  title={t('memories.created_at')}
-                                >
-                                  <Clock className="h-3 w-3" aria-hidden="true" />
-                                  {formatMemoryDate(memory.created_at, lng)}
-                                </span>
-                              )}
-                              {typeof memory.usage_count === 'number' && memory.usage_count > 0 && (
-                                <span
-                                  className="text-xs text-muted-foreground flex items-center gap-1"
-                                  title={t('memories.usage_count')}
-                                >
-                                  <RefreshCw className="h-3 w-3" aria-hidden="true" />
-                                  {memory.usage_count}×
-                                </span>
-                              )}
-                              {typeof memory.importance === 'number' && (
-                                <span
-                                  className="text-xs text-muted-foreground"
-                                  title={t('memories.field_importance')}
-                                >
-                                  ★ {(memory.importance * 100).toFixed(0)}%
-                                </span>
-                              )}
-                              {isAtPurgeRisk(memory) && !memory.pinned && (
-                                <span
-                                  className={
-                                    'text-xs flex items-center gap-1 ' +
-                                    (memory.purge_risk === 'imminent'
-                                      ? 'text-destructive'
-                                      : 'text-warning')
-                                  }
-                                  title={t('memories.purge_risk_tooltip')}
-                                >
-                                  <AlertTriangle className="h-3 w-3" aria-hidden="true" />
-                                  {memory.purge_risk === 'imminent'
-                                    ? t('memories.purge_risk_badge_imminent')
-                                    : t('memories.purge_risk_badge_at_risk')}
-                                </span>
-                              )}
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1">
+                                {memory.created_at && (
+                                  <span
+                                    className="text-xs text-muted-foreground flex items-center gap-1"
+                                    title={t('memories.created_at')}
+                                  >
+                                    <Clock className="h-3 w-3" aria-hidden="true" />
+                                    {formatMemoryDate(memory.created_at, lng)}
+                                  </span>
+                                )}
+                                {typeof memory.usage_count === 'number' &&
+                                  memory.usage_count > 0 && (
+                                    <span
+                                      className="text-xs text-muted-foreground flex items-center gap-1"
+                                      title={t('memories.usage_count')}
+                                    >
+                                      <RefreshCw className="h-3 w-3" aria-hidden="true" />
+                                      {memory.usage_count}×
+                                    </span>
+                                  )}
+                                {typeof memory.importance === 'number' && (
+                                  <span
+                                    className="text-xs text-muted-foreground"
+                                    title={t('memories.field_importance')}
+                                  >
+                                    ★ {(memory.importance * 100).toFixed(0)}%
+                                  </span>
+                                )}
+                                {isAtPurgeRisk(memory) && !memory.pinned && (
+                                  <span
+                                    className={
+                                      'text-xs flex items-center gap-1 ' +
+                                      (memory.purge_risk === 'imminent'
+                                        ? 'text-destructive'
+                                        : 'text-warning')
+                                    }
+                                    title={t('memories.purge_risk_tooltip')}
+                                  >
+                                    <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+                                    {memory.purge_risk === 'imminent'
+                                      ? t('memories.purge_risk_badge_imminent')
+                                      : t('memories.purge_risk_badge_at_risk')}
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                          </div>
 
-                          <RowActions
-                            // Truncated: a memory's content is a paragraph, and
-                            // an accessible name is an utterance, not a document.
-                            menuLabel={t('common.actions_for', {
-                              name:
-                                memory.content.length > 60
-                                  ? `${memory.content.slice(0, 60)}…`
-                                  : memory.content,
-                            })}
-                            actions={[
-                              {
-                                key: 'pin',
-                                label: memory.pinned ? t('memories.unpin') : t('memories.pin'),
-                                icon: memory.pinned ? Pin : PinOff,
-                                loading: togglingPin === memory.id,
-                                iconClassName: memory.pinned
-                                  ? 'text-primary hover:text-primary'
-                                  : undefined,
-                                onSelect: () => void handleTogglePin(memory),
-                              },
-                              {
-                                key: 'edit',
-                                label: t('memories.edit'),
-                                icon: Pencil,
-                                disabled: updating,
-                                onSelect: () => handleOpenEdit(memory),
-                              },
-                              {
-                                key: 'delete',
-                                label: t('memories.delete'),
-                                icon: Trash2,
-                                tone: 'destructive',
-                                loading: deleting,
-                                onSelect: () => handleDeleteClick(memory),
-                              },
-                            ]}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
+                            <RowActions
+                              // Truncated: a memory's content is a paragraph, and
+                              // an accessible name is an utterance, not a document.
+                              menuLabel={t('common.actions_for', {
+                                name:
+                                  memory.content.length > 60
+                                    ? `${memory.content.slice(0, 60)}…`
+                                    : memory.content,
+                              })}
+                              actions={[
+                                {
+                                  key: 'pin',
+                                  label: memory.pinned ? t('memories.unpin') : t('memories.pin'),
+                                  icon: memory.pinned ? Pin : PinOff,
+                                  loading: togglingPin === memory.id,
+                                  iconClassName: memory.pinned
+                                    ? 'text-primary hover:text-primary'
+                                    : undefined,
+                                  onSelect: () => void handleTogglePin(memory),
+                                },
+                                {
+                                  key: 'edit',
+                                  label: t('memories.edit'),
+                                  icon: Pencil,
+                                  disabled: updating,
+                                  onSelect: () => handleOpenEdit(memory),
+                                },
+                                {
+                                  key: 'delete',
+                                  label: t('memories.delete'),
+                                  icon: Trash2,
+                                  tone: 'destructive',
+                                  loading: deleting,
+                                  onSelect: () => handleDeleteClick(memory),
+                                },
+                              ]}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Card>
               ))}
             </Accordion>
           )}
@@ -945,7 +938,7 @@ export function MemorySettings({ lng }: BaseSettingsProps) {
                 <AlertDialogDescription>
                   {t('memories.confirm_delete_pinned_description')}
                   {memoryPendingDelete && (
-                    <span className="block mt-2 p-2 bg-muted rounded text-foreground text-sm">
+                    <span className="block mt-2 p-2 bg-card rounded text-foreground text-sm">
                       {memoryPendingDelete.content}
                     </span>
                   )}

@@ -190,7 +190,7 @@ export default function AdminConnectorsSection({ lng }: BaseSettingsProps) {
                 return (
                   <div
                     key={connectorType}
-                    className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors"
+                    className="flex items-center justify-between p-4 border border-border rounded-lg bg-background hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex-1">
                       <div className="flex items-center gap-2">

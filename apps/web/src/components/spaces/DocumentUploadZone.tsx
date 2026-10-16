@@ -133,7 +133,7 @@ export function DocumentUploadZone({
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
         className={cn(
-          'hidden sm:flex rounded-lg border-2 border-dashed p-8 text-center cursor-pointer transition-all',
+          'hidden sm:flex rounded-lg border-2 border-dashed bg-card p-8 text-center cursor-pointer transition-all',
           'hover:border-primary/50 hover:bg-accent/30',
           'flex-col items-center gap-2',
           isDragOver && 'ring-2 ring-primary ring-inset bg-primary/5 border-primary'

@@ -57,6 +57,7 @@ export function RadioSourcesFields({
   };
   return (
     <Disclosure
+      surface="nested"
       icon={Newspaper}
       title={t('radio.settings.news.title')}
       description={t('radio.settings.news.description')}
@@ -163,7 +164,7 @@ function BaseSources({
           const id = `radio-feed-${index}`;
           const hintId = `${id}-hint`;
           return (
-            <li key={source.url} className="flex items-stretch gap-2 rounded-lg border p-3">
+            <li key={source.url} className="flex items-stretch gap-2 rounded-lg border bg-card p-3">
               <Checkbox
                 id={id}
                 className="self-center"

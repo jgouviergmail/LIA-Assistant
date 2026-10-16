@@ -68,7 +68,7 @@ LIA can use your **geographic location** for contextual searches:
 You can also allow real-time geolocation via your browser for even more accurate results.
 
 **✈️ Travel-aware weather alerts (v1.16.7, opt-in):**
-In **Settings > Proactive notifications**, you can enable "Use my current location for weather alerts". When enabled, proactive weather notifications use your current browser position (rather than your home address) if you are more than 50 km from home and the position is less than 24 h old. The notification always names the city concerned. Your position is encrypted, never historized (each update overwrites the previous), and wiped immediately if you disable the option or remove your home address.
+In **Settings > Notifications**, you can enable "Use my current location for weather alerts". When enabled, proactive weather notifications use your current browser position (rather than your home address) if you are more than 50 km from home and the position is less than 24 h old. The notification always names the city concerned. Your position is encrypted, never historized (each update overwrites the previous), and wiped immediately if you disable the option or remove your home address.
 
 **🔒 Privacy:**
 Your saved address is encrypted and used by location-based features you enable. Configured services may receive the coordinates needed for those features.
@@ -115,23 +115,24 @@ When enabled, each LIA message shows:
 This feature is not available on mobile due to display space constraints.
 
 ## How do I change the response display mode?
-LIA offers **3 display modes** for assistant responses:
+LIA offers **4 display modes** for assistant responses:
 
 **🎨 Available modes:**
-• **HTML Cards** (default) — Structured visual cards for data (contacts, events, emails, weather, etc.) displayed alongside the conversational response
-• **Rich HTML** — Laid-out responses built from real design-system components: colored callouts with titles, badges with icons, collapsible sections, key-value lists, side-by-side columns, numbered steps, key-figure tiles, zebra tables with captions, and syntax-highlighted code blocks with a copy button. LIA uses components sparingly (2-3 per answer at most) — prose leads, components support. No data cards — the text itself is designed
+• **Cards** — Structured visual cards for data (contacts, events, emails, weather, etc.) displayed alongside the conversational response
+• **HTML** — Laid-out answers built from real design-system components: headings, colored callouts, badges, collapsible sections, tables, columns, key figures and syntax-highlighted code with a copy button. LIA uses components sparingly — prose leads, components support
+• **HTML + cards** — Richly formatted answers with cards for the selected results
 • **Markdown** — Plain text with standard Markdown formatting. Simplest output
 
 **⚙️ To change:**
 1. Go to **Settings** (⚙️ icon in the menu)
 2. Find the **Display Mode** section under Personalization
-3. Click the mode you want — the change applies immediately to your next conversation
+3. Pick a mode in the list: a **Preview** panel draws an illustrative answer in that mode, and the choice applies to LIA's next replies
 
 **💡 Tips:**
-• HTML Cards mode is best when you frequently query contacts, calendars, or emails
-• Rich HTML mode is ideal if you prefer designed, magazine-like answers without visual cards
+• Cards mode is best when you frequently query contacts, calendars, or emails
+• HTML mode is ideal if you prefer designed, magazine-like answers
 • Markdown mode is useful for copy-pasting responses into other tools
-• In every mode, copying a message always gives you clean readable text — Rich-HTML answers are flattened automatically (and paste as rich text where the target supports it)
+• In every mode, copying a message always gives you clean readable text — HTML answers are flattened automatically (and paste as rich text where the target supports it)
 
 ## Which languages are supported for voice transcription?
 LIA's voice mode supports **99+ languages** thanks to Whisper:
@@ -214,7 +215,7 @@ Customize LIA's appearance to your taste:
 • 💜 **Lavender**: soft lavender, refined and creative
 
 **Light, dark, absolute black:**
-Each theme exists in a light and a dark version, and dark has two depths — ordinary dark, and **absolute black** for OLED screens, where those pixels really switch off. The button in the title bar cycles through the three, and its icon shows where the next press goes. In **Settings › Appearance** you can also pick the mode directly, including **System** (follow your device), with an **Absolute black** switch available once dark is selected.
+Each theme exists in a light and a dark version, and dark has two depths — ordinary dark, and **absolute black** for OLED screens, where those pixels really switch off. The button in the title bar cycles through the three, and its icon shows where the next press goes. In **Settings › Appearance** you pick the mode directly among four: **Light**, **Dark**, **Absolute black** and **System** (follow your device).
 
 **To change theme:**
 Go to **Settings** (⚙️ icon), **Appearance** section.
@@ -312,13 +313,16 @@ Choose the **voice gender** that suits you:
 • **Male**: deep and calm neural voice
 
 **To change:**
-1. Go to the **Dashboard** (home screen)
-2. Click on the **assistant's image** (LIA's avatar)
-3. The image changes to reflect the new gender
+1. Go to the **home screen**
+2. On the welcome card, click the **small portrait** of the other gender
+3. LIA's avatar changes at once
 4. The voice automatically switches between female and male
 
-**🌍 Automatic language:**
-The voice automatically adapts to the interface language. For example, a French voice if the interface is in French.
+**🌍 Language:**
+The voice is the configured one, whatever the language of the answer: a multilingual voice reads every language, a single-language voice reads the others with its accent. The **« Only voices in my language, and multilingual ones »** switch, on by default, narrows every voice list — LIA's, the radio's and the administrator's slots — without ever hiding a voice already chosen.
+
+**🎚️ Your own voices:**
+In **Settings → Voice mode → LIA's voice**, choose the male and the female voice LIA speaks with in the chat, among the voices of the engine your administrator configured — each list opens on the administrator's voice. Your choice is kept when the administrator changes the model of the same provider. The radio, Live sessions and phone calls keep their own voices.
 
 **⚙️ Quality:**
 LIA uses high-quality neural voices. Five providers are available, configured by the administrator: Microsoft Edge TTS (free), OpenAI TTS (`tts-1` / `tts-1-hd`), ElevenLabs (`eleven_multilingual_v2` / `eleven_turbo_v2_5` / `eleven_flash_v2_5`), Google Gemini and Fish Audio. Each provider gets its own per-voice tuning (speed, stability, audio format) for a natural and expressive rendering, and on the engines that perform expressive cues LIA's spoken comments can carry a short sigh, a laugh or a whisper.
@@ -379,7 +383,7 @@ Administrators manage limits in **Settings > Administration > Administration des
 
 ## How do I export my consumption data?
 
-You can export your personal LLM and Google API consumption as CSV files from **Settings > Features > My Consumption Export** (v1.9.1).
+You can export your personal LLM and Google API consumption as CSV files from **Settings > Features > Usage export** (v1.9.1).
 
 **📥 Three export types:**
 - **LLM Token Usage** — Detailed per-call breakdown (model, tokens, cost)
@@ -649,7 +653,7 @@ The old fact is **superseded, not silently erased**. When you correct something 
 
 **🧾 Keeps the trail** — the history of what changed and when remains inspectable in **Settings > Memory**, so you can always audit what LIA believes and since when.
 
-## What is the « Sandbox network » section for?
+## What is the « Skill permissions » section for?
 It shows what a script LIA writes may reach on the network, and lets you take back what you allowed; it only appears once your administrator enabled the sandbox network. **Reachable without asking**: your own connectors (web search, answer engine, weather) — their key travels through the proxy, never into the script — and the hosts your instance allows for everyone. **Your permissions**: one line per host you allowed when LIA asked, with the date it was last used, a switch to change its scope (with or without the data of the turn) and a **Revoke** button — LIA will ask again the next time a script wants that host. The section shows your account's capacity; past it, a new approval holds for its run only. Deleting your account deletes them all.
 
 ## Can I change the look of the expressive eyes?

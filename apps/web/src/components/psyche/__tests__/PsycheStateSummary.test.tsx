@@ -58,7 +58,7 @@ describe('PsycheStateSummary', () => {
   });
   it('shows signed PAD values on their bipolar scale and every real state dimension', async () => {
     usePsycheStore.getState().updateFromFullState(state());
-    const { user } = renderWithProviders(<PsycheStateSummary lng="fr" />);
+    renderWithProviders(<PsycheStateSummary lng="fr" />);
     const pleasure = screen.getByRole('meter', { name: 'psyche.education.mood.pleasure' });
     expect(pleasure).toHaveAttribute('aria-valuemin', '-1');
     expect(pleasure).toHaveAttribute('aria-valuemax', '1');
@@ -67,11 +67,7 @@ describe('PsycheStateSummary', () => {
       'aria-valuenow',
       '-0.25'
     );
-    expect(
-      screen.queryByRole('meter', { name: 'psyche.education.traits.openness' })
-    ).not.toBeInTheDocument();
-    await user.click(screen.getByText('psyche.education.traits.title'));
-    await user.click(screen.getByText('psyche.education.drives.efficacy_title'));
+    expect(screen.getByRole('meter', { name: 'psyche.education.traits.openness' })).toBeVisible();
     for (const name of [
       'openness',
       'conscientiousness',
@@ -90,12 +86,10 @@ describe('PsycheStateSummary', () => {
     expect(
       within(screen.getByRole('region', { name: 'psyche.domains.technical' })).queryByRole('meter')
     ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole('heading', { name: 'psyche.domains.technical' })
-    ).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'psyche.domains.technical' })).toBeVisible();
     expect(screen.getByText('143')).toBeInTheDocument();
   });
-  it('sorts all emotions by intensity without mutating shared server data', () => {
+  it('sorts all emotions by intensity without mutating shared server data', async () => {
     const full = state();
     Object.freeze(full.active_emotions);
     usePsycheStore.getState().updateFromFullState(full);
@@ -152,22 +146,23 @@ describe('PsycheStateSummary — observational response ownership', () => {
       collection_enabled: true,
       influence_enabled: true,
       unassigned_feedback_count: 0,
-      domains: [{
-        domain: 'technical',
-        status: 'observed',
-        results: { success: 4, failure: 1, partial: 0, unknown: 0 },
-        feedback: { helpful: 0, unhelpful: 0 },
-        result_count: 5,
-        feedback_count: 0,
-        result_score: 0.7142857142857143,
-        feedback_score: null,
-        last_observed_at: '2026-10-16T10:00:00Z',
-      }],
+      domains: [
+        {
+          domain: 'technical',
+          status: 'observed',
+          results: { success: 4, failure: 1, partial: 0, unknown: 0 },
+          feedback: { helpful: 0, unhelpful: 0 },
+          result_count: 5,
+          feedback_count: 0,
+          result_score: 0.7142857142857143,
+          feedback_score: null,
+          last_observed_at: '2026-10-16T10:00:00Z',
+        },
+      ],
     };
     mocks.get.mockResolvedValue(state({ efficacy_profile: efficacyProfile }));
     usePsycheStore.getState().updateFromFullState(state());
-    const { user, rerender } = renderWithProviders(<PsycheStateSummary lng="fr" />);
-    await user.click(screen.getByText('psyche.education.drives.efficacy_title'));
+    const { rerender } = renderWithProviders(<PsycheStateSummary lng="fr" />);
     const name = 'psyche.domains.technical · psyche.efficacy.results';
     expect(screen.queryByRole('meter', { name })).not.toBeInTheDocument();
     rerender(<PsycheStateSummary lng="fr" refreshKey={1} />);
@@ -216,7 +211,7 @@ describe('PsycheStateSummary — observational response ownership', () => {
 });
 
 describe('PsycheStateSummary — approved visual instruments', () => {
-  it('positions the PAD point from pleasure and arousal while stating dominance independently', () => {
+  it('positions the PAD point from pleasure and arousal while stating dominance independently', async () => {
     usePsycheStore
       .getState()
       .updateFromFullState(state({ mood_pleasure: 0.4, mood_arousal: -0.25, mood_dominance: 0.8 }));
@@ -230,60 +225,28 @@ describe('PsycheStateSummary — approved visual instruments', () => {
       '0.8'
     );
   });
-  it('collapses the mobile instruments while preserving the always visible point', async () => {
+  it('opens independent observation panels and permits closing mood without closing traits', async () => {
     mocks.desktop = false;
     usePsycheStore.getState().updateFromFullState(state());
     const { user } = renderWithProviders(
       <PsycheStateSummary lng="fr" summary={<p>Current point</p>} />
     );
-    expect(screen.getByText('Current point')).toBeVisible();
-    const mood = screen.getByRole('button', { name: 'psyche.presentation.mood' });
-    expect(mood).toHaveAttribute('aria-expanded', 'false');
-    expect(
-      screen.queryByRole('img', { name: 'psyche.presentation.padTitle' })
-    ).not.toBeInTheDocument();
-    await user.click(mood);
-    expect(screen.getByRole('img', { name: 'psyche.presentation.padTitle' })).toBeVisible();
-    expect(screen.getByText('Current point')).toBeVisible();
-  });
-  it('offers independent closed mobile sections without nesting OCEAN under the mood toggle', async () => {
-    mocks.desktop = false;
-    usePsycheStore.getState().updateFromFullState(state());
-    const { user } = renderWithProviders(<PsycheStateSummary lng="fr" />);
     for (const name of [
       'psyche.presentation.mood',
       'psyche.presentation.relationship',
       'psyche.presentation.drivesTitle',
     ])
-      expect(screen.getByRole('button', { name })).toHaveAttribute('aria-expanded', 'false');
-    const ocean = screen.getByText('psyche.education.traits.title');
-    const confidence = screen.getByText('psyche.education.drives.efficacy_title');
-    expect(ocean).toBeVisible();
-    expect(confidence).toBeVisible();
-    expect(ocean.closest('details')).not.toHaveAttribute('open');
-    expect(confidence.closest('details')).not.toHaveAttribute('open');
-    expect(screen.queryByRole('meter', { name: 'psyche.depth' })).not.toBeInTheDocument();
-    await user.click(ocean);
-    expect(screen.getByRole('meter', { name: 'psyche.education.traits.openness' })).toHaveAttribute(
-      'aria-valuenow',
-      '82'
-    );
-    expect(screen.getByRole('button', { name: 'psyche.presentation.mood' })).toHaveAttribute(
-      'aria-expanded',
-      'false'
-    );
-    await user.click(screen.getByRole('button', { name: 'psyche.presentation.relationship' }));
-    expect(screen.getByRole('meter', { name: 'psyche.depth' })).toHaveAttribute(
-      'aria-valuenow',
-      '60'
-    );
-    await user.click(screen.getByRole('button', { name: 'psyche.presentation.drivesTitle' }));
-    expect(screen.getByRole('meter', { name: 'psyche.history.engagement' })).toHaveAttribute(
-      'aria-valuenow',
-      '67'
-    );
+      expect(screen.getByRole('button', { name })).toHaveAttribute('aria-expanded', 'true');
+    for (const name of ['psyche.education.traits.title', 'psyche.education.drives.efficacy_title'])
+      expect(screen.getByText(name).closest('details')).toHaveAttribute('open');
+    await user.click(screen.getByRole('button', { name: 'psyche.presentation.mood' }));
+    expect(
+      screen.queryByRole('img', { name: 'psyche.presentation.padTitle' })
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('meter', { name: 'psyche.education.traits.openness' })).toBeVisible();
+    expect(screen.getByText('Current point')).toBeVisible();
   });
-  it('keeps every recorded emotion visible, even when more than three arcs are readable', () => {
+  it('keeps every recorded emotion visible, even when more than three arcs are readable', async () => {
     const emotions = Array.from({ length: 8 }, (_, index) => ({
       name: `emotion-${index}`,
       intensity: 0.9 - index / 10,
@@ -299,12 +262,35 @@ describe('PsycheStateSummary — approved visual instruments', () => {
 
 it('keeps native term and definition semantics while exposing each measure', async () => {
   usePsycheStore.getState().updateFromFullState(state());
-  const { user } = renderWithProviders(<PsycheStateSummary lng="fr" />);
-  expect(screen.getAllByRole('definition')).toHaveLength(3);
-  await user.click(screen.getByText('psyche.education.traits.title'));
+  renderWithProviders(<PsycheStateSummary lng="fr" />);
   expect(screen.getAllByRole('definition')).toHaveLength(8);
   expect(screen.getByRole('meter', { name: 'psyche.education.mood.pleasure' })).toHaveAttribute(
     'aria-valuenow',
     '0.4'
   );
 });
+
+it.each([true, false])(
+  'starts all observation panels expanded on desktop=%s and preserves a chosen closure',
+  async desktop => {
+    mocks.desktop = desktop;
+    usePsycheStore.getState().updateFromFullState(state());
+    const { user, rerender } = renderWithProviders(<PsycheStateSummary lng="fr" />);
+    for (const name of [
+      'psyche.presentation.mood',
+      'psyche.presentation.relationship',
+      'psyche.presentation.drivesTitle',
+    ])
+      expect(screen.getByRole('button', { name })).toHaveAttribute('aria-expanded', 'true');
+    for (const name of ['psyche.education.traits.title', 'psyche.education.drives.efficacy_title'])
+      expect(screen.getByText(name).closest('details')).toHaveAttribute('open');
+    const mood = screen.getByRole('button', { name: 'psyche.presentation.mood' });
+    await user.click(mood);
+    mocks.desktop = !desktop;
+    rerender(<PsycheStateSummary lng="fr" />);
+    expect(mood).toHaveAttribute('aria-expanded', 'false');
+    expect(
+      screen.queryByRole('img', { name: 'psyche.presentation.padTitle' })
+    ).not.toBeInTheDocument();
+  }
+);

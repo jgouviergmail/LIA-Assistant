@@ -73,7 +73,7 @@ for (const width of [320, 1280]) {
       await expect(page.getByRole('option', { name: face.name, exact: true })).toBeVisible();
     await page.getByRole('option', { name: 'Gleaming Loon', exact: true }).click();
     await expect(page.getByRole('img', { name: 'Gleaming Loon' })).toBeVisible();
-    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Save', exact: true })).toHaveCount(0);
     await expect.poll(() => writes.length).toBe(1);
     expect(writes[0]).toEqual({ enabled: false, face_id: faces[1].id });
     // HTTP receipt is earlier than the form's completed save/refresh cycle.

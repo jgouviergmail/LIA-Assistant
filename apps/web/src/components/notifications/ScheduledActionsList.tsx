@@ -56,11 +56,11 @@ export function ScheduledActionsList({
                 </span>
               )}
             </p>
-            <p className="mt-1 break-words text-xs leading-relaxed text-muted-foreground">
+            <p className="mt-1 break-words text-xs font-bold leading-relaxed text-muted-foreground">
               {action.schedule_display}
             </p>
             {action.is_enabled && action.trigger_kind !== 'condition' && (
-              <p className="mt-1 text-xs tabular-nums leading-relaxed text-muted-foreground">
+              <p className="mt-1 text-xs font-bold tabular-nums leading-relaxed text-muted-foreground">
                 {action.next_trigger_at
                   ? t('notifications_hub.next_run', {
                       when: formatInstant(action.next_trigger_at, locale),

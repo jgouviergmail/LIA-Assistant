@@ -3,8 +3,8 @@
 > Informe de experiencia — un sistema completo, del diseño a la producción.
 
 **Versión**: 2.3
-**Fecha**: 2026-10-13
-**Aplicación**: LIA v3.0.1
+**Fecha**: 2026-10-17
+**Aplicación**: LIA v3.1.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ La casi totalidad del código fue escrita por una IA, bajo dirección humana: un
 | Indicador | Valor |
 | --- | --- |
 | Código escrito por una IA — dirigida, encuadrada, controlada | **≈ 100 %** |
-| Líneas de código fuente (sin tests) — 55 dominios funcionales | **931.000+** |
-| Pruebas automatizadas inventariadas; suites adecuadas para cada commit y entrega | **59.000+** |
-| Decisiones de arquitectura documentadas (ADR) | **346** |
-| Versiones entregadas a ritmo regular | **280** |
+| Líneas de código fuente (sin tests) — 55 dominios funcionales | **960.000+** |
+| Pruebas automatizadas inventariadas; suites adecuadas para cada commit y entrega | **63.000+** |
+| Decisiones de arquitectura documentadas (ADR) | **347** |
+| Versiones entregadas a ritmo regular | **281** |
 | Idiomas, paridad verificada automáticamente | **6** |
 | Auditoría técnica sobre 24 perímetros | **8,3/10** |
 
@@ -58,11 +58,15 @@ Una interfaz conversacional resulta útil cuando puede actuar sobre sus propias 
 
 La misma regla guía el relato: preparar no es completar. Una solicitud en espera, un cambio registrado y un conflicto deben nombrarse por separado. Los compañeros animados hacen visible ese trabajo con diseños originales y expresiones vinculadas a la actividad, sin convertir una intención en prueba de ejecución.
 
+### Varios agentes, un solo referencial
+
+El proyecto se conduce ahora con varios agentes de desarrollo en paralelo — cada uno en su propio trabajo, a veces en el mismo árbol de trabajo. Lo que los mantiene unidos no es la coordinación entre ellos, sino el referencial común: las mismas reglas escritas, las mismas guardias, los mismos controles antes de cualquier entrega. Un agente puede renombrar un botón; es una guardia la que recuerda que la ayuda, la búsqueda de los ajustes y el vocabulario que LIA emplea para describirse deben seguirlo. Y la entrega que reúne esos trabajos empieza con un inventario de lo que cada uno cambió realmente — nunca de lo que anuncia.
+
 ---
 
 ## 4. Los arbitrajes
 
-Tres decisiones estructurantes, entre las 346 documentadas:
+Tres decisiones estructurantes, entre las 347 documentadas:
 
 **Soberanía y reversibilidad — ninguna dependencia irreversible de proveedor.** Los modelos de IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelos locales vía Ollama) están detrás de una abstracción única: cada uso puede cambiar de proveedor por configuración, con comparación de costes. Mismo principio del lado del negocio: Google, Apple y Microsoft son intercambiables por categoría funcional. El autoalojamiento te da control del servidor; los datos de la cuenta se guardan en la instancia y las credenciales de los conectores están cifradas. Los servicios remotos que eliges siguen recibiendo los datos necesarios para su parte de la solicitud.
 
@@ -106,7 +110,7 @@ El plan de acción está organizado en olas, cada una con criterios de salida me
 
 Esta exigencia tiene una consecuencia que el proyecto aprendió a su costa: **una suite de pruebas en verde no demuestra que una función sirva**. Demuestra que lo probado se comporta como está escrito. Los defectos que sobreviven a las barreras son precisamente aquellos por los que nunca se les preguntó — una capacidad que nadie invoca, una cifra que nadie suma, una guardia que reconoce un nombre en lugar de un mecanismo. Casi nunca son errores de código: son preguntas que nunca se habían hecho.
 
-De ahí una regla de trabajo: **nada se da por bueno antes de haber corrido**, sobre datos reales y por el camino que recorre la persona usuaria. Un componente puede ser correcto y su página estar vacía; un contador puede ser exacto y su pregunta equivocada. Cada entrega termina por tanto con una revisión adversarial, hecha en frío, cuyo objeto no es pasar las pruebas sino buscar lo que no cubren. Y los recorridos de la interfaz se ejecutan en Chromium en cada entrega, y luego cada semana en Firefox y WebKit, con una comprobación automática de accesibilidad: un motor de navegador más ve lo que los otros dejan pasar.
+De ahí una regla de trabajo: **nada se da por bueno antes de haber corrido**, sobre datos reales y por el camino que recorre la persona usuaria. Un componente puede ser correcto y su página estar vacía; un contador puede ser exacto y su pregunta equivocada. Cada entrega termina por tanto con una revisión adversarial, hecha en frío, cuyo objeto no es pasar las pruebas sino buscar lo que no cubren. Y los recorridos de la interfaz se ejecutan en Chromium en cada entrega, y luego cada semana en Firefox y WebKit, con una comprobación automática de accesibilidad: un motor de navegador más ve lo que los otros dejan pasar. Y cuando una función pretende mejorar el comportamiento de LIA, sigue siendo un piloto mientras una comparación antes/después sobre un corpus apartado no lo haya demostrado.
 
 Lo que esa revisión produce no se detiene en la corrección. Cada defecto hallado deja tras de sí una **guardia estructural** — una comprobación al arrancar, un invariante verificado de continuo, una prueba que falla si reaparece toda la clase del problema. Es la única forma de progreso que sobrevive a quien la escribió: una corrección protege una línea, una guardia protege la regla.
 
@@ -121,4 +125,4 @@ Lo que esta experiencia cambia en una práctica de dirección:
 - **Entre la prohibición general y la confianza ciega, existe una vía gobernable.** El control humano graduado se especifica, se prueba y se audita; es el enfoque que dibujan las exigencias regulatorias, y es operativo desde ya.
 - **Un directivo que practica arbitra mejor.** Hacer o mandar hacer, deuda aceptable o no, promesa de proveedor creíble o no — estas decisiones ganan en acierto cuando se ha probado la materia. Este proyecto es una forma de mantener esa proximidad con el terreno.
 
-*Proyecto personal, llevado a cabo fuera de toda actividad profesional. Evaluación técnica de la auditoría de julio de 2026, con hallazgos contraverificados. Los recuentos estructurales siguen el repositorio; las líneas de código fuente se volvieron a medir el 2026-10-12. Repositorio: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*
+*Proyecto personal, llevado a cabo fuera de toda actividad profesional. Evaluación técnica de la auditoría de julio de 2026, con hallazgos contraverificados. Los recuentos estructurales siguen el repositorio; las líneas de código fuente se volvieron a medir el 2026-10-16. Repositorio: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*

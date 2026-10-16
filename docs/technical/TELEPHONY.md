@@ -12,7 +12,7 @@ on the call comes back as their own turn (see
   (third-party calls), [ADR-290](../architecture/ADR-290-Phone-As-A-Channel-Owner-Calls.md)
   (owner calls, verified number, relay, live tools)
 - Feature flag: `TELEPHONY_ENABLED` (default off). Per-user connector
-  `ELEVENLABS_TELEPHONY` in *Préférences → Mes Connecteurs*.
+  `ELEVENLABS_TELEPHONY` in *Préférences → Mes connecteurs*.
 - Status: implemented à blanc; vendor E2E gated on the P2.0 spike (see below).
 
 ## Architecture
@@ -312,7 +312,7 @@ flowchart TD
   the AGENT before an owner call (`set_agent_tool_ids`,
   `connector_metadata.live_tools_attached`) — the subset the PERSON left on
   (`users.phone_disabled_domains`, the DISABLED set so a new domain is on by
-  default; switches in *Téléphonie · Mon identité*, vocabulary published by
+  default; switches in *Mon téléphone*, vocabulary published by
   the API as `available_domains`) — and detached once it ended (`owner_call`)
   or before the next stranger is dialled (`_arm_live_tools`); measured
   2026-09-16 on a real owner call, the vendor refuses `tool_ids` inside the
@@ -380,7 +380,7 @@ flowchart TD
 
 ## Live mode: the browser's live session, on the phone line (ADR-301)
 
-Réglages › Téléphonie · Mon identité offers « Live » (the default) or
+Réglages › Mon téléphone offers « Live » (the default) or
 « Live direct » (`users.phone_call_mode`, the CHOICE; `phone_calls.call_mode`,
 the mode a call RAN, written at the dial and read at the closing). Under
 **Live** the voice on the phone holds no context and no lookup: every request
@@ -537,7 +537,7 @@ heartbeat. ADR-290 adds `telephony_relay_total{outcome}`,
 1. Create an ElevenLabs account and generate an **API key** (workspace settings).
 2. **Import a phone number** into the ElevenLabs workspace (Twilio import or SIP
    trunk — ElevenLabs sells no numbers). This is the number LIA calls *from*.
-3. In LIA: *Préférences → Mes Connecteurs → Téléphonie* → paste the API key →
+3. In LIA: *Préférences → Mes connecteurs → Téléphonie* → paste the API key →
    validate → pick the number.
 4. In the ElevenLabs workspace, create a **post-call (`post_call_transcription`)
    webhook** pointing at the URL LIA shows you

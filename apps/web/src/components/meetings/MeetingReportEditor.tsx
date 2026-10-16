@@ -212,7 +212,7 @@ function TopicRow({
   const { t } = useTranslation(lng);
   const base = `topic-${index}`;
   return (
-    <div className="rounded-md border border-border/60 p-3 space-y-3">
+    <div className="rounded-md border border-border/60 bg-background p-3 space-y-3 [--lia-field-background:var(--color-card)]">
       <div className="space-y-3">
         <Label htmlFor={`${base}-title`}>{t('meetings.detail.topic_title')}</Label>
         <Input
@@ -260,7 +260,7 @@ function ActionRow({
   const { t } = useTranslation(lng);
   const base = `action-${index}`;
   return (
-    <div className="rounded-md border border-border/60 p-3 space-y-3">
+    <div className="rounded-md border border-border/60 bg-background p-3 space-y-3 [--lia-field-background:var(--color-card)]">
       <div className="space-y-3">
         <Label htmlFor={`${base}-description`}>{t('meetings.detail.action_description')}</Label>
         <Input

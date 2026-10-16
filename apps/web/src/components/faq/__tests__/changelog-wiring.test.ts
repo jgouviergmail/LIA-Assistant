@@ -16,7 +16,12 @@
 
 import { describe, it, expect } from 'vitest';
 
+import de from '../../../../locales/de/translation.json';
 import en from '../../../../locales/en/translation.json';
+import es from '../../../../locales/es/translation.json';
+import fr from '../../../../locales/fr/translation.json';
+import itLocale from '../../../../locales/it/translation.json';
+import zh from '../../../../locales/zh/translation.json';
 import { changelogVersionKeys } from '../FAQContent';
 
 const versions = en.faq.changelog.versions as Record<
@@ -55,6 +60,33 @@ describe('FAQ changelog wiring', () => {
       .map(([key, v]) => `${key} (count=${v.count}, items=${Object.keys(v.items).length})`);
 
     expect(mismatched).toEqual([]);
+  });
+
+  it('opens every title since v1.20.12 with its emoji, in every language', () => {
+    // « vX.Y.Z — 🧰 theme »: the emoji is how a reader scans the history. Eleven
+    // releases (v2.1.0 to v3.1.0) shipped without it in all six languages, and
+    // nothing noticed — parity only compares keys.
+    const FIRST_WITH_EMOJI = [1, 20, 12];
+    const toNumbers = (key: string) => key.replace(/^v/, '').split('_').map(Number);
+    const atOrAfter = (key: string) => {
+      const parts = toNumbers(key);
+      for (let i = 0; i < FIRST_WITH_EMOJI.length; i++) {
+        const part = parts[i] ?? 0;
+        if (part !== FIRST_WITH_EMOJI[i]) return part > FIRST_WITH_EMOJI[i];
+      }
+      return true;
+    };
+    const titled = /^v\d+(\.\d+){1,2} — \p{Extended_Pictographic}/u;
+    const bundles = { de, en, es, fr, it: itLocale, zh };
+    const bare = Object.entries(bundles).flatMap(([locale, bundle]) =>
+      Object.entries(
+        bundle.faq.changelog.versions as Record<string, { title: string }>
+      )
+        .filter(([key, version]) => atOrAfter(key) && !titled.test(version.title))
+        .map(([key]) => `${locale}:${key}`)
+    );
+
+    expect(bare).toEqual([]);
   });
 
   it('lists the newest version first', () => {

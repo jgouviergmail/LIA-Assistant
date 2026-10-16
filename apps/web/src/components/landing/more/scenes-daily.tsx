@@ -24,6 +24,13 @@ import {
   Mic,
   Moon,
   Radio,
+  CalendarDays,
+  Loader2,
+  Sun,
+  Sunrise,
+  ToggleLeft,
+  ToggleRight,
+  Volume2,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -828,6 +835,186 @@ function RadioCompanionScene({ active, labels }: SceneProps) {
   );
 }
 
+type DayPhase = 'day' | 'morning' | 'afternoon' | 'live';
+const DAY_STEPS: readonly TimelineStep<DayPhase>[] = [
+  { at: 0, state: 'day' },
+  { at: 800, state: 'morning' },
+  { at: 1700, state: 'afternoon' },
+  { at: 2600, state: 'live' },
+];
+
+/**
+ * Your day on a timeline: meetings and calls grouped by local day and by part
+ * of day, each with a start and an end — and a live badge while one runs.
+ */
+function DayTimelineScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(DAY_STEPS, { active });
+  const morning = phase !== 'day';
+  const afternoon = phase === 'afternoon' || phase === 'live';
+  return (
+    <div className={cn(STAGE, 'justify-center')}>
+      <div className="flex w-full max-w-[220px] gap-2">
+        <div className="flex h-10 w-9 shrink-0 flex-col items-center justify-center rounded-md border border-primary/40 bg-primary/10">
+          <CalendarDays className="h-3 w-3 text-primary" />
+          <SkeletonLine w="w-5" className="mt-1" />
+        </div>
+        <div className="min-w-0 flex-1 space-y-1.5 border-l border-border pl-2">
+          <div
+            className={cn(
+              'space-y-1 transition-opacity duration-500',
+              morning ? 'opacity-100' : 'opacity-0'
+            )}
+          >
+            <span className="flex items-center gap-1 text-px-9 font-medium text-muted-foreground">
+              <Sunrise className="h-2.5 w-2.5" />
+              {labels.morning}
+            </span>
+            <SkeletonLine w="w-4/5" />
+          </div>
+          <div
+            className={cn(
+              'space-y-1 transition-opacity duration-500',
+              afternoon ? 'opacity-100' : 'opacity-0'
+            )}
+          >
+            <span className="flex items-center gap-1 text-px-9 font-medium text-muted-foreground">
+              <Sun className="h-2.5 w-2.5" />
+              {labels.afternoon}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <SkeletonLine w="w-3/5" />
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1 rounded-full border border-primary/40 px-1.5 text-px-8 text-primary transition-opacity duration-300',
+                  phase === 'live' ? 'opacity-100' : 'opacity-0'
+                )}
+              >
+                <Loader2 className={cn('h-2 w-2', phase === 'live' && active && 'animate-spin')} />
+                {labels.live}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type VoicesPhase = 'all' | 'toggle' | 'narrowed' | 'kept';
+const VOICES_STEPS: readonly TimelineStep<VoicesPhase>[] = [
+  { at: 0, state: 'all' },
+  { at: 1000, state: 'toggle' },
+  { at: 1600, state: 'narrowed' },
+  { at: 2800, state: 'kept' },
+];
+
+/** Voice rows of the picker: the two of the person's language stay. */
+const VOICE_ROWS = [
+  { key: 'female', stays: true },
+  { key: 'foreign-a', stays: false },
+  { key: 'male', stays: true },
+  { key: 'foreign-b', stays: false },
+] as const;
+
+/**
+ * The voices of your language: one switch narrows every voice list to your
+ * language and the multilingual voices, and never hides the voice you chose.
+ */
+function VoicesInLanguageScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(VOICES_STEPS, { active });
+  const narrowed = phase === 'narrowed' || phase === 'kept';
+  return (
+    <div className={cn(STAGE, 'justify-center')}>
+      <div className="w-full max-w-[210px] space-y-1">
+        <MiniSettingRow
+          icon={phase === 'all' ? ToggleLeft : ToggleRight}
+          label={labels.only_mine}
+          highlighted={phase === 'toggle'}
+          iconClassName={phase === 'all' ? 'text-muted-foreground' : 'text-primary'}
+        />
+        {VOICE_ROWS.map(row => (
+          <div
+            key={row.key}
+            className={cn(
+              'flex items-center gap-1.5 overflow-hidden rounded-md border border-border bg-background px-2 transition-all duration-500',
+              narrowed && !row.stays
+                ? 'max-h-0 border-transparent py-0 opacity-0'
+                : 'max-h-7 py-1 opacity-100',
+              phase === 'kept' && row.key === 'female' && 'ring-2 ring-primary/50'
+            )}
+          >
+            <Volume2 className="h-2.5 w-2.5 shrink-0 text-muted-foreground" />
+            {row.stays ? (
+              <span className="truncate text-px-9 text-foreground/80">{labels[row.key]}</span>
+            ) : (
+              <SkeletonLine w="w-1/2" />
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+type DocPhase = 'icons' | 'near' | 'pages' | 'rest';
+const DOC_STEPS: readonly TimelineStep<DocPhase>[] = [
+  { at: 0, state: 'icons' },
+  { at: 900, state: 'near' },
+  { at: 1700, state: 'pages' },
+  { at: 3000, state: 'rest' },
+];
+
+/** The two gallery cards: a PDF draws a page, a text file an excerpt. */
+const DOC_CARDS = [
+  { key: 'pdf', excerpt: false },
+  { key: 'excerpt', excerpt: true },
+] as const;
+
+/**
+ * Documents show their first page: in the gallery a PDF draws its real first
+ * page and a text or Office file an excerpt labelled as such, loaded only when
+ * the card nears the screen.
+ */
+function DocumentFirstPageScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(DOC_STEPS, { active });
+  const shown = phase === 'pages' || phase === 'rest';
+  return (
+    <div className={cn(STAGE, 'flex-row items-center justify-center gap-3')}>
+      {DOC_CARDS.map(doc => (
+        <div
+          key={doc.key}
+          className="flex h-24 w-20 flex-col overflow-hidden rounded-lg border border-border bg-background shadow-sm"
+        >
+          <div className="relative flex flex-1 items-center justify-center bg-muted/30 p-1.5">
+            <FileText
+              className={cn(
+                'absolute h-5 w-5 text-muted-foreground transition-opacity duration-500',
+                shown ? 'opacity-0' : 'opacity-100',
+                phase === 'near' && active && 'animate-pulse'
+              )}
+            />
+            <div
+              className={cn(
+                'h-full w-full space-y-1 rounded-sm bg-background p-1 transition-opacity duration-500',
+                shown ? 'opacity-100' : 'opacity-0'
+              )}
+            >
+              {!doc.excerpt && <div className="h-2 w-3/4 rounded-sm bg-primary/30" />}
+              <SkeletonLine w="w-full" className="h-1" />
+              <SkeletonLine w="w-4/5" className="h-1" />
+              <SkeletonLine w="w-full" className="h-1" />
+              <SkeletonLine w="w-2/3" className="h-1" />
+            </div>
+          </div>
+          <span className="truncate border-t border-border px-1.5 py-0.5 text-px-8 text-muted-foreground">
+            {labels[doc.key]}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export const DAILY_SCENES: Readonly<Record<string, SceneComponent>> = {
   alerts_hub: AlertsHubScene,
   briefing_custom: BriefingCustomScene,
@@ -844,4 +1031,7 @@ export const DAILY_SCENES: Readonly<Record<string, SceneComponent>> = {
   live_standby: LiveStandbyScene,
   radio_companion: RadioCompanionScene,
   server_escape_hatch: ServerEscapeHatchScene,
+  day_timeline: DayTimelineScene,
+  voices_in_language: VoicesInLanguageScene,
+  document_first_page: DocumentFirstPageScene,
 };

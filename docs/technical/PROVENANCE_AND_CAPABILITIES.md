@@ -85,10 +85,11 @@ listée, et ce que l'inventaire ne liste pas, personne ne vérifie.
 
 ### Côté lecteur
 
-`ProvenanceDisclosure` (partagé) rend un bloc replié « Pourquoi LIA pense
-cela ? » sous chaque souvenir et chaque entrée de journal : les signaux, leur
-date, leur rôle, et un bouton « Corriger » qui ouvre le flux d'édition existant
-du sujet. On corrige la conclusion, pas la trace.
+Les références restent disponibles par l'API. Les listes de souvenirs,
+d'intérêts et de journaux n'affichent plus le bloc « Pourquoi LIA pense
+cela ? ». Leurs actions habituelles permettent toujours de modifier ou de
+supprimer une conclusion ; cette simplification visuelle ne modifie ni les
+références conservées ni leur purge.
 
 ---
 

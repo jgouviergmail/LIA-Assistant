@@ -76,7 +76,7 @@ function HistoryRow({ item, lng, t }: { item: BroadcastHistoryItem; lng: Languag
   const AudienceIcon = item.audience === 'all' ? Users : UserCheck;
 
   return (
-    <li className="space-y-2 rounded-lg border border-border bg-card p-3">
+    <li className="space-y-2 rounded-lg border border-border bg-background p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <time dateTime={item.sent_at} className="text-sm font-medium">
           {formatInstant(item.sent_at, lng)}

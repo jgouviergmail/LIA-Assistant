@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 interface PsycheLLMSummaryProps {
   lng: Language;
   isOpen?: boolean;
+  hideHeading?: boolean;
   refreshKey?: number;
   onGenerated?: () => void;
 }
@@ -18,6 +19,7 @@ interface PsycheLLMSummaryProps {
 export function PsycheLLMSummary({
   lng,
   isOpen = true,
+  hideHeading = false,
   refreshKey = 0,
   onGenerated,
 }: PsycheLLMSummaryProps) {
@@ -27,6 +29,7 @@ export function PsycheLLMSummary({
       key={user?.id ?? 'anonymous'}
       lng={lng}
       isOpen={isOpen}
+      hideHeading={hideHeading}
       refreshKey={refreshKey}
       onGenerated={onGenerated}
     />
@@ -35,6 +38,7 @@ export function PsycheLLMSummary({
 function OwnedSummary({
   lng,
   isOpen,
+  hideHeading,
   refreshKey,
   onGenerated,
 }: PsycheLLMSummaryProps & { isOpen: boolean; refreshKey: number }) {
@@ -55,10 +59,12 @@ function OwnedSummary({
       aria-busy={loading}
       className="min-w-0 space-y-3"
     >
-      <h4 className="flex items-center gap-2 text-base font-semibold">
-        <Sparkles className="size-5 shrink-0 text-primary" aria-hidden="true" />
-        {t('psyche.presentation.point')}
-      </h4>
+      {!hideHeading && (
+        <h4 className="flex items-center gap-2 text-base font-semibold">
+          <Sparkles className="size-5 shrink-0 text-primary" aria-hidden="true" />
+          {t('psyche.presentation.point')}
+        </h4>
+      )}
       <div aria-live="polite" className="min-w-0 space-y-3">
         {text && (
           <p className="whitespace-pre-wrap text-sm leading-relaxed [overflow-wrap:anywhere]">

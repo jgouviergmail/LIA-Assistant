@@ -452,7 +452,10 @@ function AccountUserConnectorsSection({ lng }: BaseSettingsProps) {
 
           {/* Connected Google Services */}
           {connectedOAuthConnectors.length > 0 && (
-            <AccordionItem value="connected-google" className="border rounded-lg px-3">
+            <AccordionItem
+              value="connected-google"
+              className="border rounded-lg bg-background [--lia-field-background:var(--color-card)] px-3"
+            >
               <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3">
                 <ConnectorGroupTrigger
                   state="connected"
@@ -484,7 +487,10 @@ function AccountUserConnectorsSection({ lng }: BaseSettingsProps) {
 
           {/* Connected Apple iCloud Services */}
           {connectedAppleConnectors.length > 0 && (
-            <AccordionItem value="connected-apple" className="border rounded-lg px-3">
+            <AccordionItem
+              value="connected-apple"
+              className="border rounded-lg bg-background [--lia-field-background:var(--color-card)] px-3"
+            >
               <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3">
                 <ConnectorGroupTrigger
                   state="connected"
@@ -516,7 +522,10 @@ function AccountUserConnectorsSection({ lng }: BaseSettingsProps) {
 
           {/* Connected Microsoft 365 Services */}
           {connectedMicrosoftConnectors.length > 0 && (
-            <AccordionItem value="connected-microsoft" className="border rounded-lg px-3">
+            <AccordionItem
+              value="connected-microsoft"
+              className="border rounded-lg bg-background [--lia-field-background:var(--color-card)] px-3"
+            >
               <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3">
                 <ConnectorGroupTrigger
                   state="connected"
@@ -548,7 +557,10 @@ function AccountUserConnectorsSection({ lng }: BaseSettingsProps) {
 
           {/* Connected External (API Key) Services */}
           {connectedApiKeyConnectors.length > 0 && (
-            <AccordionItem value="connected-api-key" className="border rounded-lg px-3">
+            <AccordionItem
+              value="connected-api-key"
+              className="border rounded-lg bg-background [--lia-field-background:var(--color-card)] px-3"
+            >
               <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3">
                 <ConnectorGroupTrigger
                   state="connected"
@@ -603,7 +615,10 @@ function AccountUserConnectorsSection({ lng }: BaseSettingsProps) {
 
           {/* Available Google Connectors */}
           {hasUnconnectedGoogle && (
-            <AccordionItem value="available-google" className="border rounded-lg px-3">
+            <AccordionItem
+              value="available-google"
+              className="border rounded-lg bg-background [--lia-field-background:var(--color-card)] px-3"
+            >
               <AccordionTrigger className="text-sm font-medium hover:no-underline py-3">
                 <ConnectorGroupTrigger
                   state="available"
@@ -670,7 +685,10 @@ function AccountUserConnectorsSection({ lng }: BaseSettingsProps) {
 
           {/* Available Apple iCloud Connectors */}
           {hasUnconnectedApple && (
-            <AccordionItem value="available-apple" className="border rounded-lg px-3">
+            <AccordionItem
+              value="available-apple"
+              className="border rounded-lg bg-background [--lia-field-background:var(--color-card)] px-3"
+            >
               <AccordionTrigger className="text-sm font-medium hover:no-underline py-3">
                 <ConnectorGroupTrigger
                   state="available"
@@ -748,7 +766,10 @@ function AccountUserConnectorsSection({ lng }: BaseSettingsProps) {
 
           {/* Available Microsoft 365 Services */}
           {hasUnconnectedMicrosoft && (
-            <AccordionItem value="available-microsoft" className="border rounded-lg px-3">
+            <AccordionItem
+              value="available-microsoft"
+              className="border rounded-lg bg-background [--lia-field-background:var(--color-card)] px-3"
+            >
               <AccordionTrigger className="text-sm font-medium hover:no-underline py-3">
                 <ConnectorGroupTrigger
                   state="available"
@@ -813,7 +834,10 @@ function AccountUserConnectorsSection({ lng }: BaseSettingsProps) {
 
           {/* Connected Smart Home (Hue) */}
           {connectedHueConnectors.length > 0 && (
-            <AccordionItem value="connected-hue" className="border rounded-lg px-3">
+            <AccordionItem
+              value="connected-hue"
+              className="border rounded-lg bg-background [--lia-field-background:var(--color-card)] px-3"
+            >
               <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3">
                 <ConnectorGroupTrigger
                   state="connected"
@@ -845,7 +869,10 @@ function AccountUserConnectorsSection({ lng }: BaseSettingsProps) {
 
           {/* Available Smart Home */}
           {connectedHueConnectors.length === 0 && (
-            <AccordionItem value="available-hue" className="border rounded-lg px-3">
+            <AccordionItem
+              value="available-hue"
+              className="border rounded-lg bg-background [--lia-field-background:var(--color-card)] px-3"
+            >
               <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3">
                 <ConnectorGroupTrigger
                   state="available"
@@ -879,7 +906,10 @@ function AccountUserConnectorsSection({ lng }: BaseSettingsProps) {
 
           {/* Connected Telephony (agentic calls) */}
           {connectedTelephonyConnectors.length > 0 && (
-            <AccordionItem value="connected-telephony" className="border rounded-lg px-3">
+            <AccordionItem
+              value="connected-telephony"
+              className="border rounded-lg bg-background [--lia-field-background:var(--color-card)] px-3"
+            >
               <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3">
                 <ConnectorGroupTrigger
                   state="connected"
@@ -916,7 +946,10 @@ function AccountUserConnectorsSection({ lng }: BaseSettingsProps) {
 
           {/* Available Telephony */}
           {connectedTelephonyConnectors.length === 0 && (
-            <AccordionItem value="available-telephony" className="border rounded-lg px-3">
+            <AccordionItem
+              value="available-telephony"
+              className="border rounded-lg bg-background [--lia-field-background:var(--color-card)] px-3"
+            >
               <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3">
                 <ConnectorGroupTrigger
                   state="available"
@@ -966,7 +999,10 @@ function AccountUserConnectorsSection({ lng }: BaseSettingsProps) {
           />
 
           {/* Available External (API Key) Connectors */}
-          <AccordionItem value="available-api-key" className="border rounded-lg px-3">
+          <AccordionItem
+            value="available-api-key"
+            className="border rounded-lg bg-background [--lia-field-background:var(--color-card)] px-3"
+          >
             <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3">
               <ConnectorGroupTrigger
                 state="available"

@@ -29,6 +29,7 @@ import { useId, useState } from 'react';
 import { ChevronDown, RefreshCw, type LucideIcon } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
+import { Card } from '@/components/ui/card';
 
 export function CollapsibleSection({
   icon: Icon,
@@ -54,34 +55,36 @@ export function CollapsibleSection({
   const panelId = useId();
 
   return (
-    <section className={cn('rounded-xl border border-border/50 bg-card p-4', className)}>
-      <div className="flex items-center justify-between gap-1">
-        <h3 className="min-w-0 flex-1 text-sm font-semibold text-foreground">
-          <button
-            type="button"
-            onClick={() => setOpen(value => !value)}
-            aria-expanded={open}
-            aria-controls={panelId}
-            className="flex min-h-11 w-full flex-wrap items-center gap-2 rounded-md py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <Icon className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-            {title}
-            {badge}
-            <ChevronDown
-              aria-hidden="true"
-              className={cn(
-                'h-4 w-4 shrink-0 text-muted-foreground transition-transform',
-                !open && '-rotate-90'
-              )}
-            />
-          </button>
-        </h3>
-        {action}
-      </div>
-      {/* The id survives the fold: `aria-controls` must always resolve. */}
-      <div id={panelId} hidden={!open} className="mt-3 space-y-2.5">
-        {children}
-      </div>
+    <section>
+      <Card className={cn('border-border/50 p-4', className)}>
+        <div className="flex items-center justify-between gap-1">
+          <h3 className="min-w-0 flex-1 text-sm font-semibold text-foreground">
+            <button
+              type="button"
+              onClick={() => setOpen(value => !value)}
+              aria-expanded={open}
+              aria-controls={panelId}
+              className="flex min-h-11 w-full flex-wrap items-center gap-2 rounded-md py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Icon className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+              <span className="min-w-0 flex-1 break-words">{title}</span>
+              {badge}
+              <ChevronDown
+                aria-hidden="true"
+                className={cn(
+                  'h-4 w-4 shrink-0 text-muted-foreground transition-transform',
+                  !open && '-rotate-90'
+                )}
+              />
+            </button>
+          </h3>
+          {action}
+        </div>
+        {/* The id survives the fold: `aria-controls` must always resolve. */}
+        <div id={panelId} hidden={!open} className="mt-3 space-y-2.5">
+          {children}
+        </div>
+      </Card>
     </section>
   );
 }

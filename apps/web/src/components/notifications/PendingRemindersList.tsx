@@ -38,7 +38,7 @@ export function PendingRemindersList({
             </p>
             <time
               dateTime={reminder.trigger_at}
-              className="mt-1 block text-xs tabular-nums leading-relaxed text-muted-foreground"
+              className="mt-1 block text-xs font-bold tabular-nums leading-relaxed text-muted-foreground"
             >
               {formatInstant(reminder.trigger_at, locale)}
             </time>

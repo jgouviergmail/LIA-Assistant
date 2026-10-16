@@ -66,7 +66,7 @@ function CandidateCard({ candidate, index, maxChars, saved, t, onSave }: Candida
   };
 
   return (
-    <li className="space-y-3 rounded-lg border border-border p-3">
+    <li className="space-y-3 rounded-lg border border-border bg-background [--lia-field-background:var(--color-card)] p-3">
       <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
         {label}
         <span className="text-xs font-normal text-muted-foreground">

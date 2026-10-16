@@ -260,7 +260,7 @@ export function AdminSkillsSection({ lng }: AdminSkillsSectionProps) {
       {!loading && !error && adminSkills.length > 0 && (
         <div className="space-y-3">
           {adminSkills.map(skill => (
-            <div key={skill.name} className="rounded-lg border bg-card p-4 space-y-2 group">
+            <div key={skill.name} className="rounded-lg border bg-background p-4 space-y-2 group">
               <div className="flex items-center justify-between gap-2">
                 {/* Name + badges */}
                 <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">

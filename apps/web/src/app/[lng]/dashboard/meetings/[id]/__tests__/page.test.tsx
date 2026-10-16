@@ -72,6 +72,12 @@ vi.mock('@/components/ui/use-confirm', () => ({
   }),
 }));
 
+const pageQuery = vi.hoisted(() => ({ value: new URLSearchParams() }));
+vi.mock('next/navigation', async importOriginal => ({
+  ...(await importOriginal<typeof import('next/navigation')>()),
+  useSearchParams: () => pageQuery.value,
+}));
+
 import MeetingPage from '../page';
 
 function report(over: Partial<MeetingReport> = {}): MeetingReport {
@@ -170,6 +176,7 @@ const ROUTE = { lng: 'en', id: 'm1' };
 const params = Object.assign(Promise.resolve(ROUTE), { status: 'fulfilled', value: ROUTE });
 
 beforeEach(() => {
+  pageQuery.value = new URLSearchParams();
   vi.clearAllMocks();
   confirm.answer = true;
   confirm.calls = [];
@@ -198,6 +205,19 @@ describe('MeetingPage — loading and absence', () => {
     state.meeting = null;
     renderWithProviders(<MeetingPage params={params} />);
     expect(await screen.findByRole('status')).toBeInTheDocument();
+  });
+
+  it.each([
+    ['3', '?page=3'],
+    ['-1', ''],
+    ['999999999', ''],
+    ['2.5', ''],
+  ])('returns to the validated list page %s', async (page, suffix) => {
+    pageQuery.value = new URLSearchParams({ page });
+    state.meeting = detail();
+    const { user } = renderWithProviders(<MeetingPage params={params} />);
+    await user.click(screen.getByRole('button', { name: 'meetings.detail.back' }));
+    expect(push).toHaveBeenCalledWith(`/dashboard/meetings${suffix}`);
   });
 
   it('offers the way back when the meeting does not exist', async () => {

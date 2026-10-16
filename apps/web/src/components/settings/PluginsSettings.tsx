@@ -178,6 +178,8 @@ export function PluginsSettings({ lng }: PluginsSettingsProps) {
     uninstalling,
     ownerId,
     hasLoaded,
+    error,
+    refetch,
   } = usePlugins();
   const { isCurrent } = useApplicationAccountLifetime(ownerId);
   const toast = useApplicationAccountToast(ownerId);
@@ -303,12 +305,25 @@ export function PluginsSettings({ lng }: PluginsSettingsProps) {
         </div>
       </div>
 
+      {error ? (
+        <div role="alert" className="space-y-2 text-sm text-destructive">
+          <p>{t('settings.plugins.load_error')}</p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void refetch()}
+            aria-disabled={loading}
+          >
+            {t('common.retry')}
+          </Button>
+        </div>
+      ) : null}
       {/* Installed plugins */}
       {loading && !hasLoaded ? (
         <div className="flex justify-center py-8">
           <LoadingSpinner className="h-6 w-6" />
         </div>
-      ) : plugins.length === 0 ? (
+      ) : !hasLoaded && error ? null : plugins.length === 0 ? (
         <p className="py-6 text-center text-sm text-muted-foreground">
           {t('settings.plugins.empty')}
         </p>

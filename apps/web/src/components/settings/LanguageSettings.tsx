@@ -89,14 +89,6 @@ export function LanguageSettings({ lng }: BaseSettingsProps) {
     onSuccess: async updatedUser => {
       toast.success(t('settings.language.update_success'));
 
-      // Show info about persisted preference
-      toast.info(t('settings.language.persistence_info'), {
-        duration: 5000,
-      });
-
-      // Refresh user context
-      await refreshUser?.();
-
       if (updatedUser.language) {
         const frontendLocale = backendToFrontendLocale(updatedUser.language);
         setSelectedLanguage(frontendLocale);
@@ -110,7 +102,7 @@ export function LanguageSettings({ lng }: BaseSettingsProps) {
 
         // Only navigate if the path changed
         if (newPathname !== pathname) {
-          router.push(newPathname);
+          router.push(`${newPathname}${window.location.search}${window.location.hash}`);
         }
       }
 
@@ -119,6 +111,18 @@ export function LanguageSettings({ lng }: BaseSettingsProps) {
         old_language: user?.language,
         new_language: updatedUser.language,
       });
+
+      // The PATCH already confirmed this value. A presentation refresh must
+      // neither hide that success nor leave an unhandled callback rejection.
+      try {
+        await refreshUser?.();
+      } catch (error) {
+        logger.error(
+          'Failed to refresh account after saving language',
+          error instanceof Error ? error : new Error(String(error)),
+          { component: 'LanguageSettings' }
+        );
+      }
     },
     onError: error => {
       toast.error(t('settings.language.update_error'));
@@ -151,9 +155,6 @@ export function LanguageSettings({ lng }: BaseSettingsProps) {
       newLanguage: backendLanguage,
       frontendLocale: frontendLang,
     });
-
-    // Update selected language immediately for UI feedback
-    setSelectedLanguage(frontendLang);
 
     // Call API to update in database
     await updateLanguage(`/users/${user.id}`, { language: backendLanguage });
@@ -206,8 +207,10 @@ export function LanguageSettings({ lng }: BaseSettingsProps) {
                   </p>
                   <button
                     type="button"
-                    onClick={() => handleLanguageChange(browserLanguageFrontend)}
-                    disabled={updating}
+                    onClick={() => {
+                      if (!updating) void handleLanguageChange(browserLanguageFrontend);
+                    }}
+                    aria-disabled={updating}
                     className="text-sm font-medium text-blue-700 dark:text-blue-300 hover:underline disabled:opacity-50"
                   >
                     {t('settings.language.use_browser')} ({languageFlags[browserLanguageFrontend]}{' '}
@@ -241,7 +244,7 @@ export function LanguageSettings({ lng }: BaseSettingsProps) {
                       if (updating || isSelected) return;
                       handleLanguageChange(language);
                     }}
-                    disabled={updating}
+                    aria-disabled={updating}
                     aria-current={isSelected ? 'true' : undefined}
                     className={`
                       relative flex items-start gap-3 rounded-lg border-2 p-3 text-left transition-all
@@ -250,7 +253,7 @@ export function LanguageSettings({ lng }: BaseSettingsProps) {
                       ${
                         isSelected
                           ? 'border-primary bg-primary/5 shadow-sm'
-                          : 'border-border bg-card'
+                          : 'border-border bg-background'
                       }
                     `}
                   >

@@ -51,6 +51,26 @@ function renderList(
 }
 
 describe('RelationCardList', () => {
+  it('matches accents and keeps active filters accessible when a refresh shrinks the list', async () => {
+    const list = [
+      relation({ display_name: 'Élodie' }),
+      ...Array.from({ length: 12 }, (_, i) => relation({ display_name: `Person ${i}` })),
+    ];
+    const { user, rerender } = renderList(list);
+    const search = screen.getByRole('searchbox');
+    await user.type(search, 'Elodie');
+    expect(screen.getByRole('button', { name: /Élodie/ })).toBeVisible();
+    rerender(
+      <RelationCardList
+        relations={[relation({ display_name: 'Someone else' })]}
+        onOpen={vi.fn()}
+        onToggleFavorite={vi.fn()}
+      />
+    );
+    expect(search).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'relations.clear_filters' }));
+    expect(screen.getByRole('button', { name: /Someone else/ })).toBeVisible();
+  });
   it('shows the empty state when there is no relationship', () => {
     renderList([]);
     expect(screen.getByText('relations.empty')).toBeInTheDocument();

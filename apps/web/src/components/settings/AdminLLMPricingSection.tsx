@@ -658,7 +658,7 @@ export default function AdminLLMPricingSection({ lng }: BaseSettingsProps) {
               </th>
             </tr>
           </thead>
-          <tbody className="bg-card divide-y divide-border">
+          <tbody className="bg-background divide-y divide-border">
             {optimisticModels.map(model => (
               <tr
                 key={model.id}
@@ -844,7 +844,7 @@ function PricingModelFields({
   t,
 }: PricingSectionProps & { isEdit: boolean }) {
   return (
-    <fieldset className="border border-border rounded-lg p-4 space-y-3">
+    <fieldset className="border border-border rounded-lg bg-background [--lia-field-background:var(--color-card)] p-4 space-y-3">
       <legend className="px-2 text-sm font-semibold text-foreground">
         {t('settings.admin.llm.modal.section_model')}
       </legend>
@@ -859,7 +859,7 @@ function PricingModelFields({
           onChange={e => setFormData({ ...formData, provider: e.target.value as LLMProviderName })}
           disabled={isEdit}
           required
-          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full rounded-md border border-input bg-[var(--lia-field-background,var(--color-background))] px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {PROVIDER_OPTIONS.map(p => (
             <option key={p} value={p}>
@@ -896,7 +896,7 @@ function PricingModelFields({
 /** Section 2 — token caps + capability toggles. */
 function PricingCapabilityFields({ formData, setFormData, t }: PricingSectionProps) {
   return (
-    <fieldset className="border border-border rounded-lg p-4 space-y-3">
+    <fieldset className="border border-border rounded-lg bg-background [--lia-field-background:var(--color-card)] p-4 space-y-3">
       <legend className="px-2 text-sm font-semibold text-foreground">
         {t('settings.admin.llm.modal.section_capabilities')}
       </legend>
@@ -1000,7 +1000,7 @@ function PricingReasoningLadder({
 
   if (familyLoading) {
     return (
-      <p className="rounded-md border border-border bg-muted/30 px-3 py-3 text-xs text-muted-foreground">
+      <p className="rounded-md border border-border bg-background [--lia-field-background:var(--color-card)] px-3 py-3 text-xs text-muted-foreground">
         Resolving what this model accepts…
       </p>
     );
@@ -1026,7 +1026,7 @@ function PricingReasoningLadder({
   }
 
   return (
-    <fieldset className="space-y-3 rounded-md border border-border bg-muted/30 px-3 py-3">
+    <fieldset className="space-y-3 rounded-md border border-border bg-background [--lia-field-background:var(--color-card)] px-3 py-3">
       <legend className="px-1 text-sm font-medium text-foreground">Accepted depths</legend>
       <p className="text-xs text-muted-foreground">
         Resolved from <code className="font-mono">{formData.provider}</code> +{' '}
@@ -1072,7 +1072,7 @@ function PricingReasoningFields({
   familyLoading: boolean;
 }) {
   return (
-    <fieldset className="border border-border rounded-lg p-4 space-y-3">
+    <fieldset className="border border-border rounded-lg bg-background [--lia-field-background:var(--color-card)] p-4 space-y-3">
       <legend className="px-2 text-sm font-semibold text-foreground">
         Reasoning &amp; sampling
       </legend>
@@ -1094,7 +1094,7 @@ function PricingReasoningFields({
               pricing_unit: defaultPricingUnitForKind(nextKind),
             }));
           }}
-          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          className="w-full rounded-md border border-input bg-[var(--lia-field-background,var(--color-background))] px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
         >
           {KIND_OPTIONS.map(k => (
             <option key={k} value={k}>
@@ -1193,7 +1193,7 @@ function PricingTimeSlotRow({
     ['output_unit_price', 'output_price_label', true],
   ] as const;
   return (
-    <fieldset className="rounded-md border border-border p-3 space-y-3">
+    <fieldset className="rounded-md border border-border bg-card [--lia-field-background:var(--color-background)] p-3 space-y-3">
       <legend className="px-1 text-xs font-semibold text-foreground">
         {t('settings.admin.llm.modal.time_slots_slot_title', { index: slotNumber })}
       </legend>
@@ -1365,7 +1365,7 @@ function PricingFields({
 }: PricingSectionProps & { slotsError: string | null; audioError: string | null }) {
   const unitShort = t(`settings.admin.llm.modal.pricing_unit_short_${formData.pricing_unit}`);
   return (
-    <fieldset className="border border-border rounded-lg p-4 space-y-3">
+    <fieldset className="border border-border rounded-lg bg-background [--lia-field-background:var(--color-card)] p-4 space-y-3">
       <legend className="px-2 text-sm font-semibold text-foreground">
         {t('settings.admin.llm.modal.section_pricing')}
       </legend>
@@ -1380,7 +1380,7 @@ function PricingFields({
           onChange={e =>
             setFormData({ ...formData, pricing_unit: e.target.value as PricingUnitName })
           }
-          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          className="w-full rounded-md border border-input bg-[var(--lia-field-background,var(--color-background))] px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
         >
           {PRICING_UNIT_OPTIONS.map(u => (
             <option key={u} value={u}>
@@ -1666,7 +1666,7 @@ export function ModelPricingModal({ lng, model, onClose, onSubmit }: ModelPricin
       aria-labelledby="modal-title"
     >
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="bg-card rounded-xl border border-border shadow-xl p-6 max-w-lg w-full">
+        <div className="bg-card [--lia-field-background:var(--color-background)] rounded-xl border border-border shadow-xl p-6 max-w-lg w-full">
           <h3 id="modal-title" className="text-lg font-bold mb-4 text-foreground">
             {isEdit
               ? t('settings.admin.llm.modal.title_edit', { name: model.model_name })

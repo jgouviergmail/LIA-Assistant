@@ -2,7 +2,7 @@
  * FontSizeSettings — choosing the interface text size: the slider, the A−/A+
  * steps, the reset, the preview, persistence for an authenticated user (one
  * save in flight, the latest value wins, a failure rolled back and said), and
- * the note saying only the text changes size.
+ * a visible preview without a redundant numeric value or explanatory note.
  *
  * `@/lib/font-context` is mocked so `setFontSize` is observable; the i18n stub
  * echoes interpolations so the value a label carries can be asserted.
@@ -92,7 +92,7 @@ describe('FontSizeSettings', () => {
     expect(slider()).toHaveAttribute('aria-valuetext', valueText(18));
     // Verbatim: French puts a narrow no-break space before %, which the
     // default normalizer would fold into a plain space.
-    expect(screen.getByText(valueText(18), { normalizer: text => text })).toBeInTheDocument();
+    expect(screen.queryByText(valueText(18), { normalizer: text => text })).not.toBeInTheDocument();
   });
 
   it('offers exactly the supported range', () => {
@@ -101,9 +101,9 @@ describe('FontSizeSettings', () => {
     expect(slider()).toHaveAttribute('aria-valuemax', String(FONT_SIZE_MAX_PX));
   });
 
-  it('marks the default size and offers no reset there', () => {
+  it('keeps the title without a default badge or reset at the default size', () => {
     renderAt(DEFAULT_FONT_SIZE_PX);
-    expect(screen.getByText('settings.font_size.default_badge')).toBeInTheDocument();
+    expect(screen.queryByText('settings.font_size.default_badge')).not.toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'settings.font_size.reset' })
     ).not.toBeInTheDocument();
@@ -234,8 +234,8 @@ describe('FontSizeSettings', () => {
     expect(mutate).not.toHaveBeenCalled();
   });
 
-  it('says what the size changes, and that it follows the account', () => {
+  it('omits the explanatory note', () => {
     renderAt(DEFAULT_FONT_SIZE_PX);
-    expect(screen.getByText('settings.font_size.info_note')).toBeInTheDocument();
+    expect(screen.queryByText('settings.font_size.info_note')).not.toBeInTheDocument();
   });
 });

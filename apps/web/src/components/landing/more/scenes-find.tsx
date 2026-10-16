@@ -33,13 +33,14 @@ import {
   Search,
   ShieldCheck,
   Star,
+  Undo2,
 } from 'lucide-react';
 
 import { SETTINGS_GROUP_TONES } from '@/lib/settings-group-tones';
 
 import { cn } from '@/lib/utils';
 
-import { Cursor, MiniSettingRow, PhoneFrame, SkeletonLine, STAGE } from './primitives';
+import { Cursor, MiniChip, MiniSettingRow, PhoneFrame, SkeletonLine, STAGE } from './primitives';
 import type { SceneComponent, SceneProps } from './scene-types';
 import { useLoopedTimeline, type TimelineStep } from './useLoopedTimeline';
 
@@ -785,7 +786,7 @@ const NETWORK_GRANTS_STEPS: readonly TimelineStep<NetworkGrantsPhase>[] = [
 ];
 
 /**
- * Settings › Sandbox network (ADR-298): the hosts reachable without asking,
+ * Settings › Skill permissions (ADR-298): the hosts reachable without asking,
  * then the person's own permissions — one of them revoked on the spot. The
  * resting frame shows the list whole (row, scope, revoke button): a card at
  * rest must show what the attention IS, not the instant after it was used.
@@ -959,6 +960,67 @@ function FrozenColumnsScene({ active, labels }: SceneProps) {
   );
 }
 
+type BackPhase = 'list' | 'open' | 'back' | 'restored';
+const BACK_STEPS: readonly TimelineStep<BackPhase>[] = [
+  { at: 0, state: 'list' },
+  { at: 1000, state: 'open' },
+  { at: 2200, state: 'back' },
+  { at: 2800, state: 'restored' },
+];
+
+/**
+ * Back where you were: opening an item hides the list instead of rebuilding
+ * it, so the search, the filter and the highlighted row are still there when
+ * you come back.
+ */
+function BackWhereYouWereScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(BACK_STEPS, { active });
+  const detail = phase === 'open' || phase === 'back';
+  return (
+    <div className={cn(STAGE, 'justify-center')}>
+      <div className="relative h-28 w-full max-w-[210px] overflow-hidden rounded-lg border border-border bg-background shadow-sm">
+        <div
+          className={cn(
+            'space-y-1.5 p-2 transition-opacity duration-300',
+            detail ? 'opacity-0' : 'opacity-100'
+          )}
+        >
+          <div className="flex items-center gap-1.5 rounded-md border border-border px-1.5 py-1">
+            <Search className="h-2.5 w-2.5 shrink-0 text-muted-foreground" />
+            <span className="truncate text-px-9 text-foreground/80">{labels.query}</span>
+          </div>
+          <MiniChip pressed className="text-px-9">
+            {labels.filter}
+          </MiniChip>
+          <SkeletonLine w="w-4/5" />
+          <div
+            className={cn(
+              'rounded-md px-1 py-0.5 transition-colors duration-500',
+              phase === 'restored' ? 'bg-primary/10' : 'bg-transparent'
+            )}
+          >
+            <SkeletonLine w="w-3/5" />
+          </div>
+        </div>
+        <div
+          className={cn(
+            'absolute inset-0 space-y-1.5 bg-background p-2 transition-transform duration-500 ease-out',
+            detail ? 'translate-x-0' : 'translate-x-full'
+          )}
+        >
+          <MiniChip pressed={phase === 'back'} className="text-px-9">
+            <Undo2 className="h-2.5 w-2.5" />
+            {labels.back}
+          </MiniChip>
+          <SkeletonLine w="w-2/3" />
+          <SkeletonLine w="w-full" />
+          <SkeletonLine w="w-4/5" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export const FIND_SCENES: Readonly<Record<string, SceneComponent>> = {
   settings_shell: SettingsShellScene,
   settings_tones: SettingsTonesScene,
@@ -976,4 +1038,5 @@ export const FIND_SCENES: Readonly<Record<string, SceneComponent>> = {
   pinned_dock: PinnedDockScene,
   network_grants: NetworkGrantsScene,
   skill_library: SkillLibraryScene,
+  back_where_you_were: BackWhereYouWereScene,
 };

@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 const infoBoxVariants = cva('rounded-lg border p-3', {
   variants: {
     variant: {
-      default: 'border-border bg-muted/30',
+      default: 'border-border bg-background [--lia-field-background:var(--color-card)]',
       warning: 'border-yellow-500/20 bg-yellow-500/5',
       error: 'border-red-500/20 bg-red-500/5',
     },

@@ -643,7 +643,7 @@ connectors permit (`skills/command_network.py`, over the Python sandbox's own
 connector, and the question's card says when such a skill asks. An unknown
 host is asked in the ReAct loop only, where the answer re-runs the same call;
 the skill runner, a nested loop, a pipeline step or a routine refuses
-it and names *Settings › Sandbox network*, where the person allows a host by
+it and names *Settings › Skill permissions*, where the person allows a host by
 hand. The image carries npm/npx, git, curl and pip, each pointed at the
 proxy's CA; offline, npm is told so and fails at once. The act is recorded as
 `skill_command_network`; `skill_command_egress_total{outcome}` on dashboard 19;
@@ -986,7 +986,7 @@ of a topic."
 
 ## Importing Skills from Marketplaces
 
-Users can import skills via the Settings > Features > My Skills section:
+Users can import skills via the Settings > Features > Skills section:
 
 1. Download a SKILL.md file or .zip package from a marketplace (e.g., skillsmp.com)
 2. Click "Import skill" and select the file (.md or .zip accepted)

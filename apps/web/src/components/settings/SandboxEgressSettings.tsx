@@ -91,6 +91,7 @@ export function SandboxEgressSettings({ lng }: BaseSettingsProps) {
             </p>
           )}
           <Disclosure
+            surface="nested"
             icon={ShieldCheck}
             title={t('settings.sandbox_egress.reachable_title')}
             description={t('settings.sandbox_egress.reachable_description')}
@@ -104,6 +105,7 @@ export function SandboxEgressSettings({ lng }: BaseSettingsProps) {
               a switch removes the capability, never the record). */}
           {(egress.askEnabled !== false || egress.grants.length > 0) && (
             <Disclosure
+              surface="nested"
               icon={Globe}
               title={t('settings.sandbox_egress.grants_title')}
               description={t('settings.sandbox_egress.grants_description')}
@@ -139,7 +141,7 @@ function ReachableList({ hosts, lng }: { hosts: ReachableHost[]; lng: Language }
           {t('settings.sandbox_egress.reachable_empty')}
         </p>
       ) : (
-        <ul className="divide-y divide-border/60 rounded-xl border border-border/60">
+        <ul className="divide-y divide-border/60 rounded-xl border border-border/60 bg-card">
           {hosts.map(host => (
             <li key={host.host} className="flex items-center gap-3 px-3 py-2">
               {host.status === 'connector' ? (
@@ -210,7 +212,7 @@ function GrantList({
           {t('settings.sandbox_egress.grants_empty')}
         </p>
       ) : (
-        <ul className="divide-y divide-border/60 rounded-xl border border-border/60">
+        <ul className="divide-y divide-border/60 rounded-xl border border-border/60 bg-card">
           {grants.map(grant => (
             <GrantRow
               key={grant.id}

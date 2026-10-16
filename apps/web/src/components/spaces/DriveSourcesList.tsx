@@ -121,7 +121,7 @@ export function DriveSourcesList({
 
       {/* Sources list or empty state */}
       {sources.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-6 text-center">
+        <div className="rounded-lg border border-dashed bg-card p-6 text-center">
           <p className="text-sm text-muted-foreground">{t('spaces.drive.empty')}</p>
         </div>
       ) : (
