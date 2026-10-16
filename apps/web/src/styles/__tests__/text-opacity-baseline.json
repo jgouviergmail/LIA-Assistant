@@ -25,7 +25,5 @@
   "components/settings/BriefingGridSettings.tsx": 1,
   "components/settings/SkillDetailModal.tsx": 1,
   "components/settings/SkillGuideModal.tsx": 9,
-  "components/settings/TelephonyCallsSection.tsx": 1,
-  "components/telephony/CallDebrief.tsx": 1,
   "components/usage/UsageBlockedBanner.tsx": 2
 }
