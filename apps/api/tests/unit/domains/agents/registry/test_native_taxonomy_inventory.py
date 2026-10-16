@@ -20,6 +20,13 @@ from src.domains.agents.services.analysis.domain_availability import build_avail
 
 API_ROOT = Path(__file__).resolve().parents[5]
 
+#: Stops a cold import that deadlocks — a hang guard, never a speed oracle. The
+#: inventory's import takes about 10 s alone and 93 s with every core saturated
+#: (the briefing's 36 s; measured 2026-10-16): under the parallel unit suite the
+#: former 30 s failed a green import. Sized like the sibling cold-import guards
+#: (the tool families' import order: 180 s).
+COLD_IMPORT_HANG_GUARD_SECONDS = 180
+
 
 @pytest.fixture(scope="module")
 def native_manifests() -> list[ToolManifest]:
@@ -117,7 +124,7 @@ assert 'partially initialized module' not in captured.getvalue(), captured.getva
         capture_output=True,
         text=True,
         encoding="utf-8",
-        timeout=30,
+        timeout=COLD_IMPORT_HANG_GUARD_SECONDS,
         check=False,
     )
     assert result.returncode == 0, result.stderr
@@ -143,7 +150,7 @@ assert router.routes
         capture_output=True,
         text=True,
         encoding="utf-8",
-        timeout=30,
+        timeout=COLD_IMPORT_HANG_GUARD_SECONDS,
         check=False,
     )
     assert result.returncode == 0, result.stderr

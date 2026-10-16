@@ -515,35 +515,66 @@ async def test_a_refusal_cancels_the_creations_still_running_before_the_rollback
     """Measured 2026-09-19 on dev: `gather` raised on the third refusal while fifty
     creations went on; the rollback iterated a dict they kept filling and every
     tool created after it was an orphan. With a TaskGroup the siblings are
-    cancelled first: nothing is created after the rollback ran."""
+    cancelled first: nothing is created after the rollback ran.
+
+    Sequenced by events, never by the clock: the refusal lands once "a" was
+    created and "b" to "d" are mid-flight, and their creations can only finish
+    if nobody cancels them. Timed with sleeps, a starved event loop woke the
+    refusal and the siblings in the same iteration, and they landed anyway.
+    """
     import asyncio
 
-    events: list[str] = []
-    from src.domains.telephony.client import ElevenLabsAgentsError
+    from src.domains.agents.telephony.live_tools import LIVE_TOOL_PROVISIONING_CONCURRENCY
+    from src.domains.live.providers.elevenlabs_live import _create_client_tools
+    from src.domains.telephony.client import ElevenLabsAgentsClient, ElevenLabsAgentsError
 
-    class _SlowClient:
+    siblings = ("b", "c", "d")
+    bodies = [{"tool_config": {"name": n}} for n in ("a", "refused", *siblings)]
+    # Every creation must be in flight at once for "mid-flight" to mean anything.
+    assert len(bodies) <= LIVE_TOOL_PROVISIONING_CONCURRENCY
+    events: list[str] = []
+    a_created = asyncio.Event()
+    in_flight: set[str] = set()
+    siblings_in_flight = asyncio.Event()
+    released = asyncio.Event()  # set only after the call returned: a late creation shows
+
+    class _SequencedClient(ElevenLabsAgentsClient):
         async def create_tool(self, body: dict[str, Any]) -> str:
             name = body["tool_config"]["name"]
-            # "a" lands before the refusal, "b" to "d" would land after it.
+            if name == "a":
+                events.append("created:a")
+                a_created.set()
+                return "id_a"
             if name == "refused":
-                await asyncio.sleep(0.02)
+                await a_created.wait()
+                await siblings_in_flight.wait()
                 raise ElevenLabsAgentsError(422, "no")
-            await asyncio.sleep(0.005 if name == "a" else 0.06)
+            in_flight.add(name)
+            if in_flight == set(siblings):
+                siblings_in_flight.set()
+            try:
+                await released.wait()
+            except asyncio.CancelledError:
+                events.append(f"cancelled:{name}")
+                raise
             events.append(f"created:{name}")
             return f"id_{name}"
 
         async def delete_tool(self, tool_id: str) -> None:
             events.append(f"deleted:{tool_id}")
 
-    from src.domains.live.providers.elevenlabs_live import _create_client_tools
+    async with asyncio.timeout(10):  # a hang guard, never an oracle
+        with pytest.raises(ElevenLabsAgentsError):
+            await _create_client_tools(_SequencedClient("test-key"), bodies)
+        released.set()
+        for _ in range(10):  # let any sibling still running land, if one survived
+            await asyncio.sleep(0)
 
-    bodies = [{"tool_config": {"name": n}} for n in ("a", "refused", "b", "c", "d")]
-    with pytest.raises(ElevenLabsAgentsError):
-        await _create_client_tools(_SlowClient(), bodies)  # type: ignore[arg-type]
-    await asyncio.sleep(0.15)
-    # "a" was created before the refusal and rolled back; the others were
-    # cancelled and never created — nothing lands after the rollback.
-    assert events == ["created:a", "deleted:id_a"]
+    # "a" was created before the refusal and rolled back; the siblings were
+    # cancelled before the rollback, and none was created after it.
+    assert events[0] == "created:a"
+    assert sorted(events[1:-1]) == [f"cancelled:{name}" for name in siblings]
+    assert events[-1] == "deleted:id_a"
 
 
 def test_the_fingerprint_reads_the_declaration_and_ignores_the_wire_behaviour() -> None:

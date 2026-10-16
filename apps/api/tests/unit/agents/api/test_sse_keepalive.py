@@ -3,6 +3,15 @@
 Validates the heartbeat injection logic that protects long SSE streams from
 intermediary idle cuts (Cloudflare, etc).
 
+Every silence here is SEQUENCED, never timed: the upstream stays silent until
+the consumer has seen as many heartbeats as the property needs, then it is
+released. Timed with sleeps (« a 0.25 s gap and a 0.05 s interval give at least
+three pulses »), a starved event loop woke the gap and the timers in the same
+iteration and the count fell short (measured 2026-10-15 under load: two pulses);
+sequenced, a slow loop only makes the same pulses arrive later. The clock is
+left to the one property that is about it: no pulse while items arrive faster
+than the interval.
+
 Phase: F4.5 — Compaction v2 / Task 2.3
 Created: 2026-05-19
 """
@@ -23,6 +32,12 @@ from src.domains.agents.api.sse_keepalive import (
 
 T = TypeVar("T")
 
+#: A short interval: the tests wait on pulses, never on a duration.
+PULSE_SECONDS = 0.01
+
+#: Bounds a broken wrapper that never pulses — a hang guard, never an oracle.
+HANG_GUARD_SECONDS = 10
+
 
 async def _emit(values: list[tuple[float, T]]) -> AsyncIterator[T]:
     """Async iterator that sleeps `delay` then yields each `value`."""
@@ -32,50 +47,77 @@ async def _emit(values: list[tuple[float, T]]) -> AsyncIterator[T]:
         yield value
 
 
+async def _gated(release: asyncio.Event, *values: str) -> AsyncIterator[str]:
+    """An upstream silent until `release` is set, then yielding `values`."""
+    await release.wait()
+    for value in values:
+        yield value
+
+
+async def _collect(
+    source: AsyncIterator[str], *, release: asyncio.Event, after_pulses: int
+) -> list[object]:
+    """Drain the wrapper, releasing the upstream once `after_pulses` heartbeats came."""
+    collected: list[object] = []
+    pulses = 0
+    async with asyncio.timeout(HANG_GUARD_SECONDS):
+        async for item in iter_with_keepalive(source, keepalive_interval_seconds=PULSE_SECONDS):
+            collected.append(item)
+            if isinstance(item, KeepalivePulse):
+                pulses += 1
+                if pulses == after_pulses:
+                    release.set()
+    return collected
+
+
+def _pulses_before(collected: list[object], value: str) -> int:
+    """How many heartbeats reached the caller before `value` did."""
+    return sum(isinstance(item, KeepalivePulse) for item in collected[: collected.index(value)])
+
+
 async def test_yields_items_when_source_is_fast() -> None:
-    """No heartbeat fires when items arrive faster than the interval."""
+    """No heartbeat fires when items arrive faster than the interval.
+
+    The interval is far beyond any stall a loaded host imposes on items that
+    are already there: the property holds by construction, not by luck.
+    """
     source = _emit([(0.0, "a"), (0.0, "b"), (0.0, "c")])
     collected: list[object] = []
-    async for item in iter_with_keepalive(source, keepalive_interval_seconds=0.5):
+    async for item in iter_with_keepalive(source, keepalive_interval_seconds=60):
         collected.append(item)
     assert collected == ["a", "b", "c"]
 
 
 async def test_emits_heartbeat_during_silence() -> None:
-    """When a gap exceeds the interval, KEEPALIVE pulses are interleaved."""
-    # 0.25s gap with a 0.05s interval → at least 4 heartbeats before the item.
-    source = _emit([(0.25, "delayed")])
-    collected: list[object] = []
-    async for item in iter_with_keepalive(source, keepalive_interval_seconds=0.05):
-        collected.append(item)
+    """While the upstream is silent, KEEPALIVE pulses keep reaching the caller."""
+    release = asyncio.Event()
 
-    real_items = [x for x in collected if not isinstance(x, KeepalivePulse)]
-    pulses = [x for x in collected if isinstance(x, KeepalivePulse)]
-    assert real_items == ["delayed"]
-    assert len(pulses) >= 3
+    collected = await _collect(_gated(release, "delayed"), release=release, after_pulses=3)
+
+    assert [x for x in collected if not isinstance(x, KeepalivePulse)] == ["delayed"]
+    assert _pulses_before(collected, "delayed") >= 3
 
 
 async def test_pending_task_is_preserved_across_heartbeats() -> None:
     """The chunk that was being awaited when the timer fired must not be lost."""
-    # One item with a long delay; we expect multiple heartbeats then the item.
-    source = _emit([(0.15, "kept"), (0.0, "next")])
-    collected: list[object] = []
-    async for item in iter_with_keepalive(source, keepalive_interval_seconds=0.03):
-        collected.append(item)
+    release = asyncio.Event()
 
-    # 'kept' must appear (proof the awaited task wasn't cancelled by heartbeats)
-    # and 'next' must follow it immediately after.
-    real = [x for x in collected if not isinstance(x, KeepalivePulse)]
-    assert real == ["kept", "next"]
+    collected = await _collect(_gated(release, "kept", "next"), release=release, after_pulses=2)
+
+    # 'kept' arrives after heartbeats (proof the awaited consumer survived them)
+    # and 'next' follows it.
+    assert [x for x in collected if not isinstance(x, KeepalivePulse)] == ["kept", "next"]
+    assert _pulses_before(collected, "kept") >= 2
 
 
 async def test_pulses_use_shared_sentinel() -> None:
     """All emitted heartbeats are the same singleton instance."""
-    source = _emit([(0.15, "x")])
-    pulses: list[object] = []
-    async for item in iter_with_keepalive(source, keepalive_interval_seconds=0.03):
-        if isinstance(item, KeepalivePulse):
-            pulses.append(item)
+    release = asyncio.Event()
+
+    collected = await _collect(_gated(release, "x"), release=release, after_pulses=3)
+
+    pulses = [x for x in collected if isinstance(x, KeepalivePulse)]
+    assert len(pulses) >= 3
     assert all(p is KEEPALIVE for p in pulses)
 
 
@@ -117,20 +159,22 @@ async def test_cancels_pending_task_on_caller_stop() -> None:
 
     cancelled = asyncio.Event()
 
-    async def slow_then_signal() -> AsyncIterator[str]:
+    async def silent_then_signal() -> AsyncIterator[str]:
         try:
-            await asyncio.sleep(10)
+            await asyncio.Event().wait()  # never set: only a cancellation ends it
             yield "should not arrive"
         except asyncio.CancelledError:
             cancelled.set()
             raise
 
-    async for item in iter_with_keepalive(slow_then_signal(), keepalive_interval_seconds=0.02):
-        # Break on the first heartbeat — simulates a client disconnect.
-        if isinstance(item, KeepalivePulse):
-            break
-
-    await asyncio.wait_for(cancelled.wait(), timeout=1.0)
+    async with asyncio.timeout(HANG_GUARD_SECONDS):
+        async for item in iter_with_keepalive(
+            silent_then_signal(), keepalive_interval_seconds=PULSE_SECONDS
+        ):
+            # Break on the first heartbeat — simulates a client disconnect.
+            if isinstance(item, KeepalivePulse):
+                break
+        await cancelled.wait()
 
 
 async def test_contextvar_set_and_reset_survives_keepalives() -> None:
@@ -143,29 +187,27 @@ async def test_contextvar_set_and_reset_survives_keepalives() -> None:
     all upstream work through a single consumer task with a stable Context.
 
     This test sets a ContextVar inside an upstream generator that yields
-    twice with a gap that forces at least one heartbeat in between, then
-    resets the token on exit. With the broken design this would raise
+    twice with heartbeats forced in between (the upstream waits for them),
+    then resets the token on exit. With the broken design this would raise
     `ValueError: <Token ...> was created in a different Context`.
     """
     import contextvars
 
     var: contextvars.ContextVar[str | None] = contextvars.ContextVar("ka_test_var", default=None)
+    release = asyncio.Event()
 
     async def upstream() -> AsyncIterator[str]:
         token = var.set("inside")
         try:
             yield "first"
-            await asyncio.sleep(0.15)  # forces several heartbeats
+            await release.wait()  # silent until heartbeats came through
             yield "second"
         finally:
             var.reset(token)  # MUST work despite intervening heartbeats
 
-    items: list[object] = []
-    async for it in iter_with_keepalive(upstream(), keepalive_interval_seconds=0.03):
-        items.append(it)
+    items = await _collect(upstream(), release=release, after_pulses=2)
 
     real = [x for x in items if not isinstance(x, KeepalivePulse)]
-    pulses = [x for x in items if isinstance(x, KeepalivePulse)]
     assert real == ["first", "second"]
-    assert len(pulses) >= 2
+    assert _pulses_before(items, "second") - _pulses_before(items, "first") >= 2
     assert var.get() is None  # token reset succeeded cleanly
