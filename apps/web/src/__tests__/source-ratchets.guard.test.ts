@@ -24,7 +24,10 @@
 
 import { describe, it, expect } from 'vitest';
 
-import { filesMatching, isCommentLine } from './source-scan';
+import { filesMatching, isCommentLine, readSources } from './source-scan';
+
+/** Every first-party `.ts`/`.tsx` file, tests included — read at collection (`source-scan.ts`). */
+const FILES = readSources(file => /\.(ts|tsx)$/.test(file.relative));
 
 // =============================================================================
 // 1. The axios error shape
@@ -36,7 +39,7 @@ const AXIOS_SHAPE = /\.response\s*(\?\.|\.)\s*data\b/;
 describe('ratchet — the axios error shape must not come back', () => {
   it('no source file reads an error through `.response.data`', () => {
     // This file is the one exception: it spells the defect out in the oracle.
-    const offenders = filesMatching(AXIOS_SHAPE, {
+    const offenders = filesMatching(FILES, AXIOS_SHAPE, {
       includeTests: true,
       exclude: ['source-ratchets.guard.test.ts'],
     });
@@ -114,7 +117,7 @@ const ALLOWED: Record<string, string> = {
 
 describe('ratchet — data calls go through apiClient', () => {
   it('no unlisted file calls fetch directly', () => {
-    const offenders = filesMatching(RAW_FETCH).filter(file => !(file in ALLOWED));
+    const offenders = filesMatching(FILES, RAW_FETCH).filter(file => !(file in ALLOWED));
 
     expect(offenders).toEqual([]);
   });
@@ -122,7 +125,7 @@ describe('ratchet — data calls go through apiClient', () => {
   it('every allowed entry still calls fetch — otherwise remove it', () => {
     // Shrink-only: a migrated file must lose its exemption, so the list can
     // never quietly outlive the problem it documents.
-    const stillRaw = new Set(filesMatching(RAW_FETCH));
+    const stillRaw = new Set(filesMatching(FILES, RAW_FETCH));
     const stale = Object.keys(ALLOWED).filter(file => !stillRaw.has(file));
 
     expect(stale).toEqual([]);
@@ -153,14 +156,18 @@ describe('the shared scan', () => {
   it('sees the whole tree — a scan that finds nothing proves nothing', () => {
     // Anti-rot: a path or layout change that silently empties the scan would
     // make both ratchets pass vacuously.
-    expect(filesMatching(/./, { includeTests: true }).length).toBeGreaterThan(400);
+    expect(filesMatching(FILES, /./, { includeTests: true }).length).toBeGreaterThan(400);
   });
 
   it('separates production files from tests', () => {
-    const withTests = filesMatching(/./, { includeTests: true }).length;
-    const withoutTests = filesMatching(/./).length;
+    const withTests = filesMatching(FILES, /./, { includeTests: true }).length;
+    const withoutTests = filesMatching(FILES, /./).length;
 
     expect(withoutTests).toBeLessThan(withTests);
     expect(withoutTests).toBeGreaterThan(300);
+  });
+
+  it('refuses to read the tree inside a test, where the budget measures the host', () => {
+    expect(() => readSources(() => true)).toThrow(/at collection/);
   });
 });

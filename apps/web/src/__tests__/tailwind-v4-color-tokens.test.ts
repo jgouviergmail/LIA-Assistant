@@ -28,29 +28,18 @@
  *   the surface that got it wrong (`constellation-figure.test.ts`).
  */
 
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
-
 import { describe, it, expect } from 'vitest';
 
-const SRC = join(__dirname, '..');
+import { readSources } from './source-scan';
 
-/** Every file we could paint with, source and stylesheet alike. */
-function walk(dir: string, out: string[] = []): string[] {
-  for (const entry of readdirSync(dir)) {
-    if (entry === 'node_modules' || entry === '__snapshots__') continue;
-    const path = join(dir, entry);
-    if (statSync(path).isDirectory()) {
-      walk(path, out);
-      continue;
-    }
-    if (/\.(tsx?|css)$/.test(entry) && !/\.test\.tsx?$/.test(entry)) out.push(path);
-  }
-  return out;
-}
-
-const FILES = walk(SRC);
-const STYLESHEETS = FILES.filter(path => path.endsWith('.css'));
+/**
+ * Every file we could paint with, source and stylesheet alike — read at
+ * collection (`source-scan.ts`).
+ */
+const FILES = readSources(
+  file => /\.(tsx?|css)$/.test(file.relative) && !/\.test\.tsx?$/.test(file.relative)
+);
+const STYLESHEETS = FILES.filter(file => file.relative.endsWith('.css'));
 /**
  * Every custom property the app declares, anywhere.
  *
@@ -60,10 +49,8 @@ const STYLESHEETS = FILES.filter(path => path.endsWith('.css'));
  * token it exists to catch as "declared".
  */
 const DECLARED = new Set(
-  STYLESHEETS.flatMap(path =>
-    [...readFileSync(path, 'utf8').matchAll(/(?:^|[;{])\s*(--[a-z0-9-]+)\s*:/gm)].map(
-      match => match[1]
-    )
+  STYLESHEETS.flatMap(file =>
+    [...file.text.matchAll(/(?:^|[;{])\s*(--[a-z0-9-]+)\s*:/gm)].map(match => match[1])
   )
 );
 
@@ -78,8 +65,8 @@ describe('Tailwind v4 colour tokens', () => {
   });
 
   it('never wraps a v4 token in the v3 `hsl(var(--x))` idiom', () => {
-    const offenders = FILES.filter(path => /hsl\(\s*var\(/.test(readFileSync(path, 'utf8'))).map(
-      path => path.slice(SRC.length + 1)
+    const offenders = FILES.filter(file => /hsl\(\s*var\(/.test(file.text)).map(
+      file => file.relative
     );
 
     expect(
@@ -94,14 +81,12 @@ describe('Tailwind v4 colour tokens', () => {
     // v3 name. Runtime-provided properties (`--radix-*`, `--font-*`) and ones
     // set inline from React have no `--color-*` twin, so they never match.
     const stale = new Map<string, string[]>();
-    for (const path of FILES) {
-      const source = readFileSync(path, 'utf8');
-      for (const [, token] of source.matchAll(/var\((--[a-z0-9-]+)/g)) {
+    for (const file of FILES) {
+      for (const [, token] of file.text.matchAll(/var\((--[a-z0-9-]+)/g)) {
         if (DECLARED.has(token)) continue;
         if (!DECLARED.has(`--color-${token.slice(2)}`)) continue;
-        const where = path.slice(SRC.length + 1);
         const seen = stale.get(token) ?? [];
-        if (!seen.includes(where)) stale.set(token, [...seen, where]);
+        if (!seen.includes(file.relative)) stale.set(token, [...seen, file.relative]);
       }
     }
 

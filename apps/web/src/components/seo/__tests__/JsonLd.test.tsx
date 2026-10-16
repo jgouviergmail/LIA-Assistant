@@ -9,11 +9,10 @@
  * so no closing-tag sequence survives in the rendered HTML.
  */
 
-import { readdirSync, readFileSync } from 'fs';
-import { join } from 'path';
-
 import { describe, it, expect, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
+
+import { readSources } from '@/__tests__/source-scan';
 
 import { serializeJsonLd, FAQPageJsonLd, BlogListJsonLd } from '../JsonLd';
 
@@ -112,6 +111,9 @@ describe('JsonLd components — no <script> breakout in rendered HTML', () => {
 // regression cannot evade the guard.
 const RAW_STRINGIFY_SINK = /__html:\s*JSON\.stringify\(/;
 
+/** Every script the app ships, tests aside — read at collection (`source-scan.ts`). */
+const SCRIPTS = readSources(file => /\.(tsx?|jsx?)$/.test(file.relative) && !file.isTest);
+
 describe('JSON-LD script safety — systemic guard (CA-5)', () => {
   it('matcher catches every whitespace variant of the raw sink and ignores the safe helper', () => {
     // Non-vacuity: prove the guard actually fires on bad shapes before we
@@ -122,32 +124,15 @@ describe('JSON-LD script safety — systemic guard (CA-5)', () => {
     expect(RAW_STRINGIFY_SINK.test('{{ __html: serializeJsonLd(s) }}')).toBe(false); // safe
   });
 
-  // Whole-`src` synchronous scan: inherently IO-heavy (hundreds of files), so
-  // it can exceed the 5s default when the full suite runs in parallel. Uses
-  // Dirent (withFileTypes) to skip a statSync per entry, and gets a generous
-  // timeout so contention — not a real offender — never reddens CI.
   it('no raw JSON.stringify is injected into a <script> via dangerouslySetInnerHTML', () => {
     // Every ld+json script must route through serializeJsonLd (which escapes
     // `<`). This guard catches any file — JsonLd.tsx, the blog page, or a
     // future sink — that reintroduces a raw `JSON.stringify` in a script.
-    const walk = (dir: string): string[] => {
-      const out: string[] = [];
-      for (const entry of readdirSync(dir, { withFileTypes: true })) {
-        if (entry.name === 'node_modules' || entry.name === '__tests__') continue;
-        const full = join(dir, entry.name);
-        if (entry.isDirectory()) {
-          out.push(...walk(full));
-        } else if (/\.(tsx?|jsx?)$/.test(entry.name)) {
-          out.push(full);
-        }
-      }
-      return out;
-    };
-
-    const offenders = walk(join(process.cwd(), 'src')).filter(file =>
-      RAW_STRINGIFY_SINK.test(readFileSync(file, 'utf-8'))
+    expect(SCRIPTS.length, 'a scan that finds nothing proves nothing').toBeGreaterThan(300);
+    const offenders = SCRIPTS.filter(file => RAW_STRINGIFY_SINK.test(file.text)).map(
+      file => file.relative
     );
 
     expect(offenders).toEqual([]);
-  }, 30000);
+  });
 });

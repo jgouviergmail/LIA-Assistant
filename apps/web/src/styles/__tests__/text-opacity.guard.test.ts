@@ -27,15 +27,19 @@
  * records what exists, new ones fail, and each removal ratchets it down.
  */
 
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative, resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 import { describe, it, expect } from 'vitest';
 
+import { readSources } from '@/__tests__/source-scan';
+
 import { type Palette, allPalettes, blend, contrast } from './contrast-math';
 
-const SRC = resolve(__dirname, '../..');
 const BASELINE_PATH = resolve(__dirname, 'text-opacity-baseline.json');
+
+/** Every source file outside the tests — read at collection (`source-scan.ts`). */
+const SOURCES = readSources(file => /\.tsx?$/.test(file.relative) && !file.isTest);
 
 /** WCAG 1.4.3 AA for normal text. */
 const AA = 4.5;
@@ -75,27 +79,15 @@ const TOKENS = Object.keys(palettes['default-light']).sort((a, b) => b.length - 
 
 const DIM_RE = new RegExp(`text-(${TOKENS.join('|')})/(\\d{1,3})\\b`, 'g');
 
-function walk(dir: string): string[] {
-  const out: string[] = [];
-  for (const entry of readdirSync(dir)) {
-    if (entry === 'node_modules' || entry === '__tests__') continue;
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) out.push(...walk(full));
-    else if (/\.tsx?$/.test(full)) out.push(full);
-  }
-  return out;
-}
-
 /** Count sub-AA dimmed text usages, per source file. */
 export function scanDimUsages(): Record<string, number> {
   const counts: Record<string, number> = {};
-  for (const file of walk(SRC)) {
-    const source = readFileSync(file, 'utf-8');
+  for (const file of SOURCES) {
     let dim = 0;
-    for (const m of source.matchAll(DIM_RE)) {
+    for (const m of file.text.matchAll(DIM_RE)) {
       if (worstRatio(m[1], Number(m[2])) < AA) dim++;
     }
-    if (dim > 0) counts[relative(SRC, file).replace(/\\/g, '/')] = dim;
+    if (dim > 0) counts[file.relative] = dim;
   }
   return counts;
 }

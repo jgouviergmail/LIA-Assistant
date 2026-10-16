@@ -23,12 +23,12 @@
  * written reason.
  */
 
-import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
-
 import { describe, it, expect } from 'vitest';
 
-const SRC = join(process.cwd(), 'src');
+import { readSources } from './source-scan';
+
+/** Every source and stylesheet outside the tests — read at collection (`source-scan.ts`). */
+const SOURCES = readSources(file => /\.(tsx?|css)$/.test(file.relative) && !file.isTest);
 
 /**
  * Height declarations that legitimately keep `vh`.
@@ -52,27 +52,11 @@ const TAILWIND_HEIGHT_VH = /\b(?:max-|min-)?h-\[[^\]]*?\d+vh[^\]]*?\]/g;
 // below and report a phantom offender.
 const CSS_HEIGHT_VH = /(?:max-|min-|max|min)?[hH]eight:\s*['"]?[^;\n]*?\d+vh/gm;
 
-function walk(dir: string): string[] {
-  const out: string[] = [];
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) {
-      if (entry === '__tests__' || entry === 'node_modules') continue;
-      out.push(...walk(full));
-    } else if (/\.(tsx?|css)$/.test(entry)) {
-      out.push(full);
-    }
-  }
-  return out;
-}
-
 describe('viewport-unit guard', () => {
   const offenders: Array<{ file: string; match: string }> = [];
 
-  for (const file of walk(SRC)) {
-    const rel = relative(SRC, file).replace(/\\/g, '/');
+  for (const { relative: rel, text: source } of SOURCES) {
     if (EXEMPT.some(e => e.file === rel)) continue;
-    const source = readFileSync(file, 'utf8');
     for (const regex of [TAILWIND_HEIGHT_VH, CSS_HEIGHT_VH]) {
       for (const match of source.match(regex) ?? []) {
         // ONE tolerated pattern: a `vh` declaration kept as an explicit
@@ -135,12 +119,13 @@ describe('viewport-unit guard', () => {
   it('keeps the exemption list justified, minimal and CURRENT', () => {
     for (const { file, reason } of EXEMPT) {
       expect(reason.length, `${file} needs a written reason`).toBeGreaterThan(20);
-      expect(() => statSync(join(SRC, file)), `${file} no longer exists`).not.toThrow();
+      const exempted = SOURCES.find(candidate => candidate.relative === file);
+      expect(exempted, `${file} no longer exists`).toBeDefined();
 
       // Refuse a STALE entry (ADR-155 model): an exemption whose file no
       // longer contains a `vh` height silently widens the blind spot for
       // whatever is added to that file next.
-      const source = readFileSync(join(SRC, file), 'utf8');
+      const source = exempted?.text ?? '';
       const stillNeedsIt =
         (source.match(TAILWIND_HEIGHT_VH) ?? []).length > 0 ||
         (source.match(CSS_HEIGHT_VH) ?? []).length > 0;

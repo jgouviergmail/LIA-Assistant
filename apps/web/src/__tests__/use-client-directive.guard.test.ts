@@ -19,13 +19,14 @@
  * statement, and Next skips both.
  */
 
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-
 import { describe, expect, it } from 'vitest';
-import { globSync } from 'tinyglobby';
 
-const SRC = join(process.cwd(), 'src');
+import { readSources } from './source-scan';
+
+/** Every module of the app, tests aside — read at collection (`source-scan.ts`). */
+const MODULES = readSources(
+  file => /\.tsx?$/.test(file.relative) && !file.isTest && !/\.test\.tsx?$/.test(file.relative)
+);
 
 /** The file's first real statement, comments and blank lines skipped. */
 function firstStatement(source: string): string {
@@ -48,21 +49,17 @@ function firstStatement(source: string): string {
 
 describe("the 'use client' directive opens its module", () => {
   it('is the first statement in every file that declares it', () => {
-    const files = globSync(['**/*.{ts,tsx}'], {
-      cwd: SRC,
-      ignore: ['**/__tests__/**', '**/*.test.ts', '**/*.test.tsx'],
-    });
-    expect(files.length).toBeGreaterThan(100);
+    expect(MODULES.length).toBeGreaterThan(100);
 
-    const misplaced = files.filter(relative => {
-      const source = readFileSync(join(SRC, relative), 'utf8');
-      if (!/^\s*['"]use client['"]/m.test(source)) return false;
-      return !/^['"]use client['"]/.test(firstStatement(source));
-    });
+    const misplaced = MODULES.filter(file => {
+      if (!/^\s*['"]use client['"]/m.test(file.text)) return false;
+      return !/^['"]use client['"]/.test(firstStatement(file.text));
+    }).map(file => file.relative);
 
-    expect(misplaced, `'use client' is not the first statement in:\n${misplaced.join('\n')}`).toEqual(
-      []
-    );
+    expect(
+      misplaced,
+      `'use client' is not the first statement in:\n${misplaced.join('\n')}`
+    ).toEqual([]);
   });
 
   it('recognises a directive introduced by comments and blank lines', () => {

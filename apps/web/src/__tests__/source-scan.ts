@@ -1,55 +1,78 @@
 /**
- * One filesystem scan of `src/`, shared by the source-level ratchets.
+ * One reading of `src/`, shared by every guard that inspects the source tree.
  *
- * Two guards (the axios-shape reader and the raw-fetch allowlist) need to look
- * at every first-party file. Done naively — `readdirSync` + `statSync` per
- * entry + `readFileSync` — that is ~2 s of BLOCKING I/O per guard inside a
- * jsdom worker, and under coverage instrumentation it starved the worker's
- * event loop badly enough for vitest's teardown watchdog to kill it. A killed
- * worker reports no result at all, which reads as a failing guard.
+ * Eleven guards look at (nearly) every first-party file: the axios error shape,
+ * raw `fetch`, the Tailwind v3 colour idiom, self-hosted fonts, field-wrapper
+ * widths, the JSON-LD sink, the `'use client'` prologue, embedded image
+ * credentials, form-control names, viewport units and dimmed text. Two rules
+ * make such a guard trustworthy, and both were learnt from guards reported red
+ * on a clean tree:
  *
- * So: dirent types come from `readdirSync` itself (no `statSync`), each file is
- * read once, and the result is memoised per worker.
+ * 1. **The tree is read at COLLECTION, never inside a test.** vitest checks a
+ *    synchronous test's budget only AFTER the body returns (`withTimeout` in
+ *    `@vitest/runner`: its timer cannot fire while the body blocks), so a
+ *    whole-tree read inside `it()` can never be stopped as a hang — its budget
+ *    only measures the host. Measured 2026-10-16: a few seconds alone, 49.6 s for
+ *    one such file under the full suite with coverage, and four guards red
+ *    against the 15 s budget on a clean tree. Collection is not timed: a guard
+ *    reads its files at module scope and its tests read memory. `readSources`
+ *    refuses to run inside a test, so the rule holds by construction; a hook is
+ *    timed too, so no guard reads there either.
+ * 2. **Dirent types come from `readdirSync` itself** (no `statSync` per entry),
+ *    and each selected file is read once.
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { TestRunner } from 'vitest';
+
 /** Absolute path of `apps/web/src`. */
 export const SRC_ROOT = path.resolve(__dirname, '..');
 
-export interface SourceFile {
+/** Where a file of `src/` sits: what a guard selects on. */
+export interface SourcePath {
   /** Path relative to `src/`, always with forward slashes. */
-  relative: string;
+  readonly relative: string;
   /** Whether the file lives under a `__tests__/` folder. */
-  isTest: boolean;
-  /** Lines of the file, in order. */
-  lines: string[];
+  readonly isTest: boolean;
 }
 
-let cache: SourceFile[] | null = null;
+/** A selected file, read. */
+export interface SourceFile extends SourcePath {
+  /** The file's text. */
+  readonly text: string;
+}
 
 /**
- * Every first-party `.ts`/`.tsx` file under `src/`, tests included.
+ * Every file of `src/` a guard selects, read — at collection only.
  *
- * @returns The scanned files, read once per worker.
+ * @param select - Which files the guard inspects, by their place in the tree.
+ * @returns The selected files, in scan order.
+ * @throws Error when called inside a running test (rule 1 above).
  */
-export function sourceFiles(): SourceFile[] {
-  if (cache === null) {
-    cache = fs
-      .readdirSync(SRC_ROOT, { recursive: true, withFileTypes: true })
-      .filter(entry => entry.isFile() && /\.(ts|tsx)$/.test(entry.name))
-      .map(entry => {
-        const absolute = path.join(entry.parentPath, entry.name);
-        const relative = path.relative(SRC_ROOT, absolute).split(path.sep).join('/');
-        return {
-          relative,
-          isTest: relative.includes('__tests__/'),
-          lines: fs.readFileSync(absolute, 'utf8').split('\n'),
-        };
-      });
+export function readSources(select: (file: SourcePath) => boolean): SourceFile[] {
+  if (TestRunner.getCurrentTest()) {
+    throw new Error(
+      'readSources() reads the tree at collection: declare the files at module scope. ' +
+        "Inside a test, vitest's budget measures the host, never the guard (source-scan.ts)."
+    );
   }
-  return cache;
+  return fs
+    .readdirSync(SRC_ROOT, { recursive: true, withFileTypes: true })
+    .filter(entry => entry.isFile())
+    .map(entry => {
+      const absolute = path.join(entry.parentPath, entry.name);
+      const segments = path.relative(SRC_ROOT, absolute).split(path.sep);
+      const folders = segments.slice(0, -1);
+      return {
+        absolute,
+        folders,
+        place: { relative: segments.join('/'), isTest: folders.includes('__tests__') },
+      };
+    })
+    .filter(({ folders, place }) => !folders.includes('node_modules') && select(place))
+    .map(({ absolute, place }) => ({ ...place, text: fs.readFileSync(absolute, 'utf8') }));
 }
 
 /**
@@ -63,7 +86,7 @@ export function isCommentLine(line: string): boolean {
   return trimmed.startsWith('*') || trimmed.startsWith('//') || trimmed.startsWith('/*');
 }
 
-/** Which part of the tree a scan looks at. */
+/** Which part of the read files a scan looks at. */
 export interface ScanScope {
   /**
    * Include `__tests__/` files. Default `false`.
@@ -81,15 +104,20 @@ export interface ScanScope {
 /**
  * Files with at least one non-comment line matching `pattern`.
  *
+ * @param files - The files the guard read at collection.
  * @param pattern - Regex applied line by line.
  * @param scope - What to look at; see {@link ScanScope}.
  * @returns Relative paths, in scan order.
  */
-export function filesMatching(pattern: RegExp, scope: ScanScope = {}): string[] {
+export function filesMatching(
+  files: readonly SourceFile[],
+  pattern: RegExp,
+  scope: ScanScope = {}
+): string[] {
   const excluded = new Set(scope.exclude ?? []);
-  return sourceFiles()
+  return files
     .filter(file => scope.includeTests || !file.isTest)
     .filter(file => !excluded.has(file.relative.split('/').pop() ?? ''))
-    .filter(file => file.lines.some(line => !isCommentLine(line) && pattern.test(line)))
+    .filter(file => file.text.split('\n').some(line => !isCommentLine(line) && pattern.test(line)))
     .map(file => file.relative);
 }

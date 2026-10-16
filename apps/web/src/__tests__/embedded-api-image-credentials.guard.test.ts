@@ -30,13 +30,9 @@
  * that cannot fail reports a safety it never checked.
  */
 
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-
-import { globSync } from 'tinyglobby';
 import { describe, expect, it } from 'vitest';
 
-const SRC = join(process.cwd(), 'src');
+import { readSources, type SourceFile } from './source-scan';
 
 /**
  * An `<img>` (or a `new Image()` assignment) whose source is resolved by
@@ -51,13 +47,15 @@ const IMG_WITH_RESOLVED_SRC = /<img\b[\s\S]*?src=\{[^}]*apiResourceUrl\(/g;
 /** Files that legitimately name the helper: its own module and its tests. */
 const EXEMPT = new Set(['lib/utils/api-resource-url.ts']);
 
-function offenders(files: string[]): string[] {
+/** Every module that could render an image — read at collection (`source-scan.ts`). */
+const MODULES = readSources(
+  file => /\.tsx?$/.test(file.relative) && !file.isTest && !EXEMPT.has(file.relative)
+);
+
+function offenders(files: readonly SourceFile[]): string[] {
   const found: string[] = [];
   for (const file of files) {
-    const rel = file.replace(/\\/g, '/').split('/src/')[1] ?? file;
-    if (EXEMPT.has(rel) || rel.includes('__tests__')) continue;
-    const source = readFileSync(file, 'utf8');
-    if (IMG_WITH_RESOLVED_SRC.test(source)) found.push(rel);
+    if (IMG_WITH_RESOLVED_SRC.test(file.text)) found.push(file.relative);
     IMG_WITH_RESOLVED_SRC.lastIndex = 0;
   }
   return found;
@@ -65,10 +63,9 @@ function offenders(files: string[]): string[] {
 
 describe('embedded API images carry their credentials', () => {
   it('no <img> resolves its src without asking for credentials', () => {
-    const files = globSync(['**/*.tsx', '**/*.ts'], { cwd: SRC, absolute: true });
-
+    expect(MODULES.length, 'a scan that finds nothing proves nothing').toBeGreaterThan(300);
     expect(
-      offenders(files),
+      offenders(MODULES),
       'these render an <img> whose src goes through apiResourceUrl: under ' +
         'COEP credentialless the request carries no cookie and the API answers ' +
         '401. Spread apiImageProps(wireUrl) instead, so src and crossOrigin ' +

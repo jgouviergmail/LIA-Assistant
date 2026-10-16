@@ -28,11 +28,12 @@
  * zero. Never raise an entry to absorb a regression — name the control instead.
  */
 
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
 import { describe, it, expect } from 'vitest';
 
-const SRC = join(process.cwd(), 'src');
+import { readSources } from '@/__tests__/source-scan';
+
+/** Every component outside the tests — read at collection (`source-scan.ts`). */
+const COMPONENTS = readSources(file => file.relative.endsWith('.tsx') && !file.isTest);
 
 /** Controls whose accessible name this guard can reason about. */
 const CONTROL = /<(Input|Textarea)\b/g;
@@ -53,20 +54,6 @@ const NAMING_ATTRS = ['label=', 'aria-label', 'aria-labelledby', 'id=', '{...con
  */
 const ALLOWED: Record<string, number> = {};
 
-function walk(dir: string): string[] {
-  const out: string[] = [];
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) {
-      if (entry === '__tests__') continue;
-      out.push(...walk(full));
-    } else if (entry.endsWith('.tsx')) {
-      out.push(full);
-    }
-  }
-  return out;
-}
-
 /** Extract the opening tag starting at `from`, brace-aware. */
 function openingTag(source: string, from: number): string {
   let depth = 0;
@@ -81,14 +68,14 @@ function openingTag(source: string, from: number): string {
 
 function unnamedControlsPerFile(): Record<string, number> {
   const counts: Record<string, number> = {};
-  for (const file of walk(SRC)) {
-    const source = readFileSync(file, 'utf8');
+  for (const file of COMPONENTS) {
     let match: RegExpExecArray | null;
     CONTROL.lastIndex = 0;
-    while ((match = CONTROL.exec(source)) !== null) {
-      const tag = openingTag(source, match.index);
+    while ((match = CONTROL.exec(file.text)) !== null) {
+      const tag = openingTag(file.text, match.index);
       if (NAMING_ATTRS.some(attr => tag.includes(attr))) continue;
-      const key = relative(process.cwd(), file).replaceAll('\\', '/');
+      // Keyed from the app root, as `ALLOWED` entries are written.
+      const key = `src/${file.relative}`;
       counts[key] = (counts[key] ?? 0) + 1;
     }
   }
@@ -97,7 +84,7 @@ function unnamedControlsPerFile(): Record<string, number> {
 
 describe('design-system form controls carry a naming mechanism', () => {
   it('sees the source tree — a scan that finds nothing proves nothing', () => {
-    expect(walk(SRC).length).toBeGreaterThan(300);
+    expect(COMPONENTS.length).toBeGreaterThan(300);
   });
 
   it('detects a control with no naming mechanism', () => {

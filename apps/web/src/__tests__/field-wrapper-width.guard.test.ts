@@ -26,13 +26,14 @@
  * fail is worse than no guard: it reports safety it never checked.
  */
 
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-
-import { globSync } from 'tinyglobby';
 import { describe, expect, it } from 'vitest';
 
-const SRC = join(process.cwd(), 'src');
+import { readSources } from './source-scan';
+
+/** Every component and page outside the tests — read at collection (`source-scan.ts`). */
+const VIEWS = readSources(
+  file => /^(components|app)\/.+\.tsx$/.test(file.relative) && !file.isTest
+);
 
 /** The two primitives that carry their own `FieldFrame` wrapper. */
 const WRAPPED_CONTROL = /<(Input|Textarea)\b/g;
@@ -97,16 +98,13 @@ describe('the guard itself', () => {
 
 describe('a bounded field is bounded on its wrapper', () => {
   it('never puts a narrowing width on a wrapped control', () => {
-    const files = globSync(['components/**/*.tsx', 'app/**/*.tsx'], { cwd: SRC });
-    // A silent glob miss would make this pass by measuring nothing.
-    expect(files.length).toBeGreaterThan(100);
+    // A silent selection miss would make this pass by measuring nothing.
+    expect(VIEWS.length).toBeGreaterThan(100);
 
     const offenders: string[] = [];
-    for (const relative of files) {
-      if (relative.includes('__tests__')) continue;
-      const source = readFileSync(join(SRC, relative), 'utf8');
-      for (const { tag, classes } of narrowedControls(source)) {
-        offenders.push(`${relative} (${tag} → "${classes}")`);
+    for (const file of VIEWS) {
+      for (const { tag, classes } of narrowedControls(file.text)) {
+        offenders.push(`${file.relative} (${tag} → "${classes}")`);
       }
     }
 

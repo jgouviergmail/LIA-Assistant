@@ -14,30 +14,24 @@
  * source tree itself.
  */
 
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-const SRC_ROOT = resolve(__dirname, '../..');
+import { readSources, SRC_ROOT } from '@/__tests__/source-scan';
+
 const FONTS_TS = resolve(__dirname, '../fonts.ts');
 
-function walk(dir: string): string[] {
-  return readdirSync(dir).flatMap(entry => {
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) {
-      return entry === 'node_modules' || entry === '__snapshots__' ? [] : walk(full);
-    }
-    return /\.(ts|tsx)$/.test(entry) ? [full] : [];
-  });
-}
+/** Every `.ts`/`.tsx` file of `src/`, tests included — read at collection (`source-scan.ts`). */
+const SOURCES = readSources(file => /\.(ts|tsx)$/.test(file.relative));
 
 describe('self-hosted fonts contract', () => {
   it('no source file imports next/font/google (build-time network dependency)', () => {
     // Match the import form only — prose MENTIONS of the module id (this
     // guard, the fonts.ts docstring explaining the remediation) are fine.
     const importForm = /from ['"]next\/font\/google['"]/;
-    const offenders = walk(SRC_ROOT).filter(file => importForm.test(readFileSync(file, 'utf-8')));
+    const offenders = SOURCES.filter(file => importForm.test(file.text)).map(file => file.relative);
     expect(offenders).toEqual([]);
   });
 
