@@ -4,7 +4,7 @@ agent_results (ADR-070).
 On the ReAct nominal path (react_finalize -> initiative -> response) the Initiative
 node writes ``{turn}:initiative`` into agent_results *before* response_node runs. The
 previous ``if not agent_results`` guard would then skip injecting the ReAct answer,
-silently dropping the user-facing reply. ``_merge_react_synthesis_result`` merges the
+silently dropping the user-facing reply. ``merge_react_synthesis_result`` merges the
 ReAct entry without overwriting the Initiative entry.
 """
 
@@ -22,31 +22,31 @@ from src.domains.agents.models import MessagesState, create_initial_state
 from src.domains.agents.nodes.response_node import (
     _apply_react_passthrough,
     _build_response_chain,
-    _merge_react_synthesis_result,
 )
+from src.domains.agents.orchestration.tool_data_projection import merge_react_synthesis_result
 
 
 @pytest.mark.unit
 class TestMergeReactSynthesisResult:
     def test_injects_react_entry_into_empty_results(self) -> None:
-        merged = _merge_react_synthesis_result(None, "the answer", 4, {"item_1": object()})
+        merged = merge_react_synthesis_result(None, "the answer", 4, {"item_1": object()})
         assert merged["4:react_agent"]["data"]["react_synthesis"] == "the answer"
 
     def test_preserves_initiative_entry_and_adds_react(self) -> None:
         existing: dict[str, Any] = {"4:initiative": {"status": "success", "data": {"x": 1}}}
-        merged = _merge_react_synthesis_result(existing, "the answer", 4, {})
+        merged = merge_react_synthesis_result(existing, "the answer", 4, {})
         assert "4:initiative" in merged  # not dropped
         assert "4:react_agent" in merged  # added
         assert merged["4:react_agent"]["data"]["react_synthesis"] == "the answer"
 
     def test_idempotent_on_react_key(self) -> None:
         existing: dict[str, Any] = {"4:react_agent": {"data": {"react_synthesis": "first"}}}
-        merged = _merge_react_synthesis_result(existing, "second", 4, {})
+        merged = merge_react_synthesis_result(existing, "second", 4, {})
         assert merged["4:react_agent"]["data"]["react_synthesis"] == "first"
 
     def test_does_not_mutate_input(self) -> None:
         existing: dict[str, Any] = {"4:initiative": {"status": "success"}}
-        _merge_react_synthesis_result(existing, "answer", 4, {})
+        merge_react_synthesis_result(existing, "answer", 4, {})
         assert "4:react_agent" not in existing
 
     def test_another_turn_s_pipeline_data_blocks_leave_the_state(self) -> None:
@@ -60,7 +60,7 @@ class TestMergeReactSynthesisResult:
         def entry() -> dict[str, Any]:
             return {"data": {"step_results": [{"result": "ok", FIELD_TOOL_DATA: [record]}]}}
 
-        merged = _merge_react_synthesis_result(
+        merged = merge_react_synthesis_result(
             {"3:plan_executor": entry(), "4:initiative": entry()}, "the answer", 4, {}
         )
 

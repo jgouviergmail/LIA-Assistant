@@ -39,7 +39,6 @@ from src.core.constants import (
 )
 from src.core.field_names import (
     FIELD_PLAN_ID,
-    FIELD_REACT_SYNTHESIS,
     FIELD_STATUS,
 )
 from src.core.i18n import _, get_language_name, resolve_language
@@ -119,7 +118,7 @@ from src.domains.agents.nodes.post_response_extractions import (
 from src.domains.agents.nodes.response_skill_runner import run_and_settle
 from src.domains.agents.orchestration.correlation_detector import detect_correlations
 from src.domains.agents.orchestration.tool_data_projection import (
-    previous_turns_without_tool_data,
+    merge_react_synthesis_result,
 )
 from src.domains.agents.prompts import (
     escape_braces,
@@ -978,41 +977,9 @@ def format_nested_results_as_html(
 # NOTE: Agent results formatting functions extracted to:
 # - src.domains.agents.formatters.agent_results
 # Import at top of file provides: format_agent_results_for_prompt
-
-
-def _merge_react_synthesis_result(
-    agent_results: dict[str, Any] | None,
-    react_message: str,
-    current_turn: int,
-    current_registry: dict[str, Any],
-) -> dict[str, Any]:
-    """Merge the ReAct final answer into agent_results without overwriting entries.
-
-    The ReAct answer is keyed ``{turn}:react_agent``. When the Initiative node ran on
-    the ReAct nominal path (react_finalize -> initiative -> response), it has already
-    written ``{turn}:initiative`` into agent_results; a plain ``if not agent_results``
-    guard would then skip the ReAct answer entirely, dropping the user-facing reply.
-    This merge is idempotent on the react key, so graph re-entry never duplicates it.
-
-    Args:
-        agent_results: Existing agent_results map (possibly populated by Initiative).
-        react_message: The ReAct loop's final answer text.
-        current_turn: Current turn id (for the composite key).
-        current_registry: Registry items for this turn (drives HTML cards / display).
-
-    Returns:
-        A new dict containing every existing entry plus the ``{turn}:react_agent`` one,
-        every OTHER turn's pipeline data blocks removed: this is the write the
-        checkpoint keeps on a ReAct turn, and a block serves its own turn alone (ADR-347).
-    """
-    merged = dict(agent_results or {})
-    react_key = f"{current_turn}:react_agent"
-    if react_key not in merged:
-        merged[react_key] = {
-            "data": {FIELD_REACT_SYNTHESIS: react_message},
-            "registry_updates": current_registry,
-        }
-    return previous_turns_without_tool_data(merged, current_turn)
+# The ReAct answer's merge into agent_results lives beside the data blocks it
+# filters: src.domains.agents.orchestration.tool_data_projection
+# (merge_react_synthesis_result).
 
 
 class _SkillActivationResult(NamedTuple):
@@ -1156,7 +1123,7 @@ def _plan_already_produced_skill_app(state: MessagesState, skill_name: str) -> b
     current_turn = state.get(STATE_KEY_CURRENT_TURN_ID, 0)
     turn_prefix = f"{current_turn}:"
     for result_key, result_entry in agent_results.items():
-        # Composite key "{turn_id}:{agent_name}" (see _merge_react_synthesis_result).
+        # Composite key "{turn_id}:{agent_name}" (see merge_react_synthesis_result).
         if not str(result_key).startswith(turn_prefix):
             continue
         if not isinstance(result_entry, dict):
@@ -2711,7 +2678,7 @@ def _apply_react_passthrough(state: MessagesState, run_id: str) -> tuple[Any, bo
         # of this node; cross-turn persistence additionally goes through the
         # returned state_update (see the state_update block) so it holds by
         # contract, not by shared-reference side effect.
-        state[STATE_KEY_AGENT_RESULTS] = _merge_react_synthesis_result(
+        state[STATE_KEY_AGENT_RESULTS] = merge_react_synthesis_result(
             state.get(STATE_KEY_AGENT_RESULTS),
             react_message,
             current_turn,

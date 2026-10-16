@@ -37,11 +37,11 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from typing import Final, TypedDict
+from typing import Any, Final, TypedDict
 
 import structlog
 
-from src.core.field_names import FIELD_TOOL_DATA
+from src.core.field_names import FIELD_REACT_SYNTHESIS, FIELD_TOOL_DATA
 from src.domains.agents.registry.catalogue import (
     ACTING_POLICIES,
     DEFAULT_PIPELINE_DATA_CHANNEL,
@@ -153,6 +153,43 @@ def previous_turns_without_tool_data(
         key: value if key.startswith(current) else _result_without_tool_data(value)
         for key, value in agent_results.items()
     }
+
+
+def merge_react_synthesis_result(
+    agent_results: dict[str, Any] | None,
+    react_message: str,
+    current_turn: int,
+    current_registry: dict[str, Any],
+) -> dict[str, Any]:
+    """Merge the ReAct final answer into agent_results without overwriting entries.
+
+    The ReAct answer is keyed ``{turn}:react_agent``. When the Initiative node ran on
+    the ReAct nominal path (react_finalize -> initiative -> response), it has already
+    written ``{turn}:initiative`` into agent_results; a plain ``if not agent_results``
+    guard would then skip the ReAct answer entirely, dropping the user-facing reply.
+    This merge is idempotent on the react key, so graph re-entry never duplicates it.
+    It is the response node's write on a ReAct turn — the executor's counterpart
+    spreads :func:`previous_turns_without_tool_data` the same way on a pipeline turn.
+
+    Args:
+        agent_results: Existing agent_results map (possibly populated by Initiative).
+        react_message: The ReAct loop's final answer text.
+        current_turn: Current turn id (for the composite key).
+        current_registry: Registry items for this turn (drives HTML cards / display).
+
+    Returns:
+        A new dict containing every existing entry plus the ``{turn}:react_agent`` one,
+        every OTHER turn's pipeline data blocks removed: this is the write the
+        checkpoint keeps on a ReAct turn, and a block serves its own turn alone.
+    """
+    merged = dict(agent_results or {})
+    react_key = f"{current_turn}:react_agent"
+    if react_key not in merged:
+        merged[react_key] = {
+            "data": {FIELD_REACT_SYNTHESIS: react_message},
+            "registry_updates": current_registry,
+        }
+    return previous_turns_without_tool_data(merged, current_turn)
 
 
 def _result_without_tool_data(result: object) -> object:

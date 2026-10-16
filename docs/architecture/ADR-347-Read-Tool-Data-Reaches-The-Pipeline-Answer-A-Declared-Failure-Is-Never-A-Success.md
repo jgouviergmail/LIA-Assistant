@@ -13,10 +13,10 @@
   `tools/tasks_tools.py` (`CompleteTaskTool`), `tools/google_contacts_tools.py` and
   `tools/drive_tools.py` (dead direct classes removed),
   `registry/catalogue.py` (`pipeline_data_channel`), `startup/agents.py`,
-  `orchestration/tool_data_projection.py`, `orchestration/for_each_aggregation.py`,
-  `orchestration/mappers.py` (`build_execution_result`), `orchestration/parallel_executor.py`,
-  `formatters/tool_data.py`, `nodes/response_node.py` (`_build_response_chain`,
-  `_merge_react_synthesis_result`), `tools/react_tool_wrapper.py`, `utils/react_budget.py`,
+  `orchestration/tool_data_projection.py` (`merge_react_synthesis_result`),
+  `orchestration/for_each_aggregation.py`, `orchestration/mappers.py` (`build_execution_result`),
+  `orchestration/parallel_executor.py`, `formatters/tool_data.py`,
+  `nodes/response_node.py` (`_build_response_chain`), `tools/react_tool_wrapper.py`, `utils/react_budget.py`,
   `tools/person_tools.py`, `prompts/v1/response_prompt_lines.txt`, `metrics_agents.py`,
   `metrics_pipeline.py`, dashboard 07
 

@@ -192,7 +192,7 @@ One robustness fix was required: `_format_execution_summary` only handled regist
 Two ReAct-specific adaptations live outside the node:
 
 1. `route_from_initiative` short-circuits to `response` when `execution_mode == "react"` (no orchestrator loop to re-evaluate against — exactly one enrichment pass).
-2. `response_node` merges the ReAct answer (`{turn}:react_agent`) with the Initiative entry (`{turn}:initiative`) via `_merge_react_synthesis_result` instead of the previous `if not agent_results` gate, which would otherwise have dropped the answer once Initiative wrote its results first.
+2. `response_node` merges the ReAct answer (`{turn}:react_agent`) with the Initiative entry (`{turn}:initiative`) via `merge_react_synthesis_result` (`orchestration/tool_data_projection.py`) instead of the previous `if not agent_results` gate, which would otherwise have dropped the answer once Initiative wrote its results first.
 
 Findings are woven into the reply via a ReAct-only `<ProactiveFindings>` directive (the data already reaches the response LLM through `data_for_filtering`); the suggestion uses the existing `<InitiativeSuggestion>` injection.
 

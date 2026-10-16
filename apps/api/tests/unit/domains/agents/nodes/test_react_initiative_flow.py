@@ -12,8 +12,8 @@ import pytest
 
 from src.core.config import settings
 from src.domains.agents.formatters.agent_results import format_agent_results_for_prompt
-from src.domains.agents.nodes.response_node import _merge_react_synthesis_result
 from src.domains.agents.nodes.routing import route_from_react_finalize
+from src.domains.agents.orchestration.tool_data_projection import merge_react_synthesis_result
 
 
 @pytest.mark.unit
@@ -31,6 +31,6 @@ class TestReactInitiativeFlow:
     def test_answer_and_findings_coexist(self):
         """After Initiative wrote its entry, the ReAct answer is still delivered."""
         after_initiative = {"4:initiative": {"status": "success", "data": {"weather": "18C"}}}
-        merged = _merge_react_synthesis_result(after_initiative, "Your meeting is at 3pm.", 4, {})
+        merged = merge_react_synthesis_result(after_initiative, "Your meeting is at 3pm.", 4, {})
         summary = format_agent_results_for_prompt(merged, current_turn_id=4)
         assert "Your meeting is at 3pm." in summary  # ReAct answer survived
