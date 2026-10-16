@@ -302,6 +302,13 @@ its exchanges in one take.
   filesystem's clock — the deletion cleanup's case failed 133 times in 500, the
   move staging's 232. They now write a LATER change, new bytes stamped past any
   tick (`tests/support/file_clock.py`): 0 failures in 500 each.
+- 🔁 **A « for each » over names or places sends each one to its step:** a bare
+  `$item` whose item was a string reached the step's parameters with its own
+  quotes inside theirs, the parameters no longer parsed, and the step ran with
+  the literal `$item` — found by a live proof on Docker dev, where three walking
+  routes went to Google with destination `$item` and answered « no route ». The
+  substitution now works on the parameters themselves: an object or a list
+  arrives whole, a value inside a text reads as text, nothing is re-parsed.
 - 📻 **The radio says the name you gave your station** ([ADR-324](docs/architecture/ADR-324-A-Personal-Radio-A-Grid-Decides-Models-Only-Write.md),
   amendment 2026-10-14): the host used to welcome you to « LIA » whatever the
   station was called — measured on dev, nine openings in ten — because the

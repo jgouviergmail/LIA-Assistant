@@ -948,7 +948,7 @@ ExecutionStep(
 
 | Variable | Description | Exemple |
 |----------|-------------|---------|
-| `$item` | Élément courant de l'itération | `$item.email`, `$item.name` |
+| `$item` | Élément courant de l'itération. Seul, c'est l'élément entier : une chaîne, un objet ou une liste arrive tel quel ; dans un texte plus long, sa forme textuelle (un objet ou une liste en JSON) | `$item`, `$item.email`, `$item.name` |
 | `$item_index` | Index de l'itération (0-based) | `0`, `1`, `2`, ... |
 | `$steps.<step_id>.<field>` | Référence au résultat d'une step | `$steps.search.contacts[0].email` |
 

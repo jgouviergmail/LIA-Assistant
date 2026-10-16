@@ -33,6 +33,7 @@ Example:
 import json
 import re
 from collections import defaultdict
+from copy import deepcopy
 from typing import Any
 
 import structlog
@@ -54,45 +55,99 @@ from src.infrastructure.observability.profiling import profile_performance
 
 logger = structlog.get_logger(__name__)
 
-# Sentinel emitted when a `$item.field` reference resolves to None. The
-# placeholder is substituted INSIDE the JSON quotes of the parameter, so a bare
-# `null` becomes the literal string "null" — which every `if not value` guard
-# downstream happily accepts (prod 2026-07-23: a weather call received
-# location="null", geocoded a city by that name and answered for Cappaghnanool,
-# IE). The sentinel is stripped after parsing so the parameter reads as
-# "not provided" and the tool applies its own default (auto-geolocation here).
-# Plain ASCII on purpose: the marker is spliced into an already-serialized JSON
-# string, so a control character would make it unparsable.
-_MISSING_ITEM_FIELD = "__LIA_MISSING_ITEM_FIELD__"
+# FOR_EACH substitution works on the parameters THEMSELVES, never on their JSON
+# text: splicing a value into the serialized parameters put a string item's own
+# quotes inside the quotes the parameter already had (`""Musée du Louvre""`), the
+# parse failed, and the step ran with the literal "$item" (Docker dev 2026-10-16:
+# three walking routes sent to Google with destination "$item"). An object or a
+# list met the same fate.
+
+#: An exact reference whose value is absent: the parameter is LEFT OUT so the tool
+#: applies its own default — never the string "null", which every `if not value`
+#: guard accepts (prod 2026-07-23: a weather call received location="null",
+#: geocoded a city by that name and answered for Cappaghnanool, IE).
+_ABSENT = object()
+
+#: `$item_index` written inside a longer text (an exact value becomes the integer).
+_ITEM_INDEX_IN_TEXT = re.compile(re.escape(FOR_EACH_ITEM_INDEX_REF) + r"(?!\w)")
 
 
-def _strip_missing_item_fields(value: Any) -> Any:
-    """Turn resolved-to-None FOR_EACH placeholders into absent parameters.
-
-    A key whose value is exactly the sentinel is dropped (the parameter was a
-    lone `$item.field` that had no value). A sentinel embedded in a larger
-    string is blanked instead, since dropping the whole parameter would discard
-    the literal text around it.
-
-    Args:
-        value: Parsed parameters (dict, list or scalar).
-
-    Returns:
-        The same structure with missing-field markers removed.
-    """
-    if isinstance(value, dict):
-        cleaned: dict[str, Any] = {}
-        for key, item in value.items():
-            if item == _MISSING_ITEM_FIELD:
-                logger.info("for_each_param_dropped_missing_field", param=key)
-                continue
-            cleaned[key] = _strip_missing_item_fields(item)
-        return cleaned
-    if isinstance(value, list):
-        return [_strip_missing_item_fields(item) for item in value]
-    if isinstance(value, str) and _MISSING_ITEM_FIELD in value:
-        return value.replace(_MISSING_ITEM_FIELD, "")
+def _item_value(item: Any, reference: str) -> Any:
+    """What `$item` or `$item.<path>` names in the item; None when a segment is absent."""
+    value = item
+    for part in PATTERN_PATH_SPLIT.split(reference[len(FOR_EACH_ITEM_REF) :]):
+        if value is None:
+            break
+        if not part:
+            continue
+        if isinstance(value, dict):
+            value = value.get(part)
+        elif isinstance(value, list):
+            index = int(part) if part.isdecimal() else -1
+            value = value[index] if 0 <= index < len(value) else None
+        else:
+            value = getattr(value, part, None)
     return value
+
+
+def _as_whole_value(value: Any) -> Any:
+    """The parameter a reference that IS the whole value becomes.
+
+    A string stays a string, an object or a list stays one (copied, never shared with
+    the result it came from); a number or a boolean reads as its text, as it always
+    has; an absent value is `_ABSENT`.
+    """
+    if value is None:
+        return _ABSENT
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int | float):
+        return str(value)
+    return deepcopy(value) if isinstance(value, dict | list) else value
+
+
+def _as_text(value: Any) -> str:
+    """How a referenced value reads inside a longer text; an absent one leaves a blank."""
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, bool | int | float):
+        return str(_as_whole_value(value))
+    return json.dumps(value, ensure_ascii=False, default=str)
+
+
+def _substitute_text(text: str, item: Any, item_index: int) -> Any:
+    """One text parameter: an exact reference becomes its value, embedded ones its text."""
+    if text == FOR_EACH_ITEM_INDEX_REF:
+        return item_index
+    if PATTERN_ITEM_REF.fullmatch(text):
+        return _as_whole_value(_item_value(item, text))
+    text = _ITEM_INDEX_IN_TEXT.sub(str(item_index), text)
+    return PATTERN_ITEM_REF.sub(lambda match: _as_text(_item_value(item, match.group(0))), text)
+
+
+def _substitute_item(value: Any, item: Any, item_index: int) -> Any:
+    """`value` with every `$item` reference resolved for one FOR_EACH item.
+
+    In a mapping, a parameter whose value is absent is left out; in a list, it
+    becomes an empty string (the element keeps its place).
+    """
+    if isinstance(value, str):
+        return _substitute_text(value, item, item_index)
+    if isinstance(value, list):
+        resolved = [_substitute_item(element, item, item_index) for element in value]
+        return ["" if element is _ABSENT else element for element in resolved]
+    if not isinstance(value, dict):
+        return value
+    substituted: dict[str, Any] = {}
+    for key, entry in value.items():
+        resolved_entry = _substitute_item(entry, item, item_index)
+        if resolved_entry is _ABSENT:
+            logger.info("for_each_param_dropped_missing_field", param=key)
+            continue
+        substituted[key] = resolved_entry
+    return substituted
 
 
 class CyclicDependencyError(Exception):
@@ -935,10 +990,14 @@ class DependencyGraph:
         Returns:
             New parameters dict with $item substituted
 
-        Substitution rules:
-            - "$item" → entire item object
-            - "$item.field" → item["field"] or item.field
-            - "$item_index" → item_index (0-based)
+        Substitution rules (on the parameters themselves — see `_substitute_item`):
+            - "$item" → the entire item: a string, an object or a list stays one
+              (copied); a number or a boolean reads as its text; an absent item
+              leaves the parameter out
+            - "$item.field" → the same, for item["field"] or item.field
+            - "$item_index" → item_index (0-based), an integer
+            - a reference inside a longer text reads as text: a string as itself,
+              an object or a list as its JSON, an absent value as a blank
 
         Example:
             params = {"email": "$item.emailAddresses[0].value", "name": "$item.displayName"}
@@ -948,111 +1007,5 @@ class DependencyGraph:
         """
         if not params:
             return {}
-
-        from copy import deepcopy
-
-        # Pre-process: Replace exact "$item_index" values with actual integer
-        # before JSON serialization (so they become integers, not strings)
-        def preprocess_params(obj: Any) -> Any:
-            """Recursively replace $item_index with actual integer."""
-            if isinstance(obj, dict):
-                return {k: preprocess_params(v) for k, v in obj.items()}
-            elif isinstance(obj, list):
-                return [preprocess_params(v) for v in obj]
-            elif isinstance(obj, str) and obj == FOR_EACH_ITEM_INDEX_REF:
-                return item_index  # Return as integer
-            return obj
-
-        params = preprocess_params(deepcopy(params))
-
-        # Serialize to JSON for string replacement
-        params_str = json.dumps(params)
-
-        # Use pre-compiled pattern for $item references
-        def resolve_item_ref(match: re.Match) -> str:
-            """Resolve single $item reference.
-
-            IMPORTANT: The regex replacement happens on JSON-serialized params,
-            so "$item.field" is INSIDE a quoted string context in JSON.
-
-            Example JSON: {"to": "$item.email"}
-            After json.dumps: {"to": "$item.email"} (quotes escaped internally)
-
-            When we replace $item.email with "alice@x.com", we need to ensure
-            proper escaping WITHOUT adding outer quotes (they already exist).
-            """
-            ref = match.group(0)
-
-            if ref == FOR_EACH_ITEM_REF:
-                # Return entire item as JSON - will replace the whole quoted value
-                # Remove outer quotes since we're already inside a string context
-                item_json = json.dumps(item)
-                # If it's an object/array, it replaces the whole string value
-                return item_json
-
-            # Note: $item_index is handled in preprocess_params() before JSON serialization
-
-            # Parse path after "$item."
-            path = ref[len(FOR_EACH_ITEM_REF) + 1 :]  # Remove "$item." prefix
-            value = item
-
-            # Use shared pre-compiled pattern for path splitting
-            for part in PATTERN_PATH_SPLIT.split(path):
-                if not part:
-                    continue
-
-                if isinstance(value, dict):
-                    value = value.get(part)
-                elif isinstance(value, list):
-                    try:
-                        idx = int(part)
-                        value = value[idx] if idx < len(value) else None
-                    except ValueError:
-                        value = None
-                elif hasattr(value, part):
-                    value = getattr(value, part)
-                else:
-                    value = None
-
-                if value is None:
-                    break
-
-            # Return value for substitution
-            # CRITICAL: Since $item.field is inside a JSON string (already quoted),
-            # we must NOT add quotes for string values - just escape special chars.
-            if isinstance(value, str):
-                # Escape special JSON characters in the string, but no outer quotes
-                # json.dumps adds quotes, so we strip them
-                escaped = json.dumps(value)
-                return escaped[1:-1]  # Remove surrounding quotes from json.dumps
-            elif value is None:
-                # The placeholder sits INSIDE JSON quotes, so emitting `null` here
-                # produced the literal STRING "null", not a JSON null. Downstream
-                # guards test `if not value`, which "null" passes: prod 2026-07-23
-                # geocoded a city named "null" and answered with the weather of
-                # Cappaghnanool, IE. Emit a sentinel instead; it is turned into
-                # "parameter not provided" after json.loads (see _strip_missing).
-                return _MISSING_ITEM_FIELD
-            elif isinstance(value, bool):
-                return "true" if value else "false"
-            elif isinstance(value, int | float):
-                return str(value)
-            else:
-                # Complex types (dict, list) - replace entirely
-                return json.dumps(value)
-
-        # Replace all $item references using shared pre-compiled pattern
-        # Note: $item_index is handled in preprocess_params() above
-        params_str = PATTERN_ITEM_REF.sub(resolve_item_ref, params_str)
-
-        try:
-            resolved = json.loads(params_str)
-        except json.JSONDecodeError as e:
-            logger.error(
-                "for_each_param_substitution_failed",
-                error=str(e),
-                params_length=len(params_str),
-            )
-            return params or {}
-
-        return _strip_missing_item_fields(resolved)
+        substituted = _substitute_item(params, item, item_index)
+        return substituted if isinstance(substituted, dict) else {}
