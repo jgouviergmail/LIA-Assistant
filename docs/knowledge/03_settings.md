@@ -290,6 +290,8 @@ Click the **speaker icon** 🔊 in the title bar. When enabled, LIA reads its re
 • **Edge TTS** (default): free, Microsoft neural voices
 • **OpenAI TTS**: `tts-1` or `tts-1-hd` — premium, natural voices (alloy, echo, fable, nova, onyx, shimmer)
 • **ElevenLabs**: `eleven_multilingual_v2`, `eleven_turbo_v2_5`, or `eleven_flash_v2_5` — premium, ultra-natural voices, custom and library voices supported
+• **Google Gemini**: expressive multilingual voices with delivery controls
+• **Fish Audio**: `s2.1-pro`, `s2-pro` or `drama-3` — premium voices, the vendor's licensed library and the instance's own cloned or designed voices
 
 **🎙️ Voice Mode (STT) - Speak to LIA:**
 Tap the hands-free badge (microphone) in the chat header to turn voice mode on; hold it for 500ms (or hold Space) to turn it off. Greyed, the badge says the mode is off.
@@ -297,7 +299,7 @@ Tap the hands-free badge (microphone) in the chat header to turn voice mode on; 
 • **Push-to-talk**: Click the overlay to speak manually
 • **Auto-detection**: LIA detects when you stop speaking (1s silence)
 • **Local mode (default)**: free, offline transcription via Sherpa-onnx Whisper — your audio never leaves the LIA server
-• **Remote mode**: ElevenLabs Scribe ($0.22/h, billed per audio duration) — opt-in via Settings → Voice mode
+• **Remote mode**: the speech engine your administrator configured — ElevenLabs Scribe, OpenAI or Fish Audio — billed per audio duration; Settings → Voice mode names the engine that receives your audio — opt-in there
 
 **💡 Tip:**
 Voice mode is ideal for hands-free use or multitasking.
@@ -319,7 +321,7 @@ Choose the **voice gender** that suits you:
 The voice automatically adapts to the interface language. For example, a French voice if the interface is in French.
 
 **⚙️ Quality:**
-LIA uses high-quality neural voices. Three providers are available, configured by the administrator: Microsoft Edge TTS (free), OpenAI TTS (`tts-1` / `tts-1-hd`), and ElevenLabs (`eleven_multilingual_v2` / `eleven_turbo_v2_5` / `eleven_flash_v2_5`). Each provider gets its own per-voice tuning (speed, stability, audio format) for a natural and expressive rendering.
+LIA uses high-quality neural voices. Five providers are available, configured by the administrator: Microsoft Edge TTS (free), OpenAI TTS (`tts-1` / `tts-1-hd`), ElevenLabs (`eleven_multilingual_v2` / `eleven_turbo_v2_5` / `eleven_flash_v2_5`), Google Gemini and Fish Audio. Each provider gets its own per-voice tuning (speed, stability, audio format) for a natural and expressive rendering, and on the engines that perform expressive cues LIA's spoken comments can carry a short sigh, a laugh or a whisper.
 
 ## How does long-term memory work?
 LIA learns about you through its **intelligent memory**:

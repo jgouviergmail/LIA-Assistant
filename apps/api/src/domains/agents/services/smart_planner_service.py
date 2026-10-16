@@ -64,6 +64,7 @@ from src.domains.agents.services.smart_catalogue_service import (
     FilteredCatalogue,
     get_smart_catalogue_service,
 )
+from src.domains.agents.tools.react_runner_budget import model_calls_for
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_agents import (
     planner_for_each_auto_corrections,
@@ -978,7 +979,8 @@ class SmartPlannerService:
         settings = get_settings()
         tools = settings.subagent_research_tools_whitelist_parsed
         return load_prompt("smart_planner_subagent_delegation_prompt").format(
-            subagent_max_iterations=settings.subagent_default_max_iterations,
+            # The setting counts graph STEPS; the planner is told the model calls.
+            subagent_max_model_calls=model_calls_for(settings.subagent_default_max_iterations),
             # Empty whitelist = legacy blocklist mode (discouraged, see the validator):
             # the model is told so in technical English rather than handed a blank.
             subagent_research_tools=", ".join(tools)
@@ -1134,11 +1136,26 @@ class SmartPlannerService:
         # F6: Sub-agents delegation section (empty if disabled)
         sub_agents_section = self._build_sub_agents_section()
 
+        from src.core.run_config import run_id_of
         from src.domains.agents.services.card_composition_prompt import (
             build_card_composition_block,
         )
+        from src.domains.agents.services.efficacy_runtime import (
+            build_efficacy_block,
+            has_available_verifier,
+        )
 
-        context = "\n\n".join(part for part in (context, build_card_composition_block()) if part)
+        efficacy_block = await build_efficacy_block(
+            intelligence.efficacy_context,
+            run_id=run_id_of(config),
+            can_verify=has_available_verifier(
+                catalogue.get_tool_names(), "pipeline", intelligence.domains
+            ),
+            clarification_resolved=bool(clarification_response),
+        )
+        context = "\n\n".join(
+            part for part in (context, build_card_composition_block(), efficacy_block) if part
+        )
         return get_smart_planner_prompt(
             user_goal=intelligence.user_goal.value,
             intent=intelligence.immediate_intent,

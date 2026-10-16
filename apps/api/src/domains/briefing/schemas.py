@@ -225,6 +225,9 @@ class AgendaEventItem(BaseModel):
         None,
         description="Pre-formatted local end time, e.g. '15:30'. None for events without an end.",
     )
+    time_range_local: str | None = Field(
+        default=None, description="Date-first timed interval; None retains the legacy labels."
+    )
     location: str | None = None
     # Machine identity beside the display strings (ADR-322): a condition
     # routine must know WHICH event it has already announced, and `start_local`
@@ -401,6 +404,18 @@ class WorkboardTicketItem(BaseModel):
     overdue: bool = Field(..., description="True when the due instant is past and still open.")
 
 
+class WorkboardPreviews(BaseModel):
+    """The first two visible tickets in each exact counter's set; overlaps are valid."""
+
+    model_config = ConfigDict(frozen=True)
+
+    needs_me: list[WorkboardTicketItem] = Field(..., max_length=2)
+    held_by_lia: list[WorkboardTicketItem] = Field(..., max_length=2)
+    held_by_peers: list[WorkboardTicketItem] = Field(..., max_length=2)
+    overdue: list[WorkboardTicketItem] = Field(..., max_length=2)
+    open_total: list[WorkboardTicketItem] = Field(..., max_length=2)
+
+
 class WorkboardData(BaseModel):
     """What on the board needs the person's attention (ADR-276).
 
@@ -412,11 +427,20 @@ class WorkboardData(BaseModel):
 
     needs_me: int = Field(..., ge=0, description="Tickets waiting on the person, or late.")
     held_by_lia: int = Field(..., ge=0, description="Open tickets LIA holds.")
+    held_by_peers: int | None = Field(
+        default=None,
+        ge=0,
+        description="Open tickets another account holds. None for caches predating this count.",
+    )
     overdue: int = Field(..., ge=0, description="Open tickets past their due date.")
     open_total: int = Field(..., ge=0, description="Every open ticket on the person's board.")
     items: list[WorkboardTicketItem] = Field(
         default_factory=list,
         description="The first tickets waiting on the person, earliest due first.",
+    )
+    previews: WorkboardPreviews | None = Field(
+        default=None,
+        description="Bounded UI previews for each counter. None means an older cache, not empty sets.",
     )
 
 

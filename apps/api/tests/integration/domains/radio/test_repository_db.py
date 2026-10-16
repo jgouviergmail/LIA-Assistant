@@ -463,23 +463,23 @@ async def test_two_sites_racing_for_the_last_place_cannot_both_land(
     assert len(await list_sources(owner.id)) == 1
 
 
-async def test_each_voice_engine_keeps_the_voices_chosen_on_it(
+async def test_each_voice_provider_keeps_the_voices_chosen_on_it(
     async_session: AsyncSession,
 ) -> None:
-    """Owner request 2026-09-27: an engine switched back to finds the voices chosen on it."""
+    """Owner request 2026-09-27: a provider switched back to finds the voices chosen on it."""
     me = await listener(async_session, "voices")
-    await write_preferences(me.id, RadioPreferences(voices={RadioRole.HOST: "va"}), engine="a/1")
+    await write_preferences(me.id, RadioPreferences(voices={RadioRole.HOST: "va"}), engine="a")
     await write_preferences(
-        me.id, RadioPreferences(voices={RadioRole.HOST: "vb"}, timer_minutes=20), engine="b/2"
+        me.id, RadioPreferences(voices={RadioRole.HOST: "vb"}, timer_minutes=20), engine="b"
     )
 
-    assert (await read_preferences(me.id, engine="a/1")).voices == {RadioRole.HOST: "va"}
-    back_on_b = await read_preferences(me.id, engine="b/2")
+    assert (await read_preferences(me.id, engine="a")).voices == {RadioRole.HOST: "va"}
+    back_on_b = await read_preferences(me.id, engine="b")
     assert (back_on_b.voices, back_on_b.timer_minutes) == ({RadioRole.HOST: "vb"}, 20)
-    assert (await read_preferences(me.id, engine="c/3")).voices == {}
+    assert (await read_preferences(me.id, engine="c")).voices == {}
 
 
-async def test_the_flat_voices_of_an_older_row_are_offered_then_kept_per_engine(
+async def test_the_flat_voices_of_an_older_row_are_offered_then_kept_per_provider(
     async_session: AsyncSession,
 ) -> None:
     me = await listener(async_session, "flat")
@@ -487,12 +487,41 @@ async def test_the_flat_voices_of_an_older_row_are_offered_then_kept_per_engine(
     async_session.add(row)
     await async_session.flush()
 
-    assert (await read_preferences(me.id, engine="a/1")).voices == {RadioRole.HOST: "old"}
-    await write_preferences(me.id, RadioPreferences(voices={RadioRole.HOST: "new"}), engine="a/1")
+    assert (await read_preferences(me.id, engine="a")).voices == {RadioRole.HOST: "old"}
+    await write_preferences(me.id, RadioPreferences(voices={RadioRole.HOST: "new"}), engine="a")
 
     await async_session.refresh(row)
     assert "voices" not in row.preferences
-    assert row.preferences[VOICES_BY_ENGINE] == {"a/1": {"host": "new"}}
+    assert row.preferences[VOICES_BY_ENGINE] == {"a": {"host": "new"}}
+
+
+async def test_the_voices_an_older_release_kept_per_model_survive_a_model_change(
+    async_session: AsyncSession,
+) -> None:
+    """2026-10-16: kept per provider and model before, so every model change of the radio's
+    slot handed the listener other voices. Read through any model, replaced at the save."""
+    me = await listener(async_session, "per-model")
+    row = RadioPreferencesRow(
+        user_id=me.id,
+        preferences={
+            VOICES_BY_ENGINE: {
+                "a/1": {"host": "va", "anchor": "wa"},
+                "a/2": {"host": "va"},
+                "b/1": {"host": "vb"},
+            }
+        },
+    )
+    async_session.add(row)
+    await async_session.flush()
+
+    assert (await read_preferences(me.id, engine="a")).voices == {
+        RadioRole.HOST: "va",
+        RadioRole.ANCHOR: "wa",
+    }
+    await write_preferences(me.id, RadioPreferences(voices={RadioRole.HOST: "new"}), engine="a")
+
+    await async_session.refresh(row)
+    assert row.preferences[VOICES_BY_ENGINE] == {"a": {"host": "new"}, "b/1": {"host": "vb"}}
 
 
 def interest_row(owner: uuid.UUID) -> RadioFeed:

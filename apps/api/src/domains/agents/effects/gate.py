@@ -10,7 +10,9 @@ walked around.
 
 The decision is a pure function (:func:`decide_effect`) so every branch can be
 enumerated in a unit test, and the I/O around it (claim, run, close) is the only
-part that needs a database.
+part that needs a database. Whether anybody can answer a question raised now is
+ONE predicate (:func:`nobody_can_answer`), read by the gate and by the ReAct
+loop's own two questions alike (N10, ADR-263 amendment 2026-10-13).
 """
 
 from __future__ import annotations
@@ -20,7 +22,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Final
 
-from src.domains.agents.effects.scope import EffectScope
+from src.domains.agents.api.run_origin import current_origin_carries_drafts
+from src.domains.agents.effects.scope import EffectScope, current_turn_source
 
 #: Policies whose effect happens somewhere the ledger cannot follow — or does
 #: not happen at all at this point in the flow.
@@ -70,7 +73,9 @@ _MESSAGE_MISSING: Final[str] = (
     "This action requires an explicit confirmation from the user and none was "
     "recorded for this call. Present what you intend to do and ask for it."
 )
-_MESSAGE_UNATTENDED: Final[str] = (
+#: Read by the gate AND by the ReAct loop's pre-execution confirmation, which
+#: refuses before the gate is reached when nobody can answer — one wording.
+UNATTENDED_REFUSAL_MESSAGE: Final[str] = (
     "This action requires an explicit confirmation and this turn runs "
     "unattended, so it cannot be obtained. Nothing was performed. Report that "
     "the action is waiting for the user, and never announce it as done."
@@ -86,6 +91,37 @@ _MESSAGE_UNATTENDED_STAND_IN: Final[str] = (
     "confirmation. Otherwise, report that the action is waiting for the user, "
     "and never announce it as done."
 )
+
+
+def nobody_can_answer(source: str | None, *, carrier: bool) -> bool:
+    """Whether a question raised now would reach nobody.
+
+    The ONE reading of « unattended ». A routine is the case: the scheduler
+    chose the minute and nobody watches the thread, so a question it raised
+    would wait there and swallow the person's next message (N10, measured in
+    production). A workboard ticket is not, because it CARRIES the question to
+    the person; neither is anything the person typed or said.
+
+    Args:
+        source: Who asked for the turn, as :func:`resolve_source` names it.
+        carrier: Whether the run can put a draft in front of the person.
+
+    Returns:
+        True when nobody could answer a question raised in this turn.
+    """
+    return source in UNATTENDED_SOURCES and not carrier
+
+
+def turn_has_nobody_to_ask() -> bool:
+    """:func:`nobody_can_answer` for the turn in progress.
+
+    Read by the ReAct loop before it raises one of its own questions — a tool
+    confirmation, a network permission — neither of which reaches this gate.
+
+    Returns:
+        True inside a routine's run; False in the chat, a spoken turn, a ticket.
+    """
+    return nobody_can_answer(current_turn_source(), carrier=current_origin_carries_drafts())
 
 
 def unattended_refusal_message(stand_in: str, when: str) -> str:
@@ -194,7 +230,7 @@ def decide_effect(
         The verdict. Pure: no I/O, no clock, no registry — every branch is
         enumerable in a unit test.
     """
-    unattended = scope is not None and scope.source in UNATTENDED_SOURCES and not carrier
+    unattended = scope is not None and nobody_can_answer(scope.source, carrier=carrier)
 
     # A DRAFT is only ever a pass-through where somebody can answer it. Nobody
     # can, here — so it is refused rather than raising an interrupt that would
@@ -207,7 +243,7 @@ def decide_effect(
         return GateDecision(
             action=GateAction.REFUSE,
             error_code=ERROR_CONFIRMATION_IMPOSSIBLE,
-            llm_message=_MESSAGE_UNATTENDED,
+            llm_message=UNATTENDED_REFUSAL_MESSAGE,
         )
 
     if policy is None or policy in PASS_THROUGH_POLICIES:

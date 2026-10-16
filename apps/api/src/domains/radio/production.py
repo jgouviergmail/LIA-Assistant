@@ -13,7 +13,11 @@ same way for every format:
 3. VOICE — every kept line is spoken by the cast's voice for its role, with the
    delivery the writer asked for; lines are voiced in parallel under a bound and
    every paid call is billed to the listener through the ledger (a free engine
-   records nothing, as the tracker's contract says);
+   records nothing, as the tracker's contract says). On an engine that voices
+   several speakers in one request, a multi-voice segment is voiced by TAKES
+   (:mod:`~src.domains.radio.takes`): the voices answer each other within one
+   recording, each line placed in it by the vendor's own timing — and a take
+   that cannot be voiced or placed is voiced line by line;
 4. MIX — the lines are joined, with their pauses, and loudness-normalised; the
    station's music is the player's, under the whole session.
 
@@ -40,15 +44,18 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any, Protocol
 
+import structlog
+
 from src.core.exceptions import MaxRetriesExceededError
 from src.domains.radio.aired import HeardLine
-from src.domains.radio.audio import AudioAssemblyError, assemble_segment
+from src.domains.radio.audio import AudioAssemblyError, LineAudio, assemble_segment
 from src.domains.radio.cast import Cast
 from src.domains.radio.constants import TTS_RATE_LIMIT_BASE_WAIT_SECONDS
-from src.domains.radio.delivery import StylePhrases, delivery_kwargs
+from src.domains.radio.delivery import RenderedDelivery, StylePhrases, delivery_kwargs
 from src.domains.radio.facts import FactPack, SourceRef
 from src.domains.radio.formats import JournalEdition, RadioFormat, RadioRole
 from src.domains.radio.script import ScriptDraft, ScriptPart
+from src.domains.radio.takes import TakeLine, plan_takes
 from src.domains.radio.verification import (
     Refusal,
     VerificationResult,
@@ -59,11 +66,16 @@ from src.domains.radio.verification import (
     verify_script,
 )
 from src.domains.voice.audio_output import audio_for_mix, mix_audio_format
-from src.domains.voice.billing import SynthesisResult, synthesize_billed
+from src.domains.voice.billing import SynthesisResult
 from src.domains.voice.exceptions import TTSProviderError
-from src.domains.voice.families import TtsBilling, family_of
-from src.domains.voice.protocol import TTSClient
+from src.domains.voice.expressive_cues import CueDialect, cue_dialect, neutralize_literal
+from src.domains.voice.families import voices_dialogue
+from src.domains.voice.protocol import DialogueAudio, DialogueTTSClient, DialogueTurn, TTSClient
+from src.domains.voice.spoken import TtsLedger, speak, speak_dialogue
+from src.infrastructure.observability.metrics_radio import radio_dialogue_takes_total
 from src.infrastructure.utils.retry import retry_async
+
+logger = structlog.get_logger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -129,23 +141,6 @@ class LineChecker(Protocol):
         ...
 
 
-class TtsLedger(Protocol):
-    """Where a paid synthesis is billed (the tracker of the session's run)."""
-
-    def record_tts_call(
-        self,
-        provider: str,
-        model: str,
-        characters: int,
-        duration_ms: float = 0.0,
-        *,
-        input_tokens: int | None = None,
-        output_tokens: int | None = None,
-    ) -> None:
-        """Record one synthesis."""
-        ...
-
-
 @dataclass(frozen=True, slots=True)
 class VoiceEngine:
     """The voice engine the radio speaks with.
@@ -171,10 +166,9 @@ class VoiceEngine:
         return self.client.provider_name
 
     @property
-    def billable(self) -> bool:
-        """Whether a synthesis is billed (an unknown family is, to be safe)."""
-        family = family_of(self.provider)
-        return family is None or family.billing is not TtsBilling.FREE
+    def dialect(self) -> CueDialect:
+        """The cues this engine performs between brackets (ADR-345)."""
+        return cue_dialect(self.provider, self.model)
 
 
 @dataclass(frozen=True, slots=True)
@@ -189,6 +183,9 @@ class ProductionLimits:
             (1 = never tried again).
         tts_rate_limit_wait_max_s: The longest a line waits after a
             provider's rate limit.
+        dialogue_max_bytes: The most UTF-8 bytes one dialogue take carries on
+            an engine that voices several speakers in one request; ``0``
+            voices every line alone.
     """
 
     quote_max_chars: int
@@ -196,6 +193,7 @@ class ProductionLimits:
     mix_timeout_s: float
     tts_attempts: int
     tts_rate_limit_wait_max_s: float
+    dialogue_max_bytes: int = 0
 
 
 class ProductionOutcome(StrEnum):
@@ -362,17 +360,24 @@ def _rate_limit_wait(error: Exception, attempt: int, *, max_s: float) -> float |
     return min(max(wait, 0.0), max_s)
 
 
-async def _voice_line(
-    line: VerifiedLine,
-    path: Path,
-    *,
-    engine: VoiceEngine,
-    cast: Cast,
-    ledger: TtsLedger,
-    gate: asyncio.Semaphore,
-    cooldown: _Cooldown,
-    limits: ProductionLimits,
-) -> tuple[str, ...]:
+@dataclass(frozen=True, slots=True)
+class _Speech:
+    """What one line asks of the engine: its delivery rendered, its words read literally.
+
+    A line's own brackets are words, never directions: only the delivery's cue
+    is performed (ADR-345).
+    """
+
+    rendered: RenderedDelivery
+    words: str
+
+    @property
+    def text(self) -> str:
+        """The line as sent alone: its cue, then its words."""
+        return " ".join(part for part in (self.rendered.cue, self.words) if part)
+
+
+def _speech(line: VerifiedLine, engine: VoiceEngine) -> _Speech:
     rendered = delivery_kwargs(
         engine.provider,
         line.role,
@@ -381,52 +386,195 @@ async def _voice_line(
         phrases=engine.phrases,
         base_voice_settings=engine.base_voice_settings,
     )
+    return _Speech(rendered, neutralize_literal(line.text, engine.dialect))
 
-    def wait_for(error: Exception, attempt: int) -> float | None:
-        return _rate_limit_wait(error, attempt, max_s=limits.tts_rate_limit_wait_max_s)
 
-    async def attempt() -> tuple[SynthesisResult, float]:
-        # The gate is held per ATTEMPT: a line waiting to try again leaves its
-        # slot to the others — which wait out a quota inside the gate, so no
-        # line is sent while one is being refused.
-        async with gate:
-            await cooldown.honour()
-            started = time.perf_counter()
+def _takes(
+    lines: Sequence[VerifiedLine],
+    speech: Sequence[_Speech],
+    *,
+    engine: VoiceEngine,
+    cast: Cast,
+    limits: ProductionLimits,
+) -> list[tuple[int, ...]]:
+    """The segment's takes: dialogue takes on an engine that voices one, lines otherwise."""
+    if not (
+        isinstance(engine.client, DialogueTTSClient)
+        and voices_dialogue(engine.provider, engine.model)
+    ):
+        return [(index,) for index in range(len(lines))]
+    return plan_takes(
+        [
+            TakeLine(line.part, cast.voices[line.role], said.text, said.rendered.kwargs)
+            for line, said in zip(lines, speech, strict=True)
+        ],
+        max_bytes=limits.dialogue_max_bytes,
+    )
+
+
+@dataclass(slots=True)
+class _Voicing:
+    """What every take of one segment is voiced with: its engine, quota and ledger."""
+
+    engine: VoiceEngine
+    cast: Cast
+    ledger: TtsLedger
+    limits: ProductionLimits
+    gate: asyncio.Semaphore
+    cooldown: _Cooldown
+
+    def wait_for(self, error: Exception, attempt: int) -> float | None:
+        return _rate_limit_wait(error, attempt, max_s=self.limits.tts_rate_limit_wait_max_s)
+
+    async def _attempt[T](self, call: Callable[[], Awaitable[T]]) -> T:
+        # The gate is held per ATTEMPT: a request waiting to try again leaves its
+        # slot to the others — which wait out a quota inside the gate, so nothing
+        # is sent while one is being refused.
+        async with self.gate:
+            await self.cooldown.honour()
             try:
-                result = await synthesize_billed(
-                    engine.client, line.text, cast.voices[line.role], **rendered.kwargs
-                )
+                return await call()
             except TTSProviderError as error:
-                held = wait_for(error, 0)
+                held = self.wait_for(error, 0)
                 if held is not None:
-                    cooldown.hold(held)
+                    self.cooldown.hold(held)
                 raise
-            return result, (time.perf_counter() - started) * 1000
 
-    result, elapsed_ms = await _until_voiced(attempt, limits.tts_attempts, wait_for)
-    if engine.billable:
-        ledger.record_tts_call(
-            engine.provider,
-            engine.model,
-            result.characters,
-            elapsed_ms,
-            input_tokens=result.input_tokens,
-            output_tokens=result.output_tokens,
+    async def line(self, line: VerifiedLine, said: _Speech, path: Path) -> list[LineAudio]:
+        """Voice one line into a file of its own."""
+
+        def call() -> Awaitable[SynthesisResult]:
+            # The served attempt alone is recorded, on the run's ledger (ADR-345).
+            return speak(
+                self.engine.client,
+                said.text,
+                self.cast.voices[line.role],
+                model=self.engine.model,
+                ledger=self.ledger,
+                **said.rendered.kwargs,
+            )
+
+        result = await _until_voiced(
+            lambda: self._attempt(call), self.limits.tts_attempts, self.wait_for
         )
-    await _write_file(path, audio_for_mix(engine.client, result.audio))
-    return rendered.unrendered
+        # Outside the retry: the vendor billed the audio it sent, and a malformed
+        # answer must not be bought twice.
+        await _write_file(path, audio_for_mix(self.engine.client, result.audio))
+        return [LineAudio(line.part, path)]
+
+    async def take(
+        self,
+        indices: tuple[int, ...],
+        lines: Sequence[VerifiedLine],
+        speech: Sequence[_Speech],
+        files: _SegmentFiles,
+    ) -> list[LineAudio]:
+        """Voice one take: a line alone, or a dialogue — line by line when it fails."""
+        if len(indices) > 1:
+            placed = await self._dialogue(indices, lines, speech, files.takes[indices[0]])
+            if placed is not None:
+                return placed
+        voiced: list[LineAudio] = []
+        for index in indices:
+            voiced += await self.line(lines[index], speech[index], files.lines[index])
+        return voiced
+
+    async def _dialogue(
+        self,
+        indices: tuple[int, ...],
+        lines: Sequence[VerifiedLine],
+        speech: Sequence[_Speech],
+        path: Path,
+    ) -> list[LineAudio] | None:
+        """The take's lines as windows of one dialogue, or ``None`` to voice them alone.
+
+        A take that keeps failing, or whose timing does not place every line,
+        hands its lines back: they are voiced one by one, and a dialogue the
+        vendor did bill stays recorded (:func:`speak_dialogue`).
+        """
+        client = self.engine.client
+        if not isinstance(client, DialogueTTSClient):
+            return None
+        turns = [
+            DialogueTurn(
+                voice=self.cast.voices[lines[index].role],
+                words=speech[index].words,
+                cue=speech[index].rendered.cue,
+            )
+            for index in indices
+        ]
+
+        def call() -> Awaitable[DialogueAudio]:
+            return speak_dialogue(
+                client,
+                turns,
+                model=self.engine.model,
+                ledger=self.ledger,
+                **speech[indices[0]].rendered.kwargs,
+            )
+
+        try:
+            dialogue = await _until_voiced(
+                lambda: self._attempt(call), self.limits.tts_attempts, self.wait_for
+            )
+        except TTSProviderError as error:
+            radio_dialogue_takes_total.labels(outcome="failed").inc()
+            logger.info("radio_dialogue_take_failed", turns=len(turns), error_code=error.code)
+            return None
+        starts = dialogue.turn_starts_s
+        if starts is None or len(starts) != len(indices):
+            radio_dialogue_takes_total.labels(outcome="unplaced").inc()
+            logger.info("radio_dialogue_take_unplaced", turns=len(turns))
+            return None
+        await _write_file(path, audio_for_mix(client, dialogue.audio))
+        radio_dialogue_takes_total.labels(outcome="voiced").inc()
+        # The first window opens the file (any breath before the first word is
+        # the take's); every other one opens on its turn's first word.
+        return [
+            LineAudio(
+                lines[index].part,
+                path,
+                start_s=0.0 if position == 0 else starts[position],
+                end_s=starts[position + 1] if position + 1 < len(indices) else None,
+            )
+            for position, index in enumerate(indices)
+        ]
+
+
+@dataclass(frozen=True, slots=True)
+class _SegmentFiles:
+    """Where a segment's voices are written while it is mixed, beside its audio.
+
+    Attributes:
+        lines: One file per line voiced alone, in script order.
+        takes: One file per line a take may open, in script order.
+    """
+
+    lines: tuple[Path, ...]
+    takes: tuple[Path, ...]
+
+    @classmethod
+    def beside(cls, out: Path, count: int, fmt: str) -> _SegmentFiles:
+        return cls(
+            lines=tuple(
+                out.with_name(f"{out.stem}.line{index:02d}.{fmt}") for index in range(count)
+            ),
+            takes=tuple(
+                out.with_name(f"{out.stem}.take{index:02d}.{fmt}") for index in range(count)
+            ),
+        )
 
 
 def _transient(error: Exception) -> bool:
     return isinstance(error, TTSProviderError) and error.transient
 
 
-async def _until_voiced(
-    attempt: Callable[[], Awaitable[tuple[SynthesisResult, float]]],
+async def _until_voiced[T](
+    attempt: Callable[[], Awaitable[T]],
     attempts: int,
     wait_for: Callable[[Exception, int], float | None],
-) -> tuple[SynthesisResult, float]:
-    """One line's synthesis, tried again while its failure is transient.
+) -> T:
+    """One synthesis (a line, a take), tried again while its failure is transient.
 
     Measured 2026-09-26: the free engine answers without audio once in
     twenty-four syntheses, so at fourteen lines about one segment in two was
@@ -561,33 +709,27 @@ async def produce_segment(
             dropped=tuple(violation for _, violation in verified.dropped),
         )
 
-    paths = [
-        out.with_name(f"{out.stem}.line{index:02d}.{mix_audio_format(engine.client)}")
-        for index in range(len(verified.lines))
-    ]
-    gate = asyncio.Semaphore(max(1, limits.tts_concurrency))
-    cooldown = _Cooldown()
+    files = _SegmentFiles.beside(out, len(verified.lines), mix_audio_format(engine.client))
+    speech = [_speech(line, engine) for line in verified.lines]
+    takes = _takes(verified.lines, speech, engine=engine, cast=cast, limits=limits)
+    voicing = _Voicing(
+        engine=engine,
+        cast=cast,
+        ledger=ledger,
+        limits=limits,
+        gate=asyncio.Semaphore(max(1, limits.tts_concurrency)),
+        cooldown=_Cooldown(),
+    )
     # ``return`` is not allowed inside ``except*``: the failure is kept there
     # and answered after it. Anything but a provider failure is a defect and
-    # propagates (the line files are removed on the way out all the same).
+    # propagates (the line and take files are removed on the way out all the same).
     voice_failure: BaseExceptionGroup[TTSProviderError] | None = None
     try:
         try:
             async with asyncio.TaskGroup() as group:
                 tasks = [
-                    group.create_task(
-                        _voice_line(
-                            line,
-                            path,
-                            engine=engine,
-                            cast=cast,
-                            ledger=ledger,
-                            gate=gate,
-                            cooldown=cooldown,
-                            limits=limits,
-                        )
-                    )
-                    for line, path in zip(verified.lines, paths, strict=True)
+                    group.create_task(voicing.take(take, verified.lines, speech, files))
+                    for take in takes
                 ]
         except* TTSProviderError as errors:
             voice_failure = errors
@@ -595,17 +737,15 @@ async def produce_segment(
             return ProductionResult(
                 ProductionOutcome.VOICE_FAILED, error_code=_first_code(voice_failure)
             )
-        parts: list[tuple[ScriptPart, Path]] = [
-            (line.part, path) for line, path in zip(verified.lines, paths, strict=True)
-        ]
+        voiced = [line_audio for task in tasks for line_audio in task.result()]
         try:
-            audio = await assemble_segment(parts, out, timeout_s=limits.mix_timeout_s)
+            audio = await assemble_segment(voiced, out, timeout_s=limits.mix_timeout_s)
         except AudioAssemblyError:
             return ProductionResult(ProductionOutcome.MIX_FAILED)
     finally:
-        await asyncio.to_thread(_remove, paths)
+        await asyncio.to_thread(_remove, [*files.lines, *files.takes])
 
-    unrendered = tuple(sorted({quality for task in tasks for quality in task.result()}))
+    unrendered = tuple(sorted({quality for said in speech for quality in said.rendered.unrendered}))
     return ProductionResult(
         ProductionOutcome.PRODUCED,
         segment=ProducedSegment(

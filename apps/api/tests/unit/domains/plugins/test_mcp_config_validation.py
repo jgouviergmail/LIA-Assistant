@@ -40,6 +40,18 @@ def _http_server(**overrides: Any) -> dict[str, Any]:
     return server
 
 
+def test_explicit_null_stdio_cwd_is_invalid_and_preserves_independent_server() -> None:
+    result = validate_mcp_config(
+        _config(
+            {"invalid": {"type": "stdio", "command": "node", "cwd": None}, "valid": _http_server()}
+        )
+    )
+    assert result.valid is True
+    by_key = {server.key: server for server in result.servers}
+    assert by_key["invalid"].status is McpServerStatus.INVALID
+    assert by_key["valid"].status is McpServerStatus.SUPPORTED
+
+
 class TestSpecExample:
     def test_spec_example_classifies_every_transport(self) -> None:
         """The spec's own §7.2.1 example: stdio + streamable-http + sse."""

@@ -201,3 +201,40 @@ network, which a raw socket walks around.
   declaring hosts; asking makes the person the authority and remembers it.
 - **The init container for the proxy's state**: measured wrong (see above).
 - **Proxy metrics from iron-proxy**: none in 0.49; a blackbox probe instead.
+
+## Amendment 2026-10-13 — a question nobody can answer is never asked
+
+Measured in production (N10): a routine's ReAct loop declared a host nobody had permitted,
+and the card waited on the person's thread. Their next message was read as its answer, and
+every later routine of the account stood aside while it waited. Reproduced on dev end to end.
+
+An unknown host is now asked about only where somebody can answer it.
+`invoke_with_settlement` (`nodes/react_egress_question.py`) opens `settling_questions()` only
+when `turn_has_nobody_to_ask()` is false — the one predicate of the
+[ADR-263 amendment 2026-10-13](ADR-263-Execution-Authority-Chain-And-Effect-Register.md). In a
+routine the call is not settleable, so the tool path answers with its existing refusal
+(« tell the person they can allow these hosts in Settings … then run it again ») and the loop
+goes on to an answer that says so. A skill command's hosts read the same context, so they
+refuse alike. A workboard ticket CARRIES the card to the person and still asks.
+
+What this costs, on purpose: a person can no longer answer a routine's card within the
+hour. They allow the host from *Settings › Sandbox network*, which the refusal names.
+
+Guards: `TestNobodyToAskIsNeverAsked` (a routine refuses, a ticket still asks).
+
+## Amendment 2026-10-13 (b) — a key the service echoes never leaves the run
+
+The script holds a per-run token and never the person's key — but the service
+on the other side may QUOTE the key it received (an error body, a debug echo),
+and the script prints what it got back: that text reaches the model, the
+registers and the answer. Both doors of a network run now remove every real
+key of the run from what comes back (`egress/scrub.py`): `execute_network_run`
+scrubs the script's output and error, `run_on_network` the command's stdout,
+stderr and files. A key is removed as written and URL-encoded; in a file it is
+masked in place, its length kept, so a binary's offsets hold. A value shorter
+than eight characters is never taken for a key.
+
+Known limit, written: a key inside a compressed or otherwise encoded binary is
+not found.
+
+Guard: `tests/unit/domains/agents/python_sandbox/egress/test_scrub.py`.

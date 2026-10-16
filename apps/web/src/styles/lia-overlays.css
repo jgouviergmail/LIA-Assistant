@@ -87,6 +87,42 @@
     height: 1.25rem;
   }
 
+  /* Actions get their own row; only the title reserves the close control's corner. */
+  .lia-notification:has(> [data-button]) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    padding: 1rem;
+  }
+  .lia-notification:has(> [data-button]) > [data-content] {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+  .lia-notification:has(> [data-button]):has(> [data-icon]) {
+    grid-template-columns: 1.25rem minmax(0, 1fr);
+  }
+  .lia-notification:has(> [data-button]) > [data-icon] {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .lia-notification:has(> [data-button]):has(> [data-icon]) > [data-content] {
+    grid-column: 2 / -1;
+  }
+  .lia-notification:has(> [data-button]) > [data-button] {
+    grid-column: 1 / -1;
+    justify-self: center;
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
+  }
+  .lia-notification:has(> [data-button]):has(> [data-close-button]) [data-title] {
+    min-height: 2rem;
+    padding-inline-end: 2rem;
+  }
+  .lia-notification:has(> [data-button]) > [data-close-button] {
+    top: 0.25rem;
+    transform: none;
+  }
   /* The screen dimmer is not blurred: no double fullscreen filter behind a dialog. */
   .lia-overlay-backdrop {
     background: rgb(0 0 0 / 48%);

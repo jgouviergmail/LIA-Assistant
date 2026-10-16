@@ -2,9 +2,10 @@
 
 from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, JsonValue, model_validator
 
 from src.core.exceptions import ValidationError
+from src.domains.agents.application.draft_models import ApplicationActionDraftContent
 from src.domains.agents.application.journal_consolidation_schemas import JournalConsolidationScope
 from src.domains.journals.portrait_feedback_configuration import portrait_feedback_entry
 from src.domains.journals.schemas import JournalPortraitFeedbackRequest
@@ -37,3 +38,18 @@ class JournalFeedbackValues(BaseModel):
 class JournalFeedbackPatch(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
     journal_feedback: JournalFeedbackValues
+
+
+def feedback_public_scope(values: JournalFeedbackValues) -> dict[str, JsonValue]:
+    return {
+        **values.expected.public_scope(),
+        "correction": portrait_feedback_entry(values.request).model_dump(mode="json"),
+    }
+
+
+def canonical_journal_feedback(draft: ApplicationActionDraftContent) -> bool:
+    selected = JournalFeedbackPatch.model_validate(draft.intent).journal_feedback
+    public = feedback_public_scope(selected)
+    return draft.before == {"journal_feedback": public} and draft.after == {
+        "journal_feedback": {**public, "requested": True}
+    }

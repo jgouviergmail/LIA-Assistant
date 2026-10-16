@@ -33,6 +33,17 @@ function flatTokens(model: ReturnType<typeof buildSettingsShellModel>): Settings
 }
 
 describe('buildSettingsShellModel', () => {
+  it('places avatar appearance immediately after LIA style in identity and memory', () => {
+    const identity = buildSettingsShellModel(ALL)
+      .find(tab => tab.tab === 'features')
+      ?.groups.find(group => group.key === 'identity_memory');
+    expect(identity?.sections.map(section => section.token).slice(0, 3)).toEqual([
+      'personality',
+      'eyes-style',
+      'psyche',
+    ]);
+  });
+
   it('keeps page order and covers every available section for a regular user', () => {
     const model = buildSettingsShellModel(ALL);
     const expected = TOKENS.filter(token => SETTINGS_SECTIONS[token].tab !== 'administration');

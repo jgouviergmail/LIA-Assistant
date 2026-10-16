@@ -1,22 +1,8 @@
 'use client';
 
-/**
- * One paginated, foldable section of the notifications hub.
- *
- * The hub stacks five of them and every one answers the same question the same
- * way: a bounded page, the EXACT total behind it (ADR-185), a first-load
- * spinner that a refetch must not bring back, and no request at all while the
- * section is closed. Written five times, the fifth copy is where one of those
- * four rules would quietly go missing.
- *
- * Two rules are load-bearing and easy to get wrong:
- *
- * - `firstLoad` is derived from the ABSENCE of data, never from `error`: a
- *   refetch clears the error, and a spinner keyed on it unmounts the list
- *   mid-refresh (the defect measured on `PeerConnectionsSettings`, 2026-07-31);
- * - the page resets to 1 whenever the section is closed, so re-opening it
- *   never lands on page 4 of a list the reader last saw days ago.
- */
+/** Independent lazy pages with exact counts, retained refresh data and a
+ * first-load state derived from absence of data. Closing resets the position.
+ * Complete, unpaged endpoints explicitly opt into local pagination. */
 
 import { useCallback, useState } from 'react';
 
@@ -41,7 +27,7 @@ export interface PagedSection<TItem> {
 }
 
 export interface UsePagedSectionOptions<TPayload, TItem> {
-  /** Endpoint WITHOUT its paging query — the hook owns `limit`/`offset`. */
+  /** Endpoint without paging parameters; client pagination keeps it unchanged. */
   path: string;
   /** Pull the rows out of the payload. */
   selectItems: (payload: TPayload) => TItem[];
@@ -51,6 +37,11 @@ export interface UsePagedSectionOptions<TPayload, TItem> {
   enabled: boolean;
   pageSize?: number;
   /**
+   * Server pages by default. Use client only for an endpoint returning its
+   * complete collection, such as scheduled actions, which accepts no offset.
+   */
+  pagination?: 'server' | 'client';
+  /**
    * Bump it when a write elsewhere changed the set (a broadcast was just sent):
    * the section refetches FROM ITS FIRST PAGE and keeps what it shows meanwhile
    * — a refresh, never a first load. Omitted, nothing ever forces a refetch.
@@ -58,14 +49,8 @@ export interface UsePagedSectionOptions<TPayload, TItem> {
   refreshKey?: number;
 }
 
-export function usePagedSection<TPayload, TItem>({
-  path,
-  selectItems,
-  selectTotal,
-  enabled,
-  pageSize = HUB_PAGE_SIZE,
-  refreshKey,
-}: UsePagedSectionOptions<TPayload, TItem>): PagedSection<TItem> {
+/** Requested position and the two explicit transitions that reset it. */
+function usePagePosition(enabled: boolean, refreshKey: number | undefined) {
   const [page, setPage] = useState(1);
 
   // Closing the section forgets the position. Re-opening on page 4 of a list
@@ -89,23 +74,119 @@ export function usePagedSection<TPayload, TItem>({
     setPage(1);
   }
 
+  return {
+    page,
+    setPage,
+    canRecoverPage: enabled && wasEnabled === enabled && lastRefreshKey === refreshKey,
+  };
+}
+
+interface LoadedPageOptions<TPayload> {
+  data: TPayload | undefined;
+  loading: boolean;
+  error: Error | null;
+  page: number;
+  totalPages: number;
+  canRecoverPage: boolean;
+  setPage: (page: number) => void;
+}
+
+/** Keep the page belonging to retained rows, independently of the next request. */
+function useLoadedPage<TPayload>({
+  data,
+  loading,
+  error,
+  page,
+  totalPages,
+  canRecoverPage,
+  setPage,
+}: LoadedPageOptions<TPayload>): number {
+  const [loaded, setLoaded] = useState(() => ({ data, page }));
+  // A new endpoint first exposes the previous data. It is not a successful
+  // response for that endpoint, and must never invalidate its requested page.
+  if (data === undefined || loading || error || data === loaded.data) return loaded.page;
+
+  setLoaded({ data, page });
+  if (canRecoverPage && page > totalPages) setPage(totalPages);
+  return page;
+}
+
+/** An error must label retained server rows with the page they came from. */
+function retainLoadedPage<TPayload>(
+  {
+    data,
+    error,
+    canRecoverPage,
+  }: Pick<LoadedPageOptions<TPayload>, 'data' | 'error' | 'canRecoverPage'>,
+  pagination: 'server' | 'client'
+): boolean {
+  return pagination === 'server' && error !== null && canRecoverPage && data !== undefined;
+}
+
+function pagedEndpoint(path: string, page: number, pageSize: number): string {
   const separator = path.includes('?') ? '&' : '?';
-  const { data, loading, error, refetch } = useApiQuery<TPayload>(
-    `${path}${separator}limit=${pageSize}&offset=${(page - 1) * pageSize}`,
-    { componentName: 'usePagedSection', enabled, deps: [refreshKey] }
+  return `${path}${separator}limit=${pageSize}&offset=${(page - 1) * pageSize}`;
+}
+
+export function usePagedSection<TPayload, TItem>({
+  path,
+  selectItems,
+  selectTotal,
+  enabled,
+  pageSize = HUB_PAGE_SIZE,
+  pagination = 'server',
+  refreshKey,
+}: UsePagedSectionOptions<TPayload, TItem>): PagedSection<TItem> {
+  const { page, setPage, canRecoverPage } = usePagePosition(enabled, refreshKey);
+  const endpoint = pagination === 'client' ? path : pagedEndpoint(path, page, pageSize);
+  const { data, loading, error, refetch } = useApiQuery<TPayload>(endpoint, {
+    componentName: 'usePagedSection',
+    enabled,
+    deps: [refreshKey],
+  });
+
+  const total = data === undefined ? 0 : selectTotal(data);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const loadedPage = useLoadedPage({
+    data,
+    loading,
+    error,
+    page,
+    totalPages,
+    canRecoverPage,
+    setPage,
+  });
+  // A complete client collection is authoritative for every local page.
+  if (canRecoverPage && pagination === 'client' && data !== undefined && page > totalPages) {
+    setPage(totalPages);
+  }
+
+  const rows = data === undefined ? undefined : selectItems(data);
+  const items =
+    pagination === 'client' ? rows?.slice((page - 1) * pageSize, page * pageSize) : rows;
+  // On failure the retained server rows still belong to their loaded page.
+  // Keep the request position internally, so retry can target the failed page.
+  const visiblePage = retainLoadedPage({ data, error, canRecoverPage }, pagination)
+    ? loadedPage
+    : page;
+  const goTo = useCallback(
+    (next: number) => {
+      const nextPage = Math.max(1, next);
+      if (nextPage === page && error) {
+        void refetch();
+        return;
+      }
+      setPage(nextPage);
+    },
+    [page, error, refetch, setPage]
   );
-
-  const total = data ? selectTotal(data) : 0;
-  const items = data ? selectItems(data) : undefined;
-
-  const goTo = useCallback((next: number) => setPage(Math.max(1, next)), []);
 
   return {
     items,
     total,
-    page,
+    page: visiblePage,
     setPage: goTo,
-    totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    totalPages,
     // Derived from `data`, never from `error` — see the note above.
     firstLoad: data === undefined && loading,
     loading,

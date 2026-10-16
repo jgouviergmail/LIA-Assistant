@@ -11,9 +11,10 @@ Multi-tenant security module that prevents:
 
 Architecture (ADR-326):
     validate_url() is the single async entry point; its verdict carries the
-    addresses it validated. pinned_stream() is the ONE way a validated URL is
-    requested: connected to a validated address, the name kept in ``Host`` and
-    the SNI, redirects never followed — a redirect is a new URL the caller
+    addresses it validated, in the resolver's order. pinned_stream() is the ONE
+    way a validated URL is requested: connected to a validated address (the
+    next one only when a connection cannot be established), the name kept in
+    ``Host`` and the SNI, redirects never followed — a redirect is a new URL the caller
     validates and requests again, so every hop is checked BEFORE it is
     contacted. The former shape (validate, then let the client follow
     redirects and re-resolve the name, then check where it ended up) was
@@ -26,8 +27,8 @@ Architecture (ADR-326):
 import asyncio
 import ipaddress
 import socket
-from collections.abc import Callable
-from contextlib import AbstractAsyncContextManager
+from collections.abc import AsyncIterator, Callable
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlparse
@@ -35,6 +36,7 @@ from urllib.parse import urlparse
 import httpx
 import structlog
 
+from src.infrastructure.observability.log_facts import url_host
 from src.infrastructure.utils.bounded_read import ACCEPT_ENCODING_HEADER
 
 logger = structlog.get_logger(__name__)
@@ -188,13 +190,17 @@ def _resolve_dns_sync(hostname: str) -> list[str]:
     except UnicodeError as exc:
         raise socket.gaierror(socket.EAI_NONAME, "hostname cannot be encoded") from exc
     # sockaddr[0] is typed str | int (typeshed widens for non-IP families); for
-    # AF_INET/AF_INET6 it is always the IP string — keep only those.
-    ips: set[str] = set()
+    # AF_INET/AF_INET6 it is always the IP string — keep only those. The ORDER is
+    # part of the answer: the resolver sorts it (RFC 6724), a family this host
+    # cannot route last. A set threw it away, so the pinned address followed the
+    # worker's hash seed — measured on production (no IPv6 route): an IPv6
+    # address pinned first failed every fetch of that host (ADR-326, 2026-10-13).
+    ordered: dict[str, None] = {}
     for result in results:
         host = result[4][0]
         if isinstance(host, str):
-            ips.add(host)
-    return list(ips)
+            ordered.setdefault(host, None)
+    return list(ordered)
 
 
 async def validate_url(
@@ -298,11 +304,13 @@ async def validate_url(
 
 def pinned_request_parts(
     verdict: UrlValidationResult,
+    address: str | None = None,
 ) -> tuple[httpx.URL, dict[str, str], dict[str, Any]]:
     """What a request made on a verdict is built from: its URL, headers, extensions.
 
-    The URL's host is the FIRST address the verdict validated, so the connection
-    goes where the check looked; the ``Host`` header and, over TLS, the SNI
+    The URL's host is an address the verdict VALIDATED — ``address``, or the
+    first in the resolver's order — so the connection goes where the check
+    looked; the ``Host`` header and, over TLS, the SNI
     carry the name, so the server answers for the right site and the
     certificate is verified against the name, never the address. The name is
     the WIRE form (``raw_host``, IDNA-encoded): a header is ASCII, and
@@ -313,17 +321,22 @@ def pinned_request_parts(
 
     Args:
         verdict: A VALID verdict of :func:`validate_url`.
+        address: One of the verdict's validated addresses; its first when None.
 
     Returns:
-        ``(url, headers, extensions)`` for ``client.stream`` / ``client.request``.
+        ``(url, headers, extensions)`` for ``client.build_request``.
 
     Raises:
-        ValueError: The verdict is a refusal, or validated no address.
+        ValueError: The verdict is a refusal, validated no address, or did not
+            validate ``address``.
     """
     if not verdict.valid or not verdict.resolved_ips:
         raise ValueError("a request is made on a valid verdict that carries an address")
+    target = verdict.resolved_ips[0] if address is None else address
+    if target not in verdict.resolved_ips:
+        raise ValueError("a request is pinned on an address its verdict validated")
     logical = httpx.URL(verdict.url)
-    pinned = logical.copy_with(host=verdict.resolved_ips[0])
+    pinned = logical.copy_with(host=target)
     wire_name = logical.raw_host.decode("ascii")
     host_header = wire_name
     if logical.port is not None:
@@ -335,20 +348,29 @@ def pinned_request_parts(
     return pinned, headers, extensions
 
 
-def pinned_stream(
+@asynccontextmanager
+async def pinned_stream(
     client: httpx.AsyncClient,
     method: str,
     verdict: UrlValidationResult,
     *,
     headers: dict[str, str] | None = None,
     timeout: float | httpx.Timeout | None = None,
-) -> AbstractAsyncContextManager[httpx.Response]:
-    """Open a streaming request on a verdict, connected to the address it validated.
+) -> AsyncIterator[httpx.Response]:
+    """Open a streaming request on a verdict, connected to an address it validated.
 
     The ONE way a validated URL is requested (ADR-326): redirects are never
     followed here — a redirect is a new URL, which the caller validates and
     requests through this function again, so every hop is checked BEFORE it is
-    contacted and connects to the address that was checked.
+    contacted and connects to an address that was checked.
+
+    The validated addresses are tried in the resolver's order, the next one
+    only when the connection to the previous could not be ESTABLISHED
+    (``httpx.ConnectError``: refused, unreachable, TLS handshake) — nothing was
+    sent, and every candidate passed the check, so the SSRF guarantee holds.
+    Nothing else moves on: not a timeout (it already spent the request's
+    budget), not an answer (an error status included), not an exception the
+    caller's own block raises.
 
     Args:
         client: The caller's client.
@@ -362,18 +384,46 @@ def pinned_stream(
             client's default, which grows with whatever decoder is installed.
         timeout: The request timeout, the client's when None.
 
-    Returns:
-        The response context manager ``client.stream`` hands back.
+    Yields:
+        The streamed response, closed when the block exits.
+
+    Raises:
+        ValueError: The verdict is a refusal, or validated no address.
+        httpx.ConnectError: No validated address accepted a connection (the
+            last refusal).
     """
-    url, pin_headers, extensions = pinned_request_parts(verdict)
+    if not verdict.valid or not verdict.resolved_ips:
+        raise ValueError("a request is made on a valid verdict that carries an address")
     caller_headers = {k: v for k, v in (headers or {}).items() if k.lower() != "host"}
     if not any(name.lower() == "accept-encoding" for name in caller_headers):
         caller_headers["Accept-Encoding"] = ACCEPT_ENCODING_HEADER
-    request_kwargs: dict[str, Any] = {
-        "headers": {**caller_headers, **pin_headers},
-        "extensions": extensions,
-        "follow_redirects": False,
-    }
-    if timeout is not None:
-        request_kwargs["timeout"] = timeout
-    return client.stream(method, url, **request_kwargs)
+    timeout_kwargs: dict[str, Any] = {} if timeout is None else {"timeout": timeout}
+    refusals: list[httpx.ConnectError] = []
+    for attempt, address in enumerate(verdict.resolved_ips, start=1):
+        url, pin_headers, extensions = pinned_request_parts(verdict, address=address)
+        request = client.build_request(
+            method,
+            url,
+            headers={**caller_headers, **pin_headers},
+            extensions=extensions,
+            **timeout_kwargs,
+        )
+        try:
+            response = await client.send(request, stream=True, follow_redirects=False)
+        except httpx.ConnectError as refusal:
+            refusals.append(refusal)
+            logger.info(
+                "pinned_fetch_address_unreachable",
+                url_host=url_host(verdict.url),
+                address_family="ipv6" if ":" in address else "ipv4",
+                attempt=attempt,
+                addresses=len(verdict.resolved_ips),
+            )
+            continue
+        try:
+            yield response
+        finally:
+            await response.aclose()
+        return
+    # Every validated address refused the connection: the last refusal speaks.
+    raise refusals[-1]

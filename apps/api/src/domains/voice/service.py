@@ -33,9 +33,17 @@ from src.core.constants import VOICE_TTS_MS_PER_CHAR_HEURISTIC
 from src.core.i18n import get_language_name, resolve_language
 from src.core.time_utils import now_in_timezone
 from src.domains.agents.prompts.prompt_loader import load_prompt
-from src.domains.voice.audio_output import mix_audio_format, synthesize_playable_base64
+from src.domains.voice.audio_output import mix_audio_format, playable_base64
+from src.domains.voice.cue_prompt import expressive_cues_block
 from src.domains.voice.exceptions import tts_failure_facts
-from src.domains.voice.factory import TTSConfig, get_tts_client, get_tts_config
+from src.domains.voice.expressive_cues import (
+    AuthoredCues,
+    CueDialect,
+    cue_dialect,
+    neutralize_literal,
+)
+from src.domains.voice.factory import TTSConfig, get_tts_config, serve_tts
+from src.domains.voice.lia_voices import spoken_voice
 from src.domains.voice.protocol import TTSClient
 from src.domains.voice.schemas import (
     AUDIO_MIME_TYPES,
@@ -44,6 +52,7 @@ from src.domains.voice.schemas import (
     VoiceCommentRequest,
 )
 from src.domains.voice.sentence_streamer import ProgressiveSentenceStreamer, is_speakable
+from src.domains.voice.spoken import speak
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
 from src.infrastructure.llm.message_text import coerce_content_to_text
@@ -155,12 +164,32 @@ class VoiceCommentService:
         self._run_id = run_id
         self._lia_gender = lia_gender or "female"  # Default to female voice
         self._user_id = user_id
+        # The person's own voice per language, read once (a voice turn reads it often).
+        self._chosen_voices: dict[str, str | None] = {}
+
+    async def _serve_tts(self) -> tuple[TTSConfig, TTSClient]:
+        """The engine of this service, resolved once.
+
+        The configuration is the one the client was BUILT from: when Edge stands
+        in for an engine that cannot be served, its voices and model are Edge's
+        — the configured engine's voice ids would make Edge speak nothing.
+        """
+        config, client = self._tts_config, self._tts_client
+        if config is None or client is None:
+            config = await get_tts_config()
+            if client is None:
+                config, client = serve_tts(config)
+            self._tts_config, self._tts_client = config, client
+        return config, client
 
     async def _get_tts_client(self) -> TTSClient:
-        """Get or create TTS client via factory based on current voice mode."""
-        if self._tts_client is None:
-            self._tts_client = await get_tts_client()
-        return self._tts_client
+        """The client that speaks (see :meth:`_serve_tts`)."""
+        return (await self._serve_tts())[1]
+
+    async def _cue_dialect(self) -> CueDialect:
+        """The cues the engine that speaks performs (ADR-345)."""
+        config, client = await self._serve_tts()
+        return cue_dialect(client.provider_name, config.model)
 
     async def _resolve_prosody_settings(self, tts_config: TTSConfig) -> dict[str, Any] | None:
         """Mood-bent voice_settings for this stream (ADR-237), or ``None``.
@@ -191,10 +220,8 @@ class VoiceCommentService:
         return None
 
     async def _get_tts_config(self) -> TTSConfig:
-        """Get TTS configuration for current voice mode."""
-        if self._tts_config is None:
-            self._tts_config = await get_tts_config()
-        return self._tts_config
+        """The configuration of the client that speaks (see :meth:`_serve_tts`)."""
+        return (await self._serve_tts())[0]
 
     def _load_prompt_template(self) -> str:
         """Load the voice comment prompt template from centralized prompts directory."""
@@ -211,6 +238,7 @@ class VoiceCommentService:
         current_datetime: str,
         user_query: str = "",
         psyche_context: str = "",
+        expressive_cues: str = "",
     ) -> str:
         """Build the prompt for voice comment generation."""
         from src.core.constants import ASSISTANT_NAME
@@ -225,6 +253,7 @@ class VoiceCommentService:
             context_instructions=user_query,  # Maps user_query to prompt's {context_instructions}
             assistant_name=ASSISTANT_NAME,
             psyche_context=psyche_context,
+            expressive_cues=expressive_cues,
         )
 
     def _normalize_text_for_tts(self, text: str) -> str:
@@ -334,29 +363,29 @@ class VoiceCommentService:
 
         # Determine voice name based on language, gender, and current mode
         voice_name = await self._get_voice_for_language(user_language)
+        # The text was not written for speech: its brackets are words (ADR-345).
+        dialect = await self._cue_dialect()
 
         # ADR-237: bend the configured voice_settings by the live mood —
         # resolved ONCE per stream (one DB read), best-effort by design.
         prosody_settings = await self._resolve_prosody_settings(tts_config)
-
-        # Track total characters for HD mode cost tracking
-        total_characters_synthesized = 0
 
         # Synthesize and yield each sentence
         for idx, sentence in enumerate(sentences):
             is_last = idx == len(sentences) - 1
 
             try:
-                # Synthesize sentence
-                audio_base64 = await synthesize_playable_base64(
+                # One door: the sentence is billed as the engine that spoke bills it
+                # (ADR-345), and recorded on the turn's tracker once it is served.
+                spoken = await speak(
                     tts_client,
-                    text=sentence,
-                    voice_name=voice_name,
+                    neutralize_literal(sentence, dialect),
+                    voice_name,
+                    model=tts_config.model,
+                    ledger=self._tracker,
                     voice_settings=prosody_settings,
                 )
-
-                # Accumulate characters for cost tracking
-                total_characters_synthesized += len(sentence)
+                audio_base64 = playable_base64(tts_client, spoken.audio)
 
                 # Track first audio time (TTFA)
                 if metrics.first_audio_time is None:
@@ -414,29 +443,15 @@ class VoiceCommentService:
                 # Continue with next sentence on error
                 continue
 
-        # Record TTS usage for paid providers (Edge is free → never recorded).
-        # The tracker accumulates a TTSUsageRecord per call; the aggregate is
-        # later read by archive_message() and persisted on
-        # ``conversation_messages.tts_*`` columns (mirror of STT pattern,
-        # see ADR-081). The same aggregate also surfaces in
-        # ``user_statistics.cycle_tts_*`` via create_or_update, so the
-        # dashboard "Cost" tile picks up TTS automatically.
-        if tts_config.is_paid and self._tracker and total_characters_synthesized > 0:
-            self._tracker.record_tts_call(
-                provider=tts_config.provider,
-                model=tts_config.model,
-                characters=total_characters_synthesized,
-            )
-
     async def _build_voice_llm_invocation(
         self,
         request: VoiceCommentRequest,
     ) -> tuple[BaseChatModel, str, RunnableConfig | None]:
-        """Resolve the voice LLM, prompt and tracking config for a request.
+        """Resolve the voice LLM, prompt and tracking config of the spoken comment.
 
-        Shared by ``generate_voice_comment`` (non-streaming) and
-        ``stream_voice_comment`` (sentence-streaming) so both paths build the
-        same prompt + token tracking surface.
+        Read by ``stream_voice_comment``. Its tokens are counted by the shared
+        node metrics (``llm_tokens_consumed_total{node_name="voice_comment"}``)
+        and, under a tracker, filed on the turn's run like every model call.
         """
         # Resolve psyche context before template formatting
         psyche_block = ""
@@ -466,6 +481,11 @@ class VoiceCommentService:
             current_datetime=request.current_datetime,
             user_query=request.user_query,
             psyche_context=psyche_block,
+            # Only the cues the engine that will speak performs, within the budget
+            # the renderer enforces (ADR-345).
+            expressive_cues=expressive_cues_block(
+                await self._cue_dialect(), settings.voice_expressive_cues_max
+            ),
         )
         if user_model_block:
             prompt = prompt + "\n\n" + user_model_block
@@ -488,48 +508,6 @@ class VoiceCommentService:
             node_name="voice_comment",
         )
         return llm, prompt, config
-
-    async def generate_voice_comment(
-        self,
-        request: VoiceCommentRequest,
-    ) -> str:
-        """
-        Generate complete voice comment text (non-streaming).
-
-        Args:
-            request: Voice comment request with context and personality.
-
-        Returns:
-            Complete voice comment text.
-        """
-        llm, prompt, config = await self._build_voice_llm_invocation(request)
-        response = await llm.ainvoke(prompt, config=config)
-        # BaseMessage.text (LangChain Core 1.2+) handles both str content and
-        # Gemini 3.x list[dict] content blocks transparently.
-        result = str(response.text)
-
-        # Prometheus: voice comment tokens (dashboard 11).
-        # token_type values follow the codebase convention used by llm_tokens_consumed_total
-        # (prompt_tokens / completion_tokens / cached_tokens) so aggregations stay consistent.
-        with suppress(Exception):
-            from src.infrastructure.observability.metrics_voice import (
-                voice_comment_tokens_total,
-            )
-
-            usage = getattr(response, "usage_metadata", None) or {}
-            prompt_t = int(usage.get("input_tokens", 0) or 0)
-            completion_t = int(usage.get("output_tokens", 0) or 0)
-            model_name = getattr(llm, "model_name", "unknown") or "unknown"
-            if prompt_t:
-                voice_comment_tokens_total.labels(model=model_name, token_type="prompt_tokens").inc(
-                    prompt_t
-                )
-            if completion_t:
-                voice_comment_tokens_total.labels(
-                    model=model_name, token_type="completion_tokens"
-                ).inc(completion_t)
-
-        return result
 
     async def stream_voice_comment(
         self,
@@ -592,26 +570,25 @@ class VoiceCommentService:
         tts_client = await self._get_tts_client()
         tts_config = await self._get_tts_config()
         voice_name = await self._get_voice_for_language(user_language)
-
-        chars_total = 0
-
-        def _on_chars(chars: int) -> None:
-            nonlocal chars_total
-            chars_total += chars
+        # One budget for the whole comment, across its streamed sentences.
+        cues = AuthoredCues(await self._cue_dialect(), settings.voice_expressive_cues_max)
 
         async def _synth(sentence: str) -> str:
-            return await synthesize_playable_base64(
+            # Each served sentence is recorded as it is billed (ADR-345).
+            spoken = await speak(
                 tts_client,
-                text=sentence,
-                voice_name=voice_name,
+                cues.render(sentence),
+                voice_name,
+                model=tts_config.model,
+                ledger=self._tracker,
             )
+            return playable_base64(tts_client, spoken.audio)
 
         streamer = ProgressiveSentenceStreamer(
             synth=_synth,
             max_sentences=settings.voice_max_sentences,
             audio_format=mix_audio_format(tts_client),
             sentence_delimiters=settings.voice_sentence_delimiters,
-            on_chars_synthesized=_on_chars,
         )
 
         # Build the LLM call and feed its astream into the streamer.
@@ -674,21 +651,6 @@ class VoiceCommentService:
                     error=str(feed_err),
                     error_type=type(feed_err).__name__,
                 )
-
-            # Record TTS cost once for the whole bubble (paid providers only).
-            if tts_config.is_paid and self._tracker and chars_total > 0:
-                try:
-                    self._tracker.record_tts_call(
-                        provider=tts_config.provider,
-                        model=tts_config.model,
-                        characters=chars_total,
-                    )
-                except Exception as track_err:
-                    logger.warning(
-                        "voice_comment_tts_tracking_failed",
-                        error=str(track_err),
-                        chars=chars_total,
-                    )
 
             total_duration = time.time() - metrics.streaming_start_time
             voice_streaming_duration_seconds.observe(total_duration)
@@ -884,28 +846,25 @@ class VoiceCommentService:
         # behaviour from stream_direct_tts so dashboards stay coherent.
         voice_sessions_total.labels(lia_gender=self._lia_gender).inc()
 
-        # Aggregate character count synthesised by this stream so the
-        # tracker can record a single TTSUsageRecord at end-of-stream
-        # (matching the legacy stream_direct_tts behaviour).
-        chars_total = 0
-
-        def _on_chars(chars: int) -> None:
-            nonlocal chars_total
-            chars_total += chars
+        dialect = await self._cue_dialect()
 
         async def _synth(sentence: str) -> str:
-            return await synthesize_playable_base64(
+            # Each served sentence is recorded as it is billed; the answer's
+            # brackets are words, never directions (ADR-345).
+            spoken = await speak(
                 tts_client,
-                text=sentence,
-                voice_name=voice_name,
+                neutralize_literal(sentence, dialect),
+                voice_name,
+                model=tts_config.model,
+                ledger=self._tracker,
             )
+            return playable_base64(tts_client, spoken.audio)
 
         streamer = ProgressiveSentenceStreamer(
             synth=_synth,
             max_sentences=max_sentences,
             audio_format=mix_audio_format(tts_client),
             sentence_delimiters=settings.voice_sentence_delimiters,
-            on_chars_synthesized=_on_chars,
         )
 
         async def _drain() -> None:
@@ -919,28 +878,9 @@ class VoiceCommentService:
             finally:
                 # Sentinel so the SSE drain loop knows the stream is done.
                 await chunk_queue.put(None)
-
-                # Record TTS cost once for the whole bubble (paid providers
-                # only — Edge stays free). Mirror of stream_direct_tts /
-                # stream_voice_comment behaviour.
-                if tts_config.is_paid and self._tracker and chars_total > 0:
-                    try:
-                        self._tracker.record_tts_call(
-                            provider=tts_config.provider,
-                            model=tts_config.model,
-                            characters=chars_total,
-                        )
-                    except Exception as track_err:
-                        logger.warning(
-                            "progressive_chat_tts_tracking_failed",
-                            error=str(track_err),
-                            chars=chars_total,
-                        )
-
                 logger.info(
                     "voice_progressive_chat_stream_complete",
                     dispatched_sentences=streamer.dispatched_sentences,
-                    chars=chars_total,
                     first_audio_latency_seconds=streamer.first_audio_latency_seconds,
                     voice_name=voice_name,
                 )
@@ -957,38 +897,37 @@ class VoiceCommentService:
         return streamer, drain_task
 
     async def _get_voice_for_language(self, language: str) -> str:
-        """
-        Get appropriate TTS voice name based on gender and current mode.
+        """The voice of LIA's gender, in the engine that speaks.
 
-        Uses the admin-controlled voice mode (Standard/HD) to select voices:
-        - Standard mode: Edge TTS voices (voice_tts_standard_voice_male/female)
-        - HD mode: OpenAI/Gemini voices (voice_tts_hd_voice_male/female)
-
-        Each provider has its own voice format:
-        - Edge TTS: fr-FR-RemyMultilingualNeural, en-US-AriaNeural, etc.
-        - OpenAI TTS: alloy, echo, fable, onyx, nova, shimmer
-        - Gemini TTS: Kore, Puck, Charon, etc.
+        The person's own voice for this engine when they chose one and the
+        engine still offers it to them (ADR-345 amendment 2026-10-14), else the
+        configured one — both read for the client that speaks
+        (:meth:`_serve_tts`): each provider has its own voice ids (Edge
+        ``fr-FR-RemyMultilingualNeural``, OpenAI ``nova``, Gemini ``Kore``…), so
+        a voice is never carried from one engine to another.
 
         Args:
-            language: ISO 639-1 language code (kept for API compatibility).
+            language: The language LIA speaks in (a person's voice must be
+                offered in it).
 
         Returns:
-            Voice name appropriate for current mode and gender.
+            The voice id.
         """
         config = await self._get_tts_config()
+        if language not in self._chosen_voices:
+            self._chosen_voices[language] = await self._chosen_voice(config, language)
+        chosen = self._chosen_voices[language]
+        if chosen is not None:
+            return chosen
+        return config.voice_male if self._lia_gender == "male" else config.voice_female
 
-        # Use configured voice based on gender and current mode
-        if self._lia_gender == "male":
-            return config.voice_male
-        else:
-            return config.voice_female
-
-    # NOTE: ``_track_tts_cost`` was retired in favour of
-    # ``self._tracker.record_tts_call(provider, model, characters)``.
-    # The new path lives on a dedicated TTS bucket on the TrackingContext
-    # (mirror of ImageGenerationRecord) and is later persisted on
-    # ``conversation_messages.tts_*`` columns by archive_message() — see
-    # ADR-081 for the full rationale.
+    async def _chosen_voice(self, config: TTSConfig, language: str) -> str | None:
+        """The person's own voice, or ``None`` — never a failure that costs the audio."""
+        try:
+            return await spoken_voice(self._user_id, config, self._lia_gender, language)
+        except Exception as exc:  # noqa: BLE001 — the configured voice speaks instead
+            logger.warning("lia_voice_choice_unreadable", error_type=type(exc).__name__)
+            return None
 
     async def close(self) -> None:
         """Close resources."""

@@ -1,10 +1,10 @@
 'use client';
 
-import { CheckCircle2, ListTodo, Sparkles, Zap } from 'lucide-react';
+import { CheckCircle2, ChevronDown, ListTodo, Sparkles, Zap } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { Skeleton } from '@/components/ui/skeleton';
 import type { PersonalResults } from '@/hooks/usePersonalResults';
 
 import { DashboardTile, TILE_ICON_BADGE } from './DashboardTile';
@@ -14,7 +14,7 @@ import { DashboardTile, TILE_ICON_BADGE } from './DashboardTile';
  *
  * The dashboard opened on messages, tokens, Google requests and cost: figures
  * an administrator needs and a reader cannot act on. They are still there,
- * folded behind "Consumption"; this block takes the lead instead.
+ * grouped behind "Consumption"; this block takes the lead instead.
  *
  * **Nothing here is estimated.** Each figure is an exact aggregate over its own
  * set. Two candidates were dropped rather than approximated: "time saved",
@@ -45,8 +45,14 @@ export function ResultsSummary({ results, firstLoad, error, locale }: ResultsSum
 
   if (firstLoad) {
     return (
-      <div className="flex justify-center py-6">
-        <LoadingSpinner className="h-5 w-5" />
+      <div
+        role="status"
+        aria-label={t('common.loading')}
+        className="grid grid-cols-2 gap-3 lg:grid-cols-4"
+      >
+        {Array.from({ length: 4 }, (_, index) => (
+          <Skeleton key={index} className="h-28 rounded-2xl" />
+        ))}
       </div>
     );
   }
@@ -58,12 +64,12 @@ export function ResultsSummary({ results, firstLoad, error, locale }: ResultsSum
 
   if (!results.measured) {
     return (
-      <section>
+      <details className="group/results" open>
         <SectionHeading />
-        <p className="text-sm italic text-muted-foreground">
+        <p className="mt-3 text-sm italic text-muted-foreground">
           {t('dashboard.results.not_measured')}
         </p>
-      </section>
+      </details>
     );
   }
 
@@ -77,46 +83,51 @@ export function ResultsSummary({ results, firstLoad, error, locale }: ResultsSum
   const cycleLabel = formatCycleStart(results.cycle_start, locale);
 
   return (
-    <section>
+    <details className="group/results" open>
       <SectionHeading />
       {cycleLabel && (
-        <p className="mb-3 text-xs text-muted-foreground">
+        <p className="mt-3 text-xs text-muted-foreground">
           {t('dashboard.results.since', { date: cycleLabel })}
         </p>
       )}
-      {/* One column on the narrowest screens, two from `sm`, four from `lg`:
-          a four-up row at 320 px would leave ~70 px per tile. */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {/* The page's tile material, with no hover lift: these tiles are a
             readout, nothing here is clickable, and a lift would promise an
             action that does not exist. */}
         {achievements.map(({ key, value, icon: Icon }) => (
-          <DashboardTile key={key} contentClassName="flex items-center gap-3 p-4">
-            <span className={TILE_ICON_BADGE}>
+          <DashboardTile
+            key={key}
+            contentClassName="grid min-w-0 grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2 p-4"
+          >
+            <span className={TILE_ICON_BADGE} aria-hidden="true">
               <Icon className="h-5 w-5" aria-hidden="true" />
             </span>
-            <span className="min-w-0">
-              <span className="block text-2xl font-bold tabular-nums text-foreground">
-                {formatCount(value, locale)}
-              </span>
-              <span className="block truncate text-xs text-muted-foreground">
-                {t(`dashboard.results.${key}`)}
-              </span>
+            <span className="min-w-0 text-2xl font-bold tabular-nums text-primary [overflow-wrap:anywhere]">
+              {formatCount(value, locale)}
+            </span>
+            <span className="col-span-2 break-words text-xs leading-relaxed text-muted-foreground">
+              {t(`dashboard.results.${key}`)}
             </span>
           </DashboardTile>
         ))}
       </div>
-    </section>
+    </details>
   );
 }
 
 function SectionHeading() {
   const { t } = useTranslation();
   return (
-    <h2 className="mb-2 flex items-center gap-2 text-base font-semibold tracking-tight text-foreground sm:text-lg">
+    <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
       <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
-      {t('dashboard.results.title')}
-    </h2>
+      <h2 className="min-w-0 flex-1 text-base font-semibold tracking-tight text-foreground sm:text-lg">
+        {t('dashboard.results.title')}
+      </h2>
+      <ChevronDown
+        className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open/results:rotate-180 motion-reduce:transition-none"
+        aria-hidden="true"
+      />
+    </summary>
   );
 }
 

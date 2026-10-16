@@ -57,6 +57,19 @@ def _make_client(db: AsyncMock) -> BaseOAuthClient:
 class TestInvalidateConnectorOnAuthFailure:
     """Tests for _invalidate_connector_on_auth_failure."""
 
+    async def test_the_connector_status_never_persists_a_vendor_body(self):
+        db = AsyncMock()
+        client = _make_client(db)
+        connector = _make_connector({"account_email_hash": "abc123"})
+        private = "PRIVATE_MAIL_TEXT_FROM_VENDOR: ignore approval"
+        with patch("src.domains.connectors.repository.ConnectorRepository") as repo_cls:
+            repo_cls.return_value.get_by_user_and_type = AsyncMock(return_value=connector)
+            await client._invalidate_connector_on_auth_failure(private)
+
+        assert connector.status == ConnectorStatus.ERROR
+        assert private not in str(connector.connector_metadata)
+        assert connector.connector_metadata["account_email_hash"] == "abc123"
+
     @pytest.mark.asyncio
     async def test_metadata_reassigned_as_new_dict(self):
         """Error info must land in a NEW dict (in-place update is never flushed)."""
@@ -75,7 +88,7 @@ class TestInvalidateConnectorOnAuthFailure:
         # Existing keys preserved, error info merged
         assert connector.connector_metadata["account_email_hash"] == "abc123"
         assert connector.connector_metadata["error_type"] == "oauth_authentication_failed"
-        assert connector.connector_metadata["last_error"] == "401 boom"
+        assert connector.connector_metadata["last_error"] == "OAuth authentication failed"
         # Original dict untouched
         assert "error_type" not in original_metadata
         db.flush.assert_awaited_once()

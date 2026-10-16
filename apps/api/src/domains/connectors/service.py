@@ -5,7 +5,7 @@ Handles OAuth flows, token encryption, and connector management.
 Refactored (v0.4.0): OAuth flows migrated to src.core.oauth module
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
@@ -28,6 +28,7 @@ from src.core.exceptions import (
     raise_oauth_flow_failed,
     raise_oauth_state_mismatch,
     raise_permission_denied,
+    raise_user_inactive,
 )
 from src.core.field_names import FIELD_CONNECTOR_TYPE, FIELD_STATUS, FIELD_USER_ID
 from src.core.i18n import normalize_language
@@ -39,6 +40,7 @@ from src.core.security import (
 )
 from src.core.security.authorization import check_resource_ownership_by_user_id
 from src.domains.connectors.api_key_use import stamp_api_key_use
+from src.domains.connectors.errors import ConnectorRevokedError
 from src.domains.connectors.keyless import is_keyless_available
 from src.domains.connectors.list_queries import read_user_connector_list
 from src.domains.connectors.models import (
@@ -76,9 +78,10 @@ from src.domains.connectors.schemas import (
     HueBridgeCredentials,
     HueConnectionMode,
 )
-from src.domains.users.models import User
 from src.domains.users.preference_cas import PreferenceWriteReceipt
+from src.domains.users.repository import UserRepository
 from src.infrastructure.cache.redis import SessionService, get_redis_session
+from src.infrastructure.database.session import get_db_context
 from src.infrastructure.email import get_email_service
 from src.infrastructure.resilience import get_circuit_breaker
 
@@ -268,6 +271,9 @@ class ConnectorService:
         connector = await self.repository.get_by_id(connector_id)
         check_resource_ownership_by_user_id(connector, user_id, "connector")
         assert connector is not None  # check_resource_ownership_by_user_id raises if None
+
+        if update_data.status == ConnectorStatus.ACTIVE:
+            await self._lock_activation(user_id, [connector.connector_type])
 
         # Update fields
         update_dict: dict[str, Any] = {}
@@ -471,10 +477,13 @@ class ConnectorService:
         except Exception as e:
             logger.error(
                 f"{connector_type.value}_oauth_callback_failed",
-                error=str(e),
-                exc_info=True,
+                error_type=type(e).__name__,
             )
-            raise_oauth_flow_failed(connector_type.value, str(e))
+            logger.debug("connector_oauth_callback_failed_debug", error=str(e), exc_info=True)
+            raise_oauth_flow_failed(
+                connector_type.value,
+                "Provider authorization could not be completed. Reconnect the service.",
+            )
 
         # Validate stored state metadata
         stored_user_id = stored_state.get(FIELD_USER_ID)
@@ -528,10 +537,10 @@ class ConnectorService:
         )
 
         # Create or update connector
-        # Same lock order as grouped callback: owner → grant → connector.
+        # Lock order: owner → configuration → grant → connector.
         # A refresh holds grant → connector; reversing that order here can
         # deadlock when someone reconnects while the scheduler rotates tokens.
-        await self.db.scalar(select(User.id).where(User.id == user_id).with_for_update())
+        await self._lock_activation(user_id, [connector_type])
         existing_connector = await self.repository.get_by_user_and_type(user_id, connector_type)
 
         update_data: dict[str, Any] = {
@@ -688,11 +697,7 @@ class ConnectorService:
             return None
 
         if connector.status == ConnectorStatus.REVOKED:
-            raise_permission_denied(
-                action="use",
-                resource_type="connector",
-                user_id=user_id,
-            )
+            raise ConnectorRevokedError(connector_type, user_id)
 
         if connector.status != ConnectorStatus.ACTIVE:
             logger.warning(
@@ -876,9 +881,11 @@ class ConnectorService:
         try:
             await test_client.test_connection()
         except Exception as e:
-            raise_external_service_connection_error(
-                service=f"Philips Hue Bridge ({bridge_ip}): {e}",
-            )
+            logger.warning("hue_local_activation_failed", error_type=type(e).__name__)
+            logger.debug("hue_local_activation_failed_debug", error=str(e), exc_info=True)
+            raise_external_service_connection_error(service="Philips Hue Bridge")
+
+        await self._lock_activation(user_id, [ConnectorType.PHILIPS_HUE])
 
         # 3. Encrypt credentials
         encrypted_credentials = encrypt_data(credentials.model_dump_json())
@@ -995,6 +1002,7 @@ class ConnectorService:
         token_response, stored_state = await flow_handler.handle_callback(code, state)
 
         user_id = UUID(stored_state[FIELD_USER_ID])
+        await self._activation_preflight(user_id, [ConnectorType.PHILIPS_HUE])
 
         # 2. Create whitelist entry via remote API
         async with httpx.AsyncClient(timeout=HTTP_TIMEOUT_HUE_API) as client:
@@ -1012,6 +1020,8 @@ class ConnectorService:
             )
             whitelist_result = resp.json()
             remote_username = whitelist_result[0]["success"]["username"]
+
+        await self._lock_activation(user_id, [ConnectorType.PHILIPS_HUE])
 
         # 3. Build & store credentials
         credentials = HueBridgeCredentials(
@@ -1074,7 +1084,7 @@ class ConnectorService:
         """
         Activate Apple iCloud connectors for a user.
 
-        Tests connection once, then activates requested services with
+        Tests every requested protocol, then activates services with
         mutual exclusivity enforcement (deactivates conflicting Google connectors).
 
         Args:
@@ -1097,14 +1107,17 @@ class ConnectorService:
                     connector_type=svc.value,
                 )
 
-        # Check global config enabled for each service
-        for svc in services:
-            await self._check_connector_enabled(svc)
+        # This snapshot owns a short transaction; none is held over vendor IO.
+        await self._activation_preflight(user_id, services)
 
-        # Test connection once
+        # Every requested protocol must pass before any activation.
         success, message = await self.test_apple_connection(apple_id, app_password, services)
         if not success:
             raise_invalid_input(message)
+
+        # The provider wait may outlive the account's authorization. This is
+        # also the lock all OAuth activations take before changing providers.
+        await self._lock_activation(user_id, services)
 
         # Encrypt credentials
         credentials = AppleCredentials(apple_id=apple_id, app_password=app_password)
@@ -1185,6 +1198,30 @@ class ConnectorService:
             deactivated=deactivated,
         )
 
+    async def _activation_preflight(self, user_id: UUID, services: list[ConnectorType]) -> None:
+        """Read account/config authorization on a session closed before the probe."""
+        async with get_db_context() as db:
+            if await UserRepository(db).get_by_id_for_preference_update(user_id) is None:
+                raise_user_inactive(user_id)
+            preflight = ConnectorService(db)
+            for service in services:
+                await preflight._check_connector_enabled(service)
+
+    async def _lock_activation(
+        self, user_id: UUID, connector_types: Iterable[ConnectorType]
+    ) -> None:
+        """Fence an activation against account revocation and global policy changes.
+
+        Take owner then sorted configuration locks before any grant/connector
+        row; the transaction holds them through its activation commit.
+        """
+        if await UserRepository(self.db).get_by_id_for_preference_update(user_id) is None:
+            raise_user_inactive(user_id)
+        types = tuple(sorted(set(connector_types), key=lambda kind: kind.value))
+        await self.repository.lock_global_configs(types)
+        for connector_type in types:
+            await self._check_connector_enabled(connector_type, for_activation=True)
+
     async def test_apple_connection(
         self,
         apple_id: str,
@@ -1194,7 +1231,7 @@ class ConnectorService:
         """
         Test Apple iCloud credentials by connecting to relevant services.
 
-        Tests only the first available protocol to minimize connection overhead.
+        Tests every requested protocol once, stopping at the first refusal.
 
         Args:
             apple_id: Apple ID.
@@ -1204,87 +1241,9 @@ class ConnectorService:
         Returns:
             Tuple (success, message).
         """
-        import asyncio
+        from src.domains.connectors.clients.apple_connection_probe import probe_connection
 
-        # Test IMAP if email service requested
-        if ConnectorType.APPLE_EMAIL in services:
-            try:
-
-                def _test_imap() -> None:
-                    from imap_tools import MailBox
-
-                    with MailBox(settings.apple_imap_host, settings.apple_imap_port).login(
-                        apple_id, app_password
-                    ) as _mb:
-                        pass  # Login successful if no exception
-
-                await asyncio.to_thread(_test_imap)
-                return True, "IMAP connection successful"
-            except Exception as e:
-                logger.warning(
-                    "apple_imap_test_failed",
-                    apple_id=apple_id,
-                    error=str(e),
-                )
-                return False, f"IMAP connection failed: {e}"
-
-        # Test CalDAV if calendar service requested
-        if ConnectorType.APPLE_CALENDAR in services:
-            try:
-
-                def _test_caldav() -> None:
-                    import caldav
-
-                    client = caldav.DAVClient(
-                        url=settings.apple_caldav_url,
-                        username=apple_id,
-                        password=app_password,
-                    )
-                    principal = client.principal()
-                    _ = principal.calendars()  # Validates access
-
-                await asyncio.to_thread(_test_caldav)
-                return True, "CalDAV connection successful"
-            except Exception as e:
-                logger.warning(
-                    "apple_caldav_test_failed",
-                    apple_id=apple_id,
-                    error=str(e),
-                )
-                return False, f"CalDAV connection failed: {e}"
-
-        # Test CardDAV if contacts service requested
-        if ConnectorType.APPLE_CONTACTS in services:
-            try:
-                async with httpx.AsyncClient(
-                    auth=(apple_id, app_password),
-                    timeout=settings.apple_connection_timeout,
-                ) as client:
-                    response = await client.request(
-                        "PROPFIND",
-                        settings.apple_carddav_url,
-                        headers={"Depth": "0", "Content-Type": "application/xml"},
-                        content=(
-                            '<?xml version="1.0" encoding="UTF-8"?>'
-                            '<d:propfind xmlns:d="DAV:">'
-                            "<d:prop><d:current-user-principal/></d:prop>"
-                            "</d:propfind>"
-                        ),
-                    )
-                    if response.status_code in (207, 200):
-                        return True, "CardDAV connection successful"
-                    if response.status_code in (401, 403):
-                        return False, "Invalid credentials"
-                    return False, f"Unexpected response: HTTP {response.status_code}"
-            except Exception as e:
-                logger.warning(
-                    "apple_carddav_test_failed",
-                    apple_id=apple_id,
-                    error=str(e),
-                )
-                return False, f"CardDAV connection failed: {e}"
-
-        return False, "No Apple service selected"
+        return await probe_connection(apple_id, app_password, services)
 
     # Private helper methods
 
@@ -2167,6 +2126,9 @@ class ConnectorService:
         Returns:
             Updated or created ConnectorGlobalConfig
         """
+        # Protect absence too: an activation must not pass an implicit default
+        # while this transaction creates a disabled configuration.
+        await self.repository.lock_global_configs([connector_type])
         # Check if config exists
         existing_config = await self.repository.get_global_config_by_type(connector_type)
 
@@ -2203,14 +2165,20 @@ class ConnectorService:
 
         return ConnectorGlobalConfigResponse.model_validate(config)
 
-    async def _check_connector_enabled(self, connector_type: ConnectorType) -> None:
+    async def _check_connector_enabled(
+        self, connector_type: ConnectorType, *, for_activation: bool = False
+    ) -> None:
         """
         Check if connector type is globally enabled.
 
         Raises:
             HTTPException: If connector is disabled
         """
-        config = await self.get_global_config(connector_type)
+        config = (
+            await self.repository.get_global_config_by_type(connector_type, for_activation=True)
+            if for_activation
+            else await self.get_global_config(connector_type)
+        )
 
         # If no config exists, assume enabled (default behavior)
         if config and not config.is_enabled:
@@ -2323,14 +2291,7 @@ class ConnectorService:
         """
         from src.domains.connectors.schemas import APIKeyCredentials
 
-        # Check if connector type is globally enabled
-        global_config = await self.repository.get_global_config_by_type(connector_type)
-        if global_config and not global_config.is_enabled:
-            raise_permission_denied(
-                action="activate",
-                resource_type="connector",
-                user_id=user_id,
-            )
+        await self._lock_activation(user_id, [connector_type])
 
         # Create credentials object
         credentials = APIKeyCredentials(
@@ -2487,11 +2448,7 @@ class ConnectorService:
             return None
 
         if connector.status == ConnectorStatus.REVOKED:
-            raise_permission_denied(
-                action="use",
-                resource_type="connector",
-                user_id=user_id,
-            )
+            raise ConnectorRevokedError(connector_type, user_id)
 
         if connector.status != ConnectorStatus.ACTIVE:
             logger.warning(

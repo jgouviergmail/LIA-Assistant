@@ -19,12 +19,21 @@ regressed it once.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Iterator
 
 import pytest
+import structlog
 
+from src.infrastructure import async_utils
 from src.infrastructure.async_utils import write_through_cancellation
+from tests.support.structlog_capture import fresh_module_logger
 
 pytestmark = [pytest.mark.unit]
+
+
+@pytest.fixture(autouse=True)
+def _fresh_logger() -> Iterator[None]:
+    yield from fresh_module_logger(async_utils)
 
 
 class TestTheWriteRunsExactlyOnce:
@@ -154,6 +163,63 @@ class TestItNeverHoldsAShutdownOpen:
 
 
 class TestAFailureIsTheCallerSToSee:
+    async def test_a_failure_after_a_stop_cannot_resurrect_the_cancelled_caller(self) -> None:
+        started, release = asyncio.Event(), asyncio.Event()
+
+        async def write() -> None:
+            started.set()
+            await release.wait()
+            raise RuntimeError("private provider details")
+
+        task = asyncio.create_task(write_through_cancellation(write, attempts=3, label="probe"))
+        await started.wait()
+        with structlog.testing.capture_logs() as captured:
+            task.cancel()
+            # A synchronization checkpoint, not a timing assumption.
+            resumed = asyncio.Event()
+            asyncio.get_running_loop().call_soon(resumed.set)
+            await resumed.wait()
+            release.set()
+            assert await task is True
+
+        failures = [entry for entry in captured if entry["log_level"] == "error"]
+        assert len(failures) == 1
+        assert failures[0]["error_type"] == "RuntimeError"
+        assert "private provider details" not in str(failures)
+
+    async def test_an_abandoned_write_failure_is_retrieved_and_reported(self) -> None:
+        started, release = asyncio.Event(), asyncio.Event()
+        faults: list[dict[str, object]] = []
+        loop = asyncio.get_running_loop()
+        original_handler = loop.get_exception_handler()
+        loop.set_exception_handler(lambda _loop, context: faults.append(context))
+
+        async def write() -> None:
+            started.set()
+            await release.wait()
+            raise RuntimeError("private provider details")
+
+        try:
+            task = asyncio.create_task(write_through_cancellation(write, attempts=1, label="probe"))
+            await started.wait()
+            with structlog.testing.capture_logs() as captured:
+                task.cancel()
+                assert await task is True
+                release.set()
+                settled = asyncio.Event()
+                loop.call_soon(settled.set)
+                await settled.wait()
+                loop.call_soon(settled.set)
+                settled.clear()
+                await settled.wait()
+            failures = [entry for entry in captured if entry["log_level"] == "error"]
+            assert len(failures) == 1
+            assert failures[0]["error_type"] == "RuntimeError"
+            assert "private provider details" not in str(failures)
+            assert not faults
+        finally:
+            loop.set_exception_handler(original_handler)
+
     async def test_the_write_s_exception_reaches_the_caller(self) -> None:
         """The helper does not swallow: each register decides what a lost row
         costs, and both choose to log rather than take the turn down."""

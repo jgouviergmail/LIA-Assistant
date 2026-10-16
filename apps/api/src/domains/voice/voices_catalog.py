@@ -8,14 +8,31 @@ gender hint) used by the dropdown to help the admin pick.
 For Edge, OpenAI and Gemini the catalogue is hard-coded — these providers
 have fixed, well-known voice sets that almost never change. For ElevenLabs
 the live API is queried (``GET /v1/voices``) since custom voice IDs are
-account-scoped and impossible to predict.
+account-scoped and impossible to predict; where a voice is offered to a person
+or checked before LIA speaks with it, that list is read from a cache
+(:func:`get_cached_elevenlabs_voices`), which a voice list of any live engine
+encodes the same way (:func:`encode_voice_options`).
 """
 
 from __future__ import annotations
 
+import hashlib
+import json
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
 import httpx
+import structlog
+from redis.exceptions import RedisError
+
+from src.core.constants import (
+    ELEVENLABS_VOICES_CACHE_TTL_SECONDS,
+    REDIS_KEY_ELEVENLABS_VOICES_PREFIX,
+)
+from src.domains.voice.vendor_refusal import ELEVENLABS_CODE_PATHS, refusal_from_body
+from src.infrastructure.cache.redis import get_redis_cache
+
+logger = structlog.get_logger(__name__)
 
 
 @dataclass
@@ -121,6 +138,63 @@ _GEMINI_VOICES: tuple[VoiceOption, ...] = (
 )
 
 
+def encode_voice_options(voices: Sequence[VoiceOption]) -> str:
+    """A voice list as a cache holds it: every field of each option."""
+    return json.dumps(
+        [
+            {
+                "voice_id": voice.voice_id,
+                "label": voice.label,
+                "gender": voice.gender,
+                "language": voice.language,
+                "extra": voice.extra,
+            }
+            for voice in voices
+        ]
+    )
+
+
+def decode_voice_options(raw: str | bytes) -> list[VoiceOption] | None:
+    """A cached voice list, or ``None`` when it cannot be read (it is then no cache)."""
+    try:
+        items = json.loads(raw)
+        if not isinstance(items, list):
+            return None  # an object is no list: read as no voice at all, it would hide every one
+        return [
+            VoiceOption(
+                voice_id=str(item["voice_id"]),
+                label=str(item["label"]),
+                gender=item.get("gender"),
+                language=item.get("language"),
+                extra={str(k): str(v) for k, v in (item.get("extra") or {}).items()},
+            )
+            for item in items
+        ]
+    except ValueError, TypeError, KeyError, AttributeError:
+        return None
+
+
+async def cached_voice_list(key: str) -> list[VoiceOption] | None:
+    """A voice list a cache holds, or ``None``: none held, unreadable, or no cache reachable."""
+    try:
+        redis = await get_redis_cache()
+        cached = await redis.get(key)
+    except RedisError, OSError:
+        return None
+    return decode_voice_options(cached) if cached is not None else None
+
+
+async def keep_voice_list(
+    key: str, voices: Sequence[VoiceOption], ttl_seconds: int, *, catalogue: str
+) -> None:
+    """Cache a voice list — best effort: a list Redis cannot keep is listed again next time."""
+    try:
+        redis = await get_redis_cache()
+        await redis.set(key, encode_voice_options(voices), ex=ttl_seconds)
+    except RedisError, OSError:
+        logger.debug("voice_list_cache_write_failed", catalogue=catalogue)
+
+
 def get_edge_voices() -> list[VoiceOption]:
     return list(_EDGE_VOICES)
 
@@ -143,7 +217,8 @@ async def get_elevenlabs_voices(
 
     Failures (HTTP error, missing key, malformed payload) raise
     :class:`ElevenLabsVoicesError` so the router can surface a clean
-    400/502 response instead of an opaque 500.
+    400/502 response instead of an opaque 500 — by their facts, never the
+    vendor's words (ADR-317).
     """
     if not api_key:
         raise ElevenLabsVoicesError("ElevenLabs API key is not configured.")
@@ -153,19 +228,24 @@ async def get_elevenlabs_voices(
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.get(url, headers={"xi-api-key": api_key})
     except httpx.TimeoutException as exc:
-        raise ElevenLabsVoicesError(f"ElevenLabs voices request timed out: {exc}") from exc
-    except httpx.HTTPError as exc:
-        raise ElevenLabsVoicesError(f"ElevenLabs voices HTTP error: {exc}") from exc
-
-    if response.status_code == 401:
         raise ElevenLabsVoicesError(
+            "ElevenLabs voices request timed out",
+            details={"exception_type": type(exc).__name__},
+        ) from exc
+    except httpx.HTTPError as exc:
+        raise ElevenLabsVoicesError(
+            "ElevenLabs voices HTTP error", details={"exception_type": type(exc).__name__}
+        ) from exc
+
+    if response.status_code >= 400:
+        refusal = refusal_from_body(response, *ELEVENLABS_CODE_PATHS)
+        message = (
             "ElevenLabs API key lacks the ``voices_read`` permission "
             "(or is otherwise rejected). Re-issue a key with that scope."
+            if refusal.status == 401
+            else f"ElevenLabs returned HTTP {refusal.status}"
         )
-    if response.status_code >= 400:
-        raise ElevenLabsVoicesError(
-            f"ElevenLabs returned HTTP {response.status_code}: {response.text[:200]}"
-        )
+        raise ElevenLabsVoicesError(message, details=refusal.details())
 
     try:
         payload = response.json()
@@ -203,5 +283,59 @@ async def get_elevenlabs_voices(
     return voices
 
 
+def _elevenlabs_cache_key(api_key: str) -> str:
+    # A digest of the account, never the credential.
+    return f"{REDIS_KEY_ELEVENLABS_VOICES_PREFIX}{hashlib.sha256(api_key.encode()).hexdigest()}"
+
+
+async def get_cached_elevenlabs_voices(api_key: str, base_url: str) -> list[VoiceOption]:
+    """The account's ElevenLabs voices, from cache when it holds them.
+
+    Read where a voice is offered to a person or checked before LIA speaks with
+    it; the administrator's picker reads the vendor live, so a voice added on
+    the vendor's portal shows there at once and here within
+    ``ELEVENLABS_VOICES_CACHE_TTL_SECONDS``. Best effort: an unreachable cache
+    reads the vendor.
+
+    Args:
+        api_key: The account's key.
+        base_url: The vendor's API root.
+
+    Returns:
+        The voices, as :func:`get_elevenlabs_voices` lists them.
+
+    Raises:
+        ElevenLabsVoicesError: When the vendor cannot be read and nothing is cached.
+    """
+    key = _elevenlabs_cache_key(api_key)
+    voices = await cached_voice_list(key)
+    if voices is not None:
+        return voices
+    voices = await get_elevenlabs_voices(api_key=api_key, base_url=base_url)
+    await keep_voice_list(key, voices, ELEVENLABS_VOICES_CACHE_TTL_SECONDS, catalogue="elevenlabs")
+    return voices
+
+
+async def peek_elevenlabs_voices(api_key: str) -> list[VoiceOption] | None:
+    """The account's ElevenLabs voices as the cache holds them — the vendor is never asked.
+
+    Args:
+        api_key: The account's key.
+
+    Returns:
+        The cached list, or ``None`` when none is cached.
+    """
+    return await cached_voice_list(_elevenlabs_cache_key(api_key))
+
+
 class ElevenLabsVoicesError(RuntimeError):
-    """Raised when the ElevenLabs voices listing call fails."""
+    """The ElevenLabs voices listing failed (its facts in ``details``).
+
+    Attributes:
+        details: The status and bounded vendor code of a refusal, or the type of
+            a transport failure — never the vendor's words.
+    """
+
+    def __init__(self, message: str, *, details: Mapping[str, object] | None = None) -> None:
+        super().__init__(message)
+        self.details = dict(details or {})

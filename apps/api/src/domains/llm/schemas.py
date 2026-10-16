@@ -11,9 +11,8 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from src.domains.llm.pricing_time_slots import TimeSlotPrice, validate_time_slot_list
 
-# Enum-like literal type for the provider field. Must stay in sync with
-# LLMProviderEnum (apps/api/src/domains/llm/models.py) AND LLM_PROVIDERS
-# (apps/api/src/domains/llm_config/constants.py).
+# Enum-like literal type for the provider field, pinned to LLMProviderEnum
+# (apps/api/src/domains/llm/models.py) by test_llm_provider_vocabulary_parity_guard.py.
 ProviderLiteral = Literal[
     "openai",
     "anthropic",
@@ -25,6 +24,7 @@ ProviderLiteral = Literal[
     "elevenlabs",
     "edge",
     "typesafe",
+    "fishaudio",
 ]
 
 # Mirrors LLMModelKindEnum / LLMReasoningWidgetEnum / PricingUnitEnum

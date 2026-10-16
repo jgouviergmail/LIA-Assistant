@@ -69,6 +69,7 @@ from src.domains.agents.dependencies import ToolDependencies, get_dependencies
 from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import (
+    describe_external_refusal,
     handle_tool_exception,
     parse_user_id,
     validate_runtime_config,
@@ -607,7 +608,6 @@ class ConnectorTool[ClientType](_ToolLoggerMixin, LanguagePropagationMixin, ABC)
         self.logger.error(
             "tool_execution_error",
             user_id=user_id_str,
-            error=str(error),
             error_type=type(error).__name__,
             param_keys=sorted(params),
         )
@@ -662,12 +662,16 @@ class ConnectorTool[ClientType](_ToolLoggerMixin, LanguagePropagationMixin, ABC)
     def _format_connector_not_activated_error(
         self, language: SupportedLanguage | None = None
     ) -> UnifiedToolOutput:
-        """Format standard error for connector not activated (localized)."""
+        """Format standard error for connector not activated (localized).
+
+        The connector is named as the connectors settings name it — a refused
+        draft's card says the same name (``draft_result_adaptation``).
+        """
         return UnifiedToolOutput.failure(
             message=APIMessages.connector_not_activated(
-                self.connector_type.value, resolve_language(language)
+                get_connector_display_name(self.connector_type), resolve_language(language)
             ),
-            error_code="connector_not_activated",
+            error_code=ToolErrorCode.CONNECTOR_NOT_ACTIVATED,
         )
 
     def _format_category_not_activated_error(
@@ -677,7 +681,7 @@ class ConnectorTool[ClientType](_ToolLoggerMixin, LanguagePropagationMixin, ABC)
         label = CATEGORY_DISPLAY_NAMES.get(category, category)
         return UnifiedToolOutput.failure(
             message=APIMessages.category_not_activated(label, resolve_language(language)),
-            error_code="category_not_activated",
+            error_code=ToolErrorCode.CONNECTOR_NOT_ACTIVATED,
         )
 
     def _format_error(self, error_code: str, message: str) -> UnifiedToolOutput:
@@ -972,13 +976,27 @@ class APIKeyConnectorTool[ClientType](_ToolLoggerMixin, LanguagePropagationMixin
         error: Exception,
         user_id_str: str | None,
         params: dict[str, Any],
-    ) -> str:
-        """Handle tool execution errors."""
+    ) -> ToolOutputType:
+        """Handle tool execution errors.
+
+        A registry tool fails by RETURNING a ``UnifiedToolOutput`` failure, the
+        shape every reader of the one success predicate sees: the JSON string
+        this used to return for every tool read as a success (ADR-303). A
+        refusal the service side produced is said by its status, with its delay
+        (ADR-108 amendment 2026-10-13).
+
+        Args:
+            error: Exception that occurred.
+            user_id_str: User ID string (may be None if error during validation).
+            params: Tool parameters.
+
+        Returns:
+            A ``UnifiedToolOutput`` for registry tools, a JSON string otherwise.
+        """
         # No PII at ERROR: raw params may contain user content (DEBUG only)
         self.logger.error(
             "api_key_tool_execution_error",
             user_id=user_id_str,
-            error=str(error),
             error_type=type(error).__name__,
             param_keys=sorted(params),
         )
@@ -987,7 +1005,11 @@ class APIKeyConnectorTool[ClientType](_ToolLoggerMixin, LanguagePropagationMixin
             user_id=user_id_str,
             params=params,
         )
-        return handle_tool_exception(error, self.tool_name, params).model_dump_json()
+        output = handle_tool_exception(error, self.tool_name, params)
+        refusal = describe_external_refusal(error, self.tool_name, output.error_code)
+        if refusal is not None:
+            output = refusal
+        return output if self.registry_enabled else output.model_dump_json()
 
     def _get_deps_or_fallback(
         self, runtime: ToolRuntime[LiaRuntimeContext, Any]
@@ -1009,24 +1031,17 @@ class APIKeyConnectorTool[ClientType](_ToolLoggerMixin, LanguagePropagationMixin
         """Format standard error for connector not activated (localized).
 
         Brand names are language-agnostic; the localized template carries the
-        "not enabled / provide your API key" instruction. The parenthetical
-        French descriptors ("météo", "recherche web") were dropped — the brand
-        name is self-explanatory and localizing per-connector descriptors would
-        re-introduce inline strings.
+        "not enabled / provide your API key" instruction. The name is the one
+        the connectors settings show (``CONNECTOR_DISPLAY_NAMES``): a private
+        copy of that table had drifted (« Perplexity AI », ``brave_search``).
         """
-        # Map connector types to user-friendly brand names (no localized suffix)
-        connector_names = {
-            ConnectorType.OPENWEATHERMAP: "OpenWeatherMap",
-            ConnectorType.PERPLEXITY: "Perplexity AI",
-            ConnectorType.WIKIPEDIA: "Wikipedia",
-        }
-        name = connector_names.get(self.connector_type, self.connector_type.value)
-
         return UnifiedToolOutput.failure(
             message=APIMessages.connector_not_activated(
-                name, resolve_language(language), needs_api_key=True
+                get_connector_display_name(self.connector_type),
+                resolve_language(language),
+                needs_api_key=True,
             ),
-            error_code="connector_not_activated",
+            error_code=ToolErrorCode.CONNECTOR_NOT_ACTIVATED,
         )
 
     def _format_error(self, error_code: str, message: str) -> UnifiedToolOutput:

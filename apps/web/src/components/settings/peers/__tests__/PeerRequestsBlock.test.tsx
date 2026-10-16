@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import userEvent from '@testing-library/user-event';
 
-import { renderWithProviders, screen } from '@/__tests__/test-utils';
+import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 
 import { PeerRequestsBlock } from '../PeerRequestsBlock';
 
@@ -37,6 +37,7 @@ function setup(over: Record<string, unknown> = {}) {
     mutating: false,
     onRespond: vi.fn().mockResolvedValue(true),
     onBlock: vi.fn().mockResolvedValue(true),
+    onResolved: vi.fn(),
     ...over,
   };
   renderWithProviders(<PeerRequestsBlock {...props} />);
@@ -72,6 +73,28 @@ describe('PeerRequestsBlock', () => {
     expect(props.onBlock).toHaveBeenCalledWith('p1');
   });
 
+  it('keeps a pending accept focused and refuses a second activation until its outcome', async () => {
+    let finish: (ok: boolean) => void = () => {};
+    const props = setup({
+      onRespond: vi.fn().mockImplementation(
+        () =>
+          new Promise<boolean>(resolve => {
+            finish = resolve;
+          })
+      ),
+    });
+    const accept = screen.getByRole('button', { name: 'settings.peers.requests.accept' });
+    await userEvent.click(accept);
+    expect(accept).toHaveFocus();
+    expect(accept).not.toBeDisabled();
+    await userEvent.keyboard('{Enter}');
+    expect(props.onRespond).toHaveBeenCalledOnce();
+    finish(false);
+    await waitFor(() => expect(accept).toHaveAttribute('aria-disabled', 'false'));
+    expect(props.onResolved).not.toHaveBeenCalled();
+    expect(accept).toHaveFocus();
+  });
+
   it('outgoing shows the waiting badge and no accept button', () => {
     setup({ requests: [OUTGOING] });
     expect(screen.getByText('settings.peers.requests.outgoing_badge')).toBeInTheDocument();
@@ -80,9 +103,15 @@ describe('PeerRequestsBlock', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('disables actions while mutating', () => {
+  it('keeps actions focusable but refuses activation while mutating', () => {
     setup({ mutating: true });
-    expect(screen.getByRole('button', { name: 'settings.peers.requests.accept' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'settings.peers.requests.decline' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'settings.peers.requests.accept' })).toHaveAttribute(
+      'aria-disabled',
+      'true'
+    );
+    expect(screen.getByRole('button', { name: 'settings.peers.requests.decline' })).toHaveAttribute(
+      'aria-disabled',
+      'true'
+    );
   });
 });

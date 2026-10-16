@@ -27,6 +27,7 @@ from src.domains.connectors.clients.normalizers.email_normalizer import (
     normalize_imap_folder,
     normalize_imap_message,
 )
+from src.domains.connectors.clients.normalizers.graph_mail_query import graph_mail_query
 from src.domains.connectors.clients.normalizers.microsoft_calendar_normalizer import (
     normalize_graph_calendar,
     normalize_graph_event,
@@ -37,7 +38,6 @@ from src.domains.connectors.clients.normalizers.microsoft_contacts_normalizer im
     normalize_graph_contact,
 )
 from src.domains.connectors.clients.normalizers.microsoft_email_normalizer import (
-    build_search_filter,
     normalize_graph_folder,
     normalize_graph_message,
 )
@@ -60,8 +60,8 @@ __all__ = [
     # Microsoft 365
     "build_contact_body",
     "build_contact_update_body",
-    "build_search_filter",
     "build_task_body",
+    "graph_mail_query",
     "normalize_graph_calendar",
     "normalize_graph_contact",
     "normalize_graph_event",

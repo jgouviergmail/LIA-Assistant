@@ -130,6 +130,7 @@ DRAFT_DISPLAY_REGISTRY: dict[DraftType, DraftDisplayConfig] = {
         detail_fields=(
             DraftDisplayField("to", "\U0001f4e7", "to"),
             DraftDisplayField("cc", "\U0001f4cb", "cc"),
+            DraftDisplayField("bcc", "\U0001f512", "bcc"),
             DraftDisplayField("subject", "\U0001f4dd", "subject"),
             DraftDisplayField("body", "\U0001f4ac", "body"),
         ),
@@ -160,6 +161,22 @@ DRAFT_DISPLAY_REGISTRY: dict[DraftType, DraftDisplayConfig] = {
             DraftDisplayField("cc", "\U0001f4cb", "cc"),
             DraftDisplayField("subject", "\U0001f4dd", "subject"),
             DraftDisplayField("body", "\U0001f4ac", "body"),
+        ),
+        noun_key="email",
+        verb_past_key="sent",
+        item_recipient_field="to",
+    ),
+    # A draft of the person's mailbox, sent as it stood (ADR-344).
+    DraftType.MAILBOX_DRAFT_SEND: DraftDisplayConfig(
+        emoji="📤",  # 📤
+        item_label_fields=("subject",),
+        item_secondary_datetime_key=None,
+        detail_fields=(
+            DraftDisplayField("to", "📧", "to"),
+            DraftDisplayField("cc", "📋", "cc"),
+            DraftDisplayField("bcc", "🔒", "bcc"),
+            DraftDisplayField("subject", "📝", "subject"),
+            DraftDisplayField("body", "💬", "body"),
         ),
         noun_key="email",
         verb_past_key="sent",

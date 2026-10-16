@@ -99,17 +99,22 @@ will keep it unchanged. See
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `MCP_ENABLED` | `false` | Enable MCP support |
-| `MCP_SERVERS_CONFIG` | `{}` | JSON string defining MCP servers |
+| `MCP_ENABLED` | Source: `MCPSettings.mcp_enabled` | Enable MCP support |
+| `MCP_SERVERS_CONFIG` | Source: `MCPSettings.mcp_servers_config` | JSON string defining MCP servers |
 | `MCP_SERVERS_CONFIG_PATH` | _(none)_ | Path to JSON config file (overrides inline) |
-| `MCP_TOOL_TIMEOUT_SECONDS` | `30` | Timeout per tool call (5-120s) |
-| `MCP_MAX_SERVERS` | `10` | Maximum servers (1-50) |
-| `MCP_MAX_TOOLS_PER_SERVER` | `20` | Maximum tools per server (1-100) |
-| `MCP_HITL_REQUIRED` | `true` | Global HITL requirement |
-| `MCP_RATE_LIMIT_CALLS` | `60` | Max calls per server per window |
-| `MCP_RATE_LIMIT_WINDOW` | `60` | Rate limit window (seconds) |
-| `MCP_HEALTH_CHECK_INTERVAL_SECONDS` | `300` | Health check interval |
-| `MCP_CONNECTION_RETRY_MAX` | `3` | Connection retry attempts |
+| `MCP_TOOL_TIMEOUT_SECONDS` | Source: `MCPSettings.mcp_tool_timeout_seconds` | Timeout per tool call |
+| `MCP_MAX_SERVERS` | Source: `MCPSettings.mcp_max_servers` | Maximum configured administrator servers |
+| `MCP_MAX_TOOLS_PER_SERVER` | Source: `MCPSettings.mcp_max_tools_per_server` | Maximum tools per server |
+| `MCP_HITL_REQUIRED` | Source: `MCPSettings.mcp_hitl_required` | Global HITL requirement; a server may override it |
+| `MCP_RATE_LIMIT_CALLS` | Source: `MCPSettings.mcp_rate_limit_calls` | Max calls per server per window |
+| `MCP_RATE_LIMIT_WINDOW` | Source: `MCPSettings.mcp_rate_limit_window` | Rate limit window (seconds) |
+| `MCP_HEALTH_CHECK_INTERVAL_SECONDS` | Source: `MCPSettings.mcp_health_check_interval_seconds` | Health check interval |
+| `MCP_CONNECTION_RETRY_MAX` | Source: `MCPSettings.mcp_connection_retry_max` | Connection retry attempts |
+
+The current defaults and accepted ranges live in
+[`MCPSettings`](../../apps/api/src/core/config/mcp.py), with shared default constants
+in [`constants.py`](../../apps/api/src/core/constants.py). Read those sources rather
+than copying this guide's older numeric defaults into an installation.
 | `MCP_MAX_STRUCTURED_ITEMS_PER_CALL` | `25` | Max structured items parsed from a single MCP call (1-200). Prevents registry explosion for tools returning large arrays. |
 
 ### Server Configuration Format
@@ -230,7 +235,11 @@ Set `"enabled": false` in the server config:
 
 ### HITL (Human-in-the-Loop)
 
-MCP tools require user approval by default (`MCP_HITL_REQUIRED=true`).
+Confirmation follows the resolved server setting and the tool's mutation policy.
+`MCPSettings.mcp_hitl_required` currently defaults to `False`; setting it to `true`
+requires confirmation for every tool of servers that do not override it. Independently,
+a destructive declaration tightens the confirmation requirement. A read-only declaration
+does not remove other protections. There is no blanket approval prompt before every MCP call.
 
 **Resolution hierarchy**: per-server `hitl_required` > global `MCP_HITL_REQUIRED`
 
@@ -298,6 +307,18 @@ to that worker; they cannot guarantee that another worker sees it.
 
 Quota refusal does not trigger a transparent retry. The adapter reports the
 temporary limit so the agent can choose another source or state the gap.
+
+A personal server that **fails to connect** is paused too (point 29): a dead
+server used to be tried again at every turn, one server after another, each
+attempt up to its timeout. A discovery failure (a quota refusal aside, which
+keeps its own cooldown) pauses the account/server pair in Redis, shared by every
+worker, for `MCP_USER_FAILURE_PAUSE_BASE_SECONDS`, doubling at each consecutive
+failure up to `MCP_USER_FAILURE_PAUSE_MAX_SECONDS`. While it lasts the turn
+skips the server with one info line (`user_mcp_server_paused`), no traceback.
+The manual test from the settings (`force_refresh`) ignores the pause, and any
+successful discovery clears it — so does editing, toggling or re-authorising
+the server (`disconnect`): a new configuration deserves a fresh try. Redis
+unreachable, nothing pauses.
 
 Per-server sliding window rate limiting prevents abuse:
 - `MCP_RATE_LIMIT_CALLS`: Max calls per window (default: 60)

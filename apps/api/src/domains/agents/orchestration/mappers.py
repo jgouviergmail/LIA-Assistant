@@ -548,8 +548,7 @@ def _failed_steps_of(execution_result: ExecutionResult) -> list[FailedStep]:
     NOT by the two callers that rebuild an ``ExecutionResult`` from
     ``completed_steps`` (``task_orchestrator_node`` and ``initiative_node``),
     which pass the raw step dict as ``result``. Reading the dict as a fallback
-    fixes BOTH paths without touching either — and without spending the three
-    lines of margin the orchestrator has left (ADR-303).
+    fixes BOTH paths without touching either (ADR-303).
 
     Args:
         execution_result: The plan execution, whatever built it.

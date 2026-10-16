@@ -288,8 +288,9 @@ bounds. The authoritative declarations live in
 TTS provider, model, voice and tuning are administered through the LLM catalogue
 and the `voice_tts` slot, as described in [VOICE.md](../technical/VOICE.md).
 The historical `VOICE_TTS_*` Google Cloud example is no longer a configuration
-contract. `ELEVENLABS_TTS_MAX_CONCURRENCY` bounds shared provider capacity across
-workers and voice surfaces. Live provider/session settings belong to
+contract. `ELEVENLABS_TTS_MAX_CONCURRENCY` and `FISHAUDIO_MAX_CONCURRENCY` bound
+shared provider capacity across workers and voice surfaces (Fish Audio's covers
+synthesis, transcription and voice design together). Live provider/session settings belong to
 [LiveSettings](../../apps/api/src/core/config/live.py), independently of spoken
 comments and STT.
 

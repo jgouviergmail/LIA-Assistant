@@ -39,31 +39,6 @@ class TicketStatus(str, Enum):
 STATUS_ORDER: Final[tuple[str, ...]] = tuple(status.value for status in TicketStatus)
 
 
-def worst_case_run_seconds(timeout_seconds: int, max_attempts: int, retry_delay: int) -> int:
-    """The longest a LEGITIMATE run can hold its claim.
-
-    The reaper exists to free the tickets a dead worker still holds, and it
-    must never free one a live worker is still working on: two runs on one
-    ticket would spend twice and could act twice.
-
-    The trap it closes is arithmetic. The engine bounds ONE ATTEMPT, and a run
-    may retry a transient failure — so a run whose attempts each take the full
-    timeout holds its claim for ``timeout × attempts`` plus the pauses between
-    them, several times longer than the number an operator reads as « the
-    timeout ». Deriving it here means the reaper and the settings guard cannot
-    disagree about it.
-
-    Args:
-        timeout_seconds: Hard bound of ONE attempt.
-        max_attempts: Attempts one run may make, the first included.
-        retry_delay: Pause between two attempts.
-
-    Returns:
-        The age past which a claim is certainly stranded.
-    """
-    return timeout_seconds * max_attempts + retry_delay * max(0, max_attempts - 1)
-
-
 #: The word an out-of-turn run stamps its archived rows with
 #: (:class:`~src.domains.agents.api.run_origin.RunOrigin.kind`), and therefore
 #: the JSON key the retention sweep reads them back by. Declared once: a stamp

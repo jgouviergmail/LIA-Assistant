@@ -47,6 +47,7 @@ from src.core.i18n import get_language_name
 from src.core.llm_config_helper import (
     get_effective_context_window_for_slot,
 )
+from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.agents.services.token_counter_service import (
     TokenCounterService,
@@ -55,6 +56,7 @@ from src.domains.agents.services.token_counter_service import (
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
 from src.infrastructure.llm.message_view import content_for_model, model_view_content
+from src.infrastructure.llm.usage_metadata import tokens_from_response
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_compaction import (
     compaction_chunk_timeouts_total,
@@ -77,16 +79,58 @@ logger = get_logger(__name__)
 _IDENTIFIER_PATTERN = re.compile(
     r"(?:"
     r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"  # UUID
-    r"|https?://\S+"  # URL
+    r"|https?://[^\s<>\"']+"  # URL (a quote or a bracket ends it)
     r"|people/c\d+"  # Google People resource name
     r"|tool_call_\w+"  # Tool call ID
     r"|run-[\w-]+"  # Run ID
     r"|mem_\w+"  # Memory ID
     r"|msg-[\w-]+"  # Message ID
-    r"|[\w.+-]+@[\w-]+\.[\w.]+"  # Email address
-    r")",
+    # Email address. The local part is bounded (RFC 5321: 64): unbounded, a
+    # long run of word characters with no ``@`` was re-read from every start
+    # position — 40 000 of them took 3.7 s inside the turn (ADR-326).
+    r"|[\w.+-]{1,64}@[\w-]+\.[\w.]+" r")",
     re.IGNORECASE,
 )
+#: Sentence punctuation the pattern swallows after an identifier.
+_TRAILING_PUNCTUATION = ".,;:!?"
+_CLOSING_PAIRS = {")": "(", "]": "["}
+
+
+def _identifiers_in(text: str) -> list[str]:
+    """Every identifier of ``text``, without the punctuation written after it.
+
+    « Write to a@b.com. » yields ``a@b.com``: with the dot, the identifier
+    matched nothing a summary wrote, and came back as dropped (measured on dev
+    with a real model, point 10). A closing bracket goes only when unpaired, so
+    a Wikipedia URL keeps the one it owns.
+
+    Args:
+        text: A message's text as the model reads it.
+
+    Returns:
+        The identifiers, in order of appearance.
+    """
+    found = []
+    for identifier in _IDENTIFIER_PATTERN.findall(text):
+        # Count once: recounting and copying the entire URL for every trailing
+        # bracket made third-party text quadratic on the synchronous turn path.
+        excess = {
+            closing: identifier.count(closing) - identifier.count(opening)
+            for closing, opening in _CLOSING_PAIRS.items()
+        }
+        end = len(identifier)
+        while end:
+            last = identifier[end - 1]
+            unpaired = excess.get(last, 0) > 0
+            if last not in _TRAILING_PUNCTUATION and not unpaired:
+                break
+            if unpaired:
+                excess[last] -= 1
+            end -= 1
+        if end:
+            found.append(identifier[:end])
+    return found
+
 
 # One ``<external_content ...> ... </external_content>`` span, as produced by
 # ``wrap_external_content`` (ADR-167). Escaped occurrences inside the content
@@ -96,6 +140,16 @@ _EXTERNAL_SPAN_PATTERN = re.compile(
     re.escape(EXTERNAL_CONTENT_OPEN_TAG) + r"[^>]*>.*?" + re.escape(EXTERNAL_CONTENT_CLOSE_TAG),
     re.DOTALL,
 )
+
+
+def _identifier_lines() -> dict[str, str]:
+    """The one-line scaffolds a compaction writes, read from the store (cached)."""
+    return dict(parse_prompt_sections(read_prompt_file("compaction_identifier_lines"), 2))
+
+
+def _listed(identifiers: list[str]) -> str:
+    """The identifiers a line names, bounded by ``compaction_identifiers_reinsert_max``."""
+    return ", ".join(identifiers[: settings.compaction_identifiers_reinsert_max])
 
 
 CompactionStrategy = Literal[
@@ -264,7 +318,7 @@ class CompactionService:
         identifiers: set[str] = set()
         for msg in messages:
             content = content_for_model(msg)
-            identifiers.update(_IDENTIFIER_PATTERN.findall(content))
+            identifiers.update(_identifiers_in(content))
         return sorted(identifiers)
 
     @staticmethod
@@ -310,15 +364,15 @@ class CompactionService:
         for msg in messages:
             content = content_for_model(msg)
             if EXTERNAL_CONTENT_OPEN_TAG not in content:
-                trusted.update(_IDENTIFIER_PATTERN.findall(content))
+                trusted.update(_identifiers_in(content))
                 continue
             spans = _EXTERNAL_SPAN_PATTERN.findall(content)
             if not spans:
-                external.update(_IDENTIFIER_PATTERN.findall(content))
+                external.update(_identifiers_in(content))
                 continue
             for span in spans:
-                external.update(_IDENTIFIER_PATTERN.findall(span))
-            trusted.update(_IDENTIFIER_PATTERN.findall(_EXTERNAL_SPAN_PATTERN.sub("", content)))
+                external.update(_identifiers_in(span))
+            trusted.update(_identifiers_in(_EXTERNAL_SPAN_PATTERN.sub("", content)))
         return sorted(trusted), sorted(external - trusted)
 
     def _split_into_chunks(
@@ -463,12 +517,10 @@ class CompactionService:
         if response is None:  # pragma: no cover
             raise RuntimeError("compaction chunk retry loop produced no response")
 
-        usage = getattr(response, "usage_metadata", None)
-        prompt_tokens = getattr(usage, "input_tokens", 0) if usage else 0
-        completion_tokens = getattr(usage, "output_tokens", 0) if usage else 0
-
-        summary = response.text
-        return summary, prompt_tokens, completion_tokens
+        # The ONE usage reader (CLAUDE.md): the metadata is a mapping, and an
+        # attribute read on it returned 0 for every real call.
+        tokens = tokens_from_response(response)
+        return response.text, tokens.prompt + tokens.cached, tokens.completion
 
     async def compact(
         self,
@@ -637,6 +689,9 @@ class CompactionService:
             compaction_errors_total.labels(error_type="llm_failure").inc()
             raise
 
+        final_summary = self._with_dropped_identifiers(
+            final_summary, to_compact, previous_summaries if consolidated_previous else []
+        )
         duration = time.monotonic() - start_time
         tokens_after = self._token_counter.count_tokens(final_summary)
         tokens_saved = tokens_before - tokens_after
@@ -676,6 +731,43 @@ class CompactionService:
             contains_external_content=contains_external,
         )
 
+    def _with_dropped_identifiers(
+        self, summary: str, compacted: list[BaseMessage], merged_summaries: list[str]
+    ) -> str:
+        """Write back under the summary every identifier it dropped (point 10).
+
+        The model is asked to keep identifiers and nothing checked that it did:
+        one it dropped left the conversation for good, while
+        ``identifiers_preserved`` still listed it. A prior summary merged into
+        this one is removed with the messages, so its identifiers are checked
+        too — as third-party ones when it carried the provenance banner (fail
+        closed: its trusted and untrusted lines are no longer told apart).
+
+        Args:
+            summary: The summary the model wrote.
+            compacted: The messages the summary replaces.
+            merged_summaries: Prior summaries folded into it, removed with them.
+
+        Returns:
+            The summary, followed by at most two lines naming what it dropped —
+            the trusted ones, then those seen only inside third-party content.
+        """
+        trusted, external = self._extract_identifiers_by_provenance(compacted)
+        trusted_set, external_set = set(trusted), set(external)
+        for prior in merged_summaries:
+            found = set(_identifiers_in(prior))
+            if COMPACTION_EXTERNAL_PROVENANCE_BANNER in prior:
+                external_set |= found
+            else:
+                trusted_set |= found
+        lines = _identifier_lines()
+        added = [
+            lines[key].format(identifiers=named)
+            for key, dropped in (("kept", trusted_set), ("external", external_set - trusted_set))
+            if (named := _listed(sorted(i for i in dropped if i not in summary)))
+        ]
+        return f"{summary}\n\n" + "\n".join(added) if added else summary
+
     def _truncation_fallback(
         self,
         messages: list[BaseMessage],
@@ -699,16 +791,12 @@ class CompactionService:
         identifiers = sorted({*trusted_ids, *external_ids})
         contains_external = self._carries_external_content(to_drop)
         tokens_before = self._token_counter.count_messages_tokens(to_drop)
-        notice = (
-            f"[Older conversation truncated — {len(to_drop)} messages removed "
-            f"because the automatic summary could not complete ({reason}). "
-            f"Key identifiers preserved: {', '.join(trusted_ids[:30])}]"
+        lines = _identifier_lines()
+        notice = lines["truncated"].format(
+            count=len(to_drop), reason=reason, identifiers=_listed(trusted_ids)
         )
-        if external_ids:
-            notice += (
-                "\n[Identifiers seen only inside third-party content — "
-                f"untrusted, verify before use: {', '.join(external_ids[:30])}]"
-            )
+        if untrusted := _listed(external_ids):
+            notice += "\n" + lines["external"].format(identifiers=untrusted)
         tokens_after = self._token_counter.count_tokens(notice)
         compaction_executions_total.labels(strategy="truncation").inc()
         compaction_total_duration_seconds.observe(0.0)

@@ -23,6 +23,7 @@ from src.domains.agents.nodes.response_node import (
     _activate_response_skills,
     _resolve_response_context_summary,
 )
+from src.domains.agents.tools.react_runner import ReactSubAgentResult
 
 _RESP = "src.domains.agents.nodes.response_node"
 
@@ -196,9 +197,10 @@ async def test_activate_skills_script_skill_runs_react_runner():
         "references": [],
         "source_path": "/skills/my_skill/SKILL.md",
     }
-    run_result = SimpleNamespace(
+    run_result = ReactSubAgentResult(
         iteration_count=1,
         final_message="Skill answer",
+        messages=[],
         duration_ms=42,
         accumulated_registry={"w1": {"type": "SKILL_APP"}},
     )
@@ -261,9 +263,10 @@ async def test_activate_skills_detected_skill_survives_a_native_execution_plan()
         "references": [],
         "source_path": "/skills/my_skill/SKILL.md",
     }
-    run_result = SimpleNamespace(
+    run_result = ReactSubAgentResult(
         iteration_count=1,
         final_message="Skill answer",
+        messages=[],
         duration_ms=42,
         accumulated_registry={},
     )

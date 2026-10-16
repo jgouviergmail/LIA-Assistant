@@ -123,6 +123,8 @@ const LIFECYCLE: Record<string, BadgeTone> = {
   succeeded: 'success',
   ready: 'success',
   done: 'success',
+  // A Fish Audio voice the vendor trained (ADR-345): it speaks.
+  trained: 'success',
   // In flight.
   dialing: 'info',
   in_progress: 'info',
@@ -134,6 +136,9 @@ const LIFECYCLE: Record<string, BadgeTone> = {
   queued: 'info',
   running: 'info',
   claimed: 'info',
+  // A Fish Audio voice the vendor is still preparing (ADR-345).
+  created: 'info',
+  training: 'info',
   // Failed.
   error: 'destructive',
   failed: 'destructive',

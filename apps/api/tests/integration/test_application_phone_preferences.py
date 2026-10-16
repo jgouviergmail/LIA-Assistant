@@ -26,6 +26,7 @@ from src.domains.telephony.preference_gateway import SavedPhonePreferences
 from src.domains.telephony.schemas import TelephonyIdentityUpdateRequest
 from src.domains.users.models import User
 from src.infrastructure.phone_preferences import configure_phone_preferences
+from tests.helpers.draft_refusals import draft_refusal_code
 from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
 
 pytestmark = pytest.mark.integration
@@ -119,9 +120,9 @@ async def test_phone_confirmation_preserves_identity_and_requires_current_state_
         if intervention != "number_change":
             assert test_user.phone_number_encrypted == number
         if intervention in {"manual_change", "number_change"}:
-            assert outcome.error == "STALE_STATE"
+            assert draft_refusal_code(outcome) == "STALE_STATE"
         if intervention in {"platform_off", "telephony_off"}:
-            assert outcome.error == "CAPABILITY_DISABLED"
+            assert draft_refusal_code(outcome) == "CAPABILITY_DISABLED"
             ledger.claim.assert_not_awaited()
         hints = [queue.get_nowait() for _ in range(queue.qsize())]
         hints = [event for event in hints if event.type == "application_state_changed"]

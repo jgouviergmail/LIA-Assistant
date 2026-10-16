@@ -14,9 +14,10 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, inspect, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.domains.psyche.efficacy_models import EfficacyEpisode
 from src.domains.psyche.management_read import psyche_history_filters
 from src.domains.psyche.models import PsycheHistory, PsycheState
 from src.domains.users.models import User
@@ -92,6 +93,13 @@ class PsycheStateRepository:
             Updated PsycheState.
         """
         await self.lock_management_owner(state.user_id)
+        if inspect(state).attrs.efficacy_generation.history.has_changes():
+            await self.db.execute(
+                delete(EfficacyEpisode).where(
+                    EfficacyEpisode.state_id == state.id,
+                    EfficacyEpisode.generation != state.efficacy_generation,
+                )
+            )
         await self.db.flush()
         return state
 
@@ -101,6 +109,11 @@ class PsycheStateRepository:
             await self.db.scalar(
                 select(User.id).where(User.id == user_id).with_for_update(read=True, key_share=True)
             )
+
+    async def lock_reset_owner(self, user_id: UUID) -> None:
+        """Exclusive owner fence before a reset reads or deletes its children."""
+        with self.db.no_autoflush:
+            await self.db.scalar(select(User.id).where(User.id == user_id).with_for_update())
 
     async def delete_for_user(self, user_id: UUID) -> int:
         """Delete all psyche data for a user (GDPR compliance).
@@ -113,6 +126,7 @@ class PsycheStateRepository:
         Returns:
             Total number of deleted records.
         """
+        await self.lock_reset_owner(user_id)
         # Delete history first (no FK constraint to psyche_states, but logically correct)
         history_result = await self.db.execute(
             delete(PsycheHistory).where(PsycheHistory.user_id == user_id)

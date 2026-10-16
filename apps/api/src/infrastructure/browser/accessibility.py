@@ -10,6 +10,8 @@ Phase: evolution F7 — Browser Control (Playwright)
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -23,6 +25,26 @@ if TYPE_CHECKING:
     from playwright.async_api import CDPSession, Locator, Page
 
 logger = structlog.get_logger(__name__)
+
+
+@asynccontextmanager
+async def _cdp_session(page: Page) -> AsyncIterator[CDPSession]:
+    """Detach each acquired session without replacing a primary failure/cancellation."""
+    cdp = await page.context.new_cdp_session(page)
+    failed = False
+    try:
+        yield cdp
+    except BaseException:
+        failed = True
+        raise
+    finally:
+        try:
+            await cdp.detach()
+        except Exception as error:
+            logger.warning("browser_cdp_detach_failed", error_type=type(error).__name__)
+            logger.debug("browser_error_detail", error=str(error))
+            if not failed:
+                raise
 
 
 @dataclass
@@ -61,17 +83,16 @@ class AccessibilityTreeExtractor:
         """
         from src.infrastructure.resilience.circuit_breaker import get_circuit_breaker
 
-        cdp: CDPSession = await page.context.new_cdp_session(page)
-        try:
-            async with get_circuit_breaker("browser_cdp"):
-                result = await cdp.send("Accessibility.getFullAXTree")
-            nodes_raw = result.get("nodes", [])
-            return self._parse_nodes(nodes_raw)
-        except Exception as e:
-            logger.error("browser_ax_tree_extraction_error", error=str(e))
-            return []
-        finally:
-            await cdp.detach()
+        async with _cdp_session(page) as cdp:
+            try:
+                async with get_circuit_breaker("browser_cdp"):
+                    result = await cdp.send("Accessibility.getFullAXTree")
+                nodes_raw = result.get("nodes", [])
+                return self._parse_nodes(nodes_raw)
+            except Exception as e:
+                logger.error("browser_ax_tree_extraction_error", error_type=type(e).__name__)
+                logger.debug("browser_error_detail", error=str(e))
+                raise
 
     def _parse_nodes(self, nodes_raw: list[dict[str, Any]]) -> list[AXNode]:
         """Parse raw CDP accessibility nodes into AXNode objects.
@@ -299,44 +320,47 @@ class AccessibilityTreeExtractor:
         # Find the node with matching ref
         target_node = self._find_node_by_ref(nodes, ref)
         if not target_node or not target_node.backend_dom_node_id:
-            logger.warning("browser_element_ref_not_found", ref=ref)
+            logger.warning("browser_element_ref_not_found", ref_length=len(ref))
             return None
 
         # Resolve via CDP DOM.resolveNode
-        cdp = await page.context.new_cdp_session(page)
-        try:
-            resolve_result = await cdp.send(
-                "DOM.resolveNode",
-                {"backendNodeId": target_node.backend_dom_node_id},
-            )
-            object_id = resolve_result.get("object", {}).get("objectId")
-            if not object_id:
+        async with _cdp_session(page) as cdp:
+            try:
+                resolve_result = await cdp.send(
+                    "DOM.resolveNode",
+                    {"backendNodeId": target_node.backend_dom_node_id},
+                )
+                object_id = resolve_result.get("object", {}).get("objectId")
+                if not object_id:
+                    return None
+
+                # Use role-based locator for reliability
+                if target_node.role and target_node.name:
+                    locator = page.get_by_role(target_node.role, name=target_node.name)  # type: ignore[arg-type]
+                    if await locator.count() > 0:
+                        return locator.first
+
+                # Fallback: evaluate to get a CSS selector
+                desc_result = await cdp.send(
+                    "DOM.describeNode",
+                    {"backendNodeId": target_node.backend_dom_node_id},
+                )
+                node_desc = desc_result.get("node", {})
+                node_name = node_desc.get("nodeName", "").lower()
+                if node_name:
+                    # Try locating by combined role + attributes
+                    locator = page.locator(node_name).first
+                    return locator
+
                 return None
-
-            # Use role-based locator for reliability
-            if target_node.role and target_node.name:
-                locator = page.get_by_role(target_node.role, name=target_node.name)  # type: ignore[arg-type]
-                if await locator.count() > 0:
-                    return locator.first
-
-            # Fallback: evaluate to get a CSS selector
-            desc_result = await cdp.send(
-                "DOM.describeNode",
-                {"backendNodeId": target_node.backend_dom_node_id},
-            )
-            node_desc = desc_result.get("node", {})
-            node_name = node_desc.get("nodeName", "").lower()
-            if node_name:
-                # Try locating by combined role + attributes
-                locator = page.locator(node_name).first
-                return locator
-
-            return None
-        except Exception as e:
-            logger.error("browser_element_resolve_error", ref=ref, error=str(e))
-            return None
-        finally:
-            await cdp.detach()
+            except Exception as e:
+                logger.error(
+                    "browser_element_resolve_error",
+                    ref_length=len(ref),
+                    error_type=type(e).__name__,
+                )
+                logger.debug("browser_error_detail", error=str(e))
+                raise
 
     def _find_node_by_ref(self, nodes: list[AXNode], ref: str) -> AXNode | None:
         """Recursively find a node by its ref value.

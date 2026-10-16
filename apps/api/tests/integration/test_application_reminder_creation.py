@@ -35,6 +35,7 @@ from src.domains.reminders.schemas import ReminderCreate
 from src.domains.reminders.service import ReminderService
 from src.domains.users.models import User
 from src.domains.users.preference_cas import PreferenceWriteReceipt
+from tests.helpers.draft_refusals import draft_refusal_code
 from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
 
 pytestmark = pytest.mark.integration
@@ -177,9 +178,9 @@ async def test_native_creation_requires_exact_hitl_and_commits_once(
             intervention != "writer_off"
         )
         if intervention == "commit_unknown":
-            assert result.error == "COMPLETION_UNKNOWN"
+            assert draft_refusal_code(result) == "COMPLETION_UNKNOWN"
         elif intervention == "writer_off":
-            assert result.error == "CAPABILITY_DISABLED"
+            assert draft_refusal_code(result) == "CAPABILITY_DISABLED"
         assert "Private wording" not in str(result.result_data)
         events = [queue.get_nowait() for _ in range(queue.qsize())]
         changes = [event for event in events if event.type == "application_state_changed"]

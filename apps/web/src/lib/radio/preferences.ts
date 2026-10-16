@@ -7,7 +7,7 @@
  * SAME object, so a caller can tell « nothing to save » by identity.
  */
 
-import type { RadioFrequency, RadioPreferences, RadioRole } from './types';
+import type { RadioFrequency, RadioOptions, RadioPreferences, RadioSpeakingRole } from './types';
 
 /** The format tuned to a frequency. */
 export function withFrequency(
@@ -80,13 +80,32 @@ export function withStationName(
 /** The voice of a role; `null` hands the role back to the automatic cast. */
 export function withVoice(
   preferences: RadioPreferences,
-  role: RadioRole,
+  role: RadioSpeakingRole,
   voiceId: string | null
 ): RadioPreferences {
   const voices = { ...preferences.voices };
   if (voiceId === null) delete voices[role];
   else voices[role] = voiceId;
   return { ...preferences, voices };
+}
+
+/**
+ * The voices a role may not take: those of the roles it may not share one with
+ * (`voices_apart`, the API's own rule — a commentator never sounds like LIA, the
+ * anchor or another commentator). The role's own voice is never among them.
+ */
+export function voicesTakenFrom(
+  preferences: RadioPreferences,
+  apart: RadioOptions['voices_apart'],
+  role: RadioSpeakingRole
+): ReadonlySet<string> {
+  const own = preferences.voices[role];
+  const taken = new Set<string>();
+  for (const other of apart[role] ?? []) {
+    const voice = preferences.voices[other];
+    if (voice !== undefined && voice !== own) taken.add(voice);
+  }
+  return taken;
 }
 
 /** The automatic stops offered (minutes), bounded by the published maximum. */

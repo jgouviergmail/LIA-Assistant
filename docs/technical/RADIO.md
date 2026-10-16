@@ -404,7 +404,24 @@ asked (`Retry-After`), else 5 s doubling at each attempt, never more than
 segment's lines (one cooldown, honoured inside the concurrency gate), so the
 lines voiced in parallel stop knocking together. A delivery
 control is sent only to a model measured to take it (`voice/families.controls_for`:
-the Gemini 2.5 and 3.1 previews refuse any style annotation). A segment is the
+the Gemini 2.5 and 3.1 previews refuse any style annotation). An engine that
+performs cues in the text (ElevenLabs v3/v4, Fish Audio — ADR-345) is also handed
+ONE cue opening the line, the tone's when it performs it, else the energy's, and
+a line's own brackets (a headline's « [Update] ») are read as words, never
+performed ([VOICE.md](VOICE.md#expressive-cues-adr-345)). On an engine that
+voices several speakers in ONE request (`voice/families.voices_dialogue`: Fish
+Audio's S2 models and `drama-3`, never `s1`), a multi-voice segment is voiced by
+TAKES ([takes.py](../../apps/api/src/domains/radio/takes.py)): consecutive lines
+of one part sharing one speaking rate, up to `RADIO_DIALOGUE_MAX_BYTES` of text
+(`0` voices every line alone), so the voices answer each other in one recording
+and a failure costs one take, never a debate. Each line is a WINDOW of its take,
+cut where the vendor's own timing says its first word starts — the letters and
+digits of the turns must be exactly those of the timed segments, or nothing is
+guessed — and two windows of one take follow each other with nothing added: the
+take keeps its own breath between turns. A take that keeps failing, or that its
+timing does not place, is voiced line by line; an unplaced take stays billed,
+because the vendor billed it (`radio_dialogue_takes_total{outcome}`, dashboard
+31). A segment is the
 voice alone: a short breath before the first word (the player lowers the music
 over it), a pause after each line, a longer one between parts; the mix is
 planned purely (`audio.plan_segment`) and run through the bounded ffmpeg runner.
@@ -584,24 +601,40 @@ the API refuses and counts by code point as the API does (`withStationName`: a
 cut never leaves half a surrogate pair). A name may hold digits: the editor
 blanks a MENTION of it before reading a line's numbers
 (`verification._without_station`), and the model verifier is told it below its
-marker. A session keeps the name it started with.
+marker. A session keeps the name it started with. The writer reads it as the name
+any title or line gives the station — LIA is the assistant who runs it, not the
+station — and the context line asking a programme to name the station carries it
+(`prompting._context`): given once beside « LIA », nine openings in ten called the
+station « LIA » (measured on dev, 2026-10-14; ten in ten said its name after).
 
 **The voices** are the ones the `radio_voice` slot's engine offers in the
-listener's language. A stored voice the engine no longer offers reads as
+listener's language — the rule every voice picker shares
+(`voice/engine_voices.usable_voices`, ADR-345 amendment 2026-10-14), under the same
+« only voices in my language, and multilingual ones » switch; on Fish Audio they
+include the public voices the instance pinned, ONE list with the chat's slot. A
+stored voice the engine no longer offers reads as
 automatic (`listener_settings.listener_preferences` — an engine that cannot list
 its voices right now keeps the stored choice), and the page reads its options and
 settings again when that slot is saved or reset (the `radio_voices` revision,
 `stores/revisionStore.ts`): a voice of the previous engine, sent back with the next
-save, had made every save refused. Each engine keeps its own voices: the stored settings
-hold them per `provider/model` (`voices_by_engine`), a save replaces the voices of the
-engine in place alone (the row locked, every other engine's kept), and an engine switched
-back to finds its voices; the flat voices of an older row are offered to the engine now in
-place, then filed under it at the next save. Four roles are the listener's to voice (the
-host, the anchor, the expert, the editorialist — `CONFIGURABLE_ROLES`); the commentators
-of a debate or a discussion are the station's, cast with voices nobody else speaks with
-when the engine has them (`cast._speaker_voice`), and a commentator who would sound like
-LIA or like another voice of the programme stays silent (`Cast.voiced_roles`); a programme
-the cast cannot give its distinct voices is not planned (`voices_by_format`).
+save, had made every save refused. Each provider keeps its own voices (ADR-324 decision
+43): the stored settings hold them per PROVIDER (`voices_by_engine`, keyed by
+`engine_voices.choice_key`) — every model of a provider offers the same voices, so a
+model switched for another keeps them and a provider switched back to finds its own. An
+entry an older release kept per `provider/model` is still read (the fullest,
+`engine_voices.stored_choice`) and replaced at the next save; the flat voices of an older
+row are offered to the engine now in place, then filed under it at the next save. A save
+replaces the voices of the provider in place alone (the row locked, every other
+provider's kept). Every role is the listener's to voice: the station's team (the host,
+the anchor, the expert, the editorialist — `STAFF_ROLES`) and the commentators of a
+debate or a discussion (`SPEAKER_ROLES`). A role left automatic gets a voice the station
+picks, never one the listener chose for another role — a commentator one nobody else
+speaks with when the engine has them (`cast._speaker_voice`). A commentator never shares
+a voice with LIA, the moderator or another commentator: the relation is derived from the
+programmes (`cast.VOICES_APART`), published (`voices_apart`: the page greys those voices
+out) and refused on write (`radio_voice_shared`), and one stored anyhow stays silent
+(`Cast.voiced_roles`); a programme the cast cannot give its distinct voices is not planned
+(`voices_by_format`).
 
 **The budget** (`RadioBudgetFields`, `GET /radio/budget`): what the listener's
 radio spent over the rolling window against its bound, and, at the bound, when it
@@ -613,16 +646,16 @@ All under `/radio`, behind the capability switch, each answering for the caller 
 (another account's session, segment or site reads as absent). None holds a request
 session (ADR-304).
 
-| Route                                                                                                                           | Refusals (`detail.code`)                                                                                                                            |
-| ------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `POST /sessions`                                                                                                                | `radio_instance_full`, `radio_no_voice`, `radio_voice_unavailable`, `radio_budget_reached` (429, + `max_eur`, `lifts_at`)                           |
-| `POST /sessions/{id}/playhead`, `POST /sessions/{id}/stop`                                                                      | — (404 when not the caller's)                                                                                                                       |
-| `GET /sessions/{id}/segments/{seq}/audio`                                                                                       | — (`Cache-Control: no-store`)                                                                                                                       |
-| `GET /options`, `GET /preferences`, `GET /budget`                                                                               | —                                                                                                                                                   |
-| `GET /articles/{id}`                                                                                                            | — (404 when the story is not the caller's to read: the catalogue's, or one of their own sites')                                                     |
-| `PUT /preferences`                                                                                                              | `radio_timer_too_long` (+ `max_minutes`), `radio_voice_unknown`, `radio_personality_unknown`; 422 for an unticked address that is not a base source |
-| `GET /sources` (every source and what it holds), `PATCH /sources/{id}` (rename, pause), `DELETE /sources/{id}`, `DELETE /heard` | — (404 when the site is not the caller's)                                                                                                           |
-| `POST /sources/preview`, `POST /sources` (rate-limited per account)                                                             | `radio_source_refused` (+ `outcome`), `radio_source_limit` (+ `max_sources`)                                                                        |
+| Route                                                                                                                           | Refusals (`detail.code`)                                                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /sessions`                                                                                                                | `radio_instance_full`, `radio_no_voice`, `radio_voice_unavailable`, `radio_budget_reached` (429, + `max_eur`, `lifts_at`)                                                 |
+| `POST /sessions/{id}/playhead`, `POST /sessions/{id}/stop`                                                                      | — (404 when not the caller's)                                                                                                                                             |
+| `GET /sessions/{id}/segments/{seq}/audio`                                                                                       | — (`Cache-Control: no-store`)                                                                                                                                             |
+| `GET /options`, `GET /preferences`, `GET /budget`                                                                               | —                                                                                                                                                                         |
+| `GET /articles/{id}`                                                                                                            | — (404 when the story is not the caller's to read: the catalogue's, or one of their own sites')                                                                           |
+| `PUT /preferences`                                                                                                              | `radio_timer_too_long` (+ `max_minutes`), `radio_voice_unknown`, `radio_voice_shared`, `radio_personality_unknown`; 422 for an unticked address that is not a base source |
+| `GET /sources` (every source and what it holds), `PATCH /sources/{id}` (rename, pause), `DELETE /sources/{id}`, `DELETE /heard` | — (404 when the site is not the caller's)                                                                                                                                 |
+| `POST /sources/preview`, `POST /sources` (rate-limited per account)                                                             | `radio_source_refused` (+ `outcome`), `radio_source_limit` (+ `max_sources`)                                                                                              |
 
 Every code has a sentence in the six languages (`tests/unit/domains/radio/test_errors.py`).
 

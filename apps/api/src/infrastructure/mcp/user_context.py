@@ -39,6 +39,7 @@ from src.core.constants import (
 from src.core.context import UserMCPToolsContext, user_mcp_tools_ctx
 from src.domains.agents.registry.domain_taxonomy import deduplicate_mcp_slugs
 from src.infrastructure.mcp.auth import build_auth_for_server
+from src.infrastructure.mcp.rate_limit import MCPServerPausedError
 from src.infrastructure.mcp.registration import (
     get_admin_mcp_domains,
     record_tool_registration_failure,
@@ -263,6 +264,15 @@ async def _register_user_server(
             else _register_user_standard_server
         )
         register(server, entry, user_id, ctx, hitl_required, embeddings, domain, server_prefix)
+    except MCPServerPausedError as paused:
+        # A known state, not a new failure (point 29): the server failed to
+        # connect earlier and waits out its pause — no traceback every turn.
+        logger.info(
+            "user_mcp_server_paused",
+            user_id=str(user_id),
+            server_id=str(server.id),
+            retry_in_seconds=paused.retry_in_seconds,
+        )
     except Exception:
         logger.warning(
             "user_mcp_server_connect_failed",

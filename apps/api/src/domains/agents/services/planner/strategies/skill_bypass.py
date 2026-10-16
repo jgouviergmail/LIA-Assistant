@@ -25,6 +25,7 @@ briefing instead of a validation-fail → replan round-trip.
 If no match → falls through to the LLM planner.
 """
 
+from collections.abc import Collection
 from typing import TYPE_CHECKING, Any
 
 from src.core.config import get_settings
@@ -41,7 +42,15 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-__all__ = ["SkillBypassStrategy"]
+__all__ = ["TEMPLATE_STEP_TYPES", "SkillBypassStrategy"]
+
+#: The step types a plan template can run. A template carries a TOOL step's
+#: fields alone — ``condition``, ``on_success`` and ``on_fail`` are never read —
+#: so any other type is refused here, before it reaches the executor, and the
+#: request falls through to the LLM planner (ADR-346 amendment). The skill
+#: generator's validator and specification and the skill guide publish this
+#: very set (``test_name_contract_parity.py``).
+TEMPLATE_STEP_TYPES: frozenset[StepType] = frozenset({StepType.TOOL})
 
 
 def _deterministic_template(skill: dict[str, Any]) -> tuple[dict[str, Any], bool]:
@@ -61,6 +70,27 @@ def _deterministic_template(skill: dict[str, Any]) -> tuple[dict[str, Any], bool
 
     template: dict[str, Any] = skill.get("plan_template") or {}
     return template, bool(template.get("deterministic")) and not is_third_party(skill)
+
+
+def _template_step_type(step_data: dict[str, Any]) -> StepType:
+    """A template step's type, refused when a template cannot run it.
+
+    Args:
+        step_data: One raw step of the plan template.
+
+    Returns:
+        The step type, a member of ``TEMPLATE_STEP_TYPES``.
+
+    Raises:
+        ValueError: The value names no step type, or one a template cannot run.
+    """
+    step_type = StepType(step_data.get("step_type", StepType.TOOL.value))
+    if step_type not in TEMPLATE_STEP_TYPES:
+        raise ValueError(
+            "a plan template runs "
+            f"{', '.join(sorted(t.value for t in TEMPLATE_STEP_TYPES))} steps only"
+        )
+    return step_type
 
 
 class SkillBypassStrategy:
@@ -132,7 +162,7 @@ class SkillBypassStrategy:
             ``PlanningResult(success=True)`` when the skill matches and a plan is
             built, otherwise ``PlanningResult(success=False)`` with a reason.
         """
-        from src.core.context import active_skills_ctx
+        from src.core.context import active_connector_types_ctx, active_skills_ctx
         from src.domains.agents.services.planner.planner_utils import (
             build_plan_from_steps,
             create_virtual_catalogue,
@@ -258,9 +288,12 @@ class SkillBypassStrategy:
 
         # Filter steps whose tools require OAuth scopes the user lacks.
         # This avoids a validation-fail → replan round-trip for users without
-        # a given connector (e.g., no Gmail → skip email step gracefully).
+        # a given connector (e.g., no Gmail → skip email step gracefully) —
+        # never a step another provider serves (RC1.1).
         available_scopes = set(config.get("configurable", {}).get("oauth_scopes", []))
-        filtered_steps_data = _filter_steps_by_scopes(steps_data, available_scopes)
+        filtered_steps_data = _filter_steps_by_scopes(
+            steps_data, available_scopes, active_connector_types_ctx.get()
+        )
 
         if not filtered_steps_data:
             logger.info(
@@ -279,7 +312,7 @@ class SkillBypassStrategy:
                 steps.append(
                     ExecutionStep(
                         step_id=step_data["step_id"],
-                        step_type=StepType(step_data.get("step_type", "TOOL")),
+                        step_type=_template_step_type(step_data),
                         agent_name=step_data["agent_name"],
                         tool_name=step_data.get("tool_name"),
                         parameters=step_data.get("parameters", {}),
@@ -334,6 +367,7 @@ class SkillBypassStrategy:
 def _filter_steps_by_scopes(
     steps_data: list[dict],
     available_scopes: set[str],
+    active_connector_types: Collection[str] | None,
 ) -> list[dict]:
     """Filter out template steps whose tools require OAuth scopes the user lacks.
 
@@ -347,6 +381,8 @@ def _filter_steps_by_scopes(
     Args:
         steps_data: Raw step dicts from plan_template.
         available_scopes: User's granted OAuth scopes (from state/config).
+        active_connector_types: The account's active connector types; None
+            when unknown (``ungranted_scopes``).
 
     Returns:
         Filtered list of step dicts (order preserved, depends_on sanitized).
@@ -356,6 +392,7 @@ def _filter_steps_by_scopes(
 
     # Lazy import: registry is only needed when scopes are checked
     from src.domains.agents.registry import get_global_registry
+    from src.domains.agents.tools.connector_requirements import ungranted_scopes
 
     registry = get_global_registry()
     filtered: list[dict] = []
@@ -381,15 +418,15 @@ def _filter_steps_by_scopes(
             filtered.append(step)
             continue
 
-        required = set(manifest.permissions.required_scopes)
-        if not required or required.issubset(available_scopes):
+        missing = ungranted_scopes(manifest, available_scopes, active_connector_types)
+        if not missing:
             filtered.append(step)
         else:
             removed_step_ids.add(step.get("step_id", ""))
             logger.info(
                 "skill_bypass_step_filtered_by_scope",
                 tool_name=tool_name,
-                missing_scopes=sorted(required - available_scopes),
+                missing_scopes=sorted(missing),
             )
 
     # Sanitize depends_on references to removed steps.

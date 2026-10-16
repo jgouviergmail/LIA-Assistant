@@ -127,7 +127,7 @@ from src.domains.agents.services.performed_actions_directive import (
     build_performed_actions_block,
 )
 from src.domains.agents.services.plan_blockers import (
-    executed_tool_names,
+    attempted_tool_names,
     format_plan_blockers,
     summarize_plan_blockers,
 )
@@ -2265,12 +2265,15 @@ def _build_response_chain(
     # The verdict is weighed against what the turn actually ran: a rejected
     # plan is executed unchanged, so a capability that produced data was not
     # blocked — reporting it as such is the same lie in the other direction
-    # (2026-07-31: ten emails in the registry, "retrieval was blocked").
+    # (2026-07-31: ten emails in the registry, "retrieval was blocked"). Nor
+    # was one that ran and FAILED: its typed failure is the runtime failures
+    # directive's to tell (2026-10-07: « not connected », about an Outlook
+    # reply that failed on its own reference — RC1.2).
     if not rejection_override:
         blocked_capabilities = format_plan_blockers(
             summarize_plan_blockers(
                 state.get(STATE_KEY_VALIDATION_RESULT),
-                executed_tool_names(
+                attempted_tool_names(
                     state.get(STATE_KEY_EXECUTION_PLAN),
                     state.get(STATE_KEY_COMPLETED_STEPS),
                 ),
@@ -3129,7 +3132,15 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             )
         journal_context = context_bundle.journal_context
         user_model_block = context_bundle.user_model_block
-        psyche_context = context_bundle.psyche_context
+        from src.domains.agents.services.efficacy_runtime import (
+            build_efficacy_block,
+            efficacy_context_from_state,
+        )
+
+        efficacy_block = await build_efficacy_block(
+            efficacy_context_from_state(state), run_id=run_id, state=state, can_verify=False
+        )
+        psyche_context = "\n\n".join(filter(None, (context_bundle.psyche_context, efficacy_block)))
         peer_context = context_bundle.peer_context
         logger.info(
             "response_context_ready",
@@ -3318,6 +3329,9 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                     short_response = agent_results_summary or APIMessages.draft_action_completed(
                         user_language
                     )
+                elif (draft_execution_result or {}).get("status") == "error":
+                    # A cancel that could not withdraw its action says so: its card.
+                    short_response = agent_results_summary
                 else:
                     short_response = APIMessages.draft_cancelled(user_language)
 

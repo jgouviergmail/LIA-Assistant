@@ -101,7 +101,7 @@ des plus structurants, pas un inventaire) :
 7. **llm** - Pricing et cost tracking LLM ; **push_relay** (ADR-246) — relais de réveil sans état des coques iOS : la poignée EST le jeton scellé, aucune table, deux endpoints
 8. **google_api** - Google Maps Platform tracking, pricing, and consumption exports (v6.1, user export v1.9.1)
 9. **personalities** - Personnalités assistant (ton, style réponses)
-10. **voice** - Synthèse vocale TTS (Edge / OpenAI / ElevenLabs, catalogue-driven ADR-081) et STT (Whisper local ou ElevenLabs Scribe distant ADR-080)
+10. **voice** - Synthèse vocale TTS (Edge / OpenAI / ElevenLabs / Gemini / Fish Audio, catalogue-driven ADR-081, une porte et une allocation par compte ADR-345) et STT (Whisper local, ou le moteur distant du créneau `voice_transcription` — ElevenLabs Scribe, OpenAI ou Fish Audio, ADR-080, ADR-345)
 11. **memories** - Mémoire long-terme sémantique (pgvector + BM25)
 12. **interests** - Interest Learning System (extraction automatique)
 13. **system_settings** - Configuration système et préférences globales
@@ -325,7 +325,7 @@ apps/api/src/
 │   │   │   ├── dependency_graph.py   # Wave calculation
 │   │   │   ├── validator.py          # Plan validation
 │   │   │   ├── condition_evaluator.py
-│   │   │   ├── adaptive_replanner.py
+│   │   │   ├── step_failure_metrics.py  # Failed steps counted by typed code
 │   │   │   └── query_engine/         # Query execution
 │   │   ├── registry/            # Agent & Tool registry
 │   │   │   ├── agent_registry.py
@@ -928,7 +928,7 @@ src/domains/connectors/clients/
     │   ├── Streaming support     # Audio streaming chunks
     │   └── Multilingual Neural   # FR: Remy (M), Vivienne (F)
     ├── service.py                # VoiceCommentService
-    │   └── generate_voice_comment()  # Génération commentaire vocal
+    │   └── stream_voice_comment()    # Commentaire vocal, phrase par phrase
     └── schemas.py                # VoiceRequest, VoiceResponse
 ```
 
@@ -1570,11 +1570,11 @@ Pour les détails complets, voir [ARCHITECTURE_LANGRAPH.md](./ARCHITECTURE_LANGR
 
 ## 🧠 INTELLIPLANNER - Orchestration Avancée
 
-**Version**: 1.1 (2025-12-06) | **Status**: Phase B+ ✅ Production Ready | Phase E ⚠️ Partiellement Implémenté
+**Version**: 1.2 (2026-10-14) | **Status**: Phase B+ ✅ Production Ready | Phase E retirée ([ADR-346](./architecture/ADR-346-Advisory-Replanner-Retired-A-Pipeline-Failure-Is-Said-Never-Replayed.md))
 
-INTELLIPLANNER est une amélioration architecturale majeure du système d'orchestration multi-agents qui résout deux problèmes critiques :
+INTELLIPLANNER est une amélioration architecturale du système d'orchestration multi-agents : les étapes d'un plan se transmettent des données structurées (Phase B+).
 
-> **Note**: La Phase E (AdaptiveRePlanner) est partiellement implémentée. Les décisions `RETRY_SAME`, `REPLAN_MODIFIED` et `REPLAN_NEW` nécessitent une restructuration du graphe (voir détails ci-dessous).
+> **Note** : la Phase E, un analyseur consultatif des échecs d'exécution, n'existe plus ([ADR-346](./architecture/ADR-346-Advisory-Replanner-Retired-A-Pipeline-Failure-Is-Said-Never-Replayed.md)). Ce que devient une étape en échec est décrit ci-dessous.
 
 ### Composants
 
@@ -1590,19 +1590,6 @@ INTELLIPLANNER est une amélioration architecturale majeure du système d'orches
 │  structured_data        structured_data   {"calendars": [...]}    {{ steps.X }}│
 │                                                                              │
 │  ✅ Résout: Templates Jinja2 échouaient car seul summary_for_llm était stocké│
-│                                                                              │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  Phase E: Re-Planning Adaptatif                                              │
-│  ─────────────────────────────────                                           │
-│                                                                              │
-│  ExecutionComplete ──► Analyze ──► Trigger? ──► Decision ──► Recovery       │
-│        ↓                  ↓           ↓            ↓            ↓            │
-│   Results              Stats     EMPTY_RESULTS  REPLAN    BROADEN_SEARCH     │
-│                                  PARTIAL_FAIL   RETRY     ALT_SOURCE         │
-│                                  REF_ERROR      ABORT     ESCALATE           │
-│                                                                              │
-│  ✅ Résout: Échecs silencieux (empty results, partial failures) sans recovery│
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -1626,31 +1613,21 @@ return StandardToolOutput(
 # → completed_steps["list"] = {"calendars": [...], "count": 3}  # Dict!
 ```
 
-### Phase E: AdaptiveRePlanner
+### Ce que devient une étape en échec
 
-**Problème**: Échecs silencieux sans recovery (empty results, partial failures).
+L'orchestrateur ne rejoue jamais une étape en échec : il la transmet à la réponse, qui la dit par la directive des échecs ([ADR-303](./architecture/ADR-303-Tool-Failure-Restitution.md)). Chaque échec est traité là où il peut l'être ([ADR-346](./architecture/ADR-346-Advisory-Replanner-Retired-A-Pipeline-Failure-Is-Said-Never-Replayed.md)) :
 
-**Solution**: Service `AdaptiveRePlanner` analyse les résultats et décide de la stratégie.
-
-| Trigger | Decision | Strategy |
-|---------|----------|----------|
-| `EMPTY_RESULTS` | `REPLAN_MODIFIED` | `BROADEN_SEARCH` |
-| `PARTIAL_EMPTY` | `REPLAN_MODIFIED` | `REDUCE_SCOPE` |
-| `PARTIAL_FAILURE` | `RETRY_SAME` | Réexécuter |
-| `SEMANTIC_MISMATCH` | `ESCALATE_USER` | Clarifier l'intention |
-| `REFERENCE_ERROR` | `ESCALATE_USER` | Demander clarification |
-| `DEPENDENCY_ERROR` | `REPLAN_NEW` | Nouvelle stratégie |
-| `TIMEOUT` | `RETRY_SAME` | Réessayer |
-| Multiple échecs | `ABORT` | Expliquer et abandonner |
+| Échec | Où il est traité |
+|-------|------------------|
+| Passager (`TIMEOUT`, `EXTERNAL_API_ERROR`, `RATE_LIMIT_EXCEEDED`) | Retenté dans le client qui a appelé le fournisseur (backoff, disjoncteur), dans la limite de temps de l'étape, puis dit comme l'échec du fournisseur |
+| Refus d'un compte ou d'un site (`CONNECTOR_NOT_ACTIVATED`, `UNAUTHORIZED`, `FORBIDDEN`) | Dit, avec ce qui le corrige quand la directive le sait |
+| Causé par le plan | Rattrapé avant l'exécution quand c'est possible : le validateur sémantique renvoie le plan au planificateur, dans la limite de `PLANNER_MAX_REPLANS` ; le mode ReAct, au choix de la personne, reste celui qui se corrige lui-même ([ADR-310](./architecture/ADR-310-ReAct-Turn-Judged-On-Its-Result.md)) |
+| Résultat vide | Une réponse |
 
 ### Configuration
 
 ```env
 # apps/api/.env
-
-# Phase E - Re-planning adaptatif
-ADAPTIVE_REPLANNING_MAX_ATTEMPTS=3        # Max tentatives (1-5)
-ADAPTIVE_REPLANNING_EMPTY_THRESHOLD=0.8   # 80% empty → trigger
 
 # Phase B+ - Templates Jinja2
 JINJA_MAX_RECURSION_DEPTH=10              # Profondeur max évaluation (5-50)
@@ -1659,18 +1636,11 @@ JINJA_MAX_RECURSION_DEPTH=10              # Profondeur max évaluation (5-50)
 ### Métriques Prometheus
 
 ```prometheus
-# Triggers détectés
-adaptive_replanner_triggers_total{trigger="empty_results|partial_empty|semantic_mismatch|..."}
-
-# Décisions prises
-adaptive_replanner_decisions_total{decision="proceed|retry_same|replan_modified|replan_new|escalate_user|abort"}
-
-# Tentatives de re-planning
-adaptive_replanner_attempts_total{attempt_number="1|2|3"}
-
-# Recovery success rate
-adaptive_replanner_recovery_success_total{strategy="broaden_search|alternative_source|reduce_scope|..."}
+# Étapes en échec des plans exécutés, par code typé (un membre de ToolErrorCode, sinon « unclassified »)
+pipeline_step_failures_total{error_code="CONNECTOR_NOT_ACTIVATED|INVALID_INPUT|TIMEOUT|...|unclassified"}
 ```
+
+C'est la seule vue Prometheus d'un échec survenu avant l'appel d'un outil (une référence `$steps` non résolue, par exemple) : aucune métrique d'outil ni aucun registre ne le voit. Tableau de bord 07, rangée « Pipeline Step Failures ».
 
 ### Fichiers Clés
 
@@ -1680,22 +1650,11 @@ adaptive_replanner_recovery_success_total{strategy="broaden_search|alternative_s
 | | `orchestration/parallel_executor.py` | `StepResult.structured_data` + `_merge_single_step_result()` |
 | | `orchestration/schemas.py` | `StepResult` export pour orchestration |
 | | `orchestration/jinja_evaluator.py` | `JinjaEvaluator` pour templates sécurisés |
-| **Phase E** | `orchestration/adaptive_replanner.py` | Service complet (~900 lignes) |
-| | `orchestration/__init__.py` | Exports publics (enums, fonctions) |
-| | `nodes/task_orchestrator_node.py` | Point d'intégration post-exécution |
-| **Config** | `core/config/agents.py` | `adaptive_replanning_*` settings |
+| **Étapes en échec** | `nodes/task_orchestrator_node.py` | Transmet les étapes en échec à la réponse, sans les rejouer |
+| | `orchestration/step_failure_metrics.py` | Compte chaque étape en échec sous son code typé |
+| | `diagnostics/failure_context.py` | Le prédicat d'échec unique (`failed_step_codes`), partagé avec la directive des échecs |
+| **Config** | `core/config/agents.py` | `planner_max_replans` setting |
 | | `core/config/advanced.py` | `jinja_max_recursion_depth` setting |
-
-### Status d'Implémentation Phase E
-
-| Décision | Status | Notes |
-|----------|--------|-------|
-| `PROCEED` | ✅ | Continue vers `response_node` |
-| `ESCALATE_USER` | ✅ | Message affiché à l'utilisateur |
-| `ABORT` | ✅ | Abandonne avec message explicatif |
-| `RETRY_SAME` | ⏳ | Requiert restructuration du graphe |
-| `REPLAN_MODIFIED` | ⏳ | Requiert appel au `planner_node` |
-| `REPLAN_NEW` | ⏳ | Stratégie complète nouvelle |
 
 Pour les détails complets, voir:
 - [ARCHITECTURE_LANGRAPH.md - Section 13](./ARCHITECTURE_LANGRAPH.md#13-intelliplanner---orchestration-avancée)
@@ -2415,7 +2374,7 @@ class ContextResolutionService:
 | Constant | Purpose | Consumers |
 |----------|---------|-----------|
 | `TYPE_TO_DOMAIN_MAP` | RegistryItemType → (domain, items_key) | response_node, SSE, formatters, context resolution |
-| `ALL_RESULT_KEYS` | Auto-derived frozenset of all items_key values | adaptive_replanner (empty result detection) |
+| `ALL_RESULT_KEYS` | Auto-derived frozenset of all items_key values | planner prompt (`result_keys_list`: the result keys a step can hand on) |
 | `SKIP_FILTER_RESULT_KEYS` | Domains where LLM filtering is skipped | response_node (intelligent filtering) |
 | `SKIP_ENRICHMENT_DOMAINS` | Domains where Brave enrichment is skipped | response_node (knowledge enrichment) |
 | `TOOL_PATTERN_TO_DOMAIN_MAP` | Tool name substring → domain | task_orchestrator, context resolution |
@@ -2864,7 +2823,7 @@ version historique, désormais explicite via un flag `response_started`).
 
 ### Background Jobs & Scheduler (APScheduler)
 
-Le système utilise **APScheduler** (AsyncIOScheduler) pour les tâches planifiées en arrière-plan. En multi-worker (`--workers N`), un seul worker est élu "leader" via `SchedulerLeaderElector` (Redis SETNX) et démarre le scheduler. Les non-leaders vérifient toutes les 5s si le lock est libre (re-election automatique).
+Le système utilise **APScheduler** (AsyncIOScheduler) pour les tâches planifiées en arrière-plan. En multi-worker (`--workers N`), un seul worker est élu "leader" via `SchedulerLeaderElector` (Redis SETNX) et démarre le scheduler. Les non-leaders vérifient toutes les 5s si le lock est libre (re-election automatique). Un leader qui perd son bail met ses jobs en pause et attend de nouveau le bail ; à l'arrêt, aucun job ne démarre plus dès la première étape et le scheduler s'arrête avant les dépendances de ses jobs ([ADR-046](./architecture/ADR-046-Background-Job-Scheduling.md), amendement 2026-10-13).
 
 #### Architecture
 
@@ -3320,7 +3279,9 @@ data/skills/
 │                    TTS Response (catalogue-driven, ADR-081)         │
 │                    ├─ Edge TTS (gratuit, défaut)                    │
 │                    ├─ OpenAI TTS (tts-1 / tts-1-hd)                 │
-│                    └─ ElevenLabs (multilingual_v2 / turbo / flash)  │
+│                    ├─ ElevenLabs (multilingual_v2 / turbo / flash)  │
+│                    ├─ Gemini (jetons rapportés)                     │
+│                    └─ Fish Audio (S2 / s1 / drama-3, ADR-345)       │
 │                                                                      │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -3331,6 +3292,7 @@ data/skills/
 apps/api/src/domains/voice/
 ├── router.py                  # WebSocket /ws/audio (STT) + REST endpoints
 ├── admin_router.py            # GET /admin/voice/voices?provider=X (voice picker)
+├── library_router.py          # /admin/voice/fishaudio/library (clone, design, rename, delete — ADR-345)
 ├── factory.py                 # TTS factory — reads llm_config_overrides.voice_tts
 ├── service.py                 # VoiceCommentService (sentence streaming, ADR-082)
 ├── sentence_streamer.py       # ProgressiveSentenceStreamer (ADR-082)
@@ -3338,15 +3300,23 @@ apps/api/src/domains/voice/
 ├── openai_tts_client.py       # OpenAITTSClient (paid)
 ├── elevenlabs_tts_client.py   # ElevenLabsTTSClient (paid, persistent httpx)
 ├── gemini_tts_client.py       # GeminiTTSClient (reported token usage)
+├── fishaudio/                 # Fish Audio: client, WebSocket, dialogue, voices, library (ADR-345)
+├── spoken.py                  # speak() / speak_dialogue(): one door, billed as the engine that spoke
+├── provider_capacity.py       # One allowance per vendor account (Redis leases)
+├── expressive_cues.py         # Cue vocabulary + one dialect per engine
+├── cue_prompt.py              # The cue block a spoken comment is written with
+├── egress.py                  # The outbound proxy every socket honours
 ├── families.py                # Provider billing units and delivery controls
 ├── billing.py                 # Billed synthesis seam
 ├── voices_catalog.py          # Curated lists + ElevenLabs live API
 ├── protocol.py                # TTSClient runtime protocol
 ├── schemas.py                 # VoiceAudioChunk + AUDIO_MIME_TYPES
 └── stt/
-    ├── factory.py             # STT factory — local Sherpa vs remote ElevenLabs
+    ├── factory.py             # STT factory — local Sherpa vs the slot's remote engine
     ├── sherpa_stt.py          # Sherpa-onnx Whisper (local, free)
-    └── elevenlabs_stt.py      # ElevenLabsSttService (remote, $0.22/h)
+    ├── elevenlabs_stt.py      # ElevenLabsSttService (remote)
+    ├── openai_stt.py          # OpenAISttService (remote)
+    └── fishaudio_stt.py       # FishAudioSttService (remote, ADR-345)
 ```
 
 **Configuration** :
@@ -3355,13 +3325,15 @@ TTS provider/model/voice/tuning is admin-driven through Configuration LLM
 (LLM type `voice_tts`) — settings live on `llm_config_overrides.voice_tts`
 (`provider_config` JSONB). Provider families are declared in
 `domains/voice/families.py`: Edge is free, OpenAI and ElevenLabs bill characters,
-and Gemini bills reported tokens. A caller must declare token accounting to use
-Gemini; Radio does, while voice comments use character-billed/free clients.
+Fish Audio bills UTF-8 bytes, and Gemini bills reported tokens; every heard
+synthesis goes through `voice/spoken.speak`, billed once by the engine that spoke
+(ADR-345), so a token-billed engine serves the chat as well as the radio.
 The factory rejects an unservable configuration for strict callers and otherwise
 falls back to Edge. The runtime catalogue owns available models and prices.
 STT mode is per-user
-(`users.voice_stt_mode`: `local` for Sherpa-onnx, `remote` for ElevenLabs
-Scribe).
+(`users.voice_stt_mode`: `local` for Sherpa-onnx, `remote` for the engine of the
+`voice_transcription` slot — ElevenLabs Scribe, OpenAI or Fish Audio — decided
+once by `core/remote_stt.py`, ADR-345).
 
 ```bash
 # .env — TTS no longer here (moved to admin LLM catalogue)
@@ -3829,7 +3801,7 @@ Système de délégation permettant à l'assistant principal de créer des exper
 Connecteur browser autonome basé sur Playwright pour l'interaction web interactive.
 
 **Architecture** :
-- `browser_task_tool` — tool autonome avec ReAct loop (`create_react_agent`)
+- `browser_task_tool` — tool autonome avec une boucle ReAct native (`create_agent`)
 - Infrastructure dans `src/infrastructure/browser/` (pool, session, sécurité, accessibilité)
 - Session pool avec coordination Redis cross-workers
 - Anti-détection (UA Chrome, webdriver supprimé, locale dynamique)
@@ -3936,6 +3908,8 @@ Carnets de bord introspectifs donnant à l'assistant une personnalité vivante e
 | Une identité fédérée ne donne aucun droit (la liaison Google ne change jamais le statut d'un compte) et « qui appelle ? » n'a qu'une réponse (`resolve_client_ip`, garde AST) ; le run id d'une config de graphe n'a qu'un lecteur et les actes d'un tour ReAct sont dits comme les siens ; le cache des prix reconstruit depuis la base et publié par chaque écrivain | [ADR-002](./architecture/ADR-002-BFF-Pattern-Authentication.md), [ADR-213](./architecture/ADR-213-L-Identite-De-L-Appelant-Vient-D-Un-En-Tete-Qu-Il-Ne-Peut-Pas-Ecrire.md), [ADR-263 §23](./architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md), [ADR-063](./architecture/ADR-063-Cross-Worker-Cache-Invalidation.md) (amendements) | [AUTHENTICATION.md](./technical/AUTHENTICATION.md) |
 | Le rythme d'échanges appartient à la personne : échanges fréquents (tous les outils, le contexte après la question, l'historique par blocs de tours entiers ancrés sur le compteur de tours) ou ponctuels (sélection par pertinence, coût stable), choisi par compte et lu une fois par tour ; le drapeau d'instance n'est plus que le défaut d'un compte qui n'a pas choisi, et l'historique d'un tour ne bouge plus quand le réducteur rogne la tête du fil | [ADR-311](./architecture/ADR-311-Exchange-Rhythm-Is-The-Persons-Choice.md) | [REACT_EXECUTION_MODE.md](./technical/REACT_EXECUTION_MODE.md) |
 | Une radio personnelle à la demande, dans la langue de chacun : une rédaction d'instance qui lit les flux publics sans modèle et seulement pour des auditeurs récents, une antenne par auditeur qui ne tourne que pendant qu'il écoute, une grille déterministe qui décide, des postes de modèle qui n'écrivent que ce que des faits citent, chaque euro sur la ligne du tour de la session, un plafond d'instance pris sans course, des refus codés traduits, une alerte sur l'âge de la dernière passe, un bandeau qui publie sa hauteur au chat | [ADR-324](./architecture/ADR-324-A-Personal-Radio-A-Grid-Decides-Models-Only-Write.md) | [RADIO.md](./technical/RADIO.md) |
+| Les brouillons de la boîte mail appartiennent à la personne : un contrat client commun à Gmail, Outlook et iCloud, une poignée (`mailbox_draft_id`) que seuls la liste et l'outil qui enregistre produisent, enregistrer, modifier et mettre à la corbeille sans confirmation (`reversible`, la corbeille récupérable), ENVOYER après une seule carte (`DraftType.MAILBOX_DRAFT_SEND`) qui montre le brouillon tel que la boîte le tient et porte son empreinte : un brouillon modifié dans la boîte depuis n'est pas envoyé, un changement demandé sur la carte est écrit d'abord ; une suppression déplace une borne publiée par appel et dit ce qui reste ; la carte de réponse HITL montre, et envoie à, les destinataires que les clients adressent | [ADR-344](./architecture/ADR-344-Mailbox-Drafts-Kept-Freely-Sent-After-One-Confirmation.md) | [HITL.md](./technical/HITL.md), [CONNECTORS_PATTERNS.md](./technical/CONNECTORS_PATTERNS.md) |
+| Fish Audio servi tout entier : synthèse (cinq modèles facturés à l'octet UTF-8), reconnaissance vocale, WebSocket, dialogue à plusieurs voix et bibliothèque de voix ; une porte unique par synthèse entendue, facturée une fois par le moteur qui a parlé (`voice/spoken.speak`), une allocation par compte fournisseur partagée par toutes ses requêtes (`provider_slot`), un vocabulaire de balises expressives et un dialecte par moteur (LIA n'en écrit que dans un texte écrit pour être dit, le texte littéral est neutralisé) ; le moteur de dictée distante est celui du créneau `voice_transcription`, décidé une fois (`core/remote_stt.py`) ; le clonage exige une attestation inscrite au journal d'audit avant l'appel, le design est payé par l'instance, plafond demandé d'abord, et une voix qu'un créneau utilise n'est jamais supprimée | [ADR-345](./architecture/ADR-345-Fish-Audio-Served-Whole-One-Door-One-Allowance-Cues-Each-Engine-Reads.md) | [VOICE.md](./technical/VOICE.md), [VOICE_MODE.md](./technical/VOICE_MODE.md), [RADIO.md](./technical/RADIO.md) |
 
 ---
 

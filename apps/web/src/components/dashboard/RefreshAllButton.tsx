@@ -4,6 +4,7 @@ import { RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 interface RefreshAllButtonProps {
   onClick: () => void;
@@ -13,9 +14,8 @@ interface RefreshAllButtonProps {
 /**
  * Discreet "Tout rafraîchir" button shown in the section header above the cards grid.
  *
- * - Mobile (<640 px): icon only (label hidden)
- * - Desktop (≥640 px): icon + label
- * - Disabled while refreshing — overlay spinner via animate-spin
+ * - Compact ghost treatment, with icon and translated label at every width.
+ * - Busy while refreshing, with a synchronous handler guard and retained keyboard focus
  */
 export function RefreshAllButton({ onClick, isRefreshing }: RefreshAllButtonProps) {
   const { t } = useTranslation();
@@ -26,25 +26,25 @@ export function RefreshAllButton({ onClick, isRefreshing }: RefreshAllButtonProp
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           type="button"
-          onClick={onClick}
-          disabled={isRefreshing}
+          onClick={() => {
+            if (!isRefreshing) onClick();
+          }}
+          aria-disabled={isRefreshing}
+          aria-busy={isRefreshing}
           aria-label={label}
-          className={cn(
-            'inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium',
-            'text-muted-foreground hover:text-foreground hover:bg-muted/60',
-            'transition-colors duration-200',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-1',
-            'disabled:opacity-50 disabled:cursor-not-allowed'
-          )}
+          className="h-auto min-h-8 min-w-0 max-w-full gap-1.5 whitespace-normal px-2 py-1.5 text-xs font-medium leading-snug text-muted-foreground [&_svg]:size-3.5"
         >
           <RefreshCw
             className={cn('h-3.5 w-3.5', isRefreshing && 'motion-safe:animate-spin')}
             strokeWidth={2}
+            aria-hidden="true"
           />
-          <span className="hidden sm:inline">{label}</span>
-        </button>
+          <span className="min-w-0 break-words text-left">{label}</span>
+        </Button>
       </TooltipTrigger>
       <TooltipContent>{t('dashboard.briefing.refresh_all_tooltip')}</TooltipContent>
     </Tooltip>

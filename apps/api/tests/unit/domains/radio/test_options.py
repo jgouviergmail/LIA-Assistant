@@ -6,12 +6,13 @@ from itertools import cycle
 
 import pytest
 
+from src.domains.radio.cast import VOICES_APART
 from src.domains.radio.constants import (
     JOURNAL_EVENING_FROM_HOUR,
     JOURNAL_NOON_FROM_HOUR,
     SOURCE_LABEL_MAX_CHARS,
 )
-from src.domains.radio.formats import CONFIGURABLE_ROLES, FORMAT_SPECS
+from src.domains.radio.formats import FORMAT_SPECS, SPEAKER_ROLES, STAFF_ROLES, RadioRole
 from src.domains.radio.newsroom.catalogue import CATALOGUE
 from src.domains.radio.options import build_options
 from src.domains.radio.personal import PersonalSource
@@ -53,9 +54,26 @@ def test_every_option_published_is_a_setting_the_radio_accepts() -> None:
     assert PersonalSource.SENT_MAILS in options.sources
 
 
-def test_the_settings_give_a_voice_to_the_listener_s_four_roles_alone() -> None:
+def test_the_settings_give_a_voice_to_every_role_the_team_first() -> None:
     options = options_of([VoiceOption(voice_id="fr-A", label="A", gender="female", language="fr")])
-    assert tuple(options.roles) == CONFIGURABLE_ROLES
+    assert tuple(options.roles) == STAFF_ROLES
+    # 2026-10-16: the commentators were the station's alone — heard, never chosen.
+    assert tuple(options.commentator_roles) == SPEAKER_ROLES
+
+
+def test_the_voices_a_role_may_not_share_are_the_cast_s_own_rule() -> None:
+    """Published because a write refuses it: the page greys out what would be refused."""
+    options = options_of([VoiceOption(voice_id="fr-A", label="A", gender="female", language="fr")])
+    assert {role: set(apart) for role, apart in options.voices_apart.items()} == {
+        role: set(VOICES_APART[role]) for role in RadioRole
+    }
+    assert options.voices_apart[RadioRole.SPEAKER_A] == [
+        RadioRole.HOST,
+        RadioRole.ANCHOR,
+        RadioRole.SPEAKER_B,
+        RadioRole.SPEAKER_C,
+    ]
+    assert options.voices_apart[RadioRole.EXPERT] == []
 
 
 def test_kinds_and_languages_are_no_longer_offered() -> None:

@@ -805,7 +805,14 @@ ${scan.summary}`
     await page.setViewportSize({ width: 320, height: 900 });
     await page.goto('/en/dashboard');
     // Something only the real page has: the error boundary keeps <main>.
-    await expect(page.getByRole('button', { name: "Switch LIA's avatar" })).toBeVisible();
+    const avatarPicker = page.getByRole('group', { name: "Choose LIA's avatar", exact: true });
+    await expect(avatarPicker).toBeVisible();
+    await expect(
+      avatarPicker.getByRole('img', { name: /^(Feminine|Masculine) portrait$/ })
+    ).toBeVisible();
+    await expect(
+      avatarPicker.getByRole('button', { name: /^(Feminine|Masculine) portrait$/ })
+    ).toBeVisible();
     await assertNoHorizontalScroll(page);
 
     // Consumption arrives OPEN: measure the widest figures before folding,

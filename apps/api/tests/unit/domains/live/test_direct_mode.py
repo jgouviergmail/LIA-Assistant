@@ -102,8 +102,9 @@ async def test_a_direct_start_declares_the_tools_and_no_delegation() -> None:
             mode="direct",
         )
     assert response.mode == "direct"
-    # The person's own switches narrow the declared set (the phone's rule).
-    specs.assert_awaited_once_with(frozenset({"email"}))
+    # The person's own switches narrow the declared set (the phone's rule), and
+    # the account's connectors decide too (RC2.1): the person is named.
+    specs.assert_awaited_once_with(frozenset({"email"}), USER.id)
     inputs = provider.mint.call_args.args[1]
     assert inputs.tool_declaration is None
     assert [tool["name"] for tool in inputs.direct_tools] == ["get_events_tool", "recall_memories"]
@@ -447,8 +448,12 @@ async def test_direct_tool_specs_pass_the_live_gate_not_the_telephony_flag(
 ) -> None:
     available = AsyncMock(return_value=(EVENTS,))
     monkeypatch.setattr(dm, "available_live_tools", available)
-    assert await dm.direct_tool_specs(frozenset({"email"})) == (EVENTS,)
-    available.assert_awaited_once_with(disabled_domains=frozenset({"email"}), feature_enabled=True)
+    person = uuid.uuid4()
+    assert await dm.direct_tool_specs(frozenset({"email"}), person) == (EVENTS,)
+    # RC2.1: the account's connectors decide too — the person is named.
+    available.assert_awaited_once_with(
+        disabled_domains=frozenset({"email"}), feature_enabled=True, user_id=person
+    )
 
 
 async def test_build_direct_setup_inputs_assembles_the_mandate_the_tools_and_the_budgets(

@@ -38,6 +38,7 @@ import type { BriefingWindows, CardSection, SectionData } from '@/types/briefing
 
 const push = vi.fn();
 
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { timezone: 'Europe/Paris' } }) }));
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push }),
 }));

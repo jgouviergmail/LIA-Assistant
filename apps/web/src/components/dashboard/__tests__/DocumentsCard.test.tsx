@@ -111,6 +111,27 @@ describe('DocumentsCard', () => {
     expect(screen.queryByRole('menuitem', { name: /cards\.documents\.open_external/ })).toBeNull();
   });
 
+  it.each([
+    ['application/pdf', 'type_pdf'],
+    ['application/vnd.google-apps.spreadsheet', 'type_spreadsheet'],
+    ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'type_spreadsheet'],
+    ['application/vnd.google-apps.document', 'type_text'],
+    ['text/plain', 'type_text'],
+    ['image/png', 'type_file'],
+    [null, 'type_file'],
+  ])('names a document type from its received MIME type %s', (mime_type, label) => {
+    renderWithProviders(
+      <DocumentsCard
+        {...cardProps}
+        section={section({ items: [{ ...fullData.items[0], mime_type }] })}
+      />
+    );
+
+    expect(screen.getByText(`dashboard.briefing.cards.documents.${label}`)).toBeInTheDocument();
+    expect(screen.getByText('14:30')).toBeInTheDocument();
+    expect(screen.getByText('Devis plomberie.pdf')).toBeInTheDocument();
+  });
+
   it('shows the empty state when the section is empty', () => {
     renderWithProviders(<DocumentsCard {...cardProps} section={section(null, 'empty')} />);
     expect(screen.getByText('dashboard.briefing.cards.documents.empty')).toBeInTheDocument();

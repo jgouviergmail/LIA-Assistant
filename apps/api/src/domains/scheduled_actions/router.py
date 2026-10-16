@@ -254,8 +254,12 @@ async def execute_scheduled_action(
         execute_single_action,
     )
 
+    # The run holds the routine by the token it was reserved under: a tick that
+    # took it over meanwhile is the only one allowed to settle it.
     safe_fire_and_forget(
-        execute_single_action(action_id=action.id, user_id=user.id),
+        execute_single_action(
+            action_id=action.id, user_id=user.id, execution_token=action.execution_token
+        ),
         name=f"scheduled_action_execute_{action.id}",
     )
 

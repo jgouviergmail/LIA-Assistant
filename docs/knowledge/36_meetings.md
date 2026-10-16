@@ -17,7 +17,7 @@ The head of the minutes is fixed: date, start and end time in your time zone, du
 The model reports only what the transcript supports: a proposal left open is not a decision, a wish is not an action, and every relative date is resolved to a real one.
 
 ## Which engine transcribes, and what does it cost?
-Your instance walks a chain: the speech engine chosen by your administrator, then ElevenLabs Scribe or OpenAI when a key exists — both separate the speakers — then the local Whisper engine, which costs nothing and needs no key but does not separate voices and takes longer on a small server. If a provider refuses at processing time (a revoked key, a file it cannot take), the next engine takes over instead of failing your meeting.
+Your instance walks a chain: the speech engine chosen by your administrator, then ElevenLabs Scribe, OpenAI or Fish Audio when a key exists — all three separate the speakers, and Fish Audio takes a recording of up to an hour — then the local Whisper engine, which costs nothing and needs no key but does not separate voices and takes longer on a small server. If a provider refuses at processing time (a revoked key, a file it cannot take), the next engine takes over instead of failing your meeting.
 
 You choose in **Settings › Meetings** whether LIA may use a remote engine, must stay local, or decides by itself; the engine and its **price per hour of audio** are shown before recording.
 

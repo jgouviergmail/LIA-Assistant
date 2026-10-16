@@ -62,7 +62,6 @@ from src.domains.workboard.constants import (
     RunOutcome,
     TicketEventKind,
     TicketStatus,
-    worst_case_run_seconds,
 )
 from src.domains.workboard.models import WorkboardTicket
 from src.domains.workboard.notifications import (
@@ -93,6 +92,7 @@ from src.infrastructure.scheduler.out_of_turn_run import (
     conversation_has_pending_hitl,
     resolve_run_context,
     stream_instruction,
+    worst_case_run_seconds,
 )
 from src.infrastructure.streaming.run_stream_broker import (
     ActiveRunLockLost,

@@ -387,6 +387,38 @@ async def test_availability_reads_the_flag_the_capabilities_and_the_person_s_swi
 
 
 @pytest.mark.unit
+async def test_availability_hides_what_no_connector_of_the_account_serves(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """RC2.1: a voice is offered the account's tools, never a provider it lacks."""
+    specs = derive_live_tool_specs(_catalogue(), domain_of=_domain_of)
+    monkeypatch.setattr(mod, "_SPECS", specs)
+    monkeypatch.setattr(settings, "telephony_live_tools_enabled", True)
+
+    async def _hidden(_registry: object) -> set[str]:
+        return set()
+
+    asked: list[object] = []
+
+    async def _unconnected(user_id: object) -> frozenset[str]:
+        asked.append(user_id)
+        return frozenset({"get_events_tool"})
+
+    monkeypatch.setattr(mod, "tools_hidden_by_capabilities", _hidden)
+    monkeypatch.setattr(mod, "get_global_registry", lambda: object())
+    monkeypatch.setattr(mod, "unconnected_tools_of", _unconnected)
+    person = uuid4()
+
+    offered = await available_live_tools(user_id=person)
+
+    assert "get_events_tool" not in [s.name for s in offered]
+    assert asked == [person]
+    # Provisioning names nobody: the vendor holds the whole set.
+    assert "get_events_tool" in [s.name for s in await available_live_tools()]
+    assert asked == [person]
+
+
+@pytest.mark.unit
 async def test_availability_takes_the_caller_s_gate_over_the_telephony_flag(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

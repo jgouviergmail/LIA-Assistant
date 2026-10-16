@@ -157,7 +157,9 @@ class TestConversationOrchestrator:
 
             # Mock OAuth scopes fetching
             with patch.object(
-                orchestrator, "_get_user_oauth_scopes", new=AsyncMock(return_value=["scope1"])
+                orchestrator,
+                "_get_user_connector_grants",
+                new=AsyncMock(return_value=(["scope1"], frozenset())),
             ):
                 # Act
                 context = await orchestrator.setup_conversation(
@@ -189,7 +191,9 @@ class TestConversationOrchestrator:
             mock_conv_svc.return_value.get_or_create_conversation = mock_get_or_create
 
             with patch.object(
-                orchestrator, "_get_user_oauth_scopes", new=AsyncMock(return_value=[])
+                orchestrator,
+                "_get_user_connector_grants",
+                new=AsyncMock(return_value=([], frozenset())),
             ):
                 # Act
                 await orchestrator.setup_conversation(
@@ -223,7 +227,9 @@ class TestConversationOrchestrator:
             mock_conv_svc.return_value.get_or_create_conversation = mock_get_or_create
 
             with patch.object(
-                orchestrator, "_get_user_oauth_scopes", new=AsyncMock(return_value=[])
+                orchestrator,
+                "_get_user_connector_grants",
+                new=AsyncMock(return_value=([], frozenset())),
             ):
                 await orchestrator.setup_conversation(
                     user_id=sample_user_id,
@@ -257,7 +263,9 @@ class TestConversationOrchestrator:
             )
 
             with patch.object(
-                orchestrator, "_get_user_oauth_scopes", new=AsyncMock(return_value=expected_scopes)
+                orchestrator,
+                "_get_user_connector_grants",
+                new=AsyncMock(return_value=(expected_scopes, frozenset())),
             ) as mock_get_scopes:
                 # Act
                 context = await orchestrator.setup_conversation(
@@ -349,10 +357,10 @@ class TestConversationOrchestrator:
             assert summary.message_count == 0
 
     @pytest.mark.asyncio
-    async def test_get_user_oauth_scopes_returns_empty_for_no_connectors(
+    async def test_get_user_connector_grants_returns_empty_for_no_connectors(
         self, orchestrator, mock_db, sample_user_id
     ):
-        """Test _get_user_oauth_scopes returns empty list when no active connectors."""
+        """Test _get_user_connector_grants returns empty list when no active connectors."""
         # Arrange: Mock DB query returning no connectors
         # Pattern: result = await db.execute(stmt); connectors = result.scalars().all()
         mock_scalars = MagicMock()
@@ -364,16 +372,16 @@ class TestConversationOrchestrator:
         mock_db.execute = AsyncMock(return_value=mock_result)
 
         # Act
-        scopes = await orchestrator._get_user_oauth_scopes(sample_user_id, mock_db)
+        scopes, _types = await orchestrator._get_user_connector_grants(sample_user_id, mock_db)
 
         # Assert
         assert scopes == []
 
     @pytest.mark.asyncio
-    async def test_get_user_oauth_scopes_returns_deduped_scopes(
+    async def test_get_user_connector_grants_returns_deduped_scopes(
         self, orchestrator, mock_db, sample_user_id
     ):
-        """Test _get_user_oauth_scopes deduplicates scopes from multiple connectors."""
+        """Test _get_user_connector_grants deduplicates scopes from multiple connectors."""
         # Arrange: Mock connectors with overlapping scopes
         mock_conn1 = MagicMock()
         mock_conn1.scopes = ["scope1", "scope2"]
@@ -390,17 +398,17 @@ class TestConversationOrchestrator:
         mock_db.execute = AsyncMock(return_value=mock_result)
 
         # Act
-        scopes = await orchestrator._get_user_oauth_scopes(sample_user_id, mock_db)
+        scopes, _types = await orchestrator._get_user_connector_grants(sample_user_id, mock_db)
 
         # Assert: 3 unique scopes (scope2 deduplicated)
         assert len(scopes) == 3
         assert set(scopes) == {"scope1", "scope2", "scope3"}
 
     @pytest.mark.asyncio
-    async def test_get_user_oauth_scopes_ignores_none_scopes(
+    async def test_get_user_connector_grants_ignores_none_scopes(
         self, orchestrator, mock_db, sample_user_id
     ):
-        """Test _get_user_oauth_scopes ignores connectors with None scopes."""
+        """Test _get_user_connector_grants ignores connectors with None scopes."""
         # Arrange
         mock_conn1 = MagicMock()
         mock_conn1.scopes = ["scope1"]
@@ -417,16 +425,36 @@ class TestConversationOrchestrator:
         mock_db.execute = AsyncMock(return_value=mock_result)
 
         # Act
-        scopes = await orchestrator._get_user_oauth_scopes(sample_user_id, mock_db)
+        scopes, _types = await orchestrator._get_user_connector_grants(sample_user_id, mock_db)
 
         # Assert: Only scope1 returned
         assert scopes == ["scope1"]
 
     @pytest.mark.asyncio
-    async def test_get_user_oauth_scopes_queries_active_connectors_only(
+    async def test_get_user_connector_grants_names_every_active_connector_type(
         self, orchestrator, mock_db, sample_user_id
     ):
-        """Test _get_user_oauth_scopes queries only ACTIVE connectors."""
+        """An iCloud connector grants no OAuth scope yet serves its category (RC1.1)."""
+        outlook = MagicMock(scopes=["Mail.ReadWrite"])
+        outlook.connector_type.value = "microsoft_outlook"
+        icloud = MagicMock(scopes=None)
+        icloud.connector_type.value = "apple_calendar"
+        mock_scalars = MagicMock()
+        mock_scalars.all = MagicMock(return_value=[outlook, icloud])
+        mock_result = MagicMock()
+        mock_result.scalars = MagicMock(return_value=mock_scalars)
+        mock_db.execute = AsyncMock(return_value=mock_result)
+
+        scopes, types = await orchestrator._get_user_connector_grants(sample_user_id, mock_db)
+
+        assert scopes == ["Mail.ReadWrite"]
+        assert types == frozenset({"microsoft_outlook", "apple_calendar"})
+
+    @pytest.mark.asyncio
+    async def test_get_user_connector_grants_queries_active_connectors_only(
+        self, orchestrator, mock_db, sample_user_id
+    ):
+        """Test _get_user_connector_grants queries only ACTIVE connectors."""
         # Arrange
         mock_scalars = MagicMock()
         mock_scalars.all = MagicMock(return_value=[])
@@ -437,7 +465,7 @@ class TestConversationOrchestrator:
         mock_db.execute = AsyncMock(return_value=mock_result)
 
         # Act
-        await orchestrator._get_user_oauth_scopes(sample_user_id, mock_db)
+        await orchestrator._get_user_connector_grants(sample_user_id, mock_db)
 
         # Assert: Verify query filters by user_id and ACTIVE status
         mock_db.execute.assert_called_once()

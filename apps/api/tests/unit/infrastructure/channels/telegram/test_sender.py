@@ -62,6 +62,21 @@ async def test_a_split_question_carries_its_keyboard_on_its_last_part() -> None:
     assert _markups(bot) == [None, _KEYBOARD]
 
 
+async def test_a_long_html_message_is_sent_in_parts_that_each_parse() -> None:
+    """Point 8: a part cut inside ``<b>…</b>`` was refused, then sent again as
+    raw text — the person read the tags."""
+    text = "<b>" + "word " * settings.telegram_message_max_length + "</b>"
+    bot = _bot(*range(1, len(text)))  # one answer per part, whatever their number
+
+    with patch(_GET_BOT, return_value=bot):
+        await TelegramSender().send_message("12345", ChannelOutboundMessage(text=text))
+
+    parts = [call.kwargs["text"] for call in bot.send_message.await_args_list]
+    assert len(parts) > 1
+    assert all(part.startswith("<b>") and part.endswith("</b>") for part in parts)
+    assert all(call.kwargs["parse_mode"] == "HTML" for call in bot.send_message.await_args_list)
+
+
 @pytest.mark.parametrize(
     "refusal",
     [RetryAfter(0), BadRequest("Can't parse entities")],

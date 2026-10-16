@@ -24,6 +24,7 @@ from src.domains.meetings.models import Meeting, MeetingAudioFormat, MeetingStat
 from src.domains.meetings.report_gateway import SavedMeetingReports
 from src.domains.users.models import User
 from src.infrastructure.meeting_reports import configure_meeting_reports
+from tests.helpers.draft_refusals import draft_refusal_code
 from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
 from tests.integration.domains.skills.test_per_account_skill_names import _user
 
@@ -192,7 +193,7 @@ async def test_restoration_uses_full_content_consent_and_original_writer(
         "lost_ack": "COMPLETION_UNKNOWN",
     }
     if intervention in expected_error:
-        assert outcome.error == expected_error[intervention]
+        assert draft_refusal_code(outcome) == expected_error[intervention]
     hints = [queue.get_nowait() for _ in range(queue.qsize())]
     hints = [event for event in hints if event.type == "application_state_changed"]
     assert len(hints) == int(intervention in {"none", "corrupt_current"})

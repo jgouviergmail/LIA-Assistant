@@ -38,7 +38,9 @@ class _Harness:
     """Replaces the DB and the per-action executor, keeping the batch logic."""
 
     def __init__(self, count: int) -> None:
-        self.refs = [(uuid4(), uuid4()) for _ in range(count)]
+        self.refs = [(uuid4(), uuid4(), uuid4()) for _ in range(count)]
+        self.tokens: dict[Any, Any] = {}
+        self.recovery_kwargs: dict[str, Any] = {}
         self.started = 0
         self.peak_concurrency = 0
         self._in_flight = 0
@@ -46,7 +48,8 @@ class _Harness:
         self.behaviour: dict[Any, str] = {}
         self.delay = 0.0
 
-    async def execute(self, *, action_id: Any, user_id: Any) -> Any:
+    async def execute(self, *, action_id: Any, user_id: Any, execution_token: Any) -> Any:
+        self.tokens[action_id] = execution_token
         self._in_flight += 1
         self.started += 1
         self.peak_concurrency = max(self.peak_concurrency, self._in_flight)
@@ -70,11 +73,15 @@ def harness(monkeypatch: pytest.MonkeyPatch):  # noqa: ANN201 - pytest fixture
         class _Repo:
             def __init__(self, _db: Any) -> None: ...
 
-            async def recover_stale_executing(self, **_kw: Any) -> int:
+            async def recover_stale_executing(self, **kwargs: Any) -> int:
+                h.recovery_kwargs = kwargs
                 return 0
 
             async def get_and_lock_due_actions(self, **_kw: Any) -> list[Any]:
-                return [type("A", (), {"id": a, "user_id": u})() for a, u in h.refs]
+                return [
+                    type("A", (), {"id": a, "user_id": u, "execution_token": t})()
+                    for a, u, t in h.refs
+                ]
 
         class _Db:
             async def commit(self) -> None: ...
@@ -172,3 +179,41 @@ class TestEveryActionIsAccountedFor:
 
         assert stats["processed"] == 0
         assert h.started == 0
+
+
+class TestEachRunCarriesItsReservation:
+    """Point 19: a tick runs, and settles, under the token it reserved with."""
+
+    async def test_every_action_is_handed_the_token_it_was_reserved_under(
+        self, harness: Any
+    ) -> None:
+        h = harness(3)
+
+        await executor_module.process_scheduled_actions()
+
+        assert h.tokens == {action: token for action, _user, token in h.refs}
+
+    async def test_the_recovery_never_frees_a_run_younger_than_its_worst_case(
+        self, harness: Any
+    ) -> None:
+        """Freeing a live run's routine hands it to the next tick: two runs."""
+        from datetime import UTC, datetime
+
+        from src.core.constants import (
+            SCHEDULED_ACTIONS_MAX_RETRIES,
+            SCHEDULED_ACTIONS_RETRY_DELAY_SECONDS,
+        )
+        from src.infrastructure.scheduler.out_of_turn_run import worst_case_run_seconds
+
+        h = harness(1)
+        before = datetime.now(UTC)
+        await executor_module.process_scheduled_actions()
+
+        worst = worst_case_run_seconds(
+            settings.scheduled_actions_execution_timeout_seconds,
+            SCHEDULED_ACTIONS_MAX_RETRIES + 1,
+            SCHEDULED_ACTIONS_RETRY_DELAY_SECONDS,
+        )
+        lifetime = max(settings.scheduled_actions_stale_timeout_minutes * 60, worst)
+        age = before - h.recovery_kwargs["older_than"]
+        assert age.total_seconds() >= lifetime - 1

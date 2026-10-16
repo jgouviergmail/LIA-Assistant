@@ -84,12 +84,12 @@ class TestTheHelperIsReadable:
     environment."""
 
     def test_an_empty_variable_is_not_a_proxy(self) -> None:
-        from src.domains.voice.client import _configured_proxy
+        from src.domains.voice.egress import configured_proxy as _configured_proxy
 
         assert _configured_proxy({"HTTPS_PROXY": "   ", "https_proxy": ""}) is None
 
     def test_the_lowercase_spelling_is_honoured_too(self) -> None:
-        from src.domains.voice.client import _configured_proxy
+        from src.domains.voice.egress import configured_proxy as _configured_proxy
 
         assert (
             _configured_proxy({"https_proxy": "http://proxy.local:3128"})
@@ -97,7 +97,7 @@ class TestTheHelperIsReadable:
         )
 
     def test_the_uppercase_spelling_wins(self) -> None:
-        from src.domains.voice.client import _configured_proxy
+        from src.domains.voice.egress import configured_proxy as _configured_proxy
 
         assert (
             _configured_proxy(
@@ -107,6 +107,6 @@ class TestTheHelperIsReadable:
         )
 
     def test_an_absent_variable_is_not_a_proxy(self) -> None:
-        from src.domains.voice.client import _configured_proxy
+        from src.domains.voice.egress import configured_proxy as _configured_proxy
 
         assert _configured_proxy({}) is None

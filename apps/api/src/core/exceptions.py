@@ -370,8 +370,10 @@ class MaxRetriesExceededError(Exception):
         self.max_retries = max_retries
         self.last_error = last_error
         message = f"Max retries ({max_retries}) exceeded for {operation}"
-        if last_error:
-            message = f"{message}: {last_error!s}"
+        if last_error is not None:
+            # Keep the cause available to classifiers without publishing the
+            # provider's potentially private words through the exception text.
+            message = f"{message}: {type(last_error).__name__}"
         super().__init__(message)
 
 
@@ -405,6 +407,7 @@ class ExternalServiceError(BaseAPIException):
 
         # Classify error type from log_context or detail
         error_type = log_context.get("error_type", self._infer_error_type(detail))
+        self.error_type: str = error_type if isinstance(error_type, str) else "unknown"
 
         external_service_errors_total.labels(service_name=service_name, error_type=error_type).inc()
 

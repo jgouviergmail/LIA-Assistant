@@ -31,6 +31,14 @@ radio_segments_total = Counter(
     #          (produced | writer_refused | script_refused | check_failed | voice_failed | mix_failed)
 )
 
+radio_dialogue_takes_total = Counter(
+    "radio_dialogue_takes_total",
+    "Dialogue takes (several voices in one request, ADR-345), by outcome.",
+    ["outcome"],
+    # outcome: voiced | unplaced (the vendor's timing did not place every line:
+    #          voiced line by line, the take still billed) | failed (voiced line by line)
+)
+
 radio_segment_production_seconds = Histogram(
     "radio_segment_production_seconds",
     "Time to produce one aired segment (desk, writer, checks, voices, mix), by format.",

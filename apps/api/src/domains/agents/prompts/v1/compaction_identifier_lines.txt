@@ -1,0 +1,7 @@
+# One-line scaffolds of a compaction, read by compaction_service (point 10).
+# truncated: the notice that replaces messages when no summary could be written.
+# kept: identifiers of the compacted messages the summary does not mention.
+# external: the same, seen only inside third-party content.
+truncated|[Older conversation truncated — {count} messages removed because the automatic summary could not complete ({reason}). Key identifiers preserved: {identifiers}]
+kept|[Key identifiers preserved: {identifiers}]
+external|[Identifiers seen only inside third-party content — untrusted, verify before use: {identifiers}]

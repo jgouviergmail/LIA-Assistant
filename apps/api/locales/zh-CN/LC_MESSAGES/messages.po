@@ -6,8 +6,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LIA API 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-03 16:10+0000\n"
-"PO-Revision-Date: 2026-10-03 16:11+0000\n"
+"POT-Creation-Date: 2026-10-14 17:36+0000\n"
+"PO-Revision-Date: 2026-10-14 17:36+0000\n"
 "Last-Translator: Claude Code <noreply@anthropic.com>\n"
 "Language-Team: Simplified Chinese\n"
 "Language: zh-CN\n"
@@ -37,30 +37,6 @@ msgstr "链接"
 
 msgid "The action could not be completed. Please try again."
 msgstr "无法完成该操作。请重试。"
-
-msgid ""
-"I couldn't find any results matching your request. Could you clarify or "
-"rephrase?"
-msgstr "我找不到与你的请求匹配的结果。你能说明一下或换个说法吗？"
-
-msgid "Sorry, some operations failed after multiple attempts: {operations}"
-msgstr "抱歉，多次尝试后仍有部分操作失败：{operations}"
-
-msgid "The required data could not be found. Could you clarify your request?"
-msgstr "未能找到所需数据。你能说明一下你的请求吗？"
-
-msgid "A dependency error occurred between steps."
-msgstr "步骤之间发生了依赖错误。"
-
-msgid "The operation is taking too long. Try a more specific request."
-msgstr "操作耗时过长。请尝试更具体的请求。"
-
-msgid ""
-"Unable to execute this request after multiple attempts. Errors: {errors}"
-msgstr "多次尝试后仍无法执行此请求。错误：{errors}"
-
-msgid "Unable to execute this request after multiple attempts."
-msgstr "多次尝试后仍无法执行此请求。"
 
 msgid "No active domain. Please perform a search first."
 msgstr "没有活动域。请先执行搜索。"

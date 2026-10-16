@@ -47,6 +47,7 @@ class EmailMessage(BaseModel):
     snippet: str = Field(default="", description="One-line preview, text only.")
     subject: str = Field(default="", description="Subject line.")
     from_: str = Field(default="", alias="from", description="Sender, RFC 5322 name-addr.")
+    reply_to: str = Field(default="", description="Reply address(es), when different from From.")
     to: str = Field(default="", description="Recipients, comma-separated name-addrs.")
     cc: str = Field(default="", description="Carbon copies, comma-separated name-addrs.")
     date: str = Field(default="", description="Date header as sent.")

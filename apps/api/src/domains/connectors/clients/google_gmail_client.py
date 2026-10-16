@@ -13,10 +13,7 @@ import json
 import re
 from collections.abc import Sequence
 from datetime import UTC, datetime
-from email.header import Header
-from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.utils import formataddr, getaddresses
 from typing import Any
 from uuid import UUID
 
@@ -34,12 +31,13 @@ from src.core.constants import (
     REDIS_KEY_GMAIL_SEARCH_PREFIX,
 )
 from src.core.field_names import FIELD_CACHED_AT
-from src.core.validators import validate_email
 from src.domains.connectors.clients.base_google_client import (
     BaseGoogleClient,
     apply_max_items_limit,
 )
 from src.domains.connectors.clients.gmail_attachments_mixin import GmailAttachmentsMixin
+from src.domains.connectors.clients.gmail_compose import GmailComposeMixin
+from src.domains.connectors.clients.gmail_drafts_mixin import GmailDraftsMixin
 from src.domains.connectors.clients.gmail_send_mixin import GmailSendMixin
 from src.domains.connectors.clients.gmail_threads_mixin import GmailThreadsMixin
 from src.domains.connectors.clients.normalizers.html_text import html_to_text
@@ -49,15 +47,22 @@ from src.domains.connectors.schemas import ConnectorCredentials
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.email.outgoing import (
     OutgoingAttachment,
-    attachment_part,
     max_file_bytes,
     with_attachments,
 )
+from src.infrastructure.email.recipients import encode_recipients
 
 logger = structlog.get_logger(__name__)
 
 
-class GoogleGmailClient(GmailAttachmentsMixin, GmailSendMixin, GmailThreadsMixin, BaseGoogleClient):
+class GoogleGmailClient(
+    GmailComposeMixin,
+    GmailDraftsMixin,
+    GmailAttachmentsMixin,
+    GmailSendMixin,
+    GmailThreadsMixin,
+    BaseGoogleClient,
+):
     """
     Google Gmail API client with OAuth, rate limiting, caching, and error handling.
 
@@ -176,13 +181,15 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailSendMixin, GmailThreadsMixin
             name = header.get("name", "").lower()
             value = header.get("value", "")
 
-            if name in ["from", "to", "cc", "bcc", "subject", "date", "message-id"]:
+            if name in ["from", "to", "cc", "bcc", "subject", "date", "message-id", "reply-to"]:
                 headers[name] = value
 
         return headers
 
     @staticmethod
-    def _normalize_message_fields(message: dict[str, Any], format: str) -> None:
+    def _normalize_message_fields(
+        message: dict[str, Any], format: str, *, keep_quoted: bool = False
+    ) -> None:
         """Normalize Gmail API message to unified provider format (in-place).
 
         Extracts common headers (from, to, cc, subject, date) from
@@ -203,12 +210,23 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailSendMixin, GmailThreadsMixin
         Args:
             message: Gmail API message dict (mutated in-place).
             format: Gmail format used for the request ('full', 'metadata').
+            keep_quoted: Keep the quoted history in the body — a mailbox
+                draft is the person's own text, and an edit must not lose
+                what it quotes (ADR-344).
         """
         # Extract headers to top-level (only if not already present)
         headers = GoogleGmailClient._extract_headers(message)
-        for field in ("from", "to", "cc", "subject", "date"):
-            if field not in message and headers.get(field):
-                message[field] = headers[field]
+        for field, header in (
+            ("from", "from"),
+            ("to", "to"),
+            ("cc", "cc"),
+            ("bcc", "bcc"),
+            ("subject", "subject"),
+            ("date", "date"),
+            ("reply_to", "reply-to"),
+        ):
+            if field not in message and headers.get(header):
+                message[field] = headers[header]
 
         # Extract body to top-level (only for full format, which includes body data)
         if format == GMAIL_FORMAT_FULL and "body" not in message:
@@ -216,7 +234,11 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailSendMixin, GmailThreadsMixin
             if payload:
                 body = GoogleGmailClient._extract_body_recursive(payload)
                 if body:
-                    message["body"] = clean_reply_body(body, subject=message.get("subject"))
+                    message["body"] = (
+                        body
+                        if keep_quoted
+                        else clean_reply_body(body, subject=message.get("subject"))
+                    )
 
         # Mark provider for downstream identification (same as Apple/Microsoft)
         if "_provider" not in message:
@@ -303,7 +325,7 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailSendMixin, GmailThreadsMixin
         Email headers containing non-ASCII characters (like accents in display names)
         must be encoded per RFC 2047 for Gmail API acceptance.
 
-        Handles both single address and comma-separated list of addresses.
+        Handles one address or several, separated by commas or semicolons.
 
         Args:
             addresses: Email address(es), possibly with display names
@@ -313,40 +335,14 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailSendMixin, GmailThreadsMixin
             RFC 2047 encoded email address string.
 
         Raises:
-            ValueError: If any email address has invalid format (missing TLD, etc.)
+            ValueError: If an address cannot be read or is incomplete (no TLD…);
+                the message never quotes it (ADR-317).
 
         Example:
             >>> GoogleGmailClient._encode_email_header('"Élodie Exemple" <elodie@example.com>')
             '=?utf-8?q?=C3=89lodie_Exemple?= <elodie@example.com>'
         """
-        # Parse all addresses (handles comma-separated with quoted names)
-        addresses_list = getaddresses([addresses])
-
-        encoded_addresses = []
-        for name, email in addresses_list:
-            # Defensive validation: catch invalid emails before Gmail API rejects them
-            # This prevents cryptic "Invalid To header" errors from the API
-            if email and not validate_email(email):
-                raise ValueError(
-                    f"Invalid email address format: '{email}'. "
-                    "The address must include a complete domain (e.g. user@example.com)."
-                )
-
-            if name:
-                try:
-                    # Check if name contains non-ASCII characters
-                    name.encode("ascii")
-                    # Pure ASCII, no encoding needed
-                    encoded_addresses.append(formataddr((name, email)))
-                except UnicodeEncodeError:
-                    # Non-ASCII characters, need RFC 2047 encoding
-                    encoded_name = Header(name, "utf-8").encode()
-                    encoded_addresses.append(formataddr((encoded_name, email)))
-            else:
-                # No display name, use email address directly
-                encoded_addresses.append(email)
-
-        return ", ".join(encoded_addresses)
+        return encode_recipients(addresses)
 
     # ========================================================================
     # PUBLIC API METHODS
@@ -616,7 +612,7 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailSendMixin, GmailThreadsMixin
         is_html: bool = False,
         attachments: Sequence[OutgoingAttachment] = (),
         *,
-        single_attempt: bool = False,
+        single_attempt: bool = True,
     ) -> dict[str, Any]:
         """
         Send an email via Gmail API.
@@ -702,76 +698,19 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailSendMixin, GmailThreadsMixin
             ...     body="Thank you for your message...",
             ... )
         """
-        # Get original message to extract thread info and recipients
-        original = await self.get_message(message_id)
-        thread_id = original.get("threadId")
-
-        # Extract headers
-        headers = original.get("payload", {}).get("headers", [])
-        header_dict = {h.get("name", "").lower(): h.get("value", "") for h in headers}
-
-        # Get original subject (add Re: if not present)
-        original_subject = header_dict.get("subject", "")
-        if not original_subject.lower().startswith("re:"):
-            subject = f"Re: {original_subject}"
-        else:
-            subject = original_subject
-
-        # Get recipients
-        original_from = header_dict.get("from", "")
-        original_cc = header_dict.get("cc", "")
-
-        # Determine reply-to address (user override takes precedence)
-        if to:
-            # User explicitly specified recipient (e.g., via draft modification)
-            cc = None
-        elif reply_all:
-            # Reply to all: original sender + original recipients (except self)
-            to = original_from
-            cc = original_cc if original_cc else None
-        else:
-            # Simple reply: just to the original sender
-            to = original_from
-            cc = None
-
-        # Build the full body (reply + quoted original) BEFORE constructing
-        # the MIME part — same pattern as apple_email and forward_email.
-        # Never set_payload() on an already-encoded MIMEText: it relies on
-        # undocumented re-encoding behavior of the email package (audit
-        # wave 3, N-194.10).
-        original_date = header_dict.get("date", "")
-        original_body = self._extract_body_recursive(original.get("payload", {}))
-
-        full_body = body
-        if original_body and not is_html:
-            quoted_lines = "\n".join(f"> {line}" for line in original_body.strip().splitlines())
-            quoted_block = f"\n\nOn {original_date}, {original_from} wrote:\n{quoted_lines}"
-            full_body = body + quoted_block
-
-        # Build MIME message
-        if is_html:
-            message = MIMEText(full_body, "html", "utf-8")
-        else:
-            message = MIMEText(full_body, "plain", "utf-8")
-
-        # Encode headers with RFC 2047 for non-ASCII characters
-        message["To"] = self._encode_email_header(to)
-        message["Subject"] = subject
-        message["In-Reply-To"] = header_dict.get("message-id", "")
-        message["References"] = header_dict.get("message-id", "")
-
-        if cc:
-            message["Cc"] = self._encode_email_header(cc)
-
-        # Encode to base64url
-        raw_message = self._encode_base64url(message.as_string())
+        composed = await self._compose_reply(
+            message_id, body, reply_all=reply_all, is_html=is_html, to=to
+        )
+        thread_id = composed.thread_id
 
         # Send via Gmail API with threadId to maintain thread
         json_data = {
-            "raw": raw_message,
+            "raw": self._encode_base64url(composed.message.as_string()),
             "threadId": thread_id,
         }
-        response = await self._make_request("POST", "/users/me/messages/send", json_data=json_data)
+        response = await self._make_request(
+            "POST", "/users/me/messages/send", json_data=json_data, max_retries=1
+        )
 
         logger.info(
             "gmail_email_reply_sent",
@@ -817,98 +756,18 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailSendMixin, GmailThreadsMixin
             ...     body="FYI - see below",
             ... )
         """
-        # Get original message with full content
-        original = await self.get_message(message_id)
-        payload = original.get("payload", {})
-
-        # Extract headers
-        headers = payload.get("headers", [])
-        header_dict = {h.get("name", "").lower(): h.get("value", "") for h in headers}
-
-        # Get original subject (add Fwd: if not present)
-        original_subject = header_dict.get("subject", "")
-        if not original_subject.lower().startswith("fwd:"):
-            subject = f"Fwd: {original_subject}"
-        else:
-            subject = original_subject
-
-        # Get original message body using the recursive extractor
-        original_body = self._extract_body_recursive(payload)
-
-        # Build forwarded message body
-        original_from = header_dict.get("from", "")
-        original_date = header_dict.get("date", "")
-        original_to = header_dict.get("to", "")
-
-        forward_header = (
-            f"\n\n---------- Forwarded message ---------\n"
-            f"From: {original_from}\n"
-            f"Date: {original_date}\n"
-            f"Subject: {original_subject}\n"
-            f"To: {original_to}\n\n"
+        composed = await self._compose_forward(
+            message_id,
+            to,
+            body=body,
+            cc=cc,
+            is_html=is_html,
+            include_attachments=include_attachments,
         )
-
-        if body:
-            full_body = body + forward_header + original_body
-        else:
-            full_body = forward_header + original_body
-
-        # Extract attachments info
-        attachments_info = self._extract_attachment_info(payload) if include_attachments else []
-        has_attachments = len(attachments_info) > 0
-
-        # Build MIME message
-        if has_attachments:
-            # Use MIMEMultipart for messages with attachments
-            message = MIMEMultipart("mixed")
-
-            # Add the text body as the first part
-            if is_html:
-                text_part = MIMEText(full_body, "html", "utf-8")
-            else:
-                text_part = MIMEText(full_body, "plain", "utf-8")
-            message.attach(text_part)
-
-            # Fetch and attach each attachment — one that fails does not stop
-            # the others. The part is the shared outgoing one (ADR-321).
-            for att_info in attachments_info:
-                filename = att_info.get("filename", "attachment")
-                mime_type = att_info.get("mime_type", "application/octet-stream")
-                try:
-                    att_data = await self.get_attachment(message_id, att_info["attachment_id"])
-                    message.attach(
-                        attachment_part(OutgoingAttachment(filename, mime_type, att_data))
-                    )
-                except Exception as e:
-                    # The failure's class, never its text (ADR-317).
-                    logger.warning(
-                        "gmail_forward_attachment_failed",
-                        attachment_id=att_info.get("attachment_id"),
-                        error_type=type(e).__name__,
-                    )
-                    continue
-                logger.debug(
-                    "gmail_forward_attachment_added",
-                    filename=filename,
-                    mime_type=mime_type,
-                    size=att_info.get("size", 0),
-                )
-        else:
-            # Simple text message without attachments
-            if is_html:
-                message = MIMEText(full_body, "html", "utf-8")
-            else:
-                message = MIMEText(full_body, "plain", "utf-8")
-
-        # Encode headers with RFC 2047 for non-ASCII characters
-        message["To"] = self._encode_email_header(to)
-        message["Subject"] = subject
-
-        if cc:
-            message["Cc"] = self._encode_email_header(cc)
+        attachments_info = composed.listed_files
 
         # A new thread; with files it takes the upload URI (ADR-321).
-        response = await self._send_message(message, with_files=has_attachments)
+        response = await self._send_message(composed.message, with_files=bool(attachments_info))
 
         logger.info(
             "gmail_email_forwarded",

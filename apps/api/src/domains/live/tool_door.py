@@ -78,7 +78,7 @@ async def run_session_tool(
         verdict = await serve_voice_lookup(
             payload.name,
             payload.arguments,
-            offered=await direct_tool_specs(frozenset(user.phone_disabled_domains or ())),
+            offered=await direct_tool_specs(frozenset(user.phone_disabled_domains or ()), user.id),
             consume_budget=_consume_budget,
             user_id=user.id,
             language=language,

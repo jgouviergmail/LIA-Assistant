@@ -20,7 +20,7 @@ export type MeetingStage = 'normalizing' | 'transcribing' | 'synthesizing' | 'in
 /** What the client sends, fixed at start for the whole recording. */
 export type MeetingAudioFormat = 'pcm_s16le_16' | 'webm_opus' | 'ogg_opus';
 
-export type MeetingSttProvider = 'elevenlabs' | 'openai' | 'local';
+export type MeetingSttProvider = 'elevenlabs' | 'openai' | 'fishaudio' | 'local';
 
 export type MeetingSttEnginePreference = 'auto' | 'remote' | 'local';
 

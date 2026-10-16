@@ -17,6 +17,7 @@ export function useApplicationAccountQuery<T>(
   const ownerId = user?.id;
   const { lifetime, isCurrent } = useApplicationAccountLifetime(ownerId);
   const [accepted, setAccepted] = useState<typeof lifetime | null>(null);
+  const [failed, setFailed] = useState<typeof lifetime | null>(null);
   const received = useRef<typeof lifetime | null>(null);
   const onSuccess = useCallback(
     (data: T) => {
@@ -27,14 +28,22 @@ export function useApplicationAccountQuery<T>(
     },
     [lifetime, isCurrent, onData]
   );
+  const onError = useCallback(() => {
+    if (isCurrent()) setFailed(lifetime);
+  }, [isCurrent, lifetime]);
   const query = useApiQuery<T>(endpoint, {
     componentName,
     enabled: enabled && !!ownerId,
     params: options.params,
     deps: [ownerId, ...(options.deps ?? [])],
     onSuccess,
+    onError,
   });
-  const { refetchVerified, setData: setQueryData } = query;
+  const { refetchVerified, setData: setQueryData, acceptData: acceptQueryData } = query;
+  const acceptData = useCallback(
+    (data: T) => isCurrent() && acceptQueryData(data),
+    [isCurrent, acceptQueryData]
+  );
   const setData = useCallback(
     (action: SetStateAction<T | undefined>) => {
       if (!isCurrent()) return;
@@ -59,9 +68,10 @@ export function useApplicationAccountQuery<T>(
     lifetime,
     isCurrent,
     loading: query.loading,
-    error: query.error,
+    error: failed === lifetime ? query.error : null,
     refetch,
     setData,
+    acceptData,
     refetchVerified: refetchCurrentVerified,
     data: accepted === lifetime ? query.data : undefined,
   };

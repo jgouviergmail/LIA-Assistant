@@ -129,7 +129,6 @@ api:slo:availability:ratio_5m           # SLO availability 5min
 
 | Famille | Module |
 |---------|--------|
-| Adaptive replanner (`adaptive_replanner_*`) | `metrics_agents.py` |
 | Attachments (`attachments_*`) | `metrics_attachments.py` |
 | Briefing (`briefing_*`) | `metrics_briefing.py` |
 | Browser (`browser_*`) | `metrics_browser.py` |
@@ -143,6 +142,7 @@ api:slo:availability:ratio_5m           # SLO availability 5min
 | Langfuse (`langfuse_*`) | `metrics_langfuse.py` |
 | Lifetime gauges DB-backed | `lifetime_metrics.py` |
 | OAuth (`oauth_*`) | `metrics_oauth.py` |
+| Pipeline (`pipeline_step_failures_total` — étapes en échec des plans exécutés, par code typé, ADR-346) | `metrics_pipeline.py` |
 | Produit (`product_*` — outcomes E1/E2/E3, gauges DB-backed North Star/funnel/rétention, télémétrie client Web Vitals/recherche, ADR-178) | `metrics_product.py` |
 | Redis (`redis_*`) | `metrics_redis.py` |
 | Registry/checkpoints (`registry_*`) | `metrics_registry.py` |
@@ -2114,11 +2114,11 @@ if not conversation:
 ### voice_tts_requests_total
 
 **Type**: Counter
-**Description**: Total Edge TTS API requests
+**Description**: Total TTS API requests across providers
 **Labels**: `status`, `voice_name`
 
 **Status**: `success`, `error`
-**Voice Names**: `fr-FR-RemyMultilingualNeural`, `fr-FR-VivienneMultilingualNeural`, etc.
+**Voice Names**: provider-specific — an Edge voice id (`fr-FR-VivienneMultilingualNeural`), an OpenAI voice token, an ElevenLabs UUID, a Fish Audio model id
 
 **Instrumentation:**
 
@@ -2146,31 +2146,37 @@ sum by (voice_name) (increase(voice_tts_requests_total[24h]))
 ### voice_tts_latency_seconds
 
 **Type**: Histogram
-**Description**: Edge TTS API call latency
+**Description**: TTS API call latency across providers
 **Labels**: `voice_name`
-**Buckets**: `[0.05, 0.1, 0.2, 0.3, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0]`
+**Buckets**: `[0.05, 0.1, 0.2, 0.3, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 5.0, 10.0, 20.0, 30.0, 60.0]`
 
-**Target**: P95 < 500ms (Edge TTS is fast)
+**Target**: P95 < 500 ms for Edge TTS. A Fish Audio socket session measured 2.6-2.7 s and a dialogue take is one call for several lines (ADR-345): the upper buckets keep their p95 readable.
 
 ---
 
 ### voice_tts_errors_total
 
 **Type**: Counter
-**Description**: Total Edge TTS API errors by type
+**Description**: Total TTS API errors by type across providers
 **Labels**: `error_type`, `voice_name`
 
-**Error Types**: `network_error`, `synthesis_error`, `empty_response`, `unknown`
+**Error Types**: `network_error`, `synthesis_error`, `empty_response`, `invalid_response`, `encoding_error`, `timeout`, `http`, `http_<status>`, `rate_limit`, `auth_error`
 
 ---
 
-### voice_comment_tokens_total
+### voice_tts_transport_fallbacks_total
 
 **Type**: Counter
-**Description**: Tokens used for voice comment generation
-**Labels**: `model`, `token_type`
+**Description**: Syntheses a voice slot asked to send over a WebSocket, answered over HTTP (ADR-345)
+**Labels**: `provider`, `reason`
 
-**Token Types**: `prompt_tokens`, `completion_tokens`
+**Reasons**: the socket's failure code — `provider_network_error`, `provider_timeout` (the socket fell silent), `provider_invalid_response`. A quota or a refusal is never retried over HTTP.
+
+---
+
+### Voice comment tokens
+
+The spoken comment's model call is counted by the shared node metric, `llm_tokens_consumed_total{node_name="voice_comment"}` (dashboard 11, panel « Voice Comment Tokens »), like every model call — it carries no metric of its own.
 
 ---
 

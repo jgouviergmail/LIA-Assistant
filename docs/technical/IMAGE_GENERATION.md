@@ -327,8 +327,9 @@ Both tools carry the standard `@track_tool_metrics` + `@rate_limit` decorators (
 sliding window). The rate limit is a technical anti-runaway ceiling for a paid external
 API; it complements the usage-limits cost caps, which are per billing cycle and
 Redis-cached (a burst could overshoot them before they bite). When the limit is
-exceeded, the tool returns the standard `rate_limit_exceeded` JSON payload with
-`retry_after_seconds` instead of executing.
+exceeded, the tool does not run: the call returns a `RATE_LIMIT_EXCEEDED` failure
+carrying `retry_after_seconds` in its metadata, which every reader counts as a
+failure (ADR-303 amendment 2026-10-13).
 
 ### User Preferences (per-user, Settings > Preferences)
 

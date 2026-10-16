@@ -36,6 +36,8 @@ from src.domains.agents.services.hitl.interactions.for_each_confirmation import 
         ("reply_email_tool", "email_reply"),
         ("forward_email_tool", "email_forward"),
         ("send_email_tool", "email"),  # send → base DraftType (no suffix)
+        # A mailbox draft sent (ADR-344): its own confirmation type
+        ("send_mailbox_draft_tool", "mailbox_draft_send"),
         # Create / send / unknown → base DraftType
         ("create_event_tool", "event"),
         ("create_contact_tool", "contact"),
@@ -82,3 +84,12 @@ def test_steps_to_draft_type_only_first_step_inspected() -> None:
         ]
     )
     assert result == "reminder_delete"
+
+
+@pytest.mark.parametrize(
+    "tool_name",
+    ["create_mailbox_draft_tool", "update_mailbox_draft_tool", "delete_mailbox_drafts_tool"],
+)
+def test_a_mailbox_draft_act_that_asks_nothing_has_no_card_type(tool_name: str) -> None:
+    """Saving, editing or trashing a draft builds no confirmation of its own (ADR-344)."""
+    assert ForEachConfirmationInteraction._steps_to_draft_type([{"tool_name": tool_name}]) is None

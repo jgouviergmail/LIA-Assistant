@@ -6,6 +6,7 @@ Uses SMTP with template-based emails.
 import asyncio
 import html
 import smtplib
+import ssl
 from collections.abc import Sequence
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -78,7 +79,7 @@ class EmailService:
             self.smtp_host, self.smtp_port, timeout=PLATFORM_SMTP_TIMEOUT_SECONDS
         ) as server:
             if self.smtp_user and self.smtp_password:
-                server.starttls()
+                server.starttls(context=ssl.create_default_context())
                 server.login(self.smtp_user, self.smtp_password)
             server.sendmail(self.smtp_from, to_email, payload)
 

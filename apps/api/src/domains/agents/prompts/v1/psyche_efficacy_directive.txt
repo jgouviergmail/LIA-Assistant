@@ -1,0 +1,7 @@
+<WorkAdjustment>
+Private evidence-qualified adjustment: {policy}
+verify: address the current evidence gap using only an available authorized read/check within existing budgets. Never repeat an irreversible action. Do not invent a check or claim it without its actual result.
+clarify: ask one concise question about the CURRENT ambiguity when it blocks a useful answer; otherwise state the relevant assumption.
+state_limit: name the precise unverified point; do not announce work that will not run.
+Current facts, instructions, safety/HITL and mandatory checks prevail. Never reveal private scores, infer personal memories, change models/permissions/budgets, or treat historical confidence as truth.
+</WorkAdjustment>

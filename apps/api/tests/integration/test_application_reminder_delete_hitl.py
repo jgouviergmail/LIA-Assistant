@@ -24,6 +24,7 @@ from src.domains.reminders.models import Reminder
 from src.domains.reminders.schemas import ReminderCreate
 from src.domains.reminders.service import ReminderService
 from src.domains.users.models import User
+from tests.helpers.draft_refusals import draft_refusal_code
 from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
 
 pytestmark = pytest.mark.integration
@@ -157,7 +158,7 @@ async def test_native_deletion_requires_exact_hitl_and_reports_only_committed_ef
             intervention == "writer_off"
         )
         if intervention != "none":
-            assert result.error == (
+            assert draft_refusal_code(result) == (
                 "COMPLETION_UNKNOWN" if intervention == "commit_unknown" else "CAPABILITY_DISABLED"
             )
         assert "Private original" not in str(result.result_data)

@@ -1,14 +1,18 @@
 """Shutdown sequence for the application lifespan (ADR-123).
 
-Extracted verbatim from ``src.main.lifespan``: same structlog events, same
-exception handling, same ordering. Order matters:
+Extracted from ``src.main.lifespan``: same structlog events, same exception
+handling. Order matters:
 
-1. Drain in-flight chat producers FIRST (ADR-117) — they need the
-   checkpointer, DB pool and Redis that are torn down below.
+0. Let no scheduler job START (point 23): one started now would meet the
+   dependencies closing under it. Jobs already running go on.
+1. Drain in-flight chat producers (ADR-117) — they need the checkpointer, DB
+   pool and Redis that are torn down below.
 2. Generic fire-and-forget background tasks, for the same reason.
-3. Flush/stop emitters (Prometheus multiproc, lifetime metrics, Langfuse)
+3. Stop the scheduler (leader lock release), cancelling what still runs,
+   before any dependency of its jobs closes — the push relay and Langfuse
+   used to close first, under jobs still firing.
+4. Flush/stop emitters (Prometheus multiproc, lifetime metrics, Langfuse)
    before their transports disappear.
-4. Stop the scheduler (leader lock release) before its dependencies close.
 5. Close pools and clients; the DB closes near the end and Redis closes
    LAST (the drain and the invalidation subscriber both depend on it).
 """
@@ -39,8 +43,9 @@ class StartupHandles:
     """Cross-``yield`` state produced at startup and consumed at shutdown.
 
     Attributes:
-        leader_elector: Always constructed at startup; its ``shutdown()`` is
-            awaited unconditionally (stops the scheduler, releases the lock).
+        leader_elector: Always constructed at startup; its ``pause_jobs()``
+            opens the sequence and its ``shutdown()`` is awaited unconditionally
+            after the drain (stops the scheduler, releases the lock).
         mcp_manager: Truthy gate for MCP cleanup. May be a PARTIALLY
             initialized manager (startup failed mid-way) — cleanup still runs.
         telegram_bot: Truthy gate for the Telegram bot shutdown.
@@ -98,12 +103,15 @@ async def stop_radio_loops(*, enabled: bool) -> None:
 
 
 async def shutdown_application(handles: StartupHandles) -> None:
-    """Run the full shutdown sequence in the exact historical order.
+    """Run the full shutdown sequence, in the order the module docstring states.
 
     Args:
         handles: The cross-``yield`` state accumulated by the lifespan startup.
     """
-    # === Drain in-flight background work FIRST (ADR-117) ===
+    # Nothing new starts from here (point 23); running jobs finish during the drain.
+    handles.leader_elector.pause_jobs()
+
+    # === Drain in-flight background work (ADR-117) ===
     # Order matters: chat producers need the checkpointer, DB pool and Redis
     # that are torn down below. Without this drain, uvicorn worker recycling
     # (--limit-max-requests) and docker stop kill in-flight runs (proven by
@@ -133,6 +141,10 @@ async def shutdown_application(handles: StartupHandles) -> None:
         await wait_all_background_tasks(timeout=settings.shutdown_background_tasks_timeout_seconds)
     except Exception as exc:
         logger.error("background_tasks_drain_failed", error=str(exc))
+
+    # Stop the scheduler and release the leader lock BEFORE anything its jobs
+    # need closes: the push relay and Langfuse below used to close first.
+    await handles.leader_elector.shutdown()
 
     # The personal radio (ADR-324): cancel this worker's session loops while
     # Redis is still up, so each gives its lease back and the listener's next
@@ -183,9 +195,6 @@ async def shutdown_application(handles: StartupHandles) -> None:
         logger.info("langfuse_shutdown_complete")
     except (RuntimeError, ImportError) as exc:
         logger.error("langfuse_shutdown_failed", error=str(exc))
-
-    # Stop scheduler and release leader lock
-    await handles.leader_elector.shutdown()
 
     # Reset v3.1 Semantic Services (clear cached embeddings)
     # Note: SemanticIntentDetector and SemanticDomainSelector removed in v3.1

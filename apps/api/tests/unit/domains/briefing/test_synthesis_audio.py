@@ -41,7 +41,9 @@ def _voice_service_mock() -> MagicMock:
         import base64
 
         for payload in (b"chunk-one", b"chunk-two"):
-            yield SimpleNamespace(audio_base64=base64.b64encode(payload).decode("ascii"))
+            yield SimpleNamespace(
+                audio_base64=base64.b64encode(payload).decode("ascii"), mime_type="audio/mpeg"
+            )
 
     service.stream_direct_tts = _stream
     service.close = AsyncMock()

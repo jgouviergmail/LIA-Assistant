@@ -430,6 +430,7 @@ async def stream_chat(
         from src.infrastructure.cache.redis import get_redis_cache
         from src.infrastructure.streaming.run_stream_broker import (
             get_active_run,
+            public_active_run,
             register_active_run,
         )
 
@@ -451,7 +452,7 @@ async def stream_chat(
                     conversation_id=background_conversation_id,
                     active_stream_id=(active or {}).get("stream_id"),
                 )
-                raise_run_in_progress(active)
+                raise_run_in_progress(public_active_run(active))
     # === END ACTIVE-RUN LOCK ===
 
     logger.info(
@@ -1036,27 +1037,25 @@ async def get_active_run_status(
 
     Returns:
         ``{"active": False}`` or
-        ``{"active": True, "stream_id": ..., "run_id": ...}``.
+        ``{"active": True, "stream_id": ..., "run_id": ...}`` — ``stream_id``
+        null for a run that publishes no chunk (a ticket, a voice relay):
+        LIA is busy, and there is nothing to reattach to (point 25b).
     """
     if not settings.background_runs_enabled:
         return {"active": False}
 
     from src.infrastructure.cache import get_conversation_id_cached
     from src.infrastructure.cache.redis import get_redis_cache
-    from src.infrastructure.streaming.run_stream_broker import get_active_run
+    from src.infrastructure.streaming.run_stream_broker import get_active_run, public_active_run
 
     conversation_id = await get_conversation_id_cached(current_user.id)
     if not conversation_id:
         return {"active": False}
     redis = await get_redis_cache()
-    active = await get_active_run(redis, conversation_id)
+    active = public_active_run(await get_active_run(redis, conversation_id))
     if not active:
         return {"active": False}
-    return {
-        "active": True,
-        "stream_id": active.get("stream_id"),
-        "run_id": active.get("run_id"),
-    }
+    return {"active": True, **active}
 
 
 @router.get("/hitl/pending", response_model=PendingHitlResponse | None)
@@ -1114,7 +1113,8 @@ async def cancel_active_run(
 
     Returns:
         ``{"cancelled": True, "stream_id": ...}`` when a signal was set,
-        ``{"cancelled": False}`` when no run is active (or flag OFF) — the
+        ``{"cancelled": False}`` when no run is active (or flag OFF), or when
+        the active run listens to no signal (a ticket, a voice relay) — the
         frontend then falls back to the legacy local abort.
     """
     if not settings.background_runs_enabled:
@@ -1124,6 +1124,7 @@ async def cancel_active_run(
     from src.infrastructure.cache.redis import get_redis_cache
     from src.infrastructure.streaming.run_stream_broker import (
         get_active_run,
+        public_active_run,
         request_cancel,
     )
 
@@ -1131,7 +1132,7 @@ async def cancel_active_run(
     if not conversation_id:
         return {"cancelled": False}
     redis = await get_redis_cache()
-    active = await get_active_run(redis, conversation_id)
+    active = public_active_run(await get_active_run(redis, conversation_id))
     if not active or not active.get("stream_id"):
         return {"cancelled": False}
     stream_id = active["stream_id"]
@@ -1155,8 +1156,9 @@ async def reattach_run_stream(
 
     ADR-117 Lot 2. Ownership: the stream must be the CURRENT active run of
     the caller's own conversation — anything else (finished run, foreign
-    stream, unknown id) answers 404 without revealing existence. Finished
-    runs are reloaded through the conversation history instead.
+    stream, unknown id, a lease that publishes no chunk) answers 404 without
+    revealing existence. Finished runs are reloaded through the conversation
+    history instead.
 
     SSE contract: identical to POST /chat/stream (``retry`` hint, ``data:``
     ChatStreamChunk frames, heartbeats), plus the ``: replay-end`` transport
@@ -1165,14 +1167,16 @@ async def reattach_run_stream(
     """
     from src.infrastructure.cache import get_conversation_id_cached
     from src.infrastructure.cache.redis import get_redis_cache
-    from src.infrastructure.streaming.run_stream_broker import get_active_run
+    from src.infrastructure.streaming.run_stream_broker import get_active_run, public_active_run
 
     if not settings.background_runs_enabled:
         raise_not_found_or_unauthorized("run")
 
     conversation_id = await get_conversation_id_cached(current_user.id)
     redis = await get_redis_cache()
-    active = await get_active_run(redis, conversation_id) if conversation_id else None
+    active = (
+        public_active_run(await get_active_run(redis, conversation_id)) if conversation_id else None
+    )
     if not active or active.get("stream_id") != stream_id:
         raise_not_found_or_unauthorized("run")
 

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRef, useState } from 'react';
-import { Check, CircleSlash, Pencil, Sparkles } from 'lucide-react';
+import { CalendarClock, Check, CircleSlash, Handshake, Pencil, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { BriefingCard } from '../BriefingCard';
@@ -22,6 +22,8 @@ interface ForYouCardProps {
   section: CardSection<ForYouData>;
   isRefreshing: boolean;
   onRefresh: () => void;
+  /** Reload after a successful mutation, independently of manual refresh feedback. */
+  onInvalidate?: () => void;
   staggerIndex?: number;
 }
 
@@ -35,7 +37,13 @@ interface ForYouCardProps {
  * prefilled with a direction-aware intent (QW-9 `?draft=` mechanism) —
  * nothing is auto-sent.
  */
-export function ForYouCard({ section, isRefreshing, onRefresh, staggerIndex }: ForYouCardProps) {
+export function ForYouCard({
+  section,
+  isRefreshing,
+  onRefresh,
+  onInvalidate,
+  staggerIndex,
+}: ForYouCardProps) {
   const { i18n } = useTranslation();
   const lng = (i18n.language || 'fr').split('-')[0];
   return (
@@ -51,7 +59,7 @@ export function ForYouCard({ section, isRefreshing, onRefresh, staggerIndex }: F
         <ForYouContent
           data={data}
           onOpenChat={draft => openChatDeepLink(chatDraftHref(lng, draft))}
-          onChanged={onRefresh}
+          onChanged={onInvalidate ?? onRefresh}
         />
       )}
       staggerIndex={staggerIndex}
@@ -140,6 +148,22 @@ function ForYouContent({
 
   return (
     <div className="space-y-3">
+      {data.next_automation && (
+        <div className="space-y-1.5 rounded-lg bg-fuchsia-500/10 p-3">
+          <p className="flex items-center gap-1.5 text-xs font-medium text-fuchsia-700 dark:text-fuchsia-300">
+            <CalendarClock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            {t('dashboard.briefing.cards.for_you.next_automation_label')}
+          </p>
+          <p className="line-clamp-2 break-words text-sm font-semibold text-foreground/90">
+            {data.next_automation.title}
+          </p>
+          <p className="text-xs text-muted-foreground tabular-nums">
+            {/* Preserve the server's local time, including older cache fallback. */}
+            {data.next_automation.next_trigger_local ??
+              t('dashboard.briefing.cards.for_you.next_up')}
+          </p>
+        </div>
+      )}
       {data.open_loops.length > 0 && (
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
@@ -198,13 +222,26 @@ function ForYouContent({
                 <CardItemRow
                   key={loop.id}
                   ariaLabel={intent}
-                  tooltip={loop.subject}
+                  tooltip={
+                    loop.counterparty ? `${loop.subject}\n${loop.counterparty}` : loop.subject
+                  }
                   onSelect={() => onOpenChat(intent)}
-                  contentClassName="flex items-baseline justify-between gap-2 text-sm"
+                  contentClassName="flex flex-col gap-1.5 leading-snug"
                   actions={actions}
                 >
-                  <span className="text-foreground/90 truncate font-medium">{loop.subject}</span>
-                  <span className="shrink-0 text-xs text-fuchsia-600 dark:text-fuchsia-300 tabular-nums">
+                  <span className="flex items-center gap-1.5 text-xs font-medium text-fuchsia-700 dark:text-fuchsia-300">
+                    <Handshake className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    {t(
+                      loop.direction === 'waiting_on_other'
+                        ? 'settings.open_loops.waiting_title'
+                        : 'settings.open_loops.owed_title'
+                    )}
+                  </span>
+                  <span className="line-clamp-2 break-words text-sm font-semibold text-foreground/90">
+                    {loop.subject}
+                  </span>
+                  <span className="line-clamp-2 break-words text-xs text-muted-foreground tabular-nums">
+                    {loop.counterparty && <>{loop.counterparty} · </>}
                     {t('dashboard.briefing.cards.for_you.days_open', {
                       count: loop.days_open,
                     })}
@@ -230,24 +267,6 @@ function ForYouContent({
           }}
           onSave={patch => void saveEdit(patch)}
         />
-      )}
-      {data.next_automation && (
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-            {t('dashboard.briefing.cards.for_you.automations_title')}
-          </p>
-          <ul className="space-y-0.5 text-sm" role="list">
-            <li className="flex items-baseline justify-between gap-2">
-              <span className="text-foreground/90 truncate">{data.next_automation.title}</span>
-              <span className="shrink-0 text-xs font-semibold text-fuchsia-600 dark:text-fuchsia-300 tabular-nums">
-                {/* Precise backend-formatted execution time; label fallback
-                    keeps older cached payloads rendering. */}
-                {data.next_automation.next_trigger_local ??
-                  t('dashboard.briefing.cards.for_you.next_up')}
-              </span>
-            </li>
-          </ul>
-        </div>
       )}
       {/* Door to the full activity timeline (Lot 1-A1): this card previews
           what LIA tracks; the timeline is where ALL of its proactive work

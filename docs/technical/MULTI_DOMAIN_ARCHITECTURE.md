@@ -82,7 +82,7 @@ apps/api/src/domains/agents/
 |   |-- mappers.py               # Result mapping
 |   |-- condition_evaluator.py   # Conditional step logic
 |   |-- dependency_graph.py      # Dependency analysis
-|   |-- adaptive_replanner.py    # INTELLIPLANNER Phase E
+|   |-- step_failure_metrics.py  # Failed steps counted by typed code
 |   `-- validator.py             # Plan validation
 |
 |-- tools/
@@ -147,7 +147,7 @@ Wave 3: [step_3, step_4]  # Depend on step_2
 **Key Features**:
 - True parallel execution within waves
 - Conditional step evaluation
-- Adaptive re-planning (INTELLIPLANNER Phase E)
+- Each failed step stored with its typed `error_code`, stated by the response, never replayed (ADR-346)
 - Data registry for result storage
 
 ### 4. Response Node (INTELLIA v10)
@@ -289,7 +289,7 @@ except Exception as e:
 **New Components**:
 - `parallel_executor.py` - Unified execution engine
 - `condition_evaluator.py` - Step conditions
-- `adaptive_replanner.py` - Re-planning logic
+- `adaptive_replanner.py` - Re-planning logic (since removed, ADR-346)
 
 ## References
 

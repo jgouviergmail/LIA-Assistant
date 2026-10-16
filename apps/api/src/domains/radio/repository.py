@@ -307,7 +307,8 @@ async def read_preferences(user_id: uuid.UUID, *, engine: str) -> RadioPreferenc
 
     Args:
         user_id: The listener.
-        engine: The voice engine in place (``cast.engine_key``).
+        engine: The key the voices of the engine in place are kept under
+            (``EngineVoices.key``, its provider).
 
     Returns:
         The settings as the page and a start read them.
@@ -335,14 +336,16 @@ async def write_preferences(
 ) -> RadioPreferences:
     """Replace the listener's settings; their voices are kept for ``engine`` alone.
 
-    Every other engine's voices stay: the row is read under a lock and written back as
-    a NEW mapping in the same transaction, so two saves never lose each other's engine.
-    The flat voices of a row written before voices were kept per engine are dropped.
+    Every other provider's voices stay: the row is read under a lock and written back as
+    a NEW mapping in the same transaction, so two saves never lose each other's provider.
+    The flat voices of a row written before voices were kept per engine are dropped, and
+    so are the entries an older release kept per model for ``engine``'s provider.
 
     Args:
         user_id: The listener.
         preferences: The whole new settings, already validated.
-        engine: The voice engine the voices were chosen on (``cast.engine_key``).
+        engine: The key the voices were chosen under (``EngineVoices.key``, the
+            provider).
 
     Returns:
         The settings as stored.

@@ -25,7 +25,17 @@ initial Google download; `preNormalizationSha256` identifies the already
 sanitized file observed at the start of this pass.
 
 The pre-edit inventory and final verification receipt are retained locally in
-`exports/release-v3/audio-html-normalization-receipt.json`. Original byte
-archives remain in the earlier private production archive. Audio recordings,
-generation requests/results, selected music records and their hashes were not
-changed. No source page was fetched again and no generation API was called.
+`exports/release-v3/audio-html-normalization-receipt.json`. Original bytes were
+kept in the earlier private production archives (see the note below). Audio
+recordings, generation requests/results, selected music records and their hashes
+were not changed. No source page was fetched again and no generation API was
+called.
+
+On 14 October 2026 the earlier local archives were removed. Every evidence file
+whose exact bytes survived only there — the original downloads of five of these
+pages (`v3/audionautix-rights.html`, `v3/transition-license.html` and the three
+Google references), earlier generation records, licence texts and audits, 45
+files in all — is kept byte for byte, named by its SHA-256, in
+`exports/release-v3/audio-evidence-originals/`, whose `manifest.json` names the
+archive and path each was found at. The original downloads of the six other
+pages were not found on that workstation.

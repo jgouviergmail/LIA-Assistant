@@ -2,11 +2,22 @@
 
 /**
  * Who speaks: the station's name (its host says it, the player shows it), its
- * personality (its own, or the chat's) and the voice of each role. A role left
- * automatic gets a voice the station picks, alternating genders; a voice the
- * engine no longer holds is read the same way.
+ * personality (its own, or the chat's) and the voice of each role — the station's
+ * team, then the commentators of its debates and discussions. A role left automatic
+ * gets a voice the station picks; a voice the engine no longer holds is read the
+ * same way. A voice a role may not share — a commentator never sounds like LIA, the
+ * anchor or another commentator (`voices_apart`, published because the API refuses
+ * it) — is offered greyed out.
  */
-import { AudioLines, Mic, MicVocal, Podcast, Radio, type LucideIcon } from 'lucide-react';
+import {
+  AudioLines,
+  MessageSquareQuote,
+  Mic,
+  MicVocal,
+  Podcast,
+  Radio,
+  type LucideIcon,
+} from 'lucide-react';
 import { useId, useState } from 'react';
 
 import { Disclosure } from '@/components/ui/disclosure';
@@ -19,10 +30,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { VoiceLanguageFilter } from '@/components/voice/VoiceLanguageFilter';
 import { usePersonality } from '@/hooks/usePersonality';
+import { useVoiceLanguageFilter } from '@/hooks/useVoiceLanguageFilter';
 import { useTranslation } from '@/i18n/client';
-import { withStationName, withVoice } from '@/lib/radio/preferences';
-import type { RadioRole } from '@/lib/radio/types';
+import { voicesTakenFrom, withStationName, withVoice } from '@/lib/radio/preferences';
+import type {
+  RadioPreferences,
+  RadioRole,
+  RadioSpeakingRole,
+  RadioVoiceOption,
+} from '@/lib/radio/types';
 
 import type { RadioFieldsProps } from './fields';
 
@@ -84,11 +102,87 @@ function StationNameField({ lng, options, preferences, onChange }: RadioFieldsPr
   );
 }
 
+/** One role's voice: « automatic », or a voice of the engine — those it may not share greyed out. */
+function VoiceSelect({
+  lng,
+  role,
+  icon: Icon,
+  voices,
+  preferences,
+  taken,
+  describedBy,
+  onChange,
+}: {
+  lng: RadioFieldsProps['lng'];
+  role: RadioSpeakingRole;
+  icon: LucideIcon;
+  voices: RadioVoiceOption[];
+  preferences: RadioPreferences;
+  taken: ReadonlySet<string>;
+  describedBy?: string;
+  onChange: (next: RadioPreferences) => void;
+}) {
+  const { t } = useTranslation(lng);
+  const id = `radio-voice-${role}`;
+  return (
+    <div className="space-y-3 rounded-lg border p-4">
+      <Label htmlFor={id} className="flex items-center gap-2">
+        <Icon className="size-4 shrink-0 text-primary" aria-hidden="true" />
+        {t(`radio.roles.${role}`)}
+      </Label>
+      <Select
+        value={preferences.voices[role] ?? AUTOMATIC_VOICE}
+        onValueChange={value =>
+          onChange(withVoice(preferences, role, value === AUTOMATIC_VOICE ? null : value))
+        }
+      >
+        <SelectTrigger id={id} className="w-full" aria-describedby={describedBy}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={AUTOMATIC_VOICE}>{t('radio.settings.voices.automatic')}</SelectItem>
+          {voices.map(voice => (
+            <SelectItem
+              key={voice.voice_id}
+              value={voice.voice_id}
+              disabled={taken.has(voice.voice_id)}
+            >
+              {voice.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
 export function RadioVoiceFields({ lng, options, preferences, onChange }: RadioFieldsProps) {
   const { t } = useTranslation(lng);
+  const commentatorsHintId = useId();
   const { personalities } = usePersonality();
-  const voiceFor = (role: RadioRole) => (value: string) =>
-    onChange(withVoice(preferences, role, value === AUTOMATIC_VOICE ? null : value));
+  // The listener's language narrows what each role's list SHOWS; a voice a role
+  // holds always stays, and « automatic » is never filtered.
+  const language = useVoiceLanguageFilter(options.voices, lng, Object.values(preferences.voices));
+  const commentators = options.commentator_roles;
+  // A role that may not share a voice (LIA, the anchor, a commentator) is told why a
+  // voice of its list is greyed out — by the commentators' own hint.
+  const voiceOf = (role: RadioSpeakingRole, icon: LucideIcon) => (
+    <VoiceSelect
+      key={role}
+      lng={lng}
+      role={role}
+      icon={icon}
+      voices={language.shown}
+      preferences={preferences}
+      taken={voicesTakenFrom(preferences, options.voices_apart, role)}
+      describedBy={
+        commentators.length > 0 && (options.voices_apart[role]?.length ?? 0) > 0
+          ? commentatorsHintId
+          : undefined
+      }
+      onChange={onChange}
+    />
+  );
   return (
     <Disclosure
       icon={Mic}
@@ -128,38 +222,25 @@ export function RadioVoiceFields({ lng, options, preferences, onChange }: RadioF
             </SelectContent>
           </Select>
         </div>
+        {language.narrows && (
+          <VoiceLanguageFilter lng={lng} only={language.only} onOnlyChange={language.setOnly} />
+        )}
         <div className="grid gap-4 sm:grid-cols-2">
-          {options.roles.map(role => {
-            const Icon = ROLE_ICONS[role];
-            const id = `radio-voice-${role}`;
-            return (
-              <div key={role} className="space-y-3 rounded-lg border p-4">
-                <Label htmlFor={id} className="flex items-center gap-2">
-                  <Icon className="size-4 shrink-0 text-primary" aria-hidden="true" />
-                  {t(`radio.roles.${role}`)}
-                </Label>
-                <Select
-                  value={preferences.voices[role] ?? AUTOMATIC_VOICE}
-                  onValueChange={voiceFor(role)}
-                >
-                  <SelectTrigger id={id} className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={AUTOMATIC_VOICE}>
-                      {t('radio.settings.voices.automatic')}
-                    </SelectItem>
-                    {options.voices.map(voice => (
-                      <SelectItem key={voice.voice_id} value={voice.voice_id}>
-                        {voice.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            );
-          })}
+          {options.roles.map(role => voiceOf(role, ROLE_ICONS[role]))}
         </div>
+        {commentators.length > 0 && (
+          <fieldset className="space-y-3">
+            <legend className="text-sm font-medium text-foreground">
+              {t('radio.settings.voices.commentators')}
+            </legend>
+            <p id={commentatorsHintId} className="text-xs text-muted-foreground">
+              {t('radio.settings.voices.commentators_hint')}
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {commentators.map(role => voiceOf(role, MessageSquareQuote))}
+            </div>
+          </fieldset>
+        )}
       </div>
     </Disclosure>
   );

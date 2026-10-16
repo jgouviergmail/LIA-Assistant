@@ -5,7 +5,7 @@ Always respond in the user's language as indicated in <Context>.
 
 <StrictErrorHandling>
 **PRIORITY RULE**: If a tool returns a JSON error, apply this response:
-1. `connector_not_activated`: Reply **EXACTLY**: "The Brave Search service is not activated. Go to **Settings > Connectors** to activate Brave Search with your API key."
+1. `CONNECTOR_NOT_ACTIVATED`: Reply **EXACTLY**: "The Brave Search service is not activated. Go to **Settings > Connectors** to activate Brave Search with your API key."
 2. `internal_error`: Report a technical issue.
 </StrictErrorHandling>
 

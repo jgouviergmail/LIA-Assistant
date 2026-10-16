@@ -64,7 +64,10 @@ class TestDirectiveCost:
             tool_names_by_step={"step_1": "fetch_web_page_tool"},
         )
         assert "FORBIDDEN" in block
-        assert _tokens(block) < 500, f"directive grew to ~{_tokens(block)} tokens"
+        # Measured ~487 before CONNECTOR_NOT_ACTIVATED was given its meaning and
+        # rule 2 its one exception (RC1.2, 2026-10-14), ~546 after. A runaway
+        # still fails here: one more uncapped failure costs about as much again.
+        assert _tokens(block) < 600, f"directive grew to ~{_tokens(block)} tokens"
 
     async def test_many_failures_do_not_grow_the_directive_without_bound(
         self, monkeypatch: pytest.MonkeyPatch

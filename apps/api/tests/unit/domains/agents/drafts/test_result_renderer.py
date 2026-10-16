@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import pytest
 
+from src.domains.agents.drafts.card_html import CardSurface
 from src.domains.agents.drafts.models import DraftAction, DraftType
 from src.domains.agents.drafts.result_renderer import render_execution_result
 from src.domains.shared.markdown_literal import read_as_markdown
@@ -103,6 +104,29 @@ def _batch_partial(
 
 # =============================================================================
 # Empty / unknown input
+
+
+@pytest.mark.parametrize("draft_type", [DraftType.EMAIL, DraftType.MAILBOX_DRAFT_SEND])
+@pytest.mark.parametrize("language", ["en", "fr", "de", "es", "it", "zh-CN"])
+@pytest.mark.parametrize("surface", [CardSurface.PLAIN, CardSurface.CHAT])
+def test_a_blind_copy_only_send_receipt_names_the_recipient_the_owner_approved(
+    draft_type: DraftType, language: str, surface: CardSurface
+) -> None:
+    result = _single_success(
+        draft_type,
+        draft_content={
+            "to": "",
+            "cc": "",
+            "bcc": "blind@example.com",
+            "subject": "Budget",
+            "body": "The approved words.",
+            "user_language": language,
+        },
+    )
+
+    assert "blind@example.com" in read_as_markdown(render_execution_result(result, surface))
+
+
 # =============================================================================
 
 

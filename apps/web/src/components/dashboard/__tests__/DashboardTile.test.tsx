@@ -1,7 +1,7 @@
 /**
  * One tile material for the whole dashboard: a SOLID card ground (the page
  * ground is the cosmos, which a translucent tile would let through), the
- * theme's wash and orb painted under the content, never over it.
+ * theme's restrained decoration painted under the content, never over it.
  */
 
 import { render, screen } from '@testing-library/react';
@@ -23,7 +23,7 @@ describe('DashboardTile', () => {
     );
     const tile = screen.getByTestId('tile');
     const layers = Array.from(tile.children);
-    // The wash and the orb first, hidden from assistive technology…
+    // Decorative layers first, hidden from assistive technology…
     expect(layers.slice(0, 2).every(el => el.getAttribute('aria-hidden') === 'true')).toBe(true);
     // …then the content, positioned so it paints over them.
     const content = layers[2];

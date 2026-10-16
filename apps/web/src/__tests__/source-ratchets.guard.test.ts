@@ -81,11 +81,12 @@ const ALLOWED: Record<string, string> = {
   'lib/utils/download-image.ts': 'binary blob download, not a JSON payload',
   'lib/utils/attachment-blob.ts': 'binary blob fetch for the document viewer, not a JSON payload',
   'lib/api/mcp-apps.ts': 'widget bridge: called from the sandboxed iframe shell origin',
-  'components/settings/ConsumptionExportSection.tsx':
-    'file download: reads Content-Disposition and response.blob(), which the client does not expose',
   'hooks/useSkills.ts':
     'FormData upload (the client forces application/json) and a zip blob download',
   'hooks/usePlugins.ts': 'FormData plugin-package upload (the client forces application/json)',
+  'hooks/useVoiceLibrary.ts':
+    'FormData upload of voice recordings — a clone and its transcript prefill (ADR-345): the ' +
+    'client forces application/json, and a multipart body needs the browser to set its boundary',
   'hooks/useLLMPricingSheet.ts':
     'FormData workbook upload (the client forces application/json, and a multipart body needs ' +
     'the browser to set its own boundary)',

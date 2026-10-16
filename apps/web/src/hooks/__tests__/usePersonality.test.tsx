@@ -12,20 +12,27 @@
  * fails it; nothing short of shared state passes.
  */
 
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { StrictMode } from 'react';
+import { act, render, renderHook, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { PersonalityListItem } from '@/types/personality';
+import type {
+  PersonalityListItem,
+  PersonalityListResponse,
+  UserPersonalityResponse,
+  UserPersonalityUpdate,
+} from '@/types/personality';
 
-const fetchPersonalities = vi.fn();
-const fetchCurrentPersonality = vi.fn();
-const updateCurrentPersonality = vi.fn();
+const fetchPersonalities = vi.fn<(signal?: AbortSignal) => Promise<PersonalityListResponse>>();
+const fetchCurrentPersonality = vi.fn<(signal?: AbortSignal) => Promise<UserPersonalityResponse>>();
+const updateCurrentPersonality =
+  vi.fn<(body: UserPersonalityUpdate) => Promise<UserPersonalityResponse>>();
 
 vi.mock('@/lib/api/personality', () => ({
-  fetchPersonalities: () => fetchPersonalities(),
-  fetchCurrentPersonality: () => fetchCurrentPersonality(),
-  updateCurrentPersonality: (body: unknown) => updateCurrentPersonality(body),
+  fetchPersonalities: (signal?: AbortSignal) => fetchPersonalities(signal),
+  fetchCurrentPersonality: (signal?: AbortSignal) => fetchCurrentPersonality(signal),
+  updateCurrentPersonality: (body: UserPersonalityUpdate) => updateCurrentPersonality(body),
 }));
 
 vi.mock('@/lib/logger', () => ({
@@ -90,7 +97,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   usePersonalityStore.getState().reset();
   authUser.current = { id: 'user-1' };
-  fetchPersonalities.mockResolvedValue({ personalities: [CALM, SHARP], count: 2 });
+  fetchPersonalities.mockResolvedValue({ personalities: [CALM, SHARP], total: 2 });
   fetchCurrentPersonality.mockResolvedValue({ personality: CALM, personality_id: CALM.id });
   updateCurrentPersonality.mockImplementation(
     async ({ personality_id }: { personality_id: string | null }) => {
@@ -154,7 +161,7 @@ describe('what the shared state must not cost', () => {
   it('shows its waiting state before the first answer, never an empty style', async () => {
     // The hook used to start at `loading: true`; the store starts at false, so
     // without `hasLoaded` the header would flash "aucun" on first paint.
-    let resolve: (value: unknown) => void = () => {};
+    let resolve: (value: PersonalityListResponse) => void = () => {};
     fetchPersonalities.mockReturnValue(
       new Promise(r => {
         resolve = r;
@@ -164,7 +171,7 @@ describe('what the shared state must not cost', () => {
     render(<Header />);
 
     expect(screen.getByTestId('header-style')).toHaveTextContent('chargement');
-    resolve({ personalities: [CALM, SHARP], count: 2 });
+    resolve({ personalities: [CALM, SHARP], total: 2 });
     await waitFor(() => expect(screen.getByTestId('header-style')).toHaveTextContent('Posé'));
   });
 
@@ -223,7 +230,7 @@ describe('a refresh is not a first load', () => {
     render(<Header />);
     await waitFor(() => expect(screen.getByTestId('header-style')).toHaveTextContent('Posé'));
 
-    let resolve: (value: unknown) => void = () => {};
+    let resolve: (value: PersonalityListResponse) => void = () => {};
     fetchPersonalities.mockReturnValue(
       new Promise(r => {
         resolve = r;
@@ -235,7 +242,7 @@ describe('a refresh is not a first load', () => {
 
     expect(screen.getByTestId('header-style')).toHaveTextContent('Posé');
     await act(async () => {
-      resolve({ personalities: [CALM, SHARP], count: 2 });
+      resolve({ personalities: [CALM, SHARP], total: 2 });
     });
   });
 
@@ -243,7 +250,7 @@ describe('a refresh is not a first load', () => {
     render(<Busy />);
     await waitFor(() => expect(screen.getByTestId('busy')).toHaveAttribute('data-busy', 'false'));
 
-    let resolve: (value: unknown) => void = () => {};
+    let resolve: (value: PersonalityListResponse) => void = () => {};
     fetchPersonalities.mockReturnValue(
       new Promise(r => {
         resolve = r;
@@ -255,8 +262,69 @@ describe('a refresh is not a first load', () => {
 
     expect(screen.getByTestId('busy')).toHaveAttribute('data-busy', 'true');
     await act(async () => {
-      resolve({ personalities: [CALM, SHARP], count: 2 });
+      resolve({ personalities: [CALM, SHARP], total: 2 });
     });
     await waitFor(() => expect(screen.getByTestId('busy')).toHaveAttribute('data-busy', 'false'));
+  });
+});
+
+describe('account-bound callbacks and first render', () => {
+  it('does not render the previous owner before the account-loading effect', async () => {
+    await usePersonalityStore.getState().load('user-1');
+    authUser.current = { id: 'user-2' };
+    const firstPaint: string[] = [];
+    function Probe() {
+      const value = usePersonality();
+      firstPaint.push(value.currentPersonality?.title ?? 'none');
+      return null;
+    }
+    render(<Probe />);
+    await waitFor(() => expect(usePersonalityStore.getState().loading).toBe(false));
+    expect(firstPaint[0]).toBe('none');
+  });
+
+  it('retained callbacks cannot read or mutate after switching accounts and returning', async () => {
+    const { result, rerender } = renderHook(() => usePersonality());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    const oldUpdate = result.current.updatePersonality;
+    const oldRefetch = result.current.refetch;
+    authUser.current = { id: 'user-2' };
+    rerender();
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    authUser.current = { id: 'user-1' };
+    rerender();
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    const reads = fetchCurrentPersonality.mock.calls.length;
+    await act(async () => {
+      await oldUpdate(SHARP.id);
+      await oldRefetch();
+    });
+    expect(updateCurrentPersonality).not.toHaveBeenCalled();
+    expect(fetchCurrentPersonality).toHaveBeenCalledTimes(reads);
+  });
+
+  it('retained callbacks become inert on unmount', async () => {
+    const { result, unmount } = renderHook(() => usePersonality());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    const old = result.current;
+    unmount();
+    await old.updatePersonality(SHARP.id);
+    await old.refetch();
+    expect(updateCurrentPersonality).not.toHaveBeenCalled();
+    expect(fetchCurrentPersonality).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Strict Mode', () => {
+  it('shares one pair of reads across consumers and the effect probe', async () => {
+    render(
+      <StrictMode>
+        <Header />
+        <SettingsPanel />
+      </StrictMode>
+    );
+    await waitFor(() => expect(screen.getByTestId('header-style')).toHaveTextContent('Posé'));
+    expect(fetchPersonalities).toHaveBeenCalledTimes(1);
+    expect(fetchCurrentPersonality).toHaveBeenCalledTimes(1);
   });
 });

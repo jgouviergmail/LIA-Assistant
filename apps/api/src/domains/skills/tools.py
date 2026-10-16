@@ -238,6 +238,7 @@ async def _run_third_party_skill(
         settle_third_party_runner,
         skill_runner_task,
     )
+    from src.domains.agents.tools.react_runner import failure_code_of, failure_sentence
     from src.domains.skills.activation import activate_skill
 
     active = active_skills_ctx.get()
@@ -262,8 +263,10 @@ async def _run_third_party_skill(
     )
     answer, _, registry = settle_third_party_runner(result, run_id_of(config), name)
     if answer is None:
+        # No answer is an empty run or a failed one; the outcome says which.
         return UnifiedToolOutput.failure(
-            message=f"Skill '{name}' returned no answer", error_code="EMPTY_RESULT"
+            message=f"Skill '{name}' {failure_sentence(result)}",
+            error_code=failure_code_of(result),
         )
     return UnifiedToolOutput.data_success(
         message=as_external(name, answer),

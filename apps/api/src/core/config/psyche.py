@@ -51,6 +51,15 @@ class PsycheSettings(BaseSettings):
         ),
     )
 
+    psyche_efficacy_collection_enabled: bool = Field(
+        default=True,
+        description="Collect bounded private domain evidence from canonical final answers.",
+    )
+    psyche_efficacy_influence_enabled: bool = Field(
+        default=True,
+        description="Allow evidence-qualified verification, clarification and limit guidance.",
+    )
+
     psyche_history_snapshot_enabled: bool = Field(
         default=True,
         description=(

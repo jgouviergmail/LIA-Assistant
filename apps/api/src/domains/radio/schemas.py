@@ -235,7 +235,17 @@ class RadioOptionsResponse(BaseModel):
     verification_checked: dict[VerificationMode, list[RadioFormat]] = Field(
         description="The formats each mode has a model read (each read is billed)."
     )
-    roles: list[RadioRole] = Field(description="The roles a voice may be chosen for.")
+    roles: list[RadioRole] = Field(
+        description="The station's team (LIA, the anchor, the expert, the editorialist)."
+    )
+    commentator_roles: list[RadioRole] = Field(
+        description="The commentators of a debate or a discussion — a voice may be chosen "
+        "for them too; left automatic, the station picks one nobody else speaks with."
+    )
+    voices_apart: dict[RadioRole, list[RadioRole]] = Field(
+        description="For each role, the roles whose voice it may not share: a commentator "
+        "never sounds like LIA, the moderator or another commentator (a write refuses it)."
+    )
     voices: list[RadioVoiceOptionResponse] = Field(description="The engine's voices.")
     voice_id_max_chars: int = Field(description="The longest voice id a preference stores.")
     station_name_max_chars: int = Field(description="The longest name a station may be given.")

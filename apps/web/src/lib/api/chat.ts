@@ -79,19 +79,17 @@ async function usageLimitError(response: Response): Promise<ChatStreamError> {
       );
 }
 
-/** Active background run of the user's conversation (ADR-117 Lot 2). */
+/**
+ * Active background run of the user's conversation (ADR-117 Lot 2).
+ * `stream_id` is null when the run relays no chunk (a ticket, a voice relay):
+ * LIA is busy, and there is no stream to reattach to.
+ */
 export interface ActiveRunStatus {
   active: boolean;
-  stream_id?: string;
+  stream_id?: string | null;
   run_id?: string;
 }
 
-/**
- * Check whether a background run is in flight for the user's conversation.
- * Called at chat-page mount (and on visibility change) to trigger reattach.
- * Fail-closed: any error reads as "no active run" (the page then behaves
- * exactly as before ADR-117 Lot 2).
- */
 /**
  * Request cancellation of the caller's in-flight background run (stop
  * button, ADR-117 Lot 3). The server resolves the active run itself.
@@ -129,6 +127,14 @@ export async function fetchPendingHitl(signal?: AbortSignal): Promise<unknown | 
   return apiClient.get<unknown>('/agents/hitl/pending', { signal });
 }
 
+/**
+ * Check whether a background run is in flight for the user's conversation.
+ * Called at chat-page mount (and on visibility change) to trigger reattach,
+ * and polled by the companion to show that LIA is working. A run without a
+ * stream stays active — the reattach itself requires a stream id.
+ * Fail-closed: any error reads as "no active run" (the page then behaves
+ * exactly as before ADR-117 Lot 2).
+ */
 export async function fetchActiveRun(): Promise<ActiveRunStatus> {
   try {
     const response = await fetch(`${API_BASE_URL}/api/v1/agents/runs/active`, {
@@ -139,7 +145,7 @@ export async function fetchActiveRun(): Promise<ActiveRunStatus> {
       return { active: false };
     }
     const body = (await response.json()) as ActiveRunStatus;
-    return body?.active && body.stream_id ? body : { active: false };
+    return body?.active ? body : { active: false };
   } catch (error) {
     logger.warn('active_run_check_failed', {
       component: 'ChatSSEClient',
@@ -232,6 +238,8 @@ export class ChatSSEClient {
         } else if (response.status === 409) {
           // A background run is already in flight for this conversation
           // (ADR-117 Lot 2) — surface its stream id so the caller reattaches.
+          // A run that relays nothing (a ticket, a voice relay) names none:
+          // the caller then says LIA is busy and the message was not sent.
           let activeStreamId: string | undefined;
           try {
             const body = (await response.json()) as {
@@ -244,7 +252,7 @@ export class ChatSSEClient {
           throw new ChatStreamError(
             'RunInProgressError',
             'errors.chat.run_in_progress',
-            'A response is already being generated for this conversation.',
+            'LIA is already working on this conversation. Your message was not sent — try again in a moment.',
             undefined,
             activeStreamId
           );

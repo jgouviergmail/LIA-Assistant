@@ -223,8 +223,8 @@ def ensure_directive_step(
         )
         return plan
 
-    # Local import: ``orchestration/__init__`` eagerly pulls the replanner and
-    # the orchestrator, so importing plan_schemas at module level would drag
+    # Local import: ``orchestration/__init__`` eagerly pulls the orchestrator and
+    # the result mappers, so importing plan_schemas at module level would drag
     # half the graph into the HTTP schema module. The edge is declared for
     # readers and mypy in the TYPE_CHECKING block above.
     from src.domains.agents.orchestration.plan_schemas import ExecutionStep, StepType
@@ -265,7 +265,7 @@ def _steps_read_by(steps: list[Any]) -> set[str]:
     Returns:
         Every step id they depend on or reference.
     """
-    # Local import: `orchestration/__init__` is heavy (replanner, orchestrator),
+    # Local import: `orchestration/__init__` is heavy (orchestrator, mappers),
     # and this module is a leaf the HTTP schemas import.
     from src.domains.agents.orchestration.step_references import STEPS_REFERENCE_PATTERN
 

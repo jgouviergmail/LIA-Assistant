@@ -62,6 +62,7 @@ graph TB
 | Perplexity | sonar-pro, sonar-reasoning | Seeded in DB |
 | Gemini | gemini-3.8-flash, gemini-3.7-flash, gemini-3.6-flash, gemini-3.5-flash, gemini-3.1-flash-lite, gemini-3.1-pro-preview; speech: gemini-3.8-flash-tts, gemini-3.8-flash-lite-tts, gemini-3.1-flash-tts-preview, gemini-2.5-flash-preview-tts, gemini-2.5-pro-preview-tts | Seeded in DB (the 2026-09-26 additions — gemini-3.1-flash-lite and three speech models — also by migration `7b3e9d1f5c2a`; gemini-3.8-flash and the two 3.8 speech models carry the price valid through 2026-12-31; they double on 2027-01-01 and must be edited then) |
 | Qwen | qwen3.8-max, qwen3.8-flash, qwen3.7-max, qwen3.7-plus, qwen3.7-flash, qwen3.6-plus, qwen3.6-flash, qwen3.5-plus, qwen3.5-flash, qwen3-max | Seeded in DB (Germany (Frankfurt) grid, Global deployment scope, for the models added 2026-09-23 — see [LLM_PROVIDERS.md](./LLM_PROVIDERS.md)) |
+| Fish Audio | speech: s2.1-pro, s2.1-pro-free, s2-pro, s1, drama-3; transcription: transcribe-1, transcribe-1-pro | Seeded in DB and by migration `a9326a120b55` (ADR-345, with the ElevenLabs v4 pair an upgraded instance never received). Speech is billed per UTF-8 BYTE of the text — stored as `per_1m_tokens` with bytes as tokens, which the `fishaudio` voice family counts; transcription per audio hour on the duration rounded up to the second. `drama-3`'s price is the owner's (the vendor publishes none); `s1` carries the retirement its vendor announced |
 | Ollama | * (local models) | Free (0.00) |
 
 ---
@@ -392,6 +393,15 @@ plus sur les pages des éditeurs, donc invérifiables et laissés tels quels : l
 `gemini-2.0-*`, les préversions Gemini `09-2025`, `gemini-3-pro-preview`,
 `gemini-embedding-001` (toujours servi), `text-embedding-004`, `embedding-001` et
 `scribe_v1`.
+
+**Un acte à prix fixe n'est pas une ligne de tarif** (ADR-345). Une conception de voix
+Fish Audio est facturée une fois par requête réussie, quel que soit le nombre de
+candidates : son prix est le réglage `FISHAUDIO_VOICE_DESIGN_COST_USD`, converti au taux
+du cache de prix et imputé au budget journalier de l'instance
+(`instance_spend.record_instance_fixed_spend`), après que le plafond de l'instance a été
+consulté. Une unité « par requête » dans la table des tarifs aurait demandé une énumération,
+un classeur et un formulaire pour un seul prix. La création d'un modèle de voix (un
+clonage) n'a pas de prix publié : rien n'est enregistré.
 
 ### Table: currency_rates
 

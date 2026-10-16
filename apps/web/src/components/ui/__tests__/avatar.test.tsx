@@ -11,6 +11,7 @@
 import { afterEach, describe, it, expect, vi } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
 
+import { contrast, type Rgb } from '@/styles/__tests__/contrast-math';
 import { Avatar, AvatarGroup, getInitials, stringToColor } from '../avatar';
 
 afterEach(() => vi.unstubAllEnvs());
@@ -27,6 +28,32 @@ describe('getInitials / stringToColor (pure utils)', () => {
     expect(stringToColor('Alice')).toBe(stringToColor('Alice'));
     expect(stringToColor('Alice')).toMatch(/^hsl\(\d+, 60%, 50%\)$/);
   });
+});
+
+it('keeps initials above WCAG AA on every one of the 360 name-hashed background hues', () => {
+  const names = new Map<number, string>();
+  for (let index = 0; names.size < 360 && index < 50000; index++) {
+    const name = `Contrast ${index}`;
+    names.set(Number.parseInt(stringToColor(name).slice(4), 10), name);
+  }
+  expect(names.size).toBe(360);
+  const rgb = (value: string): Rgb => {
+    const values = value.match(/[\d.]+/g)?.map(Number);
+    if (!values || values.length !== 3) throw new Error(`Invalid rendered RGB: ${value}`);
+    return [values[0] / 255, values[1] / 255, values[2] / 255];
+  };
+  for (const [hue, name] of names) {
+    const { container, unmount } = render(<Avatar name={name} />);
+    const background = container.querySelector<HTMLElement>('[style*="background-color"]')!;
+    const initials = background.querySelector<HTMLElement>('span')!;
+    // The pre-fix fallback uses text-white; a corrected inline foreground must resolve independently.
+    const foreground = initials.style.color || 'rgb(255, 255, 255)';
+    expect(
+      contrast(rgb(foreground), rgb(background.style.backgroundColor)),
+      `hue ${hue}`
+    ).toBeGreaterThanOrEqual(4.5);
+    unmount();
+  }
 });
 
 describe('Avatar — content variants', () => {

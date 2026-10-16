@@ -146,13 +146,24 @@ class DraftExecutionResult:
             value = self.result_data.get(key)
             return markdown_data_literal(shown_value(value)) if value else ""
 
-        return get_draft_success_message(
+        message = get_draft_success_message(
             draft_type=self.draft_type,
             language=self.user_language,
             name=_drawn("name"),
             summary=_drawn("summary"),
             title=_drawn("title"),
         )
+        if self.draft_type == "mailbox_draft_send":
+            from src.core.i18n_mailbox_send import filing_notice
+
+            notice = filing_notice(
+                self.user_language,
+                draft_kept=self.result_data.get("draft_kept") is True,
+                copy_missing=self.result_data.get("sent_copy_filed") is False,
+            )
+            if notice:
+                return f"{message} {notice}"
+        return message
 
     def _get_cancel_message(self) -> str:
         """Get localized cancellation message based on draft type and user language."""

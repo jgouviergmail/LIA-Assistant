@@ -16,6 +16,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from src.core.config import Settings
+from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.tools.context_tools import (
     get_context_state,
     list_active_domains,
@@ -252,9 +253,9 @@ async def test_rate_limit_respects_global_disable():
         result2 = await test_tool(runtime=mock_runtime)
         assert result2 == "call_2"
 
-        # Third call should be rate limited (returns JSON error)
+        # Third call is refused by the limiter: a declared failure (ADR-303)
         result3 = await test_tool(runtime=mock_runtime)
-        assert "rate_limit_exceeded" in result3
+        assert result3.error_code == ToolErrorCode.RATE_LIMIT_EXCEEDED
 
     # Test 2: Rate limiting disabled - should bypass all limits
     call_count = 0  # Reset counter

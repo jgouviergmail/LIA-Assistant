@@ -159,8 +159,7 @@ class TestClaudeServerTaskRateLimit:
                 task="check disk usage", runtime=runtime
             )
 
-            assert isinstance(blocked, str), "rate-limited call must not reach the body"
-            payload = json.loads(blocked)
-            assert payload["error"] == ToolErrorCode.RATE_LIMIT_EXCEEDED.value.lower()
-            assert payload["retry_after_seconds"] > 0
-            assert str(max_calls) in payload["limit"]
+            # The body answers FORBIDDEN: this code is the limiter's alone.
+            assert blocked.error_code == ToolErrorCode.RATE_LIMIT_EXCEEDED
+            assert blocked.metadata["retry_after_seconds"] > 0
+            assert blocked.metadata["max_calls"] == max_calls

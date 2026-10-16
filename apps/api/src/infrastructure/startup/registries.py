@@ -861,3 +861,7 @@ def init_response_feedback_hooks() -> None:
     from src.domains.journals.feedback_hooks import JournalResponseFeedbackHooks
 
     register_journal_feedback_hooks(JournalResponseFeedbackHooks())
+    from src.domains.agents.services.efficacy_feedback import EfficacyResponseFeedbackHooks
+    from src.domains.conversations.efficacy_feedback import register_efficacy_feedback_hooks
+
+    register_efficacy_feedback_hooks(EfficacyResponseFeedbackHooks())

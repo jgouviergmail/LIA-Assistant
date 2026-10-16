@@ -13,9 +13,6 @@
  * scans a "what is coming" list.
  */
 
-import { Clock } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
-
 import { formatInstant } from '@/lib/format-instant';
 
 export interface PendingReminder {
@@ -31,28 +28,19 @@ export function PendingRemindersList({
   reminders: readonly PendingReminder[];
   locale: string;
 }) {
-  const { t } = useTranslation();
-
   return (
-    <ul className="space-y-2" role="list">
+    <ul className="divide-y divide-border/50" role="list">
       {reminders.map(reminder => (
-        <li
-          key={reminder.id}
-          className="flex items-start gap-2 rounded-lg border border-border/40 bg-card/40 px-3 py-2"
-        >
-          <Clock
-            className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400"
-            aria-hidden="true"
-          />
+        <li key={reminder.id} className="min-w-0 py-4 first:pt-0 last:pb-0">
           <div className="min-w-0 flex-1">
-            <p className="text-sm text-foreground/90">{reminder.content}</p>
+            <p className="break-words whitespace-pre-line text-sm leading-relaxed text-foreground/90">
+              {reminder.content}
+            </p>
             <time
               dateTime={reminder.trigger_at}
-              className="text-px-11 tabular-nums text-muted-foreground"
+              className="mt-1 block text-xs tabular-nums leading-relaxed text-muted-foreground"
             >
-              {t('notifications_hub.reminder_at', {
-                when: formatInstant(reminder.trigger_at, locale),
-              })}
+              {formatInstant(reminder.trigger_at, locale)}
             </time>
           </div>
         </li>

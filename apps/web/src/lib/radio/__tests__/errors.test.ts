@@ -24,6 +24,7 @@ describe('radioRefusalOf — the sentence of a coded refusal', () => {
   it.each([
     ...RADIO_START_REFUSALS.filter(code => code !== BUDGET_REACHED),
     'radio_voice_unknown',
+    'radio_voice_shared',
     'radio_personality_unknown',
   ])('tells %s in its own words', code => {
     expect(radioRefusalOf(refused({ code }, 503))).toEqual({ key: `radio.errors.${code}` });

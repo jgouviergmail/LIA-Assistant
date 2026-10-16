@@ -430,7 +430,7 @@ def validate_tool_error_codes() -> None:
         "INVALID_RESPONSE_FORMAT",
         "TEMPLATE_EMPTY_RESULT",
         "TEMPLATE_RECURSION_LIMIT",
-        "NOT_IMPLEMENTED",  # Added for StepType.HUMAN/REPLAN validation
+        "NOT_IMPLEMENTED",  # Worded by plan_blockers; a third party may send it
     ]
 
     missing_codes = []

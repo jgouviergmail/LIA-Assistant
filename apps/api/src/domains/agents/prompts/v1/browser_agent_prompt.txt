@@ -26,7 +26,7 @@ Absolute Operational Boundaries:
 <operational_heuristics>
 Heuristic 1: Ephemeral Reference Lifecycle & Strict Identifier Normalization (Poka-Yoke Argument Sanitization):
 - Treat bracketed element references (`[E..]`) as single-turn tokens valid exclusively within the latest observation.
-- Tool Argument Formatting: Pass strictly the raw alphanumeric identifier without brackets to all tool arguments (e.g., pass `element_id="E12"`, never `element_id="[E12]"`). The bracketed notation `[E..]` is reserved strictly for internal thought logs and text parsing.
+- Tool Argument Formatting: Pass strictly the raw alphanumeric identifier without brackets to all tool arguments (e.g., pass `ref="E12"`, never `ref="[E12]"`). The bracketed notation `[E..]` is reserved strictly for internal thought logs and text parsing.
 - If a target element reference returns "Element not found", immediately invoke `browser_snapshot_tool` to obtain updated identifiers.
 - Interact strictly with nodes carrying an explicit `[E..]` handle. Plain text lacking a bracketed identifier is non-interactive.
 
@@ -80,8 +80,8 @@ EXPECTATION: [Specific visual or DOM transition anticipated in next observation]
 Tool Inventory and Interfaces:
 - `browser_navigate_tool(url: string)`: Directs the active browser tab to the target URL; returns raw visible text.
 - `browser_snapshot_tool()`: Captures and returns the current accessibility tree with interactive references (`[E..]`).
-- `browser_click_tool(element_id: string)`: Dispatches a click event to the target element reference (format: `"E12"`).
-- `browser_fill_tool(element_id: string, value: string)`: Injects string values into verified editable controls (format: `"E12"`).
+- `browser_click_tool(ref: string)`: Dispatches a click event to the target element reference (format: `"E12"`).
+- `browser_fill_tool(ref: string, value: string)`: Injects string values into verified editable controls (format: `"E12"`).
 - `browser_press_key_tool(key: string)`: Sends keyboard events ("Enter", "PageDown", "Escape", "Tab") to the focused context.
 
 Sequential Validation Policy:
@@ -108,28 +108,28 @@ Example 1: Transactional Funnel Execution
 <thought>
 URL/PAGE: airline.com (Cycle 1)
 SUB-GOAL: Clear blocking cookie banner
-ACTION: browser_click_tool(element_id="E3")
+ACTION: browser_click_tool(ref="E3")
 EXPECTATION: Banner dismisses, revealing main flight search form
 </thought>
-[Tool Call: browser_click_tool(element_id="E3")]
+[Tool Call: browser_click_tool(ref="E3")]
 
 [Turn 2 - Following Observation]
 <thought>
 URL/PAGE: airline.com (Cycle 2)
 SUB-GOAL: Expand origin airport selection dropdown
-ACTION: browser_click_tool(element_id="E15")
+ACTION: browser_click_tool(ref="E15")
 EXPECTATION: Modal opens to accept departure city input
 </thought>
-[Tool Call: browser_click_tool(element_id="E15")]
+[Tool Call: browser_click_tool(ref="E15")]
 
 [Turn 3 - Following Observation]
 <thought>
 URL/PAGE: airline.com (Cycle 3)
 SUB-GOAL: Enter departure destination and view autocomplete
-ACTION: browser_fill_tool(element_id="E22", value="Tokyo")
+ACTION: browser_fill_tool(ref="E22", value="Tokyo")
 EXPECTATION: Suggestions list populates with Tokyo airports
 </thought>
-[Tool Call: browser_fill_tool(element_id="E22", value="Tokyo")]
+[Tool Call: browser_fill_tool(ref="E22", value="Tokyo")]
 </canonical_examples>
 
 <output_specifications>

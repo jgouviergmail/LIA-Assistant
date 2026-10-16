@@ -25,6 +25,7 @@ from src.domains.live.preference_gateway import SavedLivePreferences
 from src.domains.live.preferences import LivePreferences
 from src.domains.users.models import User
 from src.infrastructure.live_preferences import configure_live_preferences
+from tests.helpers.draft_refusals import draft_refusal_code
 from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
 
 pytestmark = pytest.mark.integration
@@ -111,9 +112,9 @@ async def test_live_confirmation_preserves_provider_and_refuses_changed_authorit
     )
     assert test_user.live_preferences["end_of_speech"] == expected
     if intervention in {"manual_change", "provider_change"}:
-        assert outcome.error == "STALE_STATE"
+        assert draft_refusal_code(outcome) == "STALE_STATE"
     if intervention in {"platform_off", "live_off"}:
-        assert outcome.error == "CAPABILITY_DISABLED"
+        assert draft_refusal_code(outcome) == "CAPABILITY_DISABLED"
         ledger.claim.assert_not_awaited()
     hints = [queue.get_nowait() for _ in range(queue.qsize())]
     hints = [event for event in hints if event.type == "application_state_changed"]

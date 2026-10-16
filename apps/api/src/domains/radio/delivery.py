@@ -10,6 +10,11 @@ renders what the family declares the engine's MODEL accepts
 render, so the pipeline counts it rather than pretending — the
 ``kwargs_for`` shape of ADR-245 applied to speech.
 
+An engine that performs cues written in the text (ADR-345) is also handed ONE
+delivery cue opening the line — the tone's when the engine performs it, else
+the energy's — spelled the engine's way
+(:func:`src.domains.voice.expressive_cues.cue_dialect`).
+
 It never raises: an unknown provider renders nothing and reports everything.
 """
 
@@ -22,6 +27,7 @@ from typing import Any, Final
 from src.core.prompt_store import parse_prompt_sections
 from src.domains.radio.formats import RadioRole
 from src.domains.radio.script import Energy, Pace, RadioDelivery, Tone
+from src.domains.voice.expressive_cues import Cue, CueDialect, cue_dialect
 from src.domains.voice.families import TtsControl, controls_for
 
 #: The versioned lines file an engine directed in words is read from.
@@ -62,6 +68,17 @@ _ELEVEN_TONE: Final[dict[Tone, tuple[float, float]]] = {
 _ELEVEN_DEFAULT_STABILITY: Final[float] = 0.5
 _ELEVEN_DEFAULT_STYLE: Final[float] = 0.0
 
+# The cue a non-neutral tone or energy asks for, on an engine that performs cues
+# (ADR-345). One cue opens a line: the tone says more about how a sentence is
+# meant than its energy does, so the tone's is tried first.
+_TONE_CUES: Final[dict[Tone, Cue]] = {
+    Tone.WARM: Cue.WARM,
+    Tone.SERIOUS: Cue.SERIOUS,
+    Tone.UPBEAT: Cue.CHEERFUL,
+    Tone.CONCERNED: Cue.EMPATHETIC,
+}
+_ENERGY_CUES: Final[dict[Energy, Cue]] = {Energy.CALM: Cue.CALM, Energy.LIVELY: Cue.EXCITED}
+
 
 @dataclass(frozen=True, slots=True)
 class StylePhrases:
@@ -84,10 +101,17 @@ class StylePhrases:
 
 @dataclass(frozen=True, slots=True)
 class RenderedDelivery:
-    """What an engine receives, and which requested dimensions it could not express."""
+    """What an engine receives, and which requested dimensions it could not express.
+
+    Attributes:
+        kwargs: The per-call controls.
+        unrendered: The requested dimensions nothing expressed.
+        cue: The cue opening the line, spelled for the engine (empty when none).
+    """
 
     kwargs: dict[str, Any]
     unrendered: tuple[str, ...]
+    cue: str = ""
 
 
 def _requested(delivery: RadioDelivery) -> tuple[str, ...]:
@@ -114,6 +138,24 @@ def _eleven_settings(delivery: RadioDelivery, base: Mapping[str, Any] | None) ->
         stability += d_stability
         style += d_style
     return {**settings, "stability": _clamp01(stability), "style": _clamp01(style)}
+
+
+def _opening_cue(delivery: RadioDelivery, dialect: CueDialect) -> tuple[str, str | None]:
+    """The one cue opening the line, and the dimension it expresses.
+
+    Returns:
+        The cue spelled for the engine and the dimension (``tone`` or
+        ``energy``) it renders, or ``("", None)`` when the engine performs
+        neither cue the delivery asks for.
+    """
+    for dimension, cue in (
+        ("tone", _TONE_CUES.get(delivery.tone)),
+        ("energy", _ENERGY_CUES.get(delivery.energy)),
+    ):
+        spelled = dialect.render(cue) if cue is not None else None
+        if spelled is not None:
+            return spelled, dimension
+    return "", None
 
 
 def _style_prompt(role: RadioRole, delivery: RadioDelivery, phrases: StylePhrases) -> str:
@@ -187,12 +229,16 @@ def delivery_kwargs(
             delivery bends (never replaced, never mutated).
 
     Returns:
-        The per-call kwargs, and the requested dimensions the engine cannot express.
+        The per-call kwargs, the cue opening the line, and the requested
+        dimensions the engine cannot express.
     """
     asked = _requested(delivery)
     controls = controls_for(provider, model)
     kwargs: dict[str, Any] = {}
     rendered: set[str] = set()
+    cue, cued = _opening_cue(delivery, cue_dialect(provider, model))
+    if cued is not None:
+        rendered.add(cued)
     if TtsControl.STYLE_PROMPT in controls:
         kwargs["style"] = _style_prompt(role, delivery, phrases)
         rendered.update(asked)
@@ -210,7 +256,9 @@ def delivery_kwargs(
         kwargs["voice_settings"] = _eleven_settings(delivery, base_voice_settings)
         rendered.update({"energy", "tone"})
     return RenderedDelivery(
-        kwargs=kwargs, unrendered=tuple(dim for dim in asked if dim not in rendered)
+        kwargs=kwargs,
+        unrendered=tuple(dim for dim in asked if dim not in rendered),
+        cue=cue,
     )
 
 

@@ -15,6 +15,7 @@ from uuid import UUID
 
 import pytest
 
+from src.domains.agents.services.planner.planning_result import PlanningResult
 from src.domains.agents.services.planner.strategies.skill_bypass import (
     SkillBypassStrategy,
     _filter_steps_by_scopes,
@@ -160,6 +161,8 @@ TOOL_MANIFESTS = {
     "get_task_tool": _MockManifest("get_task_tool", _MockPermissions(["tasks.read"])),
     "get_weather_tool": _MockManifest("get_weather_tool", _MockPermissions([])),
     "get_email_tool": _MockManifest("get_email_tool", _MockPermissions(["gmail.read"])),
+    # A REAL category tool name: the provider serving it is read from its class.
+    "get_emails_tool": _MockManifest("get_emails_tool", _MockPermissions(["gmail.read"])),
     "get_reminder_tool": _MockManifest("get_reminder_tool", _MockPermissions([])),
     "get_brave_tool": _MockManifest("get_brave_tool", _MockPermissions([])),
 }
@@ -213,6 +216,16 @@ def _active_skills_all():
     with patch("src.core.context.active_skills_ctx") as ctx:
         ctx.get.return_value = None
         yield ctx
+
+
+@pytest.fixture(autouse=True)
+def _known_providers():
+    """The request knows the account's providers: none of the categories here."""
+    from src.core.context import active_connector_types_ctx
+
+    token = active_connector_types_ctx.set(frozenset())
+    yield
+    active_connector_types_ctx.reset(token)
 
 
 @pytest.fixture(autouse=True)
@@ -527,7 +540,7 @@ class TestFilterStepsByScopes:
             {"step_id": "s1", "tool_name": "get_event_tool"},
             {"step_id": "s2", "tool_name": "get_weather_tool"},
         ]
-        result = _filter_steps_by_scopes(steps, {"calendar.read"})
+        result = _filter_steps_by_scopes(steps, {"calendar.read"}, frozenset())
         assert len(result) == 2
 
     @pytest.mark.unit
@@ -537,7 +550,7 @@ class TestFilterStepsByScopes:
             {"step_id": "s1", "tool_name": "get_event_tool"},
             {"step_id": "s2", "tool_name": "get_email_tool"},
         ]
-        result = _filter_steps_by_scopes(steps, {"calendar.read"})
+        result = _filter_steps_by_scopes(steps, {"calendar.read"}, frozenset())
         assert len(result) == 1
         assert result[0]["step_id"] == "s1"
 
@@ -547,7 +560,7 @@ class TestFilterStepsByScopes:
         steps = [
             {"step_id": "s1", "agent_name": "some_agent"},
         ]
-        result = _filter_steps_by_scopes(steps, set())
+        result = _filter_steps_by_scopes(steps, set(), frozenset())
         assert len(result) == 1
 
     @pytest.mark.unit
@@ -556,7 +569,7 @@ class TestFilterStepsByScopes:
         steps = [
             {"step_id": "s1", "tool_name": "get_weather_tool"},
         ]
-        result = _filter_steps_by_scopes(steps, set())
+        result = _filter_steps_by_scopes(steps, set(), frozenset())
         assert len(result) == 1
 
     @pytest.mark.unit
@@ -565,13 +578,13 @@ class TestFilterStepsByScopes:
         steps = [
             {"step_id": "s1", "tool_name": "mcp_unknown_tool"},
         ]
-        result = _filter_steps_by_scopes(steps, set())
+        result = _filter_steps_by_scopes(steps, set(), frozenset())
         assert len(result) == 1
 
     @pytest.mark.unit
     def test_empty_steps_returns_empty(self):
         """Empty input returns empty output."""
-        result = _filter_steps_by_scopes([], {"calendar.read"})
+        result = _filter_steps_by_scopes([], {"calendar.read"}, frozenset())
         assert result == []
 
     @pytest.mark.unit
@@ -582,13 +595,50 @@ class TestFilterStepsByScopes:
             {"step_id": "s2", "tool_name": "get_email_tool", "depends_on": ["s1"]},
             {"step_id": "s3", "tool_name": "get_weather_tool", "depends_on": ["s1", "s2"]},
         ]
-        result = _filter_steps_by_scopes(steps, {"calendar.read"})
+        result = _filter_steps_by_scopes(steps, {"calendar.read"}, frozenset())
         assert len(result) == 2
         assert result[0]["step_id"] == "s1"
         assert result[1]["step_id"] == "s3"
         assert result[1]["depends_on"] == ["s1"]
         # Original step dict must NOT be mutated (cache safety)
         assert steps[2]["depends_on"] == ["s1", "s2"]
+
+
+class TestAStepAnotherProviderServes:
+    """RC1.1: the email step of a briefing was dropped for every Outlook and
+    iCloud account, whose connectors never grant a Gmail scope."""
+
+    @pytest.fixture(autouse=True)
+    def _email_tool_classes(self):
+        from src.domains.agents.tools import tool_registry
+
+        tool_registry.ensure_tools_loaded()
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("provider", ["microsoft_outlook", "apple_email"])
+    def test_is_kept_for_an_account_on_that_provider(self, provider: str):
+        steps = [{"step_id": "s1", "tool_name": "get_emails_tool"}]
+
+        assert _filter_steps_by_scopes(steps, set(), frozenset({provider})) == steps
+
+    @pytest.mark.unit
+    def test_a_gmail_account_without_the_scope_still_loses_it(self):
+        steps = [{"step_id": "s1", "tool_name": "get_emails_tool"}]
+
+        assert _filter_steps_by_scopes(steps, set(), frozenset({"google_gmail"})) == []
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("provider", ["microsoft_outlook", "apple_email"])
+    def test_a_dual_active_account_does_not_waive_the_gmail_scope(self, provider: str):
+        steps = [{"step_id": "s1", "tool_name": "get_emails_tool"}]
+        assert _filter_steps_by_scopes(steps, set(), frozenset({"google_gmail", provider})) == []
+
+    @pytest.mark.unit
+    def test_unknown_providers_drop_nothing(self):
+        """Outside a request, the execution — which resolves the provider — decides."""
+        steps = [{"step_id": "s1", "tool_name": "get_emails_tool"}]
+
+        assert _filter_steps_by_scopes(steps, set(), None) == steps
 
 
 class TestAThirdPartyTemplateNeverBecomesAPlan:
@@ -621,3 +671,46 @@ class TestAThirdPartyTemplateNeverBecomesAPlan:
             third_party_skills_ctx.reset(token)
 
         assert result.success is planned
+
+
+class TestATemplateRunsOnlyTheStepsATemplateCanCarry:
+    """A template step the executor would refuse is refused at planning.
+
+    The skill guide offered REPLAN and HUMAN and the skill generator PARALLEL and
+    RESPONSE; a template carries a TOOL step's fields alone, so a CONDITIONAL
+    step arrives without its condition. Refused here, the request falls through
+    to the LLM planner instead of reaching the executor as a step it cannot run
+    (ADR-346 amendment).
+    """
+
+    @staticmethod
+    async def _plan_with_step_type(step_type: str) -> PlanningResult:
+        skill = _make_skill("typed-skill", ["weather"])
+        skill["plan_template"]["steps"][0]["step_type"] = step_type
+        with patch(
+            "src.domains.skills.cache.SkillsCache.get_by_name_for_user",
+            side_effect=_make_cache_lookup([skill]),
+        ):
+            return await SkillBypassStrategy().plan(
+                intelligence=_make_intelligence(detected_skill_name="typed-skill"),
+                config=_make_config(),
+            )
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize(
+        "step_type", ["REPLAN", "HUMAN", "PARALLEL", "RESPONSE", "CONDITIONAL"]
+    )
+    async def test_a_step_type_a_template_cannot_run_refuses_the_template(
+        self, step_type: str
+    ) -> None:
+        result = await self._plan_with_step_type(step_type)
+
+        assert result.success is False
+        assert result.plan is None
+
+    @pytest.mark.unit
+    async def test_an_explicit_tool_step_builds_the_plan(self) -> None:
+        result = await self._plan_with_step_type("TOOL")
+
+        assert result.success is True
+        assert [step.step_type.value for step in result.plan.steps] == ["TOOL"]

@@ -56,7 +56,6 @@ from .for_each_rules import validate_for_each_patterns as validate_for_each_patt
 # Pure plan predicates extracted to plan_predicates.py (file-size ratchet):
 # they answer "what does this plan do?" with no LLM and no I/O. Re-exported
 # (``as`` form: explicit re-export under mypy strict) for historical callers.
-from .plan_predicates import CROSS_DOMAIN_CAPABLE_TOOLS as CROSS_DOMAIN_CAPABLE_TOOLS
 from .plan_predicates import MUTATION_TOOL_PATTERNS as MUTATION_TOOL_PATTERNS
 from .plan_predicates import (
     detect_placeholder_contacts,
@@ -458,9 +457,71 @@ def validate_steps_references(plan: ExecutionPlan) -> tuple[bool, str | None]:
 # Configuration:
 # - Feature flag: INSUFFICIENT_CONTENT_DETECTION_ENABLED (settings)
 # - Min chars threshold: INSUFFICIENT_CONTENT_MIN_CHARS_THRESHOLD (settings)
-# - Tool patterns: INSUFFICIENT_CONTENT_TOOL_PATTERNS (constants.py)
+# - Tools, by exact name: INSUFFICIENT_CONTENT_TOOL_DOMAINS (constants.py)
 # - Detection patterns: HitlMessages.get_insufficient_content_patterns() (i18n)
 # ============================================================================
+
+
+_PIVOT_WORD = re.compile(r"[a-z]+")
+
+
+def _names_a_draft(english_request: str) -> bool:
+    """Whether the English pivot speaks of a mailbox draft (whole words only).
+
+    Args:
+        english_request: The request after the Semantic Pivot.
+
+    Returns:
+        True when one of ``EARLY_DETECTION_DRAFT_WORDS`` is a word of it.
+    """
+    from src.core.constants import EARLY_DETECTION_DRAFT_WORDS
+
+    return not EARLY_DETECTION_DRAFT_WORDS.isdisjoint(_PIVOT_WORD.findall(english_request.lower()))
+
+
+def _early_detection_domain(query_intelligence: Any, user_request: str) -> str | None:
+    """The insufficient-content domain the early detection checks, or None.
+
+    Only a mutation intent on a mapped domain is checked, and never a request
+    about a mailbox draft: the draft already holds its recipient and content,
+    or LIA writes them (a reply drafted from the original message).
+
+    Args:
+        query_intelligence: QueryIntelligence object or dict (``domains``,
+            ``immediate_intent``), or None.
+        user_request: The request after the Semantic Pivot.
+
+    Returns:
+        The domain key of ``INSUFFICIENT_CONTENT_REQUIRED_FIELDS``, or None.
+    """
+    from src.core.constants import (
+        EARLY_DETECTION_DOMAIN_MAP,
+        EARLY_DETECTION_DRAFT_DOMAINS,
+        EARLY_DETECTION_MUTATION_INTENTS,
+    )
+
+    if query_intelligence is None:
+        return None
+    if isinstance(query_intelligence, dict):
+        domains = query_intelligence.get("domains", [])
+        intent = query_intelligence.get("immediate_intent", "")
+    else:
+        domains = getattr(query_intelligence, "domains", [])
+        intent = getattr(query_intelligence, "immediate_intent", "")
+    intent_lower = (intent or "").lower()
+    if intent_lower not in EARLY_DETECTION_MUTATION_INTENTS:
+        return None
+    insufficient_domain = next(
+        (
+            EARLY_DETECTION_DOMAIN_MAP[key]
+            for key in (((domain or "").lower(), intent_lower) for domain in domains)
+            if key in EARLY_DETECTION_DOMAIN_MAP
+        ),
+        None,
+    )
+    if insufficient_domain in EARLY_DETECTION_DRAFT_DOMAINS and _names_a_draft(user_request):
+        return None
+    return insufficient_domain
 
 
 def detect_early_insufficient_content(
@@ -500,42 +561,13 @@ def detect_early_insufficient_content(
     user_language = resolve_language(user_language)
     from src.core.constants import (
         EARLY_DETECTION_CONTENT_FIELDS,
-        EARLY_DETECTION_DOMAIN_MAP,
-        EARLY_DETECTION_MUTATION_INTENTS,
         EARLY_DETECTION_SKIP_FIELDS,
         INSUFFICIENT_CONTENT_REQUIRED_FIELDS,
     )
     from src.core.i18n_hitl import EARLY_RECIPIENT_PATTERNS
 
-    # NOTE: Insufficient content detection is always enabled
-
-    if query_intelligence is None:
-        return None
-
-    # Extract fields from QueryIntelligence (handle dict and object)
-    if isinstance(query_intelligence, dict):
-        domains = query_intelligence.get("domains", [])
-        intent = query_intelligence.get("immediate_intent", "")
-    else:
-        domains = getattr(query_intelligence, "domains", [])
-        intent = getattr(query_intelligence, "immediate_intent", "")
-
-    intent_lower = (intent or "").lower()
-
-    # Only trigger for mutation intents
-    if intent_lower not in EARLY_DETECTION_MUTATION_INTENTS:
-        return None
-
-    # Find matching insufficient_content_domain from (domain, intent)
-    insufficient_domain = None
-    for domain in domains:
-        domain_lower = (domain or "").lower()
-        key = (domain_lower, intent_lower)
-        if key in EARLY_DETECTION_DOMAIN_MAP:
-            insufficient_domain = EARLY_DETECTION_DOMAIN_MAP[key]
-            break
-
-    if not insufficient_domain:
+    insufficient_domain = _early_detection_domain(query_intelligence, user_request)
+    if insufficient_domain is None:
         return None
 
     # Get required fields for this domain
@@ -617,7 +649,7 @@ def detect_insufficient_content(
     hasn't provided enough information for a mutation operation.
 
     Detection logic (v2 - RECURSIVE field-by-field):
-    1. Identify the domain from the tool name
+    1. Identify the domain from the tool's EXACT name
     2. Get required fields for that domain, sorted by priority
     3. Check each field in priority order
     4. Return clarification for the FIRST missing REQUIRED field
@@ -635,82 +667,71 @@ def detect_insufficient_content(
 
     Returns:
         SemanticValidationResult with requires_clarification=True if insufficient,
-        None if content is sufficient, not applicable, or feature disabled.
+        None if content is sufficient or the tool needs none.
 
     Example:
-        >>> plan = ExecutionPlan(steps=[Step(tool="send_email_draft", params={"to": "marie"})])
+        >>> plan = ExecutionPlan(steps=[Step(tool="send_email_tool", params={"to": "marie"})])
         >>> result = detect_insufficient_content(plan, "send an email to marie", "fr")
         >>> result.requires_clarification  # True
         >>> result.clarification_questions  # ["What would you like to write in this email?"]
     """
     from src.core.constants import (
         INSUFFICIENT_CONTENT_REQUIRED_FIELDS,
-        INSUFFICIENT_CONTENT_TOOL_PATTERNS,
+        INSUFFICIENT_CONTENT_TOOL_DOMAINS,
     )
 
     # NOTE: Insufficient content detection is always enabled
 
     for i, step in enumerate(plan.steps):
         tool_name = (step.tool_name or "").lower()
+        # The tool's EXACT name: a fragment matched tools that share a prefix
+        # and none of the required fields (send_email_to_me_tool, 2026-10-13).
+        domain = INSUFFICIENT_CONTENT_TOOL_DOMAINS.get(tool_name)
+        if domain is None:
+            continue
         params = step.parameters or {}
 
-        # Find matching tool pattern from centralized constants
-        for tool_pattern, domain in INSUFFICIENT_CONTENT_TOOL_PATTERNS.items():
-            if tool_pattern in tool_name:
-                # Get required fields for this domain, sorted by priority
-                required_fields = INSUFFICIENT_CONTENT_REQUIRED_FIELDS.get(domain, [])
-                if not required_fields:
-                    continue
+        # Sort by priority (lowest = first to ask)
+        required_fields = INSUFFICIENT_CONTENT_REQUIRED_FIELDS.get(domain, [])
+        sorted_fields = sorted(required_fields, key=lambda f: f.get("priority", 99))
 
-                # Sort by priority (lowest = first to ask)
-                sorted_fields = sorted(required_fields, key=lambda f: f.get("priority", 99))
+        # Check each field in priority order
+        for field_def in sorted_fields:
+            field_name = field_def["field"]
 
-                # Check each field in priority order
-                for field_def in sorted_fields:
-                    field_name = field_def["field"]
-                    param_names = field_def["param_names"]
-                    is_required = field_def.get("required", True)
+            # Only required fields trigger a clarification
+            if not field_def.get("required", True):
+                continue
 
-                    # Only check required fields for clarification trigger
-                    if not is_required:
-                        continue
+            # Check if ANY param name for this field has a value
+            if _check_field_has_value(params, field_def["param_names"]):
+                continue
 
-                    # Check if ANY param name for this field has a value
-                    field_has_value = _check_field_has_value(params, param_names)
+            # No value in params: the user may have dictated it inline.
+            # Example: "send an email to marie to wish her happy birthday"
+            # The "to wish her..." part IS the content
+            if field_name in ("body", "subject", "title") and _check_request_has_inline_content(
+                user_request=user_request,
+                domain=domain,
+                min_chars_threshold=settings.insufficient_content_min_chars_threshold,
+            ):
+                logger.debug(
+                    "insufficient_content_inline_detected",
+                    domain=domain,
+                    field=field_name,
+                    user_request_preview=user_request[:50],
+                )
+                continue
 
-                    # If no value in params, check if user provided inline content
-                    # Example: "send an email to marie to wish her happy birthday"
-                    # The "to wish her..." part IS the content
-                    if not field_has_value and field_name in ("body", "subject", "title"):
-                        min_chars = settings.insufficient_content_min_chars_threshold
-                        has_inline = _check_request_has_inline_content(
-                            user_request=user_request,
-                            domain=domain,
-                            min_chars_threshold=min_chars,
-                        )
-                        if has_inline:
-                            # User provided inline content, skip this field
-                            logger.debug(
-                                "insufficient_content_inline_detected",
-                                domain=domain,
-                                field=field_name,
-                                user_request_preview=user_request[:50],
-                            )
-                            continue
-
-                    if not field_has_value:
-                        # First missing required field found - return clarification
-                        return _create_field_clarification_result(
-                            domain=domain,
-                            field_name=field_name,
-                            field_def=field_def,
-                            user_language=resolve_language(user_language),
-                            step_index=i,
-                            tool_name=tool_name,
-                        )
-
-                # All required fields present for this tool
-                break
+            # First missing required field found - return clarification
+            return _create_field_clarification_result(
+                domain=domain,
+                field_name=field_name,
+                field_def=field_def,
+                user_language=resolve_language(user_language),
+                step_index=i,
+                tool_name=tool_name,
+            )
 
     return None
 

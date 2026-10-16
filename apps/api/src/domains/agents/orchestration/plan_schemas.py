@@ -9,11 +9,12 @@ The DSL supports:
 - Multiple agents (each step names its agent)
 - Dependencies between steps ($steps.X.field references a result)
 - Conditions (branching on results)
-- HITL (Human-In-The-Loop) for the user's approval
+- HITL (Human-In-The-Loop): a TOOL step may require the user's approval
+  (``approvals_required``)
 - Error handling (on_fail actions)
 
 Architecture:
-- ExecutionStep: one step of the plan (TOOL, CONDITIONAL, REPLAN, HUMAN)
+- ExecutionStep: one step of the plan (TOOL, CONDITIONAL)
 - ExecutionPlan: the whole plan with its metadata (version, cost, timeout)
 - StepType: the supported step types
 - PlanValidationError: a plan validation error
@@ -170,27 +171,20 @@ def parameters_to_dict(parameters: list[ParameterItem]) -> dict[str, Any]:
 
 class StepType(str, Enum):
     """
-    Step types an ExecutionPlan supports.
+    Step types an ExecutionPlan supports — each one has an executor.
 
-    MVP (Phase 1):
-    - TOOL: runs a tool through an agent
-    - CONDITIONAL: branches on results
-
-    Future (Phase 2):
-    - REPLAN: the LLM planner regenerates the plan
-    - HUMAN: asks for a HITL (Human-In-The-Loop) approval
+    A type nothing executes is not declared ahead of time: REPLAN and HUMAN
+    were, accepted by the schema and offered to skill authors, and every step
+    of either type failed at execution (ADR-346 amendment). A test holds this
+    enum equal to the executor's dispatch.
 
     Attributes:
         TOOL: a tool call through an agent
         CONDITIONAL: evaluates a condition to branch
-        REPLAN: asks for a new plan (future)
-        HUMAN: interrupts for a human approval (future)
     """
 
     TOOL = "TOOL"
     CONDITIONAL = "CONDITIONAL"
-    REPLAN = "REPLAN"  # Phase 2
-    HUMAN = "HUMAN"  # Phase 2
 
 
 # ============================================================================
@@ -207,8 +201,6 @@ class StepType(str, Enum):
 _REQUIRED_FIELDS_BY_STEP_TYPE: dict[StepType, frozenset[str]] = {
     StepType.TOOL: frozenset({FIELD_AGENT_NAME, FIELD_TOOL_NAME}),
     StepType.CONDITIONAL: frozenset({"condition"}),
-    StepType.REPLAN: frozenset(),
-    StepType.HUMAN: frozenset(),
 }
 
 assert set(_REQUIRED_FIELDS_BY_STEP_TYPE) == set(StepType), (
@@ -225,14 +217,12 @@ class ExecutionStep(BaseModel):
     An atomic action to run:
     - a tool call through an agent (TOOL)
     - a conditional branch (CONDITIONAL)
-    - a new plan (REPLAN, future)
-    - a human approval (HUMAN, future)
 
     Mutable on purpose (``frozen=False``): steps may be adjusted during execution.
 
     Attributes:
         step_id: Unique step identifier (e.g. "step_1", "step_2")
-        step_type: Step type (TOOL, CONDITIONAL, etc.)
+        step_type: Step type (TOOL or CONDITIONAL)
         agent_name: The agent in charge (e.g. "contacts_agent")
         tool_name: The tool to run (when step_type=TOOL)
         parameters: Tool parameters (may contain $steps.X references)
@@ -282,7 +272,7 @@ class ExecutionStep(BaseModel):
     # (e.g., resolved parameters, execution metadata)
 
     step_id: str = Field(description="Unique step identifier (e.g. 'step_1', 'search_contacts')")
-    step_type: StepType = Field(description="Step type (TOOL, CONDITIONAL, etc.)")
+    step_type: StepType = Field(description="Step type (TOOL or CONDITIONAL)")
     agent_name: str | None = Field(default=None, description="Agent name (required for TOOL)")
     tool_name: str | None = Field(default=None, description="Tool name (required for TOOL)")
     parameters: dict[str, Any] = Field(

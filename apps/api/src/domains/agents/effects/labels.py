@@ -135,6 +135,15 @@ EFFECT_LABEL_BUILDERS: dict[str, LabelValuesBuilder] = {
     # An e-mail to the account holder themselves (ADR-314): the subject is what
     # the row names — the recipient is always the reader.
     "send_email_to_me_tool": _target("subject", "content_instruction"),
+    # The person's own mailbox drafts (ADR-344), saved, edited or trashed with no
+    # confirmation. A reply's call names nothing readable (the message it answers
+    # is an id), and a deletion may select its drafts by a query: both say what
+    # was done, never a "?".
+    "create_mailbox_draft_tool": _target("subject", "to", "content_instruction", "body"),
+    "create_mailbox_reply_draft_tool": _nothing,
+    "create_mailbox_forward_draft_tool": _target("to"),
+    "update_mailbox_draft_tool": _target("subject", "instructions", "to", "body"),
+    "delete_mailbox_drafts_tool": _nothing,
     "toggle_scheduled_action_tool": _target("name", "action_name", "action_id"),
     # Workboard (ADR-276). `create` names the title it was given; the three
     # others name the ticket as the person referred to it — an id or a
@@ -165,6 +174,8 @@ EFFECT_LABEL_BUILDERS: dict[str, LabelValuesBuilder] = {
     "draft:email_reply": _draft("to", "recipient", key="recipient"),
     "draft:email_forward": _draft("to", "recipient", key="recipient"),
     "draft:email_delete": _draft("subject", "message_id"),
+    # A mailbox draft sent (ADR-344): whoever it reached first.
+    "draft:mailbox_draft_send": _draft("to", "cc", "bcc", key="recipient"),
     "draft:email_filter": _nothing,
     "draft:vacation_responder": _nothing,
     "draft:event": _draft("summary", "title"),

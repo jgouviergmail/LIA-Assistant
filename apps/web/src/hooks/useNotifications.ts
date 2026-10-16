@@ -19,6 +19,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { logger } from '@/lib/logger';
+import { redirectToLogin } from '@/lib/api-client';
 import { onForegroundMessage } from '@/lib/firebase';
 import type { MessagePayload } from 'firebase/messaging';
 
@@ -170,7 +171,9 @@ export function routeNotification(notification: Notification, h: NotificationRou
     );
     return;
   }
-  NOTIFICATION_ROUTES[notification.type]?.(notification, h);
+  if (Object.hasOwn(NOTIFICATION_ROUTES, notification.type)) {
+    NOTIFICATION_ROUTES[notification.type](notification, h);
+  }
 }
 
 /** Rebuild proactive/scheduled metadata from the flat FCM data fields. */
@@ -265,6 +268,16 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttempts = useRef(0);
+  const sessionRevokedRef = useRef(false);
+  const clearNotifications = useCallback(() => {
+    setNotifications(previous => (previous.length ? [] : previous));
+  }, []);
+  useEffect(() => {
+    if (!isAuthenticated) {
+      sessionRevokedRef.current = false;
+      clearNotifications();
+    }
+  }, [isAuthenticated, clearNotifications]);
   // Closed while hidden (evicted by a newer stream, or dropped): resume on
   // the next visibility rather than retry for a tab nobody looks at.
   const resumeWhenVisibleRef = useRef(false);
@@ -320,6 +333,7 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
    */
   const connectSSE = useCallback(() => {
     if (typeof window === 'undefined') return;
+    if (sessionRevokedRef.current) return;
     if (eventSourceRef.current) return;
 
     try {
@@ -334,6 +348,7 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
       });
 
       eventSource.onopen = () => {
+        if (eventSourceRef.current !== eventSource) return;
         setIsConnected(true);
         setError(null);
         reconnectAttempts.current = 0;
@@ -349,6 +364,7 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
 
       // Handler for parsing notification events
       const handleNotificationEvent = (event: MessageEvent) => {
+        if (eventSourceRef.current !== eventSource) return;
         try {
           const data = JSON.parse(event.data);
           if (CONVERSATION_SIGNALS.has(data.type)) {
@@ -395,8 +411,7 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
         } catch (error) {
           logger.warn('SSE: Failed to parse message', {
             component: 'useNotifications',
-            data: event.data,
-            error: error instanceof Error ? error.message : String(error),
+            errorType: error instanceof Error ? error.name : typeof error,
           });
         }
       };
@@ -413,6 +428,7 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
       // error. A visible tab is in active use and retakes a slot right away;
       // a hidden tab waits until the user looks at it again.
       eventSource.addEventListener('superseded', () => {
+        if (eventSourceRef.current !== eventSource) return;
         logger.info('SSE: Stream superseded by a newer one', {
           component: 'useNotifications',
         });
@@ -427,7 +443,26 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
         }
       });
 
+      // « Sign out this device »: the server closed the stream because the
+      // session is gone (point 22). Reconnecting would only meet a 401 at
+      // every backoff step — close for good and send the page to the login.
+      eventSource.addEventListener('session_revoked', () => {
+        if (eventSourceRef.current !== eventSource) return;
+        logger.info('SSE: Session revoked', { component: 'useNotifications' });
+        sessionRevokedRef.current = true;
+        resumeWhenVisibleRef.current = false;
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current);
+          reconnectTimeoutRef.current = null;
+        }
+        eventSource.close();
+        eventSourceRef.current = null;
+        setIsConnected(false);
+        redirectToLogin();
+      });
+
       eventSource.onerror = _event => {
+        if (eventSourceRef.current !== eventSource) return;
         logger.warn('SSE: Connection error', {
           component: 'useNotifications',
           readyState: eventSource.readyState,
@@ -539,13 +574,14 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
 
   // Setup FCM foreground message handler
   useEffect(() => {
-    if (!enableFCM) return;
+    if (!enableFCM || !isAuthenticated) return;
     if (typeof window === 'undefined') return;
 
+    let subscribed = true;
     const unsubscribe = onForegroundMessage((payload: MessagePayload) => {
+      if (!subscribed || sessionRevokedRef.current) return;
       logger.info('FCM: Foreground message received', {
         component: 'useNotifications',
-        title: payload.notification?.title,
       });
 
       // FCM sends flat data (not nested) — rebuild the Notification shape.
@@ -553,16 +589,10 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
     });
 
     return () => {
+      subscribed = false;
       unsubscribe?.();
     };
-  }, [enableFCM, addNotification]);
-
-  /**
-   * Clear all notifications.
-   */
-  const clearNotifications = useCallback(() => {
-    setNotifications([]);
-  }, []);
+  }, [enableFCM, isAuthenticated, addNotification]);
 
   /**
    * Mark a notification as read.

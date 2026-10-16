@@ -1,10 +1,12 @@
 """How each column of the ``users`` row behaves at account deletion (ADR-067).
 
 The ``users`` row is kept but PII-scrubbed when an account is deleted, so each
-of its columns is classified here: scrubbed to None, or retained with the
-reason why. The CI guard ``tests/unit/domains/users/test_user_data_map_guard.py``
-fails on an unclassified or stale column, and ``_mark_user_deleted``'s SCRUBBED
-set is the test oracle for the scrub.
+of its columns is classified here: scrubbed to None (a secret or PII, left out
+of the account export; or a setting that serves nothing once the account is
+gone, exported while it lives), or retained with the reason why. The CI guard
+``tests/unit/domains/users/test_user_data_map_guard.py`` fails on an
+unclassified or stale column, and ``SCRUBBED_AT_DELETION`` is the test oracle
+for ``_mark_user_deleted``'s scrub.
 
 Moved out of ``user_data_map`` (2026-09-30) when the table classification
 outgrew the logical-SLOC cap: two classifications, two modules.
@@ -17,7 +19,7 @@ class UserColumnClass(str, Enum):
     """How one ``users`` column behaves at account deletion."""
 
     SCRUBBED = "scrubbed"
-    """Set to None by ``_mark_user_deleted`` (PII)."""
+    """Set to None by ``_mark_user_deleted`` and left out of the account export (PII, secrets)."""
 
     RETAINED_IDENTITY = "retained_identity"
     """Kept as billing contact (email, full_name — ADR-067)."""
@@ -28,11 +30,21 @@ class UserColumnClass(str, Enum):
     RETAINED_PREFERENCE = "retained_preference"
     """Kept: non-content operational preference (booleans, hours, sizes)."""
 
+    SCRUBBED_PREFERENCE = "scrubbed_preference"
+    """Set to None by ``_mark_user_deleted``, exported like a preference while the
+    account lives: a setting that serves nothing once the account is gone."""
+
+
+SCRUBBED_AT_DELETION: frozenset[UserColumnClass] = frozenset(
+    {UserColumnClass.SCRUBBED, UserColumnClass.SCRUBBED_PREFERENCE}
+)
+"""The classes ``_mark_user_deleted`` sets to None — the oracle of its test."""
 
 _SCRUBBED = UserColumnClass.SCRUBBED
 _IDENTITY = UserColumnClass.RETAINED_IDENTITY
 _LIFECYCLE = UserColumnClass.RETAINED_LIFECYCLE
 _PREFERENCE = UserColumnClass.RETAINED_PREFERENCE
+_SCRUBBED_PREFERENCE = UserColumnClass.SCRUBBED_PREFERENCE
 
 
 USER_COLUMNS: dict[str, UserColumnClass] = {
@@ -149,4 +161,8 @@ USER_COLUMNS: dict[str, UserColumnClass] = {
     "phone_disabled_domains": _PREFERENCE,
     "phone_call_mode": _PREFERENCE,
     "live_preferences": _PREFERENCE,
+    # Settings exported while the account lives and erased with it: they serve
+    # nothing once it is gone. The voices LIA speaks with, per engine (ADR-345
+    # amendment 2026-10-14, owner decision the same day).
+    "lia_voices": _SCRUBBED_PREFERENCE,
 }

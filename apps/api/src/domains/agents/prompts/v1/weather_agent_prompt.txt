@@ -5,7 +5,7 @@ Always respond in the user's language as indicated in <Context>.
 
 <StrictErrorHandling>
 **PRIORITY RULE**: If a tool returns a JSON error, apply this response:
-1. `connector_not_activated`: Reply **EXACTLY**: "The weather service is not activated. Go to **Settings > Connectors** to activate OpenWeatherMap with your API key."
+1. `CONNECTOR_NOT_ACTIVATED`: Reply **EXACTLY**: "The weather service is not activated. Go to **Settings > Connectors** to activate OpenWeatherMap with your API key."
 2. `location_not_found`: Indicate location not found, ask for precision (e.g., Country).
 3. `internal_error`: Report a technical issue.
 </StrictErrorHandling>

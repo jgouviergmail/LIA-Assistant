@@ -68,6 +68,19 @@ function stringToColor(str: string): string {
   return `hsl(${hue}, 60%, 50%)`; // Vibrant but not too saturated
 }
 
+/** Choose an AA-readable foreground on stringToColor's fixed 60% / 50% HSL palette. */
+function initialsColor(background: string): '#000' | '#fff' {
+  const hue = Number.parseInt(background.slice(4), 10);
+  const channel = (offset: number) => {
+    const k = (offset + hue / 30) % 12;
+    const srgb = 0.5 - 0.3 * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+    return srgb <= 0.04045 ? srgb / 12.92 : ((srgb + 0.055) / 1.055) ** 2.4;
+  };
+  const luminance = 0.2126 * channel(0) + 0.7152 * channel(8) + 0.0722 * channel(4);
+  // At this crossover, black and white have equal contrast; either side exceeds 4.5:1.
+  return luminance > 0.1791287847 ? '#000' : '#fff';
+}
+
 /**
  * Extract initials from a name
  * Handles multi-part names (first + last initial)
@@ -376,7 +389,9 @@ export function Avatar({
 
         {/* Initials fallback */}
         {showInitials && !loading && (
-          <span className="relative z-20 text-white drop-shadow-sm">{initials}</span>
+          <span className="relative z-20" style={{ color: initialsColor(bgColor) }}>
+            {initials}
+          </span>
         )}
 
         {/* Status badge */}

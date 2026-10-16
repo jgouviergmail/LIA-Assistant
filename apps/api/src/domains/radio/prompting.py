@@ -144,7 +144,11 @@ def _context(request: WritingRequest) -> str:
     lines.append(
         f"- follows: {_spoken(request.following, 'not confirmed; announce no next programme')}"
     )
-    lines.append(f"- names the station: {'yes' if request.station_id else 'no'}")
+    # The line that asks for the name carries it: told « yes » alone, with the name once
+    # above beside « LIA », nine openings in ten called the station « LIA » (measured on
+    # dev 2026-10-14).
+    named = f"yes, as « {request.station_name} »" if request.station_id else "no"
+    lines.append(f"- names the station: {named}")
     mark = f"{request.clock_mark:%H:%M}" if request.clock_mark else "none"
     lines.append(f"- clock mark: {mark}")
     if request.edition is not None:

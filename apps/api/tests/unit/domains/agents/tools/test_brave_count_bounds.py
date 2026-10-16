@@ -10,7 +10,6 @@ description and the prompt.
 
 from __future__ import annotations
 
-import json
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -23,6 +22,7 @@ from src.domains.agents.brave.catalogue_manifests import (
 )
 from src.domains.agents.graphs.brave_agent_builder import render_brave_agent_prompt
 from src.domains.agents.tools import brave_tools
+from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.utils.rate_limiting import _rate_limit_tracker
 from tests.helpers.runtime_context import make_tool_runtime
 
@@ -103,5 +103,4 @@ class TestPaidApiIsRateLimited:
                 for _ in range(settings.brave_rate_limit_calls + 1)
             ]
         assert impl.execute.await_count == settings.brave_rate_limit_calls
-        blocked = json.loads(results[-1])
-        assert blocked["error"] == "rate_limit_exceeded"
+        assert results[-1].error_code == ToolErrorCode.RATE_LIMIT_EXCEEDED

@@ -36,6 +36,8 @@ import {
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { useLLMConfig } from '@/hooks/useLLMConfig';
 import { useApiQuery } from '@/hooks/useApiQuery';
+import { useVoiceLanguageFilter } from '@/hooks/useVoiceLanguageFilter';
+import { VoiceLanguageFilter } from '@/components/voice/VoiceLanguageFilter';
 import { fromK, toK } from '@/lib/llm-config/context-window';
 import { useTranslation } from '@/i18n/client';
 import type { BaseSettingsProps } from '@/types/settings';
@@ -50,6 +52,7 @@ import type {
   VoicesResponse,
 } from '@/types/llm-config';
 import { orderedCategories } from '@/types/llm-config';
+import { FishAudioTuning, FishPinnedVoices } from './llm-config/FishAudioTuning';
 import { ReasoningWidget } from './llm-config/ReasoningWidget';
 import {
   formatReasoningValue,
@@ -62,6 +65,7 @@ import {
   OPENAI_RESPONSE_FORMATS,
   buildConfigUpdate,
   computeAvailableModels,
+  configSaveError,
   findModelCapabilities,
   formAfterModelChange,
   formAfterProviderChange,
@@ -72,8 +76,8 @@ import {
   parseProviderConfig,
   resolveTtsProvider,
   samplingVisibility,
-  structuredErrorDetail,
   type SamplingVisibility,
+  type SetTtsKey,
   type TTSProviderConfig,
   type TtsProvider,
 } from './llm-config/configDialogHelpers';
@@ -471,6 +475,9 @@ function TtsVoicePicker({
               <SelectItem key={o.voice_id} value={o.voice_id}>
                 {o.label}
                 {o.language ? ` · ${o.language}` : ''}
+                {o.source
+                  ? ` · ${t(`settings.admin.llmConfig.voiceTts.voiceSource.${o.source}`)}`
+                  : ''}
               </SelectItem>
             ))}
           </SelectContent>
@@ -486,8 +493,6 @@ function TtsVoicePicker({
     </div>
   );
 }
-
-type SetTtsKey = <K extends keyof TTSProviderConfig>(key: K, value: TTSProviderConfig[K]) => void;
 
 /** Edge — SSML rate / pitch / volume strings (e.g. "+10%", "-2Hz"). */
 function EdgeTuning({
@@ -723,23 +728,78 @@ function ElevenLabsTuning({
   );
 }
 
+/** The male and female pickers of a voice slot, over the catalogue narrowed to the
+ * administrator's language — voices that name none speak every one — and then by
+ * gender: gender-less voices join both lists (e.g. OpenAI's "alloy"/"fable"). The
+ * voices the slot holds always stay in their own list. */
+function TtsVoicePickers({
+  lng,
+  providerConfig,
+  setKey,
+  voices,
+  loading,
+  t,
+}: {
+  lng: BaseSettingsProps['lng'];
+  providerConfig: TTSProviderConfig;
+  setKey: SetTtsKey;
+  voices: VoicesResponse['voices'];
+  loading: boolean;
+  t: (key: string) => string;
+}) {
+  const language = useVoiceLanguageFilter(voices, lng, [
+    providerConfig.voice_male,
+    providerConfig.voice_female,
+  ]);
+  const forGender = (gender: 'male' | 'female') =>
+    language.shown.filter(voice => voice.gender === gender || voice.gender === null);
+  return (
+    <>
+      {language.narrows && (
+        <VoiceLanguageFilter lng={lng} only={language.only} onOnlyChange={language.setOnly} />
+      )}
+      <TtsVoicePicker
+        labelKey="settings.admin.llmConfig.voiceTts.voiceMale"
+        value={providerConfig.voice_male ?? ''}
+        options={forGender('male')}
+        loading={loading}
+        onChange={v => setKey('voice_male', v)}
+        t={t}
+      />
+      <TtsVoicePicker
+        labelKey="settings.admin.llmConfig.voiceTts.voiceFemale"
+        value={providerConfig.voice_female ?? ''}
+        options={forGender('female')}
+        loading={loading}
+        onChange={v => setKey('voice_female', v)}
+        t={t}
+      />
+    </>
+  );
+}
+
 /** Renders the voice pickers (male / female) plus provider-specific tuning
  * inputs for the voice_tts LLM type. Bound to a parsed ``provider_config``
  * object exposed by the parent dialog; serialisation back to JSONB happens
  * only at save time so the form can stay schema-aware. */
 function TTSProviderConfigBlock({
+  lng,
   provider,
   providerConfig,
   setProviderConfig,
   voicesData,
   voicesLoading,
+  onPinsChanged,
   t,
 }: {
+  lng: BaseSettingsProps['lng'];
   provider: TtsProvider;
   providerConfig: TTSProviderConfig;
   setProviderConfig: React.Dispatch<React.SetStateAction<TTSProviderConfig>>;
   voicesData: VoicesResponse | null;
   voicesLoading: boolean;
+  /** A pin changed the Fish Audio catalogue: the pickers read it again. */
+  onPinsChanged: () => void;
   t: (key: string) => string;
 }) {
   const setKey: SetTtsKey = (key, value) => setProviderConfig(prev => ({ ...prev, [key]: value }));
@@ -757,12 +817,7 @@ function TTSProviderConfigBlock({
       },
     }));
 
-  // Filter the live voice catalogue by gender so the male / female
-  // dropdowns each show only relevant entries; gender-less voices are
-  // appended to both pickers (e.g. OpenAI's "alloy"/"fable").
   const voices = voicesData?.voices ?? [];
-  const maleVoices = voices.filter(v => v.gender === 'male' || v.gender === null);
-  const femaleVoices = voices.filter(v => v.gender === 'female' || v.gender === null);
 
   return (
     <div className="space-y-4 rounded-md border p-3 bg-muted/20">
@@ -770,20 +825,12 @@ function TTSProviderConfigBlock({
         {t('settings.admin.llmConfig.voiceTts.sectionTitle')}
       </div>
 
-      <TtsVoicePicker
-        labelKey="settings.admin.llmConfig.voiceTts.voiceMale"
-        value={providerConfig.voice_male ?? ''}
-        options={maleVoices}
+      <TtsVoicePickers
+        lng={lng}
+        providerConfig={providerConfig}
+        setKey={setKey}
+        voices={voices}
         loading={voicesLoading}
-        onChange={v => setKey('voice_male', v)}
-        t={t}
-      />
-      <TtsVoicePicker
-        labelKey="settings.admin.llmConfig.voiceTts.voiceFemale"
-        value={providerConfig.voice_female ?? ''}
-        options={femaleVoices}
-        loading={voicesLoading}
-        onChange={v => setKey('voice_female', v)}
         t={t}
       />
 
@@ -799,10 +846,21 @@ function TTSProviderConfigBlock({
           t={t}
         />
       )}
+      {provider === 'fishaudio' && (
+        <>
+          <FishAudioTuning providerConfig={providerConfig} setKey={setKey} t={t} />
+          <FishPinnedVoices lng={lng} voices={voices} onPinsChanged={onPinsChanged} t={t} />
+        </>
+      )}
 
       {voicesData?.source === 'live' && provider === 'elevenlabs' && (
         <p className="text-px-11 text-emerald-500">
           {t('settings.admin.llmConfig.voiceTts.liveCatalogue')}
+        </p>
+      )}
+      {voicesData?.source === 'live' && provider === 'fishaudio' && (
+        <p className="text-px-11 text-emerald-500">
+          {t('settings.admin.llmConfig.voiceTts.liveCatalogueFish')}
         </p>
       )}
     </div>
@@ -1054,19 +1112,22 @@ function useLlmDialogQueries(
     }
   );
 
-  // Dynamic voice catalogue for TTS LLM types. Edge / OpenAI return curated
-  // static lists; ElevenLabs triggers a live ``GET /v1/voices`` against the
-  // configured account (account-scoped custom + shared voices).
+  // Dynamic voice catalogue for TTS LLM types. Edge / OpenAI / Gemini return
+  // curated static lists; ElevenLabs and Fish Audio read the configured
+  // account live — Fish Audio with the public voices the instance pins
+  // (ADR-345), which the server reads itself.
   const isTts = config?.info.required_kind === 'tts';
   const ttsProvider = resolveTtsProvider(isTts, form.provider);
-  const { data: voicesData, loading: voicesLoading } = useApiQuery<VoicesResponse>(
-    `/admin/voice/voices?provider=${ttsProvider ?? 'edge'}`,
-    {
-      componentName: 'LLMConfigDialog',
-      enabled: !!ttsProvider && open,
-      deps: [ttsProvider, open],
-    }
-  );
+  const {
+    data: voicesData,
+    loading: voicesLoading,
+    refetch: refetchVoices,
+  } = useApiQuery<VoicesResponse>('/admin/voice/voices', {
+    componentName: 'LLMConfigDialog',
+    params: { provider: ttsProvider ?? 'edge' },
+    enabled: !!ttsProvider && open,
+    deps: [ttsProvider, open],
+  });
 
   return {
     ollamaData: ollamaData ?? null,
@@ -1076,6 +1137,7 @@ function useLlmDialogQueries(
     ttsProvider,
     voicesData: voicesData ?? null,
     voicesLoading,
+    refetchVoices,
   };
 }
 
@@ -1224,6 +1286,7 @@ function SamplingFields({
 }
 
 function LLMConfigDialog({
+  lng,
   config,
   open,
   onClose,
@@ -1233,6 +1296,7 @@ function LLMConfigDialog({
   metadata,
   t,
 }: {
+  lng: BaseSettingsProps['lng'];
   config: LLMTypeConfig | null;
   open: boolean;
   onClose: () => void;
@@ -1282,29 +1346,11 @@ function LLMConfigDialog({
       toast.success(t('settings.admin.llmConfig.config.saved'));
       handleClose();
     } catch (err) {
-      const detail = structuredErrorDetail(err);
-      if (detail?.type === 'thinking_budget_below_floor') {
-        // A model that reasons with no level set (ADR-306) cannot be told to
-        // "turn reasoning off": name the depth it applies unasked instead.
-        const implicitLevel = detail.ctx?.implicit_level;
-        const budget = {
-          maxTokens: String(detail.ctx?.effective_max_tokens ?? '?'),
-          floor: String(detail.ctx?.floor ?? '?'),
-        };
-        toast.error(
-          typeof implicitLevel === 'string'
-            ? t('settings.admin.llmConfig.config.thinkingBudgetImplicitBelowFloor', {
-                ...budget,
-                level: t(`settings.admin.llmConfig.reasoningLevels.${implicitLevel}`),
-              })
-            : t('settings.admin.llmConfig.config.thinkingBudgetBelowFloor', budget)
-        );
-      } else if (detail?.msg) {
-        // Other structured 422s (reasoning matrix): surface the backend's
-        // explicit message instead of a generic failure line.
-        toast.error(t('settings.admin.llmConfig.config.error'), { description: detail.msg });
+      const failure = configSaveError(err, t);
+      if (failure.description) {
+        toast.error(failure.message, { description: failure.description });
       } else {
-        toast.error(t('settings.admin.llmConfig.config.error'));
+        toast.error(failure.message);
       }
     }
   };
@@ -1320,8 +1366,16 @@ function LLMConfigDialog({
     }
   };
 
-  const { ollamaData, ollamaLoading, ollamaModels, isTts, ttsProvider, voicesData, voicesLoading } =
-    useLlmDialogQueries(config, form, open);
+  const {
+    ollamaData,
+    ollamaLoading,
+    ollamaModels,
+    isTts,
+    ttsProvider,
+    voicesData,
+    voicesLoading,
+    refetchVoices,
+  } = useLlmDialogQueries(config, form, open);
 
   // Filter models by required_kind + required_capabilities from LLM type config.
   const requiredCaps = config?.info.required_capabilities ?? [];
@@ -1424,11 +1478,13 @@ function LLMConfigDialog({
               defaults and overrides survive a provider switch. */}
           {isTts && ttsProvider && (
             <TTSProviderConfigBlock
+              lng={lng}
               provider={ttsProvider}
               providerConfig={providerConfig}
               setProviderConfig={setProviderConfig}
               voicesData={voicesData}
               voicesLoading={voicesLoading}
+              onPinsChanged={() => void refetchVoices()}
               t={t}
             />
           )}
@@ -1594,6 +1650,7 @@ export default function AdminLLMConfigSection({ lng }: BaseSettingsProps) {
 
         {/* Edit Dialog */}
         <LLMConfigDialog
+          lng={lng}
           config={editingConfig}
           open={!!editingConfig}
           onClose={() => setEditingConfig(null)}

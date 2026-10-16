@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 from src.core.config import settings
 from src.core.i18n import resolve_language
+from src.domains.agents.analysis.efficacy_context import EfficacyAnalysis, EfficacyTurnContext
 from src.domains.agents.analysis.requested_outcomes import GoalRequirement
 from src.domains.agents.analysis.resolved_references import (
     ResolvedReferenceEntry,
@@ -180,6 +181,8 @@ class QueryIntelligence:
     # end-of-range date bounds while preserving user-intended ones.
     has_temporal_reference: bool = False
     requested_outcomes: tuple[GoalRequirement, ...] = ()
+    efficacy_analysis: EfficacyAnalysis = field(default_factory=EfficacyAnalysis)
+    efficacy_context: EfficacyTurnContext | None = None
 
     # === INTELLIGENT METHODS ===
 
@@ -493,6 +496,10 @@ class QueryIntelligence:
             # Indexable vs Semantic — probabilistic planner hint
             "semantic_filter_terms": list(self.semantic_filter_terms),
             "has_temporal_reference": self.has_temporal_reference,
+            "efficacy_analysis": self.efficacy_analysis.model_dump(mode="json"),
+            "efficacy_context": (
+                self.efficacy_context.model_dump(mode="json") if self.efficacy_context else None
+            ),
             "requested_outcomes": [
                 goal.model_dump(mode="json") for goal in self.requested_outcomes
             ],

@@ -25,6 +25,7 @@ from src.domains.agents.services.smart_planner_service import (
 from src.domains.agents.sub_agents.catalogue_manifests import (
     delegate_to_sub_agent_catalogue_manifest,
 )
+from src.domains.agents.tools.react_runner_budget import model_calls_for
 
 
 def _settings_with(enabled: bool) -> MagicMock:
@@ -51,7 +52,12 @@ def section() -> str:
 class TestEveryNumberIsTheSetting:
     def test_iterations_tools_cap_and_floor_come_from_settings(self, section: str) -> None:
         settings = get_settings()
-        assert f"at most {settings.subagent_default_max_iterations} model calls" in section
+        # The setting is a recursion limit in STEPS: the model calls it buys are
+        # half of it (ADR-083 amendment 2026-10-13 b) — publishing the raw value
+        # promised twice the calls the loop can make.
+        limit = settings.subagent_default_max_iterations
+        assert f"at most {model_calls_for(limit)} model calls" in section
+        assert f"at most {limit} model calls" not in section
         assert f"capped at {settings.subagent_instruction_max_tokens_resolved} tokens" in section
         assert f"at least {int(settings.subagent_tool_timeout_seconds)} s" in section
         for tool_name in settings.subagent_research_tools_whitelist_parsed:

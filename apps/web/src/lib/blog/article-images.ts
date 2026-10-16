@@ -39,9 +39,14 @@ export const LANDING_CARD_SIZES = '(max-width: 640px) 100vw, (max-width: 1024px)
 /** The article page hero fills the prose column (`max-w-3xl`). */
 export const ARTICLE_HERO_SIZES = '(max-width: 768px) 100vw, 768px';
 
+/** A new filename also invalidates cached illustrations and social previews. */
+function imageAssetSlug(slug: string): string {
+  return slug === 'human-in-the-loop' ? 'human-in-the-loop-review-v2' : slug;
+}
+
 /** Public path of one WebP variant. */
 export function articleImageSrc(slug: string, width: ArticleImageWidth): string {
-  return `/articles/${slug}-${width}.webp`;
+  return `/articles/${imageAssetSlug(slug)}-${width}.webp`;
 }
 
 /** The `srcset` listing every variant with its width descriptor. */
@@ -51,5 +56,5 @@ export function articleImageSrcSet(slug: string): string {
 
 /** Public path of the social image. */
 export function articleSocialImageSrc(slug: string): string {
-  return `/articles/${slug}-og.jpg`;
+  return `/articles/${imageAssetSlug(slug)}-og.jpg`;
 }

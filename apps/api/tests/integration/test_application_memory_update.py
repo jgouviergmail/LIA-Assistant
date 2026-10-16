@@ -29,6 +29,7 @@ from src.domains.memories.models import Memory
 from src.domains.memories.repository import MemoryRepository
 from src.domains.memories.service import MemoryService
 from src.domains.users.models import User
+from tests.helpers.draft_refusals import draft_refusal_code
 from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
 
 pytestmark = pytest.mark.integration
@@ -219,7 +220,7 @@ async def test_update_confirms_then_preserves_fresh_owned_fact_and_source_write(
         )
         if not success:
             assert (
-                result.error
+                draft_refusal_code(result)
                 == {
                     "quota": "USAGE_LIMIT_EXCEEDED",
                     "corrected": "STALE_STATE",

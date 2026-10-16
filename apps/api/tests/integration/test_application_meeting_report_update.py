@@ -25,6 +25,7 @@ from src.domains.meetings.report_update_gateway import SavedMeetingReportUpdates
 from src.domains.meetings.template_service import MeetingTemplateService
 from src.domains.users.models import User
 from src.infrastructure.meeting_report_updates import configure_meeting_report_updates
+from tests.helpers.draft_refusals import draft_refusal_code
 from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
 from tests.integration.domains.skills.test_per_account_skill_names import _user
 
@@ -230,7 +231,7 @@ async def test_sparse_report_edit_requires_original_consent_and_fresh_source(
     assert outcome.success is succeeded
     if intervention in {"body_changed", "template_changed", "disabled", "lost_ack"}:
         assert (
-            outcome.error
+            draft_refusal_code(outcome)
             == {
                 "body_changed": "STALE_STATE",
                 "template_changed": "STALE_STATE",

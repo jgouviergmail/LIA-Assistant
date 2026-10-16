@@ -1,4 +1,4 @@
-"""Sync guard: the skill-authoring guide and the ``StepType`` enum (ADR-195).
+"""Sync guard: the skill-authoring guide and the step types a template runs.
 
 The guide shown in the settings modal tells users which ``step_type`` values a
 plan step may take. Nothing checked that list against the enum, and it had
@@ -10,6 +10,12 @@ Same doctrine as ``test_html_directive_css_sync``: when a user-facing surface
 publishes a backend vocabulary, the pair is a contract, and a contract that
 nothing verifies drifts. Runs as a plain unit test — the backend CI job checks
 out the whole monorepo, so the locale file is always present.
+
+The first reference was the ``StepType`` ENUM (ADR-195), and it was the wrong
+one: the enum parsed ``REPLAN`` and ``HUMAN`` while nothing ran them, so this
+guard made the guide advertise both. The reference is what a TEMPLATE runs,
+``TEMPLATE_STEP_TYPES`` — the set the skill bypass enforces (ADR-346
+amendment).
 """
 
 from __future__ import annotations
@@ -20,7 +26,7 @@ from pathlib import Path
 
 import pytest
 
-from src.domains.agents.orchestration.plan_schemas import StepType
+from src.domains.agents.services.planner.strategies.skill_bypass import TEMPLATE_STEP_TYPES
 
 pytestmark = [pytest.mark.unit]
 
@@ -64,22 +70,23 @@ def _advertised_types(label: str) -> set[str]:
     return set(re.findall(r"[A-Z][A-Z_]{2,}", label))
 
 
+#: What a template runs, as the guide spells it.
+_RUNNABLE = frozenset(step_type.value for step_type in TEMPLATE_STEP_TYPES)
+
+
 @pytest.mark.parametrize("locale", _LOCALES)
-class TestGuideAdvertisesOnlyRealStepTypes:
-    def test_no_invented_step_type_is_advertised(self, locale: str) -> None:
-        real = {step_type.value for step_type in StepType}
-        invented = _advertised_types(_guide_label(locale)) - real
+class TestGuideAdvertisesWhatATemplateRuns:
+    def test_no_step_type_a_template_cannot_run_is_advertised(self, locale: str) -> None:
+        invented = _advertised_types(_guide_label(locale)) - _RUNNABLE
 
         assert not invented, (
-            f"{locale}: the guide advertises {sorted(invented)}, which StepType does not "
-            f"accept. A skill written from it is rejected at runtime, and the guide is "
-            f"the reason. Valid values: {sorted(real)}."
+            f"{locale}: the guide advertises {sorted(invented)}, which a plan template "
+            f"cannot run. A skill written from it is refused at planning, and the guide "
+            f"is the reason. A template runs: {sorted(_RUNNABLE)}."
         )
 
-    def test_every_real_step_type_is_documented(self, locale: str) -> None:
-        """Omitting a value hides a capability the runtime already supports."""
-        missing = {step_type.value for step_type in StepType} - _advertised_types(
-            _guide_label(locale)
-        )
+    def test_every_runnable_step_type_is_documented(self, locale: str) -> None:
+        """Omitting a value hides a capability a template has."""
+        missing = _RUNNABLE - _advertised_types(_guide_label(locale))
 
         assert not missing, f"{locale}: the guide never mentions {sorted(missing)}"

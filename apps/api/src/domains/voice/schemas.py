@@ -6,13 +6,17 @@ Defines the data models for voice comment generation and TTS audio streaming.
 Updated: 2025-12-29 - Migrated from Google Cloud TTS to Edge TTS
 Updated: 2026-05-07 - Centralised AUDIO_MIME_TYPES (was duplicated between
     VoiceCommentService and ProgressiveSentenceStreamer).
+Updated: 2026-10-14 - One published voice shape (``VoiceOptionPayload``) for the
+    admin pickers and the person's own voices (ADR-345 amendment).
 """
 
+from collections.abc import Sequence
 from typing import Final
 
 from pydantic import BaseModel, Field
 
 from src.core.i18n import resolve_language
+from src.domains.voice.voices_catalog import VoiceOption
 
 # Mapping from short ``audio_format`` token returned by ``TTSClient``
 # implementations (``mp3`` / ``opus`` / ``aac`` / ``flac`` / ``wav`` /
@@ -96,6 +100,35 @@ class VoiceAudioChunk(BaseModel):
         default="audio/mpeg",
         description="MIME type of the audio data",
     )
+
+
+class VoiceOptionPayload(BaseModel):
+    """One voice a picker offers."""
+
+    voice_id: str = Field(description="The id sent to the provider when synthesising.")
+    label: str = Field(description="Its name, as the catalogue names it.")
+    gender: str | None = Field(default=None, description="male, female, or none known.")
+    language: str | None = Field(
+        default=None, description="The one language it speaks natively, when it names one."
+    )
+    source: str | None = Field(
+        default=None,
+        description="Where a live voice comes from (Fish Audio: own, pinned or licensed).",
+    )
+
+
+def voice_option_payloads(options: Sequence[VoiceOption]) -> list[VoiceOptionPayload]:
+    """The voices as a picker receives them."""
+    return [
+        VoiceOptionPayload(
+            voice_id=option.voice_id,
+            label=option.label,
+            gender=option.gender,
+            language=option.language,
+            source=option.extra.get("source"),
+        )
+        for option in options
+    ]
 
 
 class VoiceTTSRequest(BaseModel):

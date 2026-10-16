@@ -152,7 +152,7 @@ Delivered 2026-07-09 (same ADR). Everything below is flag-gated by the same
 `BACKGROUND_RUNS_ENABLED`.
 
 - **Active-run lock**: `chat:active_run:{conversation_id}` (SET NX EX
-  `BACKGROUND_RUNS_ACTIVE_TTL_SECONDS`), value `{run_id, stream_id}`.
+  `BACKGROUND_RUNS_ACTIVE_TTL_SECONDS`), value `{run_id, stream_id, relayed}`.
   Acquired by the POST endpoint BEFORE the SSE response starts (a second
   concurrent POST answers **HTTP 409** with the active run info); kept
   alive by a producer heartbeat (`BACKGROUND_RUNS_HEARTBEAT_SECONDS`,
@@ -163,6 +163,14 @@ Delivered 2026-07-09 (same ADR). Everything below is flag-gated by the same
   and `GET /agents/runs/{stream_id}/stream` (full replay + live tail;
   ownership = the CURRENT active run of the caller's conversation, 404
   hide-existence otherwise — finished runs are reloaded via history).
+- **A lease relays nothing** (ADR-117 amendment 2026-10-13): a workboard
+  ticket, a voice relay or a voice delegation holds the same lock through
+  `active_run_lease` with `relayed: false` — it runs the turn itself and
+  publishes no chunk. Every client-facing read goes through
+  `public_active_run`: `/runs/active` answers `active: true` with
+  `stream_id: null`, the 409 names no stream, Stop answers
+  `cancelled: false`, the reattach 404s. The web keeps such a run active
+  (the companion shows LIA working) and never reattaches to it.
 - **Replay semantics**: the broker snapshots the stream tail at subscribe
   time; backlog entries are flagged `is_replay` → relayed without pacing,
   `voice_audio_chunk` payloads dropped server-side (stale audio), and the

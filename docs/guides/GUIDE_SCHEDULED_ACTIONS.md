@@ -189,7 +189,7 @@ Toutes les constantes sont definies dans `apps/api/src/core/constants.py` :
 | `SCHEDULED_ACTIONS_EXECUTION_TIMEOUT_SECONDS` | `300` | Timeout execution (5 min) |
 | `SCHEDULED_ACTIONS_MAX_RETRIES` | `1` | Retries sur erreur transitoire (2 tentatives max) |
 | `SCHEDULED_ACTIONS_RETRY_DELAY_SECONDS` | `30` | Delai entre retries (secondes) |
-| `SCHEDULED_ACTIONS_STALE_TIMEOUT_MINUTES` | `10` | Seuil recovery pour actions bloquees en `executing` |
+| `SCHEDULED_ACTIONS_STALE_TIMEOUT_MINUTES` | `10` | Seuil recovery pour actions bloquees en `executing` ; jamais applique sous le pire cas d'un run |
 | `SCHEDULED_ACTIONS_MAX_CONSECUTIVE_FAILURES` | `5` | Seuil avant auto-disable |
 | `SCHEDULED_ACTIONS_BATCH_SIZE` | `50` | Nombre max d'actions traitees par cycle |
 | `SCHEDULED_ACTIONS_CONDITION_CHECK_MINUTES` | `…_DEFAULT` | Cadence de verification d'une routine sur condition (courrier, taches, agenda, documents) — ADR-322 |
@@ -466,7 +466,7 @@ Quand `consecutive_failures >= SCHEDULED_ACTIONS_MAX_CONSECUTIVE_FAILURES` (5) :
 
 ### Crash recovery
 
-Si le processus crashe pendant l'execution (status `executing`), la methode `recover_stale_executing()` est appelee au debut de chaque cycle du scheduler. Toute action en `executing` depuis plus de `SCHEDULED_ACTIONS_STALE_TIMEOUT_MINUTES` (10 min) est remise en `active`.
+Si le processus crashe pendant l'execution (status `executing`), la methode `recover_stale_executing()` est appelee au debut de chaque cycle du scheduler. Toute action dont la reservation n'a pas ete renouvelee depuis le seuil est remise en `active`. Ce seuil est le plus grand de `SCHEDULED_ACTIONS_STALE_TIMEOUT_MINUTES` et du pire cas d'un run : toutes les tentatives a leur borne, plus les pauses entre elles (`worst_case_run_seconds`). Un run vivant renouvelle sa reservation juste avant d'appeler le modele. Si un autre tick a repris la reservation entre-temps, la cloture ne marque pas la routine ; elle ecrit seulement la ligne d'historique du run, qui a bien eu lieu (ADR-276, amendement 2026-10-13 b).
 
 ---
 
@@ -689,7 +689,7 @@ Le resultat apparaitra dans la conversation SSE et/ou en notification push.
 
 ### L'action est en statut `executing` depuis longtemps
 
-C'est un signe de crash pendant l'execution. Le mecanisme `recover_stale_executing` remettra l'action en `active` apres 10 minutes. Pour forcer la recovery :
+C'est un signe de crash pendant l'execution. Le mecanisme `recover_stale_executing` remettra l'action en `active` une fois le seuil de recovery depasse (voir « Crash recovery »). Pour forcer la recovery :
 
 ```sql
 UPDATE scheduled_actions

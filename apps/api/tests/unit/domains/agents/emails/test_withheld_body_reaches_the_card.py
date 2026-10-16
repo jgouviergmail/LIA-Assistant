@@ -283,6 +283,7 @@ def _imap_whole_hit() -> dict[str, Any]:
         from_="alice@example.com",
         to=("bob@example.com",),
         cc=(),
+        bcc=(),
         date=datetime(2026, 9, 28, 10, 0, 0),
         date_str="Mon, 28 Sep 2026 10:00:00 +0000",
         text=LONG_BODY,

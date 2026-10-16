@@ -37,6 +37,9 @@ BUDGET_REACHED: Final = "radio_budget_reached"
 TIMER_TOO_LONG: Final = "radio_timer_too_long"
 #: A setting names a voice the radio's engine does not offer.
 VOICE_UNKNOWN: Final = "radio_voice_unknown"
+#: A setting gives a commentator the voice of LIA, of the moderator or of another
+#: commentator — the voice the cast would silence (``cast.shared_voice``).
+VOICE_SHARED: Final = "radio_voice_shared"
 #: A setting names a personality that does not exist or is not offered any more.
 PERSONALITY_UNKNOWN: Final = "radio_personality_unknown"
 #: The listener already added as many sites as the instance allows.
@@ -52,6 +55,7 @@ _STATUSES: Final[dict[str, int]] = {
     BUDGET_REACHED: status.HTTP_429_TOO_MANY_REQUESTS,
     TIMER_TOO_LONG: status.HTTP_422_UNPROCESSABLE_CONTENT,
     VOICE_UNKNOWN: status.HTTP_422_UNPROCESSABLE_CONTENT,
+    VOICE_SHARED: status.HTTP_422_UNPROCESSABLE_CONTENT,
     PERSONALITY_UNKNOWN: status.HTTP_422_UNPROCESSABLE_CONTENT,
     SOURCE_LIMIT: status.HTTP_409_CONFLICT,
     SOURCE_REFUSED: status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -132,6 +136,7 @@ __all__ = [
     "SOURCE_REFUSED",
     "START_REFUSALS",
     "TIMER_TOO_LONG",
+    "VOICE_SHARED",
     "VOICE_UNAVAILABLE",
     "VOICE_UNKNOWN",
     "raise_article_not_found",

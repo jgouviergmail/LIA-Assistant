@@ -13,12 +13,26 @@ Usage:
     )
 """
 
-from typing import Any
+import re
+from collections import Counter
+from dataclasses import dataclass
+from typing import Any, Final
 
 from src.domains.agents.utils.turn_type import is_reference_turn as _is_reference_turn
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
+
+#: The registry selection the response model writes at character 0. Parsed here,
+#: and never shown or spoken while it streams (agents/services/streaming/machine_tags.py).
+RELEVANT_IDS_OPENING: Final = "<relevant_ids>"
+RELEVANT_IDS_CLOSING: Final = "</relevant_ids>"
+_RELEVANT_IDS_PATTERN: Final = re.compile(
+    f"{re.escape(RELEVANT_IDS_OPENING)}(.*?){re.escape(RELEVANT_IDS_CLOSING)}",
+    re.DOTALL | re.IGNORECASE,
+)
+#: A declared id this long may be a truncated payload id, matched by its start.
+_TRUNCATED_ID_MIN_LENGTH: Final = 20
 
 
 def build_registry_payload_index(data_registry: dict[str, Any]) -> dict[str, str]:
@@ -267,6 +281,84 @@ def filter_registry_by_current_turn(
     return {}  # Return empty to prevent cross-turn contamination
 
 
+@dataclass(frozen=True, slots=True)
+class _ResolvedIds:
+    """The registry keys a declaration names, and how many needed a fallback rule."""
+
+    #: Each named registry key once, in the order the declaration names them.
+    keys: tuple[str, ...]
+    suffix_matched: int
+    prefix_matched: int
+
+
+def _match_relevant_id(
+    rel_id: str,
+    registry: dict[str, Any],
+    payload_index: dict[str, str],
+    suffix_index: dict[str, str],
+) -> tuple[str, str] | None:
+    """The registry key ``rel_id`` names and the rule that matched it, or None.
+
+    The rules, in order: the registry key itself; a payload identifier (BugFix
+    2026-01-02 — the model may return a raw API id, e.g. a Google Calendar event
+    id, instead of ``event_7f0bc4``); a key's hash suffix (BugFix 2026-01-04 —
+    « 600dc4 » for « event_600dc4 », on longer result lists); the start of a
+    payload identifier (BugFix 2026-01-02 v2 — the model truncates long Google
+    Calendar ids), the first one that starts so.
+
+    Args:
+        rel_id: One id of the declaration.
+        registry: The records, keyed by registry id.
+        payload_index: Payload identifiers to registry keys.
+        suffix_index: Registry key hash suffixes to registry keys.
+
+    Returns:
+        ``(registry key, rule)`` — the rule being ``key``, ``payload``,
+        ``suffix`` or ``prefix`` — or None when nothing matches.
+    """
+    if rel_id in registry:
+        return rel_id, "key"
+    if rel_id in payload_index:
+        return payload_index[rel_id], "payload"
+    if rel_id in suffix_index:
+        return suffix_index[rel_id], "suffix"
+    if len(rel_id) >= _TRUNCATED_ID_MIN_LENGTH:
+        for payload_id, reg_key in payload_index.items():
+            if payload_id.startswith(rel_id):
+                return reg_key, "prefix"
+    return None
+
+
+def _resolve_relevant_ids(registry: dict[str, Any], relevant_ids: list[str]) -> _ResolvedIds:
+    """Match a declaration's ids to registry keys, in the order they are declared.
+
+    The one resolution of a declaration: the cards keep the registry's order and
+    the spoken comment the declaration's, so the two can never name different
+    records. An id matching nothing is dropped; a record named twice is kept once.
+
+    Args:
+        registry: The records, keyed by registry id.
+        relevant_ids: The declared ids, in the order declared.
+
+    Returns:
+        The named keys in declared order, and how many matched by hash suffix
+        or by truncated payload id (one count per declared id, duplicates included).
+    """
+    payload_index = build_registry_payload_index(registry)
+    # Registry keys are "{type}_{hash}": "event_600dc4" is indexed under "600dc4".
+    suffix_index = {key.rsplit("_", 1)[-1]: key for key in registry if "_" in key}
+    keys: dict[str, None] = {}  # an insertion-ordered set
+    rules: Counter[str] = Counter()
+    for rel_id in relevant_ids:
+        match = _match_relevant_id(rel_id, registry, payload_index, suffix_index)
+        if match is not None:
+            keys[match[0]] = None
+            rules[match[1]] += 1
+    return _ResolvedIds(
+        keys=tuple(keys), suffix_matched=rules["suffix"], prefix_matched=rules["prefix"]
+    )
+
+
 def filter_registry_by_relevant_ids(
     registry: dict[str, Any],
     relevant_ids: list[str],
@@ -275,15 +367,9 @@ def filter_registry_by_relevant_ids(
     Filter registry to include only items with IDs in relevant_ids list.
 
     This function is called after the LLM has analyzed the data and returned
-    the IDs of items that match the user's filter criteria.
-
-    BugFix 2026-01-02: LLM sometimes returns raw API IDs (e.g., Google Calendar event ID)
-    instead of registry keys (e.g., event_7f0bc4). Now matches on both registry key AND
-    payload.id for robustness using build_registry_payload_index.
-
-    BugFix 2026-01-04: LLM sometimes returns hash suffix only (e.g., "600dc4") instead
-    of full registry key (e.g., "event_600dc4"). This happens inconsistently, especially
-    with longer result lists. Now also matches by hash suffix using suffix index.
+    the IDs of items that match the user's filter criteria. The ids may be
+    registry keys, payload ids, hash suffixes or truncated payload ids (see
+    ``_match_relevant_id``); the kept items stay in the registry's order.
 
     Args:
         registry: Full registry dict with all items
@@ -303,71 +389,63 @@ def filter_registry_by_relevant_ids(
     if not registry:
         return {}
 
-    # Convert to set for O(1) lookup
-    ids_set = set(relevant_ids)
-
-    # BugFix 2026-01-02: Build payload index for fallback matching
-    # LLM may return raw API IDs (e.g., Google Calendar ID) instead of registry keys
-    payload_index = build_registry_payload_index(registry)
-
-    # BugFix 2026-01-04: Build suffix index for hash-only matching
-    # LLM sometimes returns "600dc4" instead of "event_600dc4"
-    # Registry keys are formatted as "{type}_{hash}" so we extract the suffix after "_"
-    suffix_index: dict[str, str] = {}
-    for reg_key in registry.keys():
-        if "_" in reg_key:
-            # Extract suffix after last underscore (e.g., "event_600dc4" -> "600dc4")
-            suffix = reg_key.rsplit("_", 1)[-1]
-            suffix_index[suffix] = reg_key
-
-    # Expand ids_set to include registry keys for payload IDs
-    # This converts raw API IDs to their registry keys for O(1) matching
-    expanded_ids = set(ids_set)
-    prefix_matched = 0
-    suffix_matched = 0
-
-    for rel_id in relevant_ids:
-        # 1. Exact match on registry key (already in ids_set via expanded_ids)
-        if rel_id in registry:
-            continue
-
-        # 2. Exact match on payload ID
-        reg_key = payload_index.get(rel_id)
-        if reg_key:
-            expanded_ids.add(reg_key)
-            continue
-
-        # 3. BugFix 2026-01-04: Suffix matching for hash-only IDs
-        # LLM returns "600dc4" instead of "event_600dc4" for longer result lists
-        # Hash suffix is 6 hex chars (from generate_registry_id)
-        reg_key = suffix_index.get(rel_id)
-        if reg_key:
-            expanded_ids.add(reg_key)
-            suffix_matched += 1
-            continue
-
-        # 4. BugFix 2026-01-02 v2: Prefix matching for truncated IDs
-        # LLM truncates long Google Calendar IDs - match by prefix (min 20 chars)
-        if len(rel_id) >= 20:
-            for payload_id, reg_key in payload_index.items():
-                if payload_id.startswith(rel_id):
-                    expanded_ids.add(reg_key)
-                    prefix_matched += 1
-                    break  # Only match first (avoid duplicates)
-
-    # Filter registry with expanded ID set (O(N) lookup)
-    filtered = {k: v for k, v in registry.items() if k in expanded_ids}
+    resolved = _resolve_relevant_ids(registry, relevant_ids)
+    kept = set(resolved.keys)
+    filtered = {k: v for k, v in registry.items() if k in kept}
 
     logger.info(
         "intelligent_filtering_applied",
         original_count=len(registry),
         filtered_count=len(filtered),
         removed_count=len(registry) - len(filtered),
-        prefix_matched=prefix_matched,
-        suffix_matched=suffix_matched,
+        prefix_matched=resolved.prefix_matched,
+        suffix_matched=resolved.suffix_matched,
     )
 
     return filtered
+
+
+def select_registry_in_declared_order(
+    registry: dict[str, Any],
+    relevant_ids: list[str],
+) -> dict[str, Any]:
+    """The records ``relevant_ids`` names, in the order the answer declared them.
+
+    What the spoken comment of a tool turn may speak of: the records the written
+    answer retained, its lead first. The same resolution as
+    :func:`filter_registry_by_relevant_ids`, which the cards read in the
+    registry's order — and no log of its own, since ``intelligent_filtering_applied``
+    counts the cards' filtering once per answer.
+
+    Args:
+        registry: The turn's records, keyed by registry id.
+        relevant_ids: The ids the answer declared, in its order.
+
+    Returns:
+        The declared records in the declared order, empty when none resolves.
+    """
+    if not relevant_ids or not registry:
+        return {}
+    return {key: registry[key] for key in _resolve_relevant_ids(registry, relevant_ids).keys}
+
+
+def relevant_ids_declared_in(text: str) -> list[str] | None:
+    """The ids a ``<relevant_ids>`` tag in ``text`` declares, in the order written.
+
+    The one reading of the declaration: the response node parses the answer
+    through it, and the stream reads the tag alone as the tag filter hands it over.
+
+    Args:
+        text: An answer, or the tag alone.
+
+    Returns:
+        The declared ids (``[]`` for an empty tag), or None when ``text`` carries
+        no complete tag.
+    """
+    match = _RELEVANT_IDS_PATTERN.search(text)
+    if match is None:
+        return None
+    return [item_id.strip() for item_id in match.group(1).split(",") if item_id.strip()]
 
 
 def parse_relevant_ids_from_response(content: str) -> tuple[list[str], str]:
@@ -386,30 +464,16 @@ def parse_relevant_ids_from_response(content: str) -> tuple[list[str], str]:
         Tuple of (list of relevant item IDs, content without the tag)
         If no tag found, returns (empty list, original content)
     """
-    import re
-
     if not content:
         return [], content
 
-    # Pattern to match <relevant_ids>...</relevant_ids> anywhere in content
-    pattern = r"<relevant_ids>(.*?)</relevant_ids>"
-    match = re.search(pattern, content, re.DOTALL | re.IGNORECASE)
-
-    if not match:
+    relevant_ids = relevant_ids_declared_in(content)
+    if relevant_ids is None:
         # No filtering tag found - return original content, no filtering needed
         return [], content
 
-    # Extract IDs (comma-separated, possibly with whitespace)
-    ids_str = match.group(1).strip()
-    if ids_str:
-        # Split by comma and clean each ID
-        relevant_ids = [id.strip() for id in ids_str.split(",") if id.strip()]
-    else:
-        # Empty tag means no items match the filter
-        relevant_ids = []
-
     # Remove the tag from content
-    cleaned_content = re.sub(pattern, "", content, flags=re.DOTALL | re.IGNORECASE).strip()
+    cleaned_content = _RELEVANT_IDS_PATTERN.sub("", content).strip()
 
     # Log the filtering action
     logger.info(

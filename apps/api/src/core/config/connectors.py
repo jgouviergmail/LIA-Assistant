@@ -65,6 +65,7 @@ from src.core.constants import (
     EMAIL_ATTACHMENT_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
     EMAIL_ATTACHMENT_VISION_MAX_PAGES_DEFAULT,
     EMAIL_BODY_PART_TOKENS_DEFAULT,
+    EMAIL_DRAFTS_BULK_MAX_DEFAULT,
     EMAILS_BODY_MAX_LENGTH_DEFAULT,
     EMAILS_CACHE_DETAILS_TTL_SECONDS,
     EMAILS_CACHE_LIST_TTL_SECONDS,
@@ -105,6 +106,7 @@ from src.core.constants import (
     OAUTH_HEALTH_CRITICAL_COOLDOWN_HOURS_DEFAULT,
     OAUTH_PROACTIVE_REFRESH_INTERVAL_MINUTES,
     OAUTH_PROACTIVE_REFRESH_MARGIN_SECONDS,
+    OUTLOOK_MAIL_FOLDERS_WALK_MAX_DEFAULT,
     PERPLEXITY_SEARCH_MODEL_DEFAULT,
     PLACE_CAROUSEL_ENABLED_DEFAULT,
     PLACES_TOOL_DEFAULT_MAX_RESULTS_DEFAULT,
@@ -688,6 +690,15 @@ class ConnectorsSettings(BaseSettings):
         gt=0,
         description="Default limit for email list operations",
     )
+    email_drafts_bulk_max: int = Field(
+        default=EMAIL_DRAFTS_BULK_MAX_DEFAULT,
+        ge=1,
+        le=100,
+        description=(
+            "Mailbox drafts one call may move to the trash (ADR-344); « delete all my "
+            "drafts » is served up to this bound and the remainder is stated."
+        ),
+    )
     emails_search_fetch_concurrency: int = Field(
         default=EMAILS_SEARCH_FETCH_CONCURRENCY_DEFAULT,
         ge=1,
@@ -710,6 +721,16 @@ class ConnectorsSettings(BaseSettings):
             "Maximum number of items that can be returned by any API call to external services "
             "(Google Contacts, Gmail, Calendar, etc.). This is a hard security limit applied "
             "to all domain API calls: search, list, warmup, and batch operations."
+        ),
+    )
+    outlook_mail_folders_walk_max: int = Field(
+        default=OUTLOOK_MAIL_FOLDERS_WALK_MAX_DEFAULT,
+        ge=1,
+        le=5000,
+        description=(
+            "Folders an Outlook search reads, level by level, to find a folder the person "
+            "named (label:/in:). Past it, a name nothing matched is refused as not found "
+            "in a listing that was cut — never read in the inbox instead."
         ),
     )
 

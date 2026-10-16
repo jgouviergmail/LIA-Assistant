@@ -15,6 +15,7 @@ import { X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { cn } from '@/lib/utils';
 import type { PageSelectionState } from '@/lib/selection';
 
 export interface SelectionBarProps {
@@ -31,6 +32,10 @@ export interface SelectionBarProps {
   onClear: () => void;
   /** The actions, rendered after the clear button. */
   children: ReactNode;
+  className?: string;
+  /** Keep the page checkbox mounted while a caller hides unavailable bulk actions. */
+  showActions?: boolean;
+  selectAllDisabled?: boolean;
 }
 
 export function SelectionBar({
@@ -42,6 +47,9 @@ export function SelectionBar({
   onSelectAll,
   onClear,
   children,
+  className,
+  showActions = true,
+  selectAllDisabled = false,
 }: SelectionBarProps) {
   const allRef = useRef<HTMLInputElement>(null);
 
@@ -55,24 +63,38 @@ export function SelectionBar({
     <div
       role="region"
       aria-label={regionLabel}
-      className="flex flex-wrap items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2"
+      className={cn(
+        'flex flex-wrap items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2',
+        className
+      )}
     >
       <label className="flex h-11 items-center gap-2 text-sm">
         <Checkbox
           ref={allRef}
           checked={pageState === 'all'}
-          onChange={() => (pageState === 'all' ? onClear() : onSelectAll())}
+          onChange={() => !selectAllDisabled && (pageState === 'all' ? onClear() : onSelectAll())}
+          aria-disabled={selectAllDisabled}
           aria-label={selectAllLabel}
         />
         <span>{countLabel}</span>
       </label>
-      <span className="ml-auto flex flex-wrap items-center gap-2">
-        <Button type="button" size="sm" variant="outline" onClick={onClear}>
-          <X className="mr-1 h-4 w-4" aria-hidden="true" />
-          {clearLabel}
-        </Button>
-        {children}
-      </span>
+      {showActions && (
+        <span className="ml-auto flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              allRef.current?.focus();
+              onClear();
+            }}
+          >
+            <X className="mr-1 h-4 w-4" aria-hidden="true" />
+            {clearLabel}
+          </Button>
+          {children}
+        </span>
+      )}
     </div>
   );
 }

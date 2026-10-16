@@ -19,6 +19,7 @@ from src.domains.agents.tools.application_location_tools import update_lia_home_
 from src.domains.users.models import User
 from src.domains.users.schemas import HomeLocationData, HomeLocationUpdate
 from src.domains.users.service import UserService
+from tests.helpers.draft_refusals import draft_refusal_code
 from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
 
 pytestmark = pytest.mark.integration
@@ -102,7 +103,7 @@ async def test_location_native_confirmation(
     actual = await UserService(async_session).get_home_location(test_user.id)
     if intervention:
         assert actual.address == "Manual"
-        assert result.error == "STALE_STATE"
+        assert draft_refusal_code(result) == "STALE_STATE"
     elif clear:
         assert actual is None
         assert test_user.last_known_location_encrypted is None

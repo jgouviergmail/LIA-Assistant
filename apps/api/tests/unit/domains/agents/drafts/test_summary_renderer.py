@@ -35,6 +35,7 @@ CONTENTS: dict[DraftType, dict[str, object]] = {
     DraftType.EMAIL_REPLY: {"to": "alice@example.com", "subject": "Re: Devis"},
     DraftType.EMAIL_FORWARD: {"to": "bob@example.com", "subject": "Fwd: Contrat"},
     DraftType.EMAIL_DELETE: {"subject": "Newsletter"},
+    DraftType.MAILBOX_DRAFT_SEND: {"to": "", "cc": "bob@example.com", "subject": "Budget"},
     DraftType.EVENT: {"summary": "Réunion", "start_datetime": "2026-06-01T09:00:00+02:00"},
     DraftType.EVENT_UPDATE: {"current_event": {"summary": "Réunion"}},
     DraftType.EVENT_DELETE: {"event": {"summary": "Dentiste"}},

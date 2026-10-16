@@ -156,6 +156,12 @@ Le job `process_scheduled_actions` tourne toutes les 60 secondes :
 
 > **Collecte sérialisée** : l'élection du leader, `max_instances=1` et le verrou SQL coordonnent le scrutin. Aucun `SchedulerLock` Redis supplémentaire n'est pris. La concurrence du batch est bornée par `scheduled_actions_max_concurrency`, avec une session distincte par exécution.
 
+Chaque règlement vérifie le `execution_token` sous verrou SQL avant de modifier
+la routine : résultat du pipeline, vérification sans fait neuf, proposition et
+question en attente. Une vérification ou une notification tardive peut conserver
+la trace de ce qui a eu lieu, mais ne reprogramme pas une réservation annulée ou
+remplacée pendant son attente.
+
 ### Réservation d'une exécution manuelle
 
 L'UI et les commandes applicatives passent par

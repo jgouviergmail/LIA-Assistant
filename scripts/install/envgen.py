@@ -140,6 +140,9 @@ def derive_environment(
         # Shared across workers and voice surfaces. A self-hoster using
         # ElevenLabs can lower this to the allowance of their own account.
         "ELEVENLABS_TTS_MAX_CONCURRENCY": "5",
+        # Shared by Fish Audio synthesis, transcription and voice design; a
+        # self-hoster lowers it to the allowance of their own account.
+        "FISHAUDIO_MAX_CONCURRENCY": "5",
         "DIAGNOSTICS_WEBHOOK_SECRET": (
             secrets.token_urlsafe(32)
             if public.self_diagnostics and public.observability

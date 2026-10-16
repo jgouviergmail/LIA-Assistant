@@ -30,15 +30,24 @@ email connector. The verdict was stale by the time it was read.
 
 The verdict alone cannot mean "blocked", because nothing acts on it: the router
 never reads ``is_valid`` and executes rejected plans unchanged. So a blocker is
-only real for a capability that produced nothing — which is exactly what the
-founding defect looked like, and exactly what this one did not.
+only real for a capability that never ran — which is exactly what the founding
+defect looked like, and exactly what this one did not.
+
+Third measurement, 2026-10-07 (run b148e908, RC1.2): a step that RAN and
+FAILED kept its verdict. An Outlook account's reply failed on its own
+reference, the validator had judged it ``UNAUTHORIZED`` against Google scopes,
+and the « blocked » directive — marked authoritative — told the person the
+reply capability was « not connected », while the runtime failures directive,
+which carried the real failure, forbade saying exactly that. A capability that
+ran answers through ONE channel, its own typed failure (ADR-303); a verdict
+speaks only for what never ran.
 """
 
 from __future__ import annotations
 
 from collections.abc import Collection
 from dataclasses import dataclass
-from typing import Any, Final
+from typing import Final
 
 from src.domains.agents.orchestration.plan_schemas import ExecutionPlan, StepType
 from src.domains.agents.orchestration.validator import ValidationResult
@@ -90,15 +99,16 @@ class PlanBlocker:
     reason: str
 
 
-def executed_tool_names(
+def attempted_tool_names(
     execution_plan: object | None,
     completed_steps: object | None,
 ) -> frozenset[str]:
-    """Names of the tools that actually ran and returned during this turn.
+    """Names of the tools the turn actually tried, whatever they answered.
 
-    A step is counted as executed when the orchestrator stored a result for it
-    that is not an explicit failure. Returning zero items counts: an empty
-    answer is still an answer, and calling it "blocked" is a different claim.
+    A step counts as soon as the orchestrator stored an outcome for it — under
+    its own id, or under one of its FOR_EACH items (``step_2_item_0``). Zero
+    items is an answer, and so is a failure: its typed failure reaches the
+    runtime failures directive, which is that fact's one channel (RC1.2).
 
     Args:
         execution_plan: ``ExecutionPlan`` from state — it holds the only
@@ -109,7 +119,7 @@ def executed_tool_names(
             orchestrator.
 
     Returns:
-        The executed tool names, empty whenever either input is absent or came
+        The attempted tool names, empty whenever either input is absent or came
         back from a msgpack round-trip in an unexpected shape. Empty is the
         safe default: it restores the pre-existing behaviour of reporting every
         blocker, never the reverse.
@@ -117,19 +127,20 @@ def executed_tool_names(
     if not isinstance(execution_plan, ExecutionPlan) or not isinstance(completed_steps, dict):
         return frozenset()
 
-    executed: set[str] = set()
+    stored = {str(key) for key in completed_steps}
+    attempted: set[str] = set()
     for step in execution_plan.steps:
         if step.step_type != StepType.TOOL or not step.tool_name:
             continue
-        outcome: Any = completed_steps.get(step.step_id)
-        if isinstance(outcome, dict) and outcome.get("success") is not False:
-            executed.add(step.tool_name)
-    return frozenset(executed)
+        item_prefix = f"{step.step_id}_item_"
+        if step.step_id in stored or any(key.startswith(item_prefix) for key in stored):
+            attempted.add(step.tool_name)
+    return frozenset(attempted)
 
 
 def summarize_plan_blockers(
     validation_result: object | None,
-    executed_tools: Collection[str] = (),
+    attempted_tools: Collection[str] = (),
 ) -> list[PlanBlocker]:
     """Reduce a validation verdict to the capabilities that were blocked.
 
@@ -142,12 +153,12 @@ def summarize_plan_blockers(
             isinstance check below is what makes that harmless (and narrows the
             type for everything after it) instead of raising inside the
             response node, where an exception costs the whole answer.
-        executed_tools: Tools that ran despite the verdict, from
-            :func:`executed_tool_names`. A rejected plan is executed unchanged
-            — the router never reads ``is_valid`` — so a capability that
-            produced a result was demonstrably not blocked, whatever the
-            verdict says about it. Defaults to empty, which keeps every
-            blocker for callers that have no execution knowledge.
+        attempted_tools: Tools that ran despite the verdict, from
+            :func:`attempted_tool_names`. A rejected plan is executed
+            unchanged — the router never reads ``is_valid`` — so a capability
+            that ran was demonstrably not blocked, whatever the verdict says
+            about it, and whatever it answered. Defaults to empty, which keeps
+            every blocker for callers that have no execution knowledge.
 
     Returns:
         One blocker per distinct blocked tool, capped and order-preserved.
@@ -157,17 +168,18 @@ def summarize_plan_blockers(
     if not isinstance(validation_result, ValidationResult) or validation_result.is_valid:
         return []
 
-    executed = frozenset(executed_tools)
+    attempted = frozenset(attempted_tools)
     blockers: list[PlanBlocker] = []
     seen: set[str | None] = set()
     for issue in validation_result.errors:
         if issue.severity != "error" or issue.tool_name in seen:
             continue
         # The capability ran: reporting it as blocked is the defect, not the
-        # fix. A plan-level rejection (no tool named) is silenced as soon as
+        # fix — its own outcome, data or typed failure, is what the answer
+        # reads. A plan-level rejection (no tool named) is silenced as soon as
         # anything ran at all — "the plan itself was blocked" cannot be true
-        # of a plan that produced data.
-        if issue.tool_name in executed or (issue.tool_name is None and executed):
+        # of a plan that executed.
+        if issue.tool_name in attempted or (issue.tool_name is None and attempted):
             continue
         seen.add(issue.tool_name)
         blockers.append(

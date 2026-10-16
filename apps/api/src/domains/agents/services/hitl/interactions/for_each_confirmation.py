@@ -60,6 +60,17 @@ logger = get_logger(__name__)
 _PREVIEW_VALUE_MAX_CHARS = 50
 
 
+#: The domains a FOR_EACH tool name may name, tried in order.
+_FOR_EACH_DOMAINS = ("reminder", "email", "event", "contact", "task", "file", "label")
+#: The verbs that make a domain's delete or update type, tried in order.
+_FOR_EACH_VERB_SUFFIXES = (
+    (("delete", "cancel", "remove", "trash"), "_delete"),
+    (("update", "modify", "edit"), "_update"),
+)
+#: The e-mail verbs with a type of their own.
+_EMAIL_VERB_TYPES = (("reply", "email_reply"), ("forward", "email_forward"))
+
+
 @HitlInteractionRegistry.register(HitlInteractionType.FOR_EACH_CONFIRMATION)
 class ForEachConfirmationInteraction:
     """
@@ -370,6 +381,8 @@ class ForEachConfirmationInteraction:
             - ``update_contact`` / ``modify_contact`` → ``"contact_update"``
             - ``send_email`` → ``"email"`` (DraftType.EMAIL has no suffix)
             - ``create_event`` → ``"event"`` (base DraftType)
+            - ``send_mailbox_draft`` → ``"mailbox_draft_send"``; any other
+              mailbox draft act → ``None`` (it asks nothing, ADR-344)
             - Unrecognized tool name → ``None`` (caller falls back).
 
         Args:
@@ -381,33 +394,19 @@ class ForEachConfirmationInteraction:
             :func:`src.domains.agents.drafts.display.get_draft_display_config`,
             or ``None`` when no mapping can be inferred.
         """
-        if not steps:
-            return None
-
-        tool_name = str(steps[0].get("tool_name", "")).lower()
-        if not tool_name:
-            return None
-
-        domain = next(
-            (
-                d
-                for d in ("reminder", "email", "event", "contact", "task", "file", "label")
-                if d in tool_name
-            ),
-            None,
-        )
+        tool_name = str(steps[0].get("tool_name", "")).lower() if steps else ""
+        # The person's mailbox drafts (ADR-344): only SENDING one asks first.
+        if "mailbox_draft" in tool_name:
+            return "mailbox_draft_send" if "send" in tool_name else None
+        domain = next((d for d in _FOR_EACH_DOMAINS if d in tool_name), None)
         if domain is None:
             return None
-
-        if any(v in tool_name for v in ("delete", "cancel", "remove", "trash")):
-            return f"{domain}_delete"
-        if any(v in tool_name for v in ("update", "modify", "edit")):
-            return f"{domain}_update"
-        if any(v in tool_name for v in ("reply",)) and domain == "email":
-            return "email_reply"
-        if any(v in tool_name for v in ("forward",)) and domain == "email":
-            return "email_forward"
-        # Default for send / create / unknown verbs → base DraftType (e.g. "email", "event")
+        for verbs, suffix in _FOR_EACH_VERB_SUFFIXES:
+            if any(verb in tool_name for verb in verbs):
+                return f"{domain}{suffix}"
+        if domain == "email":
+            # Default for send / create / unknown verbs → the base type (« email »).
+            return next((kind for verb, kind in _EMAIL_VERB_TYPES if verb in tool_name), domain)
         return domain
 
     def _detect_mutation_type(

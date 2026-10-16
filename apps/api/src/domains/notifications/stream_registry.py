@@ -75,9 +75,9 @@ async def register_stream(
         logger.warning(
             "sse_stream_register_failed",
             user_id=user_id,
-            error=str(exc),
             error_type=type(exc).__name__,
         )
+        logger.debug("sse_stream_register_error_detail", error=str(exc))
 
 
 async def stream_is_active(redis: Redis, user_id: str, stream_id: str) -> bool:

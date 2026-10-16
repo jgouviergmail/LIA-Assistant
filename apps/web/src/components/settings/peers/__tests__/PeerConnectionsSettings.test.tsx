@@ -4,6 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { act } from '@testing-library/react';
 
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 
@@ -28,6 +29,8 @@ function hookState(over: Record<string, unknown> = {}) {
     connections: [],
     blocks: [],
     accessLog: [],
+    error: null,
+    hasCompleteData: true,
     loading: false,
     initialLoading: false,
     mutating: false,
@@ -53,7 +56,7 @@ beforeEach(() => {
     loading: false,
     error: null,
   });
-  useAuth.mockReturnValue({ user: { full_name: 'Marie Dupont' } });
+  useAuth.mockReturnValue({ user: { id: 'one', full_name: 'Marie Dupont' } });
 });
 
 describe('PeerConnectionsSettings', () => {
@@ -69,28 +72,118 @@ describe('PeerConnectionsSettings', () => {
     expect(usePeerConnections).toHaveBeenCalledWith(false);
   });
 
-  it('renders the five fold titles as an index, contents unmounted until opened', async () => {
-    // Every zone folds (ADR-208): the section is an index of titled entries,
-    // and a fold's children are UNMOUNTED while closed.
+  it('keeps exact discovery visible while permissions and requests remain separate folds', async () => {
     usePeerConnections.mockReturnValue(hookState());
-    const { user } = renderWithProviders(<PeerConnectionsSettings lng="fr" />);
-    expect(screen.getByText('settings.peers.visibility_title')).toBeInTheDocument();
-    expect(screen.getByText('settings.peers.discovery.title')).toBeInTheDocument();
-    expect(screen.getByText('settings.peers.connections.title')).toBeInTheDocument();
-    expect(screen.getByText('settings.peers.blocks.title')).toBeInTheDocument();
-    expect(screen.getByText('settings.peers.access_log.title')).toBeInTheDocument();
-
-    expect(
-      screen.queryByRole('switch', { name: 'settings.peers.discovery.toggle_label' })
-    ).toBeNull();
+    const { user, container } = renderWithProviders(<PeerConnectionsSettings lng="fr" />);
+    const commandTitles = [...container.querySelectorAll('summary')]
+      .slice(0, 3)
+      .map(node => node.textContent?.replace(/0$/, ''));
+    expect(commandTitles).toEqual([
+      'settings.peers.visibility_title',
+      'settings.peers.blocks.title',
+      'settings.peers.access_log.title',
+    ]);
+    const search = screen.getByRole('textbox', { name: 'settings.peers.discovery.search_label' });
+    expect(search).toBeVisible();
+    expect(screen.queryByRole('switch')).toBeNull();
+    await user.click(screen.getByText('settings.peers.requests.title'));
+    expect(screen.getByText('settings.peers.requests.empty')).toBeInTheDocument();
+    expect(search).toBeVisible();
     await user.click(screen.getByText('settings.peers.visibility_title'));
     expect(
       screen.getByRole('switch', { name: 'settings.peers.discovery.toggle_label' })
     ).toBeInTheDocument();
+    expect(search).toBeVisible();
+  });
 
-    // The requests block lives INSIDE the "find someone" fold.
-    await user.click(screen.getByText('settings.peers.discovery.title'));
-    expect(screen.getByText('settings.peers.requests.title')).toBeInTheDocument();
+  it('retries a failed first read instead of claiming there are no connections', async () => {
+    const refetchAll = vi.fn().mockRejectedValue(new Error('unavailable'));
+    usePeerConnections.mockReturnValue(
+      hookState({
+        error: new Error('unavailable'),
+        hasCompleteData: false,
+        refetchAll,
+      })
+    );
+    const { user } = renderWithProviders(<PeerConnectionsSettings lng="fr" />);
+    expect(screen.getByRole('alert')).toHaveTextContent('settings.peers.load_error');
+    expect(screen.queryByText('settings.peers.connections.empty')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'common.retry' }));
+    expect(refetchAll).toHaveBeenCalledOnce();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'common.retry' })).toHaveAttribute(
+        'aria-disabled',
+        'false'
+      )
+    );
+  });
+
+  it('retains loaded identities during a failed background reread', () => {
+    usePeerConnections.mockReturnValue(hookState({ error: new Error('unavailable') }));
+    renderWithProviders(<PeerConnectionsSettings lng="fr" />);
+    expect(screen.getByRole('alert')).toBeVisible();
+    expect(
+      screen.getByRole('textbox', { name: 'settings.peers.discovery.search_label' })
+    ).toBeVisible();
+  });
+
+  it('does not toast a late mutation result to a different signed-in account', async () => {
+    let finish: (value: { ok: boolean; errorCode: null }) => void = () => {};
+    const setDiscovery = vi.fn().mockImplementation(
+      () =>
+        new Promise(done => {
+          finish = done;
+        })
+    );
+    usePeerConnections.mockReturnValue(hookState({ setDiscovery }));
+    const { user, rerender } = renderWithProviders(<PeerConnectionsSettings lng="fr" />);
+    await user.click(screen.getByText('settings.peers.visibility_title'));
+    await user.click(screen.getByRole('switch', { name: 'settings.peers.discovery.toggle_label' }));
+    useAuth.mockReturnValue({ user: { id: 'two', full_name: 'Nouveau compte' } });
+    usePeerConnections.mockReturnValue(hookState());
+    rerender(<PeerConnectionsSettings lng="fr" />);
+    await act(async () => {
+      finish({ ok: true, errorCode: null });
+    });
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(screen.queryByText('Marie Dupont')).not.toBeInTheDocument();
+  });
+
+  it('clears local discovery text and ignores a delayed result after account replacement', async () => {
+    let finish: (value: { matches: unknown[]; errorCode: null }) => void = () => {};
+    const search = vi.fn().mockImplementation(
+      () =>
+        new Promise(done => {
+          finish = done;
+        })
+    );
+    usePeerConnections.mockReturnValue(hookState({ search }));
+    const { user, rerender } = renderWithProviders(<PeerConnectionsSettings lng="fr" />);
+    const input = screen.getByRole('textbox', { name: 'settings.peers.discovery.search_label' });
+    await user.type(input, 'Identité privée');
+    await user.keyboard('{Enter}');
+    useAuth.mockReturnValue({ user: { id: 'two', full_name: 'Nouveau compte' } });
+    usePeerConnections.mockReturnValue(hookState());
+    rerender(<PeerConnectionsSettings lng="fr" />);
+    await act(async () => {
+      finish({
+        matches: [
+          {
+            peer_id: 'private',
+            display_name: 'Ancien résultat privé',
+            email_hint: 'x…@test',
+            relationship: 'none',
+          },
+        ],
+        errorCode: null,
+      });
+    });
+    expect(
+      screen.getByRole('textbox', { name: 'settings.peers.discovery.search_label' })
+    ).toHaveValue('');
+    expect(screen.queryByText('Ancien résultat privé')).not.toBeInTheDocument();
+    expect(toast.error).not.toHaveBeenCalled();
   });
 
   it('surfaces the searchable own name with a one-click copy (Lot 7)', async () => {
@@ -104,8 +197,42 @@ describe('PeerConnectionsSettings', () => {
     expect(writeText).toHaveBeenCalledWith('Marie Dupont');
   });
 
+  it('waits for actual clipboard success before displaying the copied checkmark', async () => {
+    usePeerConnections.mockReturnValue(hookState());
+    const { user } = renderWithProviders(<PeerConnectionsSettings lng="fr" />);
+    await user.click(screen.getByText('settings.peers.visibility_title'));
+    let finish: () => void = () => {};
+    vi.spyOn(navigator.clipboard, 'writeText').mockImplementation(
+      () =>
+        new Promise<void>(resolve => {
+          finish = resolve;
+        })
+    );
+    const copy = screen.getByRole('button', { name: 'settings.peers.my_name.copy' });
+    await user.click(copy);
+    expect(copy.querySelector('.lucide-check')).toBeNull();
+    expect(copy).toHaveAttribute('aria-busy', 'true');
+    await act(async () => {
+      finish();
+    });
+    expect(copy.querySelector('.lucide-check')).not.toBeNull();
+    expect(copy).toHaveFocus();
+  });
+
+  it('shows a copy failure without a success checkmark when the clipboard rejects access', async () => {
+    usePeerConnections.mockReturnValue(hookState());
+    const { user } = renderWithProviders(<PeerConnectionsSettings lng="fr" />);
+    await user.click(screen.getByText('settings.peers.visibility_title'));
+    vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new Error('denied'));
+    const copy = screen.getByRole('button', { name: 'settings.peers.my_name.copy' });
+    await user.click(copy);
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('common.copyFailed'));
+    expect(copy.querySelector('.lucide-check')).toBeNull();
+    expect(copy).toHaveFocus();
+  });
+
   it('says plainly that an empty profile name makes the user unfindable', async () => {
-    useAuth.mockReturnValue({ user: { full_name: null } });
+    useAuth.mockReturnValue({ user: { id: 'one', full_name: null } });
     usePeerConnections.mockReturnValue(hookState());
     const { user } = renderWithProviders(<PeerConnectionsSettings lng="fr" />);
     await user.click(screen.getByText('settings.peers.visibility_title'));
@@ -166,7 +293,7 @@ describe('PeerConnectionsSettings', () => {
       })
     );
     const { user } = renderWithProviders(<PeerConnectionsSettings lng="fr" />);
-    await user.click(screen.getByText('settings.peers.discovery.title'));
+    await user.click(screen.getByText('settings.peers.requests.title'));
     await user.click(screen.getByRole('button', { name: 'settings.peers.requests.accept' }));
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith('settings.peers.errors.not_pending')
@@ -189,7 +316,6 @@ describe('PeerConnectionsSettings', () => {
     usePeerConnections.mockReturnValue(hookState({ loading: true, initialLoading: false }));
     const { user } = renderWithProviders(<PeerConnectionsSettings lng="fr" />);
     await user.click(screen.getByText('settings.peers.visibility_title'));
-    await user.click(screen.getByText('settings.peers.discovery.title'));
     const input = screen.getByRole('textbox', {
       name: 'settings.peers.discovery.search_label',
     });
@@ -244,8 +370,7 @@ describe('PeerConnectionsSettings', () => {
         ],
       })
     );
-    const { user } = renderWithProviders(<PeerConnectionsSettings lng="fr" />);
-    await user.click(screen.getByText('settings.peers.connections.title'));
+    renderWithProviders(<PeerConnectionsSettings lng="fr" />);
     expect(screen.getByText('Peer Beta')).toBeInTheDocument();
     expect(screen.getByText('settings.peers.connections.title')).toBeInTheDocument();
   });

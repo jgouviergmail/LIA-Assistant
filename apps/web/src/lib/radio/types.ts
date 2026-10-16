@@ -24,11 +24,13 @@ export interface RadioSource {
   article_id: string | null;
 }
 
-/** A role the listener gives a voice in the settings. */
+/** A role of the station's team: LIA hosting, the anchor, the expert, the editorialist. */
 export type RadioRole = 'host' | 'anchor' | 'expert' | 'columnist';
-/** Every role heard on air: the listener's four, and the station's commentators (a
- * debate's, a discussion's), whom the station casts itself. */
-export type RadioSpeakingRole = RadioRole | 'speaker_a' | 'speaker_b' | 'speaker_c';
+/** A commentator of a debate or a discussion — voiced by the listener too, or by the
+ * station when left automatic. */
+export type RadioCommentatorRole = 'speaker_a' | 'speaker_b' | 'speaker_c';
+/** Every role heard on air — each one a voice the listener may choose. */
+export type RadioSpeakingRole = RadioRole | RadioCommentatorRole;
 
 /** One spoken line, when it starts in its segment, and what it rests on. */
 export interface RadioTranscriptLine {
@@ -140,7 +142,12 @@ export interface RadioOptions {
   /** The verification of a listener who never chose (the instance's default). */
   verification_default: RadioVerificationMode;
   verification_checked: Record<RadioVerificationMode, string[]>;
+  /** The station's team, in order. */
   roles: RadioRole[];
+  /** The commentators of a debate or a discussion, in order. */
+  commentator_roles: RadioCommentatorRole[];
+  /** For each role, the roles whose voice it may not share (a write refuses it). */
+  voices_apart: Partial<Record<RadioSpeakingRole, RadioSpeakingRole[]>>;
   voices: RadioVoiceOption[];
   voice_id_max_chars: number;
   station_name_max_chars: number;
@@ -162,7 +169,7 @@ export interface RadioPreferences {
   disabled_sources: string[];
   /** The base sources (by address) the listener unticked; every other one airs, translated. */
   disabled_feeds: string[];
-  voices: Partial<Record<RadioRole, string>>;
+  voices: Partial<Record<RadioSpeakingRole, string>>;
   /** null = the instance's default. */
   verification: RadioVerificationMode | null;
   /** null = the instance's default; 0 = no automatic stop. */

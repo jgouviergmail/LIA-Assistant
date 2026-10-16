@@ -15,6 +15,7 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict, field_validator
 from pydantic import Field as PydanticField
 
+from src.domains.agents.analysis.efficacy_context import EfficacyAnalysis, read_analysis
 from src.domains.agents.analysis.requested_outcomes import GoalRequirement
 from src.domains.agents.analysis.resolved_references import (
     AnalyzerReferenceType,
@@ -130,6 +131,16 @@ class QueryAnalysisOutput(BaseModel):
         default_factory=list,
         description="Explicit results requested in the current message, with exact source quotes; no anticipated needs.",
     )
+
+    efficacy_analysis: EfficacyAnalysis = PydanticField(
+        default_factory=EfficacyAnalysis,
+        description="At most two cognitive domains of the explicit user request; empty if uncertain. Clarification/verification describe a current need, never a personality judgement.",
+    )
+
+    @field_validator("efficacy_analysis", mode="before")
+    @classmethod
+    def read_optional_efficacy(cls, raw: object) -> EfficacyAnalysis:
+        return read_analysis(raw)
 
     intent: str = PydanticField(description="action or conversation")
     primary_domain: str | None = PydanticField(

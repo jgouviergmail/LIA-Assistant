@@ -196,24 +196,26 @@ class ScheduledActionRepository(BaseRepository[ScheduledAction]):
 
         return actions
 
-    async def recover_stale_executing(self, timeout_minutes: int = 10) -> int:
+    async def recover_stale_executing(self, *, older_than: datetime) -> int:
         """
         Recover actions stuck in 'executing' status (crash recovery).
 
-        If an action has been in 'executing' for longer than the timeout,
-        reset it to 'active' so the scheduler can retry.
+        A reservation untouched since ``older_than`` belongs to a dead tick: it
+        is reset to 'active' so the scheduler can run the routine again. A live
+        tick renews its reservation at each check, the last one right before
+        the model runs (:meth:`renew_reservation`), so the caller's threshold —
+        never below the worst case of a run — measures from the run's real start.
+
+        Args:
+            older_than: Reservations last touched before this instant are freed.
 
         Returns:
             Number of recovered actions.
         """
-        from datetime import timedelta
-
-        cutoff = now_utc() - timedelta(minutes=timeout_minutes)
-
         stmt = (
             update(ScheduledAction)
             .where(ScheduledAction.status == ScheduledActionStatus.EXECUTING.value)
-            .where(ScheduledAction.updated_at < cutoff)
+            .where(ScheduledAction.updated_at < older_than)
             .values(status=ScheduledActionStatus.ACTIVE.value, execution_token=None)
             .returning(ScheduledAction.id)
         )
@@ -226,10 +228,61 @@ class ScheduledActionRepository(BaseRepository[ScheduledAction]):
                 "scheduled_actions_recovered_stale",
                 count=len(recovered_ids),
                 action_ids=[str(aid) for aid in recovered_ids],
-                timeout_minutes=timeout_minutes,
+                older_than=older_than.isoformat(),
             )
 
         return len(recovered_ids)
+
+    async def renew_reservation(self, action_id: UUID, token: UUID) -> bool:
+        """Renew the reservation ``token`` holds, and say whether it still holds it.
+
+        One conditional statement: a tick whose reservation the recovery freed,
+        and another tick took, renews nothing and must neither run nor settle.
+
+        Args:
+            action_id: The routine.
+            token: The reservation the tick was handed.
+
+        Returns:
+            True when ``token`` still holds the routine (now renewed).
+        """
+        result: Result[tuple[UUID]] = await self.db.execute(
+            update(ScheduledAction)
+            .where(
+                ScheduledAction.id == action_id,
+                ScheduledAction.status == ScheduledActionStatus.EXECUTING.value,
+                ScheduledAction.execution_token == token,
+            )
+            .values(updated_at=now_utc())
+            .returning(ScheduledAction.id)
+        )
+        return result.scalar_one_or_none() is not None
+
+    async def lock_reserved(self, action_id: UUID, token: UUID) -> ScheduledAction | None:
+        """Refresh and lock the routine for the settle, while ``token`` holds it.
+
+        The fence of the settle that follows a model run: the reservation may
+        have expired meanwhile and been taken by another tick, whose state a
+        late settle must not overwrite.
+
+        Args:
+            action_id: The routine.
+            token: The reservation the tick was handed.
+
+        Returns:
+            The locked row, or None when another tick holds it now.
+        """
+        result: Result[tuple[ScheduledAction]] = await self.db.execute(
+            select(ScheduledAction)
+            .where(
+                ScheduledAction.id == action_id,
+                ScheduledAction.status == ScheduledActionStatus.EXECUTING.value,
+                ScheduledAction.execution_token == token,
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        return result.scalar_one_or_none()
 
     async def reschedule(
         self,

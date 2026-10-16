@@ -14,11 +14,13 @@
  * and stops as soon as none is. An idle account issues exactly one request.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 import { apiClient, ApiError } from '@/lib/api-client';
 import { logger } from '@/lib/logger';
-import { useStaleGuard } from '@/hooks/useStaleGuard';
+import { useAuth } from '@/hooks/useAuth';
+import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
+import { useApplicationAccountState } from '@/hooks/useApplicationAccountState';
 import { ACTIVE_CALL_STATUSES, type TelephonyCallSummary } from '@/types/telephony';
 
 /**
@@ -35,6 +37,8 @@ export interface UseTelephonyCallsReturn {
   isLoading: boolean;
   /** The feature is off (router absent → 404) — callers render nothing. */
   isUnavailable: boolean;
+  /** A current read failed; an already loaded history remains visible. */
+  error: Error | null;
   refetch: () => Promise<void>;
 }
 
@@ -43,65 +47,107 @@ export function hasActiveCall(calls: readonly TelephonyCallSummary[]): boolean {
   return calls.some(call => ACTIVE_CALL_STATUSES.includes(call.status));
 }
 
+interface CallsState {
+  calls: TelephonyCallSummary[];
+  error: Error | null;
+  unavailable: boolean;
+  settled: boolean;
+  busy: boolean;
+}
+
+const INITIAL_STATE: CallsState = {
+  calls: [],
+  error: null,
+  unavailable: false,
+  settled: false,
+  busy: false,
+};
+
 export function useTelephonyCalls(enabled = true, limit?: number): UseTelephonyCallsReturn {
-  const [calls, setCalls] = useState<TelephonyCallSummary[]>([]);
-  const [isLoading, setIsLoading] = useState(enabled);
-  const [isUnavailable, setIsUnavailable] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Staleness guard: a slow response must never overwrite a newer one, nor
-  // commit state after unmount (audit F037 — shared, tested helper).
-  const guard = useStaleGuard();
+  const { user } = useAuth();
+  const endpoint = limit !== undefined ? `/telephony/calls?limit=${limit}` : '/telephony/calls';
+  const scope = enabled && user?.id ? JSON.stringify([user.id, endpoint]) : undefined;
+  const { isCurrent } = useApplicationAccountLifetime(scope);
+  const [state, setState] = useApplicationAccountState(scope, INITIAL_STATE);
+  const activeRequest = useRef<AbortController | null>(null);
 
-  const fetchCalls = useCallback(async () => {
-    const isStale = guard.begin();
-    try {
-      // Ask the server for exactly what the caller displays — never fetch a
-      // longer list to slice it client-side (the endpoint caps at 100).
-      const endpoint = limit !== undefined ? `/telephony/calls?limit=${limit}` : '/telephony/calls';
-      const response = await apiClient.get<TelephonyCallSummary[]>(endpoint);
-      if (isStale()) return;
-      setCalls(Array.isArray(response) ? response : []);
-    } catch (error) {
-      if (isStale()) return;
-      // 404 = telephony disabled (router not registered). Not a failure: the
-      // caller simply has nothing to show, and polling must stop for good.
-      if (error instanceof ApiError && error.status === 404) {
-        setIsUnavailable(true);
-        setCalls([]);
-        return;
+  const fetchCalls = useCallback(
+    async (lifetime: AbortSignal) => {
+      if (!isCurrent() || lifetime.aborted || state.unavailable) return;
+      activeRequest.current?.abort();
+      const request = new AbortController();
+      activeRequest.current = request;
+      const signal = AbortSignal.any([lifetime, request.signal]);
+      const isStale = () => signal.aborted || !isCurrent();
+      setState(previous => ({ ...previous, busy: true }));
+      try {
+        const response = await apiClient.get<TelephonyCallSummary[]>(endpoint, { signal });
+        if (isStale()) return;
+        setState(previous => ({
+          ...previous,
+          calls: Array.isArray(response) ? response : [],
+          error: null,
+        }));
+      } catch (err) {
+        if (isStale()) return;
+        if (err instanceof ApiError && err.status === 404) {
+          setState(previous => ({ ...previous, unavailable: true, calls: [], error: null }));
+        } else {
+          const error = err instanceof Error ? err : new Error(String(err));
+          setState(previous => ({ ...previous, error }));
+          if (!(error instanceof TypeError)) {
+            logger.error('Failed to fetch telephony calls', error, {
+              component: 'useTelephonyCalls',
+            });
+          }
+        }
+      } finally {
+        // A superseded request cannot hide the pending current request.
+        if (!isStale()) {
+          activeRequest.current = null;
+          setState(previous => ({ ...previous, busy: false, settled: true }));
+        }
       }
-      // A backend that is merely unreachable (startup, restart) is expected
-      // noise here — the next tick retries.
-      if (error instanceof TypeError) return;
-      logger.error('Failed to fetch telephony calls', error as Error, {
-        component: 'useTelephonyCalls',
-      });
-    } finally {
-      if (!isStale()) setIsLoading(false);
-    }
-  }, [guard, limit]);
+    },
+    [endpoint, isCurrent, setState, state.unavailable]
+  );
 
+  const activeEffect = useRef<{ controller: AbortController; read: typeof fetchCalls } | null>(
+    null
+  );
   useEffect(() => {
-    if (!enabled || isUnavailable) {
-      setIsLoading(false);
-      return;
-    }
-    void fetchCalls();
-  }, [enabled, isUnavailable, fetchCalls]);
-
-  // Poll ONLY while something is in flight; a finished list is static, and
-  // re-reading it forever would be pure noise on every idle account.
-  const active = hasActiveCall(calls);
-  useEffect(() => {
-    if (!enabled || isUnavailable || !active) return;
-    timerRef.current = setTimeout(() => void fetchCalls(), ACTIVE_POLL_MS);
+    const controller = new AbortController();
+    activeEffect.current = { controller, read: fetchCalls };
+    // Strict Mode cancels its probe before external IO, like useApiQuery.
+    queueMicrotask(() => {
+      void fetchCalls(controller.signal);
+    });
     return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = null;
+      controller.abort();
+      activeRequest.current?.abort();
+      activeRequest.current = null;
+      activeEffect.current = null;
     };
-    // `calls` is in the deps through `active` AND through the identity of the
-    // list: each fetch reschedules the next tick.
-  }, [enabled, isUnavailable, active, calls, fetchCalls]);
+  }, [fetchCalls]);
 
-  return { calls, hasActiveCall: active, isLoading, isUnavailable, refetch: fetchCalls };
+  const refetch = useCallback(async () => {
+    const effect = activeEffect.current;
+    if (effect?.read === fetchCalls) await fetchCalls(effect.controller.signal);
+  }, [fetchCalls]);
+
+  const active = hasActiveCall(state.calls);
+  useEffect(() => {
+    if (!scope || state.unavailable || state.busy || !active) return;
+    const timer = setTimeout(() => void refetch(), ACTIVE_POLL_MS);
+    return () => clearTimeout(timer);
+  }, [scope, state, active, refetch]);
+
+  return {
+    calls: state.calls,
+    hasActiveCall: active,
+    isLoading: !!scope && !state.settled,
+    isUnavailable: state.unavailable,
+    error: state.error,
+    refetch,
+  };
 }

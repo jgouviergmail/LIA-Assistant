@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useState, useCallback, useRef, useEffect, type ReactNode } from 'react';
-import apiClient from '@/lib/api-client';
+import apiClient, { redirectToLogin } from '@/lib/api-client';
 import { onForegroundMessage } from '@/lib/firebase';
 import { logger } from '@/lib/logger';
 import type { MessagePayload } from 'firebase/messaging';
@@ -220,7 +220,10 @@ export function BroadcastProvider({ children, isAuthenticated }: BroadcastProvid
             handleNewBroadcastRef.current(data.message || '', data.broadcast_id);
           }
         } catch (error) {
-          console.error('Failed to parse SSE broadcast:', error);
+          console.error(
+            'Failed to parse SSE broadcast:',
+            error instanceof Error ? error.name : typeof error
+          );
         }
       });
 
@@ -236,6 +239,14 @@ export function BroadcastProvider({ children, isAuthenticated }: BroadcastProvid
         } else {
           supersededWhileHidden = true;
         }
+      });
+
+      // The server closes the stream of a revoked session (point 22): stop
+      // for good — the native retry would only meet a 401 — and leave the page.
+      eventSource.addEventListener('session_revoked', () => {
+        eventSource?.close();
+        eventSource = null;
+        redirectToLogin();
       });
 
       eventSource.onerror = () => {

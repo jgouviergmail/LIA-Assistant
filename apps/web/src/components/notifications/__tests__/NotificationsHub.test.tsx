@@ -17,10 +17,12 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
+import { renderWithProviders, screen, waitFor, within } from '@/__tests__/test-utils';
 import { settingsSectionHref } from '@/lib/settings-sections';
 
 const { useApiQuery } = vi.hoisted(() => ({ useApiQuery: vi.fn() }));
+const { patchMock } = vi.hoisted(() => ({ patchMock: vi.fn() }));
+vi.mock('@/lib/api-client', () => ({ default: { patch: patchMock } }));
 vi.mock('@/hooks/useApiQuery', () => ({ useApiQuery }));
 
 const { useAppConfig } = vi.hoisted(() => ({ useAppConfig: vi.fn() }));
@@ -77,6 +79,7 @@ function answerHubCounts(counts: Record<string, number>) {
 beforeEach(() => {
   useApiQuery.mockReset();
   useApiQuery.mockReturnValue({ data: undefined, loading: false, error: null, refetch: vi.fn() });
+  patchMock.mockReset().mockResolvedValue({});
   useAppConfig.mockReset();
   flags();
 });
@@ -155,8 +158,9 @@ describe('NotificationsHub', () => {
     expect(screen.getByText('notifications_hub.sections.scheduled.subtitle')).toBeInTheDocument();
   });
 
-  it('keeps the existing settings deep links as the advanced route', () => {
-    renderWithProviders(<NotificationsHub lng="fr" />);
+  it('keeps the existing settings deep links in the top settings disclosure', async () => {
+    const { user } = renderWithProviders(<NotificationsHub lng="fr" />);
+    await user.click(screen.getByText('notifications_hub.advanced_title'));
 
     // Named after the DESTINATION, not after the hub section: the same words
     // twice on one page, meaning two different things, is how a reader loses
@@ -210,4 +214,123 @@ describe('what the badge colour says', () => {
       expect(pill.className).not.toMatch(/bg-primary/);
     }
   });
+});
+
+describe('notification registers', () => {
+  it('places upcoming items before delivered histories in reading order, after decisions', () => {
+    flags({ workboard_enabled: true });
+    renderWithProviders(<NotificationsHub lng="fr" />);
+    const future = screen.getByRole('region', { name: 'notifications_hub.groups.upcoming' });
+    const received = screen.getByRole('region', { name: 'notifications_hub.groups.received' });
+    expect(
+      future.compareDocumentPosition(received) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    for (const key of ['reminders', 'scheduled', 'workboard']) {
+      expect(
+        within(future).getByText(`notifications_hub.sections.${key}.title`)
+      ).toBeInTheDocument();
+    }
+    for (const key of ['peer_messages', 'proactive', 'interests']) {
+      expect(
+        within(received).getByText(`notifications_hub.sections.${key}.title`)
+      ).toBeInTheDocument();
+    }
+    const offers = screen.getByText('notifications_hub.sections.offers.title');
+    expect(offers.compareDocumentPosition(future) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(fetched()).toEqual([]);
+  });
+
+  it('places settings before notification data and fetches no page when opened', async () => {
+    const { user } = renderWithProviders(<NotificationsHub lng="fr" />);
+    const controls = screen.getByText('notifications_hub.advanced_title');
+    const offers = screen.getByText('notifications_hub.sections.offers.title');
+    expect(
+      controls.compareDocumentPosition(offers) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    await user.click(controls);
+    expect(screen.getAllByRole('link')).toHaveLength(5);
+    expect(fetched()).toEqual([]);
+  });
+});
+
+it('does not resurrect a decided offer when folded during a failed refresh', async () => {
+  const payload = {
+    notifications: [
+      {
+        id: 'offer-once',
+        content: 'Préparer le rendez-vous ?',
+        created_at: '2026-10-15T10:00:00Z',
+        priority: 'low',
+        sources_used: [],
+        user_feedback: null,
+      },
+    ],
+    total: 1,
+  };
+  const refetch = vi.fn();
+  useApiQuery.mockImplementation((endpoint: string) => ({
+    data: endpoint.startsWith('/heartbeat/offers') ? payload : undefined,
+    loading: false,
+    error: new Error('offline'),
+    refetch,
+  }));
+  const { user } = renderWithProviders(<NotificationsHub lng="fr" />);
+  const title = screen.getByText('notifications_hub.sections.offers.title');
+  await user.click(title);
+  await user.click(
+    screen.getByRole('button', { name: 'notifications_hub.sections.offers.dismiss' })
+  );
+  await waitFor(() => expect(patchMock).toHaveBeenCalledTimes(1));
+  expect(title.closest('summary')).toHaveFocus();
+  await user.click(title);
+  await user.click(title);
+  expect(screen.queryByText('Préparer le rendez-vous ?')).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('button', { name: 'notifications_hub.sections.offers.dismiss' })
+  ).not.toBeInTheDocument();
+});
+
+it('keeps an in-flight decision locked across folding and reopening', async () => {
+  let complete!: () => void;
+  patchMock.mockImplementation(
+    () =>
+      new Promise<void>(resolve => {
+        complete = resolve;
+      })
+  );
+  const payload = {
+    notifications: [
+      {
+        id: 'offer-in-flight',
+        content: 'Préparer le rendez-vous ?',
+        created_at: '2026-10-15T10:00:00Z',
+        priority: 'low',
+        sources_used: [],
+        user_feedback: null,
+      },
+    ],
+    total: 1,
+  };
+  useApiQuery.mockImplementation((endpoint: string) => ({
+    data: endpoint.startsWith('/heartbeat/offers') ? payload : undefined,
+    loading: false,
+    error: null,
+    refetch: vi.fn(),
+  }));
+  const { user } = renderWithProviders(<NotificationsHub lng="fr" />);
+  const title = screen.getByText('notifications_hub.sections.offers.title');
+  await user.click(title);
+  await user.click(
+    screen.getByRole('button', { name: 'notifications_hub.sections.offers.dismiss' })
+  );
+  await user.click(title);
+  await user.click(title);
+  const decline = screen.getByRole('button', { name: 'notifications_hub.sections.offers.dismiss' });
+  expect(decline).toHaveAttribute('aria-disabled', 'true');
+  await user.click(decline);
+  expect(patchMock).toHaveBeenCalledTimes(1);
+  complete();
+  await waitFor(() =>
+    expect(screen.queryByText('Préparer le rendez-vous ?')).not.toBeInTheDocument()
+  );
 });

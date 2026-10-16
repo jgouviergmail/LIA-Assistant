@@ -8,8 +8,9 @@ Design:
 - Single SETNX attempt at startup (non-blocking)
 - If lock is stale, background asyncio.Task retries every N seconds
 - When lock is acquired, scheduler.start() is called (even mid-flight)
-- Lock is renewed via a scheduler job (every 30s, TTL 120s)
-- On shutdown, lock is released for fast takeover
+- Lock is renewed via a scheduler job (every 30s, TTL 120s), late runs tolerated
+- A lost lock pauses the scheduler and restarts the background re-election (N1)
+- On shutdown, jobs stop starting first, then the lock is released for fast takeover
 
 This class is the single source of truth for leader election logic.
 Workers (main.py) only need to create an instance, register jobs, call start/shutdown.
@@ -23,6 +24,7 @@ from contextlib import suppress
 
 import redis.asyncio as aioredis
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.schedulers.base import STATE_PAUSED, STATE_RUNNING
 
 from src.core.constants import (
     SCHEDULER_JOB_LEADER_LOCK_RENEWAL,
@@ -69,7 +71,9 @@ class SchedulerLeaderElector:
         # ... register jobs with scheduler.add_job() ...
         await elector.start()     # Try acquire, start background re-election if needed
         # ... app runs ...
-        await elector.shutdown()  # Release lock, stop scheduler
+        elector.pause_jobs()      # Shutdown's first step: no job starts any more
+        # ... drain in-flight work ...
+        await elector.shutdown()  # Stop scheduler, release lock
 
     Args:
         redis: Redis async client (None triggers single-worker fallback).
@@ -104,6 +108,8 @@ class SchedulerLeaderElector:
         self._is_leader: bool = False
         self._elected_at: float | None = None  # monotonic timestamp
         self._re_election_task: asyncio.Task[None] | None = None
+        #: Set by :meth:`pause_jobs`: a dying worker never takes the jobs again.
+        self._stopping: bool = False
 
     @property
     def is_leader(self) -> bool:
@@ -144,23 +150,37 @@ class SchedulerLeaderElector:
         # SETNX failed — log stale lock details for diagnostics
         await self._log_stale_lock_info()
 
-        # Start background re-election
-        logger.info(
-            "scheduler_leader_starting_re_election",
-            worker_id=self._worker_id,
-            interval_seconds=self._re_election_interval,
-        )
-        self._re_election_task = asyncio.create_task(
-            self._re_election_loop(),
-            name="scheduler-leader-re-election",
-        )
+        self._start_re_election()
+
+    def pause_jobs(self) -> None:
+        """Let no job start from now on: the shutdown's first step (point 23).
+
+        A job started while the shutdown drains would meet the dependencies
+        about to close under it. Jobs already running go on; :meth:`shutdown`
+        cancels whatever still runs once the drain is over. A follower stops
+        waiting for the lease too: a dying worker must not take the jobs.
+        """
+        self._stopping = True
+        if self._re_election_task is not None and not self._re_election_task.done():
+            self._re_election_task.cancel()
+        if self._scheduler.state == STATE_RUNNING:
+            self._scheduler.pause()
+            logger.info("scheduler_paused_for_shutdown", worker_id=self._worker_id)
 
     async def shutdown(self) -> None:
         """
         Release leadership, stop scheduler, cancel background tasks.
 
         Safe to call even if start() was never called or failed (idempotent).
+        The scheduler is stopped whatever this worker's role: one that lost its
+        lease keeps a PAUSED scheduler (N1). The lease is released whatever the
+        local flag says, through the ownership script: a re-election cancelled
+        mid-``SET NX`` may hold it unknowingly, and a lease another worker holds
+        is never touched.
         """
+        # A dying worker never waits for the lease again, even without pause_jobs.
+        self._stopping = True
+
         # Cancel re-election task (if running)
         if self._re_election_task is not None and not self._re_election_task.done():
             self._re_election_task.cancel()
@@ -177,28 +197,27 @@ class SchedulerLeaderElector:
             round(time.monotonic() - self._elected_at, 1) if self._elected_at is not None else 0.0
         )
 
-        # Stop scheduler and release lock
-        if self._is_leader:
-            try:
-                if self._scheduler.running:
-                    self._scheduler.shutdown()
-            except Exception as exc:
-                logger.error(
-                    "scheduler_shutdown_failed",
-                    worker_id=self._worker_id,
-                    error=str(exc),
-                    error_type=type(exc).__name__,
-                )
+        # Stop the scheduler, whatever this worker's role
+        try:
+            if self._scheduler.running:
+                self._scheduler.shutdown()
+                # AsyncIOScheduler stops on the loop's next turn: yield it, so the
+                # jobs still running are cancelled before the caller closes
+                # anything they use (point 23).
+                await asyncio.sleep(0)
+        except Exception as exc:
+            logger.error(
+                "scheduler_shutdown_failed",
+                worker_id=self._worker_id,
+                error_type=type(exc).__name__,
+            )
+            logger.debug("scheduler_shutdown_failure_details", exc_info=exc)
 
-            # Release lock for fast takeover on restart
-            # Lock will expire via TTL anyway
+        # Release the lease for a fast takeover (it would expire via TTL anyway)
+        if self._redis is not None:
             with suppress(Exception):
-                if self._redis is not None:
-                    await self._release_lock()
-                    logger.debug(
-                        "scheduler_leader_lock_deleted",
-                        worker_id=self._worker_id,
-                    )
+                await self._release_lock()
+        self._is_leader = False
 
         logger.info(
             "scheduler_leader_released",
@@ -237,9 +256,9 @@ class SchedulerLeaderElector:
             logger.warning(
                 "scheduler_leader_acquire_error",
                 worker_id=self._worker_id,
-                error=str(exc),
                 error_type=type(exc).__name__,
             )
+            logger.debug("scheduler_leader_acquire_error_details", exc_info=exc)
             return False
 
     async def _become_leader(self) -> None:
@@ -253,8 +272,15 @@ class SchedulerLeaderElector:
 
         On any error in steps 1-3, rolls back _is_leader, releases the
         Redis lock (so re-election can retry), and returns without calling
-        the callback.
+        the callback. A lease won while the worker shuts down is handed back
+        at once: a live worker must take the jobs, not a dying one.
         """
+        if self._stopping:
+            if self._redis is not None:
+                with suppress(Exception):
+                    await self._release_lock()
+            logger.info("scheduler_leader_lease_returned_at_shutdown", worker_id=self._worker_id)
+            return
         self._is_leader = True
         self._elected_at = time.monotonic()
 
@@ -267,10 +293,18 @@ class SchedulerLeaderElector:
                 id=SCHEDULER_JOB_LEADER_LOCK_RENEWAL,
                 name="Renew scheduler leader lock",
                 replace_existing=True,
+                # A late run still renews: APScheduler skips a run more than a
+                # second late by default — seven renewals in thirty days of dev
+                # logs, each 1 to 2.6 s late (N1).
+                misfire_grace_time=self._renew_interval,
             )
 
-            # Start scheduler (guard against double-start)
-            if not self._scheduler.running:
+            # A scheduler paused by a lost lease resumes: ``running`` is True
+            # while it is paused, so it would never be started again.
+            if self._scheduler.state == STATE_PAUSED:
+                self._scheduler.resume()
+                logger.info("scheduler_leader_resumed", worker_id=self._worker_id)
+            elif not self._scheduler.running:
                 self._scheduler.start()
                 jobs_count = len(self._scheduler.get_jobs())
                 logger.info(
@@ -289,10 +323,9 @@ class SchedulerLeaderElector:
             logger.error(
                 "scheduler_leader_become_leader_failed",
                 worker_id=self._worker_id,
-                error=str(exc),
                 error_type=type(exc).__name__,
-                exc_info=True,
             )
+            logger.debug("scheduler_leader_become_leader_failure_details", exc_info=exc)
             return  # Don't call on_elected if scheduler failed
 
         logger.info(
@@ -309,9 +342,9 @@ class SchedulerLeaderElector:
                 logger.warning(
                     "scheduler_leader_on_elected_callback_error",
                     worker_id=self._worker_id,
-                    error=str(exc),
                     error_type=type(exc).__name__,
                 )
+                logger.debug("scheduler_leader_on_elected_callback_error_details", exc_info=exc)
 
     async def _release_lock(self) -> None:
         """Release the lease, only if this worker still owns it (ADR-263).
@@ -334,8 +367,8 @@ class SchedulerLeaderElector:
 
         A worker that lost leadership stops renewing rather than extending the
         new leader's term — the failure mode an unconditional ``EXPIRE`` made
-        permanent. Losing the lease also drops the local flag, so the
-        re-election loop can take over honestly.
+        permanent. Losing the lease steps the worker down (:meth:`_step_down`):
+        its jobs pause and it waits for the lease again.
         """
         try:
             if self._redis is not None:
@@ -346,9 +379,9 @@ class SchedulerLeaderElector:
                     logger.warning(
                         "scheduler_leader_lease_lost",
                         worker_id=self._worker_id,
-                        msg="The lease is held by another worker; renewal stops here.",
+                        msg="This worker no longer owns the lease; it steps down.",
                     )
-                    self._is_leader = False
+                    self._step_down()
                     return
                 logger.debug(
                     "scheduler_leader_lock_renewed",
@@ -359,9 +392,41 @@ class SchedulerLeaderElector:
             logger.warning(
                 "scheduler_leader_lock_renewal_failed",
                 worker_id=self._worker_id,
-                error=str(exc),
                 error_type=type(exc).__name__,
             )
+            logger.debug("scheduler_leader_lock_renewal_failure_details", exc_info=exc)
+            # Redis may have expired or reassigned the lease while unreachable.
+            # An unconfirmed renewal cannot authorize further job starts.
+            self._step_down()
+
+    def _step_down(self) -> None:
+        """Stop acting as leader when the lease is gone or cannot be confirmed (N1).
+
+        Another worker holds the lease and runs the jobs now: this scheduler
+        is paused — a job already running finishes, nothing new starts, the
+        renewal included — and this worker waits for the lease again, as at
+        boot. Before, it kept every job running: two schedulers.
+        """
+        self._is_leader = False
+        if self._scheduler.state == STATE_RUNNING:
+            self._scheduler.pause()
+        self._start_re_election()
+
+    def _start_re_election(self) -> None:
+        """Wait for the lease in the background, unless already waiting or stopping."""
+        if self._stopping:
+            return
+        if self._re_election_task is not None and not self._re_election_task.done():
+            return
+        logger.info(
+            "scheduler_leader_starting_re_election",
+            worker_id=self._worker_id,
+            interval_seconds=self._re_election_interval,
+        )
+        self._re_election_task = asyncio.create_task(
+            self._re_election_loop(),
+            name="scheduler-leader-re-election",
+        )
 
     async def _re_election_loop(self) -> None:
         """
@@ -391,10 +456,9 @@ class SchedulerLeaderElector:
             logger.error(
                 "scheduler_leader_re_election_failed",
                 worker_id=self._worker_id,
-                error=str(exc),
                 error_type=type(exc).__name__,
-                exc_info=True,
             )
+            logger.debug("scheduler_leader_re_election_failure_details", exc_info=exc)
 
     async def _log_stale_lock_info(self) -> None:
         """Log diagnostic info about the existing lock holder (best-effort).

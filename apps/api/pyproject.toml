@@ -143,6 +143,8 @@ module = [
     "qrcode.*",
     "openpyxl.*",
     "feedparser.*",
+    # Fish Audio's WebSocket frames (ADR-345): msgpack ships no type information.
+    "msgpack.*",
 ]
 ignore_missing_imports = true
 follow_imports = "skip"
@@ -277,14 +279,14 @@ filterwarnings = [
     # on SQLAlchemy 2.0.54 the agents and integration suites run without one such
     # warning or pending task — measured without the ignore, where 2.0.50 left
     # three to five per integration run.)
-    # google-genai (transitive, pinned through langchain-google-genai) reads
+    # google-genai (direct dependency, also used by langchain-google-genai) reads
     # ``typing._UnionGenericAlias`` at import, which Python 3.14 deprecates for
     # removal in 3.17. It fires once per process at ``google.genai.types`` import,
     # in vendor code no test can reach, and it was the one warning every green
     # suite still printed. Scoped to that exact message AND that module: a
     # deprecated read of our own would still surface.
-    #   package:   google-genai==2.10.0 (requirements.lock.txt)
-    #   review_by: the next langchain-google-genai bump (drop it once the
+    #   package:   google-genai==2.24.0 (requirements.lock.txt)
+    #   review_by: the next google-genai bump (drop it once the
     #              vendor import no longer warns under ``-W error``)
     "ignore:'_UnionGenericAlias' is deprecated:DeprecationWarning:google.genai.types",
 ]

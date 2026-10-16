@@ -28,18 +28,15 @@ from pydantic import BaseModel
 
 from src.core.config import settings
 from src.core.constants import (
-    DEFAULT_ELEVENLABS_STT_MODEL,
-    ELEVENLABS_PROVIDER_NAME,
     STT_BYTES_PER_SECOND_AT_16KHZ_INT16,
     STT_MAX_AUDIO_BYTES,
     WS_CLOSE_CODE_STT_PROVIDER_ERROR,
 )
+from src.core.remote_stt import remote_stt_enabled, remote_stt_slot
 from src.core.session_dependencies import get_current_active_session
 from src.domains.chat.service import StatisticsService
 from src.domains.feature_switches.guard import capability_dependencies
 from src.domains.feature_switches.registry import PlatformCapability
-from src.domains.llm_config.cache import LLMConfigOverrideCache
-from src.domains.llm_config.constants import LLM_DEFAULTS
 from src.domains.usage_limits.service import UsageLimitService
 from src.domains.users.models import User
 from src.domains.voice.stt import (
@@ -273,7 +270,7 @@ async def websocket_audio(
         )
 
         # 4. Audio buffering — STT service is resolved lazily on the first
-        # "END" so a missing ElevenLabs key (remote mode) closes the WS with
+        # "END" so a missing key of the remote engine closes the WS with
         # a clear error code rather than silently failing here.
         audio_buffer: list[bytes] = []
         audio_buffer_size = 0  # Track buffer size in bytes
@@ -316,11 +313,14 @@ async def websocket_audio(
                             # Pre-flight: enforce remote-only safeguards BEFORE
                             # paying the provider. Local Sherpa is free so we
                             # skip every remote check there.
-                            if voice_stt_mode == "remote":
-                                # Remote STT can be globally disabled via config
+                            # The slot's engine receives the audio, is billed for
+                            # it and can be switched off — read once per clip.
+                            remote_slot = remote_stt_slot() if voice_stt_mode == "remote" else None
+                            if remote_slot is not None:
+                                # The slot's provider can be switched off via config
                                 # (kill switch for incident response or to force
                                 # users back to the local pipeline temporarily).
-                                if not settings.elevenlabs_stt_enabled:
+                                if not remote_stt_enabled(remote_slot.provider):
                                     logger.warning(
                                         "websocket_stt_remote_disabled",
                                         user_id=user_id,
@@ -351,17 +351,12 @@ async def websocket_audio(
                                 duration_pre = (
                                     len(audio_bytes) / STT_BYTES_PER_SECOND_AT_16KHZ_INT16
                                 )
-                                if (
-                                    duration_pre
-                                    > settings.elevenlabs_stt_max_audio_duration_seconds
-                                ):
+                                if duration_pre > settings.remote_stt_max_audio_duration_seconds:
                                     logger.warning(
                                         "websocket_stt_audio_too_long",
                                         user_id=user_id,
                                         duration_seconds=duration_pre,
-                                        cap_seconds=(
-                                            settings.elevenlabs_stt_max_audio_duration_seconds
-                                        ),
+                                        cap_seconds=settings.remote_stt_max_audio_duration_seconds,
                                     )
                                     with suppress(Exception):
                                         await websocket.send_json(
@@ -406,7 +401,7 @@ async def websocket_audio(
                             # crash.
                             try:
                                 stt_service: SttServiceProtocol = get_stt_service_for_mode(
-                                    voice_stt_mode
+                                    voice_stt_mode, slot=remote_slot
                                 )
                                 result = await stt_service.transcribe_pcm_int16_async(
                                     audio_bytes,
@@ -443,9 +438,8 @@ async def websocket_audio(
 
                             duration_seconds = result.audio_duration_seconds
 
-                            # Cost attribution for remote STT.
-                            # The user is billed at the provider's tariff
-                            # ($0.22/h for Scribe v2) — surfaced now in
+                            # Cost attribution for remote STT: the slot's engine,
+                            # at its administered tariff — surfaced now in
                             # user_statistics so the dashboard tile and the
                             # usage_limits check stay in sync. The detailed
                             # per-message cost (stt_cost_eur on
@@ -455,20 +449,10 @@ async def websocket_audio(
                             stt_cost_usd: float | None = None
                             stt_cost_eur: float | None = None
                             stt_provider_name: str | None = None
-                            if voice_stt_mode == "remote" and duration_seconds > 0:
-                                stt_provider_name = ELEVENLABS_PROVIDER_NAME
-                                # Resolve the active model name (override or default)
-                                # so the pricing cache lookup matches admin choices.
-                                overrides = (
-                                    LLMConfigOverrideCache.get_override("voice_transcription") or {}
-                                )
-                                stt_model = (
-                                    overrides.get("model")
-                                    or LLM_DEFAULTS["voice_transcription"].model
-                                    or DEFAULT_ELEVENLABS_STT_MODEL
-                                )
+                            if remote_slot is not None and duration_seconds > 0:
+                                stt_provider_name = remote_slot.provider
                                 cost_usd, cost_eur = get_cached_cost_audio_usd_eur(
-                                    stt_model, duration_seconds
+                                    remote_slot.model, duration_seconds
                                 )
                                 stt_cost_usd = cost_usd
                                 stt_cost_eur = cost_eur

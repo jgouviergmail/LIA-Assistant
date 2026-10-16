@@ -15,7 +15,7 @@ An MCP (Model Context Protocol) server is an **external service** that exposes t
 • **Database**: SQL queries
 
 **💡 Benefit:**
-Extend LIA's capabilities without limits by connecting any MCP-compatible service.
+Extend your account's tools with supported MCP services, within the instance's configured limits.
 
 ## How do I add an MCP server?
 Add a server in a few steps:
@@ -25,12 +25,12 @@ Settings → "*MCP Servers*" section → **Add** button
 
 **📝 Configuration:**
 1. **Name**: descriptive name (e.g., "HuggingFace Hub")
-2. **URL**: HTTP(S) endpoint of the MCP server
+2. **URL**: HTTPS Streamable HTTP endpoint of the MCP server
 3. **Description** (optional): describe what the server does so LIA knows when to use it
 4. **Authentication**: choose the type (none, API key, bearer token, OAuth 2.1)
 5. **Timeout**: maximum call duration (5-120 seconds)
 
-6. **Iterative mode** (optional): enable for servers with complex APIs that require multi-step interaction (e.g., Excalidraw). When enabled, a dedicated ReAct AI agent reads the server documentation first, then calls tools step by step with correct parameters. The planner sees a single "task" tool instead of individual tools. Uses more tokens but produces significantly better results for complex multi-step workflows.
+6. **Iterative mode** (optional): enable for multi-step interactions. An agent can consult the offered documentation, call tools and use their results for its next step. The planner sees a single "task" tool instead of individual tools. Iterations, time and output remain bounded; this can consume more tokens and does not guarantee success.
 
 **🔗 After creation:**
 Click **Test Connection** to verify the server is reachable and discover available tools.
@@ -39,7 +39,7 @@ Click **Test Connection** to verify the server is reachable and discover availab
 Four authentication types are available:
 
 **🔓 None:**
-For public servers or internal network services
+For public servers that do not require authentication. Personal connections still undergo the HTTPS and destination-address checks.
 
 **🔑 API Key:**
 • Sent in a customizable HTTP header
@@ -51,13 +51,13 @@ For public servers or internal network services
 • For APIs using static access tokens
 
 **🔐 OAuth 2.1:**
-• Full authorization flow with PKCE
+• OAuth authorization with PKCE S256 when supported by the server
 • Optional Client ID and Client Secret (pre-registration)
 • Automatic refresh of expired tokens
 • For APIs requiring user authorization (GitHub, Slack...)
 
 **💡 Security:**
-All authentication credentials are **encrypted** server-side.
+Configured credentials are **encrypted before database storage** and decrypted when needed to authenticate to the chosen server. Choose that server carefully; encryption at rest does not make its operator trustworthy.
 
 ## How do I test the connection to an MCP server?
 You can test a server in two ways:
@@ -216,12 +216,12 @@ Simply describe what you want in natural language:
 The Excalidraw MCP server must be configured and active in your MCP server settings.
 
 ## Which versions of the MCP protocol does LIA support?
-LIA speaks **both generations of the MCP protocol**:
+LIA supports the stateless MCP revision and compatible classic handshakes:
 
 **🔌 Supported revisions:**
 • The **new stateless revision (2026)** — used by new-generation servers
-• The **classic handshake** — used by every earlier server
-• The right one is chosen **automatically per server**: existing servers keep working with no action on your side, and new-generation servers connect too
+• The **classic handshake** for compatible earlier revisions
+• Negotiation selects the supported exchange per server. This does not guarantee compatibility with every server or extension.
 
 **🧭 Clear diagnostics:**
 If a server requires a revision LIA does not speak, the connection test shows a clear explanation instead of a technical error.
@@ -232,7 +232,7 @@ If a server requires a revision LIA does not speak, the connection test shows a 
 • Declining the consent screen brings you back to your settings with an informational message — declining is a choice, not an error
 
 **🧩 Reading what a server declares:**
-Since v1.38.4 the alignment reaches the second half of the protocol. LIA reads tool declarations across the full latitude the 2026-07-28 revision allows: optional types, nested structures, internal references and closed sets. A server describing its parameters with the standard's more advanced forms is now read in full, where some of those forms used to make its tools disappear without a word.
+LIA shares one interpretation between the model's tool signature and the planner's catalogue. It handles supported unions, references, closed choices and constraints, and preserves declared constraints where provider converters are more limited. This does not implement every JSON Schema keyword or every server-specific behavior. The server remains responsible for validating its inputs.
 
 ## Why do some MCP tools have a readable name, and why do some ask for confirmation?
 

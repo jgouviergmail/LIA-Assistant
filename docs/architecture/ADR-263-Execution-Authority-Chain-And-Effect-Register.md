@@ -964,3 +964,32 @@ stop while the ending is written), `TestAKeyAlreadyHeldWithoutAResult` (the thre
 and on PostgreSQL
 `test_a_cancelled_owner_closes_its_row_abandoned` and `TestACancelledEffectClosesItsBooks`
 — the second replays the incident end to end.
+
+## Amendment 2026-10-13 — one predicate says whether anybody can answer
+
+**Amends:** the unattended rule of the gate (ADR-276's refusal of `draft` and `confirm` where
+nobody can answer).
+
+Measured in production from 2026-09-25 to 2026-10-06: thirteen routine runs, all in ReAct,
+stopped on a question nobody could see, and twenty of the twenty-four `skipped_hitl` runs fell
+in the hour after one. The gate refused what reached it. The ReAct loop raised its own two
+questions before any call did: the pre-execution confirmation of a `hitl_required` tool, and
+the sandbox's network permission.
+
+1. **One predicate**: `nobody_can_answer(source, carrier)` in `effects/gate.py` — the turn's
+   source is `scheduled` and its origin cannot carry a draft. `decide_effect` reads it, and so
+   does `turn_has_nobody_to_ask()`, which resolves the running turn's source through
+   `current_turn_source()` (`effects/scope.py`) and its origin.
+2. **The loop's confirmation asks nothing in such a turn**
+   (`nodes/react_call_execution._approve`). The call is answered as never run, in the gate's
+   own words (`UNATTENDED_REFUSAL_MESSAGE`). It is counted through `note_refusal`
+   (`effects/runtime.py`), the one door the gate's refusals take. No `refused` row is
+   written: at that point no claim request exists, since the gate builds one from the
+   policy and the arguments.
+3. The network question follows the
+   [ADR-298 amendment 2026-10-13](ADR-298-Sandbox-Egress-Toolbox.md); the question a
+   pipeline path still raises is taken back by the routine executor
+   ([ADR-276 amendment 2026-10-13](ADR-276-Workboard.md)).
+
+Guards: `TestOnePredicateForEveryQuestion`, `test_a_confirmation_nobody_can_give_is_never_asked`
+and its ticket control.

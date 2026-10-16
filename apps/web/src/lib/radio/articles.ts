@@ -7,6 +7,8 @@
  * text they are reading. Only a source that IS a story (`article_id`) is
  * offered — the listener's own records have no article to open.
  */
+import { languageName } from '@/lib/language-name';
+
 import type { RadioSegment } from './types';
 
 /** A story the page can open (`GET /radio/articles/{id}`). */
@@ -53,15 +55,6 @@ export function paragraphs(text: string): string[] {
     .split(/\n[^\S\n]*\n\s*/)
     .map(paragraph => paragraph.trim())
     .filter(paragraph => paragraph.length > 0);
-}
-
-/** A language's name in the reader's language — the code itself when the browser cannot name it. */
-export function languageName(code: string, locale: string): string {
-  try {
-    return new Intl.DisplayNames([locale], { type: 'language' }).of(code) ?? code;
-  } catch {
-    return code;
-  }
 }
 
 /**

@@ -54,7 +54,14 @@ test.describe('accessibility smoke (axe WCAG 2.x A/AA)', () => {
     // a clean bill of health on "Error in dashboard" (fixed 2026-08-03, see
     // briefingCardsMock). Name something only the real page has, so a payload
     // that crashes the tree fails here instead of passing quietly.
-    await expect(page.getByRole('button', { name: "Switch LIA's avatar" })).toBeVisible();
+    const avatarPicker = page.getByRole('group', { name: "Choose LIA's avatar", exact: true });
+    await expect(avatarPicker).toBeVisible();
+    await expect(
+      avatarPicker.getByRole('img', { name: /^(Feminine|Masculine) portrait$/ })
+    ).toBeVisible();
+    await expect(
+      avatarPicker.getByRole('button', { name: /^(Feminine|Masculine) portrait$/ })
+    ).toBeVisible();
 
     const { blocking, summary } = await scanPage(page, testInfo, '/dashboard');
     expect(blocking, `axe violations on /dashboard:\n${summary}`).toHaveLength(0);

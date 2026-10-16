@@ -77,6 +77,7 @@ class _Env:
     repo: MagicMock
     run_repo: MagicMock
     calls: list[str]
+    conversation_id: uuid.UUID
 
 
 @contextmanager
@@ -151,6 +152,7 @@ def _executor_env(
     repo.mark_execution_success = AsyncMock()
     repo.mark_execution_failure = AsyncMock()
     repo.reschedule = AsyncMock()
+    repo.lock_reserved = AsyncMock(return_value=action)
 
     async def _record(**_kwargs: Any) -> str:
         calls.append("record")
@@ -163,9 +165,10 @@ def _executor_env(
     user_service = MagicMock()
     user_service.get_user_by_id = AsyncMock(return_value=user)
 
+    conversation_id = uuid.uuid4()
     conv_service = MagicMock()
     conv_service.get_or_create_conversation = AsyncMock(
-        return_value=SimpleNamespace(id=uuid.uuid4())
+        return_value=SimpleNamespace(id=conversation_id)
     )
 
     # Single AgentService instance reused for the HITL guard and the run.
@@ -225,6 +228,15 @@ def _executor_env(
                 "src.infrastructure.scheduler.scheduled_action_executor.now_utc", return_value=NOW
             )
         )
+        # The stand-in stream performs no action, so the register a retry reads
+        # first has nothing to show (point 20); a test about a run that acted
+        # says so itself.
+        stack.enter_context(
+            patch(
+                "src.infrastructure.scheduler.out_of_turn_run._run_acted",
+                AsyncMock(return_value=False),
+            )
+        )
         # A retry sleeps for real otherwise; the delay is not what is under test.
         stack.enter_context(
             patch(
@@ -245,6 +257,7 @@ def _executor_env(
             repo=repo,
             run_repo=run_repo,
             calls=calls,
+            conversation_id=conversation_id,
         )
 
 
@@ -424,7 +437,8 @@ async def test_process_scheduled_actions_uses_no_redis_lock():
     """
     from src.infrastructure.scheduler import scheduled_action_executor as mod
 
-    action = SimpleNamespace(id=uuid.uuid4(), user_id=uuid.uuid4())
+    # A reserved action always carries the token it was reserved under.
+    action = SimpleNamespace(id=uuid.uuid4(), user_id=uuid.uuid4(), execution_token=uuid.uuid4())
 
     mock_db = AsyncMock()
     repo = MagicMock()
@@ -898,3 +912,212 @@ class TestAConditionRoutine:
             next_trigger = env.repo.reschedule.await_args.args[1]
             # The published interval of the type, never a figure typed here.
             assert NOW < next_trigger <= NOW + check_interval("mail_match")
+
+
+def _interrupt_chunks(kind: str) -> list[SimpleNamespace]:
+    """A turn that stopped on a question, as the stream reports it."""
+    return [
+        SimpleNamespace(
+            type="hitl_interrupt_metadata",
+            content="",
+            metadata={"action_requests": [{"type": kind}]},
+        ),
+        SimpleNamespace(
+            type="hitl_interrupt_complete", content="", metadata={"generated_question": "Which?"}
+        ),
+    ]
+
+
+@pytest.mark.asyncio
+class TestAQuestionNobodyCanAnswer:
+    """N10: a routine's run that stops on a question must not leave it waiting
+    on the person's thread, where it reads their next message as its answer and
+    makes every later routine of the account stand aside."""
+
+    async def test_every_attempt_runs_under_the_one_id_the_routine_owns(self) -> None:
+        """The question saved on the thread names this id; so does every row a
+        retry files — two attempts are one run, as on a ticket."""
+        with _executor_env(chunks=[_chunk("token", "Done")]) as env:
+            healthy = env.agent_service.stream_chat_response.side_effect
+            attempts: list[int] = []
+
+            def _first_attempt_blinks(*args: Any, **kwargs: Any) -> Any:
+                attempts.append(1)
+                if len(attempts) == 1:
+                    raise ConnectionError("blink")
+                return healthy(*args, **kwargs)
+
+            env.agent_service.stream_chat_response.side_effect = _first_attempt_blinks
+            await execute_single_action(env.action_id, env.user_id)
+
+        run_ids = [
+            call.kwargs["run_id"] for call in env.agent_service.stream_chat_response.call_args_list
+        ]
+        assert len(run_ids) == 2
+        assert run_ids[0] and run_ids[0] == run_ids[1]
+
+    async def test_the_question_the_run_raised_is_taken_back(self) -> None:
+        with (
+            _executor_env(chunks=_interrupt_chunks("clarification")) as env,
+            patch(
+                "src.infrastructure.scheduler.scheduled_action_executor.clear_question_of_run",
+                AsyncMock(return_value=True),
+            ) as taken_back,
+        ):
+            await execute_single_action(env.action_id, env.user_id)
+
+        run_id = env.agent_service.stream_chat_response.call_args.kwargs["run_id"]
+        taken_back.assert_awaited_once_with(env.conversation_id, run_id)
+        # Still a failure, as it has always been: nobody answered.
+        env.repo.mark_execution_failure.assert_awaited_once()
+
+    async def test_a_run_that_answered_takes_nothing_back(self) -> None:
+        with (
+            _executor_env(chunks=[_chunk("token", "Done")]) as env,
+            patch(
+                "src.infrastructure.scheduler.scheduled_action_executor.clear_question_of_run",
+                AsyncMock(return_value=False),
+            ) as taken_back,
+        ):
+            await execute_single_action(env.action_id, env.user_id)
+
+        taken_back.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+class TestTheReservationHoldsTheRun:
+    """Point 19: a tick that no longer holds its reservation neither runs nor
+    settles — the routine is another tick's now."""
+
+    async def test_a_tick_whose_reservation_was_taken_runs_nothing(self) -> None:
+        token = uuid.uuid4()
+        with _executor_env(chunks=[_chunk("token", "Done")]) as env:
+            env.repo.renew_reservation = AsyncMock(return_value=False)
+            answer = await execute_single_action(env.action_id, env.user_id, execution_token=token)
+
+        assert answer == ""
+        env.agent_service.stream_chat_response.assert_not_called()
+        env.repo.mark_execution_success.assert_not_awaited()
+        env.repo.renew_reservation.assert_awaited_once_with(env.action_id, token)
+
+    async def test_the_reservation_is_renewed_and_committed_right_before_the_model_runs(
+        self,
+    ) -> None:
+        """The recovery then counts from the run's real start, never from a
+        reservation that waited for its turn — and the renewal is COMMITTED
+        first: held open, its row lock would last the whole inference."""
+        token = uuid.uuid4()
+        with _executor_env(chunks=[_chunk("token", "Done")]) as env:
+
+            async def _renew(*_args: Any) -> bool:
+                env.calls.append("renew")
+                return True
+
+            env.repo.renew_reservation = AsyncMock(side_effect=_renew)
+            env.repo.lock_reserved = AsyncMock(return_value=env.action)
+            await execute_single_action(env.action_id, env.user_id, execution_token=token)
+
+        before_model = env.calls[: env.calls.index("stream")]
+        last_renewal = len(before_model) - 1 - before_model[::-1].index("renew")
+        assert "commit" in before_model[last_renewal:]
+        env.repo.lock_reserved.assert_awaited_once_with(env.action_id, token)
+        env.repo.mark_execution_success.assert_awaited_once()
+
+    async def test_the_proposal_push_holds_no_renewed_reservation(self) -> None:
+        """ADR-304: a renewal is an UPDATE, and its row lock would last the
+        whole push of a proposal — the person editing the routine meanwhile
+        would wait on a provider. Every renewal is committed at once."""
+        token = uuid.uuid4()
+        with _executor_env(chunks=[_chunk("token", "never")]) as env:
+            env.action.requires_approval = True
+
+            async def _renew(*_args: Any) -> bool:
+                env.calls.append("renew")
+                return True
+
+            async def _notify(*_args: Any, **_kwargs: Any) -> None:
+                env.calls.append("notify")
+
+            env.repo.renew_reservation = AsyncMock(side_effect=_renew)
+            with patch(
+                "src.infrastructure.scheduler.scheduled_action_executor"
+                "._send_approval_notification",
+                AsyncMock(side_effect=_notify),
+            ):
+                await execute_single_action(env.action_id, env.user_id, execution_token=token)
+
+        before_push = env.calls[: env.calls.index("notify")]
+        last_renewal = len(before_push) - 1 - before_push[::-1].index("renew")
+        assert "commit" in before_push[last_renewal:]
+
+    async def test_a_settle_whose_reservation_was_taken_meanwhile_leaves_the_routine_alone(
+        self,
+    ) -> None:
+        """The routine is the other tick's: nothing of it is marked. The run
+        itself happened, so its row is written — every exit of the executor
+        ends with one (ADR-265), and a condition routine's daily cap counts
+        its runs from them (ADR-322)."""
+        token = uuid.uuid4()
+        with _executor_env(chunks=[_chunk("token", "Done")]) as env:
+            env.repo.renew_reservation = AsyncMock(return_value=True)
+            env.repo.lock_reserved = AsyncMock(return_value=None)
+            answer = await execute_single_action(env.action_id, env.user_id, execution_token=token)
+
+        assert answer == "Done"  # the run happened: its answer is still the person's
+        env.repo.mark_execution_success.assert_not_awaited()
+        env.repo.mark_execution_failure.assert_not_awaited()
+        assert _recorded(env)["outcome"] is ScheduledRunOutcome.SUCCESS
+
+    @pytest.mark.parametrize("verdict", [ConditionVerdict(), ConditionVerdict(error="unavailable")])
+    async def test_a_condition_check_cannot_rearm_a_superseding_reservation(
+        self, verdict: ConditionVerdict
+    ) -> None:
+        with _executor_env(chunks=[]) as env:
+            _as_watch(env)
+            env.repo.renew_reservation = AsyncMock(return_value=True)
+            env.repo.lock_reserved = AsyncMock(return_value=None)
+            with _verdict(env, verdict):
+                await execute_single_action(
+                    env.action_id, env.user_id, execution_token=uuid.uuid4()
+                )
+
+        env.repo.reschedule.assert_not_awaited()
+        env.run_repo.record.assert_not_awaited()
+
+    async def test_a_proposal_cannot_rearm_after_losing_its_reservation(self) -> None:
+        with _executor_env(chunks=[]) as env:
+            env.action.requires_approval = True
+            env.repo.renew_reservation = AsyncMock(return_value=True)
+            env.repo.lock_reserved = AsyncMock(return_value=None)
+            with patch(
+                "src.infrastructure.scheduler.scheduled_action_executor._send_approval_notification",
+                AsyncMock(),
+            ):
+                await execute_single_action(
+                    env.action_id, env.user_id, execution_token=uuid.uuid4()
+                )
+
+        env.repo.reschedule.assert_not_awaited()
+        assert _recorded(env)["outcome"] is ScheduledRunOutcome.PROPOSED
+
+    @pytest.mark.parametrize("condition", [False, True])
+    async def test_a_pending_question_cannot_rearm_a_superseding_reservation(
+        self, condition: bool
+    ) -> None:
+        with _executor_env(chunks=[]) as env:
+            env.repo.renew_reservation = AsyncMock(return_value=True)
+            env.repo.lock_reserved = AsyncMock(return_value=None)
+            if condition:
+                _as_watch(env)
+            with (
+                _verdict(env, ConditionVerdict(facts=(_NEW,))),
+                patch(
+                    "src.domains.agents.api.hitl_pending.check_pending_hitl_uncached",
+                    AsyncMock(return_value={"action_requests": [{"type": "clarification"}]}),
+                ),
+            ):
+                await execute_single_action(
+                    env.action_id, env.user_id, execution_token=uuid.uuid4()
+                )
+
+        env.repo.reschedule.assert_not_awaited()

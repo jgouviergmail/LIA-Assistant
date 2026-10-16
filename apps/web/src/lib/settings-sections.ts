@@ -88,11 +88,6 @@ export const SETTINGS_SECTIONS = {
     accordionValue: 'font-size',
     declaredIn: 'components/settings/FontSizeSettings.tsx',
   },
-  'eyes-style': {
-    tab: 'preferences',
-    accordionValue: 'eyes-style',
-    declaredIn: 'components/settings/EyesStyleSettings.tsx',
-  },
   'display-mode': {
     tab: 'preferences',
     accordionValue: 'display-mode',
@@ -235,6 +230,11 @@ export const SETTINGS_SECTIONS = {
     tab: 'features',
     accordionValue: 'personality',
     declaredIn: 'components/settings/PersonalitySettings.tsx',
+  },
+  'eyes-style': {
+    tab: 'features',
+    accordionValue: 'eyes-style',
+    declaredIn: 'components/settings/EyesStyleSettings.tsx',
   },
   psyche: {
     tab: 'features',
@@ -414,6 +414,13 @@ export const SETTINGS_SECTIONS = {
     tab: 'administration',
     accordionValue: 'admin-llm-config',
     declaredIn: 'components/settings/AdminLLMConfigSection.tsx',
+  },
+  // The instance's Fish Audio voice library (ADR-345): its voices are the ones
+  // the speaking slots configured just above can pick.
+  'admin-voice-library': {
+    tab: 'administration',
+    accordionValue: 'admin-voice-library',
+    declaredIn: 'components/settings/AdminVoiceLibrarySection.tsx',
   },
   'admin-jev': {
     tab: 'administration',

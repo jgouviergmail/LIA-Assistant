@@ -5,6 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
+from src.domains.agents.application.draft_models import ApplicationActionDraftContent
 from src.domains.journals.removal_snapshot import JournalRemovalSnapshot
 
 
@@ -35,3 +36,11 @@ class JournalConsolidationScope(BaseModel):
 class JournalConsolidationPatch(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
     journal_consolidation: JournalConsolidationScope
+
+
+def canonical_journal_consolidation(draft: ApplicationActionDraftContent) -> bool:
+    scope = JournalConsolidationPatch.model_validate(draft.intent).journal_consolidation
+    public = scope.public_scope()
+    return draft.before == {"journal_consolidation": public} and draft.after == {
+        "journal_consolidation": {**public, "requested": True}
+    }

@@ -5,6 +5,280 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+**Your mailbox drafts, managed from the conversation.**
+LIA now keeps drafts in your own Gmail, Outlook or iCloud mailbox: it saves a
+new one, prepares a reply or a forward as a draft, lists them, edits them and
+moves them to the trash without asking, because nothing reaches anyone. Sending
+a draft is the one act that asks first, on a card showing the draft as your
+mailbox holds it.
+
+**A fifth voice, Fish Audio, and voices that perform.**
+Fish Audio joins the speech engines: five synthesis models, transcription for
+the voice mode and the meetings, and a voice library administrators clone and
+design into. A sentence heard is billed once, by the engine that spoke it; LIA
+writes a few expressive cues where an engine performs them, and the radio voices
+its exchanges in one take.
+
+### Added
+
+- 📮 **Mailbox drafts** ([ADR-344](docs/architecture/ADR-344-Mailbox-Drafts-Kept-Freely-Sent-After-One-Confirmation.md)):
+  six tools over one client contract shared by Gmail, Outlook and iCloud —
+  list (filtered by recipient, subject or words, limited to the number asked),
+  create, prepare a reply (written by LIA from the received e-mail when you
+  dictate nothing) or a forward, edit (by value or by instruction, the quoted
+  message kept), and trash one, several or all of them, at most
+  `EMAIL_DRAFTS_BULK_MAX` per call with what remains stated.
+- 📤 **Sending a draft asks once:** the card shows the draft as the mailbox
+  holds it; a draft edited in the mailbox since is not sent, and a change asked
+  on the card is written to the draft before it leaves. Several drafts are
+  confirmed as one lot.
+- 🐟 **Fish Audio speaks** ([ADR-345](docs/architecture/ADR-345-Fish-Audio-Served-Whole-One-Door-One-Allowance-Cues-Each-Engine-Reads.md)):
+  `s2.1-pro`, `s2.1-pro-free`, `s2-pro`, `s1` and `drama-3` on the voice and
+  radio slots, billed per UTF-8 byte of the text, with output format, latency,
+  speed and transport (HTTP or the real-time WebSocket, whose session is answered
+  over HTTP when it falls silent) tuning; `s1` carries the retirement its vendor
+  announced. The picker offers the account's own voices,
+  the vendor's licensed ones and the public voices an administrator pinned after
+  attesting the right to use them.
+- 🎙️ **Fish Audio transcribes:** `transcribe-1` and `transcribe-1-pro` serve the
+  voice mode's remote dictation and the meetings, speakers separated; a
+  recording longer than one request takes moves to the next engine before it is
+  uploaded.
+- 🧬 **A voice library for administrators** (Settings › Administration › Voice
+  library): clone a voice from recordings under a consent attestation filed in
+  the audit log before anything leaves, design one from a description — a flat
+  price (`FISHAUDIO_VOICE_DESIGN_COST_USD`) charged to the instance's daily
+  budget —, rename or delete them; a voice a slot speaks with is never deleted.
+  `FISHAUDIO_VOICE_CREATION_ENABLED` switches creation off (off on the
+  demonstrator).
+- 🎭 **Expressive cues where an engine performs them:** the spoken comment
+  carries a few (a sigh, a laugh, a whisper) under one budget
+  (`VOICE_EXPRESSIVE_CUES_MAX`) and each radio line one from its tone, written in
+  each engine's own syntax — ElevenLabs v3 and v4, Fish Audio's S2 models, `s1`,
+  `drama-3`, Gemini.
+- 🎧 **The radio voices a dialogue in one take** on the engines that voice
+  several speakers: each turn is placed by the vendor's timestamped stream, and
+  a take that cannot be placed is voiced line by line.
+- 🗣️ **LIA's voices are yours to choose** ([ADR-345](docs/architecture/ADR-345-Fish-Audio-Served-Whole-One-Door-One-Allowance-Cues-Each-Engine-Reads.md), amendment
+  2026-10-14): in Settings › Voice mode, pick LIA's male and female voice among
+  the voices of the engine that speaks in the chat, each list opening on the
+  administrator's voice. The choice is kept per provider — a model change keeps
+  it, a provider switched back to finds it — and applies to the voice comments and
+  to what LIA reads aloud;
+  the radio, live sessions and phone calls keep their own voices. It is part of
+  your account's export, and erased with your account.
+- 🌐 **The voices of your language, at a switch:** every voice picker — the
+  administrator's voice slots, the radio's roles, LIA's voices — offers « only
+  voices in my language, and multilingual ones », on by default, never hiding a
+  voice already chosen.
+- 📊 **Every failed step of a pipeline plan is counted under its typed code**
+  ([ADR-346](docs/architecture/ADR-346-Advisory-Replanner-Retired-A-Pipeline-Failure-Is-Said-Never-Replayed.md)):
+  `pipeline_step_failures_total{error_code}`, dashboard 07 « Pipeline Step
+  Failures » — a failure that happens before a tool is called, such as a
+  reference to an earlier step that could not be resolved, included: no tool
+  metric and no register saw it.
+- 🎙️ **The radio's commentators speak with the voices you choose** ([ADR-324](docs/architecture/ADR-324-A-Personal-Radio-A-Grid-Decides-Models-Only-Write.md)
+  decision 43): the three commentators of debates and discussions get a voice each
+  in the radio settings, automatic by default as before. A commentator never
+  shares a voice with LIA, the anchor or another commentator: the settings grey those
+  voices out and a save refuses them (`radio_voice_shared`).
+
+### Changed
+
+- 🔇 **The radio's second-model verification is off by default:** a listener
+  who never chose gets no model check (`RADIO_VERIFICATION_DEFAULT=off`), since
+  each check is billed and can delay the listening; « Verify the news » and
+  « Verify everything » stay one choice away in the radio settings.
+- 💶 **A sentence heard is billed once, by the engine that spoke it:** every
+  speaking surface goes through one synthesis door and is recorded in that
+  engine's own unit — characters, UTF-8 bytes, or the tokens a vendor reports.
+- 🚦 **One request allowance per vendor account:** Fish Audio has its own
+  (`FISHAUDIO_MAX_CONCURRENCY`) beside ElevenLabs', on one seam shared by every
+  worker; every Fish Audio request — synthesis, transcription, voice design, the
+  voice listing — takes a slot, so a request past the account's limit waits its
+  turn within its own bound instead of meeting the vendor's refusal.
+- 📌 **The pinned public Fish Audio voices are shared:** one list for the chat's
+  and the radio's voice slots, the slots' former pins merged into it, under a
+  ceiling the operator sets (`FISHAUDIO_PINNED_VOICES_MAX`). Pinning
+  and unpinning take effect at once, the attestation is filed in the audit log
+  before a pin is stored, and a voice a slot speaks with cannot be unpinned.
+- ⏱️ **The ElevenLabs voices offered in the voice mode and radio settings are
+  read from a ten-minute cache,** so a voice turn never waits on the vendor's
+  listing; the administration's picker still reads the account live.
+
+### Removed
+
+- 🧹 **The advisory re-planner** ([ADR-346](docs/architecture/ADR-346-Advisory-Replanner-Retired-A-Pipeline-Failure-Is-Said-Never-Replayed.md),
+  superseding ADR-128): the analyzer that followed every failed pipeline plan
+  advised retries and re-plans that nothing ever ran — measured in production,
+  it called « transient » each failure of the week, none of which was. It goes
+  with its two metrics and the `ADAPTIVE_REPLANNING_MAX_ATTEMPTS` and
+  `ADAPTIVE_REPLANNING_EMPTY_THRESHOLD` settings (a line left in a `.env` is
+  ignored). A failed step is stated in the answer, a passing outage is retried
+  by the client that met it, a plan the validator rejects is re-planned before
+  it runs, and the ReAct mode remains the one that corrects itself. The FAQ,
+  the How guide, two blog articles and the README no longer describe a
+  recovery that never ran.
+- 📐 **Two plan step types that never ran** ([ADR-346](docs/architecture/ADR-346-Advisory-Replanner-Retired-A-Pipeline-Failure-Is-Said-Never-Replayed.md),
+  amendment 2026-10-14): `REPLAN`, refused by the validator, and `HUMAN`,
+  accepted then failed at execution. Nothing produced them but a skill
+  template, and no production skill declares one. A test now holds the plan
+  step types equal to what the executor runs.
+- 🗑️ **The stale `apps/api/coverage.json`**, a February coverage report at
+  39 % that nothing read; coverage JSON output is now ignored like the others.
+
+### Fixed
+
+- 🎚️ **The radio's voices survive a change of model:** they were kept per provider AND
+  model, so every model change of the radio's voice slot handed you other voices — or
+  automatic ones. They are kept per provider now, every model of which offers the same
+  voices, and the choices made on an earlier model are still read.
+- ↩️ **A reply's confirmation shows, and sends to, whom it reaches:** a reply to
+  all no longer loses its other recipients, a reply to your own message no
+  longer goes back to you, and on Outlook and iCloud the card names the
+  recipient.
+- ✏️ **Asking to « add Paul in copy »** while reviewing an e-mail no longer
+  replaces its recipient, and a name after an address in a recipient list is
+  now resolved from your contacts.
+- 💶 **The cost of « Modify » on a confirmation** is billed to the turn that
+  asked it.
+- 🔎 **An Outlook search keeps what names the mail** ([ADR-287](docs/architecture/ADR-287-Email-Content-First-Detail-Levels-Digests-And-Neutral-Message.md),
+  amendment 2026-10-13): « Marie's unread mails » used to list every unread
+  mail, because the sender was dropped whenever a date or the read state came
+  with it (5 searches in 7 days of production), and a person's relationship
+  sheet listed every mail since its date as exchanged with them. The query is
+  now one request Graph accepts; what it cannot carry — dates and read state
+  beside a search, the star — is checked on the page, and a thinner page says
+  how many it set aside. The same holds for the drafts listing, so deleting
+  « my drafts to Marie from last week » no longer reaches older ones.
+- 📁 **An iCloud message is read, trashed, forwarded and opened from its own
+  folder:** its id now carries a digest of the folder, so a message listed in
+  Sent can no longer be confused with the inbox message of the same number,
+  and a forward no longer reads the inbox alone.
+- 🔐 **Outlook and iCloud accounts are no longer judged « not connected »** in
+  pipeline mode ([ADR-184](docs/architecture/ADR-184-Published-Bounds-And-Non-Prescriptive-Verdicts.md),
+  amendment 2026-10-13): a step's Google scopes are checked only when Google
+  serves it, and a skill keeps the e-mail, calendar and contacts steps another
+  provider serves.
+- 🧩 **The draft renderers import on their own:** a script or worker importing
+  them first no longer fails on a circular import.
+- 🧭 **A step that ran and failed is no longer reported as « blocked »**
+  ([ADR-184](docs/architecture/ADR-184-Published-Bounds-And-Non-Prescriptive-Verdicts.md),
+  amendment 2026-10-14): its failure is told once, by the failures directive,
+  where an authoritative « not connected » used to contradict it. « No
+  connector is active for this » is now a typed failure that directive
+  explains, in pipeline and ReAct mode alike, so « no mail service is
+  connected » stays the answer when it is true.
+- 🔌 **A tool of a provider you have not connected is no longer offered:** an
+  Outlook account is no longer proposed Gmail's settings, labels and filters or
+  Google Drive's files, in the chat or on a voice call, so a mail question is
+  served by the mailbox that is connected.
+- 📂 **A search in a folder of your own reads that folder**
+  ([ADR-287](docs/architecture/ADR-287-Email-Content-First-Detail-Levels-Digests-And-Neutral-Message.md),
+  amendment 2026-10-14): Outlook used to read the inbox instead, and iCloud
+  looked for its trash under a name it does not use. A folder is now found by
+  its role or its name whatever its case, and one that does not exist is said
+  with the folders that do.
+- ➖ **« Not from the newsletter » is honoured:** negated criteria — a sender,
+  a subject, a date, the read state, the star, and on Outlook an attachment —
+  used to be dropped from Outlook and iCloud searches, which then listed what
+  was excluded.
+- 🔑 **A confirmed action that could not run says why**
+  ([ADR-303](docs/architecture/ADR-303-Tool-Failure-Restitution.md),
+  amendment 2026-10-14): its result card used to show an internal code
+  (« EXECUTION_FAILED », « CONFIRMATION_MISSING ») or the raw text of an
+  error. It now reads a sentence in your language: a service no longer
+  connected is named with where to reconnect it — Gmail for the vacation
+  responder and filters, Google Drive for sheets and documents, a connector
+  you or an administrator revoked —, a change saved before the failure says
+  so before you retry, and a cancellation that came too late is no longer
+  announced as done.
+- 🔊 **Remote dictation goes to the engine the administrator configured**
+  ([ADR-345](docs/architecture/ADR-345-Fish-Audio-Served-Whole-One-Door-One-Allowance-Cues-Each-Engine-Reads.md)): it used to be ElevenLabs whatever the `voice_transcription` slot
+  named, « remote available » meant that an ElevenLabs key existed, and the cost
+  was filed under ElevenLabs. The slot's provider now receives the audio, the
+  voice settings name it — so the privacy notice says who receives it — and the
+  cost is filed under it.
+- 🆓 **A voice that was not served is no longer billed:** a surface whose
+  configured engine could not be served speaks through Edge and costs nothing,
+  where it used to record the configured engine's tariff.
+- 🏷️ **A bracketed word in a text read aloud is no longer performed** as a cue
+  by an engine that reads tags, and a `<|speaker:N|>` marker in someone else's
+  words can no longer make another voice speak.
+- 📦 **`eleven_v4` and `eleven_v4_turbo` reach upgraded instances:** they had
+  joined the seed bundle without a migration.
+- 📉 **A chat answer whose voice ran past its wait is counted**
+  (`voice_fallback_total{reason="timeout"}`): it was voiced again through the
+  direct path while the dashboard showed a clean turn.
+- 🗣️ **The voice no longer reads LIA's internal tags aloud**
+  ([ADR-253](docs/architecture/ADR-253-Per-Turn-Expressivity-Annotation.md),
+  amendment 2026-10-14): a spoken conversation answer could end on « valence
+  0.1, arousal 0.1… register warm… » — the self-assessment and tone tags the
+  model appends, which the token stream let through attribute by attribute,
+  whatever the speech engine. The stream now removes them across tokens, and
+  the item selection that opens an answer built from your data with them.
+- 🗣️ **A spoken comment names what the written answer chose**
+  ([ADR-082](docs/architecture/ADR-082-Progressive-Sentence-Streaming.md),
+  amendment 2026-10-14): after a search, the voice could announce a result the
+  answer had left out — on a measured turn, the text proposed four places of
+  twenty-two and the voice named another one, 5 replays in 5 — because the
+  comment was written from every result the tools returned, at times before the
+  answer had even begun. It now starts with the answer and speaks only of the
+  results the answer kept, its lead first, in every domain; when the answer kept
+  none, the voice reads the answer.
+- 🔒 **A voice provider's refusal no longer carries its words**
+  ([ADR-345](docs/architecture/ADR-345-Fish-Audio-Served-Whole-One-Door-One-Allowance-Cues-Each-Engine-Reads.md), amendment 2026-10-14): the
+  ElevenLabs and OpenAI transcription clients kept up to 512 characters of the
+  vendor's answer in their errors, ElevenLabs speech and its voice listing 200
+  in their messages — and a validation refusal echoes the field it refused, the
+  sentence being voiced included. A refusal now travels by its status and the vendor's code,
+  and is logged by those facts; the build fails on any new excerpt of a response
+  body in a client.
+- 🗄️ **The administration's voice pickers no longer hold a database
+  connection while a vendor lists its voices**
+  ([ADR-304](docs/architecture/ADR-304-No-Transaction-Across-A-Network-Call.md)):
+  each request authenticates on a session of its own, closed before the vendor
+  is asked.
+- 🔑 **A refused ElevenLabs key is named in dictation too:** the live dictation
+  reported an unidentified HTTP error where the meeting transcription already
+  said the key was refused; both now read the vendor's code.
+- 🔊 **An OpenAI voice failure is read from its type:** a refusal whose message
+  held « generate » was treated as a rate limit, a timeout as an HTTP error and
+  a refused key as a missing one, and a request the vendor refused for good was
+  tried again; it no longer is.
+- 📊 **The « Voice Comment Tokens » panel shows the comment's tokens**
+  (dashboard 11): it charted a metric only an uncalled function wrote; it now
+  reads the tokens every spoken comment's model call records.
+- 🔢 **The getting-started and observability guides quote the real metric
+  count:** they said 606 and 419. Both figures are now held to the source by the
+  release check, and the observability guide points at the dashboard catalogue
+  instead of stale dashboard and runbook counts.
+- 🧪 **The browser flatteners' linearity test no longer fails under a loaded
+  suite:** it read one tick of the Windows thread clock (15.6 ms) as an infinite
+  growth; it now reads CPU over batches of calls, alternating the two sizes,
+  and decides on the median.
+- 📻 **The radio says the name you gave your station** ([ADR-324](docs/architecture/ADR-324-A-Personal-Radio-A-Grid-Decides-Models-Only-Write.md),
+  amendment 2026-10-14): the host used to welcome you to « LIA » whatever the
+  station was called — measured on dev, nine openings in ten — because the
+  writer was given the name only once, beside LIA's. It is now told the name
+  wherever a programme names the station, and LIA as the assistant who runs it:
+  ten openings in ten said the station's name.
+- 🎨 **The stylesheet is built from the application's sources alone:** Tailwind
+  also read the 1 064 test files (2 504 files in all, past the guard's bound);
+  it now reads the 1 440 sources, which drops 22 rules no production file used.
+  The guard's witnesses can no longer be produced by its own text.
+- 🔢 **A « for each » step whose items failed no longer counts one failure
+  too many** ([ADR-346](docs/architecture/ADR-346-Advisory-Replanner-Retired-A-Pipeline-Failure-Is-Said-Never-Replayed.md)):
+  the loop's summary inherited its items' failure and was counted beside
+  them, so one failed item was announced as two, two as three.
+- 🧩 **The skill guide and the skill generator name the one step type a plan
+  template runs, `TOOL`** ([ADR-346](docs/architecture/ADR-346-Advisory-Replanner-Retired-A-Pipeline-Failure-Is-Said-Never-Replayed.md), amendment 2026-10-14): the guide
+  offered `REPLAN` and `HUMAN` in six languages and the generator `PARALLEL`
+  and `RESPONSE`, none of which ran. Any other type now refuses the template
+  before execution, and the request goes to the regular planner.
+
 ## [3.0.1] - 2026-10-13
 
 **A portrait that reads everything LIA keeps about you, and lighter ReAct turns.**

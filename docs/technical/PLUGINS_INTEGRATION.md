@@ -2,7 +2,7 @@
 
 **Status**: implemented (ADR-225) · **Domain**: `apps/api/src/domains/plugins/` · **Since**: v1.31.x
 
-LIA is a conformant client of the [Agent Plugins specification v1.0.0](https://agent-plugins.org/specification) under the incremental-adoption profile (§11.2): **skills + streamable-http MCP servers**. A plugin published for ChatGPT, Codex, Cursor, GitHub Copilot, Kiro or VS Code installs into LIA without adaptation.
+LIA implements the [Agent Plugins v1.0.0 package format](https://agent-plugins.org/specification) for **skills + remote streamable-http MCP servers over HTTPS**, following the incremental-adoption scope (§11.2). The import report identifies loaded, skipped and invalid components. Stdio, legacy SSE and client-specific extension behavior are outside this implementation. A package used by another client may contain unsupported components; portable packaging does not promise identical features or a complete installation across clients. This describes implementation scope, not an external certification.
 
 See [ADR-225](../architecture/ADR-225-Standard-Agent-Plugins-v1.md) for the conformance positioning, the documented deviations and the owner arbitrations.
 
@@ -16,7 +16,7 @@ A plugin is a directory (uploaded as a `.zip`, flat or under a single wrapper di
 | `skills/*/SKILL.md` | Agent Skills (agentskills.io) | The existing skills pipeline via `SkillImportService.import_directory` |
 | `mcp.json`    | MCP servers              | `domains/plugins/mcp_config.py` → `user_mcp`   |
 
-Validation is exhaustively spec-driven: closed manifest with the two non-fatal exceptions of §5.2 (unknown top-level field, non-object `extensions` — reported and ignored), closed server variants mirroring the official `mcp.schema.json`, plus the semantic rules the JSON schema deliberately leaves to the spec text (URL semantics, header validity including case-insensitive duplicates, stdio `cwd` forms, reserved `env` names). Rejection reasons are a closed taxonomy (`PluginIssueCode`), translated client-side — never string-matched.
+Validation follows the closed manifest with the two non-fatal exceptions of §5.2 (unknown top-level field, non-object `extensions` — reported and ignored), closed server variants mirroring the official `mcp.schema.json`, plus semantic rules for URL semantics, header validity including case-insensitive duplicates, stdio `cwd` forms and reserved `env` names. Rejection reasons are a closed taxonomy (`PluginIssueCode`), translated client-side — never string-matched. Optional fields must still match their declared JSON type when present; JSON `null` is not an absent field. Regression tests cover these distinctions and independent-component failure boundaries.
 
 ## Pipeline
 
@@ -25,7 +25,7 @@ Validation is exhaustively spec-driven: closed manifest with the two non-fatal e
 1. size guard → staged extraction with S3 guards (zip bomb, member count, zip-slip, POSIX-safe prefix matching);
 2. manifest validation — fatal violation rejects the plugin with nothing created (§5.2);
 3. component discovery (immediate children of `skills/` only — §7.1; `mcp.json` at the root only);
-4. **global quota pre-check before any write** (plugins, skills, MCP servers — no half-done install);
+4. **global quota pre-check before any write** (plugins, skills, MCP servers); component-level failures are still reported independently and can produce a partial import;
 5. per-skill import through the existing hardened pipeline (S1–S5, atomic per-skill swap with rollback), carrying the plugin provenance into the DB row atomically;
 6. per-server creation/update in `user_mcp` (name `"<plugin>:<key>"`, non-secret `extra_headers`, provenance) — connection failures are non-fatal (§7.2.2 r.5);
 7. update flow: components dropped by the new version are removed (keyed on package contents, never on install success — a failed re-import keeps its retained previous version);

@@ -21,6 +21,10 @@ import { useRadioStore } from '@/stores/radioStore';
 
 import { useRadioCommand } from './RadioControl';
 
+// A station illustration, deliberately static: these bars do not claim to
+// meter playback or require a second player/audio subscription.
+const STATION_WAVE_HEIGHTS = [14, 24, 38, 28, 52, 42, 30, 46, 34, 22, 12];
+
 export function RadioDashboardCard({ lng, enabled }: { lng: Language; enabled: boolean }) {
   const { t } = useTranslation(lng);
   const command = useRadioCommand(enabled);
@@ -33,20 +37,33 @@ export function RadioDashboardCard({ lng, enabled }: { lng: Language; enabled: b
   if (command === null) return null;
   const name = onAirName ?? chosenName ?? t('radio.station_name');
   return (
-    <Card>
-      <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:p-6">
-        <div className="flex min-w-0 flex-1 items-start gap-3">
-          <div className="flex shrink-0 rounded-lg bg-primary/10 p-2">
-            <Radio className="h-5 w-5 text-primary" aria-hidden="true" />
+    <Card className="min-w-0 overflow-hidden border-primary/15 bg-card shadow-sm">
+      <CardContent className="flex flex-col gap-4 bg-gradient-to-r from-primary/5 via-transparent to-transparent p-4 sm:p-6 lg:flex-row lg:items-center">
+        <div className="flex min-w-0 flex-1 items-center gap-4 sm:gap-5">
+          <div
+            className="flex h-16 w-12 shrink-0 items-center justify-center gap-0.5 text-primary"
+            aria-hidden="true"
+          >
+            {STATION_WAVE_HEIGHTS.map((height, index) => (
+              <span key={index} className="w-0.5 rounded-full bg-current" style={{ height }} />
+            ))}
           </div>
-          <div className="min-w-0 space-y-1">
-            <h2 className="text-base font-semibold">{name}</h2>
-            <p className="text-sm text-muted-foreground">{t('radio.page.subtitle')}</p>
+          <div className="min-w-0 space-y-1.5">
+            <h2 className="flex items-center gap-2 text-base font-semibold">
+              <Radio className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+              <span className="min-w-0 break-words">{name}</span>
+            </h2>
+            <p className="break-words text-sm leading-relaxed text-muted-foreground">
+              {t('radio.page.subtitle')}
+            </p>
           </div>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <div className="flex w-full shrink-0 flex-col gap-2 lg:w-48">
           <Button
             onClick={command.run}
+            className="h-auto min-h-11 whitespace-normal px-3 py-2"
+            aria-pressed={command.onAir}
+            aria-busy={command.busy}
             variant={command.onAir ? 'destructive' : 'default'}
             aria-disabled={command.busy || undefined}
           >

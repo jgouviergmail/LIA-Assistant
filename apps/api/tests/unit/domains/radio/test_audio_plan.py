@@ -11,6 +11,7 @@ import pytest
 from src.domains.radio import audio as audio_module
 from src.domains.radio.audio import (
     AudioAssemblyError,
+    LineAudio,
     MixParams,
     VoicedLine,
     assemble_segment,
@@ -31,6 +32,15 @@ def voiced(part: ScriptPart, index: int, seconds: float) -> VoicedLine:
 
 def filter_graph(args: tuple[str, ...]) -> str:
     return args[args.index("-filter_complex") + 1]
+
+
+def windows(args: tuple[str, ...]) -> list[tuple[str, str, str]]:
+    """Every windowed input: its start, its duration, its file."""
+    return [
+        (args[i + 1], args[i + 3], args[i + 5])
+        for i, arg in enumerate(args)
+        if arg == "-ss" and args[i + 2] == "-t" and args[i + 4] == "-i"
+    ]
 
 
 class TestTimeline:
@@ -92,6 +102,86 @@ class TestGraph:
             broken()
 
 
+class TestTakeWindows:
+    """A dialogue take's lines are windows of one file (ADR-345)."""
+
+    TAKE = Path("/lines/take.mp3")
+
+    def test_a_window_is_decoded_from_its_start_for_its_duration_only(self) -> None:
+        lines = [
+            VoicedLine(ScriptPart.BODY, self.TAKE, 3.1, start_s=0.0),
+            VoicedLine(ScriptPart.BODY, self.TAKE, 4.2, start_s=3.1),
+        ]
+        args = plan_segment(lines, OUT, P).args
+
+        assert windows(args) == [
+            ("0.000", "3.100", str(self.TAKE)),
+            ("3.100", "4.200", str(self.TAKE)),
+        ]
+
+    def test_the_take_keeps_its_own_breath_between_turns(self) -> None:
+        lines = [
+            VoicedLine(ScriptPart.BODY, self.TAKE, 3.0, start_s=0.0),
+            VoicedLine(ScriptPart.BODY, self.TAKE, 4.0, start_s=3.0),
+            VoicedLine(ScriptPart.BODY, Path("/lines/alone.wav"), 2.0),
+        ]
+        plan = plan_segment(lines, OUT, P)
+
+        # Nothing between two turns of the take; the usual gap after it.
+        assert plan.line_offsets_s == pytest.approx(
+            (P.lead_in_s, P.lead_in_s + 3.0, P.lead_in_s + 7.0 + P.line_gap_s)
+        )
+        graph = filter_graph(plan.args)
+        assert "apad=pad_dur=0.000[l0]" in graph
+        assert f"apad=pad_dur={P.line_gap_s:.3f}[l1]" in graph
+
+    async def test_each_file_is_probed_once_and_a_window_runs_to_its_end(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        probed: list[str] = []
+
+        async def probe(path: Path, *, timeout_s: float) -> float:
+            probed.append(path.name)
+            return 9.0
+
+        captured: list[tuple[str, ...]] = []
+
+        async def mix(args: tuple[str, ...], *, timeout_s: float) -> bytes:
+            captured.append(args)
+            Path(args[-1]).write_bytes(b"mp3")
+            return b""
+
+        monkeypatch.setattr(audio_module, "probe_duration", probe)
+        monkeypatch.setattr(audio_module, "run_ffmpeg", mix)
+        take = tmp_path / "s.take00.mp3"
+        lines = [
+            LineAudio(ScriptPart.BODY, take, start_s=0.0, end_s=2.5),
+            LineAudio(ScriptPart.BODY, take, start_s=2.5, end_s=None),
+        ]
+
+        audio = await assemble_segment(lines, tmp_path / "s.mp3", timeout_s=5)
+
+        assert probed.count(take.name) == 1
+        assert windows(captured[0]) == [
+            ("0.000", "2.500", str(take)),
+            ("2.500", "6.500", str(take)),
+        ]
+        assert audio.line_offsets_s == pytest.approx((P.lead_in_s, P.lead_in_s + 2.5))
+
+    async def test_a_window_holding_no_audio_is_a_failed_assembly(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        async def probe(path: Path, *, timeout_s: float) -> float:
+            return 2.0
+
+        monkeypatch.setattr(audio_module, "probe_duration", probe)
+        take = tmp_path / "s.take00.mp3"
+        lines = [LineAudio(ScriptPart.BODY, take, start_s=3.0, end_s=None)]
+
+        with pytest.raises(AudioAssemblyError):
+            await assemble_segment(lines, tmp_path / "s.mp3", timeout_s=5)
+
+
 class TestAssembly:
     @pytest.mark.parametrize("destination_exists", [False, True])
     async def test_cancelled_mix_removes_only_its_partial_and_propagates_cancellation(
@@ -111,7 +201,9 @@ class TestAssembly:
             out.write_bytes(b"previous complete mp3")
 
         with pytest.raises(asyncio.CancelledError):
-            await assemble_segment([(ScriptPart.BODY, tmp_path / "voice.wav")], out, timeout_s=5)
+            await assemble_segment(
+                [LineAudio(ScriptPart.BODY, tmp_path / "voice.wav")], out, timeout_s=5
+            )
 
         assert not (tmp_path / "segment.part.mp3").exists()
         if destination_exists:
@@ -138,7 +230,10 @@ class TestAssembly:
 
         monkeypatch.setattr(audio_module, "probe_duration", probe)
         out = tmp_path / "segment.mp3"
-        lines = [(ScriptPart.BODY, tmp_path / "slow.wav"), (ScriptPart.BODY, tmp_path / "bad.wav")]
+        lines = [
+            LineAudio(ScriptPart.BODY, tmp_path / "slow.wav"),
+            LineAudio(ScriptPart.BODY, tmp_path / "bad.wav"),
+        ]
         with pytest.raises(AudioAssemblyError):
             await assemble_segment(lines, out, timeout_s=5)
         assert "slow.wav" in cancelled

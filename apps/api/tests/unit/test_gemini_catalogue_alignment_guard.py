@@ -117,16 +117,19 @@ def test_every_catalogue_row_equals_its_seed_row_column_for_column() -> None:
 
 def test_the_shutdown_dates_are_the_vendor_tables_and_the_seeds() -> None:
     module = _load()
-    vendor = {model: day for (provider, model), day in VENDOR_SHUTDOWNS.items()}
-    assert {provider for provider, _ in VENDOR_SHUTDOWNS} == {"gemini"}
-    assert module.SHUTDOWN_DATES == vendor
+    google = {
+        model: day for (provider, model), day in VENDOR_SHUTDOWNS.items() if provider == "gemini"
+    }
+    assert module.SHUTDOWN_DATES == google
     seeded = {
         m.group("model"): (
             None if m.group("day") == "NULL" else date.fromisoformat(m.group("day")[1:-1])
         )
         for m in _SEED_SHUTDOWN.finditer(_seed_text())
     }
-    assert seeded == vendor
+    # Every date the seed states is a vendor's announcement, whichever the vendor
+    # (Fish Audio joined in ADR-345; its migration is held to its entries apart).
+    assert seeded == {model: day for (_, model), day in VENDOR_SHUTDOWNS.items()}
 
 
 def test_only_the_announced_shutdowns_of_the_sixteen_are_dated() -> None:

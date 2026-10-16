@@ -21,13 +21,14 @@ from src.core.config import settings
 from src.core.constants import (
     DEFAULT_ELEVENLABS_STT_MODEL,
     ELEVENLABS_PROVIDER_NAME,
+    FISHAUDIO_PROVIDER_NAME,
+    FISHAUDIO_STT_MODEL_DEFAULT,
     OPENAI_PROVIDER_NAME,
     OPENAI_STT_DIARIZE_MODEL_DEFAULT,
     STT_PROVIDER_FALLBACK_ORDER,
 )
-from src.core.llm_config_helper import merge_config
+from src.core.remote_stt import remote_stt_enabled, remote_stt_slot
 from src.domains.llm_config.cache import LLMConfigOverrideCache
-from src.domains.llm_config.constants import LLM_DEFAULTS
 from src.domains.meetings.models import MeetingSttEnginePreference, MeetingSttProvider
 from src.infrastructure.cache.pricing_cache import get_cached_cost_audio_usd_eur
 
@@ -36,6 +37,7 @@ logger = structlog.get_logger(__name__)
 _PROVIDER_ENUM = {
     ELEVENLABS_PROVIDER_NAME: MeetingSttProvider.ELEVENLABS,
     OPENAI_PROVIDER_NAME: MeetingSttProvider.OPENAI,
+    FISHAUDIO_PROVIDER_NAME: MeetingSttProvider.FISHAUDIO,
 }
 
 
@@ -57,26 +59,24 @@ class ResolvedEngine:
 
 def _slot_provider_and_model() -> tuple[str, str]:
     """Provider + model of the admin ``voice_transcription`` slot (override or default)."""
-    defaults = LLM_DEFAULTS["voice_transcription"]
-    overrides = LLMConfigOverrideCache.get_override("voice_transcription") or {}
-    effective = merge_config(defaults, overrides)
-    return str(effective.provider), str(effective.model)
+    slot = remote_stt_slot()
+    return slot.provider, slot.model
 
 
 def _remote_model_for(provider: str, slot_provider: str, slot_model: str) -> str:
-    """The slot's model when the slot names this provider, else the provider default."""
+    """The slot's model when the slot names this provider, else the provider default.
+
+    Fish Audio is the exception: a meeting needs speaker turns and a long
+    recording, which only ``transcribe-1-pro`` gives — whatever the dictation
+    slot names (both models cost the same per audio hour).
+    """
+    if provider == FISHAUDIO_PROVIDER_NAME:
+        return FISHAUDIO_STT_MODEL_DEFAULT
     if provider == slot_provider and slot_model:
         return slot_model
     if provider == OPENAI_PROVIDER_NAME:
         return OPENAI_STT_DIARIZE_MODEL_DEFAULT
     return DEFAULT_ELEVENLABS_STT_MODEL
-
-
-def _provider_enabled(provider: str) -> bool:
-    """Deployment kill switches per provider (ElevenLabs has one; OpenAI none)."""
-    if provider == ELEVENLABS_PROVIDER_NAME:
-        return bool(settings.elevenlabs_stt_enabled)
-    return True
 
 
 def _cost_per_hour_eur(model: str) -> float | None:
@@ -98,7 +98,7 @@ def _remote_candidates() -> list[str]:
 def _first_remote(exclude: frozenset[MeetingSttProvider]) -> ResolvedEngine | None:
     slot_provider, slot_model = _slot_provider_and_model()
     for provider in _remote_candidates():
-        if not _provider_enabled(provider) or _PROVIDER_ENUM[provider] in exclude:
+        if not remote_stt_enabled(provider) or _PROVIDER_ENUM[provider] in exclude:
             continue
         api_key = LLMConfigOverrideCache.get_api_key(provider)
         if not api_key:

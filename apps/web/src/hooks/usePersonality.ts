@@ -11,7 +11,9 @@
  * The public shape is unchanged: callers keep the same object.
  */
 
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
+
+import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
 
 import { useAuth } from '@/hooks/useAuth';
 import { usePersonalityStore } from '@/stores/personalityStore';
@@ -50,6 +52,8 @@ export interface UsePersonalityReturn {
 export function usePersonality(): UsePersonalityReturn {
   const { user } = useAuth();
   const userId = user?.id ?? null;
+  const { isCurrent } = useApplicationAccountLifetime(user?.id);
+  const ownerId = usePersonalityStore(state => state.ownerId);
 
   // Field-by-field selectors: subscribing to the whole store would re-render
   // every consumer on any change, including the `updating` flag of a sibling.
@@ -65,22 +69,45 @@ export function usePersonality(): UsePersonalityReturn {
   const updatePersonality = usePersonalityStore(state => state.updatePersonality);
 
   useEffect(() => {
-    void load(userId);
+    let cancelled = false;
+    // Strict Mode's probe is cleaned up before external IO; consumers still
+    // share the store's one load for their account.
+    queueMicrotask(() => {
+      if (!cancelled) void load(userId);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [load, userId]);
 
+  const updateForOwner = useCallback(
+    async (personalityId: string | null) => {
+      if (!isCurrent() || usePersonalityStore.getState().ownerId !== userId) return;
+      await updatePersonality(personalityId);
+    },
+    [isCurrent, userId, updatePersonality]
+  );
+
+  const refetchForOwner = useCallback(async () => {
+    if (!isCurrent() || usePersonalityStore.getState().ownerId !== userId) return;
+    await refetch();
+  }, [isCurrent, userId, refetch]);
+
+  const ownsState = userId !== null && ownerId === userId;
+
   return {
-    personalities,
-    currentPersonality,
-    currentPersonalityId,
+    personalities: ownsState ? personalities : [],
+    currentPersonality: ownsState ? currentPersonality : null,
+    currentPersonalityId: ownsState ? currentPersonalityId : null,
     // Before the first attempt settles there is no data to show, and a
     // consumer that renders an empty list at that instant flashes "no style"
     // where the previous hook showed its spinner from the first paint.
     // Monotone on purpose: once something is on screen, it stays.
-    loading: !hasLoaded,
-    refreshing: storeLoading && hasLoaded,
-    updating,
-    error,
-    updatePersonality,
-    refetch,
+    loading: userId !== null && (!ownsState || !hasLoaded),
+    refreshing: ownsState && storeLoading && hasLoaded,
+    updating: ownsState && updating,
+    error: ownsState ? error : null,
+    updatePersonality: updateForOwner,
+    refetch: refetchForOwner,
   };
 }

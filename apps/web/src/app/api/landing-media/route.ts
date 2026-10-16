@@ -25,9 +25,9 @@ function noVideo(refresh: boolean): NextResponse {
   );
 }
 
-export async function GET(request?: Request): Promise<NextResponse> {
+export async function GET(request: Request): Promise<NextResponse> {
   // Only this fixed query is a refresh. The origin always comes from server configuration.
-  const refresh = request !== undefined && new URL(request.url).search === '?refresh=1';
+  const refresh = new URL(request.url).search === '?refresh=1';
   let loaded: Awaited<ReturnType<typeof loadLandingManifest>>;
   try {
     loaded = await loadLandingManifest({ refresh });

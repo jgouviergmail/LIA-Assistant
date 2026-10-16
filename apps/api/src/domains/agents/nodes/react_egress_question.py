@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable, Mapping
+from contextlib import nullcontext
 from dataclasses import dataclass
 from typing import Any
 
@@ -33,6 +34,7 @@ from src.core.constants import PYTHON_SANDBOX_TOOL_NAME
 from src.core.i18n import resolve_language
 from src.domains.agents.context.runtime_context import runtime_context_if_running
 from src.domains.agents.drafts.models import DraftType
+from src.domains.agents.effects.gate import turn_has_nobody_to_ask
 from src.domains.agents.effects.scope import approved_scope, current_scope, effect_scope
 from src.domains.agents.nodes.react_drafts import extract_draft_info
 from src.domains.agents.python_sandbox.egress.grants import Decision, record_decision
@@ -233,10 +235,15 @@ async def invoke_with_settlement(
         The tool's result, or the settled re-invocation's.
     """
 
+    # Nobody can answer a routine (N10): its card would wait on the person's
+    # thread and read their next message as its answer. Not settleable, the
+    # call takes the tool path's own refusal, which names the setting.
+    settleable = not turn_has_nobody_to_ask()
+
     async def _call() -> Any:
         # The one place an egress question is settled: the tool may ASK here,
         # and refuses an unknown host anywhere else (``tool_path``).
-        with settling_questions():
+        with settling_questions() if settleable else nullcontext():
             return await asyncio.wait_for(
                 wrapper._original_tool.coroutine(**injected_args), timeout
             )

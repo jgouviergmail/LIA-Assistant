@@ -28,6 +28,8 @@ interface RemindersCardProps {
   section: CardSection<RemindersData>;
   isRefreshing: boolean;
   onRefresh: () => void;
+  /** Reload after a successful mutation, independently of manual refresh feedback. */
+  onInvalidate?: () => void;
   staggerIndex?: number;
 }
 
@@ -53,6 +55,7 @@ export function RemindersCard({
   section,
   isRefreshing,
   onRefresh,
+  onInvalidate,
   staggerIndex,
 }: RemindersCardProps) {
   const { i18n } = useTranslation();
@@ -70,7 +73,7 @@ export function RemindersCard({
         <RemindersContent
           data={data}
           onOpenChat={() => openChatDeepLink(chatDraftHref(lng))}
-          onCancelled={onRefresh}
+          onCancelled={onInvalidate ?? onRefresh}
         />
       )}
       staggerIndex={staggerIndex}
@@ -141,14 +144,22 @@ function RemindersContent({
               // sentence, which is the one thing a reminder IS.
               tooltip={reminder.content}
               onSelect={onOpenChat}
-              contentClassName="flex flex-col gap-0.5 leading-tight"
+              contentClassName="flex flex-col gap-1.5 leading-snug"
               actions={actions}
             >
-              <span className="text-xs font-semibold text-amber-700 dark:text-amber-300 tabular-nums">
+              <span className="flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-300 tabular-nums">
+                <Bell className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                 {reminder.trigger_at_local}
               </span>
-              <span className="text-sm text-foreground/90 line-clamp-2 leading-snug">
+              <span className="line-clamp-2 break-words text-sm font-semibold text-foreground/90">
                 {reminder.content}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {t(
+                  reminder.repeats
+                    ? 'dashboard.briefing.cards.reminders.recurring'
+                    : 'dashboard.briefing.cards.reminders.one_off'
+                )}
               </span>
             </CardItemRow>
           );

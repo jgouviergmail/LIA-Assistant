@@ -30,6 +30,7 @@ from langgraph.types import interrupt
 
 from src.core.config import settings
 from src.core.exchange_rhythm import ExchangeRhythm
+from src.core.run_config import run_id_of
 from src.domains.agents.analysis.query_intelligence_helpers import (
     get_qi_attr,
     get_query_intelligence_from_state,
@@ -383,6 +384,20 @@ async def react_call_model_node(
     # leads, and the history drops by blocks.
     cross_turn = frequent_exchanges(state)
     system_blocks = list(state.get("react_system_blocks") or [])
+    from src.domains.agents.services.efficacy_runtime import (
+        build_efficacy_block,
+        efficacy_context_from_state,
+        verifier_available_in_state,
+    )
+
+    efficacy_block = await build_efficacy_block(
+        efficacy_context_from_state(state),
+        run_id=run_id_of(config),
+        state=state,
+        can_verify=verifier_available_in_state(state),
+    )
+    if efficacy_block:
+        system_blocks.append(efficacy_block)
     coverage_block = requested_outcome_block(state)
     if coverage_block:
         system_blocks.append(coverage_block)

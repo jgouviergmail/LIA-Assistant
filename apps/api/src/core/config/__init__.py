@@ -19,6 +19,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from src.core.constants import (
     DEFAULT_CURRENCY,
+    FISHAUDIO_CLONE_TOTAL_MAX_BYTES,
     HTTP_LOG_EXCLUDE_PATHS_DEFAULT,
     MULTIPART_ENVELOPE_OVERHEAD_BYTES,
     SESSION_COOKIE_SECURE_PRODUCTION,
@@ -399,12 +400,14 @@ class Settings(
             self.attachments_max_image_size_mb,
             self.rag_spaces_max_file_size_mb,
         )
-        required = largest_upload_mb * 1024 * 1024 + MULTIPART_ENVELOPE_OVERHEAD_BYTES
+        # A Fish Audio clone sends its recordings in one body (ADR-345).
+        largest_upload = max(largest_upload_mb * 1024 * 1024, FISHAUDIO_CLONE_TOTAL_MAX_BYTES)
+        required = largest_upload + MULTIPART_ENVELOPE_OVERHEAD_BYTES
         if self.max_request_body_bytes < required:
             raise ValueError(
                 "max_request_body_bytes "
                 f"({self.max_request_body_bytes}) is below the largest configured "
-                f"upload ({largest_upload_mb} MB + multipart envelope = {required} "
+                f"upload ({largest_upload} bytes + multipart envelope = {required} "
                 "bytes): raise MAX_REQUEST_BODY_BYTES or lower the upload ceilings."
             )
         return self

@@ -9,8 +9,16 @@ class STTProviderError(Exception):
     Carries a stable error code so the WebSocket handler can map it to the
     matching close code / frontend i18n key without parsing the message.
 
-    Recognised codes (kept in sync with the WebSocket handler):
-    - ``elevenlabs_api_key_missing``: factory cannot find the provider key.
+    Recognised codes (kept in sync with the WebSocket handler and the
+    meetings' permanent codes):
+    - ``elevenlabs_api_key_missing`` / ``openai_api_key_missing`` /
+      ``fishaudio_api_key_missing``: the provider's key is not configured.
+    - ``provider_unknown``: no remote engine serves the configured provider.
+    - ``invalid_api_key``: the provider refused the configured key.
+    - ``provider_payment_required``: the provider's account has no credit
+      left (Fish Audio, HTTP 402).
+    - ``provider_file_too_large``: the provider refused the recording's size
+      or length.
     - ``provider_timeout``: HTTP timeout while calling the provider.
     - ``provider_rate_limited``: HTTP 429 from the provider; ``retry_after``
       may carry the seconds suggested by the ``Retry-After`` header.

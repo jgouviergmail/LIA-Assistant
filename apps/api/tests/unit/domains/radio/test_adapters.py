@@ -42,8 +42,9 @@ from src.domains.radio.prompting import ListenerTaste
 from src.domains.radio.schemas import RadioStartRequest
 from src.domains.radio.setup import RadioSetup, VerificationMode
 from src.domains.radio.setup_builder import REFUSED_VOICE_UNAVAILABLE, RadioStartRefused
+from src.domains.voice.engine_voices import EngineVoices
 from src.domains.voice.factory import TTSConfig
-from src.domains.voice.voices_catalog import ElevenLabsVoicesError, VoiceOption
+from src.domains.voice.voices_catalog import VoiceOption
 
 pytestmark = pytest.mark.unit
 
@@ -84,7 +85,7 @@ def serving(monkeypatch: pytest.MonkeyPatch, provider: str, reason: str | None =
         return config(provider)
 
     monkeypatch.setattr(adapters, "get_tts_config", tts_config)
-    monkeypatch.setattr(adapters, "unservable_reason", lambda cfg, *, records_tokens: reason)
+    monkeypatch.setattr(adapters, "unservable_reason", lambda cfg: reason)
 
 
 class TestTheEngine:
@@ -97,30 +98,22 @@ class TestTheEngine:
             await radio_engine()
         assert refused.value.reason == REFUSED_VOICE_UNAVAILABLE
 
-    async def test_a_shipped_catalogue_is_the_engine_s_voices(
+    async def test_the_radio_slot_s_engine_is_offered_with_its_voices(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        # The catalogue itself is the voice domain's (test_engine_voices.py).
         serving(monkeypatch, "edge")
-        monkeypatch.setitem(adapters._STATIC_CATALOGUES, "edge", lambda: [VOICE])
+        offered: list[TTSConfig] = []
+
+        async def offered_engine(cfg: TTSConfig) -> EngineVoices:
+            offered.append(cfg)
+            return EngineVoices(cfg, [VOICE], multilingual=False)
+
+        monkeypatch.setattr(adapters, "offered_engine", offered_engine)
 
         engine = await radio_engine()
 
-        assert engine.voices == [VOICE]
-        assert engine.multilingual is False  # an Edge voice speaks its own language
-
-    async def test_a_live_catalogue_that_fails_offers_no_voice_rather_than_raising(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        serving(monkeypatch, "elevenlabs")
-
-        async def unavailable(*, api_key: str, base_url: str) -> list[VoiceOption]:
-            raise ElevenLabsVoicesError("vendor says no")
-
-        monkeypatch.setattr(adapters, "get_elevenlabs_voices", unavailable)
-
-        engine = await radio_engine()
-
-        assert engine.voices == [] and engine.multilingual is True
+        assert engine.voices == [VOICE] and offered == [config("edge")]
 
 
 class Production:
@@ -413,9 +406,7 @@ class TestTheSessionParts:
             raise LookupError("the listener's account is gone")
 
         monkeypatch.setattr(adapters, "get_tts_config", tts_config)
-        monkeypatch.setattr(
-            adapters, "get_tts_client_sync", lambda cfg, *, strict, records_tokens: client
-        )
+        monkeypatch.setattr(adapters, "get_tts_client_sync", lambda cfg, *, strict: client)
         monkeypatch.setattr(adapters, "_cards_of", gone)
         record = RadioSessionRecord(
             session_id=uuid4(), user_id=USER, run_id="radio_x", started_at=NOW

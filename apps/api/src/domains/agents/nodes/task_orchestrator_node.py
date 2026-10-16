@@ -63,6 +63,7 @@ from src.domains.agents.orchestration import (
     create_orchestration_plan,
     map_execution_result_to_agent_result,
 )
+from src.domains.agents.orchestration.step_failure_metrics import record_pipeline_step_failures
 from src.domains.agents.utils.state_cleanup import (
     cleanup_dict_by_turn_id,
     cleanup_list_by_limit,
@@ -101,16 +102,15 @@ except ImportError:
     counter_metric=agent_node_executions_total,
 )
 async def task_orchestrator_node(state: MessagesState, config: RunnableConfig) -> dict[str, Any]:
-    """
-    TaskOrchestrator node: Orchestrates agent execution based on plan type.
+    """Execute the turn's plan, or route a legacy single-agent request.
 
-    **Phase 5 Enhancement**: Dual-mode orchestration
-    - Mode 1 (Phase 5): ExecutionPlan from planner → Execute steps sequentially
-    - Mode 2 (Legacy): Simple plan from hardcoded mapping → Route to single agent
-
-    Version 1 (Legacy): Sequential execution - simple plan routes to first agent.
-    Version 2 (Phase 5 MVP): Executes ExecutionPlan TOOL steps, delegates to agents.
-    Version 3 (Future): Parallel execution, CONDITIONAL steps, REPLAN.
+    - An ``ExecutionPlan`` from the planner runs INSIDE this node, wave by wave
+      (``asyncio.gather`` per dependency wave, TOOL and CONDITIONAL steps), and
+      its results reach the response as ``agent_results`` and
+      ``completed_steps``. A failed step is never re-run here: the answer states
+      it through the runtime failures directive (ADR-303, ADR-346).
+    - Without a plan, the legacy path builds a simple orchestration plan from
+      the router's intention and routes to the agent node it names.
 
     Args:
         state: Current LangGraph state with routing_history or execution_plan.
@@ -120,29 +120,9 @@ async def task_orchestrator_node(state: MessagesState, config: RunnableConfig) -
         Updated state with orchestration_plan and cleaned agent_results.
 
     Note:
-        Basic metrics (duration, success/error counters) are tracked automatically
-        by @track_metrics decorator. Orchestrator-specific metrics (plans_created, etc.)
-        are still tracked manually within the function.
-
-    Flow Examples:
-
-    **Phase 5 (ExecutionPlan from planner)**:
-        1. Planner generates ExecutionPlan with TOOL/CONDITIONAL steps
-        2. TaskOrchestrator detects execution_plan in state
-        3. For MVP: Convert ExecutionPlan → simple orchestration_plan
-        4. Route to first agent (future: execute steps inline)
-
-    **Legacy (Simple routing)**:
-        1. Router detects intention="contacts_search"
-        2. TaskOrchestrator creates plan: agents_to_call=["contacts_agent"]
-        3. Conditional routing sends to contacts_agent node
-        4. Agent executes and returns result
-        5. Response node synthesizes
-
-    Note:
-        MVP implementation (Phase 5.1): Detect ExecutionPlan and convert to
-        simple orchestration_plan for legacy routing. Full step-by-step execution
-        with CONDITIONAL/REPLAN support deferred to Phase 5.2.
+        Basic metrics (duration, success/error counters) are tracked by the
+        ``@track_metrics`` decorator; orchestrator-specific metrics
+        (plans_created, ...) are tracked within the function.
     """
     run_id = run_id_of(config, "unknown")
 
@@ -669,157 +649,9 @@ async def _handle_execution_plan(
             total_steps=len(execution_plan.steps),
             data_registry_items=len(data_registry),
         )
-
-        # ====================================================================
-        # INTELLIPLANNER Phase E: Adaptive Re-Planning Analysis
-        # ====================================================================
-        # Analyze execution results and decide if re-planning is beneficial
-        from src.domains.agents.orchestration.adaptive_replanner import (
-            AdaptiveRePlanner,
-            RePlanContext,
-            RePlanDecision,
-            analyze_execution_results,
-            should_trigger_replan,
-        )
-
-        # Quick check if re-planning should be considered
-        should_replan, replan_trigger = should_trigger_replan(
-            execution_plan=execution_plan,
-            completed_steps=completed_steps,
-        )
-
-        if should_replan:
-            # Full analysis for re-planning decision
-            execution_analysis = analyze_execution_results(
-                execution_plan=execution_plan,
-                completed_steps=completed_steps,
-            )
-
-            # Advisory-only contract (ADR-128): the replanner is a consultative
-            # analyzer — no retry or replan is ever executed, so there is NO
-            # attempt progression. The attempt is fixed at 0 (the first and only
-            # pass) and is deliberately not read from a state key, because none is
-            # ever written (removing that phantom "retry state" keeps the code
-            # honest about the committed advisory contract; F017).
-            replan_attempt = 0
-
-            # Build context for decision
-            user_message = ""
-            if state.get(STATE_KEY_MESSAGES):
-                last_human = next(
-                    (
-                        m
-                        for m in reversed(state[STATE_KEY_MESSAGES])
-                        if hasattr(m, "type") and m.type == "human"
-                    ),
-                    None,
-                )
-                if last_human:
-                    user_message = (
-                        last_human.content if hasattr(last_human, "content") else str(last_human)
-                    )
-
-            replan_context = RePlanContext(
-                user_request=user_message,
-                execution_plan=execution_plan,
-                plan_id=execution_plan.plan_id,
-                completed_steps=completed_steps,
-                execution_analysis=execution_analysis,
-                replan_attempt=replan_attempt,
-                max_attempts=settings.adaptive_replanning_max_attempts,
-            )
-
-            # Get re-planning decision
-            replanner = AdaptiveRePlanner()
-            replan_result = replanner.analyze_and_decide(replan_context)
-
-            logger.info(
-                "adaptive_replanner_decision",
-                run_id=run_id,
-                plan_id=execution_plan.plan_id,
-                trigger=replan_result.trigger.value,
-                decision=replan_result.decision.value,
-                reasoning_length=len(replan_result.reasoning),
-                recovery_strategy=replan_result.recovery_strategy.value,
-                attempt=replan_attempt,
-            )
-
-            # Handle re-planning decisions.
-            #
-            # TODO(D4 — adaptive recovery is advisory only, not wired):
-            #   The AdaptiveRePlanner computes a recovery decision (RETRY_SAME /
-            #   REPLAN_MODIFIED / ESCALATE_USER / ABORT / PROCEED) on every
-            #   plan failure, but the orchestrator currently only LOGS it — no
-            #   decision changes control flow. Wiring true automatic recovery
-            #   requires graph restructuring in the LangGraph builder:
-            #     - RETRY_SAME     → a conditional edge from task_orchestrator
-            #                        back to parallel_executor, re-running only
-            #                        the failed step(s), bounded by
-            #                        settings.planner_max_replans, with the
-            #                        retry_attempt counter persisted in state
-            #                        (a new MessagesState key — undeclared keys
-            #                        are dropped by the checkpoint reducer).
-            #     - REPLAN_MODIFIED→ a conditional edge back to planner_node_v3
-            #                        with replan_result.modified_parameters +
-            #                        recovery_strategy (e.g. SKIP_OPTIONAL) fed
-            #                        into the prompt, then re-validate + re-exec.
-            #     - ESCALATE_USER / ABORT → surface replan_result.user_message
-            #                        (already i18n via _get_abort_message) by
-            #                        writing it to a state key that response_node
-            #                        renders, instead of only logging it.
-            #   Until then, keep this block HONEST: every branch below must not
-            #   claim an action it does not perform, and must not fabricate a
-            #   user message that nothing renders (the failed-step results flow
-            #   to response_node, which surfaces the failure). See ADR-128 (D4).
-            #   Scope note: this is a genuine feature (a recovery loop), not a
-            #   bug — deliberately deferred; do not "fix" it by silently adding
-            #   inline messages or fake retries.
-            if replan_result.decision == RePlanDecision.ESCALATE_USER:
-                # Add user message to state for response_node to display
-                if replan_result.user_message:
-                    # TODO: Add message to state when implementing full re-planning loop
-                    logger.info(
-                        "replan_escalate_user_message",
-                        message_length=len(replan_result.user_message),
-                    )
-
-            elif replan_result.decision == RePlanDecision.ABORT:
-                # Add error message for response_node
-                if replan_result.user_message:
-                    # TODO: Add message to state when implementing full re-planning loop
-                    logger.warning(
-                        "replan_abort_message",
-                        message_length=len(replan_result.user_message),
-                    )
-
-            elif replan_result.decision == RePlanDecision.RETRY_SAME:
-                # Automatic retry is NOT wired: it would require a conditional
-                # edge back to the parallel executor (graph restructuring). The
-                # replanner still emits this decision as an observability signal,
-                # but no re-execution happens — log honestly (audit D4). The
-                # failed step results already flow to response_node below, which
-                # surfaces the failure. No inline user message is fabricated
-                # here: nothing reads replan_result.user_message (it is neither
-                # written to state nor rendered).
-                logger.info(
-                    "replan_retry_not_wired",
-                    step_id=replan_result.failed_step_id,
-                    decision="retry_same",
-                    msg="Replanner suggested retry_same; automatic recovery is not "
-                    "implemented — surfacing the step failure instead of retrying",
-                )
-
-            elif replan_result.decision == RePlanDecision.REPLAN_MODIFIED:
-                # Automatic replanning is NOT wired either (would need an edge
-                # back to planner_node). Log the suggestion honestly; the
-                # failure surfaces via agent_results (audit D4).
-                logger.info(
-                    "replan_modified_not_wired",
-                    original_plan_steps=len(execution_plan.steps),
-                    modified_parameters=replan_result.modified_parameters,
-                    msg="Replanner suggested a modified plan; automatic recovery "
-                    "is not implemented — surfacing the failure instead",
-                )
+        # Each failed step counted under its typed code (ADR-346): the one
+        # Prometheus view of a failure that happens before a tool is called.
+        record_pipeline_step_failures(completed_steps)
 
         # Convert completed_steps to agent_results format
         # Reuse conversion logic from wave_aggregator

@@ -22,11 +22,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.domains.health_metrics.models import HealthMetricToken, HealthSample
 from src.domains.health_metrics.service import HealthMetricsService
 from src.domains.users.account_deletion_service import AccountDeletionService
+from src.domains.users.models import User
 
 pytestmark = pytest.mark.integration
 
 
-async def _seed_health_data(db: AsyncSession, user) -> str:
+async def _seed_health_data(db: AsyncSession, user: User) -> str:
     """Create an ingestion token + two samples for the user; return raw token."""
     service = HealthMetricsService(db)
     created = await service.create_token(user_id=user.id, label="gdpr-test")
@@ -56,7 +57,7 @@ async def _seed_health_data(db: AsyncSession, user) -> str:
     return created.token
 
 
-async def _prepare_deletable_user(db: AsyncSession, user) -> None:
+async def _prepare_deletable_user(db: AsyncSession, user: User) -> None:
     """Deactivate the user and give it a last-known location (PII)."""
     user.is_active = False
     user.last_known_location_encrypted = "encrypted-location-blob"
@@ -70,7 +71,7 @@ async def _prepare_deletable_user(db: AsyncSession, user) -> None:
 
 
 async def test_account_deletion_purges_health_data_and_location(
-    async_session: AsyncSession, test_user, test_superuser
+    async_session: AsyncSession, test_user: User, test_superuser: User
 ) -> None:
     """After deletion: zero health/location data remains, token no longer authenticates."""
     raw_token = await _seed_health_data(async_session, test_user)
@@ -119,8 +120,27 @@ async def test_account_deletion_purges_health_data_and_location(
     ), "ingestion token still authenticates after account deletion"
 
 
+async def test_account_deletion_erases_the_voices_chosen_for_lia(
+    async_session: AsyncSession, test_user: User, test_superuser: User
+) -> None:
+    """A setting that serves nothing once the account is gone: SQL NULL, never a JSON null."""
+    test_user.lia_voices = {"fishaudio/s2.1-pro": {"male": "voice-id"}}
+    await _prepare_deletable_user(async_session, test_user)
+
+    await AccountDeletionService(async_session).delete_account(
+        user_id=test_user.id,
+        admin_user_id=test_superuser.id,
+        reason="gdpr-erasure-test",
+    )
+
+    erased = await async_session.scalar(
+        text("SELECT lia_voices IS NULL FROM users WHERE id = :id"), {"id": test_user.id}
+    )
+    assert erased is True, "lia_voices survived account deletion"
+
+
 async def test_ingestion_token_rejected_for_deleted_user_defense_in_depth(
-    async_session: AsyncSession, test_user
+    async_session: AsyncSession, test_user: User
 ) -> None:
     """Even an un-revoked token must not authenticate once its owner is deleted.
 
@@ -143,7 +163,7 @@ async def test_ingestion_token_rejected_for_deleted_user_defense_in_depth(
 
 
 async def test_ingestion_token_rejected_for_deactivated_user(
-    async_session: AsyncSession, test_user
+    async_session: AsyncSession, test_user: User
 ) -> None:
     """A deactivated (not yet deleted) account must not ingest either."""
     service = HealthMetricsService(async_session)
@@ -155,7 +175,7 @@ async def test_ingestion_token_rejected_for_deactivated_user(
 
 
 async def test_ingestion_token_still_works_for_active_user(
-    async_session: AsyncSession, test_user
+    async_session: AsyncSession, test_user: User
 ) -> None:
     """Sanity: the active-user path keeps authenticating (no regression)."""
     service = HealthMetricsService(async_session)
@@ -168,7 +188,7 @@ async def test_ingestion_token_still_works_for_active_user(
 
 
 async def test_delete_account_counts_report_health_tables(
-    async_session: AsyncSession, test_user, test_superuser
+    async_session: AsyncSession, test_user: User, test_superuser: User
 ) -> None:
     """The per-table deletion report must include the health tables."""
     await _seed_health_data(async_session, test_user)
@@ -186,7 +206,7 @@ async def test_delete_account_counts_report_health_tables(
 
 
 async def test_delete_account_with_no_health_data_still_works(
-    async_session: AsyncSession, test_user, test_superuser
+    async_session: AsyncSession, test_user: User, test_superuser: User
 ) -> None:
     """Deletion of an account without any health rows must not regress."""
     await _prepare_deletable_user(async_session, test_user)
@@ -203,7 +223,7 @@ async def test_delete_account_with_no_health_data_still_works(
 
 
 async def test_deleted_user_ingest_write_is_refused_end_to_end(
-    async_session: AsyncSession, test_user, test_superuser
+    async_session: AsyncSession, test_user: User, test_superuser: User
 ) -> None:
     """Acceptance criterion: an ingestion WRITE after deletion is refused.
 

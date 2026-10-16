@@ -2,8 +2,8 @@
 
 **Documentation Technique - LIA**
 **Version**: 1.3
-**Dernière mise à jour**: 2026-09-24
-**Statut**: ✅ Production-Ready
+**Dernière mise à jour**: 2026-10-15
+**Statut**: Documentation technique des contrôles et de leurs limites
 
 ---
 
@@ -14,7 +14,7 @@
 3. [Détection et classification PII](#détection-et-classification-pii)
 4. [Stratégies de filtrage](#stratégies-de-filtrage)
 5. [Integration Structlog](#integration-structlog)
-6. [Conformité GDPR](#conformité-gdpr)
+6. [Références GDPR et limites des contrôles](#références-gdpr-et-limites-des-contrôles)
 7. [Performance et optimisations](#performance-et-optimisations)
 8. [Code complet annoté](#code-complet-annoté)
 9. [Testing et validation](#testing-et-validation)
@@ -28,12 +28,25 @@
 
 ### Objectifs du filtrage PII
 
+Les contrôles de journalisation limitent l'exposition des données ; ils ne
+garantissent pas la détection exhaustive des informations personnelles et ne
+constituent pas une certification de conformité.
+
+Les clients OAuth/IMAP/SMTP gardent le statut du refus ou le type d'exception
+dans les logs visibles, jamais le corps d'erreur d'un fournisseur. Une réponse
+peut recopier le message ou les paramètres envoyés : l'encapsuler dans une
+exception interne ne la rend pas fiable. Les outils ne la reprennent donc pas
+comme instruction au modèle. La cause typée d'un refus de clé et un délai de
+reprise restent utilisables ; les métadonnées d'invalidation OAuth conservent
+une phrase fixe. Les diagnostics de contenu restent réservés à DEBUG, dont
+l'accès et la durée d'activation doivent être maîtrisés.
+
 Le système de filtrage PII (Personally Identifiable Information) vise à :
 
-1. **Conformité GDPR** : Respecter l'Article 5 (Data Minimization) et l'Article 32 (Security of processing)
-2. **Sécurité des logs** : Empêcher la fuite de données sensibles dans les logs
-3. **Traçabilité** : Permettre la corrélation des événements sans exposer de PII
-4. **Auditabilité** : Logs exploitables par les équipes sans accès aux données personnelles
+1. **Minimisation** : Réduire les données personnelles copiées dans les logs
+2. **Sécurité des logs** : Limiter les fuites aux sites contrôlés et testés
+3. **Traçabilité** : Corréler les événements avec des identifiants dont l'accès reste protégé
+4. **Auditabilité** : Conserver les faits utiles sans recopier le contenu des échanges
 
 ### Qu'est-ce que le PII ?
 
@@ -70,7 +83,7 @@ Catégories de PII dans LIA:
    - Cryptographic keys
    - Session IDs
 
-Non-PII (safe to log):
+Operational metadata to minimize and assess in context, not presumed anonymous:
 - Request IDs, trace IDs
 - Timestamps
 - Error codes
@@ -374,6 +387,7 @@ de la personne. Réponse en quatre couches ([ADR-317](../architecture/ADR-317-A-
 | Source SQL | `infrastructure/database/session.py`, `errors.py`, `core/repository.py` | tout moteur `hide_parameters=True` (garde `test_sql_parameters_hidden_guard.py`) ; une erreur de base est journalisée par ses **faits** lus sur le pilote (`db_error`, `sqlstate`, `constraint`, `table`, `column`) ; le libellé `db_query_errors_total{error_type}` vient du SQLSTATE |
 | Citations | `observability/quoted_content.py` | au-dessus de DEBUG, sur toute chaîne **et sur le traceback rendu** : `DETAIL`/`CONTEXT` de PostgreSQL, `[parameters: …]`, argument asyncpg, messages PostgreSQL qui citent leur entrée, `input_value=` de Pydantic (jusqu'au dernier marqueur de la ligne) — la contrainte, la table, la requête et la classe restent |
 | URL | `pii_filter.sanitize_url_query` | au-dessus de DEBUG, les paramètres de recherche (`q`, `query`, `$search`, `srsearch`, `input`, `address`…) ; à **tous** les niveaux, les clés de fournisseur en query string (`key=` Google, `appid=` OpenWeatherMap), qu'une `HTTPStatusError` rend avec l'URL |
+| Corps de fournisseur (2026-10-15) | `domains/voice/vendor_refusal.py`, clients HTTP | un refus quitte un client par ses **faits** : statut HTTP et code fournisseur borné, jamais un extrait de son corps. Les clients vocaux publient `details = {status_code, vendor_code}` et la forme d'une réponse illisible ; les connecteurs à clé API, Places, Routes et téléphonie conservent leurs statuts et catégories sans prose fournisseur. Le garde `test_vendor_body_excerpt_guard.py` refuse, dans tout module de `src` qui importe httpx ou aiohttp, une tranche d'un `.text` (directe ou par alias) hors ligne DEBUG, sans exemption restante. Les erreurs de transport conservent leur catégorie ; une réponse absente ne devient pas un refus HTTP inventé |
 | Traces (2026-10-02) | `observability/tracing.py` (`_redact_request_target`) | l'instrumentation FastAPI nomme le span d'après le template mais enregistrait la cible CONCRÈTE : `http.target` portait le nom de la personne, `http.url` aussi la chaîne de requête (mesuré sur 0.65b0) ; les deux deviennent le template, `unmatched` hors route |
 | Noms | `CONTENT_FIELD_NAMES`, `_CONTENT_FIELD_SUFFIXES` | noms exacts ajoutés seulement quand AUCUNE ligne ne les emploie à autre chose (`query`, `topic`, `keyword`, `input`, `stdout`…) ; suffixes (`*_preview` sauf `*_id_preview`, `*_query`, `*_content`, `*_text`…) qui ne rédigent que du texte ou des listes — `has_content=True` ou `extra_body={…}` restent |
 | Ingestion (2026-09-25) | `infrastructure/observability/promtail/promtail-config.yml` | les autres conteneurs écrivent du texte brut que ce filtre ne voit jamais : pendant un redémarrage de l'API, Next.js journalisait « Failed to proxy <url> » avec toute la query string proxifiée (le `?token=` du webhook Pub/Sub). Le collecteur (Grafana Alloy depuis le 2026-10-02, qui exécute ce même fichier) masque les MÊMES paramètres pour chaque ligne avant Loki : identifiants et coordonnées toujours, texte de recherche hors DEBUG (une ligne sans niveau compte comme au-dessus) ; seule la valeur est remplacée, arrêtée aussi à une barre oblique inverse (le collecteur lit les lignes de l'API échappées en JSON : manger le `\` d'un guillemet échappé casserait la ligne). `test_promtail_query_redaction_guard.py` tient ses deux listes égales à celles du filtre et fait tourner ses expressions contre `sanitize_url_query` sur un corpus ; le pipeline a d'abord été exécuté par Promtail 3.2.1 lui-même (`-dry-run -stdin`), puis par Alloy sur dev : les lignes du corpus, émises par un conteneur jetable, reviennent de Loki identiques au filtre (5 sur 5) |
@@ -392,6 +406,16 @@ ou la ligne passe en DEBUG. Une sortie de modèle illisible passe par
 `log_unreadable_text(logger, event, text, level=…)` (`observability/log_facts.py`) :
 sa longueur au niveau voulu, ses mots sur une ligne DEBUG à part.
 
+Les enveloppes communes de retry et de coupe-circuit conservent le type de
+l'exception, les tentatives et les transitions, sans recopier sa prose dans les
+logs opérationnels. L'exception d'origine reste disponible pour la classification
+par l'appelant. Dans le navigateur, les diagnostics Firebase ne contiennent ni
+corps de notification ni préfixe de jeton d'appareil ; les erreurs du SDK sont
+journalisées par leur type et restent inchangées pour l'appelant. Le flux SSE
+ne recopie pas un message malformé dans son avertissement de parsing. Ces
+propriétés ont des tests avec des contenus privés sentinelles ; elles ne
+constituent pas un audit de toutes les bibliothèques tierces du navigateur.
+
 **Le garde** `tests/unit/test_log_content_guard.py` lit la VALEUR (AST sur `src`) :
 refusée si c'est un aperçu tronqué d'autre chose qu'un identifiant, ou si ses
 feuilles sont des mots de contenu (le DERNIER mot décide : `query_length` est une
@@ -399,13 +423,14 @@ longueur, `detection_query` une requête) ; le nom du champ ne compte que si la
 valeur n'est pas déjà une métadonnée ; un `name=` nu doit dire de quel nom il
 s'agit. Les exceptions sont écrites avec leur raison dans `ALLOWED` (borne
 numérique, nom de l'espace système de FAQ, réglage d'instance, adresse configurée
-par l'opérateur, refus du fournisseur de téléphonie, type de média) ; une exception
+par l'opérateur, type de média) ; une exception
 qui ne correspond plus à aucune ligne fait échouer le test.
 
 **Limites énoncées** : les messages de nos propres exceptions en général (30 sites
 `raise` interpolent une valeur ; les cinq personnels ont été corrigés), les textes
-d'erreur de fournisseurs hors formats reconnus, et le niveau DEBUG en production (les
-contenus y sont permis par la politique).
+d'erreur de fournisseurs hors formats reconnus, et un corps interpolé ENTIER que le
+garde des extraits ne lit pas —, et le niveau DEBUG en production (les contenus y sont permis par la
+politique).
 
 #### Purge de l'historique Loki (2026-09-25)
 
@@ -447,34 +472,22 @@ série.
 
 ### 3. Regex Patterns (Industry Standards)
 
-```python
-# apps/api/src/infrastructure/observability/pii_filter.py
+The patterns live in `apps/api/src/infrastructure/observability/pii_filter.py`, and only
+there — a copy in this page had gone stale (it still showed the generic
+`prefix_suffix` token shape removed for its false positives). What they catch:
 
-# Email pattern (RFC 5322 simplified)
-EMAIL_PATTERN = re.compile(
-    r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b",
-    re.IGNORECASE,
-)
+| Family | Detection | Replacement |
+|--------|-----------|-------------|
+| E-mail | RFC 5322 simplified, local part ≤ 64 (linear) | `email_hash_<sha256 prefix>` |
+| Phone | international format, `+` and country code required | `***-***-<last 4>` |
+| Card, 16 digits | any 4-4-4-4 grouping, no Luhn check (masking a non-card costs nothing) | `****-****-****-<last 4>` |
+| Card, Amex | 15 digits grouped 4-6-5, starting 34/37, **Luhn check required** (15 digits are also order numbers) | `****-****-****-<last 4>` |
+| Provider keys | signature-prefixed only: Stripe, GitHub, OpenAI (`sk-`, `sk-proj-`), Anthropic (`sk-ant-`), Google API key (`AIza` + 35), Google OAuth access token (`ya29.`), JWT | `[REDACTED_TOKEN]` |
+| Quoted credentials | a `Bearer` value (the scheme kept), an `api_key` / `x-api-key` / `apikey` value inside a string | `Bearer [REDACTED_TOKEN]`, `[REDACTED]` |
 
-# Phone pattern: Conservative approach - only match clear phone number formats
-# Requires + prefix with country code to avoid false positives
-PHONE_PATTERN = re.compile(
-    r"\+\d{1,3}[\s.-]?\d{1,4}[\s.-]?\d{1,4}[\s.-]?\d{1,4}[\s.-]?\d{1,4}",
-)
-
-# Credit card pattern (Luhn algorithm compatible - matches Visa, MC, Amex, etc.)
-CREDIT_CARD_PATTERN = re.compile(
-    r"\b(?:\d{4}[-\s]?){3}\d{4}\b",
-)
-
-# Generic token/API key pattern (32+ alphanumeric with underscores/dashes)
-# Conservative: only match strings that look like tokens (no colons, no slashes)
-TOKEN_PATTERN = re.compile(
-    r"\b[A-Za-z0-9]{8,}_[A-Za-z0-9_-]{24,}\b|"  # Typical token format
-    r"\bsk_(?:live|test)_[A-Za-z0-9]{24,}\b|"  # Stripe keys
-    r"\bgh[ps]_[A-Za-z0-9]{36,}\b"  # GitHub tokens
-)
-```
+Each family has its false-positive corpus in
+`apps/api/tests/unit/infrastructure/observability/test_pii_filter.py`
+(`TestProviderKeysCardsAndTheirLookalikes`, amended 2026-10-13, ADR-317).
 
 ---
 
@@ -525,7 +538,7 @@ graph TB
 | **Email** | PSEUDONYMIZE | `"user@example.com"` | `"email_hash_a1b2c3d4"` | Traçabilité + GDPR |
 | **Phone** | MASK | `"+1-555-123-4567"` | `"***-***-4567"` | Identification partielle |
 | **Credit Card** | MASK | `"4532 1234 5678 9010"` | `"****-****-****-9010"` | PCI-DSS compliance |
-| **User ID (UUID)** | KEEP | `"123e4567-e89b..."` | `"123e4567-e89b..."` | Non-PII, safe |
+| **User ID (UUID)** | KEEP | `"123e4567-e89b..."` | `"123e4567-e89b..."` | Correlation identifier linked to an account; protect access |
 
 Le hash d'un e-mail n'est pas salé : quiconque connaît l'adresse le recalcule.
 Il ne sert donc qu'à corréler ce qui n'a pas d'identifiant (une connexion
@@ -542,16 +555,10 @@ def pseudonymize_email(email: str) -> str:
     """
     Pseudonymize an email address using SHA-256 hash.
 
-    Pseudonymization allows for consistent identification (same email = same hash)
-    while protecting the actual email address. This is reversible if needed with
-    a secure mapping table, unlike full anonymization.
-
-    GDPR Compliance:
-    - Article 4(5): Pseudonymisation means the processing of personal data in such
-      a manner that the data can no longer be attributed to a specific data subject
-      without the use of additional information.
-    - Considered a "safeguard" under GDPR, not full anonymization
-    - Allows correlation (same email = same hash) without exposing email
+    The same input bytes produce the same correlation key without writing the
+    address literally. An unkeyed digest can be matched against guessed or known
+    addresses. Its public prefix is not a salt or a secret, and the output is not
+    a guarantee of anonymity, encryption or regulatory compliance.
 
     Args:
         email: Email address to pseudonymize
@@ -561,13 +568,13 @@ def pseudonymize_email(email: str) -> str:
 
     Example:
         >>> pseudonymize_email("user@example.com")
-        "email_hash_a1b2c3d4e5f6g7h8"
+        "email_hash_b4c9a289323b21a0"
 
         >>> pseudonymize_email("user@example.com")  # Same email, same hash
-        "email_hash_a1b2c3d4e5f6g7h8"
+        "email_hash_b4c9a289323b21a0"
 
         >>> pseudonymize_email("admin@example.com")  # Different email, different hash
-        "email_hash_b2c3d4e5f6g7h8i9"
+        "email_hash_258d8dc916db8cea"
     """
     email_hash = hashlib.sha256(email.encode("utf-8")).hexdigest()[:16]
     return f"email_hash_{email_hash}"
@@ -643,8 +650,8 @@ def sanitize_dict(data: dict[str, Any]) -> dict[str, Any]:
         >>> sanitized = sanitize_dict(data)
         >>> print(sanitized)
         {
-            "user_id": "123e4567-e89b-12d3-a456-426614174000",  # UUID safe
-            "email": "email_hash_a1b2c3d4e5f6g7h8",  # Pseudonymized
+            "user_id": "123e4567-e89b-12d3-a456-426614174000",  # Account-linked identifier
+            "email": "email_hash_b4c9a289323b21a0",  # Pseudonymized
             "password": "[REDACTED]",  # Redacted
             "phone": "***-***-4567",  # Masked
             "created_at": "2025-11-14T10:00:00Z"  # Safe
@@ -716,7 +723,7 @@ def sanitize_string(text: str) -> str:
     Example:
         >>> text = "Contact user@example.com or call +1-555-123-4567 with card 4532 1234 5678 9010"
         >>> sanitize_string(text)
-        "Contact email_hash_a1b2c3d4e5f6g7h8 or call ***-***-4567 with card ****-****-****-9010"
+        "Contact email_hash_b4c9a289323b21a0 or call ***-***-4567 with card ****-****-****-9010"
 
         >>> text = "Error: Failed to authenticate with token sk_test_abc123xyz789..."
         >>> sanitize_string(text)
@@ -736,6 +743,11 @@ def sanitize_string(text: str) -> str:
 
     return text
 ```
+
+> Simplified illustration. The function as it runs also strips URL credentials,
+> withholds quoted content above DEBUG, and masks Amex numbers (Luhn), quoted
+> `Bearer` and `api_key` values — `pii_filter.py` is the reference, and the
+> families are listed in § « Regex Patterns » above.
 
 ### 3. Recursive Sanitization (Nested Structures)
 
@@ -980,7 +992,7 @@ def add_pii_filter(logger: Any, method_name: str, event_dict: dict[str, Any]) ->
         Output event_dict:
             {
                 "event": "user_login",
-                "email": "email_hash_a1b2c3d4e5f6g7h8",  # Pseudonymized
+                "email": "email_hash_b4c9a289323b21a0",  # Pseudonymized
                 "password": "[REDACTED]",  # Redacted
                 "phone": "***-***-4567",  # Masked
                 "trace_id": "135a20fdc30eaf9a5711c54d34d9db2b"  # Safe, preserved
@@ -1001,18 +1013,22 @@ def add_pii_filter(logger: Any, method_name: str, event_dict: dict[str, Any]) ->
 
 ---
 
-## Conformité GDPR
+## Références GDPR et limites des contrôles
 
 ### 1. Articles GDPR concernés
 
-| Article | Titre | Implémentation | Status |
-|---------|-------|----------------|--------|
-| **Art. 4(5)** | Définition Pseudonymization | SHA-256 email hashing | ✅ |
-| **Art. 5(1)(c)** | Data Minimization | Redact unnecessary PII | ✅ |
-| **Art. 5(1)(f)** | Integrity and Confidentiality | PII filtering before storage | ✅ |
-| **Art. 25(1)** | Data Protection by Design | Automatic PII filtering | ✅ |
-| **Art. 32(1)(a)** | Pseudonymisation | Email pseudonymization | ✅ |
-| **Art. 32(1)(b)** | Ability to ensure confidentiality | Logs-traces separation | ✅ |
+Le [RGPD, notamment ses articles 4, 5, 25 et 32](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32016R0679),
+fournit des références pour analyser ces mesures ; cette documentation ne constate
+pas la conformité de LIA ou d'un déploiement. Un UUID de compte reste rattachable
+à la personne. Une empreinte d'adresse n'est pas présumée anonyme : le
+[CEPD distingue la pseudonymisation de l'anonymisation](https://www.edpb.europa.eu/topics/ai-and-technology/anonymisation-pseudonymisation_en).
+
+| Mesure technique | Preuve à vérifier | Limite |
+|------------------|-------------------|--------|
+| Filtrage avant journalisation | Chaîne Structlog et tests des producteurs | Les formats inconnus et les bibliothèques tierces demandent une inspection propre |
+| Empreinte d'adresse pour corrélation | `pseudonymize_email` dans `pii_filter.py` | Un hachage sans secret permet la comparaison avec des adresses candidates |
+| Identifiants de compte et de trace | Champs conservés par le filtre | Leur corrélation peut identifier une personne ; accès et conservation restent à maîtriser |
+| Séparation des logs et des traces | Configuration des collecteurs et de l'instrumentation | Ne prouve ni anonymisation ni conformité globale |
 
 ### 2. Data Minimization (Art. 5(1)(c))
 
@@ -1037,7 +1053,7 @@ logger.info("user_created", user={
 
 ✅ GOOD: Log minimal necessary data
 logger.info("user_created",
-    user_id="123e4567-e89b-12d3-a456-426614174000",  # Non-PII UUID
+    user_id="123e4567-e89b-12d3-a456-426614174000",  # Account-linked correlation identifier
     email_hash="email_hash_a1b2c3d4",  # Pseudonymized for correlation
     created_at="2025-11-14T10:00:00Z"  # Safe timestamp
 )
@@ -1052,10 +1068,10 @@ Result in logs:
 }
 
 Benefits:
-- GDPR compliant (minimal PII)
+- Fewer literal personal fields copied into this example
 - Correlation still possible (same email = same hash)
 - Debugging enabled (trace user journey)
-- Security improved (no email leaks)
+- The email is not written literally here; other producers still need inspection
 """
 ```
 
@@ -1077,11 +1093,10 @@ Pseudonymization benefits:
 ✅ Allows debugging (trace user journey with email_hash)
 ✅ Reduces risk (hash instead of clear email)
 
-Full Anonymization drawbacks:
-❌ No correlation (cannot trace user journey)
-❌ Debugging very difficult
-❌ Analytics impossible
-❌ Logs lose significant value
+Limits:
+- Anonymisation and pseudonymisation have different purposes and risk models.
+- A deterministic digest preserves correlation and can also enable re-identification.
+- This implementation alone establishes no legal compliance or anonymity guarantee.
 
 Implementation:
 - SHA-256 hash (one-way cryptographic hash)
@@ -1090,14 +1105,14 @@ Implementation:
 - Consistent hashing (same email = same hash)
 
 Example:
-    user1@example.com → email_hash_a1b2c3d4e5f6g7h8
-    user1@example.com → email_hash_a1b2c3d4e5f6g7h8 (same)
-    user2@example.com → email_hash_b2c3d4e5f6g7h8i9 (different)
+    user1@example.com → email_hash_b36a83701f1c3191
+    user1@example.com → email_hash_b36a83701f1c3191 (same)
+    user2@example.com → email_hash_2b3b2b9ce842ab8b (different)
 
 Security:
-- Rainbow tables ineffective (prefixed with "email_hash_")
-- Brute force infeasible (SHA-256 with salt conceptually)
-- GDPR considers this "safeguard" (Art. 32)
+- The public "email_hash_" label is added after hashing; it is not a salt.
+- Known or guessed addresses can be hashed and matched against the digest.
+- Protect access and retention; do not publish these identifiers as anonymous data.
 """
 ```
 
@@ -1274,8 +1289,8 @@ Test coverage:
 - Case-insensitive field matching ✅
 - Edge cases (empty, None, numeric) ✅
 
-Total: 25+ test cases
-Coverage: 100% (lines, branches)
+The cases below illustrate properties to verify. They are not a current test
+count or coverage measurement; use the actual test report for those values.
 """
 
 class TestEmailPseudonymization:
@@ -1375,7 +1390,7 @@ curl -X POST http://localhost:8000/api/v1/auth/register \
 tail -f logs/app.log | jq '.email, .password'
 
 # Expected output:
-# "email_hash_a1b2c3d4e5f6g7h8"  # ✅ Pseudonymized
+# "email_hash_b4c9a289323b21a0"  # ✅ Pseudonymized
 # "[REDACTED]"  # ✅ Redacted
 ```
 
@@ -1421,11 +1436,11 @@ tail -f logs/app.log | jq '.email, .password'
 - [ ] Memory footprint < 5% increase
 - [ ] No blocking operations
 
-## GDPR Compliance
+## Technical protection checks (not a compliance attestation)
 - [ ] Data minimization applied
 - [ ] Pseudonymization used (not full anonymization)
 - [ ] Correlation possible (email_hash)
-- [ ] No PII leaks in logs
+- [ ] Inspect producer output for personal contents and document remaining limits
 ```
 
 ---

@@ -15,7 +15,6 @@ from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 from langgraph.errors import GraphInterrupt
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.application_origin import ApplicationOrigin
@@ -104,87 +103,6 @@ class AgentService(
         """Initialize service (lazy graph build via GraphManagementMixin)."""
         super().__init__()
         logger.info("agent_service_initialized")
-
-    async def _get_user_oauth_scopes(self, user_id: uuid.UUID, db: AsyncSession) -> list[str]:
-        """
-        Fetch OAuth scopes from user's active connectors.
-
-        Retrieves all scopes from connectors where:
-        - user_id matches
-        - is_active = True
-        - Flattens and deduplicates scopes from all connectors
-
-        Args:
-            user_id: User UUID.
-            db: Database session.
-
-        Returns:
-            List of unique OAuth scopes (e.g., ["https://www.googleapis.com/auth/contacts.readonly"]).
-            Returns empty list if no active connectors or no scopes granted.
-
-        Example:
-            >>> scopes = await service._get_user_oauth_scopes(user_id, db)
-            >>> print(scopes)
-            ['https://www.googleapis.com/auth/contacts.readonly', 'https://www.googleapis.com/auth/userinfo.email']
-        """
-        from sqlalchemy.exc import TimeoutError as SQLAlchemyTimeoutError
-
-        from src.core.exceptions import DatabasePoolExhaustedError
-        from src.domains.connectors.models import Connector
-
-        try:
-            # Import ConnectorStatus enum
-            from src.domains.connectors.models import ConnectorStatus
-
-            # Query active connectors for user
-            stmt = select(Connector).where(
-                Connector.user_id == user_id,
-                Connector.status == ConnectorStatus.ACTIVE,
-            )
-            result = await db.execute(stmt)
-            connectors = result.scalars().all()
-
-            # Flatten and deduplicate scopes from all connectors
-            all_scopes = set()
-            for connector in connectors:
-                if connector.scopes:  # scopes is JSONB list[str]
-                    all_scopes.update(connector.scopes)
-
-            scopes_list = sorted(all_scopes)  # Sort for determinism
-
-            logger.debug(
-                "oauth_scopes_fetched",
-                user_id=str(user_id),
-                connector_count=len(connectors),
-                scope_count=len(scopes_list),
-                scopes=scopes_list,
-            )
-
-            return scopes_list
-
-        except SQLAlchemyTimeoutError as e:
-            # CRITICAL: Do NOT fail-silent on pool exhaustion!
-            # Returning [] would cause fake "missing scopes" errors and retry loops.
-            # Instead, propagate the error with a clear message.
-            logger.error(
-                "oauth_scopes_fetch_pool_exhausted",
-                user_id=str(user_id),
-                error=str(e),
-            )
-            raise DatabasePoolExhaustedError(
-                operation="oauth_scopes_fetch",
-                user_id=str(user_id),
-            ) from e
-
-        except Exception as e:
-            # For non-pool errors, log and re-raise (don't silently return [])
-            logger.error(
-                "oauth_scopes_fetch_failed",
-                user_id=str(user_id),
-                error=str(e),
-                error_type=type(e).__name__,
-            )
-            raise
 
     @staticmethod
     async def _interleave_side_channel(
@@ -670,6 +588,7 @@ class AgentService(
 
             # Import MCP tools setup before try block to ensure cleanup is always accessible
             from src.core.context import (
+                active_connector_types_ctx,
                 admin_mcp_disabled_ctx,
                 bind_skill_context,
                 build_request_tool_manifests,
@@ -683,6 +602,7 @@ class AgentService(
             )
 
             _directive_token = capability_directive_ctx.set(directive)
+            _connectors_token = active_connector_types_ctx.set(context.active_connector_types)
             _admin_mcp_token = None
             _active_skills_token = None
             if user_obj:
@@ -763,14 +683,23 @@ class AgentService(
                     _user_mcp_token = await setup_user_mcp_tools(user_id)
 
                     # === Build per-request filtered tool manifests (centralized) ===
+                    # A tool of a provider the account has not connected is not
+                    # offered: it could only fail (RC2.1).
                     from src.domains.agents.application.discovery import (
                         filter_application_manifests,
                     )
                     from src.domains.agents.registry import get_global_registry
+                    from src.domains.agents.tools.connector_requirements import (
+                        without_unconnected_tools,
+                    )
 
                     _manifests_token = request_tool_manifests_ctx.set(
                         await filter_application_manifests(
-                            build_request_tool_manifests(get_global_registry()), user_id
+                            without_unconnected_tools(
+                                build_request_tool_manifests(get_global_registry()),
+                                context.active_connector_types,
+                            ),
+                            user_id,
                         )
                     )
 
@@ -1005,9 +934,9 @@ class AgentService(
                                 # and TTS-dispatched as they complete.
                                 voice_coordinator.feed_token(content_fragment)
 
-                            # === PARALLEL VOICE: Start when registry becomes available ===
-                            # Registry is populated after task_orchestrator completes tools
-                            # We can start voice generation before response_node finishes
+                            # === PARALLEL VOICE: Start with the answer, on what it retained ===
+                            # Published on the answer's first visible character, narrowed to
+                            # its character-0 selection: the comment starts while it streams
                             await voice_coordinator.maybe_start_parallel(
                                 streaming_service.voice_context_registry, sse_chunk.type
                             )
@@ -1268,6 +1197,9 @@ class AgentService(
                                 effects=turn_effects,
                                 expressivity=delivery_metadata.get("expressivity"),
                                 activity=activity_summary.snapshot(),
+                                efficacy_envelope=streaming_service.efficacy_capture.envelope(
+                                    run_id=run_id
+                                ),
                             )
 
                             archived_msg = await conv_service.archive_message(
@@ -1318,6 +1250,14 @@ class AgentService(
                 # the current store state. Best-effort, and extracted (ADR-263
                 # lot 6 made this file outgrow its cap; the doctrine is to
                 # extract, never to raise a cap).
+                from src.domains.agents.services.efficacy_feedback import collect_final_message
+
+                await collect_final_message(
+                    user_id,
+                    archived_assistant_msg_id,
+                    context=streaming_service.efficacy_capture.context,
+                )
+
                 await persist_psyche_snapshot(
                     conv_service,
                     message_id=archived_assistant_msg_id,
@@ -1629,6 +1569,7 @@ class AgentService(
                 if _manifests_token is not None:
                     request_tool_manifests_ctx.reset(_manifests_token)
                 capability_directive_ctx.reset(_directive_token)
+                active_connector_types_ctx.reset(_connectors_token)
 
                 # Voice services own a persistent httpx client (TTS) that
                 # must be closed deterministically — without this, the
@@ -1658,6 +1599,7 @@ class AgentService(
                 if _manifests_token is not None:
                     request_tool_manifests_ctx.reset(_manifests_token)
                 capability_directive_ctx.reset(_directive_token)
+                active_connector_types_ctx.reset(_connectors_token)
 
                 # Voice services owned by this generator must be torn down
                 # so their persistent httpx clients aren't leaked when the

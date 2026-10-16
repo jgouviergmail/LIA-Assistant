@@ -206,7 +206,7 @@ test.describe('chat HITL approval card', () => {
   });
 });
 
-const EGRESS_CARD = 'section[aria-label="Brouillon à valider"]';
+const DRAFT_CARD = 'section[aria-label="Brouillon à valider"]';
 
 test.describe('chat HITL egress question (ADR-298)', () => {
   for (const width of [1280, 390]) {
@@ -320,12 +320,12 @@ test.describe('chat HITL egress question (ADR-298)', () => {
       await page.goto('/fr/dashboard/chat');
       await waitForHydration(page);
       await expect.poll(() => pendingReads).toBeGreaterThan(0);
-      await expect(page.locator(EGRESS_CARD)).toHaveCount(0);
+      await expect(page.locator(DRAFT_CARD)).toHaveCount(0);
 
       state.pending = true;
       state.arrived = true;
       release();
-      const card = page.locator(EGRESS_CARD);
+      const card = page.locator(DRAFT_CARD);
       await expect(card.getByRole('button', { name: 'Autoriser sans les données' })).toBeEnabled();
       await expect(
         page.getByText('Un rappel publié après la question', { exact: true })
@@ -337,7 +337,7 @@ test.describe('chat HITL egress question (ADR-298)', () => {
       await expect(page.getByText('Une autre notification', { exact: true })).toBeAttached();
       await expect(card.getByRole('button', { name: 'Autoriser avec les données' })).toBeEnabled();
       await expect(card.getByRole('button', { name: 'Refuser' })).toBeEnabled();
-      const accessibility = await new AxeBuilder({ page }).include(EGRESS_CARD).analyze();
+      const accessibility = await new AxeBuilder({ page }).include(DRAFT_CARD).analyze();
       expect(accessibility.violations).toEqual([]);
       await page.screenshot({ path: testInfo.outputPath(`scheduled-egress-${width}.png`) });
 
@@ -382,7 +382,7 @@ test.describe('chat HITL egress question (ADR-298)', () => {
     await mockApi(routes);
 
     await page.goto('/fr/dashboard/chat');
-    const card = page.locator(EGRESS_CARD);
+    const card = page.locator(DRAFT_CARD);
     await expect(card).toBeVisible();
     await expect(card.getByText('status.example.org')).toBeVisible();
     await expect(card.getByText('api.search.brave.com')).toBeVisible();
@@ -398,4 +398,86 @@ test.describe('chat HITL egress question (ADR-298)', () => {
     expect(decisions[0].action).toBe('confirm_without_data');
     await expect(card).toHaveCount(0);
   });
+});
+
+/** Pending send of a mailbox draft (ADR-344): the card shows the draft as the
+ * mailbox holds it, and the person confirms, edits or cancels. */
+const PENDING_MAILBOX_DRAFT_SEND = {
+  message_id: 'hitl_e2e_mailbox_send_1',
+  action_requests: [
+    {
+      type: 'draft_critique',
+      draft_type: 'mailbox_draft_send',
+      draft_id: 'draft_e2e_mailbox_send',
+      draft_content: {
+        mailbox_draft_id: 'r-123',
+        to: 'Marie Dupont <marie@example.com>',
+        cc: '',
+        bcc: '',
+        subject: 'Réunion de lundi',
+        body: 'Je confirme ma présence lundi.',
+        quotes_history: false,
+        attachments: [],
+        digest: 'd'.repeat(64),
+      },
+      available_actions: [
+        { action: 'confirm', label: 'confirm', style: 'primary' },
+        { action: 'edit', label: 'edit', style: 'secondary' },
+        { action: 'cancel', label: 'cancel', style: 'destructive' },
+      ],
+      registry_ids: ['draft_e2e_mailbox_send'],
+    },
+  ],
+  draft_id: 'draft_e2e_mailbox_send',
+  interrupt_ts: '2026-10-13T10:00:00+00:00',
+  generated_question: 'J’envoie ce brouillon à Marie maintenant ?',
+};
+
+test.describe('chat HITL mailbox draft send (ADR-344)', () => {
+  for (const width of [1280, 390]) {
+    test(`shows the draft and sends the confirmation verbatim at ${width}px`, async ({
+      page,
+      authenticate,
+      mockApi,
+    }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      await authenticate();
+      const decisions: Array<{ message_id?: string; action?: string }> = [];
+      const routes = baseRoutes(PENDING_MAILBOX_DRAFT_SEND, sseDone).map(route =>
+        route.url === '**/api/v1/agents/chat/stream'
+          ? {
+              ...route,
+              handler: async (r: Route) => {
+                const body = (r.request().postDataJSON() ?? {}) as {
+                  hitl_decision?: { message_id?: string; action?: string };
+                };
+                decisions.push(body.hitl_decision ?? {});
+                await r.fulfill({ status: 200, contentType: 'text/event-stream', body: sseDone() });
+              },
+            }
+          : route
+      );
+      await mockApi(routes);
+
+      await page.goto('/fr/dashboard/chat');
+      const card = page.locator(DRAFT_CARD);
+      await expect(card).toBeVisible();
+      await expect(card.getByText('Marie Dupont <marie@example.com>')).toBeVisible();
+      await expect(card.getByText('Réunion de lundi')).toBeVisible();
+      await expect(card.getByText('Je confirme ma présence lundi.')).toBeVisible();
+      await expect(card.getByRole('button', { name: 'Modifier' })).toBeEnabled();
+      await expect(card.getByRole('button', { name: 'Annuler' })).toBeEnabled();
+      const accessibility = await new AxeBuilder({ page }).include(DRAFT_CARD).analyze();
+      expect(accessibility.violations).toEqual([]);
+      await page.screenshot({ path: testInfo.outputPath(`mailbox-draft-send-${width}.png`) });
+
+      await card.getByRole('button', { name: 'Confirmer' }).click();
+      await expect.poll(() => decisions.length).toBe(1);
+      expect(decisions[0]).toEqual({
+        message_id: PENDING_MAILBOX_DRAFT_SEND.message_id,
+        action: 'confirm',
+      });
+      await expect(card).toHaveCount(0);
+    });
+  }
 });

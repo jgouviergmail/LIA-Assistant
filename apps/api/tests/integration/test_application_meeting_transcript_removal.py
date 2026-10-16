@@ -25,6 +25,7 @@ from src.domains.meetings.models import Meeting, MeetingAudioFormat, MeetingStat
 from src.domains.meetings.transcript_gateway import SavedMeetingTranscripts
 from src.domains.users.models import User
 from src.infrastructure.meeting_transcripts import configure_meeting_transcripts
+from tests.helpers.draft_refusals import draft_refusal_code
 from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
 from tests.integration.domains.skills.test_per_account_skill_names import _user
 
@@ -143,7 +144,7 @@ async def test_owned_transcript_purge_requires_original_confirmation_and_fresh_s
     assert outcome.success is (intervention in {"none", "no_op"})
     if intervention in {"changed", "disabled", "lost_ack"}:
         assert (
-            outcome.error
+            draft_refusal_code(outcome)
             == {
                 "changed": "STALE_STATE",
                 "disabled": "CAPABILITY_DISABLED",

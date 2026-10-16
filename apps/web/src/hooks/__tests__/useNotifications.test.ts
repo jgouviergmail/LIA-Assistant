@@ -21,12 +21,22 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { renderHook, act } from '@/__tests__/test-utils';
+import type { MessagePayload } from 'firebase/messaging';
 
 vi.mock('@/lib/logger', () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
-const { onForegroundMessage } = vi.hoisted(() => ({ onForegroundMessage: vi.fn(() => vi.fn()) }));
+const { onForegroundMessage } = vi.hoisted(() => ({
+  onForegroundMessage: vi.fn<(callback: (payload: MessagePayload) => void) => () => void>(() =>
+    vi.fn()
+  ),
+}));
 vi.mock('@/lib/firebase', () => ({ onForegroundMessage }));
+const { redirectToLogin } = vi.hoisted(() => ({ redirectToLogin: vi.fn() }));
+vi.mock('@/lib/api-client', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/lib/api-client')>()),
+  redirectToLogin,
+}));
 
 import {
   RECONNECT_DELAY_MS,
@@ -35,6 +45,7 @@ import {
   useNotifications,
 } from '../useNotifications';
 import type { Notification } from '@/hooks/useNotifications';
+import { logger } from '@/lib/logger';
 
 /** A controllable EventSource: the test decides when it opens, fails, emits. */
 class FakeEventSource {
@@ -302,6 +313,47 @@ describe('useNotifications — eviction (superseded)', () => {
   });
 });
 
+describe('useNotifications — a revoked session', () => {
+  // « Sign out this device » closes the stream server-side with
+  // `session_revoked` (point 22). Retrying would only meet a 401 at every
+  // backoff step: the stream closes for good and the page goes to the login.
+
+  it('closes for good and sends the page to the login', () => {
+    vi.useFakeTimers();
+    const { result, source } = connected();
+
+    act(() => source.emit({ reason: 'session_revoked' }, 'session_revoked'));
+    act(() => vi.advanceTimersByTime(RECONNECT_MAX_DELAY_MS * 2));
+
+    expect(source.closed).toBe(true);
+    expect(FakeEventSource.instances).toHaveLength(1);
+    expect(result.current.isConnected).toBe(false);
+    expect(redirectToLogin).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not reopen a revoked session when the network returns before navigation', () => {
+    const { source } = connected();
+
+    act(() => source.emit({ reason: 'session_revoked' }, 'session_revoked'));
+    act(() => window.dispatchEvent(new Event('online')));
+
+    expect(FakeEventSource.instances).toHaveLength(1);
+    expect(redirectToLogin).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores a queued verdict from a stream that was already replaced', () => {
+    const { source } = connected();
+    act(() => source.emit({ reason: 'newer_stream' }, 'superseded'));
+    const replacement = live();
+
+    act(() => source.emit({ reason: 'session_revoked' }, 'session_revoked'));
+    act(() => replacement.onopen?.());
+
+    expect(redirectToLogin).not.toHaveBeenCalled();
+    expect(replacement.closed).toBe(false);
+  });
+});
+
 describe('useNotifications — the thread sync signals (ADR-320)', () => {
   it('hands them to their callback, never to the notification list', () => {
     const onConversationEvent = vi.fn();
@@ -398,6 +450,16 @@ describe('useNotifications — incoming notifications', () => {
     expect(result.current.isConnected).toBe(true);
   });
 
+  it('keeps malformed notification contents out of operational logs', () => {
+    connected();
+    const privateText = 'private-notification-canary@example.invalid';
+
+    act(() => live().emit(`{"content":"${privateText}"`));
+
+    expect(logger.warn).toHaveBeenCalled();
+    expect(JSON.stringify(vi.mocked(logger.warn).mock.calls)).not.toContain(privateText);
+  });
+
   it('hands every notification to the generic callback', () => {
     const onNotification = vi.fn();
     connected({ onNotification });
@@ -437,6 +499,40 @@ describe('useNotifications — reading state', () => {
     act(() => result.current.clearNotifications());
 
     expect(result.current.notifications).toEqual([]);
+  });
+});
+
+describe('useNotifications — foreground push ownership', () => {
+  it('does not subscribe to private pushes while unauthenticated', () => {
+    setup({ isAuthenticated: false, enableFCM: true });
+
+    expect(onForegroundMessage).not.toHaveBeenCalled();
+  });
+
+  it('clears private notifications and ignores queued pushes after logout', () => {
+    const onNotification = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ isAuthenticated }) =>
+        useNotifications({ isAuthenticated, enableSSE: true, enableFCM: true, onNotification }),
+      { initialProps: { isAuthenticated: true } }
+    );
+    const receivePush = onForegroundMessage.mock.calls[0][0];
+    const unsubscribe = onForegroundMessage.mock.results[0].value;
+    const payload = {
+      from: 'unit-sender',
+      collapseKey: 'reminders',
+      messageId: 'private-reminder-fixture',
+      data: { type: 'reminder', reminder_id: 'old-account', body: 'Private reminder' },
+    } satisfies MessagePayload;
+    act(() => receivePush(payload));
+    expect(result.current.notifications).toHaveLength(1);
+
+    rerender({ isAuthenticated: false });
+    act(() => receivePush(payload));
+
+    expect(unsubscribe).toHaveBeenCalledOnce();
+    expect(result.current.notifications).toEqual([]);
+    expect(onNotification).toHaveBeenCalledOnce();
   });
 });
 
@@ -492,4 +588,15 @@ describe('routeNotification', () => {
     ).not.toThrow();
     expect(onReminder).not.toHaveBeenCalled();
   });
+
+  it.each(['__proto__', 'constructor', '__defineGetter__', 'toString'])(
+    'ignores inherited object names received as a notification type: %s',
+    type => {
+      const onReminder = vi.fn();
+      expect(() =>
+        routeNotification(notification({ type: type as Notification['type'] }), { onReminder })
+      ).not.toThrow();
+      expect(onReminder).not.toHaveBeenCalled();
+    }
+  );
 });

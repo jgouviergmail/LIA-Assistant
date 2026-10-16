@@ -15,6 +15,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
+from pydantic import JsonValue
 from sqlalchemy import (
     DateTime,
     Float,
@@ -105,6 +106,18 @@ class PsycheState(BaseModel):
         nullable=True,
         default=dict,
         comment="Bayesian self-efficacy scores per domain.",
+    )
+
+    # Evidence has its own epoch: a delayed turn must never revive a full reset.
+    efficacy_generation: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, default=uuid.uuid4
+    )
+    efficacy_profile: Mapped[dict[str, JsonValue] | None] = mapped_column(JSONB, nullable=True)
+    efficacy_evicted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    efficacy_evicted_message_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True
     )
 
     # =========================================================================

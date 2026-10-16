@@ -16,7 +16,7 @@ import httpx
 import pytest
 
 from src.domains.llm_config.cache import LLMConfigOverrideCache
-from src.domains.radio.audio import AudioAssemblyError, assemble_segment
+from src.domains.radio.audio import AudioAssemblyError, LineAudio, MixParams, assemble_segment
 from src.domains.radio.cast import Cast
 from src.domains.radio.delivery import StylePhrases
 from src.domains.radio.facts import FactKind, FactPack, RadioFact, Sensitivity, SourceRef
@@ -104,7 +104,9 @@ async def test_original_headerless_pcm_cannot_be_probed(tmp_path: Path, rate: in
     line = tmp_path / "line.pcm"
     line.write_bytes(pcm_tone(rate))
     with pytest.raises(AudioAssemblyError):
-        await assemble_segment([(ScriptPart.BODY, line)], tmp_path / "old.mp3", timeout_s=10)
+        await assemble_segment(
+            [LineAudio(ScriptPart.BODY, line)], tmp_path / "old.mp3", timeout_s=10
+        )
     assert not (tmp_path / "old.mp3").exists()
 
 
@@ -149,7 +151,7 @@ async def test_real_radio_mix_of_configured_raw_or_encoded_audio_is_audible_and_
     monkeypatch.setattr(
         LLMConfigOverrideCache, "get_api_key", classmethod(lambda cls, provider: "test-key")
     )
-    monkeypatch.setattr(elevenlabs_tts_client, "tts_slot", no_external_capacity)
+    monkeypatch.setattr(elevenlabs_tts_client, "provider_slot", no_external_capacity)
     client = ElevenLabsTTSClient(output_format=fmt)
     await client.close()
     client._http_client = httpx.AsyncClient(transport=httpx.MockTransport(respond))
@@ -183,3 +185,34 @@ async def test_real_radio_mix_of_configured_raw_or_encoded_audio_is_audible_and_
     assert result.segment.transcript[0].offset_s == pytest.approx(0.5)
     assert result.segment.duration_s >= len(requests) * 0.5 + 0.5 + 0.4
     assert list(tmp_path.iterdir()) == [tmp_path / "out.mp3"]
+
+
+async def test_the_windows_of_a_take_are_cut_where_the_turns_start(tmp_path: Path) -> None:
+    """ADR-345: ``-ss``/``-t`` as INPUT options decode one window of the take
+    each; two windows of one take follow each other with no pause added."""
+    rate = 24000
+    seconds = 6
+    tone = b"".join(
+        struct.pack("<h", round(5000 * math.sin(2 * math.pi * 440 * index / rate)))
+        for index in range(rate * seconds)
+    )
+    take = tmp_path / "0003.take01.wav"
+    with wave.open(str(take), "wb") as writer:
+        writer.setnchannels(1)
+        writer.setsampwidth(2)
+        writer.setframerate(rate)
+        writer.writeframes(tone)
+
+    audio = await assemble_segment(
+        [
+            LineAudio(ScriptPart.BODY, take, start_s=0.0, end_s=2.0),
+            LineAudio(ScriptPart.BODY, take, start_s=2.0, end_s=None),
+        ],
+        tmp_path / "0003.mp3",
+        timeout_s=30,
+    )
+
+    params = MixParams()
+    assert audio.line_offsets_s == pytest.approx((params.lead_in_s, params.lead_in_s + 2.0))
+    expected = params.lead_in_s + seconds + params.tail_s
+    assert audio.duration_s == pytest.approx(expected, abs=0.15)

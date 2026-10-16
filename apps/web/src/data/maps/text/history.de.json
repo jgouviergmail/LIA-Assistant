@@ -735,8 +735,8 @@
     },
     "128": {
       "title": "Der Neuplaner berät, er handelt nicht",
-      "summary": "Die Analyse gescheiterter Pläne bleibt ein Rat: Sie speist die Observability und die angezeigte Meldung, ohne von sich aus einen neuen Plan zu starten.",
-      "src": "7f762b31a867"
+      "summary": "Die Analyse gescheiterter Pläne bleibt ein Rat: Sie speist die Observability, ohne von sich aus einen neuen Plan zu starten.",
+      "src": "1327c492981f"
     },
     "129": {
       "title": "Indexierung, die nach einem Crash weiterläuft",
@@ -1812,6 +1812,21 @@
       "title": "Das Porträt liest das ganze Material, und seine Kurzfassung ist eine Synthese",
       "summary": "Neun Aufzeichnungen über die Person — Erinnerungen, Interessen, Gewohnheiten, Debriefings, offene Fäden, Workboard, Routinen, geplante Erinnerungen, aufbewahrte Antworten — werden vollständig gelesen, jedes Element zitierbar, unter einem einzigen Anteil des Modellfensters, und jeder Schnitt wird benannt. Das Porträt ist wieder eine Analyse der Person in sieben Facetten, nie ein Inventar, und die Kurzfassung wird als eigene Sätze geschrieben; die semantische Nachprüfung, die nachweislich begründete Lesarten zurückwies, ist entfernt: Was Erfindung verhindert, ist strukturell, jede Lesart zitiert, worauf sie beruht. Die Budgets sind genannte Ziele, nie ein Schnitt. Eine Änderung im Journal macht das Porträt veraltet, datiert bereitgestellt, statt es zu löschen; ein gelöschter Eintrag nimmt die Lesarten mit, die er begründete. Vor der Auslieferung auf dev gemessen.",
       "src": "38eaccd2b7d9"
+    },
+    "344": {
+      "title": "Ein Entwurf im Postfach gehört der Person",
+      "summary": "LIA speichert und bearbeitet Entwürfe in Gmail, Outlook und iCloud und verschiebt sie in den Papierkorb, ohne nachzufragen: Ein Entwurf bleibt im Postfach der Person und erreicht niemanden, und der Papierkorb lässt sich rückgängig machen. Nur das Senden verlangt eine Bestätigung, auf einer Karte, die den Entwurf so zeigt, wie das Postfach ihn hält; ein inzwischen im Postfach geänderter Entwurf wird nicht gesendet, und eine auf der Karte verlangte Änderung wird vor dem Versand geschrieben. Nebenbei zeigt die Antwortkarte nun alle, die die Antwort erreicht, und sendet genau an sie.",
+      "src": "9c6ad22bd65b"
+    },
+    "345": {
+      "title": "Fish Audio kommt zu LIAs Stimmen, und jede Engine berechnet nur, was sie sagt",
+      "summary": "Fish Audio spricht (fünf Modelle, darunter s2.1-pro und drama-3), transkribiert Besprechungen und Diktate, und seine Stimmen werden in der Administration geklont oder entworfen, unter einer Einwilligungsbestätigung, die im Audit-Protokoll abgelegt wird. Jeder gehörte Satz geht durch eine einzige Tür, die ihn einmal berechnet, in der Einheit der Engine, die ihn tatsächlich gesprochen hat; jedes Anbieterkonto hat ein einziges Anfragekontingent, das sich alle Sprachfunktionen teilen; und das Remote-Diktat geht an die Engine, die die Administration gewählt hat und die die Einstellungen nennen. LIA streut Regieanweisungen (ein Lachen, ein Flüstern, ein Seufzen) in das, was sie zum Sprechen schreibt, in der Syntax jeder Engine, die sie spielt, und die Stimmen des Radios führen einen Dialog in einer einzigen Aufnahme.",
+      "src": "5f1d4e6b93c7"
+    },
+    "346": {
+      "title": "Der beratende Neuplaner wird entfernt: Ein Fehler wird gesagt, nie wiederholt",
+      "summary": "In der Produktion gemessen, nannte der Analysator, der jedem gescheiterten Plan folgte, Fehler vorübergehend, die es nicht waren, und die Wiederaufnahmeschleife, auf die er wartete, hätte Unreparierbares wiederholt. Er entfällt: Ein Fehler wird in der Antwort gesagt, ein vorübergehender Ausfall vom Client erneut versucht, der ihn traf, und ein typisierter Zähler zeigt jeden gescheiterten Schritt, auch einen vor dem Aufruf eines Tools.",
+      "src": "185409f983b0"
     }
   }
 }

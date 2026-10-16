@@ -31,7 +31,10 @@ from src.core.config import get_settings
 from src.core.i18n import resolve_language
 from src.core.i18n_telephony import get_tool_phrases
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
-from src.domains.agents.telephony.live_tools import ensure_vendor_live_tools
+from src.domains.agents.telephony.live_tools import (
+    available_live_tools,
+    ensure_vendor_live_tools,
+)
 from src.domains.agents.tools.decorators import connector_tool, with_user_preferences
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import parse_user_id, validate_runtime_config
@@ -136,8 +139,9 @@ async def _live_tools_for(
     Read the flag first so nothing is looked up when the feature is off; then
     the active connector and its secret, which the call-back token derives
     from. A missing piece means a call WITHOUT tools, never a refused call.
-    Every offered tool is provisioned once per connector; the person's own
-    switches decide what THIS call attaches (lot 8).
+    Every offered tool is provisioned once per connector; THIS call attaches
+    what the call-back door accepts — the person's own switches (lot 8) and
+    the account's connectors (RC2.1), read through the door's own seam.
 
     Args:
         db: The session the connector metadata is committed on.
@@ -162,7 +166,9 @@ async def _live_tools_for(
     bindings = await ensure_vendor_live_tools(
         db, connector=connector, api_key=creds.api_key, api_secret=creds.api_secret
     )
-    return tuple(b for b in bindings if b.domain not in disabled_domains)
+    offered = await available_live_tools(disabled_domains=disabled_domains, user_id=user_id)
+    names = {spec.name for spec in offered}
+    return tuple(binding for binding in bindings if binding.name in names)
 
 
 async def _delegation_tool_for(db: Any, user_id: UUID, *, user_name: str) -> str | None:

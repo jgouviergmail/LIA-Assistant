@@ -1,10 +1,12 @@
-"""Serialise one account's transactions in one scope (ADR-316, ADR-319).
+"""Serialise one owner's transactions in one scope (ADR-316, ADR-319, ADR-345).
 
 Two writers must count and write under the same lock or a race slips past a
-ceiling: the image shares of one sender (two daily caps, ADR-316) and the files
-one account keeps (two keeping ceilings, ADR-319). Both hold a PostgreSQL
+ceiling: the image shares of one sender (two daily caps, ADR-316), the files
+one account keeps (two keeping ceilings, ADR-319) and the public voices the
+instance pins (one ceiling, ADR-345 — an instance-wide scope, held for
+:data:`INSTANCE_OWNER`). All hold a PostgreSQL
 advisory lock for the length of their transaction, keyed by a scope and the
-account — one implementation, so the two cannot drift on the three choices
+account — one implementation, so they cannot drift on the three choices
 that make it correct:
 
 - **Transaction-scoped** (``pg_advisory_xact_lock``), never session-scoped: the
@@ -27,6 +29,9 @@ import uuid
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
+
+#: The owner an instance-wide scope is serialised for: there is one instance.
+INSTANCE_OWNER = uuid.UUID(int=0)
 
 
 async def hold_owner_lock(db: AsyncSession, scope: str, owner_id: uuid.UUID) -> None:

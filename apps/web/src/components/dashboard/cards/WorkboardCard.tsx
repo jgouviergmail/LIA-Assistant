@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { LayoutGrid } from 'lucide-react';
+import { CalendarClock, CircleHelp, LayoutGrid } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
@@ -11,7 +11,12 @@ import { lifecycleTone } from '@/lib/status-tone';
 import { cn } from '@/lib/utils';
 import { boardHref } from '@/lib/workboard/filters-url';
 import { CLOSED_STATUSES, TICKET_STATUSES, type TicketStatus } from '@/types/workboard';
-import type { CardSection, WorkboardData } from '@/types/briefing';
+import type {
+  CardSection,
+  WorkboardData,
+  WorkboardPreviews,
+  WorkboardTicketItem,
+} from '@/types/briefing';
 import { BriefingCard } from '../BriefingCard';
 
 interface WorkboardCardProps {
@@ -31,10 +36,10 @@ const FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:rin
 /**
  * Workboard card (ADR-276 on the dashboard).
  *
- * What on the person's board needs them: four EXACT counts (ADR-185) — waiting
- * on them, held by LIA, late, open — each a link into the board already
- * narrowed to the set it counts, then the first tickets waiting on them, each a
- * link to the ticket itself. Read-only: the board owns the writes, and a second
+ * What on the person's board needs them: five EXACT counts (ADR-185) — waiting
+ * on them, held by LIA, held by peers, late, open — each a link into the board
+ * narrowed to the set it counts, then two tickets from each set, each a
+ * link to the ticket itself (legacy caches retain their received needs-me page). Read-only: the board owns the writes, and a second
  * place to move a ticket would be a second place to get the rights wrong.
  *
  * Hidden (`not_configured`) when the instance switched the workboard off; the
@@ -64,7 +69,7 @@ export function WorkboardCard({
 }
 
 interface Figure {
-  key: string;
+  key: keyof WorkboardPreviews;
   label: string;
   value: number;
   href: string;
@@ -75,7 +80,6 @@ interface Figure {
 function WorkboardContent({ data, lng }: { data: WorkboardData; lng: string }) {
   const { t } = useTranslation();
   const language: Language = isLanguage(lng) ? lng : fallbackLng;
-  const locale = getIntlLocale(language);
   // The « needs me » set has no board filter of its own (it spans a column
   // AND a due date), so it opens the whole board, as the settings tile does.
   const figures: Figure[] = [
@@ -106,20 +110,39 @@ function WorkboardContent({ data, lng }: { data: WorkboardData; lng: string }) {
       href: boardHref(lng, { status: OPEN_STATUSES }),
     },
   ];
+  // Old cached bundles have no peer aggregate: absence cannot mean zero.
+  if (data.held_by_peers != null) {
+    figures.splice(2, 0, {
+      key: 'held_by_peers',
+      label: t('dashboard.briefing.cards.workboard.held_by_peers'),
+      value: data.held_by_peers,
+      href: boardHref(lng, { assignee: 'peer', status: OPEN_STATUSES }),
+    });
+  }
   const more = data.needs_me - data.items.length;
+  const groups = data.previews ?? {
+    needs_me: data.items,
+    held_by_lia: [],
+    held_by_peers: [],
+    overdue: [],
+    open_total: [],
+  };
 
   return (
     <div className="@container flex flex-col gap-3">
       <ul
         aria-label={t('settings.workboard.glance')}
-        className="grid grid-cols-2 gap-1.5 @min-[19rem]:grid-cols-4"
+        className={cn(
+          'grid grid-cols-2 gap-1.5',
+          figures.length === 5 ? '@min-[19rem]:grid-cols-5' : '@min-[19rem]:grid-cols-4'
+        )}
       >
         {figures.map(figure => (
           <li key={figure.key}>
             <Link
               href={figure.href}
               className={cn(
-                'flex min-h-11 h-full flex-col items-center justify-center rounded-lg border border-border/50 bg-background/60 px-1 py-1.5 text-center transition-colors hover:bg-muted/60',
+                'flex min-h-11 h-full flex-col items-center justify-start rounded-lg border border-border/50 bg-background/60 [:where(html.dark[data-oled])_&]:bg-transparent px-1 py-1.5 text-center transition-colors hover:bg-muted/60',
                 FOCUS
               )}
             >
@@ -139,58 +162,111 @@ function WorkboardContent({ data, lng }: { data: WorkboardData; lng: string }) {
         ))}
       </ul>
 
-      {data.needs_me === 0 ? (
+      <GroupedTickets
+        figures={figures}
+        groups={groups}
+        lng={lng}
+        maxItems={data.previews ? 2 : undefined}
+      />
+      {data.needs_me === 0 && (
         <p className="text-sm text-muted-foreground italic">
           {t('settings.workboard.nothing_waiting')}
         </p>
-      ) : (
-        <div>
-          <ul aria-label={t('settings.workboard.tile_needs_me')} className="space-y-0.5">
-            {data.items.map(ticket => (
-              <li key={ticket.id}>
-                <Link
-                  href={`/${lng}/dashboard/workboard/${ticket.id}`}
-                  className={cn(
-                    '-mx-1.5 flex min-h-10 items-center gap-2 rounded-md px-1.5 py-1 text-sm hover:bg-muted/60',
-                    FOCUS
-                  )}
-                >
-                  <span className="min-w-0 flex-1 truncate font-medium text-foreground/90">
-                    {ticket.title}
-                  </span>
-                  {ticket.overdue ? (
-                    <Badge variant="destructive" className="shrink-0">
-                      {t('workboard.card.overdue')}
-                    </Badge>
-                  ) : (
-                    <Badge variant={lifecycleTone(ticket.status)} className="shrink-0">
-                      {t(`workboard.columns.${ticket.status}`)}
-                    </Badge>
-                  )}
-                  {ticket.due_at && !ticket.overdue && (
-                    <span className="hidden shrink-0 text-xs text-muted-foreground tabular-nums @min-[19rem]:inline">
-                      {new Intl.DateTimeFormat(locale, { dateStyle: 'short' }).format(
-                        new Date(ticket.due_at)
-                      )}
-                    </span>
-                  )}
-                </Link>
-              </li>
-            ))}
-          </ul>
-          {more > 0 && (
-            <Link
-              href={boardHref(lng)}
-              className={cn(
-                'mt-1 inline-flex min-h-10 items-center rounded-sm text-xs font-medium text-primary hover:underline',
-                FOCUS
-              )}
-            >
-              {t('dashboard.briefing.cards.workboard.more', { count: more })}
-            </Link>
+      )}
+      {data.previews == null && more > 0 && (
+        <Link
+          href={boardHref(lng)}
+          className={cn(
+            'inline-flex min-h-10 items-center rounded-sm text-xs font-medium text-primary hover:underline',
+            FOCUS
           )}
-        </div>
+        >
+          {t('dashboard.briefing.cards.workboard.more', { count: more })}
+        </Link>
       )}
     </div>
+  );
+}
+
+function GroupedTickets({
+  figures,
+  groups,
+  lng,
+  maxItems,
+}: {
+  figures: Figure[];
+  groups: WorkboardPreviews;
+  lng: string;
+  maxItems?: number;
+}) {
+  return (
+    <div className="space-y-3 border-t border-border/50 pt-4">
+      {figures.map(figure => {
+        const tickets = groups[figure.key].slice(0, maxItems);
+        if (tickets.length === 0) return null;
+        return (
+          <section key={figure.key} className="space-y-1">
+            <h4 className="flex items-center gap-2 text-xs font-medium text-foreground/90">
+              <LayoutGrid className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
+              {figure.label}
+            </h4>
+            <TicketList label={figure.label} tickets={tickets} lng={lng} />
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+function TicketList({
+  label,
+  tickets,
+  lng,
+}: {
+  label: string;
+  tickets: WorkboardTicketItem[];
+  lng: string;
+}) {
+  const { t } = useTranslation();
+  const locale = getIntlLocale(isLanguage(lng) ? lng : fallbackLng);
+  return (
+    <ul aria-label={label}>
+      {tickets.map(ticket => (
+        <li key={ticket.id} className="border-b border-border/50 py-1 last:border-0">
+          <Link
+            href={`/${lng}/dashboard/workboard/${encodeURIComponent(ticket.id)}`}
+            prefetch={false}
+            className={cn(
+              'flex min-h-11 flex-col items-start gap-1 rounded-md px-2 py-1 text-sm hover:bg-muted/60',
+              FOCUS
+            )}
+          >
+            <span className="line-clamp-2 break-words font-semibold text-foreground/90">
+              {ticket.title}
+            </span>
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5 text-orange-700 dark:text-orange-300">
+                <CircleHelp className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                <Badge variant={ticket.overdue ? 'destructive' : lifecycleTone(ticket.status)}>
+                  {t(
+                    ticket.overdue ? 'workboard.card.overdue' : `workboard.columns.${ticket.status}`
+                  )}
+                </Badge>
+              </span>
+              {ticket.due_at && !ticket.overdue && (
+                <span className="flex items-center gap-1.5 tabular-nums">
+                  <CalendarClock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  <time dateTime={ticket.due_at}>
+                    {new Intl.DateTimeFormat(locale, { dateStyle: 'short' }).format(
+                      new Date(ticket.due_at)
+                    )}
+                  </time>
+                </span>
+              )}
+            </span>
+          </Link>
+        </li>
+      ))}
+    </ul>
   );
 }

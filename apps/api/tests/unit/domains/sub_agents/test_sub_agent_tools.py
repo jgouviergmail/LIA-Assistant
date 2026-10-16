@@ -5,7 +5,7 @@ Verifies tool definition, parameters, depth-check logic, and (post ADR-083)
 the rewrite onto ReactSubAgentRunner.
 """
 
-from types import SimpleNamespace
+import re
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID
@@ -14,6 +14,13 @@ import pytest
 from langchain.tools import ToolRuntime
 
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
+from src.domains.agents.tools.react_runner import (
+    BUDGET_EXHAUSTED_FIELD,
+    OUTPUT_TRUNCATED_FIELD,
+    ReactSubAgentResult,
+    SubAgentOutcome,
+)
+from src.domains.agents.tools.react_runner_budget import tool_rounds_for
 from tests.helpers.runtime_context import make_tool_runtime
 
 
@@ -179,7 +186,7 @@ class TestDelegateRunsOnReactSubAgentRunner:
 
         runner_mock = MagicMock()
         runner_mock.run = AsyncMock(
-            return_value=SimpleNamespace(
+            return_value=ReactSubAgentResult(
                 final_message="Analysis of 5 emails: subject A, B, C.",
                 messages=[],
                 accumulated_registry={},
@@ -209,8 +216,12 @@ class TestDelegateRunsOnReactSubAgentRunner:
         runner_ctor.assert_called_once_with("subagent", "subagent_react_prompt")
         run_kwargs = runner_mock.run.await_args.kwargs
         assert run_kwargs["task"] == "Analyse les flux Q1 et identifie les anomalies."
+        # The prompt names the tools the loop is bound to and the budget it is held
+        # to — read from what runs, never written in prose (ADR-284).
         assert run_kwargs["prompt_vars"] == {
-            "expertise": "expert comptable specialise en analyse de tresorerie"
+            "expertise": "expert comptable specialise en analyse de tresorerie",
+            "research_tools": "none",
+            "max_tool_rounds": str(tool_rounds_for(get_settings().subagent_default_max_iterations)),
         }
         assert run_kwargs["thread_prefix"] == "subagent"
         assert run_kwargs["display_name"].startswith("sub-agent: ")
@@ -227,21 +238,26 @@ class TestDelegateRunsOnReactSubAgentRunner:
         assert result.structured_data["type"] == "sub_agent_analysis"
         assert result.metadata["iteration_count"] == 2
         assert result.metadata["duration_ms"] == 1234
+        # A complete analysis carries no partial flag.
+        assert BUDGET_EXHAUSTED_FIELD not in result.structured_data
+        assert OUTPUT_TRUNCATED_FIELD not in result.structured_data
 
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_returns_failure_when_runner_signals_error(self):
-        """If ReactSubAgentRunner.run returns final_message starting with 'Error:', tool returns failure."""
+        """A run that ERRORED is a failure coded by its kind — and says no exception text."""
         from src.domains.agents.tools.sub_agent_tools import delegate_to_sub_agent_tool
 
         runner_mock = MagicMock()
         runner_mock.run = AsyncMock(
-            return_value=SimpleNamespace(
-                final_message="Error: GraphRecursionError: limit reached",
+            return_value=ReactSubAgentResult(
+                final_message="",
                 messages=[],
                 accumulated_registry={},
                 iteration_count=5,
                 duration_ms=9999,
+                outcome=SubAgentOutcome.ERROR,
+                failure_kind="timeout",
             )
         )
 
@@ -262,8 +278,8 @@ class TestDelegateRunsOnReactSubAgentRunner:
             )
 
         assert result.success is False
-        assert result.error_code == "EXECUTION_FAILED"
-        assert "did not complete" in (result.message or "")
+        assert result.error_code == "TIMEOUT"
+        assert result.message == "Sub-agent 'x' failed: its model call ended in error (timeout)."
 
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -307,7 +323,7 @@ class TestDelegateRunsOnReactSubAgentRunner:
         # And the tool runs end-to-end without DB / UserService plumbing.
         runner_mock = MagicMock()
         runner_mock.run = AsyncMock(
-            return_value=SimpleNamespace(
+            return_value=ReactSubAgentResult(
                 final_message="ok",
                 messages=[],
                 accumulated_registry={},
@@ -333,3 +349,100 @@ class TestDelegateRunsOnReactSubAgentRunner:
             )
 
         assert result.success is True
+
+
+class TestTheDelegationReadsHowTheRunEnded:
+    """The outcome decides the tool's answer, never the text (ADR-303)."""
+
+    @staticmethod
+    async def _delegate(result: ReactSubAgentResult) -> Any:
+        from src.domains.agents.tools.sub_agent_tools import delegate_to_sub_agent_tool
+
+        runner_mock = MagicMock()
+        runner_mock.run = AsyncMock(return_value=result)
+        with (
+            patch(
+                "src.domains.agents.tools.sub_agent_tools.ReactSubAgentRunner",
+                return_value=runner_mock,
+            ),
+            patch("src.domains.agents.tools.sub_agent_tools.get_all_tools", return_value={}),
+        ):
+            return await delegate_to_sub_agent_tool.coroutine(
+                expertise="analyst", instruction="Compare the two offers.", runtime=_FakeRuntime()
+            )
+
+    @pytest.mark.unit
+    async def test_a_run_that_said_nothing_is_an_empty_result(self) -> None:
+        output = await self._delegate(
+            ReactSubAgentResult(final_message="", messages=[], outcome=SubAgentOutcome.EMPTY)
+        )
+
+        assert output.success is False
+        assert output.error_code == "EMPTY_RESULT"
+
+    @pytest.mark.unit
+    async def test_a_closed_analysis_is_an_analysis_that_says_its_research_was_cut(
+        self,
+    ) -> None:
+        output = await self._delegate(
+            ReactSubAgentResult(
+                final_message="Findings so far.", messages=[], closed_on_budget=True
+            )
+        )
+
+        assert output.success is True
+        assert output.structured_data["analysis"] == "Findings so far."
+        assert output.structured_data[BUDGET_EXHAUSTED_FIELD] is True
+        assert OUTPUT_TRUNCATED_FIELD not in output.structured_data
+
+    @pytest.mark.unit
+    async def test_an_analysis_cut_at_its_output_budget_says_so(self) -> None:
+        output = await self._delegate(
+            ReactSubAgentResult(final_message="Findings, then", messages=[], truncated=True)
+        )
+
+        assert output.success is True
+        assert output.structured_data[OUTPUT_TRUNCATED_FIELD] is True
+
+
+class TestTheExpertIsToldWhatItHolds:
+    """The sub-agent prompt states the tools it is bound to and the budget enforced."""
+
+    @pytest.mark.unit
+    async def test_the_rendered_prompt_names_the_bound_tools_and_the_enforced_budget(
+        self,
+    ) -> None:
+        from src.core.config import get_settings
+        from src.domains.agents.prompts.prompt_loader import load_prompt
+        from src.domains.agents.tools.sub_agent_tools import delegate_to_sub_agent_tool
+
+        runner_mock = MagicMock()
+        runner_mock.run = AsyncMock(
+            return_value=ReactSubAgentResult(final_message="ok", messages=[])
+        )
+        bound = [MagicMock(), MagicMock()]
+        bound[0].name, bound[1].name = "brave_search_tool", "fetch_web_page_tool"
+        with (
+            patch(
+                "src.domains.agents.tools.sub_agent_tools.ReactSubAgentRunner",
+                return_value=runner_mock,
+            ),
+            patch("src.domains.agents.tools.sub_agent_tools.get_all_tools", return_value={}),
+            patch(
+                "src.domains.agents.tools.sub_agent_tools.resolve_tools_for_subagent",
+                return_value=bound,
+            ),
+        ):
+            await delegate_to_sub_agent_tool.coroutine(
+                expertise="analyst", instruction="Compare the two offers.", runtime=_FakeRuntime()
+            )
+
+        # Rendered the way the runner renders it: the real file, the tool's own values.
+        prompt_vars = runner_mock.run.await_args.kwargs["prompt_vars"]
+        rendered = load_prompt("subagent_react_prompt").format(
+            current_datetime="2026-10-13 15:00", **prompt_vars
+        )
+        rounds = tool_rounds_for(get_settings().subagent_default_max_iterations)
+        assert "brave_search_tool, fetch_web_page_tool" in rendered
+        assert f"at most {rounds} rounds of tool calls" in rendered
+        assert not re.search(r"\{[a-z_]+\}", rendered)

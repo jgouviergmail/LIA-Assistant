@@ -92,6 +92,13 @@ def ensure_executors_registered() -> None:
         register_executor(DraftType.EMAIL_FORWARD.value, execute_email_forward_draft)
         register_executor(DraftType.EMAIL_DELETE.value, execute_email_delete_draft)
 
+        # A mailbox draft sent as confirmed (ADR-344)
+        from src.domains.agents.tools.mailbox_draft_send_tools import (
+            execute_mailbox_draft_send_draft,
+        )
+
+        register_executor(DraftType.MAILBOX_DRAFT_SEND.value, execute_mailbox_draft_send_draft)
+
         # Calendar events
         register_executor(DraftType.EVENT.value, execute_event_draft)
         register_executor(DraftType.EVENT_UPDATE.value, execute_event_update_draft)

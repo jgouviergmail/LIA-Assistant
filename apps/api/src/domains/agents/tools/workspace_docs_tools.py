@@ -37,6 +37,7 @@ from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.drafts.models import DraftType
 from src.domains.agents.drafts.service import DraftService
 from src.domains.agents.tools.base import ConnectorTool
+from src.domains.agents.tools.common import connector_not_activated_refusal
 from src.domains.agents.tools.decorators import connector_tool
 from src.domains.agents.tools.mixins import ToolOutputMixin
 from src.domains.agents.tools.output import UnifiedToolOutput
@@ -547,11 +548,12 @@ async def execute_spreadsheet_write_draft(
         deps: ToolDependencies (Drive credentials come through it).
 
     Returns:
-        {"success", "mode", "updated_rows"/"updated_cells"} on write.
+        {"success", "mode", "updated_rows"/"updated_cells"} on write; a typed
+        refusal when Google Drive is no longer active.
     """
     resolved = await _drive_credentials(user_id, deps)
     if resolved is None:
-        return {"success": False, "error": "connector_not_activated"}
+        return connector_not_activated_refusal(ConnectorType.GOOGLE_DRIVE)
     credentials, connector_service = resolved
     client = GoogleSheetsClient(user_id, credentials, connector_service)
 
@@ -605,7 +607,7 @@ async def execute_document_append_draft(
     """
     resolved = await _drive_credentials(user_id, deps)
     if resolved is None:
-        return {"success": False, "error": "connector_not_activated"}
+        return connector_not_activated_refusal(ConnectorType.GOOGLE_DRIVE)
     credentials, connector_service = resolved
     client = GoogleDocsClient(user_id, credentials, connector_service)
     await client.append_text(draft_content["file_id"], draft_content.get("text", ""))

@@ -37,8 +37,8 @@ Les **31 dashboards Grafana** fournissent une observabilite complete pour :
 
 | Indicateur | Valeur |
 |------------|--------|
-| Dashboards | 28 |
-| Panels total | 721 |
+| Dashboards | 31 |
+| Panels total | 837 |
 | Recording rules | 86 |
 | Schema version | 38 (Grafana 12.4) |
 | graphTooltip | 1 (shared crosshair) sur tous les dashboards |
@@ -138,13 +138,13 @@ Dans le fichier de provisioning, un `$` litteral s'ecrit `$$` (sinon `$__tags` e
 | 02 | SLO Tracking | `02-slo-tracking` | lia, slo, reliability || 17 | SLOs API, SLOs agents, SLOs providers LLM, SLOs DB et business |
 | 03 | Infrastructure & Resources | `03-infra-resources` | lia, infra, docker, raspberry-pi || 26 | Systeme hote (RPi), ressources conteneurs, PostgreSQL, Redis |
 | 04 | HTTP & API Performance | `04-http-api` | lia, http, api, latency || 17 | Trafic, latence, erreurs, rate limiting |
-| 05 | LLM Tokens & Cost | `05-llm-tokens-cost` | lia, llm, tokens, cost || 60 | Headlines couts, ventilation, consommation tokens, efficacite, suivi par utilisateur (Loki), performance API LLM, cache LLM et economies, pricing, metriques cumulees, embeddings (issues, regulateur, refus fournisseur par raison), completude comptable des familles payees par la plateforme (appels Google Maps non comptabilises, attendu 0) |
+| 05 | LLM Tokens & Cost | `05-llm-tokens-cost` | lia, llm, tokens, cost || 62 | Headlines couts, ventilation, consommation tokens, efficacite, suivi par utilisateur (Loki), performance API LLM, cache LLM et economies, pricing, metriques cumulees, embeddings (issues, regulateur, refus fournisseur par raison), completude comptable des familles payees par la plateforme (appels Google Maps non comptabilises, attendu 0) |
 | 06 | Logs, Traces & Correlations | `06-logs-traces` | lia, logs, traces, debug || 17 | Logs, traces, correlation metrique-log, vue correlee, jobs background, recherche |
 | 07 | Agent Orchestration Pipeline | `07-agents-pipeline` | lia, agents, langgraph, orchestration || 63 | Router, planner et orchestrateur, execution nodes agent, execution outils, contexte et etat, SSE streaming, background runs (ADR-117), couche semantique (ADR-120/121), echecs d'outils RETOURNES par outil (ADR-303) |
 | 08 | HITL Human-in-the-Loop | `08-hitl` | lia, hitl, approval || 29 | Vue d'ensemble HITL, qualite classification, comportement utilisateur, editions et rejets, reprise |
-| 09 | Conversations & Users | `09-conversations-users` | lia, conversations, users, engagement || 37 | Activite utilisateurs, cycle de vie conversations, analyse abandon, succes et qualite agents, attachments, inscriptions, purge du reset par famille de cles (ADR-260) |
-| 10 | OAuth, Connectors & MCP | `10-oauth-connectors-mcp` | lia, oauth, connectors, mcp || 46 | Flux OAuth, performance OAuth, sante connecteurs, APIs Google, serveurs MCP, formes de requetes contacts/email |
-| 11 | Voice & WebSocket | `11-voice-websocket` | lia, voice, tts, stt, websocket || 24 | TTS, streaming audio, STT, WebSocket |
+| 09 | Conversations & Users | `09-conversations-users` | lia, conversations, users, engagement || 42 | Activite utilisateurs, cycle de vie conversations, analyse abandon, succes et qualite agents, attachments, inscriptions, purge du reset par famille de cles (ADR-260) |
+| 10 | OAuth, Connectors & MCP | `10-oauth-connectors-mcp` | lia, oauth, connectors, mcp || 50 | Flux OAuth, performance OAuth, sante connecteurs, APIs Google, serveurs MCP, formes de requetes contacts/email |
+| 11 | Voice & WebSocket | `11-voice-websocket` | lia, voice, tts, stt, websocket || 25 | TTS, streaming audio, STT, WebSocket |
 | 12 | Channels / Telegram | `12-channels` | lia, channels, telegram || 13 | Flux messages, bindings et securite, fonctionnalites canal |
 | 13 | Proactive & Heartbeat | `13-proactive-heartbeat` | lia, proactive, heartbeat || 38 | Vue d'ensemble taches, notifications et couts, eligibilite et feedback, presence en lecture et reveils push (ADR-214/261), moments anticipes (ADR-281), ce que le job nocturne des habitudes a appris (ADR-214 c), reveils push mis en file ET servis (ADR-304) |
 | 14 | Data Registry & Checkpoints | `14-registry-checkpoints` | lia, registry, checkpoints || 26 | Data registry, moteur de requetes, checkpoints LangGraph, recherche hybride, sante repository |
@@ -152,19 +152,19 @@ Dans le fichier de provisioning, un `$` litteral s'ecrit `$$` (sinon `$__tags` e
 | 16 | Recording Rules & Alerts Health | `16-meta-health` | lia, meta, operational || 40 | Sante des recording rules, sante des alertes, validation et securite, integrite du registre d'outils, auto-diagnostic (verdicts, incidents, duree du tick, cout LLM, sources de preuves lues), pipeline d'observabilite (Alloy, Loki, Tempo, Prometheus) |
 | 17 | User Analytics & Geo | `17-user-analytics-geo` | lia, users, analytics, geo || 27 | Vue geographique (Geomap), engagement utilisateur, patterns d'activite, usage outils et agents, qualite et cout conversations, logs geo detailles |
 | 18 | RAG Spaces / Knowledge Documents | `18-rag-spaces` | lia, rag, spaces, knowledge || 37 | Vue d'ensemble RAG, pipeline de traitement documents, performance retrieval, couts embedding, reindexation, recuperation de jobs, reindexation Drive ciblee et source libelle Gmail (ADR-261/262), drainages bornes du flux Drive pousse par issue (ADR-304) |
-| 19 | Sub-agents & Skills | `19-subagents-skills` | lia, subagents, skills || 13 | Executions de sous-agents ReAct (spawns, duree, tokens, erreurs), skills |
-| 20 | ReAct Agent & Browser | `20-react-browser` | lia, react, browser || 32 | Boucle ReAct (iterations, outils, HITL tool-level, passes de reprise par issue — ADR-310, replis du cache inter-tours par raison — ADR-308), sessions navigateur, snapshots |
+| 19 | Sub-agents & Skills | `19-subagents-skills` | lia, subagents, skills || 21 | Executions de sous-agents ReAct (spawns, duree, tokens, erreurs), skills |
+| 20 | ReAct Agent & Browser | `20-react-browser` | lia, react, browser || 33 | Boucle ReAct (iterations, outils, HITL tool-level, passes de reprise par issue — ADR-310, replis du cache inter-tours par raison — ADR-308), sessions navigateur, snapshots |
 | 21 | Health Metrics | `21-health-metrics` | lia, health-metrics || 10 | Ingestion des echantillons sante (auth, validation, doublons), variations detectees |
 | 22 | Compaction | `22-compaction` | lia, compaction || 13 | Sante compaction (executions, fallbacks truncation, writer unavailable), timeouts, volume et economies de tokens |
 | 23 | Journals & User Model | `23-journals-user-model` | lia, journals, user-model || 18 | Extraction, actions sur entrees, consolidation par niveaux, portrait utilisateur |
 | 24 | Telephony | `24-telephony` | lia, telephony, calls || 15 | Appels sortants par statut, duree, reapers de recuperation (T1), webhooks ignores |
 | 25 | Today Briefing | `25-briefing` | lia, briefing || 10 | Duree de build par etat de cache, statuts par section, invocations LLM, refresh |
 | 26 | Product Value, Activation & Retention | `26-product-value` | lia, product, value, growth, outcomes || 45 | Cockpit produit (ADR-178) : North Star E1/E2, funnel d'activation, qualite agentique, retention, couts EUR, qualite des donnees — v0 avec panels LIVE/PRE-WIRED/TEXT |
-| 27 | Meetings | `27-meetings` | lia, meetings, minutes || 9 | Reunions par statut, duree de traitement par etape, moteurs de transcription (distant / local) et issues, comptes rendus rendus et reformates (ADR-258, ADR-259) |
+| 27 | Meetings | `27-meetings` | lia, meetings, minutes || 11 | Reunions par statut, duree de traitement par etape, moteurs de transcription (distant / local) et issues, comptes rendus rendus et reformates (ADR-258, ADR-259) |
 | 28 | Effect Ledger & Registers | `28-effect-ledger` | lia, ledger, transparency, ai-act || 27 | Effets reclames / clos / abandonnes, consultations par domaine, lacunes du registre, retard de scellement de la chaine, croissance des registres (ADR-263, ADR-270) |
 | 29 | Workboard | `29-workboard` | lia, workboard, adr-276 | 13 | Ce que LIA fait du tableau (tickets aboutis, rendus, echecs, runs ecartes faute de quota ou conversation occupee, duree et issues des runs), notifications du tableau dans le chat, poids des transcriptions cachees (ADR-276) |
-| 30 | Live | `30-live` | lia, live, voice | 13 | Sessions Live par issue, sessions actives, cles frappees et refusees, duree des sessions, echanges vocaux archives, prolongations, echantillons de voix, echanges d'offre WebRTC, consultations et relais des sessions directes (ADR-299, ADR-300, ADR-301) |
-| 31 | Radio | `31-radio` | lia, radio, voice | 16 | Radio personnelle : departs et refus par code, fins de session par raison, segments par format et par issue, duree de production (p50/p95), boucles cassees, redaction (tics par issue, age du dernier tic, flux lus, sujets classes et purges, textes integraux), recherches de sites, audio orphelin balaye (ADR-324) |
+| 30 | Live | `30-live` | lia, live, voice | 16 | Sessions Live par issue, sessions actives, cles frappees et refusees, duree des sessions, echanges vocaux archives, prolongations, echantillons de voix, echanges d'offre WebRTC, consultations et relais des sessions directes (ADR-299, ADR-300, ADR-301) |
+| 31 | Radio | `31-radio` | lia, radio, voice | 17 | Radio personnelle : departs et refus par code, fins de session par raison, segments par format et par issue, duree de production (p50/p95), boucles cassees, redaction (tics par issue, age du dernier tic, flux lus, sujets classes et purges, textes integraux), recherches de sites, audio orphelin balaye (ADR-324) |
 
 ---
 
@@ -212,7 +212,7 @@ Trafic HTTP detaille : requetes/s par endpoint, distribution latence (p50/p95/p9
 
 > **Labels `endpoint` bornes (v1.21.1)** : les labels des metriques HTTP (`http_requests_total`, `http_request_duration_seconds`) utilisent desormais le **template de route** matche (`/api/v1/journals/{entry_id}`) et non plus le chemin brut avec UUID ; les requetes non routees (404, scans de bots) sont regroupees sous `unmatched`, et la gauge `http_requests_in_progress`, etiquetee avant le routage, prend le template que le routage choisira (la regle et les expressions de FastAPI, `unmatched` sinon) : son ancien repli `{id}` laissait passer les noms (`/relations/{name}`) et chaque chemin de scan (revue du lot 9, 2026-10-02). Cardinalite bornee par construction. **Toute requete Grafana qui filtrait sur des chemins exacts contenant des identifiants doit etre adaptee aux templates.**
 
-### 05 - LLM Tokens & Cost (60 panels)
+### 05 - LLM Tokens & Cost (62 panels)
 
 Dashboard le plus riche en panels avec le 07. Headlines de couts (jour, mois, projection), ventilation par modele et par node, consommation tokens (prompt, completion, cached), metriques d'efficacite (cout par requete, tokens par seconde). Section Loki pour le suivi par utilisateur. Performance des appels API LLM (latence, erreurs par provider). Cache LLM (hits/misses, erreurs, migrations de format) et economies estimees (`llm_cache_cost_saved_total`), fallbacks du cache pricing. Metriques de cout cumulees sur la duree de vie. La section compaction historique a ete deplacee vers le dashboard 22. Derniere ligne, la **completude comptable** des familles payees par la plateforme : `google_api_calls_unaccounted_total` (appels Google Maps Platform faits sans `TrackingContext` ambiant — attendu 0, `or vector(0)`, alerte `GoogleApiCallsUnaccounted`), le pendant cote Maps de `LLMCallsWithoutUsage`. Une ligne dediee suit la reecriture optionnelle des prompts d'image (ADR-315) : prompts ameliores sur 24 h et issues par heure (`image_prompt_enhancement_total{outcome}` — toute issue autre que `enhanced` envoie le prompt d'origine).
 
@@ -234,17 +234,17 @@ Coeur du monitoring agent. Sections pour chaque etape du pipeline : router (deci
 
 Monitoring des 6 types HITL : Plan Approval, Clarification, Draft Critique, Destructive Confirm, FOR_EACH Confirm, Modifier Review. Qualite de classification (taux d'approbation, confiance), comportement utilisateur (temps de reponse, timeouts), analyse des editions de parametres et des rejets, metriques de reprise apres interruption HITL.
 
-### 09 - Conversations & Users (37 panels)
+### 09 - Conversations & Users (42 panels)
 
 Activite utilisateurs (sessions actives, repartition horaire), cycle de vie des conversations (creation, duree, longueur en messages), analyse de l'abandon (ou et quand les utilisateurs quittent), succes des agents par domaine et indicateurs de qualite. Section repliee : attachments en profondeur (duree upload par content_type, suppressions cleanup) et inscriptions par provider/statut. Une ligne dediee couvre les connexions entre comptes : messages relayes et evenements de cycle de vie par heure, et images partagees par issue (`peers_image_shares_total{outcome}`, ADR-316).
 
-### 10 - OAuth, Connectors & MCP (46 panels)
+### 10 - OAuth, Connectors & MCP (50 panels)
 
 Flux OAuth complet (initiations, callbacks, succes/echec, types d'erreurs), performance OAuth (latence d'echange de tokens, rafraichissement), sante des connecteurs Google (contacts, calendar, drive, gmail, tasks), metriques des serveurs MCP (admin et per-user : connexions, appels d'outils, erreurs). Sections repliees : OAuth en profondeur (erreurs de callback, durees initiate/activation, cycle de vie des verrous de refresh, verification par cle API) et formes de requetes contacts/email (types de requetes, resultats par requete).
 
-### 11 - Voice & WebSocket (24 panels)
+### 11 - Voice & WebSocket (25 panels)
 
-TTS : latence par provider (Edge, OpenAI, Gemini), taille audio, erreurs. Streaming audio : debit, qualite. STT : transcriptions via Sherpa-onnx Whisper (duree, precision). WebSocket : connexions actives, tickets d'authentification, latence.
+TTS : requetes et latence p95 par voix, taux et types d'erreurs, et les sessions WebSocket Fish Audio repondues en HTTP (`voice_tts_transport_fallbacks_total{provider, reason}`, ADR-345 : un echec en transit ou un silence, jamais un quota ni un refus), et les replis de la voix par raison (`voice_fallback_total{reason}`, dont `timeout` : la voix d'un tour qui a depasse son attente, redite par le chemin direct). Streaming audio : debit, qualite. STT : transcriptions via Sherpa-onnx Whisper (duree, precision). WebSocket : connexions actives, tickets d'authentification, latence.
 
 ### 12 - Channels / Telegram (13 panels)
 
@@ -282,11 +282,11 @@ Vue d'ensemble des espaces de connaissances RAG : espaces actifs, documents trai
 
 **Datasources** : Prometheus.
 
-### 19 - Sub-agents & Skills (13 panels)
+### 19 - Sub-agents & Skills (21 panels)
 
 Executions de sous-agents ReAct via `ReactSubAgentRunner` (ADR-083) : spawns par agent et mode, duree (p50/p95/p99), tokens entrants/sortants, sous-agents actifs, erreurs par type. Vision de la delegation de taches aux agents parametres.
 
-### 20 - ReAct Agent & Browser (32 panels)
+### 20 - ReAct Agent & Browser (33 panels)
 
 Mode d'execution ReAct : iterations par tour, appels d'outils, interruptions HITL tool-level, erreurs. Sessions navigateur headless (actions, navigation, memoire, tokens des snapshots). **Passes de reprise par issue** (`react_recovery_turns_total{outcome}` : `resolved`, `partial`, `still_unresolved`, `cut` — ADR-310) et **replis du cache inter-tours** (`react_cross_turn_cache_fallback_total{reason}` : `cap`, `window` — ADR-308), tous deux avec `or vector(0)`.
 
@@ -318,7 +318,7 @@ La telemetrie client (Phase 4) alimente les familles `product_client_events_tota
 
 **Datasources** : Prometheus + `postgres-product-readonly` (role `grafana_product_reader`, SELECT sur les 7 vues produit uniquement, `statement_timeout` 10s — cree par `task db:create-grafana-reader`). Alertes produit : `alerts-product.yml` prepare mais NON monte (baseline 4 semaines requise, ADR-119).
 
-### 27 - Meetings (9 panels)
+### 27 - Meetings (11 panels)
 
 Enregistrement de reunion et compte rendu structure (ADR-258, ADR-259) : reunions par statut, duree de chaque etape du traitement (normalisation, transcription, synthese, indexation), moteur de transcription reellement utilise et ses issues, comptes rendus rendus, regeneres et reformates.
 
@@ -336,15 +336,15 @@ Le tableau de tickets (ADR-276) : ce que LIA fait des tickets qu'elle tient (abo
 
 **Datasource** : Prometheus.
 
-### 30 - Live (13 panels)
+### 30 - Live (16 panels)
 
 Le mode Live (ADR-299, ADR-300, ADR-301) : sessions terminees par issue, sessions actives, cles frappees et frappes refusees, duree des sessions (p50/p95), echanges purement vocaux archives, prolongations, echantillons de voix, echanges d'offre WebRTC, consultations des sessions directes et relais de leurs mots a la fin.
 
 **Datasource** : Prometheus.
 
-### 31 - Radio (16 panels)
+### 31 - Radio (17 panels)
 
-La radio personnelle (ADR-324), en trois lignes. **Sessions** : departs qui ont pris leur place et departs refuses par code (`radio_session_starts_total{outcome}` — `radio_instance_full`, `radio_no_voice`, `radio_voice_unavailable`), fins de session par raison (`radio_sessions_ended_total{reason}` : un worker qui s'arrete ne termine rien), boucles cassees par un defaut (`radio_loop_failures_total`, attendu 0). **Production** : segments par issue et par format (`radio_segments_total{format, outcome}` — `produced`, `nothing_to_say`, les refus du redacteur et du verificateur, `voice_failed`, `mix_failed`, `error`) et duree de production d'un segment diffuse (p50/p95, `radio_segment_production_seconds`) : un p95 tres au-dessus des reglages `RADIO_STAGE_*` veut dire qu'un auditeur attend. **Redaction** : tics par issue (`completed`, `cut`, `failed`, `off`), age du dernier tic mene a son terme (`radio_newsroom_last_run_timestamp_seconds`, que lit l'alerte noyau `RadioNewsroomStalled`), flux lus ou en echec, sujets classes et purges, textes integraux, recherches de sites par issue, repertoires audio orphelins balayes (attendu 0). Tous les compteurs lisent `or vector(0)` : un compteur qui n'a jamais tire n'expose aucune serie.
+La radio personnelle (ADR-324), en trois lignes. **Sessions** : departs qui ont pris leur place et departs refuses par code (`radio_session_starts_total{outcome}` — `radio_instance_full`, `radio_no_voice`, `radio_voice_unavailable`), fins de session par raison (`radio_sessions_ended_total{reason}` : un worker qui s'arrete ne termine rien), boucles cassees par un defaut (`radio_loop_failures_total`, attendu 0). **Production** : segments par issue et par format (`radio_segments_total{format, outcome}` — `produced`, `nothing_to_say`, les refus du redacteur et du verificateur, `voice_failed`, `mix_failed`, `error`) et duree de production d'un segment diffuse (p50/p95, `radio_segment_production_seconds`) : un p95 tres au-dessus des reglages `RADIO_STAGE_*` veut dire qu'un auditeur attend. Prises de dialogue par issue (`radio_dialogue_takes_total{outcome}` — `voiced`, `unplaced`, `failed`, ADR-345) : une prise que le flux horodate n'a pas su placer, ou qui a echoue, est redite ligne par ligne. **Redaction** : tics par issue (`completed`, `cut`, `failed`, `off`), age du dernier tic mene a son terme (`radio_newsroom_last_run_timestamp_seconds`, que lit l'alerte noyau `RadioNewsroomStalled`), flux lus ou en echec, sujets classes et purges, textes integraux, recherches de sites par issue, repertoires audio orphelins balayes (attendu 0). Tous les compteurs lisent `or vector(0)` : un compteur qui n'a jamais tire n'expose aucune serie.
 
 **Datasource** : Prometheus.
 

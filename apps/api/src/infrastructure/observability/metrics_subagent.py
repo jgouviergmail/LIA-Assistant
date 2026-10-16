@@ -51,6 +51,15 @@ subagent_active_count = Gauge(
     multiprocess_mode="livesum",
 )
 
+subagent_outcomes_total = Counter(
+    "subagent_outcomes_total",
+    "Finished sub-agent executions by how they ended",
+    # outcome: answered | closed_on_budget (the closing pass wrote the answer:
+    # the budget ended the research) | truncated (cut at the output budget) |
+    # empty | error — ADR-083 amendment 2026-10-13.
+    ["agent_name", "outcome"],
+)
+
 # ============================================================================
 # ERROR METRICS
 # ============================================================================

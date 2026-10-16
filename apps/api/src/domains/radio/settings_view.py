@@ -62,6 +62,7 @@ def production_limits() -> ProductionLimits:
         mix_timeout_s=float(settings.radio_mix_timeout_seconds),
         tts_attempts=settings.radio_tts_line_attempts,
         tts_rate_limit_wait_max_s=float(settings.radio_tts_rate_limit_wait_max_seconds),
+        dialogue_max_bytes=settings.radio_dialogue_max_bytes,
     )
 
 

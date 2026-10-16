@@ -7,12 +7,15 @@ Endpoints for FCM token management and SSE notifications.
 import asyncio
 import json
 from collections.abc import AsyncGenerator
-from contextlib import suppress
+from contextlib import aclosing, suppress
+from time import monotonic
 from uuid import uuid4
 
 import structlog
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Cookie, Depends, Query, status
 from fastapi.responses import StreamingResponse
+from redis.asyncio import Redis
+from redis.asyncio.client import PubSub
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
@@ -28,6 +31,7 @@ from src.core.session_dependencies import (
     get_current_active_session_for_stream,
     get_current_superuser_session,
 )
+from src.domains.agents.api.session_watch import session_still_valid
 from src.domains.notifications.broadcast_history import broadcast_history
 from src.domains.notifications.broadcast_service import BroadcastService
 from src.domains.notifications.hub_counts import resolve_hub_counts
@@ -273,6 +277,7 @@ async def delete_token_by_id(
 )
 async def stream_notifications(
     current_user: User = Depends(get_current_active_session_for_stream),
+    lia_session: str | None = Cookie(default=None),
 ) -> StreamingResponse:
     """
     SSE endpoint for real-time notifications.
@@ -295,6 +300,10 @@ async def stream_notifications(
     discovers it at its next keepalive tick, emits ``superseded`` and
     closes. The new connection is never refused: EventSource cannot read
     an HTTP status, a refusal would only feed a blind retry loop.
+
+    A revoked session (« sign out this device ») closes the stream at the same
+    tick with ``session_revoked``, as the chat streams already did (point 22):
+    before, a signed-out device kept receiving the person's notifications.
     """
 
     async def event_generator() -> AsyncGenerator[str]:
@@ -341,48 +350,19 @@ async def stream_notifications(
             # Send initial connection event
             yield f"event: connected\ndata: {json.dumps({'status': 'connected'})}\n\n"
 
-            while True:
-                try:
-                    # IMPORTANT: timeout must be passed to get_message() directly
-                    # Without it, get_message() returns immediately with None (busy-wait!)
-                    # With timeout=30.0, it blocks for up to 30s waiting for a message
-                    message = await pubsub.get_message(
-                        ignore_subscribe_messages=True,
-                        timeout=settings.http_timeout_sse_polling,
-                    )
-
-                    if message is None:
-                        # Timeout reached, no message - send keepalive and refresh SSE tracking
-                        await redis.expire(sse_key, sse_ttl)
-                        await stream_registry.refresh_registry(redis, user_key, ttl_seconds=sse_ttl)
-                        if not await stream_registry.stream_is_active(redis, user_key, stream_id):
-                            # A newer stream took this slot (newest wins).
-                            logger.info(
-                                "sse_stream_superseded",
-                                user_id=user_key,
-                                stream_id=stream_id,
-                            )
-                            yield (
-                                "event: superseded\n"
-                                f"data: {json.dumps({'reason': 'newer_stream'})}\n\n"
-                            )
-                            return
-                        yield ": keepalive\n\n"
-                    elif message["type"] == "message":
-                        data = message["data"]
-                        if isinstance(data, bytes):
-                            data = data.decode("utf-8")
-
-                        yield f"event: notification\ndata: {data}\n\n"
-
-                except Exception as e:
-                    logger.warning(
-                        "sse_get_message_error",
-                        user_id=str(current_user.id),
-                        error=str(e),
-                    )
-                    # Small delay before retry to avoid tight loop on errors
-                    await asyncio.sleep(1.0)
+            async with aclosing(
+                _notification_events(
+                    redis,
+                    pubsub,
+                    user_key=user_key,
+                    stream_id=stream_id,
+                    session_id=lia_session,
+                    sse_key=sse_key,
+                    ttl_seconds=sse_ttl,
+                )
+            ) as events:
+                async for event in events:
+                    yield event
 
         except asyncio.CancelledError:
             logger.info(
@@ -393,8 +373,9 @@ async def stream_notifications(
             logger.error(
                 "sse_stream_error",
                 user_id=str(current_user.id),
-                error=str(e),
+                error_type=type(e).__name__,
             )
+            logger.debug("sse_stream_error_detail", error=str(e))
             yield f"event: error\ndata: {json.dumps({'error': 'An unexpected error occurred'})}\n\n"
         finally:
             # Best-effort cleanup. The shared per-user marker (OAuth-health
@@ -405,8 +386,7 @@ async def stream_notifications(
                 remaining = await stream_registry.unregister_stream(redis, user_key, stream_id)
                 if remaining == 0:
                     await redis.delete(sse_key)
-            await pubsub.unsubscribe(channel)
-            await pubsub.close()
+            await _close_pubsub(pubsub, channel)
 
     return StreamingResponse(
         event_generator(),
@@ -417,6 +397,93 @@ async def stream_notifications(
             "X-Accel-Buffering": "no",  # Disable nginx buffering
         },
     )
+
+
+async def _notification_events(
+    redis: Redis,
+    pubsub: PubSub,
+    *,
+    user_key: str,
+    stream_id: str,
+    session_id: str | None,
+    sse_key: str,
+    ttl_seconds: int,
+) -> AsyncGenerator[str]:
+    """Poll notifications, checking authority on a deadline independent of traffic."""
+    from src.domains.notifications import stream_registry
+
+    checked_at = monotonic()
+    interval = settings.http_timeout_sse_polling
+    while True:
+        try:
+            # Pass the remaining timeout to Redis itself: no busy-wait and no
+            # deadline reset when another notification arrives.
+            message = await pubsub.get_message(
+                ignore_subscribe_messages=True,
+                timeout=max(0.0, interval - (monotonic() - checked_at)),
+            )
+            if message is None or monotonic() - checked_at >= interval:
+                await redis.expire(sse_key, ttl_seconds)
+                await stream_registry.refresh_registry(redis, user_key, ttl_seconds=ttl_seconds)
+                closing = await _closing_event(redis, user_key, stream_id, session_id)
+                if closing is not None:
+                    yield closing
+                    return
+                checked_at = monotonic()
+            if message is None:
+                yield ": keepalive\n\n"
+            elif message["type"] == "message":
+                data = message["data"]
+                if isinstance(data, bytes):
+                    data = data.decode("utf-8")
+                yield f"event: notification\ndata: {data}\n\n"
+        except Exception as error:
+            logger.warning(
+                "sse_get_message_error", user_id=user_key, error_type=type(error).__name__
+            )
+            logger.debug("sse_get_message_error_detail", error=str(error))
+            await asyncio.sleep(1.0)
+
+
+async def _close_pubsub(pubsub: PubSub, channel: str) -> None:
+    """Release the connection even if unsubscribing from a broken socket fails."""
+    try:
+        await pubsub.unsubscribe(channel)
+    except Exception as error:
+        logger.warning("sse_unsubscribe_failed", error_type=type(error).__name__)
+        logger.debug("sse_cleanup_error_detail", error=str(error))
+    finally:
+        try:
+            await pubsub.aclose()
+        except Exception as error:
+            logger.warning("sse_pubsub_close_failed", error_type=type(error).__name__)
+            logger.debug("sse_cleanup_error_detail", error=str(error))
+
+
+async def _closing_event(
+    redis: Redis, user_key: str, stream_id: str, session_id: str | None
+) -> str | None:
+    """The event a keepalive tick closes the stream with, if it must close.
+
+    Args:
+        redis: The cache client the stream registry lives in.
+        user_key: The account the stream belongs to.
+        stream_id: This stream's slot in the per-user registry.
+        session_id: The ``lia_session`` cookie the stream was opened with.
+
+    Returns:
+        ``superseded`` when a newer stream took the slot (newest wins),
+        ``session_revoked`` when the session is gone, None to go on.
+    """
+    from src.domains.notifications import stream_registry
+
+    if not await stream_registry.stream_is_active(redis, user_key, stream_id):
+        logger.info("sse_stream_superseded", user_id=user_key, stream_id=stream_id)
+        return f"event: superseded\ndata: {json.dumps({'reason': 'newer_stream'})}\n\n"
+    if not await session_still_valid(session_id):
+        logger.info("sse_stream_session_revoked", user_id=user_key, stream_id=stream_id)
+        return f"event: session_revoked\ndata: {json.dumps({'reason': 'session_revoked'})}\n\n"
+    return None
 
 
 # =============================================================================

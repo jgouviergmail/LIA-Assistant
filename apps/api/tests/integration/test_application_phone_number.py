@@ -30,6 +30,7 @@ from src.domains.telephony.identity import TelephonyIdentityService
 from src.domains.telephony.number_gateway import SavedPhoneNumber
 from src.domains.users.models import User
 from src.infrastructure.phone_number_preferences import configure_phone_number_preferences
+from tests.helpers.draft_refusals import draft_refusal_code
 from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
 
 pytestmark = pytest.mark.integration
@@ -159,12 +160,12 @@ async def test_confirmed_number_change_uses_exact_owner_state_and_public_receipt
                 and test_user.phone_number_verified_at == stamp
             )
         if intervention in {"number_change", "verification_change"}:
-            assert outcome.error == "STALE_STATE"
+            assert draft_refusal_code(outcome) == "STALE_STATE"
         if intervention in {"platform_off", "telephony_off"}:
-            assert outcome.error == "CAPABILITY_DISABLED"
+            assert draft_refusal_code(outcome) == "CAPABILITY_DISABLED"
             ledger.claim.assert_not_awaited()
         if intervention == "cancel":
-            assert outcome.error == "CANCELLED"
+            assert draft_refusal_code(outcome) == "CANCELLED"
             ledger.claim.assert_not_awaited()
         hints = [queue.get_nowait() for _ in range(queue.qsize())]
         hints = [event for event in hints if event.type == "application_state_changed"]

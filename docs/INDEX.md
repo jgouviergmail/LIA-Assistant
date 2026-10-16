@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 45 |
-| ADRs | 342 ADR files (ADR-343 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
+| ADRs | 345 ADR files (ADR-346 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
 | Fiches knowledge (RAG système) | 40 |
 
 ---
@@ -53,7 +53,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (342 ADR files) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (345 ADR files) |
 
 ### Pour les Product Managers
 
@@ -145,9 +145,9 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [GOOGLE_API.md](./technical/GOOGLE_API.md) | APIs Google utilisées — documentation et tarification (refacturation utilisateurs) | ✅ |
 | [GOOGLE_PUSH_CHANNELS.md](./technical/GOOGLE_PUSH_CHANNELS.md) | Notifications push Google (Calendar/Drive watch, Gmail Pub/Sub) — prérequis admin et architecture | ✅ |
 | [MICROSOFT_365_INTEGRATION.md](./technical/MICROSOFT_365_INTEGRATION.md) | Intégration Microsoft 365 (Outlook, Calendar, Contacts, To Do) | ✅ |
-| [VOICE.md](./technical/VOICE.md) | Voice/TTS catalogue-driven (Edge / OpenAI / ElevenLabs, ADR-081), per-message attribution, progressive sentence streaming (ADR-082) | ✅ |
+| [VOICE.md](./technical/VOICE.md) | Voice/TTS catalogue-driven (Edge / OpenAI / ElevenLabs / Gemini / Fish Audio, ADR-081, ADR-345), one synthesis door billed by the engine that spoke, one allowance per vendor account, expressive cues per engine, the Fish Audio voice library, per-message attribution, progressive sentence streaming (ADR-082) | ✅ |
 | [WAKE_WORD_TRAINING.md](./technical/WAKE_WORD_TRAINING.md) | Comment un mot-clé est entraîné, jugé et livré (ADR-329) : pipeline openWakeWord, voix Piper et VoxCPM2, formes séparée/soudée/avec pause, corpus négatifs, augmentation, recette d'entraînement, banc et grille d'acceptation, export, et ce que chaque mesure a appris | ✅ |
-| [VOICE_MODE.md](./technical/VOICE_MODE.md) | STT (local Sherpa + remote ElevenLabs Scribe), Wake Word, Push-to-Talk, voice_stt_mode opt-in (v1.20.x) ; le mode Live (parole à parole, ADR-299) est une troisième porte à côté, documentée dans LIVE_MODE.md | ✅ |
+| [VOICE_MODE.md](./technical/VOICE_MODE.md) | STT (local Sherpa + the `voice_transcription` slot's remote engine — ElevenLabs Scribe, OpenAI or Fish Audio, ADR-345), Wake Word, Push-to-Talk, voice_stt_mode opt-in (v1.20.x) ; le mode Live (parole à parole, ADR-299) est une troisième porte à côté, documentée dans LIVE_MODE.md | ✅ |
 | [SPEAKING_AVATAR.md](./technical/SPEAKING_AVATAR.md) | Experimental personal Simli connector, API-controlled relay with single-use tickets, verified stop and presence, paced Live output and mobile floating placement; [ADR-334](./architecture/ADR-334-Personal-Speaking-Avatar-And-One-Audible-Output.md) remains Proposed pending real provider/device acceptance | ✅ |
 | [ROUTES.md](./technical/ROUTES.md) | Google Routes API, directions | ✅ |
 | [WEB_FETCH.md](./technical/WEB_FETCH.md) | Extraction contenu pages web (URL → Markdown), SSRF prevention | ✅ |
@@ -613,6 +613,7 @@ Les modèles sont pilotés par le **catalogue LLM en base** (ADR-078, admin UI) 
 | Qwen | Texte |
 | Ollama | Local |
 | ElevenLabs | TTS + STT remote (Scribe) |
+| Fish Audio | TTS (S2, s1, drama-3) + STT remote + bibliothèque de voix (ADR-345) |
 | Edge | TTS gratuit |
 
 ---

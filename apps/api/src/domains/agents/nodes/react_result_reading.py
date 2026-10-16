@@ -1,13 +1,13 @@
 """What a raw tool result SAYS, read once for every reader of the ReAct loop.
 
-The loop reads four facts off the value a tool returned, before its string
+The loop reads five facts off the value a tool returned, before its string
 conversion: whether the call produced anything (ADR-248 — what buys an
 iteration), whether the tool DECLARED a failure (ADR-303 — the structural
-marker the ``ToolMessage`` carries), whether the call never ran at all (the
-egress question's refusal, ADR-298) and which skill an activation handed
-over (ADR-327 — what the response node's runner must not run again). Each
-is ONE predicate, so the loop, the response node and their tests cannot
-disagree on a payload.
+marker the ``ToolMessage`` carries) and with which code, whether the call
+never ran at all (the egress question's refusal, ADR-298) and which skill an
+activation handed over (ADR-327 — what the response node's runner must not
+run again). Each is ONE predicate, so the loop, the response node and their
+tests cannot disagree on a payload.
 """
 
 from __future__ import annotations
@@ -15,7 +15,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from src.core.tool_outcome import explicit_success
+from src.core.field_names import FIELD_ERROR_CODE
+from src.core.tool_outcome import error_code_of, explicit_success
 from src.domains.agents.utils.message_filters import TOOL_CALL_NOT_RUN
 
 
@@ -91,6 +92,26 @@ def tool_message_status(raw_result: Any) -> str:
     """
     ran = call_artifact(raw_result) is None
     return "success" if explicit_success(raw_result) or not ran else "error"
+
+
+def tool_message_metadata(raw_result: Any) -> dict[str, str]:
+    """The code of a DECLARED failure, for the ``ToolMessage``'s metadata.
+
+    The body is the tool's PROSE (``compose_tool_message``), so a code cannot
+    be read from it: it travels beside it, on ``response_metadata``, which no
+    provider adapter sends and the checkpoint keeps. Without it every ReAct
+    failure reached the runtime failures directive as ``UNKNOWN`` and lost
+    the meaning its code carries — « no connector is active » first among
+    them (RC1.2, production 2026-10-07).
+
+    Args:
+        raw_result: The tool's return value, before string conversion.
+
+    Returns:
+        ``{error_code: code}`` for a declared failure naming one, else empty.
+    """
+    code = error_code_of(raw_result) if tool_message_status(raw_result) == "error" else None
+    return {FIELD_ERROR_CODE: code} if code else {}
 
 
 def call_artifact(raw_result: Any) -> str | None:

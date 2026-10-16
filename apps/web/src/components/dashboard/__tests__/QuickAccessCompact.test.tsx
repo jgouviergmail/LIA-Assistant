@@ -141,7 +141,9 @@ describe('QuickAccessCompact', () => {
     // grid of cards, whatever the number of destinations.
     const parents = new Set(links.map(link => link.parentElement));
     expect(parents.size).toBe(1);
-    // And that parent is the component root — no intermediate card wrapper.
-    expect(links[0].parentElement).toBe(container.firstElementChild);
+    // The shared bar belongs to a named navigation landmark, with its heading.
+    expect(
+      screen.getByRole('navigation', { name: 'dashboard.quick_access_compact.title' })
+    ).toContainElement(links[0]);
   });
 });

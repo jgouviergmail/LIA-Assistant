@@ -1,4 +1,4 @@
-"""Guard: the live-pricing migration and the reference seed bundle describe the same rows.
+"""Guard: the live and speech pricing migrations and the reference seed describe the same rows.
 
 Production never replays the seed bundle, so migration ``f1a3c5e7b9d2`` is what
 an upgraded instance gets; a fresh install gets the bundle. If the two
@@ -16,13 +16,14 @@ from types import ModuleType
 
 import pytest
 
+from src.infrastructure.llm.catalogue.vendor_announcements import VENDOR_SHUTDOWNS
 from tests.unit.infrastructure.llm.reasoning.test_family_coverage import _catalogue_rows
 
 pytestmark = pytest.mark.unit
 
 _API_ROOT = Path(__file__).resolve().parents[2]
-#: Every migration that prices live models, with the head it chains after —
-#: the ElevenLabs agents row joined in ADR-300 wave 4.
+#: Every migration that prices live or speech models, with the head it chains
+#: after — the ElevenLabs agents row joined in ADR-300 wave 4, Fish Audio in ADR-345.
 _MIGRATIONS: dict[str, tuple[str, str]] = {
     "2026_09_19_1500-f1a3c5e7b9d2_live_audio_pricing.py": ("f1a3c5e7b9d2", "d7f2a4c6e8b1"),
     "2026_09_19_2100-b7d1e3f5a9c2_elevenlabs_live_pricing.py": ("b7d1e3f5a9c2", "f1a3c5e7b9d2"),
@@ -30,6 +31,11 @@ _MIGRATIONS: dict[str, tuple[str, str]] = {
     "2026_09_20_1200-a4c8e1f7b3d5_elevenlabs_v3_conversational_pricing.py": (
         "a4c8e1f7b3d5",
         "c9e2a4b6d8f1",
+    ),
+    # Fish Audio's speech models, and the ElevenLabs v4 pair the seed alone carried (ADR-345).
+    "2026_10_14_1100-a9326a120b55_fishaudio_speech_catalogue.py": (
+        "a9326a120b55",
+        "cec87eda4868",
     ),
 }
 _AUDIO_MIGRATION = "2026_09_19_1500-f1a3c5e7b9d2_live_audio_pricing.py"
@@ -106,7 +112,11 @@ def test_every_migrated_catalogue_row_equals_the_seed_row(file_name: str) -> Non
     for model_name, (provider, _tariff) in module.LIVE_MODELS.items():
         seed_row = seed_rows[model_name]
         assert seed_row["provider"] == provider, model_name
-        for column, value in module.CATALOGUE_DEFAULTS.items():
+        declared = {
+            **module.CATALOGUE_DEFAULTS,
+            **getattr(module, "CATALOGUE_OVERRIDES", {}).get(model_name, {}),
+        }
+        for column, value in declared.items():
             if column == "is_active" and model_name in deactivated:
                 # A later migration took the row out of the catalogue on purpose
                 # (the agents platform is no model of ours); the seed says so.
@@ -221,3 +231,35 @@ def test_the_superseded_retirement_matches_the_whole_old_row() -> None:
 def test_the_catalogue_insert_never_overrides_an_existing_row() -> None:
     sql = str(_load_migration()._INSERT_MODEL)
     assert "ON CONFLICT (model_name) DO NOTHING" in sql
+
+
+_SEED_DEPRECATION_BLOCK = re.compile(
+    r"UPDATE llm_models m\s+SET deprecation_date = CAST\(v\.shutdown AS date\)\s+FROM \(VALUES"
+    r"(?P<rows>.*?)\) AS v\(model_name, shutdown\)",
+    re.S,
+)
+
+
+@migrated
+def test_every_migrated_retirement_date_is_the_seeds(file_name: str) -> None:
+    """A date the vendor states reaches a fresh install and an upgraded one alike."""
+    module = _load_migration(file_name)
+    stated: dict[str, str | None] = {}
+    for block in _SEED_DEPRECATION_BLOCK.finditer(_SEED.read_text(encoding="utf-8")):
+        for name, date in re.findall(r"\('([^']+)',\s*(NULL|'[^']+')\)", block.group("rows")):
+            stated[name] = None if date == "NULL" else date.strip("'")
+    for model_name, deprecation_date in getattr(module, "DEPRECATIONS", {}).items():
+        assert stated.get(model_name) == deprecation_date, model_name
+
+
+def test_the_fish_retirement_dates_are_the_vendors_announcements() -> None:
+    """Only what the vendor announced as a retirement is dated (ADR-345): the free
+    model's end of no-cost window is a price, and the admin reads this column as
+    « the provider published a retirement date »."""
+    module = _load_migration("2026_10_14_1100-a9326a120b55_fishaudio_speech_catalogue.py")
+    announced = {
+        model: day.isoformat()
+        for (provider, model), day in VENDOR_SHUTDOWNS.items()
+        if provider == "fishaudio" and day is not None
+    }
+    assert module.DEPRECATIONS == announced

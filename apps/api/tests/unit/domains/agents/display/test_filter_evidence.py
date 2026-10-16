@@ -202,13 +202,14 @@ def test_real_mail_normalizers_and_builder_preserve_read_and_starred_states(prov
         elif provider == "apple":
             message = normalize_imap_message(
                 SimpleNamespace(
-                    uid=str(read),
+                    uid="2" if read else "1",
                     text="Same body",
                     html="",
                     subject="Same subject",
                     from_="robot@example.test",
                     to=[],
                     cc=[],
+                    bcc=[],
                     date_str="",
                     date=None,
                     headers={},

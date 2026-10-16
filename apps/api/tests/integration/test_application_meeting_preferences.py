@@ -24,6 +24,7 @@ from src.domains.meetings.repository import MeetingPreferenceRepository
 from src.domains.meetings.schemas import MeetingPreferencesUpdate
 from src.domains.users.models import User
 from src.infrastructure.meeting_preferences import configure_meeting_preferences
+from tests.helpers.draft_refusals import draft_refusal_code
 from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
 
 pytestmark = pytest.mark.integration
@@ -120,9 +121,9 @@ async def test_confirmed_defaults_preserve_unrequested_fields_and_refuse_changed
     assert saved.auto_email is (intervention == "none")
     assert saved.keep_audio_hours == (24 if intervention == "clamped" else 0)
     if intervention in {"manual_change", "ceiling_change"}:
-        assert outcome.error == "STALE_STATE"
+        assert draft_refusal_code(outcome) == "STALE_STATE"
     if intervention in {"platform_off", "meetings_off"}:
-        assert outcome.error == "CAPABILITY_DISABLED"
+        assert draft_refusal_code(outcome) == "CAPABILITY_DISABLED"
         ledger.claim.assert_not_awaited()
     hints = [queue.get_nowait() for _ in range(queue.qsize())]
     hints = [event for event in hints if event.type == "application_state_changed"]

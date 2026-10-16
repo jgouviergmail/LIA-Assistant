@@ -1548,6 +1548,7 @@ LLM_PROVIDERS: dict[str, str] = {
     "elevenlabs": "ElevenLabs",
     "edge": "Edge TTS (Microsoft)",
     "typesafe": "TypeSafe (Jev)",
+    "fishaudio": "Fish Audio",
 }
 
 # How each CHAT provider gets its token usage accounted on streamed calls

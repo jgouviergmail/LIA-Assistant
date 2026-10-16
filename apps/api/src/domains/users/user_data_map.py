@@ -263,6 +263,12 @@ TABLE_RULES: dict[str, TableRule] = {
     # the only thing that lets the reader see WHY LIA concluded something, and
     # the export resolves nothing the account does not already own.
     "provenance_references": _PURGED_FULL,
+    "psyche_efficacy_episodes": TableRule(
+        data_class=TableDataClass.USER_PURGED,
+        export=ExportPolicy.FULL,
+        reason="Private bounded evidence and active explicit feedback; retained across conversation resets, "
+        "purged on account deletion or full Psyche reset.",
+    ),
     "psyche_states": _PURGED_FULL,
     "psyche_history": _PURGED_FULL,
     "user_interests": _PURGED_FULL,
@@ -621,6 +627,18 @@ TABLE_RULES: dict[str, TableRule] = {
         data_class=TableDataClass.GLOBAL,
         export=ExportPolicy.EXCLUDED,
         reason="Admin-managed LLM configuration overrides.",
+    ),
+    "fishaudio_pinned_voices": TableRule(
+        data_class=TableDataClass.GLOBAL,
+        export=ExportPolicy.EXCLUDED,
+        reason="Public Fish Audio voices the instance offers every voice slot (ADR-345) — "
+        "admin-managed configuration; the attestation behind a pin is the audit log's record.",
+    ),
+    "fishaudio_catalogue_revisions": TableRule(
+        data_class=TableDataClass.GLOBAL,
+        export=ExportPolicy.EXCLUDED,
+        reason="Instance voice-library coordination: catalogue generation and pending "
+        "removal tokens, independent of personal voice preferences (ADR-345).",
     ),
     "connector_global_config": TableRule(
         data_class=TableDataClass.GLOBAL,

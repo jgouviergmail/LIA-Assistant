@@ -32,7 +32,23 @@ def _make_full_query_intelligence() -> QueryIntelligence:
     but reconstructed from its own state key (``STATE_KEY_RESOLVED_CONTEXT``),
     as documented in ``get_query_intelligence_from_state``.
     """
+    from datetime import UTC, datetime
+    from uuid import UUID
+
+    from src.domains.agents.analysis.efficacy_context import EfficacyAnalysis, EfficacyTurnContext
+    from src.domains.psyche.efficacy_contracts import EfficacyEpoch
+
+    analysis = EfficacyAnalysis(domains=("information",), verification_needed=True)
+    context = EfficacyTurnContext(
+        owner_id=UUID(int=1),
+        run_id="turn-proof",
+        epoch=EfficacyEpoch(state_id=UUID(int=2), generation=UUID(int=3)),
+        analysis=analysis,
+        issued_at=datetime(2026, 10, 16, tzinfo=UTC),
+    )
     return QueryIntelligence(
+        efficacy_analysis=analysis,
+        efficacy_context=context,
         original_query="trouve mes emails médicaux urgents",
         english_query="find my urgent medical emails",
         english_enriched_query="find urgent medical emails for jean dupond",

@@ -35,34 +35,6 @@ MUTATION_TOOL_PATTERNS = [
     "modify",
 ]
 
-# ============================================================================
-# FIX 2026-01-11: Tools with cross-domain capabilities
-# ============================================================================
-# These tools handle multiple domains intrinsically (e.g., send_email resolves
-# contacts automatically via the HITL flow). A single-step plan with one of
-# these tools is valid even when 2+ domains are expected.
-#
-# Example: "send an email to john" → domains=['emails', 'contacts']
-# Plan: [send_email_draft] → Valid! The tool resolves contact via draft+HITL.
-# Without this fix: semantic_validator forces re-planning → +9k tokens wasted.
-# ============================================================================
-CROSS_DOMAIN_CAPABLE_TOOLS = frozenset(
-    [
-        # Email tools that can resolve contacts via semantic_type="email_address"
-        "send_email_tool",
-        "send_email_draft",
-        "reply_email_tool",
-        "reply_email_draft",
-        "forward_email_tool",
-        "forward_email_draft",
-        # Event tools that can resolve attendees from contacts
-        "create_event_tool",
-        "create_event_draft",
-        "update_event_tool",
-        "update_event_draft",
-    ]
-)
-
 
 def approval_is_refused(plan_approved: Any) -> bool:
     """Whether the plan approval state REFUSES execution (ADR-263).
@@ -524,7 +496,6 @@ def restore_fabricated_parameters(
 
 
 __all__ = [
-    "CROSS_DOMAIN_CAPABLE_TOOLS",
     "MUTATION_TOOL_PATTERNS",
     "detect_placeholder_contacts",
     "iterable_collections_of",

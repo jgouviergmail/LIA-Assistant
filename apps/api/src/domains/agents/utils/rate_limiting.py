@@ -8,7 +8,7 @@ Architecture (LangGraph v1.0 Best Practices):
     - Per-user rate limits (isolated by user_id)
     - Per-tool rate limits (different limits for different operations)
     - Sliding window algorithm (more accurate than fixed window)
-    - Graceful degradation (returns error instead of exception)
+    - Graceful degradation (a declared failure instead of an exception, ADR-303)
     - Metrics integration (track rate limit hits)
     - Configuration via Settings (environment variables)
 
@@ -37,12 +37,13 @@ import structlog
 from langchain.tools import ToolRuntime
 
 from src.core.config import settings as _app_settings
-from src.core.field_names import FIELD_TOOL_NAME
 from src.domains.agents.constants import (
     RATE_LIMIT_DEFAULT_READ_WINDOW_SECONDS,
     RATE_LIMIT_SCOPE_USER,
 )
 from src.domains.agents.context.runtime_context import tool_user_id_str
+from src.domains.agents.tools.common import ToolErrorCode
+from src.domains.agents.tools.output import UnifiedToolOutput
 from src.infrastructure.observability.metrics_agents import agent_tool_rate_limit_hits
 
 logger = structlog.get_logger(__name__)
@@ -61,13 +62,13 @@ def rate_limit(
         int | Callable[[], int]
     ) = RATE_LIMIT_DEFAULT_READ_WINDOW_SECONDS,  # From constants: 60 seconds, or lambda
     scope: str = RATE_LIMIT_SCOPE_USER,  # From constants: "user"
-    error_message: str | None = None,
 ) -> Callable:
     """
     Decorator for rate limiting tool invocations.
 
     Implements sliding window rate limiting with per-user isolation.
-    When limit is exceeded, returns a JSON error message instead of executing the tool.
+    When the limit is reached, the tool does not run and the call returns a
+    declared failure instead.
 
     Args:
         max_calls: Maximum number of calls allowed within the time window.
@@ -80,7 +81,6 @@ def rate_limit(
                        Example: lambda: get_settings().rate_limit_contacts_search_window
         scope: Rate limit scope - "user" (per-user limits) or "global" (shared across all users).
                Default: RATE_LIMIT_SCOPE_USER ("user", recommended for multi-tenant security).
-        error_message: Custom error message when rate limit exceeded. If None, uses default.
 
     Returns:
         Decorator function.
@@ -117,14 +117,14 @@ def rate_limit(
         - Expensive operations: 1-5 calls/5min (export, bulk operations)
         - Use scope="user" for security (prevents one user from blocking others)
 
-    Error Response:
-        When rate limit is exceeded, returns JSON:
-        {
-            "error": "rate_limit_exceeded",
-            "message": "Too many requests. Please wait before trying again.",
-            "retry_after_seconds": 45,
-            "limit": "10 calls per 60 seconds"
-        }
+    Refusal:
+        When the limit is reached, the call returns ``UnifiedToolOutput.failure``
+        with ``error_code=RATE_LIMIT_EXCEEDED`` and the delay in
+        ``metadata["retry_after_seconds"]``. A refusal is a failure every reader
+        sees (ADR-303): the metrics decorator, the consultation register, the
+        ReAct status and its iteration budget, and the pipeline step all read
+        ``explicit_success``, to which the JSON string this used to return read
+        as a success. Its message is technical English (ADR-256).
 
     Metrics:
         Tracks rate limit hits via Prometheus metric:
@@ -225,23 +225,12 @@ def rate_limit(
                     scope=scope,
                 )
 
-                # Return error message (graceful degradation)
-                default_message = (
-                    f"Rate limit exceeded for {tool_name}. "
-                    f"Retry in {retry_after_seconds} seconds."
-                )
-
-                import json
-
-                return json.dumps(
-                    {
-                        "error": "rate_limit_exceeded",
-                        "message": error_message or default_message,
-                        "retry_after_seconds": retry_after_seconds,
-                        "limit": f"{resolved_max_calls} calls per {resolved_window_seconds} seconds",
-                        FIELD_TOOL_NAME: tool_name,
-                    },
-                    ensure_ascii=False,
+                return _refusal(
+                    tool_name=tool_name,
+                    max_calls=resolved_max_calls,
+                    window_seconds=resolved_window_seconds,
+                    retry_after_seconds=retry_after_seconds,
+                    scope=scope,
                 )
 
             # Rate limit not exceeded - record this call and execute
@@ -253,6 +242,47 @@ def rate_limit(
         return wrapper
 
     return decorator
+
+
+def _refusal(
+    *,
+    tool_name: str,
+    max_calls: int,
+    window_seconds: int,
+    retry_after_seconds: int,
+    scope: str,
+) -> UnifiedToolOutput:
+    """The failure a refused call returns: the facts the model can act on.
+
+    No argument changes a refusal before the delay — the limit counts calls per
+    tool, not per target — so the message says so rather than leave the model
+    to retry with other arguments.
+
+    Args:
+        tool_name: The refused tool.
+        max_calls: Calls the window allows.
+        window_seconds: The sliding window, in seconds.
+        retry_after_seconds: Seconds until the oldest counted call leaves it.
+        scope: ``user`` (this account's own budget) or ``global`` (shared).
+
+    Returns:
+        A ``RATE_LIMIT_EXCEEDED`` failure carrying the delay in its metadata.
+    """
+    holder = "this account" if scope == RATE_LIMIT_SCOPE_USER else "this instance"
+    return UnifiedToolOutput.failure(
+        message=(
+            f"Rate limit reached for {tool_name} (at most {max_calls} per "
+            f"{window_seconds} s for {holder}). Every call to it is refused for the "
+            f"next {retry_after_seconds} s, whatever its arguments."
+        ),
+        error_code=ToolErrorCode.RATE_LIMIT_EXCEEDED,
+        metadata={
+            "retry_after_seconds": retry_after_seconds,
+            "max_calls": max_calls,
+            "window_seconds": window_seconds,
+            "scope": scope,
+        },
+    )
 
 
 def get_rate_limit_status(tool_name: str, user_id: str) -> dict[str, Any]:

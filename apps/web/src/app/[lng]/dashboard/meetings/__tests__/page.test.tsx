@@ -113,12 +113,14 @@ describe('MeetingsPage', () => {
       summary({ id: 'm2', title: null, status: 'processing', stage: 'transcribing' }),
     ];
     list.total = 2;
-    const { user } = renderWithProviders(<MeetingsPage params={params} />);
+    renderWithProviders(<MeetingsPage params={params} />);
     expect(screen.getByText('meetings.list.total')).toBeInTheDocument();
-    await user.click(screen.getAllByRole('button', { name: 'meetings.list.open' })[0]);
-    expect(push).toHaveBeenCalledWith('/dashboard/meetings/m1');
+    expect(screen.getByRole('link', { name: 'Point projet' })).toHaveAttribute(
+      'href',
+      '/en/dashboard/meetings/m1'
+    );
     expect(screen.getByText('meetings.list.untitled')).toBeInTheDocument();
-    expect(screen.getByText('meetings.stage.transcribing')).toBeInTheDocument();
+    expect(screen.getAllByText('meetings.stage.transcribing')).toHaveLength(2);
     expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
   });
 
@@ -126,13 +128,13 @@ describe('MeetingsPage', () => {
     list.meetings = [summary()];
     list.total = 45;
     renderWithProviders(<MeetingsPage params={params} />);
-    const nav = screen.getByRole('navigation', { name: 'common.pagination' });
+    const nav = screen.getByRole('navigation', { name: 'common.pagination.label' });
     expect(nav).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'common.previous' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /^common.previous/ })).toHaveAttribute(
       'aria-disabled',
       'true'
     );
-    expect(screen.getByRole('button', { name: 'common.next' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /^common.next/ })).toHaveAttribute(
       'aria-disabled',
       'false'
     );
@@ -162,7 +164,9 @@ describe('MeetingsPage — selection and bulk delete (ADR-259)', () => {
     expect(boxes[1]).toHaveAttribute('aria-disabled', 'true');
     await user.click(boxes[1]);
     expect(boxes[1]).not.toBeChecked();
-    expect(screen.queryByRole('button', { name: 'meetings.list.delete_selected' })).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'meetings.list.delete_selected' })
+    ).not.toBeInTheDocument();
   });
 
   it('shows the selection bar, confirms and deletes the selected ids, then clears', async () => {
@@ -220,13 +224,13 @@ describe('MeetingsPage — selection and bulk delete (ADR-259)', () => {
     list.total = 21;
     list.bulkDelete.mockResolvedValue({ deleted: ['m1'], skipped: [] });
     const { user } = renderWithProviders(<MeetingsPage params={params} />);
-    await user.click(screen.getByRole('button', { name: 'common.next' }));
+    await user.click(screen.getByRole('button', { name: /^common.next/ }));
     await user.click(screen.getByRole('checkbox', { name: 'meetings.list.select_row' }));
     await user.click(screen.getByRole('button', { name: 'meetings.list.delete_selected' }));
     await waitFor(() => expect(list.bulkDelete).toHaveBeenCalledWith(['m1']));
     // Back on the first page: « previous » is disabled again.
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'common.previous' })).toHaveAttribute(
+      expect(screen.getByRole('button', { name: /^common.previous/ })).toHaveAttribute(
         'aria-disabled',
         'true'
       )
@@ -311,5 +315,66 @@ describe('the way back', () => {
 
     expect(push).toHaveBeenCalledWith('/dashboard/chat');
     searchParams.value = new URLSearchParams();
+  });
+});
+
+describe('MeetingsPage — chronology content and independent controls', () => {
+  it('keeps the full title link, real end time and zero audio duration available', async () => {
+    const title = 'A very long meeting title which remains readable and opens its real report';
+    list.meetings = [summary({ title, audio_duration_seconds: 0, stt_provider: 'fishaudio' })];
+    list.total = 1;
+    const { user } = renderWithProviders(<MeetingsPage params={params} />);
+    const link = screen.getByRole('link', { name: title });
+    expect(link).toHaveAttribute('href', '/en/dashboard/meetings/m1');
+    expect(document.querySelector('time[datetime="2026-09-02T11:00:00Z"]')).toBeInTheDocument();
+    expect(screen.getByText('0:00')).toBeInTheDocument();
+    expect(screen.getByText('meetings.banner.engine.fishaudio')).toBeInTheDocument();
+    const details = document.querySelector('details');
+    expect(details).not.toHaveAttribute('open');
+    await user.click(screen.getByText('common.details'));
+    expect(details).toHaveAttribute('open');
+    expect(push).not.toHaveBeenCalled();
+    expect(link).toBeInTheDocument();
+  });
+
+  it('offers select-all before an individual selection and keeps its focused control mounted', async () => {
+    list.meetings = [
+      summary(),
+      summary({ id: 'stopped', status: 'stopped' }),
+      summary({ id: 'recording', status: 'recording' }),
+    ];
+    list.total = 3;
+    const { user } = renderWithProviders(<MeetingsPage params={params} />);
+    const all = screen.getByRole('checkbox', { name: 'meetings.list.select_all_page' });
+    all.focus();
+    await user.keyboard(' ');
+    expect(all).toHaveFocus();
+    expect(all).toBeChecked();
+    const boxes = screen.getAllByRole('checkbox', { name: 'meetings.list.select_row' });
+    expect(boxes[0]).toBeChecked();
+    expect(boxes[1]).toBeChecked();
+    expect(boxes[2]).not.toBeChecked();
+  });
+});
+
+describe('MeetingsPage — eligibility changes during an invalidation', () => {
+  it('removes an obsolete selection when a row enters processing and never silently reselects it', async () => {
+    list.meetings = [summary()];
+    list.total = 1;
+    const view = renderWithProviders(<MeetingsPage params={params} />);
+    await view.user.click(screen.getByRole('checkbox', { name: 'meetings.list.select_row' }));
+    list.meetings = [summary({ status: 'processing', stage: 'transcribing' })];
+    view.rerender(<MeetingsPage params={params} />);
+    expect(screen.getByRole('checkbox', { name: 'meetings.list.select_row' })).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'meetings.list.select_all_page' })).toHaveAttribute(
+      'aria-disabled',
+      'true'
+    );
+    expect(
+      screen.queryByRole('button', { name: 'meetings.list.delete_selected' })
+    ).not.toBeInTheDocument();
+    list.meetings = [summary()];
+    view.rerender(<MeetingsPage params={params} />);
+    expect(screen.getByRole('checkbox', { name: 'meetings.list.select_row' })).not.toBeChecked();
   });
 });

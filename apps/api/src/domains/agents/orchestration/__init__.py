@@ -3,17 +3,6 @@ Agent orchestration logic.
 Handles multi-agent coordination, execution planning, and result aggregation.
 """
 
-from src.domains.agents.orchestration.adaptive_replanner import (
-    AdaptiveRePlanner,
-    ExecutionAnalysis,
-    RecoveryStrategy,
-    RePlanContext,
-    RePlanDecision,
-    RePlanResult,
-    RePlanTrigger,
-    analyze_execution_results,
-    should_trigger_replan,
-)
 from src.domains.agents.orchestration.mappers import map_execution_result_to_agent_result
 from src.domains.agents.orchestration.orchestrator import (
     create_orchestration_plan,
@@ -29,16 +18,6 @@ from src.domains.agents.orchestration.schemas import (
 )
 
 __all__ = [
-    # Adaptive Re-Planner (INTELLIPLANNER Phase E)
-    "AdaptiveRePlanner",
-    "ExecutionAnalysis",
-    "RecoveryStrategy",
-    "RePlanContext",
-    "RePlanDecision",
-    "RePlanResult",
-    "RePlanTrigger",
-    "analyze_execution_results",
-    "should_trigger_replan",
     # Orchestration schemas
     "AgentResult",
     "AgentResultData",

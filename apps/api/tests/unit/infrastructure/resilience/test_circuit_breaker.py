@@ -9,6 +9,8 @@ import asyncio
 from unittest.mock import patch
 
 import pytest
+import structlog
+from structlog.testing import capture_logs
 
 from src.infrastructure.resilience.circuit_breaker import (
     CircuitBreaker,
@@ -17,6 +19,36 @@ from src.infrastructure.resilience.circuit_breaker import (
     CircuitState,
     get_circuit_breaker,
 )
+
+
+@pytest.mark.asyncio
+async def test_open_and_reopen_logs_do_not_copy_provider_exception_prose(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.infrastructure.resilience import circuit_breaker as module
+
+    monkeypatch.setattr(module, "logger", structlog.get_logger())
+    breaker = CircuitBreaker(service="privacy-proof", failure_threshold=1, timeout_seconds=1)
+    private = "provider-body person@example.test Authorization=secret-fixture"
+    error = ValueError(private)
+    with capture_logs() as records:
+        await breaker.record_failure(error)
+        assert breaker.is_open
+        assert breaker._last_failure_time is not None
+        breaker._last_failure_time -= breaker.timeout_seconds + 1
+        assert await breaker._should_allow_request()
+        assert breaker.is_half_open
+        await breaker.record_failure(error)
+        assert breaker.is_open
+
+    transitions = [
+        record
+        for record in records
+        if record["event"] in {"circuit_breaker_opened", "circuit_breaker_reopen"}
+    ]
+    assert len(transitions) == 2
+    assert all(private not in str(record) for record in transitions)
+    assert all(record["error_type"] == "ValueError" for record in transitions)
 
 
 class TestCircuitBreakerStates:

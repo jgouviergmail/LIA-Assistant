@@ -23,6 +23,20 @@ const { get, patch } = vi.hoisted(() => ({ get: vi.fn(), patch: vi.fn() }));
 vi.mock('@/lib/api-client', () => ({ default: { get, patch } }));
 const { toast } = vi.hoisted(() => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('sonner', () => ({ toast }));
+// The global stub echoes the key; this one also shows the engine a sentence
+// names (ADR-345), so the privacy notice can be checked for who it names.
+const { i18n } = vi.hoisted(() => ({
+  i18n: {
+    t: (key: string, options?: { provider?: string }) =>
+      options?.provider ? `${key}|${options.provider}` : key,
+    i18n: { language: 'en', changeLanguage: () => undefined },
+  },
+}));
+vi.mock('@/i18n/client', () => ({ useTranslation: () => i18n }));
+// LIA's voices have tests of their own (LiaVoicesFields.test.tsx).
+vi.mock('@/components/settings/voice-mode/LiaVoicesFields', () => ({
+  LiaVoicesFields: () => <div data-testid="lia-voices" />,
+}));
 
 import { VoiceModeSettings } from '../VoiceModeSettings';
 
@@ -51,6 +65,13 @@ describe('VoiceModeSettings — enable switch', () => {
     expect(storeEnable).toHaveBeenCalled();
     expect(ctx.refreshUser).toHaveBeenCalled();
     expect(toast.success).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('VoiceModeSettings — LIA’s voices', () => {
+  it('holds the block where LIA’s voices are chosen', () => {
+    renderWithProviders(<VoiceModeSettings lng="en" />);
+    expect(screen.getByTestId('lia-voices')).toBeInTheDocument();
   });
 });
 
@@ -106,6 +127,40 @@ describe('VoiceModeSettings — STT picker', () => {
     expect(screen.queryByText('settings.voice_mode.enable_description')).toBeNull();
     expect(screen.queryByText('settings.voice_mode.stop_note')).toBeNull();
     expect(screen.queryByText('settings.voice_mode.wake_beta')).toBeNull();
+  });
+});
+
+describe('VoiceModeSettings — who receives the audio', () => {
+  it('names the engine the administrator configured, in the option and the privacy notice', async () => {
+    get.mockResolvedValue({ stt_remote_available: true, stt_remote_provider: 'fishaudio' });
+    useAuth.mockReturnValue(authed({ voice_stt_mode: 'remote' }));
+    renderWithProviders(<VoiceModeSettings lng="en" />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByText('settings.voice_mode.stt_remote_privacy_notice|Fish Audio')
+      ).toBeInTheDocument()
+    );
+    expect(
+      screen.getByRole('button', { name: /stt_mode_remote_named\|Fish Audio/ })
+    ).toBeInTheDocument();
+  });
+
+  it('never names an engine it could not read', async () => {
+    get.mockRejectedValue(new Error('offline'));
+    useAuth.mockReturnValue(authed({ voice_stt_mode: 'remote' }));
+    renderWithProviders(<VoiceModeSettings lng="en" />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(
+          'settings.voice_mode.stt_remote_privacy_notice|settings.voice_mode.stt_remote_provider_unknown'
+        )
+      ).toBeInTheDocument()
+    );
+    // The option keeps its neutral label: no placeholder name inside it.
+    expect(screen.getByText('settings.voice_mode.stt_mode_remote')).toBeInTheDocument();
+    expect(screen.queryByText(/stt_mode_remote_named/)).toBeNull();
   });
 });
 

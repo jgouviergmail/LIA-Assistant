@@ -4,9 +4,25 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
+import { act, renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 
-const { usePsyche } = vi.hoisted(() => ({ usePsyche: vi.fn() }));
+const { usePsyche, useAuth } = vi.hoisted(() => ({ usePsyche: vi.fn(), useAuth: vi.fn() }));
+vi.mock('@/hooks/useAuth', () => ({ useAuth }));
+vi.mock('@/components/psyche/PsycheLLMSummary', () => ({
+  PsycheLLMSummary: () => <section aria-label="point">point</section>,
+}));
+vi.mock('@/components/psyche/PsycheStateSummary', () => ({
+  PsycheStateSummary: ({ summary }: { summary?: React.ReactNode }) => (
+    <>
+      {summary}
+      <p>observed mood</p>
+    </>
+  ),
+}));
+vi.mock('@/components/psyche/PsycheHistory', () => ({
+  PsycheHistory: () => <p>observed history</p>,
+}));
+vi.mock('@/components/psyche/PsycheEducation', () => ({ PsycheEducation: () => <p>education</p> }));
 vi.mock('@/hooks/usePsyche', () => ({ usePsyche }));
 const { toast } = vi.hoisted(() => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('sonner', () => ({ toast }));
@@ -30,6 +46,13 @@ function hook(over: Partial<PsycheHook> = {}) {
       psyche_sensitivity: 50,
       psyche_stability: 50,
     },
+    state: null,
+    error: null,
+    stateError: null,
+    settingsError: null,
+    isLoading: false,
+    refetchState: vi.fn().mockResolvedValue(undefined),
+    refetchSettings: vi.fn().mockResolvedValue(undefined),
     isUpdatingSettings: false,
     isResetting: false,
     updateSettings: vi.fn().mockResolvedValue(undefined),
@@ -38,7 +61,10 @@ function hook(over: Partial<PsycheHook> = {}) {
   };
 }
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  useAuth.mockReturnValue({ user: { id: 'one' } });
+});
 
 describe('PsycheSettings', () => {
   it('reports an unattested update as failed instead of announcing success', async () => {
@@ -73,5 +99,92 @@ describe('PsycheSettings', () => {
     const { user } = renderPsyche();
     await user.click(screen.getAllByRole('switch')[0]);
     await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(1));
+  });
+});
+
+describe('psyche presentation and confirmations', () => {
+  it('keeps the point visible and separates the three commands in the requested order', () => {
+    const data = hook();
+    data.settings.psyche_enabled = true;
+    usePsyche.mockReturnValue(data);
+    renderPsyche();
+    expect(screen.getByRole('region', { name: 'point' })).toBeInTheDocument();
+    const names = screen.getAllByRole('button').map(button => button.textContent);
+    expect(names.indexOf('psyche.education.title')).toBeLessThan(
+      names.indexOf('psyche.settingsSection.title')
+    );
+    expect(names.indexOf('psyche.settingsSection.title')).toBeLessThan(
+      names.indexOf('psyche.presentation.resets')
+    );
+  });
+  it('refreshes page observations while keeping the point mounted', async () => {
+    const data = hook();
+    data.settings.psyche_enabled = true;
+    usePsyche.mockReturnValue(data);
+    const { user } = renderPsyche();
+    await user.click(screen.getByRole('button', { name: 'common.refresh' }));
+    expect(data.refetchState).toHaveBeenCalledTimes(1);
+    expect(data.refetchSettings).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('region', { name: 'point' })).toBeInTheDocument();
+  });
+  it('requires confirmation for reset, ignores cancellation and serializes confirmed reset', async () => {
+    let finish: (value: { status: string; level: string }) => void = () => {};
+    const resetPsyche = vi.fn<PsycheHook['resetPsyche']>().mockImplementation(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
+    const data = hook({ resetPsyche });
+    data.settings.psyche_enabled = true;
+    usePsyche.mockReturnValue(data);
+    const { user } = renderPsyche();
+    await user.click(screen.getByRole('button', { name: 'psyche.presentation.resets' }));
+    await user.click(screen.getByRole('button', { name: 'psyche.softReset' }));
+    await user.click(screen.getByRole('button', { name: 'common.cancel' }));
+    expect(data.resetPsyche).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'psyche.softReset' }));
+    await user.click(screen.getByRole('button', { name: 'psyche.softReset' }));
+    expect(data.resetPsyche).toHaveBeenCalledTimes(1);
+    await act(async () => finish({ status: 'reset', level: 'soft' }));
+  });
+  it('does not publish an obsolete account mutation error', async () => {
+    let reject: (error: Error) => void = () => {};
+    const data = hook({
+      updateSettings: vi.fn().mockImplementation(
+        () =>
+          new Promise((_, fail) => {
+            reject = fail;
+          })
+      ),
+    });
+    usePsyche.mockReturnValue(data);
+    const { user, rerender } = renderPsyche();
+    await user.click(screen.getAllByRole('switch')[0]);
+    useAuth.mockReturnValue({ user: { id: 'two' } });
+    rerender(<PsycheSettings lng="en" />);
+    await act(async () => reject(new Error('old failure')));
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+});
+
+describe('psyche observation retry', () => {
+  it('reports a failed observation refresh without losing the point or leaving controls locked', async () => {
+    const data = hook({
+      refetchState: vi
+        .fn()
+        .mockRejectedValueOnce(new Error('offline'))
+        .mockResolvedValue(undefined),
+    });
+    data.settings.psyche_enabled = true;
+    usePsyche.mockReturnValue(data);
+    const { user } = renderPsyche();
+    const button = screen.getByRole('button', { name: 'common.refresh' });
+    await user.click(button);
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('psyche.presentation.readError'));
+    expect(screen.getByRole('region', { name: 'point' })).toBeInTheDocument();
+    expect(button).toHaveFocus();
+    await user.click(button);
+    expect(data.refetchState).toHaveBeenCalledTimes(2);
   });
 });

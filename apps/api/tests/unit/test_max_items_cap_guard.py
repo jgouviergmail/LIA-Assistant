@@ -77,6 +77,12 @@ ALLOWED: set[tuple[str, str]] = {
     # ceiling a thousand contacts would take forty requests.
     ("google_people_client.py", "_read_directory"),
     ("microsoft_contacts_client.py", "_read_directory"),
+    # The folder tree an Outlook search walks to resolve a folder the person
+    # named (clients/mail_folders, ADR-287 amendment 2026-10-14): metadata for
+    # name→ID resolution, never handed to an agent, bounded by its OWN setting
+    # (OUTLOOK_MAIL_FOLDERS_WALK_MAX) and stated when it cuts. At the agent
+    # ceiling (25) a folder past the 25th would read as « does not exist ».
+    ("microsoft_outlook_client.py", "_mail_folders"),
 }
 
 

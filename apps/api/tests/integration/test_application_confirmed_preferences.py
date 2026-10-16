@@ -21,6 +21,7 @@ from src.domains.system_settings.models import SystemSetting, SystemSettingKey
 from src.domains.users.models import User
 from src.domains.users.schemas import UserUpdate
 from src.domains.users.service import UserService
+from tests.helpers.draft_refusals import draft_refusal_code
 from tests.helpers.runtime_context import installed_runtime_context
 
 pytestmark = pytest.mark.integration
@@ -107,7 +108,7 @@ async def test_native_confirmation_saves_only_the_exact_currently_approved_chang
         assert result.result_data["values"] == {"font_size": initial + 1}
     else:
         assert (
-            result.error
+            draft_refusal_code(result)
             == {
                 "manual": "STALE_STATE",
                 "capability": "CAPABILITY_DISABLED",
@@ -177,7 +178,7 @@ async def test_post_commit_failure_reports_saved_state_separately_from_propagati
     assert test_user.timezone == target
     assert not result.success
     assert result.result_data["committed"] is True
-    assert result.error == "POST_COMMIT_FAILURE"
+    assert draft_refusal_code(result) == "POST_COMMIT_FAILURE"
     changes = [state_queue.get_nowait() for _ in range(state_queue.qsize())]
     change = next(event for event in changes if event.type == "application_state_changed")
     assert change.metadata["change"]["changed_fields"] == ["timezone"]

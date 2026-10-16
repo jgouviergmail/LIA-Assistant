@@ -1,4 +1,4 @@
-"""A synthesis is priced on the units its vendor bills — characters, or tokens."""
+"""A synthesis is priced on the units its vendor bills — characters, UTF-8 bytes, or tokens."""
 
 from __future__ import annotations
 
@@ -56,6 +56,26 @@ def test_a_token_billed_engine_is_priced_on_its_usage_report(
     assert record.characters == 510  # still shown, never billed
 
 
+def test_a_byte_billed_engine_is_priced_on_its_bytes_and_shown_its_characters(
+    priced: list[dict[str, object]],
+) -> None:
+    """A CJK character is three UTF-8 bytes: priced per character, a Chinese
+    line on a byte-billed engine was under-billed three times (ADR-345)."""
+    record = tts_usage_record("bytevendor", "byte-model", 2, billed_units=6)
+    assert priced[0]["prompt_tokens"] == 6
+    assert priced[0]["completion_tokens"] == 0
+    assert record.characters == 2
+
+
+def test_the_reported_tokens_win_over_text_units(
+    priced: list[dict[str, object]],
+) -> None:
+    tts_usage_record(
+        "gemini", "gemini-tts", 510, input_tokens=125, output_tokens=949, billed_units=7
+    )
+    assert (priced[0]["prompt_tokens"], priced[0]["completion_tokens"]) == (125, 949)
+
+
 def test_half_a_usage_report_falls_back_to_characters(
     priced: list[dict[str, object]],
 ) -> None:
@@ -72,13 +92,10 @@ class _PlainClient:
     async def synthesize(self, text: str, voice_name: str | None = None, **_: object) -> bytes:
         return b"mp3:" + text.encode()
 
-    async def synthesize_base64(self, text: str, voice_name: str | None = None, **_: object) -> str:
-        return ""
-
     async def close(self) -> None:
         return None
 
 
 async def test_a_plain_client_is_billed_on_what_was_sent() -> None:
     result = await synthesize_billed(_PlainClient(), "Bonjour.", "nova")
-    assert result == SynthesisResult(audio=b"mp3:Bonjour.", characters=8)
+    assert result == SynthesisResult(audio=b"mp3:Bonjour.", characters=8, billed_units=8)

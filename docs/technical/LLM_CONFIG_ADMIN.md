@@ -15,14 +15,14 @@ distincte et une lecture PostgreSQL par opération pour la bascule entre workers
 ## Vue d'Ensemble
 
 Le système d'administration LLM permet de gérer dynamiquement :
-1. **Clés API des providers** (OpenAI, Anthropic, Gemini, DeepSeek, Perplexity, Ollama)
-2. **Configuration de chaque type LLM** (35 types : provider, model, temperature, etc.)
+1. **Clés API des fournisseurs** déclarés dans `LLM_PROVIDERS`.
+2. **Configuration des postes** déclarés dans `LLM_TYPES_REGISTRY` : fournisseur, modèle et paramètres admis pour leur famille.
 
-Les changements sont effectifs **immédiatement** via un cache in-memory, sans redémarrage.
+Après le commit, le service recharge son cache local puis publie une invalidation pour les autres workers. Cette propagation ne remplace pas une lecture SQL lorsque l'écriture dépend du compte courant ; une opération déjà admise peut conserver sa configuration.
 
 ### Principe Architectural : Code = Source de Vérité
 
-Les valeurs de paramétrage LLM sont définies dans des **constantes code** (`LLM_DEFAULTS` dans `domains/llm_config/constants.py`). Ces valeurs éprouvées en production servent de baseline. La base de données stocke uniquement les **overrides** (modifications par l'administrateur).
+Les valeurs par défaut sont définies dans `LLM_DEFAULTS` (`domains/llm_config/constants.py`). La base de données conserve les **overrides**, issus des seeds d'installation ou des modifications administrateur. La configuration effective d'une instance peut donc différer des défauts du code.
 
 ```
 Flux de résolution :
@@ -32,9 +32,9 @@ Bouton "Réinitialiser" :
   Supprime l'override DB → retour aux constantes code
 ```
 
-### Garantie d'Application (v1.16.1)
+### Résolution des postes
 
-**Tous** les chemins runtime de résolution LLM passent par `get_llm_config_for_agent()` ou `get_llm()` (qui l'appelle). Aucun code ne lit `settings.*_llm_*` directement pour créer ou configurer un LLM.
+Pour les postes de modèles conversationnels, `get_llm_config_for_agent()` et `get_llm()` constituent les coutures publiques de résolution. Les décisions natives JEV suivent leur lecteur PostgreSQL dédié, décrit dans leur guide.
 
 **Règle pour les développeurs** : ne **jamais** construire un `LLMAgentConfig` à la main depuis `settings.*`. Utiliser :
 - `get_llm("type")` pour obtenir une instance LLM (résolution automatique)
@@ -120,7 +120,13 @@ description pour les autres (`structuredErrorDetail`,
 | DB (Fernet encrypted) | Admin UI, source principale | 1 (prioritaire) |
 | `.env` (variable d'environnement) | Fallback pour compatibilité | 2 (si DB vide) |
 
-> **Note**: La résolution API key utilise le DB en priorité, avec fallback `.env`. La migration `llm_config_002` a importé les clés `.env` existantes en DB. `_require_api_key()` dans `adapter.py` lève `ValueError` si aucune des deux sources n'a de clé.
+> **Portée** : `_require_api_key()` dans `apps/api/src/infrastructure/llm/providers/adapter.py` lit le cache DB, puis les variables déclarées dans `_ENV_FALLBACK`. Sans clé, il renvoie `API_KEY_NOT_CONFIGURED` pour permettre le démarrage ; cela n'autorise pas un appel fonctionnel au fournisseur. Supprimer la clé stockée ne supprime donc pas une éventuelle clé d'environnement de cet adaptateur. La bibliothèque Fish Audio et ses contrôles de choix lisent la clé DB et la vérifient à nouveau avant une écriture dépendant de ce compte.
+
+### Écriture des clés et autorité courante
+
+Les mises à jour et suppressions verrouillent la ligne fournisseur avant de relire et verrouiller le compte administrateur actif et non supprimé. Le rôle reste protégé jusqu'au commit de l'écriture et de son audit ; une révocation pendant une attente refuse l'action en 403. Cet ordre fournisseur puis utilisateur correspond aux écritures de choix de voix qui retiennent une clé courante.
+
+Le helper partagé avec le bootstrap utilise un UPSERT PostgreSQL atomique. Deux premières écritures concurrentes ne produisent pas une violation d'unicité ; l'appelant conserve la responsabilité du commit. Le résultat rafraîchit aussi une ligne ORM déjà chargée, pour que le rechargement du cache voie bien la nouvelle valeur. Les audits conservent le fournisseur et l'acteur, jamais la clé.
 
 > **Scope**: the Admin UI manages the model and native decision slots declared by `LLM_TYPES_REGISTRY`, including the JEV usages added from `jev_registry.py`. Native decision slots do not accept chat parameters. Infrastructure LLM configuration (Excalidraw, MCP description generation) remains in `.env` through `MCPSettings`; provider API keys remain instance fallbacks. The registry is the authority for the current slot set.
 
@@ -227,7 +233,7 @@ Chaque PUT remplace **toute** la row d'override. Le frontend envoie l'état comp
 ### Pourquoi un cache in-memory ?
 
 `get_llm()` est **synchrone** — impossible de faire un lookup async Redis/DB. Le cache in-memory (`dict` Python) offre :
-- Lecture sync (0μs, dict lookup)
+- Lecture synchrone en mémoire, sans requête SQL sur ce chemin
 - Peuplé async au startup depuis la DB
 - Invalidé directement par le service admin après chaque modification
 
@@ -277,7 +283,7 @@ Cross-worker cache invalidation is handled via Redis Pub/Sub (ADR-063). When `in
 
 - **Clés API jamais retournées en clair** : masquage `****...{4 derniers chars}`
 - **Encryption at rest** : Fernet (via `encrypt_data()` / `decrypt_data()`)
-- **Clés décryptées uniquement** dans le cache in-memory (process memory)
+- **Clés décryptées en mémoire** pour les appels et les contrôles de compte courant ; les écritures dépendantes d'une clé relisent aussi la ligne SQL chiffrée sous verrou, sans publier cette clé ni son empreinte
 - **Audit trail** : toutes les actions admin logguées via `AdminAuditLog` (IP, user-agent, action, details)
 - **Accès superuser only** : `get_current_superuser_session` dependency
 
@@ -301,9 +307,9 @@ Cross-worker cache invalidation is handled via Redis Pub/Sub (ADR-063). When `in
 
 ## Nettoyage Futur
 
-Les settings classes (`core/config/llm.py`, `agents.py`, etc.) contiennent encore ~270 variables LLM qui sont maintenant redondantes avec `LLM_DEFAULTS`. Le nettoyage complet nécessite de migrer les références dans :
+Les settings historiques (`core/config/llm.py`, `agents.py`, etc.) doivent être examinés avec leurs lecteurs avant toute suppression au profit de `LLM_DEFAULTS`. Les chemins à vérifier comprennent :
 - `bootstrap.py` (logging)
-- 14 agent builders (paramètre `llm_model`)
+- Les builders d'agents (paramètre `llm_model`)
 - Services (response_node, semantic_validator, hitl, interests, heartbeat, voice)
 
-Ce nettoyage sera fait dans une itération dédiée pour minimiser les risques de régression.
+Une valeur encore lue au démarrage ou à l'exécution ne peut pas être retirée sur la seule base de sa présence dans les défauts du registre.

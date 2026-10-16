@@ -10,6 +10,7 @@ Created: 2026-04-01
 from __future__ import annotations
 
 import re
+from enum import StrEnum
 
 # =============================================================================
 # Emotion types (22 discrete, OCC-inspired + extended palette)
@@ -121,15 +122,23 @@ RELATIONSHIP_DEPTH_THRESHOLDS: dict[str, float] = {
 # Self-efficacy domains
 # =============================================================================
 
-SELF_EFFICACY_DOMAINS: list[str] = [
-    "planning",
-    "information",
-    "emotional_support",
-    "creativity",
-    "technical",
-    "social",
-    "organization",
-]
+
+class EfficacyDomain(StrEnum):
+    """Canonical cognitive vocabulary, independent of connector domains."""
+
+    PLANNING = "planning"
+    INFORMATION = "information"
+    EMOTIONAL_SUPPORT = "emotional_support"
+    CREATIVITY = "creativity"
+    TECHNICAL = "technical"
+    SOCIAL = "social"
+    ORGANIZATION = "organization"
+
+
+SELF_EFFICACY_DOMAINS: list[str] = [domain.value for domain in EfficacyDomain]
+EFFICACY_WINDOW_DAYS = 90
+EFFICACY_MAX_EPISODES = 500
+EFFICACY_MIN_SAMPLES = 5
 
 # Default self-efficacy initialization
 SELF_EFFICACY_DEFAULT_SCORE: float = 0.5
@@ -162,14 +171,9 @@ PSYCHE_EVAL_ATTR_PATTERN: re.Pattern[str] = re.compile(
     r'(\w+)\s*=\s*"([^"]*)"',
 )
 
-# =============================================================================
-# Streaming filter pattern (strip tag fragments from SSE tokens)
-# =============================================================================
-
-PSYCHE_EVAL_STREAMING_PATTERN: re.Pattern[str] = re.compile(
-    r"<psyche_eval[^>]*/?>?",
-    re.IGNORECASE,
-)
+#: The tag's opening, as the token stream recognises it before the tag is
+#: complete: the stream never shows or speaks it (agents/services/streaming/machine_tags.py).
+PSYCHE_EVAL_TAG_MARKER: str = "<psyche_eval"
 
 # =============================================================================
 # Snapshot types (for PsycheHistory records)

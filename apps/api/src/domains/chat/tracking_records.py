@@ -125,8 +125,9 @@ class TTSUsageRecord(NamedTuple):
 
     Mirrors STT cost attribution but on the assistant bubble: each call adds
     one row to the in-memory list and the aggregate is later persisted on
-    ``conversation_messages.tts_*`` columns by ``archive_message``. Edge TTS
-    (free) does NOT call ``record_tts_call`` — its row stays NULL.
+    ``conversation_messages.tts_*`` columns by ``archive_message``. A free
+    engine (Edge) is never recorded (:func:`src.domains.voice.spoken.speak`) —
+    its row stays NULL.
     """
 
     provider: str
@@ -146,11 +147,13 @@ def tts_usage_record(
     *,
     input_tokens: int | None = None,
     output_tokens: int | None = None,
+    billed_units: int | None = None,
 ) -> TTSUsageRecord:
     """Price one synthesis on the units its vendor bills.
 
-    A character-billed engine is priced per character sent: the catalogue's
-    TTS rows carry characters on the input axis (ADR-081). A token-billed
+    A text-billed engine is priced on what it was sent — characters, or UTF-8
+    bytes for an engine billed per byte (``billed_units``): the catalogue's TTS
+    rows carry that unit on the input axis (ADR-081, ADR-345). A token-billed
     engine is priced on the tokens its usage report states — text in on the
     input axis, audio out on the output axis — never on characters, which
     under-bill such an engine by about a hundred times (measured 2026-09-26:
@@ -163,14 +166,17 @@ def tts_usage_record(
         duration_ms: Synthesis duration (debug panel hint).
         input_tokens: Text tokens the vendor counted, for a token-billed engine.
         output_tokens: Audio tokens the vendor produced, for a token-billed engine.
+        billed_units: The text units a text-billed engine charges, when they
+            are not the characters (``None``: the characters are).
 
     Returns:
         The priced record.
     """
     token_billed = input_tokens is not None and output_tokens is not None
+    text_units = billed_units if billed_units is not None else characters
     cost_usd, cost_eur = get_cached_cost_usd_eur(
         model=model,
-        prompt_tokens=(input_tokens or 0) if token_billed else characters,
+        prompt_tokens=(input_tokens or 0) if token_billed else text_units,
         completion_tokens=(output_tokens or 0) if token_billed else 0,
         cached_tokens=0,
         cache_write_tokens=0,

@@ -176,6 +176,37 @@ class TestStringInputResolution:
         # Names should be stripped before resolution
         assert resolve_calls == ["Alice", "Bob"]
 
+    @pytest.mark.asyncio
+    async def test_a_name_after_an_address_is_still_resolved(self) -> None:
+        """A list is read recipient by recipient, never judged by its first one."""
+        lookups: list[str] = []
+
+        async def mock_resolve(_runtime, name):
+            lookups.append(name)
+            return "jane.smith@example.com"
+
+        with patch(
+            "src.domains.agents.tools.runtime_helpers.resolve_contact_to_email",
+            side_effect=mock_resolve,
+        ):
+            result = await resolve_recipients_to_emails(
+                _mock_runtime(), "Paul <paul@example.com>, Jane Smith", "cc"
+            )
+
+        assert result == "Paul <paul@example.com>, Jane Smith <jane.smith@example.com>"
+        assert lookups == ["Jane Smith"]
+
+    @pytest.mark.asyncio
+    async def test_a_display_name_holding_a_comma_is_one_recipient(self) -> None:
+        resolve = AsyncMock()
+        field = '"Dupont, Marie" <marie@example.com>'
+
+        with patch("src.domains.agents.tools.runtime_helpers.resolve_contact_to_email", resolve):
+            result = await resolve_recipients_to_emails(_mock_runtime(), field, "to")
+
+        assert result == field
+        resolve.assert_not_awaited()
+
 
 # =============================================================================
 # Tests: List input (calendar tools)

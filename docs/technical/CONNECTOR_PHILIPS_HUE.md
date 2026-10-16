@@ -119,6 +119,12 @@ Colors are mapped to CIE xy coordinates automatically.
 
 ## Token Refresh (Remote Mode)
 
+Both activation modes recheck an active, undeleted account and the global
+connector policy before storing credentials. Remote activation checks first on
+a short session closed before the bridge call, then again under transaction
+locks after the response (ADR-302, ADR-304). Revocation during the call prevents
+local activation; it cannot retract a whitelist the bridge already accepted.
+
 Remote mode tokens expire every 7 days (refresh token valid 112 days). Token refresh is handled **on-demand** by `PhilipsHueClient._ensure_valid_remote_token()` — NOT by the proactive scheduler. This avoids credential format incompatibility with the base `ConnectorCredentials` type.
 
 ## Troubleshooting

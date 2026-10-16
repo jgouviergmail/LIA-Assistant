@@ -58,6 +58,7 @@ export interface RadioStartRefused {
 const PLAIN: ReadonlySet<string> = new Set<string>([
   ...RADIO_START_REFUSALS.filter(code => code !== BUDGET_REACHED),
   'radio_voice_unknown',
+  'radio_voice_shared',
   'radio_personality_unknown',
 ]);
 

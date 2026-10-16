@@ -1501,7 +1501,7 @@ emit_side_channel_chunk(runtime, chunk)
 
 ### Nested agents (ReAct)
 
-When creating a nested agent (e.g., `create_react_agent` for browser), pass the
+When creating a nested agent (e.g., native `create_agent` for browser), pass the
 parent's run context to the sub-run — derive it with `derive_sub_agent_context`
 rather than re-listing keys, so the side channel (and everything else) travels
 whole. Only `__parent_thread_id` stays in the nested `RunnableConfig.configurable`:

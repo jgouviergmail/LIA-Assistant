@@ -472,6 +472,27 @@ COUNT_SURFACES: tuple[CountSurface, ...] = (
         "prometheus_metrics",
         "README.md observability section (metric count)",
     ),
+    # Two more documents quoted the total and no surface declared them: the
+    # GETTING_STARTED key figures read 606 against a real 621, the observability
+    # guide 419 in its header and its stack table (measured 2026-10-14).
+    CountSurface(
+        "docs/GETTING_STARTED.md",
+        re.compile(rf"^\| Prometheus metrics \| {_COUNT} \|", re.MULTILINE),
+        "prometheus_metrics",
+        "GETTING_STARTED key-figures table (metric count)",
+    ),
+    CountSurface(
+        "docs/guides/GUIDE_OBSERVABILITY.md",
+        re.compile(rf"^\*\*Total Metrics\*\*: {_COUNT} definitions", re.MULTILINE),
+        "prometheus_metrics",
+        "GUIDE_OBSERVABILITY header (metric count)",
+    ),
+    CountSurface(
+        "docs/guides/GUIDE_OBSERVABILITY.md",
+        re.compile(rf"\| {_COUNT} custom metrics \(scraped from"),
+        "prometheus_metrics",
+        "GUIDE_OBSERVABILITY stack table (metric count)",
+    ),
     # The README's own key-figures row drifted the same way: 242 ADRs against
     # a real 249, and 224 releases against a real count it never re-read.
     CountSurface(

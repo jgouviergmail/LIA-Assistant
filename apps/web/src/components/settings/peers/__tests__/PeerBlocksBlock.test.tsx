@@ -35,11 +35,13 @@ describe('PeerBlocksBlock', () => {
     expect(onUnblock).toHaveBeenCalledWith('user-2');
   });
 
-  it('disables the unblock button while a mutation is in flight', () => {
+  it('keeps unblock focusable while a mutation is in flight', () => {
     renderWithProviders(
       <PeerBlocksBlock lng="fr" blocks={[BLOCK]} onUnblock={vi.fn()} mutating={true} />
     );
-    expect(screen.getByRole('button', { name: /settings\.peers\.blocks\.unblock/ })).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: /settings\.peers\.blocks\.unblock/ })
+    ).toHaveAttribute('aria-disabled', 'true');
   });
 
   it('falls back to a neutral label when the display name is null', () => {

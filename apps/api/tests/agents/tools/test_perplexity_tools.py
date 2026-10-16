@@ -10,13 +10,13 @@ Updated for UnifiedToolOutput format with Data Registry support
 (registry_enabled=True on both tools).
 """
 
-import json
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
 from langgraph.prebuilt.tool_node import ToolRuntime
 
+from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.connectors.schemas import APIKeyCredentials
 from tests.helpers.runtime_context import make_tool_runtime
@@ -214,7 +214,7 @@ class TestPerplexitySearchTool:
 
             assert isinstance(result, UnifiedToolOutput)
             assert result.success is False
-            assert result.error_code == "connector_not_activated"
+            assert result.error_code == ToolErrorCode.CONNECTOR_NOT_ACTIVATED
             assert "Perplexity" in result.message
 
     @pytest.mark.asyncio
@@ -241,11 +241,12 @@ class TestPerplexitySearchTool:
                     query="Test query",
                 )
 
-                # Exceptions come back as a serialized UnifiedToolOutput with
-                # the ToolErrorCode taxonomy (never a raw traceback)
-                data = json.loads(result)
-                assert data["success"] is False
-                assert data["error_code"] == "INTERNAL_ERROR"
+                # A registry tool fails by RETURNING a typed failure the one
+                # success predicate reads (ADR-303) — never a JSON string, which
+                # read as a success — classified by the ToolErrorCode taxonomy.
+                assert isinstance(result, UnifiedToolOutput)
+                assert result.success is False
+                assert result.error_code == "INTERNAL_ERROR"
             finally:
                 _perplexity_search_tool_impl.create_client = original_create_client
 
@@ -378,7 +379,7 @@ class TestPerplexityAskTool:
 
             assert isinstance(result, UnifiedToolOutput)
             assert result.success is False
-            assert result.error_code == "connector_not_activated"
+            assert result.error_code == ToolErrorCode.CONNECTOR_NOT_ACTIVATED
             assert "Perplexity" in result.message
 
 

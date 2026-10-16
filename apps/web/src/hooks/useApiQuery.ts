@@ -56,6 +56,8 @@ export interface UseApiQueryResult<T> {
   refetch: () => Promise<void>;
   /** Whether an authenticated reread applied a current response. */
   refetchVerified: () => Promise<boolean>;
+  /** Accept a successful external server response, superseding reads and errors. */
+  acceptData: (data: T) => boolean;
   /** Function to update data directly */
   setData: React.Dispatch<React.SetStateAction<T | undefined>>;
 }
@@ -212,12 +214,30 @@ export function useApiQuery<T = unknown>(
     await refetchVerified();
   }, [refetchVerified]);
 
+  // External server success (for example a POST returning the full resource)
+  // owns the same lifecycle as a GET. Local setData deliberately keeps its
+  // existing semantics: it does not claim recovery or cancel a pending read.
+  const acceptData = useCallback(
+    (response: T): boolean => {
+      const effect = activeEffect.current;
+      if (!enabled || effect?.read !== fetchData || effect.controller.signal.aborted) return false;
+      activeRequest.current?.abort();
+      activeRequest.current = null;
+      setData(response);
+      setError(null);
+      setLoading(false);
+      onSuccessRef.current?.(response);
+      return true;
+    },
+    [enabled, fetchData]
+  );
   return {
     data,
     loading: enabled && loading,
     error,
     refetch,
     refetchVerified,
+    acceptData,
     setData,
   };
 }

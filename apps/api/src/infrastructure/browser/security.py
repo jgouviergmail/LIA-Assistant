@@ -252,8 +252,9 @@ class BrowserSecurityPolicy:
                 logger.warning(
                     "browser_request_interceptor_failed",
                     url_host=url_host(url),
-                    error=str(exc),
+                    error_type=type(exc).__name__,
                 )
+                logger.debug("browser_error_detail", error=str(exc))
                 await route.abort("blockedbyclient")
 
         await page.route("**/*", _intercept)

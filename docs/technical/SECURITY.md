@@ -2479,10 +2479,11 @@ bypass would deny. Marking is honest about what it is — a label, not a filter.
 
 | Measure | Description |
 |---------|-------------|
-| **Bounded scan** | First 20 000 characters only — an injection has to appear early enough to be read |
+| **Bounded scan** | First 20 000 characters only — an injection has to appear early enough to be read — and linear in them: the HTML comment family is one pass (its regex took 3 s on 20 000 characters of `<!--`, measured 2026-10-13) |
+| **Read as a model reads** | Scanned on an NFKC + case-folded shadow (fullwidth `ＳＹＳＴＥＭ` is `SYSTEM` to a tokenizer); chat-template control tokens (ChatML, Llama 3, Gemma) count as role markers; Tag-block characters outside a subdivision flag count as invisible text and keep the warning level |
 | **No content in logs** | The text is attacker-controlled *and* routinely holds the user's own data; only the family, the item type and the surface are recorded |
 | **Metric** | `prompt_injection_patterns_total{family, item_type, surface}` |
-| **Tag escaping** | Occurrences of `<external_content` / `</external_content>` in content are escaped (`&lt;`) to prevent marker breakout |
+| **Tag escaping** | Every bracket in content that would read as the wrapper's tag — whatever the case, blanks, fullwidth or small-form brackets, fullwidth letters or invisible characters — is written `&lt;` (the characters after each bracket are compared with the tag name one by one, NFKC-normalised, and the comparison stops at the first difference — linear in the content) |
 | **URL attribute sanitization** | Quotes in `source_url` are escaped (`&quot;`) to prevent XML attribute injection |
 | **Feature flag** | `EXTERNAL_CONTENT_WRAPPING_ENABLED` (default: `true`) — governs the tool-level wrapper only; provenance marking is unconditional |
 
@@ -2490,8 +2491,7 @@ bypass would deny. Marking is honest about what it is — a label, not a filter.
 
 - Trust registry: `src/domains/agents/data_registry/trust.py`
 - Markers and detection: `src/domains/agents/utils/content_wrapper.py`
-  (`wrap_external_content()`, `strip_external_markers()`,
-  `scan_injection_patterns()`, `injection_notice()`)
+  (`wrap_external_content()`, `scan_injection_patterns()`, `injection_notice()`)
 - Decision record: [ADR-167](../architecture/ADR-167-Content-Trust-Registry.md)
 - Documentation: [WEB_FETCH.md](./WEB_FETCH.md#external-content-wrapping-f2)
 

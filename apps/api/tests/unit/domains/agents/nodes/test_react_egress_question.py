@@ -23,6 +23,7 @@ from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.tools import StructuredTool
 from structlog.testing import capture_logs
 
+from src.domains.agents.api.run_origin import RunOrigin, out_of_turn_origin_ctx
 from src.domains.agents.data_registry.models import (
     RegistryItem,
     RegistryItemMeta,
@@ -32,10 +33,12 @@ from src.domains.agents.models import MessagesState, create_initial_state
 from src.domains.agents.nodes import react_egress_question as mod
 from src.domains.agents.nodes import react_nodes
 from src.domains.agents.python_sandbox.egress.grants import Decision, RecordOutcome
+from src.domains.agents.python_sandbox.egress.settlement import question_settleable
 from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.tool_registry import get_tool, register_external_tool
 from src.domains.agents.utils.message_filters import TOOL_CALL_NOT_RUN, tool_call_ran
+from tests.helpers.runtime_context import installed_runtime_context
 
 pytestmark = pytest.mark.unit
 
@@ -684,3 +687,66 @@ class TestAnyToolMayAsk:
         payload = ask.call_args.args[0]
         assert payload["action_requests"][0]["tool_name"] == "run_skill_command"
         interrupts.labels.assert_called_with(tool_name="run_skill_command", decision="approve")
+
+
+def _settleability_probe(seen: list[bool]) -> Callable[..., Awaitable[UnifiedToolOutput]]:
+    """A sandbox tool reduced to its tool-path contract: ask only where settleable."""
+
+    async def _probe(purpose: str) -> UnifiedToolOutput:
+        settleable = question_settleable()
+        seen.append(settleable)
+        if settleable:
+            return await _asks(purpose)
+        return UnifiedToolOutput(
+            success=False, message="not settleable here", error_code=ToolErrorCode.FORBIDDEN
+        )
+
+    return _probe
+
+
+class TestNobodyToAskIsNeverAsked:
+    """N10, measured in production: a routine's loop declared a host nobody
+    permitted, and the card waited on the person's thread, reading their next
+    message as its answer. Nobody can answer a routine, so its call is never
+    settleable: the tool path refuses in its own words (« allow these hosts in
+    Settings ») and the loop goes on."""
+
+    async def test_a_routine_s_call_refuses_instead_of_asking(self, no_context_store: None) -> None:
+        seen: list[bool] = []
+        _registered("egress_unattended_probe_tool", _settleability_probe(seen))
+        with (
+            patch(f"{mod.__name__}.interrupt", side_effect=AssertionError("asked")),
+            installed_runtime_context(is_automated_source=True),
+        ):
+            result = await react_nodes.react_execute_tools_node(
+                _loop_state(("egress_unattended_probe_tool", "c-unattended")), {}
+            )
+
+        assert seen == [False]
+        tool_messages = [m for m in result["messages"] if isinstance(m, ToolMessage)]
+        assert len(tool_messages) == 1
+        assert "not settleable here" in str(tool_messages[0].content)
+        assert result.get("pending_draft_critique") is None
+
+    async def test_a_ticket_still_asks(self, no_context_store: None, context: Any) -> None:
+        """The control: a ticket is unattended too, but it CARRIES the card."""
+        seen: list[bool] = []
+        _registered("egress_ticket_probe_tool", _settleability_probe(seen))
+        token = out_of_turn_origin_ctx.set(
+            RunOrigin(kind="workboard", ticket_id="t1", run_id="r1", can_carry_draft=True)
+        )
+        try:
+            with (
+                patch(f"{mod.__name__}.interrupt", return_value={"action": "cancel"}) as asked,
+                patch(f"{mod.__name__}.record_decision", AsyncMock()),
+                patch(f"{mod.__name__}.python_sandbox_egress_grants_total"),
+                installed_runtime_context(is_automated_source=True),
+            ):
+                await react_nodes.react_execute_tools_node(
+                    _loop_state(("egress_ticket_probe_tool", "c-ticket")), {}
+                )
+        finally:
+            out_of_turn_origin_ctx.reset(token)
+
+        assert seen == [True]
+        asked.assert_called_once()

@@ -188,12 +188,6 @@ class TestResult:
         await client.close()
         assert received[0][:4] == b"RIFF"
 
-    async def test_base64_surface(self) -> None:
-        client = client_with(lambda _r: httpx.Response(200, json=_answer()), output_format="wav")
-        encoded = await client.synthesize_base64("Bonjour.", "Kore")
-        await client.close()
-        assert base64.b64decode(encoded) == WAV
-
     async def test_it_satisfies_both_protocols(self) -> None:
         client = client_with(lambda _r: httpx.Response(200, json=_answer()), output_format="wav")
         assert isinstance(client, TTSClient)

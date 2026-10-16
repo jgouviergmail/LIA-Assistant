@@ -8,6 +8,7 @@ Phase: ADR-062 — Agent Initiative Phase + MCP Iterative Support
 
 from __future__ import annotations
 
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -430,6 +431,87 @@ class TestZeroIterationRetry:
         message = await self._run(run_mock)
         assert run_mock.await_count == 2
         assert message == "second refusal"
+
+
+@pytest.mark.unit
+class TestTheTaskReadsHowTheRunEnded:
+    """The outcome decides the tool's answer, never the text (ADR-303)."""
+
+    @staticmethod
+    def _widget() -> Any:
+        from src.domains.agents.data_registry.models import (
+            RegistryItem,
+            RegistryItemMeta,
+            RegistryItemType,
+        )
+
+        return RegistryItem(
+            id="w1",
+            type=RegistryItemType.MCP_APP,
+            payload={"html": "<p>diagram</p>"},
+            meta=RegistryItemMeta(source="mcp", domain="mcp", tool_name="create_view"),
+        )
+
+    @staticmethod
+    async def _output(run_mock: AsyncMock) -> Any:
+        from unittest.mock import patch
+
+        from src.domains.agents.tools.mcp_react_tools import _run_mcp_react_task
+
+        with patch("src.domains.agents.tools.mcp_react_tools.ReactSubAgentRunner") as runner_cls:
+            runner_cls.return_value.run = run_mock
+            return await _run_mcp_react_task(
+                server_tools=[MagicMock()],
+                server_name="Excalidraw",
+                task="draw the flow",
+                thread_prefix="test",
+                runtime=None,
+            )
+
+    async def test_a_failed_run_is_not_retried_and_keeps_what_it_produced(self) -> None:
+        # A failed run also counts zero tool calls; replaying it would buy a
+        # second loop with a provider's failure. The widget it made exists.
+        from src.domains.agents.tools.react_runner import ReactSubAgentResult, SubAgentOutcome
+
+        widget = self._widget()
+        run_mock = AsyncMock(
+            return_value=ReactSubAgentResult(
+                final_message="",
+                messages=[],
+                accumulated_registry={"w1": widget},
+                outcome=SubAgentOutcome.ERROR,
+                failure_kind="rate_limit",
+            )
+        )
+
+        output = await self._output(run_mock)
+
+        assert run_mock.await_count == 1
+        assert output.success is False
+        assert output.error_code == "RATE_LIMIT_EXCEEDED"
+        assert output.registry_updates == {"w1": widget}
+        assert "Excalidraw" in output.message
+
+    async def test_a_closed_run_answers_and_says_its_budget_ended(self) -> None:
+        from src.domains.agents.tools.react_runner import (
+            BUDGET_EXHAUSTED_FIELD,
+            ReactSubAgentResult,
+        )
+
+        run_mock = AsyncMock(
+            return_value=ReactSubAgentResult(
+                final_message="Drew three of the four boxes.",
+                messages=[],
+                iteration_count=4,
+                closed_on_budget=True,
+            )
+        )
+
+        output = await self._output(run_mock)
+
+        assert output.success is True
+        assert output.message == "Drew three of the four boxes."
+        assert output.structured_data[BUDGET_EXHAUSTED_FIELD] is True
 
 
 @pytest.mark.unit

@@ -202,6 +202,24 @@ async def test_rate_limit_maps_to_provider_rate_limited(mock_async_client):
 
 @pytest.mark.asyncio
 async def test_4xx_maps_to_provider_http_error(mock_async_client):
+    quoted = "the words of the person, quoted back"
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(404, json={"detail": {"code": "model_not_found", "message": quoted}})
+
+    mock_async_client["handler"] = handler
+    service = _build_service(mock_async_client)
+    with pytest.raises(STTProviderError) as exc:
+        await service.transcribe_pcm_int16_async(_DUMMY_PCM)
+    assert exc.value.code == "provider_http_error"
+    assert "404" in exc.value.message
+    # Its facts, never its words (ADR-317).
+    assert exc.value.details == {"status_code": 404, "vendor_code": "model_not_found"}
+    assert quoted not in str(exc.value)
+
+
+@pytest.mark.asyncio
+async def test_a_refused_key_reads_the_rule_of_the_file_path(mock_async_client):
     def handler(_: httpx.Request) -> httpx.Response:
         return httpx.Response(401, json={"detail": "missing_permissions"})
 
@@ -209,8 +227,8 @@ async def test_4xx_maps_to_provider_http_error(mock_async_client):
     service = _build_service(mock_async_client)
     with pytest.raises(STTProviderError) as exc:
         await service.transcribe_pcm_int16_async(_DUMMY_PCM)
-    assert exc.value.code == "provider_http_error"
-    assert "401" in exc.value.message
+    assert exc.value.code == "invalid_api_key"
+    assert exc.value.details == {"status_code": 401, "vendor_code": None}
 
 
 @pytest.mark.asyncio
@@ -244,6 +262,20 @@ async def test_missing_required_fields_maps_to_invalid_response(mock_async_clien
     def handler(_: httpx.Request) -> httpx.Response:
         # missing audio_duration_secs
         return httpx.Response(200, json={"text": "hello"})
+
+    mock_async_client["handler"] = handler
+    service = _build_service(mock_async_client)
+    with pytest.raises(STTProviderError) as exc:
+        await service.transcribe_pcm_int16_async(_DUMMY_PCM)
+    assert exc.value.code == "provider_invalid_response"
+    # The transcription is the person's words: the answer travels by its shape.
+    assert exc.value.details == {"keys": ["text"]}
+
+
+@pytest.mark.asyncio
+async def test_an_answer_that_is_no_object_is_an_invalid_response(mock_async_client):
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=["hello"])
 
     mock_async_client["handler"] = handler
     service = _build_service(mock_async_client)

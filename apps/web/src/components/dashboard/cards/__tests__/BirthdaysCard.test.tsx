@@ -69,3 +69,32 @@ describe('BirthdaysCard empty state', () => {
     ).toBeInTheDocument();
   });
 });
+
+describe('BirthdaysCard civil dates', () => {
+  it.each([
+    ['1987-10-15', '15 octobre', 39],
+    ['--02-29', '29 février', null],
+  ])(
+    'keeps the day and month of %s without displaying or inventing a birth year',
+    (date_iso, label, age_at_next) => {
+      renderWithProviders(
+        <BirthdaysCard
+          {...props}
+          windows={WINDOWS}
+          section={{
+            ...emptySection(),
+            status: 'ok',
+            data: { items: [{ contact_name: 'Camille', date_iso, days_until: 1, age_at_next }] },
+          }}
+        />
+      );
+
+      const row = screen.getByRole('button', { name: /intents\.birthday/ });
+      expect(row).toHaveTextContent('Camille');
+      expect(row).toHaveTextContent(label);
+      expect(row).not.toHaveTextContent('1987');
+      expect(row).not.toHaveTextContent('2000');
+      if (age_at_next !== null) expect(row).toHaveTextContent(String(age_at_next));
+    }
+  );
+});

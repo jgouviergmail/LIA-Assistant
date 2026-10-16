@@ -115,6 +115,7 @@ PromptName = Literal[
     "react_recovery_directive",
     "requested_outcome_directive",
     "requested_outcomes_directive",
+    "psyche_efficacy_directive",
     "runtime_failures_directive",
     "diagnostician_prompt",
     "response_directive_plan_rejection",
@@ -138,6 +139,8 @@ PromptName = Literal[
     # Email content generation
     "email_content_generation_prompt",
     "email_subject_generation_prompt",
+    # The reply a mailbox draft holds, written from the received e-mail (ADR-344)
+    "mailbox_reply_draft_prompt",
     # Fallback and HITL
     "fallback_response_prompt",
     "hitl_draft_critique_fallback_prompt",
@@ -193,6 +196,7 @@ PromptName = Literal[
     "skill_contract_prefix_prompt",
     # Context compaction (F4)
     "compaction_prompt",
+    "compaction_identifier_lines",
     # App self-knowledge (System RAG Spaces)
     "app_identity_prompt",
     # Personal Journals (Carnets de Bord)
@@ -212,6 +216,9 @@ PromptName = Literal[
     # (the legacy "subagent_synthesis_prompt" was removed in Phase 2 cleanup
     # along with the bespoke SubAgentExecutor pipeline.)
     "subagent_react_prompt",
+    # The closing pass every ReAct sub-loop ends on when its budget runs out.
+    "react_runner_closing_prompt",
+    "react_runner_closing_lines",
     # Long-term Memory (psychological profiling)
     "memory_extraction_prompt",
     "memory_extraction_personality_addon",
@@ -286,6 +293,12 @@ PromptName = Literal[
     # loaded via telephony.prompts.loader) to break the agents↔telephony cycle (T2).
     # Voice comment (TTS post-response narrative aside)
     "voice_comment_prompt",
+    # What a tool turn's comment is told about its results: the line saying they
+    # are the written answer's selection, read by agents/services/streaming/voice_scope.py.
+    "voice_comment_context_lines",
+    # The expressive-cue block a speaking engine plays (ADR-345): its one-line
+    # scaffolds, read by voice/cue_prompt.py through parse_prompt_sections.
+    "voice_expressive_cues_lines",
     # Document generation — dedicated whole-document writer (ADR-226)
     "document_generation_prompt",
     "email_digest_prompt",

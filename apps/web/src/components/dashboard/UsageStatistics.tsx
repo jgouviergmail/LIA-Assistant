@@ -1,168 +1,146 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
+import { BarChart3, ChevronDown, RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { BarChart3, ChevronDown, Coins, Database, Globe, MessageSquare } from 'lucide-react';
-import { DashboardTile, TILE_ICON_BADGE } from '@/components/dashboard/DashboardTile';
+
+import { DashboardTile } from '@/components/dashboard/DashboardTile';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { UsageLimitsTile } from '@/components/usage/UsageLimitsTile';
 import { useUsageLimits } from '@/hooks/useUsageLimits';
 import { useUserStatistics } from '@/hooks/useUserStatistics';
-import { UsageLimitsTile } from '@/components/usage/UsageLimitsTile';
-import { formatEuro, formatNumber, getCycleDates } from '@/lib/format';
+import { useStaleGuard } from '@/hooks/useStaleGuard';
+import { getCycleDates } from '@/lib/format';
 
-/**
- * Usage statistics block — extracted verbatim from the previous dashboard page.
- *
- * Shows current billing cycle counters (messages, tokens, Google API requests, cost EUR)
- * plus the per-user usage limits tile. No behavior change vs. before the refactor.
- */
+import { HomeConsumptionTable } from './HomeConsumptionTable';
+
+/** One statistics read feeds both columns; limits retain their existing reader. */
 export function UsageStatistics() {
-  const { t } = useTranslation();
-  const { statistics, isLoading: statsLoading } = useUserStatistics();
-  const { limits: usageLimits, isLoading: limitsLoading } = useUsageLimits();
-
+  const { t, i18n } = useTranslation();
+  const { statistics, isLoading, error, refetch } = useUserStatistics();
+  const { limits, isLoading: limitsLoading } = useUsageLimits();
+  const [retrying, setRetrying] = useState(false);
+  const retryPending = useRef(false);
+  const retryTrigger = useRef<HTMLButtonElement | null>(null);
+  const summary = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (error || !statistics || !retryTrigger.current) return;
+    if (!retryTrigger.current.isConnected && document.activeElement === document.body) {
+      summary.current?.focus();
+    }
+    retryTrigger.current = null;
+  }, [error, statistics]);
+  const guard = useStaleGuard();
+  const firstLoad = isLoading && !statistics;
   const cycleDates =
-    !statsLoading && statistics ? getCycleDates(statistics.current_cycle_start) : null;
-  const totalSinceIso = !statsLoading && statistics ? statistics.total_since : null;
+    statistics && validDate(statistics.current_cycle_start)
+      ? getCycleDates(statistics.current_cycle_start)
+      : null;
+  const since = statistics ? formatSince(statistics.total_since, i18n.language) : null;
+
+  async function retryStatistics() {
+    if (retryPending.current) return;
+    retryPending.current = true;
+    setRetrying(true);
+    try {
+      await refetch();
+    } finally {
+      retryPending.current = false;
+      if (guard.isMounted()) setRetrying(false);
+    }
+  }
 
   return (
-    // A native <details>: the disclosure semantics, the keyboard behaviour and
-    // the open/closed announcement come from the platform. OPEN by default
-    // (owner arbitration 2026-08-05): the figures are consulted often enough
-    // that the extra click cost more than the visual quiet it bought — the
-    // results block above still leads, and the reader can fold this one.
-    // `group` drives the chevron rotation only.
-    <details className="group" open>
-      <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg py-2 text-base font-semibold tracking-tight text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-lg">
+    <details className="group/usage" open>
+      <summary
+        ref={summary}
+        className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
         <BarChart3 className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
-        {t('dashboard.statistics.consumption_title')}
+        <h2 className="min-w-0 flex-1 text-base font-semibold tracking-tight text-foreground sm:text-lg">
+          {t('dashboard.statistics.consumption_title')}
+        </h2>
         <ChevronDown
-          className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180 motion-reduce:transition-none"
+          className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open/usage:rotate-180 motion-reduce:transition-none"
           aria-hidden="true"
         />
       </summary>
-      <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
-        <StatCard
-          title={t('dashboard.statistics.messages.title')}
-          icon={<MessageSquare className="h-5 w-5" />}
-          cycleDates={cycleDates}
-          value={statsLoading ? '-' : formatNumber(statistics?.cycle_messages || 0)}
-          totalLabel={t('dashboard.statistics.messages.total')}
-          totalValue={!statsLoading && statistics ? formatNumber(statistics.total_messages) : null}
-          totalSinceIso={totalSinceIso}
-        />
-
-        <StatCard
-          title={t('dashboard.statistics.tokens.title')}
-          icon={<Database className="h-5 w-5" />}
-          cycleDates={cycleDates}
-          value={
-            statsLoading
-              ? '-'
-              : formatNumber(
-                  (statistics?.cycle_prompt_tokens || 0) +
-                    (statistics?.cycle_completion_tokens || 0) +
-                    (statistics?.cycle_cached_tokens || 0)
-                )
-          }
-          totalLabel={t('dashboard.statistics.tokens.total')}
-          totalValue={
-            !statsLoading && statistics
-              ? formatNumber(
-                  statistics.total_prompt_tokens +
-                    statistics.total_completion_tokens +
-                    statistics.total_cached_tokens
-                )
-              : null
-          }
-          totalSinceIso={totalSinceIso}
-        />
-
-        <StatCard
-          title={t('dashboard.statistics.google_api.title')}
-          icon={<Globe className="h-5 w-5" />}
-          cycleDates={cycleDates}
-          value={statsLoading ? '-' : formatNumber(statistics?.cycle_google_api_requests || 0)}
-          totalLabel={t('dashboard.statistics.google_api.total')}
-          totalValue={
-            !statsLoading && statistics ? formatNumber(statistics.total_google_api_requests) : null
-          }
-          totalSinceIso={totalSinceIso}
-        />
-
-        <StatCard
-          title={t('dashboard.statistics.cost.title')}
-          icon={<Coins className="h-5 w-5" />}
-          cycleDates={cycleDates}
-          value={statsLoading ? '-' : formatEuro(statistics?.cycle_cost_eur || 0, 2)}
-          totalLabel={t('dashboard.statistics.cost.total')}
-          totalValue={!statsLoading && statistics ? formatEuro(statistics.total_cost_eur, 2) : null}
-          totalSinceIso={totalSinceIso}
-        />
-
-        <UsageLimitsTile limits={usageLimits} isLoading={limitsLoading} />
+      <div className="mt-3 space-y-4">
+        {(cycleDates || since) && (
+          <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs leading-relaxed text-muted-foreground">
+            {cycleDates && <p>{t('dashboard.statistics.cycle_dates', cycleDates)}</p>}
+            {since && <p>{t('dashboard.statistics.since', { date: since })}</p>}
+          </div>
+        )}
+        {firstLoad ? (
+          <DashboardTile contentClassName="p-4 sm:p-5">
+            <div role="status" aria-label={t('common.loading')} className="space-y-5">
+              {Array.from({ length: 8 }, (_, index) => (
+                <div key={index} className="grid grid-cols-[42%_29%_29%] gap-y-2">
+                  <Skeleton className="h-5 w-4/5" />
+                  <Skeleton className="h-5 w-2/3 justify-self-end" />
+                  <Skeleton className="h-5 w-2/3 justify-self-end" />
+                </div>
+              ))}
+            </div>
+          </DashboardTile>
+        ) : (
+          <>
+            {(!statistics || error) && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/70 bg-card px-4 py-3">
+                <p role="status" className="min-w-0 flex-1 text-sm text-muted-foreground">
+                  {t(
+                    statistics
+                      ? 'dashboard.statistics.refresh_error'
+                      : 'dashboard.statistics.unavailable'
+                  )}
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  aria-disabled={retrying}
+                  aria-busy={retrying}
+                  onClick={event => {
+                    retryTrigger.current = event.currentTarget;
+                    void retryStatistics();
+                  }}
+                >
+                  <RefreshCw
+                    className={retrying ? 'animate-spin motion-reduce:animate-none' : ''}
+                    aria-hidden="true"
+                  />
+                  {t('common.retry')}
+                </Button>
+              </div>
+            )}
+            {statistics && (
+              <HomeConsumptionTable statistics={statistics} isLoading={isLoading || retrying} />
+            )}
+          </>
+        )}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <UsageLimitsTile limits={limits} isLoading={limitsLoading} />
+        </div>
       </div>
     </details>
   );
 }
 
-interface StatCardProps {
-  title: string;
-  icon: React.ReactNode;
-  cycleDates: { start: string; end: string } | null;
-  value: string;
-  totalLabel: string;
-  totalValue: string | null;
-  /** ISO datetime — start of the lifetime totals (account creation date). */
-  totalSinceIso: string | null;
+function validDate(iso: string): boolean {
+  return !Number.isNaN(new Date(iso).getTime());
 }
 
-function StatCard({
-  title,
-  icon,
-  cycleDates,
-  value,
-  totalLabel,
-  totalValue,
-  totalSinceIso,
-}: StatCardProps) {
-  const { t, i18n } = useTranslation();
-  const totalSinceLabel = totalSinceIso
-    ? new Intl.DateTimeFormat(i18n.language || 'fr', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-      }).format(new Date(totalSinceIso))
-    : null;
-  // The page's tile material (DashboardTile); the theme's primary keeps
-  // marking what is read first — the title and the cycle's figure.
-  return (
-    <DashboardTile contentClassName="flex h-full flex-col gap-3 p-5 sm:p-6">
-      <div className="flex items-center gap-3">
-        <span className={TILE_ICON_BADGE} aria-hidden="true">
-          {icon}
-        </span>
-        <div className="min-w-0">
-          <h3 className="truncate text-sm font-semibold tracking-tight text-primary">{title}</h3>
-          {cycleDates && (
-            <p className="text-xs text-muted-foreground">
-              {t('dashboard.statistics.cycle_dates', cycleDates)}
-            </p>
-          )}
-        </div>
-      </div>
-      <div className="text-4xl font-bold text-primary">{value}</div>
-      {totalValue !== null && (
-        <div className="mt-auto space-y-0.5 border-t border-border/50 pt-2">
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>{totalLabel}</span>
-            <span className="font-medium text-foreground/80">{totalValue}</span>
-          </div>
-          {totalSinceLabel && (
-            <div className="text-px-10 text-muted-foreground text-right tabular-nums">
-              {t('dashboard.statistics.since', { date: totalSinceLabel })}
-            </div>
-          )}
-        </div>
-      )}
-    </DashboardTile>
-  );
+/** A malformed date or locale must not replace the real counters with an error. */
+function formatSince(iso: string, locale: string): string | null {
+  if (!validDate(iso)) return null;
+  try {
+    return new Intl.DateTimeFormat(locale || 'fr', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    }).format(new Date(iso));
+  } catch {
+    return null;
+  }
 }

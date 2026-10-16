@@ -44,7 +44,7 @@ The **speaking avatar** is also optional: the installer leaves `AVATAR_ENABLED=f
 
 **JEV decisions are optional after installation.** The installer leaves every JEV use off; there is no additional Compose service or bootstrap step. To use one, configure a TypeSafe (Jev) provider key, a decision model and its price in Administration, then enable that use and the general switch under **JEV integrations**. An uncertain decision uses LIA's existing path; both a paid attempt and its fallback count toward spending limits. See the [integration guide](technical/JEV_INTEGRATION.md).
 
-For ElevenLabs speech, `ELEVENLABS_TTS_MAX_CONCURRENCY` is rendered at the application default on a fresh guided install. Set it at or below your account's concurrency allowance before using ElevenLabs TTS. The limit is shared across API workers and speech surfaces; Edge TTS remains the free default.
+For ElevenLabs and Fish Audio speech, `ELEVENLABS_TTS_MAX_CONCURRENCY` and `FISHAUDIO_MAX_CONCURRENCY` are rendered at the application default on a fresh guided install. Set each at or below your account's concurrency allowance before using that engine. The limits are shared across API workers and speech surfaces (Fish Audio's also covers its transcription and voice design); Edge TTS remains the free default.
 
 ### Key Figures
 
@@ -53,10 +53,10 @@ For ElevenLabs speech, `ELEVENLABS_TTS_MAX_CONCURRENCY` is rendered at the appli
 | Specialized agents | 20+ |
 | Tools | 123 |
 | LLM providers (text) | 7 — OpenAI, Anthropic, DeepSeek, Google Gemini, Qwen, Perplexity, Ollama |
-| Voice providers | ElevenLabs (STT/TTS), Edge TTS (free), OpenAI TTS + local Whisper STT |
+| Voice providers | ElevenLabs (STT/TTS), Fish Audio (STT/TTS), Edge TTS (free), OpenAI (STT/TTS), Gemini TTS + local Whisper STT |
 | Configurable LLM slots | 54 (admin UI, hot-reloaded) |
 | UI languages | 6 — fr, en, es, de, it, zh |
-| Prometheus metrics | 606 |
+| Prometheus metrics | 618 |
 | Grafana dashboards | 31 |
 | Built-in FAQ knowledge base | 200+ Q/A (auto-indexed at startup) |
 
@@ -152,6 +152,7 @@ Production reference platform: Raspberry Pi 5 (linux/arm64) — all images are m
 | **Microsoft Azure** | Microsoft 365 connectors (Outlook, Calendar, Contacts, To Do) | [portal.azure.com](https://portal.azure.com/) |
 | **Firebase** | Push notifications (FCM) | [console.firebase.google.com](https://console.firebase.google.com/) |
 | **ElevenLabs** | Premium STT (Scribe) + TTS | [elevenlabs.io](https://elevenlabs.io/) |
+| **Fish Audio** | Premium TTS (S2, drama-3) + STT + voice cloning and design | [fish.audio](https://fish.audio/) |
 | **Perplexity** | AI-powered web search | [perplexity.ai/settings/api](https://www.perplexity.ai/settings/api) |
 | **OpenWeatherMap** | Weather (free tier) — connected per user in Settings > Connectors | [openweathermap.org/api](https://openweathermap.org/api) |
 | **Telegram** | Multi-channel chat (bot via @BotFather) | [t.me/BotFather](https://t.me/BotFather) |
@@ -887,7 +888,8 @@ Every subsystem below ships with working defaults; the values shown are the **pr
 | `DEVOPS_ENABLED` | In-container DevOps Claude CLI (read-only investigation) | `true` |
 | `COMPACTION_ENABLED` | Conversation context compaction | `true` |
 | `RATE_LIMIT_ENABLED` | Per-user API rate limiting | `true` |
-| `VOICE_STT_ENABLED` / `ELEVENLABS_STT_ENABLED` | Local Whisper STT / ElevenLabs Scribe STT | `true` |
+| `VOICE_STT_ENABLED` / `ELEVENLABS_STT_ENABLED` / `FISHAUDIO_STT_ENABLED` | Local Whisper STT / ElevenLabs Scribe STT / Fish Audio STT | `true` |
+| `FISHAUDIO_VOICE_CREATION_ENABLED` | Administrators clone and design voices on the instance's Fish Audio account (ADR-345) | `true` |
 | `LANGFUSE_ENABLED` | Langfuse LLM tracing | **`false`** (dev-only tool) |
 | `PLAN_PATTERN_TRAINING_ENABLED` | Plan pattern learning | `false` |
 | `ENABLE_FALLBACK_MIDDLEWARE` | LLM fallback model chain | `false` |
@@ -1043,7 +1045,6 @@ BROWSER_MAX_CONCURRENT_SESSIONS=1
 BROWSER_SESSION_TIMEOUT_SECONDS=300
 BROWSER_MAX_NAVIGATIONS_PER_SESSION=30
 BROWSER_AX_TREE_MAX_TOKENS=30000
-BROWSER_MEMORY_LIMIT_MB=1024
 ```
 
 See [BROWSER_CONTROL.md](./technical/BROWSER_CONTROL.md).
@@ -1086,18 +1087,31 @@ Users link their account with an OTP code in Settings > Telegram. Requires a pub
 
 ### Voice Mode
 
-**Input (STT)** — two engines, both enabled in production:
+**Input (STT)** — the local engine, and a remote one: the engine of the
+`voice_transcription` slot (Configuration LLM — ElevenLabs, OpenAI or Fish Audio),
+each with its key and, for ElevenLabs and Fish Audio, a kill switch:
 
 ```bash
 VOICE_STT_ENABLED=true                 # local Sherpa-onnx Whisper Small (free)
 VOICE_STT_MODEL_PATH=/models/whisper-small
 VOICE_STT_NUM_THREADS=4
 VOICE_STT_MAX_DURATION_SECONDS=60
-ELEVENLABS_STT_ENABLED=true            # ElevenLabs Scribe (premium, ~$0.22/h)
-ELEVENLABS_STT_MAX_AUDIO_DURATION_SECONDS=300
+ELEVENLABS_STT_ENABLED=true            # ElevenLabs as a remote engine
+FISHAUDIO_STT_ENABLED=true             # Fish Audio as a remote engine (ADR-345)
+REMOTE_STT_MAX_AUDIO_DURATION_SECONDS=300   # per remote clip (the old ELEVENLABS_ name is still read)
 ```
 
-Wake word ("OK") and VAD run **in the browser** (Sherpa-onnx / Silero WASM) — no server configuration.
+The wake word (a trained model run by ONNX Runtime Web in a worker, ADR-329) and VAD (Silero)
+run **in the browser** — no server configuration.
+
+**Voice library (ADR-345)** — administrators manage the instance's Fish Audio voices
+(Settings › Administration › Voice library): clone one from recordings under a consent
+attestation filed in the audit log, design one from a description, rename or delete them.
+
+```bash
+FISHAUDIO_VOICE_CREATION_ENABLED=true  # clone and design; renaming and deleting stay open
+FISHAUDIO_VOICE_DESIGN_COST_USD=0.01   # one design request, charged to the instance's daily budget
+```
 
 **Live mode (ADR-299, ADR-300, ADR-301)** — a real-time, speech-to-speech session on a live model each person connects with **their own key** (Settings › Connectors, family « Live »: Gemini Live, GPT-Live or an ElevenLabs agent). Nothing to provision on the server beyond the flag and the tariff rows the seed already ships; the audio never transits the API.
 
@@ -1234,7 +1248,7 @@ is resolved as **code defaults (`LLM_DEFAULTS`) → database overrides** (admin
 UI), applied to subsequent operations without restarting workers.
 
 - **Admin UI**: Settings > Administration > LLM Configuration (per-slot provider, model, temperature, max tokens, reasoning effort; provider API keys encrypted at rest).
-- **Providers**: OpenAI, Anthropic, DeepSeek, Google Gemini, Qwen, Perplexity, Ollama (text) + ElevenLabs and Edge (voice). Ollama needs only `OLLAMA_BASE_URL` (the server root; the context window LIA requests and accounts with is set per LLM slot in the admin, ADR-278); Perplexity/Qwen base URLs are parameterizable.
+- **Providers**: OpenAI, Anthropic, DeepSeek, Google Gemini, Qwen, Perplexity, Ollama (text) + ElevenLabs, Fish Audio and Edge (voice; OpenAI and Gemini speak too). Ollama needs only `OLLAMA_BASE_URL` (the server root; the context window LIA requests and accounts with is set per LLM slot in the admin, ADR-278); Perplexity/Qwen base URLs are parameterizable.
 - Model catalogue and pricing are database-driven: adding a model is an admin operation, no deploy needed.
 
 The tables below show the **effective production configuration** (code defaults merged with the production database overrides) — a battle-tested quality/cost balance you can reproduce as-is. *Reasoning* is the per-slot reasoning-effort setting (`off` = thinking disabled, `—` = non-reasoning model). `deepseek-v4-flash` in these tables is the **retired alias** of what the DeepSeek API now calls `deepseek-flash` (DeepSeek-V4.1-Flash, carried by the catalogue since v1.44.6): pick the current name when you reproduce them, and keep reasoning `off` on the slots the tables show `off` — on this family thinking is on by default and billed inside `max_tokens`.

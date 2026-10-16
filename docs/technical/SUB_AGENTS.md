@@ -35,7 +35,7 @@ The tool itself, its catalogue manifests, its prompt, and its tests live in the
 src/domains/agents/
 ├── tools/sub_agent_tools.py                       # delegate_to_sub_agent_tool
 ├── sub_agents/catalogue_manifests.py              # AgentManifest + ToolManifest
-└── prompts/v1/subagent_react_prompt.txt           # ReAct scaffold + {expertise}
+└── prompts/v1/subagent_react_prompt.txt           # ReAct scaffold + {expertise}, {research_tools}, {max_tool_rounds}
 ```
 
 No DB table, no router, no service, no executor, no token guard, no scheduler
@@ -58,24 +58,35 @@ catalogue (force-included via `NormalFilteringStrategy`).
    specialist analysis improves quality) and when it doesn't (simple
    factual queries, CRUD, mutations). No runtime heuristic enforces this
    judgement — see ADR-083 §What was rolled back.
-2. At execution time, `parallel_executor._execute_tool_step` re-validates
-   the **resolved** `instruction` of `delegate_to_sub_agent_tool` (after
-   `$ref` expansion) against `SUBAGENT_INSTRUCTION_MAX_TOKENS_RESOLVED`
-   (default 3000 tokens, `.env`-controllable). Over-cap → step fails with
-   `INVALID_INPUT`. This is the only structural defense — it kills the
-   "shovel raw data via `$steps.X.<payload>`" pattern that caused the
-   2026-05-12 incident.
+2. At execution time, the tool itself checks its `instruction` against
+   `SUBAGENT_INSTRUCTION_MAX_TOKENS_RESOLVED` (`.env`-controllable) before any
+   model runs — in a plan the `$ref`s are resolved by then, and a ReAct loop
+   writes the instruction itself, so the cap holds in both modes (ADR-083
+   amendment 2026-10-13; the pipeline executor's own check was removed).
+   Over-cap → `INVALID_INPUT`. This is the only structural defense — it kills
+   the "shovel raw data via `$steps.X.<payload>`" pattern that caused the
+   2026-05-12 incident. Both modes are told the same facts about the expert
+   (`domains/sub_agents/instruction_contract.py`): its tools are the
+   whitelist, the user's data reaches it only inside the instruction.
 3. `delegate_to_sub_agent_tool` invokes
    `ReactSubAgentRunner("subagent", "subagent_react_prompt").run(...)` — a
-   single scoped ReAct loop:
+   single scoped ReAct loop compiled with native `create_agent`:
    - `llm_type = "subagent"` (admin-configurable LLM, label *Sub-Agent
      (ReAct)*).
    - `prompt = "subagent_react_prompt"` (scaffold + `{expertise}` slot for the
-     persona + read-only constraints).
+     persona + read-only constraints + the tools it is bound to and its round
+     budget, read from what runs: `{research_tools}`, `{max_tool_rounds}`).
    - `tools = resolve_tools_for_subagent(...)` (read-only subset of the
      registry — `SUBAGENT_DEFAULT_BLOCKED_TOOLS` + `delegate_to_sub_agent_tool`
      itself, anti-recursion).
-   - `recursion_limit = settings.subagent_default_max_iterations`.
+   - `recursion_limit = settings.subagent_default_max_iterations` — graph
+     STEPS: `tool_rounds_for(R)` rounds of tools, then a closing pass with
+     no tool that writes the deliverable from what the loop gathered
+     (`react_runner_budget`, `react_runner_closing`; ADR-083 amendment
+     2026-10-13 b). The budget's end is never LangGraph's own sentence.
+     Model middleware adds no graph step. A reply that still proposes a call
+     without tools is refused before dispatch and reported EMPTY, retaining
+     the billed token usage and the provider's truncation verdict.
 4. Multiple delegates with no `depends_on` → **parallel execution** (wave-based
    at the parent level).
 5. Results referenced via `$steps.step_N.analysis` for chaining (short
@@ -99,19 +110,20 @@ est_cost_usd=0.02, est_latency_ms=20000`.
 
 ### Configuration
 
-Feature flag: `SUB_AGENTS_ENABLED=false` (disabled by default).
+Feature flag: `SUB_AGENTS_ENABLED` (default `SUB_AGENTS_ENABLED_DEFAULT`).
 
 All settings are in `src/core/config/agents.py` and documented in
-`.env.example`.
+`.env.example`; the defaults are the constants named below, in
+`src/core/constants.py` (the values themselves live there only).
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `SUB_AGENTS_ENABLED` | false | Feature flag — gates the entire delegation path globally |
-| `SUBAGENT_DEFAULT_MAX_ITERATIONS` | 10 | Reused as `recursion_limit` of the ReAct loop. Range 1-30. LangGraph counts each node visit; ~3-4 tool rounds + synthesis fit in 10. Bumped from 5 (2026-05-14) after observing `GraphRecursionError` when the LLM batched 4-5 parallel searches in pass 1 then ran out of budget for synthesis. |
-| `SUBAGENT_INSTRUCTION_MAX_TOKENS_RESOLVED` | 3000 | H2 cap on resolved `instruction` (ADR-083) |
+| `SUB_AGENTS_ENABLED` | `SUB_AGENTS_ENABLED_DEFAULT` | Feature flag — gates the entire delegation path globally |
+| `SUBAGENT_DEFAULT_MAX_ITERATIONS` | `SUBAGENT_DEFAULT_MAX_ITERATIONS_DEFAULT` | `recursion_limit` of the ReAct loop, in graph STEPS. Range 2-30 (1 can never end). N//2 model calls, the last one a closing pass without tools: 10 = 4 tool rounds + the deliverable. Bumped from 5 (2026-05-14) after observing `GraphRecursionError` when the LLM batched 4-5 parallel searches in pass 1 then ran out of budget for synthesis. |
+| `SUBAGENT_INSTRUCTION_MAX_TOKENS_RESOLVED` | `SUBAGENT_INSTRUCTION_MAX_TOKENS_RESOLVED_DEFAULT` | H2 cap on `instruction`, enforced by the tool in both modes (ADR-083) |
 | `SUBAGENT_TOOL_TIMEOUT_SECONDS` | 180.0 | Default timeout for a `delegate_to_sub_agent_tool` step in the parallel executor. Range 30-600. Slower reasoning models or multiple tool rounds push the wall-clock budget above the generic `MAX_TOOL_TIMEOUT_SECONDS` (120), hence a dedicated floor. |
 | `SUBAGENT_TOOL_MAX_TIMEOUT_SECONDS` | 300.0 | Hard ceiling for `delegate_to_sub_agent_tool` step timeout, even if the planner requests more. Range 60-900. Lets operators raise the sub-agent budget without touching the application-wide `MAX_TOOL_TIMEOUT_SECONDS`. |
-| `SUBAGENT_RESEARCH_TOOLS_WHITELIST` | `brave_search_tool,fetch_web_page_tool` | Comma-separated whitelist of tool names the ReAct sub-agent is allowed to invoke. When non-empty, switches `resolve_tools_for_subagent` to allowlist mode — every tool NOT in this list is filtered out, regardless of the blocklist. Empty string = legacy blocklist-only behavior (~80 tools exposed, observed to cause `GraphRecursionError`). |
+| `SUBAGENT_RESEARCH_TOOLS_WHITELIST` | `SUBAGENT_RESEARCH_TOOLS_WHITELIST_DEFAULT` | Comma-separated whitelist of tool names the ReAct sub-agent is allowed to invoke. When non-empty, switches `resolve_tools_for_subagent` to allowlist mode — every tool NOT in this list is filtered out, regardless of the blocklist. Empty string = legacy blocklist-only behavior (~80 tools exposed, observed to cause `GraphRecursionError`). |
 | LLM Model | configured via Admin > LLM Configuration > Sub-Agent (ReAct) | `llm_type="subagent"` |
 
 No per-user toggle anymore — Phase 2 dropped `users.sub_agents_enabled`
@@ -131,7 +143,9 @@ The whitelist solves a related issue: with ~80 read-only tools exposed
 (`SUBAGENT_DEFAULT_BLOCKED_TOOLS` only filters write/HITL tools), the
 sub-agent's ReAct loop wastes its recursion budget exploring the catalogue
 instead of converging on a synthesis. Restricting to 2-3 sharp research tools
-(brave_search + fetch_web_page) keeps the sub-agent focused.
+(brave_search + fetch_web_page at the time; perplexity_search joined the code
+default in v1.29.0) keeps the sub-agent focused. Brave and Perplexity run on
+each person's own key, so an account without one sees them refuse.
 
 ### V1 Constraints
 

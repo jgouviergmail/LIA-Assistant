@@ -21,6 +21,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { ApiError } from '@/lib/api-client';
+import type {
+  PersonalityCreate,
+  PersonalityListItem,
+  UserPersonalityResponse,
+} from '@/types/personality';
 import {
   createPersonality,
   deletePersonality,
@@ -33,6 +38,23 @@ import {
 } from '@/lib/api/personality';
 
 const ORIGINAL_FETCH = globalThis.fetch;
+const fetchMock = vi.fn<typeof fetch>();
+const STYLE: PersonalityListItem = {
+  id: 'p-warm',
+  code: 'warm',
+  emoji: '🙂',
+  is_default: true,
+  title: 'Chaleureuse',
+  description: 'Répond avec chaleur',
+};
+const NEW_STYLE: PersonalityCreate = {
+  code: 'warm',
+  emoji: '🙂',
+  title: 'Chaleureuse',
+  description: 'Répond avec chaleur',
+  prompt_instruction: 'Respond warmly and clearly.',
+};
+const CURRENT: UserPersonalityResponse = { personality_id: STYLE.id, personality: STYLE };
 
 function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
@@ -42,20 +64,19 @@ function jsonResponse(status: number, body: unknown): Response {
 }
 
 function respond(status: number, body: unknown): void {
-  (globalThis.fetch as ReturnType<typeof vi.fn>).mockImplementation(async () =>
-    jsonResponse(status, body)
-  );
+  fetchMock.mockImplementation(async () => jsonResponse(status, body));
 }
 
 function lastRequest(): { url: string; init: RequestInit } {
-  const mock = globalThis.fetch as unknown as ReturnType<typeof vi.fn>;
-  const call = mock.mock.calls.at(-1)!;
-  return { url: String(call[0]), init: (call[1] ?? {}) as RequestInit };
+  const call = fetchMock.mock.calls.at(-1);
+  if (!call) throw new Error('Expected a transport request');
+  return { url: String(call[0]), init: call[1] ?? {} };
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
-  globalThis.fetch = vi.fn().mockImplementation(async () => jsonResponse(200, {}));
+  fetchMock.mockImplementation(async () => jsonResponse(200, {}));
+  globalThis.fetch = fetchMock;
 });
 
 afterEach(() => {
@@ -64,21 +85,21 @@ afterEach(() => {
 
 describe('personality API — requests', () => {
   it('lists the active personalities', async () => {
-    respond(200, { personalities: [{ code: 'warm' }] });
+    respond(200, { personalities: [STYLE], total: 1 });
 
-    await expect(fetchPersonalities()).resolves.toEqual({ personalities: [{ code: 'warm' }] });
+    await expect(fetchPersonalities()).resolves.toEqual({ personalities: [STYLE], total: 1 });
     expect(lastRequest().url).toContain('/personalities');
   });
 
   it('reads the current preference', async () => {
-    respond(200, { personality_code: 'warm' });
+    respond(200, CURRENT);
 
-    await expect(fetchCurrentPersonality()).resolves.toEqual({ personality_code: 'warm' });
+    await expect(fetchCurrentPersonality()).resolves.toEqual(CURRENT);
     expect(lastRequest().url).toContain('/personalities/current');
   });
 
-  it('patches the current preference with the chosen code', async () => {
-    respond(200, { personality_code: 'direct' });
+  it('patches the current preference with the chosen identifier', async () => {
+    respond(200, CURRENT);
 
     await updateCurrentPersonality({ personality_id: 'p-direct' });
 
@@ -99,7 +120,7 @@ describe('personality API — requests', () => {
   it('creates through POST', async () => {
     respond(200, { id: 'p1' });
 
-    await createPersonality({ code: 'warm', emoji: '🙂', title: 'Chaleureuse' } as never);
+    await createPersonality(NEW_STYLE);
 
     const { url, init } = lastRequest();
     expect(url).toMatch(/\/personalities\/admin$/);
@@ -109,7 +130,7 @@ describe('personality API — requests', () => {
   it('carries the propagate flag as a query parameter on update', async () => {
     respond(200, { id: 'p1' });
 
-    await updatePersonality('p1', { title: 'Nouveau' } as never, false);
+    await updatePersonality('p1', { title: 'Nouveau' }, false);
 
     const { url, init } = lastRequest();
     expect(url).toContain('/personalities/admin/p1');
@@ -120,15 +141,13 @@ describe('personality API — requests', () => {
   it('propagates translations by default', async () => {
     respond(200, { id: 'p1' });
 
-    await updatePersonality('p1', { title: 'Nouveau' } as never);
+    await updatePersonality('p1', { title: 'Nouveau' });
 
     expect(lastRequest().url).toContain('propagate=true');
   });
 
   it('deletes through DELETE and resolves with nothing', async () => {
-    (globalThis.fetch as ReturnType<typeof vi.fn>).mockImplementation(
-      async () => new Response(null, { status: 204 })
-    );
+    fetchMock.mockImplementation(async () => new Response(null, { status: 204 }));
 
     await expect(deletePersonality('p1')).resolves.toBeUndefined();
     expect(lastRequest().init.method).toBe('DELETE');
@@ -151,8 +170,8 @@ describe('personality API — one error contract for all eight calls', () => {
     ['fetchCurrentPersonality', () => fetchCurrentPersonality()],
     ['updateCurrentPersonality', () => updateCurrentPersonality({ personality_id: 'x' })],
     ['fetchPersonalitiesAdmin', () => fetchPersonalitiesAdmin()],
-    ['createPersonality', () => createPersonality({ code: 'x' } as never)],
-    ['updatePersonality', () => updatePersonality('p1', {} as never)],
+    ['createPersonality', () => createPersonality(NEW_STYLE)],
+    ['updatePersonality', () => updatePersonality('p1', {})],
     ['deletePersonality', () => deletePersonality('p1')],
     ['translatePersonality', () => translatePersonality('p1')],
   ];
@@ -163,8 +182,9 @@ describe('personality API — one error contract for all eight calls', () => {
     const error = await run().catch((e: unknown) => e);
 
     expect(error).toBeInstanceOf(ApiError);
-    expect((error as ApiError).status).toBe(409);
-    expect((error as ApiError).data).toEqual({ detail: 'code already taken' });
+    if (!(error instanceof ApiError)) throw new Error('Expected an ApiError');
+    expect(error.status).toBe(409);
+    expect(error.data).toEqual({ detail: 'code already taken' });
   });
 
   it.each(calls)('%s surfaces the backend reason as the message', async (_name, run) => {
@@ -182,10 +202,11 @@ describe('personality API — one error contract for all eight calls', () => {
     ];
     respond(422, { detail });
 
-    const error = await createPersonality({} as never).catch((e: unknown) => e);
+    const error = await createPersonality(NEW_STYLE).catch((e: unknown) => e);
 
-    expect((error as ApiError).data).toEqual({ detail });
-    expect(String((error as ApiError).message)).not.toContain('[object Object]');
+    if (!(error instanceof ApiError)) throw new Error('Expected an ApiError');
+    expect(error.data).toEqual({ detail });
+    expect(error.message).not.toContain('[object Object]');
   });
 
   it('a delete refused with a structured detail does not print [object Object]', async () => {
@@ -193,7 +214,8 @@ describe('personality API — one error contract for all eight calls', () => {
 
     const error = await deletePersonality('p1').catch((e: unknown) => e);
 
-    expect((error as ApiError).message).not.toContain('[object Object]');
+    if (!(error instanceof ApiError)) throw new Error('Expected an ApiError');
+    expect(error.message).not.toContain('[object Object]');
   });
 
   it('falls back to the status line when the body carries no reason', async () => {
@@ -229,6 +251,22 @@ describe('personality API — session and transport', () => {
     const error = await fetchPersonalities().catch((e: unknown) => e);
 
     expect(error).toBeInstanceOf(ApiError);
-    expect((error as ApiError).status).toBe(401);
+    if (!(error instanceof ApiError)) throw new Error('Expected an ApiError');
+    expect(error.status).toBe(401);
+  });
+});
+
+describe('personality API — read lifetime', () => {
+  it.each([
+    ['catalogue', fetchPersonalities],
+    ['current preference', fetchCurrentPersonality],
+  ] as const)('propagates caller cancellation for the %s read', async (_name, read) => {
+    const owner = new AbortController();
+    const pending = read(owner.signal);
+    const transport = lastRequest().init.signal;
+    expect(transport?.aborted).toBe(false);
+    owner.abort();
+    expect(transport?.aborted).toBe(true);
+    await pending;
   });
 });

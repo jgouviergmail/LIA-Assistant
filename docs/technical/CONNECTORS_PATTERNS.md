@@ -187,6 +187,40 @@ le sont (`SEARCH_HITS_ARE_WHOLE` ; Graph non, sa liste est un aperçu), pour que
 l'outil ne relise jamais un message qu'il a déjà (ADR-287, amendement du
 2026-09-30).
 
+### Mailbox drafts: one contract, three providers (ADR-344)
+
+The mailbox draft half of `EmailClientProtocol` — `list_drafts`, `get_draft`,
+`create_draft`, `create_reply_draft`, `create_forward_draft`, `update_draft`,
+`trash_drafts`, `send_draft` — is held equal on the three clients by parity
+tests; each provider's mechanics live in one mixin
+(`gmail_drafts_mixin.py`, `outlook_drafts_mixin.py`, `apple_drafts_mixin.py`).
+What a caller can rely on, whatever the provider:
+
+- **The handle** is `mailbox_draft_id`: Gmail's draft id (an edit keeps it while
+  the message id changes — measured), Graph's message id, a scoped IMAP handle (an edit
+  is a new message, so a NEW handle: use the one an edit returns).
+- **IMAP IDs bind server endpoint, account, folder and SELECT UIDVALIDITY**. Relist legacy IDs,
+  changed accounts or rebuilt folders before acting. Cleanup uses targeted
+  UID EXPUNGE under UIDPLUS, never global EXPUNGE; trash uses native MOVE or
+  one COPY with targeted removal. Unsafe server capabilities refuse before
+  copying or replacement APPEND. A lost acknowledgement never replays a move.
+- **A draft is read whole**: its body keeps the history a reply quotes, and an
+  edit rewrites the person's words above it, never the quote.
+- **A reply or a forward draft stays in its thread** (Gmail: a multipart
+  upload carrying `threadId` — a media upload loses it, measured; Graph:
+  `createReply` / `createForward` then a write of the words, because Graph keeps
+  a `comment` for the sent message only).
+- **Trashing is recoverable** on all three (Gmail and iCloud trash, Outlook's
+  Deleted Items) and draft by draft: what failed is said per draft
+  (`not_found`, `refused`, `unavailable`), and a failure before anything moved
+  is raised.
+- **A send is one attempt, never retried**, and `draft_kept` says when IMAP
+  sent the message but could not take the draft out of its folder.
+- **Recipients are read once** (`infrastructure/email/recipients.py`):
+  `parse_recipients` refuses an unreadable address in what LIA writes,
+  `read_recipients` skips one in a header a provider handed back, and
+  `encode_recipients` encodes a display name outside ASCII alone.
+
 ---
 
 ## 🔧 Helpers Centralisés
@@ -610,6 +644,9 @@ class BaseAPIKeyClient:
         - Redis rate limiting (distributed)
         - Local fallback rate limiting
         - Secure key masking in logs
+        - A provider 429 is backpressure on the key, never a breaker failure:
+          retried jittered, handed back as a typed ConnectorAPIError 429 with
+          Retry-After (ADR-108 amendment 2026-10-13)
     """
 
     async def _make_request(

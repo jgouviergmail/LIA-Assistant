@@ -23,6 +23,8 @@ from src.domains.agents.application.journal_feedback_schemas import (
     JournalFeedbackPatch,
     JournalFeedbackRequest,
     JournalFeedbackValues,
+    canonical_journal_feedback,
+    feedback_public_scope,
 )
 from src.domains.agents.application.journal_feedback_spec import JOURNAL_FEEDBACK_OPERATION
 from src.domains.agents.application.journal_settings import journal_settings_fence
@@ -35,13 +37,6 @@ from src.domains.journals.portrait_feedback_configuration import portrait_feedba
 from src.domains.journals.schemas import JournalEntryResponse
 from src.domains.users.preference_cas import PreferenceWriteReceipt
 from src.infrastructure.llm.usage_guard import enforce_usage_limit
-
-
-def feedback_public_scope(values: JournalFeedbackValues) -> dict[str, JsonValue]:
-    return {
-        **values.expected.public_scope(),
-        "correction": portrait_feedback_entry(values.request).model_dump(mode="json"),
-    }
 
 
 async def prepare_journal_feedback(
@@ -64,14 +59,6 @@ async def prepare_journal_feedback(
         {"journal_feedback": {**public, "requested": True}},
         command_id=command_id,
     )
-
-
-def canonical_journal_feedback(draft: ApplicationActionDraftContent) -> bool:
-    selected = JournalFeedbackPatch.model_validate(draft.intent).journal_feedback
-    public = feedback_public_scope(selected)
-    return draft.before == {"journal_feedback": public} and draft.after == {
-        "journal_feedback": {**public, "requested": True}
-    }
 
 
 @dataclass

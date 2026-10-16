@@ -88,6 +88,7 @@ def _imap_message() -> SimpleNamespace:
         from_="alice@example.com",
         to=("bob@example.com",),
         cc=(),
+        bcc=(),
         date=datetime(2026, 9, 15, 17, 24, 45),
         date_str="Tue, 15 Sep 2026 17:24:45 +0000",
         text="",
@@ -108,6 +109,52 @@ def _assert_clean_text_body(body: str) -> None:
 
 
 class TestTheThreeNormalisersSpeakOneVocabulary:
+    def test_graph_names_with_commas_remain_single_addresses_on_a_reply(self) -> None:
+        from src.domains.connectors.clients.email_compose import reply_recipients
+
+        message = _graph_message()
+        message["from"]["emailAddress"]["name"] = "Example, Alice"
+        message["replyTo"] = [
+            {"emailAddress": {"name": "Help, Desk", "address": "help@example.com"}}
+        ]
+        out = normalize_graph_message(message)
+
+        assert out["from"] == '"Example, Alice" <alice@example.com>'
+        assert reply_recipients(
+            out["from"],
+            out["to"],
+            out["cc"],
+            own_address="bob@example.com",
+            reply_all=True,
+            reply_to=out["reply_to"],
+        ) == ('"Help, Desk" <help@example.com>', "")
+
+    def test_gmail_retains_the_reply_address_at_the_client_boundary(self) -> None:
+        message = _gmail_full_html_only()
+        message["payload"]["headers"].append(
+            {"name": "Reply-To", "value": "Help <help@example.com>"}
+        )
+        GoogleGmailClient._normalize_message_fields(message, "full")
+
+        assert message["reply_to"] == "Help <help@example.com>"
+        assert EmailMessage.model_validate(message).reply_to == "Help <help@example.com>"
+
+    def test_graph_retains_the_reply_address_at_the_client_boundary(self) -> None:
+        message = _graph_message()
+        message["replyTo"] = [{"emailAddress": {"name": "Help", "address": "help@example.com"}}]
+        out = normalize_graph_message(message)
+
+        assert out["reply_to"] == "Help <help@example.com>"
+        assert EmailMessage.model_validate(out).reply_to == "Help <help@example.com>"
+
+    def test_imap_retains_the_reply_address_at_the_client_boundary(self) -> None:
+        message = _imap_message()
+        message.reply_to = ("help@example.com",)
+        out = normalize_imap_message(message, "INBOX")
+
+        assert out["reply_to"] == "help@example.com"
+        assert EmailMessage.model_validate(out).reply_to == "help@example.com"
+
     def test_gmail_html_only_message(self) -> None:
         message = _gmail_full_html_only()
         GoogleGmailClient._normalize_message_fields(message, "full")

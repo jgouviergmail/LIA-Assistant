@@ -31,6 +31,7 @@ import pytest
 import structlog
 
 from src.core.context import bind_skill_context, isolated_skill_ctx, reset_skill_context
+from src.domains.agents.tools.react_runner import ReactSubAgentResult, SubAgentOutcome
 from src.infrastructure.observability.metrics_registry import skill_runner_outcomes_total
 
 # The nodes package __init__ re-exports the *function* response_node, which
@@ -48,16 +49,22 @@ def _runner_capture(
     final: str = "done",
     error: Exception | None = None,
 ) -> MagicMock:
-    """Build a ReactSubAgentRunner double that records run() kwargs and its scope."""
-    result = MagicMock()
-    result.iteration_count = iterations
-    result.final_message = final
-    result.accumulated_registry = {}
-    result.duration_ms = 5
+    """Build a ReactSubAgentRunner double that records run() kwargs and its scope.
+
+    Its result is the production contract, decided like the runner decides it:
+    a message that says nothing is an EMPTY run.
+    """
+    result = ReactSubAgentResult(
+        final_message=final,
+        messages=[],
+        iteration_count=iterations,
+        duration_ms=5,
+        outcome=SubAgentOutcome.ANSWERED if final.strip() else SubAgentOutcome.EMPTY,
+    )
 
     runner = MagicMock()
 
-    async def _run(**kwargs: Any) -> MagicMock:
+    async def _run(**kwargs: Any) -> ReactSubAgentResult:
         captured.update(kwargs)
         captured["isolated"] = isolated_skill_ctx.get()
         if error is not None:

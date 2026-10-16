@@ -5,8 +5,8 @@ Owns the complete voice state machine that previously lived inline in
 
 - chat-mode progressive sentence streaming, started on the first
   ``router_decision`` with ``intention == "conversation"``;
-- agent-mode parallel voice synthesis, started as soon as the tool-result
-  registry becomes available during streaming;
+- agent-mode parallel voice synthesis, started with the answer on the
+  records it retained (``voice_scope.py``);
 - progressive audio emission while the text stream is still running;
 - the three end-of-stream finalization paths (PATH 1 queue drain, PATH 2A
   chat-mode direct TTS, PATH 2B agent-mode Voice-LLM sync fallback);
@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, Any
 from src.core.config import settings
 from src.core.time_utils import now_in_timezone
 from src.domains.agents.api.schemas import ChatStreamChunk
+from src.domains.agents.services.streaming.voice_scope import voice_context_of
 from src.domains.agents.services.streaming.voice_stream_helpers import (
     ListenerProbe,
     _cleanup_chat_voice_pipeline,
@@ -39,6 +40,7 @@ from src.domains.agents.services.streaming.voice_stream_helpers import (
     _stream_voice_chunks_to_queue,
 )
 from src.infrastructure.observability.logging import get_logger
+from src.infrastructure.observability.metrics_voice import voice_fallback_total
 
 if TYPE_CHECKING:
     from src.domains.chat.service import TrackingContext
@@ -128,8 +130,8 @@ class VoiceStreamCoordinator:
         self._chat_voice_streamer: ProgressiveSentenceStreamer | None = None
         self._chat_voice_drain_task: asyncio.Task[None] | None = None
         self._chat_voice_service: VoiceCommentService | None = None
-        # Parallel voice generation (agent mode): task starts when the
-        # tool-result registry becomes available during streaming.
+        # Parallel voice generation (agent mode): task starts with the answer,
+        # on the records it retained (voice_scope.py).
         self._voice_service_parallel: VoiceCommentService | None = None
         self._voice_parallel_task: asyncio.Task[None] | None = None
         # Queue for PROGRESSIVE chunk emission (not wait for all).
@@ -223,14 +225,17 @@ class VoiceStreamCoordinator:
     async def maybe_start_parallel(
         self, voice_context_registry: dict[str, Any] | None, chunk_type: str
     ) -> None:
-        """Start parallel voice generation when the registry becomes available.
+        """Start parallel voice generation once the answer has said what it retained.
 
-        The registry is populated after task_orchestrator completes tools, so
-        voice generation can start before response_node finishes.
+        The streaming service publishes the registry on the answer's first
+        visible character, narrowed to the records it declared at character 0
+        (``voice_scope.py``), so the comment starts while the answer streams
+        and speaks of what it says — never ahead of it.
 
         Args:
             voice_context_registry: The streaming service's captured voice
-                context registry (None until tools produce results).
+                context registry (None until the answer begins, and when it
+                retained no record).
             chunk_type: Type of the SSE chunk being processed (diagnostics).
         """
         # DIAGNOSTIC: Log when conditions are first met to debug first-message timing
@@ -262,17 +267,11 @@ class VoiceStreamCoordinator:
             )
         ):
             # Import voice dependencies (lazy)
-            from src.domains.agents.formatters.text_summary import (
-                generate_text_summary_for_llm,
-            )
             from src.domains.voice.service import VoiceCommentService
 
             try:
-                # Build voice context from registry
-                voice_context = generate_text_summary_for_llm(
-                    voice_context_registry,
-                    self._ctx.user_language,
-                )
+                # Build voice context from what the answer retained (voice_scope.py)
+                voice_context = voice_context_of(voice_context_registry, self._ctx.user_language)
 
                 # Create voice service for parallel generation
                 self._voice_service_parallel = VoiceCommentService(
@@ -439,7 +438,8 @@ class VoiceStreamCoordinator:
             response_content: The accumulated assistant response text.
             hitl_interrupted: True when this turn raised a HITL interrupt.
             voice_context_registry: The streaming service's registry at end
-                of stream (None in pure chat mode).
+                of stream (None in pure chat mode, and when the answer
+                retained no record: the answer is then read aloud).
 
         Yields:
             The voice SSE chunks to emit, in order.
@@ -488,9 +488,6 @@ class VoiceStreamCoordinator:
             return
 
         try:
-            from src.domains.agents.formatters.text_summary import (
-                generate_text_summary_for_llm,
-            )
             from src.domains.voice.service import VoiceCommentService
 
             chunk_count = self._voice_chunk_count  # Continue from progressive count
@@ -562,6 +559,9 @@ class VoiceStreamCoordinator:
                         run_id=self._ctx.run_id,
                         timeout_seconds=settings.voice_parallel_timeout_seconds,
                     )
+                    # Counted: the answer is voiced again below, and a turn whose
+                    # first voice was lost must not read as a clean one.
+                    voice_fallback_total.labels(reason="timeout").inc()
                     # Cancel and await for proper cleanup (asyncio best practice)
                     active_voice_task.cancel()
                     with suppress(asyncio.CancelledError):
@@ -649,7 +649,7 @@ class VoiceStreamCoordinator:
                     # Build voice context from registry or response
                     if voice_context_registry:
                         try:
-                            voice_context = generate_text_summary_for_llm(
+                            voice_context = voice_context_of(
                                 voice_context_registry, self._ctx.user_language
                             )
                         except Exception as summary_error:

@@ -87,7 +87,10 @@ function MailsContent({
             subject: mail.subject,
             sender,
           });
-          const from = mail.sender_email || mail.sender_name || '—';
+          const from =
+            mail.sender_name && mail.sender_email
+              ? `${mail.sender_name} · ${mail.sender_email}`
+              : mail.sender_email || mail.sender_name || '—';
           return (
             <CardItemRow
               key={index}
@@ -96,7 +99,7 @@ function MailsContent({
               // rarely says which conversation this is.
               tooltip={`${mail.subject}\n${from}`}
               onSelect={() => onOpenChat(intent)}
-              contentClassName="flex flex-col gap-0.5 leading-tight"
+              contentClassName="flex flex-col gap-1.5 leading-snug"
               actions={[
                 {
                   icon: Sparkles,
@@ -120,13 +123,14 @@ function MailsContent({
                   : []),
               ]}
             >
-              <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 tabular-nums">
+              <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-300 tabular-nums">
+                <Mail className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                 {mail.received_local}
               </span>
-              <span className="text-sm font-medium text-foreground/90 truncate">
+              <span className="line-clamp-2 break-words text-sm font-semibold text-foreground/90">
                 {mail.subject}
               </span>
-              <span className="text-xs text-muted-foreground truncate">{from}</span>
+              <span className="line-clamp-2 break-words text-xs text-muted-foreground">{from}</span>
             </CardItemRow>
           );
         })}

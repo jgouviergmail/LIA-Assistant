@@ -13,13 +13,17 @@ from __future__ import annotations
 
 import pytest
 
+from src.domains.agents.api.run_origin import RunOrigin, out_of_turn_origin_ctx
 from src.domains.agents.effects.gate import (
     ERROR_CONFIRMATION_IMPOSSIBLE,
     ERROR_CONFIRMATION_MISSING,
     GateAction,
     decide_effect,
+    nobody_can_answer,
+    turn_has_nobody_to_ask,
 )
 from src.domains.agents.effects.scope import EffectScope
+from tests.helpers.runtime_context import installed_runtime_context, no_runtime_context
 
 pytestmark = [pytest.mark.unit]
 
@@ -193,3 +197,48 @@ class TestASurfaceThatCanCarryTheQuestion:
     def test_an_approved_replay_on_a_carrier_is_recorded_and_performed(self) -> None:
         decision = decide_effect("confirm", _scope(source="scheduled", approved=True), carrier=True)
         assert decision.action is GateAction.LEDGER
+
+
+class TestOnePredicateForEveryQuestion:
+    """N10: the gate, the ReAct confirmation and the network question read ONE
+    predicate, so no surface can decide that somebody is there when the gate
+    knows nobody is."""
+
+    @pytest.mark.parametrize(
+        ("source", "carrier", "expected"),
+        [
+            ("scheduled", False, True),
+            ("scheduled", True, False),
+            ("user", False, False),
+            ("user", True, False),
+            ("proactive", False, False),
+            (None, False, False),
+        ],
+    )
+    def test_who_can_answer(self, source: str | None, carrier: bool, expected: bool) -> None:
+        assert nobody_can_answer(source, carrier=carrier) is expected
+
+    @pytest.mark.parametrize("policy", ["confirm", "draft"])
+    @pytest.mark.parametrize("source", ["scheduled", "user", "proactive"])
+    @pytest.mark.parametrize("carrier", [True, False])
+    def test_the_gate_refuses_exactly_where_nobody_can_answer(
+        self, policy: str, source: str, carrier: bool
+    ) -> None:
+        decision = decide_effect(policy, _scope(source=source), carrier=carrier)
+        refused_unattended = decision.error_code == ERROR_CONFIRMATION_IMPOSSIBLE
+        assert refused_unattended is nobody_can_answer(source, carrier=carrier)
+
+    def test_the_running_turn_is_read_from_its_context_and_its_origin(self) -> None:
+        with no_runtime_context():
+            assert turn_has_nobody_to_ask() is False
+        with installed_runtime_context(is_automated_source=False):
+            assert turn_has_nobody_to_ask() is False
+        with installed_runtime_context(is_automated_source=True):
+            assert turn_has_nobody_to_ask() is True
+            token = out_of_turn_origin_ctx.set(
+                RunOrigin(kind="workboard", ticket_id="t1", run_id="r1", can_carry_draft=True)
+            )
+            try:
+                assert turn_has_nobody_to_ask() is False
+            finally:
+                out_of_turn_origin_ctx.reset(token)

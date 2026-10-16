@@ -26,6 +26,7 @@ from src.domains.memories.repository import MemoryRepository
 from src.domains.memories.service import MemoryService
 from src.domains.users.extraction_consent import ExtractionKind, snapshot_extraction_consent
 from src.domains.users.models import User
+from tests.helpers.draft_refusals import draft_refusal_code
 from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
 
 pytestmark = pytest.mark.integration
@@ -178,7 +179,7 @@ async def test_delete_is_exact_single_use_and_cannot_be_undone_by_old_extraction
             assert not repeated.success
         else:
             assert (
-                result.error
+                draft_refusal_code(result)
                 == {
                     "corrected": "STALE_STATE",
                     "invalidated": "STALE_STATE",

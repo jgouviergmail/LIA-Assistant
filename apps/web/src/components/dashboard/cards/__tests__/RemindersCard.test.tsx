@@ -196,3 +196,69 @@ describe('cancelling a reminder that repeats', () => {
     ).toBeInTheDocument();
   });
 });
+
+describe('RemindersCard — mutation invalidation and manual refresh', () => {
+  it('keeps header refresh on its manual callback when invalidation is supplied', async () => {
+    const onRefresh = vi.fn();
+    const onInvalidate = vi.fn();
+    const { user } = renderWithProviders(
+      <RemindersCard
+        {...props}
+        onRefresh={onRefresh}
+        onInvalidate={onInvalidate}
+        section={section([reminder()])}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'dashboard.briefing.refresh_section' }));
+
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+    expect(onInvalidate).not.toHaveBeenCalled();
+  });
+
+  it('invalidates only after the cancellation is confirmed and succeeds', async () => {
+    const onRefresh = vi.fn();
+    const onInvalidate = vi.fn();
+    const { user } = renderWithProviders(
+      <RemindersCard
+        {...props}
+        onRefresh={onRefresh}
+        onInvalidate={onInvalidate}
+        section={section([reminder()])}
+      />
+    );
+
+    await runCardAction(user, CANCEL);
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    expect(mutate).not.toHaveBeenCalled();
+    expect(onInvalidate).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'common.confirm' }));
+
+    await waitFor(() => expect(onInvalidate).toHaveBeenCalledTimes(1));
+    expect(mutate).toHaveBeenCalledWith(`/reminders/${REMINDER_ID}`);
+    expect(onRefresh).not.toHaveBeenCalled();
+    expect(screen.getByRole('region')).toHaveFocus();
+  });
+
+  it('keeps the reminder without invalidating or refreshing after a refused cancellation', async () => {
+    mutate.mockRejectedValueOnce(new Error('cancellation refused'));
+    const onRefresh = vi.fn();
+    const onInvalidate = vi.fn();
+    const { user } = renderWithProviders(
+      <RemindersCard
+        {...props}
+        onRefresh={onRefresh}
+        onInvalidate={onInvalidate}
+        section={section([reminder()])}
+      />
+    );
+
+    await runCardAction(user, CANCEL);
+    await user.click(screen.getByRole('button', { name: 'common.confirm' }));
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    expect(screen.getByText('Appeler le plombier')).toBeInTheDocument();
+    expect(onInvalidate).not.toHaveBeenCalled();
+    expect(onRefresh).not.toHaveBeenCalled();
+  });
+});

@@ -42,10 +42,17 @@ from typing import TYPE_CHECKING, Any, TypeVar
 import structlog
 from pydantic import BaseModel, Field
 
-from src.core.field_names import FIELD_ERROR_CODE, FIELD_TIMESTAMP
+from src.core.field_names import (
+    FIELD_CONNECTOR_TYPE,
+    FIELD_ERROR_CODE,
+    FIELD_SUCCESS,
+    FIELD_TIMESTAMP,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable
+
+    from src.domains.connectors.models import ConnectorType
 
 logger = structlog.get_logger(__name__)
 
@@ -59,6 +66,7 @@ class ToolErrorCode(str, Enum):
 
     # Validation errors
     INVALID_INPUT = "INVALID_INPUT"
+    CONFLICT = "CONFLICT"
     MISSING_REQUIRED_PARAM = "MISSING_REQUIRED_PARAM"
     INVALID_PARAM_VALUE = "INVALID_PARAM_VALUE"
     CONSTRAINT_VIOLATION = "CONSTRAINT_VIOLATION"
@@ -70,6 +78,10 @@ class ToolErrorCode(str, Enum):
     UNAUTHORIZED = "UNAUTHORIZED"
     FORBIDDEN = "FORBIDDEN"
     NOT_FOUND = "NOT_FOUND"
+    # No connector of the person's own account serves the capability. Typed so
+    # the failures directive can say it — the one diagnosis it may make about a
+    # configuration (RC1.2, production 2026-10-07).
+    CONNECTOR_NOT_ACTIVATED = "CONNECTOR_NOT_ACTIVATED"
 
     # Internal errors
     INTERNAL_ERROR = "INTERNAL_ERROR"
@@ -146,6 +158,28 @@ def coerce_tool_error_code(value: object) -> ToolErrorCode | None:
         return ToolErrorCode(str(value))
     except ValueError:
         return None
+
+
+def connector_not_activated_refusal(connector_type: ConnectorType) -> dict[str, Any]:
+    """A draft executor's refusal: the connector it writes through is not active.
+
+    It states FACTS — the typed code and the connector — and no words: a
+    confirmed draft is answered by its execution card alone, no model writing
+    that answer, and the card builds the sentence in the person's language
+    (``draft_result_adaptation.refusal_message``). A free string,
+    ``connector_not_activated``, used to reach that card as « EXECUTION_FAILED ».
+
+    Args:
+        connector_type: The connector the executor writes through.
+
+    Returns:
+        The refusal payload.
+    """
+    return {
+        FIELD_SUCCESS: False,
+        FIELD_ERROR_CODE: ToolErrorCode.CONNECTOR_NOT_ACTIVATED.value,
+        FIELD_CONNECTOR_TYPE: connector_type.value,
+    }
 
 
 # ============================================================================

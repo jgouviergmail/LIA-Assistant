@@ -270,6 +270,34 @@ async def test_per_attempt_prices_keep_their_distinct_utc_days() -> None:
     ]
 
 
+class TestAFlatPricedActReachesTheLedger:
+    """A vendor billing a request (a voice design, ADR-345) has no token to price."""
+
+    @pytest.mark.parametrize(("cost_usd", "expected"), [("0.01", [Decimal("0.0092")]), ("0", [])])
+    async def test_its_price_is_converted_once_and_nothing_is_never_an_event(
+        self, cost_usd: str, expected: list[Decimal]
+    ) -> None:
+        from src.domains.usage_limits.instance_spend import record_instance_fixed_spend
+
+        recorded: list[Decimal] = []
+        with (
+            patch(
+                "src.domains.usage_limits.instance_budget.InstanceBudgetService.record_spend",
+                AsyncMock(side_effect=lambda _s, *, cost_eur, **__: recorded.append(cost_eur)),
+            ),
+            patch(
+                "src.domains.usage_limits.instance_spend.get_cached_usd_eur_rate",
+                return_value=0.92,
+            ),
+            _fake_session(),
+        ):
+            await record_instance_fixed_spend(
+                surface="fishaudio_voice_design", cost_usd=Decimal(cost_usd)
+            )
+
+        assert recorded == expected
+
+
 class TestTheCeilingIsAskedBeforeSpending:
     """A bound only bounds what consults it."""
 

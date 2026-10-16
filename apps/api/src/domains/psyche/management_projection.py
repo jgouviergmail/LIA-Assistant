@@ -18,7 +18,13 @@ def project_psyche_state(
         drive_curiosity=state.drive_curiosity,
         drive_engagement=state.drive_engagement,
     )
-    response = PsycheStateResponse.model_validate(state)
+    response = PsycheStateResponse.model_validate(
+        {
+            name: getattr(state, name)
+            for name in PsycheStateResponse.model_fields
+            if name not in {"mood_label", "mood_color", "efficacy_profile"}
+        }
+    )
     response.mood_label = profile.mood_label
     response.mood_color = PsycheEngine.mood_to_color(profile.mood_label)
     expression = PsycheExpressionResponse(

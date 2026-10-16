@@ -58,7 +58,8 @@ _get_emails_desc = (
     "**FOLDER/LABEL MAPPINGS** (MUST use label: syntax when user explicitly specifies a folder):\n"
     "- 'inbox' → query='label:INBOX'\n"
     "- 'sent' → query='label:SENT'\n"
-    "- 'drafts' → query='label:DRAFT'\n"
+    "- the person's DRAFTS ('my drafts', 'the draft for Marie') → list_mailbox_drafts_tool, "
+    "never label:DRAFT here\n"
     "- 'trash' / 'deleted' → query='label:TRASH'\n"
     "- 'spam' → query='label:SPAM'\n"
     "- 'starred' / 'important' → query='label:STARRED'\n"
@@ -71,7 +72,10 @@ _get_emails_desc = (
     "- Use 'after:', 'before:' for date filtering\n"
     "\n"
     "**RETURNS**: the messages at the requested detail; `result_size_estimate` is the "
-    "provider ESTIMATE (never an exact count); `next_page_token` continues the same search."
+    "provider ESTIMATE (never an exact count); `next_page_token` continues the same search; "
+    "`set_aside_on_page`, when present, counts messages of this page that a date or read-state "
+    "condition set aside after the provider's search — the page holds fewer than asked and "
+    "`next_page_token` may hold more matches."
 )
 
 get_emails_catalogue_manifest = ToolManifest(

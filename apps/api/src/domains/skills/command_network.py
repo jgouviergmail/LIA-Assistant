@@ -18,7 +18,7 @@ operator's or the person's grant.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import lru_cache
 from typing import Any, Final
 
@@ -30,6 +30,7 @@ from src.core.text_clip import clip_on_word
 from src.domains.agents.effects.in_turn_effects import SKILL_COMMAND_NETWORK_CAPABILITY
 from src.domains.agents.python_sandbox.egress.offer import ReachableHost, offer_for_account
 from src.domains.agents.python_sandbox.egress.run import NetworkRunPlan, serving
+from src.domains.agents.python_sandbox.egress.scrub import scrub_secret_bytes, scrub_secrets
 from src.domains.agents.python_sandbox.egress.tool_path import (
     NetworkRefusal,
     authorize_network,
@@ -119,7 +120,7 @@ async def run_on_network(network: CommandNetwork, run: Any) -> CommandOutput:
             called once, while the proxy serves the run.
 
     Returns:
-        The command's output.
+        The command's output, every real key of the run removed from it.
 
     Raises:
         EgressProxyUnavailable: The proxy could not serve the run; nothing ran.
@@ -127,7 +128,18 @@ async def run_on_network(network: CommandNetwork, run: Any) -> CommandOutput:
     async with serving(network.plan, capability=SKILL_COMMAND_NETWORK_CAPABILITY) as effect:
         output: CommandOutput = await run(network.plan.spec)
         effect.succeeded = output.exit_code == 0
-    return output
+    # A service may quote the key it received: what the command printed or
+    # wrote goes to the model and the person, so the real keys leave it here
+    # (point 6). Files are masked in place, their length kept.
+    secrets = list(network.plan.secrets.values())
+    return replace(
+        output,
+        stdout=scrub_secrets(output.stdout, secrets),
+        stderr=scrub_secrets(output.stderr, secrets),
+        files=tuple(
+            replace(file, data=scrub_secret_bytes(file.data, secrets)) for file in output.files
+        ),
+    )
 
 
 async def network_available() -> bool:

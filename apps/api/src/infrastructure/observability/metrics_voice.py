@@ -26,48 +26,51 @@ call. Provider can be derived from voice naming pattern at query time.
 from prometheus_client import Counter, Gauge, Histogram
 
 # ============================================================================
-# TTS API METRICS (multi-provider: Edge / OpenAI / ElevenLabs)
+# TTS API METRICS (every provider of the voice families)
 # ============================================================================
 
 voice_tts_requests_total = Counter(
     "voice_tts_requests_total",
-    "Total TTS API requests across providers (Edge, OpenAI, ElevenLabs)",
+    "Total TTS API requests across providers",
     ["status", "voice_name"],
     # status: success/error
-    # voice_name: provider-specific (Edge voice id, OpenAI voice token, or
-    # ElevenLabs UUID). Tracks usage patterns per voice.
+    # voice_name: provider-specific (Edge voice id, OpenAI voice token,
+    # ElevenLabs UUID, Fish Audio model id). Tracks usage patterns per voice.
 )
 
 voice_tts_latency_seconds = Histogram(
     "voice_tts_latency_seconds",
     "TTS API call latency across providers",
     ["voice_name"],
-    # Buckets optimized for TTS API response times
-    # Expected: 100ms-1s for Edge/OpenAI, 200ms-2s for ElevenLabs
-    buckets=[0.05, 0.1, 0.2, 0.3, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0],
+    # A sentence takes 0.1-2 s on most engines; a Fish Audio socket session
+    # measured 2.6-2.7 s and a dialogue take is one call for several lines
+    # (ADR-345). The upper buckets keep their p95 readable instead of reading
+    # 3 s for anything slower.
+    buckets=[0.05, 0.1, 0.2, 0.3, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 5.0, 10.0, 20.0, 30.0, 60.0],
 )
 
 voice_tts_errors_total = Counter(
     "voice_tts_errors_total",
     "Total TTS API errors by type across providers",
     ["error_type", "voice_name"],
-    # error_type: network_error / synthesis_error / empty_response / timeout
-    # / http_<code> / rate_limit / auth_error.
+    # error_type: network_error / synthesis_error / empty_response
+    # / invalid_response / encoding_error / timeout / http / http_<code>
+    # / rate_limit / auth_error.
     # Tracks error patterns for reliability monitoring.
+)
+
+voice_tts_transport_fallbacks_total = Counter(
+    "voice_tts_transport_fallbacks_total",
+    "Syntheses a voice slot asked to send over a WebSocket, answered over HTTP (ADR-345)",
+    ["provider", "reason"],
+    # provider: the TTS provider (fishaudio)
+    # reason: the socket's failure code (provider_network_error / provider_timeout
+    #         / provider_invalid_response) — a quota or a refusal is never retried.
 )
 
 # ============================================================================
 # VOICE COMMENT LLM METRICS
 # ============================================================================
-
-voice_comment_tokens_total = Counter(
-    "voice_comment_tokens_total",
-    "Tokens used for voice comment generation",
-    ["model", "token_type"],
-    # model: gpt-4.1-nano, etc.
-    # token_type: prompt_tokens/completion_tokens
-    # Tracks token usage for cost analysis
-)
 
 voice_comment_generation_duration_seconds = Histogram(
     "voice_comment_generation_duration_seconds",
@@ -152,7 +155,9 @@ voice_fallback_total = Counter(
     "voice_fallback_total",
     "Total voice feature fallbacks (graceful degradation)",
     ["reason"],
-    # reason: tts_error/llm_error/timeout/disabled
+    # reason: tts_error (a voice-comment sentence failed) / llm_error / direct_tts_error
+    # / timeout (a turn's parallel or progressive voice ran past its wait and was
+    # voiced again directly).
     # Tracks graceful degradation when voice fails
     # High rate indicates reliability issues
 )

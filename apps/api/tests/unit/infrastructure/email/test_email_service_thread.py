@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ssl
 import threading
 
 import pytest
@@ -27,8 +28,9 @@ class _RecordingSmtp:
     def __exit__(self, *exc: object) -> None:
         return None
 
-    def starttls(self) -> None:
+    def starttls(self, *, context: ssl.SSLContext) -> None:
         _RecordingSmtp.seen["tls"] = True
+        assert context.verify_mode == ssl.CERT_REQUIRED and context.check_hostname
 
     def login(self, user: str, password: str) -> None:
         _RecordingSmtp.seen["login"] = (user, password)

@@ -719,7 +719,7 @@
     {
       "id": 34,
       "type": "stat",
-      "title": "Browser Memory (MB)",
+      "title": "API Workers RSS (MiB)",
       "datasource": {
         "type": "prometheus",
         "uid": "$datasource"
@@ -732,14 +732,14 @@
       },
       "targets": [
         {
-          "expr": "browser_memory_bytes / 1024 / 1024",
+          "expr": "sum(lia_worker_memory_bytes) / 1024 / 1024",
           "legendFormat": " ",
           "refId": "A"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "decmbytes",
+          "unit": "mbytes",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -770,7 +770,7 @@
           ]
         }
       },
-      "description": "Browser process memory usage in bytes."
+      "description": "Sum of live API workers' resident memory (anon, file and shmem), sampled from /proc. Excludes Chromium child processes; shared pages can appear in multiple workers. This is not a browser memory cap."
     },
     {
       "id": 40,

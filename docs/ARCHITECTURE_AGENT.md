@@ -3746,13 +3746,13 @@ def create_mock_google_client():
 
 ## 22. INTELLIPLANNER - Orchestration Avancée
 
-**Version**: 1.1 (2025-12-06)
+**Version**: 1.2 (2026-10-14)
 
-INTELLIPLANNER améliore l'orchestration multi-agents avec deux composants clés :
+INTELLIPLANNER améliore l'orchestration multi-agents :
 - **Phase B+**: Flux de données structurées pour templates Jinja2 ✅ **Production Ready**
-- **Phase E**: Re-planning adaptatif intelligent ⚠️ **Partiellement implémenté**
+- **Phase E**: analyseur consultatif des échecs — **retiré** par [ADR-346](architecture/ADR-346-Advisory-Replanner-Retired-A-Pipeline-Failure-Is-Said-Never-Replayed.md)
 
-> **Note**: Les décisions `RETRY_SAME` et `REPLAN_MODIFIED` ne sont pas encore implémentées (voir section Status d'Implémentation).
+> **Note** : ce que devient une étape en échec est décrit en 22.2.
 
 ### 22.1 Phase B+: Données Structurées pour Templates
 
@@ -3845,105 +3845,41 @@ def format_registry_response(self, result: dict[str, Any]) -> StandardToolOutput
     )
 ```
 
-### 22.2 Phase E: AdaptiveRePlanner
+### 22.2 Ce que devient une étape en échec
 
-#### Concept
-
-> **⚠️ Advisory only (audit F017 / D4).** The `AdaptiveRePlanner` **computes and
-> emits** a recovery decision as an *observability signal* (Prometheus counters +
-> structured logs), but **automatic recovery is not wired**: `RETRY_SAME` and
-> `REPLAN_MODIFIED` are logged (`replan_retry_not_wired` /
-> `replan_modified_not_wired`) and the failed-step results simply flow to the
-> response node, which surfaces the failure. Re-execution would require an edge
-> back to `planner_node` that does not exist. Treat this section as the analysis
-> engine's contract, **not** an automatic-recovery loop.
-
-Le replanner détecte les échecs d'exécution et décide d'une stratégie de
-récupération **à titre indicatif** (émise comme signal, non exécutée).
+L'orchestrateur ne rejoue jamais une étape en échec ([ADR-346](architecture/ADR-346-Advisory-Replanner-Retired-A-Pipeline-Failure-Is-Said-Never-Replayed.md)) : il la transmet à la réponse, qui la dit par la directive des échecs ([ADR-303](architecture/ADR-303-Tool-Failure-Restitution.md)).
 
 ```
-Execute Plan
+Execute Plan (parallel_executor)
+    ↓ completed_steps[step_id] = {success: false, error, error_code}
+record_pipeline_step_failures(completed_steps)   — un compte par étape en échec, sous son code typé
     ↓
-Analyze Results
-    ↓
-Detect Trigger (empty_results? failure? timeout?)
-    ↓ [trigger found]
-Decide Action (proceed? retry? escalate?)  — emitted as a signal
-    ↓
-Log decision + surface the failure to response_node  (no re-execution)
+response_node — directive des échecs : l'outil, la cause, le total exact
 ```
+
+| Échec | Où il est traité |
+|-------|------------------|
+| Passager (`TIMEOUT`, `EXTERNAL_API_ERROR`, `RATE_LIMIT_EXCEEDED`) | Retenté dans le client qui a appelé le fournisseur (backoff, disjoncteur), dans la limite de temps de l'étape, puis dit comme l'échec du fournisseur |
+| Refus d'un compte ou d'un site (`CONNECTOR_NOT_ACTIVATED`, `UNAUTHORIZED`, `FORBIDDEN`) | Dit, avec ce qui le corrige quand la directive le sait |
+| Causé par le plan | Rattrapé avant l'exécution quand c'est possible : le validateur sémantique renvoie le plan au planificateur, dans la limite de `planner_max_replans` ; le mode ReAct, au choix de la personne, reste celui qui se corrige lui-même ([ADR-310](architecture/ADR-310-ReAct-Turn-Judged-On-Its-Result.md)) |
+| Résultat vide | Une réponse |
 
 #### Intégration dans task_orchestrator_node.py
 
 ```python
-from src.domains.agents.orchestration import (
-    AdaptiveRePlanner,
-    RePlanContext,
-    RePlanDecision,
-    analyze_execution_results,
-    should_trigger_replan,
-)
+from src.domains.agents.orchestration.step_failure_metrics import record_pipeline_step_failures
 
-async def task_orchestrator_node(state, config):
-    # ... execute plan ...
-
-    # Quick check
-    should_replan, trigger = should_trigger_replan(
-        execution_plan=plan,
-        completed_steps=results,
-    )
-
-    if not should_replan:
-        return proceed_to_response(state, results)
-
-    # Full analysis
-    analysis = analyze_execution_results(plan, results)
-
-    context = RePlanContext(
-        user_request=state["user_request"],
-        execution_plan=plan,
-        completed_steps=results,
-        execution_analysis=analysis,
-        replan_attempt=state.get("replan_attempt", 0),
-        max_attempts=settings.adaptive_replanning_max_attempts,
-    )
-
-    replanner = AdaptiveRePlanner()
-    result = replanner.analyze_and_decide(context)
-
-    # ADVISORY: the decision is recorded (metrics + logs) but NOT acted upon.
-    # Every branch below converges on surfacing the results to response_node;
-    # RETRY_SAME / REPLAN_MODIFIED are logged as "*_not_wired". The illustrative
-    # recovery calls (retry_execution / regenerate_plan / …) are NOT implemented.
-    match result.decision:
-        case RePlanDecision.RETRY_SAME:
-            logger.info("replan_retry_not_wired", decision="retry_same")
-        case RePlanDecision.REPLAN_MODIFIED:
-            logger.info("replan_modified_not_wired")
-        # PROCEED / ESCALATE_USER / ABORT: no dedicated wiring either — the
-        # failed-step results flow to response_node, which renders the outcome.
-
-    # In all cases: surface the (possibly failed) results, no re-execution.
-    return proceed_to_response(state, results)
+# After the parallel executor returns:
+completed_steps = execution_result_obj.completed_steps
+record_pipeline_step_failures(completed_steps)  # counter only — nothing is re-run
+# completed_steps is handed on WHOLE to response_node, failed entries included
 ```
+
+`record_pipeline_step_failures` lit le prédicat de la directive (`failed_step_codes`, `diagnostics/failure_context.py`) : le compteur compte exactement ce que le modèle est invité à dire, une entrée par élément d'un FOR_EACH et jamais l'agrégat (marqué `FIELD_FOR_EACH_AGGREGATE` par `_aggregate_for_each_results`).
 
 #### Configuration
 
 ```python
-# core/config/agents.py
-class AgentsSettings(BaseSettings):
-    # INTELLIPLANNER Phase E
-    adaptive_replanning_max_attempts: int = Field(
-        default=3,
-        ge=1, le=5,
-        description="Max re-planning attempts before giving up"
-    )
-    adaptive_replanning_empty_threshold: float = Field(
-        default=0.8,
-        ge=0.0, le=1.0,
-        description="Empty rate threshold for re-planning trigger"
-    )
-
 # core/config/advanced.py
 class AdvancedSettings(BaseSettings):
     # INTELLIPLANNER Phase B+
@@ -3954,60 +3890,20 @@ class AdvancedSettings(BaseSettings):
     )
 ```
 
-#### Triggers et Décisions
-
-| Trigger | Description |
-|---------|-------------|
-| `EMPTY_RESULTS` | Tous les outils ont retourné 0 résultat |
-| `PARTIAL_EMPTY` | Certains outils sans résultat (> seuil) |
-| `PARTIAL_FAILURE` | Certains steps ont échoué |
-| `SEMANTIC_MISMATCH` | Résultats ne correspondent pas à l'intention |
-| `REFERENCE_ERROR` | `$steps.X.field` non résolu |
-| `DEPENDENCY_ERROR` | Données de dépendance manquantes |
-| `TIMEOUT` | Exécution trop longue |
-
-| Décision | Action |
-|----------|--------|
-| `PROCEED` | Continuer vers response_node |
-| `RETRY_SAME` | Réexécuter le plan tel quel |
-| `REPLAN_MODIFIED` | Régénérer avec paramètres modifiés |
-| `REPLAN_NEW` | Nouvelle stratégie complète |
-| `ESCALATE_USER` | Demander clarification |
-| `ABORT` | Abandonner et expliquer |
-
 #### Métriques Prometheus
 
 ```python
-# infrastructure/observability/metrics_agents.py
+# infrastructure/observability/metrics_pipeline.py
 
-# Triggers détectés
-adaptive_replanner_triggers_total = Counter(
-    "adaptive_replanner_triggers_total",
-    "Total re-planning triggers detected by type",
-    ["trigger"],  # empty_results, partial_failure, reference_error...
-)
-
-# Décisions prises
-adaptive_replanner_decisions_total = Counter(
-    "adaptive_replanner_decisions_total",
-    "Total re-planning decisions by type",
-    ["decision"],  # proceed, retry_same, replan_modified, escalate_user, abort
-)
-
-# Tentatives
-adaptive_replanner_attempts_total = Counter(
-    "adaptive_replanner_attempts_total",
-    "Total re-planning attempts",
-    ["attempt_number"],  # 1, 2, 3
-)
-
-# Récupérations réussies
-adaptive_replanner_recovery_success_total = Counter(
-    "adaptive_replanner_recovery_success_total",
-    "Successful recoveries by strategy",
-    ["strategy"],  # broaden_search, alternative_source...
+# Étapes en échec des plans exécutés — label : un membre de ToolErrorCode, sinon "unclassified"
+pipeline_step_failures_total = Counter(
+    "pipeline_step_failures_total",
+    "Failed steps of executed pipeline plans, by typed error code",
+    [FIELD_ERROR_CODE],
 )
 ```
+
+C'est la seule vue Prometheus d'un échec survenu avant l'appel d'un outil (une référence `$steps` non résolue) : aucune métrique d'outil ni aucun registre ne le voit. Tableau de bord 07, rangée « Pipeline Step Failures ».
 
 ### 22.3 Fichiers INTELLIPLANNER
 
@@ -4018,36 +3914,21 @@ adaptive_replanner_recovery_success_total = Counter(
 | | `orchestration/schemas.py` | `StepResult` export pour orchestration |
 | | `orchestration/jinja_evaluator.py` | `JinjaEvaluator` pour évaluation templates |
 | | `orchestration/query_engine/models.py` | Source "steps" dans `validate_source()` |
-| **Phase E** _(advisory — no auto-recovery, F017)_ | `orchestration/adaptive_replanner.py` | `AdaptiveRePlanner` analysis engine (~900 lignes) — emits decisions as signals |
-| | `orchestration/__init__.py` | Exports publics (enums, dataclasses, fonctions) |
-| | `nodes/task_orchestrator_node.py` | Point d'intégration post-exécution — logs the decision, does **not** re-execute |
-| | `core/config/agents.py` | Configuration `adaptive_replanning_*` |
 | | `core/config/advanced.py` | Configuration `jinja_max_recursion_depth` |
-| **Tests** | `tests/agents/orchestration/test_adaptive_replanner.py` | Tests unitaires replanner |
+| **Étapes en échec** | `nodes/task_orchestrator_node.py` | Transmet les étapes en échec à la réponse, sans les rejouer |
+| | `orchestration/step_failure_metrics.py` | `record_pipeline_step_failures()` |
+| | `diagnostics/failure_context.py` | `failed_step_codes()`, le prédicat partagé avec la directive des échecs |
+| **Tests** | `tests/unit/domains/agents/nodes/test_task_orchestrator_failure_restitution.py` | Les formes d'échec mesurées en production, transmises entières et comptées |
 | | `tests/unit/.../test_standard_tool_output_structured_data.py` | Tests structured_data |
 
-### 22.4 Status d'Implémentation Phase E
-
-| Décision | Status | Notes |
-|----------|--------|-------|
-| `PROCEED` | ✅ Implémenté | Continue vers response_node |
-| `ESCALATE_USER` | ✅ Implémenté | Message affiché à l'utilisateur |
-| `ABORT` | ✅ Implémenté | Abandonne avec message explicatif |
-| `RETRY_SAME` | ⏳ En cours | TODO - Requiert restructuration du graphe |
-| `REPLAN_MODIFIED` | ⏳ En cours | TODO - Requiert appel au planner_node |
-| `REPLAN_NEW` | ⏳ En cours | TODO - Stratégie complète nouvelle |
-
-> **Impact**: La détection des triggers fonctionne pleinement. Les décisions `PROCEED`, `ESCALATE_USER` et `ABORT` sont opérationnelles. Les flows `RETRY` et `REPLAN` nécessitent une restructuration du graphe LangGraph pour pouvoir reboucler vers `planner_node`.
-
-### 22.5 Bonnes Pratiques
+### 22.4 Bonnes Pratiques
 
 1. **Toujours peupler `structured_data`** pour les nouveaux tools utilisant Jinja2
 2. **Utiliser les clés standard** (contacts, emails, events...) pour la cohérence
 3. **Inclure un `count`** dans `structured_data` pour faciliter les conditions
-4. **Logger les décisions de replanning** pour le debugging production
-5. **Ne pas dépasser 3 tentatives** de replanning (éviter les boucles infinies)
+4. **Échouer avec un `ToolErrorCode`** (`ToolErrorModel`) : c'est le code que la directive des échecs explique et que `pipeline_step_failures_total` compte — un échec sans code typé est compté `unclassified`
 
-### 22.6 Exemples d'Accès Templates Jinja2
+### 22.5 Exemples d'Accès Templates Jinja2
 
 Une fois les tools exécutés, les données sont accessibles via `{{ steps.step_id.field }}`:
 
@@ -4123,7 +4004,7 @@ apps/api/src/
 │   │       ├── parallel_executor.py # ToolRegistry + StepResult + INTELLIPLANNER B+
 │   │       ├── schemas.py           # StepResult, ExecutionResult, AgentResult
 │   │       ├── jinja_evaluator.py   # JinjaEvaluator pour templates
-│   │       ├── adaptive_replanner.py # INTELLIPLANNER Phase E (~900 lignes)
+│   │       ├── step_failure_metrics.py # Étapes en échec comptées par code typé
 │   │       ├── condition_evaluator.py # Évaluation conditions
 │   │       ├── dependency_graph.py  # Graphe de dépendances
 │   │       └── query_engine/
@@ -4138,7 +4019,7 @@ apps/api/src/
 │       └── models.py               # ConnectorType enum
 ├── core/
 │   └── config/
-│       ├── agents.py              # adaptive_replanning_* settings
+│       ├── agents.py              # planner_max_replans setting
 │       └── advanced.py            # jinja_max_recursion_depth setting
 ```
 

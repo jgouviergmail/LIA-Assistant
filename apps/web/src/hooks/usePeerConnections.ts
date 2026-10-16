@@ -156,6 +156,7 @@ export function usePeerConnections(enabled = true) {
       if (!enabled || !isCurrent()) return { ok: false, errorCode: 'FORBIDDEN' };
       try {
         await mutate(url, body);
+        if (!isCurrent()) return { ok: false, errorCode: 'FORBIDDEN' };
         refetches.forEach(refetch => {
           void refetch().catch(() => {});
         });
@@ -274,6 +275,8 @@ export function usePeerConnections(enabled = true) {
     blocks: blocks.data ?? [],
     accessLog: accessLog.data ?? [],
     loading: anyLoading,
+    error: queries.find(query => query.error)?.error ?? null,
+    hasCompleteData: queries.every(query => query.data !== undefined),
     // The FIRST load only. A refetch (after any mutation) also raises
     // `loading`, and swapping the section for a spinner then would unmount
     // the discovery block mid-use: the typed query, the results and the

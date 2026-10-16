@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import io
 import threading
 import wave
@@ -15,7 +16,7 @@ import pytest
 
 from src.domains.radio import audio as audio_module
 from src.domains.radio import production as production_module
-from src.domains.radio.audio import AssembledAudio, AudioAssemblyError
+from src.domains.radio.audio import AssembledAudio, AudioAssemblyError, LineAudio
 from src.domains.radio.cast import Cast
 from src.domains.radio.constants import TTS_RATE_LIMIT_BASE_WAIT_SECONDS
 from src.domains.radio.delivery import StylePhrases
@@ -40,7 +41,8 @@ from src.domains.radio.script import (
 from src.domains.radio.verification import Refusal, VerifiedLine, Violation
 from src.domains.voice.billing import SynthesisResult
 from src.domains.voice.exceptions import TTSProviderError
-from src.domains.voice.protocol import RawAudioSpec
+from src.domains.voice.protocol import DialogueAudio, DialogueTurn, RawAudioSpec
+from src.infrastructure.observability.metrics_radio import radio_dialogue_takes_total
 
 pytestmark = pytest.mark.unit
 
@@ -154,11 +156,6 @@ class FakeClient:
             raise self.failures[text].pop(0)
         return b"audio:" + text.encode()
 
-    async def synthesize_base64(
-        self, text: str, voice_name: str | None = None, **kwargs: object
-    ) -> str:
-        raise NotImplementedError
-
 
 class FakeTokenClient(FakeClient):
     """A token-billed engine: it reports its usage."""
@@ -189,9 +186,33 @@ class FakePcmClient(FakeClient):
         return self.audio
 
 
+class FakeDialogueClient(FakeClient):
+    """An engine voicing several speakers in one request, timing every turn."""
+
+    def __init__(self, *, placed: bool = True, refusal: TTSProviderError | None = None) -> None:
+        super().__init__("fishaudio")
+        self.placed = placed
+        self.refusal = refusal
+        self.dialogues: list[list[DialogueTurn]] = []
+
+    async def synthesize_dialogue(
+        self, turns: Sequence[DialogueTurn], **kwargs: object
+    ) -> DialogueAudio:
+        self.dialogues.append(list(turns))
+        await asyncio.sleep(0)
+        if self.refusal is not None:
+            raise self.refusal
+        sent = "".join(
+            f"<|speaker:{n}|>{turn.cue + ' ' if turn.cue else ''}{turn.words}"
+            for n, turn in enumerate(turns)
+        )
+        starts = tuple(1.5 * n + 0.1 for n in range(len(turns))) if self.placed else None
+        return DialogueAudio(audio=b"take:" + sent.encode(), sent_text=sent, turn_starts_s=starts)
+
+
 class Ledger:
     def __init__(self) -> None:
-        self.calls: list[tuple[str, str, int, int | None, int | None]] = []
+        self.calls: list[tuple[str, str, int, int | None, int | None, int | None]] = []
 
     def record_tts_call(
         self,
@@ -202,23 +223,26 @@ class Ledger:
         *,
         input_tokens: int | None = None,
         output_tokens: int | None = None,
+        billed_units: int | None = None,
     ) -> None:
-        self.calls.append((provider, model, characters, input_tokens, output_tokens))
+        self.calls.append((provider, model, characters, input_tokens, output_tokens, billed_units))
 
 
 class FakeMixer:
     def __init__(self, fail: bool = False) -> None:
         self.fail = fail
         self.received: list[tuple[ScriptPart, bytes]] = []
+        self.windows: list[tuple[float | None, float | None]] = []
 
     async def __call__(
         self,
-        lines: Sequence[tuple[ScriptPart, Path]],
+        lines: Sequence[LineAudio],
         out: Path,
         *,
         timeout_s: float,
     ) -> AssembledAudio:
-        self.received = [(part, path.read_bytes()) for part, path in lines]
+        self.received = [(line.part, line.path.read_bytes()) for line in lines]
+        self.windows = [(line.start_s, line.end_s) for line in lines]
         if self.fail:
             raise AudioAssemblyError("segment assembly failed: FfmpegError")
         out.write_bytes(b"mixed")
@@ -453,6 +477,43 @@ class TestProduced:
         assert all(("style" in kwargs) is directed for _, _, kwargs in client.calls)
         assert result.segment.unrendered == unrendered
 
+    async def test_a_cue_engine_hears_the_delivery_and_never_a_lines_own_bracket(
+        self, tmp_path: Path, mixer: FakeMixer
+    ) -> None:
+        """ADR-345: the writer's tone opens the line, spelled the engine's way; a
+        bracket the line itself carries (a headline's « [Update] ») is read as words,
+        and what is billed is what was sent."""
+        client = FakeClient(provider="fishaudio")
+        draft = ScriptDraft(
+            title="Budget",
+            lines=[
+                line(ScriptPart.INTRO, LineKind.TRANSITION, "[Update] Here is the news."),
+                *DRAFT.lines[1:],
+            ],
+        )
+        ledger = Ledger()
+        result = await produce_segment(
+            REQUEST,
+            tmp_path / "0003.mp3",
+            writer=FakeWriter(draft),
+            engine=VoiceEngine(client=client, model="s2.1-pro", phrases=PHRASES),
+            cast=CAST,
+            ledger=ledger,
+            limits=LIMITS,
+        )
+
+        assert result.outcome is ProductionOutcome.PRODUCED and result.segment is not None
+        sent = [text for text, _, _ in client.calls]
+        assert sorted(sent) == sorted(
+            [
+                "[serious] Budget. Update Here is the news.",
+                "[serious] The parliament adopted the budget by 312 votes.",
+                "[serious] That was the brief.",
+            ]
+        )
+        assert result.segment.unrendered == ()
+        assert sorted(call[2] for call in ledger.calls) == sorted(len(text) for text in sent)
+
     async def test_the_transcript_follows_the_voice_with_its_sources(
         self, tmp_path: Path, mixer: FakeMixer
     ) -> None:
@@ -517,6 +578,138 @@ class TestProduced:
     ) -> None:
         _, ledger = await produce(tmp_path, FakeTokenClient(provider="gemini"))
         assert {(call[3], call[4]) for call in ledger.calls} == {(9, 350)}
+
+
+def _spoken_by(role: RadioRole, part: ScriptPart, text: str, *refs: str) -> ScriptLine:
+    kind = LineKind.FACT if refs else LineKind.TRANSITION
+    return ScriptLine(
+        role=role,
+        part=part,
+        kind=kind,
+        text=text,
+        delivery=RadioDelivery(tone=Tone.SERIOUS),
+        refs=list(refs),
+    )
+
+
+#: The anchor and the host answer each other in the body: two voices.
+EXCHANGE = ScriptDraft(
+    title="Budget",
+    lines=[
+        _spoken_by(RadioRole.ANCHOR, ScriptPart.INTRO, "Here is the news."),
+        _spoken_by(
+            RadioRole.ANCHOR,
+            ScriptPart.BODY,
+            "The parliament adopted the budget by 312 votes.",
+            "n1",
+        ),
+        _spoken_by(RadioRole.HOST, ScriptPart.BODY, "The vote closed a long week.", "n1"),
+        _spoken_by(RadioRole.ANCHOR, ScriptPart.OUTRO, "That was the brief."),
+    ],
+)
+DIALOGUE_LIMITS = dataclasses.replace(LIMITS, dialogue_max_bytes=1500)
+
+
+class TestDialogueTakes:
+    """An engine that voices several speakers in one request (ADR-345)."""
+
+    async def _produce(
+        self,
+        tmp_path: Path,
+        client: FakeClient,
+        *,
+        model: str = "s2.1-pro",
+        limits: ProductionLimits = DIALOGUE_LIMITS,
+    ) -> tuple[production_module.ProductionResult, Ledger]:
+        ledger = Ledger()
+        result = await produce_segment(
+            REQUEST,
+            tmp_path / "0003.mp3",
+            writer=FakeWriter(EXCHANGE),
+            engine=VoiceEngine(client=client, model=model, phrases=PHRASES),
+            cast=CAST,
+            ledger=ledger,
+            limits=limits,
+        )
+        return result, ledger
+
+    @staticmethod
+    def _taken(outcome: str) -> float:
+        return radio_dialogue_takes_total.labels(outcome=outcome)._value.get()
+
+    async def test_the_exchange_is_one_take_and_each_line_a_window_of_it(
+        self, tmp_path: Path, mixer: FakeMixer
+    ) -> None:
+        client = FakeDialogueClient()
+        voiced_before = self._taken("voiced")
+
+        result, ledger = await self._produce(tmp_path, client)
+
+        assert result.outcome is ProductionOutcome.PRODUCED
+        [turns] = client.dialogues
+        assert [(turn.voice, turn.cue) for turn in turns] == [
+            ("voice-b", "[serious]"),
+            ("voice-a", "[serious]"),
+        ]
+        assert turns[1].words == "The vote closed a long week."
+        # Intro and outro read alone; the body's two lines are the take's windows.
+        assert len(client.calls) == 2
+        assert mixer.windows == [(None, None), (0.0, 1.6), (1.6, None), (None, None)]
+        sent = "".join(f"<|speaker:{n}|>[serious] {turn.words}" for n, turn in enumerate(turns))
+        # Three requests billed; the take's markers and cues billed with its words.
+        assert len(ledger.calls) == 3
+        assert len(sent.encode("utf-8")) in {call[5] for call in ledger.calls}
+        assert self._taken("voiced") == voiced_before + 1
+        assert not list(tmp_path.glob("*.take*"))  # no take file outlives the production
+
+    async def test_an_unplaced_take_is_voiced_line_by_line_and_stays_billed(
+        self, tmp_path: Path, mixer: FakeMixer
+    ) -> None:
+        client = FakeDialogueClient(placed=False)
+        unplaced_before = self._taken("unplaced")
+
+        result, ledger = await self._produce(tmp_path, client)
+
+        assert result.outcome is ProductionOutcome.PRODUCED
+        assert len(client.dialogues) == 1
+        assert len(client.calls) == 4  # every line alone
+        assert len(ledger.calls) == 5  # the four lines, and the take the vendor billed
+        assert mixer.windows == [(None, None)] * 4
+        assert self._taken("unplaced") == unplaced_before + 1
+
+    async def test_a_refused_take_is_voiced_line_by_line_and_never_billed(
+        self, tmp_path: Path, mixer: FakeMixer
+    ) -> None:
+        refusal = TTSProviderError("provider_http_error", details={"status_code": 400})
+        client = FakeDialogueClient(refusal=refusal)
+        failed_before = self._taken("failed")
+
+        result, ledger = await self._produce(tmp_path, client)
+
+        assert result.outcome is ProductionOutcome.PRODUCED
+        assert len(client.dialogues) == 1  # a refusal is not tried again
+        assert len(client.calls) == len(ledger.calls) == 4
+        assert self._taken("failed") == failed_before + 1
+
+    @pytest.mark.parametrize(
+        ("model", "limits"),
+        [
+            # s1 voices one speaker per request.
+            ("s1", DIALOGUE_LIMITS),
+            # A ceiling of 0 voices every line alone.
+            ("s2.1-pro", LIMITS),
+        ],
+    )
+    async def test_without_a_dialogue_every_line_is_voiced_alone(
+        self, tmp_path: Path, mixer: FakeMixer, model: str, limits: ProductionLimits
+    ) -> None:
+        client = FakeDialogueClient()
+
+        result, _ = await self._produce(tmp_path, client, model=model, limits=limits)
+
+        assert result.outcome is ProductionOutcome.PRODUCED
+        assert client.dialogues == []
+        assert len(client.calls) == 4
 
 
 class TestNoSegment:

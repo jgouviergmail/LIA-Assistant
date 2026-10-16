@@ -1,152 +1,126 @@
 'use client';
 
-import { ArrowRight, Plug, Sparkles, Zap } from 'lucide-react';
-import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import type { ReactNode } from 'react';
+import { ArrowRight, Plug, Sparkles } from 'lucide-react';
+import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useLiaGender } from '@/hooks/useLiaGender';
-import { AvatarVariantPicker } from './AvatarVariantPicker';
+import { useEyesWidgetStore } from '@/stores/eyesWidgetStore';
 import { LLMUsageBadge } from '@/components/ui/llm-usage-badge';
 import type { TextSection } from '@/types/briefing';
 
+// Reuse the native miniature without eagerly adding the facial rig to the
+// dashboard bundle. It already suspends offscreen and honors reduced motion.
+const SelectedCompanionPortrait = dynamic(
+  () =>
+    import('@/components/psyche/SelectedCompanionPortrait').then(
+      module => module.SelectedCompanionPortrait
+    ),
+  { ssr: false }
+);
+
 interface HeroLiaCardProps {
-  /** LLM-generated greeting from the briefing — preferred over random taglines. */
   greeting?: TextSection | null;
-  /** When true, the briefing greeting is still loading (shows a placeholder). */
   isLoadingGreeting?: boolean;
+  /** The existing synthesis owner stays mounted across greeting refreshes. */
+  children?: ReactNode;
 }
 
-/**
- * Marketing hero card with the LIA avatar — preserved from the previous
- * dashboard and now sits between the Quick Access and the cards grid.
- *
- * Headline:
- *  - When the briefing greeting is available, it is rendered above the CTA
- *    buttons (with the LLMUsageBadge for tokens + cost).
- *  - While the LLM call is in flight, a discreet "refreshing" label is
- *    shown — no fallback marketing tagline (deliberate: the user wants
- *    the area empty until the personalized greeting arrives, not a
- *    rotating placeholder).
- *
- * Click anywhere on the image (outside the CTA buttons) toggles the LIA gender
- * via useLiaGender. The toggle is a real, named <button> overlay (audit F045):
- * the Card itself used to carry onClick — a mouse-only, unnamed interaction
- * invisible to keyboards and assistive tech. The overlay is a SIBLING of the
- * CTA container (never an ancestor), so no invalid interactive nesting occurs;
- * the CardContent layer is pointer-transparent except for its own controls,
- * which preserves the whole-card mouse affordance exactly.
- *
- * That overlay stays — but it is invisible, so the change could read as
- * accidental. `AvatarVariantPicker` adds the missing affordance: the two
- * portraits, side by side, where pressing one SELECTS it instead of flipping.
- * It is a sibling of the overlay too (a button may not nest interactive
- * children) and sits above it, so a press lands on the picker rather than on
- * the surface underneath. `group` here is what lets the picker fade in on
- * hover and on `focus-within` at desktop widths.
- */
-export function HeroLiaCard({ greeting = null, isLoadingGreeting = false }: HeroLiaCardProps = {}) {
-  const router = useRouter();
+/** Compact welcome: real greeting and costs, portrait choices, then navigation. */
+export function HeroLiaCard({
+  greeting = null,
+  isLoadingGreeting = false,
+  children,
+}: HeroLiaCardProps = {}) {
   const { t, i18n } = useTranslation();
   const lng = (i18n.language || 'fr').split('-')[0];
-  const {
-    liaImage,
-    liaImageVariants,
-    isMale,
-    mounted,
-    setGender,
-    toggleGender: toggleLiaGender,
-  } = useLiaGender();
-
-  const headlineText = greeting?.text ?? '';
-  const usingGreeting = Boolean(greeting?.text);
+  const { isMale, mounted, setGender } = useLiaGender();
+  const styleId = useEyesWidgetStore(state => state.style);
+  const currentVariant = isMale ? 'male' : 'female';
+  const oppositeVariant = isMale ? 'female' : 'male';
 
   return (
-    <Card
-      variant="elevated"
-      className="group w-full border-0 overflow-hidden relative rounded-xl h-[420px] sm:h-[530px]"
-    >
-      <Image src={liaImage} alt="LIA" fill className="object-cover" priority />
-      <div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-background/60" />
-      <button
-        type="button"
-        onClick={toggleLiaGender}
-        aria-label={t('dashboard.actions.toggle_avatar')}
-        className="absolute inset-0 z-[5] cursor-pointer rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-      />
-      <AvatarVariantPicker
-        isMale={isMale}
-        mounted={mounted}
-        variants={liaImageVariants}
-        onSelect={setGender}
-      />
-      <CardContent className="pointer-events-none flex flex-col items-center justify-end gap-12 h-[420px] sm:h-[530px] py-6 px-6 relative z-10">
-        {/* Greeting sits directly above the CTA buttons (no top spacer) so
-            the LIA avatar fills the upper half of the card. Rendered only
-            when the LLM greeting has arrived — no fallback tagline is
-            shown while the call is in flight (deliberate: user prefers
-            an empty area to a rotating placeholder). */}
-        <div className="text-center flex flex-col items-center gap-2 max-w-md">
-          {usingGreeting ? (
-            <>
-              {/* LLM output rendered as React children (auto-escaped) — the
-                  greeting prompt outputs plain text, and any markup echoed
-                  from event titles must stay inert (XSS boundary, audit A4). */}
-              <p
-                key={headlineText}
-                className="text-xl sm:text-2xl font-semibold text-foreground/90 leading-relaxed drop-shadow-sm motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-500"
-                style={{ textWrap: 'balance' } as React.CSSProperties}
-              >
-                {headlineText}
-              </p>
-              {greeting?.usage && (
-                <LLMUsageBadge
-                  usage={greeting.usage}
-                  // pointer-events-auto: the badge's title tooltip needs hover
-                  // despite the pointer-transparent CardContent layer.
-                  className="pointer-events-auto motion-safe:animate-in motion-safe:fade-in motion-safe:duration-700 motion-safe:[animation-delay:200ms]"
-                />
-              )}
-            </>
-          ) : isLoadingGreeting ? (
-            <span
-              className="text-px-10 uppercase tracking-wider text-muted-foreground"
-              aria-live="polite"
+    <Card className="group relative min-w-0 overflow-hidden rounded-2xl border-primary/15 bg-card shadow-sm">
+      <CardContent className="p-4 sm:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3 sm:gap-4">
+            <div
+              role="group"
+              aria-label={t('dashboard.avatar_picker.group_label')}
+              className="flex shrink-0 flex-col items-center gap-1.5"
             >
-              {t('dashboard.briefing.refreshing')}
-            </span>
-          ) : null}
-        </div>
-
-        {/* pointer-events-auto: the CTA container is the only interactive
-            island inside the pointer-transparent CardContent — everywhere
-            else the click falls through to the avatar-toggle button. */}
-        <div className="pointer-events-auto flex flex-col items-center gap-3 w-[250px]">
-          <Button
-            onClick={() => router.push(`/${lng}/dashboard/settings?section=connectors`)}
-            variant="default"
-            size="lg"
-            className="w-full"
-          >
-            <Plug className="h-5 w-5" />
-            {t('dashboard.actions.services')}
-          </Button>
-          <Button
-            onClick={() => router.push(`/${lng}/dashboard/chat`)}
-            variant="default"
-            size="lg"
-            className="w-full"
-          >
-            <Sparkles className="h-5 w-5" />
-            {t('dashboard.actions.open_chat')}
-            <ArrowRight className="h-4 w-4" />
-          </Button>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Zap className="h-3.5 w-3.5 text-warning" />
-            <span>{t('dashboard.main_feature.powered_by')}</span>
+              <div
+                role="img"
+                aria-label={t(`dashboard.avatar_picker.${currentVariant}`)}
+                className="relative flex h-14 w-14 items-center justify-center sm:h-16 sm:w-16"
+              >
+                <span className="inline-flex scale-[1.4]">
+                  <SelectedCompanionPortrait
+                    styleId={styleId}
+                    variant={currentVariant}
+                    expression="neutral"
+                    animate={mounted}
+                  />
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (mounted) setGender(!isMale);
+                }}
+                aria-disabled={!mounted || undefined}
+                aria-label={t(`dashboard.avatar_picker.${oppositeVariant}`)}
+                title={t(`dashboard.avatar_picker.${oppositeVariant}`)}
+                className="relative flex h-11 w-11 items-center justify-center rounded-full transition-colors hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {/* The opposite identity is a still preview, sharing the current
+                    skin without running a second facial animation clock. */}
+                <span className="pointer-events-none inline-flex scale-[0.7]">
+                  <SelectedCompanionPortrait
+                    styleId={styleId}
+                    variant={oppositeVariant}
+                    expression="neutral"
+                    animate={false}
+                  />
+                </span>
+              </button>
+            </div>
+            <div className="min-w-0 flex-1 basis-40 space-y-2">
+              {greeting?.text ? (
+                <>
+                  {/* LLM output is plain React text, including hostile source titles. */}
+                  <p className="break-words text-base font-semibold leading-relaxed text-foreground sm:text-lg">
+                    {greeting.text}
+                  </p>
+                  {greeting.usage && <LLMUsageBadge usage={greeting.usage} />}
+                </>
+              ) : isLoadingGreeting ? (
+                <p className="text-sm text-muted-foreground" role="status">
+                  {t('dashboard.briefing.refreshing')}
+                </p>
+              ) : null}
+            </div>
+          </div>
+          <div className="flex w-full shrink-0 flex-col gap-2 lg:w-48">
+            <Button asChild className="h-auto min-h-11 whitespace-normal px-3 py-2">
+              <Link href={`/${lng}/dashboard/chat`}>
+                <Sparkles aria-hidden="true" />
+                {t('dashboard.actions.open_chat')}
+                <ArrowRight aria-hidden="true" />
+              </Link>
+            </Button>
+            <Button asChild className="h-auto min-h-11 whitespace-normal px-3 py-2">
+              <Link href={`/${lng}/dashboard/settings?section=connectors`}>
+                <Plug aria-hidden="true" />
+                {t('dashboard.actions.services')}
+              </Link>
+            </Button>
           </div>
         </div>
+        {children && <div className="mt-4 border-t border-border/60 pt-4">{children}</div>}
       </CardContent>
     </Card>
   );

@@ -14,19 +14,23 @@ API key permissions required:
 from __future__ import annotations
 
 import asyncio
-import base64
 import time
 from contextlib import suppress
-from typing import Any
+from typing import Any, NoReturn
 
 import httpx
 import structlog
 
 from src.core.constants import DEFAULT_ELEVENLABS_BASE_URL
 from src.domains.llm_config.cache import LLMConfigOverrideCache
-from src.domains.voice.elevenlabs_concurrency import tts_slot
 from src.domains.voice.exceptions import TTSProviderError
 from src.domains.voice.protocol import RawAudioSpec
+from src.domains.voice.provider_capacity import ProviderCapacityUnavailable, provider_slot
+from src.domains.voice.vendor_refusal import (
+    ELEVENLABS_CODE_PATHS,
+    refusal_from_body,
+    retry_after_of,
+)
 from src.infrastructure.observability.metrics_voice import (
     voice_tts_errors_total,
     voice_tts_latency_seconds,
@@ -154,8 +158,16 @@ class ElevenLabsTTSClient:
             # The quota belongs to the account, across sentences, clients and workers.
             # Bound queueing + HTTP together so a lease always outlives its request.
             async with asyncio.timeout(self._timeout_seconds):
-                async with tts_slot(self._api_key, timeout_seconds=self._timeout_seconds):
+                async with provider_slot(
+                    self.provider_name, self._api_key, timeout_seconds=self._timeout_seconds
+                ):
                     response = await self._http_client.post(url, params=params, json=body)
+        except ProviderCapacityUnavailable as exc:
+            raise TTSProviderError(
+                code="provider_network_error",
+                message="ElevenLabs TTS capacity could not be reserved.",
+                details={"stage": "capacity_reservation"},
+            ) from exc
         except (TimeoutError, httpx.TimeoutException) as exc:
             voice_tts_errors_total.labels(error_type="timeout", voice_name=voice_id).inc()
             voice_tts_requests_total.labels(status="error", voice_name=voice_id).inc()
@@ -176,35 +188,7 @@ class ElevenLabsTTSClient:
         voice_tts_latency_seconds.labels(voice_name=voice_id).observe(latency)
 
         if response.status_code >= 400:
-            voice_tts_errors_total.labels(
-                error_type=f"http_{response.status_code}", voice_name=voice_id
-            ).inc()
-            voice_tts_requests_total.labels(status="error", voice_name=voice_id).inc()
-            # Distinguish rate limiting (429) from generic 4xx/5xx so the
-            # streamer can surface a precise Retry-After when the provider
-            # supplies one.
-            if response.status_code == 429:
-                retry_after_raw = response.headers.get("Retry-After")
-                retry_after_seconds: float | None = None
-                if retry_after_raw is not None:
-                    try:
-                        retry_after_seconds = float(retry_after_raw)
-                    except TypeError, ValueError:
-                        retry_after_seconds = None
-                raise TTSProviderError(
-                    code="provider_rate_limited",
-                    message=f"ElevenLabs TTS rate limited: {response.text[:200]}",
-                    retry_after_seconds=retry_after_seconds,
-                    details={"status_code": 429},
-                )
-            raise TTSProviderError(
-                code="provider_http_error",
-                message=(
-                    f"ElevenLabs TTS returned HTTP {response.status_code}: "
-                    f"{response.text[:200]}"
-                ),
-                details={"status_code": response.status_code},
-            )
+            self._raise_refusal(response, voice_id)
 
         voice_tts_requests_total.labels(status="success", voice_name=voice_id).inc()
         logger.debug(
@@ -216,14 +200,36 @@ class ElevenLabsTTSClient:
         )
         return response.content
 
-    async def synthesize_base64(
-        self,
-        text: str,
-        voice_name: str | None = None,
-        **kwargs: Any,
-    ) -> str:
-        audio = await self.synthesize(text, voice_name=voice_name, **kwargs)
-        return base64.b64encode(audio).decode("ascii")
+    def _raise_refusal(self, response: httpx.Response, voice_id: str) -> NoReturn:
+        """A refusal by its facts — status and bounded vendor code, never its body.
+
+        The vendor validates a request the way FastAPI does: a 422 echoes the
+        field it refused, the line being voiced included (ADR-317). A 429 is
+        told apart so the streamer waits out the ``Retry-After`` it states.
+        """
+        refusal = refusal_from_body(response, *ELEVENLABS_CODE_PATHS)
+        voice_tts_errors_total.labels(
+            error_type=f"http_{refusal.status}", voice_name=voice_id
+        ).inc()
+        voice_tts_requests_total.labels(status="error", voice_name=voice_id).inc()
+        logger.warning(
+            "elevenlabs_tts_http_error",
+            model=self.model,
+            status_code=refusal.status,
+            vendor_code=refusal.vendor_code,
+        )
+        if refusal.status == 429:
+            raise TTSProviderError(
+                code="provider_rate_limited",
+                message=f"ElevenLabs TTS rate limited ({refusal.vendor_code})",
+                retry_after_seconds=retry_after_of(response),
+                details=refusal.details(),
+            )
+        raise TTSProviderError(
+            code="provider_http_error",
+            message=f"ElevenLabs TTS returned HTTP {refusal.status} ({refusal.vendor_code})",
+            details=refusal.details(),
+        )
 
     async def close(self) -> None:
         """Close the persistent httpx client and release pooled connections."""

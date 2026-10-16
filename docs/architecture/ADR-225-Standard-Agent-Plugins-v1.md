@@ -98,6 +98,19 @@ TDD, chacun sans régression sur l'existant.
   (`headers`, `env`) ; l'authentification d'un serveur importé se configure
   après coup dans les réglages MCP (mécanismes existants, OAuth compris).
 
+### Précision du périmètre public — 2026-10-15
+
+La portabilité du paquet ne signifie pas que toute fonction d'un autre client
+s'exécute dans LIA. Le périmètre annoncé est **skills et serveurs MCP distants
+Streamable HTTP en HTTPS** ; les transports non pris en charge et les comportements
+d'extensions propres à un client restent exclus, avec un rapport par composant.
+La [spécification normative](https://agent-plugins.org/specification) permet cette
+adoption incrémentale (§11.2). Les textes publics décrivent ce support et ses limites
+sans revendiquer de certification externe ni une compatibilité complète entre clients.
+La vérification des types JSON distingue également un champ optionnel absent d'un
+champ présent avec `null` (§5.2/5.4/7.2), et le cas non fatal `extensions: null`
+doit être signalé (§8.1).
+
 ## Conséquences
 
 - Les quotas existants s'appliquent aux composants importés (20 skills,

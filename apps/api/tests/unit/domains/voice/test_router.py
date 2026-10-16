@@ -154,3 +154,104 @@ async def test_websocket_accept_failure_does_not_phantom_decrement(
     # Critical: no inc, no dec — the gauge must stay balanced.
     assert gauge.inc.call_count == 0
     assert gauge.dec.call_count == 0
+
+
+# ----------------------------------------------------------------------
+# Remote transcription: the slot's engine (ADR-345)
+# ----------------------------------------------------------------------
+
+_USER = "7f0c3a52-6b1e-4f43-9b0a-3c8e2d1f5a6b"
+
+
+def _remote_clip() -> _FakeWebSocket:
+    return _FakeWebSocket(
+        messages=[
+            {"type": "websocket.receive", "bytes": b"\x00\x01" * 16000},
+            {"type": "websocket.receive", "text": "END"},
+            {"type": "websocket.disconnect", "code": 1000},
+        ]
+    )
+
+
+async def _run_remote(
+    fake_ws: _FakeWebSocket, rate_limiter: MagicMock, *, service: Any, statistics: AsyncMock
+) -> MagicMock:
+    from src.domains.llm_config.cache import LLMConfigOverrideCache
+    from src.domains.usage_limits.service import UsageLimitService
+    from src.domains.voice.stt.protocol import STTResult
+
+    store = MagicMock()
+    store.validate_and_consume_ticket = AsyncMock(
+        return_value={"user_id": _USER, "language": "fr", "voice_stt_mode": "remote"}
+    )
+    service.transcribe_pcm_int16_async = AsyncMock(
+        return_value=STTResult(text="Bonjour", audio_duration_seconds=2.0)
+    )
+    factory = MagicMock(return_value=service)
+    LLMConfigOverrideCache._overrides = {
+        "voice_transcription": {"provider": "fishaudio", "model": "transcribe-1"}
+    }
+    LLMConfigOverrideCache._loaded = True
+    allowed = MagicMock(allowed=True)
+    with (
+        patch("src.domains.voice.router.get_redis_session", AsyncMock()),
+        patch("src.domains.voice.router.WebSocketTicketStore", return_value=store),
+        patch("src.domains.voice.router.get_rate_limiter", AsyncMock(return_value=rate_limiter)),
+        patch("src.domains.voice.router.get_stt_service_for_mode", factory),
+        patch.object(UsageLimitService, "check_user_allowed", AsyncMock(return_value=allowed)),
+        patch("src.domains.voice.router.StatisticsService.record_remote_stt", statistics),
+        patch(
+            "src.domains.voice.router.get_cached_cost_audio_usd_eur",
+            MagicMock(return_value=(0.0002, 0.00018)),
+        ),
+        patch("src.domains.voice.router.websocket_connections_active"),
+        patch("src.domains.voice.router.websocket_connection_duration_seconds"),
+        patch("src.domains.voice.router.websocket_connections_total"),
+        patch("src.domains.voice.router.websocket_audio_bytes_received"),
+    ):
+        from src.domains.voice.router import websocket_audio
+
+        try:
+            await websocket_audio(fake_ws, ticket="abcdef0123456789")  # type: ignore[arg-type]
+        finally:
+            LLMConfigOverrideCache.reset()
+    return factory
+
+
+@pytest.mark.asyncio
+async def test_a_remote_clip_is_transcribed_and_billed_by_the_slots_engine(
+    _rate_limiter_allow: MagicMock,
+) -> None:
+    fake_ws = _remote_clip()
+    statistics = AsyncMock()
+
+    factory = await _run_remote(
+        fake_ws, _rate_limiter_allow, service=MagicMock(), statistics=statistics
+    )
+
+    # The factory is handed the slot the cost is filed under.
+    slot = factory.call_args.kwargs["slot"]
+    assert (slot.provider, slot.model) == ("fishaudio", "transcribe-1")
+    (result,) = [sent for sent in fake_ws.sent_json if sent.get("type") == "transcription"]
+    assert result["stt_provider"] == "fishaudio"
+    assert result["stt_cost_eur"] == 0.00018
+    statistics.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_the_slots_kill_switch_closes_remote_and_anothers_does_not(
+    _rate_limiter_allow: MagicMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from src.core.config import settings
+
+    monkeypatch.setattr(settings, "elevenlabs_stt_enabled", False)  # not the slot's engine
+    served = _remote_clip()
+    await _run_remote(served, _rate_limiter_allow, service=MagicMock(), statistics=AsyncMock())
+    assert not any(call["reason"] == "remote_stt_disabled" for call in served.close_calls)
+
+    monkeypatch.setattr(settings, "fishaudio_stt_enabled", False)
+    refused = _remote_clip()
+    service = MagicMock()
+    await _run_remote(refused, _rate_limiter_allow, service=service, statistics=AsyncMock())
+    assert any(call["reason"] == "remote_stt_disabled" for call in refused.close_calls)
+    service.transcribe_pcm_int16_async.assert_not_awaited()

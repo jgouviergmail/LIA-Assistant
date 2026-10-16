@@ -29,3 +29,6 @@ export interface BaseSettingsProps {
   /** Current language for translations */
   lng: Language;
 }
+
+/** Persisted response formats accepted by /auth/me/display-mode-preference. */
+export type ResponseDisplayMode = 'cards' | 'html' | 'html_cards' | 'markdown';

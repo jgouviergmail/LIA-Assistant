@@ -1,4 +1,4 @@
-"""Protocol for Speech-To-Text services (local Sherpa or remote ElevenLabs).
+"""Protocol for Speech-To-Text services (local Sherpa, or a remote engine).
 
 The voice WebSocket handler always buffers audio as raw PCM Int16 little-endian
 mono at 16 kHz (the format the frontend AudioWorklet emits). Both backends

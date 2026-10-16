@@ -37,6 +37,7 @@ from src.core.constants import GEMINI_TTS_SAMPLE_RATE
 from src.domains.llm_config.cache import LLMConfigOverrideCache
 from src.domains.voice.billing import SynthesisResult
 from src.domains.voice.exceptions import TTSProviderError
+from src.domains.voice.vendor_refusal import retry_after_of
 from src.infrastructure.media.ffmpeg import FfmpegError, transcode
 from src.infrastructure.media.pcm import wav_container
 from src.infrastructure.observability.metrics_voice import (
@@ -218,13 +219,10 @@ class GeminiTTSClient:
             "gemini_tts_http_error", model=self.model, status_code=status, vendor_status=vendor
         )
         if status == 429:
-            retry_after: float | None = None
-            with suppress(TypeError, ValueError):
-                retry_after = float(response.headers.get("Retry-After", ""))
             raise TTSProviderError(
                 code="provider_rate_limited",
                 message=f"Gemini TTS rate limited ({vendor})",
-                retry_after_seconds=retry_after,
+                retry_after_seconds=retry_after_of(response),
                 details={"status_code": status},
             )
         raise TTSProviderError(
@@ -333,13 +331,6 @@ class GeminiTTSClient:
     async def synthesize(self, text: str, voice_name: str | None = None, **kwargs: object) -> bytes:
         """Synthesize ``text`` (protocol surface; the usage is dropped)."""
         return (await self.synthesize_with_usage(text, voice_name, **kwargs)).audio
-
-    async def synthesize_base64(
-        self, text: str, voice_name: str | None = None, **kwargs: object
-    ) -> str:
-        """Synthesize ``text`` as base64 (protocol surface)."""
-        audio = await self.synthesize(text, voice_name, **kwargs)
-        return base64.b64encode(audio).decode("ascii")
 
     async def close(self) -> None:
         """Close the persistent HTTP client."""

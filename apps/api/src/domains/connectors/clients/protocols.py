@@ -68,7 +68,7 @@ class EmailClientProtocol(OutgoingCeiling, Protocol):
         is_html: bool = False,
         attachments: Sequence[OutgoingAttachment] = (),
         *,
-        single_attempt: bool = False,
+        single_attempt: bool = True,
     ) -> dict: ...
 
     async def reply_email(
@@ -110,6 +110,113 @@ class EmailClientProtocol(OutgoingCeiling, Protocol):
         filename: str | None = None,
         max_bytes: int | None = None,
     ) -> EmailAttachmentContent: ...
+
+    # ------------------------------------------------------------------
+    # Mailbox drafts (ADR-344): the person's own unsent messages, stored by
+    # the provider. Every draft returned speaks the ``EmailMessage``
+    # vocabulary plus ``mailbox_draft_id``, and its body keeps the quoted
+    # history: a draft is the person's own text, and an edit must not lose it.
+    # A draft that is not in the drafts folder — sent, deleted, in the trash,
+    # or never there — raises ``MailboxDraftNotFoundError`` (``mailbox_drafts``).
+    # ------------------------------------------------------------------
+
+    async def list_drafts(
+        self,
+        query: str = "",
+        max_results: int = 10,
+        page_token: str | None = None,
+        headers_only: bool = True,
+    ) -> dict:
+        """The newest drafts first, with the shape of ``search_emails``."""
+        ...
+
+    async def get_draft(self, draft_id: str) -> dict:
+        """One draft, whole. Raises ``MailboxDraftNotFoundError`` when absent."""
+        ...
+
+    async def create_draft(
+        self,
+        to: str,
+        subject: str,
+        body: str,
+        cc: str | None = None,
+        bcc: str | None = None,
+        is_html: bool = False,
+    ) -> dict:
+        """Save a new draft; an empty ``to`` leaves the recipient unset.
+
+        Returns the saved draft, as ``get_draft`` reads it. An address that
+        cannot be read raises ``ValueError``.
+        """
+        ...
+
+    async def create_reply_draft(
+        self,
+        message_id: str,
+        body: str,
+        reply_all: bool = False,
+        is_html: bool = False,
+    ) -> dict:
+        """Save the reply to ``message_id`` as a draft, in its thread.
+
+        Returns the saved draft, as ``get_draft`` reads it.
+        """
+        ...
+
+    async def create_forward_draft(
+        self,
+        message_id: str,
+        to: str,
+        body: str | None = None,
+        cc: str | None = None,
+        is_html: bool = False,
+    ) -> dict:
+        """Save the forward of ``message_id`` as a draft, with its files.
+
+        ``to`` is required: Graph refuses a forward draft without a recipient.
+        Returns the saved draft, as ``get_draft`` reads it.
+        """
+        ...
+
+    async def update_draft(
+        self,
+        draft_id: str,
+        *,
+        to: str | None = None,
+        cc: str | None = None,
+        bcc: str | None = None,
+        subject: str | None = None,
+        body: str | None = None,
+        expected_revision: str | None = None,
+    ) -> dict:
+        """Change the fields given (None keeps one, "" clears it), keep the rest.
+
+        A new ``body`` is the whole plain-text body (an HTML draft loses its
+        formatting, never its files). Returns the saved draft, as ``get_draft``
+        reads it — under a NEW ``mailbox_draft_id`` on IMAP, which stores a new
+        message.
+        """
+        ...
+
+    async def trash_drafts(self, draft_ids: Sequence[str]) -> dict:
+        """Move drafts to the mailbox trash, where they stay recoverable.
+
+        Returns ``{"trashed": [ids], "failed": [{"mailbox_draft_id", "status"}]}``,
+        each status one of ``mailbox_drafts.TRASH_FAILURE_STATUSES``.
+        """
+        ...
+
+    async def send_draft(self, draft_id: str) -> dict:
+        """Send a draft as it is stored — one attempt, never retried.
+
+        The caller reads and verifies the stored revision before sending.
+        This does not establish an atomic compare-and-send at the provider.
+        Returns ``id`` (the sent message, when the provider names it),
+        ``mailbox_draft_id`` and ``draft_kept`` — True only when the message
+        left but the draft could not be taken out of the drafts folder (IMAP,
+        where sending and filing are two acts).
+        """
+        ...
 
     async def list_labels(self, use_cache: bool = True) -> dict[str, str]: ...
 

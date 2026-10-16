@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from src.domains.radio.cast import VOICES_APART
 from src.domains.radio.constants import (
     JOURNAL_EVENING_FROM_HOUR,
     JOURNAL_NOON_FROM_HOUR,
@@ -20,10 +21,12 @@ from src.domains.radio.constants import (
     SOURCE_LABEL_MAX_CHARS,
 )
 from src.domains.radio.formats import (
-    CONFIGURABLE_ROLES,
     FORMAT_SPECS,
+    SPEAKER_ROLES,
+    STAFF_ROLES,
     Frequency,
     RadioFormat,
+    RadioRole,
     selectable_formats,
 )
 from src.domains.radio.personal import PersonalSource
@@ -59,6 +62,7 @@ def build_options(
         The options, every list in its declaration order.
     """
     order = list(RadioFormat)
+    roles = list(RadioRole)
     return RadioOptionsResponse(
         formats=[
             RadioFormatOptionResponse(
@@ -76,7 +80,9 @@ def build_options(
         verification_checked={
             mode: sorted(checked_formats(mode), key=order.index) for mode in VerificationMode
         },
-        roles=list(CONFIGURABLE_ROLES),
+        roles=list(STAFF_ROLES),
+        commentator_roles=list(SPEAKER_ROLES),
+        voices_apart={role: sorted(VOICES_APART[role], key=roles.index) for role in RadioRole},
         voices=[
             RadioVoiceOptionResponse(
                 voice_id=voice.voice_id,

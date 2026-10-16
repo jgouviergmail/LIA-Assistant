@@ -176,4 +176,6 @@ class TestExecutors:
             {"file_id": "doc-1", "text": "x"}, uuid4(), deps
         )
         assert result["success"] is False
-        assert result["error"] == "connector_not_activated"
+        # Typed, so the card can say which connector to reconnect.
+        assert result["error_code"] == "CONNECTOR_NOT_ACTIVATED"
+        assert result["connector_type"] == "google_drive"

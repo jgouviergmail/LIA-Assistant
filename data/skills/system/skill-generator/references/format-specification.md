@@ -73,7 +73,7 @@ plan_template:
   deterministic: true
   steps:
     - step_id: unique_identifier        # Required. Unique within the plan.
-      step_type: TOOL                    # Optional. TOOL (default) | CONDITIONAL | PARALLEL | RESPONSE
+      step_type: TOOL                    # Optional. TOOL, the only type a template runs (default).
       agent_name: event_agent            # Required. Must be a valid agent from domain_taxonomy.
       tool_name: get_events_tool         # Required for TOOL steps. Must be a registered tool.
       parameters:                        # Optional. Dict of tool parameters.

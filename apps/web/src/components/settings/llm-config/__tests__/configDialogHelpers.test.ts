@@ -164,10 +164,13 @@ describe('resolveTtsProvider', () => {
     expect(resolveTtsProvider(true, null)).toBeNull();
   });
 
-  it('returns the provider for the three supported TTS providers', () => {
+  it('returns the provider for every engine the voice catalogue serves', () => {
     expect(resolveTtsProvider(true, 'edge')).toBe('edge');
     expect(resolveTtsProvider(true, 'openai')).toBe('openai');
     expect(resolveTtsProvider(true, 'elevenlabs')).toBe('elevenlabs');
+    // Gemini's static voices and Fish Audio's live ones had no picker (ADR-345).
+    expect(resolveTtsProvider(true, 'gemini')).toBe('gemini');
+    expect(resolveTtsProvider(true, 'fishaudio')).toBe('fishaudio');
   });
 });
 

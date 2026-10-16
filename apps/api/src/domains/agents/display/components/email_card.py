@@ -42,7 +42,9 @@ from src.domains.agents.display.components.card_content import (
 )
 from src.domains.agents.display.components.email_body import render_email_body
 from src.domains.agents.display.icons import Icons, icon
+from src.domains.agents.display.mailbox_draft import is_mailbox_draft
 from src.domains.agents.display.values import scalar_text
+from src.infrastructure.email.recipients import read_recipients
 
 
 class EmailCard(BaseComponent):
@@ -83,8 +85,13 @@ class EmailCard(BaseComponent):
         """
         # Extract data with safe defaults
         subject = data.get("subject") or V3Messages.get_no_subject(ctx.language)
-        sender_name = self._get_sender(data)
-        sender_email = self._get_sender_email(data)
+        is_draft = is_mailbox_draft(data)
+        # A draft's sender is always the person: it is headed by its recipients.
+        sender_name, sender_email = (
+            (self._draft_heading(data, ctx.language), "")
+            if is_draft
+            else (self._get_sender(data), self._get_sender_email(data))
+        )
         date_raw = data.get("date") or data.get("internalDate", "")
         snippet = data.get("snippet", "")
         is_unread = self._is_unread(data)
@@ -124,10 +131,12 @@ class EmailCard(BaseComponent):
 
         # Wrap with response zones if requested
         if with_wrapper:
+            # A draft offers no « Reply » nor « Forward »: they would answer
+            # the person's own unsent message (ADR-344).
             actions = (
                 suggested_actions
                 if suggested_actions is not None
-                else self._get_actions(ctx.language)
+                else ([] if is_draft else self._get_actions(ctx.language))
             )
             return wrap_with_response(
                 card_html=card_html,
@@ -219,8 +228,13 @@ class EmailCard(BaseComponent):
         # --- Subject line ---
         subject_html = render_linked_title(subject, url, class_name="lia-email__subject")
 
-        # --- Chips row: labels + attachments + thread (all on same line) ---
-        chips = []
+        # --- Chips row: draft + labels + attachments + thread (all on same line) ---
+        # A draft says so in words, never by colour alone.
+        chips = (
+            [render_chip(card_label("mailbox_draft", ctx.language), "amber", Icons.EDIT)]
+            if is_mailbox_draft(data)
+            else []
+        )
         # Labels first
         user_labels = self._get_user_label_names(data.get("labelIds", []))
         for label in user_labels:
@@ -557,7 +571,9 @@ class EmailCard(BaseComponent):
             return ""
         if provider == "microsoft":
             return str(data.get("webLink", ""))
-        # Default: Gmail
+        # Default: Gmail — a draft opens in its compose window.
+        if is_mailbox_draft(data):
+            return f"https://mail.google.com/mail/u/0/#drafts?compose={message_id}"
         return f"https://mail.google.com/mail/u/0/#all/{message_id}"
 
     def _format_recipient(self, recipient: Any) -> str:
@@ -584,6 +600,14 @@ class EmailCard(BaseComponent):
         if "@" in recipient_str:
             return recipient_str.strip()
         return ""
+
+    def _draft_heading(self, data: dict[str, Any], language: str) -> str:
+        """The people a draft is for — its first recipient, then how many others."""
+        field = scalar_text(data.get("to"))
+        names = [name or address for name, address in read_recipients(field)]
+        if not names:
+            return field or card_label("no_recipient", language)
+        return f"{names[0]} +{len(names) - 1}" if len(names) > 1 else names[0]
 
     def _get_sender(self, data: dict) -> str:
         """Extract sender name. Falls back to email if name is empty."""

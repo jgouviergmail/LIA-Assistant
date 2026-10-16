@@ -73,6 +73,7 @@ class MeetingSttProvider(str, Enum):
 
     ELEVENLABS = "elevenlabs"
     OPENAI = "openai"
+    FISHAUDIO = "fishaudio"
     LOCAL = "local"
 
 

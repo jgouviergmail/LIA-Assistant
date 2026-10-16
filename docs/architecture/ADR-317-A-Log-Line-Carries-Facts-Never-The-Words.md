@@ -148,3 +148,45 @@ Owner request, the day after the decision shipped. Three gaps it left, each meas
    (`test_no_fact_is_logged_under_a_name_the_filter_withholds`) asks the filter itself
    whether it would withhold a fact a log call passes. It reads exact names only: a
    suffix withholds text alone, and whether a value is text is not something an AST says.
+
+## Amendment — 2026-10-13: the deployment's own keys, a quoted credential, an Amex number
+
+The free-text token pattern knew Stripe, GitHub and JWT. It did not know the
+keys LIA itself runs on: an OpenAI key (`sk-`, `sk-proj-`), an Anthropic key
+(`sk-ant-`), a Google API key (`AIza` + 35) or OAuth access token (`ya29.`)
+quoted in a provider's error text reached the log whole. So did a `Bearer`
+credential echoed with its request headers, and an `api_key` value inside a
+JSON body quoted by an exception. They are now redacted, the bearer scheme
+kept. The module docstring promised Luhn-checked Amex masking that did not
+exist: 15 digits grouped 4-6-5 starting 34/37 are now masked **when the Luhn
+check passes** (fifteen digits are also order numbers), while the 16-digit
+masking stays unconditional. The docstring's « passport, driver license
+detection », which never existed either, now says what does: SSN by field name.
+
+The e-mail pattern is now linear too (ADR-326): its local part is bounded to 64
+characters (RFC 5321). Unbounded, a try at every word boundary re-read the rest
+of the run — 40 000 characters of `a.b+c-` took 4.5 s, on every log line.
+
+Guards: `TestProviderKeysCardsAndTheirLookalikes` (`test_pii_filter.py`), a
+false-positive corpus included — its key literals are split so that no full
+key sits in the repository — and `test_the_filter_stays_linear_on_hostile_input`.
+
+## Amendment — 2026-10-15: HTTP refusals carry facts, transport failures keep their category
+
+Recorded HTTP transports reproduced provider prose in public failures from
+API-key connectors, Places, reverse geocoding, Routes and telephony. Their
+exceptions now retain HTTP status and structured refusal categories without
+quoting the body. Geocoding JSON refusals accept only the
+[documented status vocabulary](https://developers.google.com/maps/documentation/geocoding/guides-v3/requests-geocoding#StatusCodes);
+an unknown or malformed status becomes `UNKNOWN_ERROR`. Original body and
+transport details remain DEBUG diagnostics under the existing logging policy.
+
+The nine excerpt allowances in `test_vendor_body_excerpt_guard.py` are gone.
+The telephony operational-log exception is gone too: a declined call stores
+`initiate_rejected`, never the provider's message. Retry exhaustion retains its
+original exception for classification but publishes only its type. A telephony
+read/write failure remains an HTTP transport failure, with one request attempt:
+an absent response cannot become a synthetic HTTP refusal and close a call
+whose outcome may be uncertain. These are simulated transport proofs, with no
+paid provider request. The excerpt guard still does not detect whole-body
+interpolation; it is one instrument alongside behavioral tests and source review.

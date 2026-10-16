@@ -107,7 +107,7 @@ Yes. The daily synthesis card has a **Listen** button that reads the briefing al
 
 **🎙️ Natural prosody:** the text is prepared for speech before synthesis — numbers, times and abbreviations are expanded, and pauses follow the structure of the briefing — so it sounds like a spoken summary, not a screen reader.
 
-**🌍 In your language:** the readout uses your interface language and your configured voice provider (Edge TTS, OpenAI or ElevenLabs, set by the administrator).
+**🌍 In your language:** the readout uses your interface language and your configured voice provider (Edge TTS, OpenAI, ElevenLabs, Gemini or Fish Audio, set by the administrator).
 
 If synthesis fails (for example when the voice provider is unavailable), the card says so explicitly instead of playing silence.
 

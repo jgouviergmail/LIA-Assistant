@@ -78,6 +78,7 @@ from src.domains.agents.registry.catalogue import (
     manifest_allows_mode,
 )
 from src.domains.agents.telephony.voice_projection import compact_items
+from src.domains.agents.tools.connector_requirements import unconnected_tools_of
 from src.domains.agents.tools.react_tool_wrapper import extract_data_block
 from src.domains.agents.tools.tool_registry import get_tool
 from src.domains.chat.service import TrackingContext
@@ -584,7 +585,10 @@ def vendor_bodies(specs: Iterable[LiveToolSpec], *, token: str) -> list[dict[str
 
 
 async def available_live_tools(
-    *, disabled_domains: frozenset[str] = frozenset(), feature_enabled: bool | None = None
+    *,
+    disabled_domains: frozenset[str] = frozenset(),
+    feature_enabled: bool | None = None,
+    user_id: UUID | None = None,
 ) -> tuple[LiveToolSpec, ...]:
     """The derived list minus what the flag, the capabilities and the person hide.
 
@@ -593,6 +597,9 @@ async def available_live_tools(
         feature_enabled: The gate of the CALLER's feature — the telephony
             live-tools flag by default; a direct live session (ADR-300 wave 4)
             is gated by the live capability and passes True.
+        user_id: The account whose voice it is: a tool of a provider it has
+            not connected is not offered (RC2.1). None for the provisioning,
+            where the vendor holds the whole set and each call attaches its own.
 
     Returns:
         The specs a voice may hold right now; empty when the feature is off.
@@ -601,6 +608,8 @@ async def available_live_tools(
     if not gate:
         return ()
     hidden = await tools_hidden_by_capabilities(get_global_registry())
+    if user_id is not None:
+        hidden = hidden | await unconnected_tools_of(user_id)
     return tuple(
         spec
         for spec in live_tool_specs()

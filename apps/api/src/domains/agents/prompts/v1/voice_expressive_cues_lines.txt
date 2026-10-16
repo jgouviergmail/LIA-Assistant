@@ -1,0 +1,17 @@
+# The block that tells a spoken-comment writer which expressive cues its voice
+# engine performs (ADR-345). `key|text`, technical English: the model reads it,
+# the listener never does. Rendered by domains/voice/cue_prompt.py, ONLY when the
+# engine performs at least one cue and the budget is above zero; the cue words
+# are LIA's canonical vocabulary (domains/voice/expressive_cues.py), spelled the
+# engine's way at synthesis, so the writer never learns an engine's syntax.
+# An example shows a cue the engine performs ({cue}, chosen by the renderer).
+
+open|<expressive_cues>
+intro|The voice engine performs a few cues written in square brackets. They are the ONLY bracketed text allowed and are not spoken words (they do not count toward the word budget); every other rule above still applies.
+delivery|- How a sentence is said: at most one of {cues}, placed at the very start of that sentence.
+events|- A sound where it happens in a sentence: {cues}.
+rules|- Use at most {max_cues} cues in the whole comment, and only where your personality and the situation call for them; use none when reporting a failure or a sober status (Heuristic 9).
+never|- Never invent a cue, never translate a cue word, never place a cue inside a word.
+example.delivery|Example: {cue} Your appointment is confirmed for tomorrow at ten.
+example.events|Example: That one took a while {cue} but your table is booked.
+close|</expressive_cues>

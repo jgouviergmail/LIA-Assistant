@@ -27,7 +27,11 @@ from src.core.exceptions import (
 from src.core.i18n import _, resolve_language
 from src.core.i18n_api_messages import APIMessages
 from src.core.native_client import detect_native_client
-from src.core.session_dependencies import get_current_active_session, get_current_superuser_session
+from src.core.session_dependencies import (
+    get_current_active_session,
+    get_current_active_session_for_stream,
+    get_current_superuser_session,
+)
 from src.domains.connectors.error_handlers import handle_oauth_callback_error_redirect
 from src.domains.connectors.models import CONNECTOR_FUNCTIONAL_CATEGORIES, ConnectorType
 from src.domains.connectors.oauth_return import (
@@ -1508,11 +1512,20 @@ async def rotate_api_key(
     db: AsyncSession = Depends(get_db),
 ) -> ConnectorResponse:
     """Rotate (replace) an API key."""
+    from src.core.exceptions import raise_invalid_input
+
     user_id = current_user.id
     service = ConnectorService(db)
 
     # Verify ownership first
-    await service.get_connector_by_id(user_id, connector_id)
+    connector = await service.get_connector_by_id(user_id, connector_id)
+    if connector.connector_type != data.connector_type:
+        raise_invalid_input(
+            "Connector type does not match the connector being rotated.", field="connector_type"
+        )
+    # Authentication and ownership are reads owned by this route. Return their
+    # connection before verification; activation rechecks authorization afterwards.
+    await db.commit()
 
     # Validate new key
     is_valid, message = await service.validate_api_key(
@@ -1522,8 +1535,6 @@ async def rotate_api_key(
     )
 
     if not is_valid:
-        from src.core.exceptions import raise_invalid_input
-
         raise_invalid_input(message, field="api_key")
 
     # Activate with new key (this will update the existing connector)
@@ -1593,7 +1604,7 @@ async def update_connector_config(
 )
 async def validate_apple_connection(
     data: AppleValidationRequest,
-    current_user: User = Depends(get_current_active_session),
+    current_user: User = Depends(get_current_active_session_for_stream),
     db: AsyncSession = Depends(get_db),
 ) -> AppleValidationResponse:
     """Validate Apple iCloud credentials."""
@@ -1625,7 +1636,7 @@ async def validate_apple_connection(
 )
 async def activate_apple_connectors(
     data: AppleActivationRequest,
-    current_user: User = Depends(get_current_active_session),
+    current_user: User = Depends(get_current_active_session_for_stream),
     db: AsyncSession = Depends(get_db),
 ) -> AppleActivationResponse:
     """Activate Apple iCloud connectors."""

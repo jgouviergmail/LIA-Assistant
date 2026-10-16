@@ -24,6 +24,7 @@ Security-Critical Module:
 """
 
 import hashlib
+import time
 
 import pytest
 
@@ -1362,3 +1363,109 @@ class TestEmailNeverReachesALogVerbatim:
         result = add_pii_filter(None, "info", {"event": event_name})
 
         assert result["event"] == event_name
+
+
+def _luhn_amex(body: str) -> str:
+    """A 15-digit Amex-shaped number whose last digit makes the Luhn check pass."""
+    digits = [int(char) for char in body]
+    total = 0
+    for index, digit in enumerate(reversed(digits)):
+        doubled = digit * 2 if index % 2 == 0 else digit
+        total += doubled - 9 if doubled > 9 else doubled
+    return body + str((10 - total % 10) % 10)
+
+
+class TestProviderKeysCardsAndTheirLookalikes:
+    """Points 21 and 39: the token pattern knew Stripe, GitHub and JWT, while the
+    deployment's own keys — OpenAI, Anthropic, Google — and a bearer header in
+    an error text passed through; an Amex number was never masked, though the
+    module docstring claimed it. Literals are split so that no full key sits in
+    this file (secret scanning)."""
+
+    @pytest.mark.parametrize(
+        "secret",
+        [
+            "sk-" + "proj-" + "Ab12Cd34Ef56Gh78Ij90Kl12Mn34Op56",
+            "sk-" + "ant-" + "api03-" + "Ab12Cd34Ef56Gh78Ij90Kl12Mn34",
+            "AI" + "za" + "SyAb12Cd34Ef56Gh78Ij90Kl12Mn34Op5Qr",  # AIza + 35, the real length
+            "ya" + "29." + "a0Ab12Cd34Ef56Gh78Ij90Kl12Mn34Op56",
+        ],
+        ids=["openai_project", "anthropic", "google_api_key", "google_oauth_access"],
+    )
+    def test_a_provider_key_in_free_text_is_redacted(self, secret: str) -> None:
+        result = sanitize_string(f"provider call failed with {secret} (401)")
+
+        assert secret not in result
+        assert "[REDACTED_TOKEN]" in result
+        assert "provider call failed with" in result
+
+    def test_a_bearer_header_quoted_in_an_error_keeps_only_its_scheme(self) -> None:
+        opaque = "Zx9" + "Yw8Vu7Ts6Rq5Po4Nm3Lk2Ji1Hg0Fe"
+
+        result = sanitize_string(f"request headers: Authorization: Bearer {opaque}")
+
+        assert opaque not in result
+        assert "Bearer [REDACTED_TOKEN]" in result
+
+    @pytest.mark.parametrize(
+        "quoted",
+        ['{"api_key": "%s"}', "api_key=%s", "'x-api-key': '%s'", "apikey: %s"],
+        ids=["json", "assignment", "header_dict", "colon"],
+    )
+    def test_an_api_key_quoted_in_text_is_redacted(self, quoted: str) -> None:
+        value = "q1W2e3R4" + "t5Y6u7I8"
+
+        result = sanitize_string(f"body was {quoted % value}")
+
+        assert value not in result
+
+    def test_an_amex_number_that_passes_luhn_is_masked(self) -> None:
+        card = _luhn_amex("3782" + "8224631000")  # 14 digits + the check digit
+
+        result = sanitize_string(f"paid with {card[:4]} {card[4:10]} {card[10:]}")
+
+        assert card[4:10] not in result
+        assert f"****-****-****-{card[-4:]}" in result
+
+    def test_a_fifteen_digit_number_failing_luhn_is_left_alone(self) -> None:
+        card = _luhn_amex("3782" + "8224631000")  # 14 digits + the check digit
+        wrong = card[:-1] + str((int(card[-1]) + 1) % 10)
+
+        assert sanitize_string(f"order {wrong} shipped") == f"order {wrong} shipped"
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "risk-assessment and task-proj-roadmap were updated",
+            "the Bearer token expired, please sign in again",
+            "scikit sk-learn 1.5 installed",
+            "AIza alone is not a key",
+            "api_key missing from the request",
+            "order 123456789012345 shipped on 2026-10-13T08:30:00Z",
+            "run 7c9e6679-7425-40de-944b-e07fc1f90ae7 finished",
+        ],
+        ids=[
+            "hyphenated_words",
+            "bearer_prose",
+            "sklearn",
+            "short_prefix",
+            "key_name_alone",
+            "plain_15_digits",
+            "uuid",
+        ],
+    )
+    def test_ordinary_text_is_left_alone(self, text: str) -> None:
+        assert sanitize_string(text) == text
+
+
+@pytest.mark.parametrize("unit", ["a.b+c-", "sk-", "A", "x@y"])
+def test_the_filter_stays_linear_on_hostile_input(unit: str) -> None:
+    """Measured 2026-10-13: 40 000 characters of ``a.b+c-`` took 4.5 s in the
+    e-mail pattern — a try at every word boundary re-read the rest of the run.
+    Every log line goes through this filter, on the request's own thread."""
+    text = unit * (40_000 // len(unit))
+
+    started = time.perf_counter()
+    sanitize_string(text)
+
+    assert time.perf_counter() - started < 0.5

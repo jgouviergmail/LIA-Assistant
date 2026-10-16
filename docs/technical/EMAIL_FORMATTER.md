@@ -24,6 +24,16 @@ Ce que le modèle lit d'un e-mail est décidé par [ADR-286](../architecture/ADR
 | `EmailDigest`, `EmailDigestService` | `domains/agents/emails/digest.py` | `gist`, `key_points`, `actions`, `category`, `importance` — calculés une fois par message par le slot `email_digest` (prompt `email_digest_prompt.txt`, sans raisonnement), cache Redis `email:digest:{user}:{provider}:{message}:{langue}:{version}` (`USER_CACHE`, `EMAILS_DIGEST_CACHE_TTL_SECONDS`), refusés par `spend_blocked`, un vol par clé, un échec laisse le corps ; `email_digest_cache_total{result}`. La dépense voyage sur le `RunnableConfig` du tour. |
 | `get_emails_catalogue_manifest` | `domains/agents/emails/get_emails_manifest.py` | Le contrat publié au planificateur et au ReAct : `detail` (enum), `part`, `page_token`, les sorties de chaque niveau. |
 | `email_card` | `domains/agents/display/components/email_card.py` | Dessine « L'essentiel », « Points clés », « À faire » (six langues, `core/i18n_v3.py`) entre l'aperçu et le corps. |
+| Mailbox drafts (ADR-344) | `agents/tools/mailbox_drafts_tools.py`, `mailbox_draft_edit_tools.py`, `mailbox_draft_send_tools.py` | The person's own drafts, as items under `emails` carrying `mailbox_draft_id`, the person's own words as `body` (`quotes_history` says a message is quoted below them). `email_card` draws a draft as one: an amber « draft » chip, its first recipient as heading (or « no recipient »), no reply or forward action, and Gmail's link opening it in the composer (`display/mailbox_draft.py`). A deletion moves at most `EMAIL_DRAFTS_BULK_MAX` per call. |
+
+Les lectures par identifiants et les lectures détaillées d'une page Graph
+partagent `agents/tools/email_reading.fetch_messages`, sous la porte de
+consultation de l'outil. Les messages
+effectivement lus sont conservés ; `metadata.failed_read_count` et le résumé
+de l'outil signalent une lecture partielle. Un échec de toutes les lectures
+remonte comme un échec, jamais comme une boîte vide lue avec succès. Une
+annulation reste une annulation ; une boîte réellement vide reste un résultat
+valide. Les erreurs visibles donnent le type sans le texte privé du fournisseur.
 
 Réglages (section `[34]` des `.env`) : `EMAILS_BODY_PART_TOKENS`, `EMAILS_DIGEST_ENABLED`, `EMAILS_DIGEST_INPUT_MAX_TOKENS`, `EMAILS_DIGEST_CACHE_TTL_SECONDS`, `EMAILS_DIGEST_CONCURRENCY`, `EMAILS_TRIM_QUOTED_REPLIES` ; `EMAILS_BODY_MAX_LENGTH` ne borne plus ce que le modèle lit. `EMAIL_TRUNCATION_RATIO` n'existe plus.
 

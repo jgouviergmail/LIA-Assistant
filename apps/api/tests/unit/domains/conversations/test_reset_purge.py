@@ -74,6 +74,21 @@ GLOBAL = ["llm_cache:_call_router_llm:abc", "scheduler:leader"]
 UNDECLARED = [f"brand_new_family:{UID}"]
 
 
+async def test_reset_purges_old_and_scoped_imap_contents_only_for_the_current_user() -> None:
+    from uuid import UUID
+
+    from src.domains.connectors.clients.apple_imap import message_cache_key
+
+    old = f"apple_email:{UID}:msg:42"
+    current = message_cache_key(UUID(UID), "jane@icloud.com", "42.scoped")
+    other = message_cache_key(UUID(OTHER), "jane@icloud.com", "42.scoped")
+    redis = _FakeRedis([old, current, other, *LEARNING_AND_RUNTIME])
+    await purge_conversation_keys(redis, user_id=UID, conversation_id=UID)
+    assert old not in redis.data and current not in redis.data
+    assert other in redis.data
+    assert all(key in redis.data for key in LEARNING_AND_RUNTIME)
+
+
 def _counter_value(counter: Any, **labels: str) -> float:
     return float(counter.labels(**labels)._value.get())
 

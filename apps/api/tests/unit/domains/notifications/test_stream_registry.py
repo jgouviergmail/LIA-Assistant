@@ -13,11 +13,27 @@ failure mode is fail-open — a Redis outage must degrade to "no cap", never
 kill streams.
 """
 
+from contextlib import contextmanager
 from unittest.mock import AsyncMock
 
 import pytest
+import structlog
 
 from src.domains.notifications import stream_registry
+from tests.support.structlog_capture import fresh_module_logger
+
+
+async def test_registration_failure_keeps_redis_words_out_of_public_logs(redis: AsyncMock) -> None:
+    private = "PRIVATE_REDIS_SESSION_VALUE"
+    redis.zadd.side_effect = OSError(private)
+    with (
+        contextmanager(fresh_module_logger)(stream_registry),
+        structlog.testing.capture_logs() as logs,
+    ):
+        await stream_registry.register_stream(redis, "user", "stream", cap=2, ttl_seconds=120)
+
+    assert private not in str([entry for entry in logs if entry["log_level"] != "debug"])
+    assert any(entry.get("error_type") == "OSError" for entry in logs)
 
 
 @pytest.fixture

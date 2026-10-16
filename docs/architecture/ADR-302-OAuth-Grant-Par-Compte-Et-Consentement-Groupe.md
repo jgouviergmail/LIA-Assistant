@@ -120,3 +120,24 @@ expirés, proposer « Tout reconnecter » comme dans « Mes connecteurs »).
   reconnexion proposent le bouton groupé dès que deux connecteurs d'un même
   fournisseur sont en erreur, et le réglage partage le même calcul
   (`lib/connectors/bulk-reconnect.ts`).
+
+## Amendement 2026-10-15 — Autoriser encore au moment de l'activation
+
+Une attente du fournisseur ne réserve pas l'autorisation d'un compte. Les
+activations unitaires et groupées relisent un propriétaire actif, non supprimé,
+puis verrouillent les configurations globales dans un ordre stable avant les
+grants et les connecteurs. `ConnectorService._lock_activation` est leur garde
+commune, également utilisée par une modification de statut vers `ACTIVE`.
+
+La désactivation administrative prend les mêmes verrous transactionnels par
+type, y compris lorsque la configuration utilise encore son défaut sans ligne.
+Si elle passe d'abord, l'activation est refusée ; si l'activation passe d'abord,
+la désactivation attend son commit puis révoque le connecteur. Une simple
+lecture avant l'attente, ou le seul verrou d'une ligne absente, ne suffit pas.
+
+Les probes Apple et l'appel Hue Remote prennent leur préflight sur une session
+fermée avant l'attente réseau (ADR-304), puis relisent cette autorisation avant
+la persistance. Une révocation survenue pendant l'appel Hue empêche le stockage
+local ; elle ne peut pas annuler une whitelist déjà acceptée par le bridge.
+Les preuves PostgreSQL utilisent des sessions indépendantes et des fournisseurs
+simulés, sans revendiquer un nouveau consentement externe réel.

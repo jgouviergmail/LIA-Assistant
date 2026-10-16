@@ -4,14 +4,18 @@ Extends the Lot 0 classification guard to the archive builder: every table
 classified FULL must be resolvable by the generic exporter (owner column or
 parent route EXISTS in the metadata), redaction/decryption specs must
 reference real columns, and EXCLUDED tables can never appear in the
-exportable set — by construction AND by assertion.
+exportable set — by construction AND by assertion. The users row leaves its
+secrets out and keeps every setting, one erased with the account included.
 """
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
 
+from src.domains.account_export import builder
 from src.domains.account_export.builder import (
     _DECRYPTED_COLUMNS,
     _OWNER_COLUMN_OVERRIDES,
@@ -22,6 +26,8 @@ from src.domains.account_export.builder import (
     _row_to_dict,
     exportable_tables,
 )
+from src.domains.users.models import User
+from src.domains.users.user_column_map import USER_COLUMNS, UserColumnClass
 from src.domains.users.user_data_map import TABLE_RULES, ExportPolicy
 from src.infrastructure.database.registry import import_all_models
 from src.infrastructure.database.session import Base
@@ -184,3 +190,36 @@ class TestSideScopedSerialization:
     def test_a_table_without_a_rule_is_untouched(self) -> None:
         row = _row_to_dict("memories", SimpleNamespace(_mapping={"content": "x"}), uuid4())
         assert row == {"content": "x"}
+
+
+@pytest.mark.unit
+class TestUserProfileExport:
+    """The users row leaves every secret out and keeps every setting in."""
+
+    async def test_a_setting_erased_with_the_account_is_exported_while_it_lives(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        voices = {"fishaudio/s2.1-pro": {"male": "voice-id"}}
+        user = User(id=uuid4(), email="person@example.com", hashed_password="hash")
+        user.lia_voices = voices
+
+        class _Result:
+            def scalar_one(self) -> User:
+                return user
+
+        class _Db:
+            async def execute(self, statement: object) -> _Result:
+                return _Result()
+
+        @asynccontextmanager
+        async def session() -> AsyncIterator[_Db]:
+            yield _Db()
+
+        monkeypatch.setattr(builder, "get_db_context", session)
+
+        exported = await builder._fetch_user_profile(user.id)
+
+        erased = {n for n, c in USER_COLUMNS.items() if c is UserColumnClass.SCRUBBED_PREFERENCE}
+        assert erased and erased <= set(exported)
+        assert exported["lia_voices"] == voices
+        assert "hashed_password" not in exported

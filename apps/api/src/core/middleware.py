@@ -469,6 +469,19 @@ class SecurityHeadersMiddleware:
                 headers["X-Frame-Options"] = "DENY"
                 headers["X-Content-Type-Options"] = "nosniff"
                 headers["X-XSS-Protection"] = "1; mode=block"
+                if (
+                    headers.get("content-type", "").split(";", 1)[0].strip().lower()
+                    == "text/event-stream"
+                ):
+                    # A proxy compressor can buffer an open SSE stream until
+                    # completion. Next.js honors the canonical no-transform
+                    # directive; retain the route's other cache restrictions.
+                    directives = [
+                        value.strip()
+                        for value in (headers.get("Cache-Control") or "no-cache").split(",")
+                        if value.strip() and value.strip().lower() != "no-transform"
+                    ]
+                    headers["Cache-Control"] = ", ".join([*directives, "no-transform"])
                 # HSTS, production only (SEC-025).
                 #
                 # This header used to be `max-age=31536000; includeSubDomains;

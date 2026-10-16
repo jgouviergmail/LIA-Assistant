@@ -101,7 +101,8 @@ The administrator accesses a third tab dedicated to instance management:
 - **Personalities**: create, edit, translate and delete personalities available to all users — set the default personality
 - **System Skills**: manage instance-wide expert competencies — import/export, enable/disable, translate
 - **System Knowledge Spaces**: manage the FAQ knowledge base, monitor indexing status and model migrations
-- **Global voice**: configure the default TTS provider, model, and voice for all users (Edge free, OpenAI, or ElevenLabs), with per-provider tuning (speed, stability, audio format)
+- **Global voice**: configure the default TTS provider, model, and voice for all users (Edge free, OpenAI, ElevenLabs, Gemini or Fish Audio), with per-provider tuning (speed, stability, audio format)
+- **Voice library**: clone a voice from recordings under a consent attestation filed in the audit log, design one from a description (paid by the instance, its daily ceiling asked first), rename or delete the instance's Fish Audio voices — never one a speaking slot uses
 - **System debug**: logging and diagnostic configuration
 
 ### 2.4. An assistant, not a technical project
@@ -163,7 +164,7 @@ LIA offers a complete voice mode:
 
 - **Push-to-Talk**: hold the microphone button to speak, optimized for mobile
 - **"Dis LIA", heard in your browser**: hands-free detection runs **entirely on your device** — no audio is transmitted until the phrase is heard — and "LIA, stop" cuts LIA's voice while it reads an answer. This wake word exists in French for now, in beta: its recognition is still improving; in the other languages, a tap is enough
-- **Voice synthesis**: three admin-configurable providers — Edge TTS (free), OpenAI TTS (`tts-1` / `tts-1-hd`), or ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`)
+- **Voice synthesis**: five admin-configurable providers — Edge TTS (free), OpenAI TTS (`tts-1` / `tts-1-hd`), ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`), Gemini or Fish Audio (`s2.1-pro`, `s2-pro`, `drama-3`); on the engines that perform them, LIA's spoken comments carry a few expressive cues (a sigh, a laugh, a whisper)
 - **Telegram voice messages**: send audio messages, LIA transcribes and responds
 - **Live mode**: a real-time, voice-to-voice conversation on a live model you connect with **your own key** — Gemini Live, GPT-Live or an ElevenLabs agent. The voice holds the conversation and hands every request to LIA, which runs it as an ordinary chat turn while you speak; a direct session lets the voice read your data itself and act on nothing. What the provider bills is shown to you, never recorded. A silence no longer closes a session: it puts it on standby — connection closed, nothing billed — until a tap wakes it with LIA's context; ending it is always yours.
 

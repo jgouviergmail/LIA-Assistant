@@ -322,7 +322,7 @@ class CircuitBreaker:
                 logger.warning(
                     "circuit_breaker_reopen",
                     service=self.service,
-                    error=str(error) if error else None,
+                    error_type=type(error).__name__ if error else None,
                     message="Service still failing, circuit reopened",
                 )
             elif self._state == CircuitState.CLOSED:
@@ -334,7 +334,7 @@ class CircuitBreaker:
                         service=self.service,
                         failure_count=self._failure_count,
                         failure_threshold=self.failure_threshold,
-                        error=str(error) if error else None,
+                        error_type=type(error).__name__ if error else None,
                         message="Service failing, circuit opened",
                     )
 

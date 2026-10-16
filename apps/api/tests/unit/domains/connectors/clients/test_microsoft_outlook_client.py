@@ -9,15 +9,15 @@ query silently degrades into a 400 or into unordered results when the
 precedence rules regress.
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
 
-from src.core.field_names import FIELD_CACHED_AT
-from src.domains.connectors.clients.microsoft_outlook_client import (
-    MicrosoftOutlookClient,
-    _build_recipients,
+from src.core.field_names import FIELD_CACHED_AT, FIELD_SET_ASIDE_ON_PAGE
+from src.domains.connectors.clients.microsoft_outlook_client import MicrosoftOutlookClient
+from src.domains.connectors.clients.normalizers.microsoft_email_normalizer import (
+    build_graph_recipients,
 )
 from src.domains.connectors.schemas import ConnectorCredentials
 
@@ -71,27 +71,41 @@ def _request(client: MicrosoftOutlookClient, response: dict) -> AsyncMock:
 
 
 class TestBuildRecipients:
-    """``_build_recipients`` maps a comma-separated header to Graph recipients."""
+    """``build_graph_recipients`` maps a comma-separated header to Graph recipients."""
 
     def test_splits_and_trims_addresses(self) -> None:
-        assert [r["emailAddress"]["address"] for r in _build_recipients("a@x.com, b@x.com")] == [
+        assert [
+            r["emailAddress"]["address"] for r in build_graph_recipients("a@x.com, b@x.com")
+        ] == [
             "a@x.com",
             "b@x.com",
         ]
 
     def test_extracts_address_and_display_name(self) -> None:
-        result = _build_recipients('"Bob Smith" <bob@example.com>')
+        result = build_graph_recipients('"Bob Smith" <bob@example.com>')
         assert result[0]["emailAddress"]["address"] == "bob@example.com"
         assert result[0]["emailAddress"]["name"] == "Bob Smith"
 
     def test_bare_address_has_an_empty_display_name(self) -> None:
-        assert _build_recipients("bob@example.com")[0]["emailAddress"]["name"] == ""
+        assert build_graph_recipients("bob@example.com")[0]["emailAddress"]["name"] == ""
 
     def test_empty_segments_are_dropped(self) -> None:
-        assert len(_build_recipients("a@example.com,,  ,")) == 1
+        assert len(build_graph_recipients("a@example.com,,  ,")) == 1
 
     def test_empty_string_yields_no_recipients(self) -> None:
-        assert _build_recipients("") == []
+        assert build_graph_recipients("") == []
+
+    def test_a_display_name_holding_a_comma_stays_one_recipient(self) -> None:
+        result = build_graph_recipients('"Durand, Paul" <paul@example.com>; bob@example.com')
+        assert [r["emailAddress"] for r in result] == [
+            {"address": "paul@example.com", "name": "Durand, Paul"},
+            {"address": "bob@example.com", "name": ""},
+        ]
+
+    @pytest.mark.parametrize("field", ["marie@", "Marie", "a@example.com, b@"])
+    def test_an_address_that_cannot_be_read_is_refused(self, field: str) -> None:
+        with pytest.raises(ValueError):
+            build_graph_recipients(field)
 
 
 # ============================================================================
@@ -145,22 +159,37 @@ class TestSearchEmails:
         _method, endpoint, _params = request.await_args.args
         assert endpoint == "/me/mailFolders/sentitems/messages"
 
-    async def test_filter_wins_over_search_when_both_are_produced(
+    async def test_a_search_keeps_its_terms_and_checks_its_page(
         self, client: MicrosoftOutlookClient
     ) -> None:
-        """Graph rejects `$filter` + `$search`: the client must drop `$search`."""
-        request = _request(client, {"value": []})
+        """Graph refuses `$search` with `$filter`. The client used to drop the
+        SEARCH — the words naming the mail — and list every unread message; it
+        now keeps it, checks the read state on the page and says what it set
+        aside (RC3.1)."""
+        read = {**GRAPH_MESSAGE, "id": "AAMk-2", "isRead": True}
+        request = _request(client, {"value": [GRAPH_MESSAGE, read]})
 
-        with patch(
-            "src.domains.connectors.clients.microsoft_outlook_client.build_search_filter",
-            return_value={"search": '"report"', "filter": "isRead eq false"},
-        ):
-            await client.search_emails("is:unread report", max_results=10)
+        result = await client.search_emails("is:unread report", max_results=10)
 
         _method, _endpoint, params = request.await_args.args
-        assert params["$filter"] == "isRead eq false"
-        assert "$search" not in params
+        assert params["$search"] == '"report"'
+        assert "$filter" not in params
+        assert "$orderby" not in params
+        assert [message["id"] for message in result["messages"]] == ["AAMk-1"]
+        assert result[FIELD_SET_ASIDE_ON_PAGE] == 1
+
+    async def test_a_filter_alone_is_led_by_the_sort_property(
+        self, client: MicrosoftOutlookClient
+    ) -> None:
+        """`isRead eq false` alone with `$orderby` is Graph's `InefficientFilter`."""
+        request = _request(client, {"value": [GRAPH_MESSAGE]})
+
+        result = await client.search_emails("is:unread", max_results=10)
+
+        _method, _endpoint, params = request.await_args.args
+        assert params["$filter"] == "receivedDateTime ge 1900-01-01T00:00:00Z and isRead eq false"
         assert params["$orderby"] == "receivedDateTime desc"
+        assert FIELD_SET_ASIDE_ON_PAGE not in result
 
     async def test_applies_the_global_volumetry_cap(self, client: MicrosoftOutlookClient) -> None:
         from src.domains.connectors.clients.base_google_client import apply_max_items_limit
@@ -210,6 +239,7 @@ class TestGetMessage:
         _method, endpoint, params = request.await_args.args
         assert endpoint == "/me/messages/AAMk-1"
         assert "attachments" in params["$expand"]
+        assert "replyTo" in params["$select"].split(",")
 
     async def test_declares_its_freshness_metadata(self, client: MicrosoftOutlookClient) -> None:
         _request(client, {**GRAPH_MESSAGE, "attachments": []})

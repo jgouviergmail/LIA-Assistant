@@ -102,3 +102,24 @@ absent), et le client s'annonçait `mcp/0.1.0` (défaut du SDK).
   document de métadonnées public), callbacks MRTR. La détection d'issuer ne
   se déclenche qu'aux initiations avec découverte fraîche (le cache
   `oauth_metadata` court-circuite la découverte — limite documentée).
+
+## Amendement 2026-10-13 — un serveur qui ne répond pas n'est plus réessayé à chaque tour
+
+Mesuré : un serveur MCP personnel injoignable ne posait aucune pause. Chaque tour
+rouvrait une connexion vers lui, serveur après serveur, chacune jusqu'à son délai.
+La personne attendait donc des serveurs déjà connus pour être hors service.
+
+Un échec de découverte pose désormais une pause dans Redis, partagée par tous les
+workers (famille `mcp:failure`, portée `USER_RUNTIME` : une remise à zéro de la
+conversation ne la lève pas). Elle dure `MCP_USER_FAILURE_PAUSE_BASE_SECONDS`, double
+à chaque échec consécutif et plafonne à `MCP_USER_FAILURE_PAUSE_MAX_SECONDS`. Le
+compteur survit à la pause, sinon elle ne doublerait jamais. Le test manuel
+(`force_refresh`) l'ignore, et toute découverte réussie l'efface, comme toute
+modification, bascule ou réautorisation du serveur (`disconnect` : une nouvelle
+configuration a droit à un nouvel essai). Un refus de quota
+garde sa propre pause, déclarée par le fournisseur, et ne compte pas comme un échec.
+Un serveur en pause est sauté avec une ligne `info`, sans trace. Si Redis est
+injoignable, rien n'est mis en pause.
+
+Gardes : `tests/unit/infrastructure/mcp/test_failure_pause.py`, la branche calme de
+`test_user_context.py` et, sur Redis réel, `tests/integration/test_mcp_server_failure_pause.py`.

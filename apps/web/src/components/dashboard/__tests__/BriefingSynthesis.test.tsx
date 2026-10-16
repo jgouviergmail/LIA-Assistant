@@ -79,3 +79,34 @@ describe('BriefingSynthesis listen button (A2)', () => {
     expect(toastError).toHaveBeenCalledWith('dashboard.briefing.synthesis_audio_error');
   });
 });
+
+describe('BriefingSynthesis — reading and listening remain independent', () => {
+  it('starts expanded and keeps its audio control available when folded', () => {
+    const toggle = audioState();
+    render(<BriefingSynthesis synthesis={synthesis()} />);
+    const fold = screen.getByRole('button', { name: 'dashboard.briefing.synthesis_collapse' });
+    expect(fold).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('Votre journée est calme.')).toBeVisible();
+    fireEvent.click(fold);
+    expect(screen.getByText('Votre journée est calme.')).not.toBeVisible();
+    expect(fold).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(screen.getByRole('button', { name: 'dashboard.briefing.synthesis_listen' }));
+    expect(toggle).toHaveBeenCalledWith('Votre journée est calme.', 'female');
+    fireEvent.click(screen.getByRole('button', { name: 'dashboard.briefing.synthesis_expand' }));
+    expect(screen.getByText('Votre journée est calme.')).toBeVisible();
+  });
+
+  it('keeps keyboard focus on the listen control while loading and ignores another press', () => {
+    const toggle = audioState();
+    const { rerender } = render(<BriefingSynthesis synthesis={synthesis()} />);
+    const listen = screen.getByRole('button', { name: 'dashboard.briefing.synthesis_listen' });
+    listen.focus();
+    audioState({ loading: true, toggle });
+    rerender(<BriefingSynthesis synthesis={synthesis()} />);
+    expect(listen).toHaveFocus();
+    expect(listen).toHaveAttribute('aria-disabled', 'true');
+    expect(listen).not.toBeDisabled();
+    fireEvent.click(listen);
+    expect(toggle).not.toHaveBeenCalled();
+  });
+});

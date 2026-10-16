@@ -56,12 +56,9 @@ VALID_AGENTS: frozenset[str] = frozenset({
     "document_generation_agent",
 })
 
-VALID_STEP_TYPES: frozenset[str] = frozenset({
-    "TOOL",
-    "CONDITIONAL",
-    "PARALLEL",
-    "RESPONSE",
-})
+# The step types a plan template can run: a template carries a TOOL step's
+# fields alone. Held equal to the runtime by test_name_contract_parity.py.
+VALID_STEP_TYPES: frozenset[str] = frozenset({"TOOL"})
 
 VALID_OUTPUTS: frozenset[str] = frozenset({"text", "frame", "image"})
 

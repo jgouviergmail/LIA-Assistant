@@ -282,6 +282,18 @@ INSERT INTO llm_models (
     -- ElevenLabs key exists. Audio-billed per minute; `-diarize` returns speakers.
     ('openai', 'gpt-4o-transcribe-diarize', 1, 1, false, false, false, false, false, false, false, false, false, false, 'audio', NULL, NULL, true),
     ('openai', 'gpt-4o-mini-transcribe', 1, 1, false, false, false, false, false, false, false, false, false, false, 'audio', NULL, NULL, true),
+    -- Fish Audio speech synthesis (ADR-345): billed per million UTF-8 BYTES of
+    -- text, carried on the input axis as tokens. The vendor states no request
+    -- length, so the window keeps the column default (provenance 'declared').
+    -- Mirrored by migration a9326a120b55.
+    ('fishaudio', 's2.1-pro', 8192, 1, false, false, false, true, false, false, false, false, false, false, 'tts', NULL, NULL, true),
+    ('fishaudio', 's2.1-pro-free', 8192, 1, false, false, false, true, false, false, false, false, false, false, 'tts', NULL, NULL, true),
+    ('fishaudio', 's2-pro', 8192, 1, false, false, false, true, false, false, false, false, false, false, 'tts', NULL, NULL, true),
+    ('fishaudio', 's1', 8192, 1, false, false, false, true, false, false, false, false, false, false, 'tts', NULL, NULL, true),
+    ('fishaudio', 'drama-3', 8192, 1, false, false, false, true, false, false, false, false, false, false, 'tts', NULL, NULL, true),
+    -- Fish Audio speech-to-text (ADR-345), the shape of every remote transcription row.
+    ('fishaudio', 'transcribe-1', 1, 1, false, false, false, false, false, false, false, false, false, false, 'audio', NULL, NULL, true),
+    ('fishaudio', 'transcribe-1-pro', 1, 1, false, false, false, false, false, false, false, false, false, false, 'audio', NULL, NULL, true),
     ('edge', 'edge-tts', 1, 1, false, false, false, true, false, false, false, false, false, false, 'tts', NULL, NULL, true),
     -- Native decision API; the output placeholder is never sent as an output budget.
     ('typesafe', 'jev-1.13.0', 32000, 1, false, false, false, false, false, false, false, false, false, false, 'decision', NULL, NULL, true)
@@ -533,6 +545,16 @@ INSERT INTO _lia_pricing_bundle VALUES
     -- USD 0.08 / 0.04 per 1,000 characters = USD 80 / 40 per million.
     ('eleven_v4', 80.000000, NULL, 0.000000, 'per_1m_tokens', '2026-10-13T00:00:00+00:00', true),
     ('eleven_v4_turbo', 40.000000, NULL, 0.000000, 'per_1m_tokens', '2026-10-13T00:00:00+00:00', true),
+    -- Fish Audio, per million UTF-8 bytes (pricing page read 2026-10-13); drama-3
+    -- has no published price (owner decision 2026-10-14). Migration a9326a120b55.
+    ('s2.1-pro', 15.000000, NULL, 0.000000, 'per_1m_tokens', '2026-10-13T00:00:00+00:00', true),
+    ('s2.1-pro-free', 0.000000, NULL, 0.000000, 'per_1m_tokens', '2026-10-13T00:00:00+00:00', true),
+    ('s2-pro', 15.000000, NULL, 0.000000, 'per_1m_tokens', '2026-10-13T00:00:00+00:00', true),
+    ('s1', 15.000000, NULL, 0.000000, 'per_1m_tokens', '2026-10-13T00:00:00+00:00', true),
+    ('drama-3', 10.000000, NULL, 0.000000, 'per_1m_tokens', '2026-10-13T00:00:00+00:00', true),
+    -- Fish Audio speech-to-text, per audio hour rounded up to the second (pricing page).
+    ('transcribe-1', 0.360000, NULL, 0.000000, 'per_audio_hour', '2026-10-13T00:00:00+00:00', true),
+    ('transcribe-1-pro', 0.360000, NULL, 0.000000, 'per_audio_hour', '2026-10-13T00:00:00+00:00', true),
     ('gpt-live-1', 0.050000, NULL, 0.000000, 'per_audio_minute', '2026-09-19T14:00:00+00:00', true),
     ('scribe_v1', 0.220000, NULL, 0.000000, 'per_audio_hour', '2026-05-07T23:19:14.990416+00:00', false),
     ('scribe_v1', 0.220000, NULL, 0.000000, 'per_audio_hour', '2026-05-07T23:20:54.056007+00:00', true),
@@ -743,6 +765,22 @@ FROM (VALUES
     ('gemini-embedding-001', '2028-05-14'),
     ('text-embedding-004', '2026-01-14'),
     ('embedding-001', '2025-10-30')
+) AS v(model_name, shutdown)
+WHERE m.model_name = v.model_name
+  AND m.deprecation_date IS DISTINCT FROM CAST(v.shutdown AS date);
+
+-- ============================================================================
+-- Fish Audio retirement date (ADR-345) — what the vendor's deprecations page
+-- announces (read 2026-10-14): s1 retires on 2026-12-31, served and billed as
+-- s2.1-pro afterwards. The free model's no-cost window (« through November 30,
+-- 2026 », its changelog) is a price, not a retirement, and dates nothing here.
+-- Absolute values, idempotent; migration a9326a120b55 writes the same, and
+-- guard tests hold both to VENDOR_SHUTDOWNS.
+-- ============================================================================
+UPDATE llm_models m
+SET deprecation_date = CAST(v.shutdown AS date)
+FROM (VALUES
+    ('s1', '2026-12-31')
 ) AS v(model_name, shutdown)
 WHERE m.model_name = v.model_name
   AND m.deprecation_date IS DISTINCT FROM CAST(v.shutdown AS date);

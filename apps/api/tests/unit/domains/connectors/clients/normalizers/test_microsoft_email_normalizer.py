@@ -8,14 +8,13 @@ vocabulary (Gmail's) whatever the active provider. Two failure modes matter:
   (``sentitems``) while Outlook reports display names (``Sent Items``), so
   every multi-word folder used to escape normalisation and reach the LLM with
   a mixed vocabulary (``INBOX`` next to ``Sent Items``).
-- **Query translation** — Microsoft Graph forbids combining ``$search`` with
-  ``$filter``/``$orderby``, so operator precedence has to stay pinned.
+- **Query translation** lives in ``graph_mail_query`` and is pinned by
+  ``test_graph_mail_query.py`` (RC3.1).
 """
 
 import pytest
 
 from src.domains.connectors.clients.normalizers.microsoft_email_normalizer import (
-    build_search_filter,
     normalize_graph_folder,
     normalize_graph_message,
 )
@@ -56,74 +55,6 @@ class TestNormalizeGraphFolder:
 
     def test_missing_fields_degrade_to_empty_strings(self) -> None:
         assert normalize_graph_folder({}) == {"id": "", "name": ""}
-
-
-# ============================================================================
-# QUERY TRANSLATION
-# ============================================================================
-
-
-class TestBuildSearchFilter:
-    """Gmail-style operators become Graph ``$search`` / ``$filter`` / folder."""
-
-    def test_defaults_to_the_inbox_folder(self) -> None:
-        """Graph /me/messages spans every folder; Gmail and IMAP default to INBOX."""
-        assert build_search_filter("report")["folder"] == "inbox"
-
-    @pytest.mark.parametrize(
-        ("query", "expected_folder"),
-        [
-            ("in:sent", "sentitems"),
-            ("in:trash", "deleteditems"),
-            ("label:spam", "junkemail"),
-            ("in:archive", "archive"),
-            ("in:drafts", "drafts"),
-        ],
-    )
-    def test_folder_operators_resolve_to_well_known_ids(
-        self, query: str, expected_folder: str
-    ) -> None:
-        assert build_search_filter(query)["folder"] == expected_folder
-
-    def test_people_operators_become_kql_search_terms(self) -> None:
-        result = build_search_filter("from:john subject:meeting")
-        assert result["search"] is not None
-        assert "from:john" in result["search"]
-        assert "subject:meeting" in result["search"]
-        assert result["filter"] is None
-
-    def test_boolean_operators_become_odata_filters(self) -> None:
-        result = build_search_filter("is:unread has:attachment")
-        assert result["filter"] is not None
-        assert "isRead eq false" in result["filter"]
-        assert "hasAttachments eq true" in result["filter"]
-
-    def test_date_operators_become_comparison_filters(self) -> None:
-        result = build_search_filter("after:2026/01/01 before:2026/02/01")
-        assert result["filter"] is not None
-        assert "receivedDateTime ge" in result["filter"]
-        assert "receivedDateTime le" in result["filter"]
-
-    def test_negated_operators_are_stripped(self) -> None:
-        """Graph ``$search`` has no usable NOT, so negations must not leak into KQL."""
-        result = build_search_filter("-in:spam report")
-        assert result["search"] is not None
-        assert "spam" not in result["search"].lower()
-
-    def test_free_text_is_preserved_alongside_operators(self) -> None:
-        result = build_search_filter("from:john quarterly report")
-        assert result["search"] is not None
-        assert "quarterly report" in result["search"]
-
-    def test_quoted_multi_word_operator_value(self) -> None:
-        result = build_search_filter('subject:"meeting notes"')
-        assert result["search"] is not None
-        assert "subject:meeting notes" in result["search"]
-
-    def test_empty_query_produces_no_search_or_filter(self) -> None:
-        result = build_search_filter("")
-        assert result["search"] is None
-        assert result["filter"] is None
 
 
 # ============================================================================
@@ -175,18 +106,3 @@ class TestNormalizeGraphMessage:
     def test_empty_payload_does_not_raise(self) -> None:
         result = normalize_graph_message({})
         assert result["id"] == ""
-
-
-@pytest.mark.unit
-class TestCcOperator:
-    """`cc:` is a KQL search term, not leftover free text.
-
-    Microsoft's `$search` honours `cc:` natively; leaving it in the remaining
-    text made it a bare keyword — matching the address anywhere in the message
-    instead of the copy line.
-    """
-
-    def test_cc_becomes_a_search_term(self) -> None:
-        params = build_search_filter("in:sent cc:alice@example.com")
-        assert params["search"] == '"cc:alice@example.com"'
-        assert params["folder"] == "sentitems"

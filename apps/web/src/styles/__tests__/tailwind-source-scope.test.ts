@@ -11,8 +11,9 @@
  * the scan was scoped.
  *
  * The fix is the explicit `source(none)` + `@source` pair in globals.css. This
- * test fails if anyone drops it, if the glob stops covering the sources, or if
- * the dependency set starts growing again.
+ * test fails if anyone drops it, if the glob stops covering the sources, if
+ * the dependency set starts growing again, or if a test is scanned again — no
+ * test ships, so none is a source of the stylesheet (the `@source not` pair).
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -33,8 +34,16 @@ const GLOBALS = path.join(WEB_ROOT, 'src/styles/globals.css');
  * for a build-artefact tree (the smallest one measured added 11 163 files by
  * itself). Lower it when the real number drops; never raise it to absorb a
  * directory that should not be scanned in the first place.
+ *
+ * On 2026-10-14 the scan crossed it at 2 504 files, 1 064 of them tests: the
+ * tests left the scan, and the 1 440 production sources left are still above
+ * the 1 265 this bound was calibrated on — so it stays where it is.
  */
 const MAX_SCANNED_FILES = 2500;
+
+/** What the `@source not` pair of globals.css keeps out of the scan. */
+const isTestFile = (file: string): boolean =>
+  /(^|\/)__tests__\//.test(file) || /\.(test|spec)\.(ts|tsx|js|jsx|mjs|cjs)$/.test(file);
 
 const compile = async () =>
   postcss([tailwind({ base: WEB_ROOT })]).process(readFileSync(GLOBALS, 'utf8'), {
@@ -67,16 +76,22 @@ describe('tailwind source scope', () => {
       file => !file.startsWith('src/') && !file.includes('node_modules/')
     );
     expect(strays).toEqual([]);
+
+    expect(dependencies.filter(isTestFile)).toEqual([]);
   });
 
   it('still generates the utilities the app actually uses', async () => {
     const result = await compile();
 
     // One witness per family a narrowed scan would plausibly break: the custom
-    // `mobile` breakpoint declared in @theme (880px, 34 utilities), a colour
-    // with arbitrary opacity, and a variant-prefixed utility.
+    // `mobile` breakpoint declared in @theme (880px), a colour with arbitrary
+    // opacity, and a variant-prefixed utility — the last two staples of the
+    // design system, so restyling one component cannot red this guard. Tests
+    // are not scanned, so only production code can produce a witness: until
+    // 2026-10-14 this file's own text produced the bare `border-amber-200` and
+    // `not-sr-only` it named, so those two could not fail.
     expect(result.css).toContain('880px');
-    expect(result.css).toContain('border-amber-200');
-    expect(result.css).toContain('not-sr-only');
+    expect(result.css).toContain('bg-primary\\/10');
+    expect(result.css).toContain('focus-visible\\:ring-2');
   });
 });

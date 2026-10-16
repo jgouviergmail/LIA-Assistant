@@ -25,6 +25,7 @@ from src.domains.agents.tools.application_memory_tools import set_lia_memory_pin
 from src.domains.memories.models import Memory
 from src.domains.memories.repository import MemoryRepository
 from src.domains.users.models import User
+from tests.helpers.draft_refusals import draft_refusal_code
 from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
 
 pytestmark = pytest.mark.integration
@@ -176,7 +177,7 @@ async def test_pin_requires_exact_hitl_and_never_announces_uncommitted_state(
         )
         if intervention not in {"none", "no_op", "unpin", "usage_only"}:
             assert (
-                result.error
+                draft_refusal_code(result)
                 == {
                     "corrected": "STALE_STATE",
                     "invalidated": "STALE_STATE",

@@ -14,6 +14,7 @@ from typing import Any
 
 import pytest
 
+from src.core.constants import FISHAUDIO_STT_MAX_AUDIO_SECONDS, FISHAUDIO_STT_MODEL_DEFAULT
 from src.domains.meetings import transcription
 from src.domains.meetings.engine import ResolvedEngine
 from src.domains.meetings.models import MeetingSttProvider
@@ -280,6 +281,48 @@ async def test_remote_provider_errors_keep_their_classification(
         )
     assert (exc.value.code, exc.value.transient) == (code, transient)
     assert remote["spend"] == []
+
+
+@pytest.mark.parametrize(("over", "sent"), [(0.0, True), (1.0, False)])
+async def test_a_recording_longer_than_the_vendor_takes_never_leaves(
+    remote: dict[str, Any], over: float, sent: bool
+) -> None:
+    """Fish Audio refuses a recording past its per-request cap only after the whole upload:
+    the chain moves on before it (ADR-345), and a recording AT the cap is still sent."""
+    fake = remote["install"](
+        STTFileResult(
+            text="Bonjour",
+            words=[_w("Bonjour", 0, 1, "spk_a")],
+            audio_duration_seconds=60.0,
+            language_code="fr",
+            diarized=True,
+        )
+    )
+    engine = ResolvedEngine(
+        provider=MeetingSttProvider.FISHAUDIO,
+        model=FISHAUDIO_STT_MODEL_DEFAULT,
+        diarized=True,
+        api_key="sk-fish",
+        cost_per_hour_eur=0.33,
+        local_rtf_estimate=None,
+    )
+    meeting = transcribe_meeting(
+        engine,
+        audio_path=Path("/tmp/a.ogg"),
+        mime_type="audio/ogg",
+        duration_seconds=FISHAUDIO_STT_MAX_AUDIO_SECONDS + over,
+        language_hint=None,
+        user_id=uuid.uuid4(),
+        heartbeat=_noop,
+    )
+
+    if sent:
+        await meeting
+    else:
+        with pytest.raises(TranscriptionError) as exc:
+            await meeting
+        assert (exc.value.code, exc.value.transient) == ("provider_file_too_large", False)
+    assert len(fake.calls) == int(sent)
 
 
 # ---------------------------------------------------------------------------

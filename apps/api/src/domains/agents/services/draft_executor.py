@@ -43,7 +43,9 @@ from typing import TYPE_CHECKING, Any, Literal
 import structlog
 from langchain_core.runnables import RunnableConfig
 
+from src.core.field_names import FIELD_ERROR_CODE, FIELD_SUCCESS
 from src.core.i18n import resolve_language
+from src.core.i18n_drafts import get_draft_error_message
 from src.domains.agents.context.access import get_tcm_session
 from src.domains.agents.context.runtime_context import (
     runtime_context_if_running,
@@ -63,6 +65,8 @@ from src.domains.agents.services.draft_executor_types import (
 from src.domains.agents.services.draft_result_adaptation import (
     count_draft_results,
     incomplete_draft_result,
+    raised_failure,
+    refusal_message,
 )
 from src.infrastructure.observability.metrics_agents import (
     registry_drafts_executed_total,
@@ -178,12 +182,19 @@ async def execute_draft_if_confirmed(
             from src.domains.agents.application.cancellation import withdraw_application_draft
 
             if not await withdraw_application_draft(draft_id):
+                # The command was no longer pending: it may be running, so the
+                # card says so and never « cancelled » (ADR-339).
+                refusal: dict[str, object] = {
+                    FIELD_SUCCESS: False,
+                    FIELD_ERROR_CODE: "CANCELLATION_UNAVAILABLE",
+                }
                 return DraftExecutionResult(
                     success=False,
                     draft_id=draft_id,
                     draft_type=draft_type,
                     action="cancel",
-                    error="CANCELLATION_UNAVAILABLE",
+                    result_data=refusal,
+                    error=refusal_message(refusal, user_language),
                     user_language=user_language,
                 )
         # User cancelled - return cancellation result for response
@@ -229,6 +240,7 @@ _DRAFT_TYPE_TO_TCM_DOMAIN: dict[str, str] = {
     "email": "emails",
     "email_reply": "emails",
     "email_forward": "emails",
+    "mailbox_draft_send": "emails",  # the draft became this message (ADR-344)
     # Update
     "event_update": "events",
     "contact_update": "contacts",
@@ -507,11 +519,12 @@ async def _sync_tcm_after_draft_execution(
             else:  # create
                 await _sync_create(session, domain, merged_item, draft_type, run_id)
 
-    except Exception:
-        logger.exception(
+    except Exception as error:
+        logger.error(
             "tcm_sync_after_draft_failed",
             run_id=run_id,
             draft_type=draft_type,
+            error_type=type(error).__name__,
         )
 
 
@@ -550,7 +563,6 @@ async def _execute_confirmed_draft(
     executor_fn = EXECUTOR_REGISTRY.get(draft_type)
 
     if not executor_fn:
-        error_msg = f"No executor registered for draft type: {draft_type}"
         logger.error(
             "draft_executor_no_executor",
             run_id=run_id,
@@ -567,7 +579,9 @@ async def _execute_confirmed_draft(
             draft_id=draft_id,
             draft_type=draft_type,
             action="confirm",
-            error=error_msg,
+            # The card shows ``error`` as written: an internal fault reads the
+            # person's sentence, its facts are in the log line above.
+            error=get_draft_error_message(user_language),
             user_language=user_language,
         )
 
@@ -576,7 +590,6 @@ async def _execute_confirmed_draft(
     run_context = runtime_context_if_running()
     deps = run_context.deps if run_context is not None else None
     if run_context is None or not deps:
-        error_msg = "ToolDependencies not found in config"
         logger.error(
             "draft_executor_no_deps",
             run_id=run_id,
@@ -593,7 +606,7 @@ async def _execute_confirmed_draft(
             draft_id=draft_id,
             draft_type=draft_type,
             action="confirm",
-            error=error_msg,
+            error=get_draft_error_message(user_language),
             user_language=user_language,
         )
 
@@ -710,16 +723,17 @@ async def _execute_confirmed_draft(
             run_id=run_id,
             draft_id=draft_id,
             draft_type=draft_type,
-            error=str(e),
-            exc_info=True,
+            error_type=type(e).__name__,
         )
+        failure = raised_failure(e)
 
         return DraftExecutionResult(
             success=False,
             draft_id=draft_id,
             draft_type=draft_type,
             action="confirm",
-            error=str(e),
+            result_data=failure,
+            error=refusal_message(failure, user_language),
             user_language=user_language,
         )
 
@@ -796,14 +810,14 @@ async def _execute_confirmed_batch(
                 run_id=run_id,
                 batch_index=i,
                 draft_id=single_draft.get("draft_id"),
-                error=str(e),
+                error_type=type(e).__name__,
             )
             results.append(
                 {
                     "status": "error",
                     "draft_id": single_draft.get("draft_id", "unknown"),
                     "draft_type": single_draft.get("draft_type", "unknown"),
-                    "message": str(e),
+                    "message": get_draft_error_message(user_language),
                 }
             )
 

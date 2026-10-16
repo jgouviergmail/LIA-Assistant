@@ -180,10 +180,11 @@ class TestRateLimiting:
         # Set limiter directly to avoid Redis initialization
         client._redis_rate_limiter = mock_limiter
 
-        # Lines 189-199 executed: max retries exceeded, raise 429
-        # Note: HTTPException is caught by except Exception line 201, fallback to local
-        # So we should NOT expect exception here
-        await client._rate_limit()
+        # An explicit refusal is final; it is not a Redis outage permitting a
+        # local fallback that would bypass the account's allowance.
+        with pytest.raises(HTTPException) as refused:
+            await client._rate_limit()
+        assert refused.value.status_code == 429
 
         # Verify sleep was called for retries (but not actual wait due to mock)
         assert mock_sleep.await_count >= 1  # At least one retry happened
@@ -573,6 +574,31 @@ class TestMakeRequest:
 
         assert result == {"updated": True}
         mock_http_client.put.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_make_request_put_carries_a_raw_body(self, client):
+        """A PUT can carry raw bytes: Gmail's draft update takes a multipart body."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"id": "r-1"}
+        mock_response.content = b'{"id": "r-1"}'
+
+        mock_http_client = AsyncMock()
+        mock_http_client.put = AsyncMock(return_value=mock_response)
+        client._http_client = mock_http_client
+
+        with (
+            patch.object(client, "_rate_limit", AsyncMock()),
+            patch.object(client, "_ensure_valid_token", AsyncMock(return_value="valid_token")),
+        ):
+            await client._make_request(
+                "PUT",
+                "/drafts/r-1",
+                extra_headers={"Content-Type": "multipart/related; boundary=b"},
+                content=b"--b--",
+            )
+
+        assert mock_http_client.put.call_args.kwargs["content"] == b"--b--"
 
     @pytest.mark.asyncio
     async def test_make_request_delete_success(self, client):

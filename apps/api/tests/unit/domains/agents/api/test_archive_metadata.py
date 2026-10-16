@@ -236,3 +236,21 @@ def test_completed_archive_and_done_share_the_delivered_card_snapshot_without_ch
     assert archived["run_id"] == done["run_id"] == "current"
     assert archived["cost_eur"] == done["cost_eur"] == 0.23
     assert base == {"tokens_in": 12, "cost_eur": 0.23}
+
+
+def test_final_evidence_survives_canonical_archive_chain_without_mutating_base():
+    base = {"run_id": "turn"}
+    proof = {"psyche_efficacy": {"version": 1, "observations": []}}
+    archived = build_assistant_metadata(
+        base,
+        widgets=None,
+        trace_capture=_Capture([]),
+        duration_ms=1,
+        run_id="turn",
+        followup_suggestions=None,
+        initiative_motivation=None,
+        effects=None,
+        efficacy_envelope=proof,
+    )
+    assert archived["psyche_efficacy"] == {"version": 1, "observations": []}
+    assert base == {"run_id": "turn"}

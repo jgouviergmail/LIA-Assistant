@@ -76,6 +76,12 @@ class TestSendEmail:
             "smtp.example.com", 587, timeout=PLATFORM_SMTP_TIMEOUT_SECONDS
         )
         mock_server.starttls.assert_called_once()
+        import ssl
+
+        context = mock_server.starttls.call_args.kwargs.get("context")
+        assert isinstance(context, ssl.SSLContext)
+        assert context.verify_mode == ssl.CERT_REQUIRED
+        assert context.check_hostname is True
         mock_server.login.assert_called_once_with("user@example.com", "password123")
         mock_server.sendmail.assert_called_once()
 

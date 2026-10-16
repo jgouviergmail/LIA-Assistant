@@ -277,6 +277,23 @@ def _fake_counts(
     ):
         _append(f"how.{locale}.md", f"\n{row % metrics}\n")
 
+    # GETTING_STARTED and the observability guide quote it too — undeclared
+    # until 2026-10-14, when they read 606 and 419 against a real 621. The
+    # GETTING_STARTED row is APPENDED: the file already carries a version stamp.
+    getting_started = root / "docs" / "GETTING_STARTED.md"
+    _write(
+        getting_started,
+        getting_started.read_text(encoding="utf-8")
+        + f"\n| Grafana dashboards | 31 |\n| Prometheus metrics | {metrics} |\n",
+    )
+    _write(
+        root / "docs" / "guides" / "GUIDE_OBSERVABILITY.md",
+        "# Observability\n\n"
+        f"**Total Metrics**: {metrics} definitions in the backend's metric modules\n\n"
+        f"| **Prometheus** | Metrics | {metrics} custom metrics (scraped from :9091) |\n\n"
+        "*As of 2026-07-17: all 419 code-defined metrics were referenced.*\n",
+    )
+
     # The knowledge mirror carries the same sentence in English prose.
     _write(
         root / "docs" / "knowledge" / "34_self_diagnostics.md",
@@ -552,6 +569,22 @@ class TestDerivedCounts:
         stale = [item for item in count_occurrences(root) if item.value != counts[item.source]]
 
         assert [(item.path, item.value) for item in stale] == [("CLAUDE.md", 183)]
+
+    def test_the_getting_started_metric_row_is_a_declared_count(self, tmp_path: Path) -> None:
+        """It read 606 against a real 621 while every declared surface was green."""
+        root = _fake_repo(tmp_path)
+        _fake_counts(root, adr_files=241, adr_latest=242, releases=223)
+        target = root / "docs" / "GETTING_STARTED.md"
+        row = "| Prometheus metrics | 3 |"
+        _write(target, target.read_text("utf-8").replace(row, "| Prometheus metrics | 606 |"))
+
+        counts = derived_counts(root)
+        stale = [item for item in count_occurrences(root) if item.value != counts[item.source]]
+
+        assert [(item.path, item.value) for item in stale] == [("docs/GETTING_STARTED.md", 606)]
+        # The dated sentence of the guide is history, never a quoted count.
+        quoted = [item.path for item in count_occurrences(root)]
+        assert quoted.count("docs/guides/GUIDE_OBSERVABILITY.md") == 2
 
     def test_measurement_comments_are_not_quoted_counts(self, tmp_path: Path) -> None:
         """`Re-measured at v1.31.2` is history: bumping it would be a lie."""

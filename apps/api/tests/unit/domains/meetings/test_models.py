@@ -42,7 +42,7 @@ def test_lifecycle_vocabulary_is_exactly_the_documented_one() -> None:
         "indexing",
     }
     assert {f.value for f in MeetingAudioFormat} == {"pcm_s16le_16", "webm_opus", "ogg_opus"}
-    assert {p.value for p in MeetingSttProvider} == {"elevenlabs", "openai", "local"}
+    assert {p.value for p in MeetingSttProvider} == {"elevenlabs", "openai", "fishaudio", "local"}
     assert {p.value for p in MeetingSttEnginePreference} == {"auto", "remote", "local"}
     assert {s.value for s in MeetingIndexState} == {"pending", "indexed", "error", "disabled"}
 

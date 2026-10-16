@@ -2377,7 +2377,7 @@
     {
       "id": 50,
       "type": "row",
-      "title": "Adaptive Replanner",
+      "title": "Pipeline Step Failures",
       "collapsed": true,
       "gridPos": {
         "h": 1,
@@ -2387,9 +2387,9 @@
       },
       "panels": [
         {
-          "id": 51,
-          "type": "timeseries",
-          "title": "Replanner Triggers (by type)",
+          "id": 53,
+          "type": "stat",
+          "title": "Failed pipeline steps (range)",
           "datasource": {
             "type": "prometheus",
             "uid": "$datasource"
@@ -2402,24 +2402,26 @@
           },
           "targets": [
             {
-              "expr": "sum by (trigger) (rate(adaptive_replanner_triggers_total[$__rate_interval]))",
-              "legendFormat": "{{trigger}}",
-              "refId": "A"
+              "expr": "sum(increase(pipeline_step_failures_total[$__range])) or vector(0)",
+              "refId": "A",
+              "instant": true
             }
           ],
           "fieldConfig": {
             "defaults": {
-              "unit": "ops",
-              "custom": {
-                "fillOpacity": 10,
-                "lineWidth": 1
-              },
+              "unit": "short",
+              "decimals": 0,
+              "noValue": "0",
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "value": null,
+                    "color": "green"
+                  },
+                  {
+                    "value": 1,
+                    "color": "orange"
                   }
                 ]
               }
@@ -2427,60 +2429,71 @@
             "overrides": []
           },
           "options": {
-            "tooltip": {
-              "mode": "multi"
-            },
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom"
+            "graphMode": "none",
+            "colorMode": "value",
+            "textMode": "auto",
+            "justifyMode": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
             }
           },
-          "description": "Total re-planning triggers detected by type."
+          "description": "Failed steps of executed pipeline plans over the range: one per failed step, a FOR_EACH item counted and its aggregate never. Includes failures BEFORE the tool call (unresolved reference, refused parameter, empty template), which no tool metric and no register row sees. The answer states each one through the runtime failures directive (ADR-303, ADR-346)."
         },
         {
-          "id": 52,
-          "type": "piechart",
-          "title": "Replanner Decisions (1h)",
+          "id": 54,
+          "type": "bargauge",
+          "title": "Failed pipeline steps by code (range)",
           "datasource": {
             "type": "prometheus",
             "uid": "$datasource"
           },
           "gridPos": {
             "h": 8,
-            "w": 6,
+            "w": 18,
             "x": 6,
             "y": 128
           },
           "targets": [
             {
-              "expr": "sum by (decision) (increase(adaptive_replanner_decisions_total[1h]))",
-              "legendFormat": "{{decision}}",
+              "expr": "sum by (error_code) (increase(pipeline_step_failures_total[$__range]))",
+              "legendFormat": "{{error_code}}",
               "refId": "A",
               "instant": true
             }
           ],
           "fieldConfig": {
             "defaults": {
-              "unit": "short"
+              "unit": "short",
+              "decimals": 0,
+              "noValue": "0",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "value": null,
+                    "color": "orange"
+                  }
+                ]
+              }
             },
             "overrides": []
           },
           "options": {
+            "orientation": "horizontal",
+            "displayMode": "gradient",
             "reduceOptions": {
               "calcs": [
                 "lastNotNull"
-              ]
-            },
-            "pieType": "donut",
-            "displayLabels": [
-              "percent"
-            ],
-            "legend": {
-              "displayMode": "list",
-              "placement": "right"
+              ],
+              "fields": "",
+              "values": false
             }
           },
-          "description": "Total advisory re-planning decisions by type (not acted upon — see TODO D4)."
+          "description": "The same failures by ToolErrorCode, 'unclassified' being a tool's free-form code or none. CONNECTOR_NOT_ACTIVATED / UNAUTHORIZED / FORBIDDEN: the account or the site refused. INVALID_INPUT / CONSTRAINT_VIOLATION / TEMPLATE_*: the plan asked for something the tool refused. TIMEOUT / EXTERNAL_API_ERROR / RATE_LIMIT_EXCEEDED: the provider failed after its client's own retries (ADR-346)."
         }
       ]
     },

@@ -42,6 +42,8 @@ from src.core.constants import (
     MCP_OAUTH_HTTP_TIMEOUT_SECONDS,
     MCP_REFERENCE_CONTENT_MAX_CHARS_DEFAULT,
     MCP_SERVER_VECTOR_CACHE_MAX_DEFAULT,
+    MCP_USER_FAILURE_PAUSE_BASE_SECONDS_DEFAULT,
+    MCP_USER_FAILURE_PAUSE_MAX_SECONDS_DEFAULT,
     MCP_USER_MAX_SERVERS_PER_USER_DEFAULT,
     MCP_USER_MAX_SERVERS_PER_USER_MAX,
     MCP_USER_POOL_EVICTION_INTERVAL_DEFAULT,
@@ -294,6 +296,24 @@ class MCPSettings(BaseSettings):
         default=MCP_USER_POOL_EVICTION_INTERVAL_DEFAULT,
         ge=30,
         description="Interval between pool eviction sweeps (seconds).",
+    )
+
+    mcp_user_failure_pause_base_seconds: int = Field(
+        default=MCP_USER_FAILURE_PAUSE_BASE_SECONDS_DEFAULT,
+        ge=1,
+        le=3600,
+        description=(
+            "Pause after a personal MCP server's first consecutive connection "
+            "failure (seconds); it doubles at each further failure. The manual "
+            "test ignores it, a success clears it."
+        ),
+    )
+
+    mcp_user_failure_pause_max_seconds: int = Field(
+        default=MCP_USER_FAILURE_PAUSE_MAX_SECONDS_DEFAULT,
+        ge=1,
+        le=86400,
+        description="Longest pause a failing personal MCP server is given (seconds).",
     )
 
     mcp_user_oauth_callback_base_url: str | None = Field(

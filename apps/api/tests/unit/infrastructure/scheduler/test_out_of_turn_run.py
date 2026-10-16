@@ -35,12 +35,16 @@ from src.domains.agents.api.run_origin import RunOrigin, current_origin
 from src.infrastructure.scheduler.out_of_turn_run import (
     RunOutcome,
     StreamRequest,
+    _run_acted,
+    clear_question_of_run,
     conversation_has_pending_hitl,
     resolve_run_context,
     stream_instruction,
 )
 
 pytestmark = pytest.mark.unit
+
+_ENGINE = "src.infrastructure.scheduler.out_of_turn_run"
 
 USER = uuid.uuid4()
 
@@ -297,12 +301,16 @@ class TestDrivingTheTurn:
             return generator()
 
         service.stream_chat_response = MagicMock(side_effect=stream)
-        with patch("src.domains.agents.api.service.AgentService", return_value=service):
+        with (
+            patch("src.domains.agents.api.service.AgentService", return_value=service),
+            # The first attempt acted on nothing, so the retry is safe (point 20).
+            patch(f"{_ENGINE}._run_acted", AsyncMock(return_value=False)),
+        ):
             await stream_instruction(_request(run_id="run-42"))
         assert [call["run_id"] for call in attempts] == ["run-42", "run-42"]
 
     async def test_a_caller_with_no_row_lets_the_graph_mint_its_own_id(self) -> None:
-        """What the routine path has always done — and must keep doing."""
+        """A voice delegation that resumes nothing names no run: the graph mints one."""
         service = _service_yielding([_chunk("token", "ok")])
         with patch("src.domains.agents.api.service.AgentService", return_value=service):
             await stream_instruction(_request())
@@ -834,3 +842,102 @@ class TestTheRunSpeaksItsPersonsLanguage:
 
         assert heard == [person]
         assert resolve_language() == settings.default_language
+
+
+class TestTakingBackTheQuestionOfARun:
+    """N10's safety net: the routine settles AFTER it, so it must never raise."""
+
+    async def test_a_thread_nobody_could_name_clears_nothing(self) -> None:
+        with patch("src.domains.agents.utils.hitl_store.HITLStore") as store:
+            assert await clear_question_of_run(None, "run-1") is False
+        store.assert_not_called()
+
+    async def test_a_store_that_fails_answers_false_and_never_raises(self) -> None:
+        failing = MagicMock(clear_interrupt_for_run=AsyncMock(side_effect=ConnectionError("down")))
+        with (
+            patch("src.domains.agents.utils.hitl_store.HITLStore", return_value=failing),
+            patch(
+                "src.infrastructure.cache.redis.get_redis_cache",
+                AsyncMock(return_value=MagicMock()),
+            ),
+        ):
+            assert await clear_question_of_run(uuid.uuid4(), "run-1") is False
+        failing.clear_interrupt_for_run.assert_awaited_once()
+
+
+def _blinking_then(answer: str) -> tuple[MagicMock, list[int]]:
+    """A service whose first attempt blinks (a transient error), then answers."""
+    attempts: list[int] = []
+
+    def stream(**_kwargs: Any) -> Any:
+        attempts.append(1)
+
+        async def generator() -> Any:
+            if len(attempts) == 1:
+                raise ConnectionError("provider blinked")
+            yield _chunk("token", answer)
+
+        return generator()
+
+    service = MagicMock()
+    service.stream_chat_response = MagicMock(side_effect=stream)
+    return service, attempts
+
+
+class TestARetryNeverReplaysAnAction:
+    """Point 20, observed in production: a routine's attempt reached its bound
+    while a browser task ran, and the retry did the browser tasks again. A
+    retry replays the WHOLE turn, so it is refused as soon as the run's register
+    shows that an attempt may have acted (ADR-263: absence of an exception is no
+    proof that nothing happened)."""
+
+    async def test_a_blink_after_an_action_is_not_retried(self) -> None:
+        service, attempts = _blinking_then("second time")
+        with (
+            patch("src.domains.agents.api.service.AgentService", return_value=service),
+            patch(f"{_ENGINE}._run_acted", AsyncMock(return_value=True)) as acted,
+        ):
+            result = await stream_instruction(_request(run_id="run-1", max_attempts=2))
+
+        assert len(attempts) == 1
+        acted.assert_awaited_once_with("run-1")
+        assert result.outcome is RunOutcome.FAILED
+        assert result.error and "ConnectionError" in result.error
+
+    async def test_a_blink_before_any_action_is_retried(self) -> None:
+        service, attempts = _blinking_then("second time")
+        with (
+            patch("src.domains.agents.api.service.AgentService", return_value=service),
+            patch(f"{_ENGINE}._run_acted", AsyncMock(return_value=False)),
+        ):
+            result = await stream_instruction(_request(run_id="run-1", max_attempts=2))
+
+        assert len(attempts) == 2
+        assert result.outcome is RunOutcome.SUCCESS
+
+    async def test_the_last_attempt_reads_nothing(self) -> None:
+        """No retry is left to refuse: the register is not even read."""
+        service, _attempts = _blinking_then("unused")
+        with (
+            patch("src.domains.agents.api.service.AgentService", return_value=service),
+            patch(f"{_ENGINE}._run_acted", AsyncMock(return_value=False)) as acted,
+        ):
+            result = await stream_instruction(_request(run_id="run-1", max_attempts=1))
+
+        acted.assert_not_awaited()
+        assert result.outcome is RunOutcome.FAILED
+
+    async def test_a_register_it_cannot_read_never_retries(self) -> None:
+        """Doubt never retries: an action that may have happened must not happen twice."""
+
+        def _down() -> Any:
+            raise ConnectionError("database down")
+
+        with patch("src.infrastructure.database.session.get_db_context", _down):
+            assert await _run_acted("run-1") is True
+
+    async def test_a_run_without_an_id_has_nothing_to_read(self) -> None:
+        """A caller that names no run keeps the retry it always had."""
+        with patch("src.infrastructure.database.session.get_db_context") as opened:
+            assert await _run_acted(None) is False
+        opened.assert_not_called()

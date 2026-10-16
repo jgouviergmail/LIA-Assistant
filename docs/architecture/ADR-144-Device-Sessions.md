@@ -25,3 +25,21 @@ Sessions were server-side Redis blobs (`{user_id, remember_me, created_at}`) wit
 - Coarse `touch_last_seen` wired into `get_current_session` (best-effort, suppressed) — bounded write load by construction.
 - Frontend: `DeviceSessionsSettings` rendered OUTSIDE the MFA gate (device hygiene is flag-independent), step-up-guarded revoke-others, i18n ×6.
 - Rejected: persistent device registry (cookie device-id + table) — new durable-PII surface for marginal gain over FCM attestation; sliding session expiration (fixed TTL remains the documented truth since Lot 0).
+
+## Amendment 2026-10-13 — the notification stream is cut too
+
+« Sign out this device » cut the chat streams within one keepalive and never the
+notification stream (`GET /notifications/stream`): a revoked device kept
+receiving the person's notifications for as long as its tab stayed open. The
+route now reads the `lia_session` cookie and checks `session_still_valid` at
+every keepalive tick, beside the newest-wins slot check (`_closing_event`), and
+closes with a NAMED event, `event: session_revoked` — an `EventSource` listener
+cannot see a transport comment. Both web consumers (`useNotifications`, the
+broadcast provider) close for good on it and call `redirectToLogin()`:
+reconnecting would only meet a 401 at every backoff step.
+
+Guards: `TestARevokedSessionClosesTheStream` (`test_stream_cap.py`), the
+`session_revoked` cases of `useNotifications.test.ts` and `broadcast.test.tsx`,
+and the browser journey `e2e/smoke/notifications-session-revoked.spec.ts` —
+the page lands on the login and stays there, while a `superseded` closing
+reopens the stream and signs nobody out.

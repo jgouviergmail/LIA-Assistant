@@ -45,7 +45,7 @@ class GmailSendMixin:
     """The one door a new Gmail message leaves through."""
 
     async def _send_message(
-        self: _GmailSendHost, message: Message, *, with_files: bool, single_attempt: bool = False
+        self: _GmailSendHost, message: Message, *, with_files: bool, single_attempt: bool = True
     ) -> dict[str, Any]:
         """Send a built message through the door its size needs.
 
@@ -56,7 +56,9 @@ class GmailSendMixin:
         Returns:
             Gmail's answer (``id``, ``threadId``, ``labelIds``).
         """
-        retry_options = {"max_retries": 1} if single_attempt else {}
+        # Sending is non-idempotent. The legacy keyword stays accepted, but
+        # cannot enable replay after an acknowledgement is lost.
+        retry_options = {"max_retries": 1}
         if with_files:
             return await self._make_request(
                 "POST",

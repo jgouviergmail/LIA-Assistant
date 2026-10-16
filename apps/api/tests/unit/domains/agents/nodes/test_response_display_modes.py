@@ -15,6 +15,7 @@ from src.domains.agents.models import MessagesState
 from src.domains.agents.services import response_context
 from src.domains.agents.services.response_context import ResponseContextBundle
 from src.domains.agents.services.streaming.service import StreamingService
+from src.domains.agents.services.streaming.voice_scope import VoiceScope
 
 pytestmark = pytest.mark.unit
 node = import_module("src.domains.agents.nodes.response_node")
@@ -118,7 +119,8 @@ async def test_mode_reaches_prompt_history_selection_rendering_and_sse(
 
     service = StreamingService.__new__(StreamingService)
     service.persistable_widgets = {}
-    service.voice_context_registry = None
+    service._voice_scope = VoiceScope()
+    service._voice_scope.read([model_output])  # the declaration, as the stream reads it
     chunks = [
         chunk
         async for chunk in service._emit_post_stream_registry(
@@ -131,7 +133,10 @@ async def test_mode_reaches_prompt_history_selection_rendering_and_sse(
     else:
         assert len(chunks) == 1
         assert set(chunks[0][0].metadata["items"]) == selected_ids
-        assert set(service.voice_context_registry) == selected_ids
+        # The voice speaks of what the answer declared, never of a record it did not
+        # (voice_scope.py): an undeclared answer is read aloud whatever the mode shows.
+        spoken = set(service.voice_context_registry or {})
+        assert spoken == ({"email_selected"} if selection else set())
 
 
 @pytest.mark.parametrize("display_mode", ["html", "html_cards"])
@@ -229,7 +234,7 @@ async def test_reference_only_items_are_candidates_before_selection(
 
     service = StreamingService.__new__(StreamingService)
     service.persistable_widgets = {}
-    service.voice_context_registry = None
+    service._voice_scope = VoiceScope()
     chunks = [
         chunk
         async for chunk in service._emit_post_stream_registry(

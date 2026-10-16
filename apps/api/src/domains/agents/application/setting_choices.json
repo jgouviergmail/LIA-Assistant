@@ -254,64 +254,64 @@
   "voice_stt_mode": {
     "fr": {
       "local": "Local (Sherpa)",
-      "remote": "Distant (ElevenLabs)"
+      "remote": "Distant"
     },
     "en": {
       "local": "Local (Sherpa)",
-      "remote": "Remote (ElevenLabs)"
+      "remote": "Remote"
     },
     "de": {
       "local": "Lokal (Sherpa)",
-      "remote": "Extern (ElevenLabs)"
+      "remote": "Extern"
     },
     "es": {
       "local": "Local (Sherpa)",
-      "remote": "Remoto (ElevenLabs)"
+      "remote": "Remoto"
     },
     "it": {
       "local": "Locale (Sherpa)",
-      "remote": "Remoto (ElevenLabs)"
+      "remote": "Remoto"
     },
     "zh-CN": {
       "local": "本地（Sherpa）",
-      "remote": "远程（ElevenLabs）"
+      "remote": "远程"
     }
   },
   "response_display_mode": {
     "fr": {
       "cards": "Cartes HTML",
-      "html": "HTML enrichi",
-      "html_cards": "HTML enrichi + cartes",
+      "html": "HTML",
+      "html_cards": "HTML + cartes",
       "markdown": "Markdown"
     },
     "en": {
       "cards": "HTML Cards",
-      "html": "Rich HTML",
-      "html_cards": "Rich HTML + cards",
+      "html": "HTML",
+      "html_cards": "HTML + cards",
       "markdown": "Markdown"
     },
     "de": {
       "cards": "HTML-Karten",
-      "html": "Rich-HTML",
-      "html_cards": "Rich-HTML + Karten",
+      "html": "HTML",
+      "html_cards": "HTML + Karten",
       "markdown": "Markdown"
     },
     "es": {
       "cards": "Tarjetas HTML",
-      "html": "HTML enriquecido",
-      "html_cards": "HTML enriquecido + tarjetas",
+      "html": "HTML",
+      "html_cards": "HTML + tarjetas",
       "markdown": "Markdown"
     },
     "it": {
       "cards": "Schede HTML",
-      "html": "HTML arricchito",
-      "html_cards": "HTML arricchito + schede",
+      "html": "HTML",
+      "html_cards": "HTML + schede",
       "markdown": "Markdown"
     },
     "zh-CN": {
       "cards": "HTML卡片",
-      "html": "富HTML",
-      "html_cards": "富HTML + 卡片",
+      "html": "HTML",
+      "html_cards": "HTML + 卡片",
       "markdown": "Markdown"
     }
   },

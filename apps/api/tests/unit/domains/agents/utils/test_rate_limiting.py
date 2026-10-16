@@ -5,19 +5,25 @@ Tests for rate limiting tool invocations in LangGraph agents
 with sliding window algorithm and per-user isolation.
 """
 
-import json
 import time
 import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from src.core.tool_outcome import explicit_success
+from src.domains.agents.nodes.react_result_reading import (
+    is_productive_result,
+    tool_message_status,
+)
+from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.utils.rate_limiting import (
     _rate_limit_tracker,
     get_rate_limit_status,
     rate_limit,
     reset_rate_limits,
 )
+from src.infrastructure.observability.decorators import track_tool_metrics
 from tests.helpers.runtime_context import make_contextless_tool_runtime, make_tool_runtime
 
 USER_1 = uuid.UUID("00000000-0000-4000-8000-000000000011")
@@ -102,31 +108,34 @@ class TestRateLimitDecoratorBasic:
 
                 # 4th call should be blocked
                 result = await test_tool(runtime=mock_runtime)
-                response = json.loads(result)
-                assert response["error"] == "rate_limit_exceeded"
+                assert result.success is False
+                assert result.error_code == ToolErrorCode.RATE_LIMIT_EXCEEDED
 
     @pytest.mark.asyncio
-    async def test_returns_error_json_on_limit(self, mock_runtime, mock_settings):
-        """Test that rate limit error returns proper JSON structure."""
+    async def test_a_refusal_is_a_failure_every_reader_sees(self, mock_runtime, mock_settings):
+        """The refusal is DECLARED (ADR-303): the register, the metrics, the ReAct
+        status and the iteration budget read one predicate, and a JSON string
+        read as a success to all four — it even bought the loop an iteration."""
 
         @rate_limit(max_calls=1, window_seconds=60)
-        async def test_tool(runtime=None):
+        async def probe_tool(runtime=None):
             return "success"
 
         with patch(SETTINGS_PATCH_PATH, return_value=mock_settings):
             with patch("src.domains.agents.utils.rate_limiting.agent_tool_rate_limit_hits"):
-                # First call succeeds
-                await test_tool(runtime=mock_runtime)
+                await probe_tool(runtime=mock_runtime)
+                result = await probe_tool(runtime=mock_runtime)
 
-                # Second call blocked
-                result = await test_tool(runtime=mock_runtime)
-                response = json.loads(result)
-
-                assert "error" in response
-                assert "message" in response
-                assert "retry_after_seconds" in response
-                assert "limit" in response
-                assert "tool_name" in response
+        assert explicit_success(result) is False
+        assert tool_message_status(result) == "error"
+        assert is_productive_result(result) is False
+        retry = result.metadata["retry_after_seconds"]
+        assert 0 < retry <= 61
+        # Facts the model can act on, in technical English: what refused, the
+        # limit and its scope, and that no argument changes it before the delay.
+        assert "probe_tool" in result.message
+        assert "at most 1 per 60 s for this account" in result.message
+        assert f"for the next {retry} s, whatever its arguments" in result.message
 
 
 class TestRateLimitDecoratorDisabled:
@@ -243,8 +252,8 @@ class TestRateLimitDecoratorScopes:
 
                 # User 2's call is blocked (shared limit)
                 result = await test_tool(runtime=user2_runtime)
-                response = json.loads(result)
-                assert response["error"] == "rate_limit_exceeded"
+                assert result.error_code == ToolErrorCode.RATE_LIMIT_EXCEEDED
+                assert "for this instance" in result.message
 
 
 class TestRateLimitDecoratorSlidingWindow:
@@ -341,28 +350,32 @@ class TestRateLimitDecoratorMetrics:
                 mock_metric.labels().inc.assert_called()
 
 
-class TestRateLimitDecoratorCustomMessage:
-    """Tests for custom error messages."""
+class TestTheRefusalIsCountedAsAFailure:
+    """``@track_tool_metrics`` stacked over ``@rate_limit`` — the web fetch and
+    search tools' order — counted every refusal as a successful call (ADR-303)."""
 
     @pytest.mark.asyncio
-    async def test_uses_custom_error_message(self, mock_runtime, mock_settings):
-        """Test that custom error message is used."""
-        custom_message = "Custom rate limit message"
-
-        @rate_limit(max_calls=1, window_seconds=60, error_message=custom_message)
-        async def test_tool(runtime=None):
+    async def test_the_metrics_decorator_above_the_limiter_counts_a_failed_call(
+        self, mock_runtime, mock_settings
+    ):
+        async def probe_tool(runtime=None):
             return "success"
+
+        counter = MagicMock()
+        probe = track_tool_metrics(
+            tool_name="probe_tool",
+            agent_name="probe_agent",
+            duration_metric=MagicMock(),
+            counter_metric=counter,
+        )(rate_limit(max_calls=1, window_seconds=60)(probe_tool))
 
         with patch(SETTINGS_PATCH_PATH, return_value=mock_settings):
             with patch("src.domains.agents.utils.rate_limiting.agent_tool_rate_limit_hits"):
-                # First call succeeds
-                await test_tool(runtime=mock_runtime)
+                await probe(runtime=mock_runtime)
+                await probe(runtime=mock_runtime)
 
-                # Second call blocked
-                result = await test_tool(runtime=mock_runtime)
-                response = json.loads(result)
-
-                assert response["message"] == custom_message
+        outcomes = [call.kwargs["success"] for call in counter.labels.call_args_list]
+        assert outcomes == ["true", "false"]
 
 
 # ============================================================================

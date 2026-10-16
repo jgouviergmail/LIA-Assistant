@@ -86,6 +86,7 @@ function setupQueryMock(data: RAGSpaceListResponse = LIST_RESPONSE) {
     error: null,
     refetch: mockRefetch,
     refetchVerified: vi.fn().mockResolvedValue(true),
+    acceptData: vi.fn().mockReturnValue(true),
     setData: mockSetData,
   });
 }
@@ -220,6 +221,7 @@ describe('useSpaceDetail', () => {
       error: null,
       refetch: mockRefetch,
       refetchVerified: vi.fn().mockResolvedValue(true),
+      acceptData: vi.fn().mockReturnValue(true),
       setData: mockSetData,
     });
 
@@ -241,6 +243,7 @@ describe('useSpaceDetail', () => {
       error: null,
       refetch: mockRefetch,
       refetchVerified: vi.fn().mockResolvedValue(true),
+      acceptData: vi.fn().mockReturnValue(true),
       setData: mockSetData,
     });
 

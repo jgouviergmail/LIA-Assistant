@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+from itertools import permutations
+
 import pytest
 
-from src.domains.radio.cast import cast_voices
+from src.domains.radio.cast import VOICES_APART, Cast, cast_voices, shared_voice
 from src.domains.radio.formats import (
-    CONFIGURABLE_ROLES,
     FORMAT_SPECS,
     SPEAKER_ROLES,
+    STAFF_ROLES,
     RadioFormat,
     RadioRole,
 )
@@ -33,13 +35,13 @@ EDGE = [
 def test_every_role_gets_its_own_voice_alternating_genders() -> None:
     cast = cast_voices(MULTI, {}, language="fr", multilingual=True)
     assert cast is not None
-    assert {role: cast.voices[role] for role in CONFIGURABLE_ROLES} == {
+    assert {role: cast.voices[role] for role in STAFF_ROLES} == {
         RadioRole.HOST: "aoede",
         RadioRole.ANCHOR: "puck",
         RadioRole.EXPERT: "kore",
         RadioRole.COLUMNIST: "orus",
     }
-    assert cast.distinct_voices_of(CONFIGURABLE_ROLES) == 4
+    assert cast.distinct_voices_of(STAFF_ROLES) == 4
 
 
 def test_a_choice_the_engine_still_has_is_kept() -> None:
@@ -58,9 +60,9 @@ def test_one_voice_per_language_engine_casts_in_the_listeners_language() -> None
     cast = cast_voices(EDGE, {}, language="fr", multilingual=False)
     assert cast is not None
     assert set(cast.voices.values()) == {"fr-FR-Denise", "fr-FR-Henri"}
-    assert cast.distinct_voices_of(CONFIGURABLE_ROLES) == 2
+    assert cast.distinct_voices_of(STAFF_ROLES) == 2
     chinese = cast_voices(EDGE, {}, language="zh-CN", multilingual=False)
-    assert chinese is not None and chinese.distinct_voices_of(CONFIGURABLE_ROLES) == 1
+    assert chinese is not None and chinese.distinct_voices_of(STAFF_ROLES) == 1
 
 
 def test_a_language_without_voices_still_gets_a_programme() -> None:
@@ -92,22 +94,46 @@ def roles_of(fmt: RadioFormat) -> tuple[RadioRole, ...]:
 
 
 class TestTheCommentators:
-    """ADR-324 decision 39: the station casts its commentators itself, with voices nobody
-    else speaks with when the engine has enough — never LIA's voice for a view."""
+    """ADR-324 decision 39: a commentator the listener left automatic is cast by the station,
+    with a voice nobody else speaks with when the engine has enough — never LIA's for a
+    view; one the listener chose speaks with that voice (2026-10-16)."""
 
     def test_they_take_voices_nobody_speaks_with_first(self) -> None:
         cast = cast_voices(MANY, {}, language="fr", multilingual=True)
         assert cast is not None
-        mine = {cast.voices[role] for role in CONFIGURABLE_ROLES}
+        mine = {cast.voices[role] for role in STAFF_ROLES}
         theirs = [cast.voices[role] for role in SPEAKER_ROLES]
         assert len(set(theirs)) == 3 and not mine & set(theirs)
         assert cast.voiced_roles(roles_of(RadioFormat.DEBATE)) == roles_of(RadioFormat.DEBATE)
         assert cast.distinct_voices_of(roles_of(RadioFormat.DEBATE)) == 4
 
-    def test_a_listener_never_chooses_one(self) -> None:
-        chosen = {RadioRole.SPEAKER_A: "aoede"}
+    def test_a_listener_s_choice_is_kept_and_no_default_takes_it(self) -> None:
+        # Before 2026-10-16 the station cast them all: a debate was heard in voices
+        # nobody had chosen.
+        chosen = {RadioRole.SPEAKER_A: "aoede", RadioRole.SPEAKER_C: "orus"}
         cast = cast_voices(MANY, chosen, language="fr", multilingual=True)
-        assert cast is not None and cast.voices[RadioRole.SPEAKER_A] != "aoede"
+        assert cast is not None
+        assert (cast.voices[RadioRole.SPEAKER_A], cast.voices[RadioRole.SPEAKER_C]) == (
+            "aoede",
+            "orus",
+        )
+        others = [voice for role, voice in cast.voices.items() if role not in chosen]
+        assert not {"aoede", "orus"} & set(others)
+        assert cast.distinct_voices_of(roles_of(RadioFormat.DEBATE)) == 4
+
+    def test_a_voice_chosen_for_a_later_role_is_no_default_for_an_earlier_one(self) -> None:
+        # The host is cast first: before, its default could take the anchor's chosen voice.
+        cast = cast_voices(MULTI, {RadioRole.ANCHOR: "aoede"}, language="fr", multilingual=True)
+        assert cast is not None
+        assert cast.voices[RadioRole.ANCHOR] == "aoede"
+        assert cast.voices[RadioRole.HOST] != "aoede"
+
+    def test_a_chosen_commentator_with_lia_s_voice_is_still_silenced(self) -> None:
+        # A write refuses it (``shared_voice``); a stored one is read forgivingly.
+        chosen = {RadioRole.HOST: "puck", RadioRole.SPEAKER_B: "puck"}
+        cast = cast_voices(MANY, chosen, language="fr", multilingual=True)
+        assert cast is not None
+        assert RadioRole.SPEAKER_B not in cast.voiced_roles(roles_of(RadioFormat.DISCUSSION))
 
     def test_with_few_voices_they_borrow_the_expert_s_and_the_editorialist_s(self) -> None:
         cast = cast_voices(MULTI, {}, language="fr", multilingual=True)
@@ -142,6 +168,52 @@ class TestTheCommentators:
     def test_a_cast_stored_before_the_commentators_voices_none(self) -> None:
         cast = cast_voices(MULTI, {}, language="fr", multilingual=True)
         assert cast is not None
-        older = type(cast)(voices={role: cast.voices[role] for role in CONFIGURABLE_ROLES})
+        older = type(cast)(voices={role: cast.voices[role] for role in STAFF_ROLES})
         assert older.voiced_roles(roles_of(RadioFormat.DISCUSSION)) == ()
         assert older.distinct_voices_of(roles_of(RadioFormat.DEBATE)) == 1
+
+
+class TestAMultilingualEngine:
+    """Every voice speaks every language; one native to it speaks it without an accent."""
+
+    FISH = [
+        VoiceOption("e" * 32, "Emma", "female", "en"),
+        VoiceOption("n" * 32, "Clone", "male", None),
+        VoiceOption("f" * 32, "Emilie", "female", "fr"),
+        VoiceOption("j" * 32, "Jun", "male", "ja"),
+        VoiceOption("r" * 32, "Remy", "male", "fr"),
+    ]
+
+    def test_the_default_cast_speaks_the_listener_s_language(self) -> None:
+        cast = cast_voices(self.FISH, {}, language="fr", multilingual=True)
+        assert cast is not None
+        assert cast.voices[RadioRole.HOST] in {"f" * 32, "r" * 32}
+
+
+class TestTheVoicesApart:
+    """What a write refuses is exactly what the cast would silence — derived, never listed."""
+
+    @pytest.mark.parametrize(("first", "second"), list(permutations(RadioRole, 2)))
+    def test_two_roles_may_not_share_a_voice_exactly_when_a_programme_would_silence_one(
+        self, first: RadioRole, second: RadioRole
+    ) -> None:
+        voices = {role: role.value for role in RadioRole}
+        voices[second] = voices[first]
+        cast = Cast(voices=voices)
+        silenced = any(
+            set(spec.roles) - set(cast.voiced_roles(spec.roles)) for spec in FORMAT_SPECS.values()
+        )
+        assert (second in VOICES_APART[first]) is silenced
+        assert shared_voice({first: "v", second: "v"}) is silenced
+
+    def test_a_commentator_never_sounds_like_lia_the_moderator_or_another_one(self) -> None:
+        assert VOICES_APART[RadioRole.SPEAKER_A] == frozenset(
+            {RadioRole.HOST, RadioRole.ANCHOR, RadioRole.SPEAKER_B, RadioRole.SPEAKER_C}
+        )
+        assert VOICES_APART[RadioRole.HOST] == frozenset(SPEAKER_ROLES)
+        assert VOICES_APART[RadioRole.EXPERT] == frozenset()
+
+    def test_the_team_may_share_a_voice_it_is_the_listener_s_choice(self) -> None:
+        assert not shared_voice({RadioRole.ANCHOR: "kore", RadioRole.EXPERT: "kore"})
+        assert not shared_voice({RadioRole.EXPERT: "kore", RadioRole.SPEAKER_A: "kore"})
+        assert not shared_voice({})

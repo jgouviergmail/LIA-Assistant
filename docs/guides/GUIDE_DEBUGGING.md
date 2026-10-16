@@ -2213,6 +2213,12 @@ TTL "scheduler:leader"        # Temps restant
 2. Si urgence, supprimer manuellement : `DEL "scheduler:leader"`
 3. Un `docker restart` du conteneur API déclenche le même cycle
 
+#### Leader qui perd son bail
+
+**Symptôme** : `scheduler_leader_lease_lost` (warning) — le renouvellement n'a pas trouvé le bail à son nom (expiré, ou repris par un autre worker). Le worker s'efface : son scheduler passe en pause, puis `scheduler_leader_starting_re_election`. S'il regagne le bail : `scheduler_leader_elected` (method=re_election) suivi de `scheduler_leader_resumed`.
+
+**Lecture** : un seul worker doit tenir le bail à un instant donné ; `GET "scheduler:leader"` nomme le détenteur. Le bail se perd quand aucun renouvellement n'aboutit pendant tout son TTL (Redis injoignable, boucle d'événements bloquée) ou quand la clé est supprimée à la main ; le cas se rattrape sans intervention. À l'arrêt d'un worker, `scheduler_paused_for_shutdown` puis `scheduler_leader_released` ; `scheduler_leader_lease_returned_at_shutdown` signale un bail gagné pendant l'arrêt et rendu aussitôt (amendement 2026-10-13 d'[ADR-046](../architecture/ADR-046-Background-Job-Scheduling.md)).
+
 #### Vérifier les jobs APScheduler
 
 ```bash

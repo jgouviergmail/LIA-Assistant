@@ -24,8 +24,6 @@ from pydantic_settings import BaseSettings
 
 from src.core.application_tools import APPLICATION_COMMAND_TTL_SECONDS
 from src.core.constants import (
-    ADAPTIVE_REPLANNING_EMPTY_THRESHOLD_DEFAULT,
-    ADAPTIVE_REPLANNING_MAX_ATTEMPTS_DEFAULT,
     AGENT_EFFECT_CLAIMED_ORPHAN_STALENESS_SECONDS_DEFAULT,
     AGENT_EFFECT_EXPORT_BATCH_ROWS_DEFAULT,
     AGENT_EFFECT_LABEL_VALUE_MAX_CHARS_DEFAULT,
@@ -51,6 +49,7 @@ from src.core.constants import (
     COMPACTION_CHUNK_MAX_TOKENS_DEFAULT,
     COMPACTION_ENABLED_DEFAULT,
     COMPACTION_GLOBAL_TIMEOUT_SECONDS_DEFAULT,
+    COMPACTION_IDENTIFIERS_REINSERT_MAX_DEFAULT,
     COMPACTION_INCLUDE_PREVIOUS_SUMMARIES_DEFAULT,
     COMPACTION_MAX_RETRIES_DEFAULT,
     COMPACTION_MIN_MESSAGES_DEFAULT,
@@ -1540,30 +1539,14 @@ class AgentsSettings(BaseSettings):
             "so they get consolidated instead of accumulating."
         ),
     )
-
-    # ========================================================================
-    # Adaptive Re-Planning (INTELLIPLANNER Phase E - 2025-12-03)
-    # ========================================================================
-    # Intelligent recovery from execution failures (empty results, partial failures)
-    adaptive_replanning_max_attempts: int = Field(
-        default=ADAPTIVE_REPLANNING_MAX_ATTEMPTS_DEFAULT,
-        ge=1,
-        le=5,
+    compaction_identifiers_reinsert_max: int = Field(
+        default=COMPACTION_IDENTIFIERS_REINSERT_MAX_DEFAULT,
+        ge=0,
+        le=200,
         description=(
-            "Cap on the AdaptiveRePlanner's advisory analysis (and the bound for "
-            "a future automatic-recovery loop — recovery is not wired today, see "
-            "task_orchestrator TODO D4). Above this many attempts the advice is "
-            "ABORT. Default: 3."
-        ),
-    )
-    adaptive_replanning_empty_threshold: float = Field(
-        default=ADAPTIVE_REPLANNING_EMPTY_THRESHOLD_DEFAULT,
-        ge=0.0,
-        le=1.0,
-        description=(
-            "Fraction of empty results that triggers re-planning consideration. "
-            "0.8 = trigger if 80%+ of successful steps returned no results. "
-            "Higher = less sensitive (fewer re-plans), Lower = more sensitive."
+            "Most identifiers written back under a compaction summary that dropped "
+            "them, per list (trusted, third-party); also bounds the truncation "
+            "notice's lists. 0 = write none back."
         ),
     )
 
@@ -1947,7 +1930,11 @@ class AgentsSettings(BaseSettings):
     planner_max_replans: int = Field(
         default=PLANNER_MAX_REPLANS_DEFAULT,
         ge=0,
-        description="Maximum replanning attempts (Phase 2 feature)",
+        description=(
+            "Automatic replans of a plan the semantic validator rejected, before it "
+            "runs (the issues fed back to the planner). Past it, a mutation plan asks "
+            "the user and a read-only plan runs as is."
+        ),
     )
     planner_timeout_seconds: int = Field(
         default=PLANNER_TIMEOUT_SECONDS,
@@ -3549,11 +3536,13 @@ class AgentsSettings(BaseSettings):
     )
     subagent_default_max_iterations: int = Field(
         default=SUBAGENT_DEFAULT_MAX_ITERATIONS_DEFAULT,
-        ge=1,
+        # 1 can never end: the loop's first call would land on its last step.
+        ge=2,
         le=30,
         description=(
-            "Max LLM iterations per sub-agent execution. Reused as the "
-            "`recursion_limit` of the ReAct loop (ADR-083)."
+            "LangGraph recursion limit of the sub-agent's ReAct loop, in graph STEPS "
+            "(ADR-083): N//2 model calls at most, the last one a closing pass without "
+            "tools that writes the deliverable (react_runner_budget)."
         ),
     )
     # Sub-agent LLM model is configured via Admin > LLM Configuration > Sub-Agent
@@ -3626,7 +3615,8 @@ class AgentsSettings(BaseSettings):
             "`resolve_tools_for_subagent` to allowlist mode — every tool NOT "
             "in this list is filtered out, regardless of the blocklist. "
             "Keeps the sub-agent focused on factual verification (default: "
-            "brave_search + fetch_web_page) instead of exploring the full "
+            "perplexity_search + brave_search + fetch_web_page) instead of "
+            "exploring the full "
             "~80-tool catalogue, which otherwise burns the ReAct "
             "`recursion_limit` without converging. Empty string = legacy "
             "blocklist-only behavior."
@@ -3784,9 +3774,15 @@ class AgentsSettings(BaseSettings):
     )
     mcp_react_max_iterations: int = Field(
         default=MCP_REACT_MAX_ITERATIONS_DEFAULT,
-        ge=3,
+        # Below 4 no tool round fits before the closing pass: an acting loop
+        # that cannot act (tool_rounds_for in react_runner_budget).
+        ge=4,
         le=60,
-        description="Max ReAct iterations for MCP sub-agent (recursion_limit).",
+        description=(
+            "LangGraph recursion limit of the MCP sub-agent loop, in graph STEPS: N//2 "
+            "model calls at most, the last one a closing pass without tools "
+            "(react_runner_budget, ADR-083)."
+        ),
     )
     mcp_react_step_timeout_seconds: int = Field(
         default=MCP_REACT_STEP_TIMEOUT_SECONDS_DEFAULT,

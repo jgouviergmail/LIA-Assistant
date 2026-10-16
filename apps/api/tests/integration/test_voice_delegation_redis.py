@@ -110,6 +110,7 @@ async def test_two_requests_on_one_session_the_newest_wins_and_takes_the_lock(
         assert await get_active_run(redis_client, str(session.conversation_id)) == {
             "run_id": f"{session.run_id}:call-1",
             "stream_id": "phone_call:call-1",
+            "relayed": False,  # a lease publishes no chunk (point 25b)
         }
         second = asyncio.create_task(
             delegate(
@@ -137,6 +138,7 @@ async def test_two_requests_on_one_session_the_newest_wins_and_takes_the_lock(
     assert seen_locks["second"] == {
         "run_id": f"{session.run_id}:call-2",
         "stream_id": "phone_call:call-2",
+        "relayed": False,  # a lease publishes no chunk (point 25b)
     }
     # Nothing is left behind but the marker, which expires with the turn's bound.
     assert await get_active_run(redis_client, str(session.conversation_id)) is None

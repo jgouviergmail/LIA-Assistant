@@ -11,17 +11,21 @@ from __future__ import annotations
 
 import base64
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
 
+from src.core.exceptions import ConnectorAPIError
+from src.domains.connectors.clients.apple_imap import mailbox_account_scope
 from src.domains.connectors.clients.email_attachments import (
     EmailAttachmentAmbiguousError,
     EmailAttachmentContent,
     EmailAttachmentNotFoundError,
     select_attachment,
 )
+from src.domains.connectors.clients.normalizers.imap_handles import message_handle, scope_digest
 
 pytestmark = pytest.mark.unit
 
@@ -116,7 +120,7 @@ GMAIL_PAYLOAD = {
             {
                 "mimeType": "application/pdf",
                 "filename": "Invoice.pdf",
-                "body": {"attachmentId": "att-9", "size": 3},
+                "body": {"attachmentId": "att-9", "size": 4},
             },
         ]
     },
@@ -129,6 +133,57 @@ async def test_gmail_downloads_by_handle_and_names_the_part(gmail_client) -> Non
     content = await gmail_client.download_attachment("m1", attachment_id="att-9")
     assert content == EmailAttachmentContent("Invoice.pdf", "application/pdf", b"%PDF")
     gmail_client.get_attachment.assert_awaited_once_with("m1", "att-9")
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        {"size": 4},
+        {"data": "JVBERg=="},
+        {"data": "%%%JVBERg==", "size": 4},
+        {"data": "JVBERg==", "size": 3},
+        {"data": "", "size": 4},
+        {"data": None, "size": 4},
+        {"data": "", "size": -1},
+        {"data": "", "size": False},
+    ],
+)
+async def test_gmail_rejects_incomplete_or_malformed_attachment_bytes(
+    gmail_client, response: dict[str, Any]
+) -> None:
+    gmail_client._make_request = AsyncMock(return_value=response)
+    with pytest.raises(ConnectorAPIError):
+        await gmail_client.get_attachment("m1", "att-9")
+
+
+@pytest.mark.parametrize("data", [b"", b"%PDF", bytes(range(256))])
+async def test_gmail_reads_complete_attachment_bytes_including_an_empty_file(
+    gmail_client, data: bytes
+) -> None:
+    gmail_client._make_request = AsyncMock(
+        return_value={
+            "data": base64.urlsafe_b64encode(data).decode().rstrip("="),
+            "size": len(data),
+        }
+    )
+    assert await gmail_client.get_attachment("m1", "att-9") == data
+
+
+async def test_gmail_downloads_a_named_inline_file(gmail_client) -> None:
+    gmail_client.get_message = AsyncMock(
+        return_value={
+            "payload": {
+                "filename": "small.txt",
+                "mimeType": "text/plain",
+                "body": {"data": "b2s", "size": 2},
+            }
+        }
+    )
+    gmail_client._make_request = AsyncMock(side_effect=AssertionError("inline file was downloaded"))
+    assert await gmail_client.download_attachment(
+        "m1", filename="small.txt"
+    ) == EmailAttachmentContent("small.txt", "text/plain", b"ok")
+    gmail_client._make_request.assert_not_awaited()
 
 
 async def test_gmail_downloads_by_name(gmail_client) -> None:
@@ -214,6 +269,9 @@ APPLE_MODULE = "src.domains.connectors.clients.apple_email_client"
 class _FakeMailBox:
     def __init__(self, messages):
         self.messages = messages
+        self.client = SimpleNamespace(untagged_responses={"UIDVALIDITY": [b"1"]})
+        self.folder = MagicMock()
+        self.folder.list.return_value = [SimpleNamespace(name="INBOX")]
 
     def __call__(self, *args, **kwargs):
         return self
@@ -238,6 +296,7 @@ def _imap_message(attachments):
         from_="bob@example.com",
         to=["jane@icloud.com"],
         cc=[],
+        bcc=[],
         date_str="Mon, 20 Jul 2026 09:00:00 +0000",
         date=None,
         text="body",
@@ -246,6 +305,14 @@ def _imap_message(attachments):
         size=4,
         attachments=attachments,
         headers={},
+    )
+
+
+def _apple_message_id(client) -> str:
+    return message_handle(
+        "INBOX",
+        "42",
+        scope=scope_digest(mailbox_account_scope(client.credentials.apple_id), "INBOX", 1),
     )
 
 
@@ -269,7 +336,9 @@ async def test_apple_downloads_by_name_from_the_imap_parts(apple_client) -> None
         SimpleNamespace(filename="photo.jpg", content_type="image/jpeg", payload=b"JPG"),
     ]
     with patch(f"{APPLE_MODULE}.MailBox", _FakeMailBox([_imap_message(parts)])):
-        content = await apple_client.download_attachment("42", filename="invoice.pdf")
+        content = await apple_client.download_attachment(
+            _apple_message_id(apple_client), filename="invoice.pdf"
+        )
     assert content == EmailAttachmentContent("Invoice.pdf", "application/pdf", b"%PDF")
 
 
@@ -283,7 +352,9 @@ async def test_apple_downloads_by_the_index_handle_its_listing_publishes(apple_c
     listed = normalize_imap_message(_imap_message(parts), "INBOX")["attachments"]
     assert [a["attachmentId"] for a in listed] == ["0", "1"]
     with patch(f"{APPLE_MODULE}.MailBox", _FakeMailBox([_imap_message(parts)])):
-        content = await apple_client.download_attachment("42", attachment_id="1")
+        content = await apple_client.download_attachment(
+            _apple_message_id(apple_client), attachment_id="1"
+        )
     assert content.filename == "photo.jpg"
 
 
@@ -292,7 +363,7 @@ async def test_apple_refuses_an_unknown_message(apple_client) -> None:
         patch(f"{APPLE_MODULE}.MailBox", _FakeMailBox([])),
         pytest.raises(EmailAttachmentNotFoundError),
     ):
-        await apple_client.download_attachment("42", filename="x.pdf")
+        await apple_client.download_attachment(_apple_message_id(apple_client), filename="x.pdf")
 
 
 # ============================================================================

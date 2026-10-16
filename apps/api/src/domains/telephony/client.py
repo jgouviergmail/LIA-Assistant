@@ -184,16 +184,20 @@ class ElevenLabsAgentsClient:
         )
 
     async def _request(self, method: str, path: str, **kwargs: Any) -> httpx.Response:
-        async with self._client() as client:
-            resp = await client.request(method, path, **kwargs)
+        try:
+            async with self._client() as client:
+                resp = await client.request(method, path, **kwargs)
+        except httpx.RequestError as error:
+            logger.warning(
+                "elevenlabs_api_transport_error", method=method, error_type=type(error).__name__
+            )
+            logger.debug("elevenlabs_api_error_detail", error=str(error))
+            # A missing response is not an HTTP refusal: a read/write failure
+            # can follow an accepted call. Preserve its transport category.
+            raise type(error)("ElevenLabs API transport failed", request=error.request) from error
         if resp.status_code >= 400:
-            # Never log the api key. The truncated vendor detail IS logged: it
-            # names the offending field (e.g. "built_in_tools.end_call.name:
-            # Field required") and carries no user data — without it a prod 4xx
-            # (observed: agent-sync PATCH 400) is undiagnosable.
-            detail = resp.text[:200]
-            # Classified on the FULL body before truncation: the structured
-            # taxonomy field can sit past the 200-char cut (observed in prod).
+            # Classify on the full structured body, but never trust its prose
+            # to be free of configuration, user data or private credentials.
             auth_error = _is_auth_response(resp)
             logger.warning(
                 "elevenlabs_api_error",
@@ -201,9 +205,11 @@ class ElevenLabsAgentsClient:
                 path=path,
                 status_code=resp.status_code,
                 auth_error=auth_error,
-                detail=detail,
             )
-            raise ElevenLabsAgentsError(resp.status_code, detail, auth_error=auth_error)
+            logger.debug("elevenlabs_api_error_detail", text=resp.text)
+            raise ElevenLabsAgentsError(
+                resp.status_code, "Provider request refused", auth_error=auth_error
+            )
         return resp
 
     async def get_agent(self, agent_id: str) -> dict[str, Any]:

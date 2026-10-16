@@ -15,6 +15,7 @@ from src.domains.agents.application.journal_consolidation_schemas import (
     JournalConsolidationPatch,
     JournalConsolidationRequest,
     JournalConsolidationScope,
+    canonical_journal_consolidation,
 )
 from src.domains.agents.application.journal_consolidation_spec import JOURNAL_CONSOLIDATE_OPERATION
 from src.domains.agents.application.journal_queries import require_journal_access
@@ -69,14 +70,6 @@ async def prepare_journal_consolidation(
         {"journal_consolidation": {**public, "requested": True}},
         command_id=command_id,
     )
-
-
-def canonical_journal_consolidation(draft: ApplicationActionDraftContent) -> bool:
-    scope = JournalConsolidationPatch.model_validate(draft.intent).journal_consolidation
-    public = scope.public_scope()
-    return draft.before == {"journal_consolidation": public} and draft.after == {
-        "journal_consolidation": {**public, "requested": True}
-    }
 
 
 @dataclass(frozen=True)

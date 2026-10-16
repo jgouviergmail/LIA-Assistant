@@ -3,10 +3,10 @@ Browser session pool with cross-worker recovery via Redis.
 
 Manages Playwright browser instances and sessions with:
 - Module-level singleton (pattern: infrastructure/cache/redis.py)
-- Global session coordination via Redis key counting
+- Atomic logical-session coordination and ownership fencing via Redis
 - Cross-worker session recovery via Redis metadata
-- Memory monitoring and resource limits
-- APScheduler-based idle session cleanup
+- Bounded logical/local session counts and recovery metadata
+- Worker-owned idle session cleanup
 
 Phase: evolution F7 — Browser Control (Playwright)
 """
@@ -20,29 +20,42 @@ import time
 import uuid
 from contextlib import suppress
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import structlog
 
 from src.core.config import settings
-from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, REDIS_KEY_BROWSER_SESSION_PREFIX
+from src.core.constants import (
+    BROWSER_COORDINATION_TIMEOUT_SECONDS,
+    BROWSER_RECOVERY_TITLE_MAX_CHARS,
+    BROWSER_RECOVERY_URL_MAX_CHARS,
+    BROWSER_SESSION_MAINTENANCE_INTERVAL_SECONDS,
+    DEFAULT_USER_DISPLAY_TIMEZONE,
+    REDIS_KEY_BROWSER_SESSION_PREFIX,
+)
 from src.core.i18n import get_locale_for_language
+from src.infrastructure.browser import coordination
+from src.infrastructure.browser.coordination import BrowserCoordinationUnavailable
+from src.infrastructure.browser.errors import BrowserRefusal, BrowserRefusalReason
 from src.infrastructure.browser.models import BrowserSessionInfo
 from src.infrastructure.browser.security import BrowserSecurityPolicy
 from src.infrastructure.observability.log_facts import url_host
 from src.infrastructure.observability.metrics_browser import (
     browser_errors_total,
-    browser_memory_bytes,
     browser_sessions_active,
 )
 
 if TYPE_CHECKING:
     from playwright.async_api import Browser, Playwright
 
+    from src.infrastructure.browser.session import BrowserSession
+
 logger = structlog.get_logger(__name__)
 
 # Module-level singleton (pattern: infrastructure/cache/redis.py)
 _browser_pool: BrowserPool | None = None
+_browser_pool_start: asyncio.Task[None] | None = None
+_browser_pool_lock = asyncio.Lock()
 
 
 async def get_browser_pool() -> BrowserPool:
@@ -52,19 +65,29 @@ async def get_browser_pool() -> BrowserPool:
         The pool. A launch that failed leaves it unhealthy — every session
         acquisition then refuses — until the process restarts.
     """
-    global _browser_pool
-    if _browser_pool is None:
-        _browser_pool = BrowserPool()
-        await _browser_pool.initialize()
-    return _browser_pool
+    global _browser_pool, _browser_pool_start
+    async with _browser_pool_lock:
+        if _browser_pool is None:
+            _browser_pool = BrowserPool()
+            _browser_pool_start = asyncio.create_task(_browser_pool.initialize())
+        if _browser_pool_start is not None:
+            # A request owns its wait, not the process-wide driver startup.
+            await asyncio.shield(_browser_pool_start)
+        return _browser_pool
 
 
 async def close_browser_pool() -> None:
     """Shut down the browser pool and release all resources."""
-    global _browser_pool
-    if _browser_pool:
-        await _browser_pool.close()
-        _browser_pool = None
+    global _browser_pool, _browser_pool_start
+    async with _browser_pool_lock:
+        if _browser_pool_start is not None:
+            await asyncio.shield(_browser_pool_start)
+        if _browser_pool is not None:
+            try:
+                await _browser_pool.close()
+            finally:
+                _browser_pool = None
+                _browser_pool_start = None
 
 
 async def cleanup_browser_sessions() -> None:
@@ -83,13 +106,16 @@ class BrowserPool:
     """Manages Playwright browser instances and sessions.
 
     Provides session acquisition with global coordination via Redis,
-    cross-worker recovery, memory monitoring, and idle cleanup.
+    cross-worker recovery and idle cleanup.
     """
 
     def __init__(self) -> None:
         self._playwright: Playwright | None = None
         self._browser: Browser | None = None
-        self._sessions: dict[str, Any] = {}  # user_id -> BrowserSession
+        self._sessions: dict[str, BrowserSession] = {}
+        self._session_info: dict[str, BrowserSessionInfo] = {}
+        self._maintenance_task: asyncio.Task[None] | None = None
+        self._coordination_down = False
         self._lock = asyncio.Lock()
         self._healthy = False
         self._security = BrowserSecurityPolicy()
@@ -137,16 +163,21 @@ class BrowserPool:
                 chromium=self._browser.version,
                 executable=executable or "bundled",
             )
+        except asyncio.CancelledError:
+            self._healthy = False
+            await self._stop_driver()
+            raise
         except Exception as e:
             self._healthy = False
             await self._stop_driver()
             browser_errors_total.labels(error_type="launch_failed").inc()
             logger.warning(
                 "browser_pool_initialization_failed",
-                error=str(e),
+                error_type=type(e).__name__,
                 pid=self._pid,
                 executable=executable or "bundled",
             )
+            logger.debug("browser_error_detail", error=str(e))
 
     async def _stop_driver(self) -> None:
         """Stop the Playwright driver a failed launch started.
@@ -168,7 +199,7 @@ class BrowserPool:
         user_id: str,
         user_language: str | None = None,
         user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
-    ) -> Any:
+    ) -> BrowserSession:
         """Acquire or create a browser session for the given user.
 
         Checks for existing local session first (fast path), then attempts
@@ -189,22 +220,24 @@ class BrowserPool:
         Raises:
             ValueError: If global max sessions reached or pool unhealthy.
         """
-        if not self._healthy or not self._browser:
-            raise ValueError("Browser pool is not healthy")
-
         async with self._lock:
+            if not self._healthy or not self._browser:
+                raise BrowserRefusal(BrowserRefusalReason.UNHEALTHY)
             # Fast path: reuse existing local session
             if user_id in self._sessions:
-                session = self._sessions[user_id]
-                session.last_activity = time.monotonic()
-                return session
+                if await self._owns_session(user_id):
+                    session = self._sessions[user_id]
+                    session.last_activity = time.monotonic()
+                    return session
+                await self._release_locked(user_id)
 
-            # Check global session count via Redis
-            # Exclude current user's own session (recovery replaces, doesn't add)
-            await self._check_global_session_limit(exclude_user_id=user_id)
+            # Redis fail-open retains availability, never an unbounded local pool.
+            if len(self._sessions) >= settings.browser_max_concurrent_sessions:
+                raise BrowserRefusal(BrowserRefusalReason.CAPACITY)
 
-            # Check for cross-worker recovery (Redis metadata)
-            recovery_url = await self._get_recovery_url(user_id)
+            # Claim BEFORE the awaited context allocation. The same-user transfer
+            # preserves the logical-session contract and fences the previous owner.
+            recovery_url = await self._reserve_session_redis(user_id)
 
             # Create new session
             # Lazy import to avoid ModuleNotFoundError when browser_enabled=False
@@ -216,22 +249,39 @@ class BrowserPool:
             base_lang = browser_locale.split("-")[0]
             accept_lang = f"{browser_locale},{base_lang};q=0.9,en-US;q=0.8,en;q=0.7"
 
-            context = await self._browser.new_context(
-                user_agent=settings.browser_user_agent,
-                viewport={"width": 1280, "height": 720},
-                # Anti-detection: realistic browser context with user preferences
-                locale=browser_locale,
-                timezone_id=user_timezone,
-                color_scheme="light",
-                java_script_enabled=True,
-                extra_http_headers={
-                    "Accept-Language": accept_lang,
-                },
-            )
-            # Remove navigator.webdriver flag (primary bot detection signal)
-            await context.add_init_script(
-                "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
-            )
+            try:
+                context = await self._browser.new_context(
+                    user_agent=settings.browser_user_agent,
+                    viewport={"width": 1280, "height": 720},
+                    locale=browser_locale,
+                    timezone_id=user_timezone,
+                    color_scheme="light",
+                    java_script_enabled=True,
+                    extra_http_headers={"Accept-Language": accept_lang},
+                )
+            except BaseException:
+                await self._discard_reservation(user_id)
+                raise
+            try:
+                # Remove navigator.webdriver flag (primary bot detection signal)
+                await context.add_init_script(
+                    "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
+                )
+                if not await self._owns_session(user_id):
+                    raise BrowserRefusal(BrowserRefusalReason.SESSION_MOVED)
+            except BaseException:
+                # Ownership has not reached a session yet. Even a cancelled
+                # initialization must close the context it already allocated.
+                try:
+                    await context.close()
+                except BaseException as cleanup_error:
+                    logger.warning(
+                        "browser_uninitialized_context_cleanup_failed",
+                        error_type=type(cleanup_error).__name__,
+                    )
+                    logger.debug("browser_error_detail", error=str(cleanup_error))
+                await self._discard_reservation(user_id)
+                raise
 
             session = BrowserSession(
                 user_id=user_id,
@@ -240,9 +290,8 @@ class BrowserPool:
             )
             self._sessions[user_id] = session
 
-            # Register in Redis for cross-worker coordination
-            await self._register_session_redis(user_id, session)
             browser_sessions_active.inc()
+            self._ensure_maintenance()
 
             # If recovery URL exists, auto-navigate
             if recovery_url:
@@ -258,8 +307,9 @@ class BrowserPool:
                         "browser_session_recovery_failed",
                         user_id=user_id[:8],
                         url_host=url_host(recovery_url),
-                        error=str(e),
+                        error_type=type(e).__name__,
                     )
+                    logger.debug("browser_error_detail", error=str(e))
 
             return session
 
@@ -270,12 +320,24 @@ class BrowserPool:
             user_id: The user whose session to release.
         """
         async with self._lock:
-            session = self._sessions.pop(user_id, None)
-            if session:
+            await self._release_locked(user_id)
+
+    async def _release_locked(self, user_id: str) -> None:
+        session = self._sessions.pop(user_id, None)
+        if session is None:
+            return
+        try:
+            try:
                 await session.close()
+            except BaseException:
+                await self._discard_reservation(user_id)
+                raise
+            else:
                 await self._remove_session_redis(user_id)
-                browser_sessions_active.dec()
-                logger.info("browser_session_released", user_id=user_id[:8])
+        finally:
+            self._session_info.pop(user_id, None)
+            browser_sessions_active.dec()
+        logger.info("browser_session_released", user_id=user_id[:8])
 
     async def cleanup_expired(self) -> None:
         """Close sessions that have been idle longer than the timeout.
@@ -283,97 +345,110 @@ class BrowserPool:
         Called periodically by APScheduler (AsyncIOScheduler).
         """
         timeout = settings.browser_session_timeout_seconds
-        now = time.monotonic()
-        expired_users: list[str] = []
-
         async with self._lock:
-            for user_id, session in self._sessions.items():
-                if now - session.last_activity > timeout:
-                    expired_users.append(user_id)
+            for user_id, session in list(self._sessions.items()):
+                # Recheck under the same lock as acquire: an earlier idle
+                # snapshot must not close a session somebody just refreshed.
+                idle = not session.is_busy and time.monotonic() - session.last_activity > timeout
+                if idle or not await self._owns_session(user_id):
+                    await self._release_locked(user_id)
+                    logger.info("browser_session_retired", user_id=user_id[:8], idle=idle)
 
-        for user_id in expired_users:
-            await self.release_session(user_id)
-            logger.info("browser_session_expired_cleanup", user_id=user_id[:8])
+    def _ensure_maintenance(self) -> None:
+        if not self._healthy:
+            return
+        if self._maintenance_task is None or self._maintenance_task.done():
+            self._maintenance_task = asyncio.create_task(self._maintain())
 
-    def get_memory_usage_mb(self) -> float | None:
-        """Get current process memory usage in MB.
-
-        Uses /proc/{pid}/status on Linux (production RPi5).
-        Returns None if unavailable (Windows, macOS).
-
-        Returns:
-            Memory usage in MB, or None if not available.
-        """
-        # Graceful fallback: /proc not available on non-Linux platforms
-        with suppress(FileNotFoundError, OSError, ValueError):
-            pid = os.getpid()
-            with open(f"/proc/{pid}/status") as f:
-                for line in f:
-                    if line.startswith("VmRSS:"):
-                        # VmRSS is in kB
-                        kb = int(line.split()[1])
-                        mb = kb / 1024.0
-                        browser_memory_bytes.set(kb * 1024)  # Convert kB → bytes
-                        return mb
-        return None
+    async def _maintain(self) -> None:
+        """Every worker retires its own idle or superseded contexts, leader or not."""
+        try:
+            while self._sessions:
+                await asyncio.sleep(
+                    min(
+                        BROWSER_SESSION_MAINTENANCE_INTERVAL_SECONDS,
+                        settings.browser_session_timeout_seconds / 3,
+                    )
+                )
+                try:
+                    await self.cleanup_expired()
+                except Exception as exc:
+                    logger.warning("browser_pool_maintenance_failed", error_type=type(exc).__name__)
+        finally:
+            if self._maintenance_task is asyncio.current_task():
+                self._maintenance_task = None
 
     async def close(self) -> None:
         """Shut down all sessions, the browser, and Playwright."""
-        # Close all sessions
-        user_ids = list(self._sessions.keys())
-        for user_id in user_ids:
-            await self.release_session(user_id)
-
-        # Close browser
-        if self._browser:
-            await self._browser.close()
-            self._browser = None
-
-        # Stop Playwright
-        if self._playwright:
-            await self._playwright.stop()
-            self._playwright = None
-
         self._healthy = False
+        task, self._maintenance_task = self._maintenance_task, None
+        if task is not None and task is not asyncio.current_task():
+            task.cancel()
+            with suppress(asyncio.CancelledError):
+                await task
+        # Wait for an allocation already inside the lock, then drain its result
+        # too. A snapshot taken before that allocation finished leaked a context.
+        async with self._lock:
+            failures: list[Exception] = []
+            for user_id in list(self._sessions):
+                try:
+                    await self._release_locked(user_id)
+                except Exception as exc:
+                    failures.append(exc)
+                    logger.warning("browser_session_close_failed", error_type=type(exc).__name__)
+            if self._browser:
+                browser = self._browser
+                self._browser = None
+                try:
+                    await browser.close()
+                except Exception as exc:
+                    failures.append(exc)
+                    logger.warning("browser_close_failed", error_type=type(exc).__name__)
+            if self._playwright:
+                playwright = self._playwright
+                self._playwright = None
+                try:
+                    await playwright.stop()
+                except Exception as exc:
+                    failures.append(exc)
+                    logger.warning("browser_driver_close_failed", error_type=type(exc).__name__)
+            if failures:
+                raise failures[0]
         logger.info("browser_pool_closed", pid=self._pid)
 
     # ========================================================================
     # Redis coordination (private methods)
     # ========================================================================
 
-    async def _check_global_session_limit(self, exclude_user_id: str | None = None) -> None:
-        """Check if global session count allows a new session.
+    def _coordination_failed(self, error: BrowserCoordinationUnavailable) -> None:
+        if not self._coordination_down:
+            self._coordination_down = True
+            logger.warning(
+                "browser_redis_coordination_failed",
+                error_type=type(error.__cause__ or error).__name__,
+            )
+        logger.debug("browser_error_detail", error=str(error.__cause__ or error))
 
-        Args:
-            exclude_user_id: Don't count this user's existing session (recovery case).
-
-        Raises:
-            ValueError: If max concurrent sessions reached globally.
-        """
+    async def _owns_session(self, user_id: str) -> bool:
+        info = self._session_info.get(user_id)
+        if info is None:
+            return False
         try:
-            from src.infrastructure.cache.redis import get_redis_cache
+            owned = await coordination.renew(user_id, info.session_id)
+        except BrowserCoordinationUnavailable as exc:
+            self._coordination_failed(exc)
+            return True  # Intentional availability fallback, within the local cap.
+        self._coordination_down = False
+        return owned
 
-            redis = await get_redis_cache()
-            # Count active browser session keys
-            keys = await redis.keys(f"{REDIS_KEY_BROWSER_SESSION_PREFIX}*")
-
-            # Exclude current user's own key (recovery doesn't add a new session)
-            if exclude_user_id:
-                own_key = f"{REDIS_KEY_BROWSER_SESSION_PREFIX}{exclude_user_id}"
-                keys = [k for k in keys if k != own_key and k != own_key.encode()]
-
-            active_count = len(keys)
-
-            if active_count >= settings.browser_max_concurrent_sessions:
-                raise ValueError(
-                    f"Maximum concurrent browser sessions reached "
-                    f"({active_count}/{settings.browser_max_concurrent_sessions})"
-                )
-        except ValueError:
-            raise
-        except Exception as e:
-            # Redis unavailable — allow session (fail open for availability)
-            logger.warning("browser_redis_check_failed", error=str(e))
+    async def _discard_reservation(self, user_id: str) -> None:
+        """Clean up an aborted admission without replacing its primary failure."""
+        try:
+            await self._remove_session_redis(user_id)
+        except BaseException as exc:
+            logger.warning("browser_reservation_cleanup_failed", error_type=type(exc).__name__)
+        finally:
+            self._session_info.pop(user_id, None)
 
     async def _get_recovery_url(self, user_id: str) -> str | None:
         """Check Redis for an existing session on another worker.
@@ -387,46 +462,59 @@ class BrowserPool:
         try:
             from src.infrastructure.cache.redis import get_redis_cache
 
-            redis = await get_redis_cache()
-            key = f"{REDIS_KEY_BROWSER_SESSION_PREFIX}{user_id}"
-            data = await redis.get(key)
+            async with asyncio.timeout(BROWSER_COORDINATION_TIMEOUT_SECONDS):
+                redis = await get_redis_cache()
+                key = f"{REDIS_KEY_BROWSER_SESSION_PREFIX}{user_id}"
+                data = await redis.get(key)
             if data:
                 info = json.loads(data)
-                # Only recover if the session was on a DIFFERENT worker
-                if info.get("worker_pid") != self._pid:
-                    return str(info.get("current_url")) if info.get("current_url") else None
+                # No local session exists here. A restarted worker can reuse the
+                # old PID, so PID equality says nothing about context ownership.
+                url = info.get("current_url")
+                return (
+                    url
+                    if isinstance(url, str) and len(url) <= BROWSER_RECOVERY_URL_MAX_CHARS
+                    else None
+                )
         except Exception as e:
-            logger.warning("browser_redis_recovery_check_failed", error=str(e))
+            logger.warning("browser_redis_recovery_check_failed", error_type=type(e).__name__)
+            logger.debug("browser_error_detail", error=str(e))
         return None
 
-    async def _register_session_redis(self, user_id: str, session: Any) -> None:
-        """Register session metadata in Redis for cross-worker recovery.
-
-        Args:
-            user_id: The session owner.
-            session: The BrowserSession instance.
-        """
+    async def _reserve_session_redis(self, user_id: str) -> str | None:
+        """Claim logical capacity before allocating a context, retaining a unique owner."""
+        info = BrowserSessionInfo(
+            session_id=str(uuid.uuid4()),
+            user_id=user_id,
+            created_at=datetime.now(UTC),
+            current_url=None,
+            page_title=None,
+            worker_pid=self._pid,
+            navigation_count=0,
+        )
+        self._session_info[user_id] = info
         try:
-            from src.infrastructure.cache.redis import get_redis_cache
-
-            redis = await get_redis_cache()
-            key = f"{REDIS_KEY_BROWSER_SESSION_PREFIX}{user_id}"
-            info = BrowserSessionInfo(
-                session_id=str(uuid.uuid4()),
-                user_id=user_id,
-                created_at=datetime.now(UTC),
-                current_url=None,
-                page_title=None,
-                worker_pid=self._pid,
-                navigation_count=0,
-            )
-            await redis.set(
-                key,
-                info.model_dump_json(),
-                ex=settings.browser_session_timeout_seconds,
-            )
-        except Exception as e:
-            logger.warning("browser_redis_register_failed", error=str(e))
+            previous = await coordination.reserve(user_id, info)
+        except BrowserCoordinationUnavailable as exc:
+            self._coordination_failed(exc)
+            previous = None
+        except BrowserRefusal:
+            self._session_info.pop(user_id, None)
+            raise
+        except BaseException:
+            await self._discard_reservation(user_id)
+            raise
+        else:
+            self._coordination_down = False
+        if previous is not None:
+            info.current_url, info.page_title = previous.current_url, previous.page_title
+        elif not self._coordination_down:
+            try:
+                info.current_url = await self._get_recovery_url(user_id)
+            except asyncio.CancelledError:
+                await self._discard_reservation(user_id)
+                raise
+        return info.current_url
 
     async def update_session_redis(self, user_id: str, url: str, title: str) -> None:
         """Update session metadata in Redis after navigation.
@@ -436,24 +524,34 @@ class BrowserPool:
             url: The current page URL.
             title: The current page title.
         """
-        try:
-            from src.infrastructure.cache.redis import get_redis_cache
-
-            redis = await get_redis_cache()
-            key = f"{REDIS_KEY_BROWSER_SESSION_PREFIX}{user_id}"
-            data = await redis.get(key)
-            if data:
-                info_dict = json.loads(data)
-                info_dict["current_url"] = url
-                info_dict["page_title"] = title
-                info_dict["worker_pid"] = self._pid
-                await redis.set(
-                    key,
-                    json.dumps(info_dict),
-                    ex=settings.browser_session_timeout_seconds,
-                )
-        except Exception as e:
-            logger.warning("browser_redis_update_failed", error=str(e))
+        async with self._lock:
+            info = self._session_info.get(user_id)
+            if info is None:
+                return
+            session = self._sessions.get(user_id)
+            updated = info.model_copy(
+                update={
+                    # A cut signed URL is a different request: omit recovery
+                    # rather than silently navigating a truncated destination.
+                    "current_url": url if len(url) <= BROWSER_RECOVERY_URL_MAX_CHARS else None,
+                    "page_title": title[:BROWSER_RECOVERY_TITLE_MAX_CHARS],
+                    "navigation_count": (
+                        session.navigation_count if session is not None else info.navigation_count
+                    ),
+                }
+            )
+            try:
+                owned = await coordination.update(user_id, updated)
+            except BrowserCoordinationUnavailable as exc:
+                self._coordination_failed(exc)
+                return
+            self._coordination_down = False
+            if owned:
+                self._session_info[user_id] = updated
+            else:
+                # The navigation already happened. Retire the stale context;
+                # never replace the newer owner's facts or retry the action.
+                await self._release_locked(user_id)
 
     async def _remove_session_redis(self, user_id: str) -> None:
         """Remove session metadata from Redis.
@@ -461,11 +559,10 @@ class BrowserPool:
         Args:
             user_id: The session owner.
         """
+        info = self._session_info.get(user_id)
+        if info is None:
+            return
         try:
-            from src.infrastructure.cache.redis import get_redis_cache
-
-            redis = await get_redis_cache()
-            key = f"{REDIS_KEY_BROWSER_SESSION_PREFIX}{user_id}"
-            await redis.delete(key)
-        except Exception as e:
-            logger.warning("browser_redis_remove_failed", error=str(e))
+            await coordination.release(user_id, info.session_id)
+        except BrowserCoordinationUnavailable as exc:
+            self._coordination_failed(exc)

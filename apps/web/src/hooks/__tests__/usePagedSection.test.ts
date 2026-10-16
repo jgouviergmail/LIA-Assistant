@@ -196,3 +196,245 @@ describe('usePagedSection', () => {
     );
   });
 });
+
+describe('usePagedSection client pagination', () => {
+  const allRows = Array.from({ length: 23 }, (_, index) => `routine-${index + 1}`);
+
+  function renderClient(enabled = true) {
+    return renderHook(
+      ({ on }: { on: boolean }) =>
+        usePagedSection<Payload, string>({
+          path: '/scheduled-actions?kind=time',
+          selectItems: payload => payload.rows,
+          selectTotal: payload => payload.total,
+          enabled: on,
+          pagination: 'client',
+        }),
+      { initialProps: { on: enabled } }
+    );
+  }
+
+  it('reads the complete endpoint without unsupported paging and slices each local page', () => {
+    answer({ rows: allRows, total: allRows.length });
+    const { result } = renderClient();
+
+    expect(useApiQuery).toHaveBeenLastCalledWith(
+      '/scheduled-actions?kind=time',
+      expect.objectContaining({ enabled: true })
+    );
+    expect(result.current.items).toEqual(allRows.slice(0, 10));
+    expect(result.current.total).toBe(23);
+    expect(result.current.totalPages).toBe(3);
+
+    act(() => result.current.setPage(2));
+    expect(result.current.items).toEqual(allRows.slice(10, 20));
+    act(() => result.current.setPage(3));
+    expect(result.current.items).toEqual(allRows.slice(20));
+    expect(useApiQuery).toHaveBeenLastCalledWith(
+      '/scheduled-actions?kind=time',
+      expect.objectContaining({ enabled: true })
+    );
+  });
+
+  it('clamps to the last remaining page when a refreshed collection shrinks', () => {
+    answer({ rows: allRows, total: allRows.length });
+    const { result, rerender } = renderClient();
+    act(() => result.current.setPage(3));
+
+    answer({ rows: allRows.slice(0, 11), total: 11 });
+    rerender({ on: true });
+
+    expect(result.current.page).toBe(2);
+    expect(result.current.items).toEqual(['routine-11']);
+    expect(result.current.total).toBe(11);
+    expect(result.current.totalPages).toBe(2);
+    expect(result.current.firstLoad).toBe(false);
+  });
+
+  it('retains lazy reads, explicit refetch, and first-page reopening', () => {
+    const refetch = vi.fn();
+    answer({ rows: allRows, total: allRows.length }, { refetch });
+    const { result, rerender } = renderClient(false);
+    expect(useApiQuery).toHaveBeenLastCalledWith(
+      '/scheduled-actions?kind=time',
+      expect.objectContaining({ enabled: false })
+    );
+    rerender({ on: true });
+    act(() => result.current.setPage(3));
+    act(() => result.current.refetch());
+    expect(refetch).toHaveBeenCalledOnce();
+
+    rerender({ on: false });
+    rerender({ on: true });
+    expect(result.current.page).toBe(1);
+    expect(result.current.items).toEqual(allRows.slice(0, 10));
+  });
+});
+
+describe('usePagedSection server page recovery', () => {
+  it('requests the last valid page after a completed response reports a smaller total', () => {
+    answer({ rows: ['page-one'], total: 25 });
+    const { result, rerender } = render();
+    act(() => result.current.setPage(3));
+
+    // Deleting the only item on the third page makes it invalid.
+    answer({ rows: [], total: 20 });
+    rerender({ on: true });
+
+    expect(result.current.page).toBe(2);
+    expect(result.current.totalPages).toBe(2);
+    expect(useApiQuery).toHaveBeenLastCalledWith(
+      '/things?limit=10&offset=10',
+      expect.objectContaining({ enabled: true })
+    );
+    expect(result.current.firstLoad).toBe(false);
+
+    answer({ rows: ['remaining-page-two'], total: 20 });
+    rerender({ on: true });
+    expect(result.current.items).toEqual(['remaining-page-two']);
+  });
+
+  it('does not mistake retained data for a response to the newly requested page', () => {
+    const retained = { rows: ['old-page'], total: 10 };
+    answer(retained);
+    const { result, rerender } = render();
+
+    act(() => result.current.setPage(2));
+    expect(result.current.page).toBe(2);
+    expect(useApiQuery).toHaveBeenLastCalledWith('/things?limit=10&offset=10', expect.anything());
+    answer(retained, { loading: true });
+    rerender({ on: true });
+    expect(result.current.page).toBe(2);
+    expect(result.current.items).toEqual(['old-page']);
+
+    answer({ rows: ['new-page'], total: 11 });
+    rerender({ on: true });
+    expect(result.current.page).toBe(2);
+    expect(result.current.items).toEqual(['new-page']);
+  });
+
+  it('waits for a successful settled response before recovering a page', () => {
+    answer({ rows: ['old-page'], total: 25 });
+    const { result, rerender } = render();
+    act(() => result.current.setPage(3));
+    const reduced = { rows: [], total: 10 };
+
+    answer(reduced, { loading: true });
+    rerender({ on: true });
+    expect(result.current.page).toBe(3);
+
+    answer(reduced, { loading: false });
+    rerender({ on: true });
+    expect(result.current.page).toBe(1);
+    expect(useApiQuery).toHaveBeenLastCalledWith('/things?limit=10&offset=0', expect.anything());
+  });
+});
+
+describe('usePagedSection reset priority', () => {
+  it('keeps closure at page one if the collection shrinks in the same render', () => {
+    answer({ rows: ['old'], total: 25 });
+    const { result, rerender } = render();
+    act(() => result.current.setPage(3));
+
+    answer({ rows: ['remaining'], total: 15 });
+    rerender({ on: false });
+
+    expect(result.current.page).toBe(1);
+    expect(useApiQuery).toHaveBeenLastCalledWith(
+      '/things?limit=10&offset=0',
+      expect.objectContaining({ enabled: false })
+    );
+  });
+
+  it('keeps an explicit refresh at page one when its new payload also shrinks', () => {
+    answer({ rows: ['old'], total: 25 });
+    const { result, rerender } = renderHook(
+      ({ key }: { key: number }) =>
+        usePagedSection<Payload, string>({
+          path: '/things',
+          selectItems: payload => payload.rows,
+          selectTotal: payload => payload.total,
+          enabled: true,
+          refreshKey: key,
+        }),
+      { initialProps: { key: 0 } }
+    );
+    act(() => result.current.setPage(3));
+
+    answer({ rows: ['remaining'], total: 15 });
+    rerender({ key: 1 });
+
+    expect(result.current.page).toBe(1);
+    expect(useApiQuery).toHaveBeenLastCalledWith(
+      '/things?limit=10&offset=0',
+      expect.objectContaining({ deps: [1] })
+    );
+  });
+});
+
+describe('usePagedSection failed navigation', () => {
+  it('announces the retained page after failure and can retry the same requested page', () => {
+    const retained = { rows: ['loaded-page-one'], total: 20 };
+    const refetch = vi.fn();
+    answer(retained, { refetch });
+    const { result, rerender } = render();
+    act(() => result.current.setPage(2));
+    const failure = new Error('page two unavailable');
+    answer(retained, { error: failure, refetch });
+    rerender({ on: true });
+
+    expect(result.current.items).toEqual(['loaded-page-one']);
+    expect(result.current.page).toBe(1);
+    expect(result.current.error).toBe(failure);
+    expect(result.current.firstLoad).toBe(false);
+
+    act(() => result.current.setPage(2));
+    expect(refetch).toHaveBeenCalledOnce();
+    expect(result.current.error).toBe(failure);
+    expect(useApiQuery).toHaveBeenLastCalledWith(
+      '/things?limit=10&offset=10',
+      expect.objectContaining({ enabled: true })
+    );
+
+    answer({ rows: ['loaded-page-two'], total: 20 }, { refetch });
+    rerender({ on: true });
+    expect(result.current.page).toBe(2);
+    expect(result.current.items).toEqual(['loaded-page-two']);
+    expect(result.current.error).toBeNull();
+  });
+
+  it('remembers the last successful page rather than always falling back to page one', () => {
+    answer({ rows: ['page-one'], total: 30 });
+    const { result, rerender } = render();
+    act(() => result.current.setPage(2));
+    const second = { rows: ['page-two'], total: 30 };
+    answer(second);
+    rerender({ on: true });
+    act(() => result.current.setPage(3));
+    answer(second, { error: new Error('page-three unavailable') });
+    rerender({ on: true });
+
+    expect(result.current.page).toBe(2);
+    expect(result.current.items).toEqual(['page-two']);
+  });
+
+  it('does not relabel locally paged data after a failed collection refresh', () => {
+    const collection = { rows: Array.from({ length: 15 }, (_, i) => `routine-${i}`), total: 15 };
+    answer(collection);
+    const { result, rerender } = renderHook(() =>
+      usePagedSection<Payload, string>({
+        path: '/scheduled-actions',
+        selectItems: payload => payload.rows,
+        selectTotal: payload => payload.total,
+        enabled: true,
+        pagination: 'client',
+      })
+    );
+    act(() => result.current.setPage(2));
+    answer(collection, { error: new Error('refresh unavailable') });
+    rerender();
+
+    expect(result.current.page).toBe(2);
+    expect(result.current.items).toEqual(collection.rows.slice(10));
+  });
+});

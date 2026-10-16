@@ -23,6 +23,8 @@ These tests pin the fix:
 from __future__ import annotations
 
 import re
+import time
+from statistics import median
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -101,7 +103,7 @@ def _fake_llm(summary_text: str = "## Conversation Summary\n- emails reviewed") 
     llm.ainvoke = AsyncMock(
         return_value=MagicMock(
             text=summary_text,
-            usage_metadata=MagicMock(input_tokens=10, output_tokens=5),
+            usage_metadata={"input_tokens": 10, "output_tokens": 5},
         )
     )
     return llm
@@ -275,3 +277,177 @@ def test_banner_summary_survives_react_windowing() -> None:
     assert any(
         str(m.content).startswith(COMPACTION_SUMMARY_MARKER) for m in kept_system
     ), "banner-carrying summary was dropped by the windowing"
+
+
+# ============================================================================
+# Identifiers the summary dropped come back under it (point 10)
+# ============================================================================
+#
+# The LLM summary was trusted to keep the identifiers it was asked to keep, and
+# nothing checked: an identifier it dropped was gone from the conversation for
+# good — while ``identifiers_preserved`` still listed it. Each one it dropped
+# now comes back under the summary, a third party's flagged as untrusted, both
+# lists bounded by ``compaction_identifiers_reinsert_max``.
+
+_PLAIN_SUMMARY = "## Conversation Summary\n- a message was written"
+
+
+def _summarising(monkeypatch: pytest.MonkeyPatch, text: str) -> None:
+    monkeypatch.setattr(
+        "src.domains.agents.services.compaction_service.get_llm",
+        lambda *_a, **_k: _fake_llm(text),
+    )
+
+
+async def test_a_trusted_identifier_the_summary_dropped_comes_back(
+    monkeypatch: pytest.MonkeyPatch, service: CompactionService
+) -> None:
+    _summarising(monkeypatch, _PLAIN_SUMMARY)
+
+    result = await service.compact(_clean_history(), preserve_recent_n=2, language="en")
+
+    assert result.summary.startswith(_PLAIN_SUMMARY)
+    assert f"[Key identifiers preserved: {TRUSTED_MAIL}]" in result.summary
+
+
+async def test_an_identifier_the_summary_kept_is_not_repeated(
+    monkeypatch: pytest.MonkeyPatch, service: CompactionService
+) -> None:
+    _summarising(monkeypatch, f"## Conversation Summary\n- wrote to {TRUSTED_MAIL}")
+
+    result = await service.compact(_clean_history(), preserve_recent_n=2, language="en")
+
+    assert result.summary.count(TRUSTED_MAIL) == 1
+    assert "Key identifiers preserved" not in result.summary
+
+
+async def test_a_third_party_identifier_comes_back_flagged_untrusted(
+    monkeypatch: pytest.MonkeyPatch, service: CompactionService
+) -> None:
+    _summarising(monkeypatch, _PLAIN_SUMMARY)
+
+    result = await service.compact(_tainted_history(), preserve_recent_n=2, language="en")
+
+    kept = next(line for line in result.summary.splitlines() if "Key identifiers" in line)
+    untrusted = next(line for line in result.summary.splitlines() if "untrusted" in line)
+    assert TRUSTED_MAIL in kept and EXFIL_URL not in kept and EXFIL_MAIL not in kept
+    assert EXFIL_URL in untrusted and EXFIL_MAIL in untrusted
+
+
+async def test_the_identifiers_brought_back_are_bounded_by_the_setting(
+    monkeypatch: pytest.MonkeyPatch, service: CompactionService
+) -> None:
+    _summarising(monkeypatch, _PLAIN_SUMMARY)
+    monkeypatch.setattr("src.core.config.settings.compaction_identifiers_reinsert_max", 2)
+    history = [
+        HumanMessage(content=f"Write to person{index}@test.com.", id=f"h{index}")
+        for index in range(5)
+    ] + [AIMessage(content="Done.", id="a9"), HumanMessage(content="Thanks.", id="h9")]
+
+    result = await service.compact(history, preserve_recent_n=2, language="en")
+
+    kept = next(line for line in result.summary.splitlines() if "Key identifiers" in line)
+    assert kept.count("@test.com") == 2
+
+
+@pytest.mark.parametrize(
+    ("banner", "line_marker"),
+    [("", "Key identifiers"), (f"{COMPACTION_EXTERNAL_PROVENANCE_BANNER}\n\n", "untrusted")],
+    ids=["clean_prior", "tainted_prior"],
+)
+async def test_a_consolidated_summary_s_identifiers_survive_the_merge(
+    monkeypatch: pytest.MonkeyPatch,
+    service: CompactionService,
+    banner: str,
+    line_marker: str,
+) -> None:
+    """A prior summary is REMOVED once merged: an identifier it carried (one a
+    previous pass brought back, typically) must not die in the merge. A prior
+    that carried third-party text passes its identifiers on as untrusted."""
+    _summarising(monkeypatch, _PLAIN_SUMMARY)
+    monkeypatch.setattr("src.core.config.settings.compaction_include_previous_summaries", True)
+    reference = "123e4567-e89b-12d3-a456-426614174000"
+    prior = SystemMessage(
+        content=(
+            f"{COMPACTION_SUMMARY_MARKER} — compaction #1. 100 tokens saved. "
+            f"Strategy: single_chunk.]\n\n{banner}- booking {reference}"
+        ),
+        id="prior1",
+    )
+
+    result = await service.compact([prior, *_clean_history()], preserve_recent_n=2, language="en")
+
+    assert result.consolidated_previous_summaries is True
+    line = next(line for line in result.summary.splitlines() if line_marker in line)
+    assert reference in line
+
+
+@pytest.mark.parametrize(
+    ("sentence", "identifier"),
+    [
+        ("Write to user@test.com.", "user@test.com"),
+        ("See https://example.org/page?id=1, then reply.", "https://example.org/page?id=1"),
+        ("(see https://example.org/a)", "https://example.org/a"),
+        (
+            "See https://example.org/wiki/Article_(section)).",
+            "https://example.org/wiki/Article_(section)",
+        ),
+        ("See https://example.org/a[b]].", "https://example.org/a[b]"),
+    ],
+    ids=[
+        "email_ending_a_sentence",
+        "url_before_a_comma",
+        "url_in_parentheses",
+        "balanced_parenthesis_with_sentence_tail",
+        "balanced_bracket_with_sentence_tail",
+    ],
+)
+def test_an_identifier_never_carries_the_punctuation_around_it(
+    service: CompactionService, sentence: str, identifier: str
+) -> None:
+    """Measured on dev with a real model: it kept every identifier, yet one came
+    back — extracted with the sentence's final dot, it matched nothing the
+    summary wrote."""
+    trusted, _ = service._extract_identifiers_by_provenance([HumanMessage(content=sentence)])
+
+    assert trusted == [identifier]
+
+
+@pytest.mark.parametrize("unit", ["A", "a.b+c-", "run-", "http://", "x@y"])
+def test_the_identifier_scan_stays_linear_on_hostile_input(
+    service: CompactionService, unit: str
+) -> None:
+    """Measured 2026-10-13: 40 000 word characters with no ``@`` took 3.7 s in
+    the e-mail branch — every start position re-read the rest of the run. The
+    scan runs inside the turn, on a third party's mail as much as anyone's."""
+    text = unit * (40_000 // len(unit))
+
+    started = time.perf_counter()
+    service._extract_identifiers_by_provenance([HumanMessage(content=text)])
+
+    assert time.perf_counter() - started < 0.5
+
+
+@pytest.mark.parametrize("closing", [")", "]"])
+def test_a_long_url_tail_is_trimmed_with_linear_cpu_growth(
+    service: CompactionService, closing: str
+) -> None:
+    """Unpaired punctuation on an external URL cannot freeze compaction.
+
+    Measure paired thread CPU growth, as the text-flattener guard does: four
+    times the text must cost at most eight times the work. The URL survives
+    whole, and scheduling pauses cannot become evidence of quadratic work.
+    """
+    url = "https://example.org/path"
+    messages = {size: HumanMessage(content=url + closing * size) for size in (16_000, 64_000)}
+    paired_growth = []
+    for pair in range(3):
+        seconds = {}
+        for size in ((16_000, 64_000) if pair % 2 == 0 else (64_000, 16_000)):
+            started = time.thread_time()
+            trusted, external = service._extract_identifiers_by_provenance([messages[size]])
+            seconds[size] = time.thread_time() - started
+            assert trusted == [url] and external == []
+        assert seconds[64_000] < 1.5, seconds
+        paired_growth.append(seconds[64_000] / max(seconds[16_000], 0.005))
+    assert median(paired_growth) <= 8.0, paired_growth

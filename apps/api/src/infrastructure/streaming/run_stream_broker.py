@@ -312,6 +312,7 @@ async def register_active_run(
     *,
     run_id: str,
     stream_id: str,
+    relayed: bool = True,
 ) -> bool:
     """Acquire the conversation's active-run lock (SET NX EX).
 
@@ -320,12 +321,15 @@ async def register_active_run(
         conversation_id: Conversation UUID string (lock scope).
         run_id: Billing/correlation id of the run.
         stream_id: Transport id (stream key suffix) — the lock owner token.
+        relayed: Whether the run publishes its chunks to the run stream. A
+            lease (a ticket, a voice relay) publishes nothing a client could
+            follow, and :func:`public_active_run` withholds its stream.
 
     Returns:
         True if acquired; False when another run is already active (the
         caller answers HTTP 409 with the current run info).
     """
-    payload = json.dumps({"run_id": run_id, "stream_id": stream_id})
+    payload = json.dumps({"run_id": run_id, "stream_id": stream_id, "relayed": relayed})
     acquired = await redis.set(
         active_run_key(conversation_id),
         payload,
@@ -378,6 +382,7 @@ async def heartbeat_active_run(
     *,
     run_id: str | None = None,
     on_lost: Callable[[], None] | None = None,
+    relayed: bool = True,
 ) -> None:
     """Periodically re-arm the active-run lock TTL while the run is alive.
 
@@ -406,6 +411,8 @@ async def heartbeat_active_run(
             Without it the loop cannot re-take and treats any refusal as a loss.
         on_lost: Called once when the lock is genuinely somebody else's. Must
             not raise — it runs inside the heartbeat task.
+        relayed: What the re-taken lock says of the run's chunks — the same as
+            when it was first taken, or a lease would hand out its stream.
     """
     period = settings.background_runs_heartbeat_seconds
     while True:
@@ -414,7 +421,7 @@ async def heartbeat_active_run(
             still_owner = await refresh_active_run(redis, conversation_id, stream_id)
             if not still_owner and run_id is not None:
                 still_owner = await register_active_run(
-                    redis, conversation_id, run_id=run_id, stream_id=stream_id
+                    redis, conversation_id, run_id=run_id, stream_id=stream_id, relayed=relayed
                 )
                 if still_owner:
                     logger.info(
@@ -454,7 +461,8 @@ async def active_run_lease(
     use this), which is exactly why the SECOND caller must not copy the shape.
 
     Yields False rather than raising when the lock is taken: a run that steps
-    aside for a live conversation did nothing wrong.
+    aside for a live conversation did nothing wrong. A lease publishes nothing
+    to the run stream, so its lock says so (``relayed`` false).
 
     Args:
         redis: Redis client.
@@ -466,7 +474,9 @@ async def active_run_lease(
     Yields:
         Whether the lock was acquired. Nothing is released when it was not.
     """
-    acquired = await register_active_run(redis, conversation_id, run_id=run_id, stream_id=stream_id)
+    acquired = await register_active_run(
+        redis, conversation_id, run_id=run_id, stream_id=stream_id, relayed=False
+    )
     if not acquired:
         yield False
         return
@@ -485,7 +495,9 @@ async def active_run_lease(
             body.cancel()
 
     heartbeat = asyncio.create_task(
-        heartbeat_active_run(redis, conversation_id, stream_id, run_id=run_id, on_lost=_lock_taken)
+        heartbeat_active_run(
+            redis, conversation_id, stream_id, run_id=run_id, on_lost=_lock_taken, relayed=False
+        )
     )
     try:
         yield True
@@ -509,11 +521,12 @@ async def active_run_lease(
             await asyncio.shield(release_active_run(redis, conversation_id, stream_id))
 
 
-async def get_active_run(redis: Redis, conversation_id: str) -> dict[str, str] | None:
+async def get_active_run(redis: Redis, conversation_id: str) -> dict[str, Any] | None:
     """Read the active run of a conversation.
 
     Returns:
-        ``{"run_id": ..., "stream_id": ...}`` or None when no run is active.
+        ``{"run_id": ..., "stream_id": ..., "relayed": ...}`` or None when no
+        run is active (``relayed`` is absent from a lock taken before it existed).
     """
     raw = await redis.get(active_run_key(conversation_id))
     if not raw:
@@ -523,6 +536,31 @@ async def get_active_run(redis: Redis, conversation_id: str) -> dict[str, str] |
     except TypeError, ValueError:
         return None
     return data if isinstance(data, dict) else None
+
+
+def public_active_run(active: dict[str, Any] | None) -> dict[str, Any] | None:
+    """What a client may know of a conversation's active run (point 25b).
+
+    The ONE view every client-facing read takes — the status poll, the 409,
+    Stop and the reattach. A run that relays its chunks names its stream, so
+    the client can follow or stop it; a lease names none: the client learns
+    that LIA is busy, never a stream nobody writes. A lock written before the
+    field existed reads as relayed — the behaviour it always had: a lease in
+    flight at the deploy keeps it until it ends, minutes later.
+
+    Args:
+        active: The lock as :func:`get_active_run` read it, or None.
+
+    Returns:
+        ``{"run_id": ..., "stream_id": ... or None}``, or None when no run is active.
+    """
+    if not active:
+        return None
+    relayed = active.get("relayed", True) is not False
+    return {
+        "run_id": active.get("run_id"),
+        "stream_id": active.get("stream_id") if relayed else None,
+    }
 
 
 # =============================================================================

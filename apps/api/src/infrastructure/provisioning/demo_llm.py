@@ -36,7 +36,7 @@ logger = structlog.get_logger(__name__)
 #: transcribe speech or speak, so the two voice types keep their own provider:
 #: repointing them would not save a cent, it would leave the voice broken
 #: while the capability switches still report it as on.
-_SPEECH_PROVIDERS = frozenset({"elevenlabs", "edge"})
+_SPEECH_PROVIDERS = frozenset({"elevenlabs", "edge", "fishaudio"})
 
 #: Providers whose calls cost the operator no provider euro, so the absence of
 #: a price is the truth rather than a hole. Local inference only: anything

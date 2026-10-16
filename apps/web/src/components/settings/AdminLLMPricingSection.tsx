@@ -81,6 +81,7 @@ const PROVIDER_OPTIONS: readonly LLMProviderName[] = [
   'elevenlabs',
   'edge',
   'typesafe',
+  'fishaudio',
 ] as const;
 
 type PricingUnitName = 'per_1m_tokens' | 'per_audio_minute' | 'per_audio_hour';

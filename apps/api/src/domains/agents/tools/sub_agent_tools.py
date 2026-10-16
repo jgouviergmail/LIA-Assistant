@@ -43,15 +43,25 @@ from src.core.config import get_settings
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.effects.runtime import resolve_policy
 from src.domains.agents.tools.output import UnifiedToolOutput
-from src.domains.agents.tools.react_runner import ReactSubAgentRunner
+from src.domains.agents.tools.react_runner import (
+    ReactSubAgentRunner,
+    SubAgentOutcome,
+    failure_code_of,
+    failure_sentence,
+    partial_fields,
+)
+from src.domains.agents.tools.react_runner_budget import tool_rounds_for
 from src.domains.agents.tools.runtime_helpers import (
     handle_tool_exception,
     validate_runtime_config,
 )
 from src.domains.agents.tools.tool_registry import get_all_tools
 from src.domains.sub_agents.constants import SUBAGENT_DEFAULT_BLOCKED_TOOLS
+from src.domains.sub_agents.instruction_contract import instruction_description
 from src.domains.sub_agents.skill_resolver import resolve_tools_for_subagent
+from src.infrastructure.llm.providers.token_counter import EstimationTokenCounter
 from src.infrastructure.observability.decorators import track_tool_metrics
+from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_agents import (
     agent_tool_duration_seconds,
     agent_tool_invocations,
@@ -63,6 +73,32 @@ _AGENT_NAME = "sub_agent_tools"
 # Truncation length for the message field of the success UnifiedToolOutput
 # (the full text is preserved in structured_data["analysis"]).
 _MAX_SUMMARY_LENGTH = 200
+
+logger = get_logger(__name__)
+
+
+def _oversized_instruction(instruction: str) -> UnifiedToolOutput | None:
+    """The refusal of an instruction above the configured token cap, if it is.
+
+    Args:
+        instruction: The instruction as the tool received it.
+
+    Returns:
+        An ``INVALID_INPUT`` failure naming the estimate and the cap, or None.
+    """
+    cap = get_settings().subagent_instruction_max_tokens_resolved
+    token_estimate = EstimationTokenCounter().count(instruction, model="any")
+    if token_estimate <= cap:
+        return None
+    logger.warning("subagent_instruction_oversized", token_estimate=token_estimate, cap=cap)
+    return UnifiedToolOutput.failure(
+        message=(
+            f"Sub-agent instruction too large ({token_estimate} tokens > cap {cap}). "
+            "State the task and the facts the expert needs — the relevant fields, "
+            "not whole payloads."
+        ),
+        error_code="INVALID_INPUT",
+    )
 
 
 @tool
@@ -78,12 +114,9 @@ async def delegate_to_sub_agent_tool(
         "Domain expertise of the sub-agent to create "
         "(e.g., 'chartered accountant', 'rail transport specialist')",
     ],
-    instruction: Annotated[
-        str,
-        "Detailed task statement for the sub-agent. Do NOT paste raw data — "
-        "the sub-agent has its own read-only tools and fetches what it needs. "
-        "Resolved $ref payloads exceeding the configured cap are rejected.",
-    ],
+    # The facts the planner's manifest states too (point 38): the loop binds
+    # this schema, never the manifest, so the cap is stated here.
+    instruction: Annotated[str, instruction_description(in_plan=False)],
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Delegate a UNITARY expert task to an ephemeral sub-agent (ReAct loop).
@@ -94,12 +127,12 @@ async def delegate_to_sub_agent_tool(
 
     IMPORTANT:
     - Sub-agents are READ-ONLY (no mutations, no HITL operations).
-    - Reference results via `$steps.step_N.analysis` in subsequent steps.
+    - Its analysis comes back as this tool's result.
     - Handle mutations (send_email, etc.) YOURSELF after sub-agent results.
 
     Args:
         expertise: Specialist role / directives (becomes the sub-agent persona).
-        instruction: Task statement (NOT raw data — the sub-agent fetches its own).
+        instruction: Task statement and the facts the expert needs, under the cap.
         runtime: Tool runtime (injected by LangChain).
 
     Returns:
@@ -135,6 +168,13 @@ async def delegate_to_sub_agent_tool(
                 error_code="CONFIGURATION_ERROR",
             )
 
+        # The cap the description states, enforced HERE so it holds in both
+        # modes: in a plan the references are resolved by now, and a ReAct
+        # loop writes the instruction itself (point 38).
+        oversized = _oversized_instruction(instruction)
+        if oversized is not None:
+            return oversized
+
         # Build the read-only toolset for the sub-agent.
         # `resolve_tools_for_subagent` filters out write tools AND excludes
         # `delegate_to_sub_agent_tool` itself (primary anti-recursion).
@@ -154,30 +194,41 @@ async def delegate_to_sub_agent_tool(
 
         # Run the scoped ReAct loop via the existing generic runner
         # (same machinery as browser_task_tool / mcp_server_task_tool).
+        recursion_limit = get_settings().subagent_default_max_iterations
         runner = ReactSubAgentRunner("subagent", "subagent_react_prompt")
         react_result = await runner.run(
             task=instruction,
             tools=read_only_tools,
-            prompt_vars={"expertise": expertise},
+            prompt_vars={
+                "expertise": expertise,
+                # What the loop holds, read from what runs: the tools it is bound to
+                # (after the read-only filter, not the raw whitelist) and the budget
+                # the runner enforces — a prompt states what the code holds (ADR-284).
+                "research_tools": ", ".join(tool.name for tool in read_only_tools) or "none",
+                "max_tool_rounds": str(tool_rounds_for(recursion_limit)),
+            },
             parent_runtime=runtime,
             thread_prefix="subagent",
-            recursion_limit=get_settings().subagent_default_max_iterations,
+            recursion_limit=recursion_limit,
             display_name=f"sub-agent: {expertise[:40]}",
         )
 
-        # Map the ReactSubAgentResult to a UnifiedToolOutput.
-        final = react_result.final_message or ""
-        if final.startswith("Error:"):
+        # Map the ReactSubAgentResult to a UnifiedToolOutput: the outcome decides,
+        # never the text (ADR-303). A closed or cut analysis is still an analysis;
+        # what it lacks travels in its own fields.
+        run_metadata = {
+            "expertise": expertise,
+            "duration_ms": react_result.duration_ms,
+            "iteration_count": react_result.iteration_count,
+        }
+        if react_result.outcome is not SubAgentOutcome.ANSWERED:
             return UnifiedToolOutput.failure(
-                message=(f"Sub-agent '{expertise[:60]}' did not complete: {final[:300]}"),
-                error_code="EXECUTION_FAILED",
-                metadata={
-                    "expertise": expertise,
-                    "duration_ms": react_result.duration_ms,
-                    "iteration_count": react_result.iteration_count,
-                },
+                message=f"Sub-agent '{expertise[:60]}' {failure_sentence(react_result)}.",
+                error_code=failure_code_of(react_result),
+                metadata=run_metadata,
             )
 
+        final = react_result.final_message
         summary = final[:_MAX_SUMMARY_LENGTH] + "..." if len(final) > _MAX_SUMMARY_LENGTH else final
 
         return UnifiedToolOutput.action_success(
@@ -186,12 +237,9 @@ async def delegate_to_sub_agent_tool(
                 "analysis": final,
                 "expertise": expertise,
                 "type": "sub_agent_analysis",
+                **partial_fields(react_result),
             },
-            metadata={
-                "expertise": expertise,
-                "duration_ms": react_result.duration_ms,
-                "iteration_count": react_result.iteration_count,
-            },
+            metadata=run_metadata,
         )
 
     except Exception as e:

@@ -101,7 +101,8 @@ Der Administrator hat Zugriff auf eine dritte Registerkarte zur Verwaltung der I
 - **Persönlichkeiten**: Verfügbare Persönlichkeiten für alle Benutzer erstellen, bearbeiten, übersetzen und löschen — Standardpersönlichkeit festlegen
 - **System-Skills**: Expertenfähigkeiten auf Instanzebene verwalten — Import/Export, Aktivierung/Deaktivierung, Übersetzung
 - **System-Wissensbereiche**: FAQ-Wissensbasis verwalten, Indexierungsstatus und Modellmigrationen überwachen
-- **Globale Stimme**: Standard-TTS-Provider, -Modell und -Stimme für alle Benutzer konfigurieren (Edge kostenlos, OpenAI oder ElevenLabs), mit providerspezifischer Feinabstimmung (Geschwindigkeit, Stabilität, Audioformat)
+- **Globale Stimme**: Standard-TTS-Provider, -Modell und -Stimme für alle Benutzer konfigurieren (Edge kostenlos, OpenAI, ElevenLabs, Gemini oder Fish Audio), mit providerspezifischer Feinabstimmung (Geschwindigkeit, Stabilität, Audioformat)
+- **Stimmbibliothek**: eine Stimme aus Aufnahmen klonen, unter einer im Audit-Protokoll vermerkten Einwilligungsbestätigung, eine aus einer Beschreibung entwerfen (von der Instanz bezahlt, deren Tagesbudget zuerst geprüft wird), die Fish-Audio-Stimmen der Instanz umbenennen oder löschen — nie eine, mit der ein Slot spricht
 - **System-Debug**: Protokoll- und Diagnose-Konfiguration
 
 ### 2.4. Ein Assistent, kein technisches Projekt
@@ -163,7 +164,7 @@ LIA bietet einen vollständigen Sprachmodus:
 
 - **Push-to-Talk**: Halte die Mikrofon-Schaltfläche gedrückt, um zu sprechen — optimiert für Mobilgeräte
 - **„Dis LIA“, in deinem Browser gehört**: Die freihändige Erkennung läuft **vollständig auf deinem Gerät** — kein Ton wird übertragen, bevor die Phrase gehört wurde — und „LIA, stop“ unterbricht LIAs Stimme, wenn sie eine Antwort vorliest. Dieses Aktivierungswort gibt es vorerst auf Französisch, in der Beta: die Erkennung wird noch verbessert; in den anderen Sprachen genügt ein Tippen
-- **Sprachsynthese**: drei admin-konfigurierbare Provider — Edge TTS (kostenlos), OpenAI TTS (`tts-1` / `tts-1-hd`) oder ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`)
+- **Sprachsynthese**: fünf admin-konfigurierbare Provider — Edge TTS (kostenlos), OpenAI TTS (`tts-1` / `tts-1-hd`), ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`), Gemini oder Fish Audio (`s2.1-pro`, `s2-pro`, `drama-3`); auf den Engines, die sie spielen, tragen LIAs gesprochene Kommentare ein paar expressive Marker (ein Seufzer, ein Lachen, ein Flüstern)
 - **Telegram-Sprachnachrichten**: Sende Audiobotschaften, LIA transkribiert sie und antwortet
 - **Live-Modus**: ein Echtzeitgespräch von Stimme zu Stimme auf einem Live-Modell, das du mit **deinem eigenen Schlüssel** verbindest – Gemini Live, GPT-Live oder ein ElevenLabs-Agent. Die Stimme führt das Gespräch und reicht jede Bitte an LIA weiter, die sie als gewöhnlichen Chat-Zug ausführt, während du sprichst; eine direkte Sitzung lässt die Stimme deine Daten selbst lesen, ohne zu handeln. Was der Anbieter berechnet, wird dir gezeigt, nie aufgezeichnet. Eine Stille beendet keine Sitzung mehr: sie versetzt sie in den Standby — Verbindung geschlossen, nichts berechnet —, bis ein Tippen sie mit LIAs Kontext weckt; beenden tust immer du sie.
 

@@ -13,15 +13,18 @@ most turns). An in-band tag on the same generation costs no extra call and
 arrives with the last token.
 
 The pattern is deliberately identical to the psyche self-report tag, which has
-carried this exact contract in production for months: fragments are stripped
-from the SSE stream so nothing flashes on screen, and the full tag is removed
-from the persisted content in the response node.
+carried this exact contract in production for months: the tag is kept out of the
+SSE stream so nothing flashes on screen or reaches the chat voice
+(``agents/services/streaming/machine_tags.py``), and removed from the persisted
+content in the response node.
 
 Three invariants:
 
-- **Stripping is the same regex, wherever it runs.** Two independent strippers
-  is how a tag ends up in a database row: the streaming filter and the content
-  cleaner both use ``TONE_STREAMING_PATTERN`` / ``TONE_TAG_PATTERN`` from here.
+- **Stripping removes the same span, wherever it runs.** Two independent
+  strippers is how a tag ends up in a database row — or in the chat voice: the
+  stream recognises the tag by ``TONE_TAG_MARKER`` and removes it up to its first
+  ``>`` across tokens, exactly the span ``TONE_STREAMING_PATTERN`` removes from the
+  persisted content (pinned by a test).
 - **A malformed tag is stripped anyway.** Returning the text untouched because
   the attributes did not parse would put raw markup in front of the user; the
   annotation is lost, the answer is not.
@@ -59,14 +62,15 @@ TONE_TAG_PATTERN: Final[re.Pattern[str]] = re.compile(
 #: Attribute extraction inside the tag.
 TONE_ATTR_PATTERN: Final[re.Pattern[str]] = re.compile(r'(\w+)\s*=\s*"([^"]*)"')
 
-#: Fragment filter for streamed tokens: the tag arrives a few characters at a
-#: time, so the streaming path must match a PARTIAL tag as well as a whole one.
+#: A started tag that never closed (an answer cut short): swept up to its first
+#: ``>``, or to the end — the span the token stream removes too.
 TONE_STREAMING_PATTERN: Final[re.Pattern[str]] = re.compile(
     r"<lia_tone[^>]*/?>?",
     re.IGNORECASE,
 )
 
-#: Cheap pre-test before running any regex on every streamed token.
+#: The tag's opening: the cleaner's cheap pre-test, and how the token stream
+#: recognises the tag before it is complete.
 TONE_TAG_MARKER: Final[str] = "<lia_tone"
 
 # =============================================================================
@@ -149,15 +153,6 @@ def parse_tone_annotation(content: str) -> tuple[ToneAnnotation | None, str]:
         ),
         cleaned,
     )
-
-
-def strip_tone_fragments(content: str) -> str:
-    """Remove partial or complete tag text from ONE streamed token.
-
-    Kept separate from :func:`parse_tone_annotation` because the streaming path
-    has no use for the annotation — it runs on every token and must stay cheap.
-    """
-    return TONE_STREAMING_PATTERN.sub("", content)
 
 
 # =============================================================================

@@ -19,6 +19,25 @@ BEGIN
         RAISE EXCEPTION 'seed verification: personalities expected 14, got %', c;
     END IF;
 
+    -- OCEAN/PAD profiles
+    SELECT COUNT(*) INTO c FROM personalities
+    WHERE code IN (
+        'cynic', 'normal', 'depressed', 'enthusiastic', 'friend', 'philosopher',
+        'influencer', 'professor', 'rasta', 'teenager', 'jarvis', 'haipai',
+        'trump', 'antagonist'
+    )
+      AND trait_openness IS NOT NULL AND trait_openness BETWEEN 0 AND 1
+      AND trait_conscientiousness IS NOT NULL AND trait_conscientiousness BETWEEN 0 AND 1
+      AND trait_extraversion IS NOT NULL AND trait_extraversion BETWEEN 0 AND 1
+      AND trait_agreeableness IS NOT NULL AND trait_agreeableness BETWEEN 0 AND 1
+      AND trait_neuroticism IS NOT NULL AND trait_neuroticism BETWEEN 0 AND 1
+      AND (pad_pleasure_override IS NULL OR pad_pleasure_override BETWEEN -1 AND 1)
+      AND (pad_arousal_override IS NULL OR pad_arousal_override BETWEEN -1 AND 1)
+      AND (pad_dominance_override IS NULL OR pad_dominance_override BETWEEN -1 AND 1);
+    IF c <> 14 THEN
+        RAISE EXCEPTION 'seed verification: expected 14 named OCEAN/PAD profiles with valid traits, got %', c;
+    END IF;
+
     SELECT COUNT(*) INTO c FROM personality_translations;
     IF c <> 84 THEN
         RAISE EXCEPTION 'seed verification: personality_translations expected 84, got %', c;

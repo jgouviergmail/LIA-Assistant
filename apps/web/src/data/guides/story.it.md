@@ -20,7 +20,7 @@ La quasi totalità del codice è stata scritta da un'IA, sotto direzione umana: 
 | Codice scritto da un'IA — diretta, inquadrata, controllata | **≈ 100 %** |
 | Righe di codice sorgente (esclusi i test) — 55 domini funzionali | **931.000+** |
 | Test automatizzati inventariati; suite adeguate a commit e rilascio | **59.000+** |
-| Decisioni di architettura documentate (ADR) | **342** |
+| Decisioni di architettura documentate (ADR) | **345** |
 | Versioni rilasciate a ritmo regolare | **280** |
 | Lingue, parità verificata automaticamente | **6** |
 | Audit tecnico su 24 perimetri | **8,3/10** |
@@ -62,7 +62,7 @@ La stessa regola guida il racconto: preparare non significa completare. Una rich
 
 ## 4. Gli arbitraggi
 
-Tre decisioni strutturanti, tra le 342 documentate:
+Tre decisioni strutturanti, tra le 345 documentate:
 
 **Sovranità e reversibilità — nessuna dipendenza irreversibile dal fornitore.** I modelli IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelli locali via Ollama) stanno dietro un'astrazione unica: ogni utilizzo può cambiare fornitore per configurazione, con confronto dei costi. Stesso principio sul lato business: Google, Apple e Microsoft sono intercambiabili per categoria funzionale. L'auto-hosting ti dà il controllo del server; i dati dell'account risiedono nell'istanza e le credenziali dei connettori sono cifrate. I servizi remoti che scegli ricevono comunque i dati necessari per la loro parte della richiesta.
 

@@ -5,13 +5,9 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import {
-  languageName,
-  paragraphs,
-  sourceLanguageName,
-  withArticles,
-  type RadioArticleRef,
-} from '../articles';
+import { languageName } from '@/lib/language-name';
+
+import { paragraphs, sourceLanguageName, withArticles, type RadioArticleRef } from '../articles';
 import type { RadioSegment, RadioSource } from '../types';
 
 function source(label: string, articleId: string | null): RadioSource {
@@ -79,17 +75,6 @@ describe('paragraphs', () => {
 
   it('has nothing to show for an empty text', () => {
     expect(paragraphs('  \n\n ')).toEqual([]);
-  });
-});
-
-describe('languageName', () => {
-  it('names a language in the reader’s own language', () => {
-    expect(languageName('en', 'fr')).toBe('anglais');
-    expect(languageName('de', 'en')).toBe('German');
-  });
-
-  it('falls back on the code when the browser cannot name it', () => {
-    expect(languageName('not a code!', 'en')).toBe('not a code!');
   });
 });
 

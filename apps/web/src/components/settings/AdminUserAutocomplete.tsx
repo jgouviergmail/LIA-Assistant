@@ -56,6 +56,19 @@ export function AdminUserAutocomplete({
   const [activeIndex, setActiveIndex] = useState(-1);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const clearRef = useRef<HTMLButtonElement>(null);
+  const pendingFocus = useRef<'input' | 'clear' | null>(null);
+
+  // The selected identity and input replace one another. Move focus only
+  // after their refs exist in the committed branch, and only after a user action.
+  useEffect(() => {
+    if (!pendingFocus.current) return;
+    const target = pendingFocus.current === 'input' ? inputRef.current : clearRef.current;
+    if (target) {
+      target.focus();
+      pendingFocus.current = null;
+    }
+  }, [selectedUser]);
 
   const debouncedQuery = useDebounce(userQuery, 300);
 
@@ -114,6 +127,7 @@ export function AdminUserAutocomplete({
 
   const handleSelectUser = useCallback(
     (user: UserSuggestion) => {
+      pendingFocus.current = 'clear';
       setUserQuery('');
       setShowDropdown(false);
       setUserSuggestions([]);
@@ -124,10 +138,10 @@ export function AdminUserAutocomplete({
   );
 
   const handleClearUser = useCallback(() => {
+    pendingFocus.current = 'input';
     setUserQuery('');
     setActiveIndex(-1);
     onClear();
-    inputRef.current?.focus();
   }, [onClear]);
 
   const handleInputKeyDown = useCallback(
@@ -175,6 +189,7 @@ export function AdminUserAutocomplete({
             )}
           </div>
           <button
+            ref={clearRef}
             type="button"
             onClick={handleClearUser}
             className="p-1 hover:bg-muted rounded"

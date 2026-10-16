@@ -317,3 +317,57 @@ whole (`aread`) before checking its size, held 128 MiB for a 64 KiB gzip page un
   change: a 130 KB gzip bomb and a 4 KB zstd bomb refused in 0.02 s at a 4.7 and 4.0 MiB
   peak, both pages read whole, a server sending 20 s of bytes after its gzip stream let go
   of in 0.01 s, `br` refused.
+
+## Amendment 2026-10-13 — the resolver's order is the order tried, and an unreachable address is not the host
+
+A delegated research loop failed five page reads in a row on production with
+`EXTERNAL_API_ERROR`, each in about 150 ms. Measured the same day, in the production
+container, with the application's own code:
+
+- the container has **no IPv6 route** (`/proc/net/if_inet6` lists `lo` alone; a connect to
+  an IPv6 address fails at once with errno 101), and the system resolver already sorts
+  its answer accordingly — `getaddrinfo` returned IPv4 first;
+- `_resolve_dns_sync` gathered that answer in a **`set`**, so the address `pinned_stream`
+  connected to followed the worker's hash seed. Under seed 1 the IPv6 address came first
+  and the fetch failed with `ConnectError`; a connection BY NAME to the same host answered,
+  because the client then tries every address itself. The pinning of this ADR (v2.1.1)
+  had taken that fallback away. Over the seven days Loki keeps, the page-reading tool
+  failed 43 times out of 117 with a network error; how many of the 43 this mechanism
+  explains is not measured — that path logs neither the host nor the exception type — and
+  the drop after this amendment is the measurement.
+
+So:
+
+- **The resolver's order is kept**: repeats are dropped in place, never reordered
+  (`_resolve_dns_sync`). A family the host cannot route comes last, as RFC 6724 puts it.
+- **A connection that cannot be established moves to the next VALIDATED address**
+  (`pinned_stream`, `httpx.ConnectError`: refused, unreachable, TLS handshake). Nothing was
+  sent, and every candidate passed the check, so the guarantee above stands:
+  `pinned_request_parts` refuses an address its verdict did not validate. The last refusal
+  is raised when every address refused, which every caller already handled as a transport
+  failure. Each refusal is logged by its facts (`pinned_fetch_address_unreachable`: host,
+  address family, attempt).
+- **Nothing else moves on**: not a timeout (it already spent the request's budget — a
+  black-holed address family therefore still costs its timeout, the stated limit of a
+  sequential fallback that does not race the families), not an answer (an error status
+  included), not an exception raised by the caller's own block.
+- `tests/unit/infrastructure/utils/test_url_validation_addresses.py` holds it: the order
+  case is written as two orders of the SAME addresses, which an unordered collection
+  cannot both satisfy whatever the seed (red before, green after); the fallback, the last
+  refusal, the timeout, the error status and the caller's exception each have their case.
+
+## Amendment — 2026-10-15: identifier trimming and message splitting also stay linear
+
+Conversation compaction counts unpaired URL brackets once, walks back by index
+and slices once. Recounting and copying the URL at every closing bracket had
+quadratic CPU growth. Telegram HTML splitting likewise advances through the
+original text by index and measures only what can fit in the current part;
+encoding and copying the whole remaining message at every cut was quadratic.
+Behavioral guards compare thread CPU at a size and four times that size, keeping
+the existing growth criterion of eight and a separate runtime ceiling.
+
+Telegram drops a formatting pair that leaves no room for visible text while
+preserving its label, closes each emitted pair per message and preserves code
+line breaks at cuts. A prefix made only of whitespace that would fill an empty
+part is discarded: Telegram cannot display an empty message. These boundaries
+are also asserted using the actual Markdown formatter as the producer.

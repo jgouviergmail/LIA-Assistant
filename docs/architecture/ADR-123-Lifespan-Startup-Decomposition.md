@@ -110,3 +110,22 @@ untouched and still called by the extracted steps.
   place where order is decided.
 - `tests/core/test_config_constants.py` now checks the constants import at
   the new registration site (`startup/schedulers.py`).
+
+## Amendment 2026-10-13 — the shutdown starts nothing new, and stops the scheduler before its jobs' needs
+
+The extracted order stopped the scheduler AFTER the radio loops, the push relay and Langfuse,
+and let it fire jobs through the whole drain: a job started then met its dependencies closing
+under it — a notification through a closed relay, model calls whose traces had nowhere to go.
+
+0. `leader_elector.pause_jobs()` opens the sequence: no job starts from there, a running one
+   goes on.
+1. The two drains (ADR-117 chat producers, then the generic background tasks), unchanged.
+2. `leader_elector.shutdown()` comes right after them: whatever still runs is cancelled and the
+   lease released, before the radio loops, the push relay, the emitters, the checkpointer, the
+   database and Redis.
+
+The module docstring of `startup/shutdown.py` states the order and
+`tests/unit/infrastructure/startup/test_shutdown_order.py` reads it from the function itself:
+running the sequence in a unit test would tear down process-wide state its neighbours rely on.
+The other half of the change, a leader that loses its lease, is
+[ADR-046's amendment of the same day](ADR-046-Background-Job-Scheduling.md#amendement-2026-10-13--un-leader-qui-perd-son-bail-sefface-un-arrêt-ne-démarre-plus-rien).

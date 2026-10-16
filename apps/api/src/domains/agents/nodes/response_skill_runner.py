@@ -93,10 +93,25 @@ def settle_skill_runner(
 
     Returns:
         ``(final_message, react_result, registry_updates)`` — the first two
-        ``None`` when the runner called no tool.
+        ``None`` when the runner called no tool, failed or said nothing.
     """
+    from src.domains.agents.tools.react_runner import SubAgentOutcome
     from src.infrastructure.observability.metrics_registry import skill_runner_outcomes_total
 
+    if result.outcome is SubAgentOutcome.ERROR:
+        # A failure the runner caught itself is the failure ``run_and_settle``
+        # catches when it is raised: counted as an error, never as « no tool
+        # called » — the loop may have run its scripts before it failed.
+        logger.warning(
+            "skill_react_agent_error",
+            run_id=run_id,
+            failure_kind=result.failure_kind,
+            iterations=result.iteration_count,
+        )
+        skill_runner_outcomes_total.labels(outcome="error").inc()
+        if instructions:
+            skill_sections.append(instructions)
+        return None, None, None
     if result.iteration_count == 0:
         logger.warning(
             "skill_runner_no_tool_call",
@@ -109,7 +124,7 @@ def settle_skill_runner(
         if instructions:
             skill_sections.append(instructions)
         return None, None, None
-    if not result.final_message:
+    if result.outcome is SubAgentOutcome.EMPTY:
         return None, None, None
     skill_runner_outcomes_total.labels(outcome="tools_called").inc()
     # Normalize onto the ONE shape `react_result` carries everywhere else —
@@ -257,10 +272,14 @@ def settle_third_party_runner(
         ``(final_message, react_result, registry_updates)``, all ``None`` when
         the runner said nothing.
     """
+    from src.domains.agents.tools.react_runner import SubAgentOutcome
     from src.infrastructure.observability.metrics_registry import skill_runner_outcomes_total
 
     answer = (result.final_message or "").strip()
-    outcome = "tools_called" if result.iteration_count else "no_tool_call"
+    if result.outcome is SubAgentOutcome.ERROR:
+        outcome = "error"
+    else:
+        outcome = "tools_called" if result.iteration_count else "no_tool_call"
     skill_runner_outcomes_total.labels(outcome=outcome).inc()
     logger.info(
         "skill_third_party_runner_settled",

@@ -30,6 +30,11 @@ const { onForegroundMessage, fcmHandler } = vi.hoisted(() => {
   };
 });
 vi.mock('@/lib/firebase', () => ({ onForegroundMessage }));
+const { redirectToLogin } = vi.hoisted(() => ({ redirectToLogin: vi.fn() }));
+vi.mock('@/lib/api-client', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/lib/api-client')>()),
+  redirectToLogin,
+}));
 
 import { BroadcastProvider, BroadcastContext, type BroadcastInfo } from '../broadcast';
 
@@ -275,6 +280,22 @@ describe('BroadcastProvider — eviction (superseded)', () => {
   });
 });
 
+describe('BroadcastProvider — a revoked session', () => {
+  // The server closes the stream of a revoked session (point 22): the native
+  // retry would only meet a 401, so the stream stops for good and the page
+  // goes to the login.
+  it('stops listening and sends the page to the login', async () => {
+    setup();
+    await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+
+    act(() => stream().emitEvent('session_revoked', { reason: 'session_revoked' }));
+
+    expect(FakeEventSource.instances[0].closed).toBe(true);
+    expect(FakeEventSource.instances).toHaveLength(1);
+    expect(redirectToLogin).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('BroadcastProvider — live arrivals', () => {
   it('queues an announcement pushed over SSE', async () => {
     const { result } = setup();
@@ -304,6 +325,18 @@ describe('BroadcastProvider — live arrivals', () => {
 
     act(() => stream().emit('{not json'));
 
+    expect(result.current?.queueLength).toBe(0);
+  });
+
+  it('reports a malformed frame by type without echoing its announcement', async () => {
+    const { result } = setup();
+    await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+
+    act(() => stream().emit('PRIVATE: announcement data'));
+
+    const written = vi.mocked(console.error).mock.calls.flat().map(String).join('\n');
+    expect(written).toContain('SyntaxError');
+    expect(written).not.toContain('PRIVATE');
     expect(result.current?.queueLength).toBe(0);
   });
 

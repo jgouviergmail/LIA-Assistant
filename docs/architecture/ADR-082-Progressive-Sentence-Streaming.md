@@ -93,6 +93,9 @@ Cost tracking: an optional `on_chars_synthesized: Callable[[int], None]`
 callback fires per sentence dispatched. The voice service binds it to
 `tracker.record_tts_call(...)` — exceptions inside the callback are
 swallowed (cost tracking is best-effort and must never break audio).
+Amended 2026-10-14 (ADR-345): the callback is gone. The synth a caller hands
+the streamer records its own call through `voice/spoken.speak`, one record per
+served sentence, priced in the unit the engine that spoke bills.
 
 ### 3. Two integration points
 
@@ -110,6 +113,8 @@ swallowed (cost tracking is best-effort and must never break audio).
   streaming chunk's `content` is fed into a `ProgressiveSentenceStreamer`
   whose synth is bound to the resolved `tts_client`. The `await tracker.commit()`
   call is preserved so character-billing is recorded once at end-of-stream.
+  Amended 2026-10-14: the comment starts with the answer and speaks of the
+  records it retained (see the amendment at the end).
 
 The two paths share the same `_build_voice_llm_invocation()` private
 helper for prompt + token-tracking config — `generate_voice_comment` (the
@@ -213,3 +218,51 @@ non-streaming legacy entry) still works for non-LangGraph callers.
 - **Provider streaming** (HTTP chunked or WebSocket) en complément du sentence streaming : ElevenLabs et OpenAI exposent des endpoints `text-to-speech/{voice_id}/stream` qui rendent l'audio en chunks pendant que le serveur synthétise. Gain marginal (~100–300 ms par phrase) mais nécessite un refacto frontend (`MediaSource Extensions` ou Web Audio source buffer). À évaluer si la latence < 1 s n'est pas suffisante.
 - **Adaptive max_sentences**: aujourd'hui un cap statique. Idée : couper la queue dès que l'utilisateur reprend la parole en mode push-to-talk, pour économiser les chars facturés.
 - **Cross-request HTTP pool sharing**: actuellement le `httpx.AsyncClient` persistant vit le temps d'une instance `VoiceCommentService` (i.e. une requête utilisateur). Un cache cross-request au niveau du factory donnerait un gain supplémentaire mais exige une stratégie d'invalidation propre quand l'admin met à jour la clé API ElevenLabs (sinon ancien client avec ancienne clé → 401). Hors scope de cet ADR.
+
+## Amendment 2026-10-14 — the agent-mode comment speaks of what the answer retained
+
+**Measured.** On a dev instance, one tool turn whose tools returned twenty-two records:
+the written answer retained four, declared at character 0 in `<relevant_ids>`, and led
+with the one its own computation favoured. The comment's model, started on the answer's
+first token, was handed all twenty-two records (reconstructed from the checkpoint to the
+character; the answer's choice 21st) and named a record the text never did — 5 replays
+in 5. Over the 22 voiced tool turns of the fortnight, what the comment read depended on
+WHEN the records were captured (at the end of the stream, the response node's own
+selection; when the tools finished, all of them), and in 4 turns it started 6.5 to 10 s
+ahead of the answer, on a step event while the response model was still reasoning.
+
+**Decision.** The comment of a tool turn speaks only of the records the answer declared,
+and never ahead of it. The tag filter keeps the closed `<relevant_ids>` tag
+(`MachineTagFilter.take_declarations`) and `VoiceScope`
+(`agents/services/streaming/voice_scope.py`) holds the turn's latest records — the
+initiative node merges its own after the tools — until the answer's first visible
+character, then decides once:
+
+- a declaration naming known records: those records, in the declared order
+  (`select_registry_in_declared_order`, the cards' own resolution of the ids — one
+  implementation), introduced to the comment as the answer's selection
+  (`voice_comment_context_lines.txt`);
+- anything else — a declaration naming none, ids no record matches, or no declaration
+  (6 answers of 113 on dev in 14 days): nothing, and the answer is read aloud (PATH 2A),
+  as it already was when the end-of-stream records were empty. Commenting the raw
+  records there would recreate the defect: no mode shows them (a mode with cards
+  requires a selection, the others draw none).
+
+The response prompt asks for the declaration in the order the answer presents its
+records, its lead first, and the comment's Heuristic 7 opens on the first result and
+never ranks the results anew — true by construction, since records reach the comment
+only as that declaration. The order alone did not carry the choice: handed the four
+records in the answer's order, the comment ranked them by rating and led with another
+one 9 times in 9, with or without the Heuristic 7 rule; told as well that the answer
+puts the first forward, it led with the answer's choice 4 times in 4 (the dev
+`voice_comment` slot; 8 in 8 with « recommends the first », a wording untrue of a list).
+
+**Cost.** None in 18 of the 22 measured turns: the comment already started on the
+answer's first visible token (6) or after the stream (12), and the tag is read before
+that token; its context shrinks with the selection (to a fifth on the measured turn).
+In the 4 where it started 6.5 to 10 s ahead of the answer, it now starts with it — the
+voice no longer speaks before there is an answer to agree with.
+
+**Limit.** The comment reads the retained records, not the answer's reasoning: it may
+quote a figure the records carry (a distance from the searched place) where the answer
+gave its own (from a midpoint it computed).

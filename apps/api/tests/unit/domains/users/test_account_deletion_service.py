@@ -18,7 +18,7 @@ from src.domains.users.account_deletion_service import (
     build_purge_statements,
 )
 from src.domains.users.models import User
-from src.domains.users.user_column_map import USER_COLUMNS, UserColumnClass
+from src.domains.users.user_column_map import SCRUBBED_AT_DELETION, USER_COLUMNS
 from src.infrastructure.database.registry import import_all_models
 
 # Ensure all SQLAlchemy models are loaded so relationship() references resolve
@@ -188,15 +188,16 @@ class TestMarkUserDeleted:
         assert user.home_location_encrypted is None
 
     async def test_scrubs_every_classified_column(self) -> None:
-        """Every column classified SCRUBBED in user_data_map is None after scrub.
+        """Every column the map scrubs at deletion is None after scrub.
 
-        The oracle is the classification registry itself: adding a PII column
-        classified SCRUBBED without wiring it into _mark_user_deleted fails
-        here, and the guard file fails when the column is not classified at
-        all — together they close the journal_portrait defect class.
+        The oracle is the classification registry itself: adding a column
+        classified SCRUBBED or SCRUBBED_PREFERENCE without wiring it into
+        _mark_user_deleted fails here, and the guard file fails when the column
+        is not classified at all — together they close the journal_portrait
+        defect class.
         """
         user = _make_user()
-        scrubbed = [name for name, cls in USER_COLUMNS.items() if cls is UserColumnClass.SCRUBBED]
+        scrubbed = [name for name, cls in USER_COLUMNS.items() if cls in SCRUBBED_AT_DELETION]
         for name in scrubbed:
             column = User.__table__.columns[name]
             sentinel: object = (
@@ -208,9 +209,9 @@ class TestMarkUserDeleted:
         await service._mark_user_deleted(user, None)
 
         not_scrubbed = [name for name in scrubbed if getattr(user, name) is not None]
-        assert not not_scrubbed, (
-            f"Columns classified SCRUBBED but left intact by _mark_user_deleted: " f"{not_scrubbed}"
-        )
+        assert (
+            not not_scrubbed
+        ), f"Columns the map scrubs but _mark_user_deleted left intact: {not_scrubbed}"
 
 
 # ==============================================================================

@@ -7,19 +7,32 @@
  * The page owns paging; `MeetingRows` owns the selection and is keyed by the
  * page offset, so a page change resets the selection by construction (no
  * effect resetting state). Rows the server would skip (live, processing) are
- * not selectable, so the announced count is the count that will be deleted.
+ * not selectable; the server still decides which deletions are allowed.
  */
 
-import { useState } from 'react';
-import { ClipboardList, LibraryBig, MessageSquare, Mic } from 'lucide-react';
+import { useEffect, useId, useMemo, useRef, useState, type RefObject } from 'react';
+import {
+  AlertCircle,
+  CalendarDays,
+  ClipboardList,
+  LibraryBig,
+  MessageSquare,
+  Mic,
+  Moon,
+  RefreshCw,
+  Sun,
+  Sunrise,
+} from 'lucide-react';
 
 import { useMeetingRecorderContext } from '@/components/meetings/MeetingRecorderProvider';
 import { BackLink } from '@/components/ui/back-link';
 import { MeetingSelectionBar } from '@/components/meetings/MeetingSelectionBar';
-import { MeetingStatusBadge } from '@/components/meetings/MeetingStatusBadge';
-import { SectionToolbar, type ToolbarAction } from '@/components/settings/SectionToolbar';
+import { MeetingTimelineEntry } from '@/components/meetings/MeetingTimelineEntry';
+import type { ToolbarAction } from '@/components/settings/SectionToolbar';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Pagination } from '@/components/ui/pagination';
+import { SectionHeader } from '@/components/ui/section-header';
+import { TimelineDayGroup, TimelineGroup } from '@/components/ui/timeline-group';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingAnnouncement } from '@/components/ui/loading-announcement';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -34,77 +47,21 @@ import { useApplicationAccountToast } from '@/hooks/useApplicationAccountToast';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { backDestination } from '@/lib/back-origin';
-import { formatEuro } from '@/lib/format';
-import { formatElapsed } from '@/lib/meetings/format';
+import { projectMeetingTimeline, type MeetingPeriod } from '@/lib/meetings/timeline';
 import { isSelectable, pageSelectionState, toggleId } from '@/lib/meetings/selection';
-import type { MeetingSummary } from '@/types/meetings';
 
 const PAGE_SIZE = 20;
+const PERIOD_ICONS = {
+  night: Moon,
+  morning: Sunrise,
+  midday: Sun,
+  afternoon: Sun,
+  evening: Moon,
+  unknown: CalendarDays,
+} satisfies Record<MeetingPeriod, typeof Sun>;
 
 interface MeetingsPageProps {
   params: Promise<{ lng: string }>;
-}
-
-function MeetingRow({
-  lng,
-  meeting,
-  selected,
-  onToggle,
-  onOpen,
-}: {
-  lng: Language;
-  meeting: MeetingSummary;
-  selected: boolean;
-  onToggle: () => void;
-  onOpen: () => void;
-}) {
-  const { t } = useTranslation(lng);
-  const dateFormat = new Intl.DateTimeFormat(lng, { dateStyle: 'medium', timeStyle: 'short' });
-  const title = meeting.title ?? t('meetings.list.untitled');
-  const selectable = isSelectable(meeting);
-  return (
-    <li className="flex flex-wrap items-center gap-3 px-2 py-3 sm:px-4">
-      {/* 44 px touch target around the native 16 px box: the label is part of
-          the target, and its (visually hidden) text is the checkbox's name. */}
-      <label
-        className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center"
-        title={selectable ? undefined : t('meetings.list.not_selectable')}
-      >
-        <Checkbox
-          checked={selected}
-          aria-disabled={!selectable}
-          onChange={() => selectable && onToggle()}
-        />
-        <span className="sr-only">{t('meetings.list.select_row', { title })}</span>
-      </label>
-      <button
-        type="button"
-        className="min-w-0 flex-1 text-left"
-        aria-label={t('meetings.list.open', { title })}
-        onClick={onOpen}
-      >
-        <span className="block truncate font-medium hover:underline">{title}</span>
-        <span className="block text-xs text-muted-foreground">
-          {dateFormat.format(new Date(meeting.started_at))}
-          {meeting.audio_duration_seconds
-            ? ` · ${formatElapsed(meeting.audio_duration_seconds)}`
-            : ''}
-          {meeting.status === 'ready' &&
-            ` · ${t('meetings.list.participants', { count: meeting.participants_count })} · ${t(
-              'meetings.list.actions',
-              { count: meeting.action_items_count }
-            )}`}
-          {/* What the meeting cost, when anything priced was spent. */}
-          {meeting.total_cost_eur !== null &&
-            meeting.total_cost_eur > 0 &&
-            ` · ${formatEuro(meeting.total_cost_eur, 4, lng)}`}
-          {/* The format the minutes were written in (ADR-259). */}
-          {meeting.template_name && ` · ${meeting.template_name}`}
-        </span>
-      </button>
-      <MeetingStatusBadge lng={lng} status={meeting.status} stage={meeting.stage} />
-    </li>
-  );
 }
 
 /** The rows of one page with their selection; remounted by the page on every offset change. */
@@ -118,26 +75,33 @@ function MeetingRows({
   onDeleted: (deletedCount: number) => Promise<void>;
 }) {
   const { t } = useTranslation(lng);
-  const router = useLocalizedRouter();
   const { confirm, confirmDialog } = useConfirm();
   const { user } = useAuth();
   const { isCurrent } = useApplicationAccountLifetime(user?.id);
   const toast = useApplicationAccountToast(user?.id);
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
   const { meetings } = list;
+  const timeline = useMemo(() => projectMeetingTimeline(meetings, lng), [meetings, lng]);
+  const headingPrefix = useId();
+  const confirming = useRef(false);
 
   const selectableIds = meetings.filter(isSelectable).map(m => m.id);
   const chosen = selectableIds.filter(id => selected.has(id));
   const pageState = pageSelectionState(selectableIds, selected);
+  // A refreshed processing row must not keep a hidden selection which could
+  // reappear without the reader choosing it when processing finishes.
+  if (chosen.length !== selected.size) setSelected(new Set(chosen));
 
   const remove = async () => {
-    if (!isCurrent() || chosen.length === 0 || list.isDeleting) return;
+    if (!isCurrent() || chosen.length === 0 || list.isDeleting || confirming.current) return;
+    confirming.current = true;
     const ok = await confirm({
       title: t('meetings.list.confirm_bulk_delete_title'),
       description: t('meetings.list.confirm_bulk_delete_description', { count: chosen.length }),
       confirmLabel: t('meetings.list.delete_selected', { count: chosen.length }),
       destructive: true,
     });
+    confirming.current = false;
     if (!ok || !isCurrent()) return;
     try {
       const result = await list.bulkDelete(chosen);
@@ -158,29 +122,59 @@ function MeetingRows({
   return (
     <div className="space-y-3">
       {confirmDialog}
-      {chosen.length > 0 && (
-        <MeetingSelectionBar
-          lng={lng}
-          count={chosen.length}
-          pageState={pageState}
-          onSelectAll={() => setSelected(new Set(selectableIds))}
-          onClear={() => setSelected(new Set())}
-          onDelete={() => void remove()}
-          deleting={list.isDeleting}
-        />
-      )}
-      <ul className="divide-y divide-border/60 rounded-lg border border-border/60 bg-card">
-        {meetings.map(meeting => (
-          <MeetingRow
-            key={meeting.id}
-            lng={lng}
-            meeting={meeting}
-            selected={selected.has(meeting.id)}
-            onToggle={() => setSelected(toggleId(selected, meeting.id))}
-            onOpen={() => router.push(`/dashboard/meetings/${meeting.id}`)}
-          />
+      <MeetingSelectionBar
+        lng={lng}
+        count={chosen.length}
+        canSelectAll={selectableIds.length > 0}
+        pageState={pageState}
+        onSelectAll={() => setSelected(new Set(selectableIds))}
+        onClear={() => setSelected(new Set())}
+        onDelete={() => void remove()}
+        deleting={list.isDeleting}
+      />
+      {/* Keep the existing row height, including wrapping, without displaying the timezone hint. */}
+      <p
+        aria-hidden="true"
+        className="invisible flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground"
+      >
+        <CalendarDays className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+        {t('meetings.list.display_timezone', { timezone: timeline.timeZone })}
+      </p>
+      <div className="space-y-6">
+        {timeline.days.map(day => (
+          <TimelineDayGroup
+            key={day.id}
+            headingId={`${headingPrefix}-day-${day.id}`}
+            level={2}
+            heading={day.label ?? t('meetings.list.unknown_date')}
+            dayNumber={day.dayNumber}
+            month={day.month}
+          >
+            {day.periods.map(period => (
+              <TimelineGroup
+                key={period.id}
+                headingId={`${headingPrefix}-day-${day.id}-period-${period.id}`}
+                icon={PERIOD_ICONS[period.key]}
+                level={3}
+                heading={t(`meetings.list.period.${period.key}`)}
+                className="space-y-0 [&>div:first-child]:px-4 [&>div:first-child]:pt-4"
+              >
+                <ul className="divide-y divide-border/60">
+                  {period.entries.map(item => (
+                    <MeetingTimelineEntry
+                      key={item.meeting.id}
+                      item={item}
+                      lng={lng}
+                      selected={selected.has(item.meeting.id)}
+                      onToggle={() => setSelected(toggleId(selected, item.meeting.id))}
+                    />
+                  ))}
+                </ul>
+              </TimelineGroup>
+            ))}
+          </TimelineDayGroup>
         ))}
-      </ul>
+      </div>
     </div>
   );
 }
@@ -225,7 +219,14 @@ function AccountMeetingsPage({ params }: MeetingsPageProps) {
   const toolbar = useToolbarActions(t, router);
   const [offset, setOffset] = useState(0);
   const list = useMeetingList(PAGE_SIZE, offset);
-  const { meetings, total, isLoading, isUnavailable } = list;
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const { meetings, total, isLoading, isUnavailable, error } = list;
+
+  // A native invalidation may remove the last row of the last page externally.
+  // Adjust in this render before committing an inaccessible empty collection.
+  if (!isLoading && !error && !isUnavailable && offset > 0 && offset >= total) {
+    setOffset(Math.max(0, Math.ceil(total / PAGE_SIZE) - 1) * PAGE_SIZE);
+  }
 
   // A deletion that empties a page past the first one steps back; otherwise
   // the page re-reads its rows (the offset change triggers the read itself).
@@ -239,28 +240,50 @@ function AccountMeetingsPage({ params }: MeetingsPageProps) {
 
   return (
     <div className="space-y-6">
-      <header className="space-y-3">
+      <div className="space-y-3">
         {/* Six doors lead here — the header, the phone menu, a minutes card in
             the chat, a recorder toast, the settings section, a slash command —
             and this list had none back. The door that was used travels in the
             URL as a token; with none, the chat is the way out (owner,
             2026-09-10). */}
         <BackLink label={t(back.labelKey)} onClick={() => router.push(back.href)} />
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-            <ClipboardList className="h-6 w-6 text-primary" aria-hidden="true" />
-            {t('meetings.list.title')}
-          </h1>
-          <p className="text-sm text-muted-foreground">{t('meetings.list.subtitle')}</p>
-        </div>
-        <SectionToolbar
-          count={total > 0 ? t('meetings.list.total', { count: total }) : ''}
-          menuLabel={t('common.more_actions')}
-          primary={toolbar.primary}
-          secondary={toolbar.secondary}
+        <SectionHeader
+          headingRef={headingRef}
+          level={1}
+          icon={ClipboardList}
+          title={t('meetings.list.title')}
+          description={t('meetings.list.subtitle')}
+          actions={
+            <>
+              {[toolbar.primary, ...toolbar.secondary].map(action => (
+                <Button
+                  key={action.key}
+                  type="button"
+                  variant={action.key === 'record' ? 'default' : 'secondary'}
+                  aria-disabled={action.blocked}
+                  className="h-auto min-h-11 w-full whitespace-normal sm:w-auto"
+                  onClick={action.onSelect}
+                >
+                  <action.icon aria-hidden="true" />
+                  {action.label}
+                </Button>
+              ))}
+            </>
+          }
         />
-      </header>
+        {total > 0 && (
+          <p className="text-sm text-muted-foreground">
+            {t('meetings.list.total', { count: total })}
+          </p>
+        )}
+      </div>
 
+      <ListLoadError
+        lng={lng}
+        retry={list.refetch}
+        hasError={!!error && !isUnavailable}
+        focusTarget={headingRef}
+      />
       {isLoading ? (
         <div className="space-y-3">
           <LoadingAnnouncement />
@@ -268,7 +291,8 @@ function AccountMeetingsPage({ params }: MeetingsPageProps) {
             <Skeleton key={i} className="h-16 w-full" />
           ))}
         </div>
-      ) : isUnavailable || meetings.length === 0 ? (
+      ) : !isUnavailable && error && meetings.length === 0 ? null : isUnavailable ||
+        meetings.length === 0 ? (
         <EmptyState
           variant="page"
           icon={ClipboardList}
@@ -285,28 +309,79 @@ function AccountMeetingsPage({ params }: MeetingsPageProps) {
         <MeetingRows key={offset} lng={lng} list={list} onDeleted={afterDelete} />
       )}
 
-      {total > PAGE_SIZE && (
-        <nav className="flex items-center justify-between" aria-label={t('common.pagination')}>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            aria-disabled={offset === 0}
-            onClick={() => offset > 0 && setOffset(Math.max(0, offset - PAGE_SIZE))}
-          >
-            {t('common.previous')}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            aria-disabled={offset + PAGE_SIZE >= total}
-            onClick={() => offset + PAGE_SIZE < total && setOffset(offset + PAGE_SIZE)}
-          >
-            {t('common.next')}
-          </Button>
-        </nav>
-      )}
+      <Pagination
+        currentPage={Math.floor(offset / PAGE_SIZE) + 1}
+        totalPages={Math.ceil(total / PAGE_SIZE)}
+        totalItems={total}
+        variant="centered"
+        onPageChange={page => setOffset((page - 1) * PAGE_SIZE)}
+      />
+    </div>
+  );
+}
+
+/** Retry retains stale rows and focus; the hook remains the sole request/owner authority. */
+function ListLoadError({
+  lng,
+  retry,
+  hasError,
+  focusTarget,
+}: {
+  lng: Language;
+  retry: () => Promise<void>;
+  hasError: boolean;
+  focusTarget: RefObject<HTMLHeadingElement | null>;
+}) {
+  const { t } = useTranslation(lng);
+  const pending = useRef(false);
+  const [busy, setBusy] = useState(false);
+  const retryRef = useRef<HTMLButtonElement>(null);
+  const restoreFocus = useRef(false);
+  const { user } = useAuth();
+  const { isCurrent } = useApplicationAccountLifetime(user?.id);
+  useEffect(() => {
+    if (hasError || !restoreFocus.current) return;
+    // Removing the recovered error must not strand keyboard focus on body.
+    // A manual blur cancels restoration, so a reader who moved on keeps focus.
+    if (document.activeElement === document.body) focusTarget.current?.focus();
+    restoreFocus.current = false;
+  }, [hasError, focusTarget]);
+  const run = async () => {
+    if (pending.current || !isCurrent()) return;
+    restoreFocus.current = document.activeElement === retryRef.current;
+    pending.current = true;
+    setBusy(true);
+    try {
+      await retry();
+    } finally {
+      pending.current = false;
+      if (isCurrent()) setBusy(false);
+    }
+  };
+  if (!hasError) return null;
+  return (
+    <div className="space-y-3 rounded-xl border border-destructive/25 bg-destructive/5 p-4">
+      <p role="alert" className="flex items-start gap-2 text-sm">
+        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" aria-hidden="true" />
+        {t('meetings.list.load_error')}
+      </p>
+      <Button
+        type="button"
+        variant="secondary"
+        ref={retryRef}
+        onBlur={() => {
+          restoreFocus.current = false;
+        }}
+        aria-disabled={busy}
+        aria-busy={busy}
+        onClick={() => void run()}
+      >
+        <RefreshCw
+          className={busy ? 'animate-spin motion-reduce:animate-none' : ''}
+          aria-hidden="true"
+        />
+        {t('common.retry')}
+      </Button>
     </div>
   );
 }

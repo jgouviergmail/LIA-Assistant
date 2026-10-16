@@ -449,9 +449,8 @@ async def generate_image(
         prompt_enhanced=sent_prompt != prompt,
     )
 
-    # action_success() lets the parallel executor and the adaptive replanner
-    # recognise a successful action (not an "empty result") and hands the
-    # confirmation to the response node.
+    # action_success() lets the parallel executor recognise a successful action
+    # and hands the confirmation to the response node.
     revised = result.revised_prompt
     revised_note = f" Revised prompt: '{revised[:150]}'" if revised else ""
     return UnifiedToolOutput.action_success(

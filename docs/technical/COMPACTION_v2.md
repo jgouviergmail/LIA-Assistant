@@ -136,6 +136,7 @@ cover production).
 | `COMPACTION_MAX_RETRIES` | `3` | 1–10 | Tenacity attempts per chunk. |
 | `COMPACTION_RETRY_BACKOFF_BASE_SECONDS` | `1.0` | 0.1–10 | Exponential backoff base. |
 | `COMPACTION_INCLUDE_PREVIOUS_SUMMARIES` | `true` | bool | Consolidate prior `"compaction #N"`. |
+| `COMPACTION_IDENTIFIERS_REINSERT_MAX` | `30` | 0–200 | Identifiers written back per list when the summary dropped them (`0` = none). |
 | `SSE_HEARTBEAT_INTERVAL` | `15` | >0 | Reused for keepalive cadence. |
 
 ## 5. Metrics
@@ -185,6 +186,14 @@ identifiers, and any summary produced from third-party-carrying messages
 inherits a provenance banner (`COMPACTION_EXTERNAL_PROVENANCE_BANNER`) placed
 AFTER `COMPACTION_SUMMARY_MARKER` — the marker must stay the prefix, four
 readers recognise the summary via `startswith`.
+
+Since the ADR-086 amendment of 2026-10-13, the LLM summary is checked as well:
+every identifier of the compacted messages it does not mention is written back
+under it — trusted ones on a `[Key identifiers preserved: …]` line, third-party
+ones on the untrusted line — including those of a prior summary merged into it
+(as untrusted when that summary carried the banner). Both lists, and the
+truncation notice's, are bounded by `COMPACTION_IDENTIFIERS_REINSERT_MAX`; the
+scaffolds live in `prompts/v1/compaction_identifier_lines.txt`.
 
 The frontend `toast.warning` (driven by `handleCompactionStep` on
 `strategy === "truncation"`) carries the localized equivalent of:

@@ -155,6 +155,21 @@ describe('ChatSSEClient — HTTP status mapping', () => {
     });
   });
 
+  it('names no stream to follow when the run relays nothing (a ticket, a call)', async () => {
+    const { errors } = await runStream(
+      jsonResponse(
+        { detail: { error: 'run_in_progress', active_run: { run_id: 'r-1', stream_id: null } } },
+        409
+      )
+    );
+
+    expect(errorShape(errors[0])).toMatchObject({
+      name: 'RunInProgressError',
+      i18nKey: 'errors.chat.run_in_progress',
+    });
+    expect((errors[0] as ChatStreamError).activeStreamId).toBeUndefined();
+  });
+
   it('still reports the conflict when its body is unreadable', async () => {
     const { errors } = await runStream(new Response('not json', { status: 409 }));
 
@@ -591,17 +606,24 @@ describe('run-control endpoints', () => {
     await expect(fetchPendingHitl()).resolves.toBeNull();
   });
 
-  it('reports an active run only when it carries a transport id', async () => {
+  it('reports an active run with the stream it relays on', async () => {
     fetchMock.mockResolvedValue(jsonResponse({ active: true, stream_id: 's-1', run_id: 'r-1' }));
     await expect(fetchActiveRun()).resolves.toEqual({
       active: true,
       stream_id: 's-1',
       run_id: 'r-1',
     });
+  });
 
-    // Active without a stream id is unusable — the caller must not reattach.
-    fetchMock.mockResolvedValue(jsonResponse({ active: true }));
-    await expect(fetchActiveRun()).resolves.toEqual({ active: false });
+  it('keeps a run that relays nothing active, with no stream to follow', async () => {
+    // A ticket or a voice relay holds the conversation and publishes no chunk:
+    // LIA is busy (the companion says so), and nobody may reattach to it.
+    fetchMock.mockResolvedValue(jsonResponse({ active: true, stream_id: null, run_id: 'r-2' }));
+    await expect(fetchActiveRun()).resolves.toEqual({
+      active: true,
+      stream_id: null,
+      run_id: 'r-2',
+    });
   });
 
   it.each([

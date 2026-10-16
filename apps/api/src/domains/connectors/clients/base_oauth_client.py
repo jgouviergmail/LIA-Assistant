@@ -295,13 +295,15 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
             )
             self._on_rate_limit_exceeded()
 
+        except RateLimitError:
+            raise
         except Exception as e:
             # On Redis failure, fall back to local time-based throttling
             logger.warning(
                 "rate_limit_redis_fallback",
                 user_id=str(self.user_id),
                 client_type=self.__class__.__name__,
-                error=str(e),
+                error_type=type(e).__name__,
             )
             await self._local_rate_limit()
 
@@ -607,9 +609,7 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
                 cb = self._get_circuit_breaker()
                 if response.status_code >= 500 or response.status_code == 429:
                     # Server error or rate limited - record failure
-                    await cb.record_failure(
-                        Exception(f"HTTP {response.status_code}: {response.text[:200]}")
-                    )
+                    await cb.record_failure(Exception(f"HTTP {response.status_code}"))
                 else:
                     # Success (including 4xx client errors - those are valid responses)
                     await cb.record_success()
@@ -620,7 +620,7 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
             # Network-level failures should trip the circuit breaker
             if self._is_circuit_breaker_enabled():
                 cb = self._get_circuit_breaker()
-                await cb.record_failure(e)
+                await cb.record_failure(RuntimeError(type(e).__name__))
             raise
 
     def _should_retry_status(self, status_code: int) -> bool:
@@ -657,11 +657,9 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
 
     def _parse_error_detail(self, response: httpx.Response) -> str:
         """
-        Extract human-readable error from response. Override for provider-specific formats.
-
-        Default: returns response text (matches Google behavior).
+        Describe a refusal by its status, never by provider-controlled prose.
         """
-        return response.text
+        return f"HTTP {response.status_code}"
 
     def _get_retry_delay(self, response: httpx.Response, attempt: int) -> float:
         """
@@ -724,8 +722,9 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
             json_data: JSON body for POST/PUT requests.
             max_retries: Max retry attempts for 429/5xx errors.
             extra_headers: Additional headers to include.
-            content: A raw POST body, in place of ``json_data`` — its type goes
-                in ``extra_headers`` (Gmail's upload URI takes RFC 822 bytes).
+            content: A raw POST or PUT body, in place of ``json_data`` — its
+                type goes in ``extra_headers`` (Gmail's upload URI takes RFC 822
+                bytes, or a multipart body carrying them).
             base_url: Another root than ``api_base_url`` for this call only.
 
         Returns:
@@ -799,7 +798,9 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
                         url, headers=headers, params=params, json=json_data, content=content
                     )
                 elif method.upper() == "PUT":
-                    response = await client.put(url, headers=headers, params=params, json=json_data)
+                    response = await client.put(
+                        url, headers=headers, params=params, json=json_data, content=content
+                    )
                 elif method.upper() == "PATCH":
                     response = await client.patch(
                         url, headers=headers, params=params, json=json_data
@@ -909,7 +910,7 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
                         "api_request_error_retrying",
                         user_id=str(self.user_id),
                         connector_type=connector_type_value,
-                        error=str(e),
+                        error_type=type(e).__name__,
                         attempt=attempt + 1,
                         wait_time=wait_time,
                     )
@@ -917,7 +918,7 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
                     continue
                 raise ExternalServiceError(
                     service_name=connector_type_value,
-                    detail=f"{connector_type_value} API unavailable: {e!s}",
+                    detail=f"{connector_type_value} API unavailable: {type(e).__name__}",
                     error_type="connection_error",
                 ) from e
 
@@ -941,7 +942,7 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
         and prompt the user to reconnect.
 
         Args:
-            error_detail: Optional error message from the API response.
+            error_detail: Optional diagnostic, kept at DEBUG only; never persisted.
         """
         connector_type_value = (
             self.connector_type.value
@@ -971,9 +972,7 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
 
                 connector.status = ConnectorStatus.ERROR
                 error_info = {
-                    "last_error": (
-                        error_detail[:500] if error_detail else "OAuth authentication failed"
-                    ),
+                    "last_error": "OAuth authentication failed",
                     "error_at": datetime.now(UTC).isoformat(),
                     "error_type": "oauth_authentication_failed",
                 }
@@ -992,8 +991,8 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
                     user_id=str(self.user_id),
                     connector_id=str(connector.id),
                     connector_type=connector_type_value,
-                    error_detail=error_detail[:200] if error_detail else None,
                 )
+                logger.debug("connector_auth_failure_details", error_detail=error_detail)
 
                 await service._invalidate_user_connectors_cache(self.user_id)
 
@@ -1002,6 +1001,5 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
                 "connector_invalidation_failed",
                 user_id=str(self.user_id),
                 connector_type=connector_type_value,
-                error=str(e),
                 error_type=type(e).__name__,
             )

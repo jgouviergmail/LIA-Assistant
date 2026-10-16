@@ -57,15 +57,10 @@ def audio_for_mix(client: TTSClient, audio: bytes) -> bytes:
     return wav_container(audio, sample_rate=spec.sample_rate)
 
 
-async def synthesize_playable_base64(
-    client: TTSClient, text: str, voice_name: str | None = None, **kwargs: object
-) -> str:
-    """Keep encoded synthesis unchanged; wrap raw samples once for browser decoding.
+def playable_base64(client: TTSClient, audio: bytes) -> str:
+    """The audio ``client`` produced, as base64 a browser can decode.
 
-    The provider is called once. Its raw response and billing contract remain
-    unchanged; only the presentation container carries the configured rate.
+    Encoded audio passes byte for byte; raw samples are wrapped once in the
+    container that carries their configured rate (:func:`audio_for_mix`).
     """
-    if _raw_spec(client) is None:
-        return await client.synthesize_base64(text=text, voice_name=voice_name, **kwargs)
-    audio = await client.synthesize(text=text, voice_name=voice_name, **kwargs)
     return base64.b64encode(audio_for_mix(client, audio)).decode("ascii")

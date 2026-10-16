@@ -162,6 +162,85 @@ describe('RadioSettings', () => {
     expect(health).not.toBeChecked();
   });
 
+  it('narrows each role’s voices to the listener’s language, one switch from all of them', async () => {
+    serve(
+      radioOptions({
+        voices: [
+          { voice_id: 'fr-A', label: 'Aria', gender: 'female', language: 'fr' },
+          { voice_id: 'en-E', label: 'Emma', gender: 'female', language: 'en' },
+          { voice_id: 'clone', label: 'Clone', gender: null, language: null },
+        ],
+      }),
+      radioPreferences()
+    );
+    const { user } = renderWithProviders(<RadioSettings lng="fr" />);
+
+    await openSection(user, 'voices');
+
+    const only = await screen.findByRole('switch', {
+      name: 'settings.voice_language_filter.only_language',
+    });
+    expect(only).toBeChecked();
+    await user.click(screen.getByRole('combobox', { name: 'radio.roles.host' }));
+    // A voice that names no language speaks every one; « automatic » is never filtered.
+    expect(screen.getAllByRole('option').map(option => option.textContent)).toEqual([
+      'radio.settings.voices.automatic',
+      'Aria',
+      'Clone',
+    ]);
+    await user.keyboard('{Escape}');
+
+    await user.click(only);
+    await user.click(screen.getByRole('combobox', { name: 'radio.roles.host' }));
+    expect(screen.getAllByRole('option').map(option => option.textContent)).toContain('Emma');
+  });
+
+  it('lets the listener voice the commentators, never in a voice they may not share', async () => {
+    serve(radioOptions(), radioPreferences({ voices: { host: 'fr-A' } }));
+    const { user } = renderWithProviders(<RadioSettings lng="fr" />);
+
+    await openSection(user, 'voices');
+
+    const group = await screen.findByRole('group', { name: 'radio.settings.voices.commentators' });
+    expect(within(group).getAllByRole('combobox')).toHaveLength(3);
+    const first = within(group).getByRole('combobox', { name: 'radio.roles.speaker_a' });
+    expect(first).toHaveAccessibleDescription('radio.settings.voices.commentators_hint');
+
+    await user.click(first);
+    // LIA speaks with Aria: a view is never heard in LIA's voice.
+    expect(screen.getByRole('option', { name: 'Aria' })).toHaveAttribute('aria-disabled', 'true');
+    await user.click(screen.getByRole('option', { name: 'Bruno' }));
+
+    await waitFor(() => expect(mockApi.put).toHaveBeenCalledTimes(1));
+    expect(mockApi.put.mock.calls[0][1].voices).toEqual({ host: 'fr-A', speaker_a: 'fr-B' });
+
+    // The other way round: LIA may no longer take the commentator's voice, and is told why;
+    // the expert may share any voice, so nothing in its list needs telling.
+    const host = screen.getByRole('combobox', { name: 'radio.roles.host' });
+    expect(host).toHaveAccessibleDescription('radio.settings.voices.commentators_hint');
+    expect(screen.getByRole('combobox', { name: 'radio.roles.expert' })).not.toHaveAttribute(
+      'aria-describedby'
+    );
+    await user.click(host);
+    expect(screen.getByRole('option', { name: 'Bruno' })).toHaveAttribute('aria-disabled', 'true');
+  });
+
+  it('says why the API refused a voice two roles may not share', async () => {
+    serve(radioOptions(), radioPreferences());
+    mockApi.put.mockRejectedValue(
+      new ApiError('refused', 422, { detail: { code: 'radio_voice_shared' } })
+    );
+    const { user } = renderWithProviders(<RadioSettings lng="fr" />);
+
+    await openSection(user, 'voices');
+    await user.click(await screen.findByRole('combobox', { name: 'radio.roles.speaker_b' }));
+    await user.click(screen.getByRole('option', { name: 'Aria' }));
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith('radio.errors.radio_voice_shared')
+    );
+  });
+
   it('names the station as the listener types it, saved when they leave the field', async () => {
     serve(radioOptions(), radioPreferences());
     const { user } = renderWithProviders(<RadioSettings lng="en" />);

@@ -1232,3 +1232,65 @@ Et le ticket, lui, **fait un pas de côté** plutôt que d'échouer : `_run` ren
 `None`, ce que le tic traduit déjà en « ignoré, occupé ». Le solder en échec
 aurait dépensé l'un de ses dix runs et annoncé à la personne que LIA a trébuché,
 alors qu'il s'est passé qu'elle s'est mise à parler.
+
+## Amendement, 2026-10-13 — une routine ne laisse plus de question sur le fil
+
+Mesuré en production du 2026-09-25 au 2026-10-06 : treize exécutions de routine, toutes en
+ReAct, se sont arrêtées sur une question que personne ne pouvait voir. La question restait en
+attente sur le fil de la personne. Son message suivant était lu comme la réponse, et vingt des
+vingt-quatre sauts `skipped_hitl` sont tombés dans l'heure suivante. Reproduit sur dev de bout
+en bout, avec la question réseau du bac à sable.
+
+1. **La boucle ReAct ne pose plus de question quand personne ne peut répondre.** C'est le
+   prédicat unique de l'[amendement d'ADR-263 du 2026-10-13](ADR-263-Execution-Authority-Chain-And-Effect-Register.md) :
+   source planifiée, et une origine qui ne porte pas de brouillon. Un ticket PORTE la
+   question jusqu'à la personne : il continue de la poser.
+2. **Une routine passe un `run_id` stable** (`StreamRequest.run_id`), comme un ticket. Ses
+   tentatives, ses registres et la question qu'elle laisserait portent le même identifiant.
+3. **Le filet.** Si un chemin qui l'ignore, comme une clarification du pipeline, s'arrête
+   quand même sur une question, l'exécuteur la reprend (`clear_question_of_run`). Il ne la
+   reprend que si elle porte ce `run_id`, en comparant et en effaçant d'un seul pas côté
+   serveur : une routine ne tient pas le verrou de la conversation, et la personne a pu
+   enregistrer sa propre question entre-temps. L'exécution reste un échec, comme avant, et
+   le journal nomme le type de la question.
+4. **Limite écrite.** La question d'une routine en pipeline reste archivée et visible dans le
+   chat, sans réponse possible. Aucune routine en pipeline n'existe en production.
+
+Gardes : `test_hitl_store_clear_for_run.py` sur Redis réel, `TestAQuestionNobodyCanAnswer`,
+`TestTakingBackTheQuestionOfARun`.
+
+## Amendement, 2026-10-13 (b) — une relance ne rejoue jamais une action, et une réservation tient par son jeton
+
+Mesuré en production : une routine lancée à la main a atteint la borne d'une tentative
+pendant qu'une tâche de navigateur tournait, et la relance a refait les tâches de navigateur.
+Une relance rejoue le tour ENTIER, actions comprises.
+
+1. **Le moteur ne relance plus après une action.** Avant une nouvelle tentative, il lit le
+   registre des actions du run (`EffectLedgerRepository.acted_in_run`). Toute ligne autre
+   qu'un refus dit qu'une tentative a pu agir : une réservation en vol ou coupée, un succès,
+   un échec qui a pu agir à moitié, un abandon. Un registre illisible ne relance pas non plus,
+   car le doute ne relance jamais. La règle vaut pour les routines comme pour les tickets, qui
+   passent tous deux un `run_id` stable. Sans `run_id`, rien ne peut être lu et la relance
+   reste celle d'avant.
+2. **Le pire cas d'un run appartient au moteur** (`worst_case_run_seconds`, déplacé depuis
+   les constantes du workboard) : toutes les tentatives à leur borne, plus les pauses entre
+   elles. La récupération des routines ne libère jamais une réservation plus jeune que ce
+   pire cas, ni que le réglage s'il est plus long. Le réglage seul tombait sous le pire cas :
+   600 s contre 630 s aux valeurs par défaut du 2026-10-10.
+3. **Une réservation de routine tient par son jeton**, sur les trois chemins : le lot du
+   planificateur, « exécuter maintenant » et le chemin d'ADR-335. Le jeton est renouvelé à
+   chaque vérification, la dernière juste avant l'appel au modèle : la récupération compte
+   alors depuis le vrai début du run, et non depuis une réservation qui attendait son tour.
+   Chaque renouvellement est commité aussitôt : son verrou de ligne ne dure ni pendant la
+   notification d'une proposition ni pendant la sonde (ADR-304).
+   La clôture qui suit le modèle relit la ligne verrouillée et ne marque pas la routine si un
+   autre tick a repris la réservation entre-temps. Elle écrit seulement la ligne d'historique
+   du run, qui a bien eu lieu : toute sortie de l'exécuteur en laisse une
+   ([ADR-265](ADR-265-Routine-Week-Timeline-And-Run-History.md)), et le plafond quotidien
+   d'une routine à condition se compte sur ces lignes (ADR-322). Les autres clôtures suivent
+   la dernière vérification de bien moins que le seuil : leur réservation ne peut pas avoir
+   expiré.
+
+Gardes : `TestARetryNeverReplaysAnAction`, `test_acted_in_run_db.py` et
+`test_reservation_fence_pg.py` sur PostgreSQL avec deux acteurs, `TestTheReservationHoldsTheRun`,
+`TestEachRunCarriesItsReservation`, `test_router_execute.py`.

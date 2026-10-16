@@ -556,7 +556,7 @@ async def planner_node_v3(
         # clamping, for_each_max) — a plan missing a step the user explicitly
         # asked for is repairable, not a defect to report. No-op without a
         # directive, and never replaces what the planner produced.
-        from src.core.context import capability_directive_ctx
+        from src.core.context import active_connector_types_ctx, capability_directive_ctx
         from src.domains.agents.capability_directives import ensure_directive_step
 
         ensure_directive_step(planning_result.plan, capability_directive_ctx.get())
@@ -573,6 +573,7 @@ async def planner_node_v3(
             user_id=runtime_user_id_str("unknown"),
             session_id=configurable.get("session_id", run_id),
             available_scopes=state.get("oauth_scopes", []),
+            active_connector_types=active_connector_types_ctx.get(),
             allow_hitl=True,  # Allow HITL by default
             # Indexable vs Semantic — probabilistic hint forwarded to the
             # semantic-leak detector (no-op when empty).

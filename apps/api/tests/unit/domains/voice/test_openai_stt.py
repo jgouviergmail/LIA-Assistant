@@ -68,8 +68,23 @@ def test_parse_payload_turns_segments_into_speaker_words_and_derives_the_duratio
 def test_parse_payload_without_text_is_an_invalid_response() -> None:
     service = OpenAISttService(api_key="k")
     with pytest.raises(STTProviderError) as exc:
-        service._parse_payload({"segments": []}, language=None)
+        service._parse_payload({"segments": [{"text": SENTINEL}]}, language=None)
     assert exc.value.code == "provider_invalid_response"
+    # A segment is the person's words: the answer travels by its shape.
+    assert exc.value.details == {"keys": ["segments"]}
+
+
+#: A refused body quoting the request: these words must never leave the client.
+SENTINEL = "the words of the person, quoted back"
+
+
+@pytest.mark.parametrize("status", [400, 401, 403, 413, 429, 500])
+def test_a_refused_body_never_travels(status: int) -> None:
+    body = {"error": {"message": SENTINEL, "code": "some_code", "param": SENTINEL}}
+    with pytest.raises(STTProviderError) as exc:
+        OpenAISttService._raise_for_status(_response(status, body))
+    assert SENTINEL not in str(exc.value) and SENTINEL not in repr(exc.value.details)
+    assert exc.value.details == {"status_code": status, "vendor_code": "some_code"}
 
 
 @pytest.mark.parametrize(

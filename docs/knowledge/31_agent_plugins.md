@@ -1,10 +1,10 @@
 # Agent Plugins
 
 ## What is an Agent Plugin?
-A plugin is a **portable package** following the open Agent Plugins v1.0.0 standard (agent-plugins.org, steered by AWS, Microsoft, OpenAI, Cursor and Vercel). It bundles, in one directory: a `plugin.json` manifest, **skills** (agentskills.io format) and **MCP servers** (`mcp.json`). The same package installs unchanged in ChatGPT, Codex, Cursor, GitHub Copilot, Kiro, VS Code — and LIA.
+A plugin is a **portable package** in the open [Agent Plugins v1.0.0 format](https://agent-plugins.org/specification). It bundles a `plugin.json` manifest, **skills** and **MCP servers** (`mcp.json`). LIA supports skills and remote Streamable HTTP MCP servers over HTTPS. Other transports and client-specific extension behavior are outside this support; the import report identifies unsupported components. A package used by another assistant may contain components LIA cannot run.
 
 ## How do I install a plugin?
-In **Settings > Plugins**, import a **.zip file** or paste an **https link** to a plugin package. Both paths go through the same hardened pipeline as individual skill imports (bounded extraction, zip-bomb and path-traversal guards, SSRF-validated URL fetch). Quotas are pre-checked before anything is written — an install is never left half-done. Limits: 10 plugins max per user; the plugin's skills and MCP servers count toward the existing per-user quotas (20 skills, 20 MCP servers).
+In **Settings > Plugins**, import a **.zip file** or paste an **https link** to a plugin package. Both paths use bounded extraction, zip-bomb and path-traversal guards, and an SSRF-validated URL fetch. Components are processed individually: the report can show loaded and skipped components, with reasons. Read it to check what was installed. Plugin, skill and MCP server quotas are configured by the instance; imported components count toward them.
 
 ## What does the import report show?
 Every install ends with a **per-component report**: each skill and each MCP server is listed as **installed**, **updated**, **skipped** (with a translated reason) or **removed**. Nothing is ever silently dropped. Typical skip reasons: a server type LIA deliberately does not run (`stdio` — never launched on a multi-user server), the legacy `sse` transport, a non-HTTPS endpoint (security policy), or a name already used by one of your existing skills or servers.

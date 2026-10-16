@@ -9,7 +9,9 @@ Created: 2026-03-10
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Protocol
+from collections.abc import Mapping
+from types import MappingProxyType
+from typing import TYPE_CHECKING, Any, Final, Protocol
 from uuid import UUID
 
 import structlog
@@ -40,9 +42,9 @@ class ConnectorCatalogue(Protocol):
 # GMAIL (deprecated) is functionally equivalent to GOOGLE_GMAIL.
 # This map lets the resolver treat legacy types as their canonical counterparts
 # without polluting CONNECTOR_FUNCTIONAL_CATEGORIES (which enforces 2-member categories).
-_LEGACY_CONNECTOR_ALIASES: dict[ConnectorType, ConnectorType] = {
-    ConnectorType.GMAIL: ConnectorType.GOOGLE_GMAIL,
-}
+LEGACY_CONNECTOR_ALIASES: Final[Mapping[ConnectorType, ConnectorType]] = MappingProxyType(
+    {ConnectorType.GMAIL: ConnectorType.GOOGLE_GMAIL}
+)
 
 
 async def _resolve_active_connector(
@@ -82,7 +84,7 @@ async def _resolve_active_connector(
     for connector in response.connectors:
         ct = connector.connector_type
         # Resolve legacy aliases (e.g., GMAIL → GOOGLE_GMAIL)
-        canonical_ct = _LEGACY_CONNECTOR_ALIASES.get(ct, ct)
+        canonical_ct = LEGACY_CONNECTOR_ALIASES.get(ct, ct)
         # A keyless type is never read from a row: the instance decides it below.
         if (
             canonical_ct in category_types
@@ -172,7 +174,7 @@ async def find_error_connector_type(
     response = await connector_service.get_user_connectors(user_id)
     for connector in response.connectors:
         ct = connector.connector_type
-        canonical_ct = _LEGACY_CONNECTOR_ALIASES.get(ct, ct)
+        canonical_ct = LEGACY_CONNECTOR_ALIASES.get(ct, ct)
         if canonical_ct in category_types and connector.status == ConnectorStatus.ERROR:
             return ConnectorType(canonical_ct).value
     return None

@@ -8,6 +8,8 @@
 ---
 
 > **Amendé par ADR-304 (2026-09-22)** : les rappels ne sont plus verrouillés par lot. Un rappel est réclamé seul (`claim_next_due`, PROCESSING committé aussitôt), notifié sans transaction ouverte, réglé sous condition de sa réclamation, et une réclamation abandonnée est libérée sur `updated_at`. Le code ci-dessous (`get_and_lock_pending_reminders`) est historique. Voir [ADR-304](ADR-304-No-Transaction-Across-A-Network-Call.md).
+>
+> **Amendé le 2026-10-13** : un leader qui perd son bail met ses jobs en pause et attend de nouveau le bail, et l'arrêt ne démarre plus aucun job. Voir [l'amendement en fin de document](#amendement-2026-10-13--un-leader-qui-perd-son-bail-sefface-un-arrêt-ne-démarre-plus-rien).
 
 ## Context and Problem Statement
 
@@ -738,6 +740,44 @@ background_job_errors_total.labels(job_name="currency_sync").inc()
 - [x] ✅ Graceful shutdown via lifespan
 - [x] ✅ FCM push notification integration
 - [x] ✅ LLM personalized message generation
+
+---
+
+## Amendement 2026-10-13 — un leader qui perd son bail s'efface, un arrêt ne démarre plus rien
+
+Prouvé à l'exécution, jamais survenu en production : un worker qui perdait son bail le
+journalisait (`scheduler_leader_lease_lost`) mais gardait TOUS ses jobs en marche — deux
+planificateurs — et ne relançait jamais la réélection, créée au seul démarrage. Mesuré sur les
+journaux dev, trente jours : le renouvellement du bail a été sauté sept fois, chaque fois 1 à
+2,6 s en retard, car APScheduler saute par défaut une exécution en retard de plus d'une seconde.
+
+1. **Le renouvellement tolère un intervalle de retard** (`misfire_grace_time` égal à
+   l'intervalle de renouvellement).
+2. **Bail perdu ou non vérifiable : le worker s'efface** (`SchedulerLeaderElector._step_down`).
+   Une erreur Redis au renouvellement ne confirme pas que le bail lui appartient encore ;
+   elle impose la même pause et une nouvelle élection avant de lancer d'autres jobs.
+   Son planificateur
+   est mis en pause — un job en cours se termine, aucun ne démarre, le renouvellement compris —
+   et la réélection en arrière-plan reprend comme au démarrage. Réélu, il reprend (`resume()`) :
+   `running` est vrai en pause dans APScheduler 3.x, si bien qu'un `start()` gardé par
+   `running` ne l'aurait jamais relancé. À la reprise, APScheduler applique ses règles de
+   retard : un job échu pendant la pause s'exécute une fois s'il est encore dans sa tolérance
+   (`misfire_grace_time`, coalescé), même s'il a tourné entre-temps sur l'autre leader.
+3. **Arrêt** : `pause_jobs()` ouvre la séquence d'arrêt — aucun job ne démarre pendant le
+   drainage — et `shutdown()` arrête le planificateur juste après le drainage, avant tout ce dont
+   ses jobs ont besoin (ordre dans [l'amendement 2026-10-13 d'ADR-123](ADR-123-Lifespan-Startup-Decomposition.md#amendment-2026-10-13--the-shutdown-starts-nothing-new-and-stops-the-scheduler-before-its-jobs-needs)).
+   `AsyncIOScheduler.shutdown()` ne fait que programmer l'arrêt au tour de boucle suivant :
+   `shutdown()` cède ce tour, si bien que les jobs encore en cours sont annulés avant son retour.
+   Un worker qui s'arrête n'attend plus le bail, et un bail gagné pendant l'arrêt est rendu
+   aussitôt (`scheduler_leader_lease_returned_at_shutdown`) : c'est un worker vivant qui doit
+   prendre les jobs. Le bail est rendu par le script de propriété quel que soit le drapeau
+   local : une réélection annulée en plein `SET NX` peut le détenir à son insu, et le bail d'un
+   autre worker n'est jamais touché.
+
+Gardes : `TestALostLeaseStopsTheJobs` et `TestAShutdownStartsNothing`
+(`tests/unit/infrastructure/scheduler/test_leader_elector.py`, sur un vrai `AsyncIOScheduler`).
+Prouvé sur le Redis de dev : élu, bail volé (pause, aucun tick, réélection), réélu (reprise),
+`pause_jobs` (aucun tick), `shutdown` (arrêté, bail rendu).
 
 ---
 

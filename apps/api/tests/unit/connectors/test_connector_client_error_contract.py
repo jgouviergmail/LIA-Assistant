@@ -6,8 +6,8 @@ raises typed ``BaseAPIException`` subclasses. These tests pin the three
 invariants of that migration:
 
 1. **Mapping** — each client failure category raises the documented typed
-   exception with the SAME status code, detail and headers as the legacy raw
-   ``HTTPException`` (byte-identical external contract).
+   exception with the same status code and headers. Provider bodies and private
+   network exception text are replaced by status/type descriptions (ADR-317).
 2. **Edge contract** — FastAPI renders the typed exceptions exactly like raw
    ``HTTPException`` (``{"detail": ...}`` payload, status code, headers), so
    the external API contract is unchanged by construction.
@@ -172,7 +172,7 @@ class TestOAuthBaseMakeRequestMapping:
         exc = exc_info.value
         assert isinstance(exc, HTTPException)
         assert exc.status_code == 403
-        assert exc.detail == "google_contacts API error: forbidden"
+        assert exc.detail == "google_contacts API error: HTTP 403"
 
     @pytest.mark.asyncio
     async def test_network_failure_maps_to_external_service_error_503(self, google_client):
@@ -189,7 +189,7 @@ class TestOAuthBaseMakeRequestMapping:
 
         exc = exc_info.value
         assert exc.status_code == 503
-        assert exc.detail == "google_contacts API unavailable: boom"
+        assert exc.detail == "google_contacts API unavailable: ConnectError"
 
     @pytest.mark.asyncio
     async def test_retry_exhaustion_maps_to_external_service_error_503(self, google_client):
@@ -378,7 +378,7 @@ class TestMicrosoftFullUrlMapping:
                 )
 
         assert exc_info.value.status_code == 503
-        assert exc_info.value.detail == "microsoft_outlook API unavailable: boom"
+        assert exc_info.value.detail == "microsoft_outlook API unavailable: ConnectError"
 
     @pytest.mark.asyncio
     async def test_retry_exhaustion_maps_to_external_service_error_503(self, microsoft_client):
@@ -418,7 +418,7 @@ class TestGoogleRawRequestMapping:
                 await google_client._make_raw_request("GET", "/files/abc")
 
         assert exc_info.value.status_code == 400
-        assert exc_info.value.detail == "google_contacts API error: Bad Request"
+        assert exc_info.value.detail == "google_contacts API error: HTTP 400"
 
     @pytest.mark.asyncio
     async def test_network_failure_maps_to_external_service_error_503(self, google_client):
@@ -434,7 +434,7 @@ class TestGoogleRawRequestMapping:
                 await google_client._make_raw_request("GET", "/files/abc")
 
         assert exc_info.value.status_code == 503
-        assert exc_info.value.detail == "google_contacts API unavailable: boom"
+        assert exc_info.value.detail == "google_contacts API unavailable: ConnectError"
 
     @pytest.mark.asyncio
     async def test_retry_exhaustion_maps_to_external_service_error_503(self, google_client):
@@ -475,8 +475,8 @@ class TestPlacesClientMapping:
         )
 
     @pytest.mark.asyncio
-    async def test_upstream_4xx_maps_to_connector_api_error_with_truncated_detail(self):
-        """Upstream 4xx forwards the status; response body is truncated to 200 chars."""
+    async def test_upstream_4xx_maps_to_connector_api_error_without_provider_prose(self):
+        """Upstream 4xx forwards the status without publishing its body."""
         client = GooglePlacesClient(user_id=uuid4(), language="fr")
         response = Mock(status_code=400, text="x" * 500)
         client._http_client = _mock_http_client(response)
@@ -491,7 +491,7 @@ class TestPlacesClientMapping:
 
         exc = exc_info.value
         assert exc.status_code == 400
-        assert exc.detail == "Google Places API error: " + "x" * 200
+        assert exc.detail == "Google Places API: HTTP 400"
 
     @pytest.mark.asyncio
     async def test_reverse_geocode_upstream_error_maps_to_connector_api_error(self):
@@ -509,11 +509,11 @@ class TestPlacesClientMapping:
                 await client.reverse_geocode(48.8584, 2.2945)
 
         assert exc_info.value.status_code == 403
-        assert exc_info.value.detail == "Google Geocoding API error: denied"
+        assert exc_info.value.detail == "Google Geocoding API: HTTP 403"
 
     @pytest.mark.asyncio
     async def test_network_failure_maps_to_external_service_error_503(self):
-        """Places network exhaustion keeps the legacy 503 detail verbatim."""
+        """Places network exhaustion keeps 503 without private transport prose."""
         client = GooglePlacesClient(user_id=uuid4(), language="fr")
         client._http_client = _mock_http_client(httpx.ConnectError("boom"))
 
@@ -527,7 +527,7 @@ class TestPlacesClientMapping:
                 await client._make_request("POST", "/places:searchText")
 
         assert exc_info.value.status_code == 503
-        assert exc_info.value.detail == "Google Places API connection error: boom"
+        assert exc_info.value.detail == "Google Places API connection failed"
 
     @pytest.mark.asyncio
     async def test_retry_exhaustion_maps_to_external_service_error_503(self):
@@ -550,7 +550,7 @@ class TestPlacesClientMapping:
 
     @pytest.mark.asyncio
     async def test_reverse_geocode_network_failure_maps_to_external_service_error(self):
-        """Geocoding network failure keeps the legacy 503 detail verbatim."""
+        """Geocoding network failure keeps 503 without private transport prose."""
         client = GooglePlacesClient(user_id=uuid4(), language="fr")
         client._http_client = _mock_http_client(httpx.ConnectError("boom"))
 
@@ -563,7 +563,7 @@ class TestPlacesClientMapping:
                 await client.reverse_geocode(48.8584, 2.2945)
 
         assert exc_info.value.status_code == 503
-        assert exc_info.value.detail == "Google Geocoding API unavailable: boom"
+        assert exc_info.value.detail == "Google Geocoding API connection failed"
 
 
 class TestRoutesClientMapping:
@@ -593,11 +593,11 @@ class TestRoutesClientMapping:
                 await client.compute_route(origin="Paris", destination="Lyon")
 
         assert exc_info.value.status_code == 400
-        assert exc_info.value.detail == "Google Routes API error: bad request"
+        assert exc_info.value.detail == "Google Routes API: HTTP 400"
 
     @pytest.mark.asyncio
     async def test_network_failure_maps_to_external_service_error_503(self):
-        """Routes network failure keeps the legacy 503 detail verbatim."""
+        """Routes network failure keeps 503 without private transport prose."""
         client = GoogleRoutesClient(language="fr")
         client._client = _mock_http_client(httpx.ConnectError("boom"))
         client._client.is_closed = False
@@ -608,7 +608,7 @@ class TestRoutesClientMapping:
                 await client.compute_route(origin="Paris", destination="Lyon")
 
         assert exc_info.value.status_code == 503
-        assert exc_info.value.detail == "Google Routes API unavailable: boom"
+        assert exc_info.value.detail == "Google Routes API connection failed"
 
     @pytest.mark.asyncio
     async def test_matrix_upstream_error_maps_to_connector_api_error(self):
@@ -624,11 +624,11 @@ class TestRoutesClientMapping:
                 await client.compute_route_matrix(origins=["Paris"], destinations=["Lyon"])
 
         assert exc_info.value.status_code == 400
-        assert exc_info.value.detail == "Google Routes Matrix API error: matrix bad"
+        assert exc_info.value.detail == "Google Routes Matrix API: HTTP 400"
 
     @pytest.mark.asyncio
     async def test_matrix_network_failure_maps_to_external_service_error_503(self):
-        """Matrix network failure keeps the legacy 503 detail verbatim."""
+        """Matrix network failure keeps 503 without private transport prose."""
         client = GoogleRoutesClient(language="fr")
         client._client = _mock_http_client(httpx.ConnectError("boom"))
         client._client.is_closed = False
@@ -639,7 +639,7 @@ class TestRoutesClientMapping:
                 await client.compute_route_matrix(origins=["Paris"], destinations=["Lyon"])
 
         assert exc_info.value.status_code == 503
-        assert exc_info.value.detail == "Google Routes Matrix API unavailable: boom"
+        assert exc_info.value.detail == "Google Routes Matrix API connection failed"
 
     @pytest.mark.asyncio
     async def test_matrix_over_625_elements_maps_to_validation_error_400(self):
@@ -780,7 +780,7 @@ class TestEdgeContractParity:
 
 class TestToolPathClassification:
     def test_handle_tool_exception_keeps_internal_error_code_and_message_format(self):
-        """ConnectorTool.handle_error path: same error_code, str(e) format kept."""
+        """Classification stays stable; provider text is not trusted model metadata."""
         from src.domains.agents.tools.runtime_helpers import handle_tool_exception
 
         detail = APIMessages.connector_auth_invalid("google_calendar")
@@ -791,9 +791,10 @@ class TestToolPathClassification:
         assert output.success is False
         assert output.error_code == "INTERNAL_ERROR"
         assert output.metadata[FIELD_ERROR_TYPE] == "AuthenticationError"
-        # Starlette's HTTPException.__str__ ("<status>: <detail>") is inherited,
-        # so the message consumed by the LLM keeps the legacy format.
-        assert output.metadata[FIELD_ERROR_MESSAGE] == f"401: {detail}"
+        assert output.metadata[FIELD_ERROR_MESSAGE] == APIMessages.internal_error(
+            "AuthenticationError"
+        )
+        assert detail not in output.metadata[FIELD_ERROR_MESSAGE]
 
     def test_handle_connector_api_error_still_matches_http_exception_branch(self):
         """The isinstance(HTTPException) branch still classifies typed exceptions."""

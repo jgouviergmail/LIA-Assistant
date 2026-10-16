@@ -65,12 +65,14 @@ class BrowserSettings(BaseSettings):
 
     browser_react_max_iterations: int = Field(
         default=BROWSER_REACT_MAX_ITERATIONS_DEFAULT,
-        ge=1,
+        # Below 4 no tool round fits before the closing pass: an acting loop
+        # that cannot act (tool_rounds_for in react_runner_budget).
+        ge=4,
         le=50,
         description=(
-            "Max ReAct iterations for the browser agent loop "
-            "(create_react_agent recursion_limit). Each iteration is one "
-            "LLM call plus the resulting browser tool execution."
+            "LangGraph recursion limit of the browser agent loop, in graph STEPS: "
+            "N//2 model calls at most, the last one a closing pass without tools "
+            "that reports what was done (react_runner_budget, ADR-083)."
         ),
     )
 
@@ -82,7 +84,10 @@ class BrowserSettings(BaseSettings):
         default=1,
         ge=1,
         le=10,
-        description="Maximum concurrent browser sessions globally (coordinated via Redis).",
+        description=(
+            "Maximum logical user browser sessions with Redis coordination; "
+            "also bounds each worker locally during a Redis outage."
+        ),
     )
 
     browser_session_timeout_seconds: int = Field(
@@ -158,13 +163,6 @@ class BrowserSettings(BaseSettings):
     # ========================================================================
     # Resource Limits
     # ========================================================================
-
-    browser_memory_limit_mb: int = Field(
-        default=1024,
-        ge=128,
-        le=2048,
-        description="Memory limit per browser instance (MB). Navigation refused if exceeded.",
-    )
 
     browser_progressive_screenshots: bool = Field(
         default=True,

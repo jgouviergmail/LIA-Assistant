@@ -146,3 +146,35 @@ espace-séparée inopérante ; les accents sont optionnels partout.
   `.../formatters/test_data_for_filtering_trust.py`,
   `.../tools/test_react_wrapper_trust.py`
 - Doctrine de complétude : ADR-085
+
+## Amendement 2026-10-13 — une balise s'écrit de bien des façons, et la surveillance lit comme un modèle
+
+Mesuré avant correction (points 4 et 30) :
+
+- **L'échappement ne connaissait qu'une graphie.** `</EXTERNAL_CONTENT>`, un
+  crochet pleine chasse ou de petite forme, des lettres pleine chasse, un espace
+  ou un caractère invisible dans le nom : autant de façons de fermer l'enveloppe
+  pour un modèle, qu'aucun remplacement exact ne voyait. Désormais, chaque
+  crochet est jugé sur une courte fenêtre normalisée (NFKC, casse, blancs et
+  caractères de format retirés). S'il nomme la balise, il s'écrit `&lt;`.
+  La comparaison avance caractère par caractère et s'arrête au premier écart.
+  Normaliser la fenêtre entière coûtait 1,2 s sur 40 000 caractères de `<e`
+  (mesuré) ; le coût est désormais linéaire.
+- **La surveillance lisait le texte brut.** Elle lit maintenant une copie
+  normalisée (NFKC + casse), car `ＳＹＳＴＥＭ` est `SYSTEM` pour un tokenizer.
+  Les jetons de contrôle des gabarits ouverts (ChatML, Llama 3, Gemma) comptent
+  comme marqueurs de rôle. Le détournement admet quatre mots de remplissage
+  (« ignore all of the previous instructions » en a trois). Les caractères du
+  bloc Tag hors d'un drapeau de subdivision comptent comme texte invisible, au
+  niveau d'alerte.
+- **La famille « directive HTML masquée » était quadratique** : 20 000
+  caractères de `<!--` coûtaient 3 s sur le chemin de la réponse. Elle se lit
+  désormais en une passe, comme un navigateur (de `<!--` au premier `-->`).
+- `strip_external_markers`, sans appelant, est supprimée avec ses tests.
+
+Limite assumée, non mesurée sur un modèle : NFKC ne replie pas les homoglyphes.
+Une balise écrite avec un « е » cyrillique n'est ni neutralisée ni signalée.
+
+Gardes : `TestEverySpellingOfTheTagIsNeutralised` (`test_content_wrapper.py`),
+les nouveaux corpus et `test_the_scan_stays_linear_on_hostile_input`
+(`test_content_wrapper_injection.py`).

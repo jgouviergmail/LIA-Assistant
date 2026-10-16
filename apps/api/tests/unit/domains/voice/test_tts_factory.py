@@ -15,6 +15,8 @@ from src.domains.voice.factory import (
     TTSProvider,
     get_tts_client_sync,
     get_tts_config,
+    serve_tts,
+    served_config,
 )
 from src.domains.voice.families import (
     TTS_FAMILIES,
@@ -23,6 +25,7 @@ from src.domains.voice.families import (
     controls_for,
     family_of,
 )
+from src.domains.voice.fishaudio.tts_client import FishAudioTTSClient
 from src.domains.voice.gemini_tts_client import GeminiTTSClient
 from src.domains.voice.openai_tts_client import OpenAITTSClient
 
@@ -48,10 +51,11 @@ class TestFamilies:
     def test_an_unknown_provider_is_not_served(self) -> None:
         assert family_of("azure") is None
 
-    def test_only_gemini_bills_tokens_and_only_edge_is_free(self) -> None:
+    def test_every_family_declares_the_unit_it_is_billed_in(self) -> None:
         by_billing = {f.provider: f.billing for f in TTS_FAMILIES.values()}
         assert by_billing["gemini"] is TtsBilling.TOKENS
         assert by_billing["edge"] is TtsBilling.FREE
+        assert by_billing["fishaudio"] is TtsBilling.UTF8_BYTES
         assert {p for p, b in by_billing.items() if b is TtsBilling.CHARACTERS} == {
             "openai",
             "elevenlabs",
@@ -112,43 +116,103 @@ class TestServing:
             get_tts_client_sync(config("elevenlabs"), strict=True), ElevenLabsTTSClient
         )
 
-    def test_a_token_billed_engine_goes_to_a_caller_that_records_tokens(
+    async def test_a_byte_billed_engine_with_its_key_and_its_tuning(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        keys(monkeypatch, "fishaudio")
+        cfg = TTSConfig(
+            provider="fishaudio",
+            model="s2.1-pro-free",
+            voice_male="a",
+            voice_female="b",
+            output_format="pcm_24000",
+            latency="balanced",
+            speed=1.1,
+        )
+        client = get_tts_client_sync(cfg, strict=True)
+        try:
+            assert isinstance(client, FishAudioTTSClient)
+            assert client.model == "s2.1-pro-free"
+            assert client.audio_format == "pcm"
+        finally:
+            await client.close()
+
+    @pytest.mark.parametrize("strict", [True, False])
+    async def test_a_token_billed_engine_is_served_to_every_caller(
+        self, monkeypatch: pytest.MonkeyPatch, strict: bool
+    ) -> None:
+        """Every caller records through ``speak``, which bills the tokens the
+        vendor reports: the chat used to be handed Edge for a Gemini slot."""
         keys(monkeypatch, "gemini")
-        client = get_tts_client_sync(config("gemini"), strict=True, records_tokens=True)
-        assert isinstance(client, GeminiTTSClient)
+        client = get_tts_client_sync(config("gemini"), strict=strict)
+        try:
+            assert isinstance(client, GeminiTTSClient)
+        finally:
+            await client.close()
 
     @pytest.mark.parametrize(
-        ("provider", "present", "records_tokens", "reason"),
+        ("provider", "reason"),
         [
-            ("openai", (), False, "api_key_missing"),
-            ("gemini", ("gemini",), False, "billing_units"),
-            ("gemini", (), True, "api_key_missing"),
-            ("azure", (), True, "no_client"),
+            ("openai", "api_key_missing"),
+            ("gemini", "api_key_missing"),
+            ("fishaudio", "api_key_missing"),
+            ("azure", "no_client"),
         ],
     )
     def test_a_strict_caller_is_refused_never_substituted(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-        provider: str,
-        present: tuple[str, ...],
-        records_tokens: bool,
-        reason: str,
+        self, monkeypatch: pytest.MonkeyPatch, provider: str, reason: str
     ) -> None:
-        keys(monkeypatch, *present)
+        keys(monkeypatch)
         with pytest.raises(TTSProviderError) as caught:
-            get_tts_client_sync(config(provider), strict=True, records_tokens=records_tokens)
+            get_tts_client_sync(config(provider), strict=True)
         assert caught.value.code == "tts_unavailable"
         assert isinstance(caught.value.details, dict)
         assert caught.value.details["reason"] == reason
 
-    @pytest.mark.parametrize("provider", ["openai", "gemini", "azure"])
+    @pytest.mark.parametrize("provider", ["openai", "gemini", "fishaudio", "azure"])
     def test_a_lenient_caller_keeps_speaking_through_edge(
         self, monkeypatch: pytest.MonkeyPatch, provider: str
     ) -> None:
         keys(monkeypatch)
         assert isinstance(get_tts_client_sync(config(provider)), EdgeTTSClient)
+
+    def test_a_substituted_client_comes_with_its_own_configuration(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The configured engine's voice ids mean nothing to Edge: a caller that
+        read them from the configuration it asked for heard silence."""
+        keys(monkeypatch)
+        served = serve_tts(config("elevenlabs", model="eleven_v4"))
+        assert isinstance(served.client, EdgeTTSClient)
+        assert (served.config.provider, served.config.model) == ("edge", "edge-tts")
+        assert served.config.voice_female.endswith("Neural")
+        assert served.config.voice_male.endswith("Neural")
+
+    @pytest.mark.parametrize("present", [(), ("openai",)])
+    async def test_the_engine_that_speaks_is_known_without_building_a_client(
+        self, monkeypatch: pytest.MonkeyPatch, present: tuple[str, ...]
+    ) -> None:
+        # What a page offers LIA's voices from (ADR-345 amendment): the engine the
+        # lenient serve builds, decided the same way.
+        keys(monkeypatch, *present)
+        asked = config("openai", model="tts-1")
+        served = serve_tts(asked)
+        try:
+            assert served_config(asked) == served.config
+        finally:
+            await served.client.close()
+
+    async def test_a_served_client_comes_with_the_configuration_asked_for(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        keys(monkeypatch, "openai")
+        asked = config("openai", model="tts-1")
+        served = serve_tts(asked)
+        try:
+            assert served.config is asked
+            assert isinstance(served.client, OpenAITTSClient)
+        finally:
+            await served.client.close()
 
 
 class TestConfig:
@@ -169,3 +233,22 @@ class TestConfig:
         assert (cfg.provider, cfg.model, cfg.voice_male) == ("gemini", "gemini-tts", "Puck")
         assert cfg.voice_female == "Kore"  # the family's default female voice
         assert cfg.extras["cast"] == {"host": "Kore"}
+
+    async def test_a_fish_slot_reads_its_tuning_and_has_default_voices(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        override: dict[str, Any] = {
+            "provider": "fishaudio",
+            "model": "s2.1-pro",
+            "provider_config": '{"latency": "balanced", "speed": 1.1, "output_format": "pcm_24000"}',
+        }
+        monkeypatch.setattr(
+            LLMConfigOverrideCache,
+            "get_override",
+            classmethod(lambda cls, slot: override if slot == "voice_tts" else None),
+        )
+        cfg = await get_tts_config("voice_tts")
+        assert (cfg.latency, cfg.speed, cfg.output_format) == ("balanced", 1.1, "pcm_24000")
+        for voice in (cfg.voice_male, cfg.voice_female):
+            assert len(voice) == 32 and int(voice, 16) >= 0  # a library model id
+        assert cfg.voice_male != cfg.voice_female

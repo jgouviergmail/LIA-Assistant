@@ -86,9 +86,9 @@ User Query
     │
     ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  4. ADAPTIVE REPLANNER                                       │
-│     - Analyze results (check for empty_results, errors)     │
-│     - Decide if replanning needed                           │
+│  4. RESPONSE NODE                                            │
+│     - Synthesize the results                                │
+│     - State each failed step (failures directive)           │
 └─────────────────────────────────────────────────────────────┘
     │
     ▼
@@ -1186,24 +1186,6 @@ Tool 'my_tool' not found in registry
 **Cause** : Tool non enregistré dans `_register_tool_instances()`.
 
 **Solution** : Ajouter import + `registry.register_tool_instance()`.
-
----
-
-### Erreur #9 : Adaptive Replanner détecte empty_results
-
-**Symptôme** : Tool retourne des données mais replanner dit "empty_results".
-
-**Cause** : Le pattern de détection ne reconnaît pas la clé de résultats.
-
-**Solution** : Dans `adaptive_replanner.py`, ajouter la clé dans le pattern :
-```python
-for key in ["contacts", "emails", "events", "reminders", "items", ...]:
-```
-
-Et vérifier la clé de count :
-```python
-count_value = step_data.get("count") or step_data.get("total") or 0
-```
 
 ---
 

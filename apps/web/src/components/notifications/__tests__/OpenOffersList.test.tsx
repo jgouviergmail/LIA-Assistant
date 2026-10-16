@@ -22,7 +22,18 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'fr' } }),
 }));
 
-import { OpenOffersList } from '../OpenOffersList';
+import {
+  OpenOffersList as OffersView,
+  useOfferDecisions,
+  type OpenOffersListProps,
+} from '../OpenOffersList';
+
+function OpenOffersList(
+  props: Omit<OpenOffersListProps, 'decisions'> & { lng: string; onDecided: () => void }
+) {
+  const decisions = useOfferDecisions(props);
+  return <OffersView {...props} decisions={decisions} />;
+}
 import type { HeartbeatNotification } from '@/hooks/useHeartbeatHistory';
 
 function offer(over: Partial<HeartbeatNotification> = {}): HeartbeatNotification {
@@ -88,4 +99,38 @@ describe('OpenOffersList', () => {
     expect(openChatDeepLink).not.toHaveBeenCalled();
     expect(onDecided).not.toHaveBeenCalled();
   });
+});
+
+it('prevents repeated decisions while the first request is pending', async () => {
+  let complete!: () => void;
+  patchMock.mockImplementation(
+    () =>
+      new Promise<void>(resolve => {
+        complete = resolve;
+      })
+  );
+  const onDecided = vi.fn();
+  render(<OpenOffersList offers={[offer()]} lng="fr" locale="fr-FR" onDecided={onDecided} />);
+  const accept = screen.getByRole('button', { name: 'notifications_hub.sections.offers.accept' });
+  fireEvent.click(accept);
+  expect(accept).toHaveAttribute('aria-disabled', 'true');
+  expect(
+    screen.getByRole('button', { name: 'notifications_hub.sections.offers.dismiss' })
+  ).toHaveAttribute('aria-disabled', 'true');
+  fireEvent.click(accept);
+  expect(patchMock).toHaveBeenCalledTimes(1);
+  expect(openChatDeepLink).not.toHaveBeenCalled();
+  complete();
+  await waitFor(() => expect(onDecided).toHaveBeenCalledTimes(1));
+});
+
+it('does not let a successful decision be repeated while stale data remains displayed', async () => {
+  const onDecided = vi.fn();
+  render(<OpenOffersList offers={[offer()]} lng="fr" locale="fr-FR" onDecided={onDecided} />);
+  const decline = screen.getByRole('button', { name: 'notifications_hub.sections.offers.dismiss' });
+  fireEvent.click(decline);
+  await waitFor(() => expect(onDecided).toHaveBeenCalledTimes(1));
+  expect(decline).toHaveAttribute('aria-disabled', 'true');
+  fireEvent.click(decline);
+  expect(patchMock).toHaveBeenCalledTimes(1);
 });

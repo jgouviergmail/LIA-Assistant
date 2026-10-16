@@ -1,30 +1,20 @@
-/**
- * PsycheSettings — redesigned settings section for the Psyche Engine.
- *
- * 4 collapsible sections:
- * 1. LLM Summary (natural language state description)
- * 2. Education (interactive concept documentation)
- * 3. History (chronological evolution)
- * 4. Settings (toggles, sliders, reset)
- *
- * Phase: evolution — Psyche Engine (Iteration 2)
- * Created: 2026-04-01
- */
-
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { Activity, BookOpen, Brain, ChartLine, RefreshCw, Settings } from 'lucide-react';
+import { useId, useRef, useState } from 'react';
+import { BookOpen, Brain, ChartLine, RefreshCw, RotateCcw, SlidersHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
-
 import { usePsyche } from '@/hooks/usePsyche';
+import { useAuth } from '@/hooks/useAuth';
+import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
+import type { PsycheSettings as PsychePreferencesData, PsycheSettingsUpdate } from '@/types/psyche';
 import { PsycheLLMSummary } from '@/components/psyche/PsycheLLMSummary';
 import { PsycheStateSummary } from '@/components/psyche/PsycheStateSummary';
 import { PsycheEducation } from '@/components/psyche/PsycheEducation';
 import { PsycheHistory } from '@/components/psyche/PsycheHistory';
-import { SettingsSection } from '@/components/settings/SettingsSection';
+import { SettingsSection } from './SettingsSection';
 import {
   Accordion,
   AccordionContent,
@@ -46,337 +36,378 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface PsycheSettingsProps {
   lng: Language;
 }
 
-export function PsycheSettings({ lng }: PsycheSettingsProps) {
-  const { t } = useTranslation(lng, 'translation');
-  const { settings, isUpdatingSettings, isResetting, updateSettings, resetPsyche } = usePsyche();
+export function PsycheSettings(props: PsycheSettingsProps) {
+  const { user } = useAuth();
+  return <OwnedPsycheSettings key={user?.id ?? 'anonymous'} {...props} ownerId={user?.id} />;
+}
 
-  // Track which accordion sections are open (for conditional data fetching)
-  const [openSections, setOpenSections] = useState<string[]>([]);
-
-  // Refresh key — incremented to trigger refetch of LLM summary + state
+function OwnedPsycheSettings({
+  lng,
+  ownerId,
+}: PsycheSettingsProps & { ownerId: string | undefined }) {
+  const { t } = useTranslation(lng);
+  const { isCurrent } = useApplicationAccountLifetime(ownerId);
+  const {
+    settings,
+    state,
+    error,
+    settingsError,
+    isLoading,
+    isUpdatingSettings,
+    isResetting,
+    updateSettings,
+    resetPsyche,
+    refetchState,
+    refetchSettings,
+  } = usePsyche();
+  const desktop = useMediaQuery('(min-width: 768px)');
+  const [open, setOpen] = useState<string[] | null>(null);
+  const openObservations = open ?? (desktop ? ['evolution'] : []);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [resetVersion, setResetVersion] = useState(0);
+  const [pending, setPending] = useState(false);
+  const lock = useRef(false);
+  const busy = pending || isUpdatingSettings || isResetting;
 
-  // Controlled local state for sliders (initial 0, synced from server via useEffect)
-  const [localSensitivity, setLocalSensitivity] = useState(0);
-  const [localStability, setLocalStability] = useState(0);
-
-  // Sync from server
-  useEffect(() => {
-    if (settings) {
-      setLocalSensitivity(settings.psyche_sensitivity);
-      setLocalStability(settings.psyche_stability);
+  const perform = async <T,>(
+    operation: () => Promise<T | null | undefined>,
+    successKey: string,
+    errorKey: string
+  ): Promise<T | null> => {
+    if (!isCurrent() || lock.current || isUpdatingSettings || isResetting) return null;
+    lock.current = true;
+    setPending(true);
+    try {
+      const result = await operation();
+      if (!isCurrent() || result === null) return null;
+      if (!result) throw new Error('Psyche mutation was not acknowledged');
+      toast.success(t(successKey));
+      return result;
+    } catch {
+      if (isCurrent()) toast.error(t(errorKey));
+      return null;
+    } finally {
+      lock.current = false;
+      if (isCurrent()) setPending(false);
     }
-  }, [settings]);
-
-  const handleToggle = useCallback(
-    async (field: 'psyche_enabled' | 'psyche_display_avatar', value: boolean) => {
-      try {
-        const result = await updateSettings({ [field]: value });
-        if (result === null) return;
-        if (!result) throw new Error('Psyche settings update was not acknowledged');
-        toast.success(t('psyche.settingsUpdated', 'Settings updated'));
-      } catch {
-        toast.error(t('psyche.settingsError', 'Failed to update settings'));
-      }
-    },
-    [updateSettings, t]
-  );
-
-  const handleSliderCommit = useCallback(
-    async (field: 'psyche_sensitivity' | 'psyche_stability', value: number) => {
-      try {
-        const result = await updateSettings({ [field]: value });
-        if (result === null) return;
-        if (!result) throw new Error('Psyche settings update was not acknowledged');
-        toast.success(t('psyche.settingsUpdated', 'Settings updated'));
-      } catch {
-        toast.error(t('psyche.settingsError', 'Failed to update settings'));
-      }
-    },
-    [updateSettings, t]
-  );
-
-  const handleReset = useCallback(
-    async (level: 'soft' | 'full') => {
-      try {
-        const result = await resetPsyche(level);
-        if (result === null) return;
-        if (!result) throw new Error('Psyche reset was not acknowledged');
-        toast.success(t('psyche.resetSuccess', 'Psyche state reset successfully'));
-      } catch {
-        toast.error(t('psyche.resetError', 'Failed to reset psyche state'));
-      }
-    },
-    [resetPsyche, t]
-  );
-
+  };
+  const save = (data: PsycheSettingsUpdate) =>
+    perform(() => updateSettings(data), 'psyche.settingsUpdated', 'psyche.settingsError');
+  const reset = async (level: 'soft' | 'full') => {
+    const result = await perform(
+      () => resetPsyche(level),
+      'psyche.resetSuccess',
+      'psyche.resetError'
+    );
+    if (result && isCurrent()) {
+      setResetVersion(value => value + 1);
+      setRefreshKey(value => value + 1);
+    }
+  };
+  const refresh = async () => {
+    if (!isCurrent() || lock.current || busy) return;
+    lock.current = true;
+    setPending(true);
+    try {
+      await Promise.all([refetchState(), refetchSettings()]);
+      if (isCurrent()) setRefreshKey(value => value + 1);
+    } catch {
+      if (isCurrent()) toast.error(t('psyche.presentation.readError'));
+    } finally {
+      lock.current = false;
+      if (isCurrent()) setPending(false);
+    }
+  };
   return (
     <SettingsSection
       value="psyche"
-      title={t('psyche.title', 'Psyche Engine')}
-      description={t('psyche.description', 'Dynamic emotional intelligence system')}
+      className="border-0 bg-transparent shadow-none"
       icon={Brain}
+      title={<PsycheHeading lng={lng} settings={settings} busy={busy || !ownerId} save={save} />}
+      description={t('psyche.description')}
     >
-      <div className="space-y-6">
-        {/* Master toggle — framed like the long-term memory one (owner
-            arbitration 2026-08-05): the switch that turns the whole feature
-            on reads as a card, not as one row among the settings below. */}
-        <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
-          <div className="flex-1">
-            <p className="text-sm font-medium">{t('psyche.enable', 'Enable Psyche Engine')}</p>
-            <p className="text-xs text-muted-foreground">
-              {t(
-                'psyche.enableDescription',
-                'LIA develops emotional states that influence conversation style'
-              )}
-            </p>
-          </div>
-          <Switch
-            checked={settings?.psyche_enabled ?? false}
-            onCheckedChange={v => handleToggle('psyche_enabled', v)}
-            disabled={isUpdatingSettings}
-            aria-label={t('psyche.enable', 'Enable Psyche Engine')}
-          />
-        </div>
-
-        {/* Conditional content when enabled */}
-        {settings?.psyche_enabled && (
-          <Accordion
-            type="multiple"
-            value={openSections}
-            onValueChange={setOpenSections}
-            className="w-full space-y-2"
+      <div className="min-w-0 space-y-5">
+        <Button
+          size="sm"
+          onClick={() => void refresh()}
+          aria-disabled={busy || !ownerId}
+          aria-busy={pending || undefined}
+          className="min-h-10 w-full whitespace-normal sm:w-auto"
+        >
+          <RefreshCw className="size-4" aria-hidden="true" />
+          {t('common.refresh')}
+        </Button>
+        {error && (
+          <p
+            role="alert"
+            className="rounded-lg border border-destructive/25 bg-destructive/5 p-3 text-sm leading-relaxed"
           >
-            {/* 1. Education */}
-            <AccordionItem value="education" className="border rounded-lg px-3">
-              <AccordionTrigger className="py-3 text-sm font-medium hover:no-underline">
-                <span className="flex items-center gap-2">
-                  <BookOpen className="h-4 w-4 text-muted-foreground" />
-                  {t('psyche.education.title', 'Understanding the Psyche')}
-                </span>
-              </AccordionTrigger>
-              <AccordionContent>
+            {t('psyche.presentation.readError')}
+          </p>
+        )}
+        {!settings && isLoading && (
+          <Skeleton label={t('common.loading')} className="h-44 w-full rounded-xl" />
+        )}
+        {settings && (
+          <>
+            <Accordion type="multiple" className="w-full divide-y border-y border-border/60">
+              <PsychePanel value="education" title={t('psyche.education.title')} icon={BookOpen}>
                 <PsycheEducation lng={lng} />
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* 2. LLM Summary + State Details */}
-            <AccordionItem value="summary" className="border rounded-lg px-3">
-              <AccordionTrigger className="py-3 text-sm font-medium hover:no-underline">
-                <span className="flex items-center gap-2">
-                  <Activity className="h-4 w-4 text-muted-foreground" />
-                  {t('psyche.summary.title', 'Psyche State')}
-                </span>
-              </AccordionTrigger>
-              <AccordionContent>
-                <div className="space-y-4 pb-2">
-                  <div className="flex justify-end">
-                    <button
-                      onClick={() => setRefreshKey(k => k + 1)}
-                      className="flex items-center gap-1 text-px-10 text-muted-foreground hover:text-foreground transition-colors"
-                      title={t('psyche.summary.refresh', 'Refresh')}
-                    >
-                      <RefreshCw className="h-3 w-3" />
-                      {t('psyche.summary.refresh', 'Refresh')}
-                    </button>
-                  </div>
-                  <PsycheLLMSummary
-                    lng={lng}
-                    isOpen={openSections.includes('summary')}
-                    refreshKey={refreshKey}
-                  />
-                  <PsycheStateSummary lng={lng} refreshKey={refreshKey} />
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* 3. History */}
-            <AccordionItem value="history" className="border rounded-lg px-3">
-              <AccordionTrigger className="py-3 text-sm font-medium hover:no-underline">
-                <span className="flex items-center gap-2">
-                  <ChartLine className="h-4 w-4 text-muted-foreground" />
-                  {t('psyche.history.title', 'History')}
-                </span>
-              </AccordionTrigger>
-              <AccordionContent>
-                <PsycheHistory lng={lng} isOpen={openSections.includes('history')} />
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* 4. Settings (toggles, sliders, reset) */}
-            <AccordionItem value="settings" className="border rounded-lg px-3">
-              <AccordionTrigger className="py-3 text-sm font-medium hover:no-underline">
-                <span className="flex items-center gap-2">
-                  <Settings className="h-4 w-4 text-muted-foreground" />
-                  {t('psyche.settingsSection.title', 'Settings')}
-                </span>
-              </AccordionTrigger>
-              <AccordionContent>
-                <div className="space-y-4 pb-2">
-                  {/* Display avatar toggle */}
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>{t('psyche.displayAvatar', 'Show emotional avatar')}</Label>
-                      <p className="text-xs text-muted-foreground">
-                        {t(
-                          'psyche.displayAvatarDescription',
-                          'Display the double avatar (personality + mood) in the chat'
-                        )}
-                      </p>
-                    </div>
-                    <Switch
-                      checked={settings?.psyche_display_avatar ?? true}
-                      onCheckedChange={v => handleToggle('psyche_display_avatar', v)}
-                      disabled={isUpdatingSettings}
+              </PsychePanel>
+              <PsychePanel
+                value="preferences"
+                title={t('psyche.settingsSection.title')}
+                icon={SlidersHorizontal}
+              >
+                <PsychePreferences lng={lng} settings={settings} busy={busy} save={save} />
+              </PsychePanel>
+              <PsychePanel value="resets" title={t('psyche.presentation.resets')} icon={RotateCcw}>
+                <PsycheResets lng={lng} busy={busy} reset={reset} />
+              </PsychePanel>
+            </Accordion>
+            {settings.psyche_enabled && (
+              <>
+                <PsycheStateSummary
+                  lng={lng}
+                  summary={
+                    <PsycheLLMSummary
+                      key={resetVersion}
+                      lng={lng}
+                      isOpen
+                      refreshKey={refreshKey}
+                      onGenerated={() => {
+                        if (!state && isCurrent()) void refetchState().catch(() => {});
+                      }}
                     />
-                  </div>
-
-                  {/* Sensitivity slider */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-sm">{t('psyche.sensitivity', 'Expressiveness')}</Label>
-                      <span className="text-xs text-muted-foreground">{localSensitivity}%</span>
-                    </div>
-                    <Slider
-                      value={[localSensitivity]}
-                      min={0}
-                      max={100}
-                      step={5}
-                      onValueChange={([v]) => setLocalSensitivity(v)}
-                      onValueCommit={([v]) => handleSliderCommit('psyche_sensitivity', v)}
-                      disabled={isUpdatingSettings}
-                      aria-label={t('psyche.sensitivity', 'Expressiveness')}
+                  }
+                />
+                <Accordion
+                  type="multiple"
+                  value={openObservations}
+                  onValueChange={setOpen}
+                  className="w-full space-y-4"
+                >
+                  <PsychePanel
+                    value="evolution"
+                    title={t('psyche.presentation.evolution')}
+                    icon={ChartLine}
+                    framed
+                  >
+                    <PsycheHistory
+                      lng={lng}
+                      isOpen={openObservations.includes('evolution')}
+                      refreshKey={refreshKey}
                     />
-                    <p className="text-xs text-muted-foreground">
-                      {t(
-                        'psyche.sensitivityDescription',
-                        'How strongly emotions influence responses (0 = stoic, 100 = highly expressive)'
-                      )}
-                    </p>
-                  </div>
-
-                  {/* Stability slider */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-sm">{t('psyche.stability', 'Mood Stability')}</Label>
-                      <span className="text-xs text-muted-foreground">{localStability}%</span>
-                    </div>
-                    <Slider
-                      value={[localStability]}
-                      min={0}
-                      max={100}
-                      step={5}
-                      onValueChange={([v]) => setLocalStability(v)}
-                      onValueCommit={([v]) => handleSliderCommit('psyche_stability', v)}
-                      disabled={isUpdatingSettings}
-                      aria-label={t('psyche.stability', 'Mood Stability')}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      {t(
-                        'psyche.stabilityDescription',
-                        'How quickly mood returns to baseline (0 = volatile, 100 = very stable)'
-                      )}
-                    </p>
-                  </div>
-
-                  {/* Reset section */}
-                  <div className="space-y-3 pt-4 border-t">
-                    {/* Soft reset */}
-                    <div className="flex items-start gap-3">
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={isResetting}
-                            className="shrink-0 w-44 justify-center"
-                          >
-                            {t('psyche.softReset', 'Refresh mood')}
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>
-                              {t('psyche.softResetTitle', 'Refresh mood?')}
-                            </AlertDialogTitle>
-                            <AlertDialogDescription>
-                              {t(
-                                'psyche.softResetConfirm',
-                                "LIA's mood will return to neutral and active emotions will be cleared. The relationship and acquired personality will be preserved."
-                              )}
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleReset('soft')}>
-                              {t('psyche.softReset', 'Refresh mood')}
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                      <p className="text-xs text-muted-foreground pt-1">
-                        {t(
-                          'psyche.softResetDescription',
-                          "Like a good night's sleep — mood resets but relationship and personality are preserved."
-                        )}
-                      </p>
-                    </div>
-
-                    {/* Full reset */}
-                    <div className="flex items-start gap-3">
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            disabled={isResetting}
-                            className="shrink-0 w-44 justify-center"
-                          >
-                            {t('psyche.fullReset', 'Reset everything')}
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>
-                              {t('psyche.fullResetTitle', 'Reset everything?')}
-                            </AlertDialogTitle>
-                            <AlertDialogDescription>
-                              {t(
-                                'psyche.fullResetConfirm',
-                                'Emotional state, relationship progress, and domain confidence will be completely reset. Memories and journals are not affected. This action cannot be undone.'
-                              )}
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleReset('full')}
-                              variant="destructive"
-                            >
-                              {t('psyche.fullReset', 'Reset everything')}
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                      <p className="text-xs text-muted-foreground pt-1">
-                        {t(
-                          'psyche.fullResetDescription',
-                          'Relational amnesia — LIA starts over emotionally and relationally, like a first meeting.'
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
+                  </PsychePanel>
+                </Accordion>
+              </>
+            )}
+            {settingsError && (
+              <p className="text-xs text-muted-foreground">{t('psyche.presentation.retained')}</p>
+            )}
+          </>
         )}
       </div>
     </SettingsSection>
+  );
+}
+
+function PsychePanel({
+  value,
+  title,
+  icon: Icon,
+  children,
+  framed = false,
+}: {
+  value: string;
+  title: string;
+  icon: typeof Brain;
+  children: React.ReactNode;
+  framed?: boolean;
+}) {
+  return (
+    <AccordionItem
+      value={value}
+      className={framed ? 'min-w-0 rounded-xl border px-3 sm:px-4' : 'min-w-0 border-0'}
+    >
+      <AccordionTrigger
+        className={
+          framed
+            ? 'gap-3 py-4 text-left text-base font-semibold hover:no-underline'
+            : 'gap-3 py-4 text-left text-sm font-semibold hover:no-underline'
+        }
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          <Icon
+            className={framed ? 'size-5 shrink-0 text-primary' : 'size-4 shrink-0 text-primary'}
+            aria-hidden="true"
+          />
+          <span className="min-w-0 [overflow-wrap:anywhere]">{title}</span>
+        </span>
+      </AccordionTrigger>
+      <AccordionContent className="min-w-0 pb-4">{children}</AccordionContent>
+    </AccordionItem>
+  );
+}
+
+function PsychePreferences({
+  lng,
+  settings,
+  busy,
+  save,
+}: {
+  lng: Language;
+  settings: PsychePreferencesData;
+  busy: boolean;
+  save: (data: PsycheSettingsUpdate) => Promise<PsychePreferencesData | null>;
+}) {
+  const { t } = useTranslation(lng);
+  const avatarId = useId();
+  const [draft, setDraft] = useState<Partial<PsychePreferencesData>>({});
+  const commit = async (field: 'psyche_sensitivity' | 'psyche_stability', value: number) => {
+    if (busy) return;
+    await save({ [field]: value });
+    setDraft(current => ({ ...current, [field]: undefined }));
+  };
+  return (
+    <div className="space-y-5 pt-1">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 space-y-2">
+          <Label htmlFor={avatarId} className="text-sm leading-relaxed">
+            {t('psyche.displayAvatar')}
+          </Label>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            {t('psyche.displayAvatarDescription')}
+          </p>
+        </div>
+        <Switch
+          id={avatarId}
+          checked={settings.psyche_display_avatar}
+          onCheckedChange={value => {
+            if (!busy) void save({ psyche_display_avatar: value });
+          }}
+          aria-disabled={busy}
+          className="mt-1 shrink-0"
+        />
+      </div>
+      {(['psyche_sensitivity', 'psyche_stability'] as const).map(field => {
+        const key = field === 'psyche_sensitivity' ? 'sensitivity' : 'stability';
+        const value = draft[field] ?? settings[field];
+        return (
+          <div key={field} className="space-y-3 border-t border-border/50 pt-4">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-medium">{t(`psyche.${key}`)}</span>
+              <span className="shrink-0 text-sm tabular-nums text-primary">{value}%</span>
+            </div>
+            <Slider
+              value={[value]}
+              min={0}
+              max={100}
+              step={5}
+              onValueChange={([next]) => {
+                if (!busy) setDraft(current => ({ ...current, [field]: next }));
+              }}
+              onValueCommit={([next]) => void commit(field, next)}
+              aria-disabled={busy}
+              aria-label={t(`psyche.${key}`)}
+            />
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              {t(`psyche.${key}Description`)}
+            </p>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function PsycheResets({
+  lng,
+  busy,
+  reset,
+}: {
+  lng: Language;
+  busy: boolean;
+  reset: (level: 'soft' | 'full') => Promise<void>;
+}) {
+  const { t } = useTranslation(lng);
+  return (
+    <div className="space-y-5 pt-1">
+      {(['soft', 'full'] as const).map(level => {
+        const key = level === 'soft' ? 'softReset' : 'fullReset';
+        return (
+          <div key={level} className="space-y-3">
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              {t(`psyche.${key}Description`)}
+            </p>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  size="sm"
+                  variant={level === 'full' ? 'destructive' : 'default'}
+                  aria-disabled={busy}
+                  onClick={event => {
+                    if (busy) event.preventDefault();
+                  }}
+                  className="min-h-10 max-w-full whitespace-normal"
+                >
+                  <RotateCcw className="size-4 shrink-0" aria-hidden="true" />
+                  {t(`psyche.${key}`)}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{t(`psyche.${key}Title`)}</AlertDialogTitle>
+                  <AlertDialogDescription>{t(`psyche.${key}Confirm`)}</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                  <AlertDialogAction
+                    variant={level === 'full' ? 'destructive' : 'default'}
+                    onClick={() => void reset(level)}
+                  >
+                    {t(`psyche.${key}`)}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function PsycheHeading({
+  lng,
+  settings,
+  busy,
+  save,
+}: {
+  lng: Language;
+  settings: PsychePreferencesData | undefined;
+  busy: boolean;
+  save: (data: PsycheSettingsUpdate) => Promise<PsychePreferencesData | null>;
+}) {
+  const { t } = useTranslation(lng);
+  return (
+    <span className="flex min-w-0 items-center justify-between gap-3">
+      <span>{t('psyche.title')}</span>
+      <Switch
+        checked={settings?.psyche_enabled ?? false}
+        onCheckedChange={value => {
+          if (settings && !busy) void save({ psyche_enabled: value });
+        }}
+        aria-disabled={busy || !settings}
+        aria-label={t('psyche.enable')}
+        className="shrink-0"
+      />
+    </span>
   );
 }

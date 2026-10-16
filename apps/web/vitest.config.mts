@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
 
 export default defineConfig({
+  // Each checkout owns its cache even when node_modules is a shared junction.
+  cacheDir: fileURLToPath(new URL('../../.tmp/vite-cache', import.meta.url)),
   plugins: [react()],
   // Force development mode for React (required for act() in tests)
   define: {
@@ -67,6 +69,9 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
+        // Re-measured 2026-10-15 on the complete Accueil integration tree:
+        // 87.05 / 81.17 / 84.69 / 88.55. Lock statements 84 -> 85 and
+        // branches 78 -> 79, preserving the established two-point margin.
         // Re-measured 2026-10-11 on the complete suite: statements 86.64 /
         // branches 80.65 / functions 84.27 / lines 88.14. The established
         // floor(measured - 2) rule keeps global floors at 84/78/82/86.
@@ -406,8 +411,8 @@ export default defineConfig({
         // Raise each axis to floor(measured - 2), retaining the same margin rule.
         // Full-suite measurement 2026-10-11: 86.68 / 80.74 / 84.26 / 88.15.
         // Lock floor(measured - 2), preserving the existing shrink-only rule.
-        statements: 84,
-        branches: 78,
+        statements: 85,
+        branches: 79,
         functions: 82,
         lines: 86,
         // Continuous avatar PCM and exclusive phrase routing, measured inline:

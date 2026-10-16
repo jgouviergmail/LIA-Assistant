@@ -65,6 +65,12 @@ from src.domains.agents.nodes.draft_sequence import (
     decision_entry,
     settle,
 )
+from src.domains.agents.nodes.draft_type_changes import (
+    DRAFT_TYPE_TO_TOOL,
+    PRESERVED_FIELDS_FOR_DIFF,
+    TYPE_TO_DELETE,
+    UPDATABLE_DELETE_TYPES,
+)
 from src.domains.agents.orchestration.parallel_executor import PendingDraftInfo
 from src.domains.agents.services.hitl.protocols import HitlInteractionType
 from src.domains.agents.utils.state_tracking import track_state_updates
@@ -93,44 +99,6 @@ STATE_KEY_PENDING_TOOL_CONFIRMATION = "pending_tool_confirmation"
 STATE_KEY_TOOL_CONFIRMATION_RESULT = "tool_confirmation_result"
 
 STATE_KEY_REGISTRY = "registry"
-
-# Draft type change mappings (2026-04 — homogenized draft structures)
-_TYPE_TO_DELETE: dict[str, str] = {
-    "event_update": "event_delete",
-    "contact_update": "contact_delete",
-    "task_update": "task_delete",
-    "email_reply": "email_delete",
-    "email_forward": "email_delete",
-}
-_UPDATABLE_DELETE_TYPES: dict[str, str] = {
-    "event_delete": "event_update",
-    "contact_delete": "contact_update",
-    "task_delete": "task_update",
-}
-_DRAFT_TYPE_TO_TOOL: dict[str, str] = {
-    "event_update": "update_event_tool",
-    "event_delete": "delete_event_tool",
-    "contact_update": "update_contact_tool",
-    "contact_delete": "delete_contact_tool",
-    "task_update": "update_task_tool",
-    "task_delete": "delete_task_tool",
-    "email_delete": "delete_email_tool",
-}
-_PRESERVED_FIELDS_FOR_DIFF: set[str] = {
-    "event_id",
-    "calendar_id",
-    "timezone",
-    "send_updates",
-    "resource_name",
-    "task_id",
-    "task_list_id",
-    "current_event",
-    "current_contact",
-    "current_task",
-    "related_registry_ids",
-    "user_language",
-    "user_timezone",
-}
 
 
 # ============================================================================
@@ -588,7 +556,9 @@ async def hitl_dispatch_node(state: MessagesState, config: RunnableConfig) -> di
     # =========================================================================
     pending_draft_data = state.get(STATE_KEY_PENDING_DRAFT_CRITIQUE)
     if pending_draft_data:
-        return await _handle_draft_critique(state, pending_draft_data, user_language, start_time)
+        return await _handle_draft_critique(
+            state, pending_draft_data, user_language, start_time, config
+        )
 
     # =========================================================================
     # PRIORITY 2: Entity Disambiguation
@@ -618,6 +588,7 @@ async def _handle_draft_critique(
     pending_draft_data: dict[str, Any],
     user_language: str,
     start_time: float,
+    config: RunnableConfig,
 ) -> dict[str, Any]:
     """Handle draft critique HITL flow with iterative modification support.
 
@@ -744,7 +715,7 @@ async def _handle_draft_critique(
 
     # === REPLAN: User wants a different action type (LLM classifier detected) ===
     elif action == "replan":
-        new_type = _TYPE_TO_DELETE.get(pending_draft.draft_type)
+        new_type = TYPE_TO_DELETE.get(pending_draft.draft_type)
         if new_type:
             logger.info(
                 "hitl_draft_type_changed_via_replan",
@@ -759,7 +730,7 @@ async def _handle_draft_critique(
                 draft_content=pending_draft.draft_content,
                 draft_summary="",
                 registry_ids=pending_draft.registry_ids,
-                tool_name=_DRAFT_TYPE_TO_TOOL.get(new_type, pending_draft.tool_name),
+                tool_name=DRAFT_TYPE_TO_TOOL.get(new_type, pending_draft.tool_name),
                 step_id=pending_draft.step_id,
             )
         else:
@@ -823,22 +794,24 @@ async def _handle_draft_critique(
                 run_id=pending_draft.draft_id,
                 contact_context=contact_context,
                 sender_name=state.get("user_display_name"),
+                # The turn's config carries its tracker: a fresh one drops the spend.
+                config=config,
             )
 
             # Detect DELETE → UPDATE: modifier produced content changes
             # on a delete draft → user wants to update, not delete
-            if pending_draft.draft_type in _UPDATABLE_DELETE_TYPES:
+            if pending_draft.draft_type in UPDATABLE_DELETE_TYPES:
                 changed_fields = [
                     k
                     for k in modified_content
-                    if k not in _PRESERVED_FIELDS_FOR_DIFF
+                    if k not in PRESERVED_FIELDS_FOR_DIFF
                     and (
                         k not in pending_draft.draft_content
                         or modified_content[k] != pending_draft.draft_content.get(k)
                     )
                 ]
                 if changed_fields:
-                    new_draft_type = _UPDATABLE_DELETE_TYPES[pending_draft.draft_type]
+                    new_draft_type = UPDATABLE_DELETE_TYPES[pending_draft.draft_type]
                     logger.info(
                         "hitl_draft_type_changed_to_update",
                         draft_id=pending_draft.draft_id,
@@ -863,7 +836,7 @@ async def _handle_draft_critique(
                 draft_content=modified_content,
                 draft_summary="",
                 registry_ids=pending_draft.registry_ids,
-                tool_name=_DRAFT_TYPE_TO_TOOL.get(new_draft_type, pending_draft.tool_name),
+                tool_name=DRAFT_TYPE_TO_TOOL.get(new_draft_type, pending_draft.tool_name),
                 step_id=pending_draft.step_id,
             )
 

@@ -158,6 +158,53 @@ def trim_quoted_reply(text: str, *, subject: str | None = None) -> str:
     return kept
 
 
+# A line that IS a forward banner (dashes allowed around it), never a sentence
+# that merely names a forwarded message.
+_FORWARD_BANNER_LINE = re.compile(rf"^[-_\s]*(?:{_FORWARD_BANNER.pattern})", re.IGNORECASE)
+
+
+def _first_forward_banner(lines: list[str]) -> int | None:
+    for index, line in enumerate(lines):
+        if _FORWARD_BANNER_LINE.match(line.strip()):
+            return index
+    return None
+
+
+def split_quoted_history(text: str) -> tuple[str, str]:
+    """Tell a draft's own words from the history it quotes or forwards.
+
+    The markers are the trimmer's, measured on the ADR-287 corpus, plus the
+    forward banner; two differences belong to a DRAFT being edited: the
+    signature is the person's own text and stays above the cut, and no minimum
+    length applies (an empty reply still carries its history).
+
+    Args:
+        text: A clean text body (never markup).
+
+    Returns:
+        ``(own_words, history)`` with ``own_words + history == text`` exactly;
+        ``history`` is empty when the body quotes nothing.
+    """
+    if not text:
+        return text, ""
+    lines = text.split("\n")
+    cuts = [
+        cut
+        for cut in (
+            _first_quote_header(lines),
+            _first_header_block(lines),
+            _trailing_quote_start(lines),
+            _first_forward_banner(lines),
+        )
+        if cut is not None
+    ]
+    if not cuts:
+        return text, ""
+    start = min(cuts)
+    own = "\n".join(lines[:start]) + "\n" if start else ""
+    return own, "\n".join(lines[start:])
+
+
 def clean_reply_body(text: str, *, subject: str | None = None) -> str:
     """The door the normalisers call: :func:`trim_quoted_reply` under the
     ``emails_trim_quoted_replies`` switch, the body untouched when it is off."""
@@ -168,4 +215,10 @@ def clean_reply_body(text: str, *, subject: str | None = None) -> str:
     return trim_quoted_reply(text, subject=subject)
 
 
-__all__ = ["MIN_KEPT_CHARS", "clean_reply_body", "is_forward", "trim_quoted_reply"]
+__all__ = [
+    "MIN_KEPT_CHARS",
+    "clean_reply_body",
+    "is_forward",
+    "split_quoted_history",
+    "trim_quoted_reply",
+]

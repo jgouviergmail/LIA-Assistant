@@ -1,15 +1,19 @@
 'use client';
 
 /**
- * VoiceModeSettings — Settings component for Voice Mode (wake word + STT input).
+ * VoiceModeSettings — Settings component for Voice Mode (wake word + STT input,
+ * and the voices LIA answers with).
  *
- * Two controls:
+ * Three controls:
  * 1. Toggle to enable/disable voice mode globally. When enabled, the
  *    VoiceModeBadge appears in the chat header.
  * 2. RadioGroup-style picker for the STT backend ("local" Sherpa, free,
- *    or "remote" ElevenLabs Scribe, paid). Visible only when voice mode is
- *    enabled. The "remote" option is disabled when no ElevenLabs API key
- *    is configured by the admin.
+ *    or "remote", paid: the engine of the administrator's voice_transcription
+ *    slot — ElevenLabs, OpenAI or Fish Audio, ADR-345 —, named on screen
+ *    because the privacy notice must say who receives the audio). The
+ *    "remote" option is disabled when that engine is switched off or keyless.
+ * 3. LIA's male and female voice in the chat, the person's own or the
+ *    administrator's (`LiaVoicesFields`, ADR-345 amendment 2026-10-14).
  */
 
 import { useState, useEffect, useId } from 'react';
@@ -17,6 +21,7 @@ import { Mic, Cloud, Server, AlertTriangle, AudioLines, Ear } from 'lucide-react
 import { Switch } from '@/components/ui/switch';
 import { InfoBox } from '@/components/ui/info-box';
 import { SettingsSection } from '@/components/settings/SettingsSection';
+import { LiaVoicesFields } from '@/components/settings/voice-mode/LiaVoicesFields';
 import { useTranslation } from '@/i18n/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useVoiceModeStore } from '@/stores/voiceModeStore';
@@ -24,12 +29,29 @@ import { Badge } from '@/components/ui/badge';
 import { isWakeBeta } from '@/lib/audio/wake-word/manifest';
 import { stopWordOf, wakePhraseOf } from '@/lib/audio/wake-word/phrases';
 import apiClient from '@/lib/api-client';
+import { voiceProviderBrand } from '@/lib/voice-provider-brand';
 import { toast } from 'sonner';
 import type { BaseSettingsProps } from '@/types/settings';
 
 type SttMode = 'local' | 'remote';
 
 type Translate = ReturnType<typeof useTranslation>['t'];
+
+/**
+ * Who receives the audio in remote mode, as the screen names it: the option's
+ * label and the name its description and privacy notice quote. An engine the
+ * probe could not read keeps the neutral label rather than a placeholder in it.
+ */
+function remoteCopy(provider: string | null, t: Translate): { label: string; name: string } {
+  if (!provider) {
+    return {
+      label: t('settings.voice_mode.stt_mode_remote'),
+      name: t('settings.voice_mode.stt_remote_provider_unknown'),
+    };
+  }
+  const name = voiceProviderBrand(provider);
+  return { label: t('settings.voice_mode.stt_mode_remote_named', { provider: name }), name };
+}
 
 /**
  * What the screen says about the wake word in the interface language
@@ -53,6 +75,7 @@ interface VoiceModePreferenceResponse {
   voice_mode_enabled: boolean;
   voice_stt_mode: SttMode;
   stt_remote_available: boolean;
+  stt_remote_provider?: string;
   message?: string;
 }
 
@@ -62,6 +85,7 @@ export function VoiceModeSettings({ lng }: BaseSettingsProps) {
   const { enable: storeEnable, disable: storeDisable } = useVoiceModeStore();
   const [updating, setUpdating] = useState(false);
   const [sttRemoteAvailable, setSttRemoteAvailable] = useState<boolean | null>(null);
+  const [sttRemoteProvider, setSttRemoteProvider] = useState<string | null>(null);
   const wake = wakeWordCopy(t, lng);
   // The two sub-block titles name their controls: the engine picker is a
   // group labelled by its title, the hands-free switch is labelled by its own.
@@ -81,8 +105,8 @@ export function VoiceModeSettings({ lng }: BaseSettingsProps) {
     }
   }, [serverVoiceModeEnabled, storeEnable, storeDisable]);
 
-  // Probe the backend once on mount to know whether the admin has configured
-  // an ElevenLabs API key. Falls back to "available" so the UI doesn't lock
+  // Probe the backend once on mount: whether the remote engine can serve,
+  // and which one it is. Falls back to "available" so the UI doesn't lock
   // the user out on a transient backend error.
   useEffect(() => {
     let cancelled = false;
@@ -93,6 +117,7 @@ export function VoiceModeSettings({ lng }: BaseSettingsProps) {
         );
         if (!cancelled) {
           setSttRemoteAvailable(response.stt_remote_available);
+          setSttRemoteProvider(response.stt_remote_provider ?? null);
         }
       } catch {
         if (!cancelled) {
@@ -155,6 +180,7 @@ export function VoiceModeSettings({ lng }: BaseSettingsProps) {
   };
 
   const remoteDisabled = sttRemoteAvailable === false;
+  const remote = remoteCopy(sttRemoteProvider, t);
 
   const content = (
     <div className="space-y-4">
@@ -182,8 +208,10 @@ export function VoiceModeSettings({ lng }: BaseSettingsProps) {
           />
           <SttModeOption
             icon={<Cloud className="h-4 w-4" />}
-            label={t('settings.voice_mode.stt_mode_remote')}
-            description={t('settings.voice_mode.stt_mode_remote_description')}
+            label={remote.label}
+            description={t('settings.voice_mode.stt_mode_remote_description', {
+              provider: remote.name,
+            })}
             selected={serverSttMode === 'remote'}
             disabled={updating || remoteDisabled}
             onClick={() => handleSttModeChange('remote')}
@@ -200,7 +228,7 @@ export function VoiceModeSettings({ lng }: BaseSettingsProps) {
         {serverSttMode === 'remote' && !remoteDisabled && (
           <InfoBox>
             <p className="text-xs text-muted-foreground">
-              {t('settings.voice_mode.stt_remote_privacy_notice')}
+              {t('settings.voice_mode.stt_remote_privacy_notice', { provider: remote.name })}
             </p>
           </InfoBox>
         )}
@@ -231,6 +259,9 @@ export function VoiceModeSettings({ lng }: BaseSettingsProps) {
           disabled={updating}
         />
       </div>
+
+      {/* The voices LIA answers with — the person's own, or the administrator's. */}
+      <LiaVoicesFields lng={lng} />
 
       {/* Generic voice mode info */}
       <InfoBox>

@@ -28,7 +28,11 @@ from typing import TYPE_CHECKING
 import structlog
 
 from src.core.llm_usage import LLMBillingRecord
-from src.infrastructure.cache.pricing_cache import PricingCacheData, get_cached_cost_usd_eur
+from src.infrastructure.cache.pricing_cache import (
+    PricingCacheData,
+    get_cached_cost_usd_eur,
+    get_cached_usd_eur_rate,
+)
 from src.infrastructure.database.session import get_db_context
 from src.infrastructure.llm.usage_metadata import (
     UsageTokens,
@@ -162,6 +166,34 @@ async def _persist_instance_cost(
         return False
 
 
+async def record_instance_fixed_spend(*, surface: str, cost_usd: Decimal) -> None:
+    """Add one account-less act billed at a flat price to the instance's daily ledger.
+
+    A vendor that bills a REQUEST rather than tokens — a Fish Audio voice
+    design, ADR-345 — has nothing to price: its price is a setting, converted
+    with the pricing cache's one exchange rate. Same contract as
+    :func:`record_instance_llm_spend`: called after the work, never raising,
+    silent on zero.
+
+    Args:
+        surface: What spent, for the log line (e.g. ``fishaudio_voice_design``).
+        cost_usd: What the request cost.
+    """
+    if cost_usd <= 0:
+        return
+    cost_eur = cost_usd * Decimal(str(get_cached_usd_eur_rate()))
+
+    from src.infrastructure.proactive.tracking import settle_known_billing
+
+    if await settle_known_billing(_persist_instance_cost(surface, cost_eur, None, ())):
+        logger.info(
+            "instance_spend_recorded",
+            surface=surface,
+            cost_usd=str(cost_usd),
+            cost_eur=str(cost_eur),
+        )
+
+
 async def record_instance_llm_call(
     *,
     surface: str,
@@ -278,6 +310,7 @@ def _price(
 
 __all__ = [
     "is_instance_spend_blocked",
+    "record_instance_fixed_spend",
     "record_instance_llm_call",
     "record_instance_llm_spend",
 ]

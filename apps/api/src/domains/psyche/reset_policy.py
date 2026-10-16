@@ -1,6 +1,7 @@
 """Pure source reset transition is shared by actual writes and exact public previews."""
 
 from datetime import UTC, datetime
+from uuid import uuid4
 
 from src.domains.psyche.constants import RELATIONSHIP_STAGES, RESET_LEVEL_FULL
 from src.domains.psyche.engine import PADVector, PsycheEngine
@@ -17,6 +18,10 @@ def apply_psyche_reset(state: PsycheState, level: str, baseline: PADVector) -> N
     state.drive_curiosity = 0.5
     state.drive_engagement = 0.5
     if level == RESET_LEVEL_FULL:
+        state.efficacy_generation = uuid4()
+        state.efficacy_profile = None
+        state.efficacy_evicted_at = None
+        state.efficacy_evicted_message_id = None
         state.relationship_stage = RELATIONSHIP_STAGES[0]
         state.relationship_depth = 0.0
         state.relationship_warmth_active = 0.5

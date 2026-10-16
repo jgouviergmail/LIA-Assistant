@@ -31,6 +31,10 @@ const VAPID_KEY = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
 let app: FirebaseApp | null = null;
 let messaging: Messaging | null = null;
 
+function errorType(error: unknown): string {
+  return error instanceof Error ? error.name : typeof error;
+}
+
 /**
  * Check if Firebase is properly configured.
  */
@@ -79,7 +83,7 @@ function getFirebaseApp(): FirebaseApp | null {
     app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
     return app;
   } catch (error) {
-    console.error('[Firebase] Initialization failed:', error);
+    console.error('[Firebase] Initialization failed:', errorType(error));
     return null;
   }
 }
@@ -104,7 +108,7 @@ function getFirebaseMessaging(): Messaging | null {
     messaging = getMessaging(firebaseApp);
     return messaging;
   } catch (error) {
-    console.error('[Firebase] Messaging initialization failed:', error);
+    console.error('[Firebase] Messaging initialization failed:', errorType(error));
     return null;
   }
 }
@@ -184,13 +188,13 @@ export async function requestNotificationPermission(): Promise<string | null> {
     });
 
     if (token) {
-      console.info('[Firebase] FCM token obtained:', token.substring(0, 20) + '...');
+      console.info('[Firebase] FCM token obtained');
       return token;
     } else {
       throw new Error('[Firebase] No FCM token received from Firebase');
     }
   } catch (error) {
-    console.error('[Firebase] Error getting FCM token:', error);
+    console.error('[Firebase] Error getting FCM token:', errorType(error));
     throw error;
   }
 }
@@ -259,7 +263,7 @@ export function onForegroundMessage(
   if (!messagingInstance) return null;
 
   return onMessage(messagingInstance, payload => {
-    console.info('[Firebase] Foreground message received:', payload);
+    console.info('[Firebase] Foreground message received');
     callback(payload);
   });
 }

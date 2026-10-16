@@ -82,7 +82,9 @@ def validate_plugin_manifest(raw: Any) -> ManifestValidationResult:
     data = dict(raw)
     warnings = _strip_unknown_fields(data)
     errors = _required_field_errors(data) + _metadata_type_errors(data)
-    extensions, extension_errors = _validate_extensions(data.get("extensions"), warnings)
+    extensions, extension_errors = (
+        _validate_extensions(data["extensions"], warnings) if "extensions" in data else ({}, [])
+    )
     errors += extension_errors
 
     author = data.get("author")
@@ -152,17 +154,17 @@ def _metadata_type_errors(data: dict[str, Any]) -> list[PluginIssue]:
     errors: list[PluginIssue] = []
     for field in _STRING_METADATA_FIELDS:
         value = data.get(field)
-        if value is not None and not isinstance(value, str):
+        if field in data and not isinstance(value, str):
             errors.append(invalid(field, f"expected string, got {type(value).__name__}"))
 
     keywords = data.get("keywords")
-    if keywords is not None and (
+    if "keywords" in data and (
         not isinstance(keywords, list) or any(not isinstance(k, str) for k in keywords)
     ):
         errors.append(invalid("keywords", "expected array of strings"))
 
     author = data.get("author")
-    if author is not None and (
+    if "author" in data and (
         not isinstance(author, dict)
         or set(author) - _AUTHOR_FIELDS
         or any(not isinstance(v, str) for v in author.values())
@@ -177,8 +179,6 @@ def _validate_extensions(
     """§5.2/§8.1: a non-object extensions FIELD is reported and ignored; an
     object whose member value is not an object is an ordinary (fatal) schema
     violation."""
-    if raw_extensions is None:
-        return {}, []
     if not isinstance(raw_extensions, dict):
         warnings.append(
             PluginIssue(

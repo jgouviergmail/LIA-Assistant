@@ -1,10 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { Sunrise } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useBriefing } from '@/hooks/useBriefing';
+import { useBriefing, type UseBriefingResult } from '@/hooks/useBriefing';
 import { useBriefingPreferences } from '@/hooks/useBriefingPreferences';
 import type {
   BriefingPreferences,
@@ -14,6 +14,7 @@ import type {
 } from '@/types/briefing';
 import { BriefingError } from './BriefingError';
 import { BriefingSynthesis } from './BriefingSynthesis';
+import { DashboardDateHeading } from './DashboardDateHeading';
 import { HeroLiaCard } from './HeroLiaCard';
 import { PortraitHint } from './PortraitHint';
 import { StarterChecklistCard } from './StarterChecklistCard';
@@ -44,12 +45,10 @@ import { CardsGridSkeleton, SynthesisSkeleton } from './BriefingSkeleton';
  *  2. Greeting + synthesis arrive later (LLM-bound) → swap from fallback to LLM text
  *
  * Layout (top → bottom):
- *   1. Hero LIA (marketing card — its headline is the LLM greeting once it arrives,
- *      a static localized tagline as fallback while the LLM call is in flight)
- *   2. Quick Access (Help, Capabilities, Workboard, Registers, Settings)
- *   3. The page's lead-in (`aboveBriefing` — the radio, ADR-324), kept when the
- *      briefing fails: what it carries does not depend on the briefing
- *   4. "Mon dashboard" 9-card grid (with the synthesis above the cards)
+ *   1. Civil date, then compact welcome with greeting and Chat/Services
+ *   2. Independent radio (`aboveBriefing`, ADR-324), still available on briefing failure
+ *   3. Quick Access (Help, Capabilities, Workboard, Registers, Settings)
+ *   4. "Mon dashboard" commands, synthesis and preference-ordered, scrollable cards
  */
 /**
  * Ordered VISIBLE sections (UXR Lot 5, B4) — pure, pinned by tests: the
@@ -72,7 +71,12 @@ const CARD_RENDERERS: Record<
   BriefingSection,
   (
     cards: CardsBundle,
-    common: { isRefreshing: boolean; onRefresh: () => void; staggerIndex: number },
+    common: {
+      isRefreshing: boolean;
+      onRefresh: () => void;
+      onInvalidate: () => void;
+      staggerIndex: number;
+    },
     windows: BriefingWindows
   ) => React.ReactElement
 > = {
@@ -98,6 +102,7 @@ function BriefingCardsGrid({
   sections,
   refreshingSections,
   refetchSection,
+  invalidateSection,
   settingsHref,
   lng,
 }: {
@@ -106,6 +111,7 @@ function BriefingCardsGrid({
   sections: BriefingSection[];
   refreshingSections: Set<string>;
   refetchSection: (section: BriefingSection) => void;
+  invalidateSection: (section: BriefingSection) => void;
   settingsHref: string;
   lng: string;
 }) {
@@ -131,8 +137,9 @@ function BriefingCardsGrid({
             {CARD_RENDERERS[name](
               cards,
               {
-                isRefreshing: refreshingSections.has(name),
+                isRefreshing: refreshingSections.has(name) || refreshingSections.has('all'),
                 onRefresh: () => refetchSection(name),
+                onInvalidate: () => invalidateSection(name),
                 staggerIndex: index,
               },
               windows
@@ -151,7 +158,7 @@ function BriefingCardsGrid({
 export function TodayBriefing({
   aboveBriefing,
 }: {
-  /** What the page places between the quick-access bar and « My dashboard ». */
+  /** Independent page content below the welcome, kept available on briefing failure. */
   aboveBriefing?: ReactNode;
 }) {
   const { t, i18n } = useTranslation();
@@ -164,6 +171,7 @@ export function TodayBriefing({
     error,
     refetchAll,
     refetchSection,
+    invalidateSection,
     refreshingSections,
   } = useBriefing();
   // UXR Lot 5 (B4): grid preferences (visibility + order) — NULL/loading
@@ -178,18 +186,20 @@ export function TodayBriefing({
   // a briefing outage must not strand that destination.
   if (error && !cards && !text) {
     return (
-      <div className="space-y-8 sm:space-y-10">
+      <div className="space-y-5 sm:space-y-6">
+        <DashboardDateHeading lng={lng} />
+        <Fragment key="independent-content">{aboveBriefing}</Fragment>
         <QuickAccessCompact lng={lng} />
-        {aboveBriefing}
         <BriefingError onRetry={refetchAll} />
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 sm:space-y-10">
-      {/* Hero — headline swaps from fallback tagline to LLM greeting once ready */}
+    <div className="space-y-5 sm:space-y-6">
+      <DashboardDateHeading lng={lng} />
       <HeroLiaCard greeting={text?.greeting ?? null} isLoadingGreeting={textLoading} />
+      <Fragment key="independent-content">{aboveBriefing}</Fragment>
 
       {/* QW-10: discreet "I refined my understanding of you" line when the
           portrait was recompiled recently (renders nothing otherwise). */}
@@ -206,12 +216,8 @@ export function TodayBriefing({
       {/* Quick Access — placed ABOVE the cards grid as requested */}
       <QuickAccessCompact lng={lng} />
 
-      {/* The page's lead-in (the radio): under the quick-access bar, right
-          above « My dashboard » — never above the hero (owner request). */}
-      {aboveBriefing}
-
       <section className="space-y-4" aria-labelledby="briefing-section-heading">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h2
             id="briefing-section-heading"
             className="flex items-center gap-2 text-base sm:text-lg font-semibold tracking-tight text-foreground"
@@ -224,26 +230,25 @@ export function TodayBriefing({
             <CustomizeBriefingButton lng={lng} />
             <RefreshAllButton
               onClick={() => refetchSection('all')}
-              isRefreshing={refreshingSections.has('all')}
+              isRefreshing={refreshingSections.size > 0}
             />
           </div>
         </div>
 
-        {/* Synthesis: placed UNDER section title, ABOVE the cards grid.
-            When the LLM call returns null (legitimate skip due to <2 cards
-            with data, or transient LLM failure) we surface a discreet
-            single-line fallback so the slot is not silently empty. */}
-        {text ? (
-          text.synthesis ? (
-            <BriefingSynthesis synthesis={text.synthesis} />
-          ) : (
-            <p className="px-1 text-sm italic text-muted-foreground" role="status">
-              {t('dashboard.briefing.synthesis_unavailable')}
-            </p>
-          )
-        ) : textLoading ? (
-          <SynthesisSkeleton />
-        ) : null}
+        {(text || textLoading) && (
+          <div className="rounded-2xl border border-primary/15 bg-card p-4 sm:p-5">
+            <BriefingPoint text={text} loading={textLoading} />
+          </div>
+        )}
+
+        {error && cards && (
+          <p
+            role="alert"
+            className="rounded-xl border border-warning/30 bg-warning/5 px-4 py-3 text-sm text-foreground"
+          >
+            {t('dashboard.briefing.refresh_error')}
+          </p>
+        )}
 
         {/* Cards (UXR Lot 5, B4): ordered by the user's preferences, hidden
             cards never rendered (and never fetched backend-side). */}
@@ -254,6 +259,7 @@ export function TodayBriefing({
             sections={visibleOrderedSections(preferences, cards)}
             refreshingSections={refreshingSections}
             refetchSection={refetchSection}
+            invalidateSection={invalidateSection}
             // UX P10: land on the briefing-grid section, not the bare page.
             settingsHref={settingsSectionHref(lng, 'briefing-grid')}
             lng={lng}
@@ -263,5 +269,18 @@ export function TodayBriefing({
         ) : null}
       </section>
     </div>
+  );
+}
+
+/** Progressive synthesis has one owner, independent of the card grid. */
+function BriefingPoint({ text, loading }: { text: UseBriefingResult['text']; loading: boolean }) {
+  const { t } = useTranslation();
+  if (text?.synthesis) return <BriefingSynthesis synthesis={text.synthesis} />;
+  if (loading) return <SynthesisSkeleton />;
+  if (!text) return null;
+  return (
+    <p className="text-sm italic text-muted-foreground" role="status">
+      {t('dashboard.briefing.synthesis_unavailable')}
+    </p>
   );
 }

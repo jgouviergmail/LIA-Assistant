@@ -21,13 +21,23 @@ vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'account-one' 
 vi.mock('@/hooks/useApiQuery', async () => {
   const { useEffect } = await import('react');
   return {
-    useApiQuery: (endpoint: string, options: { onSuccess?: (data: unknown) => void }) => {
+    useApiQuery: (
+      endpoint: string,
+      options: { onSuccess?: (data: unknown) => void; onError?: (error: Error) => void }
+    ) => {
       const response = useApiQuery(endpoint, options);
       const observed = response.data;
       const notify = options?.onSuccess;
+      const failure = response.error;
+      const notifyError = options?.onError;
       useEffect(() => {
         if (observed !== undefined) notify?.(observed);
       }, [observed, notify]);
+      // A failed real query publishes onError as well as its error state.
+      // The account reader uses that callback to bind the failure to its owner.
+      useEffect(() => {
+        if (failure) notifyError?.(failure);
+      }, [failure, notifyError]);
       return {
         ...response,
         refetchVerified: async () => {

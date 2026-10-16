@@ -117,6 +117,9 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
         send_email_catalogue_manifest,
         update_label_catalogue_manifest,
     )
+    from src.domains.agents.emails.mailbox_drafts_manifests import (
+        MAILBOX_DRAFT_TOOL_MANIFESTS,
+    )
     from src.domains.agents.emails.settings_catalogue_manifests import (
         GMAIL_SETTINGS_TOOL_MANIFESTS,
     )
@@ -234,6 +237,7 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
     for family_manifest in (
         *ALL_CONTACTS_TOOL_MANIFESTS,
         *GMAIL_SETTINGS_TOOL_MANIFESTS,
+        *MAILBOX_DRAFT_TOOL_MANIFESTS,
         *CALENDAR_TOOL_MANIFESTS,
         *WORKSPACE_DOCS_TOOL_MANIFESTS,
         *ENVIRONMENT_TOOL_MANIFESTS,

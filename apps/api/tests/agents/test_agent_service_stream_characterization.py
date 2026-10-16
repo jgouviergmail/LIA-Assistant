@@ -180,7 +180,8 @@ class FakeStreamingService:
 
     Script items are either ``(ChatStreamChunk, fragment)`` tuples or callables
     invoked with the fake instance (used to flip ``hitl_interrupt_detected`` /
-    ``voice_context_registry`` mid-stream exactly like the real service does,
+    ``voice_context_registry`` mid-stream — the real service publishes the latter
+    on the answer's first visible character (``voice_scope.py``) —,
     to raise mid-stream exceptions, or — when the callable returns an awaitable
     — to deterministically let a background voice task run to completion).
     """
@@ -410,6 +411,7 @@ class Harness:
                     conversation_id=CONVERSATION_ID,
                     tracking_context=harness.tracker,
                     oauth_scopes=[],
+                    active_connector_types=frozenset(),
                 )
 
         class FakeOrchestrationService:

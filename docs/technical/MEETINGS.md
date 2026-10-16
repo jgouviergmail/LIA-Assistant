@@ -90,17 +90,24 @@ s'exécute sur PostgreSQL réel (`tests/integration/domains/meetings/test_reposi
 ### Chaîne de moteurs
 
 1. le fournisseur du slot admin `voice_transcription` s'il a une clé ;
-2. l'ordre de repli `STT_PROVIDER_FALLBACK_ORDER` (ElevenLabs Scribe, OpenAI `gpt-4o-transcribe-diarize`) ;
+2. l'ordre de repli `STT_PROVIDER_FALLBACK_ORDER` (ElevenLabs Scribe, OpenAI `gpt-4o-transcribe-diarize`,
+   puis Fish Audio — toujours `transcribe-1-pro` pour une réunion, le seul modèle qui marque les
+   interlocuteurs et prend un long enregistrement, ADR-345), chacun derrière son interrupteur
+   (`core/remote_stt.remote_stt_enabled`) ;
 3. le Whisper local si `VOICE_STT_ENABLED` — sans plafond de durée, fenêtres VAD Silero ≤ 20 s
    (`voice/stt/long_audio.py`), sans séparation des interlocuteurs.
 
 La préférence utilisateur `remote` refuse le repli local ; `local` n'appelle jamais un
 fournisseur. **La chaîne est reparcourue au traitement** (`transcribe_with_fallback`) : un
-code permanent d'UN fournisseur (`PERMANENT_STT_CODES` : clé refusée, fichier trop gros)
+code permanent d'UN fournisseur (`PERMANENT_STT_CODES` : clé refusée ou absente, compte sans
+crédit, fichier trop gros ou trop long)
 passe au moteur suivant dans la préférence de l'utilisateur ; seuls `no_speech` et les
 pannes transitoires (budget de tentatives du job) arrêtent le parcours. Mesuré le
 2026-09-03 : l'instance dev stocke un ID de clé ElevenLabs, chaque réunion aurait échoué
-alors qu'une clé OpenAI était disponible.
+alors qu'une clé OpenAI était disponible. Un fournisseur qui borne la DURÉE d'une requête
+la déclare (`core/remote_stt.REMOTE_STT_MAX_AUDIO_SECONDS` — Fish Audio : 60 minutes) : un
+enregistrement plus long y échoue en `provider_file_too_large` AVANT l'envoi, puisque le
+fournisseur ne le refuserait qu'après le téléversement entier.
 
 ## Frontend — `apps/web/src/`
 

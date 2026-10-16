@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * The bar above the meetings list while rows are selected (ADR-259): the
+ * The persistent page-selection bar above the meetings list (ADR-259): the
  * shared `SelectionBar` with one action, the bulk delete.
  */
 
@@ -17,6 +17,7 @@ interface MeetingSelectionBarProps {
   lng: Language;
   /** Selected rows that are on this page and selectable. */
   count: number;
+  canSelectAll: boolean;
   pageState: PageSelectionState;
   onSelectAll: () => void;
   onClear: () => void;
@@ -27,6 +28,7 @@ interface MeetingSelectionBarProps {
 export function MeetingSelectionBar({
   lng,
   count,
+  canSelectAll,
   pageState,
   onSelectAll,
   onClear,
@@ -36,8 +38,15 @@ export function MeetingSelectionBar({
   const { t } = useTranslation(lng);
   return (
     <SelectionBar
+      className="[&>label]:h-auto [&>label]:min-h-11 [&>span]:w-full [&>span]:flex-col [&>span>button]:w-full [&_button]:min-h-11 sm:[&>span]:w-auto sm:[&>span]:flex-row sm:[&>span>button]:w-auto"
+      showActions={count > 0}
+      selectAllDisabled={!canSelectAll}
       regionLabel={t('meetings.list.selection_region')}
-      countLabel={t('meetings.list.selected_count', { count })}
+      countLabel={
+        count > 0
+          ? t('meetings.list.selected_count', { count })
+          : t('meetings.list.select_all_page')
+      }
       selectAllLabel={t('meetings.list.select_all_page')}
       clearLabel={t('meetings.list.clear_selection')}
       pageState={pageState}
@@ -48,9 +57,10 @@ export function MeetingSelectionBar({
         type="button"
         size="sm"
         variant="destructive"
-        onClick={() => !deleting && onDelete()}
-        aria-disabled={deleting}
-        isLoading={deleting}
+        onClick={() => count > 0 && !deleting && onDelete()}
+        aria-disabled={deleting || count === 0}
+        className="aria-disabled:opacity-50"
+        aria-busy={deleting}
       >
         <Trash2 className="mr-1 h-4 w-4" aria-hidden="true" />
         {t('meetings.list.delete_selected', { count })}

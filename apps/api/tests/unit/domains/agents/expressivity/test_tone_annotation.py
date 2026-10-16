@@ -25,10 +25,8 @@ from src.domains.agents.expressivity import (
     pop_tone_annotation,
     store_tone_annotation,
 )
-from src.domains.agents.expressivity.annotation import (
-    TONE_TAG_MARKER,
-    strip_tone_fragments,
-)
+from src.domains.agents.expressivity.annotation import TONE_TAG_MARKER
+from src.domains.agents.services.streaming.machine_tags import MachineTagFilter
 
 pytestmark = pytest.mark.unit
 
@@ -131,15 +129,28 @@ class TestParsing:
         assert annotation.register == "weary"
         assert "LIA_TONE" not in cleaned
 
-    def test_streaming_fragments_are_stripped_by_the_SAME_pattern(self) -> None:
-        """Two independent strippers is how a tag ends up in a database row."""
-        assert strip_tone_fragments("texte <lia_ton").strip() == "texte <lia_ton"
-        assert strip_tone_fragments("texte <lia_tone regi").strip() == "texte"
-        assert strip_tone_fragments('texte <lia_tone register="warm"/>').strip() == "texte"
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "texte <lia_ton",
+            "texte <lia_tone regi",
+            'texte <lia_tone register="warm"/>',
+            'Bla <LIA_TONE register="weary"/> et la suite',
+        ],
+        ids=["not-yet-a-tag", "truncated", "complete", "uppercase-mid-text"],
+    )
+    def test_the_stream_removes_what_the_final_cleanup_removes(self, text: str) -> None:
+        """Two strippers that disagree is how a tag reaches a database row or the
+        chat voice: the token stream, cut at its worst — one character per token —
+        keeps exactly what the persisted answer keeps."""
+        tags = MachineTagFilter()
+        streamed = "".join(tags.feed(character) for character in text) + tags.flush()
+        _, cleaned = parse_tone_annotation(text)
+        assert " ".join(streamed.split()) == " ".join(cleaned.split())
 
-    def test_the_cheap_marker_matches_the_expensive_pattern(self) -> None:
-        """The streaming path pre-tests with a substring before any regex; a
-        marker that did not appear in a real tag would disable the filter."""
+    def test_the_marker_opens_a_real_tag(self) -> None:
+        """The cleaner pre-tests with it and the stream recognises the tag by it:
+        a marker that did not open a real tag would disable both."""
         assert TONE_TAG_MARKER in '<lia_tone register="warm"/>'
 
     def test_the_wire_shape_is_the_frontend_contract(self) -> None:
@@ -164,7 +175,9 @@ class TestPerRunRegistry:
     def test_an_unknown_run_is_not_an_error(self) -> None:
         assert pop_tone_annotation("never-stored") is None
 
-    def test_a_run_that_never_completes_does_not_leak_forever(self, monkeypatch) -> None:
+    def test_a_run_that_never_completes_does_not_leak_forever(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """An HITL interrupt or a dropped connection leaves an entry behind.
 
         Without the sweep the registry would grow for the life of the process,
@@ -186,7 +199,9 @@ class TestPerRunRegistry:
         assert pop_tone_annotation("other") is None
         assert "abandoned" not in module._tone_annotations
 
-    def test_an_entry_INSIDE_the_ttl_survives_a_sweep(self, monkeypatch) -> None:
+    def test_an_entry_INSIDE_the_ttl_survives_a_sweep(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """The other half of the same contract: a sweep that evicts a live run
         would drop the annotation of the very turn that is completing."""
         from src.domains.agents.expressivity import annotation as module

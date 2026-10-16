@@ -10,8 +10,9 @@ decides. Measured on this repository:
 * ``openai_tts_client`` tests ``"rate" in error_str`` — and « generate »
   contains « rate », so any synthesis failure closes the voice websocket with a
   rate-limit code and tells the person to wait.
-* The replanner called an anti-bot 403 « transient » because its permanence
-  markers never matched the message our own tool had built.
+* The advisory re-planner (since removed, ADR-346) called an anti-bot 403
+  « transient » because its permanence markers never matched the message our
+  own tool had built.
 
 Two structural classifiers already exist in-tree and say the doctrine out loud
 (``infrastructure/llm/embedding_errors.py``, ``domains/agents/api/error_messages.py``).

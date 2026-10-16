@@ -20,7 +20,13 @@ from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.i18n import resolve_language
 from src.domains.agents.context.runtime_context import runtime_context_if_running
 from src.domains.agents.data_registry.models import RegistryItem
-from src.domains.agents.effects.scope import effect_scope, react_call_scope
+from src.domains.agents.effects.gate import (
+    ERROR_CONFIRMATION_IMPOSSIBLE,
+    UNATTENDED_REFUSAL_MESSAGE,
+    turn_has_nobody_to_ask,
+)
+from src.domains.agents.effects.runtime import note_refusal
+from src.domains.agents.effects.scope import current_turn_source, effect_scope, react_call_scope
 from src.domains.agents.models import MessagesState
 from src.domains.agents.nodes.react_observed_gaps import requested_requirements
 from src.domains.agents.nodes.react_read_reuse import read_evidence
@@ -28,6 +34,7 @@ from src.domains.agents.nodes.react_result_reading import (
     activated_skill_of,
     call_artifact,
     is_productive_result,
+    tool_message_metadata,
     tool_message_status,
 )
 from src.domains.agents.registry.catalogue import is_read_only_tool
@@ -175,6 +182,11 @@ def _recovery_guard(call: ToolCall, state: MessagesState) -> ToolMessage | None:
 def _approve(call: ToolCall, state: MessagesState, ports: CallPorts) -> ToolMessage | None:
     if not state.get("react_hitl_map", {}).get(call["name"], False):
         return None
+    if turn_has_nobody_to_ask():
+        # N10: a question nobody can answer would wait on the person's thread
+        # and read their next message as its answer. Refuse as the gate does.
+        note_refusal(call["name"], ERROR_CONFIRMATION_IMPOSSIBLE, source=current_turn_source())
+        return tool_call_not_run(UNATTENDED_REFUSAL_MESSAGE, call["id"], call["name"])
     decision = ports.interrupt(
         {
             "action_requests": [
@@ -235,6 +247,7 @@ def _process(
         name=call["name"],
         status="error" if status == "error" else "success",
         artifact=call_artifact(raw),
+        response_metadata=tool_message_metadata(raw),
     )
     return Executed(
         answer,

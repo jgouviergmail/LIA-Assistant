@@ -6,12 +6,51 @@ with exponential backoff for transient failures.
 """
 
 import asyncio
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
+import structlog
+from structlog.testing import capture_logs
 
 from src.core.exceptions import MaxRetriesExceededError
 from src.infrastructure.utils.retry import retry_async, retry_with_backoff
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("asynchronous", [True, False])
+async def test_retry_logs_keep_provider_exception_prose_out_of_operational_logs(
+    monkeypatch: pytest.MonkeyPatch, asynchronous: bool
+) -> None:
+    """Retry diagnostics retain the cause without copying tokens/PII at INFO+."""
+    from src.infrastructure.utils import retry as module
+
+    monkeypatch.setattr(module, "logger", structlog.get_logger())
+    monkeypatch.setattr(module.asyncio, "sleep", AsyncMock())
+    private = "provider-body person@example.test Authorization=secret-fixture"
+    cause = ValueError(private)
+    attempts = 0
+
+    def failing() -> None:
+        nonlocal attempts
+        attempts += 1
+        raise cause
+
+    async def async_failing() -> None:
+        failing()
+
+    with patch("time.sleep"), capture_logs() as records:
+        with pytest.raises(MaxRetriesExceededError) as refusal:
+            if asynchronous:
+                await retry_async(async_failing, max_retries=2)
+            else:
+                retry_with_backoff(max_retries=2)(failing)()
+
+    assert attempts == 2
+    assert refusal.value.last_error is cause
+    operational = [record for record in records if record["log_level"] != "debug"]
+    assert {record["event"] for record in operational} >= {"retry_attempt", "max_retries_exceeded"}
+    assert all(private not in str(record) for record in operational)
+    assert all(record["error_type"] == "ValueError" for record in operational)
 
 
 class TestRetryWithBackoffAsync:

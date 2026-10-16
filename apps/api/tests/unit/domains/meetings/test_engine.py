@@ -6,6 +6,7 @@ import pytest
 
 from src.core.constants import (
     DEFAULT_ELEVENLABS_STT_MODEL,
+    FISHAUDIO_STT_MODEL_DEFAULT,
     OPENAI_STT_DIARIZE_MODEL_DEFAULT,
 )
 from src.domains.llm_config.cache import LLMConfigOverrideCache
@@ -125,3 +126,42 @@ def test_an_excluded_provider_is_skipped_and_the_chain_continues(
         )
         is None
     )
+
+
+class TestFishAudio:
+    """Fish Audio joins the chain (ADR-345), after the engines already there."""
+
+    def test_a_fish_key_alone_transcribes_a_meeting_on_the_pro_model(self) -> None:
+        _keys(fishaudio="sk-fish")
+
+        resolved = eng.resolve_engine(MeetingSttEnginePreference.AUTO)
+
+        assert resolved is not None
+        assert (resolved.provider, resolved.model) == (
+            MeetingSttProvider.FISHAUDIO,
+            FISHAUDIO_STT_MODEL_DEFAULT,
+        )
+
+    def test_the_pro_model_even_when_the_dictation_slot_names_the_short_one(self) -> None:
+        """A meeting needs speaker turns and a long recording: only the pro model has them."""
+        _keys(fishaudio="sk-fish")
+        LLMConfigOverrideCache._overrides = {
+            "voice_transcription": {"provider": "fishaudio", "model": "transcribe-1"}
+        }
+
+        resolved = eng.resolve_engine(MeetingSttEnginePreference.REMOTE)
+
+        assert resolved is not None and resolved.model == FISHAUDIO_STT_MODEL_DEFAULT
+
+    def test_the_engines_already_there_keep_their_place(self) -> None:
+        _keys(fishaudio="sk-fish", openai="sk-y")
+
+        resolved = eng.resolve_engine(MeetingSttEnginePreference.AUTO)
+
+        assert resolved is not None and resolved.provider is MeetingSttProvider.OPENAI
+
+    def test_its_kill_switch_skips_it(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _keys(fishaudio="sk-fish")
+        monkeypatch.setattr(eng.settings, "fishaudio_stt_enabled", False)
+
+        assert eng.resolve_engine(MeetingSttEnginePreference.REMOTE) is None

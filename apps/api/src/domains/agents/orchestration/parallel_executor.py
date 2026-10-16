@@ -83,13 +83,11 @@ from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, ConfigDict
 
 from src.core.config import settings
-from src.core.constants import (
-    TOOL_NAME_DELEGATE_SUB_AGENT,
-)
 from src.core.field_names import (
     FIELD_CORRELATED_TO,
     FIELD_CORRELATION_PARENT_ID,
     FIELD_ERROR_CODE,
+    FIELD_FOR_EACH_AGGREGATE,
     FIELD_METADATA,
     FIELD_NODE_NAME,
     FIELD_REGISTRY_ID,
@@ -2300,46 +2298,8 @@ async def _execute_tool_step(
     )
     if error_result:
         return error_result
-
-    # 1bis. ADR-083 — Post-resolution cap on delegate_to_sub_agent_tool.instruction.
-    # The manifest's max_length=5000 chars only constrains the TEMPLATE before $ref
-    # expansion ("...$steps.X..." ≈ 50 chars). After resolution, raw payloads can
-    # explode the string (incident 2026-05-12: 114K tokens of inlined HTML emails).
-    # Re-validate the resolved value here — the only point where the actual
-    # size is known. Honors SUBAGENT_INSTRUCTION_MAX_TOKENS_RESOLVED (.env).
-    if step.tool_name == TOOL_NAME_DELEGATE_SUB_AGENT:
-        from src.core.config import get_settings
-        from src.infrastructure.llm.providers.token_counter import EstimationTokenCounter
-
-        instruction_value = resolved_args.get("instruction") or ""
-        if isinstance(instruction_value, str) and instruction_value:
-            token_estimate = EstimationTokenCounter().count(instruction_value, model="any")
-            cap = get_settings().subagent_instruction_max_tokens_resolved
-            if token_estimate > cap:
-                logger.warning(
-                    "subagent_instruction_oversized_after_resolution",
-                    step_id=step.step_id,
-                    token_estimate=token_estimate,
-                    cap=cap,
-                )
-                execution_time_ms = int((time.time() - start_time) * 1000)
-                return StepResult(
-                    step_id=step.step_id,
-                    step_type=StepType.TOOL,
-                    tool_name=step.tool_name,
-                    args=resolved_args,
-                    success=False,
-                    error=(
-                        f"Sub-agent instruction too large after reference "
-                        f"resolution ({token_estimate} tokens > cap {cap}) — "
-                        f"likely a $steps reference to a raw payload. "
-                        f"Pass a task statement, not data; the sub-agent will "
-                        f"fetch what it needs with its own tools."
-                    ),
-                    error_code=ToolErrorCode.INVALID_INPUT,
-                    execution_time_ms=execution_time_ms,
-                    wave_id=wave_id,
-                )
+    # The sub-agent's instruction cap (ADR-083) is the TOOL's own check since
+    # point 38: it holds in both modes, and here the references are resolved.
 
     # 2. Get tool manifest from registry (Session 22 - Helper #7)
     _manifest, error_result = _get_tool_manifest_for_step(
@@ -3001,11 +2961,9 @@ async def _execute_tool(
             # UnifiedToolOutput carries an explicit verdict; the legacy
             # StandardToolOutput has none (implicit success). A typed failure
             # must keep saying so: hardcoding True here reported a refused
-            # peer relay as delivered, and — because
-            # plan_blockers.executed_tool_names counts any step whose outcome
-            # is not an explicit failure as executed — silenced the
-            # validator's CONSTRAINT_VIOLATION blocker as stale
-            # (prod 2026-08-17, request 2ecc670c).
+            # peer relay as delivered (prod 2026-08-17, request 2ecc670c), and
+            # the runtime failures directive — the one channel that tells a
+            # failure of a step that ran (RC1.2) — reads this flag.
             succeeded = result.success if isinstance(result, UnifiedToolOutput) else True
             result_payload: dict[str, Any] = {
                 "success": succeeded,
@@ -3342,13 +3300,19 @@ def _aggregate_for_each_results(
             completed_steps["step_2_item_1"] = {"places": [place_c, place_d]}
 
         After:
-            completed_steps["step_2"] = {"places": [place_a, place_b, place_c, place_d]}
+            completed_steps["step_2"] = {
+                "places": [place_a, place_b, place_c, place_d],
+                FIELD_FOR_EACH_AGGREGATE: True,
+            }
 
     Algorithm:
         1. Collect all expanded step results
         2. For keys with list values: concatenate all lists
         3. For other keys: use value from last expanded step
-        4. Store aggregated result under original_step_id
+        4. Mark the entry as an aggregate: it inherits ``success: false`` from a
+           failed item, and the failure readers must count the ITEMS, never it
+           (``diagnostics.failure_context``, ADR-346)
+        5. Store aggregated result under original_step_id
     """
     if not expanded_step_ids:
         logger.debug(
@@ -3412,7 +3376,9 @@ def _aggregate_for_each_results(
                     aggregated[key] = v
                     break
 
-    # Store aggregated result under original step_id
+    # The reader that excludes aggregates shares this constant: without it, one
+    # failed item was announced as two failures (the aggregate inherits it).
+    aggregated[FIELD_FOR_EACH_AGGREGATE] = True
     completed_steps[original_step_id] = aggregated
 
     logger.info(

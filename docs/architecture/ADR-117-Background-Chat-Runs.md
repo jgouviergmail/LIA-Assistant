@@ -211,3 +211,51 @@ reattach and Lot 3 cancel signal go through Redis (per ADR-063 convention).
   duplicate user rows; restart mid-run drains gracefully. See
   [BACKGROUND_RUNS.md](../technical/BACKGROUND_RUNS.md) for the operational
   runbook.
+
+## Amendment 2026-10-13 — a lease says LIA is busy, never a stream nobody writes
+
+The active-run lock has two kinds of holder. The chat producer relays its chunks
+through the run stream; a lease (`active_run_lease`: a workboard ticket, a voice
+relay, a voice delegation) runs the turn itself and publishes nothing there. Both
+were served alike: `/runs/active` and the 409 handed the client the lease's
+stream id, the chat reattached to a stream that never received a chunk, and Stop
+answered `cancelled: true` while nothing listened for the signal.
+
+- The lock records `relayed` (false for a lease, kept by the heartbeat's re-take).
+- `public_active_run` is the ONE client-facing view: `/runs/active` keeps
+  `active: true` with `stream_id: null` for a lease, the 409 names no stream,
+  Stop answers `cancelled: false`, the reattach answers 404. A lock written
+  before the field existed reads as relayed, the behaviour it always had: a
+  lease in flight at the deploy keeps it until it ends, minutes later.
+- The web keeps a run without a stream ACTIVE (`fetchActiveRun`): the companion
+  says LIA is working, and the chat's resume already required a stream id.
+- A message sent meanwhile meets the 409 with no stream, so the chat follows
+  nothing and shows `errors.chat.run_in_progress` at once. That message used to
+  announce a reattachment (« reattaching to it ») it never made — it only shows
+  when there is no stream to follow — and now says what happened in the six
+  languages: LIA is already working on this conversation, the message was not
+  sent.
+
+Guards: `tests/unit/infrastructure/streaming/test_active_run_visibility.py`, the
+`chat.test.ts` and `useChat.test.ts` cases for a run with no stream, and the
+browser journey `e2e/smoke/chat-thread-held-elsewhere.spec.ts`.
+
+## Amendment 2026-10-15 — an event stream must reach the client before it ends
+
+The API's initial notification event was not observable within ten seconds
+through the real Next.js proxy when gzip was negotiated. The same route,
+identity, server and client passed with identity encoding. The pinned Next.js
+compression package honors the canonical `no-transform` cache directive.
+
+The existing pure-ASGI `SecurityHeadersMiddleware` now adds that directive to
+all `text/event-stream` responses, retaining other cache restrictions and
+leaving non-stream responses alone. This covers chat and run reattachment as
+well as notifications, without disabling compression for ordinary web content.
+See [RFC 9111 §5.2.2.6](https://www.rfc-editor.org/rfc/rfc9111.html#section-5.2.2.6).
+
+The HTTP replay on the disposable installation then passed with ordinary client
+compression negotiation: immediate connection, continuous Redis notifications,
+terminal session revocation and a 401 when reopening with the expired cookie.
+`tests/unit/core/test_event_stream_headers.py` covers the first-chunk and cache
+policy contract. This does not qualify every possible operator proxy or a
+physical mobile device.

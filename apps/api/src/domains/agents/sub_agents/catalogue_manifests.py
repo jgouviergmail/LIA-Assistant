@@ -21,6 +21,7 @@ from src.domains.agents.registry.catalogue import (
     PermissionProfile,
     ToolManifest,
 )
+from src.domains.sub_agents.instruction_contract import instruction_description
 
 # =============================================================================
 # Agent Manifest: sub_agent_agent
@@ -122,18 +123,8 @@ delegate_to_sub_agent_catalogue_manifest = ToolManifest(
             name="instruction",
             type="string",
             required=True,
-            description=(
-                "Clear TASK STATEMENT for the sub-agent — what to analyze, "
-                "what sources to use, what output format. The sub-agent has NO "
-                "user-data tools: hand it the user data it needs through "
-                "`$steps.step_N.<field>` references to earlier steps (never "
-                "paste data by hand), and `$steps.step_N.analysis` for "
-                "sub-agent → sub-agent chaining. Once references are resolved "
-                "the instruction is hard-capped at the token budget stated in "
-                "the SUB-AGENT DELEGATION section; an oversized one is "
-                "rejected at execution time, so reference the fields the "
-                "expert needs, not whole payloads."
-            ),
+            # The facts the ReAct schema states too, in the plan's own words (point 38).
+            description=instruction_description(in_plan=True),
             constraints=[
                 ParameterConstraint(kind="min_length", value=10),
                 ParameterConstraint(kind="max_length", value=5000),
@@ -151,7 +142,8 @@ delegate_to_sub_agent_catalogue_manifest = ToolManifest(
     ],
     # ADR-083 — realistic estimate post-rewrite onto ReactSubAgentRunner:
     # a single scoped ReAct loop (~1-6 LLM calls bounded by recursion_limit),
-    # with `instruction` hard-capped at SUBAGENT_INSTRUCTION_MAX_TOKENS_RESOLVED.
+    # with `instruction` hard-capped at SUBAGENT_INSTRUCTION_MAX_TOKENS_RESOLVED
+    # by the tool itself, in both execution modes.
     cost=CostProfile(
         est_tokens_in=3000,
         est_tokens_out=2000,

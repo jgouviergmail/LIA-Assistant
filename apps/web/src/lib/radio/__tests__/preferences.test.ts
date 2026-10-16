@@ -7,12 +7,13 @@ import { describe, expect, it } from 'vitest';
 
 import {
   speakableName,
+  voicesTakenFrom,
   withFeedHeard,
   withSourceHeard,
   withStationName,
   withVoice,
 } from '../preferences';
-import { radioPreferences as preferences } from './fixtures';
+import { radioOptions, radioPreferences as preferences } from './fixtures';
 
 const WIRE = 'https://feeds.example/world.xml';
 
@@ -74,5 +75,37 @@ describe('sources and voices', () => {
     const chosen = withVoice(preferences(), 'host', 'fr-A');
     expect(chosen.voices).toEqual({ host: 'fr-A' });
     expect(withVoice(chosen, 'host', null).voices).toEqual({});
+  });
+
+  it('voices a commentator like any role', () => {
+    const chosen = withVoice(preferences(), 'speaker_b', 'fr-B');
+    expect(chosen.voices).toEqual({ speaker_b: 'fr-B' });
+    expect(withVoice(chosen, 'speaker_b', null).voices).toEqual({});
+  });
+});
+
+describe('the voices a role may not take', () => {
+  const apart = radioOptions().voices_apart;
+  const chosen = preferences({
+    voices: { host: 'lia', anchor: 'anchor', expert: 'expert', speaker_a: 'a', speaker_b: 'b' },
+  });
+
+  it('greys out LIA’s, the anchor’s and the other commentators’ voices for a commentator', () => {
+    expect([...voicesTakenFrom(chosen, apart, 'speaker_c')].sort()).toEqual([
+      'a',
+      'anchor',
+      'b',
+      'lia',
+    ]);
+  });
+
+  it('greys out the commentators’ voices for LIA, and nothing for the expert', () => {
+    expect([...voicesTakenFrom(chosen, apart, 'host')].sort()).toEqual(['a', 'b']);
+    expect(voicesTakenFrom(chosen, apart, 'expert').size).toBe(0);
+  });
+
+  it('never greys out the voice a role already holds', () => {
+    const clash = preferences({ voices: { host: 'same', speaker_a: 'same' } });
+    expect(voicesTakenFrom(clash, apart, 'speaker_a').has('same')).toBe(false);
   });
 });

@@ -102,7 +102,6 @@ async def retry_async(
                         attempt=attempt + 1,
                         max_retries=max_retries,
                         wait_seconds=wait_time,
-                        error=str(e),
                         error_type=type(e).__name__,
                     )
                 await asyncio.sleep(wait_time)
@@ -111,7 +110,6 @@ async def retry_async(
                     "max_retries_exceeded",
                     operation=operation_name,
                     max_retries=max_retries,
-                    last_error=str(e),
                     error_type=type(e).__name__,
                 )
 
@@ -194,7 +192,6 @@ def retry_with_backoff(
                                 attempt=attempt + 1,
                                 max_retries=max_retries,
                                 wait_seconds=wait_time,
-                                error=str(e),
                                 error_type=type(e).__name__,
                             )
                         import time
@@ -205,7 +202,6 @@ def retry_with_backoff(
                             "max_retries_exceeded",
                             operation=op_name,
                             max_retries=max_retries,
-                            last_error=str(e),
                             error_type=type(e).__name__,
                         )
 

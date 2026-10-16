@@ -125,7 +125,10 @@ describe('SETTINGS_SEARCH_META — describes the page it claims to describe', ()
     // (2026-09-29), right after the font family: the interface text size,
     // with a preview and a cap that follows the screen width.
     // 67: personal speaking-avatar settings, independently gated from Live.
-    expect(TOKENS).toHaveLength(67);
+    // 68 since the voice library joined Administration / AI & Connectors
+    // (ADR-345, 2026-10-14): the instance's Fish Audio voices — clone,
+    // design, rename, delete.
+    expect(TOKENS).toHaveLength(68);
   });
 
   it.each(Object.keys(LOCALES) as LocaleCode[])(

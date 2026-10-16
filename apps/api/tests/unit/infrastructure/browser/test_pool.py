@@ -6,9 +6,10 @@ Phase: evolution F7 — Browser Control (Playwright)
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Iterator
 from contextlib import contextmanager
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from prometheus_client import REGISTRY
@@ -80,14 +81,6 @@ class TestBrowserPool:
         pool = BrowserPool()
         assert not pool.is_healthy
 
-    def test_memory_usage_returns_none_on_windows(self):
-        """Memory monitoring returns None on non-Linux (Windows/macOS)."""
-        pool = BrowserPool()
-        # On Windows/macOS, /proc doesn't exist
-        result = pool.get_memory_usage_mb()
-        # Should return None or a float (if running on Linux)
-        assert result is None or isinstance(result, float)
-
 
 class TestBrowserPoolLaunch:
     """The pool launches the Chromium the deployment declares (ADR-059 amendment)."""
@@ -138,3 +131,40 @@ class TestBrowserPoolSessionLimit:
         pool = BrowserPool()
         with pytest.raises(ValueError, match="not healthy"):
             await pool.acquire_session("user123")
+
+
+@pytest.mark.parametrize("cancelled", [False, True])
+@pytest.mark.parametrize("cleanup_fails", [False, True])
+@pytest.mark.parametrize("redis_cleanup_fails", [False, True])
+async def test_an_uninitialized_context_is_closed_without_losing_the_primary_failure(
+    monkeypatch: pytest.MonkeyPatch, cancelled: bool, cleanup_fails: bool, redis_cleanup_fails: bool
+) -> None:
+    """Playwright owns a context even when installing its initial script fails."""
+    failure = asyncio.CancelledError() if cancelled else RuntimeError("initialization failed")
+    context = MagicMock()
+    context.add_init_script = AsyncMock(side_effect=failure)
+    context.close = AsyncMock(side_effect=OSError("cleanup failed") if cleanup_fails else None)
+    browser = MagicMock()
+    browser.new_context = AsyncMock(return_value=context)
+    pool = BrowserPool()
+    pool._browser = browser
+    pool._healthy = True
+    monkeypatch.setattr(pool, "_reserve_session_redis", AsyncMock(return_value=None))
+    monkeypatch.setattr(
+        pool,
+        "_remove_session_redis",
+        AsyncMock(
+            side_effect=(
+                RuntimeError("secondary Redis protocol failure") if redis_cleanup_fails else None
+            )
+        ),
+    )
+    before = REGISTRY.get_sample_value("browser_sessions_active")
+
+    with pytest.raises(type(failure)) as caught:
+        await pool.acquire_session("new-user")
+
+    assert caught.value is failure
+    context.close.assert_awaited_once()
+    assert "new-user" not in pool._sessions
+    assert REGISTRY.get_sample_value("browser_sessions_active") == before

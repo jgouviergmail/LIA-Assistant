@@ -35,8 +35,8 @@ from __future__ import annotations
 from typing import Final
 
 #: Reads, and records. The value is the surface key of
-#: :data:`CONSULTATION_SURFACES`, or ``"tool gate"`` when the module's calls
-#: reach the register through a tool after all.
+#: :data:`CONSULTATION_SURFACES`, or ``"in-turn"`` for an explicitly recorded
+#: capability within a turn. Tool-layer implementations meet the gate directly.
 CLIENT_CALL_RECORDERS: Final[dict[str, str]] = {
     # In a TURN, through ``record_treatment``: the authorship is whatever set
     # the turn in motion, so these declare a capability rather than a surface

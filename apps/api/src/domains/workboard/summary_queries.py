@@ -18,7 +18,8 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, func, literal, select, union_all
+from sqlalchemy.orm import aliased, load_only
 
 from src.domains.workboard.board_queries import BoardFilters, needs_me_stmt
 from src.domains.workboard.constants import OPEN_STATUSES
@@ -70,17 +71,21 @@ class AttentionFigures:
     Attributes:
         needs_me: Tickets waiting on this account, or late on its board.
         held_by_lia: Open tickets LIA holds.
+        held_by_peers: Open tickets another account holds (the board peer filter).
         overdue: Open tickets past their due date.
         open_total: Every open ticket on the visible board.
-        needs_me_first: The first « needs me » tickets, earliest due first —
-            a PAGE of the set ``needs_me`` counts, never its measure.
+        needs_me_first: The legacy « needs me » page, earliest due first.
+        previews: The first two rows in each exact counter's set, with overlaps
+            preserved. Counts are aggregates, never derived from these pages.
     """
 
     needs_me: int
     held_by_lia: int
+    held_by_peers: int
     overdue: int
     open_total: int
     needs_me_first: list[WorkboardTicket]
+    previews: dict[str, list[WorkboardTicket]]
 
 
 async def read_attention(
@@ -105,16 +110,62 @@ async def read_attention(
     counts = await repo.counts_by_status(user_id, BoardFilters())
     open_statuses = tuple(sorted(OPEN_STATUSES))
     lia_stmt = repo.filtered_stmt(user_id, BoardFilters(statuses=open_statuses, assignee="lia"))
-    held_by_lia = int((await db.execute(count_over(lia_stmt))).scalar() or 0)
-    overdue_stmt = count_over(repo.filtered_stmt(user_id, BoardFilters(overdue=True)))
-    overdue = int((await db.execute(overdue_stmt)).scalar() or 0)
-    first, needs_me = await repo.needs_me(user_id, now, limit=limit)
+    peer_stmt = repo.filtered_stmt(user_id, BoardFilters(statuses=open_statuses, assignee="peer"))
+    # Independent, possibly overlapping sets, in the same database round trip.
+    holder_counts = select(
+        count_over(lia_stmt).scalar_subquery(), count_over(peer_stmt).scalar_subquery()
+    )
+    held_by_lia, held_by_peers = (await db.execute(holder_counts)).one()
+    overdue_tickets = repo.filtered_stmt(user_id, BoardFilters(overdue=True))
+    overdue = int((await db.execute(count_over(overdue_tickets))).scalar() or 0)
+    statements = {
+        "needs_me": select(WorkboardTicket).where(
+            WorkboardTicket.id.in_(needs_me_stmt(user_id, now))
+        ),
+        "held_by_lia": lia_stmt,
+        "held_by_peers": peer_stmt,
+        "overdue": overdue_tickets,
+        "open_total": repo.filtered_stmt(user_id, BoardFilters(statuses=open_statuses)),
+    }
+    groups: dict[str, list[WorkboardTicket]] = {key: [] for key in statements}
+    for key, ticket in (await db.execute(_preview_stmt(statements, limit))).all():
+        groups[key].append(ticket)
+    needs_me = await repo.count_needs_me(user_id, now)
     return AttentionFigures(
         needs_me=needs_me,
-        held_by_lia=held_by_lia,
+        held_by_lia=int(held_by_lia),
+        held_by_peers=int(held_by_peers),
         overdue=overdue,
         open_total=sum(counts.get(status, 0) for status in open_statuses),
-        needs_me_first=first,
+        needs_me_first=groups["needs_me"][:limit],
+        previews={key: tickets[:2] for key, tickets in groups.items()},
+    )
+
+
+def _preview_stmt(
+    statements: dict[str, Select[tuple[WorkboardTicket]]], limit: int
+) -> Select[tuple[str, WorkboardTicket]]:
+    """Read bounded, possibly overlapping previews in one database round trip.
+
+    The legacy needs-me page keeps its configured limit; the UI previews expose
+    only two rows per group. Subqueries keep each LIMIT independent and portable.
+    """
+    parts = []
+    for key, statement in statements.items():
+        page = (
+            statement.order_by(WorkboardTicket.due_at.asc().nulls_last(), WorkboardTicket.id.asc())
+            .limit(max(limit, 2) if key == "needs_me" else 2)
+            .subquery()
+        )
+        parts.append(select(literal(key).label("preview_group"), *page.c))
+    combined = union_all(*parts).subquery()
+    ticket = aliased(WorkboardTicket, combined)
+    return (
+        select(combined.c.preview_group, ticket)
+        .options(load_only(ticket.id, ticket.title, ticket.status, ticket.due_at))
+        .order_by(
+            combined.c.preview_group, combined.c.due_at.asc().nulls_last(), combined.c.id.asc()
+        )
     )
 
 

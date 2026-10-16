@@ -29,15 +29,17 @@ import {
 /**
  * Fetch all active personalities (localized to user's language)
  */
-export async function fetchPersonalities(): Promise<PersonalityListResponse> {
-  return apiClient.get<PersonalityListResponse>('/personalities');
+export async function fetchPersonalities(signal?: AbortSignal): Promise<PersonalityListResponse> {
+  return apiClient.get<PersonalityListResponse>('/personalities', { signal });
 }
 
 /**
  * Fetch user's current personality preference
  */
-export async function fetchCurrentPersonality(): Promise<UserPersonalityResponse> {
-  return apiClient.get<UserPersonalityResponse>('/personalities/current');
+export async function fetchCurrentPersonality(
+  signal?: AbortSignal
+): Promise<UserPersonalityResponse> {
+  return apiClient.get<UserPersonalityResponse>('/personalities/current', { signal });
 }
 
 /**

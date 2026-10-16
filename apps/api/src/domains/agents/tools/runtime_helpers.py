@@ -133,10 +133,12 @@ from contextlib import suppress
 from typing import TYPE_CHECKING, Any, NamedTuple
 from uuid import UUID
 
+import httpx
 from fastapi import HTTPException
 from langchain.tools import ToolRuntime
 from langgraph.store.base import BaseStore
 
+from src.core.exceptions import ExternalServiceError, MaxRetriesExceededError
 from src.core.field_names import FIELD_ERROR_MESSAGE, FIELD_ERROR_TYPE
 from src.core.i18n import get_locale_for_language, normalize_language, resolve_language
 from src.core.i18n_api_messages import APIMessages
@@ -144,6 +146,7 @@ from src.domains.agents.context.runtime_context import (
     LiaRuntimeContext,
     tool_user_id_str,
 )
+from src.infrastructure.email.recipients import recipient_segments
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
@@ -441,14 +444,29 @@ def handle_tool_exception(
         emit_connector_notice_for_exception,
     )
     from src.domains.agents.tools.output import UnifiedToolOutput
+    from src.infrastructure.email.smtp_outcome import SMTPPartialAcceptanceError
 
     logger.error(
         f"{tool_name}_unexpected_error",
-        error=str(e),
         error_type=type(e).__name__,
+        context_keys=sorted(context or {}),
+    )
+    logger.debug(
+        f"{tool_name}_unexpected_error_details",
+        error=str(e),
         context=context or {},
         exc_info=True,
     )
+    if isinstance(e, SMTPPartialAcceptanceError):
+        return UnifiedToolOutput.failure(
+            message=str(e),
+            error_code="PARTIAL_SEND",
+            metadata={
+                FIELD_ERROR_TYPE: type(e).__name__,
+                "accepted_recipients_count": e.accepted,
+                "refused_recipients_count": e.refused,
+            },
+        )
 
     # Lot 3 P3 (ADR-134): typed connector auth failures surface an actionable
     # "reconnect" banner in the chat (best-effort — no-op outside a LangGraph
@@ -468,9 +486,96 @@ def handle_tool_exception(
         error_code=error_code,
         metadata={
             FIELD_ERROR_TYPE: type(e).__name__,
-            FIELD_ERROR_MESSAGE: str(e),
+            FIELD_ERROR_MESSAGE: APIMessages.internal_error(type(e).__name__),
         },
     )
+
+
+def _retry_after_of(e: HTTPException) -> int | None:
+    """The delay an HTTP refusal named, in whole seconds, or None.
+
+    Args:
+        e: The refusal; its ``Retry-After`` header first, else a typed
+            ``retry_after`` attribute (``RateLimitError``).
+
+    Returns:
+        The delay, or None when nobody named one.
+    """
+    header = (e.headers or {}).get("Retry-After")
+    if header is not None and header.isdigit():
+        return int(header)
+    attribute = getattr(e, "retry_after", None)
+    return attribute if isinstance(attribute, int) else None
+
+
+def _refusal_status(e: Exception) -> int | None:
+    """The HTTP status a refusal carries: one of our exceptions', or the provider's.
+
+    Args:
+        e: The exception the tool raised.
+
+    Returns:
+        The status, or None for an exception no HTTP answer produced.
+    """
+    if isinstance(e, HTTPException):
+        return e.status_code
+    if isinstance(e, httpx.HTTPStatusError):
+        return e.response.status_code
+    return None
+
+
+def describe_external_refusal(
+    e: Exception, tool_name: str, classified: str | None
+) -> UnifiedToolOutput | None:
+    """A failure the SERVICE side produced, said by its status (ADR-303).
+
+    ``handle_tool_exception`` answers « Internal error: <type> » in the reader's
+    language and ``INTERNAL_ERROR`` for anything that is not a connector notice,
+    so a provider asking a tool to slow down, or a service the breaker paused,
+    read as a defect of our own. An HTTP refusal — one of ours, or the
+    provider's own — is classified by its STATUS, retries that never got an
+    answer are external, and a named delay travels. Exception detail is never
+    quoted: even our typed exceptions may wrap a provider body. The message is
+    technical English: only the model reads it (ADR-256).
+
+    Args:
+        e: The exception the tool raised.
+        tool_name: The tool, named in the message.
+        classified: The code ``handle_tool_exception`` derived; a connector
+            notice's code wins, since it is the one the banner showed.
+
+    Returns:
+        The failure, or None for an exception no service produced.
+    """
+    from src.domains.agents.tools.common import ToolErrorCode, http_status_to_error_code
+    from src.domains.agents.tools.output import UnifiedToolOutput
+
+    if isinstance(e, MaxRetriesExceededError):
+        code = ToolErrorCode.EXTERNAL_API_ERROR.value
+        return UnifiedToolOutput.failure(
+            message=f"{tool_name} failed: {code} (no answer after {e.max_retries} attempts).",
+            error_code=code,
+            metadata={FIELD_ERROR_TYPE: type(e).__name__},
+        )
+    status = _refusal_status(e)
+    if status is None:
+        return None
+    code = (
+        classified
+        if classified and classified != ToolErrorCode.INTERNAL_ERROR.value
+        else http_status_to_error_code(status).value
+    )
+    refused_key = isinstance(e, ExternalServiceError) and e.error_type == "unauthorized"
+    if refused_key:
+        code = ToolErrorCode.UNAUTHORIZED.value
+    message = f"{tool_name} failed: {code} (HTTP {status})"
+    message += ". The API key was refused." if refused_key else "."
+    metadata: dict[str, Any] = {FIELD_ERROR_TYPE: type(e).__name__, "status_code": status}
+    retry_after = _retry_after_of(e) if isinstance(e, HTTPException) else None
+    if retry_after is not None:
+        message += f" Retry after {retry_after} s."
+        metadata["retry_after_seconds"] = retry_after
+    return UnifiedToolOutput.failure(message=message, error_code=code, metadata=metadata)
 
 
 def extract_session_id_from_state(
@@ -1207,16 +1312,19 @@ async def resolve_recipients_to_emails(
 
     # Handle string input (email tools: to, cc, bcc)
     if isinstance(recipients, str):
-        # Split by comma for potential multiple recipients
-        parts = [p.strip() for p in recipients.split(",") if p.strip()]
-
-        # Check if first part is already a valid email (all are likely emails too)
-        if parts and validate_email(parts[0]):
+        # Read recipient by recipient — outside quotes and angle brackets, so a
+        # display name holding a comma stays one — never judged by the first one:
+        # « paul@x.com, Marie » used to leave Marie unresolved.
+        segments = recipient_segments(recipients)
+        if all(is_address for _, is_address in segments):
             return recipients  # Already valid, no resolution needed
 
         # Resolve each name individually
         resolved_parts: list[str] = []
-        for name in parts:
+        for name, is_address in segments:
+            if is_address:
+                resolved_parts.append(name)
+                continue
             resolved_email = await resolve_contact_to_email(runtime, name)
             if resolved_email:
                 # Format as "Name <email>" for RFC 5322 compliance

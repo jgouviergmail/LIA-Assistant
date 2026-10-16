@@ -62,7 +62,8 @@
       "tokens_one": "{{formatted}} Token",
       "tokens_other": "{{formatted}} Tokens",
       "tooltip": "Modell: {{model}}\nIN: {{tokens_in}} · OUT: {{tokens_out}} · CACHE: {{tokens_cache}}\nKosten: {{cost}}"
-    }
+    },
+    "refresh": "Aktualisieren"
   },
   "theme": {
     "to_light": "Zum hellen Modus wechseln",
@@ -200,7 +201,15 @@
       },
       "cycle_dates": "Zeitraum vom {{start}} bis {{end}}",
       "since": "seit {{date}}",
-      "consumption_title": "Verbrauch"
+      "consumption_title": "Verbrauch",
+      "period": "Zeitraum",
+      "total": "Gesamt",
+      "unavailable": "Statistiken sind nicht verfügbar.",
+      "refresh_error": "Die Statistiken konnten nicht aktualisiert werden. Die zuletzt empfangenen Werte bleiben sichtbar.",
+      "prompt_tokens": "Eingabe-Tokens",
+      "completion_tokens": "Ausgabe-Tokens",
+      "cached_tokens": "Cache-Tokens",
+      "google_api_cost": "Google-API-Kosten"
     },
     "actions": {
       "open_chat": "Chat öffnen",
@@ -248,7 +257,8 @@
       "workboard": "Workboard",
       "workboard_sub": "Woran LIA arbeitet",
       "actions": "Register",
-      "actions_sub": "Aktionen nachverfolgen"
+      "actions_sub": "Aktionen nachverfolgen",
+      "title": "Meine Schnellzugriffe"
     },
     "briefing": {
       "synthesis_audio_error": "Die Sprachwiedergabe ist fehlgeschlagen — der Sprachanbieter hat kein Audio geliefert. Prüfe die Spracheinstellungen.",
@@ -325,11 +335,15 @@
           "empty_other": "Nichts in den nächsten {{count}} Tagen",
           "today": "heute",
           "in_days_one": "{{count}} Tag",
-          "in_days_other": "{{count}} Tage"
+          "in_days_other": "{{count}} Tage",
+          "age_next_one": "Wird {{count}} Jahr alt",
+          "age_next_other": "Wird {{count}} Jahre alt"
         },
         "reminders": {
           "title": "Aktive Erinnerungen",
-          "empty": "Keine aktiven Erinnerungen"
+          "empty": "Keine aktiven Erinnerungen",
+          "recurring": "Wiederkehrende Erinnerung",
+          "one_off": "Einmalige Erinnerung"
         },
         "health": {
           "title": "Gesundheit",
@@ -349,7 +363,8 @@
           "days_open_one": "{{count}} Tag",
           "days_open_other": "{{count}} Tage",
           "ran_recently": "in den letzten 24 h ausgeführt",
-          "next_up": "als Nächstes"
+          "next_up": "als Nächstes",
+          "next_automation_label": "Nächste Routine"
         },
         "tasks": {
           "title": "Aufgaben",
@@ -364,12 +379,17 @@
         "documents": {
           "title": "Dokumente",
           "empty": "Keine aktuellen Dokumente",
-          "open_external": "„{{subject}}“ in Drive öffnen"
+          "open_external": "„{{subject}}“ in Drive öffnen",
+          "type_pdf": "PDF-Dokument",
+          "type_spreadsheet": "Tabelle",
+          "type_text": "Textdokument",
+          "type_file": "Datei"
         },
         "workboard": {
           "title": "Workboard",
           "empty": "Kein offenes Ticket auf deinem Board",
           "tile_open": "Offen",
+          "held_by_peers": "Bei Peers",
           "more_one": "und {{count}} weiteres",
           "more_other": "und {{count}} weitere"
         }
@@ -418,7 +438,11 @@
         "created": "Eine Antwort von {{sender}} wird zwei Wochen lang beobachtet.",
         "already": "Eine Antwort von {{sender}} wird bereits beobachtet.",
         "failed": "Die Beobachtung konnte nicht erstellt werden."
-      }
+      },
+      "synthesis_title": "LIAs Tagesüberblick",
+      "synthesis_expand": "LIAs Tagesüberblick aufklappen",
+      "synthesis_collapse": "LIAs Tagesüberblick zuklappen",
+      "refresh_error": "Einige Informationen konnten nicht aktualisiert werden. Die zuletzt empfangenen Daten bleiben verfügbar."
     },
     "portrait_hint": {
       "text": "Ich habe mein Verständnis von dir verfeinert.",
@@ -1250,8 +1274,8 @@
       "cancel_reminder": "Erinnerung abbrechen",
       "unavailable": "Diese Aktion ist für diese gespeicherte Antwort nicht verfügbar.",
       "editable": "Öffnet eine bearbeitbare Nachricht. Es wird nichts automatisch gesendet.",
-      "compose_reply": "Bereite eine Antwort auf diese E-Mail vor.",
-      "compose_forward": "Bereite die Weiterleitung dieser E-Mail vor.",
+      "compose_reply": "Antworte auf diese E-Mail.",
+      "compose_forward": "Leite diese E-Mail weiter.",
       "delete_email": "Löschen",
       "compose_delete_email": "Bereite das Löschen dieser E-Mail vor, mit Bestätigung vor dem Verschieben in den Papierkorb.",
       "compose_cancel_reminder": "Storniere diese Erinnerung.",
@@ -1888,8 +1912,8 @@
       "export": {
         "title": "Mein Verbrauchsexport",
         "description": "Exportiere deine persönlichen LLM- und Google-API-Verbrauchsdaten als CSV.",
-        "start_date": "Startdatum",
-        "end_date": "Enddatum",
+        "start_date": "Von",
+        "end_date": "Bis",
         "preset_current_month": "Aktueller Monat",
         "preset_last_month": "Letzter Monat",
         "preset_last_30_days": "Letzte 30 Tage",
@@ -1899,7 +1923,7 @@
         "google_api_usage_title": "Google-API-Verbrauch",
         "google_api_usage_description": "Details zu jedem Google Maps API-Aufruf.",
         "stt_usage_title": "Externe STT-Nutzung",
-        "stt_usage_description": "Eine Zeile pro ElevenLabs-Scribe-Transkription (Audiodauer + Kosten).",
+        "stt_usage_description": "Eine Zeile pro Remote-Transkription — die von der Administration konfigurierte Engine (Audiodauer + Kosten).",
         "tts_usage_title": "Bezahlte TTS-Nutzung",
         "tts_usage_description": "Eine Zeile pro bezahlter Sprachsynthese — jede vorgelesene Antwort, jede Radiositzung — Zeichen + Kosten.",
         "summary_title": "Meine Zusammenfassung",
@@ -1907,7 +1931,11 @@
         "download_csv": "CSV herunterladen",
         "exporting": "Exportiere...",
         "success": "Export erfolgreich heruntergeladen",
-        "error": "Fehler beim Export"
+        "error": "Fehler beim Export",
+        "period_title": "Exportzeitraum",
+        "period_description": "Diese Daten gelten für alle folgenden Dateien.",
+        "invalid_period": "Wähle ein Enddatum, das nicht vor dem Startdatum liegt.",
+        "download": "Herunterladen"
       }
     },
     "admin": {
@@ -2053,7 +2081,7 @@
           "output_price_label": "Ausgabepreis",
           "output_price_placeholder": "10.000000",
           "pricing_unit_label": "Abrechnungseinheit",
-          "pricing_unit_hint": "Pro Tokens für Chat-/Textmodelle, pro Audiodauer für STT-/TTS-Anbieter (z. B. ElevenLabs Scribe wird pro Audiostunde abgerechnet).",
+          "pricing_unit_hint": "Pro Tokens für Chat-/Textmodelle und für die Sprachsynthese — eine Engine, die Text abrechnet, zählt ihre Zeichen (bei Fish Audio UTF-8-Bytes) als Tokens; pro Audiodauer für die Transkription (z. B. wird ElevenLabs Scribe pro Audiostunde abgerechnet).",
           "pricing_unit_per_1m_tokens": "Pro 1M Tokens",
           "pricing_unit_per_audio_minute": "Pro Audiominute",
           "pricing_unit_per_audio_hour": "Pro Audiostunde",
@@ -2231,8 +2259,8 @@
       "export": {
         "title": "Verbrauchsexport",
         "description": "Exportiere LLM- und Google API-Verbrauchsdaten als CSV für Abrechnung und Analyse.",
-        "start_date": "Startdatum",
-        "end_date": "Enddatum",
+        "start_date": "Von",
+        "end_date": "Bis",
         "preset_current_month": "Aktueller Monat",
         "preset_last_month": "Letzter Monat",
         "preset_last_30_days": "Letzte 30 Tage",
@@ -2242,7 +2270,7 @@
         "google_api_usage_title": "Google API-Nutzung",
         "google_api_usage_description": "Details zu jedem Google Maps API-Aufruf.",
         "stt_usage_title": "Externe STT-Nutzung",
-        "stt_usage_description": "Eine Zeile pro ElevenLabs-Scribe-Transkription (Audiodauer + Kosten).",
+        "stt_usage_description": "Eine Zeile pro Remote-Transkription — die von der Administration konfigurierte Engine (Audiodauer + Kosten).",
         "tts_usage_title": "Bezahlte TTS-Nutzung",
         "tts_usage_description": "Eine Zeile pro bezahlter Sprachsynthese — jede vorgelesene Antwort, jede Radiositzung — Zeichen + Kosten.",
         "summary_title": "Zusammenfassung pro Benutzer",
@@ -2255,7 +2283,11 @@
         "inactive": "inaktiv",
         "exporting": "Exportiere...",
         "success": "Export erfolgreich heruntergeladen",
-        "error": "Fehler beim Export"
+        "error": "Fehler beim Export",
+        "period_title": "Exportzeitraum",
+        "period_description": "Diese Daten gelten für alle folgenden Dateien.",
+        "invalid_period": "Wähle ein Enddatum, das nicht vor dem Startdatum liegt.",
+        "download": "Herunterladen"
       },
       "connectors": {
         "title": "Konnektorverwaltung",
@@ -2530,6 +2562,122 @@
           "lastIndexed": "Zuletzt indexiert: {{date}}"
         }
       },
+      "voiceLibrary": {
+        "title": "Stimmbibliothek",
+        "description": "Die Stimmen des Fish-Audio-Kontos der Instanz: Klone eine aus Aufnahmen, entwirf eine aus einer Beschreibung, benenne sie um oder lösche sie. Sie erscheinen in der Stimmauswahl der LLM-Konfiguration.",
+        "notConfigured": "Auf dieser Instanz ist kein Fish-Audio-Schlüssel konfiguriert: Füge ihn bei den Anbieterschlüsseln hinzu, um ihre Stimmbibliothek zu verwalten.",
+        "notConfiguredLink": "Anbieterschlüssel öffnen",
+        "creationDisabled": "Das Erstellen von Stimmen ist auf dieser Instanz deaktiviert (FISHAUDIO_VOICE_CREATION_ENABLED). Umbenennen und Löschen bleiben möglich.",
+        "slots": {
+          "voice_tts": "Stimme des Assistenten",
+          "radio_voice": "Persönliches Radio"
+        },
+        "list": {
+          "title": "Stimmen des Kontos",
+          "empty": "Das Konto besitzt noch keine Stimme: Klone oder entwirf unten eine.",
+          "usedBy": "Spricht für: {{slots}}",
+          "actions": "Aktionen — {{title}}",
+          "rename": "Umbenennen",
+          "delete": "Löschen",
+          "inUse": "Diese Stimme spricht für {{slots}}: Wähle dort zuerst in der LLM-Konfiguration eine andere Stimme.",
+          "deleteTitle": "„{{title}}“ löschen?",
+          "deleteDescription": "Die Stimme wird aus dem Fish-Audio-Konto gelöscht. Das ist endgültig.",
+          "deleteConfirm": "Stimme löschen",
+          "deleted": "„{{title}}“ gelöscht.",
+          "renameTitle": "Stimme umbenennen",
+          "renameDescription": "Der neue Name erscheint in der Stimmauswahl.",
+          "renameLabel": "Name",
+          "renameSave": "Speichern",
+          "renamed": "Stimme umbenannt.",
+          "states": {
+            "created": "Erstellt",
+            "training": "In Vorbereitung",
+            "trained": "Bereit",
+            "failed": "Fehlgeschlagen",
+            "unknown": "Unbekannter Status"
+          }
+        },
+        "clone": {
+          "title": "Stimme klonen",
+          "help": "Ein paar klare Aufnahmen einer einzigen Person: Zwei oder drei Ausschnitte von 15 bis 20 Sekunden genügen. Die Stimme bleibt privat im Konto.",
+          "nameLabel": "Name der Stimme",
+          "samplesLabel": "Aufnahmen",
+          "samplesHelp": "{{formats}} — bis zu {{max}} Aufnahmen, je {{perFile}} und insgesamt {{total}}.",
+          "transcriptHelp": "Lass alle Transkripte leer, dann transkribiert Fish Audio die Aufnahmen selbst; füll alle aus, um die Aussprache zu verfeinern.",
+          "transcriptLabel": "Was Aufnahme {{index}} sagt",
+          "languageLabel": "In den Aufnahmen gesprochene Sprache",
+          "languageAuto": "Automatisch erkennen",
+          "prefill": "Mit der lokalen Transkription ausfüllen",
+          "removeSample": "{{name}} entfernen",
+          "enhanceLabel": "Aufnahmen zuerst bereinigen",
+          "enhanceHelp": "Fish Audio entfernt Hintergrundgeräusche und gleicht die Pegel an, bevor es die Stimme lernt.",
+          "consentLabel": "Ich bestätige, dass diese Stimme meine ist oder dass die Person, der sie gehört, dem Klonen schriftlich zugestimmt hat.",
+          "consentHelp": "Die Bestätigung wird mit deinem Konto im Audit-Protokoll der Administration vermerkt.",
+          "submit": "Stimme klonen",
+          "cloned": "Stimme „{{title}}“ erstellt.",
+          "problems": {
+            "title": "Gib der Stimme einen Namen.",
+            "noSample": "Füge mindestens eine Aufnahme hinzu.",
+            "tooMany": "Höchstens {{max}} Aufnahmen.",
+            "format": "Akzeptierte Formate: {{formats}}.",
+            "size": "Jede Aufnahme hat höchstens {{perFile}}, insgesamt höchstens {{total}}.",
+            "texts": "Schreib, was jede Aufnahme sagt, oder lass alle Transkripte leer.",
+            "consent": "Setze das Häkchen bei der Bestätigung, um die Stimme zu klonen."
+          }
+        },
+        "design": {
+          "title": "Stimme entwerfen",
+          "help": "Beschreib die Stimme — Alter, Ton, Akzent, Tempo, Kontext — und hör dir die Kandidaten an, bevor du einen speicherst.",
+          "instructionLabel": "Beschreibung der Stimme",
+          "instructionPlaceholder": "Eine warme, ruhige Erzählerin um die vierzig, mit einem leichten Lächeln in der Stimme",
+          "previewLabel": "Satz, den die Kandidaten lesen (optional)",
+          "languageLabel": "Sprache der Kandidaten",
+          "languageAuto": "Automatisch erkennen",
+          "countLabel": "Anzahl der Kandidaten",
+          "cost": "Jede Generierung kostet die Instanz {{cost}}, unabhängig von der Anzahl der Kandidaten.",
+          "submit": "Kandidaten generieren",
+          "candidatesTitle": "Kandidaten",
+          "expires": "Die Kandidaten werden {{minutes}} Minuten aufbewahrt: Speichere bis dahin die, die dir gefallen.",
+          "candidate": "Kandidat {{index}}",
+          "duration": "{{seconds}} s",
+          "quote": "„{{text}}“",
+          "nameLabel": "Name von Kandidat {{index}}",
+          "save": "Diese Stimme speichern",
+          "saved": "Gespeichert",
+          "savedToast": "Stimme „{{title}}“ gespeichert."
+        },
+        "errors": {
+          "generic": "Die Stimmbibliothek konnte die Anfrage nicht ausführen.",
+          "instance_budget_exhausted": "Das Tagesbudget der Instanz ist erreicht: Das Entwerfen von Stimmen ist bis morgen (UTC) pausiert.",
+          "fishaudio_api_key_missing": "Auf dieser Instanz ist kein Fish-Audio-Schlüssel konfiguriert.",
+          "fishaudio_account_changed": "Das konfigurierte Fish-Audio-Konto hat sich geändert. Aktualisiere die Bibliothek, bevor du fortfährst.",
+          "fishaudio_voice_creation_disabled": "Das Erstellen von Stimmen ist auf dieser Instanz deaktiviert.",
+          "fishaudio_clone_consent_required": "Zum Klonen einer Stimme ist die Bestätigung erforderlich.",
+          "fishaudio_clone_samples_count": "Ein Klon braucht 1 bis {{max}} Aufnahmen.",
+          "fishaudio_clone_sample_too_large": "Jede Aufnahme hat höchstens {{perFile}}, insgesamt höchstens {{total}}.",
+          "fishaudio_clone_sample_format": "Akzeptierte Formate: {{formats}}.",
+          "fishaudio_clone_texts_mismatch": "Schreib, was jede Aufnahme sagt, oder lass alle Transkripte leer.",
+          "fishaudio_voice_title_invalid": "Der Name einer Stimme hat 1 bis {{max}} Zeichen.",
+          "fishaudio_voice_in_use": "Diese Stimme spricht für {{slots}}: Wähle dort zuerst in der LLM-Konfiguration eine andere Stimme.",
+          "fishaudio_design_candidate_expired": "Diese Hörprobe ist nicht mehr verfügbar. Prüfe die Bibliothek, bevor du eine neue erzeugst.",
+          "fishaudio_design_save_pending": "Für diese Hörprobe wurde bereits ein Speichern angefordert. Prüfe die Bibliothek, bevor du eine andere Stimme ausprobierst.",
+          "fishaudio_design_store_unavailable": "Die Kandidaten konnten nicht aufbewahrt werden: Versuch es gleich noch einmal.",
+          "fishaudio_prefill_unavailable": "Die lokale Transkription ist auf dieser Instanz nicht verfügbar.",
+          "fishaudio_prefill_too_long": "Die lokale Transkription hört Aufnahmen von höchstens {{max}} Sekunden.",
+          "fishaudio_sample_unreadable": "Diese Aufnahme konnte nicht gelesen werden.",
+          "fishaudio_audit_unavailable": "Die Bestätigung konnte nicht vermerkt werden, daher wurde nichts geklont: Versuch es gleich noch einmal.",
+          "fishaudio_pin_consent_required": "Zum Anheften einer Stimme ist die Bestätigung erforderlich.",
+          "fishaudio_pins_full": "Höchstens {{max}} öffentliche Stimmen können angeheftet werden: Löse zuerst eine davon.",
+          "fishaudio_pin_unavailable": "Diese Stimme ist keine Sprachstimme, die Fish Audio bereitstellt: Sie kann nicht angeheftet werden.",
+          "fishaudio_pin_audit_unavailable": "Die Bestätigung konnte nicht vermerkt werden, daher wurde nichts angeheftet: Versuch es gleich noch einmal.",
+          "fishaudio_rate_limited": "Fish Audio bearbeitet gerade andere Anfragen des Kontos: Versuch es gleich noch einmal.",
+          "fishaudio_payment_required": "Das Fish-Audio-Konto hat kein Guthaben mehr.",
+          "fishaudio_key_refused": "Fish Audio hat den Schlüssel der Instanz abgelehnt.",
+          "fishaudio_voice_not_found": "Diese Stimme existiert im Fish-Audio-Konto nicht mehr.",
+          "fishaudio_request_rejected": "Fish Audio hat die Anfrage abgelehnt: Prüf die Aufnahmen oder die Beschreibung.",
+          "fishaudio_unavailable": "Fish Audio ist nicht erreichbar: Versuch es gleich noch einmal."
+        }
+      },
       "llmConfig": {
         "title": "LLM-Konfiguration",
         "description": "Verwalte die API-Schlüssel der Anbieter und die Konfiguration jedes LLM-Typs",
@@ -2608,8 +2756,8 @@
           "telephony_agent": "Domänen-Agent für Telefonanrufe: bestätigte Anruf-Entwürfe an Dritte und Anrufe an den Nutzer auf seiner verifizierten Nummer (agentische Telefonie)",
           "hue_agent": "Domänen-Agent für die Steuerung der Philips-Hue-Beleuchtung",
           "health_agent": "Domänen-Agent für faktische Fragen zu erfassten Gesundheitsdaten",
-          "voice_transcription": "Spracherkennung des Sprachmodus (Sherpa lokal oder ElevenLabs Scribe entfernt)",
-          "voice_tts": "Sprachsynthese des Assistenten (Edge / OpenAI / ElevenLabs)",
+          "voice_transcription": "Spracherkennung des Sprachmodus und der Besprechungen (Sherpa lokal, oder ElevenLabs, OpenAI oder Fish Audio entfernt)",
+          "voice_tts": "Sprachsynthese des Assistenten (Edge / OpenAI / ElevenLabs / Gemini / Fish Audio)",
           "diagnostician": "Diagnostiziert Plattform-Vorfälle anhand typisierter Belege und Runbooks (Admin-Selbstdiagnose).",
           "radio_writer": "Schreibt jedes Segment des persönlichen Radios (Nachrichten, Tag des Hörers, Kolumne) aus seinen Fakten - ein strukturierter Aufruf pro Segment",
           "radio_analyst": "Liest den vollständigen Artikel einer Meldung und erstellt die gesendete Expertenanalyse (Kontext, Hintergrund, Fakten, worauf zu achten ist, Ausblick) - jede Zahl muss aus dem Artikel stammen",
@@ -2655,7 +2803,40 @@
           "similarityBoost": "Ähnlichkeits-Boost",
           "style": "Stil",
           "useSpeakerBoost": "Speaker Boost aktivieren",
-          "liveCatalogue": "Live-Katalog deines ElevenLabs-Kontos"
+          "liveCatalogue": "Live-Katalog deines ElevenLabs-Kontos",
+          "latency": "Latenz",
+          "latencyOptions": {
+            "normal": "Beste Qualität",
+            "balanced": "Ausgewogen",
+            "low": "Geringste Latenz"
+          },
+          "transport": "Übertragung",
+          "transportOptions": {
+            "http": "HTTP (empfohlen)",
+            "websocket": "WebSocket"
+          },
+          "transportHint": "Eine WebSocket-Sitzung pro Satz. Mit dem kostenlosen Modell gemessen antwortete der WebSocket später als HTTP; eine unterwegs gescheiterte Sitzung wird über HTTP beantwortet.",
+          "voiceSource": {
+            "own": "dein Konto",
+            "pinned": "angeheftet",
+            "licensed": "lizenziert"
+          },
+          "liveCatalogueFish": "Live-Katalog: die Stimmen deines Fish-Audio-Kontos, die angehefteten öffentlichen Stimmen und die von Fish Audio lizenzierten Stimmen",
+          "pinnedTitle": "Angeheftete öffentliche Stimmen",
+          "pinnedDescription": "Eine öffentliche Stimme der Fish-Audio-Bibliothek wird erst angeboten, nachdem du bestätigt hast, dass du das Recht hast, sie zu verwenden: Die Bestätigung wird mit deinem Konto im Audit-Protokoll der Administration vermerkt. Angeheftete Stimmen werden jeder Stimmkonfiguration angeboten – der Stimme des Assistenten ebenso wie dem persönlichen Radio –, und das Anheften oder Lösen einer Stimme wirkt sofort, ohne dieses Formular zu speichern.",
+          "pinnedEmpty": "Keine öffentliche Stimme angeheftet.",
+          "pinnedVoiceId": "Stimmen-ID",
+          "pinnedLookup": "Nachschlagen",
+          "pinnedLookupFailed": "Fish Audio ist nicht erreichbar. Versuche es gleich noch einmal.",
+          "pinnedUnavailable": "Diese Stimme ist keine Sprachstimme, die Fish Audio bereitstellt.",
+          "pinnedMalformed": "Eine Stimmen-ID besteht aus 32 hexadezimalen Kleinbuchstaben und Ziffern.",
+          "pinnedFound": "Stimme gefunden: {{label}}",
+          "pinnedAttestation": "Ich bestätige, dass ich das Recht habe, diese Stimme zu verwenden (eine Lizenz oder die Zustimmung ihres Inhabers).",
+          "pinnedAdd": "Diese Stimme anheften",
+          "pinnedFull": "Höchstens {{max}} Stimmen können angeheftet werden.",
+          "pinnedRemove": "{{label}} lösen",
+          "pinnedActions": "Aktionen — {{label}}",
+          "pinnedNotOffered": "(derzeit nicht verfügbar)"
         },
         "no_compatible_model": "Kein Modell dieses Anbieters unterstützt diese Funktion",
         "ollama": {
@@ -2716,6 +2897,7 @@
           "saved": "LLM-Konfiguration gespeichert",
           "reset": "Konfiguration auf Standardwerte zurückgesetzt",
           "error": "Fehler beim Speichern der Konfiguration",
+          "modelProviderMismatch": "Das Modell {{model}} wird von {{provider}} angeboten. Wähle ein Modell des ausgewählten Anbieters.",
           "thinkingBudgetBelowFloor": "Reasoning ist aktiviert, aber die effektiven Max-Tokens ({{maxTokens}}) liegen unter der Sicherheitsuntergrenze von {{floor}}. Das Reasoning verbraucht das Antwortbudget: Antworten kämen abgeschnitten oder leer zurück. Erhöhe Max-Tokens auf mindestens {{floor}} oder deaktiviere das Reasoning. Hinweis: Ein leeres Max-Tokens-Feld übernimmt den Code-Standardwert.",
           "thinkingBudgetImplicitBelowFloor": "Dieses Modell nutzt Reasoning auch ohne festgelegte Stufe (Tiefe: {{level}}), und das Reasoning verbraucht das Antwortbudget: Mit effektiven Max-Tokens von {{maxTokens}} unter der Sicherheitsuntergrenze von {{floor}} kämen Antworten abgeschnitten oder leer zurück. Erhöhe Max-Tokens auf mindestens {{floor}} oder lege ausdrücklich eine leichte Reasoning-Stufe fest. Hinweis: Ein leeres Max-Tokens-Feld übernimmt den Code-Standardwert.",
           "resetButton": "Zurücksetzen"
@@ -2991,6 +3173,9 @@
       "history_info": "Dein bisheriger Gesprächsverlauf behält die alte Zeitzone. Nur neue Nachrichten verwenden die neue Zeitzone.",
       "info_note": "💡 Die Zeitzone beeinflusst die in Gesprächen und Benachrichtigungen angezeigte Zeit und Datum. Alle Zeitzonen verwenden den IANA-Standard."
     },
+    "voice_language_filter": {
+      "only_language": "Nur Stimmen auf {{language}} und mehrsprachige"
+    },
     "voice_mode": {
       "title": "Sprachmodus",
       "description": "Spracherkennung und freihändiges Aktivierungswort konfigurieren",
@@ -3007,11 +3192,26 @@
       "stt_mode_label": "Transkriptions-Backend",
       "stt_mode_local": "Lokal (Sherpa)",
       "stt_mode_local_description": "Kostenlose Transkription auf dem Server. Audio verlässt LIA nie.",
-      "stt_mode_remote": "Extern (ElevenLabs)",
-      "stt_mode_remote_description": "Höhere Genauigkeit über ElevenLabs Scribe. Abrechnung pro Audiominute.",
+      "stt_mode_remote": "Extern",
+      "stt_mode_remote_named": "Extern ({{provider}})",
+      "stt_mode_remote_description": "Höhere Genauigkeit über {{provider}}. Abrechnung nach der Dauer deines Audios.",
       "stt_mode_updated_success": "Transkriptions-Backend aktualisiert",
-      "stt_remote_unavailable_warning": "Externe Transkription nicht verfügbar: Ein Administrator muss zuerst den ElevenLabs-API-Schlüssel konfigurieren.",
-      "stt_remote_privacy_notice": "Im externen Modus wird dein Audio zur Transkription an ElevenLabs (Cloud) gesendet. Im lokalen Modus bleibt das Audio innerhalb von LIA."
+      "stt_remote_unavailable_warning": "Externe Transkription nicht verfügbar: Ein Administrator muss zuerst die Engine und ihren API-Schlüssel konfigurieren.",
+      "stt_remote_privacy_notice": "Im externen Modus wird dein Audio zur Transkription an {{provider}} (Cloud) gesendet. Im lokalen Modus bleibt das Audio innerhalb von LIA.",
+      "stt_remote_provider_unknown": "einen Cloud-Anbieter",
+      "lia_voices": {
+        "title": "Stimme von LIA",
+        "description": "Die Stimme, mit der LIA im Chat spricht: Sprachkommentare und vorgelesene Antworten. Das Geschlecht des Avatars bestimmt, welche der beiden spricht. Das Radio, Live-Sitzungen und Telefonanrufe behalten ihre eigenen Stimmen.",
+        "male": "Männliche Stimme",
+        "female": "Weibliche Stimme",
+        "default": "Standard (die des Administrators: {{name}})",
+        "saved": "Stimme von LIA gespeichert.",
+        "unavailable": "Die Stimmen von LIA konnten gerade nicht gelesen werden.",
+        "errors": {
+          "lia_voice_catalogue_unavailable": "Die Stimmenliste ist vorübergehend nicht verfügbar. Ihre Auswahl wurde nicht geändert. Versuchen Sie es später erneut.",
+          "lia_voice_unknown": "Diese Stimme wird nicht mehr angeboten: Wähle eine andere."
+        }
+      }
     },
     "image_generation": {
       "title": "KI-Bildgenerierung",
@@ -3167,20 +3367,38 @@
             "selected": "HTML-Karten-Modus aktiviert"
           },
           "html": {
-            "label": "Rich-HTML",
+            "label": "HTML",
             "description": "Gestaltete Antworten: Überschriften, Hinweisboxen, Badges, ausklappbare Bereiche, Tabellen, Spalten, Kennzahlen und hervorgehobener Code",
-            "selected": "Rich-HTML-Modus aktiviert"
+            "selected": "HTML-Modus aktiviert"
           },
           "html_cards": {
-            "label": "Rich-HTML + Karten",
+            "label": "HTML + Karten",
             "description": "Gestaltete Antworten mit Karten für die ausgewählten Ergebnisse",
-            "selected": "Rich-HTML mit Karten aktiviert"
+            "selected": "HTML mit Karten aktiviert"
           },
           "markdown": {
             "label": "Markdown",
             "description": "Reiner Text mit standardmäßiger Markdown-Formatierung",
             "selected": "Markdown-Modus aktiviert"
           }
+        },
+        "preview": {
+          "title": "Vorschau",
+          "example_label": "Anschauliches Beispiel, ohne Daten aus deinem Konto",
+          "question": "Wie ist das Wetter und wann ist mein nächster Termin?",
+          "introduction": "Hier siehst du ein Darstellungsbeispiel.",
+          "weather": {
+            "title": "Wetter",
+            "location": "Paris",
+            "condition": "Klarer Himmel"
+          },
+          "meeting": {
+            "title": "Nächster Termin",
+            "name": "Projektbesprechung",
+            "time": "Morgen · 10:00–11:00",
+            "location": "Videokonferenz"
+          },
+          "applies": "Deine Auswahl gilt für neue Antworten von LIA."
         }
       }
     },
@@ -3352,7 +3570,8 @@
         "remove_confirm_title": "Diese Verbindung entfernen?",
         "remove_confirm_description": "Alle Freigaben enden sofort und beide werden von ihren Assistenten benachrichtigt. Eine neue Anfrage kann die Verbindung später wiederherstellen.",
         "block_confirm_title": "Diesen Nutzer blockieren?",
-        "block_confirm_description": "Die Verbindung und alle Freigaben enden sofort und ohne Benachrichtigung. Die Person kann dich nicht mehr finden oder kontaktieren."
+        "block_confirm_description": "Die Verbindung und alle Freigaben enden sofort und ohne Benachrichtigung. Die Person kann dich nicht mehr finden oder kontaktieren.",
+        "accepted": "Verbindung angenommen"
       },
       "shares": {
         "my_title": "Was ich teile",
@@ -3374,7 +3593,8 @@
         "task_level": {
           "titles": "Geteilt",
           "none": "Nicht geteilt"
-        }
+        },
+        "their_named_title": "Was {{name}} teilt"
       },
       "blocks": {
         "title": "Blockierte Nutzer",
@@ -3436,7 +3656,8 @@
         "loading": "Deine Verbindungen werden geladen…",
         "load_error": "Deine Verbindungen konnten nicht geladen werden. Versuch es gleich noch einmal.",
         "no_connection": "Du hast noch keine Verbindung. Verbinde dich unter {{path}} mit jemandem."
-      }
+      },
+      "load_error": "Einige Verbindungsdaten konnten nicht aktualisiert werden. Bereits geladene Daten bleiben sichtbar. Versuche es erneut."
     },
     "notifications": {
       "title": "Push-Benachrichtigungen",
@@ -3666,7 +3887,7 @@
       "guide_modal_plan_field_tool_name": "Name des aufzurufenden Werkzeugs, für einen TOOL-Schritt erforderlich",
       "guide_modal_plan_field_parameters": "Parameter für das Werkzeug (z.B. {days: 3})",
       "guide_modal_plan_field_depends_on": "[] = parallel, [\"step_id\"] = sequenziell nach diesem Schritt",
-      "guide_modal_plan_field_step_type": "Typ: TOOL (Standard), CONDITIONAL, REPLAN oder HUMAN",
+      "guide_modal_plan_field_step_type": "Typ: TOOL (Standard), der einzige Typ, den ein plan_template ausführt",
       "guide_autotrigger_title": "Automatische Auslösung",
       "guide_autotrigger_body": "Skills mit plan_template werden automatisch ausgelöst, wenn die Benutzeranfrage ALLE Domänen im Template abdeckt. Z.B.: eine Skill mit event_agent + weather_agent wird ausgelöst, wenn der Benutzer nach seinem Kalender und dem Wetter fragt.",
       "guide_tools_title": "Agenten- und Werkzeugkatalog",
@@ -4312,7 +4533,19 @@
           "quota_blocked": "Nicht übernommen: Limit erreicht",
           "failed": "Nicht übernommen: fehlgeschlagen"
         },
-        "usage": "{{tokens}} Tokens · {{cost}}"
+        "usage": "{{tokens}} Tokens · {{cost}}",
+        "timeline_hint": "Die zehn letzten Anrufe, nach Startdatum gruppiert.",
+        "refresh": "Aktualisieren",
+        "count_one": "{{count}} Anruf",
+        "count_other": "{{count}} Anrufe",
+        "unknown_date": "Datum unbekannt",
+        "start": "Beginn",
+        "end": "Ende",
+        "duration": "Dauer",
+        "objective": "Ziel",
+        "summary": "Zusammenfassung",
+        "load_error": "Anrufe konnten nicht geladen werden.",
+        "refresh_error": "Aktualisierung fehlgeschlagen. Die zuletzt geladenen Anrufe bleiben sichtbar."
       },
       "identity": {
         "title": "Telefonie · Meine Identität",
@@ -4384,7 +4617,7 @@
         "theme": "Theme, Dunkelmodus, Hellmodus, Systemmodus, OLED, absolutes Schwarz, Nacht, Farben, Kontrast, Erscheinungsbild",
         "font": "Schriftart, Typografie, Lesbarkeit, Schrift",
         "font-size": "Textgröße, Textgrosse, Schriftgröße, größer, kleiner, Zoom, Lesbarkeit, Barrierefreiheit, Sehschwäche, Lupe",
-        "display-mode": "Karten, Darstellung, Antwortformat, Layout, Markdown, Klartext, angereichertes HTML, komponierte Seite, Abschnitte, Kacheln, Kasten",
+        "display-mode": "Karten, Darstellung, Antwortformat, Layout, Markdown, Klartext, HTML, komponierte Seite, Abschnitte, Kacheln, Kasten",
         "usage-preferences": "Rhythmus, Austausch, häufig, gelegentlich, Kosten, Cache, Werkzeuge, Einsparungen, Leistung, Nutzung",
         "briefing-grid": "Startseite, Übersicht, Dashboard, Widgets, Karten, Briefing, Reihenfolge",
         "chat-shortcuts": "Slash, Kürzel, Befehl, Schnellanfrage, Makro, /Befehl, Textbaustein, bearbeiten, umbenennen",
@@ -4427,6 +4660,7 @@
         "admin-google-api-pricing": "Preise, Google API, Maps, Places, Routen, Geocoding-Kosten",
         "admin-image-pricing": "Preise, Bilder, Bildgenerierung, Kosten pro Bild, Referenzbild, Bearbeitung, Stufe, OpenAI, Qwen",
         "admin-llm-config": "LLM, Modelle, Anbieter, Konfiguration, Temperatur, Denken, API-Schlüssel, Ollama, lokale Modelle, Kontextfenster, E-Mail-Zusammenfassung, Ausgabe-Token",
+        "admin-voice-library": "Stimmen, Stimmbibliothek, klonen, Klonen, Stimmdesign, Fish Audio, Aufnahmen, Einwilligung, Sprachsynthese, TTS",
         "admin-personalities": "Persönlichkeiten, Stile, Ton, System-Prompt, Assistenten-Charakter",
         "admin-skills": "Skills, System-Skills, importieren, neu laden, Fähigkeitskatalog",
         "rag-spaces-admin": "RAG, Räume, Wissen, neu indexieren, Dokumente, Embeddings",
@@ -4504,7 +4738,12 @@
     },
     "eyes_style": {
       "title": "Avatar-Stil",
-      "description": "Wähle das Aussehen des animierten Avatars, der dich durch die ganze App begleitet."
+      "description": "Wähle das Aussehen des animierten Avatars, der dich durch die ganze App begleitet.",
+      "current": "Aktueller Avatar",
+      "catalogue_title": "Verfügbare Stile",
+      "catalogue_count_one": "{{count}} Stil",
+      "catalogue_count_other": "{{count}} Stile",
+      "selection_hint": "Deine Auswahl wird auf diesem Gerät gespeichert."
     },
     "meetings": {
       "title": "Besprechungen",
@@ -5078,7 +5317,7 @@
       "unknown_error": "Unbekannter Fehler beim Streaming",
       "usage_limit_exceeded": "Du hast dein Nutzungslimit erreicht. Kontaktiere deinen Administrator.",
       "instance_budget_exhausted": "Die Demo hat ihr Tagesbudget erreicht. Es wird um Mitternacht UTC zurückgesetzt – komm morgen wieder.",
-      "run_in_progress": "Eine Antwort wird bereits generiert — Verbindung wird wiederhergestellt.",
+      "run_in_progress": "LIA arbeitet bereits an dieser Unterhaltung. Deine Nachricht wurde nicht gesendet – versuche es gleich noch einmal.",
       "run_gone": "Diese Antwort wurde im Hintergrund abgeschlossen. Der Verlauf wurde aktualisiert.",
       "stream_stalled": "Die Verbindung ist abgerissen. Deine Antwort wird im Hintergrund weiter erstellt — lade die Seite neu, um sie abzurufen."
     },
@@ -5255,6 +5494,13 @@
       "list_calendars": "Kalender auflisten...",
       "get_emails": "E-Mails abrufen...",
       "get_email_attachment": "Anhang wird gelesen...",
+      "list_mailbox_drafts": "Deine Entwürfe werden gelesen...",
+      "create_mailbox_draft": "Entwurf wird gespeichert...",
+      "create_mailbox_reply_draft": "Antwortentwurf wird vorbereitet...",
+      "create_mailbox_forward_draft": "Weiterleitungsentwurf wird vorbereitet...",
+      "update_mailbox_draft": "Entwurf wird bearbeitet...",
+      "delete_mailbox_drafts": "Entwürfe werden in den Papierkorb verschoben...",
+      "send_mailbox_draft": "Versand des Entwurfs wird vorbereitet...",
       "send_email": "E-Mail wird gesendet...",
       "send_email_to_me": "E-Mail wird an dich gesendet...",
       "reply_email": "E-Mail wird beantwortet...",
@@ -5712,7 +5958,7 @@
         },
         "hitl": {
           "title": "👤 Erweitertes Human-in-the-Loop",
-          "description": "Acht Momente, in denen LIA dir die Entscheidung zurückgibt: Klärung, Vereindeutigung, Planfreigabe, Werkzeugbestätigung, Entwurfskritik, Änderungsbestätigung, Massenbestätigung, Freigabe der Massenlöschung. Ob eine Aktion ändert, steht in der deklarierten Kategorie des Werkzeugs, nie im Namen. Mehrere Entwürfe in einer Anfrage werden nacheinander geprüft — jeder auf seiner Karte, nichts geht vor deiner letzten Antwort raus, der Bericht nennt Empfänger und Inhalt. Und eine Bestätigung wird nie zweimal verlangt."
+          "description": "Klärungen, Ressourcenauswahl, Entwurfsprüfung und Stapelbestätigungen lassen dich Operationen prüfen, die deine Zustimmung benötigen. Jede Bestätigung gilt für den angezeigten Inhalt und Umfang. Mehrere Entwürfe einer Anfrage werden nacheinander vor der Ausführung dieser Folge geprüft; der Bericht nennt Ergebnis und Empfänger. Berechtigungen bleiben serverseitig geprüft. Lesezugriffe und deklarierte direkte Aktionen können ohne Entwurfskarte erfolgen."
         },
         "connectors": {
           "title": "🔌 Konnektoren & Registry",
@@ -5807,8 +6053,8 @@
           "description": "Vor dem Antworten kann LIA mit Brave Search (Web und Nachrichten) nachschlagen, um ihr Wissen einzuordnen: Nachrichten, Preise, Öffnungszeiten, ein laufendes Ereignis. Ein intelligenter Redis-Cache hält die API-Aufrufe klein, und jeder Nutzer bringt seinen eigenen Brave-Schlüssel aus Einstellungen › Konnektoren mit."
         },
         "adaptiveReplanner": {
-          "title": "🔄 Adaptive Neuplanung",
-          "description": "Ausführungsfehler werden regelbasiert analysiert, ohne zusätzlichen LLM-Aufruf: leeres Ergebnis, Teilfehler, gebrochene Abhängigkeit oder Referenz. Die Analyse ordnet ein, was geschah, und berechnet eine Erholungsentscheidung — wiederholen, neu planen, nachfragen, abbrechen — die heute beratend ist: protokolliert und gezählt, damit die Fehlermodi messbar werden. Teilergebnisse werden gezeigt statt verworfen, und ein Fehler, den ein Wiederholen nicht ändert, heißt nicht mehr vorübergehend."
+          "title": "🔄 Neuplanung vor der Ausführung",
+          "description": "Ein Plan wird korrigiert, solange das noch nichts kostet: bevor er läuft. Ein Plan, den der Validator ablehnt, geht mit seinen Mängeln an den Planer zurück, nur begrenzt oft, und wenn der gefilterte Katalog keinen ausführbaren Plan zulässt, sieht ein weiterer Versuch einen breiteren. Ist der Plan gelaufen, wird nichts hinter deinem Rücken wiederholt: Einen vorübergehenden Ausfall wiederholt bereits die Verbindung, die ihn traf, und jeder gescheiterte Schritt wird in der Antwort genannt — welches Tool, warum und wie viele."
         },
         "semanticLeakDefense": {
           "title": "🛡️ Unterscheidung indexierbarer vs. semantischer Kriterien",
@@ -5908,7 +6154,7 @@
         },
         "plugins": {
           "title": "🧩 Agent Plugins (offener Standard)",
-          "description": "LIA ist ein konformer Client des offenen Standards Agent Plugins v1.0.0 (übernommen von ChatGPT, Codex, Cursor, Copilot und VS Code): ein portables Paket, das Skills und MCP-Server bündelt. Ein Plugin installiert sich aus einem Zip oder einer gehärteten https-URL über dieselbe Kette wie einzelne Skills — Entpacken im Zwischenbereich, Schutz gegen Zip-Bomben und Pfaddurchquerung, atomare Installation mit Rücknahme — und liefert einen vollständigen Bericht je Komponente, nie einen stillen Teilerfolg. Komponenten behalten ihre Herkunft: Ein Update bewahrt konfigurierte Zugangsdaten."
+          "description": "LIA importiert Pakete im Format Agent Plugins v1.0.0: Skills und entfernte MCP-Server über HTTPS (Streamable HTTP). Importiere eine ZIP-Datei oder HTTPS-URL und prüfe den Bericht geladener und übersprungener Komponenten. Stdio, älteres SSE und clientspezifische Erweiterungen gehören nicht zum unterstützten Umfang. Beim Entpacken werden Größe und Pfade geprüft; Herkunft und konfigurierte Zugangsdaten bleiben bei Updates erhalten."
         },
         "tabularAdmin": {
           "title": "📗 Verwaltung per Arbeitsmappe",
@@ -7649,7 +7895,7 @@
           "date": "Juli 2026",
           "count": "2",
           "items": {
-            "i1": "<b>🔒 Mehr Datenschutz in den Protokollen</b> — Die internen Anwendungsprotokolle von LIA enthalten keine deiner persönlichen Inhalte mehr — Namen hochgeladener Dateien, Nachrichtentexte, Termin- oder Aufgabentitel, Erinnerungen. Auf der Standardebene verbleiben nur anonyme Zähler und Kennungen, im Einklang mit dem Grundsatz der Datenminimierung.",
+            "i1": "<b>🔒 Mehr Datenschutz in Betriebsprotokollen</b> — LIA filtert persönliche Inhalte aus den üblichen Betriebsprotokollen: Namen hochgeladener Dateien, Nachrichtentexte, Ereignis- oder Aufgabentitel und Erinnerungen. Zähler, Ereignistypen und pseudonyme Kennungen bleiben erhalten. Ausführliche Diagnoseprotokolle können weiterhin persönliche Inhalte enthalten; Zugriff und Aufbewahrung müssen begrenzt werden.",
             "i2": "<b>⚡ Eine flüssigere App bei Bildgenerierung und Uploads</b> — Ein Bild zu erzeugen oder ein Dokument in einen Wissensraum zu importieren verlangsamt andere Aktionen nicht mehr kurzzeitig: Diese aufwändigeren Vorgänge laufen jetzt im Hintergrund, sodass die App für alle reaktionsschnell bleibt."
           }
         },
@@ -8679,7 +8925,7 @@
           },
           "q5": {
             "question": "Wie funktioniert das Genehmigungssystem?",
-            "answer": "Um deine Daten zu schützen, verwendet LIA ein <strong>intelligentes Genehmigungssystem (Human-in-the-Loop)</strong>. Vor jeder Aktion, die deine Daten ändert, bittet LIA um Bestätigung:<br><br><strong>🔒 Aktionen, die Genehmigung erfordern:</strong><br>• E-Mails senden, beantworten oder weiterleiten<br>• Termine erstellen, ändern oder löschen<br>• Kontakte erstellen, ändern oder löschen<br>• Aufgaben erstellen oder abschließen<br><br><strong>📋 So funktioniert es:</strong><br>1. LIA bereitet einen <strong>Entwurf</strong> der Aktion vor<br>2. Du siehst eine <strong>detaillierte Vorschau</strong> dessen, was getan wird<br>3. Du kannst:<br>   • ✅ <strong>Genehmigen</strong>: die Aktion wird ausgeführt<br>   • ✏️ <strong>Bearbeiten</strong>: vor der Validierung korrigieren<br>   • ❌ <strong>Abbrechen</strong>: nichts wird getan<br><br><strong>💡 Tipp</strong>: Nimm dich Zeit, die Vorschau zu überprüfen, besonders bei E-Mails!"
+            "answer": "Bei der <strong>menschlichen Prüfung (Human-in-the-Loop)</strong> zeigt LIA einen Entwurf für Operationen, die deine Zustimmung erfordern. Du prüfst den vorgeschlagenen Inhalt und Umfang vor der Bestätigung. Lesezugriffe und deklarierte direkte Aktionen können ohne Entwurfskarte erfolgen.<br><br><strong>🔒 Aktionen, die Genehmigung erfordern:</strong><br>• E-Mails senden, beantworten oder weiterleiten<br>• Termine erstellen, ändern oder löschen<br>• Kontakte erstellen, ändern oder löschen<br>• Aufgaben erstellen oder abschließen<br><br><strong>📋 So funktioniert es:</strong><br>1. LIA bereitet einen <strong>Entwurf</strong> der Aktion vor<br>2. Du siehst eine <strong>detaillierte Vorschau</strong> dessen, was getan wird<br>3. Du kannst:<br>   • ✅ <strong>Genehmigen</strong>: die Aktion wird ausgeführt<br>   • ✏️ <strong>Bearbeiten</strong>: vor der Validierung korrigieren<br>   • ❌ <strong>Abbrechen</strong>: nichts wird getan<br><br><strong>💡 Tipp</strong>: Nimm dich Zeit, die Vorschau zu überprüfen, besonders bei E-Mails!"
           },
           "q6": {
             "question": "Kann LIA Fehler machen?",
@@ -8750,7 +8996,7 @@
           },
           "q11": {
             "question": "Wie kopiere ich eine Nachricht oder Code, und werden mathematische Formeln korrekt dargestellt?",
-            "answer": "Der Chat bietet mehrere nützliche Verfeinerungen:<br><br><strong>📋 Kopieren-Schaltfläche auf Nachrichten und Code</strong><br>• Fahre mit der Maus über eine LIA-Antwort oder einen Code-Block → eine „Kopieren“-Schaltfläche erscheint<br>• Text wird unverändert in die Zwischenablage kopiert, mit visueller Bestätigung<br><br><strong>📤 Eine Antwort teilen oder herunterladen</strong><br>• Zwei Symbole unter jeder Antwort, neben der Kopieren-Schaltfläche<br>• <strong>Herunterladen</strong>: ein Klick, und die Antwort wird als datierte Markdown-Datei gespeichert, Umlaute bleiben erhalten. Eine gestaltete Antwort (Rich HTML, Karten) behält Überschriften, Listen, Tabellen, Links und Codeblöcke; Karten werden zu einer Überschrift mit einigen Stichpunkten. Kopieren liefert einfachen Text<br>• <strong>Teilen</strong>: übergibt den Text an das Teilen-Menü deines Geräts (Nachrichten, Mail, Notizen …), wenn der Browser eines anbietet. Hast du Verbindungen, listet ein Menü auch sie auf: Wählst du eine, füllt sich dein Eingabefeld mit der Bitte, die Antwort weiterzuleiten — du sendest sie ab, und LIA bereitet die Nachricht zur Freigabe vor, wie jede Nachricht an eine Verbindung<br><br><strong>🎨 Syntax-Hervorhebung auf Code</strong><br>• Code-Blöcke ```python, ```typescript, ```json, ```bash, ```sql... werden automatisch eingefärbt (25 Sprachen unterstützt)<br>• Helles oder dunkles Theme je nach deinen Anzeigeeinstellungen<br><br><strong>🧮 Mathematische Formeln (LaTeX)</strong><br>• Formeln werden in korrekter mathematischer Notation dargestellt<br>• Inline: <code>$E = mc^2$</code><br>• Zentrierter Block: <code>$$a^2 + b^2 = c^2$$</code><br><br><strong>📅 Relative Daten</strong><br>• Heutige Nachrichten: nur Uhrzeit (14:30)<br>• Gestern: „Gestern 14:30“<br>• Diese Woche: Wochentag + Uhrzeit (Montag 14:30)<br>• Darüber hinaus: vollständiges Datum"
+            "answer": "Der Chat bietet mehrere nützliche Verfeinerungen:<br><br><strong>📋 Kopieren-Schaltfläche auf Nachrichten und Code</strong><br>• Fahre mit der Maus über eine LIA-Antwort oder einen Code-Block → eine „Kopieren“-Schaltfläche erscheint<br>• Text wird unverändert in die Zwischenablage kopiert, mit visueller Bestätigung<br><br><strong>📤 Eine Antwort teilen oder herunterladen</strong><br>• Zwei Symbole unter jeder Antwort, neben der Kopieren-Schaltfläche<br>• <strong>Herunterladen</strong>: ein Klick, und die Antwort wird als datierte Markdown-Datei gespeichert, Umlaute bleiben erhalten. Eine gestaltete Antwort (HTML, Karten) behält Überschriften, Listen, Tabellen, Links und Codeblöcke; Karten werden zu einer Überschrift mit einigen Stichpunkten. Kopieren liefert einfachen Text<br>• <strong>Teilen</strong>: übergibt den Text an das Teilen-Menü deines Geräts (Nachrichten, Mail, Notizen …), wenn der Browser eines anbietet. Hast du Verbindungen, listet ein Menü auch sie auf: Wählst du eine, füllt sich dein Eingabefeld mit der Bitte, die Antwort weiterzuleiten — du sendest sie ab, und LIA bereitet die Nachricht zur Freigabe vor, wie jede Nachricht an eine Verbindung<br><br><strong>🎨 Syntax-Hervorhebung auf Code</strong><br>• Code-Blöcke ```python, ```typescript, ```json, ```bash, ```sql... werden automatisch eingefärbt (25 Sprachen unterstützt)<br>• Helles oder dunkles Theme je nach deinen Anzeigeeinstellungen<br><br><strong>🧮 Mathematische Formeln (LaTeX)</strong><br>• Formeln werden in korrekter mathematischer Notation dargestellt<br>• Inline: <code>$E = mc^2$</code><br>• Zentrierter Block: <code>$$a^2 + b^2 = c^2$$</code><br><br><strong>📅 Relative Daten</strong><br>• Heutige Nachrichten: nur Uhrzeit (14:30)<br>• Gestern: „Gestern 14:30“<br>• Diese Woche: Wochentag + Uhrzeit (Montag 14:30)<br>• Darüber hinaus: vollständiges Datum"
           },
           "q12": {
             "question": "Kann ich meinen Gesprächsverlauf durchsuchen?",
@@ -8881,11 +9127,11 @@
           },
           "q7": {
             "question": "Wie aktiviere oder deaktiviere ich die Stimme?",
-            "answer": "LIA verfügt über ein <strong>bidirektionales Sprachsystem</strong>:<br><br><strong>🔊 Sprachsynthese (TTS) - LIA spricht mit dir:</strong><br>Klicke auf das <strong>Lautsprecher-Symbol</strong> 🔊 in der Titelleiste. Wenn aktiviert, liest LIA seine Antworten vor.<br>• <strong>Standard</strong> (Standard): Microsoft Edge TTS - kostenlos<br>• <strong>HD</strong>: OpenAI TTS - Premium-Qualität (wenn vom Administrator aktiviert)<br>• <strong>Gemini HD</strong>: Google Gemini TTS - Premium-Qualität (wenn vom Administrator aktiviert)<br><br><strong>🎙️ Sprachmodus (STT) - Sprich mit LIA:</strong><br>Tippe im Chat-Header auf das Freihand-Badge (Mikrofon), um den Sprachmodus einzuschalten; halte es 500ms gedrückt, um ihn auszuschalten.<br>• <strong>Wake Word</strong> (in der Beta, französische Oberfläche): Sag „Dis LIA“, um die Aufnahme zu starten, „LIA, stop“, um LIAs Stimme zu unterbrechen<br>• <strong>Push-to-talk</strong>: Klicke auf das Overlay, um manuell zu sprechen<br>• <strong>Automatische Erkennung</strong>: LIA erkennt, wenn du aufhörst zu sprechen (1s Stille)<br>• <strong>Kostenlos und offline</strong>: Transkription verwendet Whisper lokal<br><br><strong>💡 Tipp:</strong><br>Der Sprachmodus ist ideal für freihändige Nutzung oder Multitasking."
+            "answer": "LIA verfügt über ein <strong>bidirektionales Sprachsystem</strong>:<br><br><strong>🔊 Sprachsynthese (TTS) - LIA spricht mit dir:</strong><br>Klicke auf das <strong>Lautsprecher-Symbol</strong> 🔊 in der Titelleiste. Wenn aktiviert, liest LIA seine Antworten vor.<br>• Die Engine wählt deine Administration: <strong>Microsoft Edge TTS</strong> (kostenlos, Standard) oder eine Premium-Engine — OpenAI, ElevenLabs, Google Gemini oder Fish Audio<br><br><strong>🎙️ Sprachmodus (STT) - Sprich mit LIA:</strong><br>Tippe im Chat-Header auf das Freihand-Badge (Mikrofon), um den Sprachmodus einzuschalten; halte es 500ms gedrückt, um ihn auszuschalten.<br>• <strong>Wake Word</strong> (in der Beta, französische Oberfläche): Sag „Dis LIA“, um die Aufnahme zu starten, „LIA, stop“, um LIAs Stimme zu unterbrechen<br>• <strong>Push-to-talk</strong>: Klicke auf das Overlay, um manuell zu sprechen<br>• <strong>Automatische Erkennung</strong>: LIA erkennt, wenn du aufhörst zu sprechen (1s Stille)<br>• Standardmäßig <strong>kostenlos und offline</strong>: Die Transkription verwendet Whisper lokal; eine Remote-Engine, in <strong>Einstellungen -> Sprachmodus</strong> genannt, ist optional<br><br><strong>💡 Tipp:</strong><br>Der Sprachmodus ist ideal für freihändige Nutzung oder Multitasking."
           },
           "q8": {
             "question": "Wie ändere ich die Stimme von LIA (männlich/weiblich)?",
-            "answer": "Wähle das <strong>Stimmgeschlecht</strong>, das dir zusagt:<br><br><strong>🎙️ Verfügbare Stimmen:</strong><br>• <strong>Weiblich</strong>: sanfte, natürliche neuronale Stimme<br>• <strong>Männlich</strong>: tiefe, ruhige neuronale Stimme<br><br><strong>Zum Ändern:</strong><br>1. Geh zum <strong>Startbildschirm</strong> (Dashboard)<br>2. Klicke auf <strong>LIAs Bild</strong> (den Avatar)<br>3. Das Bild ändert sich und zeigt das neue Geschlecht<br>4. Die Stimme wechselt automatisch zwischen weiblich und männlich<br><br><strong>🌍 Automatische Sprache:</strong><br>Die Stimme passt sich automatisch an die Sprache der Benutzeroberfläche an. Zum Beispiel eine deutsche Stimme, wenn die Oberfläche auf Deutsch ist.<br><br><strong>⚙️ Qualität:</strong><br>LIA verwendet hochwertige neuronale Stimmen (Microsoft Edge TTS im Standardmodus, OpenAI TTS oder ElevenLabs im HD-Modus, je nach Konfiguration durch die Administration) für eine natürliche, ausdrucksstarke Wiedergabe."
+            "answer": "Wähle das <strong>Stimmgeschlecht</strong>, das dir zusagt:<br><br><strong>🎙️ Verfügbare Stimmen:</strong><br>• <strong>Weiblich</strong>: sanfte, natürliche neuronale Stimme<br>• <strong>Männlich</strong>: tiefe, ruhige neuronale Stimme<br><br><strong>Zum Ändern:</strong><br>1. Geh zum <strong>Startbildschirm</strong> (Dashboard)<br>2. Klicke auf <strong>LIAs Bild</strong> (den Avatar)<br>3. Das Bild ändert sich und zeigt das neue Geschlecht<br>4. Die Stimme wechselt automatisch zwischen weiblich und männlich<br><br><strong>🌍 Sprache:</strong><br>Die Stimme ist die eingestellte, in welcher Sprache die Antwort auch ist: Eine mehrsprachige Stimme liest jede Sprache, eine Stimme einer einzigen Sprache liest die anderen mit ihrem Akzent. In den Listen deiner eigenen Stimmen (unten) stehen die Stimmen deiner Sprache zuerst.<br><br><strong>🎚️ Deine eigenen Stimmen:</strong><br>Unter <strong>Einstellungen → Sprachmodus → Stimme von LIA</strong> wählst du die männliche und die weibliche Stimme, mit denen LIA im Chat spricht, unter den Stimmen der von deinem Administrator eingestellten Engine — jede Liste beginnt mit der Stimme des Administrators. Das Radio, Live-Sitzungen und Telefonanrufe behalten ihre eigenen Stimmen.<br><br><strong>⚙️ Qualität:</strong><br>LIA verwendet hochwertige neuronale Stimmen (Microsoft Edge TTS, OpenAI, ElevenLabs, Google Gemini oder Fish Audio, je nach Konfiguration durch die Administration) für eine natürliche, ausdrucksstarke Wiedergabe."
           },
           "q9": {
             "question": "Wie funktioniert das Langzeitgedächtnis?",
@@ -9622,15 +9868,15 @@
         "questions": {
           "q1": {
             "question": "Was ist ein MCP-Server?",
-            "answer": "Ein MCP-Server (Model Context Protocol) ist ein <strong>externer Dienst</strong>, der Tools bereitstellt, die LIA nutzen kann:<br><br><strong>🔌 Funktionsweise:</strong><br>• MCP ist ein offener Standard (Anthropic) zur Anbindung von Tools an einen KI-Assistenten<br>• Jeder Server stellt ein oder mehrere <strong>Tools</strong> (Funktionen) bereit, die LIA aufrufen kann<br>• MCP-Tools integrieren sich nahtlos neben nativen Tools (Google, Wetter, etc.)<br><br><strong>📌 Beispiele für MCP-Server:</strong><br>• <strong>HuggingFace Hub</strong>: ML-Modelle suchen<br>• <strong>GitHub</strong>: Repositories und Issues verwalten<br>• <strong>Slack</strong>: Nachrichten senden<br>• <strong>Datenbank</strong>: SQL-Abfragen<br><br><strong>💡 Vorteil:</strong><br>Erweitere LIAs Fähigkeiten grenzenlos, indem du jeden MCP-kompatiblen Dienst verbindest."
+            "answer": "Ein MCP-Server (Model Context Protocol) ist ein <strong>externer Dienst</strong>, der Tools bereitstellt, die LIA nutzen kann:<br><br><strong>🔌 Funktionsweise:</strong><br>• MCP ist ein offener Standard (Anthropic) zur Anbindung von Tools an einen KI-Assistenten<br>• Jeder Server stellt ein oder mehrere <strong>Tools</strong> (Funktionen) bereit, die LIA aufrufen kann<br>• MCP-Tools integrieren sich nahtlos neben nativen Tools (Google, Wetter, etc.)<br><br><strong>📌 Beispiele für MCP-Server:</strong><br>• <strong>HuggingFace Hub</strong>: ML-Modelle suchen<br>• <strong>GitHub</strong>: Repositories und Issues verwalten<br>• <strong>Slack</strong>: Nachrichten senden<br>• <strong>Datenbank</strong>: SQL-Abfragen<br><br><strong>💡 Vorteil:</strong><br>Erweitere die Werkzeuge deines Kontos mit unterstützten MCP-Diensten innerhalb der konfigurierten Instanzgrenzen."
           },
           "q2": {
             "question": "Wie füge ich einen MCP-Server hinzu?",
-            "answer": "Füge einen Server in wenigen Schritten hinzu:<br><br><strong>⚙️ Zugang:</strong><br>Einstellungen → Abschnitt \"<em>MCP-Server</em>\" → Schaltfläche <strong>Hinzufügen</strong><br><br><strong>📝 Konfiguration:</strong><br>1. <strong>Name</strong>: beschreibender Name (z.B. \"HuggingFace Hub\")<br>2. <strong>URL</strong>: HTTP(S)-Endpunkt des MCP-Servers<br>3. <strong>Beschreibung</strong> (optional): beschreibe, was der Server tut, damit LIA weiß, wann er ihn verwenden soll<br>4. <strong>Authentifizierung</strong>: wähle den Typ (keine, API-Schlüssel, Bearer-Token, OAuth 2.1)<br>5. <strong>Timeout</strong>: maximale Aufrufzeit (5-120 Sekunden)<br><br><strong>🔗 Nach der Erstellung:</strong><br>Klicke auf <strong>Verbindung testen</strong>, um den Server zu prüfen und verfügbare Tools zu entdecken."
+            "answer": "Füge einen Server in wenigen Schritten hinzu:<br><br><strong>⚙️ Zugang:</strong><br>Einstellungen → Abschnitt \"<em>MCP-Server</em>\" → Schaltfläche <strong>Hinzufügen</strong><br><br><strong>📝 Konfiguration:</strong><br>1. <strong>Name</strong>: beschreibender Name (z.B. \"HuggingFace Hub\")<br>2. <strong>URL</strong>: HTTPS-Endpunkt des MCP-Servers<br>3. <strong>Beschreibung</strong> (optional): beschreibe, was der Server tut, damit LIA weiß, wann er ihn verwenden soll<br>4. <strong>Authentifizierung</strong>: wähle den Typ (keine, API-Schlüssel, Bearer-Token, OAuth 2.1)<br>5. <strong>Timeout</strong>: maximale Aufrufzeit (5-120 Sekunden)<br><br><strong>🔗 Nach der Erstellung:</strong><br>Klicke auf <strong>Verbindung testen</strong>, um den Server zu prüfen und verfügbare Tools zu entdecken."
           },
           "q3": {
             "question": "Welche Authentifizierungstypen werden unterstützt?",
-            "answer": "Vier Authentifizierungstypen sind verfügbar:<br><br><strong>🔓 Keine:</strong><br>Für öffentliche Server oder interne Netzwerkdienste<br><br><strong>🔑 API-Schlüssel:</strong><br>• Wird in einem anpassbaren HTTP-Header gesendet<br>• Standard-Header: <code>X-API-Key</code><br>• Ideal für einfache APIs (HuggingFace, etc.)<br><br><strong>🎫 Bearer-Token:</strong><br>• Token wird im <code>Authorization: Bearer</code>-Header gesendet<br>• Für APIs mit statischen Zugangstokens<br><br><strong>🔐 OAuth 2.1:</strong><br>• Vollständiger Autorisierungsfluss mit PKCE<br>• Optionale Client-ID und Client-Secret (Vorregistrierung)<br>• Automatische Erneuerung abgelaufener Tokens<br>• Für APIs, die Benutzerautorisierung erfordern (GitHub, Slack...)<br><br><strong>💡 Sicherheit:</strong><br>Alle Authentifizierungsdaten werden <strong>serverseitig verschlüsselt</strong>."
+            "answer": "Vier Authentifizierungstypen sind verfügbar:<br><br><strong>🔓 Keine:</strong><br>Für öffentliche Server, die keine Anmeldung verlangen<br><br><strong>🔑 API-Schlüssel:</strong><br>• Wird in einem anpassbaren HTTP-Header gesendet<br>• Standard-Header: <code>X-API-Key</code><br>• Ideal für einfache APIs (HuggingFace, etc.)<br><br><strong>🎫 Bearer-Token:</strong><br>• Token wird im <code>Authorization: Bearer</code>-Header gesendet<br>• Für APIs mit statischen Zugangstokens<br><br><strong>🔐 OAuth 2.1:</strong><br>• OAuth-Autorisierung mit PKCE S256, sofern der Server sie unterstützt<br>• Optionale Client-ID und Client-Secret (Vorregistrierung)<br>• Automatische Erneuerung abgelaufener Tokens<br>• Für APIs, die Benutzerautorisierung erfordern (GitHub, Slack...)<br><br><strong>💡 Sicherheit:</strong><br>Alle Authentifizierungsdaten werden <strong>serverseitig verschlüsselt</strong>."
           },
           "q4": {
             "question": "Wie teste ich die Verbindung zu einem MCP-Server?",
@@ -9658,7 +9904,7 @@
           },
           "q10": {
             "question": "Welche Versionen des MCP-Protokolls unterstützt LIA?",
-            "answer": "LIA spricht <strong>beide Generationen des MCP-Protokolls</strong>:<br><br>• Die <strong>neue zustandslose Revision (2026)</strong> — von Servern der neuen Generation verwendet<br>• Den <strong>klassischen Handshake</strong> — von allen früheren Servern verwendet<br><br>Die richtige wird pro Server automatisch gewählt: deine bestehenden Server arbeiten ohne dein Zutun weiter, und Server der neuen Generation verbinden sich ebenfalls. 🔌<br><br>Verlangt ein Server eine Revision, die LIA nicht spricht, zeigt der Verbindungstest eine <strong>klare Erklärung</strong> statt eines technischen Fehlers.<br><br>Auf der Sicherheitsseite prüft der OAuth-Fluss die <strong>Identität des Autorisierungsservers</strong>, bevor dein Autorisierungscode verwendet wird, und sendet gespeicherte Zugangsdaten nie an einen anderen Autorisierungsserver als den ausstellenden. Und wenn du den Zustimmungsbildschirm ablehnst, kehrst du einfach mit einem Hinweis zu deinen Einstellungen zurück — Ablehnen ist eine Entscheidung, kein Fehler. ✅<br><br>Seit v1.38.4 reicht diese Ausrichtung bis zum Ende: LIA liest Werkzeug-Deklarationen im <strong>vollen Spielraum</strong>, den die Revision 2026-07-28 zulässt. Ein Server, der seine Parameter mit den fortgeschritteneren Formen des Standards beschreibt — optionale Typen, verschachtelte Strukturen, interne Verweise, geschlossene Mengen —, wird jetzt vollständig gelesen, während einige dieser Formen seine Werkzeuge zuvor wortlos verschwinden ließen. 🧩"
+            "answer": "LIA unterstützt die zustandslose MCP-Revision und kompatible klassische Handshakes mit Aushandlung je Server. Der Verbindungstest meldet nicht unterstützte Revisionen; das garantiert keine Kompatibilität mit jedem Server oder jeder Erweiterung.<br><br>MCP-Werkzeuge beschreiben ihre Parameter mit JSON Schema. LIA nutzt dieselbe Interpretation für die dem Modell angebotene Signatur und den Katalog des Planers. Unterstützte Vereinigungen, Referenzen, geschlossene Auswahlen und Einschränkungen werden verarbeitet; deklarierte Einschränkungen bleiben auch bei begrenzteren Anbieterkonvertern sichtbar.<br><br>Das bedeutet nicht, dass jedes JSON-Schema-Schlüsselwort oder jedes serverspezifische Verhalten implementiert ist. Der Server bleibt für die Prüfung seiner Eingaben verantwortlich. Werkzeugannotationen sind nicht vertrauenswürdige Hinweise: Eine destruktive Angabe kann eine Bestätigung hinzufügen, eine behauptete Harmlosigkeit hebt andere Prüfungen nicht auf."
           },
           "q11": {
             "question": "Warum haben manche MCP-Werkzeuge einen lesbaren Namen, und warum fragen manche nach einer Bestätigung?",
@@ -9705,7 +9951,7 @@
           },
           "q8": {
             "question": "Können Skills Karten, Bilder oder interaktive Mini-Apps anzeigen? (v1.16.8)",
-            "answer": "<p>Ja. Seit v1.16.8 kann ein Python-Skill-Skript zusätzlich zum Text <strong>einen interaktiven HTML-Frame</strong> (Google Maps-Ansicht, Wetter-Dashboard, Monatskalender, Pomodoro-Timer, Einheitenumrechner...) und/oder <strong>ein Bild</strong> (QR-Code, Diagramm) zurückgeben.</p><p><strong>Sieben neue integrierte Skills</strong> veranschaulichen diesen Mechanismus: <code>interactive-map</code>, <code>weather-dashboard</code>, <code>calendar-month</code>, <code>qr-code</code>, <code>pomodoro-timer</code>, <code>unit-converter</code>, <code>dice-roller</code>.</p><p><strong>Wie es funktioniert:</strong></p><ul><li><strong>Theme und Sprache bleiben synchron</strong> — Frames erkennen und respektieren automatisch dein aktuelles Theme (hell/dunkel) und deine Sprache. Ein Theme-Wechsel wird live ohne Neuladen übertragen.</li><li><strong>Automatische Größenanpassung</strong> — der Frame passt sich automatisch an seinen Inhalt an.</li><li><strong>Strenge Sicherheit</strong> — Frames werden in einem sandboxed iframe (<code>allow-scripts allow-popups</code>, ohne <code>allow-same-origin</code>) mit einer für Benutzer-Skills injizierten Content Security Policy ausgeführt.</li><li><strong>Sichtbar in allen Anzeigemodi</strong> — Rich HTML, Markdown, Karten: Frames werden überall angezeigt.</li></ul><p>Um eigene Skills mit Frames oder Bildern zu bauen, öffne den <strong>Skills-Leitfaden</strong> (Tab Erweitert → Abschnitt «Localization, theming and runtime conventions»), oder sag einfach: «<em>erstelle einen Skill, der einen QR-Code anzeigt</em>».</p>"
+            "answer": "<p>Ja. Seit v1.16.8 kann ein Python-Skill-Skript zusätzlich zum Text <strong>einen interaktiven HTML-Frame</strong> (Google Maps-Ansicht, Wetter-Dashboard, Monatskalender, Pomodoro-Timer, Einheitenumrechner...) und/oder <strong>ein Bild</strong> (QR-Code, Diagramm) zurückgeben.</p><p><strong>Sieben neue integrierte Skills</strong> veranschaulichen diesen Mechanismus: <code>interactive-map</code>, <code>weather-dashboard</code>, <code>calendar-month</code>, <code>qr-code</code>, <code>pomodoro-timer</code>, <code>unit-converter</code>, <code>dice-roller</code>.</p><p><strong>Wie es funktioniert:</strong></p><ul><li><strong>Theme und Sprache bleiben synchron</strong> — Frames erkennen und respektieren automatisch dein aktuelles Theme (hell/dunkel) und deine Sprache. Ein Theme-Wechsel wird live ohne Neuladen übertragen.</li><li><strong>Automatische Größenanpassung</strong> — der Frame passt sich automatisch an seinen Inhalt an.</li><li><strong>Strenge Sicherheit</strong> — Frames werden in einem sandboxed iframe (<code>allow-scripts allow-popups</code>, ohne <code>allow-same-origin</code>) mit einer für Benutzer-Skills injizierten Content Security Policy ausgeführt.</li><li><strong>Sichtbar in allen Anzeigemodi</strong> — HTML, Markdown, Karten: Frames werden überall angezeigt.</li></ul><p>Um eigene Skills mit Frames oder Bildern zu bauen, öffne den <strong>Skills-Leitfaden</strong> (Tab Erweitert → Abschnitt «Localization, theming and runtime conventions»), oder sag einfach: «<em>erstelle einen Skill, der einen QR-Code anzeigt</em>».</p>"
           },
           "q9": {
             "question": "Was zeigt die Skills-Galerie? (v1.25.16)",
@@ -9743,11 +9989,11 @@
         "questions": {
           "q1": {
             "question": "Was ist ein Plugin, und worin unterscheidet es sich von einem Skill?",
-            "answer": "Ein <strong>Skill</strong> ist ein Satz von Expertenanweisungen. Ein <strong>Plugin</strong> ist ein portables Paket, das mehrere davon gleichzeitig mitbringen kann — Skills UND MCP-Server — in einem Schritt installiert und ebenso wieder entfernt.<br><br>LIA spricht den offenen Standard <strong>Agent Plugins</strong> (agent-plugins.org, getragen von AWS, Microsoft, OpenAI, Cursor und Vercel): Ein für einen anderen Assistenten vorbereitetes Paket lässt sich hier unverändert installieren.<br><br>Zu finden unter <strong>Einstellungen → Funktionen → Erweiterungen &amp; Daten → Plugins</strong>."
+            "answer": "Ein <strong>Skill</strong> ist ein Satz von Expertenanweisungen. Ein <strong>Plugin</strong> ist ein portables Paket, das mehrere davon gleichzeitig mitbringen kann — Skills UND MCP-Server — in einem Schritt installiert und ebenso wieder entfernt.<br><br>LIA importiert das offene Format <strong>Agent Plugins v1.0.0</strong> (agent-plugins.org) für Skills und entfernte Streamable-HTTP-MCP-Server über HTTPS. Andere Transporte und clientspezifische Erweiterungen werden nicht ausgeführt; der Importbericht nennt nicht unterstützte Komponenten.<br><br>Zu finden unter <strong>Einstellungen → Funktionen → Erweiterungen &amp; Daten → Plugins</strong>."
           },
           "q2": {
             "question": "Wie installiere ich ein Plugin?",
-            "answer": "Zwei Wege, beide im Bereich <strong>Plugins</strong>:<br><br>• eine heruntergeladene <strong>.zip-Datei</strong>;<br>• ein <strong>https-Link</strong> zum Paket.<br><br>Die Installation ist atomar: Entweder landet das ganze Paket, oder nichts. Ein bereits vorhandenes Plugin erneut zu installieren aktualisiert es an Ort und Stelle, statt ein Duplikat anzulegen."
+            "answer": "Zwei Wege, beide im Bereich <strong>Plugins</strong>:<br><br>• eine heruntergeladene <strong>.zip-Datei</strong>;<br>• ein <strong>https-Link</strong> zum Paket.<br><br>Komponenten werden einzeln verarbeitet: Der Bericht kann geladene und übersprungene Komponenten samt Gründen enthalten. Prüfe darin, was installiert wurde. Ein bereits vorhandenes Plugin erneut zu installieren aktualisiert es, statt ein Duplikat anzulegen."
           },
           "q3": {
             "question": "Warum sagt der Bericht, eine Komponente sei übersprungen worden?",
@@ -10097,15 +10343,15 @@
           },
           "q4": {
             "question": "Werden meine Sprachdaten an externe Dienste gesendet?",
-            "answer": "Die Aktivierungsworterkennung läuft in deinem Browser; ihr Modell lädt das dabei gehörte Audio nicht hoch. <b>Lokale Spracherkennung</b> nutzt Sherpa-onnx Whisper auf dem LIA-Server. Die optionale <b>Remote-STT</b> sendet deine Aufnahme an ElevenLabs Scribe; sie ist standardmäßig aus und erfordert deine Auswahl unter Einstellungen → Sprachmodus.<br><br>Andere Sprachwege haben eigene Grenzen: gesprochene Antworten können deinen konfigurierten TTS-Anbieter nutzen, <b>Live und Live direct</b> senden Sitzungs-Audio und nötigen Kontext an den gewählten Sprachanbieter, und ein aktivierter <b>Simli-Avatar</b> erhält LIAs Ausgabe-Audio zur Lippensynchronisation. Die jeweiligen Verarbeitungs- und Aufbewahrungsrichtlinien gelten. Remote-STT abzuschalten schaltet diese getrennten Wege nicht ab."
+            "answer": "Die Aktivierungsworterkennung läuft in deinem Browser; ihr Modell lädt das dabei gehörte Audio nicht hoch. <b>Lokale Spracherkennung</b> nutzt Sherpa-onnx Whisper auf dem LIA-Server. Die optionale <b>Remote-STT</b> sendet deine Aufnahme an die von der Administration konfigurierte Sprach-Engine (ElevenLabs Scribe, OpenAI oder Fish Audio — die Einstellung nennt sie); sie ist standardmäßig aus und erfordert deine Auswahl unter Einstellungen → Sprachmodus.<br><br>Andere Sprachwege haben eigene Grenzen: gesprochene Antworten können deinen konfigurierten TTS-Anbieter nutzen, <b>Live und Live direct</b> senden Sitzungs-Audio und nötigen Kontext an den gewählten Sprachanbieter, und ein aktivierter <b>Simli-Avatar</b> erhält LIAs Ausgabe-Audio zur Lippensynchronisation. Die jeweiligen Verarbeitungs- und Aufbewahrungsrichtlinien gelten. Remote-STT abzuschalten schaltet diese getrennten Wege nicht ab."
           },
           "q5": {
             "question": "Kann ich eine genauere (Remote-)Spracherkennung nutzen?",
-            "answer": "Ja. In <b>Einstellungen -> Sprachmodus</b> kannst du zwischen <b>Lokal</b> (Standard, kostenlos, Sherpa-onnx Whisper auf dem LIA-Server, Audio verlässt nie den Server) und <b>Remote</b> (ElevenLabs Scribe, 0,22 $/h, nach Audiodauer abgerechnet) umschalten. Der Remote-Modus ist bei gesprochener Sprache genauer, besonders in lauten Umgebungen. Ein dezentes 🎤-Badge auf jeder Nutzer-Bubble zeigt Dauer und EUR-Kosten der Transkription. Die Kosten fließen in die übliche <b>Kosten</b>-Kachel des Dashboards und in deine Nutzungslimits - kein separates Kontingent. Zwei Sicherheitshebel schützen vor Kostenexplosionen: ein hartes Limit von 5 Minuten pro Clip (vom Admin einstellbar) und ein globaler Kill-Switch, den der Administrator aktivieren kann, um alle wieder auf lokal umzustellen."
+            "answer": "Ja. In <b>Einstellungen -> Sprachmodus</b> kannst du zwischen <b>Lokal</b> (Standard, kostenlos, Sherpa-onnx Whisper auf dem LIA-Server, Audio verlässt nie den Server) und <b>Remote</b> (die von der Administration konfigurierte Engine — ElevenLabs Scribe, OpenAI oder Fish Audio —, nach Audiodauer abgerechnet; die Option nennt sie) umschalten. Der Remote-Modus ist bei gesprochener Sprache genauer, besonders in lauten Umgebungen. Ein dezentes 🎤-Badge auf jeder Nutzer-Bubble zeigt Dauer und EUR-Kosten der Transkription. Die Kosten fließen in die übliche <b>Kosten</b>-Kachel des Dashboards und in deine Nutzungslimits - kein separates Kontingent. Zwei Sicherheitshebel schützen vor Kostenexplosionen: ein hartes Limit von 5 Minuten pro Clip (vom Admin einstellbar) und ein Kill-Switch pro Anbieter (ElevenLabs, Fish Audio), den der Administrator aktivieren kann, um alle wieder auf lokal umzustellen."
           },
           "q6": {
             "question": "Welche Stimmen verwendet LIA, und was kostet TTS?",
-            "answer": "LIAs Sprachsynthese wird vom Administrator aus einem einheitlichen Katalog mit drei Providern konfiguriert: <b>Edge TTS</b> (Microsoft Neural-Stimmen, kostenlos, Standard), <b>OpenAI TTS</b> (<code>tts-1</code> / <code>tts-1-hd</code>, Premium-Stimmen: alloy, echo, nova, ...) und <b>ElevenLabs</b> (<code>eleven_multilingual_v2</code> / <code>eleven_turbo_v2_5</code> / <code>eleven_flash_v2_5</code>, einschließlich Custom- und Bibliotheksstimmen aus dem konfigurierten Konto). Für kostenpflichtige Provider zeigt ein 🔊-Badge auf der Assistenten-Nachricht Zeichenzahl und EUR-Kosten; Edge bleibt kostenlos ohne Badge. Latenzseitig: Ein Streamer auf Satzebene beginnt den ersten Satz in etwa 1 Sekunde abzuspielen, während der Assistent den Rest der Antwort noch verfasst."
+            "answer": "LIAs Sprachsynthese wird vom Administrator aus einem einheitlichen Katalog mit fünf Providern konfiguriert: <b>Edge TTS</b> (Microsoft Neural-Stimmen, kostenlos, Standard), <b>OpenAI TTS</b> (<code>tts-1</code> / <code>tts-1-hd</code>, Premium-Stimmen: alloy, echo, nova, ...), <b>ElevenLabs</b> (<code>eleven_multilingual_v2</code> / <code>eleven_turbo_v2_5</code> / <code>eleven_flash_v2_5</code>, einschließlich Custom- und Bibliotheksstimmen aus dem konfigurierten Konto), <b>Google Gemini</b> und <b>Fish Audio</b> (<code>s2.1-pro</code>, <code>s2-pro</code>, <code>drama-3</code>, mit den lizenzierten Stimmen des Anbieters, den geklonten oder entworfenen Stimmen der Instanz und den öffentlichen Stimmen, die ein Administrator für jede Stimmkonfiguration angeheftet hat). Jede Person kann die männliche und die weibliche Stimme von LIA unter den Stimmen der Engine wählen, unter Einstellungen → Sprachmodus. Für kostenpflichtige Provider zeigt ein 🔊-Badge auf der Assistenten-Nachricht Zeichenzahl und EUR-Kosten; Edge bleibt kostenlos ohne Badge. Latenzseitig: Ein Streamer auf Satzebene beginnt den ersten Satz in etwa 1 Sekunde abzuspielen, während der Assistent den Rest der Antwort noch verfasst."
           },
           "q7": {
             "question": "Liest LIA Zahlen, Preise und Adressen korrekt vor?",
@@ -10273,7 +10519,7 @@
           },
           "q3": {
             "question": "Welche Engine transkribiert, und was kostet das?",
-            "answer": "Deine Instanz durchläuft eine Kette: die von der Administration gewählte Sprach-Engine, dann ElevenLabs Scribe oder OpenAI, wenn ein Schlüssel vorliegt — beide trennen die Sprechenden —, dann das lokale Whisper, das nichts kostet und keinen Schlüssel braucht, aber keine Stimmen trennt und auf einem kleinen Server länger dauert. Verweigert ein Anbieter bei der Verarbeitung (widerrufener Schlüssel, zu große Datei), übernimmt die nächste Engine, statt deine Besprechung scheitern zu lassen.<br><br>Unter <strong>Einstellungen › Meetings</strong> legst du fest, ob LIA eine entfernte Engine nutzen darf, lokal bleiben muss oder selbst entscheidet; Engine und <strong>Preis pro Audiostunde</strong> werden vor der Aufnahme angezeigt.<br><br>Was eine Besprechung gekostet hat, steht überall, wo sie erscheint: auf der Chat-Karte (wenn du Kosten anzeigst), auf der Besprechungsseite und in der Liste — Transkription und Protokoll als zwei getrennte Beträge und ihre Summe. Der Betrag zählt in deinem Verbrauch genau wie jeder andere Austausch mit dem Assistenten. Hat ein Modell keinen konfigurierten Tarif, schreibt LIA <em>kein Tarif</em>, statt null anzuzeigen."
+            "answer": "Deine Instanz durchläuft eine Kette: die von der Administration gewählte Sprach-Engine, dann ElevenLabs Scribe, OpenAI oder Fish Audio, wenn ein Schlüssel vorliegt — alle drei trennen die Sprechenden, und Fish Audio nimmt eine Aufnahme von höchstens einer Stunde —, dann das lokale Whisper, das nichts kostet und keinen Schlüssel braucht, aber keine Stimmen trennt und auf einem kleinen Server länger dauert. Verweigert ein Anbieter bei der Verarbeitung (widerrufener Schlüssel, zu große Datei), übernimmt die nächste Engine, statt deine Besprechung scheitern zu lassen.<br><br>Unter <strong>Einstellungen › Meetings</strong> legst du fest, ob LIA eine entfernte Engine nutzen darf, lokal bleiben muss oder selbst entscheidet; Engine und <strong>Preis pro Audiostunde</strong> werden vor der Aufnahme angezeigt.<br><br>Was eine Besprechung gekostet hat, steht überall, wo sie erscheint: auf der Chat-Karte (wenn du Kosten anzeigst), auf der Besprechungsseite und in der Liste — Transkription und Protokoll als zwei getrennte Beträge und ihre Summe. Der Betrag zählt in deinem Verbrauch genau wie jeder andere Austausch mit dem Assistenten. Hat ein Modell keinen konfigurierten Tarif, schreibt LIA <em>kein Tarif</em>, statt null anzuzeigen."
           },
           "q4": {
             "question": "Was passiert, wenn mein Telefon sperrt, das Netz ausfällt oder ich vergesse zu beenden?",
@@ -11139,6 +11385,15 @@
     }
   },
   "personality": {
+    "catalogue_title": "Verfügbare Stile",
+    "catalogue_count_one": "{{count}} Stil",
+    "catalogue_count_other": "{{count}} Stile",
+    "instance_default": "Standard",
+    "selected": "Ausgewählt",
+    "selection_hint": "Die Änderung gilt für künftige Gespräche.",
+    "load_error": "Die Stile von LIA konnten nicht geladen werden.",
+    "retained_error": "Ein Fehler ist aufgetreten. Die angezeigten Stile und die bisherige Auswahl bleiben verfügbar.",
+    "empty": "Zurzeit sind keine Stile verfügbar.",
     "title": "Persönlichkeit",
     "description": "Wähle LIAs Kommunikationsstil",
     "default": "Normal",
@@ -11616,6 +11871,10 @@
       "error": "Verlauf konnte nicht geladen werden.",
       "count": "{{shown}} von {{total}} angezeigt",
       "source_perplexity": "Perplexity",
+      "source_wikipedia": "Wikipedia",
+      "source_llm_reflection": "LIAs Reflexion",
+      "source_custom": "Andere Quelle",
+      "source_heartbeat": "Proaktive Benachrichtigung",
       "source_brave": "Brave Search",
       "source_rss": "RSS-Feed",
       "source_web": "Web"
@@ -11686,6 +11945,9 @@
       "source_PENDING_TASKS": "Offene Aufgaben",
       "source_UNREAD_EMAILS": "Ungelesene E-Mails",
       "source_CURRENT_WEATHER": "Aktuelles Wetter",
+      "source_HABITS": "Gewohnheiten",
+      "source_WORKBOARD": "Workboard",
+      "source_ANTICIPATED_MOMENT": "Erwarteter Moment",
       "source_WEATHER_CHANGES": "Wetterumschwung",
       "source_USER_INTERESTS": "Interessen",
       "source_USER_MEMORIES": "Erinnerungen",
@@ -14053,12 +14315,12 @@
       "execution-plans": {
         "title": "ExecutionPlan: Wie LIA komplexe Anfragen plant und ausführt",
         "excerpt": "LIA zerlegt mehrstufige Anfragen in strukturierte Ausführungspläne, semantisch validiert und parallel ausgeführt für schnelle, zuverlässige Antworten.",
-        "body": "<h2>Eine strukturierte Plansprache</h2><p>Der Planer von LIA generiert einen <strong>ExecutionPlan</strong>: ein validiertes Pydantic-Objekt mit einer <code>plan_id</code> (UUID), einem <code>execution_mode</code> (sequenziell oder parallel), einem <code>max_cost_usd</code>, einem <code>estimated_cost_usd</code> und einer <code>version</code>-Nummer. Jeder Plan enthält eine Liste von <strong>ExecutionStep</strong> mit den Feldern: <code>step_id</code>, <code>step_type</code> (TOOL, CONDITIONAL, REPLAN oder HUMAN), <code>agent_name</code>, <code>tool_name</code>, <code>parameters</code>, <code>depends_on</code> und <code>timeout_seconds</code>.</p><p>Zum Beispiel würde der Plan für \"sende eine Wetterzusammenfassung an Jean morgen früh\" enthalten: (1) Wetter von morgen abrufen, (2) Kontakt Jean suchen, (3) E-Mail verfassen und senden — mit einer Abhängigkeit zwischen den Schritten 1→3 und 2→3.</p><h2>Das FOR_EACH-Pattern</h2><p>Für Stapelverarbeitungen unterstützen die Schritte ein <code>for_each</code>-Feld, das über eine von einem vorherigen Schritt erzeugte Sammlung iteriert. Der Parameter <code>for_each_max</code> begrenzt die Anzahl der Iterationen, und jeder Elementfehler wird einzeln behandelt, ohne die gesamte Stapelverarbeitung zu unterbrechen.</p><h2>Semantische Validierung mit 11 Prüfungen</h2><p>Vor jeder Ausführung überprüft der <strong>semantische Validator</strong> 11 Arten von Problemen:</p><ul><li><strong>HALLUCINATED_CAPABILITY</strong> — Vom LLM erfundenes Tool oder Fähigkeit</li><li><strong>GHOST_DEPENDENCY</strong> — Verweis auf einen nicht existierenden Schritt</li><li><strong>LOGICAL_CYCLE</strong> — Zirkuläre Abhängigkeiten</li><li><strong>CARDINALITY_MISMATCH</strong> — Kardinalitätsinkompatibilität zwischen Schritten</li><li><strong>SCOPE_OVERFLOW / SCOPE_UNDERFLOW</strong> — Plan zu umfangreich oder unzureichend</li><li><strong>WRONG_PARAMETERS</strong> — Falsche Parameter für das Tool</li><li><strong>MISSING_STEP</strong> — Fehlender Schritt zur Erfüllung der Anfrage</li><li><strong>DANGEROUS_AMBIGUITY</strong> — Mehrdeutigkeit, die zu einem Fehler führen könnte</li><li><strong>IMPLICIT_ASSUMPTION / INSUFFICIENT_CONTENT</strong> — Nicht überprüfte Annahmen</li></ul><h2>Unterscheidung indexierbarer vs. semantischer Kriterien</h2><p>Über die elf strukturellen Prüfungen hinaus setzt der Validator ein <strong>universelles Planungsprinzip</strong> durch: <em>indexierbare</em> Kriterien (Datum, Kennung, Absender, Status, Ort — als Werkzeugparameter übergeben) von <em>semantischen</em> Kriterien (Kategorie, Dringlichkeit, Qualität, Priorität — nachgelagert vom Antwort-LLM gefiltert) zu unterscheiden. Wenn der Planer versucht, ein konzeptuelles Wort wie « medizinisch » oder « dringend » in die Suche eines wörtlich-suchenden Werkzeugs (Google Calendar, Gmail, Notion-ähnliche Stores…) zu drücken, markiert eine Erkennungsschicht das Leck über Wortgrenzen-Abgleich gegen den vom Anfrageanalysator emittierten Hinweis. Werkzeug-agnostischer Mechanismus: kein aktueller Connector oder zukünftiger MCP-Server muss angepasst werden — deklarativer Opt-out über <code>ToolManifest.text_search_mode</code> für Stores, die native semantische Suche anbieten.</p><h2>Parallele Ausführung in Wellen</h2><p>Ein <strong>DependencyGraph</strong> berechnet die Ausführungswellen: Alle Schritte ohne Abhängigkeiten bilden die erste Welle und werden parallel ausgeführt. Die folgenden Wellen warten auf den Abschluss ihrer Voraussetzungen. Dieser Mechanismus ermöglicht die Verarbeitung komplexer Anfragen über 3 bis 5 Domänen mit einer Antwortzeit vergleichbar mit einer einfachen Anfrage.</p><h2>Adaptive Neuplanung</h2><p>Wenn ein Schritt fehlschlägt, kann das System über den Typ <code>REPLAN</code> dynamisch neu planen. Wenn beispielsweise ein Kontakt nicht gefunden wird, kann LIA den Benutzer um Klärung bitten, anstatt den gesamten Plan aufzugeben.</p><h2>Selbstanreicherndes Anti-Halluzinations-Register</h2><p>LLMs erfinden manchmal nicht existierende Tools in ihren Plänen. LIA pflegt ein persistentes Register halluzinierter Muster (<code>hallucinated_tools.json</code>), das sich bei jeder neuen Erkennung automatisch aktualisiert. Bei der Planvalidierung wird jedes Tool gegen dieses Register geprüft — halluzinierte Schritte werden entfernt und der Planner wird gezwungen, mit echten Katalog-Tools neu zu planen.</p><h2>Den Grund zum Erfinden beseitigen</h2><p>Ein erfundenes Werkzeug zu erkennen, ist eine Reaktion. Die Ursache liegt davor: Enthält der an den Planer übergebene Katalog ein Werkzeug, das einen Wert verlangt, den kein anderes erzeugen kann – eine Nachrichten-ID, um darauf zu antworten –, dann <strong>existiert kein gültiger Plan</strong>, und das Modell kann nur erfinden. LIA prüft daher vor dem Planen, dass der Katalog <strong>geschlossen</strong> ist: Für jeden verlangten Wert ist eine lesende Quelle vorhanden. Die Regel sieht die Anfrage nie an, sie liest die Manifeste – ein Linker, der offene Referenzen auflöst, keine Suche, die rät.</p><h2>Die durchgesetzten Grenzen veröffentlichen</h2><p>Den Katalog zu schließen beantwortet, <em>welche Werkzeuge</em> ein Plan nutzen darf. Eine zweite Frage entscheidet über seine Annahme: <em>welche Werte</em>. Jedes Werkzeug erklärt Grenzen — wie viele Ergebnisse es auf einmal liefert — und der Validator setzt sie durch. Diese Grenzen erreichten die Planung nicht, die ihre Stapel allein aus dem Prompt dimensionierte und deren Plan abgelehnt wurde, weil sie der erhaltenen Anweisung folgte. Eine durchgesetzte, aber verborgene Grenze ist kein Vertrag, sondern eine Falle. Sie wird jetzt mit dem Werkzeug veröffentlicht, und jeder Wert darüber wird vor der Validierung zurechtgerückt — eine Ablehnung meldet somit nur noch einen real bestehenden Mangel.</p><h2>Ein Klick ist kein Satz</h2><p>Das Veröffentlichen der Grenzen klärt, was ein Plan <em>wert</em> sein darf. Offen blieb, was er <em>enthalten</em> muss. Kommt die Anfrage von einem Knopf — eine benannte Karte, angehakte Kästchen —, besitzt das System diese Gewissheit, bevor irgendein Modell befragt wird; es verwandelte sie in Prosa und verbrauchte drei Stufen, um sie zurückzugewinnen. Gemessen: das erwartete Werkzeug erzielte die beste Bewertung des gesamten Katalogs, und der Plan rief ein allgemeines auf. Kein Prompt-Feintuning macht diesen Weg deterministisch. Die <strong>aufgerufene Fähigkeit</strong> reist daher als Daten, neben dem Satz, den die Nutzerin liest; der Browser benennt eine Fähigkeit, nie ein Werkzeug, und der Server entscheidet, welches nur lesende Werkzeug sie umsetzt. Der zugehörige Schritt kommt <em>vor</em> der Validierung in den Plan, genau wie Werte, die in ihre Grenzen zurückgeholt werden — was mechanisch reparierbar ist, wird repariert und nie als Mangel gemeldet.</p><p>Der Plan wird <strong>bereichert, nicht ersetzt</strong>: alles, was der Planer vorgesehen hat und das etwas beiträgt, bleibt. Was er vorgesehen hat und die Fähigkeit ohnehin abdeckt, entfällt, denn eine unpassende Antwort neben einer benannten Lücke ergänzt sie nicht, sie widerspricht ihr. Ein Schritt, den ein anderer noch liest, bleibt auf jeden Fall erhalten: einen falschen Satz gegen eine hängende Referenz zu tauschen wäre ein schlechtes Geschäft.</p><h2>Ein veröffentlichter Pfad ist ein Pfad, der existiert</h2><p>Ein Plan verkettet seine Schritte über Referenzen wie <code>$steps.get_meetings.events[0].title</code>, die der Planer schreibt, <em>bevor</em> der Schritt gelaufen ist. Der Pfad muss auf Anhieb stimmen, sonst scheitert der Plan nach kostenpflichtigen API-Aufrufen und der Wartezeit der Nutzerin.</p><p>Was ihn stimmen lässt, ist ein <strong>Vertrag</strong> zwischen Werkzeug und Planer: Jedes Manifest veröffentlicht die Pfade, die seine Ausgabe trägt, und die Continuous Integration beweist diesen Vertrag vor jedem Zusammenführen von Code. Die Prüfung steuert das reale Werkzeug an — seinen echten Builder, den echten Referenz-Resolver, den rekonstruierten Merge — und vergleicht, was das Manifest veröffentlicht, mit dem, was die Ausführung liefert: den Pfad, seine <strong>Form</strong> und seinen <strong>Typ</strong>. Der Planer liest diesen Typ, um zu entscheiden, worin er einen Wert verketten kann: Ein falscher Typ zerbricht einen Plan genauso sicher wie ein falscher Pfad.</p><p>Der Vertrag ist bewusst asymmetrisch: Alles Veröffentlichte muss produziert werden, nie umgekehrt. Ein Manifest listet <em>Beispiele</em>, keine vollständige Aufzählung — <code>events[0].summary</code> ist real, ob jemand daran gedacht hat, es aufzuschreiben, oder nicht. Die Abdeckung wird genannt statt angenommen, und was sich aufgrund der Bauform eines Werkzeugs schwer ansteuern lässt, wird in einer Schuldenakte beziffert, statt implizit zu bleiben. Zur Laufzeit ist das Netz <code>ReferenceResolver</code>, der einen expliziten Fehler wirft, statt ins Leere aufzulösen.</p><h2>Eine Diagnose ist keine Frage</h2><p>Wenn ein schreibender Plan seine automatischen Replans ausgeschöpft hat, verweigert der Validator die Ausführung und übergibt an eine menschliche Rückfrage: Falsche Daten zu schreiben kostet mehr, als zu fragen. Was der Nutzerin dann gestellt wird, ist eine Frage <strong>in ihrer Sprache</strong>, aus einer Tabelle von fünfzehn Einträgen, deren Vollständigkeit beim Start <em>in beide Richtungen</em> geprüft wird — ein Problem, das der Code auslösen kann, ohne dass eine Frage dafür geschrieben ist, verhindert den Start der Anwendung, und eine Frage, die kein Code auslösen kann, ebenso. Die interne Fehlerbeschreibung bleibt in der Ablaufspur, wo sie hingehört.</p><p>Dasselbe Prinzip gilt für die Werte selbst: Ein in einer früheren Runde angegebener Parameter wird aus dem vorherigen Plan übernommen statt neu erfunden. Die Reparatur erkennt eine Dokumentationsadresse — eine, nach der nie jemand fragt — und überschreibt nie einen echten Wert: Eine Meinungsänderung wird immer respektiert.</p><h2>Befehle mit beobachteten Ergebnissen</h2><p>Ja. Frage zum Beispiel „Welcher Antwortmodus ist aktiv?“, „Stelle meine Antworten auf HTML + Karten um“ oder „Zeige meine Routinen“. LIA verwendet die Einstellungen und Bezeichnungen der Oberfläche, soweit deine Instanz und dein Konto sie erlauben. Abfragen und einige kleine, umkehrbare Einstellungen können direkt erfolgen. Erstellen, Löschen und sensible Änderungen behalten ihre Bestätigung.</p><p>Eine vorbereitete Anfrage, eine ausstehende Bestätigung und eine gespeicherte Änderung sind unterschiedliche Zustände. LIA nennt beobachtete Ergebnisse und unterscheidet Teilergebnisse, Warten, Konflikte, Ablauf und Fehler. Hat sich die Ressource seit der Vorbereitung geändert, kann der Befehl abgelehnt werden und eine neue Anfrage nötig sein. Eine Delegation an ein Werkzeug beweist allein nicht alle internen Auswirkungen.</p>"
+        "body": "<h2>Eine strukturierte Plansprache</h2><p>Der Planer von LIA generiert einen <strong>ExecutionPlan</strong>: ein validiertes Pydantic-Objekt mit einer <code>plan_id</code> (UUID), einem <code>execution_mode</code> (sequenziell oder parallel), einem <code>max_cost_usd</code>, einem <code>estimated_cost_usd</code> und einer <code>version</code>-Nummer. Jeder Plan enthält eine Liste von <strong>ExecutionStep</strong> mit den Feldern: <code>step_id</code>, <code>step_type</code> (TOOL oder CONDITIONAL), <code>agent_name</code>, <code>tool_name</code>, <code>parameters</code>, <code>depends_on</code> und <code>timeout_seconds</code>.</p><p>Zum Beispiel würde der Plan für \"sende eine Wetterzusammenfassung an Jean morgen früh\" enthalten: (1) Wetter von morgen abrufen, (2) Kontakt Jean suchen, (3) E-Mail verfassen und senden — mit einer Abhängigkeit zwischen den Schritten 1→3 und 2→3.</p><h2>Das FOR_EACH-Pattern</h2><p>Für Stapelverarbeitungen unterstützen die Schritte ein <code>for_each</code>-Feld, das über eine von einem vorherigen Schritt erzeugte Sammlung iteriert. Der Parameter <code>for_each_max</code> begrenzt die Anzahl der Iterationen, und jeder Elementfehler wird einzeln behandelt, ohne die gesamte Stapelverarbeitung zu unterbrechen.</p><h2>Semantische Validierung mit 11 Prüfungen</h2><p>Vor jeder Ausführung überprüft der <strong>semantische Validator</strong> 11 Arten von Problemen:</p><ul><li><strong>HALLUCINATED_CAPABILITY</strong> — Vom LLM erfundenes Tool oder Fähigkeit</li><li><strong>GHOST_DEPENDENCY</strong> — Verweis auf einen nicht existierenden Schritt</li><li><strong>LOGICAL_CYCLE</strong> — Zirkuläre Abhängigkeiten</li><li><strong>CARDINALITY_MISMATCH</strong> — Kardinalitätsinkompatibilität zwischen Schritten</li><li><strong>SCOPE_OVERFLOW / SCOPE_UNDERFLOW</strong> — Plan zu umfangreich oder unzureichend</li><li><strong>WRONG_PARAMETERS</strong> — Falsche Parameter für das Tool</li><li><strong>MISSING_STEP</strong> — Fehlender Schritt zur Erfüllung der Anfrage</li><li><strong>DANGEROUS_AMBIGUITY</strong> — Mehrdeutigkeit, die zu einem Fehler führen könnte</li><li><strong>IMPLICIT_ASSUMPTION / INSUFFICIENT_CONTENT</strong> — Nicht überprüfte Annahmen</li></ul><h2>Unterscheidung indexierbarer vs. semantischer Kriterien</h2><p>Über die elf strukturellen Prüfungen hinaus setzt der Validator ein <strong>universelles Planungsprinzip</strong> durch: <em>indexierbare</em> Kriterien (Datum, Kennung, Absender, Status, Ort — als Werkzeugparameter übergeben) von <em>semantischen</em> Kriterien (Kategorie, Dringlichkeit, Qualität, Priorität — nachgelagert vom Antwort-LLM gefiltert) zu unterscheiden. Wenn der Planer versucht, ein konzeptuelles Wort wie « medizinisch » oder « dringend » in die Suche eines wörtlich-suchenden Werkzeugs (Google Calendar, Gmail, Notion-ähnliche Stores…) zu drücken, markiert eine Erkennungsschicht das Leck über Wortgrenzen-Abgleich gegen den vom Anfrageanalysator emittierten Hinweis. Werkzeug-agnostischer Mechanismus: kein aktueller Connector oder zukünftiger MCP-Server muss angepasst werden — deklarativer Opt-out über <code>ToolManifest.text_search_mode</code> für Stores, die native semantische Suche anbieten.</p><h2>Parallele Ausführung in Wellen</h2><p>Ein <strong>DependencyGraph</strong> berechnet die Ausführungswellen: Alle Schritte ohne Abhängigkeiten bilden die erste Welle und werden parallel ausgeführt. Die folgenden Wellen warten auf den Abschluss ihrer Voraussetzungen. Dieser Mechanismus ermöglicht die Verarbeitung komplexer Anfragen über 3 bis 5 Domänen mit einer Antwortzeit vergleichbar mit einer einfachen Anfrage.</p><h2>Ein gescheiterter Schritt wird gesagt, nie wiederholt</h2><p>Ein Plan wird korrigiert, solange das noch nichts kostet: bevor er läuft. Ein Plan, den der Validator ablehnt, geht mit seinen Mängeln an den Planer zurück, nur begrenzt oft. Ist der Plan gelaufen, wird nichts hinter dem Rücken des Benutzers wiederholt: Einen vorübergehenden Ausfall wiederholt bereits die Verbindung, die ihn traf, ein inaktiver Connector oder ein abgelehntes Konto lässt sich nicht wegplanen, und ein leeres Ergebnis ist eine Antwort. Jeder gescheiterte Schritt erreicht die Antwort vollständig, und sie nennt ihn — welches Tool, warum und wie viele. Der Modus, der sich selbst korrigiert, ist ReAct, nach Wahl des Benutzers.</p><h2>Selbstanreicherndes Anti-Halluzinations-Register</h2><p>LLMs erfinden manchmal nicht existierende Tools in ihren Plänen. LIA pflegt ein persistentes Register halluzinierter Muster (<code>hallucinated_tools.json</code>), das sich bei jeder neuen Erkennung automatisch aktualisiert. Bei der Planvalidierung wird jedes Tool gegen dieses Register geprüft — halluzinierte Schritte werden entfernt und der Planner wird gezwungen, mit echten Katalog-Tools neu zu planen.</p><h2>Den Grund zum Erfinden beseitigen</h2><p>Ein erfundenes Werkzeug zu erkennen, ist eine Reaktion. Die Ursache liegt davor: Enthält der an den Planer übergebene Katalog ein Werkzeug, das einen Wert verlangt, den kein anderes erzeugen kann – eine Nachrichten-ID, um darauf zu antworten –, dann <strong>existiert kein gültiger Plan</strong>, und das Modell kann nur erfinden. LIA prüft daher vor dem Planen, dass der Katalog <strong>geschlossen</strong> ist: Für jeden verlangten Wert ist eine lesende Quelle vorhanden. Die Regel sieht die Anfrage nie an, sie liest die Manifeste – ein Linker, der offene Referenzen auflöst, keine Suche, die rät.</p><h2>Die durchgesetzten Grenzen veröffentlichen</h2><p>Den Katalog zu schließen beantwortet, <em>welche Werkzeuge</em> ein Plan nutzen darf. Eine zweite Frage entscheidet über seine Annahme: <em>welche Werte</em>. Jedes Werkzeug erklärt Grenzen — wie viele Ergebnisse es auf einmal liefert — und der Validator setzt sie durch. Diese Grenzen erreichten die Planung nicht, die ihre Stapel allein aus dem Prompt dimensionierte und deren Plan abgelehnt wurde, weil sie der erhaltenen Anweisung folgte. Eine durchgesetzte, aber verborgene Grenze ist kein Vertrag, sondern eine Falle. Sie wird jetzt mit dem Werkzeug veröffentlicht, und jeder Wert darüber wird vor der Validierung zurechtgerückt — eine Ablehnung meldet somit nur noch einen real bestehenden Mangel.</p><h2>Ein Klick ist kein Satz</h2><p>Das Veröffentlichen der Grenzen klärt, was ein Plan <em>wert</em> sein darf. Offen blieb, was er <em>enthalten</em> muss. Kommt die Anfrage von einem Knopf — eine benannte Karte, angehakte Kästchen —, besitzt das System diese Gewissheit, bevor irgendein Modell befragt wird; es verwandelte sie in Prosa und verbrauchte drei Stufen, um sie zurückzugewinnen. Gemessen: das erwartete Werkzeug erzielte die beste Bewertung des gesamten Katalogs, und der Plan rief ein allgemeines auf. Kein Prompt-Feintuning macht diesen Weg deterministisch. Die <strong>aufgerufene Fähigkeit</strong> reist daher als Daten, neben dem Satz, den die Nutzerin liest; der Browser benennt eine Fähigkeit, nie ein Werkzeug, und der Server entscheidet, welches nur lesende Werkzeug sie umsetzt. Der zugehörige Schritt kommt <em>vor</em> der Validierung in den Plan, genau wie Werte, die in ihre Grenzen zurückgeholt werden — was mechanisch reparierbar ist, wird repariert und nie als Mangel gemeldet.</p><p>Der Plan wird <strong>bereichert, nicht ersetzt</strong>: alles, was der Planer vorgesehen hat und das etwas beiträgt, bleibt. Was er vorgesehen hat und die Fähigkeit ohnehin abdeckt, entfällt, denn eine unpassende Antwort neben einer benannten Lücke ergänzt sie nicht, sie widerspricht ihr. Ein Schritt, den ein anderer noch liest, bleibt auf jeden Fall erhalten: einen falschen Satz gegen eine hängende Referenz zu tauschen wäre ein schlechtes Geschäft.</p><h2>Ein veröffentlichter Pfad ist ein Pfad, der existiert</h2><p>Ein Plan verkettet seine Schritte über Referenzen wie <code>$steps.get_meetings.events[0].title</code>, die der Planer schreibt, <em>bevor</em> der Schritt gelaufen ist. Der Pfad muss auf Anhieb stimmen, sonst scheitert der Plan nach kostenpflichtigen API-Aufrufen und der Wartezeit der Nutzerin.</p><p>Was ihn stimmen lässt, ist ein <strong>Vertrag</strong> zwischen Werkzeug und Planer: Jedes Manifest veröffentlicht die Pfade, die seine Ausgabe trägt, und die Continuous Integration beweist diesen Vertrag vor jedem Zusammenführen von Code. Die Prüfung steuert das reale Werkzeug an — seinen echten Builder, den echten Referenz-Resolver, den rekonstruierten Merge — und vergleicht, was das Manifest veröffentlicht, mit dem, was die Ausführung liefert: den Pfad, seine <strong>Form</strong> und seinen <strong>Typ</strong>. Der Planer liest diesen Typ, um zu entscheiden, worin er einen Wert verketten kann: Ein falscher Typ zerbricht einen Plan genauso sicher wie ein falscher Pfad.</p><p>Der Vertrag ist bewusst asymmetrisch: Alles Veröffentlichte muss produziert werden, nie umgekehrt. Ein Manifest listet <em>Beispiele</em>, keine vollständige Aufzählung — <code>events[0].summary</code> ist real, ob jemand daran gedacht hat, es aufzuschreiben, oder nicht. Die Abdeckung wird genannt statt angenommen, und was sich aufgrund der Bauform eines Werkzeugs schwer ansteuern lässt, wird in einer Schuldenakte beziffert, statt implizit zu bleiben. Zur Laufzeit ist das Netz <code>ReferenceResolver</code>, der einen expliziten Fehler wirft, statt ins Leere aufzulösen.</p><h2>Eine Diagnose ist keine Frage</h2><p>Wenn ein schreibender Plan seine automatischen Replans ausgeschöpft hat, verweigert der Validator die Ausführung und übergibt an eine menschliche Rückfrage: Falsche Daten zu schreiben kostet mehr, als zu fragen. Was der Nutzerin dann gestellt wird, ist eine Frage <strong>in ihrer Sprache</strong>, aus einer Tabelle von fünfzehn Einträgen, deren Vollständigkeit beim Start <em>in beide Richtungen</em> geprüft wird — ein Problem, das der Code auslösen kann, ohne dass eine Frage dafür geschrieben ist, verhindert den Start der Anwendung, und eine Frage, die kein Code auslösen kann, ebenso. Die interne Fehlerbeschreibung bleibt in der Ablaufspur, wo sie hingehört.</p><p>Dasselbe Prinzip gilt für die Werte selbst: Ein in einer früheren Runde angegebener Parameter wird aus dem vorherigen Plan übernommen statt neu erfunden. Die Reparatur erkennt eine Dokumentationsadresse — eine, nach der nie jemand fragt — und überschreibt nie einen echten Wert: Eine Meinungsänderung wird immer respektiert.</p><h2>Befehle mit beobachteten Ergebnissen</h2><p>Ja. Frage zum Beispiel „Welcher Antwortmodus ist aktiv?“, „Stelle meine Antworten auf HTML + Karten um“ oder „Zeige meine Routinen“. LIA verwendet die Einstellungen und Bezeichnungen der Oberfläche, soweit deine Instanz und dein Konto sie erlauben. Abfragen und einige kleine, umkehrbare Einstellungen können direkt erfolgen. Erstellen, Löschen und sensible Änderungen behalten ihre Bestätigung.</p><p>Eine vorbereitete Anfrage, eine ausstehende Bestätigung und eine gespeicherte Änderung sind unterschiedliche Zustände. LIA nennt beobachtete Ergebnisse und unterscheidet Teilergebnisse, Warten, Konflikte, Ablauf und Fehler. Hat sich die Ressource seit der Vorbereitung geändert, kann der Befehl abgelehnt werden und eine neue Anfrage nötig sein. Eine Delegation an ein Werkzeug beweist allein nicht alle internen Auswirkungen.</p>"
       },
       "human-in-the-loop": {
-        "title": "Human-in-the-Loop: 6 Genehmigungsstufen für volle Kontrolle",
-        "excerpt": "LIA führt keine kritische Aktion ohne deine Zustimmung durch. Ihr 6-stufiges HITL-System schützt dich vor Fehlern und Halluzinationen.",
-        "body": "<h2>Warum menschliche Validierung unverzichtbar ist</h2><p>Sprachmodelle können halluzinieren oder eine Absicht falsch interpretieren. LIA löst dieses Problem, indem es den <strong>Menschen in den Mittelpunkt jeder kritischen Entscheidung</strong> stellt. Keine E-Mail wird gesendet, kein Termin erstellt, keine Daten geändert ohne deine ausdrückliche Genehmigung.</p><h2>Die 6 Genehmigungsstufen</h2><p>Das HITL-System von LIA klassifiziert jede Aktion nach 6 Stufen:</p><ul><li><strong>Plan-Genehmigung</strong> — Vor der Ausführung eines mehrstufigen Plans generiert LIA eine <code>PlanApprovalRequest</code> mit einer Planzusammenfassung und änderbaren Parametern und wartet auf deine Freigabe.</li><li><strong>Klärung</strong> — Bei mehrdeutiger Absicht fragt LIA nach Präzisierungen, anstatt zu raten.</li><li><strong>Entwurfskritik</strong> — Bei E-Mails oder Nachrichten legt LIA einen Entwurf zur Genehmigung vor dem Versand vor.</li><li><strong>Destruktive Bestätigung</strong> — Jede Löschung oder irreversible Änderung erfordert eine ausdrückliche Bestätigung.</li><li><strong>FOR_EACH-Bestätigung</strong> — Bei Stapeloperationen kann jedes Element einzeln genehmigt werden.</li><li><strong>Änderungsprüfung</strong> — Parameteränderungen werden zur Überprüfung vorgelegt.</li></ul><h2>5 mögliche Entscheidungen mit Konfidenz</h2><p>Der HITL-Klassifizierer erzeugt ein <strong>ClassificationResult</strong> mit 5 möglichen Entscheidungen, jeweils mit einem Konfidenzwert zwischen 0.0 und 1.0:</p><ul><li><strong>APPROVE</strong> — Die Aktion wird genehmigt und an den <code>task_orchestrator</code> weitergeleitet</li><li><strong>REJECT</strong> — Die Aktion wird abgelehnt, der Fluss wird zum Knoten <code>response</code> umgeleitet</li><li><strong>EDIT</strong> — Der Benutzer ändert die Parameter über <code>edited_params</code>, ein <code>PlanEditor</code> wendet die Änderungen an</li><li><strong>REPLAN</strong> — Der Benutzer formuliert seine Absicht über <code>reformulated_intent</code> um, der Fluss kehrt zum <code>planner</code> zurück</li><li><strong>AMBIGUOUS</strong> — Das System stellt eine <code>clarification_question</code>, um die Mehrdeutigkeit aufzulösen</li></ul><h2>Native LangGraph-Unterbrechung</h2><p>Technisch verwendet der Knoten <code>approval_gate</code> die Funktion <code>interrupt()</code> von LangGraph, um die <strong>Ausführung des Graphen zu unterbrechen</strong> und auf die Antwort des Benutzers zu warten. Der Zustand wird in PostgreSQL persistiert, was eine asynchrone Wiederaufnahme selbst nach einer Trennung ermöglicht.</p><h2>du hast immer das letzte Wort</h2><p>An jedem Validierungspunkt sind die Klassifizierungsstrategien komponierbar: basierend auf dem Tool-Manifest, den geschätzten Kosten, der Datensensibilität und der Benutzerrolle. LIA umgeht diesen Schritt niemals.</p><p>Und dieses letzte Wort wird wortwörtlich respektiert: Die Überarbeitungsschleifen folgen einem replay-sicheren Muster (ein <code>interrupt()</code> pro Node-Ausführung, checkpointed Schleifenzustand — ADR-092), sodass eine Wiederaufnahme niemals einen vergangenen LLM- oder API-Aufruf wiederholt. Was du bestätigst — nach beliebig vielen Überarbeitungen — wird exakt so ausgeführt.</p><h2>Einmal bestätigen, nie zweimal</h2><p>Eine falsch platzierte Schutzmaßnahme wendet sich gegen ihre eigene Absicht. Vor dem Plan konnte ein semantischer Validator bei einer als „unumkehrbar“ eingestuften Aktion anhalten — eine E-Mail senden, einen Termin buchen, anrufen — obwohl unmittelbar danach eine Vorschau mit ausdrücklicher Bestätigung für genau dieselbe Aktion folgte. Die Nutzerin musste <strong>darauf bestehen, um gehört zu werden</strong>.</p><p>Die Regel steht nun geschrieben: Eine Aktion, die stromabwärts bereits ihre eigene Bestätigung trägt, wird stromaufwärts nie angehalten. Der Validator beurteilt die <strong>Struktur</strong> des Plans — fehlender Parameter, falsches Werkzeug, widersprüchliche Kardinalität — und nicht, wie folgenschwer die Aktion wirkt. Dieselbe Frage zweimal zu stellen schafft keine Sicherheit: Sie verlagert die Last auf die Nutzerin und bringt ihr am Ende bei, ungelesen zu klicken.</p><h2>Eine Frage je Entwurf, und eine Karte, die sich lesen lässt</h2><p>Eine Anfrage, die mehrere Entwürfe erzeugt — „schick eine E-Mail an X und eine weitere an Y“, zwei Termine, eine E-Mail und eine Aufgabe — wird <strong>Entwurf für Entwurf</strong> geprüft. Die Folge beginnt mit der Liste all dessen, was der Zug vorbereitet hat, dann bekommt jeder Entwurf seine Karte, seine Frage und seine Änderung, die Position wird genannt („Entwurf 2 von 3“). Nichts läuft vor der letzten Antwort; die Entscheidungen werden dann gemeinsam ausgeführt, und der Bericht sagt, <strong>an wen und was</strong>, abgebrochene Entwürfe eingeschlossen. Eine Massenaktion, die du bereits als Liste genehmigt hast, behält ihre einzige Bestätigung: Der Unterschied ist die Genehmigung, die du gegeben hast, nie die Zahl der Einträge.</p><p>Entwurf und Bericht werden <strong>einmal beschrieben und je Oberfläche gezeichnet</strong>: im Chat dieselben Karten wie eine E-Mail oder ein Termin — Kopfzeile, Felder mit ihren Symbolen, Text als Block; auf einem Ticket oder in Telegram lesbarer Text. Was das Modell von einer Karte behält, sind ihre Worte: Der nächste Zug weiß, was gesendet wurde und an wen.</p><h2>Dieselben Stufen, außerhalb eines Gesprächs</h2><p>Eine Assistentin, die allein arbeitet, stößt an dieselbe Wand: Sie hat etwas vorbereitet, das sie nicht allein tun darf, und es ist niemand da. Abzulehnen würde die Arbeit verschwenden; es trotzdem zu tun, bräche die Regel. Auf dem Ticket-Board tut sie weder das eine noch das andere — sie <strong>fragt auf dem Ticket</strong>. Die Karte, die du im Chat gesehen hättest, steht dort, Feld für Feld, und die Antwort ist ein Kommentar: ja, nein oder was zu ändern ist.</p><p>Freigegeben wird genau das, was ausgeführt wird, und nichts Weiteres: Die Assistentin veröffentlicht die Identität dessen, was sie dir gezeigt hat, und die Aktion wird nur gegen diese Identität wiederholt. Ändert sich ein Detail, baut sie neu und fragt erneut, statt anzunehmen, deine Antwort gelte weiterhin. Ein Stapel, den du als Liste vorab genehmigt hast, zählt als eine Sache: Jeder Eintrag wird gezeigt, und freigegeben wird der Stapel — nie sein erstes Element; unabhängige Entwürfe werden auch dort einzeln erfragt.</p><p>Die Ausnahme bestätigt die Regel. Die Karte existiert, um einen Dritten zu schützen, der nie um etwas gebeten hat — einen Angerufenen, einen Empfänger. Ruft LIA <em>dich</em> an, auf einer hinterlegten und per vorgelesenem Code bestätigten Nummer, ist die Person, die bestätigen würde, die, die abnimmt: dieser Anruf trägt keine Karte, was auch einer Routine erlaubt, ihn einzuplanen. Was du am Telefon sagst, kommt als deine eigene Nachricht in den Chat zurück, und was es LIA zu tun bittet, trifft dort auf dieselben sechs Stufen.</p><h2>Was nichts zu bestätigen hat</h2><p>Eine Bestätigung schützt einen Dritten oder Daten; wenn nichts eine Aktion umleiten kann, fragt sie nichts. Eine E-Mail an dich selbst geht ohne Entwurf hinaus: Ihr Empfänger ist kein Parameter — es ist die Adresse, die dein Mail-Anbieter nennt, oder deine bestätigte Adresse über LIAs Relais —, sodass kein in eine gelesene E-Mail geschmuggelter Text sie umleiten kann, und eine Routine kann dir jeden Morgen ihr Ergebnis schicken. Eine Adresse, die du eintippst, selbst deine eigene, geht immer über den Entwurf.</p><h2>Befehle mit beobachteten Ergebnissen</h2><p>Die Bestätigung gilt für die angezeigte Operation und ihren Inhalt. OAuth-Anmeldung, Dateiauswahl, Schlüssel und Geräteberechtigungen werden in deinem authentifizierten Browser fortgesetzt: Füge diese Geheimnisse nicht in den Chat ein. LIA kann die Anfrage vorbereiten und auf diesen Schritt warten. Freihändiges Zuhören und sensible Berechtigungen behalten ihre Schutzmechanismen; ein Befehl umgeht sie nicht.</p><p>Eine vorbereitete Anfrage, eine ausstehende Bestätigung und eine gespeicherte Änderung sind unterschiedliche Zustände. LIA nennt beobachtete Ergebnisse und unterscheidet Teilergebnisse, Warten, Konflikte, Ablauf und Fehler. Hat sich die Ressource seit der Vorbereitung geändert, kann der Befehl abgelehnt werden und eine neue Anfrage nötig sein. Eine Delegation an ein Werkzeug beweist allein nicht alle internen Auswirkungen.</p>"
+        "title": "Human-in-the-Loop: Aktionen prüfen und selbst entscheiden",
+        "excerpt": "Wie LIA Entwürfe zeigt, deine Entscheidungen umsetzt und beobachtete Ergebnisse berichtet. Die Prüfschritte hängen von der Operation ab.",
+        "body": "<h2>Die Aktion vor der Bestätigung prüfen</h2><p>Ein Sprachmodell kann deine Anfrage falsch verstehen. LIA folgt den für jede Operation festgelegten Prüfschritten, damit du Inhalt und Umfang einer Aktion prüfen kannst, die deine Zustimmung benötigt. Die Prüfung bezieht sich auf die angezeigte Operation.</p><h2>Klären, prüfen, entscheiden</h2><ul><li><strong>Klärung und eindeutige Auswahl</strong> — LIA kann nachfragen, welche Person, Ressource oder Absicht du meinst.</li><li><strong>Entwurfsprüfung</strong> — Prüfe Empfänger, Inhalt und Parameter und bestätige, lehne ab oder nutze eine angebotene Änderung.</li><li><strong>Stapelprüfung</strong> — Die Bestätigung benennt die angezeigte Gruppe von Operationen; unabhängige Entwürfe behalten ihre eigene Prüfung.</li><li><strong>Ein definierter Umfang</strong> — Die deklarierte Richtlinie der Operation bestimmt ihren Ablauf. Lesezugriffe und deklarierte direkte Aktionen können ohne Entwurfskarte erfolgen.</li></ul><h2>Eine fortsetzbare Prüfung</h2><p>An einem aktiven Freigabepunkt unterbricht LangGraph den Ablauf, während PostgreSQL den fortsetzbaren Zustand speichert. Nach einem Verbindungsabbruch kannst du zur Frage zurückkehren. Eine ausstehende Prüfung und ein beobachtetes Ausführungsergebnis bleiben verschiedene Zustände.</p><h2>Die Freigabe gilt für das Angezeigte</h2><p>Die Prüfung enthält die freizugebende Operation und ihren Inhalt. Eine geänderte Ressource oder abgelaufene Anfrage kann eine neue Vorschau erfordern. Der Bericht unterscheidet beobachteten Erfolg, Teilergebnisse, Warten und Fehler; ein ungewisser Anbieterausgang muss vor einem neuen Versuch geprüft werden.</p><h2>Eine verständliche Bestätigung</h2><p>Die Planvalidierung prüft die Struktur der Anfrage: Werkzeuge, Parameter und Abhängigkeiten. Die eigene Prüfung einer Aktion fragt nach deiner Zustimmung zum konkreten Inhalt. Diese Kontrollen erfüllen verschiedene Aufgaben und folgen der deklarierten Richtlinie der Operation.</p><h2>Eine Frage je Entwurf, und eine Karte, die sich lesen lässt</h2><p>Eine Anfrage, die mehrere Entwürfe erzeugt — „schick eine E-Mail an X und eine weitere an Y“, zwei Termine, eine E-Mail und eine Aufgabe — wird <strong>Entwurf für Entwurf</strong> geprüft. Die Folge beginnt mit der Liste all dessen, was der Zug vorbereitet hat, dann bekommt jeder Entwurf seine Karte, seine Frage und seine Änderung, die Position wird genannt („Entwurf 2 von 3“). Kein Entwurf dieser Prüffolge läuft vor der letzten Antwort; freigegebene Entwürfe werden anschließend verarbeitet, und der Bericht sagt, <strong>an wen und was</strong>, abgebrochene Entwürfe eingeschlossen. Eine Massenaktion, die du bereits als Liste genehmigt hast, behält ihre einzige Bestätigung: Der Unterschied ist die Genehmigung, die du gegeben hast, nie die Zahl der Einträge.</p><p>Entwurf und Bericht werden <strong>einmal beschrieben und je Oberfläche gezeichnet</strong>: im Chat dieselben Karten wie eine E-Mail oder ein Termin — Kopfzeile, Felder mit ihren Symbolen, Text als Block; auf einem Ticket oder in Telegram lesbarer Text. Was das Modell von einer Karte behält, sind ihre Worte: Der nächste Zug weiß, was gesendet wurde und an wen.</p><h2>Prüfung auch außerhalb des Chats</h2><p>Eine Assistentin, die allein arbeitet, stößt an dieselbe Wand: Sie hat etwas vorbereitet, das sie nicht allein tun darf, und es ist niemand da. Abzulehnen würde die Arbeit verschwenden; es trotzdem zu tun, bräche die Regel. Auf dem Ticket-Board tut sie weder das eine noch das andere — sie <strong>fragt auf dem Ticket</strong>. Die Karte, die du im Chat gesehen hättest, steht dort, Feld für Feld, und die Antwort ist ein Kommentar: ja, nein oder was zu ändern ist.</p><p>Freigegeben wird genau das, was ausgeführt wird, und nichts Weiteres: Die Assistentin veröffentlicht die Identität dessen, was sie dir gezeigt hat, und die Aktion wird nur gegen diese Identität wiederholt. Ändert sich ein Detail, baut sie neu und fragt erneut, statt anzunehmen, deine Antwort gelte weiterhin. Ein Stapel, den du als Liste vorab genehmigt hast, zählt als eine Sache: Jeder Eintrag wird gezeigt, und freigegeben wird der Stapel — nie sein erstes Element; unabhängige Entwürfe werden auch dort einzeln erfragt.</p><h2>Direkte Aktionen mit festgelegtem Ziel</h2><p>LIA kann dich ohne Entwurfskarte auf deiner hinterlegten und per vorgelesenem Code bestätigten Nummer anrufen, auch durch eine Routine. Was du am Telefon sagst, kommt als deine Nachricht in den Chat zurück; angefragte Operationen folgen ihren eigenen Kontrollen.</p><p>Die eigene Versandfunktion an dich selbst nutzt die von deinem Mail-Anbieter angegebene Adresse oder deine über LIAs Relais bestätigte Adresse. So kann dir eine Routine ihr Ergebnis senden. Eine eingetippte Adresse, auch deine eigene, durchläuft die übliche Entwurfsprüfung.</p><h2>Befehle mit beobachteten Ergebnissen</h2><p>Die Bestätigung gilt für die angezeigte Operation und ihren Inhalt. OAuth-Anmeldung, Dateiauswahl, Schlüssel und Geräteberechtigungen werden in deinem authentifizierten Browser fortgesetzt: Füge diese Geheimnisse nicht in den Chat ein. LIA kann die Anfrage vorbereiten und auf diesen Schritt warten. Freihändiges Zuhören und sensible Berechtigungen behalten ihre Schutzmechanismen; ein Befehl umgeht sie nicht.</p><p>Eine vorbereitete Anfrage, eine ausstehende Bestätigung und eine gespeicherte Änderung sind unterschiedliche Zustände. LIA nennt beobachtete Ergebnisse und unterscheidet Teilergebnisse, Warten, Konflikte, Ablauf und Fehler. Hat sich die Ressource seit der Vorbereitung geändert, kann der Befehl abgelehnt werden und eine neue Anfrage nötig sein. Eine Delegation an ein Werkzeug beweist allein nicht alle internen Auswirkungen.</p>"
       },
       "llm-providers": {
         "title": "Wähle das richtige Modell für jede Aufgabe",
@@ -14078,7 +14340,7 @@
       "mcp-protocol": {
         "title": "Model Context Protocol: LIA unbegrenzt erweitern",
         "excerpt": "Mit dem MCP-Protokoll von Anthropic kann LIA sich mit beliebigen externen Diensten verbinden.",
-        "body": "<h2>Was ist MCP?</h2><p>Das <strong>Model Context Protocol (MCP)</strong> ist ein offener Standard von Anthropic, der KI-Assistenten die Verbindung mit externen Tool-Servern ermöglicht. LIA implementiert dieses Protokoll mit <strong>benutzerspezifischen MCP-Servern</strong> und bietet damit unbegrenzte und personalisierte Erweiterbarkeit.</p><h2>Tool-Erkennung und Integration</h2><p>Du konfigurierst deine MCP-Server in der LIA-Oberfläche. Bei der Verbindung ruft LIA <code>list_tools()</code> auf jedem Server auf, um die verfügbaren Tools dynamisch zu erkennen. Jedes MCP-Tool wird über <strong>MCPToolAdapter</strong> gekapselt, der <code>BaseTool</code> von LangChain erweitert, was eine nahtlose Integration in den Tool-Katalog des Agenten ermöglicht. Die MCP-Tools sind anschließend genauso verwendbar wie native Tools.</p><h2>Sicherer Transport</h2><p>LIA verwendet ausschließlich den <strong>Streamable-HTTP</strong>-Transport für MCP-Server. Der stdio-Transport ist aus <strong>Sicherheitsgründen deaktiviert</strong> (Risiko der Ausführung beliebiger Prozesse). Jeder Server unterliegt einem individuellen Rate-Limiting über <code>asyncio.Lock</code>, um Überlastung zu vermeiden.</p><h2>4 Authentifizierungstypen</h2><p>Jeder MCP-Server unterstützt einen der 4 Authentifizierungstypen:</p><ul><li><strong>NONE</strong> — Keine Authentifizierung (öffentliche oder interne Server)</li><li><strong>API_KEY</strong> — API-Schlüssel in den Headern übertragen</li><li><strong>BEARER</strong> — Bearer-Token für Standard-REST-APIs</li><li><strong>OAUTH2</strong> — Vollständiges OAuth 2.1 mit PKCE</li></ul><p>Alle Anmeldedaten werden vor der Speicherung in der Datenbank <strong>mit Fernet verschlüsselt</strong> (AES-128 CBC + HMAC). Kein Geheimnis wird im Klartext offengelegt.</p><h2>Mehrschichtige Sicherheit</h2><p>Die MCP-Sicherheit basiert auf mehreren Mechanismen:</p><ul><li><strong>Obligatorisches HITL</strong> — Alle MCP-Tools unterliegen standardmäßig der Human-in-the-Loop-Validierung</li><li><strong>SSRF-Schutz</strong> — Die Funktion <code>validate_http_endpoint()</code> blockiert URLs, die auf interne Netzwerke zeigen (127.0.0.1, 10.x, 192.168.x usw.)</li><li><strong>Health Checks</strong> — Der Zustand jedes MCP-Servers wird über eine dedizierte Prometheus-Gauge überwacht</li><li><strong>Konfigurierbare Limits</strong> — Anzahl der Server (10), Tools pro Server (20), Timeout pro Aufruf (30s)</li></ul><h2>Iterativer Modus (ReAct)</h2><p>Einige MCP-Server haben komplexe APIs, bei denen der statische Planer die richtigen Parameter nicht im Voraus generieren kann. Im <strong>iterativen Modus</strong> liest ein dedizierter ReAct-Agent zuerst die Server-Dokumentation, versteht das erwartete Format und ruft dann die Tools korrekt auf. Aktivierbar pro Server über den <code>iterative_mode</code>-Toggle.</p><h2>MCP-Server im Paket: Agent Plugins</h2><p>Über die Einzeldeklaration hinaus ist LIA ein konformer Client des offenen <strong>Agent-Plugins</strong>-Standards (agent-plugins.org): ein portables Paket aus MCP-Servern und Skills — dasselbe Format, das ChatGPT, Cursor, GitHub Copilot und VS Code installieren. Jeder von einem Plugin mitgebrachte Server trägt seine Herkunft, behält seine konfigurierten Zugangsdaten über Plugin-Updates hinweg und geht nur mit der Gruppen-Deinstallation — mit einem vollständigen Bericht pro Komponente bei jeder Installation, einschließlich dessen, was übersprungen wurde und warum.</p><h2>Lesen, was ein Server deklariert</h2><p>Das Protokoll zu sprechen ist nur die eine Hälfte. Die andere besteht darin zu verstehen, was ein Server über seine eigenen Werkzeuge sagt — und die aktuelle Revision, <strong>2026-07-28</strong>, ist dort bewusst großzügig: Die Parameter eines Werkzeugs werden in JSON Schema 2020-12 beschrieben, und <em>jedes</em> Schlüsselwort dieses Standards ist erlaubt. Derselbe optionale Parameter kann als Typunion oder als <code>anyOf</code> geschrieben werden; eine verschachtelte Struktur direkt oder über eine interne Referenz deklariert werden; eine geschlossene Menge ein <code>enum</code> oder eine einzelne Konstante sein. Ein Client, der nur die einfachste Form versteht, scheitert nicht laut — er endet still mit weniger Werkzeugen, als der Server angeboten hat.</p><p>LIA liest den vollen Spielraum, über eine einzige Implementierung, die sich die beiden Stellen teilen, die sie brauchen: die dem Modell angebotene Signatur und der Eintrag, über den der Planer nachdenkt. Zwei Lesarten einer Deklaration geraten am Ende immer auseinander, also gibt es nur eine. Und jede ihrer Funktionen antwortet auf alles, was ein Server sendet, denn eine Ausnahme würde dort ein Werkzeug kosten — und ein verlorenes Werkzeug ist eine Fähigkeit, die dir fehlt, ohne dass es dir jemand sagt.</p><p>Was ein Server durchsetzt, wird weitergegeben statt behalten: geschlossene Mengen, Grenzen und Größen erreichen den Planer, der dann einen Wert vorschlägt, den der Server akzeptiert, statt einen zu raten, den er ablehnt. Verhaltenshinweise werden ebenfalls gelesen, aber nur in eine Richtung — die Spezifikation verlangt, sie als nicht vertrauenswürdig zu behandeln, sodass ein als zerstörend deklariertes Werkzeug stets nach Bestätigung fragt, während ein Server, der sich harmlos nennt, nie eine weniger erhält.</p><h2>Ergebnis und Herkunft erhalten</h2><p>Ein Server kann ein Objekt, eine Liste oder einen einfachen Wert liefern: Die Karte erhält diese Form, statt ein gültiges Ergebnis leer darzustellen. Sie nennt das Werkzeug und zeigt Methode und Quell-URL, soweit geliefert; fehlende Metadaten bleiben leer. Gespeicherte Details öffnen sich ohne neuen Aufruf. Eine Aufrufbegrenzung des Servers startet eine begrenzte Wartezeit für alle Aufrufe dieses Servers, damit ein Wiederholungsversuch keine Anrufflut auslöst.</p><h2>Aktuelle Abfragen und identifizierte Werkzeuge</h2><p>LIA nutzt tatsächlich entdeckte Schemata und Ergebniskontrakte mit Identität, Alter und Fingerabdruck. Ein lesbarer Name oder Alias ersetzt nicht die Identität des angebotenen Servers und Werkzeugs. Persönliche und administrative Server bleiben getrennt. Strukturierte Ergebnisse sind entsprechend ihrem Vertrag nutzbar; beliebige Schemata und externe Daten werden nicht zu interner Wahrheit. Fehlende oder unsichere Verträge bleiben entsprechend gekennzeichnet, mit den geltenden Bestätigungen.</p>"
+        "body": "<h2>Was ist MCP?</h2><p>Das <a href=\"https://modelcontextprotocol.io/specification\">Model Context Protocol (MCP)</a> ist ein offenes Protokoll, das Assistenten mit externen Werkzeugservern verbindet. Persönliche MCP-Verbindungen erweitern die Werkzeuge deines LIA-Kontos innerhalb der konfigurierten Instanzgrenzen. Eine Verbindung erschließt die Fähigkeiten, die ihr Server tatsächlich anbietet.</p><h2>Tool-Erkennung und Integration</h2><p>Richte in LIA einen persönlichen Server ein, um seine Werkzeuge zu entdecken. Namen, Beschreibungen und Parameterschemas gelangen in den Werkzeugkatalog des Agenten. Die Verfügbarkeit hängt vom Server, der Anmeldung und den unterstützten Verträgen ab; ein gefundenes Werkzeug garantiert nicht den Erfolg jeder Anfrage.</p><h2>Sicherer Transport</h2><p>Persönliche Server nutzen <strong>Streamable HTTP</strong> über HTTPS. Diese Verbindungen starten keine lokalen stdio-Prozesse. Aufrufe haben Zeitlimits und Kontingente pro Server; eine Begrenzungsantwort kann eine begrenzte Pause auslösen. Eine Sperre koordiniert gleichzeitige Zugriffe, während ein Aufrufzähler das Kontingent durchsetzt.</p><h2>4 Authentifizierungstypen</h2><p>Eine persönliche Verbindung kann ohne Anmeldung, mit API-Schlüssel im Header, Bearer-Token oder einem OAuth-Autorisierungsablauf mit PKCE S256 arbeiten, sofern der Server ihn unterstützt. Konfigurierte Zugangsdaten werden vor der Datenbankspeicherung mit Fernet verschlüsselt. Für die Anmeldung am gewählten Server werden sie entschlüsselt: Wähle diesen Dienst so sorgfältig wie jeden Empfänger deiner Zugangsdaten.</p><h2>Mehrschichtige Sicherheit</h2><p>Bestätigungen richten sich nach der HITL-Einstellung des Servers und der Mutationsrichtlinie des Werkzeugs; nicht jeder MCP-Aufruf verlangt pauschal eine Freigabe. Eine destruktive Deklaration verschärft die Bestätigungspflicht, während eine Nur-Lese-Angabe andere Schutzmaßnahmen nicht ersetzt. Persönliche HTTPS-Adressen werden auf private und lokale Ziele geprüft. Serverzahl, entdeckte Werkzeuge und Zeitlimits sind konfigurationsseitig begrenzt. Diese Kontrollen mindern bestimmte Risiken; sie zertifizieren keinen externen Server.</p><h2>Iterativer Modus (ReAct)</h2><p>Erfordert ein Server mehrere Schritte, kann ein Agent im iterativen Modus die angebotene Dokumentation lesen, Werkzeuge aufrufen und ihre Ergebnisse für den nächsten Schritt verwenden. Aktiviere ihn je Server über <code>iterative_mode</code>. Iterationen, Zeit und Ausgabe bleiben begrenzt; Ablehnungen und unvollständige Ergebnisse müssen sichtbar bleiben, statt zu Erfolgsversprechen zu werden.</p><h2>MCP-Server im Paket: Agent Plugins</h2><p>Das <a href=\"https://agent-plugins.org/specification\">Format Agent Plugins v1.0.0</a> bündelt Skills und MCP-Serverdeklarationen in einem Paket. LIA importiert unterstützte Komponenten: Skills und entfernte Streamable-HTTP-Server über HTTPS. Ein Paket kann auch nicht unterstützte Transporte oder Clienterweiterungen enthalten, die LIA nicht ausführt. Der Importbericht nennt geladene und übersprungene Komponenten samt Gründen. Herkunft und konfigurierte Zugangsdaten bleiben bei Updates erhalten. Die Portabilität dieser Komponenten bedeutet nicht, dass jede Funktion eines anderen Clients unterstützt wird.</p><h2>Lesen, was ein Server deklariert</h2><p>MCP-Werkzeuge beschreiben ihre Parameter mit JSON Schema. LIA nutzt dieselbe Interpretation für die dem Modell angebotene Signatur und den Katalog des Planers. Unterstützte Vereinigungen, Referenzen, geschlossene Auswahlen und Einschränkungen werden verarbeitet; deklarierte Einschränkungen bleiben auch bei begrenzteren Anbieterkonvertern sichtbar.</p><p>Das bedeutet nicht, dass jedes JSON-Schema-Schlüsselwort oder jedes serverspezifische Verhalten implementiert ist. Der Server bleibt für die Prüfung seiner Eingaben verantwortlich. Werkzeugannotationen sind nicht vertrauenswürdige Hinweise: Eine destruktive Angabe kann eine Bestätigung hinzufügen, eine behauptete Harmlosigkeit hebt andere Prüfungen nicht auf.</p><h2>Ergebnis und Herkunft erhalten</h2><p>Ein Server kann ein Objekt, eine Liste oder einen einfachen Wert liefern: Die Karte erhält diese Form, statt ein gültiges Ergebnis leer darzustellen. Sie nennt das Werkzeug und zeigt Methode und Quell-URL, soweit geliefert; fehlende Metadaten bleiben leer. Gespeicherte Details öffnen sich ohne neuen Aufruf. Eine Aufrufbegrenzung des Servers startet eine begrenzte Wartezeit für alle Aufrufe dieses Servers, damit ein Wiederholungsversuch keine Anrufflut auslöst.</p><h2>Aktuelle Abfragen und identifizierte Werkzeuge</h2><p>LIA nutzt tatsächlich entdeckte Schemata und Ergebniskontrakte mit Identität, Alter und Fingerabdruck. Ein lesbarer Name oder Alias ersetzt nicht die Identität des angebotenen Servers und Werkzeugs. Persönliche und administrative Server bleiben getrennt. Strukturierte Ergebnisse sind entsprechend ihrem Vertrag nutzbar; beliebige Schemata und externe Daten werden nicht zu interner Wahrheit. Fehlende oder unsichere Verträge bleiben entsprechend gekennzeichnet, mit den geltenden Bestätigungen.</p>"
       },
       "skills-system": {
         "title": "Skills: Expertenanweisungen zur Anpassung von LIA",
@@ -14087,8 +14349,8 @@
       },
       "voice-mode": {
         "title": "Sprachmodus: Sprich mit LIA wie mit einem persönlichen Assistenten",
-        "excerpt": "LIAs Sprachdomäne kombiniert ein kostenloses lokales STT (Sherpa-onnx Whisper, Remote ElevenLabs Scribe optional für höhere Genauigkeit), ein katalog-getriebenes TTS (Edge / OpenAI / ElevenLabs) und seit v1.47 einen Echtzeit-Live-Modus auf deinem eigenen Gemini-, OpenAI- oder ElevenLabs-Schlüssel. Das Streaming auf Satzebene bringt den ersten Audio-Chunk in ~1 Sekunde. Die Kostenzuordnung pro Nachricht macht kostenpflichtige Sprachanrufe vollständig prüfbar.",
-        "body": "<h2>Drei Aktivierungsmodi</h2><p>LIA unterstützt drei Wege der Sprachinteraktion:</p><ul><li><strong>Aktivierungswort</strong> — sag „Dis LIA“, um die freihändige Erkennung zu starten, oder „LIA, stop“, um LIAs Stimme zu unterbrechen, während sie eine Antwort vorliest. Ein kleines, offline trainiertes Modell, in einem Browser-Worker von ONNX Runtime in WebAssembly ausgeführt, jede Datei vor dem Start an ihrem Fingerabdruck geprüft. Kein Audio verlässt den Browser für die Erkennung. Es gibt es vorerst auf Französisch, in der Beta: die Erkennung wird noch verbessert, und die anderen Oberflächensprachen behalten Tippen und langes Drücken.</li><li><strong>Push-to-Talk</strong> — Mikrofon-Button gedrückt halten zum Sprechen. Für Mobilgeräte optimiert.</li><li><strong>Automatische Sprachende-Erkennung (VAD)</strong> — die Aufnahme stoppt automatisch nach ~0,75 s Stille.</li></ul><h2>Spracherkennung: lokal als Standard, Remote als Opt-in</h2><p>Jeder Benutzer wählt seinen STT-Modus in <strong>Einstellungen → Sprachmodus</strong>:</p><ul><li><strong>Lokal</strong> (Standard, kostenlos) — Sherpa-onnx Whisper auf dem LIA-Server in <strong>16 kHz mono</strong> mit INT8-Quantisierung. Unterstützt <strong>99+ Sprachen</strong>. Audio verlässt nie den LIA-Server.</li><li><strong>Remote</strong> (opt-in) — ElevenLabs Scribe für 0,22 $/h, nach Audiodauer abgerechnet. Höhere Genauigkeit bei gesprochener Sprache, besonders in lauten Umgebungen. Ein dezentes 🎤-Badge auf jeder Nutzer-Bubble zeigt Dauer und EUR-Kosten; die Kosten fließen in die übliche <strong>Kosten</strong>-Kachel des Dashboards und in deine Nutzungslimits — kein separates Kontingent.</li></ul><p>Zwei admin-seitige Sicherheitshebel schützen vor Kostenexplosionen bei aktiviertem Remote: ein globaler Kill-Switch (<code>ELEVENLABS_STT_ENABLED</code>) und ein Dauerlimit pro Clip (<code>ELEVENLABS_STT_MAX_AUDIO_DURATION_SECONDS</code>, Standard 300 s), das vor jedem Provider-Aufruf geprüft wird.</p><h2>Katalog-getriebene Sprachsynthese</h2><p>Die Sprachsynthese wird nun aus einem einzigen Admin-Formular (Konfiguration LLM → Voice TTS) konfiguriert, mit drei vom ersten Tag an bereitgestellten Providern:</p><ul><li><strong>Edge TTS</strong> — Microsoft Neural-Stimmen, kostenlos, Standard. SSML rate / pitch / volume-Feinabstimmung.</li><li><strong>OpenAI TTS</strong> — <code>tts-1</code> oder <code>tts-1-hd</code>, Premium-Stimmen (alloy, echo, fable, onyx, nova, shimmer). speed + response_format-Feinabstimmung.</li><li><strong>ElevenLabs</strong> — <code>eleven_multilingual_v2</code>, <code>eleven_turbo_v2_5</code>, <code>eleven_flash_v2_5</code>. stability, similarity_boost, style, use_speaker_boost-Feinabstimmung. Live-Stimmen-Picker aus dem konfigurierten Konto (Custom- + Bibliotheksstimmen).</li></ul><p>Für kostenpflichtige Provider zeigt ein 🔊-Badge auf der Assistenten-Nachricht Zeichenzahl und EUR-Kosten; Edge bleibt kostenlos ohne Badge. Unterstützte Audioformate: <strong>MP3, Opus, AAC, FLAC, WAV, PCM</strong> — pro Provider ausgewählt.</p><h2>Streaming auf Satzebene für Sub-Sekunden-Latenz</h2><p>Die Sprach-Pipeline löst die TTS-Synthese jetzt <strong>pro vollständigem Satz parallel</strong> aus, anstatt auf die vollständige LLM-Antwort zu warten. Der erste Satz beginnt in <strong>etwa einer Sekunde</strong> abgespielt zu werden, während der Assistent den Rest der Antwort noch verfasst. Persistentes HTTP-Keep-Alive auf ElevenLabs spart bei den Aufrufen #2…N weitere ~100–300 ms pro Satz. Geordnete Auslieferung wird durch eine gepufferte Warteschlange garantiert — fehlgeschlagene Slots werden übersprungen, ohne den Stream zu blockieren.</p><h2>Wo ein Satz endet</h2><p>„Satzweise“ zu zerlegen setzt voraus, zu wissen, wo ein Satz endet — und ein Punkt allein sagt das nicht. Ein Trennzeichen schließt einen Satz nur, wenn <strong>ein Leerzeichen folgt</strong>, oder am Ende der Eingabe: „es sind 3,5 Grad“ bleibt so am Stück, statt als „es sind drei.“ und dann, in einem separaten Audioclip, „fünf Grad“ gelesen zu werden. Dasselbe gilt für Preise, Versionsnummern und Webadressen. Auf dem progressiven Weg ist die Regel doppelt nötig: der Puffer wächst Token für Token, sodass <code>\"3.\"</code> ein völlig normaler Übergangszustand ist — darauf zu dispatchen heißt zu sprechen, bevor man zu Ende gelesen hat. Beide Zerleger der Pipeline sind durch eine gemeinsame Falltabelle und durch einen Test fixiert, der ihre Übereinstimmung verlangt.</p><h2>Sprachkommentare und Exporte</h2><p>LIA kann kurze <strong>Sprachkommentare</strong> (einen narrativen TTS-Beitrag) an seine Antworten anhängen. Audio wird über WebSocket mit einem Einmal-BFF-Ticket (60 s TTL) für die Sicherheit gestreamt. Zwei neue CSV-Exporte — <code>stt-usage</code> und <code>tts-usage</code> — listen jeden kostenpflichtigen Sprachanruf mit Konversation, Nachrichten-ID, Provider, Dauer / Zeichen und EUR-Kosten auf. Der bestehende <code>consumption-summary</code>-Export erhält ebenfalls STT- und TTS-Spalten, damit die Summen an einem Ort bleiben.</p><h2>Wenn LIA dich anruft</h2><p>Die Stimme endet nicht am Browser. Hinterlege deine Nummer unter <em>Telefonie · Meine Identität</em>, lass LIA sie anrufen und einen Code vorlesen, den du eintippst, und von da an lässt „ruf mich um acht an, um meinen Tag durchzugehen“ — oder eine Routine, die das sagt — dein Telefon ohne Bestätigungskarte klingeln: die Karte schützt einen Dritten, und hier ist die Person, die bestätigen würde, die, die abnimmt. Am Telefon trägt der Sprachagent, was der Chat weiß, und liest, wenn Live-Abfragen freigeschaltet sind, während du sprichst in LIA — Mails, Kalender, Aufgaben, Kontakte, Dateien, Orte, Wetter, Gedächtnis — über dieselben nur lesenden Werkzeuge wie der Chat, jedes Ergebnis auf das reduziert, was eine Stimme sagen kann; er handelt in nichts. Wenn du auflegst, wird das Gesagte im Chat als dein eigener Zug wiedergegeben, mit einem Telefon-Abzeichen, und jede Bitte wartet dort auf deine Bestätigung.</p><h2>Live-Modus: zwei Intelligenzen, eine Naht</h2><p>Seit v1.47 öffnet das Sprachsymbol ein Drittes: eine <strong>Echtzeitsitzung von Sprache zu Sprache</strong> auf einem Live-Modell, das du mit deinem eigenen Schlüssel verbindest – Gemini Live über WebSocket, GPT-Live über WebRTC oder ein ElevenLabs-Agent, dessen Stimme und Gesprächsführung auf seinem Portal bleiben. Ohne Avatar läuft der Live-Ton direkt zwischen Browser und Anbieter: Die API prägt einen einmal nutzbaren Berechtigungsnachweis und rendert das Setup, der Browser spielt es ab und öffnet die Verbindung selbst.</p><p>Das Design ist eine Naht zwischen zwei Intelligenzen. Das Sprachmodell besitzt das Gespräch – zuhören, sprechen, unterbrechen, eine Wartezeit füllen – und <strong>delegiert jede Bitte um Daten oder eine Aktion</strong> an die Chat-Engine über eine einzige deklarierte Funktion, <code>send_to_lia</code>. Der Browser macht aus diesem Aufruf einen gewöhnlichen Chat-Zug unter deiner eigenen Sitzung: dieselben Bestätigungen, Register und Kontingente, im Verlauf gezeichnet, während du sprichst. Eine Frage, die LIA stellen muss, ist das Nächste, was die Stimme sagt, und die Abschlusskarte zählt zusammen, was LIA selbst ausgegeben hat. Was der Anbieter auf deinem Schlüssel berechnet, wird in einen unverbindlichen Zähler gefaltet und gezeigt, nie aufgezeichnet.</p><p>Eine <strong>direkte Sitzung</strong> holt die Telefonleitung in den Browser: Die Stimme hält LIAs Lesewerkzeuge selbst – die Bereiche, die du erlaubst –, liest für dich und handelt nicht; deine Worte werden am Ende als Nachricht von dir weitergegeben. An einer echten Sitzung gemessen, wiegen die Werkzeugdeklarationen neunzig Prozent des Setups, und der erste Zug kostet etwa das Neunfache des delegierten: Eine direkte Sitzung kauft Latenz, nie Ersparnis. Dieselben zwei Modi, Live und Live direkt, regeln jetzt die Anrufe, die LIA bei dir macht, mit einem Abschluss für beide Leitungen.</p><p>Eine Sitzung endet nicht mehr bei Stille: sie <strong>geht in den Standby</strong>. Der Browser schließt die Verbindung zum Anbieter — nichts läuft, nichts wird berechnet —, die Sitzung bleibt offen, und ein Tippen oder „Dis LIA“ öffnet eine neue Verbindung, deren Konfiguration im Moment des Aufweckens aus LIAs Kontext erstellt wird: das Gedächtnis gehört der Anwendung, nicht dem Anbieter. Nur die Person beendet eine Sitzung; Grenze, Dauer und Zähler zählen nur die wache Zeit, und eine direkte Sitzung gibt ihre Worte bei jedem Standby weiter.</p><p>Auf iPhone und iPad nutzt ein ElevenLabs-Agent die native Audioverbindung seines Anbieters (WebRTC), die auf diesen Geräten stabiler ist als der Rohdatenstrom; und ein nach IP-Adresse eingeschränkter Gemini-Schlüssel, den Google aus dem Browser ablehnt, wird als solcher benannt, statt die Sitzung ohne Erklärung scheitern zu lassen.</p><h2>Vom gesprochenen Befehl zur zweistündigen Besprechung</h2><p>Dasselbe Mikrofon nimmt jetzt eine ganze Besprechung auf. Das hat die Sprach-Engines stärker verändert als die Oberfläche: Das lokale Whisper dekodierte ein Fenster von dreißig Sekunden und gab von allem Längeren stillschweigend die ersten dreißig Sekunden zurück — ein Defekt, dem die Spracheingabe nie begegnet war, weil ein Befehl kurz ist. Langes Audio wird jetzt von einem Sprachaktivitätsdetektor in Sprechfenster geschnitten, jedes für sich dekodiert, sodass keine Aufnahme zu lang ist. Die entfernten Engines nehmen die ganze Datei in einer Anfrage und trennen die Sprechenden; die Kette führt von der Engine der Administration zu ElevenLabs, OpenAI und dem lokalen Modell, und ein Anbieter, der verweigert, übergibt an den nächsten. Das Protokoll ist ein einziger strukturierter Aufruf, der die Vorlage des Nutzers füllt, und jede bezahlte Einheit — Audio bei der Engine, Tokens beim Modell — steht auf der erzeugten Karte, der Besprechungsseite und der Liste.</p><h2>Hören nach deinen Regeln</h2><p>Das persönliche Radio ergänzt das Sprachgespräch: Eine gemeinsame Redaktion sammelt öffentliche Meldungen; dein Sender verbindet deine Quellen mit den Teilen deines Tages, die du erlaubst. Du startest ihn, siehst Quellen und Kosten, setzt einen Schlaftimer und stoppst jederzeit. Es gibt keine Wiederholung.</p><h2>Sprache bei gleichzeitigen Aufgaben</h2><p>Die ElevenLabs-Synthese teilt eine von der Administration festgelegte Kapazitätsgrenze zwischen API-Workern und Sprachfunktionen. Der Browser spielt Abschnitte in Sprechreihenfolge ab, auch wenn sie anders fertig werden. Die Grenze sollte zum ElevenLabs-Konto passen; Edge bleibt die kostenlose Voreinstellung.</p><h2>Ein Gesicht für vorhandene Sprache</h2><p>Ein optionaler <strong>experimenteller Simli-Avatar</strong> gibt dem Audio, das LIA bereits für Sprachkommentare und Live erzeugt, ein Gesicht, auch in direkten Sitzungen. Verbinde deinen verschlüsselten Schlüssel und aktiviere ihn ausdrücklich; das Fenster bietet drei Größen und Bewegung per Zeiger oder Tastatur. Die Verbindung verbraucht deinen persönlichen Tarif, auch in Stille. Live-Standby schließt sie, das Aufwecken verbindet neu; das Radio behält seinen Player. Simli erhält LIAs Sprachausgabe, nicht dein Mikrofon. Gesichtsrealismus und Verhalten auf echten Android-/iOS-Geräten müssen noch geprüft werden. Die Schaltfläche „Avatar-Sitzung stoppen“ bleibt im Fenster verfügbar und zeigt eine bestätigte oder noch ausstehende Schließung an. Warte bei ausstehender Schließung und versuche es erneut; sie beweist noch nicht, dass Simli die Abrechnung beendet hat. Avatar, Begleiter und Verknüpfungen bleiben beim Öffnen der mobilen Tastatur, Drehen oder Zoomen im sichtbaren Bereich; danach kehrt deine bevorzugte Position zurück, ohne durch diese Anpassungen überschrieben zu werden. Lange Antworten laufen in Reihenfolge durch eine begrenzte Audio-Warteschlange, die der tatsächlichen Wiedergabe folgt. Eine Unterbrechung beendet den laufenden Ton; eine andere Ausgabe wiederholt keinen bereits gehörten Abschnitt.</p>"
+        "excerpt": "LIAs Sprachdomäne kombiniert ein kostenloses lokales STT (Sherpa-onnx Whisper, eine optionale Remote-Engine — ElevenLabs Scribe, OpenAI oder Fish Audio — für höhere Genauigkeit), ein katalog-getriebenes TTS (Edge / OpenAI / ElevenLabs / Gemini / Fish Audio) und seit v1.47 einen Echtzeit-Live-Modus auf deinem eigenen Gemini-, OpenAI- oder ElevenLabs-Schlüssel. Das Streaming auf Satzebene bringt den ersten Audio-Chunk in ~1 Sekunde. Die Kostenzuordnung pro Nachricht macht kostenpflichtige Sprachanrufe vollständig prüfbar.",
+        "body": "<h2>Drei Aktivierungsmodi</h2><p>LIA unterstützt drei Wege der Sprachinteraktion:</p><ul><li><strong>Aktivierungswort</strong> — sag „Dis LIA“, um die freihändige Erkennung zu starten, oder „LIA, stop“, um LIAs Stimme zu unterbrechen, während sie eine Antwort vorliest. Ein kleines, offline trainiertes Modell, in einem Browser-Worker von ONNX Runtime in WebAssembly ausgeführt, jede Datei vor dem Start an ihrem Fingerabdruck geprüft. Kein Audio verlässt den Browser für die Erkennung. Es gibt es vorerst auf Französisch, in der Beta: die Erkennung wird noch verbessert, und die anderen Oberflächensprachen behalten Tippen und langes Drücken.</li><li><strong>Push-to-Talk</strong> — Mikrofon-Button gedrückt halten zum Sprechen. Für Mobilgeräte optimiert.</li><li><strong>Automatische Sprachende-Erkennung (VAD)</strong> — die Aufnahme stoppt automatisch nach ~0,75 s Stille.</li></ul><h2>Spracherkennung: lokal als Standard, Remote als Opt-in</h2><p>Jeder Benutzer wählt seinen STT-Modus in <strong>Einstellungen → Sprachmodus</strong>:</p><ul><li><strong>Lokal</strong> (Standard, kostenlos) — Sherpa-onnx Whisper auf dem LIA-Server in <strong>16 kHz mono</strong> mit INT8-Quantisierung. Unterstützt <strong>99+ Sprachen</strong>. Audio verlässt nie den LIA-Server.</li><li><strong>Remote</strong> (opt-in) — die Engine des <code>voice_transcription</code>-Slots der Administration (ElevenLabs Scribe, OpenAI oder Fish Audio), nach Audiodauer abgerechnet und in den Einstellungen genannt, damit der Datenschutzhinweis sagt, wer das Audio erhält. Höhere Genauigkeit bei gesprochener Sprache, besonders in lauten Umgebungen. Ein dezentes 🎤-Badge auf jeder Nutzer-Bubble zeigt Dauer und EUR-Kosten; die Kosten fließen in die übliche <strong>Kosten</strong>-Kachel des Dashboards und in deine Nutzungslimits — kein separates Kontingent.</li></ul><p>Zwei admin-seitige Sicherheitshebel schützen vor Kostenexplosionen bei aktiviertem Remote: ein Kill-Switch pro Anbieter (<code>ELEVENLABS_STT_ENABLED</code>, <code>FISHAUDIO_STT_ENABLED</code>) und ein Dauerlimit pro Clip (<code>REMOTE_STT_MAX_AUDIO_DURATION_SECONDS</code>, Standard 300 s), das vor jedem Provider-Aufruf geprüft wird.</p><h2>Katalog-getriebene Sprachsynthese</h2><p>Die Sprachsynthese wird nun aus einem einzigen Admin-Formular (Konfiguration LLM → Voice TTS) konfiguriert, mit drei vom ersten Tag an bereitgestellten Providern:</p><ul><li><strong>Edge TTS</strong> — Microsoft Neural-Stimmen, kostenlos, Standard. SSML rate / pitch / volume-Feinabstimmung.</li><li><strong>OpenAI TTS</strong> — <code>tts-1</code> oder <code>tts-1-hd</code>, Premium-Stimmen (alloy, echo, fable, onyx, nova, shimmer). speed + response_format-Feinabstimmung.</li><li><strong>ElevenLabs</strong> — <code>eleven_multilingual_v2</code>, <code>eleven_turbo_v2_5</code>, <code>eleven_flash_v2_5</code>. stability, similarity_boost, style, use_speaker_boost-Feinabstimmung. Live-Stimmen-Picker aus dem konfigurierten Konto (Custom- + Bibliotheksstimmen).</li><li><strong>Google Gemini</strong> — ausdrucksstarke mehrsprachige Stimmen mit Vortragssteuerung; abgerechnet nach den vom Anbieter gemeldeten Token.</li><li><strong>Fish Audio</strong> — <code>s2.1-pro</code>, <code>s2-pro</code>, <code>drama-3</code>; abgerechnet pro UTF-8-Byte des Textes; Feinabstimmung von Format, Latenz, Geschwindigkeit und Transport; die Auswahl bietet die Stimmen des Kontos, die lizenzierten Stimmen des Anbieters und die von der Administration angehefteten öffentlichen Stimmen, und die Administration verwaltet eine Stimmbibliothek (Klonen unter Einwilligungsbestätigung, Entwurf aus einer Beschreibung).</li></ul><p>Für kostenpflichtige Provider zeigt ein 🔊-Badge auf der Assistenten-Nachricht Zeichenzahl und EUR-Kosten; Edge bleibt kostenlos ohne Badge. Unterstützte Audioformate: <strong>MP3, Opus, AAC, FLAC, WAV, PCM</strong> — pro Provider ausgewählt.</p><h2>Streaming auf Satzebene für Sub-Sekunden-Latenz</h2><p>Die Sprach-Pipeline löst die TTS-Synthese jetzt <strong>pro vollständigem Satz parallel</strong> aus, anstatt auf die vollständige LLM-Antwort zu warten. Der erste Satz beginnt in <strong>etwa einer Sekunde</strong> abgespielt zu werden, während der Assistent den Rest der Antwort noch verfasst. Persistentes HTTP-Keep-Alive auf ElevenLabs spart bei den Aufrufen #2…N weitere ~100–300 ms pro Satz. Geordnete Auslieferung wird durch eine gepufferte Warteschlange garantiert — fehlgeschlagene Slots werden übersprungen, ohne den Stream zu blockieren.</p><h2>Wo ein Satz endet</h2><p>„Satzweise“ zu zerlegen setzt voraus, zu wissen, wo ein Satz endet — und ein Punkt allein sagt das nicht. Ein Trennzeichen schließt einen Satz nur, wenn <strong>ein Leerzeichen folgt</strong>, oder am Ende der Eingabe: „es sind 3,5 Grad“ bleibt so am Stück, statt als „es sind drei.“ und dann, in einem separaten Audioclip, „fünf Grad“ gelesen zu werden. Dasselbe gilt für Preise, Versionsnummern und Webadressen. Auf dem progressiven Weg ist die Regel doppelt nötig: der Puffer wächst Token für Token, sodass <code>\"3.\"</code> ein völlig normaler Übergangszustand ist — darauf zu dispatchen heißt zu sprechen, bevor man zu Ende gelesen hat. Beide Zerleger der Pipeline sind durch eine gemeinsame Falltabelle und durch einen Test fixiert, der ihre Übereinstimmung verlangt.</p><h2>Sprachkommentare und Exporte</h2><p>LIA kann kurze <strong>Sprachkommentare</strong> (einen narrativen TTS-Beitrag) an seine Antworten anhängen. Audio wird über WebSocket mit einem Einmal-BFF-Ticket (60 s TTL) für die Sicherheit gestreamt. Zwei neue CSV-Exporte — <code>stt-usage</code> und <code>tts-usage</code> — listen jeden kostenpflichtigen Sprachanruf mit Konversation, Nachrichten-ID, Provider, Dauer / Zeichen und EUR-Kosten auf. Der bestehende <code>consumption-summary</code>-Export erhält ebenfalls STT- und TTS-Spalten, damit die Summen an einem Ort bleiben.</p><h2>Wenn LIA dich anruft</h2><p>Die Stimme endet nicht am Browser. Hinterlege deine Nummer unter <em>Telefonie · Meine Identität</em>, lass LIA sie anrufen und einen Code vorlesen, den du eintippst, und von da an lässt „ruf mich um acht an, um meinen Tag durchzugehen“ — oder eine Routine, die das sagt — dein Telefon ohne Bestätigungskarte klingeln: die Karte schützt einen Dritten, und hier ist die Person, die bestätigen würde, die, die abnimmt. Am Telefon trägt der Sprachagent, was der Chat weiß, und liest, wenn Live-Abfragen freigeschaltet sind, während du sprichst in LIA — Mails, Kalender, Aufgaben, Kontakte, Dateien, Orte, Wetter, Gedächtnis — über dieselben nur lesenden Werkzeuge wie der Chat, jedes Ergebnis auf das reduziert, was eine Stimme sagen kann; er handelt in nichts. Wenn du auflegst, wird das Gesagte im Chat als dein eigener Zug wiedergegeben, mit einem Telefon-Abzeichen, und jede Bitte wartet dort auf deine Bestätigung.</p><h2>Live-Modus: zwei Intelligenzen, eine Naht</h2><p>Seit v1.47 öffnet das Sprachsymbol ein Drittes: eine <strong>Echtzeitsitzung von Sprache zu Sprache</strong> auf einem Live-Modell, das du mit deinem eigenen Schlüssel verbindest – Gemini Live über WebSocket, GPT-Live über WebRTC oder ein ElevenLabs-Agent, dessen Stimme und Gesprächsführung auf seinem Portal bleiben. Ohne Avatar läuft der Live-Ton direkt zwischen Browser und Anbieter: Die API prägt einen einmal nutzbaren Berechtigungsnachweis und rendert das Setup, der Browser spielt es ab und öffnet die Verbindung selbst.</p><p>Das Design ist eine Naht zwischen zwei Intelligenzen. Das Sprachmodell besitzt das Gespräch – zuhören, sprechen, unterbrechen, eine Wartezeit füllen – und <strong>delegiert jede Bitte um Daten oder eine Aktion</strong> an die Chat-Engine über eine einzige deklarierte Funktion, <code>send_to_lia</code>. Der Browser macht aus diesem Aufruf einen gewöhnlichen Chat-Zug unter deiner eigenen Sitzung: dieselben Bestätigungen, Register und Kontingente, im Verlauf gezeichnet, während du sprichst. Eine Frage, die LIA stellen muss, ist das Nächste, was die Stimme sagt, und die Abschlusskarte zählt zusammen, was LIA selbst ausgegeben hat. Was der Anbieter auf deinem Schlüssel berechnet, wird in einen unverbindlichen Zähler gefaltet und gezeigt, nie aufgezeichnet.</p><p>Eine <strong>direkte Sitzung</strong> holt die Telefonleitung in den Browser: Die Stimme hält LIAs Lesewerkzeuge selbst – die Bereiche, die du erlaubst –, liest für dich und handelt nicht; deine Worte werden am Ende als Nachricht von dir weitergegeben. An einer echten Sitzung gemessen, wiegen die Werkzeugdeklarationen neunzig Prozent des Setups, und der erste Zug kostet etwa das Neunfache des delegierten: Eine direkte Sitzung kauft Latenz, nie Ersparnis. Dieselben zwei Modi, Live und Live direkt, regeln jetzt die Anrufe, die LIA bei dir macht, mit einem Abschluss für beide Leitungen.</p><p>Eine Sitzung endet nicht mehr bei Stille: sie <strong>geht in den Standby</strong>. Der Browser schließt die Verbindung zum Anbieter — nichts läuft, nichts wird berechnet —, die Sitzung bleibt offen, und ein Tippen oder „Dis LIA“ öffnet eine neue Verbindung, deren Konfiguration im Moment des Aufweckens aus LIAs Kontext erstellt wird: das Gedächtnis gehört der Anwendung, nicht dem Anbieter. Nur die Person beendet eine Sitzung; Grenze, Dauer und Zähler zählen nur die wache Zeit, und eine direkte Sitzung gibt ihre Worte bei jedem Standby weiter.</p><p>Auf iPhone und iPad nutzt ein ElevenLabs-Agent die native Audioverbindung seines Anbieters (WebRTC), die auf diesen Geräten stabiler ist als der Rohdatenstrom; und ein nach IP-Adresse eingeschränkter Gemini-Schlüssel, den Google aus dem Browser ablehnt, wird als solcher benannt, statt die Sitzung ohne Erklärung scheitern zu lassen.</p><h2>Vom gesprochenen Befehl zur zweistündigen Besprechung</h2><p>Dasselbe Mikrofon nimmt jetzt eine ganze Besprechung auf. Das hat die Sprach-Engines stärker verändert als die Oberfläche: Das lokale Whisper dekodierte ein Fenster von dreißig Sekunden und gab von allem Längeren stillschweigend die ersten dreißig Sekunden zurück — ein Defekt, dem die Spracheingabe nie begegnet war, weil ein Befehl kurz ist. Langes Audio wird jetzt von einem Sprachaktivitätsdetektor in Sprechfenster geschnitten, jedes für sich dekodiert, sodass keine Aufnahme zu lang ist. Die entfernten Engines nehmen die ganze Datei in einer Anfrage und trennen die Sprechenden; die Kette führt von der Engine der Administration zu ElevenLabs, OpenAI, Fish Audio und dem lokalen Modell, und ein Anbieter, der verweigert, übergibt an den nächsten. Das Protokoll ist ein einziger strukturierter Aufruf, der die Vorlage des Nutzers füllt, und jede bezahlte Einheit — Audio bei der Engine, Tokens beim Modell — steht auf der erzeugten Karte, der Besprechungsseite und der Liste.</p><h2>Hören nach deinen Regeln</h2><p>Das persönliche Radio ergänzt das Sprachgespräch: Eine gemeinsame Redaktion sammelt öffentliche Meldungen; dein Sender verbindet deine Quellen mit den Teilen deines Tages, die du erlaubst. Du startest ihn, siehst Quellen und Kosten, setzt einen Schlaftimer und stoppst jederzeit. Es gibt keine Wiederholung.</p><h2>Sprache bei gleichzeitigen Aufgaben</h2><p>ElevenLabs und Fish Audio teilen je eine von der Administration festgelegte Kapazitätsgrenze pro Anbieterkonto zwischen API-Workern und Sprachfunktionen — bei Fish Audio Synthese, Transkription und Stimmdesign zusammen. Der Browser spielt Abschnitte in Sprechreihenfolge ab, auch wenn sie anders fertig werden. Jede Grenze sollte zu ihrem Konto passen; Edge bleibt die kostenlose Voreinstellung.</p><h2>Ein Gesicht für vorhandene Sprache</h2><p>Ein optionaler <strong>experimenteller Simli-Avatar</strong> gibt dem Audio, das LIA bereits für Sprachkommentare und Live erzeugt, ein Gesicht, auch in direkten Sitzungen. Verbinde deinen verschlüsselten Schlüssel und aktiviere ihn ausdrücklich; das Fenster bietet drei Größen und Bewegung per Zeiger oder Tastatur. Die Verbindung verbraucht deinen persönlichen Tarif, auch in Stille. Live-Standby schließt sie, das Aufwecken verbindet neu; das Radio behält seinen Player. Simli erhält LIAs Sprachausgabe, nicht dein Mikrofon. Gesichtsrealismus und Verhalten auf echten Android-/iOS-Geräten müssen noch geprüft werden. Die Schaltfläche „Avatar-Sitzung stoppen“ bleibt im Fenster verfügbar und zeigt eine bestätigte oder noch ausstehende Schließung an. Warte bei ausstehender Schließung und versuche es erneut; sie beweist noch nicht, dass Simli die Abrechnung beendet hat. Avatar, Begleiter und Verknüpfungen bleiben beim Öffnen der mobilen Tastatur, Drehen oder Zoomen im sichtbaren Bereich; danach kehrt deine bevorzugte Position zurück, ohne durch diese Anpassungen überschrieben zu werden. Lange Antworten laufen in Reihenfolge durch eine begrenzte Audio-Warteschlange, die der tatsächlichen Wiedergabe folgt. Eine Unterbrechung beendet den laufenden Ton; eine andere Ausgabe wiederholt keinen bereits gehörten Abschnitt.</p>"
       },
       "knowledge-spaces": {
         "title": "Knowledge Spaces: Verwandle Dokumente in KI-Intelligenz",
@@ -14138,7 +14400,7 @@
       "smart-services": {
         "title": "Smart Services: Mustererkennung und Token-Optimierung",
         "excerpt": "LIA lernt aus deinen Interaktionen: LRU-Cache, Bayessches Lernen und semantisches Routing reduzieren den Token-Verbrauch um 96%.",
-        "body": "<h2>Drei intelligente Dienste</h2><p>LIA integriert drei Dienste, die aus deinen Interaktionen lernen, um die Leistung zu optimieren:</p><ul><li><strong>QueryAnalyzerService</strong> — Vereinheitlichte Analyse von Absicht, Domäne und Routing in einem einzigen Durchgang mit einem P95 von unter 800 ms dank Caching</li><li><strong>SmartPlannerService</strong> — Reduziert den Token-Verbrauch um 89% (von ~14.100 Token in 3 Schritten auf ~1.500 Token). Wendet 4 Strategien nach Priorität an: ReferenceBypass, CrossDomainBypass, SingleDomain (LLM) und MultiDomain (LLM). Ein PANIC-Modus wiederholt mit erweitertem Katalog bei Fehler</li><li><strong>SmartCatalogueService</strong> — Reduziert den Tool-Katalog um 96% (von ~5.500 Token für den vollständigen Katalog auf ~200 gefilterte Token). Verwendet eine NormalFilteringStrategy im Standardmodus und eine PanicFilteringStrategy bei Wiederholung</li></ul><h2>Das ToolResponse-Pattern</h2><p>Jedes Tool gibt ein standardisiertes Format für den Orchestrator zurück:</p><pre><code class=\"language-python\">class ToolResponse(BaseModel):\n    success: bool\n    data: Any | None = None\n    error: str | None = None\n    error_code: ToolErrorCode | None = None\n    metadata: dict[str, Any] = Field(default_factory=dict)\n    timestamp: datetime = Field(\n        default_factory=lambda: datetime.now(UTC)\n    )\n\n# Verwendung in einem Tool\nasync def my_tool(...) -&gt; dict:\n    try:\n        result = await do_something()\n        return ToolResponse(\n            success=True, data=result\n        ).model_dump()\n    except Exception as e:\n        return ToolErrorModel.from_exception(\n            e, context={\"tool\": \"my_tool\"}\n        ).to_response()</code></pre><h2>Bayessches Lernen</h2><p>Der Pattern Learner verwendet <strong>Bayessches Lernen</strong>, um wiederkehrende Anfragemuster zu erkennen. Golden Patterns werden trainiert, um das Routing der häufigsten Anfragen zu beschleunigen.</p><h2>Token-Optimierung: bis zu 96% Reduktion</h2><p>Die Kombination der drei Dienste erzielt erhebliche Einsparungen. Der SmartCatalogueService reduziert den Katalog um 96% (von ~5.500 auf ~200 Token). Der SmartPlannerService reduziert die Planung um 89% (von ~14.100 auf ~1.500 Token) durch Kurzschluss von Einzel-Domänen- und Cross-Domänen-Anfragen. Der QueryAnalyzerService vereinheitlicht die Analyse in einem einzigen Durchgang statt drei separater Aufrufe.</p><h2>Adaptive Neuplanung und PANIC-Modus</h2><p>Bei Fehlschlagen eines Schritts aktiviert das System den PANIC-Modus mit exponentiellem Backoff. Der SmartPlannerService wiederholt mit erweitertem Katalog über PanicFilteringStrategy, der SmartCatalogueService schließt zusätzliche Tools ein, und eine vollständige Neuplanung wird bei Bedarf ausgelöst. Der Benutzer erhält stets die bestmögliche Antwort.</p>"
+        "body": "<h2>Drei intelligente Dienste</h2><p>LIA integriert drei Dienste, die aus deinen Interaktionen lernen, um die Leistung zu optimieren:</p><ul><li><strong>QueryAnalyzerService</strong> — Vereinheitlichte Analyse von Absicht, Domäne und Routing in einem einzigen Durchgang mit einem P95 von unter 800 ms dank Caching</li><li><strong>SmartPlannerService</strong> — Reduziert den Token-Verbrauch um 89% (von ~14.100 Token in 3 Schritten auf ~1.500 Token). Wendet 4 Strategien nach Priorität an: ReferenceBypass, CrossDomainBypass, SingleDomain (LLM) und MultiDomain (LLM). Ein PANIC-Modus wiederholt mit erweitertem Katalog bei Fehler</li><li><strong>SmartCatalogueService</strong> — Reduziert den Tool-Katalog um 96% (von ~5.500 Token für den vollständigen Katalog auf ~200 gefilterte Token). Verwendet eine NormalFilteringStrategy im Standardmodus und eine PanicFilteringStrategy bei Wiederholung</li></ul><h2>Das ToolResponse-Pattern</h2><p>Jedes Tool gibt ein standardisiertes Format für den Orchestrator zurück:</p><pre><code class=\"language-python\">class ToolResponse(BaseModel):\n    success: bool\n    data: Any | None = None\n    error: str | None = None\n    error_code: ToolErrorCode | None = None\n    metadata: dict[str, Any] = Field(default_factory=dict)\n    timestamp: datetime = Field(\n        default_factory=lambda: datetime.now(UTC)\n    )\n\n# Verwendung in einem Tool\nasync def my_tool(...) -&gt; dict:\n    try:\n        result = await do_something()\n        return ToolResponse(\n            success=True, data=result\n        ).model_dump()\n    except Exception as e:\n        return ToolErrorModel.from_exception(\n            e, context={\"tool\": \"my_tool\"}\n        ).to_response()</code></pre><h2>Bayessches Lernen</h2><p>Der Pattern Learner verwendet <strong>Bayessches Lernen</strong>, um wiederkehrende Anfragemuster zu erkennen. Golden Patterns werden trainiert, um das Routing der häufigsten Anfragen zu beschleunigen.</p><h2>Token-Optimierung: bis zu 96% Reduktion</h2><p>Die Kombination der drei Dienste erzielt erhebliche Einsparungen. Der SmartCatalogueService reduziert den Katalog um 96% (von ~5.500 auf ~200 Token). Der SmartPlannerService reduziert die Planung um 89% (von ~14.100 auf ~1.500 Token) durch Kurzschluss von Einzel-Domänen- und Cross-Domänen-Anfragen. Der QueryAnalyzerService vereinheitlicht die Analyse in einem einzigen Durchgang statt drei separater Aufrufe.</p><h2>PANIC-Modus: ein breiterer Katalog, einmal</h2><p>Das Filtern des Katalogs macht den Planer präzise, kann aber zu viel entfernen. Wenn der gefilterte Katalog dem Planer keinen ausführbaren Plan erlaubt, wiederholt der PANIC-Modus die Planung einmal: Der SmartCatalogueService wechselt zu PanicFilteringStrategy, und der SmartPlannerService plant über einem breiteren Katalog neu. All das geschieht, bevor etwas läuft; ist der Plan gelaufen, wird ein gescheiterter Schritt in der Antwort genannt, nie wiederholt.</p>"
       },
       "multilingual": {
         "title": "6 Sprachen, eine vollständige i18n-Architektur",
@@ -14442,8 +14704,8 @@
     }
   },
   "psyche": {
-    "title": "Psyche-Engine",
-    "description": "Dynamisches emotionales Intelligenzsystem",
+    "title": "LIAs Psyche",
+    "description": "Ihre Stimmung, ihr Charakter und die Entwicklung eurer Beziehung.",
     "enable": "Psyche-Engine aktivieren",
     "enableDescription": "LIA entwickelt emotionale Zustände, die den Gesprächsstil subtil beeinflussen",
     "displayAvatar": "Emotionalen Avatar anzeigen",
@@ -14479,7 +14741,7 @@
     "summary": {
       "title": "Psyche-Zustand",
       "loading": "Analyse läuft...",
-      "error": "Zusammenfassung konnte nicht erstellt werden",
+      "error": "LIAs Einschätzung konnte nicht erstellt werden. Versuche es mit Aktualisieren erneut.",
       "refresh": "Aktualisieren"
     },
     "education": {
@@ -14634,7 +14896,7 @@
         "engagement_effect": "Gründlicher und proaktiver. Im Flow — ergreift Initiative.",
         "dynamics": "Beide Antriebe verwenden einen gleitenden Durchschnitt (20% neues Signal, 80% vorheriger Wert). Sie springen nie — sie driften allmählich in Richtung der Qualität und Energie deiner Gespräche.",
         "efficacy_title": "Selbstwirksamkeit",
-        "efficacy_desc": "Der Assistent verfolgt sein Vertrauen in verschiedene Bereiche (Planung, Technik, emotionale Unterstützung usw.). Hohes Vertrauen bedeutet mutigere Vorschläge; geringes Vertrauen bedeutet mehr Vorsicht und Gründlichkeit. Wird nach jeder Interaktion basierend auf dem Qualitätsfeedback aktualisiert.",
+        "efficacy_desc": "Beobachtete Ergebnisse und deine Rückmeldungen werden pro Bereich getrennt erfasst. Bei ausreichender Datengrundlage kann LIA ihre Prüfungen, Rückfragen und genannten Grenzen innerhalb ihrer bestehenden Berechtigungen anpassen.",
         "transitions_title": "Narrative Übergänge",
         "transitions_desc": "Der Assistent nimmt seine eigenen emotionalen Veränderungen zwischen Nachrichten wahr. Wenn sich Stimmung oder Emotion deutlich ändern, erhält er einen narrativen Übergangshinweis — Wiedersehen nach Abwesenheit, Valenzwechsel, Erregungsänderungen — der einen natürlichen, unerzwungenen Übergang leitet."
       },
@@ -14666,10 +14928,15 @@
       "engagement": "Engagement",
       "resetSoft": "Stimmung aufgefrischt",
       "resetFull": "Vollständiger Reset",
-      "chartDrives": "Antriebe"
+      "chartDrives": "Antriebe",
+      "loadError": "LIAs Entwicklung konnte nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "periodLabel": "Zeitraum",
+      "chartLabel": "Diagramm",
+      "chartDescription": "Entwicklung der Psyche-Messwerte. Fehlende Werte werden nicht durch null ersetzt."
     },
     "settingsSection": {
-      "title": "Einstellungen"
+      "title": "Einstellungen der Psyche"
     },
     "tooltip": {
       "mood": "Stimmung",
@@ -14728,7 +14995,59 @@
       "AFFECTIVE": "Deine Verbindung zu LIA vertieft sich - eine echte Vertrautheit entsteht.",
       "STABLE": "Deine Beziehung zu LIA ist nun gefestigt und beständig."
     },
-    "currentState": "Aktueller Zustand"
+    "currentState": "Aktueller Zustand",
+    "presentation": {
+      "point": "LIAs Einschätzung",
+      "mood": "Stimmung und Emotionen",
+      "evolution": "LIAs Entwicklung",
+      "resets": "Zurücksetzungen",
+      "readError": "Einige Daten konnten nicht aktualisiert werden. Versuche es erneut mit Aktualisieren.",
+      "retained": "Die zuletzt verfügbaren Daten bleiben sichtbar.",
+      "padTitle": "Wo liegt ihre Stimmung?",
+      "emotionRingsHint": "Jeder Ring zeigt die Intensität einer Emotion auf einer eigenen Skala.",
+      "padHint": "Drei Achsen von −1 bis +1. Der Punkt verbindet Freude und Aktivierung.",
+      "drivesTitle": "Was sie antreibt",
+      "drivesHint": "LIAs Tendenzen, keine Messung deiner Persönlichkeit.",
+      "relationship": "Eure Beziehung"
+    },
+    "stateUnavailable": "Noch kein Zustand beobachtet. Er erscheint, sobald LIA ihre Psyche entwickelt hat.",
+    "domains": {
+      "planning": "Planung",
+      "information": "Information",
+      "emotional_support": "Emotionale Unterstützung",
+      "creativity": "Kreativität",
+      "technical": "Technik",
+      "social": "Soziales",
+      "organization": "Organisation"
+    },
+    "efficacy": {
+      "window": "Erfahrung der letzten {{days}} Tage",
+      "collectionOn": "Erfassung aktiv",
+      "collectionOff": "Erfassung pausiert",
+      "influenceOn": "Einfluss aktiv",
+      "influenceOff": "Einfluss deaktiviert",
+      "noEvidence": "Es liegen noch keine belegten Erfahrungen vor.",
+      "status": {
+        "unobserved": "Noch kein Index",
+        "learning": "Im Lernprozess",
+        "observed": "Beobachtet"
+      },
+      "results": "Ergebnisse",
+      "usefulness": "Nützlichkeit",
+      "smoothedIndex": "Geglätteter Index",
+      "resultBasis_one": "{{count}} bewertetes Ergebnis",
+      "resultBasis_other": "{{count}} bewertete Ergebnisse",
+      "feedbackBasis_one": "{{count}} Rückmeldung",
+      "feedbackBasis_other": "{{count}} Rückmeldungen",
+      "resultDetail": "{{success}} erfolgreich · {{failure}} nicht erfolgreich",
+      "otherResults": "{{partial}} teilweise · {{unknown}} unbestimmt",
+      "feedbackDetail": "{{helpful}} hilfreich · {{unhelpful}} nicht hilfreich",
+      "noBasis": "Noch keine Bewertung",
+      "lastObserved": "Letzte Beobachtung: {{date}}",
+      "unassigned_one": "{{count}} Rückmeldung lässt sich keinem einzelnen Bereich zuordnen.",
+      "unassigned_other": "{{count}} Rückmeldungen lassen sich keinem einzelnen Bereich zuordnen.",
+      "indicesHint": "Jeder Index hat eine eigene Datengrundlage. Er ist keine Wahrscheinlichkeit für eine korrekte Antwort."
+    }
   },
   "conversations": {
     "search_placeholder": "Im Verlauf suchen...",
@@ -14755,6 +15074,10 @@
     }
   },
   "notifications_hub": {
+    "groups": {
+      "upcoming": "Anstehend und im Blick",
+      "received": "Bereits erhalten"
+    },
     "title": "Benachrichtigungen",
     "subtitle": "Was LIA dir gesendet hat und was noch kommt.",
     "page_info": "Seite {{current}} / {{total}}",
@@ -14809,6 +15132,8 @@
       }
     },
     "direction_received": "Empfangen",
+    "from_peer": "von {{name}}",
+    "to_peer": "an {{name}}",
     "direction_sent": "Gesendet",
     "message_no_content": "Der Inhalt wird nicht mehr aufbewahrt.",
     "reminder_at": "Am {{when}}",
@@ -15601,6 +15926,7 @@
       "engine": {
         "elevenlabs": "ElevenLabs Scribe",
         "openai": "OpenAI",
+        "fishaudio": "Fish Audio",
         "local": "Lokale Engine (auf dem Server)"
       },
       "offline_long": "Schon lange offline: Das Audio wartet auf diesem Gerät. Beende und schließe ab, sobald die Verbindung zurück ist.",
@@ -15657,7 +15983,23 @@
       "bulk_skipped_other": "{{count}} Besprechungen wurden übersprungen: sie werden noch aufgenommen oder verarbeitet.",
       "not_selectable": "Während der Aufnahme oder Verarbeitung nicht auswählbar",
       "record": "Besprechung aufnehmen",
-      "templates": "Vorlagen"
+      "templates": "Vorlagen",
+      "load_error": "Die Besprechungen konnten nicht geladen werden. Versuche es erneut, um die Liste zu aktualisieren.",
+      "index_label": "Wissensbereich",
+      "recording_details": "Aufnahmedetails",
+      "unknown_time": "Unbekannte Uhrzeit",
+      "unknown_date": "Unbekanntes Datum",
+      "start_time": "Beginn: {{time}}",
+      "end_time": "Ende: {{time}}",
+      "display_timezone": "Angezeigte Zeiten · {{timezone}}",
+      "period": {
+        "night": "Nacht",
+        "morning": "Vormittag",
+        "midday": "Mittag",
+        "afternoon": "Nachmittag",
+        "evening": "Abend",
+        "unknown": "Unbekannte Uhrzeit"
+      }
     },
     "detail": {
       "back": "Zurück zu den Besprechungen",
@@ -15994,6 +16336,7 @@
         "application_action_named": "Aktion in der Anwendung: {{target}}",
         "email": "E-Mail an {{recipient}} gesendet",
         "email_delete": "E-Mail gelöscht: {{target}}",
+        "mailbox_draft_send": "Entwurf an {{recipient}} gesendet",
         "email_filter": "E-Mail-Filter erstellt",
         "email_forward": "E-Mail an {{recipient}} weitergeleitet",
         "email_reply": "Antwort an {{recipient}} gesendet",
@@ -16033,6 +16376,11 @@
       "create_reminder_tool": "Erinnerung „{{target}}“ erstellt",
       "call_me_tool": "Hat dich angerufen ({{target}})",
       "send_email_to_me_tool": "Hat dir eine E-Mail gesendet ({{target}})",
+      "create_mailbox_draft_tool": "Entwurf „{{target}}“ in deinem Postfach gespeichert",
+      "create_mailbox_reply_draft_tool": "Antwortentwurf in deinem Postfach gespeichert",
+      "create_mailbox_forward_draft_tool": "Weiterleitungsentwurf für {{target}} in deinem Postfach gespeichert",
+      "update_mailbox_draft_tool": "Entwurf in deinem Postfach bearbeitet ({{target}})",
+      "delete_mailbox_drafts_tool": "Entwürfe deines Postfachs in den Papierkorb verschoben",
       "proactive_notification": "Benachrichtigung gesendet ({{kind}})",
       "peer_image_share": "Bild mit einer Verbindung geteilt",
       "email_share": "E-Mail an {{count}} Empfänger gesendet",
@@ -16776,6 +17124,7 @@
       "radio_budget_reached": "Dein Radio hat sein Ausgabenlimit von {{max}} erreicht — es kann ab {{lifts}} wieder spielen.",
       "radio_timer_too_long": "Dieser Timer ist länger, als die Instanz erlaubt — höchstens {{max}} Minuten.",
       "radio_voice_unknown": "Diese Stimme wird nicht mehr angeboten — wähl eine andere.",
+      "radio_voice_shared": "Jeder Standpunkt braucht eine eigene Stimme — anders als die von LIA, der Moderation und der anderen Standpunkte.",
       "radio_personality_unknown": "Diese Persönlichkeit wird nicht mehr angeboten — wähl eine andere.",
       "radio_source_limit_one": "Höchstens {{count}} Website — entferne sie, bevor du eine andere hinzufügst.",
       "radio_source_limit_other": "Höchstens {{count}} Websites — entferne eine, bevor du eine weitere hinzufügst."
@@ -16935,7 +17284,9 @@
         "station_name_hint": "Wird vom Moderator auf Sendung gesagt und im Player angezeigt. Lass das Feld leer für „{{name}}“.",
         "personality": "Persönlichkeit des Senders",
         "personality_chat": "Dieselbe wie im Chat",
-        "automatic": "Automatisch"
+        "automatic": "Automatisch",
+        "commentators": "Standpunkte in Debatten und Gesprächsrunden",
+        "commentators_hint": "Bei „Automatisch“ wählt der Sender eine Stimme, die sonst niemand nutzt. Jeder Standpunkt behält seine eigene Stimme — anders als die von LIA, der Moderation und der anderen Standpunkte."
       },
       "verification": {
         "off": "Keine Prüfung",

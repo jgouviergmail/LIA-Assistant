@@ -47,6 +47,7 @@ from src.domains.agents.registry.catalogue import (
 )
 from src.domains.agents.registry.domain_taxonomy import get_result_key
 from src.domains.agents.tools.common import ToolErrorCode
+from src.domains.agents.tools.connector_requirements import ungranted_scopes
 from src.infrastructure.observability.logging import get_logger
 
 # Import ExecutionPlan DSL (Phase 5)
@@ -100,6 +101,8 @@ class ValidationContext:
         user_id: User identifier
         session_id: Session identifier
         available_scopes: List of available OAuth scopes
+        active_connector_types: The account's active connector types (RC1.1);
+            None when unknown — then no scope verdict is claimed
         user_roles: List of user roles
         budget_usd: Max budget in USD (None = no limit)
         allow_hitl: If False, rejects tools requiring HITL
@@ -117,6 +120,7 @@ class ValidationContext:
     user_id: str
     session_id: str
     available_scopes: list[str] = field(default_factory=list)
+    active_connector_types: frozenset[str] | None = None
     user_roles: list[str] = field(default_factory=list)
     budget_usd: float | None = None
     allow_hitl: bool = True
@@ -715,9 +719,12 @@ class PlanValidator:
             step_index: Step index
             result: ValidationResult to enrich
         """
-        # Validate required scopes
+        # Validate required scopes — where they apply: a category tool served
+        # by another provider than Google owes no Google scope (RC1.1).
         required_scopes = manifest.permissions.required_scopes
-        missing_scopes = set(required_scopes) - set(context.available_scopes)
+        missing_scopes = ungranted_scopes(
+            manifest, context.available_scopes, context.active_connector_types
+        )
 
         if missing_scopes:
             result.add_error(
@@ -755,7 +762,7 @@ class PlanValidator:
         Validate an ExecutionPlan (DSL Phase 5 format).
 
         This method supports the new ExecutionPlan format with:
-        - Typed ExecutionSteps (TOOL, CONDITIONAL, REPLAN, HUMAN)
+        - Typed ExecutionSteps (TOOL, CONDITIONAL)
         - Explicit dependencies (depends_on)
         - Safe Python conditions
         - Enriched metadata
@@ -971,19 +978,6 @@ class PlanValidator:
 
             # Validate that the condition is safe (AST whitelist)
             self._validate_condition_safe(step.condition, step.step_id, step_index, result)
-
-        # HUMAN steps: require HITL approval (supported for confirmation workflows)
-        elif step.step_type == StepType.HUMAN:
-            result.requires_hitl = True
-
-        # REPLAN: not supported in MVP
-        elif step.step_type == StepType.REPLAN:
-            result.add_error(
-                code=ToolErrorCode.NOT_IMPLEMENTED,
-                message=f"Step {step.step_id}: {step.step_type} not supported in MVP (Phase 2)",
-                step_index=step_index,
-                context={"step_type": step.step_type.value},
-            )
 
     # ============================================================================
     # Open/relative query date reset (calendar search hardening)

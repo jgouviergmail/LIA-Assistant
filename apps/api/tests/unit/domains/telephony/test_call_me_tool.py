@@ -286,14 +286,24 @@ async def test_live_tools_are_provisioned_and_handed_to_the_dial(
             LiveToolBinding("get_emails_tool", "tool_b", "email"),
         )
 
+    async def _available(*, disabled_domains, user_id):  # noqa: ANN001
+        seen["offered_to"] = user_id
+        events = SimpleNamespace(name="get_events_tool", domain="event")
+        emails = SimpleNamespace(name="get_emails_tool", domain="email")
+        return tuple(spec for spec in (events, emails) if spec.domain not in disabled_domains)
+
     monkeypatch.setattr(smod, "TelephonyConnectorService", _Connectors)
     monkeypatch.setattr(smod, "ConnectorService", _Creds)
     monkeypatch.setattr(smod, "ensure_vendor_live_tools", _ensure)
+    monkeypatch.setattr(smod, "available_live_tools", _available)
 
-    # Every available tool is provisioned once per connector; the person's own
-    # switches decide what THIS call attaches (lot 8).
-    bindings = await smod._live_tools_for(_TxDb(), uuid4(), disabled_domains=frozenset({"email"}))
+    # Every available tool is provisioned once per connector; THIS call attaches
+    # what the call-back door accepts: the person's switches (lot 8) and the
+    # account's connectors (RC2.1), through the door's own seam.
+    person = uuid4()
+    bindings = await smod._live_tools_for(_TxDb(), person, disabled_domains=frozenset({"email"}))
     assert bindings == (LiveToolBinding("get_events_tool", "tool_a", "event"),)
+    assert seen["offered_to"] == person
     assert seen["ensure"] == (connector, "k", "whsec")
     assert seen["open_at_vendor"] is False, "the vendor was asked inside the reads"
 

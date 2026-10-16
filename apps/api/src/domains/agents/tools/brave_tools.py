@@ -133,19 +133,15 @@ class BraveSearchToolImpl(APIKeyConnectorTool[BraveSearchClient]):
         count = kwargs.get("count", 5)
         freshness = kwargs.get("freshness")
 
-        result = await client.search(
+        # The raising door: a refusal reaches ``handle_error``, which says WHY it
+        # failed — a provider asking to slow down is not « Brave Search API error »
+        # (ADR-108 amendment 2026-10-13).
+        result = await client.search_or_raise(
             query=query,
             endpoint=endpoint,
             count=count,
             freshness=freshness,
         )
-
-        if result is None:
-            return {
-                "success": False,
-                "message": "Brave Search API error",
-                "error": "BRAVE_SEARCH_API_ERROR",
-            }
 
         # Extract results based on endpoint
         if endpoint == "web":

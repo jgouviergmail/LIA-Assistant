@@ -14,7 +14,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 
-import { renderWithProviders, screen, within } from '@/__tests__/test-utils';
+import { renderWithProviders, screen, within, waitFor } from '@/__tests__/test-utils';
 import type { TelephonyCallSummary } from '@/types/telephony';
 
 const { useTelephonyCalls } = vi.hoisted(() => ({ useTelephonyCalls: vi.fn() }));
@@ -23,6 +23,8 @@ vi.mock('@/hooks/useTelephonyCalls', async importOriginal => {
   const actual = await importOriginal<typeof import('@/hooks/useTelephonyCalls')>();
   return { ...actual, useTelephonyCalls };
 });
+
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'owner-a' } }) }));
 
 import TelephonyCallsSection from '../TelephonyCallsSection';
 
@@ -52,6 +54,7 @@ function mockCalls(calls: TelephonyCallSummary[], overrides: Record<string, unkn
     isLoading: false,
     isUnavailable: false,
     refetch: vi.fn(),
+    error: null,
     ...overrides,
   });
 }
@@ -217,9 +220,10 @@ describe('TelephonyCallsSection — each call is a fold, closed by default', () 
     const summary = screen.getByText('Marie Dupont').closest('summary');
     expect(summary).not.toBeNull();
     const header = within(summary as HTMLElement);
-    const day = new Intl.DateTimeFormat('fr', { dateStyle: 'medium' }).format(new Date(STARTED));
     const time = new Intl.DateTimeFormat('fr', { timeStyle: 'short' }).format(new Date(STARTED));
-    expect(header.getByText(`${day} · ${time} · 1 min 2 s`)).toBeInTheDocument();
+    expect(header.getByText(time)).toBeInTheDocument();
+    expect(header.getByText('1 min 2 s')).toBeInTheDocument();
+    expect(summary?.querySelector('time[datetime="2026-07-26T09:01:02Z"]')).not.toBeNull();
     // The badges ride the header, so the outcome reads without opening.
     expect(header.getByText('settings.telephony.calls.status.completed')).toBeInTheDocument();
     expect(header.getByText('settings.telephony.calls.outcome.objective_met')).toBeInTheDocument();
@@ -247,5 +251,120 @@ describe('TelephonyCallsSection — each call is a fold, closed by default', () 
 
     expect(screen.getByText('Prendre rendez-vous')).toBeInTheDocument();
     expect(screen.queryByText('Demander si elle est libre mardi')).not.toBeInTheDocument();
+  });
+});
+
+describe('TelephonyCallsSection — timeline and recovery', () => {
+  it('groups calls by dial date without losing or reordering any call', () => {
+    mockCalls([
+      call({ id: 'latest', callee_display: 'Le garage', created_at: '2026-07-27T10:00:00Z' }),
+      call({ id: 'older', created_at: '2026-07-26T09:00:00Z' }),
+      call({ id: 'unknown', callee_display: 'Date absente', created_at: 'broken' }),
+    ]);
+    const { container } = renderWithProviders(<TelephonyCallsSection lng="fr" />);
+    expect(
+      screen.getByRole('heading', { name: 'settings.telephony.calls.unknown_date', level: 4 })
+    ).toBeInTheDocument();
+    expect(
+      Array.from(container.querySelectorAll('summary')).map(row => row.getAttribute('aria-label'))
+    ).toEqual(['Le garage', 'Marie Dupont', 'Date absente']);
+    expect(screen.getAllByRole('heading', { level: 4 })).toHaveLength(3);
+  });
+  it('announces first loading rather than a featureless blank pane', () => {
+    mockCalls([], { isLoading: true });
+    renderWithProviders(<TelephonyCallsSection lng="fr" />);
+    expect(screen.getByRole('status', { name: 'common.loading' })).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+  it('distinguishes an initial failure from an empty history and retries', async () => {
+    const refetch = vi.fn().mockResolvedValue(undefined);
+    mockCalls([], { error: new Error('offline'), refetch });
+    const { user } = renderWithProviders(<TelephonyCallsSection lng="fr" />);
+    expect(screen.getByRole('alert')).toHaveTextContent('settings.telephony.calls.load_error');
+    await user.click(screen.getByRole('button', { name: 'common.retry' }));
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
+  it('keeps expanded content and focus during a failed refresh and recovery', async () => {
+    mockCalls([call()]);
+    const { user, rerender } = renderWithProviders(<TelephonyCallsSection lng="fr" />);
+    const summary = screen.getByText('Marie Dupont').closest('summary')!;
+    await user.click(summary);
+    summary.focus();
+    mockCalls([call()], { error: new Error('offline') });
+    rerender(<TelephonyCallsSection lng="fr" />);
+    expect(screen.getByRole('alert')).toHaveTextContent('settings.telephony.calls.refresh_error');
+    expect(summary.closest('details')).toHaveProperty('open', true);
+    expect(summary).toHaveFocus();
+    expect(screen.getByText('Marie est libre mardi après 14h.')).toBeInTheDocument();
+    mockCalls([call({ summary: 'Nouvelle synthèse' })]);
+    rerender(<TelephonyCallsSection lng="fr" />);
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+    expect(summary.closest('details')).toHaveProperty('open', true);
+    expect(screen.getByText('Nouvelle synthèse')).toBeInTheDocument();
+  });
+  it('preserves the existing row when a new day is prepended during refresh', async () => {
+    mockCalls([call()]);
+    const { user, rerender } = renderWithProviders(<TelephonyCallsSection lng="fr" />);
+    const summary = screen.getByText('Marie Dupont').closest('summary')!;
+    await user.click(summary);
+    summary.focus();
+    mockCalls([
+      call({ id: 'new-day', callee_display: 'Le garage', created_at: '2026-07-27T09:00:00Z' }),
+      call(),
+    ]);
+    rerender(<TelephonyCallsSection lng="fr" />);
+    expect(screen.getByText('Marie Dupont').closest('summary')).toBe(summary);
+    expect(summary.closest('details')).toHaveProperty('open', true);
+    expect(summary).toHaveFocus();
+  });
+
+  it('locks manual refresh until its read settles without dropping the focused button', async () => {
+    let finish: () => void = () => undefined;
+    const pending = new Promise<void>(resolve => {
+      finish = resolve;
+    });
+    const refetch = vi.fn(() => pending);
+    mockCalls([call()], { refetch });
+    const { user } = renderWithProviders(<TelephonyCallsSection lng="fr" />);
+    const button = screen.getByRole('button', { name: 'settings.telephony.calls.refresh' });
+    await user.dblClick(button);
+    expect(refetch).toHaveBeenCalledTimes(1);
+    expect(button).toHaveFocus();
+    expect(button).toHaveAttribute('aria-busy', 'true');
+    finish();
+    await waitFor(() => expect(button).not.toHaveAttribute('aria-busy'));
+    expect(button).toHaveFocus();
+  });
+
+  it('places every draft action after all reported facts', async () => {
+    mockCalls([
+      call({
+        structured_data: { proposed_datetime: 'mardi après-midi', additional_costs: '35 €' },
+        debrief: {
+          follow_up_tasks: ['Vérifier le devis'],
+          uncertainties: ['Le prix final reste à confirmer'],
+        },
+      }),
+    ]);
+    const { user } = renderWithProviders(<TelephonyCallsSection lng="fr" />);
+    await user.click(screen.getByText('Marie Dupont'));
+    const finalFact = screen.getByText('Le prix final reste à confirmer');
+    const firstAction = screen.getByRole('button', {
+      name: 'settings.telephony.decisions.plan_meeting',
+    });
+    expect(
+      finalFact.compareDocumentPosition(firstAction) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
+
+  it('keeps zero duration, never shows a negative or non-finite duration', () => {
+    mockCalls([
+      call({ id: 'zero', call_seconds: 0 }),
+      call({ id: 'negative', callee_display: 'Négatif', call_seconds: -2 }),
+      call({ id: 'invalid', callee_display: 'Invalide', call_seconds: NaN }),
+    ]);
+    const { container } = renderWithProviders(<TelephonyCallsSection lng="fr" />);
+    expect(screen.getByText('0 s')).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/NaN|-2 s/);
   });
 });

@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
+from src.domains.psyche.efficacy_models import EfficacyEpisode
 from src.domains.psyche.engine import PsycheEngine
 from src.domains.psyche.management_projection import project_psyche_state
 from src.domains.psyche.models import PsycheHistory, PsycheState
@@ -33,7 +34,12 @@ async def psyche_reset_snapshot(
 ) -> PsycheResetSnapshot:
     digest = sha256(inspect.getsource(apply_psyche_reset).encode())
     counts: dict[str, int] = {}
-    for name, model in (("states", PsycheState), ("history", PsycheHistory)):
+    owned_models: list[
+        tuple[str, type[PsycheState] | type[PsycheHistory] | type[EfficacyEpisode]]
+    ] = [("states", PsycheState), ("history", PsycheHistory)]
+    if request.level in {"full", "purge"}:
+        owned_models.append(("efficacy_episodes", EfficacyEpisode))
+    for name, model in owned_models:
         columns = tuple(model.__table__.columns)
         digest.update(json.dumps([name, [column.name for column in columns]]).encode())
         statement = select(*columns).where(model.user_id == actor_id).order_by(model.id)
@@ -50,7 +56,8 @@ async def psyche_reset_snapshot(
                 count += 1
         finally:
             await cursor.close()
-        counts[name] = count
+        if name != "efficacy_episodes":
+            counts[name] = count
     stored = await db.scalar(
         select(PsycheState)
         .where(PsycheState.user_id == actor_id)

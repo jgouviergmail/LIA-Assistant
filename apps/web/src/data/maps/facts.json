@@ -576,6 +576,9 @@
     "340": "ADR-340-Native-Avatar-Volume-From-Reviewed-Offline-Art.md",
     "341": "ADR-341-Editable-Motion-Production-And-Exclusive-Presentation.md",
     "342": "ADR-342-Opt-In-Runtime-Avatar-Preference-Campaigns.md",
-    "343": "ADR-343-Portrait-Reads-The-Whole-Material-And-Its-Brief-Is-A-Synthesis.md"
+    "343": "ADR-343-Portrait-Reads-The-Whole-Material-And-Its-Brief-Is-A-Synthesis.md",
+    "344": "ADR-344-Mailbox-Drafts-Kept-Freely-Sent-After-One-Confirmation.md",
+    "345": "ADR-345-Fish-Audio-Served-Whole-One-Door-One-Allowance-Cues-Each-Engine-Reads.md",
+    "346": "ADR-346-Advisory-Replanner-Retired-A-Pipeline-Failure-Is-Said-Never-Replayed.md"
   }
 }

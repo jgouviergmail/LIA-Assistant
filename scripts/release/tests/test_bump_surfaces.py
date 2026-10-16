@@ -47,6 +47,13 @@ def repo(tmp_path: Path) -> Path:
     return root
 
 
+def _rewind_getting_started(repo: Path) -> None:
+    """Rewind GETTING_STARTED's stamp (line 3) alone: the file also quotes a count."""
+    target = repo / "docs" / "GETTING_STARTED.md"
+    stamped = target.read_text(encoding="utf-8")
+    _write(target, stamped.replace("LIA v1.31.2", "LIA v1.21.21"))
+
+
 class TestCheckMode:
     """``--check`` is a read-only verdict."""
 
@@ -55,12 +62,12 @@ class TestCheckMode:
         assert "aligned" in capsys.readouterr().out.lower()
 
     def test_version_drift_is_reported_with_location(self, repo: Path, capsys) -> None:
-        _write(repo / "docs" / "GETTING_STARTED.md", "**Compatibility**: LIA v1.21.21\n")
+        _rewind_getting_started(repo)
 
         assert main(["--check", "--root", str(repo)]) == 1
 
         out = capsys.readouterr().out
-        assert "docs/GETTING_STARTED.md:1" in out
+        assert "docs/GETTING_STARTED.md:3" in out
         assert "1.21.21" in out
 
     def test_count_drift_is_reported(self, repo: Path, capsys) -> None:
@@ -73,10 +80,10 @@ class TestCheckMode:
         assert "242" in out
 
     def test_check_writes_nothing(self, repo: Path) -> None:
-        _write(repo / "docs" / "GETTING_STARTED.md", "**Compatibility**: LIA v1.21.21\n")
+        _rewind_getting_started(repo)
         before = {path: path.read_bytes() for path in repo.rglob("*") if path.is_file()}
 
-        main(["--check", "--root", str(repo)])
+        assert main(["--check", "--root", str(repo)]) == 1
 
         assert {path: path.read_bytes() for path in repo.rglob("*") if path.is_file()} == before
 

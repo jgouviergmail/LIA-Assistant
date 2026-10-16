@@ -1,66 +1,79 @@
-/**
- * PsycheLLMSummary — LLM-generated natural language summary of psyche state.
- *
- * Fetches a 2-3 sentence summary from GET /psyche/summary when the section
- * is opened. Shows a loading skeleton during generation (~1-2s).
- *
- * Phase: evolution — Psyche Engine (Iteration 2)
- * Created: 2026-04-01
- */
-
 'use client';
 
 import { Sparkles } from 'lucide-react';
-
-import { useApiQuery } from '@/hooks/useApiQuery';
+import { useApplicationAccountQuery } from '@/hooks/useApplicationAccountQuery';
+import { useAuth } from '@/hooks/useAuth';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
-
-interface PsycheSummaryData {
-  summary: string;
-}
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface PsycheLLMSummaryProps {
   lng: Language;
-  /** Whether the parent section is open (triggers fetch). */
-  isOpen: boolean;
-  /** External refresh trigger — increment to re-fetch. */
+  isOpen?: boolean;
   refreshKey?: number;
+  onGenerated?: () => void;
 }
 
-export function PsycheLLMSummary({ lng, isOpen, refreshKey = 0 }: PsycheLLMSummaryProps) {
-  const { t } = useTranslation(lng, 'translation');
-
-  const { data, loading, error } = useApiQuery<PsycheSummaryData>('/psyche/summary', {
-    componentName: 'PsycheLLMSummary',
-    enabled: isOpen,
-    deps: [refreshKey],
-  });
-
+/** The visible point generates once per opening; ordinary rerenders never call the model. */
+export function PsycheLLMSummary({
+  lng,
+  isOpen = true,
+  refreshKey = 0,
+  onGenerated,
+}: PsycheLLMSummaryProps) {
+  const { user } = useAuth();
   return (
-    <div className="rounded-lg border bg-gradient-to-br from-primary/5 to-primary/10 p-4">
-      <div className="flex items-center gap-2 mb-2">
-        <Sparkles className="h-4 w-4 text-primary" />
-        <span className="text-sm font-semibold">{t('psyche.summary.title', 'Psyche State')}</span>
+    <OwnedSummary
+      key={user?.id ?? 'anonymous'}
+      lng={lng}
+      isOpen={isOpen}
+      refreshKey={refreshKey}
+      onGenerated={onGenerated}
+    />
+  );
+}
+function OwnedSummary({
+  lng,
+  isOpen,
+  refreshKey,
+  onGenerated,
+}: PsycheLLMSummaryProps & { isOpen: boolean; refreshKey: number }) {
+  const { t } = useTranslation(lng);
+  const { data, loading, error } = useApplicationAccountQuery<{ summary: string }>(
+    '/psyche/summary',
+    'PsycheLLMSummary',
+    isOpen,
+    onGenerated,
+    { deps: [refreshKey] }
+  );
+  const text = data?.summary?.trim();
+  const failed = !!error || (data !== undefined && !text);
+  if (!isOpen) return null;
+  return (
+    <section
+      aria-label={t('psyche.presentation.point')}
+      aria-busy={loading}
+      className="min-w-0 space-y-3"
+    >
+      <h4 className="flex items-center gap-2 text-base font-semibold">
+        <Sparkles className="size-5 shrink-0 text-primary" aria-hidden="true" />
+        {t('psyche.presentation.point')}
+      </h4>
+      <div aria-live="polite" className="min-w-0 space-y-3">
+        {text && (
+          <p className="whitespace-pre-wrap text-sm leading-relaxed [overflow-wrap:anywhere]">
+            {text}
+          </p>
+        )}
+        {!data && !failed && (
+          <Skeleton label={t('common.loading')} className="h-16 w-full rounded-lg" />
+        )}
+        {failed && (
+          <p role="alert" className="text-sm leading-relaxed text-destructive">
+            {t('psyche.summary.error')}
+          </p>
+        )}
       </div>
-
-      {loading && (
-        <div className="space-y-2 animate-pulse">
-          <div className="h-3 bg-muted rounded w-full" />
-          <div className="h-3 bg-muted rounded w-5/6" />
-          <div className="h-3 bg-muted rounded w-4/6" />
-        </div>
-      )}
-
-      {!loading && error && (
-        <p className="text-xs text-muted-foreground italic">
-          {t('psyche.summary.error', 'Could not generate summary')}
-        </p>
-      )}
-
-      {!loading && data?.summary && (
-        <p className="text-sm text-foreground/90 leading-relaxed">{data.summary}</p>
-      )}
-    </div>
+    </section>
   );
 }

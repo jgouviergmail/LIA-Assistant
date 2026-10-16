@@ -11,6 +11,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'admin' } }) }));
+
 vi.mock('@/hooks/useDebounce', () => ({ useDebounce: (v: unknown) => v }));
 
 import ConsumptionExportSection from '../ConsumptionExportSection';
@@ -141,6 +143,29 @@ describe('ConsumptionExportSection autocomplete — ARIA combobox + keyboard (F0
     // Selecting closes the listbox and shows the chosen user.
     await waitFor(() => expect(screen.queryByRole('listbox')).not.toBeInTheDocument());
     expect(screen.getByText('alice@example.com')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'settings.admin.export.clear_user' })).toHaveFocus();
+  });
+
+  it('returns focus to the remounted search input when the selected user is cleared', async () => {
+    const input = await openWithTwoUsers();
+    await act(async () => {
+      input.focus();
+    });
+    await act(async () => {
+      fireEvent.keyDown(input, { key: 'ArrowDown' });
+    });
+    await act(async () => {
+      fireEvent.keyDown(input, { key: 'Enter' });
+    });
+    const clear = screen.getByRole('button', { name: 'settings.admin.export.clear_user' });
+    await act(async () => {
+      clear.focus();
+    });
+    await act(async () => {
+      fireEvent.click(clear);
+    });
+    expect(screen.getByRole('combobox')).toHaveFocus();
+    expect(screen.getByRole('combobox')).toHaveValue('');
   });
 
   it('Escape closes the listbox without selecting', async () => {

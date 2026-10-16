@@ -12,6 +12,7 @@ import pytest
 from pydantic import ValidationError
 
 from src.core.config.agents import AgentsSettings
+from src.core.config.browser import BrowserSettings
 
 
 @pytest.mark.unit
@@ -75,6 +76,26 @@ def test_subagent_tool_max_timeout_range_rejects_above_900():
     with pytest.raises(ValidationError) as exc_info:
         AgentsSettings(subagent_tool_max_timeout_seconds=901.0)
     assert "less than or equal to 900" in str(exc_info.value)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("settings_class", "field", "floor"),
+    [
+        # An expert may answer from the instruction alone: the closing pass suffices.
+        (AgentsSettings, "subagent_default_max_iterations", 2),
+        # An acting loop needs one tool round before its closing pass.
+        (BrowserSettings, "browser_react_max_iterations", 4),
+        (AgentsSettings, "mcp_react_max_iterations", 4),
+    ],
+)
+def test_a_runner_budget_below_its_floor_is_refused(
+    settings_class: type[AgentsSettings] | type[BrowserSettings], field: str, floor: int
+) -> None:
+    """A recursion limit of 1 can never end, and below 4 no tool round fits (measured)."""
+    assert getattr(settings_class(**{field: floor}), field) == floor
+    with pytest.raises(ValidationError, match=f"greater than or equal to {floor}"):
+        settings_class(**{field: floor - 1})
 
 
 @pytest.mark.unit

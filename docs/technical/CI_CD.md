@@ -687,7 +687,7 @@ overrides register, to exactly what `package.json` declares.
 
 | GHSA                                         | Package and path                                                                                                                                                                             | Why it is accepted                                                                                                                                                                                                                                                        | Remove when                                                                                            | Introduced by               |
 | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | --------------------------- |
-| `GHSA-vfj7-8cjw-p6xm` (high, CVE-2026-93687) | `braces` ≤ 3.0.3: `eslint-config-next` → `@next/eslint-plugin-next` (pins `fast-glob` 3.3.1) → `micromatch` → `braces`, declared as a development dependency; also packaged in the web image | A stack overflow on deeply nested brace patterns. The only caller is ESLint's Next.js plugin, globbing the repository's own page directories with patterns the repository writes; no server caller was identified, and no `braces` release fixes it (3.0.3 is the latest) | A `braces` release fixes it, or `@next/eslint-plugin-next` leaves `fast-glob` 3 — review by 2026-11-30 | release v2.4.0 (2026-10-03) |
+| `GHSA-vfj7-8cjw-p6xm` (high, CVE-2026-93687) | `braces` ≤ 3.0.3: `eslint-config-next` → `@next/eslint-plugin-next` (pins `fast-glob` 3.3.1) → `micromatch` → `braces`, declared as a development dependency | A stack overflow on deeply nested brace patterns. The identified caller is ESLint's Next.js plugin, globbing the repository's own page directories with patterns the repository writes; no server caller was identified, and no patched `braces` version was available at the 2026-10-15 review. The Web Dockerfile now copies the traced standalone tree only; it previously copied the complete build dependency store as well. Validate the resulting image separately from this dependency exception. | A `braces` release fixes it, or `@next/eslint-plugin-next` leaves `fast-glob` 3 — review by 2026-11-30 | release v2.4.0 (2026-10-03) |
 
 Vérification du 6 octobre 2026 : `braces` 3.0.3 reste la dernière version
 publiée, sans correctif. Son usage identifié est celui du linter, avec les
@@ -897,6 +897,21 @@ task security:scan:backend  # pip-audit epingle sur les trois lockfiles (runtime
 task security:scan:frontend # pnpm audit --audit-level=high
 task security:sbom:backend  # SBOM CycloneDX du lockfile runtime
 ```
+
+`task security:scan:docker` scanne les images construites, avec un échec sur les
+alertes HIGH/CRITICAL, y compris sans correctif publié. Ses valeurs par défaut
+correspondent à `task build:api` et `task build:web` (`lia-api:latest` et
+`lia-web:latest`). Après le build Compose de `task build`, préciser ses tags,
+ou les identifiants exacts des images à qualifier :
+
+```bash
+task security:scan:docker API_IMAGE=lia-api:local WEB_IMAGE=lia-web:local
+```
+
+Un audit des lockfiles ne remplace pas celui des composants embarqués par
+l'image : outils installés globalement, paquets système et dépendances vendored
+doivent aussi être examinés. Une alerte sans correctif reste un constat à traiter,
+pas une raison pour modifier silencieusement la politique du scan.
 
 ---
 

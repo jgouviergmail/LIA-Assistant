@@ -32,6 +32,7 @@ from src.domains.agents.display.plain_text import strip_html_if_markup
 from src.domains.shared.markdown_literal import read_as_markdown
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.llm.message_view import model_view_content
+from src.infrastructure.llm.tool_call_blocks import CALL_BLOCK_TYPES as _CALL_BLOCK_TYPES
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_langgraph import langgraph_history_repairs_total
 
@@ -946,7 +947,6 @@ MessageContent = str | list[str | dict[Any, Any]]
 # blocks are serialized to the provider INDEPENDENTLY of ``message.tool_calls``
 # (measured against langchain-openai 1.5.2 and langchain-anthropic), which is
 # why stripping ``tool_calls`` alone cannot repair a poisoned history.
-_CALL_BLOCK_TYPES = frozenset({"function_call", "custom_tool_call", "tool_use"})
 
 
 def _call_block_id(block: str | dict[Any, Any]) -> str | None:

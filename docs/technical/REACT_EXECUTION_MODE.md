@@ -586,6 +586,10 @@ person's own active API-key connectors, derived from the client classes), `opera
   `egress/publisher.py`) and reloaded through the management API before the container
   starts; a reload the proxy refuses is a run that never starts (fail closed, counted as
   `proxy_unavailable`). Measured on dev: `task sandbox:egress:probe`.
+- **Nor does it come back out.** A service may quote the key it received; the run's real
+  keys are removed from what the script prints, and from a skill command's output and files
+  (masked in place), as written and URL-encoded (`egress/scrub.py`, ADR-298 amendment
+  2026-10-13 b).
 - **An unknown host is asked, with three answers** — allow with the turn's data, allow
   without it (stdin then carries no items), refuse — through a `SANDBOX_EGRESS` card
   (`egress/draft.py`). The question is settled IN the loop (`nodes/react_egress_question.py`):
@@ -598,7 +602,8 @@ person's own active API-key connectors, derived from the client classes), `opera
   and allows a host there by hand (ADR-327 lot 3). The question is settled for ANY sandbox
   tool that declares hosts — `run_python_tool` and a skill's `run_skill_command` alike, the
   card's purpose then being the skill and its command — and ONLY here: outside the loop (the skill runner in the response
-  node, a pipeline step, a routine) nothing could answer the card, so
+  node, a pipeline step) and inside a loop nobody watches (a routine — the predicate of the
+  ADR-263 amendment 2026-10-13) nothing could answer the card, so
   `tool_path.question_settleable()` is false and the tool refuses, naming that setting.
 - **The prompt offers what the account may reach** (`react_prompt.network_available`): the
   network section of `<Computation>` is rendered only when the egress capability is on (and

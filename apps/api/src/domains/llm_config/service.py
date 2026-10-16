@@ -13,7 +13,8 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.client_ip import resolve_client_ip
@@ -21,6 +22,7 @@ from src.core.config import settings
 from src.core.exceptions import raise_structured_validation_error
 from src.core.security.utils import decrypt_data, encrypt_data
 from src.domains.llm.models import LLMModelKindEnum
+from src.domains.llm_config.authorization import lock_current_admin
 from src.domains.llm_config.cache import LLMConfigOverrideCache
 from src.domains.llm_config.constants import LLM_DEFAULTS, LLM_PROVIDERS, LLM_TYPES_REGISTRY
 from src.domains.llm_config.decision_validation import (
@@ -40,6 +42,8 @@ from src.domains.llm_config.schemas import (
     ProviderModelsMetadata,
     ReasoningBudgetBounds,
 )
+from src.domains.llm_config.speech_guard import SpeechSelectionGuard, authorize_speech
+from src.domains.llm_config.speech_validation import refuse_unserved_speech_model
 from src.domains.users.models import AdminAuditLog
 from src.infrastructure.observability.logging import get_logger
 
@@ -77,20 +81,23 @@ async def upsert_provider_key_uncommitted(
     if provider not in LLM_PROVIDERS:
         raise ValueError(f"Unknown provider: {provider}")
 
-    encrypted = encrypt_data(key)
-    result = await db.execute(select(ProviderApiKey).where(ProviderApiKey.provider == provider))
-    existing = result.scalar_one_or_none()
-    if existing:
-        existing.encrypted_key = encrypted
-        existing.updated_by = updated_by
-    else:
-        db.add(
-            ProviderApiKey(
-                provider=provider,
-                encrypted_key=encrypted,
-                updated_by=updated_by,
-            )
-        )
+    statement = insert(ProviderApiKey).values(
+        provider=provider, encrypted_key=encrypt_data(key), updated_by=updated_by
+    )
+    statement = statement.on_conflict_do_update(
+        index_elements=[ProviderApiKey.provider],
+        set_={
+            "encrypted_key": statement.excluded.encrypted_key,
+            "updated_by": statement.excluded.updated_by,
+            "updated_at": func.now(),
+        },
+    )
+    # RETURNING refreshes an already-loaded ORM row as well: the caller's cache
+    # reload must see this write even when the key was inspected on this session.
+    result = await db.scalars(
+        statement.returning(ProviderApiKey), execution_options={"populate_existing": True}
+    )
+    result.one()
     await db.flush()
 
 
@@ -204,8 +211,11 @@ def _refuse_unserved_image_model(llm_type: str, provider: str | None, model: str
 class LLMConfigService:
     """Service for managing LLM configuration overrides and provider API keys."""
 
-    def __init__(self, db: AsyncSession) -> None:
+    def __init__(
+        self, db: AsyncSession, *, speech_guard: SpeechSelectionGuard | None = None
+    ) -> None:
         self.db = db
+        self.speech_guard = speech_guard
 
     # --- Provider API Keys ---
 
@@ -238,6 +248,15 @@ class LLMConfigService:
 
         return ProviderKeysResponse(providers=providers)
 
+    async def _authorize_provider_key_write(self, provider: str, admin_user_id: UUID) -> None:
+        """Lock provider before User, like credential-dependent configuration writes."""
+        if provider not in LLM_PROVIDERS:
+            raise ValueError(f"Unknown provider: {provider}")
+        await self.db.execute(
+            select(ProviderApiKey.id).where(ProviderApiKey.provider == provider).with_for_update()
+        )
+        await lock_current_admin(self.db, admin_user_id, action="manage provider API keys")
+
     async def update_provider_key(
         self,
         provider: str,
@@ -252,6 +271,7 @@ class LLMConfigService:
         how a key row is written; audit, commit, and cross-worker cache
         invalidation stay owned by this route.
         """
+        await self._authorize_provider_key_write(provider, admin_user_id)
         await upsert_provider_key_uncommitted(
             self.db, provider=provider, key=key, updated_by=admin_user_id
         )
@@ -273,10 +293,8 @@ class LLMConfigService:
         admin_user_id: UUID,
         request: Request,
     ) -> None:
-        """Delete a provider's API key. The provider will be unavailable until reconfigured."""
-        if provider not in LLM_PROVIDERS:
-            raise ValueError(f"Unknown provider: {provider}")
-
+        """Delete the stored provider key; adapter-specific environment fallbacks still apply."""
+        await self._authorize_provider_key_write(provider, admin_user_id)
         await self.db.execute(delete(ProviderApiKey).where(ProviderApiKey.provider == provider))
 
         self._log_audit(
@@ -378,6 +396,7 @@ class LLMConfigService:
             update.model = None
 
         _refuse_unserved_image_model(llm_type, update.provider, update.model)
+        refuse_unserved_speech_model(llm_type, update.provider, update.model)
         validate_decision_config(llm_type, update)
         await validate_decision_model(self.db, llm_type, update)
 
@@ -474,6 +493,14 @@ class LLMConfigService:
             floor=settings.llm_thinking_max_tokens_floor,
         )
 
+        await authorize_speech(
+            self.db,
+            llm_type,
+            _merge_config(LLM_DEFAULTS[llm_type], pending_overrides),
+            self.speech_guard,
+        )
+        await lock_current_admin(self.db, admin_user_id)
+
         result = await self.db.execute(
             select(LLMConfigOverride).where(LLMConfigOverride.llm_type == llm_type)
         )
@@ -514,6 +541,9 @@ class LLMConfigService:
         """Reset an LLM type to code defaults (delete DB override row)."""
         if llm_type not in LLM_TYPES_REGISTRY:
             raise ValueError(f"Unknown LLM type: {llm_type}")
+
+        await authorize_speech(self.db, llm_type, LLM_DEFAULTS[llm_type], self.speech_guard)
+        await lock_current_admin(self.db, admin_user_id)
 
         await self.db.execute(
             delete(LLMConfigOverride).where(LLMConfigOverride.llm_type == llm_type)

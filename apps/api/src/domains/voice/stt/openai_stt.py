@@ -25,6 +25,12 @@ import structlog
 from src.core.constants import OPENAI_STT_DIARIZE_MODEL_DEFAULT
 from src.domains.voice.stt.exceptions import STTProviderError
 from src.domains.voice.stt.protocol import STTFileResult, STTResult, TranscriptWord
+from src.domains.voice.vendor_refusal import (
+    OPENAI_CODE_PATHS,
+    payload_shape,
+    refusal_from_body,
+    retry_after_of,
+)
 from src.infrastructure.media.wav import wav_bytes
 
 logger = structlog.get_logger(__name__)
@@ -204,10 +210,11 @@ class OpenAISttService:
         """Validate the transcription payload and shape it as ``STTFileResult``."""
         text = payload.get("text")
         if not isinstance(text, str):
+            # The answer is the person's words: it travels by its keys alone (ADR-317).
             raise STTProviderError(
                 code="provider_invalid_response",
                 message="OpenAI response missing 'text'",
-                details=payload,
+                details=payload_shape(payload),
             )
         words = [
             self._segment_word(segment)
@@ -228,32 +235,39 @@ class OpenAISttService:
 
     @staticmethod
     def _raise_for_status(response: httpx.Response) -> None:
-        if response.status_code == 429:
-            retry_after_header = response.headers.get("Retry-After")
-            try:
-                retry_after = float(retry_after_header) if retry_after_header else None
-            except ValueError:
-                retry_after = None
+        """Map an HTTP failure to a classified ``STTProviderError`` — by its facts alone.
+
+        A refused body may quote what was being transcribed, so the error and
+        its log line carry the status and the vendor's bounded code, never the
+        body (ADR-317).
+        """
+        if response.status_code < 400:
+            return
+        refusal = refusal_from_body(response, *OPENAI_CODE_PATHS)
+        logger.warning(
+            "openai_stt_http_error", status_code=refusal.status, vendor_code=refusal.vendor_code
+        )
+        if refusal.status == 429:
             raise STTProviderError(
                 code="provider_rate_limited",
                 message="OpenAI rate limit hit",
-                retry_after_seconds=retry_after,
+                retry_after_seconds=retry_after_of(response),
+                details=refusal.details(),
             )
-        if response.status_code == 401:
+        if refusal.status == 401:
             raise STTProviderError(
                 code="invalid_api_key",
                 message="OpenAI rejected the configured API key",
-                details=response.text[:512],
+                details=refusal.details(),
             )
-        if response.status_code == 413:
+        if refusal.status == 413:
             raise STTProviderError(
                 code="provider_file_too_large",
                 message="OpenAI refused the file size (25 MB per request)",
-                details=response.text[:512],
+                details=refusal.details(),
             )
-        if response.status_code >= 400:
-            raise STTProviderError(
-                code="provider_http_error",
-                message=f"OpenAI returned HTTP {response.status_code}",
-                details=response.text[:512],
-            )
+        raise STTProviderError(
+            code="provider_http_error",
+            message=f"OpenAI returned HTTP {refusal.status}",
+            details=refusal.details(),
+        )

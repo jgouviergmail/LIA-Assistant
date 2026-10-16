@@ -65,6 +65,30 @@ logger = structlog.get_logger(__name__)
 _TRANSIENT_ERRORS = (TimeoutError, ConnectionError, OSError)
 
 
+def worst_case_run_seconds(timeout_seconds: int, max_attempts: int, retry_delay: int) -> int:
+    """The longest a LEGITIMATE run can hold its claim.
+
+    A ticket's reaper and a routine's recovery exist to free what a dead
+    worker still holds, and they must never free what a live worker is still
+    running: two runs on one row would spend twice and could act twice.
+
+    The trap it closes is arithmetic. The engine bounds ONE ATTEMPT, and a run
+    may retry a transient failure — so a run whose attempts each take the full
+    timeout holds its claim for ``timeout × attempts`` plus the pauses between
+    them, longer than the number an operator reads as « the timeout ». It lives
+    beside the retry policy it measures, so every reader derives it alike.
+
+    Args:
+        timeout_seconds: Hard bound of ONE attempt.
+        max_attempts: Attempts one run may make, the first included.
+        retry_delay: Pause between two attempts.
+
+    Returns:
+        The age past which a claim is certainly stranded.
+    """
+    return timeout_seconds * max_attempts + retry_delay * max(0, max_attempts - 1)
+
+
 class RunOutcome(str, Enum):
     """How an out-of-turn run ended.
 
@@ -158,16 +182,15 @@ class StreamRequest:
             the archive enrichers and the effect gate can read it.
         run_id: The id the turn must file everything under (ADR-117's detached
             producer path). A caller that has a row to settle supplies it, so
-            the three registers, the token logs and the ticket all name the
-            SAME run; None lets the graph mint its own, which is what the
-            routine path has always done.
+            the three registers, the token logs, the ticket and the question a
+            stopped turn leaves on the thread all name the SAME run, across its
+            attempts; None lets the graph mint its own.
         execution_mode: ``pipeline`` or ``react`` — the CALLER's decision, never
             the person's chat preference. Nothing here reads
-            ``user.execution_mode``: a routine keeps the deterministic pipeline
-            it has always run on, a ticket asks for the autonomous loop, and
-            the chat header's toggle keeps meaning the chat alone. A turn
-            SPOKEN by the person is the exception, and its caller passes the
-            person's own mode explicitly.
+            ``user.execution_mode``: a routine and a ticket each run in the
+            mode their own row carries, and the chat header's toggle keeps
+            meaning the chat alone. A turn SPOKEN by the person is the
+            exception, and its caller passes the person's own mode explicitly.
         spoken_by_person: True when the prompt is the person's OWN words
             (the relay of a phone call they had with LIA, lot 4). The turn
             is then NOT automated — the six extractions run, a plan is not
@@ -334,6 +357,46 @@ async def conversation_has_pending_hitl(
         return False, None
 
 
+async def clear_question_of_run(conversation_id: UUID | None, run_id: str) -> bool:
+    """Take back the question a run left on a thread nobody watches (N10).
+
+    The ReAct loop no longer asks when nobody can answer, but a path that does
+    not know — a pipeline clarification — still stops on a question. Left on
+    the thread, it reads the person's next message as its answer, and every
+    later run of the account stands aside for it. Only the run's OWN question
+    goes: the person's turn may have saved one since.
+
+    Best-effort by contract: a Redis hiccup must not turn a settled run into a
+    failed one.
+
+    Args:
+        conversation_id: The thread the run wrote to; None when the probe failed.
+        run_id: The run that asked.
+
+    Returns:
+        True when the run's question was found and cleared.
+    """
+    if conversation_id is None:
+        return False
+    from src.core.config import settings
+    from src.domains.agents.utils.hitl_store import HITLStore
+    from src.infrastructure.cache.redis import get_redis_cache
+
+    try:
+        store = HITLStore(
+            redis_client=await get_redis_cache(),
+            ttl_seconds=settings.hitl_pending_data_ttl_seconds,
+        )
+        return await store.clear_interrupt_for_run(str(conversation_id), run_id)
+    except Exception as clear_error:  # noqa: BLE001 — never costs a settle
+        logger.warning(
+            "out_of_turn_run_question_clear_failed",
+            run_id=run_id,
+            error_type=type(clear_error).__name__,
+        )
+        return False
+
+
 async def stream_instruction(request: StreamRequest) -> RunResult:
     """Run one instruction through the pipeline, with a timeout and retries.
 
@@ -374,14 +437,9 @@ async def _attempt_until_settled(request: StreamRequest) -> RunResult:
             )
         except _TRANSIENT_ERRORS as transient:
             last_error = transient
-            logger.warning(
-                "out_of_turn_run_transient_error",
-                session_id=request.session_id,
-                attempt=attempt,
-                error_type=type(transient).__name__,
-            )
-            if attempt < request.max_attempts and request.retry_delay_seconds:
-                await asyncio.sleep(request.retry_delay_seconds)
+            refused = await _retry_or_settle(request, attempt, transient)
+            if refused is not None:
+                return refused
             continue
         except Exception as fatal:  # noqa: BLE001 — settled as a failure, never raised
             logger.error(
@@ -435,6 +493,81 @@ async def _attempt_until_settled(request: StreamRequest) -> RunResult:
         attempt=attempt,
         error=_failure_message(last_error, request),
     )
+
+
+async def _retry_or_settle(
+    request: StreamRequest, attempt: int, transient: Exception
+) -> RunResult | None:
+    """Decide what a transient failure leads to: another attempt, or the end.
+
+    A retry replays the WHOLE turn. Measured in production: an attempt reached
+    its bound while a browser task ran, and the retry performed the browser
+    tasks again. So a retry is refused once the run may have acted (point 20).
+
+    Args:
+        request: The instruction and its bounds.
+        attempt: The attempt that just failed, 1-based.
+        transient: What it failed with.
+
+    Returns:
+        A FAILED result when a retry would replay an action; None to go on —
+        to the next attempt, or past the last one to the usual failure.
+    """
+    logger.warning(
+        "out_of_turn_run_transient_error",
+        session_id=request.session_id,
+        attempt=attempt,
+        error_type=type(transient).__name__,
+    )
+    if attempt >= request.max_attempts:
+        return None
+    if await _run_acted(request.run_id):
+        logger.warning(
+            "out_of_turn_run_retry_refused_after_effect",
+            session_id=request.session_id,
+            run_id=request.run_id,
+            attempt=attempt,
+        )
+        return _settled(
+            request,
+            RunOutcome.FAILED,
+            attempt=attempt,
+            error=_failure_message(transient, request, attempts=attempt),
+        )
+    if request.retry_delay_seconds:
+        await asyncio.sleep(request.retry_delay_seconds)
+    return None
+
+
+async def _run_acted(run_id: str | None) -> bool:
+    """Whether an attempt of this run may have acted on the world (ADR-263).
+
+    The register answers: any action row of the run but a refusal says it may
+    have. A register that cannot be read answers yes — doubt never retries, an
+    action that may have happened must not happen twice. A caller that names no
+    run can read nothing, and keeps the retry it always had.
+
+    Args:
+        run_id: The run, or None when the graph minted its own per attempt.
+
+    Returns:
+        True when a retry could replay an action.
+    """
+    if not run_id:
+        return False
+    from src.domains.agents.effects.repository import EffectLedgerRepository
+    from src.infrastructure.database.session import get_db_context
+
+    try:
+        async with get_db_context() as db:
+            return await EffectLedgerRepository(db).acted_in_run(run_id)
+    except Exception as read_error:  # noqa: BLE001 — doubt never retries
+        logger.warning(
+            "out_of_turn_run_effects_unreadable",
+            run_id=run_id,
+            error_type=type(read_error).__name__,
+        )
+        return True
 
 
 async def _one_attempt(request: StreamRequest, attempt: int) -> _StreamReader:
@@ -694,20 +827,25 @@ def _settled(
     )
 
 
-def _failure_message(error: Exception | None, request: StreamRequest) -> str:
+def _failure_message(
+    error: Exception | None, request: StreamRequest, *, attempts: int | None = None
+) -> str:
     """Say what went wrong, naming the bound when a timeout is what did.
 
     Args:
         error: The last transient failure, when there was one.
         request: The instruction, for its timeout value.
+        attempts: How many attempts actually ran — fewer than the bound when a
+            retry was refused; the bound when omitted.
 
     Returns:
         A typed, bounded message — never a traceback.
     """
     if isinstance(error, TimeoutError):
+        made = attempts if attempts is not None else request.max_attempts
         return (
             f"Execution timed out after {request.timeout_seconds}s "
-            f"({request.max_attempts} attempts)"
+            f"({made} attempt{'s' if made > 1 else ''})"
         )
     if error is not None:
         return f"{type(error).__name__}: {error}"

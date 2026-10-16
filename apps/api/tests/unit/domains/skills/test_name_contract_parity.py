@@ -16,6 +16,7 @@ below).
 from __future__ import annotations
 
 import importlib.util
+import re
 from pathlib import Path
 from types import ModuleType
 
@@ -154,3 +155,45 @@ Perform the declared step.
         assert result["valid"] is valid
         if not valid:
             assert any("setting_agent" in error for error in result["errors"])
+
+
+class TestStepTypeParity:
+    """The skill generator names the step types a template can run, and only those.
+
+    Four copies had drifted apart (ADR-346 amendment): the runtime ran TOOL
+    steps from a template, the skill guide offered REPLAN and HUMAN, the
+    generator's specification and validator PARALLEL and RESPONSE. A copy that
+    names a type the runtime refuses sends the model writing the skill to a
+    template that never runs as written. The guide's own guard is
+    ``test_skill_guide_step_types_sync.py``.
+    """
+
+    @staticmethod
+    def _runtime_types() -> set[str]:
+        from src.domains.agents.services.planner.strategies.skill_bypass import (
+            TEMPLATE_STEP_TYPES,
+        )
+
+        return {step_type.value for step_type in TEMPLATE_STEP_TYPES}
+
+    @staticmethod
+    def _named_types(text: str) -> set[str]:
+        """Upper-case identifiers of three letters or more, the way a type is spelled."""
+        return set(re.findall(r"(?<![A-Za-z])[A-Z][A-Z_]{2,}(?![A-Za-z])", text))
+
+    def test_the_generator_validates_exactly_what_a_template_runs(self) -> None:
+        validator = _load_validator_module()
+        assert set(validator.VALID_STEP_TYPES) == self._runtime_types()
+
+    def test_the_generator_specification_names_the_same_types(self) -> None:
+        script = _find_validator_script()
+        if script is None:
+            pytest.skip("skill-generator not found in this checkout")
+        spec = script.parents[1] / "references" / "format-specification.md"
+        lines = [
+            line
+            for line in spec.read_text(encoding="utf-8").splitlines()
+            if line.lstrip().startswith("step_type:")
+        ]
+        assert len(lines) == 1, "the specification declares step_type exactly once"
+        assert self._named_types(lines[0]) == self._runtime_types()

@@ -5,6 +5,7 @@ import { SlidersHorizontal } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { buttonVariants } from '@/components/ui/button';
 import { settingsSectionHref } from '@/lib/settings-sections';
 
 interface CustomizeBriefingButtonProps {
@@ -18,8 +19,7 @@ interface CustomizeBriefingButtonProps {
  * the capability lived buried in the settings; this surfaces it exactly where
  * it becomes relevant, deep-linking to the `briefing-grid` section.
  *
- * - Mobile (<640 px): icon only (label hidden)
- * - Desktop (>=640 px): icon + label
+ * - Compact ghost treatment, with icon and translated label at every width.
  */
 export function CustomizeBriefingButton({ lng }: CustomizeBriefingButtonProps) {
   const { t } = useTranslation();
@@ -32,14 +32,12 @@ export function CustomizeBriefingButton({ lng }: CustomizeBriefingButtonProps) {
           href={settingsSectionHref(lng, 'briefing-grid')}
           aria-label={label}
           className={cn(
-            'inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium',
-            'text-muted-foreground hover:text-foreground hover:bg-muted/60',
-            'transition-colors duration-200',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-1'
+            buttonVariants({ variant: 'ghost', size: 'sm' }),
+            'h-auto min-h-8 min-w-0 max-w-full gap-1.5 whitespace-normal px-2 py-1.5 text-xs font-medium leading-snug text-muted-foreground [&_svg]:size-3.5'
           )}
         >
-          <SlidersHorizontal className="h-3.5 w-3.5" strokeWidth={2} />
-          <span className="hidden sm:inline">{label}</span>
+          <SlidersHorizontal className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
+          <span className="min-w-0 break-words text-left">{label}</span>
         </Link>
       </TooltipTrigger>
       <TooltipContent>{t('dashboard.briefing.customize_tooltip')}</TooltipContent>

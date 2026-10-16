@@ -4,7 +4,7 @@ ConversationOrchestrator: Manage conversation lifecycle and persistence.
 Responsibilities:
 - Setup conversation (get or create)
 - Setup tracking context for tokens/messages
-- Fetch user OAuth scopes
+- Fetch user OAuth scopes and active connector types
 - Persist messages to database
 - Finalize conversation with token summary
 
@@ -37,6 +37,9 @@ class ConversationContext:
     - conversation_id: UUID for thread_id
     - tracking_context: Token/message tracking
     - oauth_scopes: User's OAuth permissions
+    - active_connector_types: The types of the connectors that granted them,
+      and of the ones that grant none (iCloud) — which provider serves a
+      category tool (RC1.1)
     - previous_tokens_summary: Token summary from DB BEFORE this request (for HITL incremental display)
     """
 
@@ -46,10 +49,12 @@ class ConversationContext:
         tracking_context: TrackingContext,
         oauth_scopes: list[str],
         previous_tokens_summary: TokenSummaryDTO | None = None,
+        active_connector_types: frozenset[str] = frozenset(),
     ):
         self.conversation_id = conversation_id
         self.tracking_context = tracking_context
         self.oauth_scopes = oauth_scopes
+        self.active_connector_types = active_connector_types
         self.previous_tokens_summary = previous_tokens_summary or TokenSummaryDTO.zero()
 
 
@@ -121,8 +126,8 @@ class ConversationOrchestrator:
             user_id=str(user_id),
         )
 
-        # Fetch OAuth scopes from user's active connectors
-        oauth_scopes = await self._get_user_oauth_scopes(user_id, db)
+        # Fetch OAuth scopes and connector types from user's active connectors
+        oauth_scopes, active_connector_types = await self._get_user_connector_grants(user_id, db)
 
         # === HITL Token Fix: Capture PREVIOUS tokens BEFORE tracking starts ===
         # For HITL flows (same run_id across multiple requests), we need to know
@@ -146,6 +151,7 @@ class ConversationOrchestrator:
             tracking_context=tracking_context,
             oauth_scopes=oauth_scopes,
             previous_tokens_summary=previous_tokens_summary,
+            active_connector_types=active_connector_types,
         )
 
     async def finalize_conversation(
@@ -191,9 +197,11 @@ class ConversationOrchestrator:
     # PRIVATE METHODS
     # ============================================================================
 
-    async def _get_user_oauth_scopes(self, user_id: uuid.UUID, db: AsyncSession) -> list[str]:
+    async def _get_user_connector_grants(
+        self, user_id: uuid.UUID, db: AsyncSession
+    ) -> tuple[list[str], frozenset[str]]:
         """
-        Fetch OAuth scopes from user's active connectors.
+        Fetch OAuth scopes and connector types from user's active connectors.
 
         Retrieves all scopes from connectors where:
         - user_id matches
@@ -205,7 +213,8 @@ class ConversationOrchestrator:
             db: Database session
 
         Returns:
-            List of OAuth scopes
+            The OAuth scopes, and the active connector types (their values) —
+            an iCloud connector grants no scope but serves its category.
         """
         # Query active connectors
         stmt = select(Connector).where(
@@ -248,7 +257,7 @@ class ConversationOrchestrator:
             scope_flags=scope_flags,
         )
 
-        return scopes_list
+        return scopes_list, frozenset(c.connector_type.value for c in connectors)
 
     async def _get_previous_tokens_from_db(self, run_id: str, db: AsyncSession) -> TokenSummaryDTO:
         """

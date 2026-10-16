@@ -10,8 +10,10 @@ calling ``get_attachment`` on the client; the mixin is where it is defined.
 from __future__ import annotations
 
 import base64
+import binascii
 from typing import Any, Protocol
 
+from src.core.exceptions import ConnectorAPIError
 from src.domains.connectors.clients.email_attachments import (
     EmailAttachmentContent,
     attachment_mime,
@@ -20,7 +22,13 @@ from src.domains.connectors.clients.email_attachments import (
 )
 
 
-class _GmailHost(Protocol):
+class _GmailAttachmentReader(Protocol):
+    """The read shared with the composition mixin."""
+
+    async def get_attachment(self, message_id: str, attachment_id: str) -> bytes: ...
+
+
+class _GmailHost(_GmailAttachmentReader, Protocol):
     """What the mixin needs from its host: the request seam, the message read,
     and its own download (declared here so one method may call the other)."""
 
@@ -39,7 +47,47 @@ class _GmailHost(Protocol):
         use_cache: bool = True,
     ) -> dict[str, Any]: ...
 
-    async def get_attachment(self, message_id: str, attachment_id: str) -> bytes: ...
+
+def _invalid_attachment() -> ConnectorAPIError:
+    """A bounded provider failure, never its possibly private response body."""
+    return ConnectorAPIError(
+        connector_type="google_gmail",
+        status_code=502,
+        detail="The attachment data is missing, malformed or incomplete.",
+    )
+
+
+def decode_gmail_part_body(body: dict[str, Any]) -> bytes:
+    """Read Gmail's base64url body and verify its published decoded size."""
+    encoded, size = body.get("data"), body.get("size")
+    if not isinstance(encoded, str) or type(size) is not int or size < 0:
+        raise _invalid_attachment()
+    try:
+        data = base64.b64decode(encoded + "=" * (-len(encoded) % 4), altchars=b"-_", validate=True)
+    except binascii.Error, ValueError:
+        raise _invalid_attachment() from None
+    if len(data) != size:
+        raise _invalid_attachment()
+    return data
+
+
+async def read_gmail_attachment(
+    host: _GmailAttachmentReader, message_id: str, payload: dict[str, Any], listed: dict[str, Any]
+) -> bytes:
+    """Read an external or inline file, without publishing its encoded body."""
+    handle = listed.get("attachment_id")
+    if handle:
+        data = await host.get_attachment(message_id, str(handle))
+    else:
+        part = payload
+        path = str(listed.get("part_id") or "")
+        for position in path.split(".") if path else ():
+            part = part["parts"][int(position)]
+        data = decode_gmail_part_body(part.get("body") or {})
+    size = listed.get("size")
+    if type(size) is not int or size < 0 or len(data) != size:
+        raise _invalid_attachment()
+    return data
 
 
 class GmailAttachmentsMixin:
@@ -65,32 +113,25 @@ class GmailAttachmentsMixin:
         """
         attachments: list[dict[str, Any]] = []
 
-        def scan_parts(parts: list[dict[str, Any]], parent_part_id: str = "") -> None:
-            for i, part in enumerate(parts):
-                part_id = f"{parent_part_id}.{i}" if parent_part_id else str(i)
-                mime_type = part.get("mimeType", "")
-                filename = part.get("filename", "")
-                body = part.get("body", {})
-
-                # Check if this is an attachment (has filename and attachmentId)
-                if filename and body.get("attachmentId"):
-                    attachments.append(
-                        {
-                            "attachment_id": body["attachmentId"],
-                            "filename": filename,
-                            "mime_type": mime_type,
-                            "size": body.get("size", 0),
-                            "part_id": part_id,
-                        }
-                    )
-
-                # Recurse into nested parts
-                if "parts" in part:
-                    scan_parts(part["parts"], part_id)
-
-        # Start scanning from top-level parts
-        if "parts" in payload:
-            scan_parts(payload["parts"])
+        pending = [(payload, "")]
+        while pending:
+            part, part_id = pending.pop()
+            body = part.get("body") or {}
+            if part.get("filename"):
+                attachments.append(
+                    {
+                        "attachment_id": body.get("attachmentId"),
+                        "filename": part["filename"],
+                        "mime_type": part.get("mimeType", ""),
+                        "size": body.get("size"),
+                        "part_id": part_id,
+                    }
+                )
+            children = part.get("parts") or []
+            pending.extend(
+                (child, f"{part_id}.{i}" if part_id else str(i))
+                for i, child in reversed(list(enumerate(children)))
+            )
 
         return attachments
 
@@ -114,16 +155,7 @@ class GmailAttachmentsMixin:
             f"/users/me/messages/{message_id}/attachments/{attachment_id}",
         )
 
-        # Gmail returns base64url-encoded data
-        data_b64 = response.get("data", "")
-        # Convert base64url to standard base64
-        data_b64 = data_b64.replace("-", "+").replace("_", "/")
-        # Add padding if needed
-        padding = len(data_b64) % 4
-        if padding:
-            data_b64 += "=" * (4 - padding)
-
-        return base64.b64decode(data_b64)
+        return decode_gmail_part_body(response)
 
     async def download_attachment(
         self: _GmailHost,
@@ -157,7 +189,9 @@ class GmailAttachmentsMixin:
         listed = GmailAttachmentsMixin._extract_attachment_info(message.get("payload") or {})
         chosen = select_attachment(listed, attachment_id=attachment_id, filename=filename)
         ensure_within_bound(chosen, max_bytes=max_bytes)
-        data = await self.get_attachment(message_id, str(chosen["attachment_id"]))
+        data = await read_gmail_attachment(
+            self, message_id, message.get("payload") or {}, dict(chosen)
+        )
         return EmailAttachmentContent(
             filename=str(chosen.get("filename") or ""),
             mime_type=attachment_mime(chosen),

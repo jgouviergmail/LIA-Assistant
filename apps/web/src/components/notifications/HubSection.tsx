@@ -3,7 +3,7 @@
 /**
  * One section of the notifications hub: a folded block, a page, a total.
  *
- * The hub stacks five of these. What they share — and what would drift if each
+ * Each source uses this shell. What they share — and what would drift if each
  * wrote it out — is not only the chrome but the ORDER of the states and the
  * three rules behind them:
  *
@@ -23,7 +23,7 @@
  * opened to find out whether it holds anything.
  */
 
-import type { ReactNode } from 'react';
+import type { ReactNode, Ref } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -33,6 +33,7 @@ import { Disclosure } from '@/components/ui/disclosure';
 
 export interface HubSectionProps {
   icon: LucideIcon;
+  summaryRef?: Ref<HTMLElement>;
   /** Already translated. */
   title: string;
   /**
@@ -74,6 +75,7 @@ export interface HubSectionProps {
 
 export function HubSection({
   icon,
+  summaryRef,
   title,
   subtitle,
   emptyLabel,
@@ -94,6 +96,9 @@ export function HubSection({
   return (
     <Disclosure
       icon={icon}
+      summaryRef={summaryRef}
+      titleClassName="whitespace-normal break-words"
+      className="rounded-none border-x-0 border-t-0 border-b border-border/50 bg-transparent px-0 last:border-b-0 [&>summary]:min-h-16 [&>summary]:py-4"
       title={title}
       // The NUMBER only: `Disclosure` already wraps whatever it is
       // given in the house pill, and a second styled span nested one pill
@@ -121,7 +126,7 @@ export function HubSection({
         <div className="flex justify-center py-6">
           <LoadingSpinner className="h-5 w-5" />
         </div>
-      ) : error ? (
+      ) : error && isEmpty ? (
         // BEFORE emptiness, deliberately: see the note at the top.
         <p role="alert" className="text-sm text-destructive">
           {errorLabel}
@@ -129,7 +134,12 @@ export function HubSection({
       ) : isEmpty ? (
         <p className="text-sm italic text-muted-foreground">{emptyLabel}</p>
       ) : (
-        <div className="space-y-3" aria-busy={loading || undefined}>
+        <div className="min-w-0 space-y-4" aria-busy={loading || undefined}>
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {errorLabel}
+            </p>
+          )}
           {children}
           {totalPages > 1 && (
             <Pagination

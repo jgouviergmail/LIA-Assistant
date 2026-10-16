@@ -242,7 +242,7 @@ class UserService:
             UserPreferencesCache.invalidate(str(user_id))
 
         # Sync psyche Big Five traits when personality changes
-        if "personality_id" in update_data and update_data["personality_id"] is not None:
+        if "personality_id" in update_data:
             try:
                 from src.domains.psyche.service import PsycheService
 

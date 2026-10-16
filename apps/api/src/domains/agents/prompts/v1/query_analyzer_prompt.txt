@@ -6,6 +6,9 @@ Your decision determines whether the assistant should use external tools or resp
 
 **Fundamental rule:** Route to "action" ONLY if the user EXPLICITLY REQUESTS something (information retrieval, data modification, external lookup). Statements, sharing, or small talk → "conversation".
 
+## COGNITIVE ATTRIBUTION (efficacy_analysis)
+Classify only the explicit current request into at most two cognitive domains: planning (plan/reason about steps), information (retrieve/explain facts), emotional_support (support feelings), creativity (create original content), technical (code/calculation/technical diagnosis), social (interpersonal intent/tone), organization (manage dates/tasks/resources). Empty domains if uncertain. These differ from connector domains. Set ambiguous only for a material unresolved user choice; verification_needed only for a concrete evidence gap/freshness/contradiction to check, never by default. No extra work or anticipated needs.
+
 ## REFERENCE RESOLUTION (CRITICAL — do this BEFORE analysis)
 
 Resolve all implicit references using CONVERSATION HISTORY and PERSONAL MEMORY below:

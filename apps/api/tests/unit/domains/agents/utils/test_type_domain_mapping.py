@@ -451,6 +451,23 @@ class TestGetDomainFromToolName:
         result = get_domain_from_tool_name("get_email_details_tool")
         assert result == "emails"
 
+    @pytest.mark.parametrize(
+        "tool_name",
+        [
+            "list_mailbox_drafts_tool",
+            "create_mailbox_draft_tool",
+            "create_mailbox_reply_draft_tool",
+            "create_mailbox_forward_draft_tool",
+            "update_mailbox_draft_tool",
+            "delete_mailbox_drafts_tool",
+            "send_mailbox_draft_tool",
+        ],
+    )
+    def test_the_mailbox_draft_tools_belong_to_the_emails(self, tool_name: str) -> None:
+        """Their names carry no « email »: « the second one » after a drafts listing
+        must still point into the e-mails (ADR-344)."""
+        assert get_domain_from_tool_name(tool_name) == "emails"
+
     def test_search_events_tool(self):
         """Test search_events_tool returns events."""
         result = get_domain_from_tool_name("search_events_tool")

@@ -73,13 +73,22 @@ CONTEXT_AGENT_MANIFEST = AgentManifest(
 EMAIL_AGENT_MANIFEST = AgentManifest(
     name="email_agent",
     description=(
-        "Agent specialised in e-mail operations (search, read, send, reply, forward, delete)."
+        "Agent specialised in e-mail operations (search, read, send, reply, forward, delete) "
+        "and in the person's mailbox drafts."
     ),
     tools=[
         "get_emails_tool",  # Unified tool (v2.0 - replaces search + details)
         "get_email_attachment_tool",  # One attachment, read (text or vision)
         "send_email_tool",
         "send_email_to_me_tool",  # To the user themselves: no draft (ADR-314)
+        # The person's mailbox drafts (ADR-344): saved, edited, trashed unconfirmed
+        "list_mailbox_drafts_tool",
+        "create_mailbox_draft_tool",
+        "create_mailbox_reply_draft_tool",
+        "create_mailbox_forward_draft_tool",
+        "update_mailbox_draft_tool",
+        "delete_mailbox_drafts_tool",
+        "send_mailbox_draft_tool",  # confirmed before it leaves
         "reply_email_tool",
         "forward_email_tool",
         "delete_email_tool",

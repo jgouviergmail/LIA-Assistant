@@ -2,7 +2,7 @@
 ReAct Sub-Agent Runner — Generic runner for LangGraph ReAct agents.
 
 Factorizes the common pattern used by browser_task_tool and mcp_server_task_tool:
-LLM setup -> prompt loading -> create_react_agent -> invoke -> extract result.
+LLM setup -> prompt loading -> create_agent -> invoke -> extract result.
 
 Designed for composition: any tool needing an iterative agent loop can
 instantiate ReactSubAgentRunner with its own LLM type, prompt, and tools.
@@ -10,6 +10,11 @@ instantiate ReactSubAgentRunner with its own LLM type, prompt, and tools.
 Extensible via optional hooks:
 - registry_collector: Collects registry items from tools after execution.
   Default: checks for ``_accumulated_registry`` PrivateAttr on tool wrappers.
+
+A loop's budget end is a closing pass, never an answer of LangGraph's
+(ADR-083 amendment 2026-10-13): the last call it can make gets no tool and
+writes from what the loop gathered (``react_runner_closing``), and the result
+says how the run ended (``outcome``, ``closed_on_budget``, ``truncated``).
 
 Phase: ADR-062 — Agent Initiative Phase + MCP Iterative Support
 Created: 2026-03-24
@@ -20,14 +25,15 @@ from __future__ import annotations
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from enum import StrEnum
 from typing import Any
 
 import structlog
+from langchain.agents import create_agent
 from langchain.tools import ToolRuntime
 from langchain_core.messages import BaseMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import BaseTool
-from langgraph.prebuilt import create_react_agent
 
 from src.core.time_utils import get_prompt_datetime_formatted
 from src.domains.agents.context.runtime_context import (
@@ -38,12 +44,21 @@ from src.domains.agents.context.runtime_context import (
 )
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.agents.python_sandbox.egress.settlement import outside_settlement
+from src.domains.agents.tools.common import ToolErrorCode
+from src.domains.agents.tools.react_runner_closing import (
+    ClosingMiddleware,
+    ClosingState,
+    ClosingTrace,
+)
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.message_text import coerce_content_to_text
+from src.infrastructure.llm.output_truncation import is_output_truncated
+from src.infrastructure.observability.error_taxonomy import LLM_FAILURE_KINDS, classify_llm_error
 from src.infrastructure.observability.metrics_subagent import (
     subagent_active_count,
     subagent_duration_seconds,
     subagent_errors_total,
+    subagent_outcomes_total,
     subagent_spawned_total,
     subagent_tokens_in_total,
     subagent_tokens_out_total,
@@ -53,6 +68,18 @@ logger = structlog.get_logger(__name__)
 
 # Type alias for the registry collector hook
 RegistryCollector = Callable[[list[BaseTool]], dict[str, Any]]
+
+
+class SubAgentOutcome(StrEnum):
+    """How a sub-loop ended: only ANSWERED carries an answer.
+
+    A closed or cut answer is still ANSWERED — what it lacks travels in the
+    result's flags, never in the status (ADR-303's partial doctrine).
+    """
+
+    ANSWERED = "answered"
+    EMPTY = "empty"
+    ERROR = "error"
 
 
 @dataclass(frozen=True)
@@ -66,6 +93,12 @@ class ReactSubAgentResult:
             (e.g., MCP App HTML widgets via _MCPReActWrapper).
         iteration_count: Number of tool-calling iterations the agent performed.
         duration_ms: Wall-clock duration in milliseconds.
+        outcome: How the loop ended (an answer, nothing, or an error).
+        closed_on_budget: The answer was written by the closing pass: the budget
+            ended the research, not the model.
+        truncated: The provider cut the answer at its output budget — kept on an
+            EMPTY run too, where a thinking model spent the cap before writing.
+        failure_kind: On an error, its class in ``LLM_FAILURE_KINDS``.
     """
 
     final_message: str
@@ -73,6 +106,187 @@ class ReactSubAgentResult:
     accumulated_registry: dict[str, Any] = field(default_factory=dict)
     iteration_count: int = 0
     duration_ms: int = 0
+    outcome: SubAgentOutcome = SubAgentOutcome.ANSWERED
+    closed_on_budget: bool = False
+    truncated: bool = False
+    failure_kind: str | None = None
+
+
+#: The structured-data keys a reader adds when an answer is partial — present,
+#: and true, only then: the partial travels in a field, never in the status.
+BUDGET_EXHAUSTED_FIELD = "budget_exhausted"
+OUTPUT_TRUNCATED_FIELD = "output_truncated"
+
+#: How a sub-loop's model failure reads as a tool error code (ADR-303): one code
+#: per ``LLM_FAILURE_KINDS`` member, so the honesty directive can tell « retry
+#: later » (a limit, a timeout) from « the configuration is wrong ».
+_FAILURE_KIND_CODES: dict[str, ToolErrorCode] = {
+    "rate_limit": ToolErrorCode.RATE_LIMIT_EXCEEDED,
+    "timeout": ToolErrorCode.TIMEOUT,
+    "api_error": ToolErrorCode.EXTERNAL_API_ERROR,
+    "context_length_exceeded": ToolErrorCode.CONSTRAINT_VIOLATION,
+    "content_filter": ToolErrorCode.CONSTRAINT_VIOLATION,
+    "authentication": ToolErrorCode.CONFIGURATION_ERROR,
+    "model_not_found": ToolErrorCode.CONFIGURATION_ERROR,
+    "invalid_request": ToolErrorCode.INTERNAL_ERROR,
+    "unknown": ToolErrorCode.INTERNAL_ERROR,
+}
+
+
+def _assert_failure_codes_complete() -> None:
+    """Refuse to import with a failure kind the code table does not cover.
+
+    Raises:
+        RuntimeError: When ``_FAILURE_KIND_CODES`` and ``LLM_FAILURE_KINDS`` disagree.
+    """
+    missing = LLM_FAILURE_KINDS - _FAILURE_KIND_CODES.keys()
+    unknown = _FAILURE_KIND_CODES.keys() - LLM_FAILURE_KINDS
+    if missing or unknown:
+        raise RuntimeError(
+            f"Sub-loop failure code table incomplete: missing={sorted(missing)}, "
+            f"unknown={sorted(unknown)}"
+        )
+
+
+_assert_failure_codes_complete()
+
+
+def failure_code_of(result: ReactSubAgentResult) -> ToolErrorCode:
+    """The tool error code of a run that produced no answer.
+
+    Args:
+        result: A run whose outcome is EMPTY or ERROR.
+
+    Returns:
+        ``EMPTY_RESULT`` for an empty run; the code of its failure kind otherwise.
+    """
+    if result.outcome is SubAgentOutcome.EMPTY:
+        return ToolErrorCode.EMPTY_RESULT
+    return _FAILURE_KIND_CODES.get(result.failure_kind or "unknown", ToolErrorCode.INTERNAL_ERROR)
+
+
+def failure_sentence(result: ReactSubAgentResult) -> str:
+    """How a run without an answer ended, for the reader's failure message.
+
+    Technical English, completing « <subject> … » (ADR-256): never the exception's
+    text, which can quote the request (ADR-317).
+
+    Args:
+        result: A run whose outcome is EMPTY or ERROR.
+
+    Returns:
+        The predicate of the sentence.
+    """
+    if result.outcome is SubAgentOutcome.ERROR:
+        return f"failed: its model call ended in error ({result.failure_kind or 'unknown'})"
+    if result.truncated:
+        return "ended without an answer: its output budget was spent before it wrote one"
+    return "ended without an answer"
+
+
+def partial_fields(result: ReactSubAgentResult) -> dict[str, bool]:
+    """What an answered run lacks, as structured-data fields (empty when complete).
+
+    Args:
+        result: An answered run.
+
+    Returns:
+        ``{BUDGET_EXHAUSTED_FIELD: True}`` when the budget ended the research,
+        ``{OUTPUT_TRUNCATED_FIELD: True}`` when the provider cut the answer.
+    """
+    fields: dict[str, bool] = {}
+    if result.closed_on_budget:
+        fields[BUDGET_EXHAUSTED_FIELD] = True
+    if result.truncated:
+        fields[OUTPUT_TRUNCATED_FIELD] = True
+    return fields
+
+
+def outcome_label(result: ReactSubAgentResult) -> str:
+    """The run's outcome as one bounded metric label, the most telling first.
+
+    Args:
+        result: A finished run.
+
+    Returns:
+        ``error``, ``empty``, ``truncated``, ``closed_on_budget`` or ``answered``.
+    """
+    if result.outcome is not SubAgentOutcome.ANSWERED:
+        return result.outcome.value
+    if result.truncated:
+        return "truncated"
+    if result.closed_on_budget:
+        return "closed_on_budget"
+    return result.outcome.value
+
+
+def _message_text(message: BaseMessage | None) -> str:
+    """A message's text: str (most providers) and list[dict] blocks (Gemini 3.x) alike."""
+    if message is None:
+        return ""
+    return coerce_content_to_text(message.content) if hasattr(message, "content") else str(message)
+
+
+def _failed_result(
+    exc: Exception, elapsed_ms: int, *, registry: dict[str, Any]
+) -> ReactSubAgentResult:
+    """The result of a loop the provider (or LangGraph) aborted.
+
+    It carries no text: the outcome says the run failed, and an exception's text
+    reaching a model is the leak CLAUDE.md forbids (it can quote the request). It
+    keeps what the tools produced before the failure: a widget they created exists.
+
+    Args:
+        exc: What the loop raised.
+        elapsed_ms: The run's wall-clock duration.
+        registry: Registry items the tools accumulated before the failure.
+
+    Returns:
+        An ERROR result carrying the failure's class in ``LLM_FAILURE_KINDS``.
+    """
+    return ReactSubAgentResult(
+        final_message="",
+        messages=[],
+        accumulated_registry=registry,
+        duration_ms=elapsed_ms,
+        outcome=SubAgentOutcome.ERROR,
+        failure_kind=classify_llm_error(exc),
+    )
+
+
+def _finished_result(
+    messages: list[BaseMessage],
+    *,
+    registry: dict[str, Any],
+    closed: bool,
+    elapsed_ms: int,
+) -> ReactSubAgentResult:
+    """The result of a loop that ran to its end.
+
+    Args:
+        messages: The loop's messages, its answer last.
+        registry: Registry items the tools accumulated.
+        closed: Whether the closing pass wrote the answer.
+        elapsed_ms: The run's wall-clock duration.
+
+    Returns:
+        ANSWERED when the last message says something, EMPTY otherwise, with the
+        provider's own verdict on a cut answer — an empty one included: a thinking
+        model bills its reasoning inside the output budget (ADR-285).
+    """
+    last_msg = messages[-1] if messages else None
+    final_message = _message_text(last_msg)
+    answered = bool(final_message.strip())
+    return ReactSubAgentResult(
+        final_message=final_message,
+        messages=messages,
+        accumulated_registry=registry,
+        iteration_count=sum(1 for m in messages if getattr(m, "tool_calls", None)),
+        duration_ms=elapsed_ms,
+        outcome=SubAgentOutcome.ANSWERED if answered else SubAgentOutcome.EMPTY,
+        closed_on_budget=closed,
+        truncated=last_msg is not None and is_output_truncated(last_msg),
+    )
 
 
 def _default_registry_collector(tools: list[BaseTool]) -> dict[str, Any]:
@@ -173,23 +387,27 @@ class ReactSubAgentRunner:
         self,
         agent_name: str,
         elapsed_s: float,
-        messages: list[BaseMessage],
+        result: ReactSubAgentResult,
         error_type: str | None,
     ) -> None:
-        """Emit duration, token and error metrics for a finished run.
+        """Emit duration, outcome, token and error metrics for a finished run.
 
         Does NOT touch ``subagent_active_count`` — that gauge is balanced in a
         ``finally`` (see :meth:`_emit_active_dec`) so it stays correct even when
-        setup (``get_llm`` / ``load_prompt`` / ``create_react_agent``) raises.
+        setup (``get_llm`` / ``load_prompt`` / ``create_agent``) raises.
 
         Args:
             agent_name: Sub-agent ``llm_type`` used as the metric label.
             elapsed_s: Wall-clock execution time in seconds.
-            messages: ReAct messages (for token extraction on success).
+            result: The run's result (its outcome; its messages for the tokens).
             error_type: Exception class name if the run failed, else ``None``.
         """
+        messages = result.messages
         try:
             subagent_duration_seconds.labels(agent_name=agent_name).observe(elapsed_s)
+            subagent_outcomes_total.labels(
+                agent_name=agent_name, outcome=outcome_label(result)
+            ).inc()
             if error_type is not None:
                 subagent_errors_total.labels(agent_name=agent_name, error_type=error_type).inc()
                 return
@@ -227,20 +445,22 @@ class ReactSubAgentRunner:
                 ``current_datetime`` is injected automatically.
             parent_runtime: ToolRuntime from parent graph (store/config propagation).
             thread_prefix: Prefix for the nested thread_id (isolation).
-            recursion_limit: Max ReAct iterations (safety limit).
+            recursion_limit: LangGraph recursion limit, in graph STEPS: the loop
+                runs ``tool_rounds_for(limit)`` tool rounds, then a closing pass
+                without tools (``react_runner_budget``).
             display_name: User-friendly name for the debug panel (e.g.,
                 "MCP Iterative: excalidraw"). If None, defaults to llm_type.
 
         Returns:
             ReactSubAgentResult with final message, messages, accumulated
-            registry items, iteration count, and duration.
+            registry items, iteration count, duration and how the run ended.
         """
         start = time.perf_counter()
         agent_name = self.llm_type
         self._emit_spawn(agent_name)
 
         # try/finally guarantees the active-count gauge is balanced even if the
-        # setup below (get_llm / load_prompt / create_react_agent) raises and the
+        # setup below (get_llm / load_prompt / create_agent) raises and the
         # exception propagates to the caller.
         try:
             llm = get_llm(self.llm_type)
@@ -254,10 +474,15 @@ class ReactSubAgentRunner:
             parent_configurable = parent_config.get("configurable", {})
             user_id = runtime_user_id_str("unknown")
 
-            react_agent = create_react_agent(
+            # One trace per run: the selector records that the budget ended the
+            # research, so the result can say it.
+            trace = ClosingTrace()
+            react_agent = create_agent(
                 llm,
                 tools=tools,
-                prompt=prompt,
+                system_prompt=prompt,
+                middleware=[ClosingMiddleware(trace)],
+                state_schema=ClosingState,
                 store=parent_store,
                 # Declared so the sub-agent's own nodes and tools read the SAME
                 # typed context as the parent run, rather than an untyped dict.
@@ -323,55 +548,44 @@ class ReactSubAgentRunner:
                         context=nested_context,
                     )
             except Exception as exc:
-                elapsed_ms = int((time.perf_counter() - start) * 1000)
+                failed = _failed_result(
+                    exc,
+                    int((time.perf_counter() - start) * 1000),
+                    registry=self._registry_collector(tools),
+                )
+                # The type and the kind, never the message: an error text can quote
+                # the request (ADR-317).
                 logger.warning(
                     "react_sub_agent_error",
                     llm_type=self.llm_type,
-                    error=str(exc),
                     error_type=type(exc).__name__,
-                    duration_ms=elapsed_ms,
+                    failure_kind=failed.failure_kind,
+                    duration_ms=failed.duration_ms,
                 )
-                self._emit_result(agent_name, elapsed_ms / 1000.0, [], type(exc).__name__)
-                return ReactSubAgentResult(
-                    final_message=f"Error: {exc}",
-                    messages=[],
-                    duration_ms=elapsed_ms,
+                self._emit_result(
+                    agent_name, failed.duration_ms / 1000.0, failed, type(exc).__name__
                 )
+                return failed
 
-            messages = result.get("messages", [])
-            final_message = ""
-            if messages:
-                last_msg = messages[-1]
-                # Normalize str (most providers) and list[dict] blocks (Gemini 3.x) to text.
-                final_message = (
-                    coerce_content_to_text(last_msg.content)
-                    if hasattr(last_msg, "content")
-                    else str(last_msg)
-                )
-
-            # Collect registry items via extensible hook
-            accumulated_registry = self._registry_collector(tools)
-
-            iteration_count = sum(1 for m in messages if hasattr(m, "tool_calls") and m.tool_calls)
-            elapsed_ms = int((time.perf_counter() - start) * 1000)
-
+            finished = _finished_result(
+                result.get("messages", []),
+                # Collect registry items via extensible hook
+                registry=self._registry_collector(tools),
+                closed=trace.closed,
+                elapsed_ms=int((time.perf_counter() - start) * 1000),
+            )
             logger.info(
                 "react_sub_agent_complete",
                 llm_type=self.llm_type,
-                iterations=iteration_count,
-                registry_items=len(accumulated_registry),
-                final_message_length=len(final_message),
-                duration_ms=elapsed_ms,
+                iterations=finished.iteration_count,
+                registry_items=len(finished.accumulated_registry),
+                final_message_length=len(finished.final_message),
+                outcome=finished.outcome.value,
+                closed_on_budget=finished.closed_on_budget,
+                truncated=finished.truncated,
+                duration_ms=finished.duration_ms,
             )
-
-            self._emit_result(agent_name, elapsed_ms / 1000.0, messages, None)
-
-            return ReactSubAgentResult(
-                final_message=final_message,
-                messages=messages,
-                accumulated_registry=accumulated_registry,
-                iteration_count=iteration_count,
-                duration_ms=elapsed_ms,
-            )
+            self._emit_result(agent_name, finished.duration_ms / 1000.0, finished, None)
+            return finished
         finally:
             self._emit_active_dec()

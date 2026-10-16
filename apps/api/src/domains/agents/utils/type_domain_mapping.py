@@ -2,7 +2,7 @@
 Type-to-domain mapping utilities.
 
 Centralizes registry type to domain name mapping used throughout
-response_node, SSE handlers, context_resolution_service, adaptive_replanner,
+response_node, SSE handlers, context_resolution_service, the planner prompt,
 html_renderer, text_summary, and formatters.
 
 This module is the SINGLE SOURCE OF TRUTH for:
@@ -53,7 +53,7 @@ TYPE_TO_DOMAIN_MAP: dict[str, tuple[str, str]] = {
 # DERIVED SETS — auto-computed from TYPE_TO_DOMAIN_MAP
 # ============================================================================
 # All known result keys (items_key / pluriel form)
-# Used by adaptive_replanner to detect non-empty results
+# Listed in the planner prompt as the result keys a step can hand on
 ALL_RESULT_KEYS: frozenset[str] = frozenset(
     items_key for _, items_key in TYPE_TO_DOMAIN_MAP.values()
 )
@@ -310,6 +310,7 @@ def is_items_key_for_each_filterable(items_key: str) -> bool:
 # Convention v3.2: domain+"s" pattern for all result_key/context_domain values
 TOOL_PATTERN_TO_DOMAIN_MAP: dict[str, str] = {
     "email": "emails",  # CONTEXT_DOMAIN_EMAILS
+    "mailbox": "emails",  # the person's mailbox drafts: e-mails (ADR-344)
     "contact": "contacts",  # CONTEXT_DOMAIN_CONTACTS
     "list_calendars": "calendars",  # CONTEXT_DOMAIN_CALENDARS (must precede "calendar")
     "calendar": "events",  # CONTEXT_DOMAIN_EVENTS (calendar event tools)

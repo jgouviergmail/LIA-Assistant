@@ -20,7 +20,7 @@ export interface PersonalityListItem {
  */
 export interface PersonalityListResponse {
   personalities: PersonalityListItem[];
-  count: number;
+  total: number;
 }
 
 /**

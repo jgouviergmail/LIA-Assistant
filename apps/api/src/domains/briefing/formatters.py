@@ -558,7 +558,43 @@ def format_agenda_event(
         location=location if location else None,
         id=str(event_id) if event_id else None,
         start_at=start_at.astimezone(UTC) if start_at is not None else None,
+        time_range_local=agenda_time_range(
+            raw_event, user_tz, language, reference=datetime.now(user_tz)
+        ),
     )
+
+
+def agenda_time_range(
+    raw_event: dict[str, Any], user_tz: tzinfo, language: str, *, reference: datetime
+) -> str | None:
+    """Project timed endpoints only, with explicit day and offset boundaries."""
+    start_field, end_field = raw_event.get("start"), raw_event.get("end")
+    if not all(
+        isinstance(field, dict) and field.get("dateTime") for field in (start_field, end_field)
+    ):
+        return None
+    start, end = event_instant(start_field, user_tz), event_instant(end_field, user_tz)
+    if start is None or end is None or end.astimezone(UTC) <= start.astimezone(UTC):
+        return None
+    start, end = start.astimezone(user_tz), end.astimezone(user_tz)
+    first = format_time_with_date_context(
+        start, reference_dt=reference, locale=language, include_year=True, time_first=False
+    ).lower()
+    last = (
+        end.strftime("%H:%M")
+        if start.date() == end.date()
+        else format_time_with_date_context(
+            end, reference_dt=reference, locale=language, include_year=True, time_first=False
+        ).lower()
+    )
+    if start.utcoffset() != end.utcoffset():
+        first, last = f"{first} ({_offset(start)})", f"{last} ({_offset(end)})"
+    return f"{first} – {last}"
+
+
+def _offset(instant: datetime) -> str:
+    raw = instant.strftime("%z")
+    return f"UTC{raw[:3]}:{raw[3:]}"
 
 
 def _format_event_time(dt_field: dict[str, Any] | None, user_tz: ZoneInfo, language: str) -> str:
@@ -579,7 +615,7 @@ def _format_event_time(dt_field: dict[str, Any] | None, user_tz: ZoneInfo, langu
         - '<date_locale> (<all_day_word>)' if all-day other day
         - '?' for missing data
     """
-    if not dt_field:
+    if not isinstance(dt_field, dict) or not dt_field:
         return "?"
 
     # All-day event — Google convention: "date" is set, "dateTime" is not.

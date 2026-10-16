@@ -13,7 +13,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 
-import { renderWithProviders, screen } from '@/__tests__/test-utils';
+import { renderWithProviders, screen, within } from '@/__tests__/test-utils';
 
 // The global stub returns the bare key, which cannot show whether the EXACT
 // total reached the label. This one interpolates (same pattern as
@@ -245,5 +245,115 @@ describe('HeartbeatHistory — what woke the decision (ADR-261)', () => {
       />
     );
     expect(screen.queryByText('heartbeat.history.trigger_push')).not.toBeInTheDocument();
+  });
+});
+
+describe('HeartbeatHistory — presentation keeps the delivered words', () => {
+  it.each(['cards', 'timeline'] as const)(
+    'keeps the complete message, source and verdict as inert text in %s presentation',
+    presentation => {
+      const content = `${'Une information complète à conserver. '.repeat(20)}\n<img src=x onerror="alert(1)"> Dernière ligne.`;
+      const { container } = renderWithProviders(
+        <HeartbeatHistory
+          {...makeProps({
+            presentation,
+            notifications: [
+              notification({ content, user_feedback: 'thumbs_down', trigger: 'push' }),
+            ],
+          })}
+        />
+      );
+
+      expect(
+        screen.getByText(content, { exact: true, collapseWhitespace: false, trim: false })
+      ).toHaveTextContent('Dernière ligne.');
+      expect(screen.getByText('heartbeat.history.feedback_thumbs_down')).toBeInTheDocument();
+      expect(screen.getByText('heartbeat.history.source_CURRENT_WEATHER')).toBeInTheDocument();
+      expect(screen.getByText('heartbeat.history.trigger_push')).toBeInTheDocument();
+      expect(container.querySelector('img')).toBeNull();
+      expect(container.querySelector('time')).toHaveAttribute('datetime', '2026-08-01T09:30:00Z');
+      expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    }
+  );
+});
+
+/** Kept in step with HeartbeatSourceLabel in heartbeat/schemas.py. */
+const BACKEND_SOURCE_LABELS = [
+  'UPCOMING_CALENDAR_EVENTS',
+  'PENDING_TASKS',
+  'UNREAD_EMAILS',
+  'CURRENT_WEATHER',
+  'WEATHER_CHANGES',
+  'USER_INTERESTS',
+  'USER_MEMORIES',
+  'JOURNAL_ENTRIES',
+  'HEALTH_SIGNALS',
+  'UPCOMING_BIRTHDAYS',
+  'OPEN_LOOPS',
+  'DEPARTURE_ADVICE',
+  'HABITS',
+  'WORKBOARD',
+  'ANTICIPATED_MOMENT',
+];
+
+describe('HeartbeatHistory — canonical sources and timeline reading order', () => {
+  it.each(BACKEND_SOURCE_LABELS)('translates the backend source %s', source => {
+    renderWithProviders(
+      <HeartbeatHistory
+        {...makeProps({ notifications: [notification({ sources_used: [source] })] })}
+      />
+    );
+
+    expect(screen.getByText(`heartbeat.history.source_${source}`)).toBeInTheDocument();
+    expect(screen.queryByText(source, { exact: true })).not.toBeInTheDocument();
+  });
+
+  it('recognizes canonical sources in historical lower-case labels without disguising unknown ones', () => {
+    renderWithProviders(
+      <HeartbeatHistory
+        {...makeProps({
+          notifications: [
+            notification({ sources_used: ['anticipated_moment', 'current_weather', 'newSource'] }),
+          ],
+        })}
+      />
+    );
+
+    expect(screen.getByText('heartbeat.history.source_ANTICIPATED_MOMENT')).toBeInTheDocument();
+    expect(screen.getByText('heartbeat.history.source_CURRENT_WEATHER')).toBeInTheDocument();
+    expect(screen.getByText('newSource')).toBeInTheDocument();
+    expect(screen.queryByText('heartbeat.history.source_NEWSOURCE')).not.toBeInTheDocument();
+  });
+
+  it('keeps the date and priority together, then source and verdict before the delivered text in the hub', () => {
+    renderWithProviders(
+      <HeartbeatHistory
+        {...makeProps({
+          presentation: 'timeline',
+          notifications: [notification({ user_feedback: 'thumbs_down' })],
+        })}
+      />
+    );
+
+    const row = screen.getByRole('listitem');
+    const date = row.querySelector('time');
+    const priority = within(row).getByText('heartbeat.history.priority_medium');
+    const source = within(row).getByText('heartbeat.history.source_CURRENT_WEATHER');
+    const verdict = within(row).getByText('heartbeat.history.feedback_thumbs_down');
+    const message = within(row).getByText('Il pleuvra cet après-midi, prends un parapluie.');
+
+    expect(date?.parentElement).toContainElement(priority);
+    expect(source.compareDocumentPosition(verdict) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      verdict.compareDocumentPosition(message) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
+
+  it('retains the existing settings order when the timeline presentation is not requested', () => {
+    renderWithProviders(<HeartbeatHistory {...makeProps()} />);
+
+    const source = screen.getByText('heartbeat.history.source_CURRENT_WEATHER');
+    const message = screen.getByText('Il pleuvra cet après-midi, prends un parapluie.');
+    expect(message.compareDocumentPosition(source) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });

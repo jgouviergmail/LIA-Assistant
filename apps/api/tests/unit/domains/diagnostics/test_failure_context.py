@@ -8,18 +8,28 @@ log text — for the response synthesis honesty block.
 
 from __future__ import annotations
 
+import copy
 import json
+from typing import Any
 
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 from src.domains.diagnostics.failure_context import (
+    MAX_FAILURES,
+    count_failed_steps,
     extract_failures_from_steps,
     extract_failures_from_tool_messages,
+    failed_step_codes,
 )
 
 #: Mirrors the real directive's placeholders (the caller injects the file).
 _TEMPLATE = "RUNTIME FAILURES THIS TURN:\n{failures_json}\n\n{degradations_block}"
+
+#: A FOR_EACH item as ``_merge_single_step_result`` stores a failure, and one
+#: that answered with structured data (no ``success`` key, as tools return it).
+_FAILED_ITEM: dict[str, Any] = {"success": False, "error": "a", "error_code": "TIMEOUT"}
+_ANSWERED_ITEM: dict[str, Any] = {"reminders": [{"id": "r1"}], "count": 1}
 
 
 @pytest.mark.unit
@@ -50,23 +60,62 @@ class TestPipelineExtraction:
     def test_success_only_steps_yield_nothing(self) -> None:
         assert extract_failures_from_steps({"s": {"success": True}}) == []
 
-    def test_a_for_each_aggregate_is_skipped_its_items_carry_the_failures(self) -> None:
-        """Listing the aggregate AND its items would count one failure twice."""
-        steps = {
-            "step_2_item_0": {"success": False, "error": "a", "error_code": "TIMEOUT"},
-            "step_2_item_1": {"success": True},
-            "step_2": {
-                "success": True,
-                "error": "1/2 items failed: a",
-                "_for_each_aggregate": True,
-            },
-        }
+    @pytest.mark.parametrize(
+        "items",
+        [
+            pytest.param(
+                {"step_2_item_0": _FAILED_ITEM, "step_2_item_1": _ANSWERED_ITEM},
+                id="failure_first",
+            ),
+            pytest.param(
+                {"step_2_item_0": _ANSWERED_ITEM, "step_2_item_1": _FAILED_ITEM},
+                id="failure_last",
+            ),
+            pytest.param(
+                {"step_2_item_0": _FAILED_ITEM, "step_2_item_1": {**_FAILED_ITEM, "error": "b"}},
+                id="all_failed",
+            ),
+        ],
+    )
+    def test_a_for_each_failure_counts_once_per_item(self, items: dict[str, Any]) -> None:
+        """The aggregate the EXECUTOR writes is never a failure of its own.
+
+        It inherits ``success: false`` from its failed items. This test used to
+        build the aggregate by hand, with a marker no writer produced, so it was
+        green while the real aggregation announced one failure more than
+        happened (measured: one failed item read as two).
+        """
+        from src.domains.agents.orchestration.parallel_executor import (
+            _aggregate_for_each_results,
+        )
+
+        steps = copy.deepcopy(items)
+        _aggregate_for_each_results(steps, "step_2", list(items))
+        failed_items = sum(1 for item in items.values() if item.get("success") is False)
+
         failures = extract_failures_from_steps(steps, {"step_2": "create_reminder_tool"})
-        # One entry — the ITEM's — and the capability resolved through its
-        # parent step id, which is where the plan names the tool.
-        assert len(failures) == 1
-        assert failures[0]["message"] == "a"
-        assert failures[0]["tool"] == "create_reminder_tool"
+        assert count_failed_steps(steps) == failed_items
+        assert len(failures) == failed_items
+        # The capability is resolved through the item's parent step id, which
+        # is where the plan names the tool.
+        assert {failure["tool"] for failure in failures} == {"create_reminder_tool"}
+
+    def test_every_failed_code_is_returned_beyond_the_shown_bound(self) -> None:
+        """The codes are exact where the listed entries are capped (ADR-185)."""
+        steps: dict[str, Any] = {
+            f"s{i}": {"success": False, "error": "x", "error_code": "TIMEOUT"}
+            for i in range(MAX_FAILURES + 5)
+        }
+        steps["answered"] = {"success": True}
+        steps["no_code"] = {"success": False, "error": "x"}
+
+        codes = failed_step_codes(steps)
+
+        assert len(codes) == count_failed_steps(steps) == MAX_FAILURES + 6
+        assert codes.count("TIMEOUT") == MAX_FAILURES + 5
+        assert codes.count(None) == 1
+        assert failed_step_codes(None) == []
+        assert failed_step_codes({"s": "garbage"}) == []
 
     def test_a_missing_code_reads_unknown(self) -> None:
         failures = extract_failures_from_steps({"s": {"success": False, "error": "x"}})
@@ -74,8 +123,6 @@ class TestPipelineExtraction:
 
     def test_the_count_is_exact_beyond_the_shown_bound(self) -> None:
         """A capped list never hides how many there really were (ADR-185)."""
-        from src.domains.diagnostics.failure_context import MAX_FAILURES, count_failed_steps
-
         steps = {f"s{i}": {"success": False, "error": "x"} for i in range(MAX_FAILURES + 5)}
         assert len(extract_failures_from_steps(steps)) == MAX_FAILURES
         assert count_failed_steps(steps) == MAX_FAILURES + 5

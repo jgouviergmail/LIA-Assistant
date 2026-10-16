@@ -262,6 +262,110 @@
       "description": "Total prompt tokens consumed by sub-agent executions."
     },
     {
+      "id": 47,
+      "type": "stat",
+      "title": "Closed on budget (24h)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 1
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(subagent_outcomes_total{outcome=\"closed_on_budget\"}[24h])) or vector(0)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 5
+              }
+            ]
+          },
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "area",
+        "textMode": "auto",
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "description": "Sub-loops whose budget ended the research: the closing pass wrote the answer without tools, from what the loop had gathered (ADR-083 amendment 2026-10-13). Before it, LangGraph replaced such an answer with its own sentence, or raised on an odd limit. A rising count says the budget is too tight for the tasks delegated, or that tools keep failing."
+    },
+    {
+      "id": 48,
+      "type": "timeseries",
+      "title": "Outcomes (by agent/outcome)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
+      "targets": [
+        {
+          "expr": "sum by (agent_name, outcome) (rate(subagent_outcomes_total[$__rate_interval]))",
+          "legendFormat": "{{agent_name}} ({{outcome}})",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "fillOpacity": 10,
+            "lineWidth": 1
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "How every sub-loop run ended: answered, closed_on_budget (the closing pass wrote the answer), truncated (cut at the output budget), empty, error. Empty panel = zero runs in the window."
+    },
+    {
       "id": 10,
       "type": "row",
       "title": "Invocation Rates",

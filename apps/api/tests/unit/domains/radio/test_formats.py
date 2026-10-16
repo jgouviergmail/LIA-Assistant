@@ -16,12 +16,12 @@ from src.domains.radio.constants import (
     SPEECH_CHARS_PER_MINUTE,
 )
 from src.domains.radio.formats import (
-    CONFIGURABLE_ROLES,
     FORMAT_SPECS,
     FREQUENCY_WEIGHTS,
     LEGACY_FORMATS,
     OPINION_ROLES,
     SPEAKER_ROLES,
+    STAFF_ROLES,
     FormatSpec,
     Frequency,
     JournalEdition,
@@ -144,17 +144,17 @@ class TestSubjects:
 
 
 class TestVoices:
-    """The four roles a listener sets, and the station's commentators it casts itself."""
+    """The station's team of four, and its commentators — every role a listener may voice."""
 
-    def test_the_listener_sets_four_roles(self) -> None:
-        assert CONFIGURABLE_ROLES == (
+    def test_the_team_holds_four_roles_and_the_commentators_the_others(self) -> None:
+        assert STAFF_ROLES == (
             RadioRole.HOST,
             RadioRole.ANCHOR,
             RadioRole.EXPERT,
             RadioRole.COLUMNIST,
         )
-        assert set(CONFIGURABLE_ROLES) | set(SPEAKER_ROLES) == set(RadioRole)
-        assert not set(CONFIGURABLE_ROLES) & set(SPEAKER_ROLES)
+        assert set(STAFF_ROLES) | set(SPEAKER_ROLES) == set(RadioRole)
+        assert not set(STAFF_ROLES) & set(SPEAKER_ROLES)
 
     def test_opinions_belong_to_the_editorialist_and_the_commentators(self) -> None:
         assert OPINION_ROLES == frozenset({RadioRole.COLUMNIST, *SPEAKER_ROLES})

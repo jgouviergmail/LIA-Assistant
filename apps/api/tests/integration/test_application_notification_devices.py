@@ -30,6 +30,7 @@ from src.domains.notifications.models import UserFCMToken
 from src.domains.notifications.router import delete_token_by_id
 from src.domains.users.models import User
 from src.infrastructure.notification_devices import configure_notification_devices
+from tests.helpers.draft_refusals import draft_refusal_code
 from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
 
 pytestmark = pytest.mark.integration
@@ -166,9 +167,9 @@ async def test_only_the_current_confirmed_registration_can_be_removed(
     exists = await async_session.scalar(select(UserFCMToken.id).where(UserFCMToken.id == row_id))
     assert (exists is not None) is (intervention in {"rotated", "platform_off"})
     if intervention in {"rotated", "removed"}:
-        assert outcome.error == "STALE_STATE"
+        assert draft_refusal_code(outcome) == "STALE_STATE"
     if intervention == "platform_off":
-        assert outcome.error == "CAPABILITY_DISABLED"
+        assert draft_refusal_code(outcome) == "CAPABILITY_DISABLED"
         ledger.claim.assert_not_awaited()
     hints = [queue.get_nowait() for _ in range(queue.qsize())]
     hints = [event for event in hints if event.type == "application_state_changed"]

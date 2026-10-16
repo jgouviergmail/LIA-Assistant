@@ -20,6 +20,7 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
+from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command
@@ -37,6 +38,7 @@ class _SpyModifier:
 
     def __init__(self) -> None:
         self.calls: list[str] = []
+        self.configs: list[RunnableConfig | None] = []
 
     async def modify(
         self,
@@ -47,8 +49,10 @@ class _SpyModifier:
         run_id: str,
         contact_context: Any = None,
         sender_name: str | None = None,
+        config: RunnableConfig | None = None,
     ) -> dict[str, Any]:
         self.calls.append(instructions)
+        self.configs.append(config)
         return {**original_draft, "summary": f"modified-v{len(self.calls)}"}
 
 
@@ -132,6 +136,27 @@ class TestDraftCritiqueReplaySafety:
         assert spy.calls == ["change title"], "modify() must run exactly once per edit"
         assert result["pending_draft_critique"] is None
         assert result["draft_edit_iteration"] == 0  # loop state reset
+
+    async def test_an_edit_is_billed_to_the_turn(self) -> None:
+        """The modifier runs under the turn's config — its tracker bills the call
+        (ADR-272); a fresh config replaced the turn's callbacks and lost the spend."""
+        spy = _SpyModifier()
+        graph = _build_graph()
+        config = {"configurable": {"thread_id": "t-billed"}}
+
+        with patch(
+            "src.domains.agents.services.hitl.draft_modifier.get_draft_modification_service",
+            return_value=spy,
+        ):
+            await graph.ainvoke(_initial_input(_make_draft()), config)
+            await graph.ainvoke(
+                Command(resume={"action": "edit", "modification_instructions": "shorter"}),
+                config,
+            )
+
+        received = spy.configs[0]
+        assert received is not None
+        assert received["configurable"]["thread_id"] == "t-billed"
 
     async def test_two_edits_then_confirm(self) -> None:
         spy = _SpyModifier()

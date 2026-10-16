@@ -14,7 +14,7 @@ from __future__ import annotations
 import pytest
 
 from src.core.config import Settings, get_settings
-from src.core.constants import MULTIPART_ENVELOPE_OVERHEAD_BYTES
+from src.core.constants import FISHAUDIO_CLONE_TOTAL_MAX_BYTES, MULTIPART_ENVELOPE_OVERHEAD_BYTES
 
 
 class TestBodyCeilingCoversUploads:
@@ -66,6 +66,22 @@ class TestBodyCeilingCoversUploads:
         base["max_request_body_bytes"] = 30 * 1024 * 1024 + MULTIPART_ENVELOPE_OVERHEAD_BYTES
 
         assert Settings(**base).max_request_body_bytes > 0
+
+    def test_a_voice_clone_is_an_upload_the_ceiling_must_carry(self) -> None:
+        """A Fish Audio clone sends its recordings in one body (ADR-345)."""
+        base = get_settings().model_dump()
+        for field in (
+            "rag_spaces_max_file_size_mb",
+            "attachments_max_doc_size_mb",
+            "attachments_max_image_size_mb",
+        ):
+            base[field] = 1
+        base["max_request_body_bytes"] = (
+            FISHAUDIO_CLONE_TOTAL_MAX_BYTES + MULTIPART_ENVELOPE_OVERHEAD_BYTES - 1
+        )
+
+        with pytest.raises(ValueError, match="max_request_body_bytes"):
+            Settings(**base)
 
     def test_one_byte_below_the_boundary_is_refused(self) -> None:
         """Falsifies the test above: the comparison really is enforced."""

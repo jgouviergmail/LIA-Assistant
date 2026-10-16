@@ -31,6 +31,12 @@ from src.domains.agents.display.components.folded_synthesis import format_synthe
 from src.domains.agents.display.components.html_flatten import format_email_body, html_to_text
 from src.domains.connectors.clients.normalizers.reply_trimming import clean_reply_body
 from src.domains.shared.markdown_literal import read_as_markdown, untrusted_markdown
+from src.domains.voice.expressive_cues import (
+    FISH_S1_CUES,
+    AuthoredCues,
+    cue_dialect,
+    neutralize_literal,
+)
 from src.domains.voice.sentence_streamer import is_speakable
 from src.domains.voice_sessions.projection import flatten_for_voice
 
@@ -73,6 +79,16 @@ FLATTENERS: dict[str, Flattener] = {
     # A sentence bound for TTS, read before every synthesis (py/polynomial-redos
     # #956/#957: a tag or bracket pattern rescanning to the end per opening mark).
     "is_speakable": is_speakable,
+    # The cues of a text written for speech, and the brackets of one that was not,
+    # read before every synthesis that carries them (ADR-345).
+    "AuthoredCues.render": lambda s: AuthoredCues(cue_dialect("fishaudio", "s2.1-pro"), 3).render(
+        s
+    ),
+    "neutralize_literal(angles)": lambda s: neutralize_literal(
+        s, cue_dialect("gemini", "gemini-3.8-flash-tts")
+    ),
+    "neutralize_literal(parentheses)": lambda s: neutralize_literal(s, FISH_S1_CUES),
+    "AuthoredCues.render(parentheses)": lambda s: AuthoredCues(FISH_S1_CUES, 3).render(s),
 }
 
 #: Each witness names the shape that was slow somewhere; every flattener meets
@@ -114,6 +130,10 @@ WITNESSES: dict[str, Callable[[int], str]] = {
     # A line opening a reference definition whose label never closes: the
     # untrusted-Markdown lookahead reads at most one label per line (ADR-327).
     "unclosed definition labels": lambda n: ("[" + "a" * 200 + "\n") * (n // 202),
+    # Parentheses an engine reads as directions, and task boxes (ADR-345).
+    "unmatched parentheses": lambda n: "(" * n,
+    "control marker openers": lambda n: "<|" * (n // 2),
+    "task boxes after list markers": lambda n: "- [x] " * (n // 6),
 }
 
 

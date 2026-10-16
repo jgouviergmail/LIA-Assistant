@@ -277,6 +277,15 @@ capability_directive_ctx: ContextVar[dict[str, str] | None] = ContextVar(
     "capability_directive_ctx", default=None
 )
 
+# The account's ACTIVE connector types (their values) for this request, set by
+# AgentService beside the directive above from the rows that grant the turn's
+# OAuth scopes. Read by the plan validator and the skill bypass: a category
+# tool served by another provider than Google owes no Google scope (RC1.1).
+# None outside a request — then no scope verdict is claimed.
+active_connector_types_ctx: ContextVar[frozenset[str] | None] = ContextVar(
+    "active_connector_types_ctx", default=None
+)
+
 
 # ---------------------------------------------------------------------------
 # Per-request filtered tool manifests (centralized catalogue).

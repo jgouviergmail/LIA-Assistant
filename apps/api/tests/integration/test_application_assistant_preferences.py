@@ -25,6 +25,7 @@ from src.domains.auth.preference_commands import (
 )
 from src.domains.users.models import User
 from src.domains.users.service import UserService
+from tests.helpers.draft_refusals import draft_refusal_code
 from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
 
 pytestmark = pytest.mark.integration
@@ -122,7 +123,7 @@ async def test_consent_change_is_previewed_then_saved_only_if_still_current(
     assert not test_user.memory_enabled
     assert test_user.extraction_revision == revision + 1
     if manual_intervention:
-        assert result.error == "STALE_STATE"
+        assert draft_refusal_code(result) == "STALE_STATE"
     changes = [queue.get_nowait() for _ in range(queue.qsize())]
     hints = [event for event in changes if event.type == "application_state_changed"]
     assert len(hints) == int(not manual_intervention)

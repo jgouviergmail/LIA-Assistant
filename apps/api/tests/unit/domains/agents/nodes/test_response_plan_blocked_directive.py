@@ -252,7 +252,13 @@ def test_a_capability_that_ran_is_never_declared_blocked():
     assert BLOCKED_MARKER not in blocks
 
 
-def test_a_capability_that_failed_is_still_declared_blocked():
+def test_a_capability_that_ran_and_failed_is_never_declared_blocked():
+    """RC1.2 (production 2026-10-07): one fact, one channel.
+
+    The step ran and failed; its failure belongs to the runtime failures
+    directive. Declared « blocked » as well, it reached the model twice with
+    two causes — and the « blocked » one, marked authoritative, won.
+    """
     blocks = _system_blocks(
         {
             "validation_result": _capped_plan(),
@@ -261,8 +267,7 @@ def test_a_capability_that_failed_is_still_declared_blocked():
         }
     )
 
-    assert BLOCKED_MARKER in blocks
-    assert "get_emails_tool" in blocks
+    assert BLOCKED_MARKER not in blocks
 
 
 def test_a_capability_that_never_ran_is_still_declared_blocked():
@@ -340,3 +345,131 @@ def test_only_the_capability_that_did_not_run_is_named():
     assert BLOCKED_MARKER in blocks
     assert "get_events_tool" in blocks
     assert "get_emails_tool" not in blocks
+
+
+# =========================================================================
+# One fact, one channel (RC1.2, production 2026-10-07)
+# =========================================================================
+
+
+def _verdict(
+    *tool_names: str, code: ToolErrorCode = ToolErrorCode.UNAUTHORIZED
+) -> ValidationResult:
+    return ValidationResult(
+        is_valid=False,
+        errors=[
+            ValidationIssue(
+                severity="error",
+                code=code,
+                message="Missing required scopes",
+                step_index=index,
+                tool_name=name,
+            )
+            for index, name in enumerate(tool_names)
+        ],
+        total_steps=len(tool_names),
+    )
+
+
+def _plan_of(*tool_names: str) -> ExecutionPlan:
+    return ExecutionPlan(
+        plan_id="p",
+        user_id="u1",
+        session_id="s1",
+        steps=[
+            ExecutionStep(
+                step_id=f"step_{index + 1}",
+                step_type=StepType.TOOL,
+                agent_name="emails_agent",
+                tool_name=name,
+                parameters={},
+            )
+            for index, name in enumerate(tool_names)
+        ],
+    )
+
+
+async def _honesty_block(state: dict, monkeypatch: pytest.MonkeyPatch) -> str:
+    """The runtime failures directive the response node would add to the turn."""
+    from src.domains.agents.services.runtime_failure_directive import build_run_honesty_block
+
+    monkeypatch.setattr(settings, "diagnostics_enabled", False)
+    return await build_run_honesty_block(state)
+
+
+@pytest.mark.asyncio
+async def test_the_failed_reply_of_run_b148e908_is_told_by_the_failures_directive_alone(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """20:25: two contact reads succeeded, the reply failed on its reference.
+
+    The answer said the reply capability was « not connected or authorized »:
+    the verdict of a step that RAN. Its failure is now said once, by the
+    directive that carries the step's own code.
+    """
+    state = {
+        "validation_result": _verdict("get_contacts_tool", "get_contacts_tool", "reply_email_tool"),
+        "execution_plan": _plan_of("get_contacts_tool", "get_contacts_tool", "reply_email_tool"),
+        "completed_steps": {
+            "step_1": {"contacts": [{"id": "c1"}]},
+            "step_2": {"contacts": [{"id": "c2"}]},
+            "step_3": {
+                "success": False,
+                "error": "reference_resolution_failed",
+                "error_code": ToolErrorCode.INVALID_INPUT.value,
+            },
+        },
+    }
+
+    assert BLOCKED_MARKER not in _system_blocks(state)
+    honesty = await _honesty_block(state, monkeypatch)
+    assert '"tool": "reply_email_tool"' in honesty
+    assert f'"error_code": "{ToolErrorCode.INVALID_INPUT.value}"' in honesty
+
+
+@pytest.mark.asyncio
+async def test_a_mailbox_nobody_connected_is_still_said_without_the_blocked_directive(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """18:13: no mail connector at all — the honest answer must survive RC1.2."""
+    code = ToolErrorCode.CONNECTOR_NOT_ACTIVATED.value
+    state = {
+        "validation_result": _verdict("get_emails_tool"),
+        "execution_plan": _plan_of("get_emails_tool"),
+        "completed_steps": {
+            "step_1": {
+                "success": False,
+                "error": "No email service is activated.",
+                "error_code": code,
+            }
+        },
+    }
+
+    assert BLOCKED_MARKER not in _system_blocks(state)
+    honesty = await _honesty_block(state, monkeypatch)
+    assert f'"error_code": "{code}"' in honesty
+
+
+@pytest.mark.asyncio
+async def test_the_refused_relay_of_request_2ecc670c_is_told_by_the_failures_directive(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """2026-08-17: the relay was refused; it must never read as delivered NOR as blocked."""
+    state = {
+        "validation_result": _verdict(
+            "send_peer_message_tool", code=ToolErrorCode.CONSTRAINT_VIOLATION
+        ),
+        "execution_plan": _plan_of("send_peer_message_tool"),
+        "completed_steps": {
+            "step_1": {
+                "success": False,
+                "error": "The message exceeds 2000 characters.",
+                "error_code": ToolErrorCode.INVALID_INPUT.value,
+            }
+        },
+    }
+
+    assert BLOCKED_MARKER not in _system_blocks(state)
+    honesty = await _honesty_block(state, monkeypatch)
+    assert "The message exceeds 2000 characters." in honesty
+    assert '"tool": "send_peer_message_tool"' in honesty

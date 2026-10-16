@@ -20,6 +20,7 @@ from src.domains.users.models import User
 from src.infrastructure.application_sessions import bind_browser_session
 from src.infrastructure.cache.redis import get_redis_session
 from src.infrastructure.cache.session_store import SessionStore
+from tests.helpers.draft_refusals import draft_refusal_code
 from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
 
 pytestmark = pytest.mark.integration
@@ -128,7 +129,7 @@ async def test_session_revocation_requires_exact_confirmation_and_original_live_
         if not successful and intervention != "lost_ack":
             ledger.claim.assert_not_awaited()
         if intervention == "lost_ack":
-            assert outcome.error == "COMPLETION_UNKNOWN"
+            assert draft_refusal_code(outcome) == "COMPLETION_UNKNOWN"
             assert "private-cookie" not in str(outcome.to_agent_result())
             assert "provider-secret" not in str(outcome.to_agent_result())
         assert current.session_id not in str(outcome.to_agent_result())

@@ -14,6 +14,7 @@ from langchain_core.messages import AIMessage
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from src.domains.agents.data_registry.models import RegistryItem
+from src.domains.agents.display.mailbox_draft import is_mailbox_draft
 from src.domains.reminders.models import ReminderStatus
 from src.infrastructure.llm.message_view import CARD_ACTIONS_KEY
 
@@ -102,6 +103,10 @@ def _native_target(
     kind: str, payload: dict[str, object], source: object, provider: str | None
 ) -> bool:
     if kind == "EMAIL":
+        # A draft is the person's own unsent message: nothing to reply to,
+        # nothing to forward yet (ADR-344).
+        if is_mailbox_draft(payload):
+            return False
         conflict = (
             payload.get("message_id")
             and payload.get("id")

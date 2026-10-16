@@ -109,9 +109,14 @@ export interface WeatherData {
 }
 
 export interface AgendaEventItem {
+  /** Existing server identity/date; optional for payloads cached before ADR-322. */
+  id?: string | null;
+  start_at?: string | null;
   title: string;
   start_local: string;
   end_local: string | null;
+  /** Date-first interval; absent on cached payloads predating the presentation. */
+  time_range_local?: string | null;
   location: string | null;
 }
 
@@ -264,12 +269,24 @@ export interface WorkboardTicketItem {
  * aggregate over its whole set (ADR-185); `items` is a short page of the
  * « needs me » set, never its measure.
  */
+export interface WorkboardPreviews {
+  needs_me: WorkboardTicketItem[];
+  held_by_lia: WorkboardTicketItem[];
+  held_by_peers: WorkboardTicketItem[];
+  overdue: WorkboardTicketItem[];
+  open_total: WorkboardTicketItem[];
+}
+
 export interface WorkboardData {
   needs_me: number;
   held_by_lia: number;
+  /** Exact peer-filter count; absent/null in caches predating this field. */
+  held_by_peers?: number | null;
   overdue: number;
   open_total: number;
   items: WorkboardTicketItem[];
+  /** Absent/null in legacy caches; supplied groups are known, bounded previews. */
+  previews?: WorkboardPreviews | null;
 }
 
 // =============================================================================

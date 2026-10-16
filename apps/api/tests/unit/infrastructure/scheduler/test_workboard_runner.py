@@ -554,12 +554,12 @@ class TestTheReaperNeverFreesALiveRun:
     """The arithmetic trap: the engine bounds ONE ATTEMPT, not one run."""
 
     def test_the_worst_case_covers_every_attempt_and_every_pause(self) -> None:
-        from src.domains.workboard.constants import worst_case_run_seconds
+        from src.infrastructure.scheduler.out_of_turn_run import worst_case_run_seconds
 
         assert worst_case_run_seconds(600, 3, 30) == 600 * 3 + 30 * 2
 
     def test_a_single_attempt_needs_no_pause(self) -> None:
-        from src.domains.workboard.constants import worst_case_run_seconds
+        from src.infrastructure.scheduler.out_of_turn_run import worst_case_run_seconds
 
         assert worst_case_run_seconds(600, 1, 30) == 600
 

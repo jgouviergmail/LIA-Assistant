@@ -5,11 +5,11 @@
 **Version**: 4.1 (2026-07-17)
 **Status**: Production-Ready
 **Architecture**: Prometheus + Grafana + Loki + Tempo + AlertManager
-**Total Metrics**: 419 definitions (637 exported series) across 23 metric modules
-**Dashboards**: 25 comprehensive dashboards (595 panels)
+**Total Metrics**: 618 definitions in the backend's metric modules
+**Dashboards**: one JSON per dashboard in `infrastructure/observability/grafana/dashboards/`, catalogued with their panels in [GRAFANA_DASHBOARDS.md](../technical/GRAFANA_DASHBOARDS.md)
 **Alert Rules**: the active core set, `alerts-core.yml` (ADR-119; legacy set pending recalibration)
 **Recording Rules**: 86 optimized rules
-**Runbooks**: 22 incident response runbooks
+**Runbooks**: one per alert in `docs/runbooks/alerts/` (named after it), the procedures in `docs/runbooks/`
 
 ---
 
@@ -47,8 +47,8 @@ Observability is the ability to measure the internal states of a system by exami
 
 | Component | Purpose | Metrics | Retention | Port |
 |-----------|---------|---------|-----------|------|
-| **Prometheus** | Metrics collection & storage | 419 custom metrics (scraped from :9091) | 15 days | 9090 |
-| **Grafana** | Visualization & dashboards | 25 dashboards, 595 panels | N/A (queries only) | 3000 |
+| **Prometheus** | Metrics collection & storage | 618 custom metrics (scraped from :9091) | 15 days | 9090 |
+| **Grafana** | Visualization & dashboards | catalogued in [GRAFANA_DASHBOARDS.md](../technical/GRAFANA_DASHBOARDS.md) | N/A (queries only) | 3000 |
 | **Loki** | Log aggregation & storage | N/A (logs, not metrics) | 7 days | 3100 |
 | **Tempo** | Distributed tracing | Trace spans | 7 days | 3200 |
 | **AlertManager** | Alert routing & notifications | core alert set loaded (ADR-119); legacy catalog quarantined | N/A (stateful) | 9093 |
@@ -126,8 +126,8 @@ Observability is the ability to measure the internal states of a system by exami
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
 │  │  Datasources │  │  Dashboards  │  │    Alerts    │     │
 │  │              │  │              │  │              │     │
-│  │ - Prometheus │  │ 25 dashboards│  │ Email/Slack  │     │
-│  │ - Loki       │  │ 312+ panels  │  │ integration  │     │
+│  │ - Prometheus │  │ provisioned  │  │ Email/Slack  │     │
+│  │ - Loki       │  │ dashboards   │  │ integration  │     │
 │  │ - Tempo      │  │              │  │              │     │
 │  └──────────────┘  └──────────────┘  └──────────────┘     │
 │                                                              │
@@ -154,7 +154,7 @@ TSDB (Prometheus storage)
 Grafana dashboards
 ```
 
-**Metrics Exposed**: 150+ metrics across 8 Python files:
+**Metrics Exposed** (a few of the metric modules):
 - `metrics.py` (HTTP, infrastructure, business)
 - `metrics_agents.py` (LangGraph, router, SSE streaming, HITL)
 - `metrics_llm.py` (tokens, cost, API calls)
@@ -607,9 +607,7 @@ topk(10, count by (__name__)({__name__=~".+"}))
 
 **Location**: `infrastructure/observability/grafana/dashboards/`
 
-**Total**: 15 dashboards, 200+ panels
-
-For exhaustive panel-by-panel documentation, see: Grafana Dashboards README
+**Catalogue**: every dashboard and its panels, in [GRAFANA_DASHBOARDS.md](../technical/GRAFANA_DASHBOARDS.md)
 
 **New Dashboards (Phase 2-3)**:
 - **10** - Redis Rate Limiting (Phase 2.4)

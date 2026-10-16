@@ -8,7 +8,8 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, within, act } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 import { EyesStyleSettings } from '../EyesStyleSettings';
 import {
@@ -169,12 +170,36 @@ describe('EyesStyleSettings', () => {
     expect(localStorage.getItem(EYES_WIDGET_PREFS_KEY)).toContain('"style":"anneaux"');
   });
 
-  it('marks the selected option (and only it) with the primary ring', () => {
+  it('shows the persisted avatar and updates its summary when the choice changes', () => {
+    useEyesWidgetStore.getState().setStyle('moss');
     render(<EyesStyleSettings lng="en" />);
+    const current = screen.getByRole('region', { name: 'settings.eyes_style.current' });
+    expect(within(current).getByRole('heading', { name: 'eyes.styles.moss.name' })).toBeVisible();
+    expect(current).toHaveTextContent('eyes.styles.moss.description');
     fireEvent.click(screen.getByRole('button', { name: 'eyes.styles.billes.name' }));
-    const selected = screen.getByRole('button', { name: 'eyes.styles.billes.name' });
-    const other = screen.getByRole('button', { name: 'eyes.styles.cozmo.name' });
-    expect(selected.className).toContain('border-primary');
-    expect(other.className).not.toContain('border-primary');
+    expect(within(current).getByRole('heading', { name: 'eyes.styles.billes.name' })).toBeVisible();
+    expect(current).not.toHaveTextContent('eyes.styles.moss.description');
+    expect(
+      screen.getAllByRole('button').filter(button => button.getAttribute('aria-current') === 'true')
+    ).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'eyes.styles.billes.name' })).toHaveAttribute(
+      'aria-current',
+      'true'
+    );
+  });
+
+  it('keeps keyboard selection focused and does not rewrite the saved current choice', async () => {
+    const user = userEvent.setup();
+    render(<EyesStyleSettings lng="en" />);
+    const option = screen.getByRole('button', { name: 'eyes.styles.anneaux.name' });
+    act(() => option.focus());
+    await user.keyboard('{Enter}');
+    expect(option).toHaveFocus();
+    expect(option).toHaveAttribute('aria-current', 'true');
+    expect(useEyesWidgetStore.getState().style).toBe('anneaux');
+    const writes = vi.spyOn(Storage.prototype, 'setItem');
+    await user.keyboard(' ');
+    expect(option).toHaveFocus();
+    expect(writes).not.toHaveBeenCalled();
   });
 });

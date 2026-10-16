@@ -30,7 +30,7 @@ function section(overrides: Partial<CardSection<AgendaData>> = {}): CardSection<
   };
 }
 
-function renderCard(cardSection: CardSection<AgendaData>, onErrorCta = vi.fn()) {
+function renderCard(cardSection: CardSection<AgendaData>, onRefresh = vi.fn()) {
   return renderWithProviders(
     <BriefingCard<AgendaData>
       titleKey="dashboard.briefing.cards.agenda.title"
@@ -38,9 +38,9 @@ function renderCard(cardSection: CardSection<AgendaData>, onErrorCta = vi.fn()) 
       tone="sky"
       section={cardSection}
       isRefreshing={false}
-      onRefresh={vi.fn()}
+      onRefresh={onRefresh}
       emptyStateKey="dashboard.briefing.cards.agenda.empty"
-      onErrorCta={onErrorCta}
+      onErrorCta={vi.fn()}
       renderContent={data => <div data-testid="card-content">{data.events[0]?.title}</div>}
     />
   );
@@ -78,10 +78,10 @@ describe('BriefingCard — stale-while-error (D-04)', () => {
   });
 
   it('keeps the retry CTA wired on network errors', async () => {
-    const onErrorCta = vi.fn();
-    const { user } = renderCard(ERRORED_WITH_STALE, onErrorCta);
+    const onRefresh = vi.fn();
+    const { user } = renderCard(ERRORED_WITH_STALE, onRefresh);
     await user.click(screen.getByRole('button', { name: 'dashboard.briefing.actions.retry' }));
-    expect(onErrorCta).toHaveBeenCalledTimes(1);
+    expect(onRefresh).toHaveBeenCalledTimes(1);
   });
 
   it('without stale data, the error body stays bare (no invented content)', () => {

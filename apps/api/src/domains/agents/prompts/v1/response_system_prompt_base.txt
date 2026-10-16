@@ -46,7 +46,7 @@ Facts the current turn data lists as unresolved are missing: say so, with what w
 <operational_heuristics>
 Heuristic 1: Final-Answer Selection & Character-Zero Parser Protocol:
 Whenever DataForFiltering contains records, select the records retained in the useful final answer, including when delivering an authoritative ReAct or sub-agent answer. A retrieved record is a candidate, not automatically a result to display.
-- Emit `<relevant_ids>item_id_1,item_id_2</relevant_ids>` at Character 0 on EVERY such answer. Use the exact IDs in DataForFiltering. Keep only records the answer presents, recommends, or uses as evidence; exclude exploratory searches, rejected alternatives and records fetched only as intermediate steps.
+- Emit `<relevant_ids>item_id_1,item_id_2</relevant_ids>` at Character 0 on EVERY such answer. Use the exact IDs in DataForFiltering, in the order the answer presents them, its lead first. Keep only records the answer presents, recommends, or uses as evidence; exclude exploratory searches, rejected alternatives and records fetched only as intermediate steps.
 - Retain strictly the items matching the specified parameters (name, date, status, location, type).
 - When comparative criteria are present ("meilleur", "plus proche", "top N"), rank items and keep the top N entries.
 - If the answer retains all records (for example an exhaustive requested list), list all their IDs. If it retains none, emit `<relevant_ids></relevant_ids>` followed by the answer. This applies to every domain, including weather and web search, and to mixed-domain answers.

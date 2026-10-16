@@ -78,15 +78,16 @@ couru après cet instant. Un marqueur en bande sur la même génération ne coû
 aucun appel et arrive avec le dernier jeton.
 
 Le motif n'est pas inventé pour l'occasion : **c'est exactement celui de
-`<psyche_eval/>`**, en production depuis des mois. Les fragments sont filtrés
-dans le flux SSE pour que rien ne clignote à l'écran, et le marqueur complet est
-retiré du contenu persisté dans le nœud de réponse.
+`<psyche_eval/>`**, en production depuis des mois. Le marqueur est retiré du
+flux SSE pour que rien ne clignote à l'écran ni n'atteigne la voix, et retiré du
+contenu persisté dans le nœud de réponse.
 
 ## Invariants
 
-- **Un seul motif de nettoyage, où qu'il tourne.** Deux détacheurs indépendants,
-  c'est ainsi qu'un marqueur finit dans une ligne de base : le filtre de flux et
-  le nettoyeur de contenu lisent les mêmes regex.
+- **Une seule portée de nettoyage, où qu'elle s'applique.** Deux détacheurs
+  indépendants, c'est ainsi qu'un marqueur finit dans une ligne de base : le
+  filtre de flux et le nettoyeur de contenu retirent la même portée (amendement
+  2026-10-14 — c'était « les mêmes regex », ce qui ne suffisait pas).
 - **Un marqueur malformé est nettoyé quand même.** Rendre le texte intact parce
   que les attributs n'ont pas été lus mettrait du balisage brut sous les yeux du
   lecteur. On perd l'annotation, jamais la réponse.
@@ -179,3 +180,24 @@ intention** — pas un sourire que personne n'a demandé, et pas un vide non plu
 - Le contrat SSE gagne un champ `expressivity` dans les métadonnées `done`, et
   il est déclaré dans **les deux** types de métadonnées — la copie de
   `chat-state.ts` avait déjà pris du retard une fois (ADR-117).
+
+## Amendement 2026-10-14 — le flux retire la même portée, d'un jeton à l'autre
+
+Mesuré le 2026-10-14 (journaux Docker dev et 30 jours de Loki) : le filtre de flux
+appliquait les regex de fragments **un jeton à la fois**. Il retirait le jeton qui
+portait `<lia_tone` ou `<psyche_eval` et laissait passer les attributs des jetons
+suivants, privés de leur `<`. Le `content_replacement` corrigeait l'écran après
+coup, mais la voix du mode chat, qui lit le flux lui-même, prononçait
+« valence="0.1" arousal="0.1" … register="warm" … » : 9 tours vocaux du mode chat
+sur 12 le 14 octobre sur Fish Audio, 6 sur 15 les 8 et 9 sur ElevenLabs (dont 3
+envois partiels). Les mêmes regex ne garantissaient pas la même portée.
+
+Le filtre est désormais un automate à état, une instance par flux
+(`apps/api/src/domains/agents/services/streaming/machine_tags.py`). Il reconnaît
+la balise par son ouverture (`TONE_TAG_MARKER`, `PSYCHE_EVAL_TAG_MARKER`) et
+retire, à travers les jetons, la portée que `TONE_STREAMING_PATTERN` retire du
+contenu persisté : jusqu'au premier `>`, ou jusqu'à la fin. Un test compare le flux
+découpé caractère par caractère au nettoyeur final. Le même filtre retire
+`<relevant_ids>…</relevant_ids>`, troisième balise en bande, que le flux ne
+filtrait pas du tout ; une sélection jamais fermée est rendue telle quelle, comme
+le nettoyeur final la garde.

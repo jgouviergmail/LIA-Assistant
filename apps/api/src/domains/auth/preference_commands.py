@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.constants import RESPONSE_DISPLAY_MODE_CHOICES
 from src.core.exceptions import raise_user_not_found
+from src.core.remote_stt import remote_stt_ready
 from src.domains.auth.schemas import (
     DebugPanelPreferenceRequest,
     DisplayModePreferenceRequest,
@@ -117,10 +118,8 @@ class AssistantPreferencePatch(BaseModel):
 
 
 def stt_remote_available() -> bool:
-    from src.core.constants import ELEVENLABS_PROVIDER_NAME
-    from src.core.llm_config_helper import get_provider_api_key
-
-    return bool(get_provider_api_key(ELEVENLABS_PROVIDER_NAME))
+    """Whether « remote » transcription can serve now: the slot's engine, switched on, keyed."""
+    return remote_stt_ready()
 
 
 async def update_assistant_preferences(

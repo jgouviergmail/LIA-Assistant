@@ -12,8 +12,23 @@
  * house confirm dialog.
  */
 
-import { ArrowDownLeft, ArrowUpRight, Calendar, ListTodo } from 'lucide-react';
+import { useRef, useState } from 'react';
+import {
+  ArrowDownLeft,
+  ArrowUpRight,
+  Calendar,
+  ListTodo,
+  ShieldOff,
+  UserMinus,
+} from 'lucide-react';
 
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from '@/components/ui/accordion';
+import { Badge } from '@/components/ui/badge';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -37,6 +52,7 @@ export interface PeerConnectionCardProps {
   onSetShare: (connectionId: string, domain: string, level: string | null) => Promise<boolean>;
   onRemove: (connectionId: string) => Promise<boolean>;
   onBlock: (peerId: string) => Promise<boolean>;
+  onResolved?: () => void;
 }
 
 const CALENDAR_LEVELS = ['none', 'availability', 'details'] as const;
@@ -48,9 +64,14 @@ export function PeerConnectionCard({
   onSetShare,
   onRemove,
   onBlock,
+  onResolved,
 }: PeerConnectionCardProps) {
   const { t } = useTranslation(lng);
   const { confirm, confirmDialog } = useConfirm();
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const actionLock = useRef(false);
+  const [actionPending, setActionPending] = useState(false);
+  const busy = mutating || actionPending;
 
   const calendarLevel =
     connection.my_shares.find(share => share.domain === 'calendar')?.level ?? 'none';
@@ -60,168 +81,188 @@ export function PeerConnectionCard({
   const theirTaskShared = connection.their_shares.some(share => share.domain === 'task');
 
   const handleCalendarChange = (value: string) => {
+    if (mutating) return;
     void onSetShare(connection.id, 'calendar', value === 'none' ? null : value);
   };
 
   const handleTaskToggle = (checked: boolean) => {
+    if (mutating) return;
     void onSetShare(connection.id, 'task', checked ? 'titles' : null);
   };
 
-  const handleRemove = async () => {
-    const accepted = await confirm({
-      title: t('settings.peers.connections.remove_confirm_title'),
-      description: t('settings.peers.connections.remove_confirm_description'),
-    });
-    if (accepted) await onRemove(connection.id);
-  };
-
-  const handleBlock = async () => {
-    const accepted = await confirm({
-      title: t('settings.peers.connections.block_confirm_title'),
-      description: t('settings.peers.connections.block_confirm_description'),
-    });
-    if (accepted) await onBlock(connection.peer_id);
+  const endConnection = async (kind: 'remove' | 'block') => {
+    if (mutating || actionLock.current) return;
+    actionLock.current = true;
+    setActionPending(true);
+    try {
+      const accepted = await confirm({
+        title: t(`settings.peers.connections.${kind}_confirm_title`),
+        description: t(`settings.peers.connections.${kind}_confirm_description`),
+      });
+      if (!accepted) return;
+      const ok = await (kind === 'remove' ? onRemove(connection.id) : onBlock(connection.peer_id));
+      if (ok) onResolved?.();
+    } finally {
+      actionLock.current = false;
+      setActionPending(false);
+    }
   };
 
   const calendarSelectId = `peers-share-calendar-${connection.id}`;
 
   return (
-    <div className="space-y-3 rounded-md border p-3">
+    <Accordion type="single" collapsible className="rounded-2xl border border-border/60 bg-card">
       {confirmDialog}
-      <div className="flex items-center gap-3">
-        {/* The app's own avatar, as everywhere a person is named: initials on
-            a colour hashed from the name, so two connections are told apart at
-            a glance rather than by reading. NO `src` on purpose — a peer's
-            profile picture is not published by this domain, and exposing one
-            would add a personal datum to a surface whose whole design keeps
-            the other side unobservable. */}
-        <Avatar
-          name={connection.peer_display_name}
-          size="sm"
-          variant="circular"
-          disableHover
-          className="shrink-0"
-        />
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold">{connection.peer_display_name}</p>
-          {/* The real address when its owner opened it to their connections
-              (ADR-189), the masked hint otherwise — never both, which would
-              read as two different pieces of information about one person.
-              `break-all`: an address has no spaces to wrap on. */}
-          <p className="break-all text-xs text-muted-foreground">
-            {connection.peer_email ?? connection.peer_email_hint}
-          </p>
-        </div>
-      </div>
-
-      {/* Both directions read the SAME way (owner arbitration 2026-08-05):
-          the same two icon-carrying rows on each side — mine editable, theirs
-          the read-only values. The old badge soup made the two columns look
-          like two different features. Each direction is its own bordered
-          panel (owner request 2026-08-05): side by side they sat one `gap-3`
-          apart and read as one list — the frame is what says where "what I
-          share" ends and "what they share" begins; the peer side wears the
-          muted wash the identity box uses for every read-only surface. */}
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-3 rounded-md border border-border/40 p-3">
-          <p className="flex items-center gap-1.5 text-xs font-medium uppercase text-muted-foreground">
-            <ArrowUpRight className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-            {t('settings.peers.shares.my_title')}
-          </p>
-          <div className="space-y-3">
-            <Label htmlFor={calendarSelectId} className="flex items-center gap-1.5">
-              <Calendar className="h-4 w-4 text-primary" aria-hidden="true" />
-              {t('settings.peers.shares.calendar_label')}
-            </Label>
-            {/* The design-system Select, like every other dropdown in the app:
-                this was the last hand-classed native <select> on a user
-                surface, and its bespoke class string drifted from the theme. */}
-            <Select value={calendarLevel} onValueChange={handleCalendarChange} disabled={mutating}>
-              <SelectTrigger id={calendarSelectId} className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {CALENDAR_LEVELS.map(level => (
-                  <SelectItem key={level} value={level}>
-                    {t(`settings.peers.shares.calendar_level.${level}`)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center justify-between gap-2">
-            <Label
-              htmlFor={`peers-share-task-${connection.id}`}
-              className="flex items-center gap-1.5"
+      <AccordionItem value={connection.id} className="border-0">
+        <AccordionTrigger className="gap-3 rounded-2xl p-4 text-left hover:no-underline sm:p-5">
+          {/* Identity never folds: the address remains the anti-impersonation anchor. */}
+          <Avatar
+            name={connection.peer_display_name}
+            size="sm"
+            variant="circular"
+            disableHover
+            className="shrink-0"
+          />
+          <span className="min-w-0 flex-1 space-y-1">
+            <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span className="min-w-0 break-words text-sm font-semibold">
+                {connection.peer_display_name}
+              </span>
+              <Badge
+                variant="success"
+                className="h-auto min-h-5 whitespace-normal text-left text-xs"
+              >
+                {t('settings.peers.connections.accepted')}
+              </Badge>
+            </span>
+            <span className="block break-all text-xs font-normal text-muted-foreground">
+              {connection.peer_email ?? connection.peer_email_hint}
+            </span>
+          </span>
+        </AccordionTrigger>
+        <AccordionContent className="space-y-4 px-4 pb-4 sm:px-5 sm:pb-5">
+          {/* Two independent consents share one grid; only this user's side is editable. */}
+          <div className="grid min-w-0 gap-4 md:grid-cols-2">
+            <section
+              aria-label={t('settings.peers.shares.their_named_title', {
+                name: connection.peer_display_name,
+              })}
+              className="min-w-0 space-y-4 rounded-xl border border-border/50 bg-primary/5 p-4"
             >
-              <ListTodo className="h-4 w-4 text-primary" aria-hidden="true" />
-              {t('settings.peers.shares.task_label')}
-            </Label>
-            <Switch
-              id={`peers-share-task-${connection.id}`}
-              checked={taskShared}
-              disabled={mutating}
-              onCheckedChange={handleTaskToggle}
-            />
-          </div>
-        </div>
-
-        <div className="space-y-3 rounded-md border border-border/40 bg-muted/30 p-3">
-          <p className="flex items-center gap-1.5 text-xs font-medium uppercase text-muted-foreground">
-            <ArrowDownLeft className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-            {t('settings.peers.shares.their_title')}
-          </p>
-          <div className="space-y-3">
-            <p className="flex items-center gap-1.5 text-sm font-medium">
-              <Calendar className="h-4 w-4 text-primary" aria-hidden="true" />
-              {t('settings.peers.shares.calendar_label')}
-            </p>
-            {/* `h-10 items-center`: the read-only value mirrors the Select's
+              <p className="flex items-start gap-2 text-sm font-semibold">
+                <ArrowDownLeft
+                  className="mt-0.5 h-4 w-4 shrink-0 text-primary"
+                  aria-hidden="true"
+                />
+                <span className="min-w-0 break-words">
+                  {t('settings.peers.shares.their_named_title', {
+                    name: connection.peer_display_name,
+                  })}
+                </span>
+              </p>
+              <div className="space-y-3">
+                <p className="flex items-center gap-1.5 text-sm font-medium">
+                  <Calendar className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                  {t('settings.peers.shares.calendar_label')}
+                </p>
+                {/* `h-10 items-center`: the read-only value mirrors the Select's
                 height on my side, so the task rows of BOTH columns sit on the
                 same line (owner capture 2026-08-05). */}
-            <p className="flex h-10 items-center text-sm text-muted-foreground">
-              {t(`settings.peers.shares.calendar_level.${theirCalendarLevel}`)}
-            </p>
+                <p className="flex min-h-10 items-center text-sm text-muted-foreground">
+                  {t(`settings.peers.shares.calendar_level.${theirCalendarLevel}`)}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <p className="flex items-center gap-1.5 text-sm font-medium">
+                  <ListTodo className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                  {t('settings.peers.shares.task_label')}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {theirTaskShared
+                    ? t('settings.peers.shares.task_level.titles')
+                    : t('settings.peers.shares.task_level.none')}
+                </p>
+              </div>
+            </section>
+            <section
+              aria-label={t('settings.peers.shares.my_title')}
+              className="min-w-0 space-y-4 rounded-xl border border-border/50 p-4"
+            >
+              <p className="flex items-start gap-2 text-sm font-semibold">
+                <ArrowUpRight className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                {t('settings.peers.shares.my_title')}
+              </p>
+              <div className="space-y-3">
+                <Label htmlFor={calendarSelectId} className="flex min-w-0 items-center gap-2">
+                  <Calendar className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                  {t('settings.peers.shares.calendar_label')}
+                </Label>
+                {/* The design-system Select, like every other dropdown in the app:
+                this was the last hand-classed native <select> on a user
+                surface, and its bespoke class string drifted from the theme. */}
+                <Select
+                  value={calendarLevel}
+                  onValueChange={handleCalendarChange}
+                  open={calendarOpen}
+                  onOpenChange={open => {
+                    if (!mutating || !open) setCalendarOpen(open);
+                  }}
+                >
+                  <SelectTrigger aria-disabled={busy} id={calendarSelectId} className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CALENDAR_LEVELS.map(level => (
+                      <SelectItem key={level} value={level}>
+                        {t(`settings.peers.shares.calendar_level.${level}`)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-start justify-between gap-3">
+                <Label
+                  htmlFor={`peers-share-task-${connection.id}`}
+                  className="flex min-w-0 items-center gap-2"
+                >
+                  <ListTodo className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                  {t('settings.peers.shares.task_label')}
+                </Label>
+                <Switch
+                  id={`peers-share-task-${connection.id}`}
+                  checked={taskShared}
+                  aria-disabled={busy}
+                  onCheckedChange={handleTaskToggle}
+                />
+              </div>
+            </section>
           </div>
-          <div className="flex items-center justify-between gap-2">
-            <p className="flex items-center gap-1.5 text-sm font-medium">
-              <ListTodo className="h-4 w-4 text-primary" aria-hidden="true" />
-              {t('settings.peers.shares.task_label')}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {theirTaskShared
-                ? t('settings.peers.shares.task_level.titles')
-                : t('settings.peers.shares.task_level.none')}
-            </p>
-          </div>
-        </div>
-      </div>
 
-      {/* Both actions end something, and both said nothing about it: two grey
-          buttons. They carry their red at rest now (ADR-207 — a colour the
-          pointer must reveal is not a code), remove outweighing block. */}
-      <div className="flex flex-wrap gap-2 border-t pt-3">
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="text-destructive hover:text-destructive"
-          disabled={mutating}
-          onClick={() => void handleRemove()}
-        >
-          {t('settings.peers.connections.remove')}
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          className="text-destructive hover:text-destructive"
-          disabled={mutating}
-          onClick={() => void handleBlock()}
-        >
-          {t('settings.peers.connections.block')}
-        </Button>
-      </div>
-    </div>
+          {/* Connection-level actions follow the consent information, with confirmation. */}
+          <div className="flex flex-col items-stretch gap-2 border-t border-border/50 pt-4 sm:items-start">
+            <Button
+              type="button"
+              size="sm"
+              variant="destructive"
+              aria-disabled={busy}
+              onClick={() => void endConnection('remove')}
+            >
+              <UserMinus aria-hidden="true" />
+              {t('settings.peers.connections.remove')}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="default"
+              aria-disabled={busy}
+              onClick={() => void endConnection('block')}
+            >
+              <ShieldOff aria-hidden="true" />
+              {t('settings.peers.connections.block')}
+            </Button>
+          </div>
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
   );
 }

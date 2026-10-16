@@ -264,7 +264,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (token_type) (rate(voice_comment_tokens_total[$__rate_interval]))",
+          "expr": "sum by (token_type) (rate(llm_tokens_consumed_total{node_name=\"voice_comment\"}[$__rate_interval]))",
           "legendFormat": "{{token_type}}",
           "refId": "A"
         }
@@ -293,7 +293,7 @@
           "placement": "bottom"
         }
       },
-      "description": "Tokens used for voice comment generation."
+      "description": "Tokens the spoken comment's model call consumed, by type (llm_tokens_consumed_total, node voice_comment)."
     },
     {
       "id": 6,
@@ -385,6 +385,48 @@
       "description": "Total sentences generated in voice comments."
     },
     {
+      "id": 25,
+      "title": "TTS socket sessions answered over HTTP",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 17
+      },
+      "targets": [
+        {
+          "expr": "sum by (provider, reason) (increase(voice_tts_transport_fallbacks_total[1h])) or vector(0)",
+          "legendFormat": "{{provider}} {{reason}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "lineWidth": 1
+          },
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "A voice slot set to the WebSocket transport (ADR-345) whose session failed in transit (network, timeout, malformed answer) was answered over HTTP. A quota or a refusal is never retried. 0 = every socket session held, or no slot uses the socket."
+    },
+    {
       "type": "row",
       "id": 101,
       "title": "Audio Streaming",
@@ -393,7 +435,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 17
+        "y": 25
       },
       "panels": [
         {
@@ -735,7 +777,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 34
+        "y": 42
       },
       "panels": [
         {
@@ -913,7 +955,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 43
+        "y": 51
       },
       "panels": [
         {

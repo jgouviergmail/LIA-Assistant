@@ -1,7 +1,7 @@
 'use client';
 
 import { ChevronDown, type LucideIcon } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useState, type ReactNode, type Ref } from 'react';
 
 import { cn } from '@/lib/utils';
 
@@ -66,6 +66,10 @@ export interface DisclosureProps {
    * spinner standing for work still in progress. The theme colour stays.
    */
   iconClassName?: string;
+  /** Allow long section names to wrap on narrow surfaces. */
+  titleClassName?: string;
+  /** Return focus when an action removes its entry from this section. */
+  summaryRef?: Ref<HTMLElement>;
   /** Open on arrival. Default false, deliberately. */
   defaultOpen?: boolean;
   /** Notified on every state change, so a caller can enable its query. */
@@ -82,6 +86,8 @@ export function Disclosure({
   description,
   meta,
   iconClassName,
+  titleClassName,
+  summaryRef,
   defaultOpen = false,
   onOpenChange,
   className,
@@ -108,6 +114,7 @@ export function Disclosure({
           rotates with `group-open`. The summary is the toggle, so the focus
           ring belongs here. */}
       <summary
+        ref={summaryRef}
         className={cn(
           'flex cursor-pointer list-none items-center gap-2 py-2.5 text-sm font-medium',
           'text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
@@ -116,7 +123,7 @@ export function Disclosure({
       >
         <Icon className={cn('h-4 w-4 shrink-0 text-primary', iconClassName)} aria-hidden="true" />
         <span className="min-w-0 flex-1">
-          <span className="block truncate">{title}</span>
+          <span className={cn('block truncate', titleClassName)}>{title}</span>
           {description && (
             <span className="block text-xs font-normal text-muted-foreground">{description}</span>
           )}

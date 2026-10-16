@@ -171,11 +171,12 @@ class SchedulerSettings(BaseSettings):
         ge=1,
         le=120,
         description=(
-            "Recovery threshold for stale scheduled actions. An action stuck "
-            "in 'executing' state past this duration is reset to 'active' by "
-            "recover_stale_executing(), called at every scheduler tick. "
-            "MUST be greater than scheduled_actions_execution_timeout_seconds "
-            "to avoid recovering still-running actions."
+            "Recovery threshold for stale scheduled actions. An action whose "
+            "reservation was not renewed for this long is reset to 'active' by "
+            "recover_stale_executing(), called at every scheduler tick. The "
+            "executor never applies less than the worst case of a run (every "
+            "attempt at its bound plus the pauses), whatever this value: a "
+            "lower one would hand a live run's routine to the next tick."
         ),
     )
 

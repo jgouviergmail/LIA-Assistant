@@ -14,6 +14,8 @@ from src.domains.agents.utils.registry_filtering import (
     filter_registry_by_current_turn,
     filter_registry_by_relevant_ids,
     parse_relevant_ids_from_response,
+    relevant_ids_declared_in,
+    select_registry_in_declared_order,
 )
 
 # ============================================================================
@@ -783,3 +785,134 @@ class TestRegistryFilteringIntegration:
         assert "place_ita1" in filtered
         assert "place_ita2" in filtered
         assert "place_fr1" not in filtered
+
+
+# ============================================================================
+# One reading of a declaration, one resolution of its ids (ADR-082 amendment)
+# ============================================================================
+
+#: Every matching rule at once: keys, payload ids, a hash suffix, a truncated id.
+DECLARED_REGISTRY: dict[str, Any] = {
+    "place_aaa111": {"payload": {"place_id": "ChIJalpha", "name": "Alpha"}},
+    "place_bbb222": {"payload": {"place_id": "ChIJbravo", "name": "Bravo"}},
+    "event_ccc333": {"payload": {"id": "c" * 50, "title": "Charlie"}},
+    "contact_ddd444": {"payload": {"resourceName": "people/delta", "name": "Delta"}},
+    "place_eee555": {"payload": {"place_id": "ChIJecho", "name": "Echo"}},
+}
+#: Each declaration, with what is expected of it, worked out by hand: the voice's
+#: records in the declared order, the cards' in the registry's order, and how many
+#: ids matched by hash suffix and by truncated payload id.
+DECLARATIONS: list[tuple[list[str], list[str], list[str], int, int]] = [
+    (
+        ["place_eee555", "place_aaa111"],
+        ["place_eee555", "place_aaa111"],
+        ["place_aaa111", "place_eee555"],
+        0,
+        0,
+    ),
+    (
+        ["ChIJbravo", "people/delta"],
+        ["place_bbb222", "contact_ddd444"],
+        ["place_bbb222", "contact_ddd444"],
+        0,
+        0,
+    ),
+    (
+        ["ccc333", "eee555", "aaa111"],
+        ["event_ccc333", "place_eee555", "place_aaa111"],
+        ["place_aaa111", "event_ccc333", "place_eee555"],
+        3,
+        0,
+    ),
+    (
+        ["c" * 25, "place_bbb222"],
+        ["event_ccc333", "place_bbb222"],
+        ["place_bbb222", "event_ccc333"],
+        0,
+        1,
+    ),
+    (["unknown", "place_aaa111", "ChIJalpha", "aaa111"], ["place_aaa111"], ["place_aaa111"], 1, 0),
+    (["unknown", "people/nobody"], [], [], 0, 0),
+]
+
+
+class TestTheDeclarationHasOneReading:
+    """The response node parses the answer and the stream reads the tag alone:
+    both read the declaration through ``relevant_ids_declared_in``."""
+
+    def test_no_complete_tag_declares_nothing(self):
+        assert relevant_ids_declared_in("Pas de balise.") is None
+        assert relevant_ids_declared_in("<relevant_ids>a,b") is None
+
+    def test_an_empty_tag_declares_no_record(self):
+        assert relevant_ids_declared_in("<relevant_ids></relevant_ids>Rien.") == []
+        assert relevant_ids_declared_in("<relevant_ids> , </relevant_ids>") == []
+
+    def test_the_ids_keep_the_order_written(self):
+        declared = "<relevant_ids> place_b , place_a ,place_c</relevant_ids>Texte"
+        assert relevant_ids_declared_in(declared) == ["place_b", "place_a", "place_c"]
+
+    def test_the_tag_is_read_in_any_case(self):
+        assert relevant_ids_declared_in("<RELEVANT_IDS>x</relevant_ids>") == ["x"]
+
+    def test_the_answer_parser_reads_the_same_ids(self):
+        for answer in (
+            "<relevant_ids>b,a</relevant_ids>Texte",
+            "<relevant_ids></relevant_ids>Texte",
+            "Texte sans balise",
+        ):
+            with patch("src.domains.agents.utils.registry_filtering.logger"):
+                ids, _ = parse_relevant_ids_from_response(answer)
+            assert ids == (relevant_ids_declared_in(answer) or [])
+
+
+class TestTheVoiceReadsTheRecordsTheCardsKeep:
+    """``select_registry_in_declared_order`` names the records the cards keep —
+    one resolution — in the order the answer declared them, its lead first."""
+
+    def test_the_order_is_the_declaration(self):
+        selected = select_registry_in_declared_order(
+            DECLARED_REGISTRY, ["place_eee555", "ChIJbravo", "aaa111"]
+        )
+        assert list(selected) == ["place_eee555", "place_bbb222", "place_aaa111"]
+
+    def test_the_records_are_those_the_cards_keep(self):
+        for declared, voice, cards, suffix, prefix in DECLARATIONS:
+            with patch("src.domains.agents.utils.registry_filtering.logger") as log:
+                kept = filter_registry_by_relevant_ids(DECLARED_REGISTRY, declared)
+            spoken = select_registry_in_declared_order(DECLARED_REGISTRY, declared)
+            assert list(spoken) == voice, declared
+            assert list(kept) == cards, declared
+            assert all(spoken[key] is DECLARED_REGISTRY[key] for key in spoken)
+            log.info.assert_called_once_with(
+                "intelligent_filtering_applied",
+                original_count=len(DECLARED_REGISTRY),
+                filtered_count=len(cards),
+                removed_count=len(DECLARED_REGISTRY) - len(cards),
+                prefix_matched=prefix,
+                suffix_matched=suffix,
+            )
+
+    def test_the_cards_keep_the_registry_order(self):
+        with patch("src.domains.agents.utils.registry_filtering.logger"):
+            cards = filter_registry_by_relevant_ids(
+                DECLARED_REGISTRY, ["place_eee555", "place_aaa111"]
+            )
+        assert list(cards) == ["place_aaa111", "place_eee555"]
+
+    def test_a_record_named_twice_is_kept_once_at_its_first_place(self):
+        selected = select_registry_in_declared_order(
+            DECLARED_REGISTRY, ["place_bbb222", "ChIJalpha", "ChIJbravo", "bbb222"]
+        )
+        assert list(selected) == ["place_bbb222", "place_aaa111"]
+
+    def test_nothing_declared_or_nothing_known_selects_nothing(self):
+        assert select_registry_in_declared_order(DECLARED_REGISTRY, []) == {}
+        assert select_registry_in_declared_order(DECLARED_REGISTRY, ["unknown"]) == {}
+        assert select_registry_in_declared_order({}, ["place_aaa111"]) == {}
+
+    def test_it_logs_nothing_of_its_own(self):
+        """``intelligent_filtering_applied`` counts the cards' filtering once per answer."""
+        with patch("src.domains.agents.utils.registry_filtering.logger") as log:
+            select_registry_in_declared_order(DECLARED_REGISTRY, ["place_aaa111"])
+        assert log.method_calls == []

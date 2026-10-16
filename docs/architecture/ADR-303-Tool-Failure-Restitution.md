@@ -81,3 +81,158 @@ L'ironie : la règle écrite existait déjà, mot pour mot, dans `response_direc
 - **Le taux de succès des outils va baisser en production** : il dira enfin la vérité. Les deux alertes qui le lisent, muettes par construction, peuvent désormais se déclencher.
 - Aucun appel LLM ni réessai ajouté ; aucune migration ; aucune clé d'état nouvelle. Le surcoût est la directive elle-même, sur les seuls tours en échec.
 - Ce qui reste à faire, nommé plutôt que découvert : les exceptions typées du navigateur (qui supprimeraient les six derniers sites du ratchet), le pont Live navigateur dont le détecteur d'échec est une promesse rejetée que rien ne produit, et le briefing qui compte `success` sur une réponse vide.
+
+## Amendment 2026-10-13 — a refusal BEFORE the tool runs is a declared failure too
+
+Production, 2026-10-13: a delegated expert spent its research rounds on refusals
+(ADR-083 amendment 2026-10-13 b), several of them the per-account rate limiter's.
+`@rate_limit` answered a JSON STRING — `{"error": "rate_limit_exceeded", …}` — and
+`explicit_success` reads every bare string as a success. So the consultation
+register filed a success for a source nobody opened; on every tool that stacks
+`@track_tool_metrics` above `@rate_limit` (web fetch, Brave, the browser, image
+generation, the skills tools…) Prometheus counted a successful call; and the ReAct
+loop marked the message `success` and counted it as production, so a refusal bought
+an iteration — what point (9) forbids. Only the pipeline read it as failed, by
+accident (the dict carried no `success` key), and quoted the code word
+`rate_limit_exceeded` as the error text, the delay dropped.
+
+- **The limiter returns `UnifiedToolOutput.failure(error_code=RATE_LIMIT_EXCEEDED)`**
+  (`agents/utils/rate_limiting._refusal`). Its message states facts in technical
+  English (ADR-256): the tool, the limit and whose it is (`this account` or
+  `this instance`), the delay, and that no argument changes it before then — the
+  limit counts calls per tool, not per target. The metadata carries
+  `retry_after_seconds`, `max_calls`, `window_seconds` and `scope`. The
+  `error_message` override is gone: no caller ever passed one, and a custom text
+  could drop the delay.
+- **A sub-loop's ending is typed the same way** (ADR-083 amendment 2026-10-13 b,
+  point 4): `ReactSubAgentRunner` returns an `outcome` with the partial in its own
+  fields, and a failed delegation is coded by the failure's kind
+  (`RATE_LIMIT_EXCEEDED`, `TIMEOUT`, `CONFIGURATION_ERROR`…) rather than read from
+  a sentence.
+
+Guards: `tests/unit/domains/agents/utils/test_rate_limiting.py` holds the refusal to
+every reader of the one predicate (`explicit_success`, the ReAct status, the
+iteration budget) and the metrics decorator stacked above the limiter to
+`success="false"`. Left as found, and named here: the limiter is in memory, so
+under `WEB_CONCURRENCY` each worker keeps its own window; its hit counter labels a
+per-process salted hash of the account; and a tool built by `connector_tool`
+(limiter OUTSIDE the metrics decorator) records a refusal as a hit, never as an
+invocation.
+
+## Amendement 2026-10-14 — le code d'un échec ReAct voyage avec lui, et « aucun connecteur » a un sens
+
+- **Le code d'un échec déclaré accompagne son message d'outil**
+  (`react_result_reading.tool_message_metadata`), sur
+  `ToolMessage.response_metadata`, qu'aucun adaptateur n'envoie au fournisseur
+  et que le checkpoint conserve. `failure_context` l'y lit quand le corps
+  n'est pas du JSON. Le marqueur reste structurel : rien n'est lu dans la
+  prose. Avant, tout échec ReAct atteignait la directive en `UNKNOWN` et
+  perdait le sens que son code porte.
+- **`CONNECTOR_NOT_ACTIVATED` rejoint `ToolErrorCode`.** La directive d'échecs
+  lui donne son sens, et sa règle 2 nomme cette seule exception (ADR-184,
+  amendement 2026-10-14). C'est ce qui permet à une étape tentée de n'être
+  plus jamais « bloquée » : la directive d'échecs est désormais le seul canal
+  de son échec.
+- **Un brouillon confirmé que son exécuteur refuse dit pourquoi, jamais par
+  un code ni par le texte d'une erreur.**
+  - À la confirmation, aucun modèle n'écrit la réponse : la carte
+    d'exécution EST la réponse (chemin rapide du nœud de réponse), et la
+    directive d'échecs n'y est pas lue. Son canal est la carte.
+  - `incomplete_draft_result` rangeait un CODE dans
+    `DraftExecutionResult.error`, que la carte affiche tel quel (ADR-289) :
+    la personne lisait « EXECUTION_FAILED », « SCHEMA_CHANGED » ou
+    « CONFIRMATION_MISSING ». Il y range désormais ce que la carte doit dire
+    (`refusal_message`) :
+    - pour `CONNECTOR_NOT_ACTIVATED`, une phrase qui nomme le connecteur comme
+      les réglages le nomment et dit où le réactiver ;
+    - un reçu validé (`committed`) se lit toujours `POST_COMMIT_FAILURE`
+      (« les modifications sont enregistrées, mais… »), quel que soit son
+      code : une nouvelle tentative referait l'écriture (ADR-339, point 5) ;
+    - tout autre code, la phrase de sa cause (`core/i18n_draft_refusals.py`,
+      six langues, des alias quand deux codes nomment une même cause). Une
+      phrase n'affirme « rien n'a été exécuté » que là où chaque producteur de
+      son code refuse avant tout effet — le verrou des effets et la
+      vérification d'approbation pour `CONFIRMATION_MISSING` ; ailleurs, elle
+      nomme la cause et demande de vérifier l'état ;
+    - un refus sans code, ou un code déclaré générique
+      (`GENERIC_REFUSAL_CODES`, chacun avec sa raison écrite), la phrase
+      générique traduite. Le code reste dans `result_data`, pour le registre.
+  - **Aucun code ne reste sans décision.** Une garde de recensement lit par
+    AST ce que produisent les propriétaires — `CommandRejected`,
+    `_failed_outcome`, les dictionnaires de refus, la projection
+    d'autorisation, le Live et l'issue SMTP — et refuse un code ni mis en mots
+    ni déclaré générique, comme une entrée que plus rien ne produit. Elle a
+    trouvé à sa première lecture `OAUTH_FAILED` et `RESOURCE_BUSY`. Un code
+    calculé à l'exécution lui est invisible : il est déclaré avec sa source
+    (`instance_budget_exhausted`).
+  - **Une exception n'atteint jamais la carte par son texte**, qui peut citer
+    un fournisseur, une URL ou une boîte. `raised_failure` lit les faits typés
+    qu'elle porte : un envoi SMTP partiellement accepté, ou un connecteur
+    révoqué. `ConnectorRevokedError` est le même 403 que
+    `raise_permission_denied`, mêmes statut, détail et contexte de journal, et
+    porte en plus son type. Toute autre exception lit la phrase générique,
+    comme les deux défauts internes (aucun exécuteur enregistré, aucune
+    dépendance), dont les faits restent dans le journal.
+  - **Une annulation impossible n'est jamais annoncée « annulée ».** Une
+    commande qui n'était plus en attente a peut-être déjà commencé : la carte
+    le dit (`CANCELLATION_UNAVAILABLE`), et le chemin rapide la montre au lieu
+    de la phrase d'annulation.
+  - Les quatre exécuteurs qui écrivent par UN fournisseur (réponse
+    automatique et filtres de Gmail, feuilles et documents de Drive)
+    renvoyaient la chaîne libre `connector_not_activated`. Ils renvoient
+    désormais des FAITS (`connector_not_activated_refusal` : le code et le
+    connecteur), et la carte en fait les mots.
+  - Sous le masque RC2.1, ces outils ne sont pas proposés sans leur
+    connecteur. Le refus n'est donc atteint que si le connecteur cesse d'être
+    actif entre la carte et la confirmation, par exemple quand un accès
+    expiré le passe en `ERROR`. C'est rare, et c'est alors la seule chose que
+    la personne doit lire.
+  - Les deux formateurs « connecteur non activé » des outils nomment le
+    connecteur depuis `CONNECTOR_DISPLAY_NAMES`. Ils disaient
+    `google_gmail`, ou puisaient dans une copie privée de cette table qui
+    avait dérivé (« Perplexity AI », `brave_search`).
+  - Preuves : `tests/unit/domains/agents/services/test_draft_connector_refusal.py`
+    (les quatre exécuteurs, six langues, les exceptions et le répartiteur réel
+    jusqu'à la carte), `tests/unit/core/test_i18n_draft_refusals.py`,
+    `tests/unit/domains/agents/test_draft_refusal_vocabulary_guard.py`,
+    `tests/unit/connectors/test_connector_service.py::TestARevokedConnectorIsRefusedByName`,
+    `tests/agents/test_response_node_characterization.py::test_char_a_cancel_that_could_not_withdraw_is_never_told_cancelled`
+    et
+    `tests/unit/domains/agents/tools/test_connector_not_activated_code.py::TestTheSentenceNamesTheConnectorAsTheSettingsDo`.
+
+
+### Amendement 2026-10-14 — refus du navigateur et lectures réellement échouées
+
+Le navigateur publie ses refus par un type à vocabulaire fermé (`BrowserRefusal`),
+pas par un fragment du texte d'une exception. Les six outils lisent ce type, les
+timeouts Python et Playwright restent `TIMEOUT`, et toute panne inconnue donne
+une phrase possédée qui invite à vérifier la page avant de répéter une action.
+Un fournisseur ne peut ainsi faire lire sa prose comme une limite de capacité ou
+comme des instructions de confiance. Les diagnostics bruts restent au niveau DEBUG;
+les autres logs ne contiennent que des faits. Le compteur d'erreurs de tâche
+utilise le code du refus en minuscules pour borner ses étiquettes.
+
+Une extraction CDP échouée ne vaut plus « page vide », ni une résolution échouée
+« élément absent ». Leur exception remonte aux outils. La session CDP est détachée
+sur chaque sortie; si le détachement échoue aussi, l'échec ou l'annulation d'origine
+reste celui que le lecteur reçoit. Une vraie page vide reste une réussite.
+
+Preuves hermétiques : `test_browser_error_privacy.py`,
+`test_browser_limit_markers.py` (bornes réellement atteintes dans les producteurs),
+et `tests/unit/infrastructure/browser/test_failure_privacy.py` (Redis indisponible,
+CDP, interception SSRF, distinction page vide/panne et nettoyage après annulation).
+Elles ne démontrent pas un parcours sur un site externe réel.
+
+### Amendement 2026-10-15 — code de refus et explication restent distincts
+
+`DraftExecutionResult.error` est l'explication que la carte affiche à la personne.
+Le code stable reste dans `result_data.error_code`. Les assertions d'intégration
+des confirmations vérifient les deux séparément, sans retirer leurs contrôles
+sur les écritures, les droits courants ou les effets : traduire une explication
+ne doit ni modifier la disposition technique ni transformer un refus en réussite.
+
+Une commande déjà annulée publie `CANCELLED` depuis son état durable, par un code
+calculé à l'exécution. La carte réutilise son libellé d'annulation dans les six
+langues ; un reçu indiquant une écriture déjà commise conserve la priorité et
+demande une vérification. Le recensement des refus inclut ce code calculé et
+exige une décision pour chaque code dynamique déclaré, comme pour les littéraux.

@@ -92,7 +92,9 @@ its own personality, distinct from the chat's.
    audio tokens per second; 0.50 $ / 9 $ per million until 2026-12-31) and reports its
    usage; the factory refuses a token-billed engine to a caller that does not record
    tokens (the chat keeps Edge), and one door (`synthesize_billed`) returns the audio
-   with its billing units. A cast gives each role a voice (read forgivingly: an id the
+   with its billing units. Amended 2026-10-14 (ADR-345): every caller now records
+   through `voice/spoken.speak`, so the chat is served Gemini too and the refusal is
+   gone. A cast gives each role a voice (read forgivingly: an id the
    current engine does not hold falls back to a default), alternating genders.
    Amended 2026-09-27 (the owner's settings stopped saving): the settings page reads
    the same way — a stored voice the engine no longer offers in the listener's language
@@ -102,9 +104,11 @@ its own personality, distinct from the chat's.
    previous engine, sent back by the page, had made every save refused as
    `radio_voice_unknown`: the write path still refuses one, and nothing sends it any more.
    And each engine keeps its own (owner request, the same evening): the stored settings hold
-   the voices per `provider/model` (`voices_by_engine`, `cast.engine_key`), the page reads and
-   writes the engine in place's, a save replaces that engine's alone under a row lock (a new
-   mapping, every other engine's kept), and an engine switched back to finds its voices.
+   the voices per engine (`voices_by_engine`), the page reads and writes the engine in place's,
+   a save replaces that engine's alone under a row lock (a new mapping, every other engine's
+   kept), and an engine switched back to finds its voices. Kept per `provider/model` until
+   2026-10-16, per PROVIDER since (decision 43): every model of a provider offers the same
+   voices, and each model change handed the listener other ones.
 
 8. **Sound** (superseded by decision 28: the music is now the player's, continuous).
    Nine 18-second beds generated once with Lyria (provenance and hashes
@@ -683,6 +687,20 @@ aired`), and only those are remembered — an analysis that aired counts as its 
     character outside the basic plane, never looser). In company (public mode) the
     station keeps the name its listener gave it: a name is the station's, chosen to be
     said on air, not a fact about its listener.
+    Amended 2026-10-14 (owner report: « the station's name is no longer taken into
+    account »): the name was frozen in the setup and shown by the bar, but hardly ever
+    said — the three openings still in the dev cache all called the station « LIA ». The
+    writer was given the name once, in an apposition that went on « the personal radio
+    station LIA runs », while every guide asked for « the station » and the context
+    said only « names the station: yes »; with the default « Radio LIA », saying « LIA »
+    sounded right, so nothing showed it until a listener chose a name.
+    The writer's prompt now states the station's name as the one any title or line says,
+    LIA as the assistant who runs it, and the context line asking for the name carries it
+    (`prompting._context`). Measured on dev with the writer slot's own door (the
+    opening's unreasoned call, the proof account, 0.0057 € in all): the name said by 1
+    opening in 10 before, 10 in 10 after, « LIA » by 9 then 0. Nothing in the editor
+    checks it: no mechanical repair adds a name without inventing words, and refusing the
+    opening would delay the first voice.
     (c) **What the planned listening will cost**, beside what it has cost: every report
     publishes the cost so far divided by the radio produced, times the listening the timer
     planned (`SessionState.planned_s`, fixed at the start: a pause moves the stop, never what
@@ -1031,9 +1049,9 @@ aired`), and only those are remembered — an analysis that aired counts as its 
       story through — the writer chooses it among four). The dossier's five minutes (at most
       seven and a half) were measured on the half-hour simulation: seven could not be
       produced behind three short programmes without the listener waiting.
-    - **Commentators** (`speaker_a` to `speaker_c`) are the station's, never presented as
-      real people, and never configured (`CONFIGURABLE_ROLES`: a stored choice for one is
-      refused on write and ignored on read). They are cast automatically (`cast._speaker_voice`:
+    - **Commentators** (`speaker_a` to `speaker_c`) are never presented as real people.
+      They were never configured until decision 43 (a stored choice for one was refused on
+      write and ignored on read); left automatic, they are cast (`cast._speaker_voice`:
       a voice nobody speaks with, else one lent by a role that never speaks in a debate or a
       discussion — the expert's, the editorialist's —, else one no other commentator has, the
       moderator's before LIA's: silent in a debate, it is heard in a discussion).
@@ -1257,6 +1275,31 @@ aired`), and only those are remembered — an analysis that aired counts as its 
     2026-10-04) came from a failure every production met at once, which a retry meets
     too. The cost of the change: the opening airs sooner and the second programme does
     not, so the station's music after the opening lasts longer.
+43. **Every voice is the listener's, kept per provider** (2026-10-16, the owner: « despite
+    the voices configured, other voices are often used — as if the choice got lost over
+    time »). Read on production first (facts only, ADR-317): over seven days every line was
+    sent with the voice the session's cast froze for its role, and Fish Audio rendered the
+    chosen voices close to their own vendor samples (log-mel distance 0.013 to 0.023,
+    against 0.05 to 0.45 to the other voices — free model, dev). What was heard as « other
+    voices » had two causes, both in the design.
+    - **The voices were kept per provider AND model** (decision 7's amendment), while every
+      model of a provider offers the same catalogue (`engine_voices` lists per provider):
+      the radio's slot changed provider or model fourteen times from 28 September to 15
+      October on that instance (the admin audit log), and each change handed the listener
+      the voices chosen on that exact model, or automatic ones. They are kept per PROVIDER
+      (`engine_voices.choice_key`); an entry an older release kept per model is still
+      read — the fullest, the later model name on a tie (`stored_choice`) — and replaced
+      at the next save (`holds_choice_of`). LIA's chat voices follow the same rule
+      (ADR-345 decision 15, amended the same day).
+    - **The commentators were never the listener's**: 50 of the 126 lines of the owner's
+      ten test sessions that morning were spoken by voices nobody had chosen. They are
+      chosen like the team's (`STAFF_ROLES`, formerly `CONFIGURABLE_ROLES`), automatic by
+      default — the station's cast as before. Every voice chosen is placed before any
+      default, so no default takes one. Which voices a role may not share is DERIVED from
+      the programmes (`cast.VOICES_APART`: a commentator never sounds like LIA, the
+      moderator or another commentator — what `Cast.voiced_roles` silences), published
+      (`voices_apart`: the page greys them out) and refused on write
+      (`radio_voice_shared`); a test holds the three equal over every pair of roles.
 
 ## Consequences
 

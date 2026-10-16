@@ -13,6 +13,11 @@ table does not hold falls back to the registries, unchanged. Google calls these
 dates the EARLIEST possible shutdown: a past date announces, it does not prove
 the model gone — only the API's own model list does (see the catalogue
 alignment migration ``70fd39bf9e8d``).
+
+A vendor no registry copies is declared here too when it announces a
+retirement (Fish Audio, ADR-345): the seed and the migrations that store the
+date are held to this table, and the voice engine reads it to know which model
+actually speaks once a retired one is served by its successor.
 """
 
 from __future__ import annotations
@@ -24,6 +29,11 @@ from typing import Final
 GEMINI_DEPRECATIONS_URL: Final[str] = "https://ai.google.dev/gemini-api/docs/deprecations"
 #: When it was read.
 GEMINI_DEPRECATIONS_READ_ON: Final[date] = date(2026, 9, 26)
+#: The page every Fish Audio entry was read on, and when (ADR-345).
+FISHAUDIO_DEPRECATIONS_URL: Final[str] = (
+    "https://docs.fish.audio/developer-guide/models-pricing/deprecations"
+)
+FISHAUDIO_DEPRECATIONS_READ_ON: Final[date] = date(2026, 10, 14)
 
 #: Google's page, for every model it lists that LIA's catalogue may hold. Two
 #: rows spell the model as the API does where the page abbreviates it:
@@ -69,6 +79,10 @@ VENDOR_SHUTDOWNS: Final[dict[tuple[str, str], date | None]] = {
     ("gemini", "gemini-embedding-001"): date(2028, 5, 14),
     ("gemini", "text-embedding-004"): date(2026, 1, 14),
     ("gemini", "embedding-001"): date(2025, 10, 30),
+    # Fish Audio's page: past this day, requests naming s1 are served (and billed)
+    # as s2.1-pro. It lists no other model; the free model's no-cost window
+    # (its changelog: through 2026-11-30) is a price, not a retirement.
+    ("fishaudio", "s1"): date(2026, 12, 31),
 }
 
 
@@ -91,6 +105,8 @@ def announced_shutdown(provider: str, model: str) -> tuple[bool, date | None]:
 
 
 __all__ = [
+    "FISHAUDIO_DEPRECATIONS_READ_ON",
+    "FISHAUDIO_DEPRECATIONS_URL",
     "GEMINI_DEPRECATIONS_READ_ON",
     "GEMINI_DEPRECATIONS_URL",
     "VENDOR_SHUTDOWNS",

@@ -10,7 +10,7 @@ single "from OR to OR cc" query cannot survive the three providers:
 
 - Apple — ``convert_imap_query`` builds an **AND** of criteria, so
   ``from:x to:x`` matches nothing at all;
-- Microsoft — ``build_search_filter`` routes to the **inbox** folder unless
+- Microsoft — ``graph_mail_query`` routes to the **inbox** folder unless
   ``in:`` says otherwise, so sent mail is simply invisible;
 - Gmail — space-separated operators are ANDed too.
 
@@ -24,7 +24,8 @@ a hole, an empty section is a false negative.
 The window bounds RELEVANCE and what the provider scans, never quota: a search
 costs one call whatever it spans. It rides ``after:``, one of the few operators
 all three converters understand (Apple maps it to ``date_gte``, Microsoft to a
-``receivedDateTime`` filter).
+``receivedDateTime`` filter — or, beside a ``to:``/``cc:`` search Graph cannot
+combine with a filter, to a check on each page of the newest-first results).
 
 No count is reported: a provider page cannot prove how many messages exist
 behind it, and ADR-185 forbids a count that is not exact.

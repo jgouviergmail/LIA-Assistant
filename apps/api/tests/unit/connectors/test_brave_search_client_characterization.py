@@ -22,6 +22,7 @@ from uuid import uuid4
 import httpx
 import pytest
 
+from src.core.exceptions import ConnectorAPIError
 from src.core.i18n import language_scope
 from src.domains.connectors.clients.brave_search_client import BraveSearchClient
 
@@ -253,6 +254,35 @@ class TestBraveSearchNoneOnError:
 
         assert result == {"web": {"results": [{"title": "ok"}]}}
         assert calls["n"] == 2
+
+
+class TestBraveRateLimitIsSaid:
+    """The tool reads the raising door; every other caller keeps None-on-error
+    (ADR-108 amendment 2026-10-13)."""
+
+    async def test_search_or_raise_hands_back_a_typed_rate_limit(self, client):
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(429, headers={"Retry-After": "2"})
+
+        p1, p2 = _patches(handler)
+        with p1, p2:
+            with pytest.raises(ConnectorAPIError) as refused:
+                await client.search_or_raise("q")
+            await client.close()
+
+        assert refused.value.status_code == 429
+        assert refused.value.headers == {"Retry-After": "2"}
+
+    async def test_search_keeps_its_none_contract_on_the_same_refusal(self, client):
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(429, headers={"Retry-After": "2"})
+
+        p1, p2 = _patches(handler)
+        with p1, p2:
+            result = await client.search("q")
+            await client.close()
+
+        assert result is None
 
 
 class TestBraveQueryClamp:

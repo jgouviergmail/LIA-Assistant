@@ -17,12 +17,12 @@ Created: 2026-03-10
 import asyncio
 import json
 import smtplib
+import ssl
 import uuid
 from collections.abc import Sequence
 from contextlib import suppress
 from datetime import UTC, datetime
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+from email.message import Message
 from typing import Any
 from uuid import UUID
 
@@ -32,6 +32,23 @@ from imap_tools import AND, MailBox
 from src.core.config import settings
 from src.core.constants import APPLE_MAIL_MESSAGE_MAX_BYTES
 from src.core.field_names import FIELD_CACHED_AT
+from src.domains.connectors.clients.apple_compose import (
+    forward_message,
+    new_message,
+    reply_message,
+)
+from src.domains.connectors.clients.apple_drafts_mixin import AppleDraftsMixin
+from src.domains.connectors.clients.apple_imap import (
+    TRASH_ROLE,
+    authenticated_imap_mailbox,
+    mailbox_scope,
+    message_cache_key,
+    move_messages,
+    page_offset,
+    search_folder,
+    select_message_folder,
+    special_folder,
+)
 from src.domains.connectors.clients.base_apple_client import (
     AppleAuthenticationError,
     BaseAppleClient,
@@ -44,31 +61,38 @@ from src.domains.connectors.clients.email_attachments import (
     ensure_within_bound,
     select_attachment,
 )
+from src.domains.connectors.clients.mail_folders import EXCLUDES_ITS_FOLDER
+from src.domains.connectors.clients.mailbox_drafts import prepare_for_smtp
 from src.domains.connectors.clients.normalizers.email_normalizer import (
-    _GMAIL_FOLDER_TO_IMAP,
-    convert_imap_query,
     normalize_imap_message,
+    parse_imap_query,
+)
+from src.domains.connectors.clients.normalizers.imap_handles import (
+    MessageLocation,
+    read_message_handle,
 )
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import AppleCredentials
 from src.infrastructure.cache.redis import get_redis_session
-from src.infrastructure.email.outgoing import OutgoingAttachment, attachment_part, max_file_bytes
+from src.infrastructure.email.outgoing import OutgoingAttachment, max_file_bytes
+from src.infrastructure.email.smtp_outcome import SMTPPartialAcceptanceError
 
 logger = structlog.get_logger(__name__)
 
 
-def _page_offset(page_token: str | None) -> int:
-    """Read an IMAP page token (a decimal offset); anything else is page one."""
-    if not page_token:
-        return 0
-    try:
-        return max(0, int(page_token))
-    except ValueError:
-        logger.info("apple_email_page_token_ignored", token_length=len(page_token))
-        return 0
+def _located(message_id: str) -> MessageLocation:
+    """Where an id says its message is; an id that cannot be one names no message.
+
+    Raises:
+        ValueError: The id lacks a valid account/folder/UIDVALIDITY binding.
+    """
+    location = read_message_handle(message_id)
+    if location is None or location.scope_digest is None:
+        raise ValueError("Message not found: list the messages again for a current identifier.")
+    return location
 
 
-class AppleEmailClient(BaseAppleClient):
+class AppleEmailClient(AppleDraftsMixin, BaseAppleClient):
     """
     Apple iCloud Email client using IMAP/SMTP.
 
@@ -132,7 +156,7 @@ class AppleEmailClient(BaseAppleClient):
         fields: list[str] | None = None,
         use_cache: bool = True,
     ) -> dict[str, Any]:
-        """Get a single email by UID, checking Redis cache first."""
+        """Get a single email by its id (its UID and its folder), checking Redis cache first."""
         return await self._execute_with_retry(
             "get_message",
             self._get_message_impl,
@@ -152,7 +176,7 @@ class AppleEmailClient(BaseAppleClient):
         is_html: bool = False,
         attachments: Sequence[OutgoingAttachment] = (),
         *,
-        single_attempt: bool = False,
+        single_attempt: bool = True,
     ) -> dict[str, Any]:
         """Send an email via SMTP, with its files when given (ADR-321)."""
         return await self._execute_with_retry(
@@ -165,7 +189,7 @@ class AppleEmailClient(BaseAppleClient):
             bcc,
             is_html,
             attachments,
-            max_retries=0 if single_attempt else 3,
+            max_retries=0,
         )
 
     async def reply_email(
@@ -185,6 +209,7 @@ class AppleEmailClient(BaseAppleClient):
             reply_all,
             is_html,
             to,
+            max_retries=0,
         )
 
     async def download_attachment(
@@ -204,7 +229,7 @@ class AppleEmailClient(BaseAppleClient):
         fetched, before its bytes leave the client.
 
         Args:
-            message_id: IMAP UID.
+            message_id: The message's id (its UID, and its folder — ``imap_handles``).
             attachment_id: The part index the listing published; wins when given.
             filename: The name as sent, when the index is unknown.
             max_bytes: Refuse a part larger than this.
@@ -218,12 +243,23 @@ class AppleEmailClient(BaseAppleClient):
             EmailAttachmentTooLargeError: The part exceeds the bound.
         """
 
+        location = read_message_handle(message_id)
+        if location is None or location.scope_digest is None:
+            raise EmailAttachmentNotFoundError(f"message {message_id!r} not found")
+
         def _fetch_parts() -> list[dict[str, Any]]:
             try:
-                with MailBox(settings.apple_imap_host, settings.apple_imap_port).login(
-                    self.credentials.apple_id, self.credentials.app_password
+                with authenticated_imap_mailbox(
+                    MailBox, self.credentials.apple_id, self.credentials.app_password
                 ) as mailbox:
-                    for msg in mailbox.fetch(AND(uid=message_id), mark_seen=False):
+                    if (
+                        select_message_folder(
+                            mailbox, location, principal=self.credentials.apple_id
+                        )
+                        is None
+                    ):
+                        raise EmailAttachmentNotFoundError(f"message {message_id!r} not found")
+                    for msg in mailbox.fetch(AND(uid=location.uid), mark_seen=False):
                         return [
                             {
                                 "attachmentId": str(index),
@@ -234,6 +270,8 @@ class AppleEmailClient(BaseAppleClient):
                             }
                             for index, att in enumerate(msg.attachments)
                         ]
+            except EmailAttachmentNotFoundError:
+                raise
             except Exception as e:
                 self._check_imap_auth_error(e)
                 raise
@@ -267,6 +305,7 @@ class AppleEmailClient(BaseAppleClient):
             cc,
             is_html,
             include_attachments,
+            max_retries=0,
         )
 
     async def get_own_address(self) -> str | None:
@@ -279,6 +318,7 @@ class AppleEmailClient(BaseAppleClient):
             "trash_email",
             self._trash_email_impl,
             message_id,
+            max_retries=0,
         )
 
     async def list_labels(self, use_cache: bool = True) -> dict[str, str]:
@@ -297,7 +337,7 @@ class AppleEmailClient(BaseAppleClient):
     # SMTP HELPER
     # =========================================================================
 
-    async def _smtp_send(self, recipients: list[str], msg: MIMEMultipart) -> None:
+    async def _smtp_send(self, recipients: list[str], msg: Message) -> None:
         """
         Send an email via SMTP STARTTLS.
 
@@ -310,18 +350,32 @@ class AppleEmailClient(BaseAppleClient):
         """
 
         def _do_send() -> None:
+            accepted = False
+            refused: dict[str, tuple[int, bytes]] = {}
             try:
                 with smtplib.SMTP(
                     settings.apple_smtp_host, settings.apple_smtp_port, timeout=30
                 ) as server:
-                    server.starttls()
+                    server.starttls(context=ssl.create_default_context())
                     server.login(self.credentials.apple_id, self.credentials.app_password)
-                    server.sendmail(self.credentials.apple_id, recipients, msg.as_string())
+                    # Bytes: a draft read back may carry 8-bit parts, which a
+                    # str would have to squeeze into ASCII.
+                    refused = server.sendmail(self.credentials.apple_id, recipients, msg.as_bytes())
+                    accepted = True
             except smtplib.SMTPAuthenticationError as e:
                 raise AppleAuthenticationError(
                     self.connector_type,
-                    f"SMTP LOGIN failed: {e}",
+                    "SMTP authentication failed.",
                 ) from e
+            except (smtplib.SMTPException, OSError) as error:
+                if not accepted:
+                    raise
+                # Only QUIT remains after sendmail acknowledged acceptance.
+                logger.warning(
+                    "apple_smtp_close_failed_after_acceptance", error_type=type(error).__name__
+                )
+            if refused:
+                raise SMTPPartialAcceptanceError(len(recipients) - len(refused), len(refused))
 
         await asyncio.to_thread(_do_send)
 
@@ -338,27 +392,41 @@ class AppleEmailClient(BaseAppleClient):
         page_token: str | None = None,
         headers_only: bool = False,
     ) -> dict[str, Any]:
-        """Search emails via IMAP and cache results in Redis."""
+        """Search emails via IMAP and cache results in Redis.
+
+        Raises:
+            ValueError: A query that excludes the folder it reads.
+            MailFolderLookupError: A folder of the person's own the query
+                names that no folder, or several, of the server answer to.
+            MailboxFolderUnavailableError: A system location the server lacks.
+        """
         import time as _time
 
         # Enforce the global per-request volumetry ceiling (centralized cap).
         max_results = apply_max_items_limit(max_results)
         # IMAP has no cursor: the token is an offset into the newest-first
         # listing, and a page is a slice of it.
-        offset = _page_offset(page_token)
+        offset = page_offset(page_token)
 
         _email_start = _time.perf_counter()
         _email_status = "success"
-        criteria, target_folder = convert_imap_query(query)
-        folder = target_folder or "INBOX"
+        parsed = parse_imap_query(query)
+        if parsed.excludes_its_folder:
+            raise ValueError(EXCLUDES_ITS_FOLDER)
+        criteria, requested_folder = parsed.criteria, parsed.folder
 
         def _imap_fetch() -> list[dict[str, Any]]:
             try:
-                with MailBox(settings.apple_imap_host, settings.apple_imap_port).login(
-                    self.credentials.apple_id, self.credentials.app_password
+                with authenticated_imap_mailbox(
+                    MailBox, self.credentials.apple_id, self.credentials.app_password
                 ) as mailbox:
+                    # The folder is read where THIS server keeps it: a system
+                    # location by its role, a folder of the person's own by its
+                    # name — or refused, never the inbox in its place.
+                    folder = search_folder(mailbox, requested_folder)
                     if folder != "INBOX":
                         mailbox.folder.set(folder)
+                    scope = mailbox_scope(mailbox, folder, self.credentials.apple_id)
 
                     messages = []
                     for msg in mailbox.fetch(
@@ -369,7 +437,7 @@ class AppleEmailClient(BaseAppleClient):
                         headers_only=headers_only,
                     ):
                         # Extract ALL data within context manager
-                        normalized = normalize_imap_message(msg, folder)
+                        normalized = normalize_imap_message(msg, folder, scope=scope)
                         messages.append(normalized)
                     return messages
             except Exception as e:
@@ -390,7 +458,9 @@ class AppleEmailClient(BaseAppleClient):
                 ttl = settings.apple_email_message_cache_ttl
                 written_at = datetime.now(UTC).isoformat()
                 for msg in messages:
-                    cache_key = f"apple_email:{self.user_id}:msg:{msg['id']}"
+                    cache_key = message_cache_key(
+                        self.user_id, self.credentials.apple_id, msg["id"]
+                    )
                     await redis.set(
                         cache_key, json.dumps({**msg, FIELD_CACHED_AT: written_at}), ex=ttl
                     )
@@ -433,11 +503,12 @@ class AppleEmailClient(BaseAppleClient):
         use_cache: bool,
     ) -> dict[str, Any]:
         """Get a single message, checking Redis cache first."""
+        location = _located(message_id)
         # Check Redis cache (populated by search_emails)
         if use_cache:
             try:
                 redis = await get_redis_session()
-                cache_key = f"apple_email:{self.user_id}:msg:{message_id}"
+                cache_key = message_cache_key(self.user_id, self.credentials.apple_id, message_id)
                 cached = await redis.get(cache_key)
                 if cached:
                     with suppress(Exception):
@@ -461,27 +532,20 @@ class AppleEmailClient(BaseAppleClient):
             except Exception as e:
                 logger.debug("apple_email_cache_read_error", error=str(e))
 
-        # Cache miss: fetch from IMAP, trying multiple folders
-        # UIDs are per-folder in IMAP, so we search INBOX first then other common folders
-        search_folders = ["INBOX"]
-        for folder in _GMAIL_FOLDER_TO_IMAP.values():
-            if folder not in search_folders:
-                search_folders.append(folder)
-
+        # Cache miss: the message is read in the folder its id names — a UID
+        # names a message within ONE folder (``imap_handles``).
         def _imap_fetch_single() -> dict[str, Any]:
             try:
-                with MailBox(settings.apple_imap_host, settings.apple_imap_port).login(
-                    self.credentials.apple_id, self.credentials.app_password
+                with authenticated_imap_mailbox(
+                    MailBox, self.credentials.apple_id, self.credentials.app_password
                 ) as mailbox:
-                    for folder in search_folders:
-                        try:
-                            mailbox.folder.set(folder)
-                        except Exception:
-                            # Folder may not exist on this server
-                            continue
-                        for msg in mailbox.fetch(AND(uid=message_id), mark_seen=False):
-                            return normalize_imap_message(msg, folder)
-                    raise ValueError(f"Message {message_id} not found in any folder")
+                    folder = select_message_folder(
+                        mailbox, location, principal=self.credentials.apple_id
+                    )
+                    if folder is not None:
+                        for msg in mailbox.fetch(AND(uid=location.uid), mark_seen=False):
+                            return normalize_imap_message(msg, folder, scope=location.scope_digest)
+                    raise ValueError(f"Message {message_id} not found")
             except ValueError:
                 raise
             except Exception as e:
@@ -493,14 +557,14 @@ class AppleEmailClient(BaseAppleClient):
         # Cache for future requests, stamped with the write time (freshness contract)
         try:
             redis = await get_redis_session()
-            cache_key = f"apple_email:{self.user_id}:msg:{message_id}"
+            cache_key = message_cache_key(self.user_id, self.credentials.apple_id, message_id)
             await redis.set(
                 cache_key,
                 json.dumps({**result, FIELD_CACHED_AT: datetime.now(UTC).isoformat()}),
                 ex=settings.apple_email_message_cache_ttl,
             )
         except Exception as e:
-            logger.warning("apple_email_cache_write_error", error=str(e))
+            logger.warning("apple_email_cache_write_error", error_type=type(e).__name__)
 
         result["from_cache"] = False
         result[FIELD_CACHED_AT] = None
@@ -516,27 +580,22 @@ class AppleEmailClient(BaseAppleClient):
         is_html: bool,
         attachments: Sequence[OutgoingAttachment] = (),
     ) -> dict[str, Any]:
-        """Send email via SMTP STARTTLS; each file follows the body."""
-        msg = MIMEMultipart()
-        msg["From"] = self.credentials.apple_id
-        msg["To"] = to
-        msg["Subject"] = subject
-        if cc:
-            msg["Cc"] = cc
+        """Send email via SMTP STARTTLS; each file follows the body.
 
-        content_type = "html" if is_html else "plain"
-        msg.attach(MIMEText(body, content_type, "utf-8"))
-        for attachment in attachments:
-            msg.attach(attachment_part(attachment))
-
-        # Build recipient list
-        recipients = [addr.strip() for addr in to.split(",")]
-        if cc:
-            recipients.extend(addr.strip() for addr in cc.split(","))
-        if bcc:
-            recipients.extend(addr.strip() for addr in bcc.split(","))
-
-        await self._smtp_send(recipients, msg)
+        The message is the one a draft would hold (``apple_compose``); its
+        ``Bcc`` leaves the headers for the envelope.
+        """
+        message = new_message(
+            sender=self.credentials.apple_id,
+            to=to,
+            subject=subject,
+            body=body,
+            cc=cc,
+            bcc=bcc,
+            is_html=is_html,
+            attachments=attachments,
+        )
+        await self._smtp_send(prepare_for_smtp(message), message)
         message_id = str(uuid.uuid4())
 
         return {
@@ -566,65 +625,17 @@ class AppleEmailClient(BaseAppleClient):
             Dict with sent message details (id, threadId, labelIds).
         """
         original = await self.get_message(message_id)
-
-        # The normaliser's top-level fields (ADR-287) — it used to re-read a
-        # Gmail-shaped tree it had fabricated itself, which never carried the
-        # Message-ID, so no Apple reply was ever threaded.
-        original_from = str(original.get("from") or "")
-
-        # Use override recipient if provided, otherwise reply to original sender
-        if not to:
-            to = original_from
-        subject = str(original.get("subject") or "")
-        if not subject.lower().startswith("re:"):
-            subject = f"Re: {subject}"
-
-        cc = None
-        if reply_all:
-            original_to = str(original.get("to") or "")
-            original_cc = str(original.get("cc") or "")
-            # Combine To and Cc, excluding sender
-            all_recipients = []
-            for addr in f"{original_to},{original_cc}".split(","):
-                addr = addr.strip()
-                if addr and addr.lower() != self.credentials.apple_id.lower():
-                    all_recipients.append(addr)
-            if all_recipients:
-                cc = ", ".join(all_recipients)
-
-        # RFC 2822 Message-ID from the normaliser, for the threading headers
-        original_message_id = original.get("rfc_message_id")
-
-        msg = MIMEMultipart()
-        msg["From"] = self.credentials.apple_id
-        msg["To"] = to
-        msg["Subject"] = subject
-        if cc:
-            msg["Cc"] = cc
-        if original_message_id:
-            msg["In-Reply-To"] = original_message_id
-            msg["References"] = original_message_id
-
-        # Extract original body and append as quoted text
-        original_body = original.get("body", "")
-        original_date = str(original.get("date") or "")
-        original_from_header = original_from
-
-        if original_body and not is_html:
-            quoted_lines = "\n".join(f"> {line}" for line in original_body.strip().splitlines())
-            quoted_block = f"\n\nOn {original_date}, {original_from_header} wrote:\n{quoted_lines}"
-            full_body = body + quoted_block
-        else:
-            full_body = body
-
-        content_type = "html" if is_html else "plain"
-        msg.attach(MIMEText(full_body, content_type, "utf-8"))
-
-        recipients = [addr.strip() for addr in to.split(",")]
-        if cc:
-            recipients.extend(addr.strip() for addr in cc.split(","))
-
-        await self._smtp_send(recipients, msg)
+        # The normaliser's top-level fields (ADR-287) — the reply a draft would
+        # hold, addressed like every mail client (``email_compose``).
+        message = reply_message(
+            original,
+            body,
+            sender=self.credentials.apple_id,
+            reply_all=reply_all,
+            is_html=is_html,
+            override_to=to,
+        )
+        await self._smtp_send(prepare_for_smtp(message), message)
         new_id = str(uuid.uuid4())
 
         return {
@@ -642,23 +653,57 @@ class AppleEmailClient(BaseAppleClient):
         is_html: bool,
         include_attachments: bool,
     ) -> dict[str, Any]:
-        """Forward an email with optional attachments."""
-        # Fetch original with attachments via IMAP
-        attachments_data: list[tuple[str, str, bytes]] = []
+        """Forward an email with optional attachments — the message a draft would hold."""
+        original, files = await self._original_with_files(
+            message_id, include_files=include_attachments
+        )
+        message = forward_message(
+            original,
+            files,
+            sender=self.credentials.apple_id,
+            to=to,
+            body=body,
+            cc=cc,
+            is_html=is_html,
+        )
+        await self._smtp_send(prepare_for_smtp(message), message)
+        new_id = str(uuid.uuid4())
+
+        return {
+            "id": new_id,
+            "threadId": message_id,
+            "labelIds": ["Sent"],
+            "attachments_forwarded": len(files),
+            "attachment_names": [file.filename for file in files],
+        }
+
+    async def _original_with_files(
+        self, message_id: str, *, include_files: bool
+    ) -> tuple[dict[str, Any], list[OutgoingAttachment]]:
+        """The original message, read in the folder its id names, and its files when asked.
+
+        Raises:
+            ValueError: No such message.
+        """
+        files: list[OutgoingAttachment] = []
+        location = _located(message_id)
 
         def _fetch_with_attachments() -> dict[str, Any]:
             try:
-                with MailBox(settings.apple_imap_host, settings.apple_imap_port).login(
-                    self.credentials.apple_id, self.credentials.app_password
+                with authenticated_imap_mailbox(
+                    MailBox, self.credentials.apple_id, self.credentials.app_password
                 ) as mailbox:
-                    for msg in mailbox.fetch(AND(uid=message_id), mark_seen=False):
-                        normalized = normalize_imap_message(msg, "INBOX")
-                        if include_attachments:
-                            for att in msg.attachments:
-                                attachments_data.append(
-                                    (att.filename, att.content_type, att.payload)
+                    folder = select_message_folder(
+                        mailbox, location, principal=self.credentials.apple_id
+                    )
+                    if folder is not None:
+                        for msg in mailbox.fetch(AND(uid=location.uid), mark_seen=False):
+                            if include_files:
+                                files.extend(
+                                    OutgoingAttachment(att.filename, att.content_type, att.payload)
+                                    for att in msg.attachments
                                 )
-                        return normalized
+                            return normalize_imap_message(msg, folder, scope=location.scope_digest)
                     raise ValueError(f"Message {message_id} not found")
             except ValueError:
                 raise
@@ -666,107 +711,38 @@ class AppleEmailClient(BaseAppleClient):
                 self._check_imap_auth_error(e)
                 raise
 
-        original = await asyncio.to_thread(_fetch_with_attachments)
-
-        # Build forward headers from the normaliser's top-level fields (ADR-287)
-        original_subject = str(original.get("subject") or "")
-        subject = original_subject
-        if not subject.lower().startswith("fwd:"):
-            subject = f"Fwd: {subject}"
-
-        # Build forward body
-        forward_header = (
-            f"\n\n---------- Forwarded message ----------\n"
-            f"From: {original.get('from') or ''}\n"
-            f"Date: {original.get('date') or ''}\n"
-            f"Subject: {original_subject}\n"
-            f"To: {original.get('to') or ''}\n\n"
-        )
-
-        # Get original body — Apple normalized messages store body at top-level
-        original_body = original.get("body", "")
-
-        full_body = (body or "") + forward_header + original_body
-
-        msg = MIMEMultipart()
-        msg["From"] = self.credentials.apple_id
-        msg["To"] = to
-        msg["Subject"] = subject
-        if cc:
-            msg["Cc"] = cc
-
-        content_type = "html" if is_html else "plain"
-        msg.attach(MIMEText(full_body, content_type, "utf-8"))
-
-        # Attach original attachments, each under its own type (ADR-321's shared
-        # part: setting « Content-Type » on a part ADDS a second header).
-        for filename, content_type_att, payload in attachments_data:
-            msg.attach(attachment_part(OutgoingAttachment(filename, content_type_att, payload)))
-
-        recipients = [addr.strip() for addr in to.split(",")]
-        if cc:
-            recipients.extend(addr.strip() for addr in cc.split(","))
-
-        await self._smtp_send(recipients, msg)
-        new_id = str(uuid.uuid4())
-
-        return {
-            "id": new_id,
-            "threadId": message_id,
-            "labelIds": ["Sent"],
-            "attachments_forwarded": len(attachments_data),
-            "attachment_names": [a[0] for a in attachments_data],
-        }
+        return await asyncio.to_thread(_fetch_with_attachments), files
 
     async def _trash_email_impl(self, message_id: str) -> dict[str, Any]:
-        """Move email to Trash via IMAP.
+        """Move email to Trash via IMAP, from the folder its id names.
 
-        Note: IMAP UIDs are per-folder. We search across common folders
-        to find the message before trashing it.
+        A UID names a message within ONE folder (``imap_handles``): the id says
+        which, so another folder's message of the same number is never moved.
         """
-        # Build folder search order: INBOX first, then other common folders
-        search_folders = ["INBOX"]
-        for folder in _GMAIL_FOLDER_TO_IMAP.values():
-            if folder not in search_folders:
-                search_folders.append(folder)
+        location = _located(message_id)
 
         def _imap_trash() -> dict[str, Any]:
             try:
-                with MailBox(settings.apple_imap_host, settings.apple_imap_port).login(
-                    self.credentials.apple_id, self.credentials.app_password
+                with authenticated_imap_mailbox(
+                    MailBox, self.credentials.apple_id, self.credentials.app_password
                 ) as mailbox:
-                    # Find the message across folders (UIDs are per-folder)
-                    found_folder: str | None = None
-                    for folder in search_folders:
-                        try:
-                            mailbox.folder.set(folder)
-                        except Exception:
-                            # Folder may not exist on this server
-                            continue
-                        for _msg in mailbox.fetch(AND(uid=message_id), mark_seen=False):
-                            found_folder = folder
-                            break
-                        if found_folder:
-                            break
-
-                    if not found_folder:
-                        raise ValueError(f"Message {message_id} not found in any folder")
-
-                    # Ensure we're in the correct folder for the operation
-                    mailbox.folder.set(found_folder)
-
-                    try:
-                        # Try MOVE first (RFC 6851)
-                        mailbox.move([message_id], "Trash")
-                    except Exception:
-                        # Fallback: COPY + DELETE
-                        mailbox.copy([message_id], "Trash")
-                        mailbox.delete([message_id])
+                    # The trash found by its role, never a typed name: iCloud
+                    # names its own « Deleted Messages » (ADR-344).
+                    trash = special_folder(mailbox, TRASH_ROLE)
+                    folder = select_message_folder(
+                        mailbox, location, principal=self.credentials.apple_id
+                    )
+                    if folder is None or not mailbox.uids(AND(uid=location.uid)):
+                        raise ValueError(f"Message {message_id} not found")
+                    uids = [location.uid]
+                    # A failure after COPY may have stored a copy: never replay it.
+                    # Shared cleanup targets only these UIDs, never global EXPUNGE.
+                    move_messages(mailbox, uids, trash)
 
                     return {
                         "id": message_id,
                         "threadId": message_id,
-                        "labelIds": ["Trash"],
+                        "labelIds": [trash],
                     }
             except Exception as e:
                 self._check_imap_auth_error(e)
@@ -777,7 +753,7 @@ class AppleEmailClient(BaseAppleClient):
         # Invalidate Redis cache
         try:
             redis = await get_redis_session()
-            cache_key = f"apple_email:{self.user_id}:msg:{message_id}"
+            cache_key = message_cache_key(self.user_id, self.credentials.apple_id, message_id)
             await redis.delete(cache_key)
         except Exception as e:
             logger.debug("cache_invalidation_error", error=str(e))
@@ -793,8 +769,8 @@ class AppleEmailClient(BaseAppleClient):
 
         def _imap_list_folders() -> dict[str, str]:
             try:
-                with MailBox(settings.apple_imap_host, settings.apple_imap_port).login(
-                    self.credentials.apple_id, self.credentials.app_password
+                with authenticated_imap_mailbox(
+                    MailBox, self.credentials.apple_id, self.credentials.app_password
                 ) as mailbox:
                     folders = {}
                     for folder_info in mailbox.folder.list():

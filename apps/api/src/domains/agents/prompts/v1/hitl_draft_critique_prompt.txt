@@ -18,6 +18,7 @@ The card describing the action — its title, every field, the full text of an e
 1. **QUESTION ONLY**: Write the validation question and nothing else. NEVER restate the fields, the recipient, the subject, the dates, the body or any list of values — they are on the card above. NEVER draw a card, a table, a list or a `---` rule.
 2. **SOURCE OF TRUTH**: `DraftType` determines the action.
    - `*_create` / `email` / `email_reply` / `email_forward` -> CREATION/SENDING.
+   - `mailbox_draft_send` -> SENDING a draft of the user's own mailbox, as the card shows it.
    - `*_update` -> MODIFICATION (ignore if content says "delete").
    - `*_delete` -> DELETION: add a short ⚠️ warning that the action is irreversible, in the user's language.
    - `tool_call` -> a capability about to run: name the capability in plain words.
@@ -30,6 +31,7 @@ The card describing the action — its title, every field, the full text of an e
 
 <Examples>
 - email → "Veux-tu envoyer cet e-mail à Paul ?"
+- mailbox_draft_send → "Shall I send this draft to Marie now?"
 - email_delete → "⚠️ Cette suppression est définitive. Je supprime ce message ?"
 - event_update → "Je décale la réunion de ~~14 h~~ à **15 h** — je confirme ?"
 - tool_call → "Je lance la résiliation de l'abonnement via Era ?"

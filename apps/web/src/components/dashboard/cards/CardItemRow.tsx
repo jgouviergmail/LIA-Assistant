@@ -43,6 +43,8 @@ export interface CardItemRowProps {
   align?: 'start' | 'center';
   /** Layout of the button's own content — the card owns what it shows. */
   contentClassName?: string;
+  /** Card-specific timeline geometry; actions remain siblings of the button. */
+  className?: string;
   children: ReactNode;
 }
 
@@ -53,10 +55,17 @@ export function CardItemRow({
   actions = [],
   align = 'start',
   contentClassName,
+  className,
   children,
 }: CardItemRowProps) {
   return (
-    <li className={cn('flex gap-1', align === 'center' ? 'items-center' : 'items-start')}>
+    <li
+      className={cn(
+        'flex gap-1 border-b border-border/50 py-2 last:border-b-0',
+        align === 'center' ? 'items-center' : 'items-start',
+        className
+      )}
+    >
       <Tooltip>
         <TooltipTrigger asChild>
           <button

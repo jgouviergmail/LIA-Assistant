@@ -147,6 +147,24 @@ CASES: tuple[PreviewCase, ...] = (
             "body": "Merci, c'est validé.",
         },
     ),
+    # ---------------------------------------------- Mailbox draft send (ADR-344)
+    # The draft as the mailbox holds it: its files before the person's words;
+    # its handle, its digest and the quote flag are never shown.
+    PreviewCase(
+        "mailbox_draft_send_fr",
+        DraftType.MAILBOX_DRAFT_SEND,
+        {
+            "mailbox_draft_id": "r-1",
+            "to": "Paul <paul@example.com>",
+            "cc": "",
+            "bcc": "boss@example.com",
+            "subject": "Re: Figures",
+            "body": "Voici les chiffres.",
+            "quotes_history": True,
+            "attachments": [{"filename": "chiffres.xlsx"}],
+            "digest": "0" * 64,
+        },
+    ),
     # ---------------------------------------------------------- Email forward
     PreviewCase(
         "email_forward_attachments_fr",
@@ -915,6 +933,7 @@ EXPECTED: dict[str, str] = {
     "email_labels_zh": "- **收件人**：alice&#64;example.com\n- **抄送**：bob&#64;example.com\n- **密送**：carol&#64;example.com\n- **主题**：Projet LIA — point d'étape\n\n**内容**\n\nBonjour Alice,&#60;br/&#62;voici le point d'étape.",
     "email_reply_fr": "- **Destinataire**\xa0: erin&#64;example.com\n- **Objet**\xa0: Re: Devis\n\n**Message**\n\nMerci, c'est validé.",
     "email_reply_with_cc_fr": "- **Destinataire**\xa0: erin&#64;example.com\n- **Cc**\xa0: frank&#64;example.com\n- **Objet**\xa0: Re: Devis\n\n**Message**\n\nMerci, c'est validé.",
+    "mailbox_draft_send_fr": "- **Destinataire**\xa0: Paul &#60;paul&#64;example.com&#62;\n- **Cci**\xa0: boss&#64;example.com\n- **Objet**\xa0: Re: Figures\n- **Pièces jointes**\xa0: chiffres.xlsx\n\n**Message**\n\nVoici les chiffres.",
     "email_forward_attachments_fr": "- **Destinataire**\xa0: greg&#64;example.com\n- **Cc**\xa0: clara&#64;example.com\n- **Objet**\xa0: Fwd: Contrat\n- **Pièces jointes**\xa0: contrat.pdf, annexe.docx, ?\n\n**Message**\n\nPour info.",
     "email_forward_no_attachments_en": "- **To**: ivan&#64;example.com\n- **Subject**: Fwd: Report\n\n**Message**\n\nFYI.",
     "email_forward_none_body_fr": "- **Destinataire**\xa0: judy&#64;example.com\n- **Objet**\xa0: Fwd: Photos",

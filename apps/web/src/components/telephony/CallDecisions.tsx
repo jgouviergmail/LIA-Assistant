@@ -24,6 +24,7 @@
 import { CalendarPlus, CircleDollarSign, HelpCircle, MapPin } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
+import { Button } from '@/components/ui/button';
 import { chatDraftHref } from '@/lib/briefing-utils';
 import { openChatDeepLink } from '@/lib/chat-deep-link';
 import type { StructuredCallData } from '@/types/telephony';
@@ -66,26 +67,18 @@ export function CallDecisions({
   const facts = data;
   if (!hasDecisions(facts)) return null;
 
-  const prefill = (sentence: string) => () => openChatDeepLink(chatDraftHref(lng, sentence));
-
-  const meetingDraft = t('settings.telephony.decisions.meeting_draft', {
-    subject: objective,
-    invitee: calleeDisplay,
-    when: facts.proposed_datetime ?? '',
-    where: facts.location ?? '',
-  });
-
   return (
-    <div className="mt-2 space-y-2 rounded-lg border border-amber-300/50 bg-amber-50/50 p-3 dark:border-amber-800/40 dark:bg-amber-950/20">
-      <p className="text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-300">
+    <div className="mt-2 min-w-0 space-y-3 rounded-lg border border-amber-300/50 bg-amber-50/50 p-3 dark:border-amber-800/40 dark:bg-amber-950/20">
+      <p className="flex items-center gap-2 text-xs font-semibold text-foreground">
+        <HelpCircle className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
         {t('settings.telephony.decisions.title')}
       </p>
 
       {(facts.proposed_datetime || facts.location) && (
-        <p className="flex flex-wrap items-baseline gap-2 text-sm text-foreground/90">
-          <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <p className="flex items-start gap-2 text-sm text-foreground/90">
+          <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
           {/* "Proposed", never "booked": the assistant did not accept it. */}
-          <span>
+          <span className="min-w-0 [overflow-wrap:anywhere]">
             {t('settings.telephony.decisions.proposed', {
               when: facts.proposed_datetime ?? t('settings.telephony.decisions.no_date'),
               where: facts.location ?? t('settings.telephony.decisions.no_place'),
@@ -95,21 +88,21 @@ export function CallDecisions({
       )}
 
       {facts.additional_costs && (
-        <p className="flex flex-wrap items-baseline gap-2 text-sm font-medium text-foreground">
+        <p className="flex items-start gap-2 text-sm font-medium text-foreground">
           <CircleDollarSign
-            className="h-3.5 w-3.5 shrink-0 text-amber-700 dark:text-amber-400"
+            className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-700 dark:text-amber-400"
             aria-hidden="true"
           />
-          <span>
+          <span className="min-w-0 [overflow-wrap:anywhere]">
             {t('settings.telephony.decisions.extra_cost', { cost: facts.additional_costs })}
           </span>
         </p>
       )}
 
       {facts.pending_user_decision && (
-        <p className="flex flex-wrap items-baseline gap-2 text-sm text-foreground/90">
-          <HelpCircle className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <span>
+        <p className="flex items-start gap-2 text-sm text-foreground/90">
+          <HelpCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
+          <span className="min-w-0 [overflow-wrap:anywhere]">
             {t('settings.telephony.decisions.pending', {
               question: facts.pending_user_decision,
             })}
@@ -117,16 +110,43 @@ export function CallDecisions({
         </p>
       )}
 
-      {actionable && (facts.proposed_datetime || facts.location) && (
-        <button
-          type="button"
-          onClick={prefill(meetingDraft)}
-          className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-border/60 bg-card px-2.5 text-xs font-medium text-foreground/90 transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <CalendarPlus className="h-3.5 w-3.5" aria-hidden="true" />
-          {t('settings.telephony.decisions.plan_meeting')}
-        </button>
+      {actionable && (
+        <CallDecisionsActions
+          data={facts}
+          calleeDisplay={calleeDisplay}
+          objective={objective}
+          lng={lng}
+        />
       )}
     </div>
+  );
+}
+
+/** Same reviewed meeting draft, separately placeable after the call's facts. */
+export function CallDecisionsActions({
+  data,
+  calleeDisplay,
+  objective,
+  lng,
+}: Omit<CallDecisionsProps, 'actionable'>) {
+  const { t } = useTranslation();
+  if (!data || (!data.proposed_datetime && !data.location)) return null;
+
+  const meetingDraft = t('settings.telephony.decisions.meeting_draft', {
+    subject: objective,
+    invitee: calleeDisplay,
+    when: data.proposed_datetime ?? '',
+    where: data.location ?? '',
+  });
+
+  return (
+    <Button
+      type="button"
+      onClick={() => openChatDeepLink(chatDraftHref(lng, meetingDraft))}
+      className="h-auto min-h-11 w-full justify-start whitespace-normal px-3 py-2.5 text-left text-xs [overflow-wrap:anywhere]"
+    >
+      <CalendarPlus aria-hidden="true" />
+      {t('settings.telephony.decisions.plan_meeting')}
+    </Button>
   );
 }

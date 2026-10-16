@@ -1,8 +1,14 @@
 # ADR-128: Adaptive Re-Planner is Advisory-Only — Committed Contract, D4 Recovery Deferred
 
-**Status**: ✅ ACCEPTED (2026-07-13)
+**Status**: 🔄 SUPERSEDED (2026-10-14) by [ADR-346](ADR-346-Advisory-Replanner-Retired-A-Pipeline-Failure-Is-Said-Never-Replayed.md) — accepted 2026-07-13
 **Author**: Claude Code (Opus 4.8)
-**Related**: audit finding F017; `orchestration/adaptive_replanner.py`, `nodes/task_orchestrator_node.py`
+**Related**: audit finding F017; `orchestration/adaptive_replanner.py` (deleted by ADR-346), `nodes/task_orchestrator_node.py`
+
+> **Superseded.** Measured on production in October 2026, the analyzer called
+> « transient » each of the four failed plans of the week, none of which was,
+> and the recovery loop deferred below would have replayed failures no retry
+> can fix. ADR-346 retires the
+> analyzer and records where each kind of failure is handled.
 
 ## Context
 

@@ -26,7 +26,8 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useRadioArticle } from '@/hooks/useRadioArticle';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
-import { languageName, paragraphs, type RadioArticleRef } from '@/lib/radio/articles';
+import { languageName } from '@/lib/language-name';
+import { paragraphs, type RadioArticleRef } from '@/lib/radio/articles';
 import { radioCost, webUrl } from '@/lib/radio/format';
 import type { RadioArticle } from '@/lib/radio/types';
 

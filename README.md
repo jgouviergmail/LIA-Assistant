@@ -246,9 +246,10 @@ Every capability below is documented in an architecture decision record (ADR) or
 #### Voice, both ways
 
 - Push-to-talk, or the wake word "Dis LIA" — a small trained model run by ONNX Runtime in a browser worker, every file checked against its SHA-256, so no audio leaves the device for detection. "Stop" cuts LIA's voice while it reads an answer. French only for now, in beta; the other interface languages keep tap-to-speak ([ADR-329](docs/architecture/ADR-329-Live-Standby-And-Multilingual-Wake-Word.md), [WAKE_WORD_TRAINING](docs/technical/WAKE_WORD_TRAINING.md)).
-- Offline Whisper transcription in the user's own language.
-- Spoken answers from a catalogue-driven TTS (Edge, free; OpenAI; ElevenLabs), streamed sentence by sentence. Playback can begin before the complete answer is available; startup latency depends on the model, provider and connection ([VOICE](docs/technical/VOICE.md), [ADR-081](docs/architecture/ADR-081-Voice-TTS-Catalogue-Driven.md), [ADR-082](docs/architecture/ADR-082-Progressive-Sentence-Streaming.md)).
-- ElevenLabs synthesis shares an administrator-set concurrency ceiling across API workers and speech surfaces; the browser plays queued audio in sequence, even when synthesis completes out of order.
+- Offline Whisper transcription in the user's own language, or the remote engine the administrator configured (ElevenLabs Scribe, OpenAI or Fish Audio), named before anyone opts in.
+- Spoken answers from a catalogue-driven TTS (Edge, free; OpenAI; ElevenLabs; Gemini; Fish Audio), streamed sentence by sentence. Playback can begin before the complete answer is available; startup latency depends on the model, provider and connection ([VOICE](docs/technical/VOICE.md), [ADR-081](docs/architecture/ADR-081-Voice-TTS-Catalogue-Driven.md), [ADR-082](docs/architecture/ADR-082-Progressive-Sentence-Streaming.md)).
+- Every heard sentence is billed once, by the engine that spoke it; ElevenLabs synthesis and every Fish Audio request share an administrator-set allowance per vendor account across API workers and speech surfaces; the browser plays queued audio in sequence, even when synthesis completes out of order.
+- On the engines that perform them, LIA's spoken comments carry a few expressive cues (a sigh, a laugh, a whisper) in each engine's own syntax, while text it reads aloud never turns a bracket into a cue. Administrators manage the instance's Fish Audio voices: clone one under a consent attestation filed in the audit log, design one from a description, rename or delete ([ADR-345](docs/architecture/ADR-345-Fish-Audio-Served-Whole-One-Door-One-Allowance-Cues-Each-Engine-Reads.md)).
 
 #### A personal speaking avatar, experimental
 
@@ -612,7 +613,7 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                                         |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------- |
-| **55** functional domains | **931,000+** source lines (excl. tests) | **59,000+** inventoried automated tests | **342** ADRs                                                            |
+| **55** functional domains | **931,000+** source lines (excl. tests) | **59,000+** inventoried automated tests | **345** ADRs                                                            |
 | **280** versions shipped  | **6 languages**, parity enforced in CI  | **618** Prometheus metrics              | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 Source-line figure: 932,910 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-10-12). Test inventory combines backend collection and the frontend suite; release qualification executes the repository's required gates. The published technical audit does not score security.
@@ -803,7 +804,7 @@ docs/                     # Architecture, technical documents, guides, runbooks,
 | **Domain taxonomy**        | One declarative `DOMAIN_REGISTRY` (agents, result key, related domains, priority, routability) feeds catalogue filtering, semantic expansion and the initiative phase — never a second hand-maintained table                                                         |
 | **Data registry**          | Tool results live in an in-memory store decoupled from the message history, so aggressive message windowing never loses a `$steps.X.field` reference                                                                                                                 |
 | **Semantic validator**     | A dedicated LLM, distinct from the planner, inspects every plan for hallucinated capabilities, ghost dependencies, cardinality and scope errors before anything runs                                                                                                 |
-| **Adaptive re-planner**    | A rule-based analyser classifies an execution failure and picks a recovery; in _panic mode_ the catalogue expands to every tool for one retry                                                                                                                        |
+| **Re-plan before running** | Validator issues go back to the planner a bounded number of times, and _panic mode_ retries planning once over a wider catalogue; once a plan has run, a failed step is stated in the answer, never replayed                                                         |
 | **Connector abstraction**  | Python protocols and normalisers make Google, Apple and Microsoft interchangeable behind unified domain models; a resolver guarantees one provider per category                                                                                                      |
 | **Published bounds**       | Whatever a validator can reject, its producer can read: every enforced limit is published to the planner, and what is mechanically repairable is repaired before validation ([ADR-184](docs/architecture/ADR-184-Published-Bounds-And-Non-Prescriptive-Verdicts.md)) |
 | **Exact counts**           | A number shown to a person is exact or it does not exist — aggregates over the whole set, pages of rows, never a count derived from a capped page ([ADR-185](docs/architecture/ADR-185-Exact-CRM-Counts-And-Readable-Relayed-Messages.md))                           |
@@ -824,7 +825,7 @@ docs/                     # Architecture, technical documents, guides, runbooks,
 | Orchestration | LangGraph 1.2.14 · LangChain 1.3.15 · `mcp` SDK (Streamable HTTP)                                                     | Multi-agent graph, LLM abstraction, Model Context Protocol        |
 | Data          | PostgreSQL 16 + pgvector · Redis 7.4                                                                                  | Data, checkpoints, vector search · cache, sessions, locks         |
 | Frontend      | Node.js 24 LTS · Next.js 16.3.8 · React 19.3.0 · TypeScript · TailwindCSS · Radix UI · TanStack Query · react-i18next | App Router UI, accessible primitives, server state, six languages |
-| Voice         | ONNX Runtime Web (wake word) · sherpa-onnx (offline Whisper) · Edge TTS · OpenAI · ElevenLabs                         | In-browser detection, server transcription, speech synthesis      |
+| Voice         | ONNX Runtime Web (wake word) · sherpa-onnx (offline Whisper) · Edge TTS · OpenAI · ElevenLabs · Gemini · Fish Audio   | In-browser detection, server transcription, speech synthesis      |
 | Observability | Prometheus · Grafana · Loki · Tempo · Langfuse · structlog                                                            | Metrics, dashboards, logs, traces, LLM tracing                    |
 | Delivery      | Docker (multi-arch amd64/arm64) · GitHub Actions · Task                                                               | Images, CI/CD, one build tool for every command                   |
 
@@ -969,7 +970,7 @@ Instrumentation and caching are in place — per-node message windowing, LLM con
 
 ### Architecture Decision Records
 
-342 ADR files (ADR-001 through ADR-343 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
+345 ADR files (ADR-001 through ADR-346 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
 
 - [ADR-070: ReAct Execution Mode](docs/architecture/ADR-070-ReAct-Execution-Mode.md) — why two execution modes rather than one
 - [ADR-263: Execution Authority Chain and Effect Register](docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md) — how every act is claimed, closed and recorded

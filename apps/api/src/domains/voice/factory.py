@@ -2,7 +2,7 @@
 
 Reads a TTS slot's override from :class:`LLMConfigOverrideCache` (merged with
 :data:`LLM_DEFAULTS`) and instantiates the matching client (Edge / OpenAI /
-ElevenLabs / Gemini). The chat's voice comments read ``voice_tts``; another
+ElevenLabs / Gemini / Fish Audio). The chat's voice comments read ``voice_tts``; another
 surface names its own slot. The voice IDs and provider-specific tuning (speed,
 response_format, rate, pitch, volume, voice_settings, …) live in the override's
 ``provider_config`` JSONB blob — see ADR-081.
@@ -16,9 +16,11 @@ Shape of the JSONB blob (all keys optional):
   "rate": "+10%",            // edge only
   "pitch": "+0Hz",           // edge only
   "volume": "+0%",           // edge only
-  "speed": 1.1,              // openai only
+  "speed": 1.1,              // openai, fishaudio
   "response_format": "mp3",  // openai only
-  "output_format": "mp3_44100_128",  // elevenlabs only
+  "output_format": "mp3_44100_128",  // elevenlabs, fishaudio
+  "latency": "balanced",     // fishaudio only
+  "transport": "http",       // fishaudio only: http | websocket
   "voice_settings": {        // elevenlabs only
     "stability": 0.5,
     "similarity_boost": 0.75,
@@ -28,18 +30,20 @@ Shape of the JSONB blob (all keys optional):
 }
 ```
 
-A provider no client serves, a missing key, or a token-billed engine handed to a
-caller that only records characters: in each case a STRICT caller gets a
+A provider no client serves or a missing key: a STRICT caller gets a
 :class:`TTSProviderError` and chooses what to do; a lenient caller (the chat's
 voice comments, which must keep speaking) gets Edge, and the substitution is
-logged. Nothing substitutes an engine for a strict caller.
+logged. Nothing substitutes an engine for a strict caller. A substituted client
+travels WITH the configuration it was built from (:func:`serve_tts`): the
+configured engine's voice ids mean nothing to Edge, so a caller reading its
+voices from the configuration it asked for heard silence.
 """
 
 from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import Any, Literal, get_args
+from typing import Any, Literal, NamedTuple, get_args
 
 import structlog
 
@@ -51,13 +55,14 @@ from src.domains.voice.client import EdgeTTSClient
 from src.domains.voice.elevenlabs_tts_client import ElevenLabsTTSClient
 from src.domains.voice.exceptions import TTSProviderError
 from src.domains.voice.families import TTS_FAMILIES, TtsBilling, family_of
+from src.domains.voice.fishaudio.tts_client import FishAudioTTSClient
 from src.domains.voice.gemini_tts_client import GeminiOutputFormat, GeminiTTSClient
 from src.domains.voice.openai_tts_client import OpenAITTSClient
 from src.domains.voice.protocol import TTSClient
 
 logger = structlog.get_logger(__name__)
 
-TTSProvider = Literal["edge", "openai", "elevenlabs", "gemini"]
+TTSProvider = Literal["edge", "openai", "elevenlabs", "gemini", "fishaudio"]
 
 #: The chat's voice-comment slot — the default for every legacy caller.
 DEFAULT_TTS_SLOT = "voice_tts"
@@ -84,10 +89,7 @@ class TTSConfig:
         - ``provider`` is the configured id as stored: a value no family
           serves is kept verbatim so the factory can refuse or replace it
           explicitly, never silently narrowed to a known one.
-        - ``mode`` is preserved as a back-compat alias: ``"hd"`` for any
-          paid provider, ``"standard"`` for free providers (Edge). Some
-          downstream call sites still gate logic on ``mode == "hd"``.
-        - ``is_paid`` is the precise modern flag — prefer it in new code.
+        - ``is_paid`` says whether the engine bills (an unknown one does).
         - ``extras`` is the parsed blob itself, for a surface that reads a
           key of its own (a radio's cast).
     """
@@ -100,12 +102,17 @@ class TTSConfig:
     rate: str | None = None
     pitch: str | None = None
     volume: str | None = None
-    # OpenAI-specific.
+    # OpenAI and Fish Audio.
     speed: float | None = None
+    # OpenAI-specific.
     response_format: str | None = None
-    # ElevenLabs-specific.
+    # ElevenLabs and Fish Audio.
     output_format: str | None = None
+    # ElevenLabs-specific.
     voice_settings: dict[str, Any] = field(default_factory=dict)
+    # Fish Audio-specific: the latency/quality trade-off, and how a request travels.
+    latency: str | None = None
+    transport: str | None = None
     extras: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -113,10 +120,18 @@ class TTSConfig:
         family = family_of(self.provider)
         return family is None or family.billing is not TtsBilling.FREE
 
-    @property
-    def mode(self) -> Literal["standard", "hd"]:
-        """Back-compat alias for legacy callers gating on ``mode == "hd"``."""
-        return "hd" if self.is_paid else "standard"
+
+class ServedTts(NamedTuple):
+    """A client, and the configuration it was built from.
+
+    Attributes:
+        config: Edge's configuration when Edge stands in for the configured
+            engine — the voices and the model a caller reads come from here.
+        client: The client that speaks.
+    """
+
+    config: TTSConfig
+    client: TTSClient
 
 
 # ----------------------------------------------------------------------
@@ -133,7 +148,11 @@ async def get_tts_config(slot: str = DEFAULT_TTS_SLOT) -> TTSConfig:
     Returns:
         The effective configuration.
     """
-    effective = _resolve_effective_config(slot)
+    return tts_config_from_effective(_resolve_effective_config(slot))
+
+
+def tts_config_from_effective(effective: LLMAgentConfig) -> TTSConfig:
+    """Parse a resolved slot identically for runtime and committed library references."""
     extras = _parse_provider_config(effective.provider_config)
 
     voice_male = str(extras.get("voice_male") or _default_voice(effective.provider, "male"))
@@ -151,6 +170,8 @@ async def get_tts_config(slot: str = DEFAULT_TTS_SLOT) -> TTSConfig:
         response_format=_str_or_none(extras.get("response_format")),
         output_format=_str_or_none(extras.get("output_format")),
         voice_settings=_dict_or_empty(extras.get("voice_settings")),
+        latency=_str_or_none(extras.get("latency")),
+        transport=_str_or_none(extras.get("transport")),
         extras=extras,
     )
 
@@ -159,7 +180,6 @@ async def get_tts_client(
     slot: str = DEFAULT_TTS_SLOT,
     *,
     strict: bool = False,
-    records_tokens: bool = False,
     gemini_output: GeminiOutputFormat = "mp3",
 ) -> TTSClient:
     """Create the TTS client matching a slot's active config.
@@ -167,9 +187,6 @@ async def get_tts_client(
     Args:
         slot: The TTS slot to read.
         strict: Refuse instead of substituting another engine.
-        records_tokens: Whether the caller records token-billed usage (through
-            :func:`src.domains.voice.billing.synthesize_billed`); a token-billed
-            engine is never handed to a caller that would bill it per character.
         gemini_output: The container a Gemini client returns.
 
     Returns:
@@ -186,16 +203,13 @@ async def get_tts_client(
         model=cfg.model,
         is_paid=cfg.is_paid,
     )
-    return get_tts_client_sync(
-        cfg, strict=strict, records_tokens=records_tokens, gemini_output=gemini_output
-    )
+    return serve_tts(cfg, strict=strict, gemini_output=gemini_output).client
 
 
 def get_tts_client_sync(
     cfg: TTSConfig,
     *,
     strict: bool = False,
-    records_tokens: bool = False,
     gemini_output: GeminiOutputFormat = "mp3",
 ) -> TTSClient:
     """Synchronous variant for call sites holding a config already.
@@ -203,7 +217,6 @@ def get_tts_client_sync(
     Args:
         cfg: The effective configuration.
         strict: Refuse instead of substituting another engine.
-        records_tokens: Whether the caller records token-billed usage.
         gemini_output: The container a Gemini client returns.
 
     Returns:
@@ -212,37 +225,74 @@ def get_tts_client_sync(
     Raises:
         TTSProviderError: For a strict caller whose engine cannot be served.
     """
-    reason = unservable_reason(cfg, records_tokens=records_tokens)
-    if reason is not None:
-        if strict:
-            raise TTSProviderError(
-                code="tts_unavailable",
-                message=f"TTS provider {cfg.provider!r} cannot be served: {reason}",
-                details={"provider": cfg.provider, "reason": reason},
-            )
-        logger.warning("tts_factory_falling_back_to_edge", provider=cfg.provider, reason=reason)
-        return _instantiate_client(_fallback_edge_config())
-    return _instantiate_client(cfg, gemini_output=gemini_output)
+    return serve_tts(cfg, strict=strict, gemini_output=gemini_output).client
 
 
-def unservable_reason(cfg: TTSConfig, *, records_tokens: bool) -> str | None:
-    """Why ``cfg`` cannot be served to such a caller, or ``None`` when it can.
+def serve_tts(
+    cfg: TTSConfig,
+    *,
+    strict: bool = False,
+    gemini_output: GeminiOutputFormat = "mp3",
+) -> ServedTts:
+    """The client serving ``cfg``, with the configuration it was built from.
+
+    Args:
+        cfg: The effective configuration.
+        strict: Refuse instead of substituting another engine.
+        gemini_output: The container a Gemini client returns.
+
+    Returns:
+        ``cfg`` and its client, or — for a lenient caller whose engine cannot
+        be served — Edge's own configuration and client.
+
+    Raises:
+        TTSProviderError: For a strict caller whose engine cannot be served.
+    """
+    reason = unservable_reason(cfg)
+    if reason is None:
+        return ServedTts(cfg, _instantiate_client(cfg, gemini_output=gemini_output))
+    if strict:
+        raise TTSProviderError(
+            code="tts_unavailable",
+            message=f"TTS provider {cfg.provider!r} cannot be served: {reason}",
+            details={"provider": cfg.provider, "reason": reason},
+        )
+    logger.warning("tts_factory_falling_back_to_edge", provider=cfg.provider, reason=reason)
+    fallback = _fallback_edge_config()
+    return ServedTts(fallback, _instantiate_client(fallback))
+
+
+def served_config(cfg: TTSConfig) -> TTSConfig:
+    """The configuration that speaks for a lenient caller, decided without a client.
+
+    ``cfg`` itself, or Edge's when ``cfg`` cannot be served — the engine
+    :func:`serve_tts` would build. A page that offers the voices LIA speaks
+    with reads them here, so it offers the voices of the engine that speaks.
+
+    Args:
+        cfg: The effective configuration.
+
+    Returns:
+        The configuration a lenient :func:`serve_tts` builds its client from.
+    """
+    return cfg if unservable_reason(cfg) is None else _fallback_edge_config()
+
+
+def unservable_reason(cfg: TTSConfig) -> str | None:
+    """Why ``cfg`` cannot be served, or ``None`` when it can.
 
     The factory's own test, public for a caller that must decide BEFORE it
     builds a client (a radio start refuses rather than airing in silence).
 
     Args:
         cfg: The effective configuration.
-        records_tokens: Whether the caller records token-billed usage.
 
     Returns:
-        ``no_client``, ``billing_units`` or ``api_key_missing``; None when served.
+        ``no_client`` or ``api_key_missing``; None when served.
     """
     family = family_of(cfg.provider)
     if family is None:
         return "no_client"
-    if family.billing is TtsBilling.TOKENS and not records_tokens:
-        return "billing_units"
     if family.billing is not TtsBilling.FREE and not LLMConfigOverrideCache.get_api_key(
         cfg.provider
     ):
@@ -308,6 +358,15 @@ def _default_voice(provider: str, gender: Literal["male", "female"]) -> str:
         return "21m00Tcm4TlvDq8ikWAM"
     if provider == "gemini":
         return "Puck" if gender == "male" else "Kore"
+    if provider == "fishaudio":
+        # Two licensed French voices of the vendor's library, like Edge's
+        # defaults (read 2026-10-13); the vendor detects the language from the
+        # text, so they speak the other five languages too.
+        return (
+            "fce1bed339724d91b5c9c4d01bb6e796"
+            if gender == "male"
+            else "eab784f1248946f3a34581aad44ce579"
+        )
     return ""
 
 
@@ -327,6 +386,14 @@ def _instantiate_client(cfg: TTSConfig, *, gemini_output: GeminiOutputFormat = "
         )
     if cfg.provider == "gemini":
         return GeminiTTSClient(model=cfg.model, output_format=gemini_output)
+    if cfg.provider == "fishaudio":
+        return FishAudioTTSClient(
+            model=cfg.model,
+            output_format=cfg.output_format,
+            latency=cfg.latency,
+            speed=cfg.speed,
+            transport=cfg.transport,
+        )
     return EdgeTTSClient(  # type: ignore[return-value]
         rate=cfg.rate,
         pitch=cfg.pitch,

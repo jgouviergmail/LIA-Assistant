@@ -4,8 +4,10 @@ import json
 from collections.abc import Callable
 
 from src.domains.agents.application.draft_models import ApplicationActionDraftContent
-from src.domains.agents.application.journal_feedback import feedback_public_scope
-from src.domains.agents.application.journal_feedback_schemas import JournalFeedbackPatch
+from src.domains.agents.application.journal_feedback_schemas import (
+    JournalFeedbackPatch,
+    feedback_public_scope,
+)
 from src.domains.agents.drafts.card_spec import Note, PreviewLine, Row
 
 

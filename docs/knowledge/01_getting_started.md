@@ -229,7 +229,7 @@ LIA can help you in many areas. Here are concrete examples:
 • ...
 
 ## How does the approval system work?
-To protect your data, LIA uses an **intelligent approval system (Human-in-the-Loop)**. Before any action that modifies your data, LIA asks for confirmation:
+With **human review (Human-in-the-Loop)**, LIA shows a draft for operations requiring your approval. You check the proposed content and scope before confirming. Read operations and declared direct actions can proceed without a draft card.
 
 **🔒 Actions requiring approval:**
 • Send, reply to or forward an email

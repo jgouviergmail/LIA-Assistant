@@ -9,7 +9,7 @@ Provides shared functionality for all Microsoft 365 API clients:
 
 Inherits from BaseOAuthClient (Template Method pattern).
 Overrides 3 hooks for Microsoft-specific behavior:
-- _parse_error_detail(): Parse Microsoft Graph JSON error format
+- _parse_error_detail(): Keep the refusal status without private Graph error prose
 - _get_retry_delay(): Honor Retry-After header
 - _enrich_request_params(): Default pass-through (safety net)
 
@@ -90,18 +90,9 @@ class BaseMicrosoftClient(BaseOAuthClient[ConnectorType]):
 
     def _parse_error_detail(self, response: httpx.Response) -> str:
         """
-        Parse Microsoft Graph error format: {"error": {"code": "...", "message": "..."}}.
-
-        Returns "[ErrorCode] Error message" for structured errors,
-        or raw text for non-JSON responses.
+        Keep Graph's refusal status; its body may echo private request fields.
         """
-        try:
-            error = response.json().get("error", {})
-            code = error.get("code", "Unknown")
-            message = error.get("message", response.text)
-            return f"[{code}] {message}"
-        except Exception:
-            return response.text
+        return super()._parse_error_detail(response)
 
     def _get_retry_delay(self, response: httpx.Response, attempt: int) -> float:
         """
@@ -260,7 +251,7 @@ class BaseMicrosoftClient(BaseOAuthClient[ConnectorType]):
                     continue
                 raise ExternalServiceError(
                     service_name=connector_type_value,
-                    detail=f"{connector_type_value} API unavailable: {e!s}",
+                    detail=f"{connector_type_value} API unavailable: {type(e).__name__}",
                     error_type="connection_error",
                 ) from e
 

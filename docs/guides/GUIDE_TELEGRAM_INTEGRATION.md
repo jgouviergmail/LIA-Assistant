@@ -73,7 +73,8 @@ apps/api/src/infrastructure/channels/    # Infrastructure (specifique Telegram)
     +-- bot.py                           # Bot lifecycle (init/shutdown, webhook setup, getMe)
     +-- webhook_handler.py               # Signature check, parse Update -> ChannelInboundMessage
     +-- sender.py                        # TelegramSender (send, typing, edit, notification)
-    +-- formatter.py                     # MD->HTML, split, strip_html_cards, i18n messages
+    +-- formatter.py                     # MD->HTML, split (texte brut), strip_html_cards, i18n messages
+    +-- html_split.py                    # Decoupe d'un message HTML en parties analysables (point 8)
     +-- hitl_keyboard.py                 # InlineKeyboard builders pour HITL (6 langues)
     +-- voice.py                         # Download OGG -> transcode PCM -> Sherpa STT
 ```
@@ -118,7 +119,7 @@ Telegram Bot API -> POST /api/v1/channels/telegram/webhook
   -> TelegramWebhookHandler (signature check, parse Update -> ChannelInboundMessage)
   -> ChannelMessageRouter (lookup binding, rate limit, per-user Redis lock)
   -> InboundMessageHandler (AgentService.stream_chat_response, collect tokens)
-  -> TelegramSender (format MD->HTML, split 4000 chars, send via Bot API)
+  -> TelegramSender (format MD->HTML, split sur TELEGRAM_MESSAGE_MAX_LENGTH aux frontieres de balises, send via Bot API)
 
 OUTBOUND (LIA -> Telegram notifications) :
 NotificationDispatcher.dispatch()
@@ -967,6 +968,7 @@ async def test_parse_hitl_callback():
 - Le formatage Markdown -> HTML est basique (bold, italic, code, links)
 - Les cards HTML du frontend web sont strippees automatiquement via `strip_html_cards()`
 - Si `telegram_send_bad_request` : le HTML genere est invalide, le sender retente en texte brut (fallback)
+- Un message HTML long est decoupe par `split_html_message` (`html_split.py`) : une partie ne coupe jamais une balise ni une entite, ferme ce qu'elle a ouvert et la suivante le rouvre (`<pre>`, liens et imbrications compris) ; la longueur est comptee en unites UTF-16, l'unite de Telegram (un emoji compte deux). Avant, une coupe au milieu de `<b>...</b>` etait refusee par Telegram puis renvoyee en texte brut, balises visibles
 - Verifier `TELEGRAM_MESSAGE_MAX_LENGTH` (defaut 4000, max Telegram 4096)
 
 ### Probleme : le bot repond "busy" (message precedent encore en cours)

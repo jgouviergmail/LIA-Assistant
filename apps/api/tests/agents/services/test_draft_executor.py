@@ -31,6 +31,7 @@ from langchain_core.runnables import RunnableConfig  # noqa: E402
 from src.core.i18n import language_scope  # noqa: E402
 from src.core.i18n_drafts import (  # noqa: E402
     get_draft_cancel_message,
+    get_draft_error_message,
     get_draft_success_message,
 )
 from src.domains.agents.services.draft_executor import (  # noqa: E402
@@ -553,7 +554,10 @@ class TestDraftExecutorErrorHandling:
 
             assert result is not None
             assert result.success is False
-            assert "ToolDependencies not found" in result.error
+            # The card shows ``error`` as written: an internal fault reads the
+            # person's sentence, its detail stays in the log.
+            assert result.error == get_draft_error_message()
+            assert "ToolDependencies" not in result.error
             mock_metric.labels.assert_called_with(draft_type="email", outcome="failed")
 
     @pytest.mark.asyncio
@@ -620,7 +624,8 @@ class TestDraftExecutorErrorHandling:
 
             assert result is not None
             assert result.success is False
-            assert "No executor registered" in result.error
+            assert result.error == get_draft_error_message()
+            assert "No executor registered" not in result.error
 
     @pytest.mark.asyncio
     async def test_executor_exception_returns_error_result(
@@ -646,7 +651,10 @@ class TestDraftExecutorErrorHandling:
 
             assert result is not None
             assert result.success is False
-            assert "Gmail API timeout" in result.error
+            # A raised failure never reaches the card as text: it may quote a
+            # provider, a URL or a mailbox (ADR-303).
+            assert result.error == get_draft_error_message()
+            assert "Gmail API timeout" not in result.error
             mock_metric.labels.assert_called_with(draft_type="email", outcome="failed")
 
 

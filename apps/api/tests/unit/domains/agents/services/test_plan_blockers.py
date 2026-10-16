@@ -28,7 +28,7 @@ from src.domains.agents.orchestration.validator import ValidationIssue, Validati
 from src.domains.agents.services.plan_blockers import (
     BLOCKER_REASONS,
     PlanBlocker,
-    executed_tool_names,
+    attempted_tool_names,
     format_plan_blockers,
     summarize_plan_blockers,
 )
@@ -197,7 +197,7 @@ def test_empty_blockers_format_to_nothing():
 
 
 # =========================================================================
-# executed_tool_names — what the turn actually ran
+# attempted_tool_names — what the turn actually tried
 # =========================================================================
 
 
@@ -219,38 +219,85 @@ def _plan(*tool_names: str) -> ExecutionPlan:
     )
 
 
-def test_a_step_that_returned_data_counts_as_executed():
+def test_a_step_that_returned_data_counts_as_attempted():
     """A successful TOOL step stores its payload, with no `success` key."""
     completed = {"step_1": {"emails": [{"id": "a"}], "total": 1}}
 
-    assert executed_tool_names(_plan("get_emails_tool"), completed) == frozenset(
+    assert attempted_tool_names(_plan("get_emails_tool"), completed) == frozenset(
         {"get_emails_tool"}
     )
 
 
-def test_a_step_that_ran_empty_still_counts_as_executed():
+def test_a_step_that_ran_empty_still_counts_as_attempted():
     """Zero results is an answer; "blocked" would be a different claim."""
     completed = {"step_1": {"emails": [], "total": 0}}
 
-    assert executed_tool_names(_plan("get_emails_tool"), completed) == frozenset(
+    assert attempted_tool_names(_plan("get_emails_tool"), completed) == frozenset(
         {"get_emails_tool"}
     )
 
 
-def test_a_step_marked_failed_does_not_count_as_executed():
+def test_a_step_that_ran_and_failed_counts_as_attempted():
+    """RC1.2 (production 2026-10-07): the step reached its provider and failed.
+
+    Its failure is the runtime failures directive's to tell. Counted as never
+    run, it kept a verdict the plan carried, and the « blocked » directive —
+    which said « not connected » — overrode the failures directive, which
+    forbids saying it.
+    """
     completed = {"step_1": {"success": False, "error": "boom"}}
 
-    assert executed_tool_names(_plan("get_emails_tool"), completed) == frozenset()
+    assert attempted_tool_names(_plan("get_emails_tool"), completed) == frozenset(
+        {"get_emails_tool"}
+    )
 
 
-def test_a_step_that_never_ran_does_not_count_as_executed():
-    assert executed_tool_names(_plan("get_emails_tool"), {}) == frozenset()
+def test_a_step_whose_data_is_a_list_counts_as_attempted():
+    """The executor stores a step's ``data`` as-is, and ``data`` may be a list."""
+    completed = {"step_1": [{"id": "a"}]}
+
+    assert attempted_tool_names(_plan("get_emails_tool"), completed) == frozenset(
+        {"get_emails_tool"}
+    )
 
 
-def test_only_the_steps_that_ran_are_reported():
-    completed = {"step_1": {"contacts": []}, "step_2": {"success": False}}
+def test_a_for_each_step_counts_through_its_items():
+    """Items are stored under ``step_2_item_N`` before (or without) an aggregate."""
+    completed = {"step_1": {"contacts": []}, "step_2_item_0": {"success": False}}
 
-    assert executed_tool_names(
+    assert attempted_tool_names(
+        _plan("get_contacts_tool", "send_email_tool"), completed
+    ) == frozenset({"get_contacts_tool", "send_email_tool"})
+
+
+def test_an_item_key_never_matches_a_longer_step_id():
+    """``step_1_item_0`` belongs to ``step_1``, never to ``step_10`` or ``step_1x``."""
+    plan = ExecutionPlan(
+        plan_id="p1",
+        user_id="u1",
+        session_id="s1",
+        steps=[
+            ExecutionStep(
+                step_id="step_10",
+                step_type=StepType.TOOL,
+                agent_name="emails_agent",
+                tool_name="get_emails_tool",
+                parameters={},
+            )
+        ],
+    )
+
+    assert attempted_tool_names(plan, {"step_1_item_0": {"ok": True}}) == frozenset()
+
+
+def test_a_step_that_never_ran_does_not_count_as_attempted():
+    assert attempted_tool_names(_plan("get_emails_tool"), {}) == frozenset()
+
+
+def test_only_the_steps_with_an_outcome_are_reported():
+    completed = {"step_1": {"contacts": []}}
+
+    assert attempted_tool_names(
         _plan("get_contacts_tool", "get_events_tool"), completed
     ) == frozenset({"get_contacts_tool"})
 
@@ -258,12 +305,12 @@ def test_only_the_steps_that_ran_are_reported():
 @pytest.mark.parametrize("plan", [None, "stale", 42, {}])
 def test_a_stale_or_absent_plan_reports_nothing(plan):
     """State survives msgpack; never raise inside the response node."""
-    assert executed_tool_names(plan, {"step_1": {"ok": True}}) == frozenset()
+    assert attempted_tool_names(plan, {"step_1": {"ok": True}}) == frozenset()
 
 
 @pytest.mark.parametrize("completed", [None, "stale", 42, []])
 def test_stale_completed_steps_report_nothing(completed):
-    assert executed_tool_names(_plan("get_emails_tool"), completed) == frozenset()
+    assert attempted_tool_names(_plan("get_emails_tool"), completed) == frozenset()
 
 
 # =========================================================================
@@ -280,7 +327,7 @@ def test_a_tool_that_ran_is_not_reported_as_blocked():
     """
     blockers = summarize_plan_blockers(
         _result(_issue(code=ToolErrorCode.CONSTRAINT_VIOLATION, tool_name="get_emails_tool")),
-        executed_tools=frozenset({"get_emails_tool"}),
+        attempted_tools=frozenset({"get_emails_tool"}),
     )
 
     assert blockers == []
@@ -293,10 +340,36 @@ def test_the_founding_defect_still_reports_its_blockers():
             _issue(tool_name="get_contacts_tool", step_index=0),
             _issue(tool_name="get_events_tool", step_index=1),
         ),
-        executed_tools=frozenset(),
+        attempted_tools=frozenset(),
     )
 
     assert [b.tool_name for b in blockers] == ["get_contacts_tool", "get_events_tool"]
+
+
+def test_a_failed_attempt_is_never_reported_as_blocked():
+    """Production 2026-10-07 (run b148e908): the verdict of a step that ran.
+
+    The validator judged three steps ``UNAUTHORIZED``; the two contact reads
+    succeeded and the reply failed on its own reference. The answer said the
+    reply capability was « not connected »: the failure was real, the cause
+    was the verdict's.
+    """
+    blockers = summarize_plan_blockers(
+        _result(
+            _issue(tool_name="get_contacts_tool", step_index=0),
+            _issue(tool_name="reply_email_tool", step_index=2),
+        ),
+        attempted_tools=attempted_tool_names(
+            _plan("get_contacts_tool", "get_contacts_tool", "reply_email_tool"),
+            {
+                "step_1": {"contacts": [{"id": "c1"}]},
+                "step_2": {"contacts": [{"id": "c2"}]},
+                "step_3": {"success": False, "error": "reference_resolution_failed"},
+            },
+        ),
+    )
+
+    assert blockers == []
 
 
 def test_a_partial_turn_reports_only_what_did_not_run():
@@ -306,7 +379,7 @@ def test_a_partial_turn_reports_only_what_did_not_run():
             _issue(tool_name="get_contacts_tool", step_index=0),
             _issue(tool_name="get_events_tool", step_index=1),
         ),
-        executed_tools=frozenset({"get_contacts_tool"}),
+        attempted_tools=frozenset({"get_contacts_tool"}),
     )
 
     assert [b.tool_name for b in blockers] == ["get_events_tool"]
@@ -316,7 +389,7 @@ def test_a_plan_level_blocker_is_silenced_once_anything_ran():
     """`the plan itself` cannot be claimed blocked when steps produced data."""
     blockers = summarize_plan_blockers(
         _result(_issue(code=ToolErrorCode.FORBIDDEN, tool_name=None)),
-        executed_tools=frozenset({"get_emails_tool"}),
+        attempted_tools=frozenset({"get_emails_tool"}),
     )
 
     assert blockers == []
@@ -325,7 +398,7 @@ def test_a_plan_level_blocker_is_silenced_once_anything_ran():
 def test_a_plan_level_blocker_survives_when_nothing_ran():
     blockers = summarize_plan_blockers(
         _result(_issue(code=ToolErrorCode.FORBIDDEN, tool_name=None)),
-        executed_tools=frozenset(),
+        attempted_tools=frozenset(),
     )
 
     assert [b.tool_name for b in blockers] == [None]
@@ -356,4 +429,4 @@ def test_non_tool_steps_are_ignored_when_listing_what_ran():
         ],
     )
 
-    assert executed_tool_names(plan, {"step_1": {"condition_result": True}}) == frozenset()
+    assert attempted_tool_names(plan, {"step_1": {"condition_result": True}}) == frozenset()

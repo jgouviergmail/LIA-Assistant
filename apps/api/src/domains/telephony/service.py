@@ -671,13 +671,13 @@ class TelephonyService:
         # 15-minute stale threshold. Observed in dev: a user unable to place a
         # call for a quarter of an hour after a silent refusal.
         if not result.success:
-            await repo.mark_dial_failed(call_id, error=f"initiate_rejected:{result.message or '?'}")
+            await repo.mark_dial_failed(call_id, error="initiate_rejected")
             logger.warning(
                 "telephony_initiate_call_rejected",
                 user_id=str(user_id),
                 call_id=str(call_id),
-                vendor_message=result.message,
             )
+            logger.debug("telephony_initiate_call_rejected_detail", vendor_message=result.message)
             return InitiateCallResult(status="rejected", call_id=call_id)
 
         await repo.set_conversation_id(call_id, result.conversation_id)

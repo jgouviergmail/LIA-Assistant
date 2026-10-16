@@ -4,7 +4,7 @@ import path from 'node:path';
 import AxeBuilder from '@axe-core/playwright';
 import { test, expect, waitForHydration } from '../fixtures';
 import { loadedChatRoutes } from '../fixtures/chat';
-import { awaitStyledPage, expectNoOverflow } from './overflow-report';
+import { awaitStyledPage, expectNoOverflow, prepareTheme } from './overflow-report';
 
 interface Reference {
   id: string;
@@ -24,7 +24,7 @@ const samples = [
   { width: 1280, language: 'fr', theme: 'light' },
   { width: 390, language: 'en', theme: 'dark' },
   { width: 320, language: 'fr', theme: 'oled' },
-];
+] as const;
 
 for (const sample of samples) {
   test(`complete venue data at ${sample.width}px in ${sample.theme}`, async ({
@@ -38,7 +38,13 @@ for (const sample of samples) {
     if (!reference) throw new Error('Missing backend place-details reference');
     let avatarRequests = 0;
     await page.setViewportSize({ width: sample.width, height: 1800 });
-    await authenticate({ language: sample.language, response_display_mode: 'html_cards' });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await prepareTheme(page, sample.theme);
+    await authenticate({
+      language: sample.language,
+      response_display_mode: 'html_cards',
+      theme: sample.theme,
+    });
     await mockApi([
       ...loadedChatRoutes(),
       {
@@ -74,10 +80,12 @@ for (const sample of samples) {
     await page.goto(`/${sample.language}/dashboard/chat`);
     await waitForHydration(page);
     await awaitStyledPage(page, 'complete venue details');
-    await page.evaluate(theme => {
-      document.documentElement.classList.toggle('dark', theme !== 'light');
-      document.documentElement.toggleAttribute('data-oled', theme === 'oled');
-    }, sample.theme);
+    const html = page.locator('html');
+    const dark = sample.theme !== 'light';
+    await expect(html).toHaveClass(dark ? /\bdark\b/ : /\blight\b/);
+    await expect(html).not.toHaveClass(dark ? /\blight\b/ : /\bdark\b/);
+    await expect(html).toHaveCSS('color-scheme', dark ? 'dark' : 'light');
+    await expect(page.locator('html[data-oled]')).toHaveCount(sample.theme === 'oled' ? 1 : 0);
     const card = page.locator('.lia-card.lia-place');
     await expect(card).toContainText('Europe/Paris');
     expect(avatarRequests).toBe(0);
@@ -100,6 +108,12 @@ for (const sample of samples) {
     await expect(card.locator('[data-availability="true"]')).toHaveCount(4);
     await expect(card.locator('img.lia-review__avatar')).toHaveJSProperty('naturalWidth', 24);
     expect(avatarRequests).toBe(1);
+    // Reduced motion must remove the reveal, including its initial transparent frame.
+    const readableDetails = card.locator('.lia-collapsible[open] > .lia-collapsible__content');
+    expect(await readableDetails.count()).toBeGreaterThan(0);
+    for (const detail of await readableDetails.all()) {
+      await expect(detail).toHaveCSS('animation-name', 'none');
+    }
     await expectNoOverflow(page, `venue ${sample.width} ${sample.theme}`);
     const accessibility = await new AxeBuilder({ page })
       .include('.lia-multi-domain')

@@ -72,6 +72,7 @@ ADMIN_SETTINGS_SECTION_TOKENS = frozenset(
         "admin-skills",
         "admin-usage-limits",
         "admin-users",
+        "admin-voice-library",
         "debug-settings",
         "rag-spaces-admin",
     }

@@ -1,24 +1,11 @@
-/**
- * useBriefing — Today dashboard hook.
- *
- * Splits the network into TWO independent queries so the cards can render
- * immediately while the LLM-generated greeting + synthesis arrive a moment
- * later (non-blocking UX).
- *
- *   - GET /briefing/cards     → CardsBundle (fast)
- *   - GET /briefing/synthesis → greeting + synthesis (LLM-bound)
- *
- * Refresh:
- *   - POST /briefing/refresh  → returns full payload (cards + greeting + synthesis)
- *     Triggered when user clicks 🔄 on a card or "refresh all".
- */
-
-import { useCallback, useState } from 'react';
+/** Independent cards and text reads keep the dashboard progressive. */
+import { useCallback, useEffect, useRef, useState } from 'react';
 import apiClient from '@/lib/api-client';
 import { useApplicationAccountQuery } from '@/hooks/useApplicationAccountQuery';
-import { useApplicationResourceSync } from '@/hooks/useApplicationResourceSync';
+import { subscribeApplicationResource } from '@/lib/application-resources';
 import type {
   BriefingResponse,
+  BriefingSection,
   BriefingWindows,
   CardsBundle,
   RefreshRequest,
@@ -30,43 +17,30 @@ interface CardsResponse {
   cards: CardsBundle;
   windows: BriefingWindows;
 }
-
 interface SynthesisResponse {
   greeting: TextSection;
   synthesis: TextSection | null;
 }
-
 export interface UseBriefingResult {
-  /** Cards bundle (fast — no LLM). undefined while initial query is in flight. */
   cards: CardsBundle | undefined;
-  /** The windows the cards were built with, from the same response. */
   windows: BriefingWindows | undefined;
-  /** Greeting + synthesis (LLM). undefined while LLM call is in flight. */
   text: SynthesisResponse | undefined;
-  /** True while either initial query is loading. */
   loading: boolean;
-  /** True specifically while the cards query is loading. */
   cardsLoading: boolean;
-  /** True specifically while the synthesis query is loading. */
   textLoading: boolean;
-  /** Error from any of the queries. */
   error: Error | null;
-  /** Refresh both cards and synthesis from scratch. */
+  /** Retry independent initial reads after an error. */
   refetchAll: () => Promise<void>;
-  /**
-   * Force-refresh one section (or 'all') via POST /briefing/refresh.
-   * Backend regenerates greeting + synthesis for consistency.
-   */
+  /** Explicit manual refresh; only 'all' regenerates greeting and synthesis. */
   refetchSection: (section: RefreshScope) => Promise<void>;
-  /** Sections currently in flight (for per-card spinner UX). */
+  /** Reread after a committed mutation, without generating LLM text. */
+  invalidateSection: (section: BriefingSection) => Promise<void>;
   refreshingSections: Set<RefreshScope>;
 }
-
 const ENDPOINT_CARDS = '/briefing/cards';
 const ENDPOINT_SYNTHESIS = '/briefing/synthesis';
 const ENDPOINT_REFRESH = '/briefing/refresh';
 const ENDPOINT_REFRESH_CARDS = '/briefing/refresh-cards';
-const releaseReminderOverride = () => {};
 
 export function useBriefing(): UseBriefingResult {
   const cardsQuery = useApplicationAccountQuery<CardsResponse>(
@@ -77,52 +51,203 @@ export function useBriefing(): UseBriefingResult {
     ENDPOINT_SYNTHESIS,
     'TodayBriefing.synthesis'
   );
-  const { ownerId, lifetime, isCurrent, refetch: refetchCards } = cardsQuery;
-  // Reminder cards are always live at the source; rereading them calls no LLM.
-  useApplicationResourceSync(ownerId, 'reminders', refetchCards, releaseReminderOverride);
-
+  const { ownerId, lifetime, isCurrent, acceptData: acceptCards } = cardsQuery;
+  const { acceptData: acceptText, refetch: rereadText } = synthesisQuery;
   const [refreshing, setRefreshing] = useState({ lifetime, sections: new Set<RefreshScope>() });
+  const pending = useRef({ lifetime, sections: new Set<RefreshScope>() });
+  const [refreshFailure, setRefreshFailure] = useState({ lifetime, error: null as Error | null });
   const refreshingSections =
     refreshing.lifetime === lifetime ? refreshing.sections : new Set<RefreshScope>();
+  const invalidated = useRef({ lifetime, sections: new Set<BriefingSection>() });
+  const waitingForCards = useRef(false);
+  const dirtySections = useCallback(() => {
+    if (invalidated.current.lifetime !== lifetime)
+      invalidated.current = { lifetime, sections: new Set() };
+    const dirty = invalidated.current.sections;
+    for (const section of dirty) {
+      if (cardsQuery.data?.cards[section].status === 'hidden') dirty.delete(section);
+    }
+    return dirty;
+  }, [lifetime, cardsQuery.data]);
+  const cardsRevision = useRef(0);
+  const textRevision = useRef(0);
+  const beginCardsRead = useCallback(() => {
+    const revision = ++cardsRevision.current;
+    return () => isCurrent() && cardsRevision.current === revision;
+  }, [isCurrent]);
+  const beginTextRead = useCallback(() => {
+    const revision = ++textRevision.current;
+    return () => isCurrent() && textRevision.current === revision;
+  }, [isCurrent]);
+
+  // Matching forced builds share a server-side single_flight snapshot. A read
+  // after a mutation must START after our preceding build has actually ended.
+  const flight = useRef({ lifetime, settled: Promise.resolve() });
+  const afterFlight = useCallback(
+    (current: () => boolean, read: () => Promise<void>) => {
+      if (flight.current.lifetime !== lifetime)
+        flight.current = { lifetime, settled: Promise.resolve() };
+      const execute = async () => {
+        if (!current()) return;
+        try {
+          await read();
+        } catch (error) {
+          if (current()) {
+            setRefreshFailure({
+              lifetime,
+              error: error instanceof Error ? error : new Error('Briefing refresh failed'),
+            });
+          }
+        }
+      };
+      const next = flight.current.settled.then(execute);
+      flight.current.settled = next;
+      return next;
+    },
+    [lifetime]
+  );
+
+  const readForcedCards = useCallback(
+    async (dirty: Set<BriefingSection>, current: () => boolean) => {
+      if (!dirty.size) return;
+      const fresh = await apiClient.post<CardsResponse>(ENDPOINT_REFRESH_CARDS, {
+        sections: [...dirty],
+      } satisfies RefreshRequest);
+      if (current()) {
+        acceptCards(fresh);
+        dirty.clear();
+      }
+    },
+    [acceptCards]
+  );
+
+  const invalidateSection = useCallback(
+    async (section: BriefingSection) => {
+      if (!isCurrent()) return;
+      const dirty = dirtySections();
+      if (cardsQuery.data?.cards[section].status === 'hidden') return;
+      dirty.add(section);
+      const current = beginCardsRead();
+      setRefreshFailure({ lifetime, error: null });
+      if (!cardsQuery.data) {
+        // Preserve external changes during first load. Once visibility is known,
+        // force only visible cards; never force a hidden section (the API refuses it).
+        waitingForCards.current = true;
+        return;
+      }
+      await afterFlight(current, () => readForcedCards(dirty, current));
+    },
+    [
+      isCurrent,
+      dirtySections,
+      cardsQuery.data,
+      beginCardsRead,
+      lifetime,
+      afterFlight,
+      readForcedCards,
+    ]
+  );
+
+  useEffect(() => {
+    if (!cardsQuery.data || !waitingForCards.current) return;
+    waitingForCards.current = false;
+    const [section] = dirtySections();
+    if (section) void invalidateSection(section);
+  }, [cardsQuery.data, dirtySections, invalidateSection]);
+  useEffect(() => {
+    if (!ownerId) return;
+    return subscribeApplicationResource(ownerId, 'reminders', () => {
+      void invalidateSection('reminders');
+    });
+  }, [ownerId, invalidateSection]);
 
   const refetchSection = useCallback(
     async (section: RefreshScope) => {
       if (!isCurrent()) return;
-      setRefreshing(prev => {
-        const next = new Set(prev.lifetime === lifetime ? prev.sections : []);
-        next.add(section);
-        return { lifetime, sections: next };
-      });
+      if (pending.current.lifetime !== lifetime)
+        pending.current = { lifetime, sections: new Set() };
+      const active = pending.current.sections;
+      // This synchronous manual guard prevents a double press buying two texts.
+      // Mutation invalidations bypass it and retain all changed sections.
+      if (active.has(section) || active.has('all') || (section === 'all' && active.size > 0))
+        return;
+      const dirty = dirtySections();
+      if (section !== 'all') dirty.add(section);
+      active.add(section);
+      const current = beginCardsRead();
+      const textCurrent = section === 'all' ? beginTextRead() : () => false;
+      setRefreshFailure({ lifetime, error: null });
+      setRefreshing(prev => ({
+        lifetime,
+        sections: new Set(prev.lifetime === lifetime ? prev.sections : []).add(section),
+      }));
       try {
-        const payload: RefreshRequest = { sections: [section] };
-        if (section === 'all') {
-          // Global refresh: the LLM texts summarize the cards, regenerate both.
-          const fresh = await apiClient.post<BriefingResponse>(ENDPOINT_REFRESH, payload);
-          if (!isCurrent()) return;
-          cardsQuery.setData({ cards: fresh.cards, windows: fresh.windows });
-          synthesisQuery.setData({ greeting: fresh.greeting, synthesis: fresh.synthesis });
-        } else {
-          // D-04: a per-card retry must not pay two LLM calls — cards only.
-          const fresh = await apiClient.post<CardsResponse>(ENDPOINT_REFRESH_CARDS, payload);
-          if (!isCurrent()) return;
-          cardsQuery.setData({ cards: fresh.cards, windows: fresh.windows });
-        }
+        await afterFlight(
+          () => current() || textCurrent(),
+          async () => {
+            if (section !== 'all') return readForcedCards(dirty, current);
+            const fresh = await apiClient.post<BriefingResponse>(ENDPOINT_REFRESH, {
+              sections: ['all'],
+            });
+            // A first successful bundle also supplies visibility for invalidations
+            // held during an initial GET failure. Keep dirty until its forced drain.
+            if (current() || (isCurrent() && waitingForCards.current)) {
+              acceptCards({ cards: fresh.cards, windows: fresh.windows });
+              if (current()) dirty.clear();
+            }
+            // A cards-only mutation did not replace this paid text generation.
+            // Keep its original generated_at/usage unless a newer text read won.
+            if (textCurrent()) acceptText({ greeting: fresh.greeting, synthesis: fresh.synthesis });
+          }
+        );
       } finally {
+        active.delete(section);
         if (isCurrent()) {
           setRefreshing(prev => {
-            const next = new Set(prev.lifetime === lifetime ? prev.sections : []);
-            next.delete(section);
-            return { lifetime, sections: next };
+            const sections = new Set(prev.lifetime === lifetime ? prev.sections : []);
+            sections.delete(section);
+            return { lifetime, sections };
           });
         }
       }
     },
-    [cardsQuery, synthesisQuery, isCurrent, lifetime]
+    [
+      isCurrent,
+      lifetime,
+      dirtySections,
+      beginCardsRead,
+      beginTextRead,
+      afterFlight,
+      readForcedCards,
+      acceptCards,
+      acceptText,
+    ]
   );
 
   const refetchAll = useCallback(async () => {
-    await Promise.all([cardsQuery.refetch(), synthesisQuery.refetch()]);
-  }, [cardsQuery, synthesisQuery]);
+    if (!isCurrent()) return;
+    beginCardsRead();
+    beginTextRead();
+    setRefreshFailure({ lifetime, error: null });
+    const [dirtySection] = dirtySections();
+    // First-load failures must still retry GET to learn visibility. The effect
+    // above then drains any invalidation held while that initial read failed.
+    const cardsRead =
+      dirtySection && cardsQuery.data
+        ? invalidateSection(dirtySection)
+        : afterFlight(isCurrent, cardsQuery.refetch);
+    await Promise.allSettled([cardsRead, rereadText()]);
+  }, [
+    isCurrent,
+    beginCardsRead,
+    beginTextRead,
+    lifetime,
+    dirtySections,
+    cardsQuery,
+    invalidateSection,
+    afterFlight,
+    rereadText,
+  ]);
 
   return {
     cards: cardsQuery.data?.cards,
@@ -131,9 +256,13 @@ export function useBriefing(): UseBriefingResult {
     loading: cardsQuery.loading || synthesisQuery.loading,
     cardsLoading: cardsQuery.loading,
     textLoading: synthesisQuery.loading,
-    error: cardsQuery.error || synthesisQuery.error,
+    error:
+      cardsQuery.error ||
+      synthesisQuery.error ||
+      (refreshFailure.lifetime === lifetime ? refreshFailure.error : null),
     refetchAll,
     refetchSection,
+    invalidateSection,
     refreshingSections,
   };
 }

@@ -9,6 +9,7 @@ from unittest.mock import Mock
 
 import pytest
 
+from src.core.i18n_api_messages import APIMessages
 from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import (
@@ -124,7 +125,10 @@ class TestHandleToolException:
         assert result.error_code == ToolErrorCode.INTERNAL_ERROR
         assert "ValueError" in result.message
         assert result.metadata["error_type"] == "ValueError"
-        assert result.metadata["error_message"] == "Invalid input"
+        # An exception's text may quote a provider, a URL or a mailbox: the
+        # output names its type, never its words (test_tool_failure_privacy).
+        assert result.metadata["error_message"] == APIMessages.internal_error("ValueError")
+        assert "Invalid input" not in result.model_dump_json()
 
     def test_handle_exception_with_context(self):
         """Test exception handling with context."""
@@ -159,7 +163,10 @@ class TestHandleToolException:
             assert isinstance(result, UnifiedToolOutput)
             assert result.success is False
             assert result.metadata["error_type"] == type(exc).__name__
-            assert result.metadata["error_message"] == str(exc)
+            assert result.metadata["error_message"] == APIMessages.internal_error(
+                type(exc).__name__
+            )
+            assert str(exc) not in result.model_dump_json()
 
 
 class TestHelperIntegration:

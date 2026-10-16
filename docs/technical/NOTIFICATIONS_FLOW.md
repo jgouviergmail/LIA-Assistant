@@ -486,13 +486,39 @@ data: {"type": "conversation_updated", "conversation_id": "…"}
 
 event: superseded
 data: {"reason": "newer_stream"}
+
+event: session_revoked
+data: {"reason": "session_revoked"}
 ```
 
 There is no `id:` and no `Last-Event-ID` resumption: Redis Pub/Sub keeps
 nothing, so an event published while a tab was disconnected is lost. The client
 therefore reads the newest page when it reconnects or returns to the
 foreground (below). `superseded` is sent to a stream evicted by a newer one of
-the same account (`sse_max_streams_per_user`, newest wins).
+the same account (`sse_max_streams_per_user`, newest wins). `session_revoked`
+closes the stream of a session signed out from « My devices » at the next
+keepalive tick (ADR-144 amendment 2026-10-13): both web consumers close for good
+and send the page to the login, where a reconnection would only meet a 401.
+The checking deadline is independent of notification traffic: the remaining
+poll timeout shrinks after each message, and the server checks revocation and
+refreshes tracking before delivering a message once that deadline is reached.
+Continuous notifications therefore cannot postpone the check indefinitely.
+
+### Streaming through an HTTP proxy
+
+`SecurityHeadersMiddleware` adds the canonical `no-transform` cache directive
+to every `text/event-stream` response, preserving the route's `no-cache` or
+`no-store` restrictions. This protects chat, run reattachment and notifications
+through the same door. A proxy compressor can otherwise retain small events
+until the response ends; an open notification stream may then appear silent.
+The directive follows [RFC 9111 §5.2.2.6](https://www.rfc-editor.org/rfc/rfc9111.html#section-5.2.2.6).
+It does not replace authentication, periodic revocation checks or reconnection.
+
+The 2026-10-15 disposable-install replay used the real Next.js proxy, API and
+Redis Pub/Sub. With the client's usual compression negotiation, the corrected
+stream delivered continuous synthetic notifications, then `session_revoked`,
+and refused reopening with the old cookie. Unit tests also preserve non-stream
+cache policies and verify that the first body chunk passes before completion.
 
 ### The conversation sync signal (ADR-320)
 

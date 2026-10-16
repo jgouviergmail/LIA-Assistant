@@ -98,3 +98,71 @@ checkpoint: F0 10,102 / F1 10,107 / F2 10,120) → fresh Docker boot to
 healthy → in-container runtime smoke (the three migrated clients
 instantiate, inherit the base, close idempotently; Brave's None-on-error
 verified live).
+
+## Amendment 2026-10-13 — a provider's 429 is backpressure on one key, never the service's health
+
+Measured on dev, 2026-10-13: three delegated research runs of one account (78
+Brave and Perplexity calls in twenty minutes, on that account's own keys, nothing
+else using them) drew their first 429s on their first parallel round of three or
+four searches — a per-second limit, not a quota: every retry one or two seconds
+later passed. But the client counted each 429 as a FAILURE of the breaker every
+account shares (`apikey_{connector}`): it opened on the third, re-opened at each
+half-open probe, and refused 13 of the 15 searches one run lost, which the expert
+read as « service temporarily unavailable » and the person as « web search
+degraded ». The nine Perplexity failures were moreover counted as successes:
+`APIKeyConnectorTool.handle_error` returned a JSON string, which the one success
+predicate reads as a success (ADR-303).
+
+- **A 429 is recorded as an answer** (`record_success`): the breaker measures the
+  service's health (5xx, network errors, malformed bodies), and a limit on one key
+  says nothing of it. The same holds for the instance key the system geocoding path
+  passes.
+- **Its retries are jittered, bounded and its own**: the provider's `Retry-After`,
+  else the exponential step, plus up to one second drawn at random (never earlier
+  than asked) — the siblings of one parallel round drew their 429 on the same tick
+  and retried on the same one. A 429 is waited out in a loop of its own
+  (`_send_through_rate_limits`) under `API_KEY_CLIENT_RATE_LIMIT_ATTEMPTS`, apart
+  from the call's `max_retries`, which keep bounding the failures that may cost a
+  whole network timeout each (5xx, malformed bodies, network errors). A
+  `Retry-After` above `API_KEY_CLIENT_RETRY_AFTER_MAX_SECONDS` is handed back at once
+  rather than waited out inside the caller's own timeout. Simulated against a
+  provider serving one request per second per key, four rounds of four parallel
+  searches: 5 of 16 answered before (10 refused by the breaker), 12 of 16 with three
+  attempts, 16 of 16 with four — a one-off measurement on 2026-10-13, not a guard:
+  an httpx `MockTransport` answering 429 past one request per rolling second, four
+  rounds of four concurrent `_make_request` three seconds apart, HEAD's module
+  loaded from git beside the working tree's. The price is the wait: about five
+  seconds more per round of four against such a key, where the lost searches cost
+  the model a whole round to redo them.
+- **The backoff precedes a retry, never follows the last attempt**: every failure
+  branch slept its exponential step and then left the loop, so a 5xx or a
+  malformed body on the last attempt delayed the failure by 4 s for nothing (the
+  429 branch did the same). The sleep now opens the next attempt. The verb
+  dispatch, the breaker check and records and the parameter merge left the method,
+  whose cyclomatic complexity fell from 32 to 12 (the backend ratchet from 290 to
+  288 hotspots).
+- **A spent 429 is typed**: `ConnectorAPIError(status_code=429)` with the delay in
+  `Retry-After`, no longer `MaxRetriesExceededError` — so the tool layer reads
+  `RATE_LIMIT_EXCEEDED` (and draws the rate-limit banner) and the briefing's
+  weather card says « rate limit », never « network ». A circuit-open refusal
+  carries its delay too.
+- **An API-key tool fails by returning a failure**: in registry mode
+  `handle_error` returns the `UnifiedToolOutput`, and a refusal the service side
+  produced is said by its status in technical English, with our own exception's
+  detail (bounded, what the JSON used to carry) and its delay
+  (`runtime_helpers.describe_external_refusal`; retries that never got an answer
+  are `EXTERNAL_API_ERROR`). A provider's own refusal (`httpx.HTTPStatusError`, a
+  404 « city not found ») is said by its status too — never by its body, which is
+  third-party text and would reach the model with our authority.
+- **Brave has two doors**: the tool reads `search_or_raise`; `search` keeps its
+  None-on-error contract for the interest sweep, the radio and the enrichment.
+
+Guards: `tests/unit/connectors/test_base_api_key_client.py`
+(`TestAProviderRateLimitIsBackpressure`), `test_api_key_tool_failures.py`,
+`TestBraveRateLimitIsSaid`, `test_weather_error_classification.py`. Left as found,
+and named here: the OAuth clients still count a 429 as a breaker failure — Google
+and Microsoft quotas mix per-user and per-project limits, which needs its own
+analysis; and the client shaper still counts per minute, so it cannot see a
+per-second burst (ADR-254's trap): providers state their limits in different units
+and a static rate cannot match every account's plan, so the jittered 429 path is
+the adaptive one.

@@ -169,3 +169,72 @@ describe('InterestNotificationHistory', () => {
     expect(screen.getAllByText('fusion nucléaire')).toHaveLength(1);
   });
 });
+
+describe('InterestNotificationHistory — timeline preserves the audit', () => {
+  it('keeps a retained message as inert text with its provider and recorded verdict', () => {
+    const content = `${'Lecture détaillée sans perte de contenu. '.repeat(20)}\n<script>alert(1)</script> Fin de notification.`;
+    const { container } = renderWithProviders(
+      <InterestNotificationHistory
+        {...makeProps({
+          presentation: 'timeline',
+          notifications: [notification({ content, user_feedback: 'thumbs_up' })],
+        })}
+      />
+    );
+
+    expect(
+      screen.getByText(content, { exact: true, collapseWhitespace: false, trim: false })
+    ).toHaveTextContent('Fin de notification.');
+    expect(screen.getByText('fusion nucléaire')).toBeInTheDocument();
+    expect(screen.getByText('interests.history.source_perplexity')).toBeInTheDocument();
+    expect(screen.getByText('heartbeat.history.feedback_thumbs_up')).toBeInTheDocument();
+    expect(container.querySelector('script')).toBeNull();
+  });
+
+  it('keeps a purged-content record whose topic has been deleted without inventing text', () => {
+    const { container } = renderWithProviders(
+      <InterestNotificationHistory
+        {...makeProps({
+          presentation: 'timeline',
+          notifications: [notification({ content: null, topic: null, source: 'newsapi' })],
+        })}
+      />
+    );
+
+    expect(screen.getByRole('listitem')).toHaveTextContent('newsapi');
+    expect(screen.getByText('heartbeat.history.feedback_none')).toBeInTheDocument();
+    expect(container.querySelector('time')).toHaveAttribute('datetime', '2026-08-01T09:30:00Z');
+    expect(screen.queryByText('fusion nucléaire')).not.toBeInTheDocument();
+    expect(screen.queryByText(/priority_/)).not.toBeInTheDocument();
+  });
+});
+
+describe('InterestNotificationHistory — timeline reading order', () => {
+  it('places the provider below the topic and before the retained content', () => {
+    renderWithProviders(
+      <InterestNotificationHistory {...makeProps({ presentation: 'timeline' })} />
+    );
+    const topic = screen.getByText('fusion nucléaire');
+    const provider = screen.getByText('interests.history.source_perplexity');
+    const content = screen.getByText('Trois articles sur la fusion nucléaire cette semaine.');
+    expect(topic.compareDocumentPosition(provider) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      provider.compareDocumentPosition(content) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
+
+  it.each(['wikipedia', 'llm_reflection', 'custom', 'heartbeat'])(
+    'translates the retained %s provider',
+    source => {
+      renderWithProviders(
+        <InterestNotificationHistory
+          {...makeProps({
+            presentation: 'timeline',
+            notifications: [notification({ source })],
+          })}
+        />
+      );
+      expect(screen.getByText(`interests.history.source_${source}`)).toBeInTheDocument();
+    }
+  );
+});

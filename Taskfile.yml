@@ -1762,14 +1762,20 @@ tasks:
 
   security:scan:docker:
     desc: Scan Docker images with Trivy (using Docker)
+    vars:
+      API_IMAGE: '{{.API_IMAGE | default "lia-api:latest"}}'
+      WEB_IMAGE: '{{.WEB_IMAGE | default "lia-web:latest"}}'
+    # Inspect the selected build identities; never retag another deployment.
+    # Trivy defaults to exit 0 even for findings, so an explicit failure code
+    # is part of this gate, as it is in the CI security workflow.
     cmds:
-      - cmd: docker run --rm -v //var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.74.0 image --severity HIGH,CRITICAL lia-api:latest
+      - cmd: docker run --rm -v //var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.74.0 image --exit-code 1 --severity HIGH,CRITICAL "{{.API_IMAGE}}"
         platforms: [windows]
-      - cmd: docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.74.0 image --severity HIGH,CRITICAL lia-api:latest
+      - cmd: docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.74.0 image --exit-code 1 --severity HIGH,CRITICAL "{{.API_IMAGE}}"
         platforms: [linux, darwin]
-      - cmd: docker run --rm -v //var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.74.0 image --severity HIGH,CRITICAL lia-web:latest
+      - cmd: docker run --rm -v //var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.74.0 image --exit-code 1 --severity HIGH,CRITICAL "{{.WEB_IMAGE}}"
         platforms: [windows]
-      - cmd: docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.74.0 image --severity HIGH,CRITICAL lia-web:latest
+      - cmd: docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.74.0 image --exit-code 1 --severity HIGH,CRITICAL "{{.WEB_IMAGE}}"
         platforms: [linux, darwin]
 
   sbom:generate:

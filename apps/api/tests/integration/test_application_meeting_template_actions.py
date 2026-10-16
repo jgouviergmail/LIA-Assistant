@@ -33,6 +33,7 @@ from src.domains.meetings.template_gateway import SavedMeetingTemplates
 from src.domains.meetings.template_service import MeetingTemplateService
 from src.domains.users.models import User
 from src.infrastructure.meeting_templates import configure_meeting_templates
+from tests.helpers.draft_refusals import draft_refusal_code
 from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
 
 pytestmark = pytest.mark.integration
@@ -228,13 +229,13 @@ async def test_native_template_mutations_are_confirmed_owned_and_fresh(
             assert preference is not None and preference.default_template_ref is None
     else:
         assert any(row.id == original_id for row in rows)
-        assert outcome.error == (
+        assert draft_refusal_code(outcome) == (
             "STALE_STATE"
             if intervention in {"changed", "default_changed"}
             else "CAPABILITY_DISABLED"
         )
     if intervention == "lost_ack":
-        assert outcome.error == "COMPLETION_UNKNOWN"
+        assert draft_refusal_code(outcome) == "COMPLETION_UNKNOWN"
     hints = [queue.get_nowait() for _ in range(queue.qsize())]
     hints = [event for event in hints if event.type == "application_state_changed"]
     assert len(hints) == int(intervention in {"none", "legacy_default"})

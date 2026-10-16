@@ -112,5 +112,6 @@ class TestLLMProviders:
             "elevenlabs",  # ADR-080 (STT) + ADR-081 (TTS)
             "edge",  # ADR-081 (free TTS provider, default)
             "typesafe",  # Native decision API, separate from chat adapters.
+            "fishaudio",  # ADR-345 (speech synthesis, transcription, voice library)
         }
         assert set(LLM_PROVIDERS.keys()) == expected

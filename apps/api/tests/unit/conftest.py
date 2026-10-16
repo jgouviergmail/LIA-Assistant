@@ -26,6 +26,7 @@ from __future__ import annotations
 import socket
 from collections.abc import Iterator
 from typing import Any
+from uuid import UUID
 
 import pytest
 
@@ -138,6 +139,30 @@ def _forbid_real_network(request: pytest.FixtureRequest) -> Any:
 def _fail_on_unawaited_asyncmock() -> Iterator[None]:
     """Fail any unit test that leaks an un-awaited AsyncMock coroutine (F028)."""
     yield from assert_no_unawaited_asyncmock()
+
+
+@pytest.fixture(autouse=True)
+def _mcp_failure_pauses_stay_out_of_redis(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A unit test that fails an MCP discovery never pauses a server in Redis.
+
+    The pause lives in Redis and outlives the test (point 29): a unit test
+    simulating a dead server under fixed ids paused that server for the next
+    test — and in the developer's own dev stack. Here the real tracker pauses
+    nothing; its Redis behaviour is proven by
+    ``tests/integration/test_mcp_server_failure_pause.py``, and a test that
+    needs a pause injects its own tracker into the pool.
+    """
+    from src.infrastructure.mcp.rate_limit import MCPServerFailures
+
+    async def _never_paused(self: MCPServerFailures, key: tuple[UUID, UUID]) -> float:
+        return 0.0
+
+    async def _forget(self: MCPServerFailures, key: tuple[UUID, UUID]) -> None:
+        return None
+
+    monkeypatch.setattr(MCPServerFailures, "remaining", _never_paused)
+    monkeypatch.setattr(MCPServerFailures, "record", _never_paused)
+    monkeypatch.setattr(MCPServerFailures, "clear", _forget)
 
 
 @pytest.fixture(autouse=True)

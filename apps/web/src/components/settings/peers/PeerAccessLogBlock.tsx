@@ -38,17 +38,17 @@ export function PeerAccessLogBlock({ lng, entries }: PeerAccessLogBlockProps) {
       {entries.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t('settings.peers.access_log.empty')}</p>
       ) : (
-        <ul className="space-y-1">
+        <ul className="space-y-3">
           {entries.map((entry, index) => (
             <li
               key={`${entry.created_at}-${index}`}
-              className="flex flex-wrap items-baseline gap-x-2 text-sm"
+              className="space-y-1 rounded-xl border border-border/50 p-3 text-sm"
             >
-              <span className="font-medium">{entry.accessor_display_name}</span>
-              <span className="text-muted-foreground">
+              <span className="block break-words font-medium">{entry.accessor_display_name}</span>
+              <span className="block text-muted-foreground">
                 {t(`settings.peers.domains.${entry.domain}`)}
               </span>
-              <time dateTime={entry.created_at} className="text-xs text-muted-foreground">
+              <time dateTime={entry.created_at} className="block text-xs text-muted-foreground">
                 {formatInstant(lng, entry.created_at)}
               </time>
             </li>

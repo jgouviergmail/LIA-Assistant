@@ -157,3 +157,7 @@ class TestUserColumnClassificationCompleteness:
             "last_known_location_encrypted",
             "journal_portrait_full",
         } <= scrubbed
+
+    def test_lia_s_voices_are_exported_and_erased_with_the_account(self) -> None:
+        """Owner decision 2026-10-14: a setting that serves nothing once the account is gone."""
+        assert USER_COLUMNS["lia_voices"] is UserColumnClass.SCRUBBED_PREFERENCE

@@ -15,7 +15,6 @@ from prometheus_client import REGISTRY
 from src.core.config import settings
 from src.core.exceptions import BaseAPIException, ResourceNotFoundError
 from src.domains.radio import listener_settings
-from src.domains.radio.adapters import RadioEngine
 from src.domains.radio.constants import SOURCE_LABEL_MAX_CHARS
 from src.domains.radio.editorial import NEWS_MAX_AGE_S
 from src.domains.radio.errors import (
@@ -23,6 +22,7 @@ from src.domains.radio.errors import (
     SOURCE_LIMIT,
     SOURCE_REFUSED,
     TIMER_TOO_LONG,
+    VOICE_SHARED,
     VOICE_UNKNOWN,
 )
 from src.domains.radio.formats import RadioRole
@@ -34,6 +34,7 @@ from src.domains.radio.repository import RadioSource, RadioSourceLimitReached, S
 from src.domains.radio.schemas import RadioSourceUpdateRequest
 from src.domains.radio.setup import VerificationMode
 from src.domains.radio.setup_builder import REFUSED_VOICE_UNAVAILABLE, RadioStartRefused
+from src.domains.voice.engine_voices import EngineVoices
 from src.domains.voice.factory import TTSConfig
 from src.domains.voice.voices_catalog import VoiceOption
 
@@ -43,31 +44,32 @@ USER = uuid.UUID("00000000-0000-4000-8000-0000000000e1")
 ENGLISH = VoiceOption(voice_id="en-voice", label="Ann", gender="female", language="en")
 FRENCH = VoiceOption(voice_id="fr-voice", label="Anne", gender="female", language="fr")
 CHINESE = VoiceOption(voice_id="zh-voice", label="An", gender="female", language="zh")
+ENGLISH_TOO = VoiceOption(voice_id="en-voice-2", label="Bob", gender="male", language="en")
 FEED = "https://outlet.example/feed.xml"
 MINE = uuid.UUID("00000000-0000-4000-8000-0000000000e2")
 
 
-def engine_with(*voices: VoiceOption) -> RadioEngine:
+def engine_with(*voices: VoiceOption) -> EngineVoices:
     config = TTSConfig(provider="edge", model="m", voice_male="a", voice_female="b")
-    return RadioEngine(config, list(voices), multilingual=False)
+    return EngineVoices(config, list(voices), multilingual=False)
 
 
 #: The key the voices of ``engine_with``'s engine are kept under.
-ENGINE_KEY = "edge/m"
+ENGINE_KEY = "edge"
 
 
-def offering(monkeypatch: pytest.MonkeyPatch, engine: RadioEngine | None) -> None:
-    async def radio_engine() -> RadioEngine:
+def offering(monkeypatch: pytest.MonkeyPatch, engine: EngineVoices | None) -> None:
+    async def radio_engine() -> EngineVoices:
         if engine is None:
             raise RadioStartRefused(REFUSED_VOICE_UNAVAILABLE)
         return engine
 
-    async def radio_engine_key() -> str:
+    async def radio_voices_key() -> str:
         # Known even when the engine cannot be served: it is the slot's configuration.
         return ENGINE_KEY
 
     monkeypatch.setattr(listener_settings, "radio_engine", radio_engine)
-    monkeypatch.setattr(listener_settings, "radio_engine_key", radio_engine_key)
+    monkeypatch.setattr(listener_settings, "radio_voices_key", radio_voices_key)
 
 
 def code_of(raised: pytest.ExceptionInfo[BaseAPIException]) -> dict[str, Any]:
@@ -173,6 +175,33 @@ class TestSavingThePreferences:
             await listener_settings.save_preferences(USER, "en", foreign)
 
         assert code_of(refused) == {"code": VOICE_UNKNOWN}
+        assert written.stored == []
+
+    async def test_a_commentator_s_voice_is_saved_with_the_team_s(
+        self, monkeypatch: pytest.MonkeyPatch, written: Written
+    ) -> None:
+        offering(monkeypatch, engine_with(ENGLISH, ENGLISH_TOO))
+        chosen = RadioPreferences(
+            voices={RadioRole.HOST: ENGLISH.voice_id, RadioRole.SPEAKER_A: ENGLISH_TOO.voice_id}
+        )
+
+        assert await listener_settings.save_preferences(USER, "en", chosen) == chosen
+        assert written.stored == [chosen]
+
+    @pytest.mark.parametrize("framing", [RadioRole.HOST, RadioRole.ANCHOR, RadioRole.SPEAKER_C])
+    async def test_a_commentator_in_lia_s_the_moderator_s_or_another_s_voice_is_refused(
+        self, monkeypatch: pytest.MonkeyPatch, written: Written, framing: RadioRole
+    ) -> None:
+        offering(monkeypatch, engine_with(ENGLISH, ENGLISH_TOO))
+        # The cast would silence it: never a view in LIA's voice, never two views in one.
+        shared = RadioPreferences(
+            voices={framing: ENGLISH.voice_id, RadioRole.SPEAKER_A: ENGLISH.voice_id}
+        )
+
+        with pytest.raises(BaseAPIException) as refused:
+            await listener_settings.save_preferences(USER, "en", shared)
+
+        assert code_of(refused) == {"code": VOICE_SHARED}
         assert written.stored == []
 
     async def test_an_engine_that_cannot_list_its_voices_right_now_is_not_strict(

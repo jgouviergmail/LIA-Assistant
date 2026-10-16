@@ -71,7 +71,7 @@ async def test_summarize_chunk_retries_then_succeeds(
 
     fake_response = MagicMock(
         text="summary text",
-        usage_metadata=MagicMock(input_tokens=10, output_tokens=5),
+        usage_metadata={"input_tokens": 10, "output_tokens": 5},  # the real shape: a mapping
     )
     calls = {"n": 0}
 
@@ -127,7 +127,7 @@ async def test_compact_global_timeout_falls_back_to_truncation(
         await asyncio.sleep(1)
         return MagicMock(
             text="should never arrive",
-            usage_metadata=MagicMock(input_tokens=1, output_tokens=1),
+            usage_metadata={"input_tokens": 1, "output_tokens": 1},
         )
 
     fake_llm = MagicMock()
@@ -185,7 +185,7 @@ async def test_truncation_fallback_preserves_previous_summaries_flag(
 
     async def slow(*_a: object, **_kw: object):
         await asyncio.sleep(1)
-        return MagicMock(text="x", usage_metadata=MagicMock(input_tokens=1, output_tokens=1))
+        return MagicMock(text="x", usage_metadata={"input_tokens": 1, "output_tokens": 1})
 
     fake_llm = MagicMock()
     fake_llm.ainvoke = AsyncMock(side_effect=slow)
@@ -234,7 +234,7 @@ async def test_previous_compaction_summaries_are_consolidated(
         captured_prompts.append(text)
         return MagicMock(
             text=f"MERGED[{text[:300]}]",
-            usage_metadata=MagicMock(input_tokens=10, output_tokens=5),
+            usage_metadata={"input_tokens": 10, "output_tokens": 5},  # the real shape: a mapping
         )
 
     fake_llm = MagicMock()
@@ -276,7 +276,7 @@ async def test_no_previous_summaries_keeps_consolidated_flag_false(
     async def ok(*_a, **_kw):
         return MagicMock(
             text="summary",
-            usage_metadata=MagicMock(input_tokens=10, output_tokens=5),
+            usage_metadata={"input_tokens": 10, "output_tokens": 5},  # the real shape: a mapping
         )
 
     fake_llm = MagicMock()

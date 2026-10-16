@@ -85,9 +85,10 @@ def _wired(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
         return object()
 
     async def _available(
-        *, disabled_domains=frozenset()
+        *, disabled_domains=frozenset(), user_id=None
     ) -> tuple[LiveToolSpec, ...]:  # noqa: ANN001
         state["disabled_domains"] = disabled_domains
+        state["offered_to"] = user_id
         return tuple(s for s in state["available"] if s.domain not in disabled_domains)
 
     async def _run(spec, args, **kwargs):  # noqa: ANN001, ANN003
@@ -207,6 +208,16 @@ async def test_a_domain_the_person_switched_off_reads_as_not_found(_wired: dict)
     )
     assert out == {"result": "2 events"}
     assert _wired["ran"][-1][0] == "recall_memories"
+
+
+@pytest.mark.unit
+async def test_the_call_s_owner_names_whose_connectors_decide(_wired: dict) -> None:
+    """RC2.1: a tool of a provider the account never connected is not offered."""
+    call = _wired["auth"].call
+    await rmod.live_tool_callback(
+        "get_events_tool", _request({"call_id": str(call.id)}), db=_DB(_user())
+    )
+    assert _wired["offered_to"] == call.user_id
 
 
 @pytest.mark.unit

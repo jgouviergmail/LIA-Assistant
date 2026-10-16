@@ -23,14 +23,16 @@ Metrics:
 - background_job_errors_total{job_name="scheduled_action_executor"}
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import time
 import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
-from typing import Any
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING, Any
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
@@ -51,6 +53,7 @@ from src.core.i18n import normalize_language
 from src.core.i18n_drafts import label_separator
 from src.core.time_utils import now_utc
 from src.core.user_display import resolve_user_display_name
+from src.domains.agents.utils.helpers import generate_run_id
 from src.domains.scheduled_actions.condition_ledger import ConditionLedger
 
 # CRITICAL: Import model at module level to register with SQLAlchemy metadata
@@ -69,10 +72,18 @@ from src.infrastructure.observability.metrics import (
 from src.infrastructure.proactive.notification import plain_text_for_notification
 from src.infrastructure.scheduler.out_of_turn_run import (
     RunOutcome,
+    RunResult,
     StreamRequest,
+    TurnInterrupt,
+    clear_question_of_run,
     conversation_has_pending_hitl,
     stream_instruction,
+    worst_case_run_seconds,
 )
+
+if TYPE_CHECKING:
+    from src.domains.scheduled_actions.repository import ScheduledActionRepository
+    from src.domains.users.schemas import UserProfile
 
 logger = structlog.get_logger(__name__)
 ExecutionGuard = Callable[[AsyncSession, ScheduledAction], Awaitable[bool]]
@@ -158,7 +169,7 @@ class _ConditionGate:
 _NO_CONDITION = _ConditionGate(note=None, served_state=None, unserved_state=None)
 
 
-async def _daily_cap_reached(db: Any, action: ScheduledAction, now: datetime) -> bool:
+async def _daily_cap_reached(db: AsyncSession, action: ScheduledAction, now: datetime) -> bool:
     """Whether a condition routine already fired its daily share (ADR-322).
 
     Counted from the run history, since the local midnight of the routine's
@@ -184,13 +195,14 @@ async def _daily_cap_reached(db: Any, action: ScheduledAction, now: datetime) ->
 
 
 async def _condition_gate(
-    db: Any,
-    repo: Any,
+    db: AsyncSession,
+    repo: ScheduledActionRepository,
     action: ScheduledAction,
     user_id: uuid.UUID,
     *,
     started_at: datetime,
     due_at: datetime | None,
+    execution_token: uuid.UUID | None = None,
 ) -> _ConditionGate | None:
     """Check the condition; ``None`` when there is nothing new to act on.
 
@@ -207,6 +219,7 @@ async def _condition_gate(
         user_id: Its owner.
         started_at: When the tick started (UTC).
         due_at: The pending due instant when the tick started.
+        execution_token: The reservation to revalidate before re-arming.
 
     Returns:
         The gate to run under, or ``None`` when the tick is over (committed).
@@ -242,7 +255,8 @@ async def _condition_gate(
             served_state=ledger.after_check(at=started_at, present=verdict.keys, fired=True),
             unserved_state=unserved,
         )
-    await repo.reschedule(action, _next_trigger(action, due_at), condition_state=unserved)
+    if not await _rearm_reserved(repo, action, execution_token, due_at, unserved):
+        return None
     await db.commit()
     reason = "capped" if capped else (verdict.error or "nothing_new")
     # Routine by design, at every check: only a cap is worth the INFO level.
@@ -252,9 +266,9 @@ async def _condition_gate(
 
 
 async def _send_approval_notification(
-    db: Any,
+    db: AsyncSession,
     *,
-    user: Any,
+    user: UserProfile,
     action: ScheduledAction,
     user_language: str,
 ) -> None:
@@ -289,7 +303,7 @@ async def _send_approval_notification(
 
 
 async def _notify_result(
-    db: Any,
+    db: AsyncSession,
     *,
     user_id: uuid.UUID,
     action: ScheduledAction,
@@ -350,8 +364,8 @@ async def _notify_result(
 
 
 async def _load_tick(
-    db: Any, repo: Any, action_id: uuid.UUID, user_id: uuid.UUID
-) -> tuple[ScheduledAction, Any] | None:
+    db: AsyncSession, repo: ScheduledActionRepository, action_id: uuid.UUID, user_id: uuid.UUID
+) -> tuple[ScheduledAction, UserProfile] | None:
     """The routine and its owner, or ``None`` when the tick must not run.
 
     Returns:
@@ -400,16 +414,44 @@ async def _execution_is_authorized(
     action: ScheduledAction,
     guard: ExecutionGuard | None,
     *,
-    before_inference: bool = False,
+    token: uuid.UUID | None = None,
 ) -> bool:
-    if guard is None:
-        return True
-    if not await guard(db, action):
+    """Whether the tick may go on — and, holding a reservation, renew it.
+
+    A tick that no longer holds its reservation must neither run nor settle:
+    the recovery freed it and another tick may hold the routine now (point 19).
+    Each check renews it, the last one right before the model runs, so the
+    recovery counts from the run's real start. What the check read or renewed
+    is committed at once: what follows waits on a source, a push or a model,
+    and a renewal's row lock held across it would stall anyone editing the
+    routine meanwhile (ADR-304).
+
+    Args:
+        db: The tick's session.
+        action: The routine.
+        guard: The caller's own authorization check, if any (ADR-335).
+        token: The reservation the tick was handed, if any.
+
+    Returns:
+        True when the tick may go on.
+    """
+    if guard is not None and not await guard(db, action):
         return False
-    if before_inference:
-        # Current authorization was read; hold no transaction during inference.
+    if token is not None and not await _renewed(db, action.id, token):
+        return False
+    if guard is not None or token is not None:
         await db.commit()
     return True
+
+
+async def _renewed(db: AsyncSession, action_id: uuid.UUID, token: uuid.UUID) -> bool:
+    """Renew the tick's reservation; False (logged) when another tick holds it."""
+    from src.domains.scheduled_actions.repository import ScheduledActionRepository
+
+    if await ScheduledActionRepository(db).renew_reservation(action_id, token):
+        return True
+    logger.warning("scheduled_action_reservation_lost", action_id=str(action_id))
+    return False
 
 
 async def execute_single_action(
@@ -417,6 +459,7 @@ async def execute_single_action(
     user_id: uuid.UUID,
     *,
     execution_guard: ExecutionGuard | None = None,
+    execution_token: uuid.UUID | None = None,
 ) -> str:
     """
     Execute a single scheduled action through the agent pipeline.
@@ -427,6 +470,9 @@ async def execute_single_action(
     Args:
         action_id: Scheduled action UUID.
         user_id: User UUID.
+        execution_guard: The caller's own authorization check (ADR-335).
+        execution_token: The reservation the tick was handed; the run then
+            renews it before the model and settles only while it holds it.
 
     Returns:
         Response content from the agent.
@@ -440,7 +486,7 @@ async def execute_single_action(
         if loaded is None:
             return ""
         action, user = loaded
-        if not await _execution_is_authorized(db, action, execution_guard):
+        if not await _execution_is_authorized(db, action, execution_guard, token=execution_token):
             return ""
 
         # ADR-265: the run history needs the instant the tick started and the
@@ -456,7 +502,13 @@ async def execute_single_action(
         gate = _NO_CONDITION
         if action.trigger_kind == TriggerKind.CONDITION.value:
             checked = await _condition_gate(
-                db, repo, action, user_id, started_at=started_at, due_at=due_at
+                db,
+                repo,
+                action,
+                user_id,
+                started_at=started_at,
+                due_at=due_at,
+                execution_token=execution_token,
             )
             if checked is None:
                 return ""
@@ -464,13 +516,13 @@ async def execute_single_action(
 
         async def _settle(outcome: ScheduledRunOutcome, state: dict[str, Any] | None) -> None:
             """Re-arm without counting an execution, write the row, commit."""
-            await repo.reschedule(action, _next_trigger(action, due_at), condition_state=state)
+            await _rearm_reserved(repo, action, execution_token, due_at, state)
             await record_run(
                 db, action, due_at=due_at, started_at=started_at, outcome=outcome, attempts=0
             )
             await db.commit()
 
-        if not await _execution_is_authorized(db, action, execution_guard):
+        if not await _execution_is_authorized(db, action, execution_guard, token=execution_token):
             return ""
         if action.requires_approval:
             # Propose-first: the run belongs to the CHAT (?intent= — ADR-173),
@@ -507,15 +559,13 @@ async def execute_single_action(
                 # The facts stay new and the next check tries again — with no
                 # row: a question can wait for days, a row at every check
                 # would say nothing the chat does not already show.
-                await repo.reschedule(
-                    action, _next_trigger(action, due_at), condition_state=gate.unserved_state
-                )
+                await _rearm_reserved(repo, action, execution_token, due_at, gate.unserved_state)
                 await db.commit()
             return ""
 
         # The probe's reads are done: nothing is held while the model runs.
         await db.commit()
-        if not await _execution_is_authorized(db, action, execution_guard, before_inference=True):
+        if not await _execution_is_authorized(db, action, execution_guard, token=execution_token):
             return ""
         response_content = await _run_pipeline(
             db,
@@ -526,6 +576,8 @@ async def execute_single_action(
             started_at=started_at,
             due_at=due_at,
             user_language=user_language,
+            conversation_id=pending_conversation_id,
+            execution_token=execution_token,
         )
         # The outcome is durable BEFORE any push: a crash during the
         # notification must not re-run a routine that already answered.
@@ -545,15 +597,17 @@ async def execute_single_action(
 
 
 async def _run_pipeline(
-    db: Any,
-    repo: Any,
+    db: AsyncSession,
+    repo: ScheduledActionRepository,
     action: ScheduledAction,
-    user: Any,
+    user: UserProfile,
     *,
     gate: _ConditionGate,
     started_at: datetime,
     due_at: datetime | None,
     user_language: str,
+    conversation_id: uuid.UUID | None,
+    execution_token: uuid.UUID | None = None,
 ) -> str:
     """Run the routine's instruction through the shared engine, and mark the outcome.
 
@@ -561,9 +615,26 @@ async def _run_pipeline(
     ``content_replacement`` rule live in the engine (ADR-276); what a ROUTINE
     does with the outcome stays here.
 
+    Args:
+        db: The tick's session; nothing is held open while the model runs.
+        repo: The routines' repository on that session.
+        action: The routine being run.
+        user: Its owner, for the language, zone and display preferences.
+        gate: The condition gate's verdict (the fact to serve, if any).
+        started_at: When the tick started, for the run history.
+        due_at: The slot the tick serves, for the run history.
+        user_language: The owner's backend-canonical language.
+        conversation_id: The owner's thread, from the pending-question probe;
+            None when the probe could not tell.
+        execution_token: The tick's reservation; when given, the settle writes
+            only while it still holds the routine.
+
     Returns:
         The answer, empty on a failure.
     """
+    # ONE id for the run, across its attempts: the registers, the token logs
+    # and a question the turn may leave on the thread all name it.
+    run_id = generate_run_id()
     prompt = action.action_prompt
     if gate.note:
         # Factual context for the pipeline (raw item names — the agent
@@ -585,52 +656,30 @@ async def _run_pipeline(
             # to steer a plan when it fires. Never the person's chat preference
             # — the header toggle speaks for the chat alone.
             execution_mode=action.execution_mode,
+            run_id=run_id,
         )
     )
     # A routine has nobody to ask, so a question it cannot ask is a failure —
     # the behaviour this path has always had. The workboard reads the same
     # outcome differently, which is why the engine names it rather than
-    # deciding for its callers.
+    # deciding for its callers. The ReAct loop no longer asks here (N10), but a
+    # path that does not know — a pipeline clarification — still stops on a
+    # question: it is taken back, or it would read the person's next message
+    # as its answer and make every later routine stand aside.
     error_msg: str | None = result.error
     if result.outcome is RunOutcome.WAITING:
         error_msg = "RuntimeError: HITL interrupt during scheduled action execution"
+        await clear_question_of_run(conversation_id, run_id)
     # A ceiling refusal (``QUOTA_BLOCKED``) carries its message, so it takes the
-    # failure path below and the OCCURRENCE is abandoned — the series re-arms
-    # on its own next slot. A routine has no « skipped » outcome to write:
+    # failure path and the OCCURRENCE is abandoned — the series re-arms on its
+    # own next slot. A routine has no « skipped » outcome to write:
     # ``ScheduledRunOutcome`` declares five, one per exit, and the weekly grid
     # colours a cell from them.
-    next_trigger = _next_trigger(action, due_at)
-    if error_msg is None:
-        # The ledger's new facts are served only by a REAL run: a failed one
-        # leaves them new, so the next check tries the fact again.
-        await repo.mark_execution_success(action, next_trigger, condition_state=gate.served_state)
-        outcome = ScheduledRunOutcome.SUCCESS
-        logger.info(
-            "scheduled_action_executed_success",
-            action_id=str(action.id),
-            user_id=str(action.user_id),
-            response_length=len(result.text),
-            next_trigger_at=next_trigger.isoformat() if next_trigger else None,
-            attempt=result.attempts,
-        )
-    else:
-        await repo.mark_execution_failure(
-            action,
-            error_msg,
-            next_trigger,
-            max_consecutive_failures=SCHEDULED_ACTIONS_MAX_CONSECUTIVE_FAILURES,
-            condition_state=gate.unserved_state,
-        )
-        outcome = ScheduledRunOutcome.FAILURE
-        # The message is kept on the routine for its owner; the log carries
-        # the exception's TYPE, a fact, never the text it quotes (ADR-317).
-        kind = error_msg.split(":", 1)[0]
-        logger.warning(
-            "scheduled_action_failed_after_retries",
-            action_id=str(action.id),
-            error_type=kind if kind.isidentifier() else "refused",
-            total_attempts=result.attempts,
-        )
+    outcome = ScheduledRunOutcome.SUCCESS if error_msg is None else ScheduledRunOutcome.FAILURE
+    if not await _settle_superseded(repo, action, execution_token, attempts=result.attempts):
+        await _mark_routine(repo, action, gate, result, error_msg=error_msg, due_at=due_at)
+    # Written even when the routine is another tick's: the run happened, and a
+    # condition routine's daily cap counts its runs from these rows (ADR-322).
     await record_run(
         db,
         action,
@@ -641,6 +690,121 @@ async def _run_pipeline(
         error=error_msg,
     )
     return result.text
+
+
+async def _mark_routine(
+    repo: ScheduledActionRepository,
+    action: ScheduledAction,
+    gate: _ConditionGate,
+    result: RunResult,
+    *,
+    error_msg: str | None,
+    due_at: datetime | None,
+) -> None:
+    """Mark the routine with its run's outcome and re-arm it.
+
+    Args:
+        repo: The routines' repository on the tick's session.
+        action: The routine the tick still holds.
+        gate: The condition gate's verdict (the ledger state to write).
+        result: The engine's outcome of the run.
+        error_msg: The failure message; None on a success.
+        due_at: The slot the tick serves, for the re-arm.
+    """
+    next_trigger = _next_trigger(action, due_at)
+    if error_msg is None:
+        # The ledger's new facts are served only by a REAL run: a failed one
+        # leaves them new, so the next check tries the fact again.
+        await repo.mark_execution_success(action, next_trigger, condition_state=gate.served_state)
+        logger.info(
+            "scheduled_action_executed_success",
+            action_id=str(action.id),
+            user_id=str(action.user_id),
+            response_length=len(result.text),
+            next_trigger_at=next_trigger.isoformat() if next_trigger else None,
+            attempt=result.attempts,
+        )
+        return
+    await repo.mark_execution_failure(
+        action,
+        error_msg,
+        next_trigger,
+        max_consecutive_failures=SCHEDULED_ACTIONS_MAX_CONSECUTIVE_FAILURES,
+        condition_state=gate.unserved_state,
+    )
+    # The message is kept on the routine for its owner; the log carries the
+    # exception's TYPE, a fact, never the text it quotes (ADR-317).
+    kind = error_msg.split(":", 1)[0]
+    logger.warning(
+        "scheduled_action_failed_after_retries",
+        action_id=str(action.id),
+        error_type=kind if kind.isidentifier() else "refused",
+        total_attempts=result.attempts,
+        **_interrupt_facts(result.interrupt),
+    )
+
+
+async def _rearm_reserved(
+    repo: ScheduledActionRepository,
+    action: ScheduledAction,
+    token: uuid.UUID | None,
+    due_at: datetime | None,
+    condition_state: dict[str, Any] | None,
+) -> bool:
+    """Re-arm only the reservation this tick owns, without committing its caller's work."""
+    if await _settle_superseded(repo, action, token, attempts=0):
+        return False
+    await repo.reschedule(action, _next_trigger(action, due_at), condition_state=condition_state)
+    return True
+
+
+async def _settle_superseded(
+    repo: ScheduledActionRepository,
+    action: ScheduledAction,
+    token: uuid.UUID | None,
+    *,
+    attempts: int,
+) -> bool:
+    """Whether another tick took the routine while the model ran (point 19).
+
+    Every settle uses this fence, including a condition check, a proposal and
+    a pending question. A source or push may take longer than expected; an
+    explicit reservation cancellation can occur at any time. The current
+    holder's state is never this tick's to overwrite.
+
+    Args:
+        repo: The routines' repository on the tick's session.
+        action: The routine.
+        token: The tick's reservation; None when the caller holds none.
+        attempts: How many attempts the run made, for the log line.
+
+    Returns:
+        True when the settle must write nothing.
+    """
+    if token is None or await repo.lock_reserved(action.id, token) is not None:
+        return False
+    logger.warning(
+        "scheduled_action_settle_superseded", action_id=str(action.id), attempts=attempts
+    )
+    return True
+
+
+def _interrupt_facts(interrupt: TurnInterrupt | None) -> dict[str, str | None]:
+    """What a failure log may say about the question a run stopped on: its kinds.
+
+    Args:
+        interrupt: The question, when the run stopped on one.
+
+    Returns:
+        ``interrupt_kind`` and ``draft_type`` — bounded vocabularies, never words.
+    """
+    if interrupt is None:
+        return {"interrupt_kind": None, "draft_type": None}
+    draft_type = (interrupt.draft or {}).get("draft_type")
+    return {
+        "interrupt_kind": interrupt.kind,
+        "draft_type": draft_type if isinstance(draft_type, str) else None,
+    }
 
 
 async def _purge_run_history() -> int:
@@ -702,6 +866,28 @@ async def _close_finished_routines() -> int:
         return 0
 
 
+def _reservation_lifetime_seconds() -> int:
+    """How long a live tick may hold its reservation: the recovery's threshold.
+
+    The worst case of a run — every attempt at its bound, plus the pauses
+    between them — or the configured threshold when an operator set a longer
+    one. With the defaults, the setting alone fell under that worst case, and
+    the recovery could hand a live run's routine to the next tick: two runs
+    (point 19).
+
+    Returns:
+        The threshold, in seconds.
+    """
+    return max(
+        settings.scheduled_actions_stale_timeout_minutes * 60,
+        worst_case_run_seconds(
+            settings.scheduled_actions_execution_timeout_seconds,
+            SCHEDULED_ACTIONS_MAX_RETRIES + 1,
+            SCHEDULED_ACTIONS_RETRY_DELAY_SECONDS,
+        ),
+    )
+
+
 async def process_scheduled_actions() -> dict[str, Any]:
     """
     Scheduler job: process all due scheduled actions.
@@ -716,10 +902,13 @@ async def process_scheduled_actions() -> dict[str, Any]:
 
     Single execution is guaranteed WITHOUT a Redis SchedulerLock (F003): the
     scheduler runs on a single leader-elected worker (``SchedulerLeaderElector``),
-    APScheduler caps this job at ``max_instances=1``, and step 2 uses FOR UPDATE
-    SKIP LOCKED + an atomic transition to 'executing' — so even a transient
-    two-scheduler failover window cannot double-process an action. A Redis lock
-    here was worse than redundant: retained for its full TTL (300s), it throttled
+    APScheduler caps this job at ``max_instances=1``, step 2 uses FOR UPDATE
+    SKIP LOCKED + an atomic transition to 'executing' under a fresh token, and
+    the recovery of step 1 never frees a reservation younger than the worst
+    case of a run. A tick that lost its reservation anyway — a manual run, or a
+    second scheduler during a failover — neither runs nor settles: the token is
+    renewed before the model and checked again at the settle. A Redis lock here
+    was worse than redundant: retained for its full TTL (300s), it throttled
     this 60s job to one run per five minutes.
 
     Returns:
@@ -756,9 +945,10 @@ async def process_scheduled_actions() -> dict[str, Any]:
         async with get_db_context() as db:
             repo = ScheduledActionRepository(db)
 
-            # 1. Recovery: reset stale 'executing' actions
+            # 1. Recovery: reset stale 'executing' actions — never younger than a
+            # live run can be, or the next tick would run it a second time.
             recovered = await repo.recover_stale_executing(
-                timeout_minutes=settings.scheduled_actions_stale_timeout_minutes
+                older_than=now_utc() - timedelta(seconds=_reservation_lifetime_seconds())
             )
             stats["recovered"] = recovered
 
@@ -771,8 +961,11 @@ async def process_scheduled_actions() -> dict[str, Any]:
                 background_job_duration_seconds.labels(job_name=job_name).observe(duration)
                 return stats
 
-            # Extract identifiers before commit (ORM objects expire after commit)
-            action_refs = [(action.id, action.user_id) for action in actions]
+            # Extract identifiers before commit (ORM objects expire after commit),
+            # the reservation token included: each run holds the routine by it.
+            action_refs = [
+                (action.id, action.user_id, action.execution_token) for action in actions
+            ]
 
             # CRITICAL: Commit status='executing' transition to release FOR UPDATE locks.
             # execute_single_action opens its own session - without this commit it would
@@ -803,13 +996,16 @@ async def process_scheduled_actions() -> dict[str, Any]:
             # behaviour exactly.
             semaphore = asyncio.Semaphore(settings.scheduled_actions_max_concurrency)
 
-            async def _run_one(action_id: uuid.UUID, action_user_id: uuid.UUID) -> str:
+            async def _run_one(
+                action_id: uuid.UUID, action_user_id: uuid.UUID, token: uuid.UUID | None
+            ) -> str:
                 """Execute one action and return its outcome for the counters."""
                 async with semaphore:
                     try:
                         response = await execute_single_action(
                             action_id=action_id,
                             user_id=action_user_id,
+                            execution_token=token,
                         )
                         return "success" if response else "skipped"
                     except Exception as e:
@@ -827,7 +1023,7 @@ async def process_scheduled_actions() -> dict[str, Any]:
             # _run_one already converts every failure into an outcome, this is
             # the belt to that pair of braces.
             outcomes = await asyncio.gather(
-                *(_run_one(action_id, user_id) for action_id, user_id in action_refs),
+                *(_run_one(action_id, user_id, token) for action_id, user_id, token in action_refs),
                 return_exceptions=True,
             )
 

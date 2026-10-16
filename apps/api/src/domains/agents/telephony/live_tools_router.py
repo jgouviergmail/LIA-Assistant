@@ -277,7 +277,7 @@ async def live_tool_callback(
         tool_name,
         {key: value for key, value in body.items() if key != CALL_ID_VARIABLE},
         offered=await available_live_tools(
-            disabled_domains=frozenset(user.phone_disabled_domains or ())
+            disabled_domains=frozenset(user.phone_disabled_domains or ()), user_id=call.user_id
         ),
         consume_budget=_consume_budget,
         user_id=call.user_id,

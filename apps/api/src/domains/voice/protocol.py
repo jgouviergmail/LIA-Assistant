@@ -7,6 +7,7 @@ Follows the same pattern as LLM providers for consistency.
 Created: 2026-01-15
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Literal, Protocol, runtime_checkable
 
@@ -68,27 +69,6 @@ class TTSClient(Protocol):
         """
         ...
 
-    async def synthesize_base64(
-        self,
-        text: str,
-        voice_name: str | None = None,
-        **kwargs: object,
-    ) -> str:
-        """
-        Synthesize text to base64-encoded audio.
-
-        Convenience method for streaming to frontend.
-
-        Args:
-            text: Text to synthesize.
-            voice_name: Voice identifier (provider-specific).
-            **kwargs: Provider-specific parameters.
-
-        Returns:
-            Base64-encoded audio string.
-        """
-        ...
-
     async def close(self) -> None:
         """
         Close and cleanup resources.
@@ -114,5 +94,57 @@ class TTSClient(Protocol):
 
         Returns:
             MIME type suffix (e.g., "mp3", "opus").
+        """
+        ...
+
+
+@dataclass(frozen=True, slots=True)
+class DialogueTurn:
+    """One speaker's turn in a dialogue voiced in one request (ADR-345).
+
+    Attributes:
+        voice: The provider voice id that speaks it.
+        words: What is said — the vendor's timing is read against these words.
+        cue: A direction opening the turn, already spelled for the engine; it
+            is performed, never timed.
+    """
+
+    voice: str
+    words: str
+    cue: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class DialogueAudio:
+    """A dialogue's audio, what the vendor billed, and where each turn starts.
+
+    Attributes:
+        audio: Every turn, in order, in the client's container.
+        sent_text: The text the request carried — markers, cues and words: the
+            vendor bills it whole.
+        turn_starts_s: When each turn's first word starts, in seconds; ``None``
+            when the vendor's timing could not place every turn.
+    """
+
+    audio: bytes
+    sent_text: str
+    turn_starts_s: tuple[float, ...] | None
+
+
+@runtime_checkable
+class DialogueTTSClient(TTSClient, Protocol):
+    """A client that voices several speakers in one request, and times each turn."""
+
+    async def synthesize_dialogue(
+        self, turns: Sequence[DialogueTurn], **kwargs: object
+    ) -> DialogueAudio:
+        """Voice ``turns`` in one request.
+
+        Args:
+            turns: The turns, in order (at least one).
+            **kwargs: The per-call delivery controls shared by every turn.
+
+        Returns:
+            The audio and each turn's start.
         """
         ...

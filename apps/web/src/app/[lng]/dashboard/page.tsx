@@ -17,10 +17,9 @@ import { radioAvailable } from '@/lib/radio/availability';
  * Today dashboard — the daily ritual home page.
  *
  * Layout (top → bottom):
- *   1. <TodayBriefing> — hero LIA + quick access + the page's lead-in + synthesis + 9-card
- *      grid; the lead-in is <RadioDashboardCard>, the personal radio where the instance
- *      offers it (ADR-324): under the quick-access bar, right above « My dashboard » —
- *      the one surface started every day (owner request)
+ *   1. <TodayBriefing> — date, welcome, personal radio, quick access, synthesis
+ *      and the card grid; <RadioDashboardCard> appears where the instance offers
+ *      it (ADR-324), immediately below the welcome.
  *   2. <ResultsSummary> — what the assistant ACHIEVED this cycle
  *   3. <UsageStatistics> — the volumes, folded behind a "Consumption" disclosure
  *
@@ -57,7 +56,7 @@ export default function DashboardPage({ params }: DashboardPageProps) {
 
   return (
     <FeatureErrorBoundary feature="dashboard">
-      <div className="space-y-10 sm:space-y-12">
+      <div className="dashboard-home space-y-10 sm:space-y-12">
         <TodayBriefing
           aboveBriefing={<RadioDashboardCard lng={lng} enabled={radioAvailable(config)} />}
         />
@@ -67,7 +66,8 @@ export default function DashboardPage({ params }: DashboardPageProps) {
           error={resultsError}
           locale={i18n.language || 'fr'}
         />
-        <UsageStatistics />
+        {/* Each account owns its statistics and in-flight limit reads. */}
+        <UsageStatistics key={user.id} />
       </div>
     </FeatureErrorBoundary>
   );

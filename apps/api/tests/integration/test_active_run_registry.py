@@ -54,7 +54,7 @@ class TestActiveRunLock:
             # Second run refused while the first holds the lock
             assert not await register_active_run(redis_client, conv, run_id="R2", stream_id="S2")
             active = await get_active_run(redis_client, conv)
-            assert active == {"run_id": "R1", "stream_id": "S1"}
+            assert active == {"run_id": "R1", "stream_id": "S1", "relayed": True}
             # TTL armed
             assert await redis_client.ttl(active_run_key(conv)) > 0
         finally:

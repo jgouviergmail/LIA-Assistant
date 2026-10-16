@@ -28,6 +28,7 @@ from src.core.constants import (
     RADIO_COST_ESTIMATE_MIN_AUDIO_SECONDS_DEFAULT,
     RADIO_CUSTOM_SOURCES_MAX_DEFAULT,
     RADIO_DESK_TTL_SECONDS_DEFAULT,
+    RADIO_DIALOGUE_MAX_BYTES_DEFAULT,
     RADIO_FAILURES_MAX_DEFAULT,
     RADIO_FIRST_DELAY_SECONDS_DEFAULT,
     RADIO_FLASH_POLL_SECONDS_DEFAULT,
@@ -255,6 +256,15 @@ class RadioSettings(BaseSettings):
         ge=1,
         le=5,
         description="Attempts per line while its voice failure is transient.",
+    )
+    radio_dialogue_max_bytes: int = Field(
+        default=RADIO_DIALOGUE_MAX_BYTES_DEFAULT,
+        ge=0,
+        le=20000,
+        description=(
+            "Most UTF-8 bytes of one dialogue take, on an engine that voices several "
+            "speakers in one request (ADR-345); 0 voices every line alone."
+        ),
     )
     radio_cost_estimate_min_audio_seconds: int = Field(
         default=RADIO_COST_ESTIMATE_MIN_AUDIO_SECONDS_DEFAULT,

@@ -244,6 +244,7 @@ class NoTts:
         *,
         input_tokens: int | None = None,
         output_tokens: int | None = None,
+        billed_units: int | None = None,
     ) -> None:
         raise AssertionError("the studio stands in for every voice")
 
@@ -267,11 +268,6 @@ class SilentClient:
     audio_format = "mp3"
 
     async def synthesize(self, text: str, voice_name: str | None = None, **kwargs: object) -> bytes:
-        raise AssertionError("the studio stands in for every voice")
-
-    async def synthesize_base64(
-        self, text: str, voice_name: str | None = None, **kwargs: object
-    ) -> str:
         raise AssertionError("the studio stands in for every voice")
 
     async def close(self) -> None:

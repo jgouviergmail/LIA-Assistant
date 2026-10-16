@@ -69,7 +69,7 @@ graph LR
 | Concept | Description |
 |---------|-------------|
 | **ExecutionPlan** | Plan structuré avec steps, dépendances, conditions |
-| **ExecutionStep** | Étape atomique (TOOL, CONDITIONAL, REPLAN, HUMAN) |
+| **ExecutionStep** | Étape atomique (TOOL, CONDITIONAL) |
 | **DSL** | Domain-Specific Language pour décrire plans multi-agents |
 | **PlanValidator** | Validation exhaustive (params, permissions, coûts, dépendances) |
 | **Retry Loop** | Retry avec feedback enrichi (LangChain RetryWithErrorOutputParser pattern) |
@@ -613,21 +613,17 @@ Le DSL (Domain-Specific Language) définit le format structuré des plans d'exé
 ```python
 class StepType(str, Enum):
     """
-    Types d'étapes supportées dans un ExecutionPlan.
+    Types d'étapes supportées dans un ExecutionPlan — chacun a son exécuteur.
 
-    MVP (Phase 1):
     - TOOL: Exécution d'un tool via agent
     - CONDITIONAL: Branchement conditionnel basé sur résultats
 
-    Future (Phase 2):
-    - REPLAN: Regénération de plan par le planner LLM
-    - HUMAN: Demande d'approbation HITL (Human-In-The-Loop)
+    Un type que rien n'exécute n'est pas déclaré d'avance (ADR-346) ;
+    un test tient l'enum égal au dispatch de l'exécuteur.
     """
 
     TOOL = "TOOL"
     CONDITIONAL = "CONDITIONAL"
-    REPLAN = "REPLAN"  # Phase 2
-    HUMAN = "HUMAN"  # Phase 2
 ```
 
 ### ExecutionStep Model

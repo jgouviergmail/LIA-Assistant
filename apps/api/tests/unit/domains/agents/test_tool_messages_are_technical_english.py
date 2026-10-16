@@ -7,7 +7,6 @@ reformulates for a person who may not speak it.
 
 from __future__ import annotations
 
-import json
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -42,9 +41,7 @@ async def test_rate_limiter_default_refusal_is_english() -> None:
     runtime = make_tool_runtime()
     with patch("src.core.config.get_settings", return_value=wrapper_settings):
         assert await probe_tool(runtime=runtime) == "ran"
-        blocked = json.loads(await probe_tool(runtime=runtime))
+        blocked = await probe_tool(runtime=runtime)
     _rate_limit_tracker.clear()
-    assert blocked["error"] == "rate_limit_exceeded"
-    assert blocked["message"].startswith("Rate limit exceeded for probe_tool")
-    assert "seconds" in blocked["message"]
-    assert "Veuillez" not in blocked["message"]
+    assert blocked.message.startswith("Rate limit reached for probe_tool")
+    assert "Veuillez" not in blocked.message

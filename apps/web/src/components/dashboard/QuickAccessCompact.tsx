@@ -6,6 +6,7 @@ import {
   ClipboardList,
   HelpCircle,
   KanbanSquare,
+  LayoutGrid,
   Settings,
   Sparkles,
 } from 'lucide-react';
@@ -45,58 +46,61 @@ export function QuickAccessCompact({ lng }: QuickAccessCompactProps) {
   const { t } = useTranslation();
 
   return (
-    <div
-      className={cn(
-        'flex flex-col overflow-hidden rounded-2xl border bg-card sm:flex-row',
-        'divide-y divide-border sm:divide-x sm:divide-y-0',
-        'shadow-[var(--lia-shadow-sm)]'
-      )}
-    >
-      <QuickAccessAction
-        href={`/${lng}/dashboard/faq`}
-        icon={HelpCircle}
-        label={t('dashboard.quick_access_compact.help')}
-        sublabel={t('dashboard.quick_access_compact.help_sub')}
-        tone="primary"
-      />
-      {/* The constellation earns a door here rather than a sixth nav slot:
+    <nav aria-labelledby="dashboard-shortcuts-heading" className="space-y-3">
+      <h2
+        id="dashboard-shortcuts-heading"
+        className="flex items-center gap-2 text-base sm:text-lg font-semibold tracking-tight text-foreground"
+      >
+        <LayoutGrid className="h-5 w-5 text-primary shrink-0" aria-hidden="true" />
+        {t('dashboard.quick_access_compact.title')}
+      </h2>
+      <div className="grid grid-cols-1 overflow-hidden rounded-xl border bg-card shadow-sm sm:grid-cols-2 xl:grid-cols-5">
+        <QuickAccessAction
+          href={`/${lng}/dashboard/faq`}
+          icon={HelpCircle}
+          label={t('dashboard.quick_access_compact.help')}
+          sublabel={t('dashboard.quick_access_compact.help_sub')}
+          tone="primary"
+        />
+        {/* The constellation earns a door here rather than a sixth nav slot:
           the header row is already at its widest (six destinations, icons only
           below `xl`), and this is a place you visit, not a place you live. */}
-      <QuickAccessAction
-        href={`/${lng}/dashboard/capabilities`}
-        icon={Sparkles}
-        label={t('dashboard.quick_access_compact.capabilities')}
-        sublabel={t('dashboard.quick_access_compact.capabilities_sub')}
-        tone="primary"
-      />
-      {/* ADR-276: the board of what LIA is DOING, between what it can do and
+        <QuickAccessAction
+          href={`/${lng}/dashboard/capabilities`}
+          icon={Sparkles}
+          label={t('dashboard.quick_access_compact.capabilities')}
+          sublabel={t('dashboard.quick_access_compact.capabilities_sub')}
+          tone="primary"
+        />
+        {/* ADR-276: the board of what LIA is DOING, between what it can do and
           what it has done — the three answer one question each, in that order,
           and the middle one is the only one that is still moving. */}
-      <QuickAccessAction
-        href={`/${lng}/dashboard/workboard`}
-        icon={KanbanSquare}
-        label={t('dashboard.quick_access_compact.workboard')}
-        sublabel={t('dashboard.quick_access_compact.workboard_sub')}
-        tone="primary"
-      />
-      {/* ADR-263: the register of what LIA actually did. It earns a door here
+        <QuickAccessAction
+          href={`/${lng}/dashboard/workboard`}
+          icon={KanbanSquare}
+          label={t('dashboard.quick_access_compact.workboard')}
+          sublabel={t('dashboard.quick_access_compact.workboard_sub')}
+          tone="primary"
+        />
+        {/* ADR-263: the register of what LIA actually did. It earns a door here
           for the same reason the constellation does — a place you visit to
           check something, not a place you live. */}
-      <QuickAccessAction
-        href={`/${lng}/dashboard/actions`}
-        icon={ClipboardList}
-        label={t('dashboard.quick_access_compact.actions')}
-        sublabel={t('dashboard.quick_access_compact.actions_sub')}
-        tone="success"
-      />
-      <QuickAccessAction
-        href={`/${lng}/dashboard/settings`}
-        icon={Settings}
-        label={t('dashboard.quick_access_compact.settings')}
-        sublabel={t('dashboard.quick_access_compact.settings_sub')}
-        tone="warning"
-      />
-    </div>
+        <QuickAccessAction
+          href={`/${lng}/dashboard/actions`}
+          icon={ClipboardList}
+          label={t('dashboard.quick_access_compact.actions')}
+          sublabel={t('dashboard.quick_access_compact.actions_sub')}
+          tone="success"
+        />
+        <QuickAccessAction
+          href={`/${lng}/dashboard/settings`}
+          icon={Settings}
+          label={t('dashboard.quick_access_compact.settings')}
+          sublabel={t('dashboard.quick_access_compact.settings_sub')}
+          tone="warning"
+        />
+      </div>
+    </nav>
   );
 }
 
@@ -122,7 +126,7 @@ function QuickAccessAction({ href, icon: Icon, label, sublabel, tone }: QuickAcc
     <Link
       href={href}
       className={cn(
-        'group flex min-h-14 flex-1 items-center gap-3 px-4 py-3 transition-colors',
+        'group flex min-w-0 min-h-14 items-center gap-3 border-border/40 px-4 py-3 transition-colors',
         // `ring-inset`: the bar clips its children, so an offset ring would be
         // cut off on the segment that touches the border.
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
@@ -140,8 +144,8 @@ function QuickAccessAction({ href, icon: Icon, label, sublabel, tone }: QuickAcc
       {/* `min-w-0` is load-bearing: without it the flex item refuses to shrink
           below its intrinsic text width and the chevron is pushed out. */}
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-foreground">{label}</span>
-        <span className="block truncate text-xs text-muted-foreground">{sublabel}</span>
+        <span className="block break-words text-sm font-semibold text-foreground">{label}</span>
+        <span className="block break-words text-xs text-muted-foreground">{sublabel}</span>
       </span>
       <ChevronRight
         className={cn(

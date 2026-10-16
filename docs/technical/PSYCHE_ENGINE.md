@@ -32,6 +32,12 @@
 > to restore the pre-promotion behavior. CI guards (`test_mood_reachability.py`) freeze the
 > raw resting points and pin mood reachability. See ADR-142 for the measured evidence.
 
+## Evidence-based efficacy pilot
+
+The legacy appraisal-quality proxy is retired. The [pilot specification](../superpowers/specs/2026-10-16-psyche-efficacy-pilot-design.md) and [implementation plan](../superpowers/plans/2026-10-16-psyche-efficacy-pilot.md) describe the private, bounded evidence ledger, separate result/usefulness axes and shared work adjustment. Legacy numerical scores remain readable for compatibility but are not converted into experience or injected as confidence. Existing emotion/relationship appraisal remains active.
+
+`PSYCHE_EFFICACY_COLLECTION_ENABLED` controls new evidence; `PSYCHE_EFFICACY_INFLUENCE_ENABLED` controls prompt influence independently. Both also require the operator Psyche capability and an active owner's preference. The obsolete `PSYCHE_SELF_EFFICACY_PRIOR_WEIGHT` remains parse-compatible for old deployments, with no effect on this pilot. New observations aggregate the assistant's actual execution configurations; the indices are not a calibration of one model or a probability of factual truth. Provider errors and unknown provenance remain neutral. Repeated partial coverage can justify a targeted check only when a current gap exists. No extra judge call, permission, model budget or recovery loop is introduced.
+
 ## Table of Contents
 
 1. [Overview](#overview)

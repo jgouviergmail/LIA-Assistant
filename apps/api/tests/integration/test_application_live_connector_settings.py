@@ -32,6 +32,7 @@ from src.domains.live.schemas import LiveConnectorSettings
 from src.domains.system_settings.models import SystemSetting, SystemSettingKey
 from src.domains.users.models import User
 from src.infrastructure.live_connector_preferences import configure_live_connector_preferences
+from tests.helpers.draft_refusals import draft_refusal_code
 from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
 
 pytestmark = pytest.mark.integration
@@ -235,7 +236,7 @@ async def test_confirmed_live_connector_change_probes_only_the_exact_approved_cu
         if intervention == "none":
             assert "stored_digest" not in str(outcome.to_agent_result())
         if intervention == "probe_refused":
-            assert outcome.error == "EXTERNAL_API_ERROR"
+            assert draft_refusal_code(outcome) == "EXTERNAL_API_ERROR"
         assert probe.await_count == int(intervention in {"none", "probe_refused"})
         await async_session.refresh(connector)
         assert connector.connector_metadata["models"]["model"]["voice"] == (

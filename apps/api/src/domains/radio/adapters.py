@@ -30,7 +30,6 @@ from langchain_core.messages import BaseMessage
 from pydantic import BaseModel
 
 from src.core.config import settings
-from src.core.constants import DEFAULT_ELEVENLABS_BASE_URL, ELEVENLABS_PROVIDER_NAME
 from src.core.i18n import get_language_name, normalize_language
 from src.core.i18n_radio import radio_station_name
 from src.core.llm_config_helper import get_llm_config_for_agent, short_answer_config
@@ -41,12 +40,10 @@ from src.domains.briefing.service import BriefingService
 from src.domains.chat.repository import ChatRepository
 from src.domains.chat.service import TrackingContext
 from src.domains.feature_switches.registry import PlatformCapability, is_capability_enabled
-from src.domains.llm_config.cache import LLMConfigOverrideCache
 from src.domains.personalities.service import PersonalityService
 from src.domains.radio.aired import RedisAiredLedger
 from src.domains.radio.antenna import Antenna, AntennaCrew, AntennaSetup, DaySource
 from src.domains.radio.budget import radio_spend_blocked
-from src.domains.radio.cast import engine_key
 from src.domains.radio.constants import FLASH_NOTES_MAX
 from src.domains.radio.consultations import collecting, consulted, recorder_for
 from src.domains.radio.day_source import ListenerDay
@@ -91,20 +88,11 @@ from src.domains.radio.writing import (
     StructuredCall,
 )
 from src.domains.users.models import User
+from src.domains.voice.engine_voices import EngineVoices, choice_key, offered_engine
 from src.domains.voice.factory import (
-    TTSConfig,
     get_tts_client_sync,
     get_tts_config,
     unservable_reason,
-)
-from src.domains.voice.families import family_of
-from src.domains.voice.voices_catalog import (
-    ElevenLabsVoicesError,
-    VoiceOption,
-    get_edge_voices,
-    get_elevenlabs_voices,
-    get_gemini_voices,
-    get_openai_voices,
 )
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.database.session import get_db_context
@@ -128,46 +116,7 @@ RADIO_VOICE_SLOT: Final[str] = "radio_voice"
 #: listener's interests is read under a bound of its own (:func:`interest_stories_limit`).
 NEWS_CANDIDATES_READ_MAX: Final[int] = 300
 
-#: The engines whose voice list is fixed and shipped with the client.
-_STATIC_CATALOGUES: Final[dict[str, Callable[[], list[VoiceOption]]]] = {
-    "edge": get_edge_voices,
-    "openai": get_openai_voices,
-    "gemini": get_gemini_voices,
-}
-
-
 # --- The voices -------------------------------------------------------------------
-
-
-@dataclass(frozen=True, slots=True)
-class RadioEngine:
-    """The engine the radio's voice slot names, as it stands.
-
-    Attributes:
-        config: Its configuration.
-        voices: Its voices (every language).
-        multilingual: Whether every voice speaks every language.
-    """
-
-    config: TTSConfig
-    voices: list[VoiceOption]
-    multilingual: bool
-
-
-async def _engine_voices(config: TTSConfig) -> list[VoiceOption]:
-    """The engine's voices: a shipped list, or the account's live one (ElevenLabs)."""
-    static = _STATIC_CATALOGUES.get(config.provider)
-    if static is not None:
-        return static()
-    if config.provider != ELEVENLABS_PROVIDER_NAME:
-        return []
-    api_key = LLMConfigOverrideCache.get_api_key(ELEVENLABS_PROVIDER_NAME) or ""
-    try:
-        return await get_elevenlabs_voices(api_key=api_key, base_url=DEFAULT_ELEVENLABS_BASE_URL)
-    except ElevenLabsVoicesError as error:
-        # The message may carry the vendor's words; its type says enough.
-        logger.warning("radio_voice_catalogue_unavailable", error_type=type(error).__name__)
-        return []
 
 
 def _aired_ledger(redis: Any, user_id: UUID) -> RedisAiredLedger:
@@ -184,25 +133,23 @@ async def aired_ledger(user_id: UUID) -> RedisAiredLedger:
     return _aired_ledger(await get_redis_cache(), user_id)
 
 
-async def radio_engine_key() -> str:
-    """The voice engine in place — known even when it cannot be served (its slot's setting)."""
+async def radio_voices_key() -> str:
+    """The key the listener's voices are kept under for the engine in place (its provider) —
+    known even when the engine cannot be served (its slot's setting)."""
     config = await get_tts_config(RADIO_VOICE_SLOT)
-    return engine_key(config.provider, config.model)
+    return choice_key(config.provider)
 
 
-async def radio_engine() -> RadioEngine:
+async def radio_engine() -> EngineVoices:
     """The engine the radio speaks with.
 
     Raises:
-        RadioStartRefused: ``voice_unavailable`` when the instance cannot serve
-            it to a caller that records token-billed usage (the radio does).
+        RadioStartRefused: ``voice_unavailable`` when the instance cannot serve it.
     """
     config = await get_tts_config(RADIO_VOICE_SLOT)
-    if unservable_reason(config, records_tokens=True) is not None:
+    if unservable_reason(config) is not None:
         raise RadioStartRefused(REFUSED_VOICE_UNAVAILABLE)
-    family = family_of(config.provider)
-    voices = await _engine_voices(config)
-    return RadioEngine(config, voices, multilingual=bool(family and family.multilingual_voices))
+    return await offered_engine(config)
 
 
 # --- The start ------------------------------------------------------------------------
@@ -259,9 +206,7 @@ class AccountSetupBuilder:
             RadioStartRefused: ``voice_unavailable`` or ``no_voice``.
         """
         engine = await radio_engine()
-        account = await _read_account(
-            user_id, engine=engine_key(engine.config.provider, engine.config.model)
-        )
+        account = await _read_account(user_id, engine=engine.key)
         taste = await self._taste(user_id, account, request, run_id=run_id)
         profile = ListenerProfile(
             language=account.language,
@@ -650,7 +595,7 @@ async def session_parts(record: RadioSessionRecord, setup: RadioSetup) -> AsyncI
         whether a spending ceiling refuses the next production.
     """
     config = await get_tts_config(RADIO_VOICE_SLOT)
-    client = get_tts_client_sync(config, strict=True, records_tokens=True)
+    client = get_tts_client_sync(config, strict=True)
     try:
         cards = await _cards_of(record.user_id)
         redis = await get_redis_cache()
@@ -723,12 +668,11 @@ __all__ = [
     "CollectedDay",
     "LedgerCostReader",
     "NewsDesk",
-    "RadioEngine",
     "SpendFiler",
     "aired_ledger",
     "bound_call",
     "interest_stories_limit",
     "radio_engine",
-    "radio_engine_key",
+    "radio_voices_key",
     "session_parts",
 ]

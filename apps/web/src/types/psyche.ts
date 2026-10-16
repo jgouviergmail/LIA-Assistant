@@ -71,6 +71,41 @@ export interface SelfEfficacyEntry {
   weight: number;
 }
 
+/** Canonical cognitive domains, distinct from tool/provider domains. */
+export const EFFICACY_DOMAINS = [
+  'planning',
+  'information',
+  'emotional_support',
+  'creativity',
+  'technical',
+  'social',
+  'organization',
+] as const;
+
+export type EfficacyDomain = (typeof EFFICACY_DOMAINS)[number];
+
+export interface PsycheEfficacyDomain {
+  domain: EfficacyDomain;
+  status: 'unobserved' | 'learning' | 'observed';
+  results: { success: number; failure: number; partial: number; unknown: number };
+  feedback: { helpful: number; unhelpful: number };
+  result_count: number;
+  feedback_count: number;
+  /** Smoothed index for this axis; never a probability of correctness. */
+  result_score: number | null;
+  feedback_score: number | null;
+  last_observed_at: string | null;
+}
+
+export interface PsycheEfficacyProfile {
+  version: 1;
+  window_days: number;
+  collection_enabled: boolean;
+  influence_enabled: boolean;
+  unassigned_feedback_count: number;
+  domains: PsycheEfficacyDomain[];
+}
+
 export interface ActiveEmotion {
   name: string;
   intensity: number;
@@ -111,6 +146,8 @@ export interface PsycheState {
 
   // Self-efficacy
   self_efficacy: Record<string, SelfEfficacyEntry>;
+  /** Evidence-backed profile. Absent in legacy payloads; never infer it from legacy scores. */
+  efficacy_profile?: PsycheEfficacyProfile | null;
 
   // Timestamps
   created_at: string;

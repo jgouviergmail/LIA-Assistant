@@ -24,20 +24,84 @@ in the row's `provider_config` JSONB blob.
 - **LLM-catalogue-driven**: provider, model, voice IDs, and provider-
   specific tuning come from a single override row (`llm_config_overrides
   .voice_tts`) merged with `LLM_DEFAULTS`.
-- **Provider families**: Edge, OpenAI, ElevenLabs and Gemini are declared in
+- **Provider families**: Edge, OpenAI, ElevenLabs, Gemini and Fish Audio are declared in
   [families.py](../../apps/api/src/domains/voice/families.py). Available models
-  come from the LLM catalogue. Gemini is token-billed and requires a caller
-  that records its reported token usage; Radio declares that capability,
-  while the voice-comment path uses the character-billed/free families.
+  come from the LLM catalogue. Gemini is token-billed: its reported usage is
+  recorded by the one synthesis door every caller goes through (`speak()`,
+  below), so every surface — the chat and the radio alike — can be served by
+  it.
 - **Per-provider tuning surfaces**:
   - Edge: SSML `rate` / `pitch` / `volume` strings;
   - OpenAI: `speed` (0.25–4.0) + `response_format` (mp3/opus/…);
   - ElevenLabs: `output_format` + `voice_settings` (stability /
     similarity_boost / style / use_speaker_boost).
   - Gemini: voices and model-specific delivery controls from `controls_for()`.
+  - Fish Audio: `output_format`, `latency`, `speed` and `transport` (`http`
+    or `websocket`). The form offers exactly the values the client accepts (a
+    parity guard holds the two lists equal). The slot stores its JSON as
+    written, like every provider's tuning: a format, latency or transport the
+    client does not know is repaired at run time with a warning.
+- **Shared public Fish Audio voices** (ADR-345 amendment): the public voices an
+  administrator pinned are ONE list for every voice slot
+  (`fishaudio_pinned_voices`), not a key of a slot's tuning. Pinning is an act
+  of its own — `PUT /admin/voice/fishaudio/library/pins/{voice_id}` reads the
+  voice, files the administrator's attestation of the right to use it in the
+  admin audit log BEFORE storing the pin, and holds the published ceiling
+  (`FISHAUDIO_PINNED_VOICES_MAX`) under an instance-wide lock; `DELETE` refuses while a slot speaks with the voice.
+  Both take effect at once, without saving a slot.
 - **Dynamic voice picker**: `GET /admin/voice/voices?provider=X` returns
-  curated lists for Edge/OpenAI/Gemini and a live `GET /v1/voices` for
-  ElevenLabs (account-scoped).
+  curated lists for Edge/OpenAI/Gemini, a live `GET /v1/voices` for
+  ElevenLabs (account-scoped), and for Fish Audio the account's own voices, the
+  instance's pins and the vendor's licensed voices, each marked by its source and
+  cached per account and pin set. Every picker — the slots', the radio's roles,
+  the person's own voices — offers the switch « only voices in my language, and
+  multilingual ones » where it narrows the list, on by default and never hiding
+  a voice the form holds.
+- **The person's own voices** (ADR-345 amendment): each person may choose LIA's
+  male and female voice in Settings › Voice mode, among the voices of the engine
+  that speaks in the chat (`GET`/`PUT /voice/lia-voices`, `domains/voice/
+  lia_voices.py`). The choice is kept per provider (`users.lia_voices`,
+  `{provider: {male, female}}`, exported with the account and erased when it is
+  deleted): every model of a provider offers the same voices, so a model switched
+  for another keeps it (per `provider/model` until 2026-10-16 — such an entry is
+  still read and replaced at the next save, ADR-324 decision 43), written strictly
+  (a voice the engine does
+  not offer is refused, `lia_voice_unknown`; an unavailable catalogue refuses
+  a selection with `503 lia_voice_catalogue_unavailable`, while returning to
+  defaults remains available), read forgivingly (a voice no
+  longer offered speaks with the administrator's), and read at the one seam every
+  chat surface speaks through (`VoiceCommentService._get_voice_for_language`):
+  the voice comments, the progressive stream, the read-aloud — checked there
+  against the catalogue known without asking the vendor (a shipped list or a
+  cache; a cold Fish Audio listing took up to 10.4 s on dev), so a catalogue not
+  cached yet keeps the choice. Deleting a voice from the library gives every
+  person who chose it the administrator's voice back. Never the radio (its roles
+  have their own), a live session or a phone call. The ElevenLabs
+  list a person is offered is cached like Fish Audio's (`elevenlabs:voices`, ten
+  minutes); the administrator's picker reads it live.
+  Every preference write, including a reset, checks that the account remains
+  active and undeleted in the atomic SQL update; otherwise it refuses with 403.
+  The browser serializes successive choices for the current account, cancels
+  its queued writes on an account change and ignores that account's late replies.
+  Fish Audio catalogue snapshots also carry a durable library revision. Deleting
+  a voice advances it while forgetting the personal choices in the same short
+  PostgreSQL transaction; a selection validated on the previous revision is
+  refused. Cached lists include that revision, so a late listing can only fill
+  an obsolete cache entry. No database transaction spans the vendor wait.
+  The library checks committed TTS references in one query, never a worker's
+  stale configuration cache. Before deletion it reserves the voice in that
+  short transaction; personal and instance selections cannot acquire it while
+  the vendor answers. Slot writes verify the current catalogue and revision,
+  and unpinning checks references under the same lock. A cancellation or an
+  uncertain dispatched failure retains the reservation. An explicit deletion
+  retry can confirm absence (404) and finish local cleanup; an older attempt
+  cannot release a newer token. A refusal before dispatch releases a fresh
+  reservation. Forgetting choices uses one correlated SQL update for all
+  affected accounts and preserves concurrent changes to other engines.
+  Configuration validation uses the `llm_config` speech guard port, wired by the
+  API composition root. A missing guard refuses speech writes before SQL changes.
+  Omitting a model selects the slot's default model, so changing its provider
+  without choosing a matching model is refused as `model_provider_mismatch`.
 - **Per-user opt-in**: voice synthesis enabled per user via the
   `users.voice_mode_enabled` flag — orthogonal to the admin's TTS
   provider choice.
@@ -48,7 +112,8 @@ in the row's `provider_config` JSONB blob.
 
 ### Pricing surface
 
-Edge is free. OpenAI and ElevenLabs bill characters; Gemini reports input-text
+Edge is free. OpenAI and ElevenLabs bill characters; Fish Audio bills the UTF-8
+BYTES of the text (a Chinese character is three); Gemini reports input-text
 and output-audio tokens. The shared tariff axis can store both, but the caller
 must retain the family's billing units. Current prices belong to the runtime
 catalogue, editable through the Tarification LLM Texte form; they are not a
@@ -123,8 +188,9 @@ Authorization: Bearer <admin_token>
 POST /api/v1/admin/llm-config/types/voice_tts/reset
 
 # Voice picker — populated dynamically by the admin form when the
-# admin selects a TTS provider. Edge/OpenAI return curated lists,
-# ElevenLabs returns a live GET /v1/voices for the configured account.
+# admin selects a TTS provider. Edge/OpenAI/Gemini return curated lists,
+# ElevenLabs returns a live GET /v1/voices for the configured account,
+# Fish Audio its own + the instance's pinned + licensed voices (ADR-345).
 GET /api/v1/admin/voice/voices?provider=elevenlabs
 Authorization: Bearer <admin_token>
 
@@ -192,6 +258,7 @@ VOICE_LLM_MODEL=gpt-4.1-nano
 VOICE_LLM_TEMPERATURE=0.7
 VOICE_LLM_MAX_TOKENS=500
 VOICE_MAX_SENTENCES=3
+VOICE_EXPRESSIVE_CUES_MAX=2   # cues per spoken comment, 0 = none (ADR-345)
 
 # Voice context
 VOICE_CONTEXT_MAX_CHARS=2000
@@ -212,9 +279,11 @@ ignored:
   "rate": "+10%",            // edge only (SSML)
   "pitch": "+0Hz",           // edge only
   "volume": "+0%",           // edge only
-  "speed": 1.1,              // openai only (0.25..4.0)
+  "speed": 1.1,              // openai (0.25..4.0), fishaudio (0.5..2.0)
   "response_format": "mp3",  // openai only
-  "output_format": "mp3_44100_128",  // elevenlabs only
+  "output_format": "mp3_44100_128",  // elevenlabs, fishaudio
+  "latency": "balanced",     // fishaudio only: normal | balanced | low
+  "transport": "http",       // fishaudio only: http | websocket
   "voice_settings": {                // elevenlabs only
     "stability": 0.5,
     "similarity_boost": 0.75,
@@ -240,24 +309,36 @@ cfg = await get_tts_config()
 # cfg.voice_male = "<elevenlabs_voice_id>"
 # cfg.voice_female = "<elevenlabs_voice_id>"
 # cfg.voice_settings = {"stability": 0.5, ...}
-# cfg.is_paid = True            # use this for new code
-# cfg.mode = "hd"               # back-compat alias for legacy call sites
+# cfg.is_paid = True
 
-# Get the matching client (Edge / OpenAI / ElevenLabs)
-client = await get_tts_client()
-audio = await client.synthesize("Bonjour !", voice_name=cfg.voice_female)
+# The client AND the configuration it was built from (Edge's own when Edge
+# stands in for an engine that cannot be served)
+from src.domains.voice.factory import serve_tts
+config, client = serve_tts(cfg)
 
-# Synchronous variant — for callers that already hold a config
-from src.domains.voice.factory import get_tts_client_sync
-client = get_tts_client_sync(cfg)
+# One door for a heard synthesis: billed as the engine that spoke bills it,
+# recorded once on the run's tracker
+from src.domains.voice.spoken import speak
+result = await speak(client, "Bonjour !", config.voice_female, model=config.model, ledger=tracker)
 ```
 
-`unservable_reason()` checks the family's client, billing capability and key.
-`get_tts_client_sync(..., strict=True)` raises `TTSProviderError` on failure;
-a non-strict call uses `_fallback_edge_config()` and logs
-`tts_factory_falling_back_to_edge` with the provider and reason. Token-billed
-clients require `records_tokens=True`; synthesis and accounting are joined by
-`synthesize_billed()` where that capability is declared.
+`unservable_reason()` checks the family's client and key. `serve_tts(...,
+strict=True)` (and `get_tts_client_sync`) raises `TTSProviderError` on
+failure; a non-strict call returns `_fallback_edge_config()` with its client
+and logs `tts_factory_falling_back_to_edge` with the provider and reason. The
+voices a caller reads come from the configuration `serve_tts` returns, never
+from the one it asked for: the configured engine's voice ids mean nothing to
+Edge, which used to speak nothing in its place (ADR-345).
+
+**One door, `speak()`** (`voice/spoken.py`, ADR-345). The chat's three voice
+paths and the radio synthesize through it: it calls `synthesize_billed()` and
+records the call on the run's tracker, keyed on the client that SPOKE. A
+token-billed engine is priced on its usage report, a text-billed one on what it
+was sent — characters, or UTF-8 bytes where its family bills bytes
+(`families.billed_text_units`). The free engine records nothing, so a line
+Edge spoke in place of a paid engine no longer costs that engine's tariff.
+Since every caller records through it, a token-billed engine (Gemini) is
+served to the chat too — it used to be handed Edge.
 
 ### TTSClient Protocol
 
@@ -370,15 +451,22 @@ async for chunk in service.stream_voice_comment(
 
 ### TTS concurrency and playback
 
-ElevenLabs requests reserve capacity through
-[`elevenlabs_concurrency.py`](../../apps/api/src/domains/voice/elevenlabs_concurrency.py).
-Redis leases share the configured `ELEVENLABS_TTS_MAX_CONCURRENCY` allowance
-across API workers, client instances and TTS surfaces using the same API key.
-The synthesis timeout bounds both waiting and HTTP; completion, failure and
-cancellation release the slot, and abandoned leases expire. Configure the
+A vendor that caps an ACCOUNT's in-flight requests reserves capacity through
+[`provider_capacity.py`](../../apps/api/src/domains/voice/provider_capacity.py)
+(ADR-345): one declared pool per vendor (`CAPACITY_POOLS`), one Redis lease per
+in-flight request under the account's key — a digest of the credential, never
+the credential. ElevenLabs shares `ELEVENLABS_TTS_MAX_CONCURRENCY` (its key is
+the one the former `elevenlabs_concurrency.py` used, so a rolling deploy never
+opens a second allowance); Fish Audio shares `FISHAUDIO_MAX_CONCURRENCY` across
+synthesis, transcription and voice design, because the vendor counts them
+together (measured 2026-10-13, `ratelimit-limit-concurrency: 5`). The allowance
+is shared across API workers, client instances and surfaces using the same API
+key. The request timeout bounds both waiting and HTTP; completion, failure and
+cancellation release the slot, and abandoned leases expire. Configure each
 allowance at or below the provider account's limit, reserving headroom if
 other applications also use that account. Redis unavailability refuses the
-request rather than bypassing the limit.
+request (`ProviderCapacityUnavailable`, raised to the caller as its own
+`provider_network_error`) rather than bypassing the limit.
 
 The browser's [`AudioQueue`](../../apps/web/src/lib/audio-queue.ts) preserves
 arrival order before asynchronous initialization, reserves its playback
@@ -468,6 +556,28 @@ The resulting **Time-To-First-Audio (TTFA)**:
 | Agent mode, voice LLM 2 s, 3 sentences | ~3.5 s | **~1–1.5 s** |
 | Agent mode, registry tardif (5 s) | ~6 s | **~3 s** |
 
+### What an agent-mode comment speaks of
+
+The comment of a tool turn is written by its own model while the answer streams,
+and it speaks only of the records the answer declared, never ahead of the answer
+(ADR-082 amendment 2026-10-14). The response model declares the records it keeps at
+character 0, in `<relevant_ids>`; the tag filter hands that declaration over
+(`MachineTagFilter.take_declarations`) before the answer's first visible character,
+and `VoiceScope` (`agents/services/streaming/voice_scope.py`) — holding the turn's
+latest records until then, the initiative node's included — decides once:
+
+| The answer declared | The comment |
+|---|---|
+| records it retained | reads those records, in the declared order, introduced as the answer's selection (`voice_comment_context_lines.txt`) |
+| none, ids no record matches, or nothing at all | is not written: the answer is read aloud (PATH 2A) |
+
+The scope publishes nothing before the answer's first visible character (whitespace
+does not count), so the parallel comment starts with the answer at the earliest. The
+ids are resolved by the same function as the cards (`registry_filtering._resolve_relevant_ids`):
+the cards keep the registry's order, the comment the answer's. Each decision logs
+`voice_comment_scope_decided` (`moment`, `source`, `declaration`, `records_count`,
+`spoken_count`).
+
 ### Plain-text input guarantee
 
 The TTS engine must only ever receive **speakable plain text** — never HTML
@@ -513,6 +623,140 @@ to cancel the drain task, the streamer's pending TTS tasks, and the
 underlying voice service (closes the persistent httpx client). The helper
 is idempotent and safe to call when voice was never spun up.
 
+### Fish Audio over its WebSocket (ADR-345)
+
+A Fish Audio slot may set `provider_config.transport` to `websocket` (the admin
+form's « Transport »; `http` by default). Each synthesis is then ONE session of
+the vendor's socket ([live.py](../../apps/api/src/domains/voice/fishaudio/live.py)):
+`start` with the HTTP request's own fields and an empty text, the text, `stop`,
+every `audio` event until `finish`. Never two texts per session: the vendor's
+audio events carry no reliable mark of the text they voice — which is also why a
+dialogue take always travels over HTTP, on the timed stream. The socket goes out
+through the deployment's proxy when one is set (`voice/egress.py`: aiohttp reads
+none from the environment, the trap Edge met first). A session that fails
+in transit (network, a malformed answer or a `finish` in error) or falls SILENT
+for `FISHAUDIO_SOCKET_STALL_SECONDS` — through its handshake or between two
+frames — is answered over HTTP and counted (`voice_tts_transport_fallbacks_total`,
+dashboard 11); a quota (429) or a refusal is never retried. A successful finish
+disarms the silence bound. The whole-request deadline still bounds cleanup;
+when it expires after complete audio, that audio is kept and the cleanup
+timeout is logged. Explicit cancellation propagates without an HTTP replay.
+The bound comes from a measurement: a healthy
+session sends its first audio frame 0.6-1.0 s after the text whatever its length
+(135 to 1631 bytes) and never leaves 1.7 s between two frames. Before it, nothing
+shorter than the request's own 60 s ended a silent session, and on Docker dev
+three socket syntheses of one chat turn returned nothing for 22 s (2026-10-14)
+until the turn's voice wait ran out (the stage they waited in was not logged).
+
+The socket streams, but a speech client returns a sentence WHOLE, so what a
+listener waits for is the finish: measured on `s2.1-pro-free` (2026-10-14, the
+real client), HTTP took 1.59-1.65 s per short sentence and the socket
+2.62-2.74 s; at 815 bytes both took about 19.6 s. HTTP stays the default; the
+switch lets an operator whose account carries the vendor's latency guarantee
+measure it.
+
+### Several voices in one request (ADR-345)
+
+A client that voices a whole exchange implements `DialogueTTSClient`
+([protocol.py](../../apps/api/src/domains/voice/protocol.py)):
+`synthesize_dialogue(turns)` takes `DialogueTurn(voice, words, cue)` and answers
+`DialogueAudio(audio, sent_text, turn_starts_s)`. Fish Audio does it on its S2
+models and `drama-3` (`voices_dialogue` in the family registry): the text opens
+each turn with `<|speaker:N|>`, `reference_id` lists the voices, and
+`/v1/tts/stream/with-timestamp` streams the audio with a word-level timing that
+places each turn ([dialogue.py](../../apps/api/src/domains/voice/fishaudio/dialogue.py)).
+Through the one door, `speak_dialogue` records the request ONCE on what it
+carried — markers and cues with the words — whether or not its timing placed
+every turn. The radio is the caller ([RADIO.md](RADIO.md#audio)).
+
+### Expressive cues (ADR-345)
+
+Several engines perform cues written inside the text, each in its own syntax
+and words: ElevenLabs v3/v4 audio tags (`[whispers]`, a pause as `…`), Fish
+Audio S2 models (`[happy]`, `[break]`), Fish Audio `s1` (a fixed set in
+parentheses, `(happy)`), Fish Audio `drama-3` (`[…]`), Gemini 3.8 point-in-time
+vocal tags (`<laugh>` — its sustained delivery is the `style` control). Every
+other engine reads a bracket aloud. LIA's writers speak ONE vocabulary
+(`Cue`, written `[cue]`); a dictionary per engine
+([expressive_cues.py](../../apps/api/src/domains/voice/expressive_cues.py),
+`cue_dialect(provider, model)`) spells each cue the engine's way, or drops it.
+
+Two kinds of text, two rules:
+
+- **Written for speech** — the voice comment. Its prompt carries an
+  `<expressive_cues>` block ([cue_prompt.py](../../apps/api/src/domains/voice/cue_prompt.py))
+  only when the engine that will speak performs a cue: it names exactly those
+  cues, shows one of them in its example, and publishes the budget
+  `VOICE_EXPRESSIVE_CUES_MAX` (`0` switches the cues off) that
+  `AuthoredCues` enforces across the whole streamed comment. A cue beyond the
+  budget, one the engine cannot perform, or any other bracketed text is dropped
+  — never read aloud. An engine without cues gets the prompt unchanged.
+- **Not written for speech** — an answer read aloud, a document readout, a
+  radio line. `neutralize_literal` reads a markdown link or image as its label,
+  drops a footnote mark or a task box, reads any other square bracket as its
+  words, removes angle tags for an engine that performs `<…>` (a comparison
+  such as `3 < 5` stays) and reads a parenthesis as its words for one that
+  performs `(…)` — the syntax an engine reads is the syntax of its spellings
+  plus what its vendor documents beyond them (`CueDialect.reads`; `drama-3`'s
+  paired `<whisper>…</whisper>` tags). A vendor control marker
+  (`<|speaker:N|>`) is removed from every text, written or literal: only LIA's
+  dialogue composer writes one. A third party's headline can never make the
+  voice whisper, nor hand its line to another voice.
+
+The radio hands an engine that performs cues ONE delivery cue opening each line,
+from the writer's delivery (the tone's when the engine performs it, else the
+energy's); what the cue expresses is counted as rendered
+([delivery.py](../../apps/api/src/domains/radio/delivery.py)).
+
+**The engine that speaks decides, not the configured name**: Fish Audio serves
+`s1` as `s2.1-pro` once its announced retirement (2026-12-31,
+`VENDOR_SHUTDOWNS`) has passed, and S2 reads `(happy)` as words — from that day
+an `s1` slot is spelled the S2 way. A cue is text the vendor bills: a few bytes
+per sentence, counted by the same `billed_text_units` as the words.
+
+### The Fish Audio voice library (ADR-345)
+
+The account's own voices are managed by an administrator under **Settings →
+Administration → Voice library**
+([library_router.py](../../apps/api/src/domains/voice/library_router.py),
+`/admin/voice/fishaudio/library`); they are the « own » voices the slot pickers
+and the radio's cast offer. Every route authenticates on a session of its own
+and calls `require_superuser`, so no PostgreSQL connection is held while the
+vendor answers (ADR-304); the requests that create a voice, pay or decode (a
+clone, a design, saving a candidate, a transcript prefill) share one
+per-administrator rate limit.
+
+- **The list** shows every voice the account owns, whatever its state — a failed
+  one can be deleted — with the TTS slots that speak with it.
+- **A clone** is made from one to a few recordings in the containers the vendor
+  documents, each bounded and together bounded by one request body that the
+  global body ceiling must carry (`Settings` refuses to boot otherwise). The
+  administrator attests that the voice is theirs, or that its owner consented in
+  writing: the attestation is filed in the admin audit log BEFORE the vendor is
+  called — no record, no clone. The voice is always private, the recordings
+  leave under neutral names (`sample-N.ext`: a file name may be a person's), and
+  the transcripts are all given or none (the vendor then transcribes them
+  itself). The form can fill a transcript with the LOCAL engine when the
+  instance runs it, for a recording within the duration the page publishes.
+- **A design** describes a voice in words and answers up to four candidates to
+  listen to. The instance pays: its daily ceiling is asked first, the flat price
+  `FISHAUDIO_VOICE_DESIGN_COST_USD` is charged after a success
+  (`record_instance_fixed_spend`) and filed in the audit log under the
+  administrator. The candidates wait in Redis (`fishaudio:design`, under ids LIA
+  mints) so that saving one uploads the audio the vendor designed, never bytes a
+  browser sends back. The design-to-model signature the vendor's model creation
+  accepts is not documented on a candidate, so none is sent: a designed voice is
+  saved as an uploaded one.
+- **Renaming and deleting** stay open when creation is switched off. A voice a
+  TTS slot speaks with is never deleted: the page says which slot, and the API
+  refuses it again (409) if a slot took it meanwhile. A listener's radio choice
+  of a deleted voice reads as « automatic ».
+
+Every change forgets the account's cached voice lists (`invalidate_fish_voices`).
+Creating is the operator's switch, `FISHAUDIO_VOICE_CREATION_ENABLED`, off on the
+demonstrator. A refusal names itself with a stable code the page translates in
+six languages (`library_errors.REFUSAL_CODES`, held to the locales by a guard).
+
 ### Per-message TTS cost attribution (ADR-081)
 
 Symmetric with STT (cf. [ADR-080](../architecture/ADR-080-Voice-STT-Remote-Pricing-Unit.md)):
@@ -550,12 +794,12 @@ per-message export — it is never added on top of the run's figure, which
 already holds it. Migration `d79c9fc26844` copied the bubbles' shares onto
 their runs, summed per run id.
 
-**Only what the provider SERVED is charged.** The characters of a sentence
-are counted when its audio comes back, never when the sentence is dispatched
-(`ProgressiveSentenceStreamer._count_served`, the legacy loop's own rule):
-measured on Docker dev 2026-09-20, four streams refused on every sentence
-(`invalid_api_key`, zero audio chunks) had each recorded a `tts_call` and
-stamped the message with a cost — absence of delivery was billed.
+**Only what the provider SERVED is charged.** A sentence is recorded when its
+audio comes back, never when it is dispatched (`speak()` records after the
+synthesis returns, one record per served sentence): measured on Docker dev
+2026-09-20, four streams refused on every sentence (`invalid_api_key`, zero
+audio chunks) had each recorded a `tts_call` and stamped the message with a
+cost — absence of delivery was billed.
 
 UI: a discreet badge `🔊 N chars` is rendered before the grand total on
 the assistant bubble (mirror of the STT `🎤 X.Xs` badge on the user
@@ -630,17 +874,20 @@ accounts and are separate from this TTS ledger.
 ### Prometheus Metrics
 
 ```python
-# Voice TTS requests
-voice_tts_requests_total{provider="edge|openai|elevenlabs|gemini", model="..."}
+# Voice TTS requests, every provider (voice_name: the provider's own voice id)
+voice_tts_requests_total{status="success|error", voice_name="..."}
 
 # Voice TTS latency
-voice_tts_latency_seconds{provider="edge|openai|elevenlabs|gemini"}
+voice_tts_latency_seconds{voice_name="..."}
 
-# Voice TTS errors
-voice_tts_errors_total{provider="edge|openai|elevenlabs|gemini", error_type="..."}
+# Voice TTS errors (error_type: timeout, http_<code>, empty_response, ...)
+voice_tts_errors_total{error_type="...", voice_name="..."}
+
+# A Fish Audio WebSocket session answered over HTTP (ADR-345, dashboard 11)
+voice_tts_transport_fallbacks_total{provider="fishaudio", reason="..."}
 ```
 
-The `voice_tts_mode_cache_total  # N'EXISTE PAS ; metriques TTS reelles : voice_tts_requests_total, voice_tts_errors_total, voice_tts_latency_seconds` Prometheus counter was retired with
+The `voice_tts_mode_cache_total` Prometheus counter was retired with
 ADR-081 (no more `voice_tts_mode` system setting). Cache invalidation
 for the new override surface is observed through the existing
 `llm_config_cache_loaded` log event and the ADR-063 Pub/Sub channel.
@@ -682,10 +929,18 @@ apps/api/src/domains/voice/
 ├── openai_tts_client.py       # OpenAITTSClient
 ├── elevenlabs_tts_client.py   # ElevenLabsTTSClient (ADR-081)
 ├── gemini_tts_client.py       # Token-billed GeminiTTSClient
+├── fishaudio/                 # Fish Audio (ADR-345): formats, wire, tts_client, live,
+│                              # dialogue, voices, library, design_store, library_* modules
 ├── families.py                # Provider billing units and delivery controls
 ├── billing.py                 # SynthesisResult and billed synthesis seam
+├── spoken.py                  # speak() / speak_dialogue(): the one door, billed once
+├── provider_capacity.py       # One allowance per vendor account (Redis leases)
+├── expressive_cues.py         # The cue vocabulary and one dialect per engine
+├── cue_prompt.py              # The cue block of a spoken comment's prompt
+├── egress.py                  # The outbound proxy a socket honours
 ├── voices_catalog.py          # Curated lists + ElevenLabs live API
-├── admin_router.py            # GET /admin/voice/voices
+├── admin_router.py            # GET /admin/voice/voices, /admin/voice/fishaudio/voices/{id}
+├── library_router.py          # /admin/voice/fishaudio/library
 └── service.py                 # VoiceCommentService
 ```
 
@@ -700,11 +955,13 @@ apps/api/src/domains/voice/
 | 2026-01-15 | 3.0 | Factory Pattern + Standard/HD modes + Admin System Settings |
 | 2026-05-07 | 4.0 | TTS migrated to LLM catalogue (ADR-081) — three providers (Edge / OpenAI / ElevenLabs), `voice_tts` LLM type, voice + tuning in `provider_config` JSONB, `system_settings.voice_tts_mode` retired |
 | 2026-05-07 | 4.1 | **Progressive sentence streaming (ADR-082)** — TTFA divided by ~5× (chat mode) / ~2× (agent mode) via `ProgressiveSentenceStreamer` (LLM `astream` → in-order TTS dispatch). Per-message TTS cost attribution (5 cols on `conversation_messages`, 4 aggregates on `user_statistics`, badge `🔊 N chars`). Persistent httpx client on `ElevenLabsTTSClient`. |
+| 2026-10-14 | 5.0 | **Fish Audio, served whole (ADR-345)** — a fifth provider (five speech models billed per UTF-8 byte, transcription, WebSocket, multi-voice dialogue, voice library); one door per heard synthesis (`speak`), billed once by the engine that spoke; one allowance per vendor account; one cue vocabulary with a dialect per engine. |
 
 ---
 
 ## Related Documentation
 
+- [ADR-345](../architecture/ADR-345-Fish-Audio-Served-Whole-One-Door-One-Allowance-Cues-Each-Engine-Reads.md) - Fish Audio, one synthesis door, one allowance per account, expressive cues
 - [ADR-082](../architecture/ADR-082-Progressive-Sentence-Streaming.md) - Progressive sentence streaming (low-latency TTS)
 - [ADR-081](../architecture/ADR-081-Voice-TTS-Catalogue-Driven.md) - Voice TTS catalogue-driven architecture
 - [ADR-080](../architecture/ADR-080-Voice-STT-Remote-Pricing-Unit.md) - Voice STT remote (ElevenLabs Scribe) + pricing-unit
@@ -714,6 +971,6 @@ apps/api/src/domains/voice/
 
 ---
 
-**VOICE.md** - Version 4.1 - 2026-05-07
+**VOICE.md** - Version 5.0 - 2026-10-14
 
-*Voice TTS catalogue-driven (ADR-081) + progressive sentence streaming (ADR-082) + per-message cost attribution.*
+*Voice TTS catalogue-driven (ADR-081) + progressive sentence streaming (ADR-082) + per-message cost attribution + Fish Audio served whole (ADR-345).*

@@ -20,6 +20,7 @@ import {
   X,
 } from 'lucide-react';
 import { formatNumber, formatEuro } from '@/lib/format';
+import { voiceProviderBrand } from '@/lib/voice-provider-brand';
 import { cn } from '@/lib/utils';
 import { classifyImageExpiry } from '@/lib/image-expiry';
 import { copyMessageToClipboard } from '@/lib/message-clipboard';
@@ -1264,7 +1265,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
                       title={
                         message.ttsProvider
                           ? t('chat.message.tts_tooltip_provider', {
-                              provider: message.ttsProvider,
+                              provider: voiceProviderBrand(message.ttsProvider),
                               model: message.ttsModel ? ` · ${message.ttsModel}` : '',
                             })
                           : t('chat.message.tts_tooltip_fallback')
@@ -1341,7 +1342,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
                     title={
                       message.sttProvider
                         ? t('chat.message.stt_tooltip_provider', {
-                            provider: message.sttProvider,
+                            provider: voiceProviderBrand(message.sttProvider),
                           })
                         : t('chat.message.stt_tooltip_fallback')
                     }

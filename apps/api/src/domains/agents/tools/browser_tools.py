@@ -54,8 +54,8 @@ from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import validate_runtime_config
 from src.domains.agents.utils.content_wrapper import wrap_external_content
 from src.domains.agents.utils.rate_limiting import rate_limit
+from src.infrastructure.browser.errors import BrowserRefusal
 from src.infrastructure.observability.decorators import track_tool_metrics
-from src.infrastructure.observability.log_facts import url_host
 from src.infrastructure.observability.metrics_agents import (
     agent_tool_duration_seconds,
     agent_tool_invocations,
@@ -148,23 +148,25 @@ async def _emit_progressive_screenshot(
         logger.debug("browser_progressive_screenshot_failed", error=str(e))
 
 
-#: Sentences the browser layer raises when a bound is reached. Kept HERE, next
-#: to their only reader, and pinned against their producers by
-#: ``test_browser_limit_markers_match_their_producers``: the previous marker
-#: read « Max concurrent » while ``pool.py`` writes « Maximum concurrent », so
-#: the branch could never be true and a saturated pool was reported as a
-#: CONFIGURATION error — the model was invited to fix a setting where it should
-#: have waited (ADR-303). Typed exceptions would remove this reading entirely;
-#: until then the agreement is TESTED rather than assumed.
-BROWSER_LIMIT_MARKERS: tuple[str, ...] = (
-    "Maximum concurrent",
-    "Max navigations",
-)
+def _browser_failure(
+    error: Exception, event: str, value_error_code: str = "CONFIGURATION_ERROR"
+) -> UnifiedToolOutput:
+    """Publish owned words and facts; page/transport diagnostics stay at DEBUG."""
+    from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
+    if isinstance(error, BrowserRefusal):
+        code, message = error.reason.code, error.reason.message
+    elif isinstance(error, (TimeoutError, PlaywrightTimeoutError)):
+        code = "TIMEOUT"
+        message = "Browser operation timed out. Check the current page before repeating an action."
+    else:
+        code = value_error_code if isinstance(error, ValueError) else "EXTERNAL_API_ERROR"
+        message = "Browser operation failed. Check the current page before repeating an action."
 
-def _is_browser_limit_error(message: str) -> bool:
-    """Whether this browser-layer refusal is a bound reached, not a bad request."""
-    return any(marker in message for marker in BROWSER_LIMIT_MARKERS)
+    log = logger.warning if isinstance(error, ValueError) else logger.error
+    log(event, error_type=type(error).__name__, error_code=code)
+    logger.debug("browser_error_detail", error=str(error))
+    return UnifiedToolOutput.failure(message=message, error_code=code)
 
 
 # ============================================================================
@@ -310,7 +312,13 @@ async def browser_task_tool(
         pool, session = await _get_session(runtime, user_id)
 
         # Delegate to ReactSubAgentRunner (ADR-062: factorized ReAct pattern)
-        from src.domains.agents.tools.react_runner import ReactSubAgentRunner
+        from src.domains.agents.tools.react_runner import (
+            ReactSubAgentRunner,
+            SubAgentOutcome,
+            failure_code_of,
+            failure_sentence,
+            partial_fields,
+        )
 
         runner = ReactSubAgentRunner("browser_agent", "browser_agent_prompt")
         react_result = await runner.run(
@@ -341,6 +349,18 @@ async def browser_task_tool(
         if current_url:
             await pool.update_session_redis(user_id, current_url, current_title)
 
+        if react_result.outcome is not SubAgentOutcome.ANSWERED:
+            # Its steps may already have acted on the page: say how far it got
+            # rather than let a failure read as « nothing ran » (ADR-303).
+            return UnifiedToolOutput.failure(
+                message=(
+                    f"Browser task {failure_sentence(react_result)} after "
+                    f"{react_result.iteration_count} step(s); "
+                    f"current page: {current_url or 'none'}."
+                ),
+                error_code=failure_code_of(react_result),
+            )
+
         # Wrap content for prompt injection prevention
         wrapped_content = wrap_external_content(
             final_message,
@@ -354,6 +374,7 @@ async def browser_task_tool(
                 "url": current_url,
                 "title": current_title,
                 "task": task,
+                **partial_fields(react_result),
             },
             registry_updates=_make_registry_item(
                 current_url or "about:blank",
@@ -363,32 +384,14 @@ async def browser_task_tool(
             ),
         )
 
-    except ValueError as e:
-        logger.warning("browser_task_error", task_length=len(task), error=str(e))
-        error_code = "RATE_LIMIT_EXCEEDED" if "Max" in str(e) else "CONFIGURATION_ERROR"
-        return UnifiedToolOutput.failure(message=str(e), error_code=error_code)
-
     except Exception as e:
-        # Dashboard 20 browser errors metric (non-critical)
+        failure = _browser_failure(e, "browser_task_error")
+        # Dashboard 20 browser errors metric (non-critical).
         with suppress(Exception):
-            from src.infrastructure.observability.metrics_browser import (
-                browser_errors_total,
-            )
+            from src.infrastructure.observability.metrics_browser import browser_errors_total
 
-            browser_errors_total.labels(
-                error_type="timeout" if "Timeout" in type(e).__name__ else type(e).__name__
-            ).inc()
-        if "Timeout" in type(e).__name__:
-            logger.error("browser_task_timeout", task_length=len(task))
-            return UnifiedToolOutput.failure(
-                message=f"Browser task timed out: {task[:100]}",
-                error_code="TIMEOUT",
-            )
-        logger.error("browser_task_error", task_length=len(task), error=str(e))
-        return UnifiedToolOutput.failure(
-            message=f"Browser task failed: {type(e).__name__}: {str(e)[:200]}",
-            error_code="EXTERNAL_API_ERROR",
-        )
+            browser_errors_total.labels(error_type=str(failure.error_code).lower()).inc()
+        return failure
 
 
 # ============================================================================
@@ -466,27 +469,8 @@ async def browser_navigate_tool(
             ),
         )
 
-    except ValueError as e:
-        logger.warning("browser_navigate_validation_error", url_host=url_host(url), error=str(e))
-        error_code = "INVALID_INPUT" if "URL blocked" in str(e) else "CONFIGURATION_ERROR"
-        if _is_browser_limit_error(str(e)):
-            error_code = "RATE_LIMIT_EXCEEDED"
-        return UnifiedToolOutput.failure(message=str(e), error_code=error_code)
-
     except Exception as e:
-        # Detect timeout (Playwright's TimeoutError does NOT inherit from
-        # Python's builtin TimeoutError — it inherits from playwright.Error)
-        if "Timeout" in type(e).__name__:
-            logger.error("browser_navigate_timeout", url_host=url_host(url))
-            return UnifiedToolOutput.failure(
-                message=f"Page load timeout after {settings.browser_page_load_timeout_seconds}s",
-                error_code="TIMEOUT",
-            )
-        logger.error("browser_navigate_error", url_host=url_host(url), error=str(e))
-        return UnifiedToolOutput.failure(
-            message=f"Navigation failed: {type(e).__name__}",
-            error_code="EXTERNAL_API_ERROR",
-        )
+        return _browser_failure(e, "browser_navigate_error", "CONFIGURATION_ERROR")
 
 
 @tool
@@ -540,19 +524,8 @@ async def browser_snapshot_tool(
             },
         )
 
-    except ValueError as e:
-        logger.warning("browser_snapshot_error", error=str(e))
-        return UnifiedToolOutput.failure(
-            message=str(e),
-            error_code="DEPENDENCY_ERROR" if "No page" in str(e) else "CONFIGURATION_ERROR",
-        )
-
     except Exception as e:
-        logger.error("browser_snapshot_error", error=str(e))
-        return UnifiedToolOutput.failure(
-            message=f"Snapshot failed: {type(e).__name__}",
-            error_code="EXTERNAL_API_ERROR",
-        )
+        return _browser_failure(e, "browser_snapshot_error", "CONFIGURATION_ERROR")
 
 
 @tool
@@ -607,17 +580,8 @@ async def browser_click_tool(
             },
         )
 
-    except ValueError as e:
-        error_code = "NOT_FOUND" if "not found" in str(e) else "CONFIGURATION_ERROR"
-        logger.warning("browser_click_error", ref=ref, error=str(e))
-        return UnifiedToolOutput.failure(message=str(e), error_code=error_code)
-
     except Exception as e:
-        logger.error("browser_click_error", ref=ref, error=str(e))
-        return UnifiedToolOutput.failure(
-            message=f"Click failed: {type(e).__name__}",
-            error_code="EXTERNAL_API_ERROR",
-        )
+        return _browser_failure(e, "browser_click_error", "CONFIGURATION_ERROR")
 
 
 @tool
@@ -673,17 +637,8 @@ async def browser_fill_tool(
             },
         )
 
-    except ValueError as e:
-        error_code = "NOT_FOUND" if "not found" in str(e) else "INVALID_INPUT"
-        logger.warning("browser_fill_error", ref=ref, error=str(e))
-        return UnifiedToolOutput.failure(message=str(e), error_code=error_code)
-
     except Exception as e:
-        logger.error("browser_fill_error", ref=ref, error=str(e))
-        return UnifiedToolOutput.failure(
-            message=f"Fill failed: {type(e).__name__}",
-            error_code="EXTERNAL_API_ERROR",
-        )
+        return _browser_failure(e, "browser_fill_error", "INVALID_INPUT")
 
 
 @tool
@@ -737,14 +692,5 @@ async def browser_press_key_tool(
             },
         )
 
-    except ValueError as e:
-        error_code = "INVALID_INPUT" if "not allowed" in str(e) else "CONFIGURATION_ERROR"
-        logger.warning("browser_press_key_error", key=key, error=str(e))
-        return UnifiedToolOutput.failure(message=str(e), error_code=error_code)
-
     except Exception as e:
-        logger.error("browser_press_key_error", key=key, error=str(e))
-        return UnifiedToolOutput.failure(
-            message=f"Key press failed: {type(e).__name__}",
-            error_code="EXTERNAL_API_ERROR",
-        )
+        return _browser_failure(e, "browser_press_key_error", "CONFIGURATION_ERROR")

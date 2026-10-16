@@ -27,6 +27,7 @@ from src.infrastructure.channels.telegram.formatter import (
     format_notification,
     split_message,
 )
+from src.infrastructure.channels.telegram.html_split import split_html_message
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_channels import (
     channel_messages_sent_total,
@@ -77,8 +78,9 @@ class TelegramSender(BaseChannelSender):
         """
         Send a message to a Telegram chat.
 
-        Automatically splits long messages. A keyboard rides on the LAST
-        part, where the question ends, and on its retries: a part without
+        Automatically splits long messages — an HTML one on tag boundaries,
+        each part closing what it opened (point 8). A keyboard rides on the
+        LAST part, where the question ends, and on its retries: a part without
         it would leave the question unanswerable by button. Returns the
         message_id of the last sent chunk.
 
@@ -95,7 +97,11 @@ class TelegramSender(BaseChannelSender):
             return None
 
         chat_id = int(channel_user_id)
-        chunks = split_message(message.text)
+        chunks = (
+            split_html_message(message.text)
+            if message.parse_mode == "HTML"
+            else split_message(message.text)
+        )
         last_message_id: str | None = None
         # Heuristic: HTML parse_mode indicates proactive/notification messages
         # TODO: Add explicit message_type field to ChannelOutboundMessage for accuracy

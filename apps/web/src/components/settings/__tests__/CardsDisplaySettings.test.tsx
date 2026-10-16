@@ -21,7 +21,10 @@ import { CardsDisplaySettings } from '../CardsDisplaySettings';
 const MODE = (m: string) => `settings.preferences.display_mode.modes.${m}.label`;
 
 function authed(over: Partial<User> = {}) {
-  return { user: makeUser({ response_display_mode: 'cards', ...over }), refreshUser: vi.fn() };
+  return {
+    user: makeUser({ response_display_mode: 'cards', ...over }),
+    refreshUser: vi.fn<() => Promise<boolean>>().mockResolvedValue(true),
+  };
 }
 
 beforeEach(() => {
@@ -105,4 +108,107 @@ describe('CardsDisplaySettings', () => {
       expect(toast.success).toHaveBeenCalledTimes(1);
     }
   );
+});
+
+describe('CardsDisplaySettings — preview and account lifetime', () => {
+  it('shows an explicitly illustrative preview without another data request', () => {
+    useAuth.mockReturnValue(authed());
+    renderWithProviders(<CardsDisplaySettings lng="en" />);
+    expect(
+      screen.getByRole('region', { name: 'settings.preferences.display_mode.preview.title' })
+    ).toHaveTextContent('settings.preferences.display_mode.preview.example_label');
+    expect(
+      screen.getByText('settings.preferences.display_mode.preview.weather.location')
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('settings.preferences.display_mode.preview.meeting.name')
+    ).toBeInTheDocument();
+    expect(patch).not.toHaveBeenCalled();
+  });
+
+  it('falls back to cards for an unrecognized stored mode', () => {
+    useAuth.mockReturnValue(authed({ response_display_mode: 'legacy-unknown' }));
+    renderWithProviders(<CardsDisplaySettings lng="en" />);
+    expect(screen.getByRole('button', { name: MODE('cards') })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    expect(screen.queryByText(/legacy-unknown/)).not.toBeInTheDocument();
+  });
+
+  it('blocks two activations in the same event batch', async () => {
+    const request = Promise.withResolvers<object>();
+    patch.mockReturnValue(request.promise);
+    useAuth.mockReturnValue(authed());
+    renderWithProviders(<CardsDisplaySettings lng="en" />);
+    act(() => {
+      screen.getByRole('button', { name: MODE('html') }).click();
+      screen.getByRole('button', { name: MODE('markdown') }).click();
+    });
+    expect(patch).toHaveBeenCalledTimes(1);
+    await act(async () => request.resolve({}));
+  });
+
+  it.each(['success', 'failure'])('ignores a late %s after an account change', async outcome => {
+    const request = Promise.withResolvers<object>();
+    patch.mockReturnValueOnce(request.promise);
+    const previous = authed({ id: 'previous-account' });
+    useAuth.mockReturnValue(previous);
+    const { user, rerender } = renderWithProviders(<CardsDisplaySettings lng="en" />);
+    await user.click(screen.getByRole('button', { name: MODE('html') }));
+    const current = authed({ id: 'current-account', response_display_mode: 'markdown' });
+    useAuth.mockReturnValue(current);
+    rerender(<CardsDisplaySettings lng="en" />);
+    expect(screen.getByRole('button', { name: MODE('markdown') })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    expect(screen.getByRole('button', { name: MODE('html') })).not.toHaveAttribute(
+      'aria-disabled',
+      'true'
+    );
+    await act(async () =>
+      outcome === 'success' ? request.resolve({}) : request.reject(new Error('late'))
+    );
+    expect(previous.refreshUser).not.toHaveBeenCalled();
+    expect(current.refreshUser).not.toHaveBeenCalled();
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: MODE('html_cards') }));
+    await waitFor(() => expect(current.refreshUser).toHaveBeenCalledTimes(1));
+  });
+
+  it('does not refresh authentication after leaving the section during a save', async () => {
+    const request = Promise.withResolvers<object>();
+    patch.mockReturnValue(request.promise);
+    const ctx = authed();
+    useAuth.mockReturnValue(ctx);
+    const { user, unmount } = renderWithProviders(<CardsDisplaySettings lng="en" />);
+    await user.click(screen.getByRole('button', { name: MODE('html') }));
+    unmount();
+    await act(async () => request.resolve({}));
+    expect(ctx.refreshUser).not.toHaveBeenCalled();
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+});
+
+it('does not announce activation if the saved preference cannot be reloaded and permits retry', async () => {
+  const ctx = authed();
+  ctx.refreshUser.mockResolvedValueOnce(false);
+  useAuth.mockReturnValue(ctx);
+  const { user } = renderWithProviders(<CardsDisplaySettings lng="en" />);
+  const target = screen.getByRole('button', { name: MODE('html') });
+  await user.click(target);
+  await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(1));
+  expect(toast.success).not.toHaveBeenCalled();
+  expect(screen.getByRole('button', { name: MODE('cards') })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
+  expect(target).toHaveFocus();
+  expect(target).toHaveAttribute('aria-disabled', 'false');
+  await user.click(target);
+  await waitFor(() => expect(toast.success).toHaveBeenCalledTimes(1));
+  expect(patch).toHaveBeenCalledTimes(2);
+  expect(ctx.refreshUser).toHaveBeenCalledTimes(2);
 });

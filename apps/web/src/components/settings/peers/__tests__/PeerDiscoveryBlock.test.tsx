@@ -43,6 +43,32 @@ describe('PeerDiscoveryBlock', () => {
     expect(screen.getByText('m…@g….com')).toBeInTheDocument();
   });
 
+  it('retains submit focus and refuses duplicate searches while the first response is pending', async () => {
+    let resolve: (matches: (typeof MATCH)[]) => void = () => {};
+    const props = setup({
+      search: vi.fn().mockImplementation(
+        () =>
+          new Promise<(typeof MATCH)[]>(done => {
+            resolve = done;
+          })
+      ),
+    });
+    await userEvent.type(
+      screen.getByRole('textbox', { name: 'settings.peers.discovery.search_label' }),
+      'Marie Dupont'
+    );
+    const submit = screen.getByRole('button', { name: 'settings.peers.discovery.search_button' });
+    await userEvent.click(submit);
+    expect(submit).toHaveFocus();
+    expect(submit).not.toBeDisabled();
+    expect(submit).toHaveAttribute('aria-disabled', 'true');
+    await userEvent.keyboard('{Enter}');
+    expect(props.search).toHaveBeenCalledOnce();
+    resolve([MATCH]);
+    await waitFor(() => expect(screen.getByText('Marie Dupont')).toBeVisible());
+    expect(submit).toHaveFocus();
+  });
+
   it('forwards an email address verbatim, without deciding anything itself', async () => {
     // Bloc B: one box, two kinds of identity — the branch belongs to the
     // backend (`looks_like_email`), so this component must not pre-parse.
@@ -128,7 +154,7 @@ describe('PeerDiscoveryBlock', () => {
     }
   );
 
-  it('disables the request button while mutating', async () => {
+  it('does not run a search while another peer mutation is in flight', async () => {
     const props = setup({ mutating: true });
     await userEvent.type(
       screen.getByRole('textbox', { name: 'settings.peers.discovery.search_label' }),
@@ -137,10 +163,34 @@ describe('PeerDiscoveryBlock', () => {
     await userEvent.click(
       screen.getByRole('button', { name: 'settings.peers.discovery.search_button' })
     );
-    await waitFor(() => screen.getByText('Marie Dupont'));
-    expect(
-      screen.getByRole('button', { name: 'settings.peers.discovery.request_button' })
-    ).toBeDisabled();
-    expect(props.onSendRequest).not.toHaveBeenCalled();
+    expect(props.search).not.toHaveBeenCalled();
+  });
+
+  it('serializes request and discovery so a request cannot erase a newly submitted draft', async () => {
+    let finish: (ok: boolean) => void = () => {};
+    const props = setup({
+      onSendRequest: vi.fn().mockImplementation(
+        () =>
+          new Promise<boolean>(resolve => {
+            finish = resolve;
+          })
+      ),
+    });
+    const input = screen.getByRole('textbox', { name: 'settings.peers.discovery.search_label' });
+    await userEvent.type(input, 'Marie Dupont{Enter}');
+    const send = await screen.findByRole('button', {
+      name: 'settings.peers.discovery.request_button',
+    });
+    await userEvent.click(send);
+    expect(send).toHaveFocus();
+    expect(send).not.toBeDisabled();
+    expect(input).toHaveAttribute('readonly');
+    await userEvent.click(
+      screen.getByRole('button', { name: 'settings.peers.discovery.search_button' })
+    );
+    expect(props.search).toHaveBeenCalledOnce();
+    finish(true);
+    await waitFor(() => expect(input).toHaveValue(''));
+    expect(input).toHaveFocus();
   });
 });

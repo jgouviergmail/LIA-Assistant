@@ -529,17 +529,18 @@ class GoogleRoutesClient:
             response = await client.post(url, headers=headers, json=body)
 
             if response.status_code >= 400:
-                error_detail = response.text
-                logger.error(
+                log_unreadable_text(
+                    logger,
                     "routes_api_error",
+                    response.text,
+                    level="error",
                     user_id=str(self.user_id) if self.user_id else "global",
                     status_code=response.status_code,
-                    error=error_detail[:500],
                 )
                 raise ConnectorAPIError(
                     connector_type="google_routes",
                     status_code=response.status_code,
-                    detail=f"Google Routes API error: {error_detail[:200]}",
+                    detail=f"Google Routes API: HTTP {response.status_code}",
                 )
 
             data = response.json()
@@ -574,11 +575,12 @@ class GoogleRoutesClient:
             logger.error(
                 "routes_api_request_error",
                 user_id=str(self.user_id) if self.user_id else "global",
-                error=str(e),
+                error_type=type(e).__name__,
             )
+            logger.debug("routes_api_request_error_detail", error=str(e))
             raise ExternalServiceError(
                 service_name="google_routes",
-                detail=f"Google Routes API unavailable: {e!s}",
+                detail="Google Routes API connection failed",
                 error_type="connection_error",
             ) from e
 
@@ -663,17 +665,18 @@ class GoogleRoutesClient:
             response = await client.post(url, headers=headers, json=body)
 
             if response.status_code >= 400:
-                error_detail = response.text
-                logger.error(
+                log_unreadable_text(
+                    logger,
                     "routes_matrix_api_error",
+                    response.text,
+                    level="error",
                     user_id=str(self.user_id) if self.user_id else "global",
                     status_code=response.status_code,
-                    error=error_detail[:500],
                 )
                 raise ConnectorAPIError(
                     connector_type="google_routes",
                     status_code=response.status_code,
-                    detail=f"Google Routes Matrix API error: {error_detail[:200]}",
+                    detail=f"Google Routes Matrix API: HTTP {response.status_code}",
                 )
 
             # Matrix API may return JSON array or streaming NDJSON
@@ -717,11 +720,12 @@ class GoogleRoutesClient:
             logger.error(
                 "routes_matrix_api_request_error",
                 user_id=str(self.user_id) if self.user_id else "global",
-                error=str(e),
+                error_type=type(e).__name__,
             )
+            logger.debug("routes_matrix_api_request_error_detail", error=str(e))
             raise ExternalServiceError(
                 service_name="google_routes",
-                detail=f"Google Routes Matrix API unavailable: {e!s}",
+                detail="Google Routes Matrix API connection failed",
                 error_type="connection_error",
             ) from e
 

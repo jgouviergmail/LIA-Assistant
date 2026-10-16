@@ -33,7 +33,9 @@ import httpx
 import pytest
 from fastapi import HTTPException
 
+from src.core.exceptions import AuthorizationError
 from src.core.field_names import FIELD_STATUS
+from src.domains.connectors.errors import ConnectorRevokedError
 from src.domains.connectors.models import (
     Connector,
     ConnectorGlobalConfig,
@@ -723,6 +725,38 @@ class TestAPIKeyConnectors:
         assert exc_info.value.status_code == 403
 
 
+class TestARevokedConnectorIsRefusedByName:
+    """A revoked connector's refusal is the same 403, and it names its type.
+
+    A draft executor's card reads the type to say which connector to
+    reconnect; every HTTP reader keeps the status and the detail it had.
+    """
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("reader", ["get_connector_credentials", "get_api_key_credentials"])
+    async def test_the_refusal_carries_the_connector(self, reader: str) -> None:
+        service = ConnectorService(AsyncMock())
+        user_id = uuid.uuid4()
+        connector_type = ConnectorType.GOOGLE_DRIVE
+        service.repository.get_by_user_and_type = AsyncMock(
+            return_value=create_mock_connector(
+                user_id=user_id,
+                connector_type=connector_type,
+                status=ConnectorStatus.REVOKED,
+                scopes=[],
+            )
+        )
+
+        with pytest.raises(ConnectorRevokedError) as exc_info:
+            await getattr(service, reader)(user_id, connector_type)
+
+        refusal = exc_info.value
+        assert isinstance(refusal, AuthorizationError)
+        assert refusal.status_code == 403
+        assert refusal.detail == "Not authorized to use connector"
+        assert refusal.connector_type is connector_type
+
+
 class TestGlobalConfigs:
     """Tests for global connector configuration (admin)."""
 
@@ -966,9 +1000,12 @@ class TestOAuthConnectorCallbackDelegate:
     @staticmethod
     def _service_with_mocks() -> tuple[ConnectorService, AsyncMock]:
         """Build a ConnectorService with a mocked repository and cache invalidation."""
+        from src.domains.connectors.repository import ConnectorRepository
+
         mock_db = AsyncMock()
         service = ConnectorService(mock_db)
-        service.repository = MagicMock()
+        service.repository = MagicMock(spec=ConnectorRepository)
+        service.repository.get_global_config_by_type.return_value = None
         service._invalidate_user_connectors_cache = AsyncMock()
         return service, mock_db
 

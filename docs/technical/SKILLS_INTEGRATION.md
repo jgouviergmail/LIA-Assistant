@@ -928,7 +928,7 @@ All `agent_name` values (from `domains/agents/constants.py`):
 | `parameters` | No | Dict passed to the tool. Use `{}` for no parameters. |
 | `depends_on` | Yes | `[]` = parallel with other steps. `["step_id"]` = sequential. |
 | `description` | No | Human-readable description (used in debug panel). |
-| `step_type` | No | Default: `"TOOL"`. Other values: `"CONDITIONAL"`, `"REPLAN"`. |
+| `step_type` | No | `"TOOL"`, the default and the only type a template runs: a template carries a TOOL step's fields alone, so any other type refuses the template and the request goes to the LLM planner (`TEMPLATE_STEP_TYPES`, ADR-346). |
 
 **Parallel execution**: all steps with `depends_on: []` run simultaneously via `asyncio.gather`. This is the recommended default for data fetching steps.
 

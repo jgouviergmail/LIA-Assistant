@@ -136,5 +136,133 @@ Ruff/black/mypy strict clean, i18n parity preserved across all 6 locales (5297 k
 ## Related env vars (`.env`-controllable)
 
 - `SUB_AGENTS_ENABLED` (default `true`) — feature flag for the whole subsystem.
-- `SUBAGENT_DEFAULT_MAX_ITERATIONS` (default `5`) — reused as the ReAct loop's `recursion_limit`.
-- `SUBAGENT_INSTRUCTION_MAX_TOKENS_RESOLVED` (default `3000`) — H2 cap on the resolved `instruction` of `delegate_to_sub_agent_tool`.
+- `SUBAGENT_DEFAULT_MAX_ITERATIONS` (default `SUBAGENT_DEFAULT_MAX_ITERATIONS_DEFAULT` in `core/constants.py`) — reused as the ReAct loop's `recursion_limit`.
+- `SUBAGENT_INSTRUCTION_MAX_TOKENS_RESOLVED` (default `SUBAGENT_INSTRUCTION_MAX_TOKENS_RESOLVED_DEFAULT` in `core/constants.py`) — H2 cap on the `instruction` of `delegate_to_sub_agent_tool`, enforced by the tool itself since the amendment below.
+
+## Amendment 2026-10-13 — both modes are told the same facts, and the tool holds the cap
+
+The planner read the manifest — « the sub-agent has NO user-data tools » — while
+the ReAct loop, which binds the `@tool` schema and never the manifest (ADR-310),
+read « the sub-agent has its own read-only tools and fetches what it needs ». The
+expert's tools are the configured whitelist (web research by default), so a ReAct
+turn could delegate « analyse my last e-mails » to an expert that could not read
+one. And the cap on `instruction` was checked by the pipeline executor alone,
+after reference resolution: a ReAct delegation had no bound at all.
+
+1. **One set of facts, in each mode's words** (`domains/sub_agents/instruction_contract.py`):
+   `expert_reach()` names the expert's tools from the whitelist and says it cannot
+   read the user's data — a claim made only while the whitelist stays within the
+   research tools LIA ships (its default): an operator who names another tool gets
+   the list without the claim, since a prompt states what the code holds (ADR-284);
+   `instruction_description(in_plan=...)` adds how the data is
+   handed over — `$steps.step_N.<field>` references in a plan, the facts written
+   in by a loop — and, for the loop only, the cap: the planner's delegation
+   section already publishes it (one authority, prompt audit 2026-09-12).
+2. **The tool enforces the cap** (`sub_agent_tools._oversized_instruction`),
+   `INVALID_INPUT` naming the estimate and the cap, before any model runs. In a
+   plan the references are resolved by the time the tool runs, so the executor's
+   own check was removed rather than kept as a second implementation. The
+   delegation is `mutation_policy="read"`: no confirmation precedes it in a plan;
+   in ReAct the cost pause (`hitl_required`) still comes first, so an oversized
+   instruction is refused after the person accepted the cost — a rare safety net,
+   since a loop writes its instruction itself.
+
+Guards: `test_sub_agent_instruction.py` (same reach in both, cap and tools stated to
+the loop, refusal before the runner, a run under the cap), and the delegation
+section's own `TestManifestAgreesWithTheSection`.
+
+
+## Amendment 2026-10-13 (b) — a sub-loop's budget end is a closing pass, never an answer of LangGraph's
+
+Production, 2026-10-13: a delegated expert ran nine rounds of searches (most of its
+page reads refused: rate limit, network, 403), and its tenth answer — the model
+still asking for a page — was REPLACED by the prebuilt agent's own sentence,
+« Sorry, need more steps to process this request. » (47 characters). The runner took
+it for the answer, the delegation reported it as a success, and the principal
+answered « no sub-agent delivered an expert analysis ». Measured on the installed
+`create_react_agent` (langgraph-prebuilt 1.1.0) with a model that never concludes:
+`recursion_limit` counts graph STEPS, so `SUBAGENT_DEFAULT_MAX_ITERATIONS=20` buys 10
+model calls and 9 tool rounds, the last call's answer substituted; an ODD limit raises
+`GraphRecursionError` instead (`SKILLS_REACT_RECURSION_LIMIT` is 25). Two runs of the
+runner in sixteen over seven days of production ended on the sentence (this one,
+and a browser task). The same runner serves the browser agent, the MCP iterative
+tasks and the skill runner, whose answer is shown to the person verbatim.
+
+1. **The last call writes** (`tools/react_runner_closing.py`): the runner uses
+   native `create_agent` and model middleware. Once fewer than
+   `CLOSING_BELOW_REMAINING_STEPS` (3) steps remain, the call gets NO tool and the
+   loop's history flattened into one message after the unchanged system prompt —
+   the task, every call with its arguments, every result wrapped as external
+   content (a tool output moved into a user message would otherwise read with the
+   asker's authority), and a versioned directive (`react_runner_closing_prompt.txt`,
+   scaffolds in `react_runner_closing_lines.txt`). A request carrying neither tool
+   definitions nor tool blocks is one every provider accepts. If the reply still
+   proposes a call, the middleware empties it before dispatch: no extra tool
+   runs, no promise is reported as an answer. Billed usage and the provider's
+   truncation verdict survive. The same guard applies to a run with no tools.
+   Nothing is
+   cut from the log: the closing call reads what the previous call read. It
+   REPLACES the call LangGraph threw away — no extra model call; on the tenth
+   call above, about 17 K input tokens move from cached to uncached.
+2. **What a limit buys is one arithmetic** (`tools/react_runner_budget.py`):
+   `model_calls_for(R)` = R//2, `tool_rounds_for(R)` = R//2 − 1, for even and odd
+   limits alike. A limit of 1 can never end and, below 4, no tool round fits
+   before the closing pass: `subagent_default_max_iterations` refuses 1 (`ge=2` —
+   an expert may answer from its instruction alone), the acting loops refuse
+   less than one round (`browser_react_max_iterations` and
+   `mcp_react_max_iterations`, `ge=4`; a limit of 3 used to run one round and
+   then raise). Their descriptions say STEPS rather than iterations.
+3. **The result says how the run ended**: `SubAgentOutcome` (`answered`, `empty`,
+   `error`) plus `closed_on_budget`, `truncated` (the provider's own verdict,
+   `is_output_truncated` — kept on an EMPTY run too, where a thinking model spent
+   its output budget before writing a word, ADR-285, and said so to the reader)
+   and `failure_kind` (`classify_llm_error`), counted by
+   `subagent_outcomes_total{agent_name,outcome}` (dashboard 19) and logged on
+   `react_sub_agent_complete`.
+4. **Every reader reads the outcome, never the text** (ADR-303): the `"Error: …"`
+   sentinel is gone — a failed run carries no text, since an exception's text can
+   quote the request — and the five readers map the outcome once each:
+   the delegation answers a failure coded by the failure's kind
+   (`failure_code_of`: a limit or a timeout reads « retry later », a configuration
+   error does not) and an answer whose partial travels in its own fields
+   (`budget_exhausted`, `output_truncated` — `partial_fields`); the browser task
+   and the MCP task say how many steps ran and, for MCP, keep the widgets the loop
+   produced before it failed (it acted: hiding them would hide a real effect); the
+   MCP zero-iteration retry replays an ANSWER only, never a provider failure; the
+   skill runner counts a failure it caught as `error`, never as « no tool called ».
+
+5. **The expert and its planner are told what runs** (ADR-284, ADR-184): the
+   planner's delegation section published the step limit as « at most N model
+   calls » — twice the calls the loop allows — and now publishes
+   `model_calls_for(limit)`; the expert's prompt listed two tools whatever its
+   whitelist bound, set « 1 to 3 rounds » in prose against a budget it never
+   stated, and now receives the tools it is bound to after the read-only filter
+   (`research_tools`) and `max_tool_rounds`, with the closing pass announced. The
+   closing directive treats the WHOLE research block as a record, never an
+   instruction: the model's own notes and call arguments move into a user message
+   there, and a page can have steered them. It
+   is also told that a source or tool that refused it — a rate limit, a page too
+   large, a connector the person never activated — stays refused for the task; a
+   directive, which nothing enforces. Both values sit before the cache marker:
+   one per deployment.
+
+The managed step allowance is private to state, omitted from native agent IO;
+`RemainingStepsManager` remains its final annotation, as LangGraph requires.
+The middleware wraps the existing model node and adds no graph step. Native
+compiler tests preserve both parities, contexts, callbacks and store propagation;
+deprecation warnings are treated as errors. These are scripted-model graph
+proofs, not new paid-provider qualification.
+
+Guards: `test_react_runner_closing.py` drives the REAL native agent graph — every
+earlier runner test patched it away — and was proven by mutation: without the
+closing pass 13 of its cases fail, the production case first; at LangGraph's own
+threshold (2) exactly the four odd limits fail. Measured on dev with DeepSeek on the
+proof account (0.0071 € for two runs): a limit of 6 ran two rounds, the refused
+tools were not called again, and the closing pass wrote a 6 477-character
+deliverable naming each source that failed and why.
+
+Known and written: the closing pass rests on `create_react_agent`'s dynamic model
+and its managed `remaining_steps`. That function is deprecated since LangGraph 1.0
+(removal announced for 2.0, in favour of `langchain.agents.create_agent`): the
+migration must carry the closing pass over — a model-call middleware choosing a
+tool-less call on the last step — and keep these tests driving the real loop.

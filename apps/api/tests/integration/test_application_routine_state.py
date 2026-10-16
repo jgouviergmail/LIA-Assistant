@@ -33,6 +33,7 @@ from src.domains.scheduled_actions.schemas import ScheduledActionCreate
 from src.domains.scheduled_actions.service import ScheduledActionService
 from src.domains.users.models import User
 from src.domains.users.preference_cas import PreferenceWriteReceipt
+from tests.helpers.draft_refusals import draft_refusal_code
 from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
 
 pytestmark = pytest.mark.integration
@@ -197,7 +198,7 @@ async def test_real_routine_tool_requires_exact_hitl_and_rechecks_current_author
     assert result.success is (intervention == "none")
     if intervention == "deleted":
         assert await async_session.get(ScheduledAction, row.id) is None
-        assert result.error == "STALE_STATE"
+        assert draft_refusal_code(result) == "STALE_STATE"
     else:
         await async_session.refresh(row)
         assert row.is_enabled is (intervention != "none")

@@ -28,6 +28,7 @@ from src.domains.channels.preference_commands import (
 from src.domains.channels.service import ChannelService
 from src.domains.users.models import User
 from src.domains.users.preference_cas import PreferenceWriteReceipt
+from tests.helpers.draft_refusals import draft_refusal_code
 from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
 
 pytestmark = pytest.mark.integration
@@ -113,7 +114,7 @@ async def test_native_channel_confirmation_uses_current_visible_identity_and_pub
     else:
         assert saved is not None and saved.is_active is (manual_intervention or remove)
     if manual_intervention:
-        assert outcome.error == "STALE_STATE"
+        assert draft_refusal_code(outcome) == "STALE_STATE"
     hints = [queue.get_nowait() for _ in range(queue.qsize())]
     hints = [event for event in hints if event.type == "application_state_changed"]
     assert len(hints) == int(not manual_intervention)

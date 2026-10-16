@@ -76,6 +76,7 @@ class DraftType(str, Enum):
     DOCUMENT_APPEND = "document_append"  # Docs text append (lot F)
     TICKET_DELETE = "ticket_delete"  # Workboard ticket delete draft (ADR-276)
     APPLICATION_ACTION = "application_action"  # Confirmed application command
+    MAILBOX_DRAFT_SEND = "mailbox_draft_send"  # A draft of the person's mailbox, sent (ADR-344)
 
 
 class DraftStatus(str, Enum):
@@ -151,17 +152,6 @@ class EmailDraftInput(BaseDraftInput):
     bcc: str | None = Field(default=None, description="BCC recipients")
     is_html: bool = Field(default=False, description="Whether body is HTML")
 
-    def to_send_email_args(self) -> dict[str, Any]:
-        """Convert to args for send_email_tool."""
-        return {
-            "to": self.to,
-            "subject": self.subject,
-            "body": self.body,
-            "cc": self.cc,
-            "bcc": self.bcc,
-            "is_html": self.is_html,
-        }
-
 
 class EmailReplyDraftInput(BaseDraftInput):
     """
@@ -172,22 +162,14 @@ class EmailReplyDraftInput(BaseDraftInput):
     """
 
     message_id: str = Field(..., description="Original message ID to reply to")
-    to: str = Field(..., description="Recipient email (original sender)")
+    to: str = Field(..., description="Who the reply reaches, as the card shows it")
+    cc: str = Field(default="", description="Who a reply to all copies, as the card shows it")
     subject: str = Field(..., description="Email subject (with Re: prefix)")
     body: str = Field(..., description="Reply message body")
     reply_all: bool = Field(default=False, description="Reply to all recipients")
     original_subject: str = Field(default="", description="Original email subject")
     original_from: str = Field(default="", description="Original sender")
     thread_id: str | None = Field(default=None, description="Thread ID to maintain")
-
-    def to_reply_email_args(self) -> dict[str, Any]:
-        """Convert to args for reply_email execution."""
-        return {
-            "message_id": self.message_id,
-            "body": self.body,
-            "reply_all": self.reply_all,
-            "to": self.to,
-        }
 
 
 class EmailForwardDraftInput(BaseDraftInput):
@@ -209,15 +191,6 @@ class EmailForwardDraftInput(BaseDraftInput):
         default_factory=list,
         description="Attachment info for preview (filename, mime_type, size)",
     )
-
-    def to_forward_email_args(self) -> dict[str, Any]:
-        """Convert to args for forward_email execution."""
-        return {
-            "message_id": self.message_id,
-            "to": self.to,
-            "body": self.body,
-            "cc": self.cc,
-        }
 
 
 class EmailDeleteDraftInput(BaseDraftInput):

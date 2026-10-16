@@ -145,13 +145,19 @@ def tool_domains(specs: tuple[LiveToolSpec, ...]) -> tuple[str, ...]:
     return tuple(seen)
 
 
-async def direct_tool_specs(disabled_domains: frozenset[str]) -> tuple[LiveToolSpec, ...]:
+async def direct_tool_specs(
+    disabled_domains: frozenset[str], user_id: UUID
+) -> tuple[LiveToolSpec, ...]:
     """The tools a direct session declares: the phone's derived set, the person's switches applied.
 
     The telephony flag is not this session's gate — the live capability is
-    (the router's), so the feature switch is passed explicitly.
+    (the router's), so the feature switch is passed explicitly. The account's
+    connectors decide too: a provider it has not connected is not declared
+    (RC2.1).
     """
-    return await available_live_tools(disabled_domains=disabled_domains, feature_enabled=True)
+    return await available_live_tools(
+        disabled_domains=disabled_domains, feature_enabled=True, user_id=user_id
+    )
 
 
 async def direct_context(user_id: UUID, *, language: str, timezone: str) -> str:
@@ -211,7 +217,7 @@ async def build_direct_setup_inputs(
     Returns:
         The setup inputs: the direct mandate, no delegation, the declared tools.
     """
-    specs = await direct_tool_specs(disabled_domains)
+    specs = await direct_tool_specs(disabled_domains, user_id)
     context = await direct_context(user_id, language=language, timezone=timezone)
     mandate = render_direct_mandate(
         DirectMandateInputs(

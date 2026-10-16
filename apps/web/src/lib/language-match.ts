@@ -11,6 +11,9 @@
  * which is what a stored diagnosis is stamped with). Comparing the raw codes
  * would tell a Chinese administrator that their Chinese diagnosis is in a
  * foreign language.
+ *
+ * The voice pickers read it too (`voice-language.ts`): a voice that names no
+ * language speaks every one, which is what « nothing to contradict » answers.
  */
 export function sameLanguage(a: string | undefined, b: string | undefined): boolean {
   if (!a || !b) return true; // Nothing to contradict: say nothing.

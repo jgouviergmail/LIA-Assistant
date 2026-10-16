@@ -32,6 +32,7 @@ from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.drafts.models import DraftType
 from src.domains.agents.drafts.service import DraftService
 from src.domains.agents.tools.base import ConnectorTool
+from src.domains.agents.tools.common import connector_not_activated_refusal
 from src.domains.agents.tools.decorators import connector_tool, with_user_preferences
 from src.domains.agents.tools.mixins import ToolOutputMixin
 from src.domains.agents.tools.output import UnifiedToolOutput
@@ -330,14 +331,15 @@ async def execute_vacation_responder_draft(
         deps: ToolDependencies (Gmail credentials come through it).
 
     Returns:
-        {"success", "enabled"} on write; {"success": False, "error"} otherwise.
+        {"success", "enabled"} on write; a typed refusal when Gmail is no
+        longer active (``connector_not_activated_refusal``).
     """
     connector_service = await deps.get_connector_service()
     credentials = await connector_service.get_connector_credentials(
         user_id, ConnectorType.GOOGLE_GMAIL
     )
     if credentials is None:
-        return {"success": False, "error": "connector_not_activated"}
+        return connector_not_activated_refusal(ConnectorType.GOOGLE_GMAIL)
 
     client = GoogleGmailSettingsClient(user_id, credentials, connector_service)
     enable = bool(draft_content.get("enable", False))
@@ -562,7 +564,7 @@ async def execute_email_filter_draft(
         user_id, ConnectorType.GOOGLE_GMAIL
     )
     if credentials is None:
-        return {"success": False, "error": "connector_not_activated"}
+        return connector_not_activated_refusal(ConnectorType.GOOGLE_GMAIL)
 
     action: dict[str, Any] = {}
     if draft_content.get("label_id"):

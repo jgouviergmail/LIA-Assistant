@@ -89,14 +89,18 @@ def safe_fire_and_forget(
         # Log any exceptions
         if t.cancelled():
             logger.debug("background_task_cancelled", task_name=name or "unnamed")
-        elif t.exception():
-            # The traceback travels with the event: a one-line ``str(exc)`` hid
-            # the origin of a repository failure for a whole diagnosis (2026-09-05).
+        elif (error := t.exception()) is not None:
+            # Keep the diagnostic traceback, but reserve private exception
+            # contents to DEBUG rather than visible operational events.
             logger.error(
                 "background_task_failed",
                 task_name=name or "unnamed",
-                error=str(t.exception()),
-                exc_info=t.exception(),
+                error_type=type(error).__name__,
+            )
+            logger.debug(
+                "background_task_failure_details",
+                task_name=name or "unnamed",
+                exc_info=error,
             )
         else:
             logger.debug("background_task_completed", task_name=name or "unnamed")
@@ -169,8 +173,9 @@ async def wait_all_background_tasks(timeout: float = 30.0) -> int:
     except Exception as e:
         logger.error(
             "wait_background_tasks_failed",
-            error=str(e),
+            error_type=type(e).__name__,
         )
+        logger.debug("wait_background_tasks_failure_details", exc_info=e)
         return 0
 
 
@@ -225,8 +230,9 @@ async def await_run_id_tasks(run_id: str, timeout: float = 15.0) -> int:
         logger.error(
             "run_id_tasks_await_failed",
             run_id=run_id,
-            error=str(e),
+            error_type=type(e).__name__,
         )
+        logger.debug("run_id_tasks_await_failure_details", run_id=run_id, exc_info=e)
 
     return len(tasks)
 
@@ -266,6 +272,16 @@ def cancel_all_background_tasks() -> int:
     return count
 
 
+def _report_cancelled_write_failure(task: asyncio.Future[None], label: str) -> None:
+    """Retrieve a late failure and report its type without private exception text."""
+    if task.cancelled():
+        return
+    error = task.exception()
+    if error is not None:
+        logger.error(f"{label}_failed_after_cancellation", error_type=type(error).__name__)
+        logger.debug(f"{label}_failure_details", exc_info=error)
+
+
 async def write_through_cancellation(
     make_write: Callable[[], Awaitable[None]],
     *,
@@ -300,6 +316,8 @@ async def write_through_cancellation(
         cancelled turn must stay cancelled — writing a register never
         resurrects it.
     """
+    if attempts < 1:
+        raise ValueError("At least one cancellation grace attempt is required.")
     task = asyncio.ensure_future(make_write())
     task.set_name(label)
     # asyncio holds tasks WEAKLY, and the abandonment path below returns while
@@ -311,7 +329,10 @@ async def write_through_cancellation(
     cancelled = False
     for _ in range(attempts):
         try:
-            await asyncio.shield(task)
+            # wait never cancels the inner task. Unlike shield on Python 3.14,
+            # it also does not route a late private exception to asyncio's
+            # ERROR handler before this helper can classify it.
+            await asyncio.wait({task})
             break
         except asyncio.CancelledError:
             cancelled = True
@@ -324,4 +345,12 @@ async def write_through_cancellation(
         # exit — being in that set is the difference between « finishes later »
         # and « collected mid-write ».
         logger.warning(f"{label}_abandoned")
+    if cancelled:
+        if task.done():
+            _report_cancelled_write_failure(task, label)
+        else:
+            task.add_done_callback(lambda done: _report_cancelled_write_failure(done, label))
+    else:
+        # A failure still reaches a caller that has not been stopped.
+        task.result()
     return cancelled

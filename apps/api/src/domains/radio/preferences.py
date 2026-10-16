@@ -18,8 +18,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
+from src.core.constants import VOICE_ID_MAX_CHARS
 from src.domains.radio.formats import (
-    CONFIGURABLE_ROLES,
     Frequency,
     RadioFormat,
     RadioRole,
@@ -30,13 +30,14 @@ from src.domains.radio.names import speakable_name
 from src.domains.radio.newsroom.catalogue import CATALOGUE_URLS
 from src.domains.radio.personal import PersonalSource
 from src.domains.radio.setup import VerificationMode
+from src.domains.voice.engine_voices import holds_choice_of, stored_choice
 
-#: The longest voice id a preference may carry (provider ids are short).
-VOICE_ID_MAX_CHARS: Final[int] = 100
-#: Where the stored settings keep a listener's voices, per voice engine
-#: (``provider/model``, ``cast.engine_key``) — never on the wire: the page reads and
-#: writes the voices of the engine in place (``voices``), and an engine switched back to
-#: finds the ones chosen on it (owner request 2026-09-27).
+#: Where the stored settings keep a listener's voices, per voice PROVIDER
+#: (``engine_voices.choice_key``) — never on the wire: the page reads and writes the
+#: voices of the engine in place (``voices``), a provider switched back to finds the
+#: ones chosen on it (owner request 2026-09-27), and a model switched for another keeps
+#: them (2026-10-16: kept per ``provider/model`` before, so every model change of the
+#: radio's slot handed the listener other voices — those entries are still read).
 VOICES_BY_ENGINE: Final[str] = "voices_by_engine"
 #: The longest name a listener may give their station (its host says it on air).
 STATION_NAME_MAX_CHARS: Final[int] = 40
@@ -104,9 +105,8 @@ class RadioPreferences(BaseModel):
     @field_validator("voices")
     @classmethod
     def _bounded_voice_ids(cls, value: dict[RadioRole, str]) -> dict[RadioRole, str]:
-        cast = sorted(role.value for role in value if role not in CONFIGURABLE_ROLES)
-        if cast:
-            raise ValueError(f"the station casts its commentators itself: {cast}")
+        # Every role, the commentators' included (2026-10-16); which voices may not be
+        # shared is the settings' check, against the cast's own rule (``cast.shared_voice``).
         for voice in value.values():
             if not voice.strip() or len(voice) > VOICE_ID_MAX_CHARS:
                 raise ValueError(f"a voice id is 1 to {VOICE_ID_MAX_CHARS} characters")
@@ -142,8 +142,6 @@ def _role_voices(raw: object) -> dict[RadioRole, str]:
             known = RadioRole(role)
         except ValueError:
             continue
-        if known not in CONFIGURABLE_ROLES:
-            continue  # the station casts its commentators itself
         if isinstance(voice, str) and voice.strip() and len(voice) <= VOICE_ID_MAX_CHARS:
             voices[known] = voice
     return voices
@@ -160,18 +158,21 @@ def _stored_engines(stored: object) -> dict[str, dict[RadioRole, str]]:
 
 
 def engine_voices(stored: object, engine: str) -> dict[RadioRole, str]:
-    """The voices a listener chose on ``engine``, read forgivingly.
+    """The voices a listener chose on the engine in place, read forgivingly.
 
     Args:
         stored: The settings as stored (the JSONB column).
-        engine: The voice engine in place (``cast.engine_key``).
+        engine: The key the engine's voices are kept under (``EngineVoices.key``,
+            its provider).
 
     Returns:
-        The engine's own entry; failing that, the flat voices of a row written
-        before voices were kept per engine (the caller keeps only those the
-        engine offers).
+        Its own entry, or the fullest one an older release kept per model
+        (``engine_voices.stored_choice``); failing both, the flat voices of a row
+        written before voices were kept per engine (the caller keeps only those
+        the engine offers).
     """
-    kept = _stored_engines(stored).get(engine)
+    by_engine = stored.get(VOICES_BY_ENGINE) if isinstance(stored, dict) else None
+    kept = stored_choice(by_engine, engine, _role_voices)
     if kept:
         return kept
     return _role_voices(stored.get("voices") if isinstance(stored, dict) else None)
@@ -184,7 +185,8 @@ def with_engine_voices(
 
     Args:
         stored: The settings as stored.
-        engine: The voice engine the voices were chosen on.
+        engine: The key the voices were chosen under (``EngineVoices.key``, the
+            provider); its entries an older release kept per model go with it.
         voices: Its voices now (none: every role back to automatic).
 
     Returns:
@@ -193,7 +195,7 @@ def with_engine_voices(
     engines = {
         name: {role.value: voice for role, voice in chosen.items()}
         for name, chosen in _stored_engines(stored).items()
-        if name != engine and chosen
+        if chosen and not holds_choice_of(name, engine)
     }
     if voices:
         engines[engine] = {role.value: voice for role, voice in voices.items()}

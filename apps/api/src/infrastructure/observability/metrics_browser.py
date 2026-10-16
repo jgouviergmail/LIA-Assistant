@@ -2,7 +2,7 @@
 Prometheus metrics for browser automation.
 
 Tracks active sessions, actions, navigation latency, accessibility tree size,
-errors, and memory usage for the browser control feature.
+and errors for the browser control feature.
 
 Phase: evolution F7 — Browser Control (Playwright)
 """
@@ -42,11 +42,4 @@ browser_errors_total = Counter(
     "browser_errors_total",
     "Total browser errors",
     ["error_type"],
-)
-
-# Browser process memory usage (bytes)
-browser_memory_bytes = Gauge(
-    "browser_memory_bytes",
-    "Browser process memory usage in bytes",
-    multiprocess_mode="livesum",
 )

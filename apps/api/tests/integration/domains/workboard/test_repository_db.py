@@ -458,6 +458,9 @@ class TestAttention:
             ]
         )
         await async_session.commit()
+        # Force the read to hydrate its own partial ORM rows, rather than
+        # reusing fully loaded objects from the setup identity map.
+        async_session.expunge_all()
 
         figures = await read_attention(WorkboardRepository(async_session), owner_id, now, limit=2)
 
@@ -467,3 +470,25 @@ class TestAttention:
         assert figures.needs_me == 3, "two waiting on me, one late"
         assert len(figures.needs_me_first) == 2, "a page of the set, never its size"
         assert figures.needs_me_first[0].title == "late", "earliest due first"
+
+        from src.domains.briefing.fetchers import _workboard_item
+
+        assert set(figures.previews) == {
+            "needs_me",
+            "held_by_lia",
+            "held_by_peers",
+            "overdue",
+            "open_total",
+        }
+        assert [row.title for row in figures.previews["held_by_lia"]] == ["LIA works on it"]
+        assert figures.previews["held_by_peers"] == []
+        assert [row.title for row in figures.previews["overdue"]] == ["late"]
+        for group in figures.previews.values():
+            assert len(group) <= 2
+            for row in group:
+                projected = _workboard_item(row, now)
+                assert projected.id == str(row.id)
+                assert projected.title == row.title
+                assert projected.status == row.status
+                assert projected.due_at == row.due_at
+                assert projected.title not in {"LIA finished it", "the peer's own"}

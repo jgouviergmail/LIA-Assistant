@@ -20,7 +20,7 @@ from enum import Enum
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class PluginIssueCode(str, Enum):
@@ -115,6 +115,14 @@ class StdioServerConfig(BaseModel):
         default_factory=dict, description="Environment variables for the process"
     )
     cwd: str | None = Field(default=None, description="Working directory for the process")
+
+    @field_validator("cwd", mode="before", json_schema_input_type=str)
+    @classmethod
+    def validate_present_cwd(cls, value: object) -> object:
+        """Omission uses the default; an explicit JSON null is not a path (§7.2.1)."""
+        if value is None:
+            raise ValueError("cwd must be a string when present")
+        return value
 
 
 class StreamableHttpServerConfig(BaseModel):

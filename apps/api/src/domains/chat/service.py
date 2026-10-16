@@ -517,6 +517,7 @@ class TrackingContext:
         *,
         input_tokens: int | None = None,
         output_tokens: int | None = None,
+        billed_units: int | None = None,
     ) -> None:
         """Record a TTS synthesis call (synchronous; uses pre-loaded pricing cache).
 
@@ -526,17 +527,18 @@ class TrackingContext:
         share on the assistant bubble, read by ``get_tts_usage_for_archive()``
         (mirror of the STT attribution).
 
-        Edge TTS is free and MUST NOT call this method (the row stays NULL).
-        Free providers don't carry a meaningful "USD per character" axis, so
-        recording would inflate the audit trail with zero-value rows.
+        Reached through :func:`src.domains.voice.spoken.speak`, which never
+        records a free engine: a zero-value row would only inflate the audit trail.
 
         Args:
-            provider: TTS provider (``openai``, ``elevenlabs``, ``gemini``).
+            provider: TTS provider of the client that spoke.
             model: TTS model used (``tts-1``, ``tts-1-hd``, ``eleven_*``, …).
             characters: Number of characters synthesised in this call.
             duration_ms: Synthesis duration in milliseconds (debug panel hint).
             input_tokens: Text tokens billed, for a token-billed engine.
             output_tokens: Audio tokens billed, for a token-billed engine.
+            billed_units: Text units billed when they are not the characters
+                (UTF-8 bytes for a byte-billed engine).
         """
         record = tts_usage_record(
             provider,
@@ -545,6 +547,7 @@ class TrackingContext:
             duration_ms,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
+            billed_units=billed_units,
         )
         self._tts_records.append(record)
 

@@ -275,13 +275,13 @@ class BaseGoogleClient(BaseOAuthClient[ConnectorType]):
                     continue
 
                 # Client errors - don't retry
-                error_detail = response.text
+                error_detail = self._parse_error_detail(response)
                 logger.error(
                     "api_raw_request_error",
                     user_id=str(self.user_id),
                     connector_type=self.connector_type.value,
                     status_code=response.status_code,
-                    error=error_detail[:200],
+                    error=error_detail,
                 )
                 raise ConnectorAPIError(
                     connector_type=self.connector_type.value,
@@ -296,7 +296,7 @@ class BaseGoogleClient(BaseOAuthClient[ConnectorType]):
                         "api_raw_request_network_error",
                         user_id=str(self.user_id),
                         connector_type=self.connector_type.value,
-                        error=str(e),
+                        error_type=type(e).__name__,
                         attempt=attempt + 1,
                         wait_time=wait_time,
                     )
@@ -304,7 +304,7 @@ class BaseGoogleClient(BaseOAuthClient[ConnectorType]):
                     continue
                 raise ExternalServiceError(
                     service_name=self.connector_type.value,
-                    detail=f"{self.connector_type.value} API unavailable: {e!s}",
+                    detail=f"{self.connector_type.value} API unavailable: {type(e).__name__}",
                     error_type="connection_error",
                 ) from e
 

@@ -15,10 +15,14 @@ ordering).
 
 Typical usage (mode chat — chat LLM streaming + direct TTS)::
 
+    async def synth(text: str) -> str:
+        spoken = await speak(tts_client, text, voice, model=model, ledger=tracker)
+        return playable_base64(tts_client, spoken.audio)
+
     streamer = ProgressiveSentenceStreamer(
-        synth=lambda text: tts_client.synthesize_base64(text, voice_name=voice),
+        synth=synth,
         max_sentences=10,
-        audio_format=tts_client.audio_format,
+        audio_format=mix_audio_format(tts_client),
     )
 
     async def feed_chat_tokens():
@@ -167,7 +171,6 @@ class ProgressiveSentenceStreamer:
         audio_format: str = "mp3",
         *,
         sentence_delimiters: str | None = None,
-        on_chars_synthesized: Callable[[int], None] | None = None,
     ) -> None:
         """Initialise the streamer.
 
@@ -185,19 +188,16 @@ class ProgressiveSentenceStreamer:
                 Defaults to ``.!?`` when ``None`` is passed; production
                 callers should forward ``settings.voice_sentence_delimiters``
                 so the regex follows the admin-configurable knob.
-            on_chars_synthesized: Optional callback invoked synchronously
-                with the integer character count of every sentence the
-                provider actually SERVED — never at dispatch, so a refused
-                sentence spends nothing (measured 2026-09-20: four streams
-                refused on every sentence each recorded a TTS cost). Wires
-                in the TTS cost tracker without threading the tracker
-                through this module.
+
+        What a sentence costs is the synth's own business: it records the call
+        it makes (:func:`src.domains.voice.spoken.speak`), so a refused sentence
+        spends nothing (measured 2026-09-20: four streams refused on every
+        sentence each recorded a TTS cost).
         """
         self._synth = synth
         self._max_sentences = max(1, int(max_sentences))
         self._audio_format = audio_format
         self._sentence_end_re = _build_sentence_end_regex(sentence_delimiters or ".!?")
-        self._on_chars_synthesized = on_chars_synthesized
 
         self._buffer: str = ""
         self._dispatched: int = 0
@@ -365,7 +365,6 @@ class ProgressiveSentenceStreamer:
         chunk: VoiceAudioChunk | None = None
         try:
             audio_b64 = await self._synth(sentence)
-            self._count_served(sentence, idx)
             duration_ms = len(sentence) * VOICE_TTS_MS_PER_CHAR_HEURISTIC
             mime = AUDIO_MIME_TYPES.get(self._audio_format, DEFAULT_AUDIO_MIME_TYPE)
             chunk = VoiceAudioChunk(
@@ -388,16 +387,6 @@ class ProgressiveSentenceStreamer:
             chunk = None  # mark as failed so the slot is skipped in-order
 
         await self._stage_and_drain(idx, chunk)
-
-    def _count_served(self, sentence: str, idx: int) -> None:
-        """Charge a sentence's characters once the provider returned its audio."""
-        if self._on_chars_synthesized is None:
-            return
-        try:
-            self._on_chars_synthesized(len(sentence))
-        except Exception:
-            # Tracking callback failures must never break the stream.
-            logger.warning("tts_chars_callback_failed", phrase_index=idx)
 
     async def _stage_and_drain(self, idx: int, chunk: VoiceAudioChunk | None) -> None:
         """Park the chunk by phrase_index, then push every contiguous chunk

@@ -336,6 +336,11 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         "GET /api/v1/users/{user_id}",
         "PATCH /api/v1/users/{user_id}",
         "POST /api/v1/voice/ticket",
+        # LIA's voices for the visitor (ADR-345 amendment 2026-10-14): their own
+        # choice among the voices of the engine that speaks, on their own row; a
+        # write is checked against the catalogue the instance already offers.
+        "GET /api/v1/voice/lia-voices",
+        "PUT /api/v1/voice/lia-voices",
         # Three families were listed as `/x/*`, which never matched the bare
         # `/x`: the Relations overview, the learned-habits panel (and its
         # « forget everything »), the health samples list (and its per-kind

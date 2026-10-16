@@ -8,8 +8,8 @@ Features:
 - Email address detection and pseudonymization (SHA-256 hash)
 - Phone number detection and masking
 - Credit card number detection and masking
-- SSN, passport, driver license detection
-- Generic token/secret detection
+- SSN redacted by field name (no pattern: nine digits are also an order number)
+- Provider key and token detection (signature-prefixed formats only)
 - OAuth state fingerprinting (correlatable, non-reversible) and PKCE/code
   redaction (SEC-012)
 - URL credential stripping — verification/reset/OAuth query strings
@@ -24,9 +24,11 @@ Features:
 
 Industry Standards Used:
 - Email: RFC 5322 simplified pattern
-- Credit Cards: Luhn algorithm compatible (Visa, MC, Amex)
+- Credit cards: any 16-digit grouping (Visa, MC, ...) masked as written; Amex
+  (15 digits) masked when the Luhn check passes
 - Phones: Conservative international format (+country code required)
-- Tokens: Stripe, GitHub, JWT patterns
+- Tokens: Stripe, GitHub, OpenAI, Anthropic, Google (API key, OAuth access
+  token), JWT; a quoted Bearer credential or api_key value
 
 Usage:
     from src.infrastructure.observability.pii_filter import add_pii_filter
@@ -382,7 +384,10 @@ STRUCTLOG_META_FIELDS = {
 
 # Email pattern (RFC 5322 simplified)
 EMAIL_PATTERN = re.compile(
-    r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b",
+    # The local part is bounded (RFC 5321: 64). Unbounded, a try at every word
+    # boundary re-read the rest of the run: 40 000 characters of ``a.b+c-``
+    # took 4.5 s, and every log line goes through here (ADR-326).
+    r"\b[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b",
     re.IGNORECASE,
 )
 
@@ -392,7 +397,9 @@ PHONE_PATTERN = re.compile(
     r"\+\d{1,3}[\s.-]?\d{1,4}[\s.-]?\d{1,4}[\s.-]?\d{1,4}[\s.-]?\d{1,4}",
 )
 
-# Credit card pattern (Luhn algorithm compatible - matches Visa, MC, Amex, etc.)
+# 16-digit card numbers (Visa, MC, Discover...), masked WITHOUT a Luhn check:
+# masking a 16-digit identifier that is not a card costs nothing. Amex has its
+# own pattern below, with the check.
 CREDIT_CARD_PATTERN = re.compile(
     r"\b(?:\d{4}[-\s]?){3}\d{4}\b",
 )
@@ -419,10 +426,30 @@ CREDIT_CARD_PATTERN = re.compile(
 TOKEN_PATTERN = re.compile(
     r"\bsk_(?:live|test)_[A-Za-z0-9]{24,}\b|"  # Stripe secret keys
     r"\bgh[ps]_[A-Za-z0-9]{36,}\b|"  # GitHub personal / server / fine-grained tokens
+    # The deployment's own providers (points 21 and 39): OpenAI (legacy and
+    # project keys), Anthropic, Google API keys and OAuth access tokens.
+    r"\bsk-(?:proj-|ant-)?[A-Za-z0-9_-]{20,}|"
+    r"\bAIza[0-9A-Za-z_-]{35}\b|"
+    r"\bya29\.[0-9A-Za-z_-]{20,}|"
     # JWT: three URL-safe-base64 segments separated by dots; the header almost
     # always starts with ``eyJ`` (encoded ``{"alg``).
     r"\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b"
 )
+
+# A bearer credential quoted in free text — an HTTP error echoing its request
+# headers. The scheme stays, so the log still says what kind of auth was used.
+_BEARER_PATTERN = re.compile(r"(\bBearer\s+)[A-Za-z0-9._~+/=-]{20,}")
+
+# An API key quoted in free text — a JSON body, a header dict, an assignment.
+# A field NAMED api_key is already redacted by name; this is the key inside a
+# string value (an exception message quoting the request).
+_QUOTED_API_KEY_PATTERN = re.compile(
+    r"""(["']?(?:x-)?api[_-]?key["']?\s*[:=]\s*["']?)[^"'\s,;}&]{6,}""", re.IGNORECASE
+)
+
+# American Express: 15 digits grouped 4-6-5, starting 34 or 37. Masked only when
+# the Luhn check passes — fifteen digits are also an order or a parcel number.
+AMEX_PATTERN = re.compile(r"\b3[47]\d{2}[-\s]?\d{6}[-\s]?\d{5}\b")
 
 # URL query-string secret pattern (SEC-012). Matches a sensitive parameter and
 # its value on a `?`/`&` boundary, e.g. ``?token=abc`` or ``&code=xyz``. Only the
@@ -461,19 +488,20 @@ def pseudonymize_email(email: str) -> str:
     """
     Pseudonymize an email address using SHA-256 hash.
 
-    Pseudonymization allows for consistent identification (same email = same hash)
-    while protecting the actual email address. This is reversible if needed with
-    a secure mapping table, unlike full anonymization.
+    The same input bytes produce the same correlation key without writing the
+    address literally. This is an unkeyed digest: a known or guessed address can
+    be hashed and matched. The public prefix adds no protection against guessing,
+    and the result must not be treated as anonymous data or encryption.
 
     Args:
         email: Email address to pseudonymize
 
     Returns:
-        SHA-256 hash of the email (first 16 characters for readability)
+        Truncated SHA-256 digest with the ``email_hash_`` prefix.
 
     Example:
         >>> pseudonymize_email("user@example.com")
-        "email_hash_a1b2c3d4e5f6g7h8"
+        "email_hash_b4c9a289323b21a0"
     """
     email_hash = hashlib.sha256(email.encode("utf-8")).hexdigest()[:16]
     return f"email_hash_{email_hash}"
@@ -643,11 +671,29 @@ def sanitize_string(text: str, *, redact_content: bool = False) -> str:
 
     # Mask credit cards
     text = CREDIT_CARD_PATTERN.sub(lambda m: mask_credit_card(m.group(0)), text)
+    text = AMEX_PATTERN.sub(_mask_amex, text)
 
     # Redact generic tokens/API keys
     text = TOKEN_PATTERN.sub("[REDACTED_TOKEN]", text)
+    text = _BEARER_PATTERN.sub(r"\1[REDACTED_TOKEN]", text)
+    text = _QUOTED_API_KEY_PATTERN.sub(r"\1[REDACTED]", text)
 
     return text
+
+
+def _luhn_valid(digits: str) -> bool:
+    """The Luhn checksum every payment card number satisfies."""
+    total = 0
+    for index, char in enumerate(reversed(digits)):
+        digit = int(char) * (2 if index % 2 else 1)
+        total += digit - 9 if digit > 9 else digit
+    return total % 10 == 0
+
+
+def _mask_amex(match: re.Match[str]) -> str:
+    """Mask an Amex-shaped number when it is one (Luhn), leave it otherwise."""
+    digits = re.sub(r"\D", "", match.group(0))
+    return mask_credit_card(digits) if _luhn_valid(digits) else match.group(0)
 
 
 def _sanitize_url_locations(text: str, *, redact_content: bool) -> str:

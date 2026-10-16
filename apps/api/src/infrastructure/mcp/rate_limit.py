@@ -18,6 +18,7 @@ import httpx2
 import structlog
 from redis.exceptions import RedisError
 
+from src.core.config import settings
 from src.infrastructure.cache.redis import get_redis_cache
 
 logger = structlog.get_logger(__name__)
@@ -126,3 +127,91 @@ class MCPServerCooldown:
     @staticmethod
     def _redis_key(key: tuple[UUID, UUID]) -> str:
         return f"mcp:cooldown:{key[0]}:{key[1]}"
+
+
+# One consecutive failure more: the count survives the pause (so the next
+# failure doubles it), the pause doubles up to its cap.
+_RECORD_FAILURE = """
+local failures = redis.call('INCR', KEYS[1])
+redis.call('PEXPIRE', KEYS[1], ARGV[3])
+local pause = tonumber(ARGV[1]) * 2 ^ (failures - 1)
+if pause > tonumber(ARGV[2]) then
+    pause = tonumber(ARGV[2])
+end
+pause = math.floor(pause)
+redis.call('SET', KEYS[2], failures, 'PX', pause)
+return pause
+"""
+
+
+class MCPServerPausedError(RuntimeError):
+    """A personal MCP server is paused after failing to connect (point 29)."""
+
+    def __init__(self, retry_in_seconds: float) -> None:
+        self.retry_in_seconds = max(1, math.ceil(retry_in_seconds))
+        super().__init__(
+            "MCP server paused after repeated connection failures; "
+            f"next attempt in {self.retry_in_seconds} seconds."
+        )
+
+
+class MCPServerFailures:
+    """A server that failed to connect is not retried at every turn (point 29).
+
+    A dead server used to be tried again at each turn, one after another, each
+    attempt up to its timeout. A failure pauses it in Redis — shared by every
+    worker — for ``mcp_user_failure_pause_base_seconds``, doubling at each
+    consecutive failure up to ``mcp_user_failure_pause_max_seconds``; a success
+    clears it. Redis unreachable, nothing pauses: the server is tried as before.
+    """
+
+    async def remaining(self, key: tuple[UUID, UUID]) -> float:
+        """Seconds left in the server's pause; 0 when it may be tried."""
+        try:
+            redis = await get_redis_cache()
+            ttl = await redis.pttl(self._pause_key(key))
+        except RedisError:
+            logger.debug("mcp_failure_pause_read_unavailable", exc_info=True)
+            return 0.0
+        return ttl / 1000 if ttl > 0 else 0.0
+
+    async def record(self, key: tuple[UUID, UUID]) -> float:
+        """Count one more consecutive failure and pause the server.
+
+        Returns:
+            The pause given, in seconds; 0 when Redis could not be written.
+        """
+        base_ms = settings.mcp_user_failure_pause_base_seconds * 1000
+        cap_ms = settings.mcp_user_failure_pause_max_seconds * 1000
+        try:
+            redis = await get_redis_cache()
+            # The count outlives the pause it set, so the next failure doubles it.
+            pause_ms = await redis.eval(
+                _RECORD_FAILURE,
+                2,
+                self._count_key(key),
+                self._pause_key(key),
+                base_ms,
+                cap_ms,
+                cap_ms * 4,
+            )
+        except RedisError:
+            logger.debug("mcp_failure_pause_write_unavailable", exc_info=True)
+            return 0.0
+        return int(pause_ms) / 1000
+
+    async def clear(self, key: tuple[UUID, UUID]) -> None:
+        """Forget the server's failures: it answered."""
+        try:
+            redis = await get_redis_cache()
+            await redis.delete(self._count_key(key), self._pause_key(key))
+        except RedisError:
+            logger.debug("mcp_failure_pause_clear_unavailable", exc_info=True)
+
+    @staticmethod
+    def _count_key(key: tuple[UUID, UUID]) -> str:
+        return f"mcp:failure:count:{key[0]}:{key[1]}"
+
+    @staticmethod
+    def _pause_key(key: tuple[UUID, UUID]) -> str:
+        return f"mcp:failure:pause:{key[0]}:{key[1]}"

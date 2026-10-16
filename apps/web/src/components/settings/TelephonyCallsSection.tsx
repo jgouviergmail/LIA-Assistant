@@ -1,95 +1,58 @@
 'use client';
 
-/**
- * Recent outbound calls (A6) — the surface the backend was already serving.
- *
- * `GET /telephony/calls` shipped with the telephony domain and was wired to
- * nothing. Once a call was confirmed in the chat, the product went silent: no
- * sign that LIA was dialing, and — if the post-call notification was missed —
- * no way to ever read the outcome, which sat in the database out of reach.
- *
- * What is shown, and what is deliberately not:
- *  - the callee's NAME, the objective, the status, the outcome and the recap —
- *    each call folded, its header saying who, when, how long and how it went;
- *  - never the phone number. The API omits it on purpose (encrypted at rest),
- *    and `TelephonyCallSummary` has no field for it, so it cannot leak here.
- *
- * While a call is in flight the list refreshes on its own. That is a refresh,
- * not a stream: the vendor only sends a POST-call webhook, so there is nothing
- * live to subscribe to and the UI does not pretend there is.
- */
-
-import { Loader2, Phone, PhoneCall } from 'lucide-react';
-
+/** Recent calls: a bounded chronological index, with factual times and reviewable chat drafts. */
+import { useId, useRef, useState } from 'react';
+import { Clock3, FileText, Loader2, PhoneCall, RefreshCw, Target, Timer } from 'lucide-react';
 import { useTranslation } from '@/i18n/client';
 import { Badge } from '@/components/ui/badge';
-import { Disclosure } from '@/components/ui/disclosure';
-import { CallDebrief } from '@/components/telephony/CallDebrief';
-import { CallDecisions } from '@/components/telephony/CallDecisions';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { TimelineDayGroup } from '@/components/ui/timeline-group';
+import { CallDebrief, CallDebriefActions } from '@/components/telephony/CallDebrief';
+import { CallDecisions, CallDecisionsActions } from '@/components/telephony/CallDecisions';
 import { SettingsSection } from '@/components/settings/SettingsSection';
+import { useAuth } from '@/hooks/useAuth';
 import { useTelephonyCalls } from '@/hooks/useTelephonyCalls';
 import { formatDate, formatEuro } from '@/lib/format';
 import { callOutcomeTone, lifecycleTone, relayOutcomeTone } from '@/lib/status-tone';
+import { projectCallTimeline } from '@/lib/telephony/timeline';
 import { ACTIVE_CALL_STATUSES, type TelephonyCallSummary } from '@/types/telephony';
 import type { BaseSettingsProps } from '@/types/settings';
 import type { Language } from '@/i18n/settings';
 
-/** `62` → `1 min 2 s`, `48` → `48 s`. */
-function formatDuration(seconds: number): string {
+type TimelineItem = ReturnType<typeof projectCallTimeline>['days'][number]['entries'][number];
+const RECENT_CALLS_LIMIT = 10;
+
+function durationLabel(seconds: number | null): string | null {
+  if (seconds === null || !Number.isFinite(seconds) || seconds < 0) return null;
   const whole = Math.round(seconds);
-  if (whole < 60) return `${whole} s`;
-  return `${Math.floor(whole / 60)} min ${whole % 60} s`;
+  return whole < 60 ? `${whole} s` : `${Math.floor(whole / 60)} min ${whole % 60} s`;
 }
 
-/**
- * The call's start as two facts, date and time, in the reader's language.
- *
- * `created_at` is when LIA dialled — the API carries no separate answer time.
- * An unreadable instant yields nothing rather than "Invalid Date".
- */
-function startFacts(createdAt: string, lng: Language): string[] {
-  const started = new Date(createdAt);
-  if (Number.isNaN(started.getTime())) return [];
-  return [
-    formatDate(started, lng, { dateStyle: 'medium' }),
-    formatDate(started, lng, { timeStyle: 'short' }),
-  ];
-}
-
-/**
- * The badges of a call: status, outcome, kind, mode and relay verdict.
- *
- * The status and the outcome are `Badge`s named by `status-tone`
- * (ADR-205/206), not hand-written pills. The previous pill had TWO states —
- * "in flight" or grey — so `completed`, `failed`, `no_answer` and `cancelled`
- * were the same object on screen, and neither pill went through the
- * design-system contrast guard.
- */
-function CallBadges({ call, lng }: { call: TelephonyCallSummary; lng: Language }) {
+function CallTraits({ call, lng }: { call: TelephonyCallSummary; lng: Language }) {
   const { t } = useTranslation(lng);
+  const duration = durationLabel(call.call_seconds);
   return (
-    <span className="flex flex-wrap gap-1.5">
-      <Badge variant={lifecycleTone(call.status)} size="sm">
-        {t(`settings.telephony.calls.status.${call.status}`)}
-      </Badge>
+    <>
+      {duration !== null && (
+        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Timer className="size-3.5 shrink-0" aria-hidden="true" />
+          <span className="sr-only">{t('settings.telephony.calls.duration')} </span>
+          <span>{duration}</span>
+        </span>
+      )}
       {call.outcome && (
         <Badge variant={callOutcomeTone(call.outcome)} size="sm">
           {t(`settings.telephony.calls.outcome.${call.outcome}`)}
         </Badge>
       )}
-      {/* Phone as a channel: a call WITH the person (or the verification of
-          their number) is not an errand for them — the kind says which, and
-          the relay verdict says whether their words reached the chat. */}
       {call.call_kind !== 'third_party' && (
-        <Badge variant="secondary" size="sm">
+        <Badge variant="default" size="sm">
           {t(`settings.telephony.calls.kind.${call.call_kind}`)}
         </Badge>
       )}
-      {/* ADR-301: a call WITH the person ran Live (every request handed to the
-          chat as it was said) or Live direct (relayed at its end) — the mode
-          it RAN, which the closing honoured, not today's setting. */}
       {call.call_kind === 'self' && (
-        <Badge variant="outline" size="sm">
+        <Badge variant="default" size="sm">
           {t(`settings.telephony.identity.call_mode.${call.call_mode}`)}
         </Badge>
       )}
@@ -98,79 +61,175 @@ function CallBadges({ call, lng }: { call: TelephonyCallSummary; lng: Language }
           {t(`settings.telephony.calls.relay.${call.relay_outcome}`)}
         </Badge>
       )}
+    </>
+  );
+}
+
+function CallClock({ entry, lng }: { entry: TimelineItem; lng: Language }) {
+  const { t } = useTranslation(lng);
+  return (
+    <span className="col-start-1 row-start-1 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-sm tabular-nums text-muted-foreground sm:row-span-2 sm:flex-col sm:items-start">
+      <span className="inline-flex items-center gap-1.5">
+        <Clock3 className="size-3.5 shrink-0 text-primary" aria-hidden="true" />
+        {entry.start ? (
+          <time
+            dateTime={entry.call.created_at}
+            title={formatDate(entry.call.created_at, lng, {
+              dateStyle: 'full',
+              timeStyle: 'short',
+            })}
+          >
+            <span className="sr-only">{t('settings.telephony.calls.start')} </span>
+            {entry.start}
+          </time>
+        ) : (
+          <span>{t('settings.telephony.calls.unknown_date')}</span>
+        )}
+      </span>
+      {entry.end && entry.call.completed_at && (
+        <span className="inline-flex flex-wrap items-center gap-x-1.5 sm:pl-5">
+          <span className="sm:hidden" aria-hidden="true">
+            –
+          </span>
+          <time
+            dateTime={entry.call.completed_at ?? undefined}
+            title={formatDate(entry.call.completed_at, lng, {
+              dateStyle: 'full',
+              timeStyle: 'short',
+            })}
+          >
+            <span className="sr-only">{t('settings.telephony.calls.end')} </span>
+            {entry.end}
+          </time>
+          {entry.endDay && <span className="basis-full text-xs">{entry.endDay}</span>}
+        </span>
+      )}
     </span>
   );
 }
 
-/**
- * One call, folded by default (owner request 2026-10-03).
- *
- * Ten calls unfolded were a wall of recaps. Folded, each is an index entry
- * that still answers the scanning questions — who, when, how long, and how it
- * went (the badges, on their own line so they wrap on a phone) — while the
- * objective, the recap, the decisions, the debrief and the bill wait behind
- * the fold. A call still in flight keeps its spinner in the header.
- */
-function CallRow({ call, lng }: { call: TelephonyCallSummary; lng: Language }) {
+function CallRow({ entry, lng }: { entry: TimelineItem; lng: Language }) {
   const { t } = useTranslation(lng);
-  const isActive = ACTIVE_CALL_STATUSES.includes(call.status);
-  const facts = startFacts(call.created_at, lng);
-  if (call.call_seconds !== null) facts.push(formatDuration(call.call_seconds));
-
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  const { call } = entry;
+  const active = ACTIVE_CALL_STATUSES.includes(call.status);
   return (
-    <li>
-      <Disclosure
-        icon={isActive ? Loader2 : Phone}
-        iconClassName={isActive ? 'animate-spin' : undefined}
-        title={call.callee_display}
-        description={facts.length > 0 ? facts.join(' · ') : undefined}
-        meta={<CallBadges call={call} lng={lng} />}
+    <li className="min-w-0">
+      <details
+        open={open}
+        onToggle={event => setOpen(event.currentTarget.open)}
+        className="min-w-0 bg-card"
       >
-        <div className="space-y-1">
-          <p className="text-sm text-muted-foreground">{call.objective}</p>
-          {call.summary && <p className="text-sm">{call.summary}</p>}
-          {/* T01: the structured debrief, ACTIONABLE here — each follow-up can
-              be sent to the chat as an executable intent (ADR-173). */}
-          {/* Decisions BEFORE the debrief: a surcharge or an option left open
-              is what the reader has to answer, while the lists below are what
-              the call produced. Reading order follows what has to be acted on. */}
-          <CallDecisions
-            data={call.structured_data}
-            calleeDisplay={call.callee_display}
-            objective={call.objective}
-            lng={lng}
-            actionable
-          />
-          {call.debrief && <CallDebrief debrief={call.debrief} lng={lng} actionable />}
-          {/* Lot 8: the call's cumulated bill — the same summary the chat meter reads. */}
-          {call.usage && (
-            <p className="text-px-11 text-muted-foreground/80">
-              {t('settings.telephony.calls.usage', {
-                tokens: (call.usage.tokens_in + call.usage.tokens_out).toLocaleString(lng),
-                cost: formatEuro(call.usage.cost_eur, 4, lng),
-              })}
-            </p>
-          )}
-        </div>
-      </Disclosure>
+        <summary
+          aria-label={call.callee_display}
+          aria-describedby={`${id}-time ${id}-status ${id}-meta`}
+          className="grid min-h-14 min-w-0 cursor-pointer list-none grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-2 rounded-lg p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:grid-cols-[8.5rem_minmax(0,1fr)_auto] sm:p-4 [&::-webkit-details-marker]:hidden"
+        >
+          <span id={`${id}-time`} className="contents">
+            <CallClock entry={entry} lng={lng} />
+          </span>
+          <span
+            id={`${id}-status`}
+            className="col-start-2 row-start-1 justify-self-end sm:col-start-3"
+          >
+            <Badge variant={lifecycleTone(call.status)} size="sm">
+              {active && (
+                <Loader2
+                  className="mr-1 size-3 shrink-0 animate-spin motion-reduce:animate-none"
+                  aria-hidden="true"
+                />
+              )}
+              {t(`settings.telephony.calls.status.${call.status}`)}
+            </Badge>
+          </span>
+          <span className="col-span-2 col-start-1 row-start-2 min-w-0 break-words text-sm font-normal leading-relaxed text-foreground [overflow-wrap:anywhere] sm:col-span-1 sm:col-start-2 sm:row-start-1">
+            {call.callee_display}
+          </span>
+          <span
+            id={`${id}-meta`}
+            className="col-span-2 col-start-1 row-start-3 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5 sm:col-start-2 sm:row-start-2"
+          >
+            <CallTraits call={call} lng={lng} />
+          </span>
+        </summary>
+        {open && (
+          <div className="min-w-0 space-y-4 border-t border-border/60 p-3 [overflow-wrap:anywhere] sm:p-4">
+            {call.usage && (
+              <p className="text-xs text-muted-foreground">
+                {t('settings.telephony.calls.usage', {
+                  tokens: (call.usage.tokens_in + call.usage.tokens_out).toLocaleString(lng),
+                  cost: formatEuro(call.usage.cost_eur, 4, lng),
+                })}
+              </p>
+            )}
+            <div className="space-y-2">
+              <p className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                <Target className="size-4 shrink-0 text-primary" aria-hidden="true" />
+                {t('settings.telephony.calls.objective')}
+              </p>
+              <p className="whitespace-pre-wrap text-sm leading-relaxed">{call.objective}</p>
+            </div>
+            {call.summary && (
+              <div className="space-y-2">
+                <p className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                  <FileText className="size-4 shrink-0 text-primary" aria-hidden="true" />
+                  {t('settings.telephony.calls.summary')}
+                </p>
+                <p className="whitespace-pre-wrap text-sm leading-relaxed">{call.summary}</p>
+              </div>
+            )}
+            <CallDecisions
+              data={call.structured_data}
+              calleeDisplay={call.callee_display}
+              objective={call.objective}
+              lng={lng}
+            />
+            {call.debrief && <CallDebrief debrief={call.debrief} lng={lng} />}
+            <div className="space-y-3 empty:hidden">
+              <CallDecisionsActions
+                data={call.structured_data}
+                calleeDisplay={call.callee_display}
+                objective={call.objective}
+                lng={lng}
+              />
+              {call.debrief && <CallDebriefActions debrief={call.debrief} lng={lng} />}
+            </div>
+          </div>
+        )}
+      </details>
     </li>
   );
 }
 
-/** The section shows the 10 most recent calls only (owner arbitration
- *  2026-07-30) — the full history stays in the database, out of the way. */
-const RECENT_CALLS_LIMIT = 10;
+/** Changing accounts also resets expanded rows and the local manual-refresh lock. */
+export default function TelephonyCallsSection(props: BaseSettingsProps) {
+  const { user } = useAuth();
+  return <CallHistory key={user?.id ?? 'anonymous'} {...props} />;
+}
 
-export default function TelephonyCallsSection({ lng }: BaseSettingsProps) {
+function CallHistory({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
-  const { calls, hasActiveCall, isLoading, isUnavailable } = useTelephonyCalls(
+  const id = useId();
+  const { calls, hasActiveCall, isLoading, isUnavailable, error, refetch } = useTelephonyCalls(
     true,
     RECENT_CALLS_LIMIT
   );
-
-  // Feature off, or nothing ever dialled: no empty shelf on the settings page.
-  if (isUnavailable || (!isLoading && calls.length === 0)) return null;
-
+  const [refreshing, setRefreshing] = useState(false);
+  const pending = useRef(false);
+  const refresh = async () => {
+    if (pending.current) return;
+    pending.current = true;
+    setRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      pending.current = false;
+      setRefreshing(false);
+    }
+  };
+  const { days } = projectCallTimeline(calls, lng);
+  if (isUnavailable || (!isLoading && !error && calls.length === 0)) return null;
   return (
     <SettingsSection
       value="telephony-calls"
@@ -178,15 +237,65 @@ export default function TelephonyCallsSection({ lng }: BaseSettingsProps) {
       description={t('settings.telephony.calls.description')}
       icon={PhoneCall}
     >
-      {/* Polite: a call ending is worth announcing, not worth interrupting. */}
       <div aria-live="polite" className="sr-only">
         {hasActiveCall ? t('settings.telephony.calls.in_flight') : ''}
       </div>
-      <ul className="space-y-2">
-        {calls.map(call => (
-          <CallRow key={call.id} call={call} lng={lng} />
+      <div className="space-y-5">
+        <div className="flex min-w-0 flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0 space-y-1 text-sm text-muted-foreground">
+            <p>{t('settings.telephony.calls.timeline_hint')}</p>
+            {calls.length > 0 && (
+              <p className="text-xs tabular-nums">
+                {t('settings.telephony.calls.count', { count: calls.length })}
+              </p>
+            )}
+          </div>
+          {!isLoading && (
+            <Button
+              variant={error ? 'outline' : 'default'}
+              onClick={() => void refresh()}
+              aria-disabled={refreshing}
+              aria-busy={refreshing || undefined}
+              className="min-h-11 max-w-full shrink-0 whitespace-normal text-left sm:min-h-9"
+            >
+              <RefreshCw
+                className={refreshing ? 'animate-spin motion-reduce:animate-none' : undefined}
+                aria-hidden="true"
+              />
+              {t(error ? 'common.retry' : 'settings.telephony.calls.refresh')}
+            </Button>
+          )}
+        </div>
+        {error && (
+          <p
+            role="alert"
+            className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-foreground"
+          >
+            {t(
+              calls.length
+                ? 'settings.telephony.calls.refresh_error'
+                : 'settings.telephony.calls.load_error'
+            )}
+          </p>
+        )}
+        {isLoading && <Skeleton className="h-28 w-full rounded-xl" label={t('common.loading')} />}
+        {days.map(day => (
+          <TimelineDayGroup
+            key={day.id}
+            headingId={`${id}-${day.id}`}
+            heading={day.label ?? t('settings.telephony.calls.unknown_date')}
+            dayNumber={day.dayNumber}
+            month={day.month}
+            level={4}
+          >
+            <ul className="divide-y divide-border/60">
+              {day.entries.map(entry => (
+                <CallRow key={entry.call.id} entry={entry} lng={lng} />
+              ))}
+            </ul>
+          </TimelineDayGroup>
         ))}
-      </ul>
+      </div>
     </SettingsSection>
   );
 }

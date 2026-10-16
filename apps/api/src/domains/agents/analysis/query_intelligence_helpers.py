@@ -31,6 +31,7 @@ from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from src.core.i18n import resolve_language
+from src.domains.agents.analysis.efficacy_context import read_analysis, read_turn_context
 from src.domains.agents.analysis.requested_outcomes import anchored_requirements, parse_requirements
 from src.domains.agents.analysis.resolved_references import (
     ResolvedReferenceEntry,
@@ -228,6 +229,8 @@ def reconstruct_query_intelligence(data: dict[str, Any]) -> QueryIntelligence:
         # Indexable vs Semantic hint - CRITICAL for semantic_validator leak detection
         semantic_filter_terms=tuple(data.get("semantic_filter_terms", ())),
         has_temporal_reference=bool(data.get("has_temporal_reference", False)),
+        efficacy_analysis=read_analysis(data.get("efficacy_analysis")),
+        efficacy_context=read_turn_context(data.get("efficacy_context")),
         requested_outcomes=anchored_requirements(
             parse_requirements(data.get("requested_outcomes")),
             data.get("original_query", ""),

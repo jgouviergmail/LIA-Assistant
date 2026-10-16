@@ -1,9 +1,10 @@
 'use client';
 
-import { Heart, Footprints } from 'lucide-react';
+import { Heart, HeartPulse, Footprints } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { BriefingCard } from '../BriefingCard';
 import { formatNumberLocale } from '@/lib/briefing-utils';
+import { cn } from '@/lib/utils';
 import type { CardSection, HealthData, HealthSummaryItem } from '@/types/briefing';
 
 interface HealthCardProps {
@@ -31,26 +32,40 @@ export function HealthCard({ section, isRefreshing, onRefresh, staggerIndex }: H
 }
 
 function HealthContent({ data }: { data: HealthData }) {
-  // Single CSS grid shared by all metrics so the [today | sep | avg] columns
-  // line up vertically across rows (1fr auto 1fr → equal value columns,
-  // identical separator position regardless of label widths).
+  // Narrow cards stack complete numbers; wider cards align today and average
+  // in equal columns. The container query follows the available card width.
   // Each <li> uses `display: contents` so its children participate directly
   // in the parent grid while preserving list semantics for screen readers.
   return (
-    <ul className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-baseline gap-x-3 gap-y-1">
-      {data.items.map(item => (
-        <HealthMetricRow key={item.kind} item={item} />
-      ))}
-    </ul>
+    <div className="@container w-full max-w-sm">
+      <ul className="grid grid-cols-1 items-center justify-items-center gap-x-3 gap-y-2 text-center @min-[20rem]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+        {data.items.map(item => (
+          <HealthMetricRow key={item.kind} item={item} />
+        ))}
+      </ul>
+    </div>
   );
+}
+
+// Visual thresholds follow the rounded number the card actually displays.
+function dailyInk(kind: HealthSummaryItem['kind'], value: number | null): string {
+  if (value === null) return 'text-foreground';
+  if (kind === 'steps') {
+    if (value <= 5000) return 'text-red-700 dark:text-red-300';
+    if (value >= 10000) return 'text-green-700 dark:text-green-300';
+  } else {
+    if (value <= 70) return 'text-green-700 dark:text-green-300';
+    if (value >= 90) return 'text-red-700 dark:text-red-300';
+  }
+  return 'text-orange-700 dark:text-orange-300';
 }
 
 function HealthMetricRow({ item }: { item: HealthSummaryItem }) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language || 'fr';
-  const Icon = item.kind === 'steps' ? Footprints : Heart;
-  const todayLabel =
-    item.value_today !== null ? formatNumberLocale(Math.round(item.value_today), locale) : '—';
+  const Icon = item.kind === 'steps' ? Footprints : HeartPulse;
+  const todayValue = item.value_today === null ? null : Math.round(item.value_today);
+  const todayLabel = todayValue !== null ? formatNumberLocale(todayValue, locale) : '—';
   const windowLabel =
     item.value_avg_window !== null
       ? formatNumberLocale(Math.round(item.value_avg_window), locale)
@@ -63,35 +78,42 @@ function HealthMetricRow({ item }: { item: HealthSummaryItem }) {
   // every metric except the first, without an isFirst prop.
   return (
     <li className="contents [&:not(:first-child)>*:first-child]:mt-7">
-      {/* Header row — spans the 3 columns, centered */}
-      <div className="col-span-3 flex items-center justify-center gap-2">
+      {/* Both metrics share centered, aligned today and average columns. */}
+      <div className="col-span-full mb-2 flex items-center justify-center gap-2">
         <Icon className="h-4 w-4 text-red-600 dark:text-red-300 shrink-0" />
-        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <span className="text-sm font-medium text-foreground/90">
           {t(`dashboard.briefing.cards.health.kind_${item.kind}`)}
         </span>
       </div>
 
       {/* Today column */}
-      <div className="flex flex-col items-end leading-tight">
-        <span className="text-base font-bold tabular-nums text-foreground">
+      <div className="flex min-w-0 flex-col items-center gap-1.5 leading-tight">
+        <span
+          className={cn(
+            'whitespace-nowrap text-4xl font-semibold tabular-nums tracking-tight',
+            dailyInk(item.kind, todayValue)
+          )}
+        >
           {todayLabel}
-          <span className="ml-1 text-xs font-normal text-muted-foreground">{unitLabel}</span>
         </span>
-        <span className="text-px-10 uppercase tracking-wide text-muted-foreground">
-          {t('dashboard.briefing.cards.health.today')}
+        <span className="text-xs text-muted-foreground">
+          {unitLabel} · {t('dashboard.briefing.cards.health.today')}
         </span>
       </div>
 
       {/* Vertical separator — auto column ensures consistent X position across rows */}
-      <div className="h-7 w-px self-center bg-border/50" aria-hidden="true" />
+      <div
+        className="h-px w-12 bg-border/50 @min-[20rem]:h-full @min-[20rem]:w-px @min-[20rem]:self-stretch"
+        aria-hidden="true"
+      />
 
       {/* Window average column */}
-      <div className="flex flex-col items-start leading-tight">
-        <span className="text-base font-bold tabular-nums text-foreground/80">
+      <div className="flex min-w-0 flex-col items-center gap-1.5 leading-tight">
+        <span className="text-px-26 font-semibold tabular-nums tracking-tight text-foreground/80">
           {windowLabel}
-          <span className="ml-1 text-xs font-normal text-muted-foreground">{unitLabel}</span>
         </span>
-        <span className="text-px-10 uppercase tracking-wide text-muted-foreground">
+        <span className="text-xs text-muted-foreground">
+          {unitLabel} ·{' '}
           {t('dashboard.briefing.cards.health.avg_window', { window: item.window_days })}
         </span>
       </div>

@@ -16,8 +16,8 @@
  * request sent.
  */
 
-import { useState } from 'react';
-import { UserPlus } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Search, UserPlus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,42 +49,57 @@ export function PeerDiscoveryBlock({
   const [contextMessage, setContextMessage] = useState('');
   const [results, setResults] = useState<DiscoveryMatch[] | null>(null);
   const [searching, setSearching] = useState(false);
+  const [requesting, setRequesting] = useState(false);
+  const operationLock = useRef(false);
+  const searchInput = useRef<HTMLInputElement>(null);
+  const busy = mutating || searching || requesting;
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmed = query.trim();
-    if (!trimmed) return;
+    if (!trimmed || mutating || operationLock.current) return;
+    operationLock.current = true;
     setSearching(true);
     try {
       const matches = await search(trimmed);
       setResults(matches ?? null);
     } finally {
+      operationLock.current = false;
       setSearching(false);
     }
   };
 
   const handleRequest = async (peerId: string) => {
-    const note = contextMessage.trim();
-    const ok = await onSendRequest(peerId, note ? note : undefined);
-    if (ok) {
-      // The request now lives in the outgoing list — clear the local state.
-      setResults(null);
-      setQuery('');
-      setContextMessage('');
+    if (mutating || operationLock.current) return;
+    operationLock.current = true;
+    setRequesting(true);
+    try {
+      const note = contextMessage.trim();
+      const ok = await onSendRequest(peerId, note ? note : undefined);
+      if (ok) {
+        setResults(null);
+        setQuery('');
+        setContextMessage('');
+        searchInput.current?.focus();
+      }
+    } finally {
+      operationLock.current = false;
+      setRequesting(false);
     }
   };
 
   return (
-    // Headerless on purpose: the section shell folds this block behind a
-    // `Disclosure` whose summary already carries the title.
+    // The search panel supplies the heading; its labelled form stays directly accessible.
     <div className="space-y-3">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-2 sm:flex-row sm:items-end">
-        <div className="flex-1 space-y-3">
+      <form onSubmit={handleSubmit} className="flex flex-col items-stretch gap-3 sm:items-start">
+        <div className="w-full space-y-3">
           <Label htmlFor="peers-discovery-search">
             {t('settings.peers.discovery.search_label')}
           </Label>
           <Input
             id="peers-discovery-search"
+            ref={searchInput}
+            readOnly={busy}
             value={query}
             onChange={event => setQuery(event.target.value)}
             placeholder={t('settings.peers.discovery.search_placeholder')}
@@ -92,7 +107,8 @@ export function PeerDiscoveryBlock({
             spellCheck={false}
           />
         </div>
-        <Button type="submit" disabled={searching || !query.trim()}>
+        <Button type="submit" aria-busy={searching} aria-disabled={busy || !query.trim()}>
+          <Search aria-hidden="true" />
           {t('settings.peers.discovery.search_button')}
         </Button>
       </form>
@@ -110,6 +126,7 @@ export function PeerDiscoveryBlock({
             </Label>
             <Textarea
               id="peers-discovery-context"
+              readOnly={busy}
               value={contextMessage}
               onChange={event => setContextMessage(event.target.value)}
               placeholder={t('settings.peers.discovery.context_placeholder')}
@@ -119,13 +136,10 @@ export function PeerDiscoveryBlock({
           </div>
           <ul className="space-y-2">
             {results.map(match => (
-              <li
-                key={match.peer_id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-2"
-              >
+              <li key={match.peer_id} className="space-y-3 rounded-xl border border-border/50 p-3">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{match.display_name}</p>
-                  <p className="text-xs text-muted-foreground">{match.email_hint}</p>
+                  <p className="break-words text-sm font-medium">{match.display_name}</p>
+                  <p className="break-all text-xs text-muted-foreground">{match.email_hint}</p>
                 </div>
                 {match.relationship !== 'none' ? (
                   <span className="rounded-full border border-primary/25 bg-primary/10 px-2 py-0.5 text-xs font-medium text-foreground/80">
@@ -137,7 +151,7 @@ export function PeerDiscoveryBlock({
                   <Button
                     type="button"
                     size="sm"
-                    disabled={mutating}
+                    aria-disabled={busy}
                     onClick={() => void handleRequest(match.peer_id)}
                   >
                     <UserPlus className="mr-1 h-4 w-4" aria-hidden="true" />

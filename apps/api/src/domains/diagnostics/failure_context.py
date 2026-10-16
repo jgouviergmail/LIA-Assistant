@@ -149,6 +149,27 @@ def _is_failed_step(step: object) -> bool:
     )
 
 
+def failed_step_codes(completed_steps: dict[str, Any] | None) -> list[str | None]:
+    """The stored code of EVERY failed step — exact where the listed entries are capped.
+
+    Reads the same predicate as the directive, so a counter built on it counts
+    what the model is told, one entry per FOR_EACH item and never the
+    aggregate (ADR-346).
+
+    Args:
+        completed_steps: The state's step results (may be None/malformed).
+
+    Returns:
+        One entry per failed step, in stored order: its code, or None when the
+        step carried none.
+    """
+    return [
+        step.get(FIELD_ERROR_CODE)
+        for step in (completed_steps or {}).values()
+        if _is_failed_step(step)
+    ]
+
+
 def count_failed_steps(completed_steps: dict[str, Any] | None) -> int:
     """The EXACT number of failed steps — the list is bounded, the count is not.
 
@@ -161,7 +182,7 @@ def count_failed_steps(completed_steps: dict[str, Any] | None) -> int:
     Returns:
         How many steps failed, aggregates excluded.
     """
-    return sum(1 for step in (completed_steps or {}).values() if _is_failed_step(step))
+    return len(failed_step_codes(completed_steps))
 
 
 def extract_failures_from_tool_messages(
@@ -223,7 +244,9 @@ def _tool_message_failure(message: ToolMessage) -> tuple[str, str] | None:
     stayed empty on every ReAct turn (measured in production: a scheduled
     briefing announced that three ACTIVE connectors were not configured).
 
-    A JSON body is still read when present, for the codes it carries.
+    The CODE is structural too: the ReAct executor writes a declared
+    failure's code on ``response_metadata`` (RC1.2). A JSON body is still read
+    when present, for the codes it carries.
 
     Args:
         message: One ToolMessage of the run.
@@ -246,9 +269,12 @@ def _tool_message_failure(message: ToolMessage) -> tuple[str, str] | None:
     if payload is not None:
         code = str(payload.get(FIELD_ERROR_CODE) or payload.get(FIELD_ERROR) or "UNKNOWN")
         return code, str(payload.get("message") or payload.get(FIELD_ERROR) or text)
-    # No code to read: the ReAct body carries the tool's prose, and the
-    # directive's UNKNOWN branch tells the model to quote the message as-is.
-    return "UNKNOWN", text
+    # The ReAct body carries the tool's prose: its code, when it declared one,
+    # travels on the message's metadata. Without one, the directive's UNKNOWN
+    # branch tells the model to quote the message as-is.
+    metadata = getattr(message, "response_metadata", None)
+    declared = metadata.get(FIELD_ERROR_CODE) if isinstance(metadata, dict) else None
+    return str(declared or "UNKNOWN"), text
 
 
 async def build_runtime_failures_directive(

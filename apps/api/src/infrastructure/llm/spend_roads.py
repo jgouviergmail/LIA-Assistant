@@ -67,6 +67,8 @@ LLM_SPEND_ROADS: dict[str, SpendRoad] = {
     "domains/agents/services/smart_planner_service.py": SpendRoad.TURN,
     # The send tools' content generation, moved out of emails_tools (ADR-314).
     "domains/agents/emails/content_generation.py": SpendRoad.TURN,
+    # The reply a mailbox draft holds, written in the turn (ADR-344).
+    "domains/agents/emails/reply_drafting.py": SpendRoad.TURN,
     "domains/agents/emails/digest.py": SpendRoad.TURN,
     "domains/agents/emails/attachment_content.py": SpendRoad.TURN,
     # The optional image prompt rewrite, inside the image tool's turn (ADR-315).

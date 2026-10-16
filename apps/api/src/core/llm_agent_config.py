@@ -51,6 +51,7 @@ class LLMAgentConfig(BaseModel):
         "elevenlabs",
         "edge",
         "typesafe",
+        "fishaudio",
     ] = Field(
         default="openai",
         description="LLM provider",

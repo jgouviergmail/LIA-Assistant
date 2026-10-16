@@ -57,6 +57,8 @@ KEY_FAMILIES: dict[str, KeyScope] = {
     "skill_proposal": KeyScope.CONVERSATION,
     "skill_proposals": KeyScope.CONVERSATION,
     # --- per-user caches: purged by a reset ------------------------------
+    # Per-message IMAP contents, including legacy and account-scoped IDs.
+    "apple_email": KeyScope.USER_CACHE,
     "contacts_list": KeyScope.USER_CACHE,
     "contacts_search": KeyScope.USER_CACHE,
     "contacts_details": KeyScope.USER_CACHE,
@@ -97,6 +99,10 @@ KEY_FAMILIES: dict[str, KeyScope] = {
     # what the claim is for. It expires on its own.
     "shared_flight": KeyScope.USER_RUNTIME,
     "mcp:cooldown": KeyScope.USER_RUNTIME,
+    # Point 29: a personal MCP server that failed to connect is paused; the
+    # consecutive-failure count and the pause, shared by every worker. A reset
+    # must not lift a pause the server earned.
+    "mcp:failure": KeyScope.USER_RUNTIME,
     # ADR-304: consecutive truncated Drive push drains — a circuit breaker's
     # state, not a cache (``rag`` is): a reset must not re-arm the breaker.
     "rag:drive_push": KeyScope.USER_RUNTIME,
@@ -159,6 +165,14 @@ KEY_FAMILIES: dict[str, KeyScope] = {
     "skill_proposal_claim": KeyScope.USER_RUNTIME,
     # --- global ---------------------------------------------------------------
     "elevenlabs:tts_slots": KeyScope.GLOBAL,
+    # The ElevenLabs voices an account offers: a vendor cache (ADR-345 amendment).
+    "elevenlabs:voices": KeyScope.GLOBAL,
+    # A Fish Audio account's in-flight requests, shared by every surface (ADR-345).
+    "fishaudio:capacity": KeyScope.GLOBAL,
+    # The Fish Audio voices an account offers (its own, licensed, pinned): a vendor cache.
+    "fishaudio:voices": KeyScope.GLOBAL,
+    # Designed voices waiting to be saved into the instance's library (ADR-345).
+    "fishaudio:design": KeyScope.GLOBAL,
     "avatar:lease": KeyScope.GLOBAL,
     "llm_cache": KeyScope.GLOBAL,
     "web_search": KeyScope.GLOBAL,

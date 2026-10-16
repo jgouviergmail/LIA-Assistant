@@ -1,31 +1,39 @@
-/**
- * Where the home page's lead-in sits (ADR-324 decision 30, owner request
- * 2026-09-27): under the quick-access bar, right above « My dashboard » — never
- * above the hero — and there too when the briefing fails, since what it carries
- * (the radio) does not depend on the briefing.
- */
+/** The independent radio follows the welcome and survives briefing failure. */
 import { describe, expect, it, vi } from 'vitest';
 
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
+import type { UseBriefingResult } from '@/hooks/useBriefing';
 
-const briefing = vi.hoisted(() => ({ failed: false }));
+const briefing = vi.hoisted(() => ({
+  failed: false,
+  text: undefined as UseBriefingResult['text'],
+}));
 vi.mock('@/hooks/useBriefing', () => ({
   useBriefing: () => ({
     cards: null,
     windows: null,
-    text: null,
+    text: briefing.text,
     cardsLoading: !briefing.failed,
     textLoading: !briefing.failed,
     error: briefing.failed ? new Error('down') : null,
     refetchAll: vi.fn(),
     refetchSection: vi.fn(),
+    invalidateSection: vi.fn(),
     refreshingSections: new Set(),
   }),
 }));
 vi.mock('@/hooks/useBriefingPreferences', () => ({
   useBriefingPreferences: () => ({ preferences: null }),
 }));
-vi.mock('../HeroLiaCard', () => ({ HeroLiaCard: () => <section aria-label="hero" /> }));
+vi.mock('../HeroLiaCard', () => ({
+  HeroLiaCard: ({ children }: { children?: React.ReactNode }) => (
+    <section aria-label="hero">{children}</section>
+  ),
+}));
+vi.mock('../DashboardDateHeading', () => ({ DashboardDateHeading: () => <h1>Today</h1> }));
+vi.mock('../BriefingSynthesis', () => ({
+  BriefingSynthesis: () => <section aria-label="synthesis">The daily point</section>,
+}));
 vi.mock('../QuickAccessCompact', () => ({
   QuickAccessCompact: () => <nav aria-label="quick access" />,
 }));
@@ -46,31 +54,79 @@ function follows(earlier: Element, later: Element): boolean {
 }
 
 describe('TodayBriefing lead-in', () => {
-  it('sits under the quick-access bar, right above « My dashboard », below the hero', () => {
+  it('sits once immediately below the welcome, before shortcuts', () => {
     briefing.failed = false;
     renderWithProviders(<TodayBriefing aboveBriefing={LEAD_IN} />);
     const hero = screen.getByRole('region', { name: 'hero' });
     const quickAccess = screen.getByRole('navigation', { name: 'quick access' });
     const radio = screen.getByRole('region', { name: 'radio' });
     const dashboard = screen.getByRole('heading', { name: 'dashboard.briefing.section_title' });
+    expect(screen.getAllByRole('region', { name: 'radio' })).toHaveLength(1);
+    expect(screen.getByRole('heading', { level: 1 }).nextElementSibling).toBe(hero);
+    expect(hero.nextElementSibling).toBe(radio);
+    expect(follows(radio, quickAccess)).toBe(true);
     expect(follows(hero, quickAccess)).toBe(true);
-    expect(follows(quickAccess, radio)).toBe(true);
     expect(follows(radio, dashboard)).toBe(true);
   });
 
-  it('stays under the quick-access bar when the briefing fails', () => {
+  it('stays once below the date when the briefing fails', () => {
     briefing.failed = true;
     renderWithProviders(<TodayBriefing aboveBriefing={LEAD_IN} />);
     const quickAccess = screen.getByRole('navigation', { name: 'quick access' });
     const radio = screen.getByRole('region', { name: 'radio' });
     const failure = screen.getByRole('region', { name: 'briefing error' });
-    expect(follows(quickAccess, radio)).toBe(true);
+    expect(screen.getAllByRole('region', { name: 'radio' })).toHaveLength(1);
+    expect(screen.getByRole('heading', { level: 1 }).nextElementSibling).toBe(radio);
+    expect(follows(radio, quickAccess)).toBe(true);
     expect(follows(radio, failure)).toBe(true);
+  });
+
+  it('preserves the radio node and focus through total failure and recovery', () => {
+    briefing.failed = false;
+    briefing.text = undefined;
+    const leadIn = (
+      <section aria-label="radio">
+        <button type="button">Listen</button>
+      </section>
+    );
+    const { rerender } = renderWithProviders(<TodayBriefing aboveBriefing={leadIn} />);
+    const radio = screen.getByRole('region', { name: 'radio' });
+    const listen = screen.getByRole('button', { name: 'Listen' });
+    listen.focus();
+    for (const failed of [true, false]) {
+      briefing.failed = failed;
+      rerender(<TodayBriefing aboveBriefing={leadIn} />);
+      expect(screen.getAllByRole('region', { name: 'radio' })).toHaveLength(1);
+      expect(screen.getByRole('region', { name: 'radio' })).toBe(radio);
+      expect(follows(screen.getByRole('heading', { level: 1 }), radio)).toBe(true);
+      expect(listen).toHaveFocus();
+    }
   });
 
   it('renders nothing extra when the page gives no lead-in', () => {
     briefing.failed = false;
     renderWithProviders(<TodayBriefing />);
     expect(screen.queryByRole('region', { name: 'radio' })).not.toBeInTheDocument();
+  });
+
+  it('keeps a single synthesis below the dashboard heading even on a refresh error', () => {
+    briefing.text = {
+      greeting: { text: 'Hello', generated_at: '2026-10-15T08:00:00Z', usage: null },
+      synthesis: { text: 'The daily point', generated_at: '2026-10-15T08:00:00Z', usage: null },
+    };
+    const { rerender } = renderWithProviders(<TodayBriefing aboveBriefing={LEAD_IN} />);
+    const point = screen.getByRole('region', { name: 'synthesis' });
+    const hero = screen.getByRole('region', { name: 'hero' });
+    expect(hero).not.toContainElement(point);
+    expect(follows(screen.getByRole('navigation', { name: 'quick access' }), point)).toBe(true);
+    expect(
+      follows(screen.getByRole('heading', { name: 'dashboard.briefing.section_title' }), point)
+    ).toBe(true);
+    briefing.failed = true;
+    rerender(<TodayBriefing aboveBriefing={LEAD_IN} />);
+    expect(screen.getAllByRole('region', { name: 'synthesis' })).toHaveLength(1);
+    expect(screen.getByRole('region', { name: 'synthesis' })).toBe(point);
+    expect(screen.getByRole('region', { name: 'radio' })).toBeInTheDocument();
+    briefing.text = undefined;
   });
 });

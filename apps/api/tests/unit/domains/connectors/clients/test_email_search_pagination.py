@@ -20,6 +20,7 @@ from uuid import uuid4
 import pytest
 
 from src.core.constants import MICROSOFT_GRAPH_BASE_URL
+from src.core.field_names import FIELD_SET_ASIDE_ON_PAGE
 from src.domains.connectors.clients.apple_email_client import AppleEmailClient
 from src.domains.connectors.clients.google_gmail_client import GoogleGmailClient
 from src.domains.connectors.clients.microsoft_outlook_client import MicrosoftOutlookClient
@@ -156,6 +157,25 @@ class TestGraphPagination:
         assert outlook._make_request_full_url.await_args.args[:2] == ("GET", next_link)
         outlook._make_request.assert_not_awaited()
 
+    async def test_a_continuation_checks_its_page_like_the_first(
+        self, outlook: MicrosoftOutlookClient
+    ) -> None:
+        """A continuation re-reads the conditions from the query it is given,
+        as Gmail re-reads its ``q``: a second page is never unchecked (RC3.1)."""
+        next_link = f"{MICROSOFT_GRAPH_BASE_URL}/me/messages?$skip=20"
+        unread = {"id": "AAMk-1", "isRead": False, "receivedDateTime": "2026-10-05T09:00:00Z"}
+        read = {**unread, "id": "AAMk-2", "isRead": True}
+        outlook._make_request_full_url = AsyncMock(  # type: ignore[method-assign]
+            return_value={"value": [unread, read]}
+        )
+
+        result = await outlook.search_emails(
+            "report is:unread", max_results=20, page_token=next_link
+        )
+
+        assert [message["id"] for message in result["messages"]] == ["AAMk-1"]
+        assert result[FIELD_SET_ASIDE_ON_PAGE] == 1
+
     @pytest.mark.parametrize(
         "token",
         [
@@ -194,11 +214,12 @@ class _FakeMailBox:
         self.messages = messages
         self.fetch_calls: list[dict[str, object]] = []
         self.folder = MagicMock()
+        self.client = MagicMock(untagged_responses={"UIDVALIDITY": [b"1"]})
 
     def login(self, *_args: object) -> _FakeMailBox:
         return self
 
-    def __call__(self, *_args: object) -> _FakeMailBox:
+    def __call__(self, *_args: object, **_kwargs: object) -> _FakeMailBox:
         return self
 
     def __enter__(self) -> _FakeMailBox:
@@ -242,7 +263,7 @@ class TestImapPagination:
     async def test_page_token_is_an_offset_and_the_next_one_follows(
         self, apple: AppleEmailClient
     ) -> None:
-        mailbox = _FakeMailBox([_mail(str(i)) for i in range(5)])
+        mailbox = _FakeMailBox([_mail(str(i)) for i in range(1, 6)])
         redis = AsyncMock()
         with (
             patch(f"{APPLE_MODULE}.MailBox", mailbox),
@@ -251,11 +272,11 @@ class TestImapPagination:
             result = await apple._search_emails_impl("in:inbox", 2, None, True, page_token="2")
 
         assert mailbox.fetch_calls[0]["limit"] == slice(2, 4)
-        assert [m["id"] for m in result["messages"]] == ["2", "3"]
+        assert [m["id"].split(".", 1)[0] for m in result["messages"]] == ["3", "4"]
         assert result["next_page_token"] == "4"
 
     async def test_a_short_last_page_has_no_next_token(self, apple: AppleEmailClient) -> None:
-        mailbox = _FakeMailBox([_mail(str(i)) for i in range(3)])
+        mailbox = _FakeMailBox([_mail(str(i)) for i in range(1, 4)])
         with (
             patch(f"{APPLE_MODULE}.MailBox", mailbox),
             patch(f"{APPLE_MODULE}.get_redis_session", AsyncMock(return_value=AsyncMock())),

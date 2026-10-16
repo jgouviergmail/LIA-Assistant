@@ -74,8 +74,9 @@ httpx==0.28.1
 # forwarded duplicate Host headers, a request-smuggling primitive when a
 # consumer downgrades HTTP/2 to HTTP/1.1.
 h2>=4.4.1
-# aiohttp is purely transitive (edge-tts, geoip2 — both clients, LIA runs no
-# aiohttp server) and is declared here only to carry a security floor.
+# aiohttp is LIA's WebSocket client (the live providers, the avatar relay,
+# Fish Audio's socket — ADR-345) and the transport of edge-tts and geoip2;
+# LIA runs no aiohttp server.
 # >=3.14.3 clears CVE-2026-69244 (out-of-bounds heap read in the C response
 # parser while formatting an error for a malformed response: an attacker-
 # controlled or merely broken server can crash the client — this is the one
@@ -87,6 +88,10 @@ h2>=4.4.1
 # GHSA-gx76-c99x-2c96, GHSA-494j-54xm-rwp3, GHSA-6cjc-53gc-5rqm,
 # GHSA-f9xw-jh8m-3mwq, GHSA-5wr8-gcqf-gqf3).
 aiohttp>=3.14.4
+# msgpack frames Fish Audio's WebSocket TTS (ADR-345); also pulled by
+# cachecontrol (firebase-admin). >=1.2.3: GHSA-j586-36cw-2gc2 (high, 1.2.2
+# alone — the release a cooldown refresh took while the fix was 3 days old).
+msgpack>=1.2.3
 
 # Security floors on purely transitive packages (dependency programme,
 # doctrine 5). A fix adopted in a lockfile alone is undone by the first
@@ -100,7 +105,6 @@ icalendar>=7.2.2  # via caldav, recurring-ical-events: GHSA-qjcq-q7h7-r74v (CVE-
 langgraph-sdk>=0.4.6  # via langgraph: GHSA-fvww-7h3r-vfhp (high), GHSA-3fx2-cqw9-xr3c (unencoded identifiers in streaming URLs)
 mako>=1.4.2  # via alembic, the migration template engine: GHSA-5639-2j2p-m4mx (CVE-2026-102991)
 maxminddb>=3.2.0  # via geoip2: GHSA-hj94-g986-h9r7
-msgpack>=1.2.3  # via cachecontrol (firebase-admin): GHSA-j586-36cw-2gc2 (high, 1.2.2 alone — the release a cooldown refresh took while the fix was 3 days old)
 multidict>=6.9.1  # via aiohttp, yarl: GHSA-54p9-h82j-f925
 pyasn1>=0.6.4  # via webauthn, pyasn1-modules: CVE-2026-59886
 soupsieve>=2.9.2  # via beautifulsoup4: CVE-2026-85999, CVE-2026-86000

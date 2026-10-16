@@ -32,6 +32,31 @@ def _minimal(**overrides: Any) -> dict[str, Any]:
     return manifest
 
 
+@pytest.mark.parametrize(
+    "field", ["version", "description", "homepage", "repository", "license", "keywords", "author"]
+)
+def test_present_null_metadata_is_invalid_instead_of_absent(field: str) -> None:
+    """§5.2/5.4: optional fields still obey their JSON type when present."""
+    result = validate_plugin_manifest(_minimal(**{field: None}))
+    assert result.valid is False
+    assert result.manifest is None
+    assert any(
+        error.code is PluginIssueCode.MANIFEST_FIELD_INVALID and error.field == field
+        for error in result.errors
+    )
+
+
+def test_explicit_null_extensions_is_reported_but_does_not_reject_components() -> None:
+    """§8.1's non-object exception includes JSON null, unlike a missing field."""
+    result = validate_plugin_manifest(_minimal(extensions=None))
+    assert result.valid is True
+    assert result.manifest is not None
+    assert result.manifest.extensions == {}
+    assert [warning.code for warning in result.warnings] == [
+        PluginIssueCode.MANIFEST_EXTENSIONS_NOT_OBJECT
+    ]
+
+
 class TestValidManifests:
     def test_minimal_manifest_is_valid(self) -> None:
         result = validate_plugin_manifest(_minimal())

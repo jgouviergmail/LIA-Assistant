@@ -217,3 +217,41 @@ production blocker that drove this ADR.
 The success criteria from §5 are unchanged. Only "Frontend banner visible
 within 1 s" is rephrased as "sonner toast appears within 1 s of the SSE
 `compaction_start` event" in the runbook.
+
+## Amendment 2026-10-13 — an identifier the summary dropped comes back under it
+
+The summary is asked to keep identifiers (UUIDs, URLs, addresses, ids) and
+nothing checked that it did: one it dropped left the conversation for good, while
+`CompactionResult.identifiers_preserved` still listed it. `_with_dropped_identifiers`
+now writes back, under the summary, every identifier of the compacted messages it
+does not mention — the trusted ones on a `[Key identifiers preserved: …]` line,
+those seen only inside third-party content on the untrusted line the truncation
+notice already used ([ADR-167](ADR-167-Content-Trust-Registry.md)'s provenance
+split). A prior summary merged into the new one is removed with it, so its
+identifiers are checked too, as third-party ones when it carried the provenance
+banner (fail closed). Each list is bounded by `COMPACTION_IDENTIFIERS_REINSERT_MAX`
+(`0` = none), which also replaced the truncation notice's hard-coded bound; the
+scaffolds moved to `prompts/v1/compaction_identifier_lines.txt`, the notice's
+wording unchanged.
+
+Two defects found on the way, both measured on dev against the real compaction
+model. **An identifier carried the punctuation after it** (« write to a@b.com. »
+extracted `a@b.com.`): it matched nothing the summary wrote and came back as
+dropped — `_identifiers_in` now trims sentence punctuation, and a closing bracket
+only when unpaired, so a Wikipedia URL keeps its own. **The compaction's token
+counts were always 0**: `usage_metadata` is a mapping and the service read it by
+attribute, so `CompactionResult.cost_*` and `compaction_cost_tokens_total` never
+moved (the ledger was unaffected — the turn's tracker counts the call through its
+callbacks). The service now reads it through the one usage reader
+(`usage_metadata.tokens_from_response`); three tests had frozen the fictional
+attribute shape and now build the real mapping.
+
+The identifier scan is linear (ADR-326): the e-mail branch's local part is bounded
+to 64 characters (RFC 5321). Unbounded, a long run of word characters with no `@` —
+a base64 blob — was re-read from every start position: 40 000 of them took 3.7 s
+inside the turn, and the compaction scans the same messages more than once.
+
+Guards: the point-10 cases of `tests/unit/agents/services/test_compaction_provenance.py`
+(`test_the_identifier_scan_stays_linear_on_hostile_input` among them),
+`test_compact_single_chunk` and `test_summarize_chunk_retries_then_succeeds` on the
+real usage shape.

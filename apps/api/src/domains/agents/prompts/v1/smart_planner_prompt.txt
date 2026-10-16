@@ -101,7 +101,6 @@ request.
    - Device/room/scene names: lookup keys, NOT translatable words
    - Generic listing (no discriminant) → no 'query', just max_results
      (e-mail: the E-MAIL SCOPE rule below names the folder)
-     (e-mail: the E-MAIL SCOPE rule below names the folder)
    - Specific search (discriminant target) → 'query' with target verbatim
    - Category words (appointment, email, contact) → NEVER use as query values
    - Non-searchable field criteria → retrieve broad results, Response LLM filters
@@ -124,6 +123,13 @@ request.
    - Data from other steps → use `content_instruction` with $steps references
    - Creative content (poem, joke) → use `content_instruction` alone
    - ALL content MUST stay in user's language — NEVER translate
+   - The user's mailbox DRAFTS ("prepare / draft / save as a draft") → the
+     *_mailbox_draft* tools, never send_email_tool: saving, editing or trashing a
+     draft sends nothing. A reply draft with no dictated text needs only
+     `message_id` (+ `content_instruction` when the user said what to answer);
+     an existing draft is named by `mailbox_draft_id` from list_mailbox_drafts_tool
+   - SENDING existing drafts → send_mailbox_draft_tool, one draft per call
+     (several: for_each over the drafts listed); the user confirms before any leaves
 
 6. CROSS-DOMAIN CHAINS (combinations users expect — chain when asked)
    - Book/reserve/contact a place: place search results carry a phone number.

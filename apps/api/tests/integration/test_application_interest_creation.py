@@ -32,6 +32,7 @@ from src.domains.agents.tools import application_interest_tools
 from src.domains.interests.models import UserInterest
 from src.domains.users.models import User
 from src.infrastructure.llm.embedding_context import get_embedding_context
+from tests.helpers.draft_refusals import draft_refusal_code
 from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
 
 pytestmark = pytest.mark.integration
@@ -169,7 +170,7 @@ async def test_interest_creation_is_absent_before_exact_confirmation(
         assert get_embedding_context() == prior_context
         if scenario != "normal":
             assert (
-                result.error
+                draft_refusal_code(result)
                 == {
                     "quota": "USAGE_LIMIT_EXCEEDED",
                     "late_disabled": "CAPABILITY_DISABLED",

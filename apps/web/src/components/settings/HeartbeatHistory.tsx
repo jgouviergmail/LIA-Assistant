@@ -8,6 +8,7 @@ import { priorityTone } from '@/lib/status-tone';
 import {
   NotificationHistoryList,
   type NotificationHistoryRow,
+  type NotificationHistoryPresentation,
 } from '@/components/settings/NotificationHistoryList';
 import {
   HEARTBEAT_HISTORY_PAGE_SIZE,
@@ -29,6 +30,8 @@ import {
  * the same question and must not drift into two visual languages.
  */
 export interface HeartbeatHistoryProps {
+  /** Opt-in hub timeline; settings retain cards by default. */
+  presentation?: NotificationHistoryPresentation;
   /** Undefined until the first response lands. */
   notifications: HeartbeatNotification[] | undefined;
   /** EXACT count over the whole set, not this page (ADR-185). */
@@ -55,6 +58,9 @@ const KNOWN_SOURCES = new Set([
   'UPCOMING_BIRTHDAYS',
   'OPEN_LOOPS',
   'DEPARTURE_ADVICE',
+  'HABITS',
+  'WORKBOARD',
+  'ANTICIPATED_MOMENT',
 ]);
 
 /** The three the column is documented to hold — it is a plain string, not an
@@ -70,6 +76,7 @@ export function HeartbeatHistory({
   loading,
   error,
   locale,
+  presentation = 'cards',
 }: HeartbeatHistoryProps) {
   const { t } = useTranslation();
 
@@ -98,15 +105,18 @@ export function HeartbeatHistory({
       ...(item.trigger === 'moment'
         ? [{ key: 'trigger_moment', label: t('heartbeat.history.trigger_moment') }]
         : []),
-      ...item.sources_used.map(source => ({
-        key: source,
-        // An unknown label renders RAW rather than as a missing i18n key: a new
-        // backend source must never surface as `heartbeat.history.source_X` in
-        // the interface.
-        label: KNOWN_SOURCES.has(source) ? t(`heartbeat.history.source_${source}`) : source,
-        // The domain's colour, as on the dashboard's briefing tiles.
-        tone: heartbeatSourceChipTone(source),
-      })),
+      ...item.sources_used.map(source => {
+        // Read canonical labels even in older lower-case history. Unknown
+        // values remain exactly what the server sent, never a missing key.
+        const canonicalSource = source.toUpperCase();
+        return {
+          key: source,
+          label: KNOWN_SOURCES.has(canonicalSource)
+            ? t(`heartbeat.history.source_${canonicalSource}`)
+            : source,
+          tone: heartbeatSourceChipTone(canonicalSource),
+        };
+      }),
     ],
     feedback: item.user_feedback,
   }));
@@ -114,6 +124,8 @@ export function HeartbeatHistory({
   return (
     <NotificationHistoryList
       rows={rows}
+      presentation={presentation}
+      metadataPosition={presentation === 'timeline' ? 'header' : 'footer'}
       firstLoad={firstLoad}
       loading={loading}
       error={error}

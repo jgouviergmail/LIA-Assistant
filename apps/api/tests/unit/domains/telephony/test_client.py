@@ -6,10 +6,46 @@ import httpx
 import pytest
 
 from src.domains.telephony.client import ElevenLabsAgentsClient, ElevenLabsAgentsError
+from tests.support.structlog_capture import fresh_module_logger
 
 
 def _client(handler) -> ElevenLabsAgentsClient:
     return ElevenLabsAgentsClient("sk-test", transport=httpx.MockTransport(handler))
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("failure_type", [httpx.ConnectError, httpx.ReadTimeout, httpx.WriteError])
+async def test_a_transport_failure_keeps_its_type_and_never_retries_a_call(failure_type):
+    from contextlib import contextmanager
+
+    import structlog
+
+    from src.domains.telephony import client as client_module
+
+    attempts = []
+    private = "PRIVATE_VENDOR_REQUEST_TEXT"
+
+    def failed(request: httpx.Request) -> httpx.Response:
+        attempts.append(request)
+        raise failure_type(private, request=request)
+
+    with (
+        contextmanager(fresh_module_logger)(client_module),
+        structlog.testing.capture_logs() as captured,
+        pytest.raises(failure_type) as failure,
+    ):
+        await _client(failed).initiate_outbound_call(
+            agent_id="agent_1",
+            agent_phone_number_id="phone_1",
+            to_number="+33600000000",
+            dynamic_variables={},
+            ringing_timeout_secs=30,
+        )
+
+    assert len(attempts) == 1
+    assert private not in str(failure.value)
+    assert failure.value.request is attempts[0]
+    assert private not in str([entry for entry in captured if entry["log_level"] != "debug"])
 
 
 @pytest.mark.unit

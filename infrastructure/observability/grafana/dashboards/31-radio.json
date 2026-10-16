@@ -511,6 +511,47 @@
       }
     },
     {
+      "id": 20,
+      "title": "Dialogue takes by outcome (1h)",
+      "description": "Several voices in one request (ADR-345). voiced; unplaced (the vendor's timing did not place every line: voiced line by line, the take still billed); failed (voiced line by line).",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 30
+      },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (increase(radio_dialogue_takes_total[1h])) or vector(0)",
+          "legendFormat": "{{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
       "id": 13,
       "title": "Newsroom",
       "type": "row",
@@ -519,7 +560,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 30
+        "y": 38
       },
       "panels": []
     },
@@ -533,7 +574,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 31
+        "y": 39
       },
       "targets": [
         {
@@ -574,7 +615,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 31
+        "y": 39
       },
       "targets": [
         {
@@ -615,7 +656,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 39
+        "y": 47
       },
       "targets": [
         {
@@ -656,7 +697,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 39
+        "y": 47
       },
       "targets": [
         {
@@ -697,7 +738,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 47
+        "y": 55
       },
       "targets": [
         {
@@ -738,7 +779,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 47
+        "y": 55
       },
       "targets": [
         {

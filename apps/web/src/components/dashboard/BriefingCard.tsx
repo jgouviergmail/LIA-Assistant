@@ -1,9 +1,9 @@
 'use client';
 
-import { ReactNode, useEffect, useRef, useState } from 'react';
+import { ReactNode, useEffect, useId, useRef, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { DOMAIN_ICON_TONE, type DomainTone } from '@/lib/domain-tone';
+import { DOMAIN_CHIP_TONE, DOMAIN_ICON_TONE, type DomainTone } from '@/lib/domain-tone';
 import { cn } from '@/lib/utils';
 import { resolveErrorCtaKey, timeAgoLabel } from '@/lib/briefing-utils';
 import type { CardSection, SectionData } from '@/types/briefing';
@@ -11,10 +11,9 @@ import { DASHBOARD_TILE_FRAME, TILE_ICON_BADGE, TileAmbience } from './Dashboard
 import { UpdatedAtBadge } from './UpdatedAtBadge';
 
 /**
- * Per-card icon tone — applied ONLY to the SVG icon color (not the card chrome).
- * Card backgrounds, borders, orbs, badges all use the user's theme primary color.
- * The palette is the domains' colour code (`lib/domain-tone`), shared with the
- * notification hub's chips.
+ * The domain colour code shared with notification chips. A restrained icon
+ * badge and top rule make cards easy to scan; the solid surface, text and
+ * interaction states continue to follow the user's theme.
  */
 export type CardTone = DomainTone;
 
@@ -39,12 +38,18 @@ function CardFreshnessBadge<T extends SectionData>({
         generatedAt={section.generated_at}
         showJustUpdated={justRefreshed}
         fromCache={section.from_cache}
-        className="shrink-0"
+        className="min-w-0 break-words text-right"
       />
     );
   }
   if (!section.stale_generated_at) return null;
-  return <UpdatedAtBadge generatedAt={section.stale_generated_at} fromCache className="shrink-0" />;
+  return (
+    <UpdatedAtBadge
+      generatedAt={section.stale_generated_at}
+      fromCache
+      className="min-w-0 break-words text-right"
+    />
+  );
 }
 
 /**
@@ -56,10 +61,12 @@ function CardErrorBody<T extends SectionData>({
   section,
   ctaKey,
   onErrorCta,
+  busy,
 }: {
   section: CardSection<T>;
   ctaKey: string | null;
-  onErrorCta?: () => void;
+  onErrorCta?: (trigger: HTMLButtonElement) => void;
+  busy: boolean;
 }) {
   const { t } = useTranslation();
   const hasFreshnessLine =
@@ -86,7 +93,10 @@ function CardErrorBody<T extends SectionData>({
       {ctaKey && onErrorCta && (
         <button
           type="button"
-          onClick={onErrorCta}
+          aria-disabled={busy}
+          onClick={event => {
+            if (!busy) onErrorCta(event.currentTarget);
+          }}
           className="self-start text-xs font-medium text-primary hover:text-primary/90 underline underline-offset-2 transition-colors"
         >
           {t(ctaKey)}
@@ -99,7 +109,7 @@ function CardErrorBody<T extends SectionData>({
 export interface BriefingCardProps<T extends SectionData> {
   titleKey: string;
   icon: ReactNode;
-  /** Tone applied ONLY to the icon SVG color — card chrome stays primary-themed */
+  /** Domain accent for the icon badge and decorative rule. */
   tone: CardTone;
   section: CardSection<T>;
   isRefreshing: boolean;
@@ -119,15 +129,13 @@ export interface BriefingCardProps<T extends SectionData> {
  * Briefing card — handles 4 status states (OK/EMPTY/ERROR/NOT_CONFIGURED).
  *
  * Visual contract:
- *  - Card chrome (background, border, orb, badge) uses the user's theme PRIMARY color
- *  - Icon SVG itself keeps its per-domain `tone` color
- *  - Subtle primary gradient overlay (top-right → transparent)
- *  - Hover: lift + shadow-2xl + icon scale
+ *  - Solid theme-aware material, restrained domain accents, no hover movement
+ *  - Equal card height; the full received payload lives in a keyboard-accessible scroll area
  *  - NOT_CONFIGURED → returns null (card hidden, layout reflows)
  *  - ERROR → red status accent (semantic) + message + CTA
- *  - Refresh overlay with backdrop-blur + spinner
+ *  - Refresh keeps the content readable and the focused button mounted
  *  - Stagger entrance via animationDelay
- *  - Timestamp bottom-right, very discreet
+ *  - Freshness and visible refresh control grouped on the title row, wrapping when needed
  */
 export function BriefingCard<T extends SectionData>({
   titleKey,
@@ -145,11 +153,21 @@ export function BriefingCard<T extends SectionData>({
   centerContent = false,
 }: BriefingCardProps<T>) {
   const { t } = useTranslation();
+  const titleId = useId();
 
   // F5: light up the dormant "just updated ✨" badge on a completed refresh
   // (isRefreshing true → false), for ~1.6 s. Hooks run before the early return
   // below to respect the Rules of Hooks.
   const [justRefreshed, setJustRefreshed] = useState(false);
+  const recoveryTrigger = useRef<HTMLButtonElement | null>(null);
+  const refreshControl = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    if (section.status === 'error' || !recoveryTrigger.current) return;
+    if (!recoveryTrigger.current.isConnected && document.activeElement === document.body) {
+      refreshControl.current?.focus();
+    }
+    recoveryTrigger.current = null;
+  }, [section.status]);
   const prevRefreshingRef = useRef(isRefreshing);
   useEffect(() => {
     const wasRefreshing = prevRefreshingRef.current;
@@ -165,6 +183,14 @@ export function BriefingCard<T extends SectionData>({
 
   const isError = section.status === 'error';
   const ctaKey = isError ? resolveErrorCtaKey(section.error_code) : null;
+  const errorAction =
+    ctaKey === 'dashboard.briefing.actions.retry' ||
+    ctaKey === 'dashboard.briefing.actions.retry_later'
+      ? (trigger: HTMLButtonElement) => {
+          if (document.activeElement === trigger) recoveryTrigger.current = trigger;
+          onRefresh();
+        }
+      : onErrorCta;
   const titleLabel = t(titleKey);
   const iconColorClass = DOMAIN_ICON_TONE[tone];
 
@@ -188,106 +214,130 @@ export function BriefingCard<T extends SectionData>({
       tabIndex={-1}
       style={staggerStyle}
       className={cn(
-        // The page's tile material (DashboardTile), plus this card's
-        // interactive extras: the lift and the stronger shadow on hover.
-        'group',
         DASHBOARD_TILE_FRAME,
-        'transition-all duration-300 ease-out',
+        'min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
         'motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500',
-        'motion-safe:hover:-translate-y-1 motion-safe:hover:shadow-2xl',
-        isError ? 'border-destructive/30' : 'border-border/50 hover:border-primary/30',
-        isRefreshing && 'pointer-events-none',
+        isError && 'border-destructive/30',
         className
       )}
     >
-      {/* Primary-themed wash and orb — none on an error card. */}
+      {/* The user's theme stays in the material; domain colour is a small scan cue. */}
       {!isError && <TileAmbience />}
+      <div
+        className={cn(
+          'pointer-events-none absolute inset-x-5 top-0 h-0.5 rounded-b-full bg-current opacity-50 sm:inset-x-6',
+          isError ? 'text-destructive' : iconColorClass
+        )}
+        aria-hidden="true"
+      />
 
-      <div className="relative flex flex-col h-[280px] p-5 sm:p-6 gap-4">
-        {/* Header: icon badge (primary chrome) + title + timestamp + refresh — FIXED */}
-        <div className="flex items-start justify-between gap-3 shrink-0">
-          {/* `items-center`, not `items-baseline`: the badge is a 40 px square
-              and the title a single line, so baseline alignment sat the text
-              low against it and needed a `self-center` correction on the icon
-              to look almost right. Centring the row aligns title and freshness
-              badge on the icon's axis, which is what it always meant to do. */}
-          <div className="flex items-center gap-3 min-w-0">
+      <div className="relative flex h-[420px] flex-col gap-4 p-5 sm:h-[470px] sm:p-6">
+        {/* Header stays outside the scroll area; long labels wrap instead of clipping. */}
+        <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-border/60 pb-4">
+          <div className="flex min-w-0 flex-1 basis-28 items-center gap-3">
             <div
-              className={cn(
-                TILE_ICON_BADGE,
-                'transition-transform duration-300',
-                'motion-safe:group-hover:scale-110 motion-safe:group-hover:rotate-3',
-                iconColorClass
-              )}
+              className={cn(TILE_ICON_BADGE, DOMAIN_CHIP_TONE[tone], 'border ring-0')}
               aria-hidden="true"
             >
               {icon}
             </div>
-            <h3 className="text-sm font-semibold text-foreground tracking-tight truncate">
+            <h3
+              id={titleId}
+              className="min-w-0 break-words text-base font-semibold leading-snug text-foreground tracking-tight"
+            >
               {titleLabel}
             </h3>
-            <CardFreshnessBadge section={section} isError={isError} justRefreshed={justRefreshed} />
           </div>
-          <button
-            type="button"
-            onClick={onRefresh}
-            disabled={isRefreshing}
-            aria-label={t('dashboard.briefing.refresh_section', { section: titleLabel })}
-            className={cn(
-              'shrink-0 rounded-lg p-2 transition-all duration-200',
-              'text-muted-foreground hover:text-foreground hover:bg-muted/60',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30',
-              'disabled:opacity-50 disabled:cursor-not-allowed',
-              // Mobile: always visible (no hover on touch devices).
-              // Desktop (sm+): hidden until card hover, with a subtle rotate.
-              'opacity-100 sm:opacity-0 sm:group-hover:opacity-100 motion-safe:sm:group-hover:rotate-12',
-              isRefreshing && 'opacity-100'
-            )}
-          >
-            <RefreshCw className={cn('h-3.5 w-3.5', isRefreshing && 'motion-safe:animate-spin')} />
-          </button>
-        </div>
-
-        {/* Body — SCROLLABLE (scrollbar hidden for cleaner look) */}
-        <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide flex flex-col">
-          {section.status === 'ok' && section.data && (
-            <div
+          <div className="ml-auto flex min-w-0 max-w-full items-center gap-2 [&_time]:text-xs">
+            <CardFreshnessBadge section={section} isError={isError} justRefreshed={justRefreshed} />
+            <button
+              ref={refreshControl}
+              type="button"
+              onClick={() => {
+                if (!isRefreshing) onRefresh();
+              }}
+              aria-disabled={isRefreshing}
+              aria-label={t('dashboard.briefing.refresh_section', { section: titleLabel })}
               className={cn(
-                'motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300',
-                centerContent && 'flex-1 flex flex-col items-center justify-center text-center'
+                'flex size-10 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-card transition-colors duration-150 active:scale-[0.98]',
+                'text-muted-foreground hover:text-foreground hover:bg-muted/60',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card',
+                isRefreshing && 'cursor-wait text-primary'
               )}
             >
-              {renderContent(section.data)}
-            </div>
-          )}
-
-          {section.status === 'empty' && (
-            <div className="flex-1 flex items-center justify-center text-center text-sm text-muted-foreground italic py-2">
-              {t(emptyStateKey, emptyStateValues)}
-            </div>
-          )}
-
-          {isError && <CardErrorBody section={section} ctaKey={ctaKey} onErrorCta={onErrorCta} />}
-
-          {/* D-04 stale-while-error: yesterday's data beats a hole — rendered
-              dimmed under the error banner, dated by the badge above. */}
-          {isError && section.data && (
-            <div className="mt-2 opacity-70">{renderContent(section.data)}</div>
-          )}
+              <RefreshCw
+                aria-hidden="true"
+                className={cn('h-4 w-4', isRefreshing && 'motion-safe:animate-spin')}
+              />
+            </button>
+          </div>
         </div>
 
-        {/* Refresh overlay */}
-        {isRefreshing && (
-          <div
-            className="absolute inset-0 rounded-2xl bg-card/70 backdrop-blur-sm flex items-center justify-center motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200"
-            aria-hidden="true"
-          >
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 ring-2 ring-primary/20">
-              <RefreshCw className={cn('h-5 w-5 motion-safe:animate-spin', iconColorClass)} />
-            </div>
-          </div>
-        )}
+        {/* A named focus stop lets keyboard readers scroll even cards with no actions.
+            Native scrolling preserves every item and its position during refresh. */}
+        <div
+          role="group"
+          aria-labelledby={titleId}
+          tabIndex={0}
+          className="chat-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto rounded-md pb-1 pr-2 [scrollbar-gutter:stable] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+        >
+          <CardBody
+            section={section}
+            renderContent={renderContent}
+            centerContent={centerContent}
+            emptyStateKey={emptyStateKey}
+            emptyStateValues={emptyStateValues}
+            ctaKey={ctaKey}
+            onErrorCta={errorAction}
+            busy={isRefreshing}
+          />
+        </div>
       </div>
     </div>
+  );
+}
+
+/** Keep one content owner across OK and stale-error transitions. */
+function CardBody<T extends SectionData>({
+  section,
+  renderContent,
+  centerContent,
+  emptyStateKey,
+  emptyStateValues,
+  ctaKey,
+  onErrorCta,
+  busy,
+}: Pick<
+  BriefingCardProps<T>,
+  'section' | 'renderContent' | 'centerContent' | 'emptyStateKey' | 'emptyStateValues'
+> & {
+  ctaKey: string | null;
+  onErrorCta?: (trigger: HTMLButtonElement) => void;
+  busy: boolean;
+}) {
+  const { t } = useTranslation();
+  const isError = section.status === 'error';
+  return (
+    <>
+      {isError && (
+        <CardErrorBody section={section} ctaKey={ctaKey} onErrorCta={onErrorCta} busy={busy} />
+      )}
+      {section.data && (section.status === 'ok' || isError) && (
+        <div
+          className={cn(
+            'shrink-0',
+            isError && 'mt-3 border-t border-border/60 pt-3',
+            centerContent && 'flex-1 flex flex-col items-center justify-center text-center'
+          )}
+        >
+          {renderContent(section.data)}
+        </div>
+      )}
+      {section.status === 'empty' && (
+        <div className="flex-1 flex items-center justify-center text-center text-sm text-muted-foreground italic py-2">
+          {t(emptyStateKey, emptyStateValues)}
+        </div>
+      )}
+    </>
   );
 }

@@ -50,7 +50,28 @@ AUTOMATION_ID = SemanticType(
 )
 
 
-ALL_RESOURCE_HANDLE_TYPES: tuple[SemanticType, ...] = (AUTOMATION_ID,)
+MAILBOX_DRAFT_ID = SemanticType(
+    name="mailbox_draft_id",
+    parent="Identifier",
+    category=TypeCategory.RESOURCE_ID,
+    description=(
+        "Handle of a draft in the person's MAILBOX (Gmail draft id, Graph message id, scoped IMAP "
+        "handle). Nobody dictates one, no draft tool resolves one from a recipient or a "
+        "subject, and an IMAP handle changes at every edit: the value can only come from "
+        "list_mailbox_drafts_tool or from the draft tool that saved it."
+    ),
+    examples=["r-8452710932415386720"],
+    source_domains=["email"],
+    used_in_tools=[
+        "list_mailbox_drafts_tool",
+        "update_mailbox_draft_tool",
+        "delete_mailbox_drafts_tool",
+        "send_mailbox_draft_tool",
+    ],
+)
+
+
+ALL_RESOURCE_HANDLE_TYPES: tuple[SemanticType, ...] = (AUTOMATION_ID, MAILBOX_DRAFT_ID)
 
 
 def load_resource_handle_types(registry: TypeRegistry) -> None:
@@ -70,5 +91,6 @@ def load_resource_handle_types(registry: TypeRegistry) -> None:
 __all__ = [
     "ALL_RESOURCE_HANDLE_TYPES",
     "AUTOMATION_ID",
+    "MAILBOX_DRAFT_ID",
     "load_resource_handle_types",
 ]

@@ -13,7 +13,8 @@ from collections.abc import Awaitable
 from datetime import UTC, datetime
 from typing import Any, Protocol
 
-from src.core.field_names import FIELD_ACTION_REQUESTS, FIELD_INTERRUPT_DATA
+from src.core.constants import REDIS_KEY_HITL_PENDING_PREFIX
+from src.core.field_names import FIELD_ACTION_REQUESTS, FIELD_INTERRUPT_DATA, FIELD_RUN_ID
 from src.domains.agents.utils.hitl_cache import invalidate as invalidate_detection_cache
 from src.infrastructure.observability.logging import get_logger
 
@@ -22,9 +23,30 @@ logger = get_logger(__name__)
 # Current schema version for HITL interrupt data
 SCHEMA_VERSION = 1
 
+#: Deletes the pending question only when ``ARGV[1]``'s run asked it. One
+#: server-side step: a read followed by a delete would erase a question another
+#: run saved in between — the person's own, since a routine holds no lock on the
+#: conversation. A record it cannot read is kept: doubt never deletes. The two
+#: field names arrive as ``ARGV[2]`` and ``ARGV[3]`` — the writer's constants,
+#: never a spelling of the script's own.
+_CLEAR_IF_RUN_LUA = """
+local raw = redis.call('GET', KEYS[1])
+if not raw then return 0 end
+local ok, record = pcall(cjson.decode, raw)
+if not ok or type(record) ~= 'table' then return 0 end
+local data = record[ARGV[2]]
+if type(data) ~= 'table' or data[ARGV[3]] ~= ARGV[1] then return 0 end
+return redis.call('DEL', KEYS[1])
+"""
+
+
+def _pending_key(thread_id: str) -> str:
+    """The key of a thread's pending question."""
+    return f"{REDIS_KEY_HITL_PENDING_PREFIX}{thread_id}"
+
 
 class HitlStoreClient(Protocol):
-    """The four commands the store sends to its database.
+    """The commands the store sends to its database.
 
     The engine hands it the CACHE client (``get_redis_cache``); a test hands
     it one keyspace of an in-memory server (``tests/helpers/redis_databases``),
@@ -46,6 +68,10 @@ class HitlStoreClient(Protocol):
 
     def exists(self, *names: str) -> Awaitable[int]:
         """How many of the keys exist."""
+        ...
+
+    def eval(self, script: str, numkeys: int, /, *keys_and_args: str) -> Awaitable[Any]:
+        """Run ``script`` atomically on the server."""
         ...
 
 
@@ -95,10 +121,10 @@ class HITLStore:
         versioned_data = {
             "schema_version": SCHEMA_VERSION,
             "interrupt_ts": datetime.now(UTC).isoformat(),
-            "interrupt_data": interrupt_data,
+            FIELD_INTERRUPT_DATA: interrupt_data,
         }
 
-        key = f"hitl_pending:{thread_id}"
+        key = _pending_key(thread_id)
         await self.redis.set(key, json.dumps(versioned_data), ex=self.ttl_seconds)
         # The detection cache may hold a fresh "nothing pending" answer for
         # this conversation — drop it so a reply faster than the cache TTL
@@ -130,7 +156,7 @@ class HITLStore:
             ...     interrupt_ts = data["interrupt_ts"]
             ...     action = data["interrupt_data"]["action_requests"]
         """
-        key = f"hitl_pending:{thread_id}"
+        key = _pending_key(thread_id)
         data_json = await self.redis.get(key)
 
         if data_json is None:
@@ -158,7 +184,7 @@ class HITLStore:
             migrated_data = {
                 "schema_version": SCHEMA_VERSION,
                 "interrupt_ts": datetime.now(UTC).isoformat(),  # Best effort
-                "interrupt_data": data,
+                FIELD_INTERRUPT_DATA: data,
             }
             # Save migrated version back to Redis
             await self.redis.set(key, json.dumps(migrated_data), ex=self.ttl_seconds)
@@ -201,7 +227,7 @@ class HITLStore:
         Example:
             >>> await store.delete_interrupt("thread_123")
         """
-        key = f"hitl_pending:{thread_id}"
+        key = _pending_key(thread_id)
         await self.redis.delete(key)
         # Mirror of save_interrupt: a fresh "pending" answer must not outlive
         # the deletion, or the next message resumes a phantom HITL.
@@ -224,6 +250,36 @@ class HITLStore:
         """
         await self.delete_interrupt(thread_id)
 
+    async def clear_interrupt_for_run(self, thread_id: str, run_id: str) -> bool:
+        """Clear the pending question only when ``run_id`` asked it (N10).
+
+        A run that stopped on a question nobody can answer must not leave it on
+        the person's thread, where it would read their next message as its
+        answer. Clearing unconditionally could erase a question the person's
+        own turn saved since, so the comparison and the deletion are one step.
+
+        Args:
+            thread_id: Thread ID (conversation_id).
+            run_id: The run whose question may be cleared.
+
+        Returns:
+            True when the question was that run's and is gone; False otherwise.
+        """
+        cleared = await self.redis.eval(
+            _CLEAR_IF_RUN_LUA,
+            1,
+            _pending_key(thread_id),
+            run_id,
+            FIELD_INTERRUPT_DATA,
+            FIELD_RUN_ID,
+        )
+        if not cleared:
+            return False
+        # Mirror of delete_interrupt: a fresh "pending" answer must not outlive it.
+        invalidate_detection_cache(thread_id)
+        logger.info("hitl_interrupt_cleared_for_run", thread_id=thread_id, run_id=run_id)
+        return True
+
     async def has_interrupt(self, thread_id: str) -> bool:
         """
         Check if HITL interrupt data exists.
@@ -234,7 +290,7 @@ class HITLStore:
         Returns:
             True if interrupt data exists, False otherwise.
         """
-        key = f"hitl_pending:{thread_id}"
+        key = _pending_key(thread_id)
         exists = await self.redis.exists(key)
         return exists > 0
 

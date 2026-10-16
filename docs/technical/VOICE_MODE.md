@@ -14,6 +14,7 @@
 - [Wake Word Detection](#wake-word-detection)
 - [Voice Activity Detection](#voice-activity-detection)
 - [Speech-to-Text (STT)](#speech-to-text-stt)
+- [Voix de LIA](#voix-de-lia)
 - [Configuration](#configuration)
 - [Sécurité](#sécurité)
 - [Métriques](#métriques)
@@ -537,7 +538,7 @@ au mode wake-word, indépendamment du toggle `voice_mode_enabled` :
 | Backend | Modèle | Coût | Audio | Quand |
 |---------|--------|------|-------|-------|
 | **`local`** (default) | Sherpa-onnx Whisper Small INT8 (Python backend) | Gratuit | Reste sur le serveur LIA | Confidentialité maximum, qualité honnête |
-| **`remote`** | ElevenLabs Scribe v2 (cloud) | $0.22 / heure d'audio | Transmis à ElevenLabs | Qualité supérieure, refacturable |
+| **`remote`** | Le moteur du slot `voice_transcription` (cloud) : ElevenLabs Scribe, OpenAI ou Fish Audio `transcribe-1`/`-pro` (ADR-345) | Le tarif administré du modèle, à la durée d'audio | Transmis au fournisseur du slot, nommé à l'écran | Qualité supérieure, refacturable |
 
 Le mot de réveil (frontend, un modèle par langue, ADR-329) reste local dans
 les deux cas — seul le segment de parole **après** la détection de la phrase
@@ -560,13 +561,47 @@ async def transcribe_pcm_int16_async(
 
 - **`local`** → singleton `SherpaSttService` (existant, inchangé pour le
   canal Telegram).
-- **`remote`** → nouvelle instance `ElevenLabsSttService(api_key, model,
-  base_url, timeout)`. La clé API est récupérée depuis
-  `LLMConfigOverrideCache.get_api_key("elevenlabs")` (chiffrée Fernet
-  dans `provider_api_keys`). Le modèle est lu via
-  `LLMConfigOverrideCache.get_override("voice_transcription")` mergé
-  avec `LLM_DEFAULTS["voice_transcription"]` (par défaut
-  `elevenlabs/scribe_v2`).
+- **`remote`** → le moteur du **fournisseur du slot** `voice_transcription`
+  (`build_remote_stt` : `ElevenLabsSttService`, `OpenAISttService` ou
+  `FishAudioSttService`), avec le modèle, le délai et la config du slot. Une
+  seule résolution le décide pour tous ses lecteurs (`core/remote_stt.py`,
+  ADR-345) : le slot (son fournisseur reçoit l'audio), l'interrupteur de ce
+  fournisseur (`ELEVENLABS_STT_ENABLED`, `FISHAUDIO_STT_ENABLED` ; OpenAI n'en a
+  pas) et sa clé (chiffrée Fernet dans `provider_api_keys`). Avant ADR-345, le
+  mode distant était ElevenLabs quel que soit le slot : un slot réglé sur
+  OpenAI envoyait le nom d'un modèle OpenAI à ElevenLabs, la préférence se
+  disait « disponible » sur la seule clé ElevenLabs et le coût était classé
+  sous ElevenLabs. Le WebSocket lit le slot UNE fois par extrait et le passe
+  à la fabrique : la transcription et son coût portent le même moteur.
+  `GET /auth/me/voice-mode-preference` publie `stt_remote_provider`, que
+  l'avis de confidentialité nomme ; le plafond par extrait est
+  `REMOTE_STT_MAX_AUDIO_DURATION_SECONDS` (l'ancien nom `ELEVENLABS_…` reste lu).
+
+### Fish Audio — protocole (ADR-345)
+
+`POST /v1/asr` en multipart, l'en-tête `model` nomme toujours le modèle (absent
+ou inexact, la requête est servie ET facturée en `transcribe-1`). Lu dans la
+documentation du fournisseur le 2026-10-14 — aucune transcription payante n'a
+été lancée (décision du propriétaire) :
+
+| Champ | Valeur |
+|-------|--------|
+| `audio` | le PCM du WebSocket **enveloppé en WAV** (le PCM brut est refusé) |
+| `language` | ISO-639-1 si dans `{en, fr, de, es, it, zh}` |
+| `ignore_timestamps` | `true` pour la dictée, `false` pour une réunion |
+| `tag_audio_events`, `diarize` | `transcribe-1-pro` seulement (envoyés à lui seul) |
+
+Le modèle `-pro` écrit des marqueurs `<|speaker:N|>` DANS `text` même sans
+diarisation : la transcription de LIA ne garde que les mots. La durée renvoyée
+est la durée **facturée**, arrondie à la seconde supérieure. Chaque requête
+tient une place de la concurrence du compte, partagée avec la synthèse
+(`fishaudio`). Un refus est classé par son statut et le code borné du
+fournisseur (429, clé refusée, 402 sans crédit, 413/`audio_too_long`), jamais
+par son corps, qui peut citer les mots transcrits. Une requête prend au plus
+60 minutes d'audio (`FISHAUDIO_STT_MAX_AUDIO_SECONDS`) : une réunion plus longue
+passe au moteur suivant sans être envoyée (MEETINGS.md, chaîne de moteurs). Le
+fichier d'une réunion est lu par morceaux depuis le disque, jamais chargé en
+mémoire, comme chez les deux autres moteurs.
 
 ### ElevenLabs Scribe — protocole
 
@@ -603,10 +638,16 @@ buffer.
 | HTTP | `STTProviderError.code` | Close code WS |
 |------|-------------------------|---------------|
 | 429 | `provider_rate_limited` (+ `retry_after_seconds`) | 4029 |
-| 422 | `provider_invalid_response` | 4002 |
-| Autres 4xx/5xx | `provider_http_error` | 4002 |
+| Code du fournisseur nommant la clé (`invalid_api_key`, `api_key_id_used_as_api_key`, `missing_permissions`…), ou 401 sans autre cause | `invalid_api_key` | 4002 |
+| Autres 4xx/5xx (dont `quota_exceeded`, en 400 ou 401) | `provider_http_error` | 4002 |
+| 200 au corps illisible | `provider_invalid_response` | 4002 |
 | Timeout | `provider_timeout` | 4002 |
 | (clé absente) | `elevenlabs_api_key_missing` | 4002 |
+
+Un refus porte ses faits, `details = {status_code, vendor_code}`, jamais un
+extrait de son corps : une 422 recopie le champ refusé
+(`voice/vendor_refusal.py`, ADR-345). La dictée et les réunions lisent la même
+règle (`ElevenLabsSttService._raise_for_status`).
 
 Le frontend reçoit `{type: "error", code, message, retry_after_seconds}`
 juste avant la fermeture WS, ce qui permet un toast précis et un retry
@@ -668,6 +709,42 @@ apps/api/models/whisper-small/
 
 ---
 
+## Voix de LIA
+
+La section « Mode vocal » des réglages porte aussi la voix avec laquelle LIA
+répond dans le chat (amendement ADR-345 du 2026-10-14) : une voix masculine et
+une voix féminine, celle que le genre de l'avatar choisit parlant. Chaque liste
+s'ouvre sur la voix de l'administrateur, nommée, puis propose les voix du moteur
+qui parle réellement — celui du slot `voice_tts`, ou Edge quand ce moteur ne
+peut pas être servi (`factory.served_config`) —, celles de la langue de la
+personne d'abord (un moteur à une langue par voix, Edge, n'offre que
+celles-là), sous l'interrupteur « seulement les voix en <langue>, et les
+multilingues » que partagent tous les sélecteurs de voix.
+
+| Quoi | Où |
+|---|---|
+| Lecture et écriture | `GET`/`PUT /voice/lia-voices` (`domains/voice/lia_voices_router.py`), sur une session à elle (ADR-304) : le catalogue d'un moteur en direct peut interroger le fournisseur |
+| Règle | `domains/voice/lia_voices.py` : écrite strictement (une voix que le moteur n'offre pas → 422 `lia_voice_unknown` ; un catalogue indisponible refuse une sélection avec 503 `lia_voice_catalogue_unavailable`, le retour aux valeurs par défaut reste disponible), lue avec indulgence (une voix qui n'est plus proposée laisse parler celle de l'administrateur ; un catalogue illisible garde le choix) |
+| Stockage | `users.lia_voices` (migration `4c2e8a6f1d3b`), `{fournisseur/modèle: {male, female}}` : un moteur rebasculé retrouve ses voix ; une instruction atomique par enregistrement, si bien que deux moteurs enregistrés en même temps ne se perdent pas ; un `None` y devient NULL SQL (`none_as_null`), jamais le `null` JSON sur lequel la fusion fabriquerait un tableau |
+| Autorisation et ordre | L'écriture atomique exige encore un compte actif et non supprimé au moment du `UPDATE`, sinon 403. Le navigateur enregistre les choix successifs dans leur ordre pour le compte courant ; un changement de compte abandonne les requêtes encore en file et ignore les anciennes réponses |
+| Suppression concurrente d'une voix Fish Audio | La sélection retient la révision du catalogue avant sa lecture. La suppression réserve la voix avant l'appel fournisseur, rend la connexion SQL, puis retire les choix personnels par une seule mise à jour groupée. Les choix personnels et les configurations TTS vérifient la révision et les réservations avant écriture ; un retrait de pin partage ce verrou. Une annulation ou un résultat fournisseur inconnu conserve la réservation jusqu'à vérification lors d'une suppression explicitement relancée. Les clés du cache incluent la révision : une liste revenue tard ne repeuple que l'ancien cache |
+| Suppression du compte | Exporté tant que le compte vit, effacé à sa suppression : un réglage qui ne sert plus à rien une fois le compte parti (`SCRUBBED_PREFERENCE` dans `users/user_column_map.py`) |
+| Changement de compte fournisseur | Une sélection issue d'un catalogue de compte retient l'empreinte interne de la clé réellement utilisée. L'écriture compare la clé courante en base sous verrou partagé, même si le cache d'un worker est ancien. Un changement ou retrait de clé refuse ce choix ; revenir aux voix par défaut reste possible. La bibliothèque Fish Audio vérifie aussi le compte à l'admission et ne sauvegarde jamais une écoute générée sous une autre clé |
+| Au moment de parler | `VoiceCommentService._get_voice_for_language`, la couture unique des commentaires vocaux, du flux progressif et de la lecture à voix haute ; lu une fois par langue et par service, et seulement pour une personne qui a choisi ; vérifié contre le catalogue déjà connu, sans jamais interroger le fournisseur (`engine_voices.known_engine` : une liste livrée ou un cache — une liste Fish Audio à froid a pris jusqu'à 10,4 s sur dev), si bien qu'un catalogue pas encore en cache garde le choix |
+| Voix supprimée | Supprimer une voix de la bibliothèque rend à chaque personne qui l'avait choisie la voix de l'administrateur (`lia_voices.forget_voice`) |
+| Hors périmètre | La radio (ses rôles ont leurs voix), les sessions Live et le téléphone (leurs voix sont celles du fournisseur) |
+
+Le catalogue ElevenLabs proposé à une personne est mis en cache comme celui de
+Fish Audio (`elevenlabs:voices`, dix minutes) : un tour vocal n'attend pas la
+liste du fournisseur. Le sélecteur de l'administrateur, lui, la lit en direct.
+
+À l'export du compte, ces choix sortent avec les autres préférences ; à la
+suppression du compte, ils sont effacés (`SCRUBBED_PREFERENCE`, ADR-067).
+Le contrôle d'activité au moment de l'écriture empêche un enregistrement qui
+attendait le catalogue de les réintroduire après cette suppression.
+
+---
+
 ## Configuration
 
 ### Variables d'Environnement Backend
@@ -712,8 +789,6 @@ fichier, pas ici. La phrase et la politique de détection du mot de réveil
 appartiennent à son modèle (manifeste), pas aux constantes.
 
 ---
-
-## Sécurité---
 
 ## Sécurité
 

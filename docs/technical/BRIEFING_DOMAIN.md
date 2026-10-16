@@ -349,10 +349,13 @@ listed in `INSTANCE_GATED_SECTIONS` and the hint never names it.
 `fetch_workboard` reads the person's board through the workboard's own
 statements (`workboard/summary_queries.read_attention`: the visibility
 predicate, the board filters and the « needs me » set), so the card, the board
-and the notifications hub cannot disagree about a figure. Four EXACT aggregates
-over OPEN tickets (ADR-185) — waiting on the person, held by LIA, late, open —
-each a link into the board narrowed to the very set it counts
-(`?assignee=lia&status=…`, `?overdue=1`, the open columns); then the first
+and the notifications hub cannot disagree about a figure. Exact aggregates
+over OPEN tickets (ADR-185) — waiting on the person, held by LIA, held by peers,
+late, open — each a link into the board narrowed to the very set it counts
+(`?assignee=lia&status=…`, `?assignee=peer&status=…`, `?overdue=1`, the open columns);
+the peer count uses the board’s existing assignee filter, independently of the
+LIA count. Older cached bundles without this aggregate omit its tile rather
+than display an invented zero. Then the first
 `BRIEFING_MAX_WORKBOARD_ITEMS` tickets of the « needs me » set, each a link to
 `/dashboard/workboard/<id>`, with « and N more » computed from the exact count.
 A board with no open ticket is the empty state; an open board that needs

@@ -42,9 +42,9 @@ class BrowserAction(BaseModel):
 class BrowserSessionInfo(BaseModel):
     """Metadata for a browser session stored in Redis for cross-worker recovery.
 
-    This lightweight model is serialized to Redis with a TTL matching the session timeout.
-    When a follow-up request lands on a different worker, it reads this metadata
-    and re-navigates to the stored URL transparently.
+    The bounded registry stores this model with an independently expiring hash
+    field. A follow-up on another worker transfers the session UUID and uses
+    the previous URL for recovery; a PID never authorizes ownership.
     """
 
     session_id: str = Field(..., description="Unique session identifier.")

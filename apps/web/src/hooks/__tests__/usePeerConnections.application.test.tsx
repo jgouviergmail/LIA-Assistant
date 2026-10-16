@@ -57,3 +57,44 @@ it('hides old account connection cards and refuses its obsolete write callback',
   });
   expect(put).not.toHaveBeenCalled();
 });
+
+it('reports a failed initial read until retry obtains the complete five-query snapshot', async () => {
+  get.mockRejectedValue(new Error('offline'));
+  const { result } = renderHook(() => usePeerConnections());
+  await waitFor(() => expect(result.current.error).toBeInstanceOf(Error));
+  expect(result.current.hasCompleteData).toBe(false);
+  get.mockImplementation(async (url: string) =>
+    url === '/peers/me' ? { discovery_enabled: true, email_visible: false } : []
+  );
+  await act(async () => {
+    await result.current.refetchAll();
+  });
+  expect(result.current.error).toBeNull();
+  expect(result.current.hasCompleteData).toBe(true);
+  expect(result.current.discoveryEnabled).toBe(true);
+});
+
+it('does not report an old account mutation as a current account success', async () => {
+  let finish: () => void = () => {};
+  put.mockImplementation(
+    () =>
+      new Promise<void>(resolve => {
+        finish = resolve;
+      })
+  );
+  const { result, rerender } = renderHook(() => usePeerConnections());
+  await waitFor(() => expect(result.current.emailVisible).toBe(false));
+  const initial = result.current;
+  let pending: ReturnType<typeof initial.setEmailVisible>;
+  act(() => {
+    pending = initial.setEmailVisible(true);
+  });
+  useAuth.mockReturnValue({ user: { id: 'two' } });
+  rerender();
+  let outcome: Awaited<typeof pending> | undefined;
+  await act(async () => {
+    finish();
+    outcome = await pending;
+  });
+  expect(outcome).toEqual({ ok: false, errorCode: 'FORBIDDEN' });
+});

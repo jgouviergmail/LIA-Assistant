@@ -7,11 +7,32 @@ from uuid import UUID
 import pytest
 from langchain_core.runnables import RunnableConfig
 
+from src.domains.agents.effects import runtime as effect_runtime
 from src.domains.agents.effects.runtime import ClaimTicket, gated_executor
 from src.domains.agents.services import draft_executor
+from src.infrastructure.email.smtp_outcome import SMTPPartialAcceptanceError
 from tests.helpers.runtime_context import installed_runtime_context
 
 pytestmark = pytest.mark.unit
+
+
+async def test_a_known_partial_send_is_kept_in_the_ledger_before_it_is_reported() -> None:
+    from uuid import uuid4
+
+    ledger = MagicMock(close=AsyncMock())
+    attempt = AsyncMock(side_effect=SMTPPartialAcceptanceError(1, 2))
+    ticket = ClaimTicket(uuid4(), uuid4())
+    with patch.object(effect_runtime, "_LEDGER", ledger):
+        with pytest.raises(SMTPPartialAcceptanceError):
+            await effect_runtime._perform_and_close(ticket, attempt, policy="write")
+
+    attempt.assert_awaited_once()
+    ledger.close.assert_awaited_once()
+    outcome = ledger.close.await_args.kwargs["outcome"]
+    assert outcome.succeeded is False
+    assert outcome.payload["error_code"] == "PARTIAL_SEND"
+    assert outcome.payload["accepted_recipients_count"] == 1
+    assert outcome.payload["refused_recipients_count"] == 2
 
 
 @pytest.mark.parametrize(

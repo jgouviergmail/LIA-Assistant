@@ -16,6 +16,7 @@ from typing import Any
 import pytest
 
 from src.domains.agents.services.streaming.service import StreamingService
+from src.domains.agents.services.streaming.voice_scope import VoiceScope
 
 
 def _widget(registry_id: str, skill_name: str = "interactive-map") -> dict[str, Any]:
@@ -46,7 +47,7 @@ class TestPersistableWidgetScope:
     @pytest.fixture(autouse=True)
     def _init_attributes(self, service: StreamingService) -> None:
         service.persistable_widgets = {}
-        service.voice_context_registry = None
+        service._voice_scope = VoiceScope()
 
     async def test_captures_the_widget_this_turn_produced(self, service: StreamingService) -> None:
         state = {

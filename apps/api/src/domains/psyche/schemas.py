@@ -16,6 +16,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from src.domains.psyche.efficacy_contracts import EfficacyProfile
+
 
 class PsycheStateSummary(BaseModel):
     """Lightweight psyche state summary for SSE done metadata.
@@ -100,6 +102,8 @@ class PsycheStateResponse(BaseModel):
         default_factory=dict,
         description="Self-efficacy per domain {domain: {score, weight}}.",
     )
+
+    efficacy_profile: EfficacyProfile | None = None
 
     # Timestamps
     created_at: datetime = Field(description="Creation timestamp (UTC).")

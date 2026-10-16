@@ -153,7 +153,7 @@ def test_source_cannot_break_out_of_the_semantic_external_wrapper() -> None:
     )
     view = message.additional_kwargs["lia_model_view"]["content"]
     assert view.count("</external_content>") == 1
-    assert "&lt;/external_content&gt;" in view
+    assert "&lt;/external_content" in view  # the bracket is neutralised (point 4)
 
 
 def test_signed_display_media_never_becomes_model_context() -> None:

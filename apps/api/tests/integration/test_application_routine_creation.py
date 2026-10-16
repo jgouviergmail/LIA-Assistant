@@ -34,6 +34,7 @@ from src.domains.scheduled_actions.schemas import ScheduledActionCreate
 from src.domains.scheduled_actions.service import ScheduledActionService
 from src.domains.users.models import User
 from src.domains.users.preference_cas import PreferenceWriteReceipt
+from tests.helpers.draft_refusals import draft_refusal_code
 from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
 
 pytestmark = pytest.mark.integration
@@ -195,11 +196,11 @@ async def test_native_routine_creation_needs_exact_confirmation_and_a_current_ma
         assert created.trigger_kind == ("condition" if condition else "time")
         assert created.requires_approval is condition
     if intervention == "limit":
-        assert result.error == "CONSTRAINT_VIOLATION"
+        assert draft_refusal_code(result) == "CONSTRAINT_VIOLATION"
     if intervention == "timezone":
-        assert result.error == "STALE_STATE"
+        assert draft_refusal_code(result) == "STALE_STATE"
     if intervention == "commit_unknown":
-        assert result.error == "COMPLETION_UNKNOWN"
+        assert draft_refusal_code(result) == "COMPLETION_UNKNOWN"
 
 
 @pytest.mark.parametrize("enabled", [True, False])

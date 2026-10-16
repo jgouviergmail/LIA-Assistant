@@ -76,6 +76,17 @@ async def get_psyche_state(
         return None
 
     response, _ = project_psyche_state(state)
+    from datetime import UTC, datetime
+
+    from src.domains.psyche.efficacy_repository import EfficacyRepository
+    from src.domains.psyche.efficacy_service import efficacy_enabled
+
+    response.efficacy_profile = await EfficacyRepository(db).read_profile(
+        current_user.id,
+        now=datetime.now(UTC),
+        collection_enabled=await efficacy_enabled(db, current_user.id),
+        influence_enabled=await efficacy_enabled(db, current_user.id, influence=True),
+    )
     return response
 
 

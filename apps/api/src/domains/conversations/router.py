@@ -297,6 +297,9 @@ async def submit_response_feedback(
         )
     if comment and data.verdict == "thumbs_down":
         await record_comment_as_correction(db, current_user.id, comment)
+    from src.domains.conversations.efficacy_feedback import apply_efficacy_feedback
+
+    await apply_efficacy_feedback(db, current_user.id, message_id, data.verdict)
     await db.commit()
 
     # Best-effort metric emission — never fails the request.

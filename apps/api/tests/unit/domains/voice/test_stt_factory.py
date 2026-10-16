@@ -1,7 +1,9 @@
 """Unit tests for the STT backend factory.
 
-Validates the routing between Sherpa (local) and ElevenLabs (remote), the
-provider-config base URL fallback, and the explicit error raised when the
+Validates the routing between Sherpa (local) and the remote engine of the
+``voice_transcription`` slot — its PROVIDER decides, never a hard-coded one
+(ADR-345: a slot set to OpenAI used to send OpenAI's model name to ElevenLabs) —,
+the provider-config base URL fallback, and the explicit error raised when the
 remote provider is selected without an API key configured.
 """
 
@@ -10,13 +12,17 @@ from __future__ import annotations
 import pytest
 
 from src.core.constants import DEFAULT_ELEVENLABS_BASE_URL
+from src.core.remote_stt import REMOTE_STT_PROVIDERS, remote_stt_slot
 from src.domains.llm_config.cache import LLMConfigOverrideCache
 from src.domains.voice.stt.elevenlabs_stt import ElevenLabsSttService
 from src.domains.voice.stt.exceptions import STTProviderError
 from src.domains.voice.stt.factory import (
     _resolve_remote_base_url,
+    build_remote_stt,
     get_stt_service_for_mode,
 )
+from src.domains.voice.stt.fishaudio_stt import FishAudioSttService
+from src.domains.voice.stt.openai_stt import OpenAISttService
 
 
 @pytest.fixture(autouse=True)
@@ -27,9 +33,11 @@ def _reset_cache():
     LLMConfigOverrideCache.reset()
 
 
-def _seed_cache(api_key: str | None, override: dict | None = None) -> None:
+def _seed_cache(
+    api_key: str | None, override: dict | None = None, *, provider: str = "elevenlabs"
+) -> None:
     """Manually populate the cache without hitting the DB."""
-    LLMConfigOverrideCache._provider_keys = {"elevenlabs": api_key} if api_key is not None else {}
+    LLMConfigOverrideCache._provider_keys = {provider: api_key} if api_key is not None else {}
     LLMConfigOverrideCache._overrides = {"voice_transcription": override} if override else {}
     LLMConfigOverrideCache._loaded = True
 
@@ -120,3 +128,66 @@ def test_resolve_base_url_extracts_value():
 def test_resolve_base_url_strips_whitespace():
     result = _resolve_remote_base_url('{"base_url": "  https://x.example/v1  "}')
     assert result == "https://x.example/v1"
+
+
+# ----------------------------------------------------------------------
+# The slot's provider decides (ADR-345)
+# ----------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("provider", "model", "engine"),
+    [
+        ("fishaudio", "transcribe-1-pro", FishAudioSttService),
+        ("openai", "gpt-4o-mini-transcribe", OpenAISttService),
+    ],
+)
+def test_remote_mode_builds_the_slots_own_engine(provider: str, model: str, engine: type) -> None:
+    _seed_cache("sk-test", {"provider": provider, "model": model}, provider=provider)
+
+    service = get_stt_service_for_mode("remote")
+
+    assert isinstance(service, engine)
+    assert service._model == model
+
+
+def test_the_missing_key_named_is_the_slots_providers() -> None:
+    _seed_cache("sk-eleven", {"provider": "fishaudio", "model": "transcribe-1"})
+
+    with pytest.raises(STTProviderError) as exc:
+        get_stt_service_for_mode("remote")
+
+    assert exc.value.code == "fishaudio_api_key_missing"
+
+
+def test_a_slot_naming_no_remote_engine_is_a_classified_defect() -> None:
+    _seed_cache("sk-test", {"provider": "anthropic", "model": "claude"}, provider="anthropic")
+
+    with pytest.raises(STTProviderError) as exc:
+        get_stt_service_for_mode("remote")
+
+    assert exc.value.code == "provider_unknown"
+
+
+def test_the_slot_a_caller_read_is_the_one_transcribing() -> None:
+    """The voice WebSocket files the cost under the slot it read: the factory
+    must transcribe with that same slot, never re-read one that moved."""
+    _seed_cache("sk-test", {"provider": "fishaudio", "model": "transcribe-1"}, provider="fishaudio")
+    read = remote_stt_slot()
+    _seed_cache(
+        "sk-test", {"provider": "openai", "model": "gpt-4o-mini-transcribe"}, provider="openai"
+    )
+    LLMConfigOverrideCache._provider_keys["fishaudio"] = "sk-fish"
+
+    service = get_stt_service_for_mode("remote", slot=read)
+
+    assert isinstance(service, FishAudioSttService)
+
+
+@pytest.mark.parametrize("provider", REMOTE_STT_PROVIDERS)
+def test_every_declared_remote_engine_is_one_the_factory_builds(provider: str) -> None:
+    """The declaration readers trust (core) and the engines the factory builds stay one list."""
+    service = build_remote_stt(provider, api_key="sk", model="m", timeout_seconds=5.0)
+
+    assert hasattr(service, "transcribe_pcm_int16_async")
+    assert hasattr(service, "transcribe_file_async")

@@ -57,6 +57,8 @@ MARKER_REQUIRED: tuple[str, ...] = (
     "document_generation_prompt",
     # Images (ADR-315): the prompting techniques first, the request in the tail
     "image_prompt_enhancement_prompt",
+    # Mailbox drafts (ADR-344): the reply's rules first, the received e-mail in the tail
+    "mailbox_reply_draft_prompt",
     # Background intelligence
     "memory_extraction_prompt",
     "interest_extraction_prompt",
@@ -109,7 +111,9 @@ ALLOWED_BEFORE_MARKER: dict[str, frozenset[str]] = {
     # bound the tool enforces is the one the prompt publishes).
     "brave_agent_prompt": frozenset({"brave_web_max_count", "brave_news_max_count"}),
     # Expert identity must be established up front; stable per delegated task type.
-    "subagent_react_prompt": frozenset({"expertise"}),
+    # The bound tools and the round budget (ADR-083 amendment 2026-10-13 b) come
+    # from the whitelist and a setting: identical for every request of a deployment.
+    "subagent_react_prompt": frozenset({"expertise", "research_tools", "max_tool_rounds"}),
     # What the sandbox image holds (ADR-327 lot 2): rendered from a constant
     # declaration, identical for every request of a deployment.
     "skill_react_agent_prompt": frozenset({"sandbox_toolbox"}),

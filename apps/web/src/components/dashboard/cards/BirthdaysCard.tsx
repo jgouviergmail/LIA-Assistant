@@ -57,7 +57,12 @@ function BirthdaysContent({
   onOpenChat: (draft: string) => void;
   onExecute: (intent: string) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const dateFormat = new Intl.DateTimeFormat(i18n.language || 'fr', {
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'UTC',
+  });
   return (
     <ul className="space-y-0.5" role="list">
       {data.items.map((birthday, index) => {
@@ -74,26 +79,34 @@ function BirthdaysContent({
             ariaLabel={intent}
             tooltip={birthday.contact_name}
             onSelect={() => onOpenChat(intent)}
-            align="center"
-            contentClassName="flex items-baseline justify-between gap-2 text-sm"
+            contentClassName="flex flex-col gap-1.5 leading-snug"
             actions={[
               { icon: Gift, label: messageIntent, onSelect: () => onExecute(messageIntent) },
             ]}
           >
-            <span className="text-foreground/90 truncate font-medium">
-              {birthday.contact_name}
-              {birthday.age_at_next !== null && (
-                <span className="text-muted-foreground font-normal ml-1">
-                  ({birthday.age_at_next})
-                </span>
-              )}
-            </span>
-            <span className="shrink-0 text-xs font-semibold text-rose-600 dark:text-rose-300 tabular-nums">
+            <span className="flex items-center gap-1.5 text-xs font-medium text-rose-600 dark:text-rose-300 tabular-nums">
+              <Cake className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
               {birthday.days_until === 0
                 ? t('dashboard.briefing.cards.birthdays.today')
                 : t('dashboard.briefing.cards.birthdays.in_days', {
                     count: birthday.days_until,
                   })}
+            </span>
+            <span className="line-clamp-2 break-words text-sm font-semibold text-foreground/90">
+              {birthday.contact_name}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {birthday.age_at_next !== null && (
+                <>
+                  {t('dashboard.briefing.cards.birthdays.age_next', {
+                    count: birthday.age_at_next,
+                  })}{' '}
+                  ·{' '}
+                </>
+              )}
+              {/* A birthday is a civil month/day, even when its year is unknown.
+                  A fixed leap year preserves February 29; UTC prevents a day shift. */}
+              {dateFormat.format(new Date(`2000-${birthday.date_iso.slice(-5)}T00:00:00Z`))}
             </span>
           </CardItemRow>
         );

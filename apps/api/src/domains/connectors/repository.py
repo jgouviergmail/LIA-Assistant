@@ -6,10 +6,11 @@ Refactored (v0.4.1): Extends BaseRepository to reduce code duplication.
 Common CRUD operations (get_by_id, create, update, delete) inherited from BaseRepository.
 """
 
+from collections.abc import Iterable
 from uuid import UUID
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -137,7 +138,7 @@ class ConnectorRepository(BaseRepository[Connector]):
         return list(result.scalars().all())
 
     async def get_global_config_by_type(
-        self, connector_type: ConnectorType
+        self, connector_type: ConnectorType, *, for_activation: bool = False
     ) -> ConnectorGlobalConfig | None:
         """
         Get global config by connector type.
@@ -148,12 +149,25 @@ class ConnectorRepository(BaseRepository[Connector]):
         Returns:
             ConnectorGlobalConfig or None if not found
         """
-        result = await self.db.execute(
-            select(ConnectorGlobalConfig).where(
-                ConnectorGlobalConfig.connector_type == connector_type
-            )
+        query = select(ConnectorGlobalConfig).where(
+            ConnectorGlobalConfig.connector_type == connector_type
         )
+        if for_activation:
+            query = query.with_for_update(read=True).execution_options(populate_existing=True)
+        result = await self.db.execute(query)
         return result.scalar_one_or_none()
+
+    async def lock_global_configs(self, connector_types: Iterable[ConnectorType]) -> None:
+        """Serialize activation and policy changes, including the default with no row.
+
+        Transaction locks are acquired in one order and released by commit or
+        rollback. A row lock alone cannot protect a configuration not created yet.
+        """
+        for connector_type in sorted(set(connector_types), key=lambda kind: kind.value):
+            await self.db.execute(
+                text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
+                {"key": f"connector-global-config:{connector_type.value}"},
+            )
 
     async def create_global_config(
         self, connector_type: ConnectorType, is_enabled: bool, disabled_reason: str | None = None

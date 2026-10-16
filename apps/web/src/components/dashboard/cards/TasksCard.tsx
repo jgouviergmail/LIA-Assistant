@@ -108,8 +108,7 @@ function TasksContent({
             ariaLabel={intent}
             tooltip={task.title}
             onSelect={() => onOpenChat(intent)}
-            align="center"
-            contentClassName="flex items-baseline justify-between gap-2 text-sm"
+            contentClassName="flex flex-col gap-1.5 leading-snug"
             actions={[
               { icon: Check, label: completeIntent, onSelect: () => onExecute(completeIntent) },
               {
@@ -119,16 +118,21 @@ function TasksContent({
               },
             ]}
           >
+            {task.days_until_due !== null && (
+              <span className="flex items-center gap-1.5 text-teal-700 dark:text-teal-300">
+                <ListTodo className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                <DueBadge task={task} />
+              </span>
+            )}
             <span
               className={
                 task.overdue
-                  ? 'truncate font-medium text-rose-600 dark:text-rose-300'
-                  : 'truncate font-medium text-foreground/90'
+                  ? 'line-clamp-2 break-words text-sm font-semibold text-rose-600 dark:text-rose-300'
+                  : 'line-clamp-2 break-words text-sm font-semibold text-foreground/90'
               }
             >
               {task.title}
             </span>
-            <DueBadge task={task} />
           </CardItemRow>
         );
       })}

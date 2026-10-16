@@ -34,7 +34,13 @@ from pydantic import PrivateAttr
 from src.core.config import settings
 from src.domains.agents.context.runtime_context import LiaRuntimeContext, tool_runtime_context
 from src.domains.agents.tools.output import UnifiedToolOutput
-from src.domains.agents.tools.react_runner import ReactSubAgentRunner
+from src.domains.agents.tools.react_runner import (
+    ReactSubAgentRunner,
+    SubAgentOutcome,
+    failure_code_of,
+    failure_sentence,
+    partial_fields,
+)
 from src.domains.agents.tools.react_tool_wrapper import compose_tool_message
 from src.domains.agents.tools.tool_registry import get_all_tools
 from src.domains.agents.utils.rate_limiting import rate_limit
@@ -302,7 +308,11 @@ async def _run_mcp_react_task(
         display_name=f"MCP Iterative: {server_name}",
     )
 
-    if react_result.iteration_count == 0 and server_tools:
+    if (
+        react_result.outcome is SubAgentOutcome.ANSWERED
+        and react_result.iteration_count == 0
+        and server_tools
+    ):
         # The sub-agent exists solely to operate this server's tools, so a
         # completion with ZERO tool calls almost certainly speculated instead
         # of acting (measured 2026-09-02 on GitHub: 3 runs out of 4 answered
@@ -311,6 +321,8 @@ async def _run_mcp_react_task(
         # first answer — one deterministic retry gives both modes the same
         # robustness. Single retry only: a second speculative answer stands,
         # the model must not buy iterations with refusals (ADR-248 doctrine).
+        # Only an ANSWER is retried: a failed run also counts zero tool calls,
+        # and replaying it would buy a second loop with a provider's failure.
         logger.info(
             "mcp_react_zero_iteration_retry",
             server_name=server_name,
@@ -332,7 +344,8 @@ async def _run_mcp_react_task(
             mcp_react_iterations_histogram,
         )
 
-        status = "success" if react_result.final_message else "error"
+        answered = react_result.outcome is SubAgentOutcome.ANSWERED
+        status = "success" if answered else "error"
         mcp_react_invocations_total.labels(server_name=server_name, status=status).inc()
         mcp_react_iterations_histogram.labels(server_name=server_name).observe(
             react_result.iteration_count
@@ -347,10 +360,26 @@ async def _run_mcp_react_task(
     if extra_structured_data:
         structured_data.update(extra_structured_data)
 
+    if react_result.outcome is not SubAgentOutcome.ANSWERED:
+        # A failure still carries what the loop produced before it ended: a
+        # widget it created exists, and hiding it would hide a real effect.
+        message = (
+            f"MCP task on '{server_name}' {failure_sentence(react_result)} after "
+            f"{react_result.iteration_count} step(s)."
+        )
+        return UnifiedToolOutput(
+            success=False,
+            message=message,
+            error_message=message,
+            error_code=failure_code_of(react_result),
+            registry_updates=react_result.accumulated_registry,
+            structured_data=structured_data,
+        )
+
     return UnifiedToolOutput.data_success(
         message=react_result.final_message,
         registry_updates=react_result.accumulated_registry,
-        structured_data=structured_data,
+        structured_data={**structured_data, **partial_fields(react_result)},
     )
 
 

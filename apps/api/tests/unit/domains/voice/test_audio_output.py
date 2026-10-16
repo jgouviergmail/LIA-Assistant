@@ -6,16 +6,11 @@ import base64
 import io
 import struct
 import wave
-from unittest.mock import AsyncMock
 
 import pytest
 
 from src.domains.llm_config.cache import LLMConfigOverrideCache
-from src.domains.voice.audio_output import (
-    audio_for_mix,
-    mix_audio_format,
-    synthesize_playable_base64,
-)
+from src.domains.voice.audio_output import audio_for_mix, mix_audio_format, playable_base64
 from src.domains.voice.elevenlabs_tts_client import ElevenLabsTTSClient
 from src.domains.voice.exceptions import TTSProviderError
 from src.domains.voice.factory import TTSConfig, get_tts_client_sync
@@ -25,33 +20,24 @@ from src.domains.voice.protocol import RawAudioSpec
 pytestmark = pytest.mark.unit
 
 
-async def test_browser_pcm_container_keeps_rate_samples_and_one_provider_call() -> None:
+async def test_browser_pcm_container_keeps_the_rate_and_the_samples() -> None:
     client = OpenAITTSClient(response_format="pcm")
     samples = struct.pack("<5h", -32768, -1000, 0, 1000, 32767)
-    client.synthesize = AsyncMock(return_value=samples)
-    client.synthesize_base64 = AsyncMock()
     try:
-        result = await synthesize_playable_base64(client, text="Test", voice_name="nova")
+        result = playable_base64(client, samples)
         with wave.open(io.BytesIO(base64.b64decode(result)), "rb") as reader:
             assert reader.getframerate() == 24000
             assert reader.readframes(5) == samples
-        client.synthesize.assert_awaited_once_with(text="Test", voice_name="nova")
-        client.synthesize_base64.assert_not_awaited()
     finally:
         await client.close()
 
 
-async def test_browser_encoded_audio_retains_existing_base64_path() -> None:
+async def test_browser_encoded_audio_passes_byte_for_byte() -> None:
     client = OpenAITTSClient(response_format="mp3")
-    client.synthesize = AsyncMock()
-    client.synthesize_base64 = AsyncMock(return_value="encoded-original")
     try:
-        assert (
-            await synthesize_playable_base64(client, text="Test", voice_name="nova")
-            == "encoded-original"
+        assert base64.b64decode(playable_base64(client, b"encoded-original")) == (
+            b"encoded-original"
         )
-        client.synthesize_base64.assert_awaited_once_with(text="Test", voice_name="nova")
-        client.synthesize.assert_not_awaited()
     finally:
         await client.close()
 

@@ -22,6 +22,7 @@ from src.domains.agents.tools.application_memory_tools import create_lia_memory_
 from src.domains.memories.models import Memory
 from src.domains.users.models import User
 from src.infrastructure.llm.embedding_context import get_embedding_context
+from tests.helpers.draft_refusals import draft_refusal_code
 from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
 
 pytestmark = pytest.mark.integration
@@ -145,7 +146,7 @@ async def test_memory_creation_pays_only_after_hitl_and_rechecks_before_each_cal
                 test_user.memory_enabled is False and test_user.extraction_revision == revision + 1
             )
             if intervention == "commit_unknown":
-                assert result.error == "COMPLETION_UNKNOWN"
+                assert draft_refusal_code(result) == "COMPLETION_UNKNOWN"
             repeated = await draft_executor._execute_confirmed_draft(
                 {"draft_id": item.id, "draft_type": "application_action", "draft_content": content},
                 {"configurable": {"thread_id": "memory-create"}},
@@ -154,6 +155,6 @@ async def test_memory_creation_pays_only_after_hitl_and_rechecks_before_each_cal
             )
             assert repeated.success is False and len(calls) == 2
         else:
-            assert result.error == (
+            assert draft_refusal_code(result) == (
                 "CAPABILITY_DISABLED" if intervention == "late_disabled" else "USAGE_LIMIT_EXCEEDED"
             )

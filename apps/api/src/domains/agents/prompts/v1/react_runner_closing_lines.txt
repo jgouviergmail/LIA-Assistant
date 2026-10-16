@@ -1,0 +1,12 @@
+# One-line scaffolds of a ReAct sub-loop's closing pass, rendered by
+# domains/agents/tools/react_runner_closing.py (ADR-083 amendment 2026-10-13).
+# note: text the model wrote beside its calls.
+# call: one tool call the loop made, with the arguments it sent.
+# result: what that call returned; its content follows, wrapped as third-party data.
+# empty: a call that returned nothing.
+# nothing: the loop made no call at all.
+note|[note] {content}
+call|[call {index}] {tool} {arguments}
+result|[result {index}] {tool}
+empty|(nothing returned)
+nothing|(no tool was called)

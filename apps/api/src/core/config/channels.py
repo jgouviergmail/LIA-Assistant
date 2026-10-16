@@ -125,7 +125,10 @@ class ChannelsSettings(BaseSettings):
         default=TELEGRAM_MESSAGE_MAX_LENGTH_DEFAULT,
         ge=100,
         le=4096,
-        description="Maximum characters per Telegram message before splitting.",
+        description=(
+            "Maximum length of one Telegram message part before splitting; counted "
+            "in UTF-16 units for an HTML message, Telegram's unit (an emoji counts two)."
+        ),
     )
 
     # ========================================================================

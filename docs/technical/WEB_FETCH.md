@@ -295,9 +295,9 @@ Le contenu extrait des pages web est enveloppe dans des balises de securite avan
 | `fetch_web_page_tool` | Contenu Markdown complet de la page |
 | `unified_web_search_tool` | Synthesis Perplexity, snippets Brave, resumes Wikipedia |
 
-### Stripping
+### Echappement
 
-La fonction `strip_external_markers()` (`src/domains/agents/utils/content_wrapper.py`) permet de retirer les balises pour l'affichage ou le stockage. Elle restaure l'echappement (`&lt;` → `<`).
+Tout crochet du contenu qui se lirait comme la balise de l'enveloppe — casse, blancs, crochets pleine chasse ou petite forme, lettres pleine chasse, caracteres invisibles — est ecrit `&lt;` (comparaison caractere par caractere apres normalisation NFKC, arretee au premier ecart, cout lineaire). Aucune fonction ne retire les balises : `strip_external_markers()`, morte, a ete supprimee le 2026-10-13 (ADR-167, amendement).
 
 ### Configuration
 
@@ -309,7 +309,7 @@ La fonction `strip_external_markers()` (`src/domains/agents/utils/content_wrappe
 
 | Fichier | Role |
 |---------|------|
-| `src/domains/agents/utils/content_wrapper.py` | `wrap_external_content()`, `strip_external_markers()` |
+| `src/domains/agents/utils/content_wrapper.py` | `wrap_external_content()`, `scan_injection_patterns()`, `injection_notice()` |
 | `src/core/constants.py` | `EXTERNAL_CONTENT_OPEN_TAG`, `EXTERNAL_CONTENT_CLOSE_TAG`, `EXTERNAL_CONTENT_WARNING` |
 | `src/core/config/advanced.py` | Setting `external_content_wrapping_enabled` |
 | `tests/unit/agents/utils/test_content_wrapper.py` | 21 tests unitaires |

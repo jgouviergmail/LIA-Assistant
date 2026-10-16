@@ -28,13 +28,28 @@ import pytest
 
 from src.core.field_names import FIELD_CACHED_AT
 from src.domains.connectors.clients.apple_email_client import AppleEmailClient
+from src.domains.connectors.clients.apple_imap import mailbox_account_scope, message_cache_key
 from src.domains.connectors.clients.base_apple_client import AppleAuthenticationError
 from src.domains.connectors.clients.normalizers.email_normalizer import normalize_imap_message
+from src.domains.connectors.clients.normalizers.imap_handles import message_handle, scope_digest
 from src.domains.connectors.schemas import AppleCredentials
 
 pytestmark = pytest.mark.unit
 
 MODULE = "src.domains.connectors.clients.apple_email_client"
+
+
+def _message_id(client: AppleEmailClient, uid: str) -> str:
+    """A fixture ID under the fake SELECT's UIDVALIDITY=1."""
+    return message_handle(
+        "INBOX",
+        uid,
+        scope=scope_digest(mailbox_account_scope(client.credentials.apple_id), "INBOX", 1),
+    )
+
+
+def _cache_key(client: AppleEmailClient, uid: str) -> str:
+    return message_cache_key(client.user_id, client.credentials.apple_id, _message_id(client, uid))
 
 
 # ============================================================================
@@ -86,6 +101,7 @@ def _mail_message(
         from_=from_,
         to=list(to),
         cc=list(cc),
+        bcc=[],
         date_str="Mon, 20 Jul 2026 09:00:00 +0000",
         date=None,
         text=text,
@@ -102,8 +118,17 @@ class _FakeMailBox:
 
     def __init__(self, messages: list[SimpleNamespace] | None = None) -> None:
         self.messages = messages or []
+        self.client = SimpleNamespace(
+            untagged_responses={"UIDVALIDITY": [b"1"]}, capabilities=("MOVE", "UIDPLUS")
+        )
         self.folder = MagicMock()
-        self.folder.list = MagicMock(return_value=[SimpleNamespace(name="INBOX")])
+        self.folder.list = MagicMock(
+            return_value=[
+                SimpleNamespace(name="INBOX", flags=()),
+                SimpleNamespace(name="Trash", flags=()),
+                SimpleNamespace(name="Sent Messages", flags=("\\Sent",)),
+            ]
+        )
         self.fetch_calls: list[tuple] = []
         self.moved: list[tuple] = []
 
@@ -124,6 +149,9 @@ class _FakeMailBox:
         if isinstance(limit, slice):
             return list(self.messages[limit])
         return list(self.messages[:limit] if limit else self.messages)
+
+    def uids(self, criteria=None, *args, **kwargs):  # UID SEARCH
+        return [message.uid for message in self.messages]
 
     def move(self, uids, folder):
         self.moved.append((tuple(uids), folder))
@@ -149,23 +177,23 @@ class TestMessageCacheFreshness:
         ):
             result = await client._search_emails_impl("in:inbox", 10, None, True)
 
-        assert [m["id"] for m in result["messages"]] == ["42"]
+        assert [m["id"] for m in result["messages"]] == [_message_id(client, "42")]
         assert result["from_cache"] is False
         assert result[FIELD_CACHED_AT] is None
 
-        cached = json.loads(redis._store[f"apple_email:{client.user_id}:msg:42"])
+        cached = json.loads(redis._store[_cache_key(client, "42")])
         assert cached[FIELD_CACHED_AT], "the cached payload must record when it was written"
 
     async def test_cache_hit_reports_the_write_timestamp(self, client: AppleEmailClient) -> None:
         """Regression: a cache hit reported ``from_cache`` without any age."""
         redis = _fake_redis()
         written_at = "2020-01-01T00:00:00+00:00"
-        redis._store[f"apple_email:{client.user_id}:msg:42"] = json.dumps(
+        redis._store[_cache_key(client, "42")] = json.dumps(
             {"id": "42", "subject": "Quarterly report", FIELD_CACHED_AT: written_at}
         )
 
         with patch(f"{MODULE}.get_redis_session", AsyncMock(return_value=redis)):
-            result = await client._get_message_impl("42", "full", None, True)
+            result = await client._get_message_impl(_message_id(client, "42"), "full", None, True)
 
         assert result["from_cache"] is True
         assert result[FIELD_CACHED_AT] == written_at
@@ -174,12 +202,12 @@ class TestMessageCacheFreshness:
         self, client: AppleEmailClient
     ) -> None:
         redis = _fake_redis()
-        redis._store[f"apple_email:{client.user_id}:msg:42"] = json.dumps(
+        redis._store[_cache_key(client, "42")] = json.dumps(
             {"id": "42", "subject": "Quarterly report"}
         )
 
         with patch(f"{MODULE}.get_redis_session", AsyncMock(return_value=redis)):
-            result = await client._get_message_impl("42", "full", None, True)
+            result = await client._get_message_impl(_message_id(client, "42"), "full", None, True)
 
         assert result["from_cache"] is True
         assert result[FIELD_CACHED_AT] is None
@@ -194,24 +222,24 @@ class TestMessageCacheFreshness:
             patch(f"{MODULE}.MailBox", mailbox),
             patch(f"{MODULE}.get_redis_session", AsyncMock(return_value=redis)),
         ):
-            result = await client._get_message_impl("42", "full", None, True)
+            result = await client._get_message_impl(_message_id(client, "42"), "full", None, True)
 
         assert result["from_cache"] is False
         assert result[FIELD_CACHED_AT] is None
 
-        cached = json.loads(redis._store[f"apple_email:{client.user_id}:msg:42"])
+        cached = json.loads(redis._store[_cache_key(client, "42")])
         assert cached[FIELD_CACHED_AT]
 
     async def test_use_cache_false_bypasses_the_cache(self, client: AppleEmailClient) -> None:
         redis = _fake_redis()
-        redis._store[f"apple_email:{client.user_id}:msg:42"] = json.dumps({"id": "42"})
+        redis._store[_cache_key(client, "42")] = json.dumps({"id": "42"})
         mailbox = _FakeMailBox([_mail_message(uid="42", subject="Fresh")])
 
         with (
             patch(f"{MODULE}.MailBox", mailbox),
             patch(f"{MODULE}.get_redis_session", AsyncMock(return_value=redis)),
         ):
-            result = await client._get_message_impl("42", "full", None, False)
+            result = await client._get_message_impl(_message_id(client, "42"), "full", None, False)
 
         assert result["from_cache"] is False
         assert result["subject"] == "Fresh"
@@ -225,7 +253,7 @@ class TestMessageCacheFreshness:
             patch(f"{MODULE}.get_redis_session", AsyncMock(return_value=redis)),
             pytest.raises(ValueError, match="not found"),
         ):
-            await client._get_message_impl("999", "full", None, True)
+            await client._get_message_impl(_message_id(client, "999"), "full", None, True)
 
 
 # ============================================================================
@@ -262,7 +290,8 @@ class TestSearchEmails:
         ):
             await client._search_emails_impl("in:sent", 5, None, True)
 
-        assert mailbox.folder.set.called, "a non-INBOX query must select the target folder"
+        # A non-INBOX query selects the folder the server flags for the role.
+        mailbox.folder.set.assert_called_once_with("Sent Messages")
 
     async def test_returns_the_normalised_messages_like_the_gmail_search(
         self, client: AppleEmailClient
@@ -278,7 +307,10 @@ class TestSearchEmails:
         ):
             result = await client._search_emails_impl("in:inbox", 10, None, True)
 
-        assert [m["id"] for m in result["messages"]] == ["1", "2"]
+        assert [m["id"] for m in result["messages"]] == [
+            _message_id(client, "1"),
+            _message_id(client, "2"),
+        ]
         assert result["messages"][0]["subject"] == "Quarterly report"
         assert result["resultSizeEstimate"] is None, "the page size is not a count (ADR-185)"
 
@@ -344,6 +376,68 @@ class TestSendEmail:
             pytest.raises(AppleAuthenticationError),
         ):
             await client._smtp_send(["bob@example.com"], MIMEMultipart())
+
+    async def test_smtp_verifies_the_server_certificate_before_presenting_credentials(
+        self, client: AppleEmailClient
+    ) -> None:
+        import ssl
+
+        smtp = MagicMock()
+        smtp.__enter__.return_value = smtp
+        smtp.__exit__.return_value = False
+        smtp.sendmail.return_value = {}
+        with patch("smtplib.SMTP", return_value=smtp):
+            await client._smtp_send(["bob@example.com"], MIMEMultipart())
+
+        context = smtp.starttls.call_args.kwargs.get("context")
+        assert isinstance(context, ssl.SSLContext)
+        assert context.verify_mode == ssl.CERT_REQUIRED
+        assert context.check_hostname is True
+
+    async def test_an_untrusted_smtp_server_never_receives_credentials_or_mail(
+        self, client: AppleEmailClient
+    ) -> None:
+        import ssl
+
+        smtp = MagicMock()
+        smtp.__enter__.return_value = smtp
+        smtp.__exit__.return_value = False
+        smtp.starttls.side_effect = ssl.SSLCertVerificationError("untrusted server")
+        with patch("smtplib.SMTP", return_value=smtp), pytest.raises(ssl.SSLCertVerificationError):
+            await client._smtp_send(["bob@example.com"], MIMEMultipart())
+
+        smtp.login.assert_not_called()
+        smtp.sendmail.assert_not_called()
+
+    async def test_a_partial_smtp_acceptance_never_reports_a_full_success(
+        self, client: AppleEmailClient
+    ) -> None:
+        smtp = MagicMock()
+        smtp.__enter__.return_value = smtp
+        smtp.__exit__.return_value = False
+        smtp.sendmail.return_value = {"carol@example.com": (550, b"private-provider-IGNORE-RULES")}
+        with patch("smtplib.SMTP", return_value=smtp), pytest.raises(Exception) as refusal:
+            await client._smtp_send(["bob@example.com", "carol@example.com"], MIMEMultipart())
+
+        assert type(refusal.value).__name__ == "SMTPPartialAcceptanceError"
+        assert refusal.value.accepted == 1
+        assert refusal.value.refused == 1
+        assert "private-provider" not in str(refusal.value)
+        smtp.sendmail.assert_called_once()
+
+    async def test_a_quit_failure_does_not_erase_known_smtp_acceptance(
+        self, client: AppleEmailClient
+    ) -> None:
+        import smtplib
+
+        smtp = MagicMock()
+        smtp.__enter__.return_value = smtp
+        smtp.__exit__.side_effect = smtplib.SMTPResponseException(451, b"quit failed")
+        smtp.sendmail.return_value = {}
+        with patch("smtplib.SMTP", return_value=smtp):
+            await client._smtp_send(["bob@example.com"], MIMEMultipart())
+
+        smtp.sendmail.assert_called_once()
 
 
 class TestReplyEmail:
@@ -421,10 +515,11 @@ class TestReplyEmail:
         captured = await self._reply(
             client, message_id="42", body="Thanks", reply_all=True, is_html=False
         )
-        cc = captured["msg"]["Cc"]
-        assert "carol@example.com" in cc
-        assert "dave@example.com" in cc
-        assert "jane@icloud.com" not in cc, "the sender must never be cc'ed on their own reply"
+        # Where mail clients put them: the other « To » recipients answered,
+        # the original « Cc » copied, the person never (ADR-344).
+        assert captured["msg"]["To"] == "bob@example.com, carol@example.com"
+        assert captured["msg"]["Cc"] == "dave@example.com"
+        assert "jane@icloud.com" not in captured["recipients"]
 
     async def test_explicit_recipient_overrides_the_original_sender(
         self, client: AppleEmailClient
@@ -484,7 +579,7 @@ class TestForwardEmail:
             patch.object(client, "_smtp_send", AsyncMock(side_effect=_capture)),
         ):
             result = await client._forward_email_impl(
-                "42", "erin@example.com", None, None, False, True
+                _message_id(client, "42"), "erin@example.com", None, None, False, True
             )
 
         assert captured["msg"]["Subject"] == "Fwd: Quarterly report"
@@ -505,7 +600,7 @@ class TestForwardEmail:
             patch.object(client, "_smtp_send", AsyncMock()),
         ):
             result = await client._forward_email_impl(
-                "42", "erin@example.com", None, None, False, False
+                _message_id(client, "42"), "erin@example.com", None, None, False, False
             )
 
         assert result["attachments_forwarded"] == 0
@@ -517,7 +612,9 @@ class TestForwardEmail:
             patch.object(client, "_smtp_send", AsyncMock()),
             pytest.raises(ValueError, match="not found"),
         ):
-            await client._forward_email_impl("999", "erin@example.com", None, None, False, True)
+            await client._forward_email_impl(
+                _message_id(client, "999"), "erin@example.com", None, None, False, True
+            )
 
 
 # ============================================================================
@@ -532,20 +629,40 @@ class TestTrashEmail:
         self, client: AppleEmailClient
     ) -> None:
         redis = _fake_redis()
-        redis._store[f"apple_email:{client.user_id}:msg:42"] = json.dumps({"id": "42"})
+        redis._store[_cache_key(client, "42")] = json.dumps({"id": "42"})
         mailbox = _FakeMailBox([_mail_message(uid="42")])
 
         with (
             patch(f"{MODULE}.MailBox", mailbox),
             patch(f"{MODULE}.get_redis_session", AsyncMock(return_value=redis)),
         ):
-            result = await client._trash_email_impl("42")
+            result = await client._trash_email_impl(_message_id(client, "42"))
 
         assert result["labelIds"] == ["Trash"]
         assert mailbox.moved == [(("42",), "Trash")]
-        assert f"apple_email:{client.user_id}:msg:42" not in redis._store
+        assert _cache_key(client, "42") not in redis._store
 
-    async def test_message_absent_from_every_folder_raises(self, client: AppleEmailClient) -> None:
+    async def test_the_trash_is_the_folder_the_server_flags_as_such(
+        self, client: AppleEmailClient
+    ) -> None:
+        mailbox = _FakeMailBox([_mail_message(uid="42")])
+        mailbox.folder.list = MagicMock(
+            return_value=[
+                SimpleNamespace(name="INBOX", flags=()),
+                SimpleNamespace(name="Deleted Messages", flags=("\\HasNoChildren", "\\Trash")),
+            ]
+        )
+
+        with (
+            patch(f"{MODULE}.MailBox", mailbox),
+            patch(f"{MODULE}.get_redis_session", AsyncMock(return_value=_fake_redis())),
+        ):
+            result = await client._trash_email_impl(_message_id(client, "42"))
+
+        assert mailbox.moved == [(("42",), "Deleted Messages")]
+        assert result["labelIds"] == ["Deleted Messages"]
+
+    async def test_a_message_absent_from_its_folder_raises(self, client: AppleEmailClient) -> None:
         redis = _fake_redis()
 
         with (
@@ -553,7 +670,7 @@ class TestTrashEmail:
             patch(f"{MODULE}.get_redis_session", AsyncMock(return_value=redis)),
             pytest.raises(ValueError, match="not found"),
         ):
-            await client._trash_email_impl("999")
+            await client._trash_email_impl(_message_id(client, "999"))
 
 
 class TestListLabels:

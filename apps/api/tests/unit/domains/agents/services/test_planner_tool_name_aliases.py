@@ -13,10 +13,9 @@ therefore been unreachable since the initial release (the unification dates
 from v1.0.0, 2026-03-12), and only bites when the model reaches for a name it
 remembers from the old vocabulary.
 
-The alias is the last line of defence: a name with no manifest is rejected by
-the validator, the adaptive replanner reads the failure as transient, retries
-the identical plan, and the user is told the request failed with no usable
-reason.
+The alias is the last line of defence: a name with no manifest fails its step
+at execution, nothing re-plans a plan that has run (ADR-346), and the user is
+told the request failed with no usable reason.
 """
 
 import pytest

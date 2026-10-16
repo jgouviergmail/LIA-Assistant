@@ -123,6 +123,13 @@ FIELD_BODY_PARTS = "body_parts"
 # them under this key, ``create_registry_item`` moves them to
 # ``RegistryItemMeta.display`` before any copy of the payload is taken.
 FIELD_DISPLAY_ONLY = "_display_only"
+# The handle of a draft in the person's MAILBOX (ADR-344): Gmail's draft
+# resource id, the message id on Graph, the UID on IMAP. Never a confirmation
+# card's ``draft_id``, which outcome evidence reads as « awaiting confirmation ».
+FIELD_MAILBOX_DRAFT_ID = "mailbox_draft_id"
+# Provider version of the complete draft, including MIME and file bytes.
+# Never inferred from the plain-text card or its attachment names alone.
+FIELD_MAILBOX_DRAFT_REVISION = "mailbox_draft_revision"
 
 # Connectors & OAuth
 FIELD_CONNECTOR = "connector"
@@ -137,6 +144,10 @@ FIELD_TIMESTAMP = "timestamp"
 FIELD_TOTAL = "total"
 FIELD_TOTAL_COUNT = "total_count"
 FIELD_MESSAGE_COUNT = "message_count"
+# How many messages of a listing PAGE a check the provider's search could not
+# carry set aside (RC3.1): the page holds fewer than asked while more may
+# follow. Written by the client, read by the tools that publish the page.
+FIELD_SET_ASIDE_ON_PAGE = "set_aside_on_page"
 
 # Token Aggregation (conversation totals)
 FIELD_TOTAL_TOKENS_IN = "total_tokens_in"
@@ -357,6 +368,7 @@ __all__ = [
     "FIELD_TOTAL",
     "FIELD_TOTAL_COUNT",
     "FIELD_MESSAGE_COUNT",
+    "FIELD_SET_ASIDE_ON_PAGE",
     "FIELD_TOTAL_TOKENS_IN",
     "FIELD_TOTAL_TOKENS_OUT",
     "FIELD_TOTAL_TOKENS_CACHE",

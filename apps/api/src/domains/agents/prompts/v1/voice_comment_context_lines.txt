@@ -1,0 +1,14 @@
+# What the spoken comment of a tool turn is told about the results it reads.
+# `key|text`, technical English: the model reads it, the listener never does.
+# Rendered by agents/services/streaming/voice_scope.py above every record summary
+# the comment receives — records only ever reach it as the selection the written
+# answer declared in <relevant_ids>, in the answer's order, so the line is true
+# whatever the domain (a recommendation, an agenda, an inbox).
+# Measured 2026-10-14 on a dev instance (one turn, the dev voice_comment slot):
+# handed the answer's four retained records in its order, the comment led with the
+# answer's choice 0 times in 9 (it ranked them by rating), with or without
+# Heuristic 7's order rule; with this line and the rule, 4 times in 4 (8 in 8
+# with « recommends the first », untrue of a list; 3 in 4 with « leading with
+# the first »).
+
+answer_selection|The written answer presents these results in this order and puts the first forward.

@@ -101,14 +101,14 @@ class TestGmail:
 
         args, kwargs = spy.await_args
         assert args == ("POST", "/users/me/messages/send")
-        assert set(kwargs) == {"json_data"}
+        assert set(kwargs) == {"json_data", "max_retries"}
+        assert kwargs["max_retries"] == 1
         assert "raw" in kwargs["json_data"]
 
-    async def test_a_forward_keeps_every_file_it_could_read(
+    async def test_a_forward_refuses_before_writing_if_a_requested_file_is_unavailable(
         self, gmail: tuple[GoogleGmailClient, AsyncMock]
     ) -> None:
-        # The forward builds its parts with the shared outgoing part: one file
-        # that cannot be downloaded must not cost the others.
+        # A silently omitted file must neither leave nor be reported as sent.
         client, spy = gmail
         client.get_message = AsyncMock(  # type: ignore[method-assign]
             return_value={"payload": {"headers": [{"name": "Subject", "value": "Devis"}]}}
@@ -123,18 +123,10 @@ class TestGmail:
             side_effect=[ConnectionError("gone"), b"\x89PNG"]
         )
 
-        await client.forward_email("m1", to="bob@example.com")
+        with pytest.raises(ConnectionError, match="gone"):
+            await client.forward_email("m1", to="bob@example.com")
 
-        # A forward carrying files leaves through the upload URI too: through
-        # the metadata URI, anything past about 1 MiB was refused.
-        kwargs = spy.await_args.kwargs
-        assert kwargs["base_url"] == GOOGLE_GMAIL_UPLOAD_BASE_URL
-        message = email.message_from_bytes(kwargs["content"])
-        _body, files = _parts(message)
-        assert [(f.get_filename(), f.get_content_type()) for f in files] == [
-            ("plan.png", "image/png")
-        ]
-        assert files[0].get_payload(decode=True) == b"\x89PNG"
+        spy.assert_not_awaited()
 
 
 class TestOutlook:

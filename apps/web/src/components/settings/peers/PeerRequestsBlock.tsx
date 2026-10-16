@@ -9,7 +9,9 @@
  * expire server-side).
  */
 
-import { Inbox } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Check, ShieldOff, X } from 'lucide-react';
+import { Avatar } from '@/components/ui/avatar';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -24,6 +26,7 @@ export interface PeerRequestsBlockProps {
   mutating: boolean;
   onRespond: (connectionId: string, accept: boolean) => Promise<boolean>;
   onBlock: (peerId: string) => Promise<boolean>;
+  onResolved?: () => void;
 }
 
 export function PeerRequestsBlock({
@@ -32,28 +35,46 @@ export function PeerRequestsBlock({
   mutating,
   onRespond,
   onBlock,
+  onResolved,
 }: PeerRequestsBlockProps) {
   const { t } = useTranslation(lng);
+  const lock = useRef(false);
+  const [pending, setPending] = useState(false);
+  const busy = mutating || pending;
+  const perform = async (operation: () => Promise<boolean>) => {
+    if (mutating || lock.current) return;
+    lock.current = true;
+    setPending(true);
+    try {
+      if (await operation()) onResolved?.();
+    } finally {
+      lock.current = false;
+      setPending(false);
+    }
+  };
 
   return (
     <div className="space-y-2">
-      {/* Sub-title inside the "find someone" fold — icon in theme colour,
-          never grey (owner rule 2026-08-05: a title always carries an icon,
-          and a title icon is never muted). */}
-      <h4 className="flex items-center gap-2 text-sm font-medium">
-        <Inbox className="h-4 w-4 text-primary" aria-hidden="true" />
-        {t('settings.peers.requests.title')}
-      </h4>
       {requests.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t('settings.peers.requests.empty')}</p>
       ) : (
         <ul className="space-y-2">
           {requests.map(request => (
-            <li key={request.id} className="space-y-2 rounded-md border p-3">
+            <li key={request.id} className="space-y-3 rounded-xl border border-border/50 p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{request.peer_display_name}</p>
-                  <p className="text-xs text-muted-foreground">{request.peer_email_hint}</p>
+                <div className="flex min-w-0 items-center gap-3">
+                  <Avatar
+                    name={request.peer_display_name}
+                    size="sm"
+                    disableHover
+                    className="shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <p className="break-words text-sm font-medium">{request.peer_display_name}</p>
+                    <p className="break-all text-xs text-muted-foreground">
+                      {request.peer_email_hint}
+                    </p>
+                  </div>
                 </div>
                 {request.direction === 'outgoing' && (
                   // A pending request is a LIVE state, so it takes its tone
@@ -65,36 +86,39 @@ export function PeerRequestsBlock({
                 )}
               </div>
               {request.direction === 'incoming' && request.context_message && (
-                <blockquote className="border-l-2 pl-2 text-sm text-muted-foreground">
+                <blockquote className="break-words rounded-lg bg-primary/5 p-3 text-sm leading-relaxed text-muted-foreground">
                   {request.context_message}
                 </blockquote>
               )}
               {request.direction === 'incoming' && (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col items-stretch gap-2 border-t border-border/40 pt-3 sm:items-start">
                   <Button
                     type="button"
                     size="sm"
-                    disabled={mutating}
-                    onClick={() => void onRespond(request.id, true)}
+                    aria-disabled={busy}
+                    onClick={() => void perform(() => onRespond(request.id, true))}
                   >
+                    <Check aria-hidden="true" />
                     {t('settings.peers.requests.accept')}
                   </Button>
                   <Button
                     type="button"
                     size="sm"
                     variant="outline"
-                    disabled={mutating}
-                    onClick={() => void onRespond(request.id, false)}
+                    aria-disabled={busy}
+                    onClick={() => void perform(() => onRespond(request.id, false))}
                   >
+                    <X aria-hidden="true" />
                     {t('settings.peers.requests.decline')}
                   </Button>
                   <Button
                     type="button"
                     size="sm"
-                    variant="ghost"
-                    disabled={mutating}
-                    onClick={() => void onBlock(request.peer_id)}
+                    variant="default"
+                    aria-disabled={busy}
+                    onClick={() => void perform(() => onBlock(request.peer_id))}
                   >
+                    <ShieldOff aria-hidden="true" />
                     {t('settings.peers.requests.block')}
                   </Button>
                 </div>

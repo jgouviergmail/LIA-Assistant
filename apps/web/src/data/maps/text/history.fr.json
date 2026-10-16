@@ -589,7 +589,7 @@
     },
     "128": {
       "title": "Le re-planificateur conseille, il n'agit pas",
-      "summary": "L'analyse des échecs d'un plan reste un conseil : elle nourrit l'observabilité et le message affiché, sans relancer d'elle-même un nouveau plan."
+      "summary": "L'analyse des échecs d'un plan reste un conseil : elle nourrit l'observabilité, sans relancer d'elle-même un nouveau plan."
     },
     "129": {
       "title": "Des indexations qui reprennent après un crash",
@@ -1450,6 +1450,18 @@
     "343": {
       "title": "Le portrait lit toute la matière, et son résumé est une synthèse",
       "summary": "Neuf registres sur la personne — souvenirs, intérêts, habitudes, débriefs, fils ouverts, workboard, routines, rappels, réponses conservées — sont lus en entier, chaque élément citable, sous une seule part de la fenêtre du modèle, et toute coupe est dite. Le portrait redevient une analyse de la personne sur sept facettes, jamais un inventaire, et le résumé s'écrit comme ses propres phrases ; la relecture sémantique, mesurée rejetant les lectures fondées, est retirée : ce qui refuse l'invention est structurel, chaque lecture cite ce qui la fonde. Les budgets sont des cibles énoncées, jamais une coupe. Un changement du journal rend le portrait périmé, servi daté, au lieu de l'effacer ; une entrée supprimée emporte les lectures qu'elle fondait. Mesuré sur dev avant livraison."
+    },
+    "344": {
+      "title": "Les brouillons de la boîte mail appartiennent à la personne",
+      "summary": "LIA enregistre, modifie et met à la corbeille les brouillons Gmail, Outlook et iCloud sans rien demander : un brouillon reste dans la boîte de la personne et n'atteint personne, et la corbeille se récupère. Seul l'envoi demande une confirmation, sur une carte qui montre le brouillon tel que la boîte le tient ; un brouillon modifié dans la boîte entre-temps n'est pas envoyé, et un changement demandé sur la carte est écrit avant le départ. Au passage, la carte de réponse montre enfin, et envoie à, tous ceux que la réponse atteint."
+    },
+    "345": {
+      "title": "Fish Audio rejoint les voix de LIA, et chaque moteur ne facture que ce qu'il dit",
+      "summary": "Fish Audio parle (cinq modèles, dont s2.1-pro et drama-3), transcrit les réunions et la dictée, et ses voix se clonent ou se conçoivent depuis l'administration, sous une attestation de consentement versée au journal d'audit. Chaque phrase entendue passe par une seule porte qui la facture une fois, dans l'unité du moteur qui l'a vraiment dite ; chaque compte fournisseur a une seule réserve de requêtes, partagée par toutes les fonctions vocales ; et la dictée distante va au moteur choisi par l'administrateur, que les réglages nomment. LIA glisse des indications de jeu (un rire, un chuchotement, un soupir) dans ce qu'elle écrit pour être dit, dans la syntaxe de chaque moteur qui les joue, et les voix de la radio dialoguent en une seule prise."
+    },
+    "346": {
+      "title": "Le re-planificateur consultatif est retiré : un échec se dit, il ne se rejoue pas",
+      "summary": "Mesuré en production, l'analyseur qui suivait chaque plan en échec qualifiait de passagers des échecs qui ne l'étaient pas, et la boucle de reprise qu'il attendait aurait rejoué l'irréparable. Il disparaît : un échec est dit dans la réponse, une panne passagère est retentée par le client qui l'a rencontrée, et un compteur typé montre chaque étape en échec, y compris avant l'appel d'un outil."
     }
   }
 }

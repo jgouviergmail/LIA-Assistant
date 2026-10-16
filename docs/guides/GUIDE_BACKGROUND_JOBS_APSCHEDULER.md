@@ -465,10 +465,15 @@ leader_elector = SchedulerLeaderElector(redis, scheduler, on_elected=callback)
 # ... register all jobs with scheduler.add_job() ...
 await leader_elector.start()   # Non-blocking: try SETNX, background re-election if stale lock
 # ... app runs ...
-await leader_elector.shutdown() # Release lock, stop scheduler
+# In startup/shutdown.py::shutdown_application:
+leader_elector.pause_jobs()     # First step: no job starts while the shutdown drains
+# ... drain chat producers and background tasks ...
+await leader_elector.shutdown() # Stop the scheduler, release the lock, before the jobs' dependencies close
 ```
 
 **Résilience** : si le leader est tué (SIGKILL, Docker restart), son lock Redis expire (TTL 120s). Les workers non-leaders vérifient toutes les 5s si le lock est libre et le récupèrent automatiquement. Cela résout le problème des locks fantômes qui empêchaient le scheduler de redémarrer après un `docker restart`.
+
+**Bail perdu ou non vérifiable** (amendement 2026-10-13 d'[ADR-046](../architecture/ADR-046-Background-Job-Scheduling.md)) : un leader dont le renouvellement trouve le bail aux mains d'un autre worker, ou ne peut plus confirmer sa propriété auprès de Redis, s'efface — son scheduler passe en pause (un job en cours se termine, aucun ne démarre) et il attend de nouveau le bail comme au démarrage ; réélu, il reprend (`resume()`). Le renouvellement tolère un intervalle de retard. À l'arrêt, `pause_jobs()` passe en premier et `shutdown()` arrête le scheduler juste après le drainage, avant le relais push, Langfuse et les pools que ses jobs utilisent.
 
 **Trois variantes de locks SETNX** dans LIA :
 

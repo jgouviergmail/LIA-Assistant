@@ -31,8 +31,9 @@ from src.infrastructure.database.session import Base
 class LLMProviderEnum(str, enum.Enum):
     """Supported LLM providers.
 
-    Must stay in sync with ``LLM_PROVIDERS`` in
-    :mod:`src.domains.llm_config.constants`.
+    Every other provider list (``LLM_PROVIDERS``, the request ``Literal``\\ s,
+    ``LLMAgentConfig``, the web app's two copies) is pinned to this enum by
+    ``tests/unit/test_llm_provider_vocabulary_parity_guard.py``.
     """
 
     openai = "openai"
@@ -45,6 +46,7 @@ class LLMProviderEnum(str, enum.Enum):
     elevenlabs = "elevenlabs"
     edge = "edge"
     typesafe = "typesafe"
+    fishaudio = "fishaudio"
 
 
 class PricingUnitEnum(str, enum.Enum):

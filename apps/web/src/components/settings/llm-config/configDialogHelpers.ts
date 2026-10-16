@@ -36,18 +36,31 @@ export interface TTSProviderConfig {
   rate?: string;
   pitch?: string;
   volume?: string;
-  // OpenAI-specific
+  // OpenAI and Fish Audio
   speed?: number;
+  // OpenAI-specific
   response_format?: string;
-  // ElevenLabs-specific
+  // ElevenLabs and Fish Audio
   output_format?: string;
+  // ElevenLabs-specific
   voice_settings?: {
     stability?: number;
     similarity_boost?: number;
     style?: number;
     use_speaker_boost?: boolean;
   };
+  // Fish Audio-specific: the latency/quality trade-off and how a request travels
+  // (ADR-345). The public voices it may speak with are pinned once for every
+  // slot, outside any slot's tuning (useFishPins).
+  latency?: string;
+  transport?: string;
 }
+
+/** Setter of one ``provider_config`` key, shared by every tuning block. */
+export type SetTtsKey = <K extends keyof TTSProviderConfig>(
+  key: K,
+  value: TTSProviderConfig[K]
+) => void;
 
 export const DEFAULT_ELEVENLABS_VOICE_SETTINGS = {
   stability: 0.5,
@@ -68,6 +81,26 @@ export const ELEVENLABS_OUTPUT_FORMATS = [
   'pcm_44100',
   'ulaw_8000',
 ] as const;
+
+// Fish Audio (ADR-345). These mirror ``apps/api/src/domains/voice/fishaudio/formats.py``
+// and ``core/constants.py``; ``test_fish_tuning_parity_guard.py`` holds them equal,
+// so the form offers exactly what the client accepts.
+export const FISHAUDIO_OUTPUT_FORMATS = [
+  'mp3_44100_128',
+  'mp3_44100_64',
+  'mp3_44100_192',
+  'pcm_16000',
+  'pcm_24000',
+  'pcm_44100',
+] as const;
+export const DEFAULT_FISHAUDIO_OUTPUT_FORMAT = 'mp3_44100_128';
+export const FISHAUDIO_LATENCIES = ['normal', 'balanced', 'low'] as const;
+export const FISHAUDIO_TRANSPORTS = ['http', 'websocket'] as const;
+export const DEFAULT_FISHAUDIO_TRANSPORT = 'http';
+export const FISHAUDIO_SPEED_MIN = 0.5;
+export const FISHAUDIO_SPEED_MAX = 2;
+/** A library voice id: the 32 lowercase hex digits of a vendor model. */
+export const FISHAUDIO_VOICE_ID_PATTERN = /^[0-9a-f]{32}$/;
 
 export function parseProviderConfig(raw: string | null | undefined): TTSProviderConfig {
   if (!raw) return {};
@@ -102,8 +135,10 @@ export function stableStringify(obj: unknown): string {
   return JSON.stringify(sortKeys(obj));
 }
 
-/** The three TTS providers the voice pickers / tuning blocks know about. */
-export type TtsProvider = 'edge' | 'openai' | 'elevenlabs';
+/** The TTS providers the voice pickers / tuning blocks know about — every one
+ * ``GET /admin/voice/voices`` lists (``VoiceProviderName``). */
+export const TTS_PROVIDERS = ['edge', 'openai', 'elevenlabs', 'gemini', 'fishaudio'] as const;
+export type TtsProvider = (typeof TTS_PROVIDERS)[number];
 
 /** Provider whose TTS tuning block should render, or null (non-TTS type or
  * unsupported provider). */
@@ -112,9 +147,7 @@ export function resolveTtsProvider(
   provider: string | null | undefined
 ): TtsProvider | null {
   if (!isTts) return null;
-  return provider === 'edge' || provider === 'openai' || provider === 'elevenlabs'
-    ? provider
-    : null;
+  return TTS_PROVIDERS.find(known => known === provider) ?? null;
 }
 
 // --- Form lifecycle ------------------------------------------------------------
@@ -365,4 +398,52 @@ export function structuredErrorDetail(err: unknown): StructuredErrorDetail | nul
   const detail = (data as { detail?: unknown }).detail;
   if (!detail || typeof detail !== 'object' || Array.isArray(detail)) return null;
   return detail as StructuredErrorDetail;
+}
+
+type ErrorTranslator = (key: string, options?: Record<string, unknown>) => string;
+
+const VOICE_SAVE_REFUSALS = new Map([
+  ['fishaudio_voice_unavailable', 'settings.voice_mode.lia_voices.errors.lia_voice_unknown'],
+  [
+    'lia_voice_catalogue_unavailable',
+    'settings.voice_mode.lia_voices.errors.lia_voice_catalogue_unavailable',
+  ],
+]);
+
+function thinkingBudgetMessage(detail: StructuredErrorDetail, t: ErrorTranslator): string {
+  const implicitLevel = detail.ctx?.implicit_level;
+  const budget = {
+    maxTokens: String(detail.ctx?.effective_max_tokens ?? '?'),
+    floor: String(detail.ctx?.floor ?? '?'),
+  };
+  return typeof implicitLevel === 'string'
+    ? t('settings.admin.llmConfig.config.thinkingBudgetImplicitBelowFloor', {
+        ...budget,
+        level: t(`settings.admin.llmConfig.reasoningLevels.${implicitLevel}`),
+      })
+    : t('settings.admin.llmConfig.config.thinkingBudgetBelowFloor', budget);
+}
+
+function modelProviderMessage(detail: StructuredErrorDetail, t: ErrorTranslator): string {
+  return t('settings.admin.llmConfig.config.modelProviderMismatch', {
+    model: String(detail.ctx?.model ?? '?'),
+    provider: String(detail.ctx?.provider ?? '?'),
+  });
+}
+
+/** A refused save leaves the dialog open and says what the administrator can correct. */
+export function configSaveError(
+  err: unknown,
+  t: ErrorTranslator
+): { message: string; description?: string } {
+  const detail = structuredErrorDetail(err);
+  const voice = VOICE_SAVE_REFUSALS.get(detail?.type ?? '');
+  if (voice) return { message: t(voice) };
+  if (detail?.type === 'model_provider_mismatch') {
+    return { message: modelProviderMessage(detail, t) };
+  }
+  if (detail?.type === 'thinking_budget_below_floor') {
+    return { message: thinkingBudgetMessage(detail, t) };
+  }
+  return { message: t('settings.admin.llmConfig.config.error'), description: detail?.msg };
 }

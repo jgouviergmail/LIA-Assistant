@@ -986,6 +986,19 @@ describe('useChat — background-run reattachment (ADR-117 Lot 2)', () => {
     expect(h.reattachStream).not.toHaveBeenCalled();
   });
 
+  it('checkAndResumeActiveRun leaves a run with no stream alone', async () => {
+    h.fetchActiveRun.mockResolvedValueOnce({ active: true, stream_id: null });
+    const { result } = renderHook(() => useChat());
+
+    let resumed = true;
+    await act(async () => {
+      resumed = await result.current.checkAndResumeActiveRun();
+    });
+
+    expect(resumed).toBe(false);
+    expect(h.reattachStream).not.toHaveBeenCalled();
+  });
+
   it('checkAndResumeActiveRun reattaches to the reported stream', async () => {
     h.fetchActiveRun.mockResolvedValueOnce({ active: true, stream_id: 'stream-3' });
     scriptReattach([token('resumed')], [done()]);

@@ -336,7 +336,9 @@ class TestCompact:
         # reads ``.text`` instead of ``.content``; mirror the value on the mock
         # so the assertion on returned text still holds.
         mock_response.text = "## Summary\nUser asked about contacts."
-        mock_response.usage_metadata = MagicMock(input_tokens=500, output_tokens=100)
+        # The real shape: LangChain's usage metadata is a MAPPING. An object with
+        # attributes here froze a reader that returned 0 for every real call.
+        mock_response.usage_metadata = {"input_tokens": 500, "output_tokens": 100}
         mock_llm = AsyncMock()
         mock_llm.ainvoke.return_value = mock_response
         mock_get_llm.return_value = mock_llm

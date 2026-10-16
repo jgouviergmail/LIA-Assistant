@@ -193,11 +193,13 @@ export interface VoiceOption {
   label: string;
   gender: string | null;
   language: string | null;
+  /** Where a live voice comes from (Fish Audio: own, pinned or licensed). */
+  source?: string | null;
 }
 
 /** Response shape for ``GET /admin/voice/voices?provider=X``. */
 export interface VoicesResponse {
-  provider: 'edge' | 'openai' | 'elevenlabs';
+  provider: 'edge' | 'openai' | 'elevenlabs' | 'gemini' | 'fishaudio';
   voices: VoiceOption[];
   source: 'static' | 'live';
 }

@@ -105,7 +105,7 @@ async def delete_provider_key(
     current_user: User = Depends(get_current_superuser_session),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """Delete a provider's API key. The provider will be unavailable until reconfigured."""
+    """Delete the stored provider key; adapter-specific environment fallbacks still apply."""
     try:
         service = LLMConfigService(db)
         await service.delete_provider_key(provider, current_user.id, request)

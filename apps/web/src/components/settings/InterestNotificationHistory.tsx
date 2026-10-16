@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import {
   NotificationHistoryList,
   type NotificationHistoryRow,
+  type NotificationHistoryPresentation,
 } from '@/components/settings/NotificationHistoryList';
 import {
   INTEREST_HISTORY_PAGE_SIZE,
@@ -28,6 +29,8 @@ import {
  *   where the proactive card names the context sources it combined.
  */
 export interface InterestNotificationHistoryProps {
+  /** Opt-in hub timeline; settings retain cards by default. */
+  presentation?: NotificationHistoryPresentation;
   /** Undefined until the first response lands. */
   notifications: InterestNotification[] | undefined;
   /** EXACT count over the whole set, not this page (ADR-185). */
@@ -41,7 +44,16 @@ export interface InterestNotificationHistoryProps {
 }
 
 /** Providers this build can name. Unknown ones render raw, never as a key. */
-const KNOWN_SOURCES = new Set(['perplexity', 'brave', 'rss', 'web']);
+const KNOWN_SOURCES = new Set([
+  'perplexity',
+  'brave',
+  'rss',
+  'web',
+  'wikipedia',
+  'llm_reflection',
+  'custom',
+  'heartbeat',
+]);
 
 export function InterestNotificationHistory({
   notifications,
@@ -50,6 +62,7 @@ export function InterestNotificationHistory({
   loading,
   error,
   locale,
+  presentation = 'cards',
 }: InterestNotificationHistoryProps) {
   const { t } = useTranslation();
 
@@ -88,6 +101,8 @@ export function InterestNotificationHistory({
   return (
     <NotificationHistoryList
       rows={rows}
+      presentation={presentation}
+      metadataPosition={presentation === 'timeline' ? 'header' : 'footer'}
       firstLoad={firstLoad}
       loading={loading}
       error={error}

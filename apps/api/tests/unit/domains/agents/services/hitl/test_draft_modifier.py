@@ -173,6 +173,15 @@ class TestBuildContextInfo:
         assert "Current recipient (editable): test@example.com" in result
         assert "CC" not in result or "Current CC" not in result
 
+    def test_a_mailbox_draft_to_send_is_edited_like_an_email(self, service):
+        """Its recipients and its subject are the person's to change (ADR-344)."""
+        draft = {"to": "test@example.com", "cc": "cc@example.com", "subject": "Budget"}
+        result = service._build_context_info(draft, "mailbox_draft_send")
+
+        assert "Current recipient (editable): test@example.com" in result
+        assert "Current CC (editable): cc@example.com" in result
+        assert "Current subject: Budget" in result
+
     def test_email_reply_context_no_subject(self, service):
         """Test that email_reply doesn't include subject."""
         draft = {"to": "test@example.com", "subject": "Re: Test"}
@@ -458,6 +467,49 @@ class TestModifyMethod:
     """Tests for the main modify method."""
 
     @pytest.mark.asyncio
+    @patch("src.domains.agents.services.hitl.draft_modifier.create_instrumented_config")
+    @patch("src.domains.agents.services.hitl.draft_modifier.get_llm")
+    async def test_a_turn_config_carries_the_call_to_the_turns_ledger(
+        self, mock_get_llm, mock_create_config
+    ):
+        """Handed the turn's config, the call rides it: a fresh config drops the
+        tracking callback, and the spend reaches no ledger (ADR-272, ADR-344)."""
+        response = MagicMock(text='{"body": "Shorter"}')
+        llm = MagicMock(ainvoke=AsyncMock(return_value=response))
+        mock_get_llm.return_value = llm
+        turn_config = {"callbacks": ["turn-tracker"], "metadata": {"run_id": "r1"}}
+
+        await DraftModificationService().modify(
+            original_draft={"to": "a@example.com", "subject": "S", "body": "Long"},
+            instructions="shorter",
+            draft_type="email",
+            user_language="en",
+            config=turn_config,
+        )
+
+        mock_create_config.assert_not_called()
+        sent = llm.ainvoke.await_args.kwargs["config"]
+        assert "turn-tracker" in sent["callbacks"]
+
+    @pytest.mark.asyncio
+    @patch("src.domains.agents.services.hitl.draft_modifier.get_llm")
+    async def test_a_mailbox_draft_to_send_gets_the_recipient_fallback(self, mock_get_llm):
+        """« Send it to new@example.com instead », ignored by the model, still lands on
+        a mailbox draft about to be sent — as on any e-mail draft (ADR-344)."""
+        unchanged = MagicMock(text='{"to": "a@example.com", "body": "Hello"}')
+        mock_get_llm.return_value = MagicMock(ainvoke=AsyncMock(return_value=unchanged))
+
+        result = await DraftModificationService().modify(
+            original_draft={"to": "a@example.com", "subject": "S", "body": "Hello"},
+            instructions="send it to new@example.com instead",
+            draft_type="mailbox_draft_send",
+            user_language="en",
+            config={"callbacks": []},
+        )
+
+        assert result["to"] == "new@example.com"
+
+    @pytest.mark.asyncio
     @patch("src.domains.agents.prompts.load_prompt")
     @patch("src.domains.agents.services.hitl.draft_modifier.create_instrumented_config")
     @patch("src.domains.agents.services.hitl.draft_modifier.enrich_config_with_node_metadata")
@@ -709,6 +761,45 @@ class TestApplyExplicitRecipientOverride:
         )
 
         assert result["to"] == "marie@example.com"
+
+    def test_an_address_the_model_put_in_copy_is_not_also_made_the_recipient(self, service):
+        modified_content = {"to": "original@example.com", "cc": "paul@example.com"}
+        original_draft = {"to": "original@example.com", "cc": ""}
+
+        result = service._apply_explicit_recipient_override(
+            modified_content, "ajoute paul@example.com en copie", original_draft, None, None
+        )
+
+        assert result["to"] == "original@example.com"
+
+    def test_an_address_the_model_wrote_into_the_text_is_not_made_the_recipient(self, service):
+        modified_content = {"to": "original@example.com", "body": "Reach me at me@example.com."}
+        original_draft = {"to": "original@example.com", "body": "Hello."}
+
+        result = service._apply_explicit_recipient_override(
+            modified_content,
+            "say they can reach me at me@example.com",
+            original_draft,
+            None,
+            None,
+        )
+
+        assert result["to"] == "original@example.com"
+
+    def test_a_contact_the_model_put_in_copy_is_not_also_made_the_recipient(self, service):
+        modified_content = {"to": "original@example.com", "bcc": "marie@example.com"}
+        original_draft = {"to": "original@example.com"}
+        contact_context = [{"name": "Marie Dupont", "emails": ["marie@example.com"]}]
+
+        result = service._apply_explicit_recipient_override(
+            modified_content,
+            "add Marie Dupont in blind copy",
+            original_draft,
+            contact_context,
+            None,
+        )
+
+        assert result["to"] == "original@example.com"
 
     def test_non_email_draft_type_not_affected(self, service):
         """Test that non-email draft types are not processed (method only called for email)."""

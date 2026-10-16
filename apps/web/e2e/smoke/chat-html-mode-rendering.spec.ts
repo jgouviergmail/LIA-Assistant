@@ -120,8 +120,8 @@ function baseRoutes(answer: string = HTML_ANSWER): MockRoute[] {
 }
 
 for (const { width, lng, label } of [
-  { width: 1280, lng: 'en', label: 'Rich HTML + cards' },
-  { width: 390, lng: 'fr', label: 'HTML enrichi + cartes' },
+  { width: 1280, lng: 'en', label: 'HTML + cards' },
+  { width: 390, lng: 'fr', label: 'HTML + cartes' },
 ]) {
   test(`combined display persists and renders rich content with cards at ${width}px`, async ({
     page,

@@ -64,6 +64,9 @@ htmlcov/
 # routine LOCAL gate since ADR-151, not just a CI step. Uploaded to Codecov
 # from the runner; never committed.
 coverage.xml
+# A JSON report (--cov-report=json) is a local artefact too: one from before
+# v1.0.0 sat in apps/api for months, read by nothing.
+coverage.json
 
 # Linters & type checkers
 .mypy_cache/

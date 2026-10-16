@@ -1,11 +1,13 @@
 """
 Speech-to-Text Module.
 
-Two backends:
+Backends:
 - ``SherpaSttService`` — local Sherpa-onnx Whisper (free, on-server).
-- ``ElevenLabsSttService`` — remote ElevenLabs Scribe (paid, audio-billed).
+- the remote engine of the ``voice_transcription`` slot (paid, audio-billed):
+  ``ElevenLabsSttService``, ``OpenAISttService`` or ``FishAudioSttService``
+  (ADR-345, decided by ``core/remote_stt.py``).
 
-Both implement :class:`SttServiceProtocol` (single async method that takes a
+All implement :class:`SttServiceProtocol` (single async method that takes a
 raw PCM Int16 LE buffer and returns an :class:`STTResult`). The
 :func:`get_stt_service_for_mode` factory selects the right backend based on
 the per-user ``voice_stt_mode`` preference embedded in the WebSocket ticket.

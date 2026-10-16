@@ -14,6 +14,7 @@ Created: 2026-03-10
 """
 
 import asyncio
+import ssl
 from abc import ABC, abstractmethod
 from typing import Any
 from uuid import UUID
@@ -150,7 +151,7 @@ class BaseAppleClient(ABC):
             logger.warning(
                 "apple_rate_limit_fallback",
                 user_id=str(self.user_id),
-                error=str(e),
+                error_type=type(e).__name__,
             )
 
     # =========================================================================
@@ -183,6 +184,8 @@ class BaseAppleClient(ABC):
         Raises:
             AppleAuthenticationError: If credentials are revoked.
             CircuitBreakerError: If circuit breaker is open.
+            LookupError: The operation's own « not found », raised at once.
+            ValueError: The operation's refusal of its input, raised at once.
         """
         await self._rate_limit()
 
@@ -200,6 +203,19 @@ class BaseAppleClient(ABC):
                 result = await func(*args, **kwargs)
                 await cb.record_success()
                 return result
+
+            except ssl.SSLCertVerificationError:
+                # This also inherits ValueError, but an untrusted endpoint is
+                # a failed connection, not a valid answer or revoked password.
+                await cb.record_failure()
+                raise
+
+            except LookupError, ValueError:
+                # An ANSWER, not an outage: « not there » or « not valid » is
+                # final, and the service that gave it is up — retrying slept
+                # seven seconds before the same answer (ADR-344).
+                await cb.record_success()
+                raise
 
             except AppleAuthenticationError:
                 # Auth errors are not retryable — mark connector as ERROR
@@ -220,7 +236,7 @@ class BaseAppleClient(ABC):
                         attempt=attempt + 1,
                         max_retries=max_retries,
                         delay_seconds=delay,
-                        error=str(e),
+                        error_type=type(e).__name__,
                     )
                     await asyncio.sleep(delay)
 
@@ -231,7 +247,7 @@ class BaseAppleClient(ABC):
             operation=operation,
             user_id=str(self.user_id),
             client_type=self.__class__.__name__,
-            error=str(last_error),
+            error_type=type(last_error).__name__,
         )
         raise last_error  # type: ignore[misc]
 
@@ -265,7 +281,7 @@ class BaseAppleClient(ABC):
             logger.error(
                 "apple_connector_status_update_failed",
                 user_id=str(self.user_id),
-                error=str(e),
+                error_type=type(e).__name__,
             )
 
     def _check_imap_auth_error(self, error: Exception) -> None:
@@ -275,12 +291,14 @@ class BaseAppleClient(ABC):
         Raises:
             AppleAuthenticationError: If the error is an auth failure.
         """
+        if isinstance(error, ssl.SSLCertVerificationError):
+            return  # Certificate diagnostics cannot revoke a password never presented.
         error_str = str(error)
         for pattern in _IMAP_AUTH_ERRORS:
             if pattern.lower() in error_str.lower():
                 raise AppleAuthenticationError(
                     self.connector_type,
-                    f"IMAP authentication failed: {error_str}",
+                    "IMAP authentication failed",
                 )
 
     def _check_http_auth_error(self, status_code: int) -> None:

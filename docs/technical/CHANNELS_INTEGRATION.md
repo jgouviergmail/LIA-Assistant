@@ -166,6 +166,11 @@ apps/web/src/
    - `AgentService.stream_chat_response()` → lu jusqu'à son terme (`_ChannelTurn`) : sa queue enregistre la question en attente et commite les jetons
    - Si le tour s'est arrêté sur une question → la question (`hitl_question_token` / `generated_question`) + son clavier inline
    - Sinon → `markdown_to_telegram_html()` → split → send
+   - Le découpage HTML compte les unités UTF-16 et referme chaque balise dans
+     chaque partie. Un lien dont les balises ne laissent pas de place au texte
+     garde son libellé sans lien. Les coupures d'un bloc de code préservent ses
+     retours à la ligne et ses espaces ; un préfixe composé uniquement de blancs
+     qui remplirait une partie est écarté, car Telegram refuse un message vide.
 6. `held_claim` libère le verrou en comparant son jeton : un verrou qu'un autre tour a
    pris n'est jamais libéré — la libération n'est même pas demandée quand le
    gardien a vu la reprise, et quand la reprise suit son dernier rafraîchissement

@@ -121,6 +121,12 @@ def _summarize_email_forward(content: dict[str, Any], format_dt: _FormatDt) -> _
     return "email_forward_to", {"to": _text(content, "to"), "subject": _text(content, "subject")}
 
 
+def _summarize_mailbox_draft_send(content: dict[str, Any], format_dt: _FormatDt) -> _SummarySpec:
+    """A mailbox draft about to be sent — named by whoever it reaches first."""
+    recipient = next((content[k] for k in ("to", "cc", "bcc") if content.get(k)), None)
+    return "email_to", {"to": _shown(recipient), "subject": _text(content, "subject")}
+
+
 def _summarize_email_delete(content: dict[str, Any], format_dt: _FormatDt) -> _SummarySpec:
     """An email about to be deleted."""
     return "email_delete", {"subject": _text(content, "subject")}
@@ -290,6 +296,7 @@ _SUMMARY_RENDERERS: dict[DraftType, _SummaryRenderer] = {
     DraftType.EMAIL_REPLY: _summarize_email_reply,
     DraftType.EMAIL_FORWARD: _summarize_email_forward,
     DraftType.EMAIL_DELETE: _summarize_email_delete,
+    DraftType.MAILBOX_DRAFT_SEND: _summarize_mailbox_draft_send,
     DraftType.EVENT: _summarize_event,
     DraftType.EVENT_UPDATE: _summarize_event_update,
     DraftType.EVENT_DELETE: _summarize_event_delete,

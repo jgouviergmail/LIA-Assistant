@@ -5,13 +5,20 @@ Phase: PHASE 4.1 - Coverage Baseline & Tests Unitaires
 Created: 2025-11-20
 """
 
+import asyncio
 from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import httpx
 import pytest
 
+from src.core.config import settings
+from src.core.constants import (
+    API_KEY_CLIENT_RATE_LIMIT_ATTEMPTS,
+    API_KEY_CLIENT_RETRY_AFTER_MAX_SECONDS,
+)
 from src.core.exceptions import (
+    ConnectorAPIError,
     ExternalServiceError,
     MaxRetriesExceededError,
     RateLimitError,
@@ -454,7 +461,8 @@ class TestMakeRequest:
                 await client._make_request("GET", "/test")
 
         assert exc_info.value.response.status_code == 400
-        assert "Bad Request" in str(exc_info.value)
+        assert "HTTP 400" in str(exc_info.value)
+        assert "Bad Request" not in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_make_request_handles_network_error(self, client):
@@ -490,24 +498,6 @@ class TestMakeRequest:
 
         assert exc_info.value.max_retries == 3
         assert isinstance(exc_info.value.last_error, httpx.RequestError)
-
-    @pytest.mark.asyncio
-    async def test_make_request_raises_max_retries_on_persistent_429(self, client):
-        """Test request raises MaxRetriesExceededError when every attempt is rate limited."""
-        mock_response_429 = Mock()
-        mock_response_429.status_code = 429
-        mock_response_429.headers = {"Retry-After": "0"}
-
-        mock_http_client = AsyncMock()
-        mock_http_client.get = AsyncMock(return_value=mock_response_429)
-        client._http_client = mock_http_client
-
-        with patch.object(client, "_rate_limit", AsyncMock()):
-            with pytest.raises(MaxRetriesExceededError) as exc_info:
-                await client._make_request("GET", "/test", max_retries=2)
-
-        assert exc_info.value.max_retries == 2
-        assert "429" in str(exc_info.value.last_error)
 
     @pytest.mark.asyncio
     async def test_retry_after_http_date_falls_back_to_backoff(self, client):
@@ -664,3 +654,122 @@ class TestMakeRequest:
         ):
             with pytest.raises(ValueError, match="Unsupported HTTP method"):
                 await client._make_request("INVALID", "/test")
+
+
+_SLEEP = "src.domains.connectors.clients.base_api_key_client.asyncio.sleep"
+
+
+def _limited(retry_after: str) -> Mock:
+    response = Mock()
+    response.status_code = 429
+    response.headers = {"Retry-After": retry_after}
+    return response
+
+
+def _answered(payload: dict) -> Mock:
+    response = Mock()
+    response.status_code = 200
+    response.text = "{}"
+    response.json.return_value = payload
+    return response
+
+
+class TestAProviderRateLimitIsBackpressure:
+    """A 429 is the provider ANSWERING about one account's key (ADR-108 amendment
+    2026-10-13). Measured on dev the same day: one delegated research round of four
+    parallel searches drew three 429s, the shared breaker opened, and 13 of the 15
+    searches the run lost were rejected by the breaker, told to the model as
+    « service temporarily unavailable »."""
+
+    @pytest.mark.asyncio
+    async def test_a_burst_of_429s_never_opens_the_breaker_every_account_shares(
+        self, client, valid_credentials
+    ):
+        client._http_client = AsyncMock(get=AsyncMock(return_value=_limited("0")))
+        with patch.object(client, "_rate_limit", AsyncMock()), patch(_SLEEP, new=AsyncMock()):
+            # Every call draws its refusals: past the threshold, a 429 counted as
+            # a failure would have opened the breaker.
+            for _ in range(settings.circuit_breaker_failure_threshold + 1):
+                with pytest.raises(ConnectorAPIError):
+                    await client._make_request("GET", "/test")
+
+        assert client._get_circuit_breaker().state is CircuitState.CLOSED
+        neighbour = MockAPIKeyClient(
+            user_id=uuid4(), credentials=valid_credentials, rate_limit_per_second=10
+        )
+        neighbour._http_client = AsyncMock(get=AsyncMock(return_value=_answered({"ok": True})))
+        with patch.object(neighbour, "_rate_limit", AsyncMock()):
+            assert await neighbour._make_request("GET", "/test") == {"ok": True}
+
+    @pytest.mark.asyncio
+    async def test_an_exhausted_429_is_a_typed_refusal_with_its_delay(self, client):
+        client._http_client = AsyncMock(get=AsyncMock(return_value=_limited("3")))
+        sleep = AsyncMock()
+        with patch.object(client, "_rate_limit", AsyncMock()), patch(_SLEEP, new=sleep):
+            with pytest.raises(ConnectorAPIError) as refused:
+                await client._make_request("GET", "/test", max_retries=2)
+
+        assert refused.value.status_code == 429
+        assert refused.value.connector_type == client.connector_type.value
+        assert refused.value.headers == {"Retry-After": "3"}
+        # A 429 has a budget of its own, whatever the call's retries: simulated
+        # against a one-request-per-second key, four parallel searches got 12 of 16
+        # answers on three attempts and 16 of 16 on four. The last refusal is
+        # handed back at once: sleeping after it bought nothing.
+        assert client._http_client.get.await_count == API_KEY_CLIENT_RATE_LIMIT_ATTEMPTS
+        assert sleep.await_count == API_KEY_CLIENT_RATE_LIMIT_ATTEMPTS - 1
+
+    @pytest.mark.asyncio
+    async def test_a_failing_service_is_waited_for_between_attempts_only(self, client):
+        failing = Mock()
+        failing.status_code = 503
+        client._http_client = AsyncMock(get=AsyncMock(return_value=failing))
+        sleep = AsyncMock()
+        with patch.object(client, "_rate_limit", AsyncMock()), patch(_SLEEP, new=sleep):
+            with pytest.raises(MaxRetriesExceededError):
+                await client._make_request("GET", "/test", max_retries=3)
+
+        assert client._http_client.get.await_count == 3
+        # The backoff precedes a retry: four seconds slept after the last 5xx
+        # delayed the failure for nothing.
+        assert [call.args[0] for call in sleep.await_args_list] == [1, 2]
+
+    @pytest.mark.asyncio
+    async def test_a_retry_after_past_the_bound_is_handed_back_not_waited(self, client):
+        too_long = str(API_KEY_CLIENT_RETRY_AFTER_MAX_SECONDS + 1)
+        client._http_client = AsyncMock(get=AsyncMock(return_value=_limited(too_long)))
+        sleep = AsyncMock()
+        with patch.object(client, "_rate_limit", AsyncMock()), patch(_SLEEP, new=sleep):
+            with pytest.raises(ConnectorAPIError) as refused:
+                await client._make_request("GET", "/test", max_retries=3)
+
+        assert refused.value.headers == {"Retry-After": too_long}
+        assert client._http_client.get.await_count == 1
+        sleep.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_siblings_of_one_parallel_round_do_not_retry_in_lockstep(self, valid_credentials):
+        waits: list[float] = []
+
+        async def record(seconds: float) -> None:
+            waits.append(seconds)
+
+        siblings = []
+        for _ in range(3):
+            sibling = MockAPIKeyClient(
+                user_id=uuid4(), credentials=valid_credentials, rate_limit_per_second=10
+            )
+            sibling._http_client = AsyncMock(
+                get=AsyncMock(side_effect=[_limited("1"), _answered({"ok": True})])
+            )
+            sibling._rate_limit = AsyncMock()
+            siblings.append(sibling)
+
+        with patch(_SLEEP, new=record):
+            await asyncio.gather(*(s._make_request("GET", "/test") for s in siblings))
+
+        # The provider asked for one second; three callers waiting exactly that
+        # would collide again on the same tick.
+        assert len(waits) == 3
+        assert all(1.0 <= wait <= 2.0 for wait in waits)
+        assert len(set(waits)) == 3

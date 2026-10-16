@@ -15,7 +15,7 @@ Router → domain=browser (confidence 0.95)
   ↓
 Planner → step_1: browser_task_tool(task="...")
   ↓
-browser_task_tool → create_react_agent(llm, browser_tools)
+browser_task_tool → create_agent(llm, browser_tools, closing middleware)
   ↓
 ReAct Loop:
   → browser_navigate_tool("https://www.nike.com/fr/w?q=nike+air")
@@ -29,8 +29,9 @@ Response Node → synthesizes final answer for user
 
 | Component | Location | Purpose |
 |-----------|----------|---------|
-| BrowserSettings | `src/core/config/browser.py` | Configuration (timeouts, rate limits, memory) |
+| BrowserSettings | `src/core/config/browser.py` | Configuration (timeouts, rate limits, session counts) |
 | BrowserPool | `src/infrastructure/browser/pool.py` | Singleton pool, Redis coordination, session management |
+| Browser coordination | `src/infrastructure/browser/coordination.py` | Atomic admission, ownership UUIDs, expiry and navigation metadata |
 | BrowserSession | `src/infrastructure/browser/session.py` | Page interaction, cookie dismissal, content extraction |
 | BrowserSecurityPolicy | `src/infrastructure/browser/security.py` | SSRF prevention, input sanitization, key whitelist |
 | AccessibilityTreeExtractor | `src/infrastructure/browser/accessibility.py` | CDP-based AX tree extraction for element interaction |
@@ -60,15 +61,33 @@ restarts, stops the Playwright driver it started, and is counted as
 ### Tool Design
 
 - **`browser_task_tool`** (planner-facing): Takes a natural language task, runs
-  a `create_react_agent` ReAct loop with all browser tools internally. The planner
+  a native `create_agent` ReAct loop with all browser tools internally. The planner
   only sees this one tool.
 - **Individual tools** (ReAct-facing): `navigate`, `snapshot`, `click`, `fill`,
   `press_key` — used by the ReAct agent, not by the planner directly.
 
 > **Note**: The parent graph's `InMemoryStore` (`runtime.store`) is propagated to the nested
-> browser ReAct agent via the `store` parameter of `create_react_agent`. This ensures that
+> browser ReAct agent via the `store` parameter of `create_agent`. This ensures that
 > `validate_runtime_config` (and any other store-dependent validation) behaves identically
 > inside the nested agent as it does in the top-level graph.
+
+### Failure contracts
+
+The pool and session raise `BrowserRefusal` with a closed vocabulary owned by
+`infrastructure/browser/errors.py`: capacity and navigation limits, unavailable
+pool/page, blocked URL/key, or missing element. Every browser tool reads that
+type; arbitrary exception text never determines a refusal code or reaches the
+model as trusted instructions. Built-in and Playwright timeouts retain `TIMEOUT`.
+Unknown failures tell the model to check the current page before repeating an
+action, because a previous click or fill may already have completed.
+
+A failed CDP tree read or element resolution propagates as a failure. It cannot
+produce a successful empty snapshot or a false "element not found" verdict.
+Every acquired CDP session attempts a detach; a secondary detach error cannot replace
+the primary failure or cancellation. Error logs above DEBUG carry only facts;
+transport diagnostics and arbitrary references stay out of those logs.
+The task error counter uses the refusal code in lowercase, keeping its label
+set bounded (`timeout` remains `timeout`).
 
 ### Agent prompt (`prompts/v1/browser_agent_prompt.txt`)
 
@@ -102,21 +121,22 @@ The browser agent's behaviour is shaped by a versioned prompt loaded via
 All settings in `.env` (technical tuning only — activation via admin connector panel):
 
 ```env
-BROWSER_REACT_MAX_ITERATIONS=15       # Max ReAct loop iterations (create_react_agent recursion_limit)
-BROWSER_MAX_CONCURRENT_SESSIONS=1     # Global max (Redis-coordinated)
+BROWSER_REACT_MAX_ITERATIONS=15       # Loop recursion_limit, in graph steps (N//2 model calls)
+BROWSER_MAX_CONCURRENT_SESSIONS=1     # Logical user sessions; also the per-worker fallback bound
 BROWSER_SESSION_TIMEOUT_SECONDS=300   # Idle timeout
 BROWSER_PAGE_LOAD_TIMEOUT_SECONDS=30  # Navigation timeout
 BROWSER_ACTION_TIMEOUT_SECONDS=10     # Click/fill timeout
 BROWSER_AX_TREE_MAX_TOKENS=15000     # Max tokens for AX tree output (truncated if exceeded)
-BROWSER_MEMORY_LIMIT_MB=1024         # Memory limit per Chromium instance
 BROWSER_RATE_LIMIT_READ_CALLS=40     # Rate limit for read tools
 BROWSER_RATE_LIMIT_WRITE_CALLS=40    # Rate limit for write tools
 ```
 
 > `BROWSER_REACT_MAX_ITERATIONS` mirrors `REACT_AGENT_MAX_ITERATIONS` (main ReAct
 > execution mode) and `MCP_REACT_MAX_ITERATIONS` (MCP iterative sub-agent): it caps
-> the `recursion_limit` passed to the browser agent's `create_react_agent` loop in
-> `browser_task_tool`. Range: 1–50, default 15.
+> the `recursion_limit` passed to the browser agent's native `create_agent` loop in
+> `browser_task_tool`, counted in graph STEPS: N//2 model calls, the last one a
+> closing pass without tools that reports what was done (ADR-083 amendment
+> 2026-10-13 b). Range: 4–50 (below 4 no tool round fits), code default 50.
 >
 > **Step timeout:** `browser_task_tool` runs a full nested ReAct loop, so the
 > parallel executor gives that step a dedicated wall-clock budget
@@ -126,6 +146,11 @@ BROWSER_RATE_LIMIT_WRITE_CALLS=40    # Rate limit for write tools
 > mid-task. `BROWSER_AX_TREE_MAX_TOKENS` controls how much of the page the LLM
 > can see in a snapshot — too low and it can't reach form fields past the cutoff.
 
+The unused `BROWSER_MEMORY_LIMIT_MB` setting and unsampled browser-memory gauge
+have been removed. The dashboard uses the existing API-worker RSS sampler,
+explicitly excluding Chromium children. Measure and configure container resources
+separately; the session count does not enforce a per-Chromium memory ceiling.
+
 ## Security
 
 - **SSRF prevention**: Reuses `validate_url()` from web_fetch (DNS resolution, private IP check)
@@ -134,14 +159,28 @@ BROWSER_RATE_LIMIT_WRITE_CALLS=40    # Rate limit for write tools
 - **Request interception**: Blocks dangerous schemes (javascript:, data:, file:)
 - **Anti-detection**: Chrome UA, `navigator.webdriver` removed, locale/timezone from user prefs
 - **Cookie auto-dismiss**: Generic multi-language selectors (no site-specific)
-- **`--no-sandbox`**: Required in Docker, isolation by container (see ADR-059)
+- **`--no-sandbox`**: Used by the current container configuration; equivalent
+  isolation to Chromium's own sandbox has not been demonstrated (see ADR-059)
 
 ## Session Management
 
 - Sessions are process-local (Playwright BrowserContext can't be serialized)
-- Metadata stored in Redis (`browser:session:{user_id}`) with TTL = session timeout
-- Cross-worker recovery: if follow-up lands on different worker, re-navigates to stored URL
-- Global session count coordinated via Redis key counting (excludes own recovery)
+- Admission atomically reserves a logical user session before context allocation
+- One bounded Redis hash (`browser:pool:registry`) keeps owner UUID and recovery
+  metadata together, with independent field expiration (Redis 7.4+, supplied by Compose)
+- Expiry support and permission are probed before writes; an unsupported server
+  refuses admission, while transport outages retain the bounded local fallback
+- Recovery transfers ownership and re-navigates to the saved URL; a PID is only metadata
+- Renew, update and release compare ownership; an old worker cannot overwrite a newer URL
+- Every worker runs local idle/ownership cleanup; shutdown joins that task and drains in-flight allocation
+- Startup is shared across callers and survives an individual request cancellation
+- In-flight operations are not idle; success, failure and cancellation restart their idle clock
+- Shutdown attempts every context, browser and driver cleanup before reporting its first failure
+- URL/title bounds live in `apps/api/src/core/constants.py`; an oversized recovery URL is omitted, never cut
+- Redis outage retains availability within the local cap; recovery retires unregistered contexts
+- The logical limit allows transient physical-context overlap during takeover or worker pauses;
+  deploy matching protocol/settings to all workers, with separately measured container limits
+- Legacy `browser:session:{user_id}` keys are read only for transitional URL recovery
 - Page crash recovery: corrupted pages are closed and recreated on next navigation
 
 ## Progressive Screenshots (SSE Side-Channel)
@@ -206,12 +245,11 @@ On STREAM_DONE:
 | `browser_navigation_duration_seconds` | Histogram | — |
 | `browser_snapshot_tokens` | Histogram | — |
 | `browser_errors_total` | Counter | error_type |
-| `browser_memory_bytes` | Gauge | — |
 
 ## Limitations
 
 - Sites with strong anti-bot (DataDome, Cloudflare Turnstile) may block
 - Headless Chromium consumes ~300-600MB RAM per session
 - ReAct loop latency: 15-60s per browsing task
-- Token cost: ~$0.01-0.03 per browsing session
+- Token cost depends on the configured model, iterations and actual returned usage
 - No login persistence across sessions (cookies reset on new BrowserContext)

@@ -24,6 +24,7 @@ import pytest
 from src.domains.agents.effects import runtime as gate_runtime
 from src.domains.agents.effects.gate import ERROR_CONFIRMATION_MISSING
 from src.domains.agents.effects.scope import EffectScope, effect_scope
+from src.domains.agents.effects.treatments import collected_treatments, treatment_collector
 
 pytestmark = [pytest.mark.unit]
 
@@ -53,9 +54,12 @@ def _reset() -> Any:
         execution_mode="react",
         is_automated_source=False,
     )
-    with patch(
-        "src.domains.agents.context.runtime_context.runtime_context_if_running",
-        return_value=context,
+    with (
+        patch(
+            "src.domains.agents.context.runtime_context.runtime_context_if_running",
+            return_value=context,
+        ),
+        treatment_collector(run_id="run-1"),
     ):
         yield context
 
@@ -236,6 +240,71 @@ class TestACancelledEffect:
     only ran on ``Exception`` — which a cancellation is not — and the row stayed
     CLAIMED for good, firing ``EffectLedgerClaimedOrphans`` every two hours.
     """
+
+    async def test_an_accepted_native_imap_write_cancelled_before_ack_is_unknown_and_not_replayed(
+        self, ledger: Any
+    ) -> None:
+        import threading
+        from unittest.mock import AsyncMock, MagicMock
+
+        from src.domains.connectors.clients.apple_email_client import AppleEmailClient
+        from src.domains.connectors.schemas import AppleCredentials
+        from tests.unit.domains.connectors.clients.imap_fakes import FakeImap
+
+        mailbox = FakeImap()
+        client = AppleEmailClient(
+            uuid.uuid4(),
+            AppleCredentials(apple_id="jane@icloud.com", app_password="test-password"),
+            MagicMock(),
+        )
+        accepted, returned = asyncio.Event(), asyncio.Event()
+        release = threading.Event()
+        loop = asyncio.get_running_loop()
+        append = mailbox.append
+
+        def delayed_ack(*args: Any, **kwargs: Any) -> Any:
+            receipt = append(*args, **kwargs)
+            loop.call_soon_threadsafe(accepted.set)
+            try:
+                if not release.wait(5):
+                    raise TimeoutError("The test did not release the acknowledgement")
+                return receipt
+            finally:
+                loop.call_soon_threadsafe(returned.set)
+
+        async def save(**_kwargs: Any) -> Any:
+            return await client.create_draft("paul@example.com", "Created", "Words")
+
+        gated = gate_runtime.gated("create_mailbox_draft_tool", save)
+        breaker = MagicMock(
+            check=AsyncMock(), record_success=AsyncMock(), record_failure=AsyncMock()
+        )
+        with (
+            patch("src.domains.connectors.clients.apple_drafts_mixin.MailBox", mailbox),
+            patch.object(mailbox, "append", side_effect=delayed_ack) as native_write,
+            patch.object(client, "_rate_limit", AsyncMock()),
+            patch.object(client, "_get_circuit_breaker", return_value=breaker),
+            _install(ledger),
+            _policy("reversible"),
+            effect_scope(_scope()),
+        ):
+            run = asyncio.create_task(gated(to="paul@example.com"))
+            try:
+                await asyncio.wait_for(accepted.wait(), timeout=3)
+                run.cancel()
+                with pytest.raises(asyncio.CancelledError):
+                    await run
+                assert ledger.abandoned == ["cancelled"]
+                assert ledger.closed == []
+            finally:
+                release.set()
+                await asyncio.wait_for(returned.wait(), timeout=3)
+            ledger.claim_result, ledger.lost_status = "lost", "abandoned"
+            replay = await gated(to="paul@example.com")
+            assert replay["success"] is False
+            assert "whether it happened is not known" in replay["error"]
+            assert native_write.call_count == 1
+            assert len(mailbox.store["Drafts"]) == 1
 
     async def test_an_attempt_bound_abandons_the_row(self, ledger: Any) -> None:
         _started, slow = _in_flight()
@@ -472,3 +541,7 @@ class TestThePolicyReadIsTotal:
             result = await gated(x=1)
         assert result["success"] is True
         assert ledger.claims == []
+        observed = collected_treatments()
+        assert len(observed) == 1
+        assert observed[0].tool_name == "some_tool"
+        assert observed[0].outcome == "ok"

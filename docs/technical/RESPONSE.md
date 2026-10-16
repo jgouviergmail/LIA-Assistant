@@ -64,7 +64,7 @@ graph LR
 | **Agent Results Formatting** | Conversion résultats agents en texte structuré |
 | **Post-Processing** | Filtrage `<relevant_ids>` du registre du tour, puis rendu V3 (widgets, cartes de données) |
 | **Anti-Hallucination** | Directives strictes contre invention de données |
-| **Aveu d'échec fidèle (ADR-182)** | Quand le validateur refuse des étapes, le tour continue mais le modèle ne voyait qu'un résultat vide et **inventait** un diagnostic (mesuré 2026-07-30 : « aucun service n'est configuré » sur des services sains). `services/plan_blockers.py` réduit le verdict aux capacités bloquées et à leur cause (niveau capacité, jamais l'URL de scope brute), et la directive versionnée `response_directive_plan_blocked.txt` interdit de généraliser au-delà de cette liste, de blâmer l'utilisateur, ou de présenter une capacité manquante du demandeur comme une réponse sur la donnée d'un tiers. Généralisée à **tout** `ToolErrorCode` : un code non mappé dégrade vers une cause plus vague, jamais vers le silence. Un refus explicite de l'utilisateur (plan rejeté, brouillon annulé) garde la priorité. **Depuis ADR-184, le verdict est pesé contre ce que le tour a réellement exécuté** : `executed_tool_names(execution_plan, completed_steps)` liste les outils qui ont produit, et une capacité qui a produit n'est jamais déclarée bloquée — le routage ne lit jamais `is_valid`, donc un plan refusé s'exécute inchangé et réussit le plus souvent (mesuré 2026-07-31 : dix emails dans le registre, « la récupération a été bloquée »). Un blocage de niveau plan est tu dès que quoi que ce soit a produit ; l'ensemble vide — état absent ou revenu déformé d'un aller-retour msgpack — restaure le comportement antérieur, jamais l'inverse. Un tour partiellement bloqué présente ses résultats et nomme ce qui a manqué. |
+| **Aveu d'échec fidèle (ADR-182)** | Quand le validateur refuse des étapes, le tour continue mais le modèle ne voyait qu'un résultat vide et **inventait** un diagnostic (mesuré 2026-07-30 : « aucun service n'est configuré » sur des services sains). `services/plan_blockers.py` réduit le verdict aux capacités bloquées et à leur cause (niveau capacité, jamais l'URL de scope brute), et la directive versionnée `response_directive_plan_blocked.txt` interdit de généraliser au-delà de cette liste, de blâmer l'utilisateur, ou de présenter une capacité manquante du demandeur comme une réponse sur la donnée d'un tiers. Généralisée à **tout** `ToolErrorCode` : un code non mappé dégrade vers une cause plus vague, jamais vers le silence. Un refus explicite de l'utilisateur (plan rejeté, brouillon annulé) garde la priorité. **Depuis ADR-184, le verdict est pesé contre ce que le tour a réellement exécuté** : `attempted_tool_names(execution_plan, completed_steps)` liste les outils que le tour a tentés — données, résultat vide ou échec typé —, et une capacité tentée n'est jamais déclarée bloquée — le routage ne lit jamais `is_valid`, donc un plan refusé s'exécute inchangé et réussit le plus souvent (mesuré 2026-07-31 : dix emails dans le registre, « la récupération a été bloquée »). L'échec d'une étape tentée passe par la seule directive d'échecs, qui dit « aucun connecteur actif » pour `CONNECTOR_NOT_ACTIVATED` (ADR-184, amendement 2026-10-14 : un « non connectée » autoritaire contredisait l'échec réel d'une réponse Outlook). Un blocage de niveau plan est tu dès que quoi que ce soit a produit ; l'ensemble vide — état absent ou revenu déformé d'un aller-retour msgpack — restaure le comportement antérieur, jamais l'inverse. Un tour partiellement bloqué présente ses résultats et nomme ce qui a manqué. |
 | **Message Windowing** | les derniers tours conversationnels, `RESPONSE_MESSAGE_WINDOW_SIZE` (contexte riche) |
 | **Context Prefetch (ADR-091)** | Les injections de contexte utilisateur (embedding du message, profil mémoire, RAG user/system, journal, portrait, psyché) vivent dans `services/response_context.py` et sont **préchargées depuis l'initiative node** en parallèle de son évaluation LLM (pipeline ET ReAct). Le response node fait un `pop_response_context(run_id)` ; sur tout miss (tour conversation, initiative désactivée/skippée, timeout), il exécute le **même** `fetch_response_context()` inline — zéro delta de comportement. Kill-switch `RESPONSE_CONTEXT_PREFETCH_ENABLED`. |
 | **Mode HTML sans `<style>` + composants (ADR-177)** | En mode HTML enrichi, le LLM n'émet ni bloc `<style>` ni style inline : les règles `.lia-response` vivent dans `lia-components.css`. Depuis ADR-177 la directive expose un vocabulaire de composants (callouts ×4 avec titre, chips, `details` dépliables, listes clé-valeur `dl.lia-kv`, colonnes `lia-columns`, étapes `lia-steps`, tuiles `lia-stats`, code `language-*` → coloration Prism + bouton copier, `mark`/`kbd`/`abbr`) pour une composition adaptée aux données. En `html_cards`, la synthèse évite de recopier les fiches ajoutées. Sync directive↔CSS verrouillée par `test_html_directive_css_sync.py`. |
@@ -944,18 +944,34 @@ Référence complète dans [OBSERVABILITY_AGENTS.md](OBSERVABILITY_AGENTS.md#9-v
 
 ### Dégradation Gracieuse
 
-Si Voice échoue, le système fallback silencieusement vers text-only :
+Si Voice échoue, la réponse reste textuelle et le client en est averti
+(`agents/services/streaming/voice_coordinator.py`) :
 
 ```python
 try:
-    audio_chunks = await voice_service.generate_voice_comment(response_text)
-    async for chunk in audio_chunks:
-        yield VoiceChunk(audio=chunk)
-except Exception as e:
-    # Graceful degradation: log error, continue text-only
-    logger.warning("voice_fallback", reason=str(e))
-    voice_fallback_total.labels(reason="tts_error").inc()
+    async for audio_chunk in voice_service.stream_voice_comment(
+        context_summary=voice_context,
+        personality_instruction=personality_instruction,
+    ):
+        yield _format_voice_audio_chunk(audio_chunk)
+except Exception as voice_error:
+    # Graceful degradation: the answer stays text-only, the client is told
+    logger.error(
+        "voice_comment_failed",
+        run_id=run_id,
+        error=str(voice_error),
+        error_type=type(voice_error).__name__,
+    )
+    yield ChatStreamChunk(
+        type="voice_error",
+        content="voice_synthesis_error",
+        metadata={"error_type": "voice_error"},
+    )
 ```
+
+Une phrase dont la synthèse échoue est sautée et comptée
+(`voice_fallback_total{reason="tts_error"}`) ; la voix d'un tour qui dépasse son
+attente est redite par le chemin direct (`reason="timeout"`).
 
 ### Ressources Voice
 

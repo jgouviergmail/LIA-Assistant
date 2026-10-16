@@ -16,16 +16,22 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { PersonalityListItem } from '@/types/personality';
+import type {
+  PersonalityListItem,
+  PersonalityListResponse,
+  UserPersonalityResponse,
+  UserPersonalityUpdate,
+} from '@/types/personality';
 
-const fetchPersonalities = vi.fn();
-const fetchCurrentPersonality = vi.fn();
-const updateCurrentPersonality = vi.fn();
+const fetchPersonalities = vi.fn<(signal?: AbortSignal) => Promise<PersonalityListResponse>>();
+const fetchCurrentPersonality = vi.fn<(signal?: AbortSignal) => Promise<UserPersonalityResponse>>();
+const updateCurrentPersonality =
+  vi.fn<(body: UserPersonalityUpdate) => Promise<UserPersonalityResponse>>();
 
 vi.mock('@/lib/api/personality', () => ({
-  fetchPersonalities: () => fetchPersonalities(),
-  fetchCurrentPersonality: () => fetchCurrentPersonality(),
-  updateCurrentPersonality: (body: unknown) => updateCurrentPersonality(body),
+  fetchPersonalities: (signal?: AbortSignal) => fetchPersonalities(signal),
+  fetchCurrentPersonality: (signal?: AbortSignal) => fetchCurrentPersonality(signal),
+  updateCurrentPersonality: (body: UserPersonalityUpdate) => updateCurrentPersonality(body),
 }));
 
 vi.mock('@/lib/logger', () => ({
@@ -62,7 +68,7 @@ const snapshot = () => {
 beforeEach(() => {
   vi.clearAllMocks();
   usePersonalityStore.getState().reset();
-  fetchPersonalities.mockResolvedValue({ personalities: [CALM, SHARP], count: 2 });
+  fetchPersonalities.mockResolvedValue({ personalities: [CALM, SHARP], total: 2 });
   fetchCurrentPersonality.mockResolvedValue({ personality: CALM, personality_id: CALM.id });
   updateCurrentPersonality.mockImplementation(
     async ({ personality_id }: { personality_id: string | null }) => {
@@ -230,5 +236,182 @@ describe('a rejection that is not an Error', () => {
     );
 
     expect(snapshot().error).toBeInstanceOf(Error);
+  });
+});
+
+function deferred<T>() {
+  let resolve: (value: T) => void = () => {};
+  let reject: (error: Error) => void = () => {};
+  const promise = new Promise<T>((accept, refuse) => {
+    resolve = accept;
+    reject = refuse;
+  });
+  return { promise, resolve, reject };
+}
+
+const calmResponse: UserPersonalityResponse = { personality: CALM, personality_id: CALM.id };
+const sharpResponse: UserPersonalityResponse = { personality: SHARP, personality_id: SHARP.id };
+
+describe('request ownership and ordering', () => {
+  it('ignores the first A response after changing A to B and back to A', async () => {
+    const first = deferred<UserPersonalityResponse>();
+    fetchCurrentPersonality.mockReturnValueOnce(first.promise);
+    const old = usePersonalityStore.getState().load('a');
+    await usePersonalityStore.getState().load('b');
+    await usePersonalityStore.getState().load('a');
+    first.resolve(sharpResponse);
+    await old;
+    expect(snapshot().currentPersonality).toEqual(CALM);
+  });
+
+  it('aborts the old account reads without publishing their late failure', async () => {
+    const first = deferred<UserPersonalityResponse>();
+    fetchCurrentPersonality.mockReturnValueOnce(first.promise);
+    const old = usePersonalityStore.getState().load('a');
+    const oldSignal = fetchCurrentPersonality.mock.calls[0]?.[0];
+    await usePersonalityStore.getState().load('b');
+    first.reject(new Error('old account refused'));
+    await old;
+    expect(oldSignal?.aborted).toBe(true);
+    expect(snapshot().error).toBeNull();
+    expect(snapshot().currentPersonality).toEqual(CALM);
+  });
+
+  it('does not let the old finally finish or deduplicate the new account load', async () => {
+    const oldCurrent = deferred<UserPersonalityResponse>();
+    const newCurrent = deferred<UserPersonalityResponse>();
+    fetchCurrentPersonality
+      .mockReturnValueOnce(oldCurrent.promise)
+      .mockReturnValueOnce(newCurrent.promise);
+    const old = usePersonalityStore.getState().load('a');
+    const current = usePersonalityStore.getState().load('b');
+    oldCurrent.resolve(sharpResponse);
+    await old;
+    expect(snapshot().loading).toBe(true);
+    const duplicate = usePersonalityStore.getState().load('b');
+    expect(fetchCurrentPersonality).toHaveBeenCalledTimes(2);
+    newCurrent.resolve(calmResponse);
+    await Promise.all([current, duplicate]);
+  });
+
+  it('reset invalidates pending reads and leaves no account data', async () => {
+    const current = deferred<UserPersonalityResponse>();
+    fetchCurrentPersonality.mockReturnValueOnce(current.promise);
+    const old = usePersonalityStore.getState().load('a');
+    usePersonalityStore.getState().reset();
+    current.resolve(sharpResponse);
+    await old;
+    expect(snapshot().personalities).toEqual([]);
+    expect(snapshot().currentPersonality).toBeNull();
+    expect(usePersonalityStore.getState().hasLoaded).toBe(false);
+  });
+
+  it('the most recent explicit refetch wins even if an older read arrives last', async () => {
+    await usePersonalityStore.getState().load('a');
+    const first = deferred<UserPersonalityResponse>();
+    fetchCurrentPersonality.mockReturnValueOnce(first.promise).mockResolvedValueOnce(sharpResponse);
+    const old = usePersonalityStore.getState().refetch();
+    await usePersonalityStore.getState().refetch();
+    first.resolve(calmResponse);
+    await old;
+    expect(snapshot().currentPersonality).toEqual(SHARP);
+  });
+
+  it('a read started before a mutation cannot overwrite its confirmed selection', async () => {
+    await usePersonalityStore.getState().load('a');
+    const current = deferred<UserPersonalityResponse>();
+    fetchCurrentPersonality.mockReturnValueOnce(current.promise);
+    const old = usePersonalityStore.getState().refetch();
+    await usePersonalityStore.getState().updatePersonality(SHARP.id);
+    current.resolve(calmResponse);
+    await old;
+    expect(snapshot().currentPersonality).toEqual(SHARP);
+    expect(snapshot().loading).toBe(false);
+  });
+
+  it('waits for a pending selection before an explicit catalogue refresh', async () => {
+    await usePersonalityStore.getState().load('a');
+    const selected = deferred<UserPersonalityResponse>();
+    updateCurrentPersonality.mockReturnValueOnce(selected.promise);
+    const mutation = usePersonalityStore.getState().updatePersonality(SHARP.id);
+    const refresh = usePersonalityStore.getState().refetch();
+    expect(fetchCurrentPersonality).toHaveBeenCalledTimes(1);
+    fetchCurrentPersonality.mockResolvedValueOnce(sharpResponse);
+    selected.resolve(sharpResponse);
+    await Promise.all([mutation, refresh]);
+    expect(fetchCurrentPersonality).toHaveBeenCalledTimes(2);
+    expect(snapshot().currentPersonality).toEqual(SHARP);
+  });
+
+  it('no authenticated owner means no catalogue reads or mutations', async () => {
+    await usePersonalityStore.getState().load(null);
+    await usePersonalityStore.getState().refetch();
+    await usePersonalityStore.getState().updatePersonality(SHARP.id);
+    expect(fetchPersonalities).not.toHaveBeenCalled();
+    expect(fetchCurrentPersonality).not.toHaveBeenCalled();
+    expect(updateCurrentPersonality).not.toHaveBeenCalled();
+  });
+});
+
+describe('selection serialization', () => {
+  it('does not write the already selected style or the resolved instance default', async () => {
+    fetchCurrentPersonality.mockResolvedValueOnce({ personality: CALM, personality_id: null });
+    await usePersonalityStore.getState().load('a');
+    await usePersonalityStore.getState().updatePersonality(CALM.id);
+    await usePersonalityStore.getState().updatePersonality(null);
+    expect(updateCurrentPersonality).not.toHaveBeenCalled();
+  });
+
+  it('allows one mutation at a time across all consumers and retries after failure', async () => {
+    await usePersonalityStore.getState().load('a');
+    const selected = deferred<UserPersonalityResponse>();
+    updateCurrentPersonality.mockReturnValueOnce(selected.promise);
+    const first = usePersonalityStore.getState().updatePersonality(SHARP.id);
+    await usePersonalityStore.getState().updatePersonality(SHARP.id);
+    expect(updateCurrentPersonality).toHaveBeenCalledTimes(1);
+    selected.reject(new Error('retry me'));
+    await expect(first).rejects.toThrow('retry me');
+    await usePersonalityStore.getState().updatePersonality(SHARP.id);
+    expect(updateCurrentPersonality).toHaveBeenCalledTimes(2);
+    expect(snapshot().currentPersonality).toEqual(SHARP);
+  });
+
+  it('a pending mutation from A cannot update B or finish B pending mutation', async () => {
+    await usePersonalityStore.getState().load('a');
+    const a = deferred<UserPersonalityResponse>();
+    const b = deferred<UserPersonalityResponse>();
+    updateCurrentPersonality.mockReturnValueOnce(a.promise).mockReturnValueOnce(b.promise);
+    const old = usePersonalityStore.getState().updatePersonality(SHARP.id);
+    await usePersonalityStore.getState().load('b');
+    const current = usePersonalityStore.getState().updatePersonality(SHARP.id);
+    a.resolve(sharpResponse);
+    await old;
+    expect(snapshot().currentPersonality).toEqual(CALM);
+    expect(snapshot().updating).toBe(true);
+    b.resolve(sharpResponse);
+    await current;
+    expect(snapshot().currentPersonality).toEqual(SHARP);
+    expect(snapshot().updating).toBe(false);
+  });
+
+  it('ignores a mutation failure belonging to an expired account lifetime', async () => {
+    await usePersonalityStore.getState().load('a');
+    const a = deferred<UserPersonalityResponse>();
+    updateCurrentPersonality.mockReturnValueOnce(a.promise);
+    const old = usePersonalityStore.getState().updatePersonality(SHARP.id);
+    await usePersonalityStore.getState().load('b');
+    a.reject(new Error('old account error'));
+    await expect(old).resolves.toBeUndefined();
+    expect(snapshot().error).toBeNull();
+  });
+});
+
+describe('paired reads', () => {
+  it('cancels the sibling request when one endpoint fails', async () => {
+    fetchPersonalities.mockRejectedValueOnce(new Error('catalogue unavailable'));
+    await usePersonalityStore.getState().load('a');
+    expect(fetchCurrentPersonality.mock.calls[0]?.[0]?.aborted).toBe(true);
+    expect(snapshot().error?.message).toBe('catalogue unavailable');
+    expect(snapshot().loading).toBe(false);
   });
 });

@@ -72,94 +72,138 @@ const INITIAL_STATE = {
   error: null,
 } satisfies Omit<PersonalityStoreState, 'load' | 'refetch' | 'updatePersonality' | 'reset'>;
 
-/**
- * In-flight load, shared by every caller.
- *
- * Three components read this store and they mount together on the dashboard,
- * so without this they would each issue the same pair of requests. It lives
- * outside the store because it is plumbing, not state a component renders.
- */
-let inFlight: Promise<void> | null = null;
+interface ReadRequest {
+  generation: number;
+  controller: AbortController;
+  promise: Promise<void>;
+}
+
+interface MutationRequest {
+  generation: number;
+  promise: Promise<void>;
+}
 
 export const usePersonalityStore = create<PersonalityStoreState>((set, get) => {
-  const fetchBoth = async (): Promise<void> => {
+  // Object identity orders requests; the generation also invalidates A → B → A.
+  let generation = 0;
+  let activeRead: ReadRequest | null = null;
+  let activeMutation: MutationRequest | null = null;
+
+  const cancelRead = () => {
+    activeRead?.controller.abort();
+    activeRead = null;
+  };
+
+  const resetOwner = (ownerId: string | null) => {
+    generation += 1;
+    cancelRead();
+    activeMutation = null;
+    set({ ...INITIAL_STATE, ownerId });
+  };
+
+  const fetchBoth = async (request: ReadRequest): Promise<void> => {
+    const isCurrent = () => activeRead === request && generation === request.generation;
     set({ loading: true, error: null });
     try {
       const [listResponse, currentResponse] = await Promise.all([
-        fetchPersonalities(),
-        fetchCurrentPersonality(),
+        fetchPersonalities(request.controller.signal),
+        fetchCurrentPersonality(request.controller.signal),
       ]);
+      if (!isCurrent()) return;
       set({
         personalities: listResponse.personalities,
         currentPersonality: currentResponse.personality,
         currentPersonalityId: currentResponse.personality_id,
       });
     } catch (err) {
+      if (!isCurrent()) return;
+      request.controller.abort();
       const error = err instanceof Error ? err : new Error('Failed to load personalities');
       set({ error });
       logger.error('personality_fetch_failed', error, { store: 'personalityStore' });
     } finally {
-      set({ loading: false, hasLoaded: true });
+      if (isCurrent()) {
+        activeRead = null;
+        set({ loading: false, hasLoaded: true });
+      }
     }
   };
 
   const run = (): Promise<void> => {
-    // A rejected fetch is already turned into state by `fetchBoth`, so this
-    // promise settles either way; the `finally` is what lets the next caller
-    // start a fresh attempt rather than await a dead one.
-    inFlight ??= fetchBoth().finally(() => {
-      inFlight = null;
-    });
-    return inFlight;
+    if (activeRead) return activeRead.promise;
+    if (!get().ownerId) return Promise.resolve();
+    const request: ReadRequest = {
+      generation,
+      controller: new AbortController(),
+      promise: Promise.resolve(),
+    };
+    activeRead = request;
+    request.promise = fetchBoth(request);
+    return request.promise;
+  };
+
+  const persist = async (request: MutationRequest, personalityId: string | null) => {
+    const isCurrent = () => activeMutation === request && generation === request.generation;
+    try {
+      const response = await updateCurrentPersonality({ personality_id: personalityId });
+      if (!isCurrent()) return;
+      set({
+        currentPersonality: response.personality,
+        currentPersonalityId: response.personality_id,
+      });
+    } catch (err) {
+      if (!isCurrent()) return;
+      const error = err instanceof Error ? err : new Error('Failed to update personality');
+      set({ error });
+      logger.error('personality_update_failed', error, { store: 'personalityStore' });
+      throw error;
+    } finally {
+      if (isCurrent()) {
+        activeMutation = null;
+        set({ updating: false });
+      }
+    }
   };
 
   return {
     ...INITIAL_STATE,
 
     load: async ownerId => {
+      if (get().ownerId !== ownerId) resetOwner(ownerId);
       const state = get();
-      if (state.ownerId !== ownerId) {
-        // Another account, or the first load. Serving the previous user's
-        // style to this one would be a leak, so the data goes before the
-        // request that replaces it — the same reasoning as
-        // `purgeSensitiveClientStorageOnAccountChange`.
-        inFlight = null;
-        set({ ...INITIAL_STATE, ownerId });
-        await run();
-        return;
-      }
-      // A settled attempt is enough — except a failed one, which a later
-      // consumer deserves to see retried rather than inherit as an empty list.
-      if (state.hasLoaded && !state.error) return;
+      if (!ownerId || (state.hasLoaded && !state.error)) return;
       await run();
     },
 
     refetch: async () => {
-      inFlight = null;
+      const ownerGeneration = generation;
+      const mutation = activeMutation;
+      // An admin catalogue refresh must read the confirmed preference, not
+      // race its save. Several readers waiting on that save share one read.
+      if (mutation) await mutation.promise.catch(() => {});
+      if (ownerGeneration !== generation || !get().ownerId) return;
+      if (!mutation) cancelRead();
       await run();
     },
 
     updatePersonality: async personalityId => {
-      set({ updating: true, error: null });
-      try {
-        const response = await updateCurrentPersonality({ personality_id: personalityId });
-        set({
-          currentPersonality: response.personality,
-          currentPersonalityId: response.personality_id,
-        });
-      } catch (err) {
-        const error = err instanceof Error ? err : new Error('Failed to update personality');
-        set({ error });
-        logger.error('personality_update_failed', error, { store: 'personalityStore' });
-        throw error;
-      } finally {
-        set({ updating: false });
-      }
+      const state = get();
+      if (
+        !state.ownerId ||
+        !state.hasLoaded ||
+        state.updating ||
+        personalityId === state.currentPersonalityId ||
+        personalityId === state.currentPersonality?.id
+      )
+        return;
+      cancelRead();
+      const request: MutationRequest = { generation, promise: Promise.resolve() };
+      activeMutation = request;
+      set({ updating: true, loading: false, error: null });
+      request.promise = persist(request, personalityId);
+      await request.promise;
     },
 
-    reset: () => {
-      inFlight = null;
-      set({ ...INITIAL_STATE });
-    },
+    reset: () => resetOwner(null),
   };
 });

@@ -1,27 +1,8 @@
-/**
- * The hero avatar picker — a contract written entirely in CSS.
- *
- * The whole hero image has always been a click target that flips LIA's avatar.
- * It is invisible, so the change reads as accidental. The picker makes the
- * choice visible without removing that target, and everything that makes it
- * work is `opacity` driven by `group-hover` / `group-focus-within` plus a
- * responsive touch size. jsdom computes none of that: a unit test sees the
- * class strings and can only assert that they are spelled the way the test
- * expects, which proves nothing about what a reader sees.
- *
- * Four properties, each of which has a plausible way to break silently:
- *
- * - discreet at rest on a pointer device, revealed on hover;
- * - **revealed by the keyboard too** — a picker that only answered the mouse
- *   would be unreachable for anyone tabbing, since the thing that reveals it
- *   is the focus that has to land inside it;
- * - always visible and 44 px on touch, where there is no hover at all;
- * - a sibling of the full-surface button, not a descendant: pressing a
- *   portrait must select it, never fall through to the blind flip underneath.
- */
-import type { Locator } from '@playwright/test';
+/** Current native animated avatar plus a smaller opposite variant: real geometry,
+ * pointer/touch, keyboard/focus and cookie persistence in all browser engines. */
+import type { Page } from '@playwright/test';
 
-import { test, expect, briefingWindowsMock, type MockRoute } from '../fixtures';
+import { test, expect, briefingWindowsMock, waitForHydration, type MockRoute } from '../fixtures';
 
 const GENERATED_AT = '2026-08-03T08:00:00Z';
 
@@ -69,119 +50,123 @@ const dashboardData: MockRoute[] = [
   { url: '**/api/v1/usage/**', json: {} },
 ];
 
-/** Computed opacity of an element, as a number. */
-async function opacityOf(locator: Locator): Promise<number> {
-  return Number(await locator.evaluate(el => getComputedStyle(el).opacity));
+/** One visible opposite portrait, below the selected native animated avatar. */
+const pair = (page: Page) => page.getByRole('group', { name: "Choose LIA's avatar", exact: true });
+async function femaleStart(page: Page) {
+  await page
+    .context()
+    .addCookies([{ name: 'lia_gender', value: 'female', domain: 'localhost', path: '/' }]);
+  await page.goto('/en/dashboard');
+  await waitForHydration(page, 'main');
+  await expect(
+    pair(page).getByRole('img', { name: 'Feminine portrait', exact: true })
+  ).toBeVisible();
+  await expect(pair(page).locator('[data-companion-portrait]')).toHaveCount(2);
 }
 
-test.describe('hero avatar picker', () => {
-  test('is discreet at rest and revealed by hover on a pointer device', async ({
+test.describe('hero animated avatar pair', () => {
+  test('shows the current native skin above a smaller opposite portrait, centered with the greeting', async ({
     page,
     authenticate,
     mockApi,
   }) => {
     await authenticate();
     await mockApi(dashboardData);
-    await page.goto('/en/dashboard');
-
-    const group = page.getByRole('group', { name: "Choose LIA's avatar" });
-    await expect(group).toBeAttached();
-
-    // At rest: present in the tree (so the keyboard can still reach it) but
-    // faded out. Playwright's own `toBeVisible` treats opacity 0 as visible,
-    // which is exactly why this reads the computed value instead.
-    expect(await opacityOf(group)).toBeLessThan(0.05);
-
-    // The full-surface toggle carries the `group` the reveal keys off; hovering
-    // the hero is what a reader actually does before reaching for the picker.
-    await page.getByRole('button', { name: "Switch LIA's avatar" }).hover();
-    await expect.poll(async () => await opacityOf(group), { timeout: 3_000 }).toBeGreaterThan(0.95);
+    await femaleStart(page);
+    const group = pair(page);
+    await expect(group.getByRole('button')).toHaveCount(1);
+    const main = group.getByRole('img', { name: 'Feminine portrait', exact: true });
+    const alternate = group.getByRole('button', { name: 'Masculine portrait', exact: true });
+    await expect(alternate).toBeVisible();
+    const big = main.locator('[data-companion-portrait]');
+    const small = alternate.locator('[data-companion-portrait]');
+    await expect(big).toHaveAttribute('data-portrait-variant', 'female');
+    await expect(small).toHaveAttribute('data-portrait-variant', 'male');
+    expect(await big.getAttribute('data-companion-portrait')).toBe(
+      await small.getAttribute('data-companion-portrait')
+    );
+    const [a, b, g, text] = await Promise.all([
+      big.boundingBox(),
+      small.boundingBox(),
+      group.boundingBox(),
+      page.getByText('Welcome back', { exact: true }).boundingBox(),
+    ]);
+    expect(a).not.toBeNull();
+    expect(b).not.toBeNull();
+    expect(g).not.toBeNull();
+    expect(text).not.toBeNull();
+    expect(a!.width).toBeGreaterThan(b!.width * 1.8);
+    expect(b!.y).toBeGreaterThanOrEqual(a!.y + a!.height);
+    expect(Math.abs(g!.y + g!.height / 2 - text!.y - text!.height / 2)).toBeLessThanOrEqual(3);
   });
 
-  test('is revealed by the keyboard, not only by the mouse', async ({
+  test('exchanges portraits both ways and persists the selected preference across reload', async ({
     page,
     authenticate,
     mockApi,
   }) => {
     await authenticate();
     await mockApi(dashboardData);
-    await page.goto('/en/dashboard');
-
-    const group = page.getByRole('group', { name: "Choose LIA's avatar" });
-    await expect(group).toBeAttached();
-    expect(await opacityOf(group)).toBeLessThan(0.05);
-
-    // Start outside the hero, then use real Tab navigation to reveal the
-    // picker and reach both portraits without any pointer input.
-    const beforeHero = page.getByRole('button', { name: 'Sign out', exact: true });
-    await beforeHero.focus();
-    await expect(beforeHero).toBeFocused({ timeout: 3_000 });
-    for (const name of ["Switch LIA's avatar", 'Feminine portrait', 'Masculine portrait']) {
-      await page.keyboard.press('Tab');
-      await expect(page.getByRole('button', { name, exact: true })).toBeFocused({ timeout: 3_000 });
-      await expect
-        .poll(async () => await opacityOf(group), { timeout: 3_000 })
-        .toBeGreaterThan(0.95);
-    }
+    await femaleStart(page);
+    const group = pair(page);
+    const trigger = group.getByRole('button');
+    await trigger.click();
+    await expect(group.getByRole('img', { name: 'Masculine portrait', exact: true })).toBeVisible();
+    await expect(trigger).toHaveAccessibleName('Feminine portrait');
+    await expect(trigger).toBeFocused();
+    expect((await page.context().cookies()).find(c => c.name === 'lia_gender')?.value).toBe('male');
+    await page.reload();
+    await waitForHydration(page, 'main');
+    await expect(group.getByRole('img', { name: 'Masculine portrait', exact: true })).toBeVisible();
+    await trigger.click();
+    await expect(group.getByRole('img', { name: 'Feminine portrait', exact: true })).toBeVisible();
+    await expect(trigger).toHaveAccessibleName('Masculine portrait');
+    expect((await page.context().cookies()).find(c => c.name === 'lia_gender')?.value).toBe(
+      'female'
+    );
   });
 
-  test('is always visible and a full 44 px target on touch', async ({
+  test('is reached directly by keyboard and keeps focus when the images exchange', async ({
     page,
     authenticate,
     mockApi,
   }) => {
-    // 390 x 844 — iPhone-class viewport, below the `sm` breakpoint.
+    await authenticate();
+    await mockApi(dashboardData);
+    await femaleStart(page);
+    const trigger = pair(page).getByRole('button');
+    await page.getByRole('button', { name: 'Sign out', exact: true }).focus();
+    await page.keyboard.press('Tab');
+    await expect(trigger).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(trigger).toHaveAccessibleName('Feminine portrait');
+    await expect(trigger).toBeFocused();
+    await page.keyboard.press('Space');
+    await expect(trigger).toHaveAccessibleName('Masculine portrait');
+    await expect(trigger).toBeFocused();
+  });
+
+  test('keeps a 44px touch target and never flips when the main portrait is pressed', async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await authenticate();
     await mockApi(dashboardData);
-    await page.goto('/en/dashboard');
-
-    const group = page.getByRole('group', { name: "Choose LIA's avatar" });
-    await expect(group).toBeAttached();
-
-    // There is no hover on a finger: anything revealed by it would never be
-    // revealed at all.
-    expect(await opacityOf(group)).toBeGreaterThan(0.95);
-
-    for (const name of ['Feminine portrait', 'Masculine portrait']) {
-      const box = await page.getByRole('button', { name }).boundingBox();
-      expect(box, `${name} must be laid out`).not.toBeNull();
-      expect(box!.width, `${name} width`).toBeGreaterThanOrEqual(44);
-      expect(box!.height, `${name} height`).toBeGreaterThanOrEqual(44);
-    }
-  });
-
-  test('selects the pressed portrait rather than flipping blindly', async ({
-    page,
-    authenticate,
-    mockApi,
-  }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    await authenticate();
-    await mockApi(dashboardData);
-    await page.goto('/en/dashboard');
-
-    const feminine = page.getByRole('button', { name: 'Feminine portrait' });
-    const masculine = page.getByRole('button', { name: 'Masculine portrait' });
-    await expect(feminine).toBeVisible();
-
-    // Establish a known state first. Starting from whatever the default
-    // happens to be would make the first assertion pass for free on half the
-    // possible defaults, and silently stop testing anything if that default
-    // ever changed.
-    await feminine.click();
-    await expect(feminine).toHaveAttribute('aria-pressed', 'true');
-    await expect(masculine).toHaveAttribute('aria-pressed', 'false');
-
-    await masculine.click();
-    await expect(masculine).toHaveAttribute('aria-pressed', 'true');
-    await expect(feminine).toHaveAttribute('aria-pressed', 'false');
-
-    // Pressing the one already active is a NO-OP, which is the whole point of
-    // a selection: the full-surface button underneath would have flipped back,
-    // and this same press would read as "nothing I do sticks".
-    await masculine.click();
-    await expect(masculine).toHaveAttribute('aria-pressed', 'true');
-    await expect(feminine).toHaveAttribute('aria-pressed', 'false');
+    await femaleStart(page);
+    const group = pair(page);
+    const trigger = group.getByRole('button', { name: 'Masculine portrait', exact: true });
+    const target = await trigger.boundingBox();
+    expect(target).not.toBeNull();
+    expect(target!.width).toBeGreaterThanOrEqual(44);
+    expect(target!.height).toBeGreaterThanOrEqual(44);
+    await group.getByRole('img', { name: 'Feminine portrait', exact: true }).click();
+    await expect(trigger).toBeVisible();
+    expect((await page.context().cookies()).find(c => c.name === 'lia_gender')?.value).toBe(
+      'female'
+    );
+    await trigger.click();
+    await expect(group.getByRole('img', { name: 'Masculine portrait', exact: true })).toBeVisible();
   });
 });

@@ -1,14 +1,15 @@
 """What each speech-synthesis provider offers, declared once (the ADR-305 shape).
 
 A TTS provider differs from the next in three ways that matter to a caller:
-how it BILLS (per character sent, per token produced, or not at all), which
-delivery CONTROLS it accepts per call (some only on the models measured to take
-them — :func:`controls_for`), and whether one voice speaks every
-language. Every reader asks this table, never the provider's name: the cost
-recorder (a token-billed engine priced per character was under-billed about a
-hundred times), the delivery seam (a control a provider cannot express is
-dropped and counted, never sent), and the cast editor (a multilingual voice
-needs no per-language entry).
+how it BILLS (per character sent, per UTF-8 byte sent, per token produced, or
+not at all — :func:`billed_text_units`), which delivery CONTROLS it accepts per
+call (some only on the models measured to take them — :func:`controls_for`),
+and whether one voice speaks every language. Every reader asks this table,
+never the provider's name: the cost recorder (a token-billed engine priced per
+character was under-billed about a hundred times, a byte-billed one priced per
+character under-bills a Chinese line three times), the delivery seam (a control
+a provider cannot express is dropped and counted, never sent), and the cast
+editor (a multilingual voice needs no per-language entry).
 
 A provider absent from the table is NOT SERVED: no client exists for it, and
 nothing may pretend otherwise — the silent fallback to another engine that a
@@ -29,6 +30,9 @@ class TtsBilling(StrEnum):
     FREE = "free"
     #: Per character sent (the catalogue prices characters as input tokens).
     CHARACTERS = "characters"
+    #: Per UTF-8 byte sent (the catalogue prices bytes as input tokens): a
+    #: character outside ASCII costs two to four units, not one.
+    UTF8_BYTES = "utf8_bytes"
     #: Per token: text in, audio out, as the vendor's usage report states them.
     TOKENS = "tokens"
 
@@ -63,6 +67,8 @@ class TtsFamily:
             prefix (a dated release inherits its model's). A control is sent to
             a model that matches and to no other: refused, it fails the WHOLE
             synthesis; withheld, the line only loses its nuance.
+        dialogue_models: The models, by name prefix, that voice several
+            speakers in ONE request and say where each turn starts (ADR-345).
     """
 
     provider: str
@@ -71,6 +77,7 @@ class TtsFamily:
     multilingual_voices: bool
     native_format: str
     model_controls: tuple[tuple[str, frozenset[TtsControl]], ...] = ()
+    dialogue_models: tuple[str, ...] = ()
 
 
 TTS_FAMILIES: Final[dict[str, TtsFamily]] = {
@@ -110,6 +117,19 @@ TTS_FAMILIES: Final[dict[str, TtsFamily]] = {
             ("gemini-3.8-flash-lite-tts", frozenset({TtsControl.STYLE_PROMPT})),
         ),
     ),
+    # Measured 2026-10-13 on s2.1-pro-free (ADR-345): billed per million UTF-8
+    # bytes of text, a speaking rate in [0.5, 2.0] on every model, and any voice
+    # speaks every language (the vendor detects the language from the text).
+    # The S2 models and drama-3 voice a dialogue in one request, timed word by
+    # word (measured on s2.1-pro-free, documented for drama-3); s1 does not.
+    "fishaudio": TtsFamily(
+        provider="fishaudio",
+        billing=TtsBilling.UTF8_BYTES,
+        controls=frozenset({TtsControl.SPEED}),
+        multilingual_voices=True,
+        native_format="mp3",
+        dialogue_models=("s2", "drama-3"),
+    ),
 }
 
 
@@ -136,4 +156,45 @@ def controls_for(provider: str, model: str) -> frozenset[TtsControl]:
     return family.controls.union(*declared)
 
 
-__all__ = ["TTS_FAMILIES", "TtsBilling", "TtsControl", "TtsFamily", "controls_for", "family_of"]
+def voices_dialogue(provider: str, model: str) -> bool:
+    """Whether ``model`` of ``provider`` voices several speakers in one timed request."""
+    family = family_of(provider)
+    return family is not None and model.startswith(family.dialogue_models)
+
+
+def billed_text_units(provider: str, text: str) -> int | None:
+    """The units a synthesis of ``text`` is billed on, counted from the text.
+
+    Args:
+        provider: LIA's provider id — of the client that SPOKE, never of the
+            configured engine it may have stood in for.
+        text: What was sent.
+
+    Returns:
+        ``0`` for a free engine; the UTF-8 byte count for a byte-billed one;
+        ``None`` for a token-billed one, whose units only its own usage report
+        states; the character count otherwise — an engine no family declares
+        is priced like the most common case rather than as free, because an
+        invisible cost is the wrong way to be wrong.
+    """
+    family = family_of(provider)
+    billing = family.billing if family is not None else TtsBilling.CHARACTERS
+    if billing is TtsBilling.FREE:
+        return 0
+    if billing is TtsBilling.TOKENS:
+        return None
+    if billing is TtsBilling.UTF8_BYTES:
+        return len(text.encode("utf-8"))
+    return len(text)
+
+
+__all__ = [
+    "TTS_FAMILIES",
+    "TtsBilling",
+    "TtsControl",
+    "TtsFamily",
+    "billed_text_units",
+    "controls_for",
+    "family_of",
+    "voices_dialogue",
+]

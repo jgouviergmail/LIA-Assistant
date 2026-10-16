@@ -575,7 +575,7 @@ class VoiceModePreferenceRequest(BaseModel):
         default=None,
         description=(
             "STT backend choice when voice mode is enabled: 'local' (Sherpa, free) "
-            "or 'remote' (ElevenLabs Scribe, billed per audio duration)."
+            "or 'remote' (the voice_transcription slot's engine, billed per audio duration)."
         ),
     )
 
@@ -591,8 +591,16 @@ class VoiceModePreferenceResponse(BaseModel):
     stt_remote_available: bool = Field(
         ...,
         description=(
-            "True when the remote provider (ElevenLabs) has an API key configured "
-            "and the user can opt into 'remote' STT."
+            "True when the voice_transcription slot's remote engine is switched on "
+            "and keyed, so the user can opt into 'remote' STT."
+        ),
+    )
+    stt_remote_provider: str = Field(
+        ...,
+        description=(
+            "The provider that receives the audio in 'remote' mode — the "
+            "voice_transcription slot's (elevenlabs, openai, fishaudio) — so the "
+            "privacy notice names who it is (ADR-345)."
         ),
     )
     message: str = Field(

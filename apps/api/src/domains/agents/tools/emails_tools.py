@@ -37,10 +37,10 @@ from pydantic import BaseModel
 from src.core.config import settings
 from src.core.constants import (
     GMAIL_DATE_OPERATORS,
-    GMAIL_FORMAT_FULL,
     GMAIL_INBOX_ONLY_KEYWORDS,
     GMAIL_TRASH_KEYWORDS,
 )
+from src.core.field_names import FIELD_SET_ASIDE_ON_PAGE
 from src.core.i18n import get_locale_for_language, resolve_language
 from src.core.i18n_api_messages import APIMessages, SupportedLanguage
 from src.core.validators import validate_email
@@ -58,11 +58,14 @@ from src.domains.agents.emails.detail_levels import (
     apply_detail_level,
     coerce_detail,
 )
+from src.domains.agents.emails.message_finishing import finish_messages
 from src.domains.agents.tools.base import ConnectorTool
 from src.domains.agents.tools.decorators import connector_tool
+from src.domains.agents.tools.email_reading import fetch_messages
 from src.domains.agents.tools.exceptions import (
     EmailValidationError,
 )
+from src.domains.agents.tools.mailbox_draft_base import MAIL_SEARCH_REFUSALS, refusal_for
 from src.domains.agents.tools.mixins import ToolOutputMixin
 from src.domains.agents.tools.output import StandardToolOutput, UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import (
@@ -71,6 +74,7 @@ from src.domains.agents.tools.runtime_helpers import (
     resolve_recipients_to_emails,
 )
 from src.domains.agents.tools.validation_helpers import validate_positive_int_or_default
+from src.domains.connectors.clients.email_compose import reply_recipients
 from src.domains.connectors.clients.google_gmail_client import GoogleGmailClient
 from src.domains.connectors.models import ConnectorType
 
@@ -333,13 +337,16 @@ class EmailItem(BaseModel):
     """
     Standardized email item schema for context manager.
 
-    Used for reference resolution (e.g., "the 2nd email", "the one from John").
+    Used for reference resolution (e.g., "the 2nd email", "the one from John",
+    "the draft for Marie" — a mailbox draft is always from the person, so it is
+    found by its recipient).
     """
 
     id: str  # Gmail message ID
     snippet: str  # Email preview text
     from_email: str = ""  # Sender email
     subject: str = ""  # Email subject
+    to: str = ""  # Recipients, as the message states them
 
 
 # Register email context types for context manager
@@ -352,11 +359,7 @@ ContextTypeRegistry.register(
         primary_id_field="id",
         display_name_field="snippet",
         # Searchable fields for fuzzy matching
-        reference_fields=[
-            "snippet",
-            "from_email",
-            "subject",
-        ],
+        reference_fields=["snippet", "from_email", "subject", "to"],
         icon="📧",  # Optional emoji for UI
     )
 )
@@ -474,6 +477,8 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
                 detail=detail,
                 page_token=kwargs.get("page_token"),
             )
+        if "error_code" in result:
+            return result
         await self._shape_for_detail(result["emails"], user_id, detail, part, locale)
         from src.domains.agents.tools.email_card_binding import bind_email_card_accounts
 
@@ -551,15 +556,23 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
             )
             max_results = security_cap
 
-        search_result = await client.search_emails(
-            query=query, max_results=max_results, use_cache=use_cache, page_token=page_token
-        )
+        try:
+            search_result = await client.search_emails(
+                query=query, max_results=max_results, use_cache=use_cache, page_token=page_token
+            )
+        except MAIL_SEARCH_REFUSALS as error:
+            # The query refused as the mailbox reads it — a folder said with
+            # the folders that exist, never the inbox read in its place; never
+            # an internal error.
+            return refusal_for(error)
 
         messages_metadata = search_result.get("messages", [])
         # ADR-185: the provider's ESTIMATE, published as one — never the page size.
+        # RC3.1: a page a check thinned after the search says so, even empty.
         paging = {
             "result_size_estimate": search_result.get("resultSizeEstimate"),
             "next_page_token": search_result.get("next_page_token"),
+            FIELD_SET_ASIDE_ON_PAGE: search_result.get(FIELD_SET_ASIDE_ON_PAGE),
         }
 
         if not messages_metadata:
@@ -580,7 +593,7 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
 
         hits = [dict(msg) for msg in messages_metadata if msg.get("id")]
         if client.SEARCH_HITS_ARE_WHOLE:
-            emails_with_details = await self._finish_messages(client, hits)
+            emails_with_details = await finish_messages(client, hits)
         else:
             emails_with_details = await self._fetch_full_details(
                 client, user_id, [hit["id"] for hit in hits], use_cache
@@ -602,6 +615,7 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
             "user_timezone": user_timezone,
             "locale": locale,
             "mode": "query",
+            "failed_read_count": len(hits) - len(emails_with_details),
             **paging,
         }
 
@@ -656,6 +670,7 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
             "locale": locale,
             "mode": "id",
             "message_ids": ids_to_fetch,
+            "failed_read_count": len(ids_to_fetch) - len(emails_with_details),
         }
 
     async def _fetch_full_details(
@@ -668,75 +683,7 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         """
         Fetch full details for a list of message IDs (parallel).
         """
-        import asyncio
-
-        format_type = GMAIL_FORMAT_FULL
-
-        # Fetch all emails concurrently
-        tasks = [
-            client.get_message(message_id=mid, format=format_type, use_cache=use_cache)
-            for mid in message_ids
-        ]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        fetched: list[dict[str, Any]] = []
-        for message_id, result in zip(message_ids, results, strict=True):
-            if isinstance(result, BaseException):
-                logger.warning("get_emails_fetch_error", message_id=message_id, error=str(result))
-                continue
-            fetched.append(result)
-        return await self._finish_messages(client, fetched)
-
-    async def _finish_messages(
-        self, client: GoogleGmailClient, messages: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
-        """Name the labels and flatten body + attachments of whole messages.
-
-        Args:
-            client: The mailbox client (its label listing is read once).
-            messages: Whole messages, as the client returned them.
-
-        Returns:
-            The same messages, enriched in place.
-        """
-        if not messages:
-            return messages
-        labels_mapping = await client.list_labels(use_cache=True)
-        for message in messages:
-            if "labelIds" in message:
-                message["labelIds"] = [
-                    labels_mapping.get(label_id, label_id) for label_id in message["labelIds"]
-                ]
-            self._enrich_email(message, message.get("id", ""))
-        return messages
-
-    def _enrich_email(self, result: dict[str, Any], message_id: str) -> None:
-        """Enrich email with flattened body + attachments.
-
-        For Gmail: extracts the text body from the MIME tree. For Apple and
-        Microsoft: the body is already top-level text (ADR-287).
-        """
-        try:
-            from src.domains.agents.tools.formatters import GmailFormatter
-
-            # The WHOLE clean body: the detail level paginates it by paragraph
-            # under a token budget (ADR-287); the cards truncate for display on
-            # their own. It used to be cut here at emails_body_max_length, a
-            # bound published nowhere.
-            body = GmailFormatter._extract_body(result)
-            if body:
-                result["body"] = body
-
-            attachments = result.get("attachments")
-            if attachments is None:
-                attachments = GmailFormatter._extract_attachments(result)
-                result["attachments"] = attachments or []
-        except Exception as e:
-            logger.warning(
-                "get_emails_enrich_failed",
-                message_id=message_id,
-                error=str(e),
-            )
+        return await fetch_messages(client, message_ids, use_cache=use_cache)
 
     def _normalize_query(self, query: str) -> str:
         """
@@ -750,6 +697,10 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         """
         Format as Data Registry UnifiedToolOutput with full email details.
         """
+        if "error_code" in result:
+            return UnifiedToolOutput.failure(
+                message=str(result["message"]), error_code=str(result["error_code"])
+            )
         emails = result.get("emails", [])
         query = result.get("query")
         from_cache = result.get("from_cache", False)
@@ -759,7 +710,7 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         # Use ToolOutputMixin helper (with timezone conversion); the level and
         # the paging travel with the items (ADR-287, ADR-185: an estimate is
         # published as one, never as a count).
-        return self.build_emails_output(
+        output = self.build_emails_output(
             emails=emails,
             query=query,
             from_cache=from_cache,
@@ -768,7 +719,14 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
             detail=result.get("detail"),
             result_size_estimate=result.get("result_size_estimate"),
             next_page_token=result.get("next_page_token"),
+            **{FIELD_SET_ASIDE_ON_PAGE: result.get(FIELD_SET_ASIDE_ON_PAGE)},
         )
+        if failed := result.get("failed_read_count"):
+            output.metadata["failed_read_count"] = failed
+            output.message += (
+                f"\n{failed} requested message(s) could not be read; these results are partial."
+            )
+        return output
 
 
 # Create unified tool instance (singleton)
@@ -841,7 +799,10 @@ async def get_emails_tool(
         runtime: Tool runtime (injected)
 
     Returns:
-        UnifiedToolOutput with registry items containing the messages
+        UnifiedToolOutput with registry items containing the messages;
+        ``set_aside_on_page``, when present, counts messages of the page a date
+        or read-state condition set aside after the provider's search — fewer
+        than asked, and ``next_page_token`` may hold more matches.
     """
     # Get user timezone/locale for formatting (cached per user, valid BCP 47)
     user_timezone, _, locale = await get_user_preferences(runtime)
@@ -1248,13 +1209,21 @@ class ReplyEmailDraftTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
                 field="body",
             )
 
-        # Get original message to show context in draft
+        # The original, in the provider-neutral vocabulary (ADR-287): Outlook and
+        # iCloud carry no Gmail header tree, and their cards used to name nobody.
         original = await client.get_message(message_id)
-        headers = original.get("payload", {}).get("headers", [])
-        header_dict = {h.get("name", "").lower(): h.get("value", "") for h in headers}
-
-        original_subject = header_dict.get("subject", "")
-        original_from = header_dict.get("from", "")
+        original_subject = str(original.get("subject") or "")
+        original_from = str(original.get("from") or "")
+        # The card shows whom the reply reaches, by the clients' own rule (ADR-344):
+        # showing the sender alone, then imposing it, lost a reply-all's recipients.
+        to, cc = reply_recipients(
+            original_from,
+            str(original.get("to") or ""),
+            str(original.get("cc") or ""),
+            own_address=await client.get_own_address(),
+            reply_all=reply_all,
+            reply_to=str(original.get("reply_to") or ""),
+        )
 
         logger.info(
             "reply_email_draft_prepared",
@@ -1269,6 +1238,8 @@ class ReplyEmailDraftTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
             "reply_all": reply_all,
             "original_subject": original_subject,
             "original_from": original_from,
+            "to": to,
+            "cc": cc,
             "thread_id": original.get("threadId"),
         }
 
@@ -1294,7 +1265,8 @@ class ReplyEmailDraftTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         # Create typed draft input for email reply
         draft_input = EmailReplyDraftInput(
             message_id=result["message_id"],
-            to=result.get("original_from", ""),  # Reply to original sender
+            to=result["to"],
+            cc=result["cc"],
             subject=subject,  # Include subject for draft preview
             body=result["body"],
             reply_all=result["reply_all"],
@@ -1716,6 +1688,8 @@ async def execute_email_reply_draft(
             message_id=draft_content["message_id"],
             body=draft_content["body"],
             reply_all=draft_content.get("reply_all", False),
+            # Whom the card showed (the clients' own rule, ADR-344), or whom the
+            # person put instead: Graph would otherwise address it by ITS rule.
             to=draft_content.get("to"),
         )
 

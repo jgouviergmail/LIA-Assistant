@@ -2,7 +2,7 @@
 
 **Version**: 2.0
 **Date**: 2025-12-25
-**Updated**: Added Voice/TTS metrics, Gmail metrics, Circuit Breaker, Adaptive Re-planner
+**Updated**: Added Voice/TTS metrics, Gmail metrics, Circuit Breaker, Pipeline step failures
 **Auteur**: Documentation Technique LIA
 **Statut**: ✅ Complète et Validée
 
@@ -897,73 +897,37 @@ hitl_question_generation_duration_seconds = Histogram(
 - Question TTFT p95 < 500ms
 - Approval rate > 70%
 
-#### 6b. Adaptive Re-planner Metrics (4 métriques) - NEW Phase E
+#### 6b. Pipeline Step Failures (1 métrique) — ADR-346
 
-**Fichier** : `apps/api/src/infrastructure/observability/metrics_agents.py` (lignes 1178-1218)
+**Fichier** : `apps/api/src/infrastructure/observability/metrics_pipeline.py`
 
-Métriques pour l'AdaptiveRePlanner (INTELLIPLANNER Phase E) - récupération intelligente des échecs d'exécution :
+Les étapes en échec des plans exécutés en mode pipeline, comptées par `record_pipeline_step_failures()` (`orchestration/step_failure_metrics.py`) au moyen du prédicat de la directive des échecs (`failed_step_codes`) : le compteur compte exactement ce que la réponse dit, une entrée par élément d'un FOR_EACH et jamais l'agrégat.
 
 ```python
-# ============================================================================
-# ADAPTIVE RE-PLANNER METRICS (INTELLIPLANNER Phase E - 2025-12-03)
-# ============================================================================
-
-adaptive_replanner_triggers_total = Counter(
-    "adaptive_replanner_triggers_total",
-    "Total re-planning triggers detected by type",
-    ["trigger"],
-    # trigger: empty_results, partial_empty, partial_failure, reference_error,
-    #          dependency_error, timeout, none
-)
-
-adaptive_replanner_decisions_total = Counter(
-    "adaptive_replanner_decisions_total",
-    "Total re-planning decisions by type",
-    ["decision"],
-    # decision: proceed, retry_same, replan_modified, replan_new, escalate_user, abort
-)
-
-adaptive_replanner_attempts_total = Counter(
-    "adaptive_replanner_attempts_total",
-    "Total re-planning attempts (retries)",
-    ["attempt_number"],
-    # attempt_number: 1, 2, 3, etc.
-)
-
-adaptive_replanner_recovery_success_total = Counter(
-    "adaptive_replanner_recovery_success_total",
-    "Successful recoveries by strategy",
-    ["strategy"],
-    # strategy: broaden_search, alternative_source, reduce_scope,
-    #           skip_optional, add_verification
+pipeline_step_failures_total = Counter(
+    "pipeline_step_failures_total",
+    "Failed steps of executed pipeline plans, by typed error code",
+    [FIELD_ERROR_CODE],
+    # error_code: a ToolErrorCode member (CONNECTOR_NOT_ACTIVATED, INVALID_INPUT,
+    #             TIMEOUT, ...) or "unclassified" — never a free-form string
 )
 ```
 
-**Exemple PromQL - Efficacité du re-planner** :
+C'est la seule vue Prometheus d'un échec survenu avant l'appel d'un outil (une référence `$steps` non résolue, par exemple) : aucune métrique d'outil ni aucun registre ne le voit. Tableau de bord 07, rangée « Pipeline Step Failures ».
+
+**Exemple PromQL** :
 
 ```promql
-# Re-planning trigger distribution
-sum by (trigger) (increase(adaptive_replanner_triggers_total[1h]))
+# Étapes en échec par code typé, sur la dernière heure
+sum by (error_code) (increase(pipeline_step_failures_total[1h]))
 
-# Recovery success rate by strategy
-100 * (
-  sum by (strategy) (increase(adaptive_replanner_recovery_success_total[1h]))
-  /
-  sum (increase(adaptive_replanner_attempts_total[1h]))
-)
-
-# Escalation rate (requires human intervention)
-100 * (
-  sum(increase(adaptive_replanner_decisions_total{decision="escalate_user"}[1h]))
-  /
-  sum(increase(adaptive_replanner_triggers_total[1h]))
-)
+# Échecs sans code typé (un outil qui échoue sans ToolErrorCode)
+sum(increase(pipeline_step_failures_total{error_code="unclassified"}[1h]))
 ```
 
-**Target KPIs Re-planner** :
-- Recovery rate > 80% (réussite sans escalation humaine)
-- Escalation rate < 10%
-- Moyenne d'attempts < 1.5
+**À surveiller** :
+- `unclassified` au-dessus de zéro : un outil échoue sans code typé — à corriger dans l'outil ; la directive des échecs ne reçoit alors que `UNKNOWN` et le texte de l'erreur.
+- Des échecs causés par le plan (`INVALID_INPUT`, `INVALID_PARAM_VALUE`, `MISSING_REQUIRED_PARAM`) que le validateur n'a pas vus avant l'exécution : c'est la première condition de réouverture d'une reprise automatique (ADR-346).
 
 #### 7. Google Contacts API Metrics (6 métriques)
 
@@ -1077,22 +1041,17 @@ voice_tts_latency_seconds = Histogram(
 
 voice_tts_errors_total = Counter(
     "voice_tts_errors_total",
-    "Total Google Cloud TTS API errors by type",
+    "Total TTS API errors by type across providers",
     ["error_type", "voice_name"],
-    # error_type: rate_limit/auth_error/invalid_input/network_error/unknown
+    # error_type: network_error / synthesis_error / empty_response
+    # / invalid_response / encoding_error / timeout / http / http_<code>
+    # / rate_limit / auth_error.
 )
 
 # ============================================================================
 # VOICE COMMENT LLM METRICS
 # ============================================================================
-
-voice_comment_tokens_total = Counter(
-    "voice_comment_tokens_total",
-    "Tokens used for voice comment generation",
-    ["model", "token_type"],
-    # model: gpt-4.1-nano, etc.
-    # token_type: prompt_tokens/completion_tokens
-)
+# The comment's tokens: llm_tokens_consumed_total{node_name="voice_comment"}.
 
 voice_comment_generation_duration_seconds = Histogram(
     "voice_comment_generation_duration_seconds",
@@ -3100,14 +3059,11 @@ POST /api/v1/agents/chat/stream (500ms)
 | `sse_tokens_generated_total` | Counter | `intention`, `node_name` | Tokens générés |
 | `sse_streaming_errors_total` | Counter | `error_type`, `node_name` | Erreurs streaming |
 
-### Adaptive Re-planner Metrics (Complet) - NEW
+### Pipeline Step Failures (Complet) — ADR-346
 
 | Métrique | Type | Labels | Description |
 |----------|------|--------|-------------|
-| `adaptive_replanner_triggers_total` | Counter | `trigger` | Triggers détectés (empty_results, partial_failure, etc.) |
-| `adaptive_replanner_decisions_total` | Counter | `decision` | Décisions (proceed, retry_same, replan_modified, etc.) |
-| `adaptive_replanner_attempts_total` | Counter | `attempt_number` | Tentatives de re-planning (1, 2, 3, etc.) |
-| `adaptive_replanner_recovery_success_total` | Counter | `strategy` | Récupérations réussies par stratégie |
+| `pipeline_step_failures_total` | Counter | `error_code` | Étapes en échec des plans exécutés, par code typé (`ToolErrorCode` ou `unclassified`) |
 
 ### Gmail API Metrics (Complet) - NEW
 
@@ -3123,10 +3079,9 @@ POST /api/v1/agents/chat/stream (500ms)
 
 | Métrique | Type | Labels | Description |
 |----------|------|--------|-------------|
-| `voice_tts_requests_total` | Counter | `status`, `voice_name` | Requêtes TTS Google Cloud |
+| `voice_tts_requests_total` | Counter | `status`, `voice_name` | Requêtes TTS, tous fournisseurs |
 | `voice_tts_latency_seconds` | Histogram | `voice_name` | Latence TTS |
 | `voice_tts_errors_total` | Counter | `error_type`, `voice_name` | Erreurs TTS |
-| `voice_comment_tokens_total` | Counter | `model`, `token_type` | Tokens génération commentaire |
 | `voice_comment_generation_duration_seconds` | Histogram | `model` | Durée génération commentaire |
 | `voice_comment_sentences_total` | Counter | - | Phrases générées |
 | `voice_audio_bytes_total` | Counter | `voice_name`, `encoding`, `sample_rate` | Bytes audio streamés |

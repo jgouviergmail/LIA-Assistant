@@ -15,6 +15,7 @@ import type { BriefingWindows, CardSection, SectionData } from '@/types/briefing
 
 const push = vi.fn();
 
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { timezone: 'Europe/Paris' } }) }));
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push }),
 }));
@@ -86,6 +87,7 @@ describe('briefing cards — actionable items (QW-9)', () => {
     );
 
     const item = screen.getByRole('button', { name: /intents\.mail\|subject=Point projet/ });
+    expect(item).toHaveTextContent('Alice Martin · alice@example.com');
     fireEvent.click(item);
 
     expect(openChat).toHaveBeenCalledTimes(1);

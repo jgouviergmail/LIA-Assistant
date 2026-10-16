@@ -24,6 +24,7 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
+from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command
@@ -41,6 +42,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.asyncio]
 class _SpyModifier:
     def __init__(self) -> None:
         self.calls: list[str] = []
+        self.configs: list[RunnableConfig | None] = []
 
     async def modify(
         self,
@@ -51,8 +53,10 @@ class _SpyModifier:
         run_id: str,
         contact_context: Any = None,
         sender_name: str | None = None,
+        config: RunnableConfig | None = None,
     ) -> dict[str, Any]:
         self.calls.append(instructions)
+        self.configs.append(config)
         return {**original_draft, "subject": f"modified-v{len(self.calls)}"}
 
 

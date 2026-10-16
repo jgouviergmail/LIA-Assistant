@@ -1,20 +1,18 @@
 'use client';
 
 /**
- * useBriefingAudio — play the displayed briefing synthesis aloud (A2).
+ * Read the displayed briefing aloud after an explicit toggle. Each request and
+ * audio resource belongs to one mounted account lifetime: stopping, unmounting
+ * or changing account aborts pending work and releases playback exactly once.
  *
- * One toggle: POST the rendered text to `/briefing/synthesis/audio`
- * (server-side TTS, cost-tracked), play the returned MP3, stop on second
- * press. Unmount stops playback and revokes the object URL — no leaked
- * blob, no ghost audio after navigating away.
- *
- * Raw `fetch` (hooks-layer precedent: `useLLMPricingSheet`) because the
- * response is BINARY — `apiClient` methods parse JSON by contract. The
- * session cookie rides along via `credentials: 'include'` (BFF doctrine).
+ * Raw fetch is needed for the binary MP3 response; BFF session credentials stay
+ * in the cookie. Synthesis remains explicit and uses the existing endpoint.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { useAuth } from '@/hooks/useAuth';
+import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
 import { apiEndpointUrl } from '@/lib/api-client';
 
 export interface UseBriefingAudioResult {
@@ -22,67 +20,97 @@ export interface UseBriefingAudioResult {
   playing: boolean;
   /** True while the audio is being fetched/synthesized. */
   loading: boolean;
-  /** True after a failed fetch — cleared on the next attempt. */
+  /** True after a failed attempt — cleared on the next explicit attempt. */
   error: boolean;
-  /** Start reading `text`, or stop if already playing. */
+  /** Start reading `text`, or stop the current request/playback. */
   toggle: (text: string, liaGender?: 'male' | 'female' | null) => Promise<void>;
 }
 
-export function useBriefingAudio(): UseBriefingAudioResult {
-  const [playing, setPlaying] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const urlRef = useRef<string | null>(null);
+interface AudioSession {
+  controller: AbortController;
+  audio: HTMLAudioElement | null;
+  url: string | null;
+}
 
-  const stop = useCallback(() => {
-    audioRef.current?.pause();
-    audioRef.current = null;
-    if (urlRef.current) {
-      URL.revokeObjectURL(urlRef.current);
-      urlRef.current = null;
+const IDLE = { playing: false, loading: false, error: false };
+
+export function useBriefingAudio(): UseBriefingAudioResult {
+  const { user } = useAuth();
+  const { lifetime, isCurrent } = useApplicationAccountLifetime(user?.id);
+  const [saved, setSaved] = useState({ lifetime, value: IDLE });
+  const state = saved.lifetime === lifetime ? saved.value : IDLE;
+  // This synchronous reference, unlike rendered state, also guards two presses
+  // in the same React batch. The second press cancels the first attempt.
+  const sessionRef = useRef<AudioSession | null>(null);
+
+  const release = useCallback(() => {
+    const session = sessionRef.current;
+    sessionRef.current = null;
+    if (!session) return;
+    session.controller.abort();
+    if (session.audio) {
+      session.audio.onended = null;
+      session.audio.pause();
+      session.audio.removeAttribute('src');
+      session.audio.load();
     }
-    setPlaying(false);
+    if (session.url) URL.revokeObjectURL(session.url);
   }, []);
 
-  // Unmount: never leave a ghost voice reading to nobody.
-  useEffect(() => stop, [stop]);
+  const stop = useCallback(() => {
+    release();
+    if (isCurrent()) setSaved({ lifetime, value: IDLE });
+  }, [release, lifetime, isCurrent]);
+
+  // Resource cleanup has no state writes and runs for both unmount and owner
+  // changes. An A-to-B-to-A switch still creates a different account lifetime.
+  useEffect(() => release, [lifetime, release]);
 
   const toggle = useCallback(
     async (text: string, liaGender?: 'male' | 'female' | null) => {
-      if (playing || loading) {
+      if (!isCurrent()) return;
+      if (sessionRef.current) {
         stop();
         return;
       }
-      setError(false);
-      setLoading(true);
+      const session: AudioSession = {
+        controller: new AbortController(),
+        audio: null,
+        url: null,
+      };
+      sessionRef.current = session;
+      const isActive = () =>
+        isCurrent() && !session.controller.signal.aborted && sessionRef.current === session;
+      setSaved({ lifetime, value: { ...IDLE, loading: true } });
       try {
         const response = await fetch(apiEndpointUrl('/briefing/synthesis/audio'), {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text, lia_gender: liaGender ?? null }),
+          signal: session.controller.signal,
         });
-        if (!response.ok) {
-          throw new Error(`briefing audio HTTP ${response.status}`);
-        }
+        if (!isActive()) return;
+        if (!response.ok) throw new Error(`briefing audio HTTP ${response.status}`);
         const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        urlRef.current = url;
-        const audio = new Audio(url);
-        audioRef.current = audio;
-        audio.onended = stop;
+        if (!isActive()) return;
+        session.url = URL.createObjectURL(blob);
+        const audio = new Audio(session.url);
+        session.audio = audio;
+        audio.onended = () => {
+          if (isActive()) stop();
+        };
         await audio.play();
-        setPlaying(true);
+        if (isActive()) setSaved({ lifetime, value: { ...IDLE, playing: true } });
       } catch {
-        stop();
-        setError(true);
-      } finally {
-        setLoading(false);
+        // A cancelled or superseded attempt owns no state in the new session.
+        if (!isActive()) return;
+        release();
+        setSaved({ lifetime, value: { ...IDLE, error: true } });
       }
     },
-    [playing, loading, stop]
+    [isCurrent, lifetime, release, stop]
   );
 
-  return { playing, loading, error, toggle };
+  return { ...state, toggle };
 }

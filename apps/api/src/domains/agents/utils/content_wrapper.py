@@ -8,19 +8,22 @@ as instructions.
 Architecture:
     wrap_external_content(content, source_url, source_type) -> str
         Wraps content with <external_content> tags and an UNTRUSTED warning.
-        Escapes any occurrences of the tag itself within the content.
+        Neutralises every bracket in the content that would read as the tag
+        itself, however spelled (case, blanks, fullwidth forms, invisible
+        characters).
 
-    strip_external_markers(content) -> str
-        Removes wrapping markers, returning the original content.
-        Useful for display or storage where markers are not needed.
+    scan_injection_patterns(content) / injection_notice(...)
+        Report injection-shaped patterns — detection only, never rewriting.
 
 Security:
     - Prevents prompt injection via web-fetched content
-    - Escapes tag occurrences in content to prevent marker breakout
-    - Feature-flagged via external_content_wrapping_enabled setting
+    - Neutralises tag spellings in content to prevent marker breakout
+    - The web fetch and search tools honour ``external_content_wrapping_enabled``;
+      every other caller wraps unconditionally
 """
 
 import re
+import unicodedata
 from contextlib import suppress
 
 from src.core.constants import (
@@ -34,17 +37,69 @@ from src.infrastructure.observability.logging import get_logger
 logger = get_logger(__name__)
 
 
-def _escape_tags(content: str) -> str:
-    """Escape external_content tags within content to prevent marker breakout.
+#: Brackets a model reads as a tag's opening one: ASCII, fullwidth, small form.
+_OPENING_BRACKETS = "<" + chr(0xFF1C) + chr(0xFE64)
+_OPENING_BRACKET_PATTERN = re.compile("[" + re.escape(_OPENING_BRACKETS) + "]")
+#: How far after a bracket the tag name is looked for — wide enough for a name
+#: padded with invisible characters. Bounded: the escape stays linear.
+_TAG_WINDOW_CHARS = 256
+_WRAPPER_TAG_NAME = EXTERNAL_CONTENT_OPEN_TAG.lstrip("<")
 
-    Replaces literal occurrences of the open/close tags with escaped versions
-    so that the content cannot prematurely close the wrapper.
+
+def _names_the_wrapper(window: str) -> bool:
+    """Whether a bracket followed by ``window`` reads as the wrapper's tag.
+
+    Read as a model reads it: compatibility forms folded (NFKC), case folded,
+    blanks and format characters (zero-width, bidi) skipped, a leading slash
+    of any width skipped. Compared character by character and abandoned at
+    the first one that differs — ``<em>`` costs two characters, measured: a
+    whole-window normalisation took 1.2 s on 40 000 characters of ``<e``.
+
+    Args:
+        window: The characters right after the bracket.
+
+    Returns:
+        True when they spell the wrapper's tag name, opening or closing.
     """
-    # Escape opening tag: <external_content -> &lt;external_content
-    content = content.replace("<external_content", "&lt;external_content")
-    # Escape closing tag: </external_content> -> &lt;/external_content&gt;
-    content = content.replace("</external_content>", "&lt;/external_content&gt;")
-    return content
+    matched = 0
+    for char in window:
+        if unicodedata.category(char) == "Cf":
+            continue
+        for folded in unicodedata.normalize("NFKC", char).casefold():
+            if folded.isspace() or (folded == "/" and matched == 0):
+                continue
+            if folded != _WRAPPER_TAG_NAME[matched]:
+                return False
+            matched += 1
+            if matched == len(_WRAPPER_TAG_NAME):
+                return True
+    return False
+
+
+def _escape_tags(content: str) -> str:
+    """Neutralise every bracket that would open or close the wrapper, however spelled.
+
+    The escape knew one spelling, and a model reads ``</EXTERNAL_CONTENT>``, a
+    fullwidth bracket or a zero-width split as the same tag (point 4). Each
+    bracket is judged on a short window after it: one search over the content
+    and a bounded look at each bracket, linear by construction (ADR-326).
+
+    Args:
+        content: Third-party text about to be wrapped.
+
+    Returns:
+        The text, every such bracket written ``&lt;``.
+    """
+    parts: list[str] = []
+    start = 0
+    for match in _OPENING_BRACKET_PATTERN.finditer(content):
+        index = match.start()
+        if _names_the_wrapper(content[index + 1 : index + 1 + _TAG_WINDOW_CHARS]):
+            parts.append(content[start:index])
+            parts.append("&lt;")
+            start = index + 1
+    parts.append(content[start:])
+    return "".join(parts)
 
 
 #: Longest source name kept in the opening tag: a URL is rarely longer, and
@@ -95,22 +150,6 @@ def wrap_external_content(
         f"{escaped_content}\n"
         f"{EXTERNAL_CONTENT_CLOSE_TAG}"
     )
-
-
-# Regex pattern to strip external content markers (greedy across multiple wrapped blocks)
-_STRIP_PATTERN = re.compile(
-    r"<external_content[^>]*>\s*"
-    + re.escape(EXTERNAL_CONTENT_WARNING)
-    + r"\s*(.*?)\s*</external_content>",
-    re.DOTALL,
-)
-
-
-def _unescape_tags(content: str) -> str:
-    """Reverse the escaping done by _escape_tags."""
-    content = content.replace("&lt;external_content", "<external_content")
-    content = content.replace("&lt;/external_content&gt;", "</external_content>")
-    return content
 
 
 # =============================================================================
@@ -171,16 +210,20 @@ _INJECTION_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
             # how an injection hides inside an otherwise plausible email body.
             r"(?:(?:^|\n)\s*|[.!?]\s+)(?:SYSTEM|ASSISTANT)\s*:"
             r"|(?:^|\n)\s*(?:### *(?:System|Assistant)|\[SYSTEM[ _]MESSAGE\])"
-            r"|\[INST\]|<\|system\|>|<\|im_start\|>",
+            # Chat-template control tokens of the open model families (ChatML,
+            # Llama 3, Gemma): text that opens or closes a turn.
+            r"|\[INST\]|<\|(?:system|user|assistant|im_start|im_end|eot_id|"
+            r"start_header_id|end_header_id|endoftext)\|>|<(?:start|end)_of_turn>",
             re.IGNORECASE,
         ),
         "role_override",
     ),
     (
         re.compile(
-            # Space-separated languages (en/fr/es/de/it): verb, up to two filler
-            # words, an optional "previous"-style target, then the noun.
-            rf"(?:{_HIJACK_VERBS})\s+(?:\w+\s+){{0,2}}(?:{_HIJACK_TARGETS})?\s*"
+            # Space-separated languages (en/fr/es/de/it): verb, up to four filler
+            # words (« ignore all of the previous … » has three), an optional
+            # "previous"-style target, then the noun.
+            rf"(?:{_HIJACK_VERBS})\s+(?:\w+\s+){{0,4}}(?:{_HIJACK_TARGETS})?\s*"
             rf"(?:{_HIJACK_NOUNS})"
             # Chinese writes without spaces, so the space-separated branch can
             # never fire on it: a dedicated branch allows any short run of
@@ -221,23 +264,60 @@ _INJECTION_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     # Naming a LIA tool inside third-party text is never legitimate data: the
     # tool namespace is ours, so its appearance is an attempt to drive the loop.
     (re.compile(r"\b[a-z_]{3,40}_tool\b"), "tool_coercion"),
-    # Characters the user cannot see but the tokenizer feeds to the model:
-    # zero-width joiners, BOM, and bidirectional overrides/isolates that can
-    # visually reverse a sentence's meaning.
-    (
-        re.compile("[​‌‍⁠﻿‪-‮⁦-⁩]"),
-        "invisible_unicode",
-    ),
-    # An HTML comment is invisible in a rendered page but survives extraction.
-    (
-        re.compile(
-            r"<!--(?:(?!-->).)*?(?:ignore|system|instruction|inject|override|"
-            r"assistant|prompt)(?:(?!-->).)*?-->",
-            re.IGNORECASE | re.DOTALL,
-        ),
-        "hidden_html_directive",
-    ),
 )
+
+# Characters the user cannot see but the tokenizer feeds to the model:
+# zero-width joiners, the word joiner, the BOM, and the bidi embeddings,
+# overrides and isolates that can visually reverse a sentence's meaning.
+# Written as code points, so that nothing invisible sits in this file.
+_INVISIBLE_PATTERN = re.compile(
+    "["
+    + re.escape("".join(map(chr, (0x200B, 0x200C, 0x200D, 0x2060, 0xFEFF))))
+    + re.escape("".join(map(chr, range(0x202A, 0x202F))))
+    + re.escape("".join(map(chr, range(0x2066, 0x206A))))
+    + "]"
+)
+# The Tag block spells ASCII nobody sees: legitimate only inside a subdivision
+# flag (a black flag, tag letters, the cancel tag) — anywhere else it is text
+# smuggled past the reader.
+_TAG_CHARACTER = re.compile("[" + chr(0xE0000) + "-" + chr(0xE007F) + "]")
+_FLAG_TAG_SEQUENCE = re.compile(
+    chr(0x1F3F4) + "[" + chr(0xE0020) + "-" + chr(0xE007E) + "]+" + chr(0xE007F)
+)
+# An HTML comment is invisible in a rendered page but survives extraction.
+_HTML_COMMENT_DIRECTIVE = re.compile(
+    r"ignore|system|instruction|inject|override|assistant|prompt", re.IGNORECASE
+)
+
+
+def _smuggled_text(sample: str) -> bool:
+    """Tag-block characters outside a subdivision flag (text nobody sees)."""
+    return _TAG_CHARACTER.search(_FLAG_TAG_SEQUENCE.sub("", sample)) is not None
+
+
+def _hidden_html_directive(sample: str) -> bool:
+    """An HTML comment holding a directive word, found in ONE pass.
+
+    The regex this replaces re-read the rest of the text from every unclosed
+    ``<!--``: 20 000 characters of it took 3 s on the response path (measured
+    2026-10-13, point 30). Comments are read as a browser reads them: from
+    ``<!--`` to the first ``-->``.
+
+    Args:
+        sample: The normalised text being scanned.
+
+    Returns:
+        True when a comment carries a directive word.
+    """
+    position = 0
+    while (start := sample.find("<!--", position)) != -1:
+        end = sample.find("-->", start + 4)
+        if end == -1:
+            return False
+        if _HTML_COMMENT_DIRECTIVE.search(sample, start + 4, end):
+            return True
+        position = end + 3
+    return False
 
 
 def scan_injection_patterns(content: str) -> tuple[str, ...]:
@@ -255,7 +335,17 @@ def scan_injection_patterns(content: str) -> tuple[str, ...]:
     if not content or len(content) < 10:
         return ()
     sample = content[:_SCAN_MAX_CHARS]
-    return tuple(family for pattern, family in _INJECTION_PATTERNS if pattern.search(sample))
+    # Read the way a model reads it: fullwidth and compatibility forms folded
+    # back (ＳＹＳＴＥＭ is SYSTEM to a tokenizer), case folded. The invisible
+    # characters survive this normalisation; they are looked for in the raw
+    # sample all the same.
+    shadow = unicodedata.normalize("NFKC", sample).casefold()
+    families = [family for pattern, family in _INJECTION_PATTERNS if pattern.search(shadow)]
+    if _INVISIBLE_PATTERN.search(sample) or _smuggled_text(sample):
+        families.append("invisible_unicode")
+    if _hidden_html_directive(shadow):
+        families.append("hidden_html_directive")
+    return tuple(families)
 
 
 def injection_notice(content: str, *, item_type: str, surface: str) -> str:
@@ -297,32 +387,13 @@ def injection_notice(content: str, *, item_type: str, surface: str) -> str:
         "families": list(families),
         "content_chars": len(content),
     }
-    if families == ("invisible_unicode",) and not _BIDI_CONTROL_PATTERN.search(
-        content[:_SCAN_MAX_CHARS]
+    sample = content[:_SCAN_MAX_CHARS]
+    if (
+        families == ("invisible_unicode",)
+        and not _BIDI_CONTROL_PATTERN.search(sample)
+        and not _smuggled_text(sample)
     ):
         logger.info("external_content_injection_pattern_detected", **event_fields)
     else:
         logger.warning("external_content_injection_pattern_detected", **event_fields)
     return f" {REGISTRY_INJECTION_NOTICE_PREFIX}{', '.join(families)}]"
-
-
-def strip_external_markers(content: str) -> str:
-    """Remove external content wrapping markers, returning original content.
-
-    Useful for display, storage, or contexts where safety markers are not needed.
-    Handles multiple wrapped blocks within a single string.
-
-    Args:
-        content: Content potentially containing external_content markers.
-
-    Returns:
-        Content with markers removed and tag escaping reversed.
-    """
-    if not content:
-        return content
-
-    def _replace_match(match: re.Match) -> str:
-        inner = match.group(1)
-        return _unescape_tags(inner)
-
-    return _STRIP_PATTERN.sub(_replace_match, content)

@@ -107,11 +107,9 @@ def test_new_capability_defaults_boot_the_real_settings() -> None:
             assert actual == str(expected).lower()
         else:
             assert float(actual) == expected
-    assert profile["ELEVENLABS_TTS_MAX_CONCURRENCY"] == "5"
-    assert (
-        int(profile["ELEVENLABS_TTS_MAX_CONCURRENCY"])
-        == Settings.model_fields["elevenlabs_tts_max_concurrency"].default
-    )
+    for name in ("elevenlabs_tts_max_concurrency", "fishaudio_max_concurrency"):
+        assert profile[name.upper()] == "5"
+        assert int(profile[name.upper()]) == Settings.model_fields[name].default
     secrets = generate_secrets()
     required = {
         "database_url": "postgresql+asyncpg://lia:test@localhost:5432/lia",
@@ -123,6 +121,7 @@ def test_new_capability_defaults_boot_the_real_settings() -> None:
         **{name: profile[name.upper()] for name in AvatarSettings.model_fields},
         "radio_enabled": profile["RADIO_ENABLED"],
         "elevenlabs_tts_max_concurrency": profile["ELEVENLABS_TTS_MAX_CONCURRENCY"],
+        "fishaudio_max_concurrency": profile["FISHAUDIO_MAX_CONCURRENCY"],
         "email_share_enabled": Settings.model_fields["email_share_enabled"].default,
         "generated_assets_keep_max_files": Settings.model_fields[
             "generated_assets_keep_max_files"
@@ -136,6 +135,7 @@ def test_new_capability_defaults_boot_the_real_settings() -> None:
     assert settings.avatar_enabled is False
     assert 0 < settings.avatar_idle_seconds <= settings.avatar_session_length_seconds
     assert settings.elevenlabs_tts_max_concurrency == 5
+    assert settings.fishaudio_max_concurrency == 5
     assert settings.email_share_enabled is True
     assert settings.generated_assets_keep_max_files == 100
     assert settings.generated_assets_keep_max_mb == 500

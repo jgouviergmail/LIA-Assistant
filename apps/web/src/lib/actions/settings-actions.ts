@@ -55,7 +55,8 @@ export type LLMProviderName =
   | 'qwen'
   | 'elevenlabs'
   | 'edge'
-  | 'typesafe';
+  | 'typesafe'
+  | 'fishaudio';
 
 /** Who filled a catalogue row's capabilities. Mirrors the backend
  *  ``CapabilityProvenanceLiteral`` / ``LLMCapabilityProvenanceEnum``. */

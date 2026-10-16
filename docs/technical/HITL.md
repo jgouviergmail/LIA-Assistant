@@ -518,6 +518,41 @@ that happens to be their own still goes through `send_email_tool` and its
 target (owner decision). See
 [ADR-314](../architecture/ADR-314-An-E-Mail-To-Oneself-Needs-No-Confirmation.md).
 
+## 📮 The person's mailbox drafts: kept freely, sent after one card (ADR-344)
+
+A **mailbox draft** is the person's own unsent message in Gmail, Outlook or
+iCloud — never the confirmation card this page describes. Saving one (new, a
+reply, a forward), editing it and moving drafts to the trash reach nobody: the
+five tools declare `mutation_policy="reversible"` with written reasons and ask
+nothing, and the validator never halts for them. **Sending** one is the act
+that reaches someone, so `send_mailbox_draft_tool` builds a
+`DraftType.MAILBOX_DRAFT_SEND` card:
+
+- the card shows the draft **as the mailbox holds it** — recipients, subject,
+  the person's own words (the quoted message stays in the mailbox), its files —
+  and carries a **digest** of it (recipients, subject, the whole text, the
+  files' names);
+- at the confirmation the executor reads the draft again: edited in the mailbox
+  since → `DRAFT_CHANGED`, nothing sent; gone → `DRAFT_GONE`; left without any
+  recipient → `NO_RECIPIENT`;
+- a change asked through **Modify** (`CONTENT_FIELDS["mailbox_draft_send"]`:
+  to, cc, bcc, subject, body) is written to the draft first — its quote kept,
+  recipients compared by address — and only then does the draft leave;
+- the send is one attempt, never retried; the result names no draft handle,
+  and `draft_kept` says when IMAP sent the message but kept the draft.
+
+Several drafts (« send all my drafts ») are one FOR_EACH over the listing: the
+FOR_EACH confirmation approves the lot, which is then confirmed as one card
+(the pre-approved lot of ADR-288).
+
+**The reply card shows whom the reply reaches.** `reply_email_tool` reads the
+provider-neutral message (ADR-287) and addresses its card by the clients' own
+rule (`reply_recipients`): a reply to all lists every recipient but the person,
+a reply to one's own message answers the people it was sent to, and exactly
+those leave. It used to show the original sender alone and impose it — a reply
+to all lost its other recipients, and on Outlook and iCloud the card named
+nobody.
+
 ## 🔢 Plusieurs brouillons dans un tour : un à la fois (ADR-288)
 
 Un tour peut préparer plusieurs brouillons — deux e-mails à deux personnes, un

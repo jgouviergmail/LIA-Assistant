@@ -11,10 +11,14 @@ Target: 90%+ coverage for infrastructure/scheduler/leader_elector.py
 """
 
 import asyncio
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, PropertyMock
 
 import pytest
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.schedulers.base import STATE_PAUSED, STATE_RUNNING, STATE_STOPPED
 
+from src.core.constants import SCHEDULER_JOB_LEADER_LOCK_RENEWAL
 from src.infrastructure.scheduler.leader_elector import SchedulerLeaderElector
 
 # =============================================================================
@@ -195,7 +199,8 @@ class TestShutdown:
 
         assert elector._re_election_task.done()
         mock_scheduler.shutdown.assert_not_called()
-        # delete not called (not leader)
+        # Only the ownership script may release, and only this worker's own lease.
+        mock_redis.delete.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_shutdown_idempotent_before_start(
@@ -374,3 +379,197 @@ class TestRenewalAndMisc:
         """_renew_lock with Redis=None does not raise."""
         elector = SchedulerLeaderElector(None, mock_scheduler)
         await elector._renew_lock()  # Should not raise
+
+
+# =============================================================================
+# A worker that loses its lease steps down, and a shutdown starts nothing (N1)
+# =============================================================================
+
+
+async def _until(predicate: Any, *, rounds: int = 200) -> None:
+    """Let the event loop run until ``predicate()`` holds (bounded)."""
+    for _ in range(rounds):
+        if predicate():
+            return
+        await asyncio.sleep(0)
+    raise AssertionError("the condition never held")
+
+
+def _scripts(redis: AsyncMock) -> list[str]:
+    """The Lua scripts the elector sent, in order (renewal or release)."""
+    return [str(call.args[0]) for call in redis.eval.await_args_list]
+
+
+@pytest.fixture
+async def live_scheduler() -> Any:
+    """A REAL scheduler: its states are what the elector must read."""
+    scheduler = AsyncIOScheduler()
+    yield scheduler
+    if scheduler.running:
+        scheduler.shutdown(wait=False)
+
+
+class TestALostLeaseStopsTheJobs:
+    """N1, proven at runtime: a worker whose lease another worker took kept
+    running every job — two schedulers. It must step down, then wait for the
+    lease again exactly as it did at boot."""
+
+    @pytest.mark.asyncio
+    async def test_a_late_renewal_still_runs(
+        self, mock_redis: AsyncMock, live_scheduler: Any
+    ) -> None:
+        """APScheduler skips a run more than a second late by default; seven
+        renewals were skipped that way on dev (1.0 to 2.6 s late)."""
+        elector = SchedulerLeaderElector(mock_redis, live_scheduler, renew_interval_seconds=30)
+        await elector.start()
+
+        job = live_scheduler.get_job(SCHEDULER_JOB_LEADER_LOCK_RENEWAL)
+        assert job is not None and job.misfire_grace_time == 30
+        await elector.shutdown()
+
+    @pytest.mark.asyncio
+    async def test_a_lost_lease_pauses_the_jobs_and_waits_for_it_again(
+        self, mock_redis: AsyncMock, live_scheduler: Any
+    ) -> None:
+        elector = SchedulerLeaderElector(mock_redis, live_scheduler, re_election_interval_seconds=0)
+        await elector.start()
+        assert live_scheduler.state == STATE_RUNNING
+
+        mock_redis.eval = AsyncMock(return_value=0)  # another worker holds the lease
+        mock_redis.set = AsyncMock(return_value=False)  # and keeps it for now
+        await elector._renew_lock()
+
+        assert elector.is_leader is False
+        assert live_scheduler.state == STATE_PAUSED
+        task = elector._re_election_task
+        assert task is not None and not task.done()
+
+        mock_redis.set = AsyncMock(return_value=True)  # its lease expired
+        await _until(lambda: elector.is_leader)
+        assert live_scheduler.state == STATE_RUNNING  # resumed, never restarted
+        await elector.shutdown()
+
+    @pytest.mark.asyncio
+    async def test_a_worker_that_lost_its_lease_stops_its_scheduler_on_shutdown(
+        self, mock_redis: AsyncMock, live_scheduler: Any
+    ) -> None:
+        elector = SchedulerLeaderElector(mock_redis, live_scheduler)
+        await elector.start()
+        mock_redis.eval = AsyncMock(return_value=0)
+        mock_redis.set = AsyncMock(return_value=False)
+        await elector._renew_lock()
+
+        await elector.shutdown()
+
+        assert live_scheduler.state == STATE_STOPPED
+        # The lease is another worker's: only the ownership script may touch it.
+        mock_redis.delete.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_an_unreadable_lease_pauses_jobs_until_a_new_election(
+        self, mock_redis: AsyncMock, live_scheduler: Any
+    ) -> None:
+        """A partitioned worker cannot keep starting jobs after another wins the lease."""
+        elector = SchedulerLeaderElector(mock_redis, live_scheduler, re_election_interval_seconds=0)
+        await elector.start()
+        mock_redis.eval = AsyncMock(side_effect=ConnectionError("lease unreachable"))
+        mock_redis.set = AsyncMock(return_value=False)
+        try:
+            await elector._renew_lock()
+            assert live_scheduler.state == STATE_PAUSED
+            assert not elector.is_leader
+
+            # A successful fresh acquisition, rather than an optimistic retry,
+            # is the only way this worker resumes its existing scheduler.
+            mock_redis.eval = AsyncMock(return_value=1)
+            mock_redis.set = AsyncMock(return_value=True)
+            await _until(lambda: elector.is_leader)
+            assert live_scheduler.state == STATE_RUNNING
+        finally:
+            await elector.shutdown()
+
+
+class TestAShutdownStartsNothing:
+    """Point 23: the scheduler used to keep firing while the shutdown closed
+    the push relay and Langfuse under its jobs."""
+
+    @pytest.mark.asyncio
+    async def test_pausing_lets_nothing_new_start(
+        self, mock_redis: AsyncMock, live_scheduler: Any
+    ) -> None:
+        elector = SchedulerLeaderElector(mock_redis, live_scheduler)
+        await elector.start()
+
+        elector.pause_jobs()
+
+        assert live_scheduler.state == STATE_PAUSED
+        await elector.shutdown()
+        assert live_scheduler.state == STATE_STOPPED
+
+    @pytest.mark.asyncio
+    async def test_the_scheduler_is_stopped_when_shutdown_returns(
+        self, live_scheduler: Any
+    ) -> None:
+        """AsyncIOScheduler defers its stop to the loop's next turn: the
+        sequence closes the push relay right after, so the stop must be done
+        by then, not merely requested — with or without a lease to release."""
+        elector = SchedulerLeaderElector(None, live_scheduler)
+        await elector.start()
+
+        await elector.shutdown()
+
+        assert live_scheduler.state == STATE_STOPPED
+
+    @pytest.mark.asyncio
+    async def test_a_lease_held_without_knowing_it_is_given_back(
+        self, mock_redis: AsyncMock, live_scheduler: Any
+    ) -> None:
+        """Cancelling the re-election mid-``SET NX`` may leave the lease set in
+        Redis while this worker believes it follows: Redis is asked, not the
+        flag — the release only ever deletes this worker's own lease."""
+        mock_redis.set = AsyncMock(return_value=False)
+        elector = SchedulerLeaderElector(mock_redis, live_scheduler)
+        await elector.start()
+        assert elector.is_leader is False
+
+        elector.pause_jobs()
+        await elector.shutdown()
+
+        releases = [
+            call.args for call in mock_redis.eval.await_args_list if "DEL" in str(call.args[0])
+        ]
+        assert releases and releases[-1][2:] == (elector._lock_key, elector._worker_id)
+        mock_redis.delete.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_a_shutdown_alone_lets_no_re_election_start(
+        self, mock_redis: AsyncMock, live_scheduler: Any
+    ) -> None:
+        """A renewal still in flight may find the lease gone after the release:
+        a dying worker must not start waiting for it again."""
+        elector = SchedulerLeaderElector(mock_redis, live_scheduler)
+        await elector.start()
+        await elector.shutdown()
+
+        mock_redis.eval = AsyncMock(return_value=0)
+        await elector._renew_lock()
+
+        assert elector._re_election_task is None
+
+    @pytest.mark.asyncio
+    async def test_a_lease_won_during_the_shutdown_is_given_back(
+        self, mock_redis: AsyncMock, live_scheduler: Any
+    ) -> None:
+        """A follower may win the lease the stopping leader just released: a
+        dying process must not start the jobs — it hands the lease back."""
+        mock_redis.set = AsyncMock(return_value=False)
+        elector = SchedulerLeaderElector(mock_redis, live_scheduler)
+        await elector.start()  # a follower, waiting for the lease
+
+        elector.pause_jobs()
+        mock_redis.set = AsyncMock(return_value=True)
+        assert await elector._try_acquire() is False
+
+        assert live_scheduler.state == STATE_STOPPED
+        assert any("DEL" in script for script in _scripts(mock_redis))
+        await elector.shutdown()

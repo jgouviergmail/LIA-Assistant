@@ -18,9 +18,16 @@ from langchain_core.tools import StructuredTool
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 
 from src.core.config import settings
+from src.domains.agents.api.run_origin import RunOrigin, out_of_turn_origin_ctx
+from src.domains.agents.effects.gate import (
+    ERROR_CONFIRMATION_IMPOSSIBLE,
+    UNATTENDED_REFUSAL_MESSAGE,
+)
 from src.domains.agents.nodes import react_nodes
 from src.domains.agents.utils.loop_guard import compute_call_digest
 from src.domains.agents.utils.message_filters import TOOL_CALL_NOT_RUN, tool_call_ran
+from src.infrastructure.observability import metrics_effects
+from tests.helpers.runtime_context import installed_runtime_context
 
 pytestmark = [pytest.mark.unit]
 
@@ -97,6 +104,70 @@ async def test_a_confirmed_mutation_runs_and_is_marked_as_run(
         )
     )
 
+    assert tool_call_ran(answer)
+
+
+def _refusals_unattended() -> float:
+    return float(
+        metrics_effects.effect_refusals_total.labels(
+            reason=ERROR_CONFIRMATION_IMPOSSIBLE
+        )._value.get()
+    )
+
+
+def _never_asked(_payload: object) -> object:
+    raise AssertionError("a question was raised in a turn nobody can answer")
+
+
+async def test_a_confirmation_nobody_can_give_is_never_asked(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """N10: a routine's loop met a tool that needs a confirmation and ASKED —
+    the question stayed on the person's thread and read their next message as
+    its answer. Nobody can answer a routine: the call is answered as never run,
+    in the gate's own words, and counted like the gate's own refusal."""
+    _register_tool("not_run_probe_mutation")
+    monkeypatch.setattr(react_nodes, "interrupt", _never_asked)
+    before = _refusals_unattended()
+
+    with installed_runtime_context(is_automated_source=True):
+        answer = _only_answer(
+            await react_nodes.react_execute_tools_node(
+                _state("not_run_probe_mutation", mutation=True), {}
+            )
+        )
+
+    assert answer.content == UNATTENDED_REFUSAL_MESSAGE
+    assert answer.status == "success"  # nothing broke: the call never ran (ADR-303)
+    assert not tool_call_ran(answer)
+    assert _refusals_unattended() - before == 1
+
+
+async def test_a_ticket_still_asks_its_confirmation(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The control: a ticket run is unattended too, but it CARRIES the question
+    to the person (ADR-276 lot 7) — it keeps asking."""
+    _register_tool("not_run_probe_mutation")
+    asked: list[object] = []
+
+    def _confirm(payload: object) -> object:
+        asked.append(payload)
+        return {"action": "confirm"}
+
+    monkeypatch.setattr(react_nodes, "interrupt", _confirm)
+    token = out_of_turn_origin_ctx.set(
+        RunOrigin(kind="workboard", ticket_id="t1", run_id="r1", can_carry_draft=True)
+    )
+    try:
+        with installed_runtime_context(is_automated_source=True):
+            answer = _only_answer(
+                await react_nodes.react_execute_tools_node(
+                    _state("not_run_probe_mutation", mutation=True), {}
+                )
+            )
+    finally:
+        out_of_turn_origin_ctx.reset(token)
+
+    assert len(asked) == 1
     assert tool_call_ran(answer)
 
 

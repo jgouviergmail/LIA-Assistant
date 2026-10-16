@@ -24,13 +24,17 @@ Updated: 2026-05-07 - TTS provider config relocated to llm_config_overrides (ADR
 
 from typing import Any, Literal
 
-from pydantic import Field, field_validator
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
     ELEVENLABS_TTS_MAX_CONCURRENCY_DEFAULT,
+    FISHAUDIO_MAX_CONCURRENCY_DEFAULT,
+    FISHAUDIO_PINNED_VOICES_MAX_DEFAULT,
+    FISHAUDIO_VOICE_DESIGN_COST_USD_DEFAULT,
     VOICE_CHAT_MODE_MAX_SENTENCES_DEFAULT,
     VOICE_CONTEXT_MAX_CHARS_DEFAULT,
+    VOICE_EXPRESSIVE_CUES_MAX_DEFAULT,
     VOICE_LLM_FREQUENCY_PENALTY_DEFAULT,
     VOICE_LLM_MAX_TOKENS_DEFAULT,
     VOICE_LLM_MODEL_DEFAULT,
@@ -78,6 +82,43 @@ class VoiceSettings(BaseSettings):
         description=(
             "Maximum in-flight ElevenLabs TTS requests per API key across all workers. "
             "Set at or below the account's concurrency allowance."
+        ),
+    )
+    fishaudio_max_concurrency: int = Field(
+        default=FISHAUDIO_MAX_CONCURRENCY_DEFAULT,
+        ge=1,
+        description=(
+            "Maximum in-flight Fish Audio requests per API key across all workers — "
+            "synthesis, transcription and voice design share it. Set at or below the "
+            "account's concurrency allowance."
+        ),
+    )
+    fishaudio_voice_creation_enabled: bool = Field(
+        default=True,
+        description=(
+            "Let an administrator create voices on the instance's Fish Audio "
+            "account — clone a recording, design one from a description "
+            "(ADR-345). Renaming and deleting the account's voices stay open. "
+            "Off on the demonstrator."
+        ),
+    )
+    fishaudio_voice_design_cost_usd: float = Field(
+        default=FISHAUDIO_VOICE_DESIGN_COST_USD_DEFAULT,
+        ge=0.0,
+        description=(
+            "What one Fish Audio voice-design request costs (the vendor bills a "
+            "successful request once, whatever the number of candidates), "
+            "charged to the instance's daily budget."
+        ),
+    )
+    fishaudio_pinned_voices_max: int = Field(
+        default=FISHAUDIO_PINNED_VOICES_MAX_DEFAULT,
+        ge=1,
+        description=(
+            "How many public Fish Audio voices an administrator may pin for every "
+            "voice slot (published to the settings page). Each pin costs one vendor "
+            "request when the voice list is rebuilt; lowering it keeps the voices "
+            "already pinned and refuses new ones."
         ),
     )
 
@@ -189,6 +230,15 @@ class VoiceSettings(BaseSettings):
         ge=1,
         le=10,
         description="Maximum number of sentences in voice comment",
+    )
+    voice_expressive_cues_max: int = Field(
+        default=VOICE_EXPRESSIVE_CUES_MAX_DEFAULT,
+        ge=0,
+        le=10,
+        description=(
+            "Most expressive cues ([warm], [laughs]...) a spoken comment may carry when "
+            "the voice engine performs them (ADR-345). 0 = none."
+        ),
     )
 
     voice_sentence_delimiters: str = Field(
@@ -418,11 +468,22 @@ class VoiceSettings(BaseSettings):
         "Disable to force every user back to the local Sherpa pipeline.",
     )
 
-    elevenlabs_stt_max_audio_duration_seconds: int = Field(
+    fishaudio_stt_enabled: bool = Field(
+        default=True,
+        description="Allow Fish Audio as a remote STT provider (ADR-345). "
+        "Disable to keep Fish Audio for synthesis only.",
+    )
+
+    # Was ELEVENLABS_STT_MAX_AUDIO_DURATION_SECONDS: the cap is the voice mode's,
+    # whichever remote engine transcribes, and the old name is still read.
+    remote_stt_max_audio_duration_seconds: int = Field(
         default=300,
         ge=10,
         le=3600,
-        description="Hard cap on a single STT call duration (seconds). "
-        "Defends against accidental cost spikes; ElevenLabs accepts much "
+        validation_alias=AliasChoices(
+            "REMOTE_STT_MAX_AUDIO_DURATION_SECONDS", "ELEVENLABS_STT_MAX_AUDIO_DURATION_SECONDS"
+        ),
+        description="Hard cap on a single remote STT call of the voice mode (seconds). "
+        "Defends against accidental cost spikes; every remote engine accepts much "
         "longer files but a 5-minute conversational clip is plenty.",
     )

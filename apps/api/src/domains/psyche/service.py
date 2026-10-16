@@ -39,7 +39,6 @@ from src.domains.psyche.constants import (
     RELATIONSHIP_STAGE_DIRECTIVES,
     RESET_LEVEL_FULL,
     RESET_LEVEL_PURGE,
-    SELF_EFFICACY_CONVERSATION_DOMAIN,
     SNAPSHOT_TYPE_MESSAGE,
 )
 from src.domains.psyche.engine import (
@@ -335,7 +334,7 @@ class PsycheService:
             drive_engagement=state.drive_engagement,
             interaction_count=state.relationship_interaction_count,
             last_appraisal=state.last_appraisal,
-            self_efficacy=state.self_efficacy,
+            self_efficacy=None,
             existing_emotions=state.active_emotions or [],
             now_iso=now.isoformat(),
             joy_pulse_enabled=settings.psyche_proactive_joy_pulse,
@@ -363,7 +362,6 @@ class PsycheService:
             drive_curiosity=state.drive_curiosity,
             drive_engagement=state.drive_engagement,
             top_n=3,
-            self_efficacy=state.self_efficacy,
             traits=traits,
         )
 
@@ -620,16 +618,6 @@ class PsycheService:
                 appraisal_arousal=appraisal.arousal,
                 appraisal_quality=appraisal.quality,
             )
-
-            # Update self-efficacy: quality > 0.6 = success, < 0.4 = failure
-            # Uses "emotional_support" domain as proxy for conversational competence
-            if appraisal.quality > 0.6 or appraisal.quality < 0.4:
-                state.self_efficacy = PsycheEngine.update_self_efficacy(
-                    efficacy=state.self_efficacy or PsycheEngine.initialize_self_efficacy(),
-                    domain=SELF_EFFICACY_CONVERSATION_DOMAIN,
-                    success=appraisal.quality > 0.6,
-                    prior_weight=settings.psyche_self_efficacy_prior_weight,
-                )
 
         # Always update last interaction timestamp
         state.relationship_last_interaction = now
@@ -937,7 +925,6 @@ class PsycheService:
             warmth=state.relationship_warmth_active,
             drive_curiosity=state.drive_curiosity,
             drive_engagement=state.drive_engagement,
-            self_efficacy=state.self_efficacy,
         )
 
         strengths = ", ".join(profile.confidence_strengths) or "none yet"
@@ -1002,6 +989,7 @@ class PsycheService:
             level: Reset level (soft/full/purge). Validated by Pydantic Literal
                 in PsycheResetRequest — no invalid values reach this method.
         """
+        await self.repo.lock_reset_owner(user_id)
         if level == RESET_LEVEL_PURGE:
             await self.repo.delete_for_user(user_id)
             logger.info("psyche_state_purged", user_id=str(user_id))
@@ -1132,6 +1120,12 @@ class PsycheService:
             .execution_options(populate_existing=True)
         )
         personality = result.scalar_one_or_none()
+        if personality is None:
+            # A NULL preference selects the instance default, as in the
+            # conversational prompt and the public personality selector.
+            from src.domains.personalities.service import PersonalityService
+
+            personality = await PersonalityService(self.db).get_default()
 
         if not personality or personality.trait_openness is None:
             return PersonalityTraits(), None

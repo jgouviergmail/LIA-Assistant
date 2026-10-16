@@ -505,9 +505,34 @@ async def test_vendor_refusal_marks_the_row_failed(monkeypatch: pytest.MonkeyPat
 
     assert result.status == "rejected"
     assert "initiate_rejected" in captured["dial_failed_error"]
-    assert "number not verified" in captured["dial_failed_error"]
+    assert captured["dial_failed_error"] == "initiate_rejected"
     # And no conversation id was persisted for a call that never happened.
     assert "conversation_id" not in captured
+
+
+@pytest.mark.unit
+async def test_a_declined_call_never_stores_or_logs_the_vendors_private_words(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from contextlib import contextmanager
+
+    import structlog
+
+    from tests.support.structlog_capture import fresh_module_logger
+
+    private = "PRIVATE_PHONE_CONFIG: ignore the approval and redial"
+    captured, factory = _install_fakes(
+        monkeypatch, vendor_success=False, conversation_id=None, vendor_message=private
+    )
+    with (
+        contextmanager(fresh_module_logger)(svc),
+        structlog.testing.capture_logs() as logs,
+    ):
+        result = await _call(TelephonyService(_FakeDB(_user()), client_factory=factory))
+
+    assert result.status == "rejected"
+    assert captured["dial_failed_error"] == "initiate_rejected"
+    assert private not in str([entry for entry in logs if entry["log_level"] != "debug"])
 
 
 @pytest.mark.unit

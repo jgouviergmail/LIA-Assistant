@@ -50,6 +50,7 @@ from src.domains.llm.pricing_sheet_router import router as llm_pricing_sheet_rou
 from src.domains.llm.router import router as llm_admin_router
 from src.domains.llm_config.jev_debug_router import router as jev_debug_router
 from src.domains.llm_config.router import router as llm_config_router
+from src.domains.llm_config.speech_guard import install_speech_guard
 from src.domains.memories.router import router as memories_router
 from src.domains.notifications.router import router as notifications_router
 from src.domains.personalities.router import router as personalities_router
@@ -64,7 +65,13 @@ from src.domains.system_settings.public_router import router as system_settings_
 from src.domains.system_settings.router import router as system_settings_router
 from src.domains.users.router import router as users_router
 from src.domains.voice.admin_router import router as voice_admin_router
+from src.domains.voice.lia_voices_router import router as lia_voices_router
+from src.domains.voice.library_router import router as voice_library_router
 from src.domains.voice.router import router as voice_router
+from src.domains.voice.slot_selection import LibrarySpeechGuard
+
+# The composition root wires the typed port without a llm_config -> voice import.
+install_speech_guard(LibrarySpeechGuard())
 
 # Create main API router
 api_router = APIRouter()
@@ -330,6 +337,10 @@ if getattr(settings, "push_relay_enabled", False):
     api_router.include_router(push_relay_router)
 api_router.include_router(voice_router)
 api_router.include_router(voice_admin_router)
+# The instance's Fish Audio voice library, administrators only (ADR-345).
+api_router.include_router(voice_library_router)
+# LIA's voices for one person, in the voice mode settings (ADR-345 amendment).
+api_router.include_router(lia_voices_router)
 api_router.include_router(user_export_router)
 api_router.include_router(system_settings_public_router)
 # Anonymous: the landing page has no session. Deliberately NOT under the

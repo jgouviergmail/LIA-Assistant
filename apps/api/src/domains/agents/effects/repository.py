@@ -470,6 +470,26 @@ class EffectLedgerRepository(BaseRepository[AgentEffect]):
         )
         return list(rows.scalars().all())
 
+    async def acted_in_run(self, run_id: str) -> bool:
+        """Whether an attempt of ``run_id`` may have acted on the world.
+
+        Every row but a refusal says it may have: a claim in flight or cut by a
+        crash, a success, a failure that may have half-acted, an abandonment, a
+        handoff. A retry that replays the turn would perform it twice (point 20).
+
+        Args:
+            run_id: The run.
+
+        Returns:
+            True when the run holds an effect row other than a refusal.
+        """
+        found = await self.db.execute(
+            select(AgentEffect.id)
+            .where(AgentEffect.run_id == run_id, AgentEffect.status != EffectStatus.REFUSED)
+            .limit(1)
+        )
+        return found.first() is not None
+
     async def list_for_user(
         self,
         user_id: uuid.UUID,

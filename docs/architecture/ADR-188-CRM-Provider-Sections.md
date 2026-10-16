@@ -29,7 +29,7 @@ Vérifié dans le code avant de concevoir :
   champs, Microsoft exécute du KQL — et aucun ne promet « cette personne est
   **participante** » plutôt que « cette chaîne apparaît quelque part ».
 - **une requête unique « from OU to » est impossible** : `convert_imap_query`
-  (Apple) construit un **ET** de critères, `build_search_filter` (Microsoft)
+  (Apple) construit un **ET** de critères, `graph_mail_query` (Microsoft)
   route vers la boîte de réception par défaut, et Gmail conjoint aussi les
   opérateurs séparés par une espace.
 

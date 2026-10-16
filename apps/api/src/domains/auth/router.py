@@ -23,6 +23,7 @@ from src.core.exceptions import (
     raise_permission_denied,
 )
 from src.core.i18n_api_messages import APIMessages
+from src.core.remote_stt import remote_stt_slot
 from src.core.session_dependencies import get_current_active_session, get_current_session
 from src.core.session_helpers import (
     clear_session_cookie,
@@ -797,6 +798,11 @@ def _stt_remote_available() -> bool:
     return stt_remote_available()
 
 
+def _stt_remote_provider() -> str:
+    """Who receives the audio in « remote » mode: the voice_transcription slot's provider."""
+    return remote_stt_slot().provider
+
+
 @router.get(
     "/me/voice-mode-preference",
     response_model=VoiceModePreferenceResponse,
@@ -819,6 +825,7 @@ async def get_voice_mode_preference(
         voice_mode_enabled=user.voice_mode_enabled,
         voice_stt_mode=voice_stt_mode if voice_stt_mode in ("local", "remote") else "local",
         stt_remote_available=_stt_remote_available(),
+        stt_remote_provider=_stt_remote_provider(),
         message="",
     )
 
@@ -829,8 +836,9 @@ async def get_voice_mode_preference(
     summary="Update voice mode preference",
     description="Enable/disable voice mode and/or pick the STT backend. "
     "Both fields are optional; pass only the one you want to change. "
-    "Selecting ``voice_stt_mode='remote'`` requires an ElevenLabs API key "
-    "configured by the admin (see Settings → Tarification LLM Texte).",
+    "Selecting ``voice_stt_mode='remote'`` requires the voice_transcription "
+    "slot's engine to be switched on and keyed by the admin "
+    "(see Settings → Tarification LLM Texte).",
 )
 async def update_voice_mode_preference(
     data: VoiceModePreferenceRequest,
@@ -844,7 +852,7 @@ async def update_voice_mode_preference(
     - Voice mode badge is active in chat header
     - Wake word detection (Sherpa-onnx KWS) is enabled
     - STT input via WebSocket is available
-    - The STT backend is local (Sherpa) or remote (ElevenLabs)
+    - The STT backend is local (Sherpa) or remote (the voice_transcription slot's engine)
 
     Args:
         data: Partial preference patch (any subset of the two fields)
@@ -883,6 +891,7 @@ async def update_voice_mode_preference(
         voice_mode_enabled=user.voice_mode_enabled,
         voice_stt_mode=voice_stt_mode if voice_stt_mode in ("local", "remote") else "local",
         stt_remote_available=remote_available,
+        stt_remote_provider=_stt_remote_provider(),
         message=APIMessages.voice_mode_preference_updated(enabled=user.voice_mode_enabled),
     )
 

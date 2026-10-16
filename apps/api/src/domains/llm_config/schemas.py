@@ -113,6 +113,7 @@ class LLMTypeConfigUpdate(BaseModel):
             "elevenlabs",
             "edge",
             "typesafe",
+            "fishaudio",
         ]
         | None
     ) = None

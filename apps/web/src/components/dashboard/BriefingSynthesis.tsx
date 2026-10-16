@@ -1,10 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { Square, Volume2 } from 'lucide-react';
+import { useEffect, useId, useRef, useState } from 'react';
+import { LoaderCircle, Minus, Plus, Sparkles, Square, Volume2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { LLMUsageBadge } from '@/components/ui/llm-usage-badge';
 import { UpdatedAtBadge } from './UpdatedAtBadge';
@@ -18,17 +17,12 @@ interface BriefingSynthesisProps {
 
 const JUST_UPDATED_VISIBLE_MS = 1500;
 
-/**
- * AI-generated 2-3 sentence synthesis — sits below the greeting.
- *
- * Iconless, sober design:
- *  - Glass-morphism background with subtle primary gradient
- *  - Left accent bar (primary, vertical gradient) — gives LIA "voice"
- *  - Decorative blur orb top-right (primary, 15% opacity)
- *  - Detects `generated_at` change to flash a "mis à jour ✨" badge for 1.5 s
- */
+/** Readable point with independent audio/fold controls and its real generation cost. */
 export function BriefingSynthesis({ synthesis }: BriefingSynthesisProps) {
   const { t } = useTranslation();
+  const [expanded, setExpanded] = useState(true);
+  const contentId = useId();
+  const titleId = useId();
   const [showJustUpdated, setShowJustUpdated] = useState(false);
   const previousGeneratedAt = useRef<string | null>(null);
   // A2: read the displayed synthesis aloud (server-side TTS, cost-tracked).
@@ -54,57 +48,62 @@ export function BriefingSynthesis({ synthesis }: BriefingSynthesisProps) {
   }, [synthesis.generated_at]);
 
   return (
-    <div
-      className={cn(
-        'relative overflow-hidden rounded-2xl border border-primary/15',
-        // Solid: the page ground is the cosmos (AppCosmos); the primary
-        // wash rides on the card colour, never on what lies behind the tile.
-        'bg-card bg-gradient-to-br from-primary/8 via-card to-card',
-        'shadow-[var(--lia-shadow-lg)]',
-        'motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-500'
-      )}
-    >
-      {/* Left accent bar — vertical primary gradient */}
-      <div
-        className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-primary via-primary/60 to-primary/30"
-        aria-hidden="true"
-      />
-      {/* Decorative blur orb */}
-      <div
-        className="pointer-events-none absolute -top-10 -right-10 h-40 w-40 rounded-full bg-primary/15 blur-3xl"
-        aria-hidden="true"
-      />
-
-      <div className="relative p-5 sm:p-6">
-        <p
-          className="text-px-15 sm:text-base leading-relaxed text-foreground/90"
-          style={{ textWrap: 'pretty' } as React.CSSProperties}
+    <section aria-labelledby={titleId} className="min-w-0 space-y-2">
+      <div className="grid grid-cols-[minmax(0,1fr)_44px_44px] items-center gap-1">
+        <h3 id={titleId} className="flex min-w-0 items-center gap-2 text-sm font-semibold">
+          <Sparkles className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+          {t('dashboard.briefing.synthesis_title')}
+        </h3>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-11 w-11 justify-self-center text-primary"
+          aria-disabled={loading}
+          aria-busy={loading}
+          aria-label={t(
+            playing ? 'dashboard.briefing.synthesis_stop' : 'dashboard.briefing.synthesis_listen'
+          )}
+          aria-pressed={playing}
+          onClick={() => {
+            if (!loading) void toggle(synthesis.text, liaIsMale ? 'male' : 'female');
+          }}
         >
-          {synthesis.text}
-        </p>
-        <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1 pt-3">
-          {/* Row-level altitude (ADR-207): a ghost icon control on the badge
-              line — listening is an accessory to reading, not a section CTA. */}
-          <Button
-            variant="ghost"
-            size="icon"
-            isLoading={loading}
-            aria-label={t(
-              playing ? 'dashboard.briefing.synthesis_stop' : 'dashboard.briefing.synthesis_listen'
-            )}
-            aria-pressed={playing}
-            onClick={() => void toggle(synthesis.text, liaIsMale ? 'male' : 'female')}
-          >
-            {playing ? (
-              <Square className="h-4 w-4" aria-hidden="true" />
-            ) : (
-              <Volume2 className="h-4 w-4" aria-hidden="true" />
-            )}
-          </Button>
-          <UpdatedAtBadge generatedAt={synthesis.generated_at} showJustUpdated={showJustUpdated} />
-          {synthesis.usage && <LLMUsageBadge usage={synthesis.usage} />}
-        </div>
+          {loading ? (
+            <LoaderCircle className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" />
+          ) : playing ? (
+            <Square className="h-4 w-4" aria-hidden="true" />
+          ) : (
+            <Volume2 className="h-4 w-4" aria-hidden="true" />
+          )}
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-11 w-11 text-primary"
+          aria-label={t(
+            expanded
+              ? 'dashboard.briefing.synthesis_collapse'
+              : 'dashboard.briefing.synthesis_expand'
+          )}
+          aria-expanded={expanded}
+          aria-controls={contentId}
+          onClick={() => setExpanded(value => !value)}
+        >
+          {expanded ? <Minus aria-hidden="true" /> : <Plus aria-hidden="true" />}
+        </Button>
       </div>
-    </div>
+      {/* Folding the text keeps its single audio owner and controls mounted. */}
+      <p
+        id={contentId}
+        hidden={!expanded}
+        className="break-words text-sm leading-relaxed text-foreground/90 sm:text-base"
+      >
+        {synthesis.text}
+      </p>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+        <UpdatedAtBadge generatedAt={synthesis.generated_at} showJustUpdated={showJustUpdated} />
+        {synthesis.usage && <LLMUsageBadge usage={synthesis.usage} />}
+      </div>
+    </section>
   );
 }

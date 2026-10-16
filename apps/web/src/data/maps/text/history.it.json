@@ -735,8 +735,8 @@
     },
     "128": {
       "title": "Il ripianificatore consiglia, non agisce",
-      "summary": "L'analisi dei fallimenti di un piano resta un consiglio: alimenta l'osservabilità e il messaggio mostrato, senza rilanciare da sé un nuovo piano.",
-      "src": "7f762b31a867"
+      "summary": "L'analisi dei fallimenti di un piano resta un consiglio: alimenta l'osservabilità, senza rilanciare da sé un nuovo piano.",
+      "src": "1327c492981f"
     },
     "129": {
       "title": "Indicizzazioni che riprendono dopo un crash",
@@ -1812,6 +1812,21 @@
       "title": "Il ritratto legge tutto il materiale, e il suo riassunto è una sintesi",
       "summary": "Nove registri sulla persona — ricordi, interessi, abitudini, debrief, fili aperti, Workboard, routine, promemoria, risposte conservate — sono letti per intero, ogni elemento citabile, sotto una sola quota della finestra del modello, e ogni taglio è dichiarato. Il ritratto torna a essere un'analisi della persona su sette sfaccettature, mai un inventario, e il riassunto è scritto come frasi proprie; la revisione semantica, misurata mentre respingeva letture fondate, è rimossa: ciò che rifiuta l'invenzione è strutturale, ogni lettura cita ciò che la fonda. I budget sono obiettivi dichiarati, mai un taglio. Una modifica del diario rende il ritratto obsoleto, servito datato, invece di cancellarlo; una voce eliminata porta via le letture che fondava. Misurato su dev prima della consegna.",
       "src": "38eaccd2b7d9"
+    },
+    "344": {
+      "title": "Una bozza della casella appartiene alla persona",
+      "summary": "LIA salva, modifica e sposta nel cestino le bozze di Gmail, Outlook e iCloud senza chiedere: una bozza resta nella casella della persona e non raggiunge nessuno, e il cestino si può annullare. Solo l'invio chiede una conferma, su una scheda che mostra la bozza così come la casella la conserva; una bozza modificata nel frattempo nella casella non viene inviata, e una modifica chiesta sulla scheda viene scritta prima della partenza. Strada facendo, la scheda di risposta mostra finalmente tutti coloro che la risposta raggiunge, ed è a loro che invia.",
+      "src": "9c6ad22bd65b"
+    },
+    "345": {
+      "title": "Fish Audio si unisce alle voci di LIA, e ogni motore fattura solo ciò che dice",
+      "summary": "Fish Audio parla (cinque modelli, tra cui s2.1-pro e drama-3), trascrive riunioni e dettature, e le sue voci si clonano o si progettano dall'amministrazione, con una dichiarazione di consenso archiviata nel registro di audit. Ogni frase ascoltata passa da un'unica porta che la fattura una volta, nell'unità del motore che l'ha davvero pronunciata; ogni account fornitore ha un'unica riserva di richieste, condivisa da tutte le funzioni vocali; e la dettatura remota va al motore scelto dall'amministratore, che le impostazioni indicano. LIA inserisce indicazioni di interpretazione (una risata, un sussurro, un sospiro) in ciò che scrive per essere detto, nella sintassi di ogni motore che le interpreta, e le voci della radio dialogano in un'unica ripresa.",
+      "src": "5f1d4e6b93c7"
+    },
+    "346": {
+      "title": "Il ripianificatore consultivo viene ritirato: un errore si dice, non si ripete",
+      "summary": "Misurato in produzione, l'analizzatore che seguiva ogni piano fallito definiva passeggeri errori che non lo erano, e il ciclo di ripresa che attendeva avrebbe ripetuto l'irreparabile. Scompare: un errore viene detto nella risposta, un guasto passeggero viene ritentato dal client che lo ha incontrato, e un contatore tipizzato mostra ogni passo fallito, anche uno avvenuto prima della chiamata a uno strumento.",
+      "src": "185409f983b0"
     }
   }
 }

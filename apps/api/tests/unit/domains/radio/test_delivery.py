@@ -14,6 +14,7 @@ from src.domains.radio.delivery import (
 )
 from src.domains.radio.formats import RadioRole
 from src.domains.radio.script import Energy, Pace, RadioDelivery, Tone
+from tests.support.voice_clock import retirement_day, speak_on
 
 pytestmark = pytest.mark.unit
 
@@ -169,3 +170,61 @@ def test_the_versioned_phrases_direct_every_role_and_every_marked_delivery() -> 
         *(f"tone.{value.value}" for value in Tone if value is not Tone.NEUTRAL),
     }
     assert marked <= set(phrases.qualities), sorted(marked - set(phrases.qualities))
+
+
+class TestOpeningCue:
+    """An engine that performs cues in the text is handed one opening the line (ADR-345)."""
+
+    def test_a_cue_engine_hears_the_tone_and_still_reports_what_it_could_not_express(
+        self,
+    ) -> None:
+        out = delivery_kwargs(
+            "fishaudio", RadioRole.ANCHOR, LIVELY, model="s2.1-pro", phrases=PHRASES
+        )
+
+        assert out.cue == "[warm]"
+        assert out.kwargs == {"speed": 1.1}
+        # One cue opens a line: the tone took it, the energy is still unexpressed.
+        assert out.unrendered == ("energy",)
+
+    def test_a_fixed_set_without_the_tone_falls_back_to_the_energy(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        speak_on(monkeypatch, retirement_day("fishaudio", "s1"))
+
+        out = delivery_kwargs("fishaudio", RadioRole.ANCHOR, LIVELY, model="s1", phrases=PHRASES)
+
+        assert out.cue == "(excited)"
+        assert out.unrendered == ("tone",)
+
+    def test_a_cue_engine_with_settings_gets_both(self) -> None:
+        out = delivery_kwargs(
+            "elevenlabs", RadioRole.ANCHOR, LIVELY, model="eleven_v4", phrases=PHRASES
+        )
+
+        assert out.cue == "[warm]"
+        assert "voice_settings" in out.kwargs
+
+    @pytest.mark.parametrize(
+        ("provider", "model"),
+        [
+            ("edge", "edge-tts"),
+            ("openai", "tts-1"),
+            # Gemini performs sounds only; its delivery is the style direction.
+            ("gemini", "gemini-3.8-flash-tts"),
+            ("elevenlabs", "eleven_multilingual_v2"),
+        ],
+    )
+    def test_an_engine_without_delivery_cues_never_gets_one(
+        self, provider: str, model: str
+    ) -> None:
+        out = delivery_kwargs(provider, RadioRole.ANCHOR, LIVELY, model=model, phrases=PHRASES)
+
+        assert out.cue == ""
+
+    def test_a_neutral_delivery_opens_with_nothing(self) -> None:
+        out = delivery_kwargs(
+            "fishaudio", RadioRole.ANCHOR, NEUTRAL, model="s2.1-pro", phrases=PHRASES
+        )
+
+        assert (out.cue, out.unrendered) == ("", ())

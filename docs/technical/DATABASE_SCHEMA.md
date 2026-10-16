@@ -257,7 +257,7 @@ erDiagram
 
 1. **UUID Primary Keys**: Tous les IDs sont UUID v4 (128-bit, globally unique)
 2. **Timestamps Automatiques**: `created_at`, `updated_at` via mixins SQLAlchemy
-3. **Soft Delete**: `deleted_at IS NULL` pour conversations (GDPR Right to Erasure)
+3. **Soft Delete**: `deleted_at IS NULL` identifie les conversations actives ; ce marquage conserve la ligne et ne démontre pas un effacement des données
 4. **Audit Trail Immuable**: `AdminAuditLog`, `ConversationAuditLog` sans `updated_at`
 5. **JSONB Columns**: Métadonnées flexibles (scopes, metadata, plan_summary)
 6. **Temporal Versioning**: LLM pricing avec `effective_from` + `is_active`
@@ -636,7 +636,7 @@ class Conversation(BaseModel):
 **Design Pattern:**
 
 - **1:1 Mapping**: `user_id` unique constraint (un seul conversation active par user)
-- **Soft Delete**: `deleted_at IS NULL` pour conversation active (GDPR compliance)
+- **Soft Delete**: `deleted_at IS NULL` pour une conversation active ; la purge physique et les règles de conservation sont des chemins distincts
 - **thread_id LangGraph**: `conversation.id` utilisé comme thread_id pour checkpoints
 
 **Migration Clé:**
@@ -2789,6 +2789,8 @@ Per-user usage quota configuration. One record per user (1:1 relationship with `
 | `heartbeat_notifications` | `src/domains/heartbeat/models.py` | Historique des notifications proactives Heartbeat |
 | `interest_notifications` | `src/domains/interests/models.py` | Historique des notifications d'intérêts |
 | `llm_config_overrides` / `provider_api_keys` | `src/domains/llm_config/models.py` | Overrides LLM par type + clés API providers chiffrées Fernet (ADR-078) |
+| `fishaudio_pinned_voices` | `src/domains/voice/fishaudio/models.py` | Voix publiques épinglées une fois pour l'instance, administrateur en `SET NULL` à sa suppression ; migration `8ba7655b548b` (ADR-345) |
+| `fishaudio_catalogue_revisions` | `src/domains/voice/fishaudio/models.py` | Une seule ligne : révision UUID et réservations de suppression `{identifiant de voix: jeton d'opération}`. Aucun secret ni échantillon vocal. Les transactions courtes protègent les choix personnels et les configurations TTS contre une suppression ou un retrait de pin concurrent. Une opération annulée ou de résultat inconnu conserve sa réservation jusqu'à une suppression explicitement relancée et vérifiée ; seul son jeton peut la libérer. Migration `7f428c3e0a19` (ADR-345) |
 | `image_generation_pricing` | `src/domains/image_generation/models.py` | Tarification génération d'images (versionnée) : prix par image produite, clé (modèle, qualité, taille), et `cost_per_input_image_usd` — prix de chaque image de référence d'une retouche, EXIGÉ par une famille qui la facture à l'image (Qwen), REFUSÉ par une qui la facture en tokens (OpenAI). Chaque ligne est validée contre la famille de son modèle (ADR-305) |
 | `user_usage_limits` | `src/domains/usage_limits/models.py` | Quotas par utilisateur (tokens, messages, coût — ADR-060) |
 | `relation_debriefs` | `src/domains/relations/debrief/models.py` | **Débrief quotidien par relation** (ADR-269) : une ligne par (compte, relation), portant le corps rédigé, la date LOCALE de rédaction, l'empreinte des preuves qui l'ont produit, les réglages sous lesquels il a été écrit (langue, étendue) et son coût d'affichage (`usage`, JSONB — `token_usage_logs` reste l'enregistrement qui fait foi). La construction est revendiquée par une SEULE instruction (`ON CONFLICT … WHERE … RETURNING`), `claim_owner` conditionnant chaque clôture ; `held_until` porte **deux sens qui se lisent pareil** — le bail d'un constructeur mort et le refroidissement d'un échec. Trois clôtures distinctes (prête, vide, échouée) n'écrivent QUE leurs colonnes : un échec laisse intacts le texte précédent et son coût, parce que remplacer une synthèse utilisable par un panneau vide transforme « je n'ai pas pu actualiser » en « il n'y a rien » |

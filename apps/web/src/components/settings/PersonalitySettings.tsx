@@ -1,131 +1,180 @@
 'use client';
 
-import { Check, Sparkles } from 'lucide-react';
+import { useEffect, useId, useRef, useState } from 'react';
+import { Palette, RefreshCw, Sparkles } from 'lucide-react';
+import { AnimatedEmoji } from '@/components/ui/animated-emoji';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { InfoBox } from '@/components/ui/info-box';
-import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useTranslation } from '@/i18n/client';
 import { SettingsSection } from '@/components/settings/SettingsSection';
+import { useAuth } from '@/hooks/useAuth';
+import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
 import { usePersonality } from '@/hooks/usePersonality';
-import { usePsycheStore } from '@/stores/psycheStore';
-import apiClient from '@/lib/api-client';
+import { usePersonalityStore } from '@/stores/personalityStore';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import type { PsycheState } from '@/types/psyche';
+import type { PersonalityListItem } from '@/types/personality';
 import type { BaseSettingsProps } from '@/types/settings';
 
-export function PersonalitySettings({ lng }: BaseSettingsProps) {
-  const { t } = useTranslation(lng);
-  const { personalities, currentPersonality, loading, refreshing, updating, updatePersonality } =
-    usePersonality();
+interface StyleChoiceProps {
+  personality: PersonalityListItem;
+  selected: boolean;
+  blocked: boolean;
+  pending: boolean;
+  selectedLabel: string;
+  defaultLabel: string;
+  onSelect: (id: string) => void;
+}
 
-  const handlePersonalityChange = async (personalityId: string | null) => {
+function StyleChoice({
+  personality,
+  selected,
+  blocked,
+  pending,
+  selectedLabel,
+  defaultLabel,
+  onSelect,
+}: StyleChoiceProps) {
+  const id = useId();
+  const [active, setActive] = useState(false);
+  return (
+    <button
+      type="button"
+      aria-label={personality.title}
+      aria-describedby={id}
+      aria-pressed={selected}
+      aria-disabled={blocked}
+      aria-busy={pending || undefined}
+      onClick={() => {
+        if (!blocked) onSelect(personality.id);
+      }}
+      onMouseEnter={() => setActive(true)}
+      onMouseLeave={() => setActive(false)}
+      onFocus={() => setActive(true)}
+      onBlur={() => setActive(false)}
+      className={cn(
+        'flex min-h-20 min-w-0 items-start gap-3 rounded-xl border border-border/60 p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background aria-disabled:cursor-wait motion-reduce:transition-none sm:p-4',
+        selected ? 'bg-primary/10' : 'bg-card hover:bg-primary/5'
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/8 text-primary"
+      >
+        {pending ? (
+          <LoadingSpinner />
+        ) : (
+          <AnimatedEmoji
+            glyph={personality.emoji}
+            animate={active}
+            imgClassName="size-7 object-contain"
+            spanClassName="text-2xl"
+          />
+        )}
+      </span>
+      <span className="min-w-0 flex-1 space-y-2 [overflow-wrap:anywhere]">
+        <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="text-sm font-semibold leading-relaxed">{personality.title}</span>
+          {selected && <Badge size="sm">{selectedLabel}</Badge>}
+        </span>
+        <span
+          id={id}
+          className="block whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground"
+        >
+          {personality.description}
+        </span>
+        {personality.is_default && (
+          <span className="block text-xs text-muted-foreground">{defaultLabel}</span>
+        )}
+      </span>
+    </button>
+  );
+}
+
+function selectedStyle(
+  personalities: readonly PersonalityListItem[],
+  current: PersonalityListItem | null,
+  currentId: string | null
+) {
+  return (
+    current ??
+    personalities.find(personality => personality.id === currentId) ??
+    (currentId === null ? personalities.find(personality => personality.is_default) : undefined)
+  );
+}
+
+/** Every save and focus recovery belongs to one account lifetime. */
+export function PersonalitySettings(props: BaseSettingsProps) {
+  const { user } = useAuth();
+  return <PersonalitySettingsContent key={user?.id ?? 'anonymous'} {...props} ownerId={user?.id} />;
+}
+
+function PersonalitySettingsContent({
+  lng,
+  ownerId,
+}: BaseSettingsProps & { ownerId: string | undefined }) {
+  const { t } = useTranslation(lng);
+  const { isCurrent } = useApplicationAccountLifetime(ownerId);
+  const {
+    personalities,
+    currentPersonality,
+    currentPersonalityId,
+    loading,
+    refreshing,
+    updating,
+    error,
+    updatePersonality,
+    refetch,
+  } = usePersonality();
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
+  const saveLock = useRef(false);
+  const retryLock = useRef(false);
+  const recovering = useRef(false);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const headingId = useId();
+  const selected = selectedStyle(personalities, currentPersonality, currentPersonalityId);
+
+  useEffect(() => {
+    if (recovering.current && !retrying && !loading) {
+      recovering.current = false;
+      if (!error) heading.current?.focus();
+    }
+  }, [error, retrying, loading]);
+
+  const selectStyle = async (id: string) => {
+    if (!isCurrent() || saveLock.current || updating || selected?.id === id) return;
+    saveLock.current = true;
+    setPendingId(id);
     try {
-      await updatePersonality(personalityId);
+      await updatePersonality(id);
+      if (!isCurrent()) return;
+      const saved = usePersonalityStore.getState();
+      if (saved.currentPersonality?.id !== id && saved.currentPersonalityId !== id) return;
       toast.success(t('personality.update_success'));
-      // Fetch fresh psyche state (Big Five traits change with personality)
-      try {
-        const freshState = await apiClient.get<PsycheState>('/psyche/state');
-        usePsycheStore.getState().updateFromFullState(freshState);
-      } catch {
-        // Best-effort — psyche state will refresh on next page load
-      }
     } catch {
-      toast.error(t('personality.update_error'));
+      if (isCurrent()) toast.error(t('personality.update_error'));
+    } finally {
+      saveLock.current = false;
+      if (isCurrent()) setPendingId(null);
     }
   };
 
-  const content = (
-    // `refreshing` announces a reload of content already on screen — an
-    // administrator saving a style refreshes the shared catalogue — while
-    // `loading` below stays reserved for the first paint. Swapping the list
-    // for a spinner on every refresh would take the user's place away.
-    <div className="space-y-4" aria-busy={refreshing}>
-      {loading ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <LoadingSpinner size="default" />
-          {t('common.loading')}
-        </div>
-      ) : (
-        <>
-          <div className="grid gap-3">
-            {personalities.map(personality => {
-              const isSelected =
-                currentPersonality?.id === personality.id ||
-                (!currentPersonality && personality.is_default);
-
-              return (
-                <button
-                  key={personality.id}
-                  type="button"
-                  onClick={() => handlePersonalityChange(personality.id)}
-                  disabled={updating}
-                  className={`
-                    relative flex items-start gap-3 rounded-lg border-2 p-4 text-left transition-all
-                    hover:bg-accent hover:shadow-sm
-                    disabled:opacity-50 disabled:cursor-not-allowed
-                    ${
-                      isSelected ? 'border-primary bg-primary/5 shadow-sm' : 'border-border bg-card'
-                    }
-                  `}
-                  aria-label={personality.title}
-                >
-                  {/* Selection indicator — boxed to the SAME h-8 as the emoji
-                      next to it, so the dot centres on the icon whatever the
-                      description's line count (owner capture 2026-08-05). */}
-                  <div className="mt-0.5 flex h-8 shrink-0 items-center">
-                    <div
-                      className={`
-                        flex h-5 w-5 items-center justify-center rounded-full border-2 transition-colors
-                        ${
-                          isSelected
-                            ? 'border-primary bg-primary text-primary-foreground'
-                            : 'border-muted-foreground/30'
-                        }
-                      `}
-                    >
-                      {isSelected && <Check className="h-3 w-3" strokeWidth={3} />}
-                    </div>
-                  </div>
-
-                  {/* Emoji */}
-                  <div
-                    className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center text-xl"
-                    aria-hidden="true"
-                  >
-                    {personality.emoji}
-                  </div>
-
-                  {/* Personality details */}
-                  <div className="flex-1 space-y-1">
-                    <Label
-                      className={`cursor-pointer text-sm font-medium ${
-                        isSelected ? 'text-primary' : 'text-foreground'
-                      }`}
-                    >
-                      {personality.title}
-                      {personality.is_default && (
-                        <span className="ml-2 text-xs font-normal text-muted-foreground">
-                          ({t('personality.default')})
-                        </span>
-                      )}
-                    </Label>
-                    <p className="text-xs text-muted-foreground">{personality.description}</p>
-                  </div>
-
-                  {/* Loading indicator when updating */}
-                  {updating && isSelected && <LoadingSpinner size="default" />}
-                </button>
-              );
-            })}
-          </div>
-
-          <InfoBox>
-            <p className="text-xs text-muted-foreground">{t('personality.change_hint')}</p>
-          </InfoBox>
-        </>
-      )}
-    </div>
-  );
+  const retry = async () => {
+    if (!isCurrent() || retryLock.current) return;
+    retryLock.current = true;
+    recovering.current = true;
+    setRetrying(true);
+    try {
+      await refetch();
+    } finally {
+      retryLock.current = false;
+      if (isCurrent()) setRetrying(false);
+    }
+  };
 
   return (
     <SettingsSection
@@ -134,7 +183,117 @@ export function PersonalitySettings({ lng }: BaseSettingsProps) {
       description={t('personality.settings.description')}
       icon={Sparkles}
     >
-      {content}
+      {loading ? (
+        <Skeleton label={t('common.loading')} className="h-64 w-full rounded-xl" />
+      ) : (
+        <div
+          aria-busy={refreshing}
+          data-selected={!!selected}
+          className={cn(
+            'group/personality grid min-w-0 items-start gap-x-5 gap-y-3',
+            selected && 'xl:grid-cols-[minmax(12rem,0.65fr)_minmax(0,1.8fr)]'
+          )}
+        >
+          {selected && (
+            <section
+              aria-label={t('personality.current')}
+              className="flex min-w-0 items-start gap-4 rounded-2xl border border-primary/15 bg-primary/5 p-4 xl:col-start-1 xl:row-start-2 xl:flex-col xl:p-5"
+            >
+              <span
+                aria-hidden="true"
+                className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 xl:size-20"
+              >
+                <AnimatedEmoji
+                  glyph={selected.emoji}
+                  animate
+                  imgClassName="size-10 object-contain xl:size-14"
+                  spanClassName="text-4xl xl:text-5xl"
+                />
+              </span>
+              <div className="min-w-0 space-y-3 [overflow-wrap:anywhere]">
+                <p className="text-xs font-medium text-primary">{t('personality.current')}</p>
+                <h4 className="text-xl font-semibold leading-tight tracking-tight xl:text-2xl">
+                  {selected.title}
+                </h4>
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                  {selected.description}
+                </p>
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  {t('personality.selection_hint')}
+                </p>
+              </div>
+            </section>
+          )}
+          <section aria-labelledby={headingId} className="contents">
+            <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 xl:group-data-[selected=true]/personality:col-start-2 xl:group-data-[selected=true]/personality:row-start-1">
+              <h4
+                ref={heading}
+                id={headingId}
+                tabIndex={-1}
+                className="flex min-w-0 items-center gap-2 rounded text-base font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <Palette className="size-4 shrink-0 text-primary" aria-hidden="true" />
+                {t('personality.catalogue_title')}
+              </h4>
+              <p className="text-xs tabular-nums text-muted-foreground">
+                {t('personality.catalogue_count', { count: personalities.length })}
+              </p>
+            </div>
+            <div className={cn('min-w-0 space-y-3', selected && 'xl:col-start-2 xl:row-start-2')}>
+              {error && (
+                <p
+                  role="alert"
+                  className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm leading-relaxed"
+                >
+                  {t(
+                    personalities.length ? 'personality.retained_error' : 'personality.load_error'
+                  )}
+                </p>
+              )}
+              {(error || retrying || personalities.length === 0) && (
+                <Button
+                  variant="outline"
+                  onClick={() => void retry()}
+                  aria-disabled={retrying}
+                  aria-busy={retrying || undefined}
+                  className="min-h-11 max-w-full whitespace-normal text-left"
+                >
+                  <RefreshCw
+                    className={retrying ? 'animate-spin motion-reduce:animate-none' : undefined}
+                    aria-hidden="true"
+                  />
+                  {t('common.retry')}
+                </Button>
+              )}
+              {personalities.length > 0 ? (
+                <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
+                  {personalities.map(personality => (
+                    <StyleChoice
+                      key={personality.id}
+                      personality={personality}
+                      selected={selected?.id === personality.id}
+                      blocked={updating || pendingId !== null || !ownerId}
+                      pending={pendingId === personality.id}
+                      selectedLabel={t('personality.selected')}
+                      defaultLabel={t('personality.instance_default')}
+                      onSelect={id => void selectStyle(id)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                !error &&
+                !retrying && (
+                  <EmptyState
+                    icon={Sparkles}
+                    reason="no-data"
+                    description={t('personality.empty')}
+                  />
+                )
+              )}
+            </div>
+          </section>
+        </div>
+      )}
     </SettingsSection>
   );
 }

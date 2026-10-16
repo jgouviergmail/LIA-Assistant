@@ -5,7 +5,7 @@ query cannot express "from OR to OR cc" across the three providers.
 
 - Apple: ``convert_imap_query`` builds an **AND** of criteria, so ``from:x
   to:x`` matches nothing;
-- Microsoft: ``build_search_filter`` defaults to the **inbox** folder, so sent
+- Microsoft: ``graph_mail_query`` defaults to the **inbox** folder, so sent
   mail is invisible unless ``in:sent`` is asked for explicitly;
 - Gmail: space-separated operators are ANDed too.
 

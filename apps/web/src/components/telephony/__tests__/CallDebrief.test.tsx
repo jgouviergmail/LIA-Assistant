@@ -40,7 +40,7 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
-import { CallDebrief } from '../CallDebrief';
+import { CallDebrief, CallDebriefActions } from '../CallDebrief';
 
 const FULL: PhoneCallDebrief = {
   key_points: ['La table du mardi est disponible.'],
@@ -59,6 +59,21 @@ describe('CallDebrief', () => {
   it('renders nothing for an all-empty debrief', () => {
     const { container } = renderWithProviders(
       <CallDebrief debrief={{ commitments: [], follow_up_tasks: [] }} lng="fr" />
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('can place the same three draft controls after all call information', () => {
+    renderWithProviders(<CallDebriefActions debrief={FULL} lng="fr" />);
+
+    expect(screen.getAllByRole('button')).toHaveLength(3);
+    expect(screen.queryByText('La table du mardi est disponible.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Bonjour Marie, je confirme mardi 19h.')).not.toBeInTheDocument();
+  });
+
+  it('omits the action footer when there are findings but no follow-ups', () => {
+    const { container } = renderWithProviders(
+      <CallDebriefActions debrief={{ key_points: ['Information uniquement.'] }} lng="fr" />
     );
     expect(container).toBeEmptyDOMElement();
   });
@@ -139,6 +154,38 @@ describe('CallDebrief', () => {
     expect(chip).toHaveAccessibleName(
       'settings.telephony.debrief.prefill_aria|sentence=settings.telephony.debrief.intent_task|item=Réserver la table en terrasse.'
     );
+  });
+
+  it('presents all findings before the controls that prepare follow-ups', () => {
+    renderWithProviders(<CallDebrief debrief={FULL} lng="fr" actionable />);
+
+    const lastFinding = screen.getByText('Bonjour Marie, je confirme mardi 19h.');
+    for (const control of screen.getAllByRole('button')) {
+      expect(
+        lastFinding.compareDocumentPosition(control) & Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+    }
+  });
+
+  it('keeps each task associated with its own keyboard-activated draft', async () => {
+    const tasks = ['Vérifier A & B / demain ?', 'Confirmer « mardi » auprès de Léa'];
+    const { user } = renderWithProviders(
+      <CallDebrief debrief={{ follow_up_tasks: tasks }} lng="en" actionable />
+    );
+
+    const second = screen.getByRole('button', { name: /Confirmer « mardi » auprès de Léa/ });
+    second.focus();
+    await user.keyboard('{Enter}');
+
+    expect(openChat).toHaveBeenCalledTimes(1);
+    const draftUrl = new URL(openChat.mock.calls[0][0], 'https://lia.example');
+    expect(draftUrl.pathname).toBe('/en/dashboard/chat');
+    expect(draftUrl.searchParams.get('draft')).toBe(
+      'settings.telephony.debrief.intent_task|item=Confirmer « mardi » auprès de Léa'
+    );
+    expect(draftUrl.searchParams.has('intent')).toBe(false);
+    expect(screen.getByText(tasks[0])).toBeInTheDocument();
+    expect(screen.getByText(tasks[1])).toBeInTheDocument();
   });
 
   it('never auto-sends anything from a debrief, whatever the section', async () => {

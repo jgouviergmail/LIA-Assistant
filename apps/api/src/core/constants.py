@@ -447,6 +447,9 @@ TOOL_CONTEXT_CONFIDENCE_THRESHOLD = 0.7
 # for contacts, so its read stays at a modest page and follows @odata.nextLink.
 GOOGLE_PEOPLE_CONNECTIONS_PAGE_SIZE_MAX = 1000
 MICROSOFT_CONTACTS_DIRECTORY_PAGE_SIZE = 100
+# A folder walk (clients/mail_folders) reads Graph's folder levels in pages of
+# this size, following @odata.nextLink; its total is OUTLOOK_MAIL_FOLDERS_WALK_MAX.
+MICROSOFT_MAIL_FOLDERS_PAGE_SIZE = 100
 # How long a second worker waits for the first one's cold directory read
 # before reading the provider itself (shared_flight).
 CONTACTS_DIRECTORY_SHARED_WAIT_SECONDS = 10
@@ -1349,6 +1352,9 @@ ACCOUNT_EXPORT_STALE_RUNNING_MINUTES_DEFAULT = 30  # crashed-run detection
 SCHEDULER_JOB_ACCOUNT_EXPORT = "account_export_executor"
 ACCOUNT_EXPORT_EXECUTOR_INTERVAL_SECONDS = 60
 RATE_LIMIT_ACCOUNT_EXPORT_PER_MINUTE = 3  # per-user on export request endpoints
+# Per administrator, on the voice library's paid or vendor-writing requests
+# (clone, design, save, local transcript) — ADR-345.
+RATE_LIMIT_FISHAUDIO_VOICE_LIBRARY_PER_MINUTE = 6
 
 # Effect register (ADR-263): read-only surfaces — the run's effects behind a
 # message, and the action journal. Generous because the debug panel and the
@@ -2196,7 +2202,7 @@ PLANNER_LLM_MAX_TOKENS_DEFAULT = 4000  # Enough for detailed ExecutionPlan JSON
 PLANNER_MAX_STEPS_DEFAULT = 20  # Maximum steps allowed in a plan
 PLANNER_MAX_STEPS_HARD_LIMIT = 25  # Hard limit (cannot be exceeded)
 PLANNER_MAX_COST_USD_DEFAULT = 2.0  # Default budget limit per plan
-PLANNER_MAX_REPLANS_DEFAULT = 2  # Maximum replanning attempts (future Phase 2)
+PLANNER_MAX_REPLANS_DEFAULT = 2  # Automatic replans of a rejected plan, before it runs
 
 # Planner timeout
 PLANNER_TIMEOUT_SECONDS = 30  # Timeout for planner LLM response
@@ -2978,8 +2984,6 @@ SEMANTIC_EXPANSION_EVIDENCE_DRIVEN_ENABLED_DEFAULT = True
 # domain grows the planner catalogue and prompt).
 SEMANTIC_EXPANSION_MAX_ADDED_DOMAINS_DEFAULT = 3
 SEMANTIC_LINKING_MAX_SUGGESTIONS_DEFAULT = 5
-ADAPTIVE_REPLANNING_MAX_ATTEMPTS_DEFAULT = 3
-ADAPTIVE_REPLANNING_EMPTY_THRESHOLD_DEFAULT = 0.8
 APPROVAL_COST_THRESHOLD_USD_DEFAULT = 5.00
 APPROVAL_AUTO_APPROVE_ROLES_DEFAULT: list[str] = ["admin", "power_user"]
 APPROVAL_SENSITIVE_CLASSIFICATIONS_DEFAULT: list[str] = ["CONFIDENTIAL", "RESTRICTED"]
@@ -3219,6 +3223,9 @@ PLACES_TOOL_DEFAULT_RADIUS_METERS_DEFAULT = 500
 DRIVE_TOOL_DEFAULT_MAX_RESULTS_DEFAULT = 20
 EMAILS_TOOL_DEFAULT_MAX_RESULTS_DEFAULT = 20
 EMAILS_TOOL_DEFAULT_LIMIT_DEFAULT = 10
+# Mailbox drafts one call may move to the trash (ADR-344): « delete all my
+# drafts » is served up to this bound and the remainder is stated, never dropped.
+EMAIL_DRAFTS_BULK_MAX_DEFAULT = 20
 # Concurrent per-message metadata fetches during Gmail search (the list
 # endpoint returns IDs only — N+1 pattern). 8 concurrent fetches resolve
 # 20 results in ~3 sequential-equivalent round-trips (audit wave 3, N-194.8).
@@ -3228,6 +3235,15 @@ CIRCUIT_BREAKER_FAILURE_THRESHOLD_DEFAULT = 3  # Aligned from .env.prod (was 5)
 CIRCUIT_BREAKER_SUCCESS_THRESHOLD_DEFAULT = 3
 CIRCUIT_BREAKER_TIMEOUT_SECONDS_DEFAULT = 10  # Aligned from .env.prod (was 60)
 CIRCUIT_BREAKER_HALF_OPEN_MAX_CALLS_DEFAULT = 3
+# The longest provider ``Retry-After`` an API-key client waits out before handing
+# the delay to its caller (ADR-108 amendment 2026-10-13): a longer wait would spend
+# the caller's own timeout asleep, where its model can still pivot to another source.
+API_KEY_CLIENT_RETRY_AFTER_MAX_SECONDS = 8
+# Attempts a 429 gets before it is handed back, apart from the call's other
+# retries (ADR-108 amendment 2026-10-13): simulated against a one-request-per-
+# second key, four parallel searches got 12 of 16 answers on three attempts and
+# 16 of 16 on four — a lost search costs the model a whole round to redo it.
+API_KEY_CLIENT_RATE_LIMIT_ATTEMPTS = 4
 APPLE_IMAP_HOST_DEFAULT = "imap.mail.me.com"
 APPLE_IMAP_PORT_DEFAULT = 993
 APPLE_SMTP_HOST_DEFAULT = "smtp.mail.me.com"
@@ -3241,6 +3257,9 @@ APPLE_CONNECTION_TIMEOUT_DEFAULT = 30.0
 CLIENT_RATE_LIMIT_APPLE_PER_SECOND_DEFAULT = 5
 APPLE_CONTACTS_CACHE_TTL_DEFAULT = 600
 APPLE_EMAIL_MESSAGE_CACHE_TTL_DEFAULT = 60
+# Folders an Outlook search reads to find one the person named (label:/in:).
+# An internal read: never the agent-facing API_MAX_ITEMS_PER_REQUEST.
+OUTLOOK_MAIL_FOLDERS_WALK_MAX_DEFAULT = 500
 
 # --- Database config defaults ---
 LLM_CACHE_TTL_SECONDS_DEFAULT = 60  # Aligned from .env.prod (was 300)
@@ -3280,6 +3299,10 @@ LIFETIME_METRICS_UPDATE_INTERVAL_SECONDS_DEFAULT = 30  # DB->Prometheus gauge sy
 # per period per worker. 15 s matches the Prometheus scrape interval so every
 # scrape sees a fresh figure without reading the file more often than it is used.
 WORKER_MEMORY_SAMPLE_INTERVAL_SECONDS_DEFAULT = 15
+# Label of `pipeline_step_failures_total` for a failed step whose code is no
+# ToolErrorCode member (a tool's free-form code, or none): the label set stays
+# bounded by the taxonomy, whatever a tool invents (ADR-346).
+PIPELINE_STEP_FAILURE_UNCLASSIFIED = "unclassified"
 
 # --- Voice config defaults ---
 # TTS provider/model/voice/tuning live on llm_config_overrides.voice_tts (ADR-081);
@@ -3293,10 +3316,18 @@ VOICE_LLM_FREQUENCY_PENALTY_DEFAULT = 0.0
 VOICE_LLM_PRESENCE_PENALTY_DEFAULT = 0.0
 VOICE_LLM_MAX_TOKENS_DEFAULT = 500
 VOICE_MAX_SENTENCES_DEFAULT = 3  # Aligned from .env.prod (was 6)
+# The most expressive cues a spoken comment may carry, on an engine that performs
+# them (ADR-345): published to the writer and enforced by the renderer. 0 = none.
+VOICE_EXPRESSIVE_CUES_MAX_DEFAULT = 2
 VOICE_SENTENCE_DELIMITERS_DEFAULT = ".!?"
 VOICE_CONTEXT_MAX_CHARS_DEFAULT = 2000
 VOICE_PARALLEL_TIMEOUT_SECONDS_DEFAULT = 15.0
 VOICE_CHAT_MODE_MAX_SENTENCES_DEFAULT = 15
+# A buffered readout (the briefing's) answers ONE MP3: sentences an engine
+# returned in another container are decoded to one rate and encoded once.
+VOICE_READOUT_PCM_SAMPLE_RATE = 24000
+VOICE_READOUT_MP3_BITRATE_KBPS = 64
+VOICE_READOUT_TRANSCODE_TIMEOUT_SECONDS = 30.0
 VOICE_STT_MODEL_PATH_DEFAULT = "/models/whisper-small"
 # Silero VAD model (644 kB), baked into the image next to the Whisper model by
 # the same download stage; a missing file degrades long audio to fixed windows.
@@ -3538,6 +3569,10 @@ MCP_SERVER_VECTOR_CACHE_MAX_DEFAULT = 32
 MCP_ARGS_SCHEMA_CACHE_MAX_DEFAULT = 512
 MCP_USER_POOL_MAX_TOTAL_DEFAULT = 50  # Global pool limit across all users
 MCP_USER_POOL_EVICTION_INTERVAL_DEFAULT = 60  # Seconds between eviction sweeps
+# A server that failed to connect is paused before the next attempt, the pause
+# doubling at each consecutive failure up to its cap (point 29).
+MCP_USER_FAILURE_PAUSE_BASE_SECONDS_DEFAULT = 30
+MCP_USER_FAILURE_PAUSE_MAX_SECONDS_DEFAULT = 600
 MCP_USER_OAUTH_STATE_TTL_SECONDS = 300  # 5 min TTL for OAuth state in Redis
 MCP_USER_OAUTH_STATE_REDIS_PREFIX = "mcp_oauth_state:"
 MCP_USER_OAUTH_CALLBACK_PATH = "/api/v1/mcp/servers/oauth/callback"
@@ -4147,15 +4182,17 @@ INSUFFICIENT_CONTENT_DOMAIN_EVENT = "event"
 INSUFFICIENT_CONTENT_DOMAIN_TASK = "task"
 INSUFFICIENT_CONTENT_DOMAIN_CONTACT = "contact"
 
-# Tool patterns that require content from user
-# Maps tool name pattern → domain (for field lookup)
-INSUFFICIENT_CONTENT_TOOL_PATTERNS = {
-    "send_email": INSUFFICIENT_CONTENT_DOMAIN_EMAIL,
-    "reply_email": INSUFFICIENT_CONTENT_DOMAIN_EMAIL_REPLY,
-    "forward_email": INSUFFICIENT_CONTENT_DOMAIN_EMAIL_FORWARD,
-    "create_event": INSUFFICIENT_CONTENT_DOMAIN_EVENT,
-    "create_task": INSUFFICIENT_CONTENT_DOMAIN_TASK,
-    "create_contact": INSUFFICIENT_CONTENT_DOMAIN_CONTACT,
+# Tools that require content from the user, by their EXACT catalogue name →
+# domain (for field lookup). Never a fragment: read as substrings, « send_email »
+# matched ``send_email_to_me_tool``, whose recipient is not a parameter, and asked
+# it for one (2026-10-13). A guard holds every key to a catalogue tool.
+INSUFFICIENT_CONTENT_TOOL_DOMAINS: dict[str, str] = {
+    "send_email_tool": INSUFFICIENT_CONTENT_DOMAIN_EMAIL,
+    "reply_email_tool": INSUFFICIENT_CONTENT_DOMAIN_EMAIL_REPLY,
+    "forward_email_tool": INSUFFICIENT_CONTENT_DOMAIN_EMAIL_FORWARD,
+    "create_event_tool": INSUFFICIENT_CONTENT_DOMAIN_EVENT,
+    "create_task_tool": INSUFFICIENT_CONTENT_DOMAIN_TASK,
+    "create_contact_tool": INSUFFICIENT_CONTENT_DOMAIN_CONTACT,
 }
 
 # =============================================================================
@@ -4412,6 +4449,21 @@ EARLY_DETECTION_DOMAIN_MAP: dict[tuple[str, str], str] = {
     ("contact", "create"): INSUFFICIENT_CONTENT_DOMAIN_CONTACT,
     ("contact", "update"): INSUFFICIENT_CONTENT_DOMAIN_CONTACT,
 }
+
+# A request about a mailbox DRAFT is never asked for a new e-mail's recipient or
+# content: the draft already holds them, or LIA writes them (a reply drafted from
+# the original message). Words of the English pivot, matched whole, and on the
+# e-mail domains only — « prepare a task » still needs its title.
+EARLY_DETECTION_DRAFT_DOMAINS: frozenset[str] = frozenset(
+    [
+        INSUFFICIENT_CONTENT_DOMAIN_EMAIL,
+        INSUFFICIENT_CONTENT_DOMAIN_EMAIL_REPLY,
+        INSUFFICIENT_CONTENT_DOMAIN_EMAIL_FORWARD,
+    ]
+)
+EARLY_DETECTION_DRAFT_WORDS: frozenset[str] = frozenset(
+    ["draft", "drafts", "prepare", "prepares", "prepared", "preparing"]
+)
 
 # Fields that are skipped in early detection (handled by planner defaults or post-planner detection)
 # These fields are rarely provided upfront and don't justify blocking the planner
@@ -4682,11 +4734,91 @@ OPENAI_PROVIDER_NAME = "openai"
 # both prices are administered in llm_model_pricing (per_audio_minute).
 OPENAI_STT_DIARIZE_MODEL_DEFAULT = "gpt-4o-transcribe-diarize"
 OPENAI_STT_MODEL_DEFAULT = "gpt-4o-mini-transcribe"
-STT_PROVIDER_FALLBACK_ORDER: tuple[str, ...] = (ELEVENLABS_PROVIDER_NAME, OPENAI_PROVIDER_NAME)
 DEFAULT_ELEVENLABS_STT_MODEL = "scribe_v2"
 DEFAULT_ELEVENLABS_BASE_URL = "https://api.elevenlabs.io/v1"
 ELEVENLABS_TTS_MAX_CONCURRENCY_DEFAULT = 5
 REDIS_KEY_ELEVENLABS_TTS_SLOTS_PREFIX = "elevenlabs:tts_slots:"
+# The account's ElevenLabs voices, cached where a voice is offered to a person or
+# checked before LIA speaks with it (ADR-345 amendment 2026-10-14): a voice turn
+# must not wait on the vendor's listing. The administrator's picker reads it live.
+REDIS_KEY_ELEVENLABS_VOICES_PREFIX = "elevenlabs:voices:"
+ELEVENLABS_VOICES_CACHE_TTL_SECONDS = 600
+# The longest voice id a person's choice may carry — the radio's roles and LIA's
+# voices alike (provider ids are short).
+VOICE_ID_MAX_CHARS = 100
+# Fish Audio caps the requests an ACCOUNT has in flight, synthesis, transcription
+# and voice design together (measured 2026-10-13: ``ratelimit-limit-concurrency: 5``).
+FISHAUDIO_PROVIDER_NAME = "fishaudio"
+DEFAULT_FISHAUDIO_BASE_URL = "https://api.fish.audio"
+FISHAUDIO_MAX_CONCURRENCY_DEFAULT = 5
+REDIS_KEY_FISHAUDIO_CAPACITY_PREFIX = "fishaudio:capacity:"
+# The voices LIA offers on Fish Audio (ADR-345): the account's own, the vendor's
+# licensed ones (113 on 2026-10-13) and an administrator's pins, listed by pages
+# of the vendor's maximum and cached so a radio start or a picker costs no
+# account slot most of the time.
+REDIS_KEY_FISHAUDIO_VOICES_PREFIX = "fishaudio:voices:"
+FISHAUDIO_VOICES_CACHE_TTL_SECONDS = 600
+FISHAUDIO_VOICES_PAGE_SIZE = 100
+FISHAUDIO_VOICES_MAX_PAGES = 10
+FISHAUDIO_VOICES_TIMEOUT_SECONDS = 15.0
+# Public voices an administrator pinned by id, once for every voice slot, attesting
+# the right to use them: each costs one vendor request when the list is rebuilt
+# (`FISHAUDIO_PINNED_VOICES_MAX`).
+FISHAUDIO_PINNED_VOICES_MAX_DEFAULT = 50
+# The account's own voice library (ADR-345), managed by an administrator. A clone
+# is a few clear recordings (the vendor takes up to 20; its guide recommends two or
+# three clips of 15-20 s) in the containers it documents, each bounded; a creation
+# is bounded whole like a dialogue, its wait for an account slot included. The
+# transcript LIA offers for a sample comes from the local engine, for a recording
+# of at most FISHAUDIO_CLONE_PREFILL_MAX_SECONDS (an over-long one is refused).
+FISHAUDIO_CLONE_SAMPLES_MAX = 5
+FISHAUDIO_CLONE_SAMPLE_MAX_BYTES = 10 * 1024 * 1024
+# A clone's recordings together: one request body, which the global ceiling
+# (MAX_REQUEST_BODY_BYTES) must carry — Settings refuses to boot otherwise.
+FISHAUDIO_CLONE_TOTAL_MAX_BYTES = 20 * 1024 * 1024
+FISHAUDIO_CLONE_SAMPLE_EXTENSIONS: tuple[str, ...] = ("wav", "mp3", "m4a", "opus")
+FISHAUDIO_CLONE_PREFILL_MAX_SECONDS = 120
+FISHAUDIO_VOICE_TITLE_MAX_CHARS = 100
+FISHAUDIO_LIBRARY_WRITE_TIMEOUT_SECONDS = 120.0
+# Voice design (``POST /v1/voice-design``, read 2026-10-14): an instruction of 1 to
+# 2000 characters, a preview text of at most 150 (the API schema, stricter than its
+# guide's 300), 1 to 4 candidates, billed ONCE per successful request — 0.01 USD,
+# the default of FISHAUDIO_VOICE_DESIGN_COST_USD. The candidates wait server-side
+# (base64 WAV, about a megabyte each) until one is saved or they expire.
+FISHAUDIO_DESIGN_MODEL = "voice-design-1"
+FISHAUDIO_DESIGN_INSTRUCTION_MAX_CHARS = 2000
+FISHAUDIO_DESIGN_PREVIEW_MAX_CHARS = 150
+FISHAUDIO_DESIGN_CANDIDATES_MAX = 4
+FISHAUDIO_VOICE_DESIGN_COST_USD_DEFAULT = 0.01
+REDIS_KEY_FISHAUDIO_DESIGN_PREFIX = "fishaudio:design:"
+FISHAUDIO_DESIGN_CANDIDATE_TTL_SECONDS = 1800
+# A dialogue is voiced in ONE streamed request (ADR-345), bounded whole — its
+# wait for an account slot included. Measured on s2.1-pro-free 2026-10-14, the
+# stream lasts about two thirds of the audio it carries: a radio take of
+# RADIO_DIALOGUE_MAX_BYTES (about a minute and a half of speech) ends well inside.
+FISHAUDIO_DIALOGUE_TIMEOUT_SECONDS = 180.0
+# A Fish Audio socket session silent this long has stalled, and its text is
+# answered over HTTP (ADR-345). Measured on s2.1-pro-free 2026-10-14, 135 to 1631
+# bytes: the first audio frame came 0.6-1.0 s after the text and no two frames were
+# more than 1.7 s apart. A socket session was bounded by nothing shorter than its
+# request (60 s) while three socket syntheses of one dev chat turn returned nothing
+# for 22 s, until the turn's own voice wait ran out.
+FISHAUDIO_SOCKET_STALL_SECONDS = 10.0
+# Fish Audio speech-to-text (ADR-345): ``transcribe-1-pro`` is the model that marks
+# speakers and takes long recordings (up to 60 minutes per request), so a meeting
+# always runs on it; both models cost the same per audio hour.
+FISHAUDIO_STT_MODEL_DEFAULT = "transcribe-1-pro"
+# The longest recording ``/v1/asr`` takes in one request; a longer one answers 400
+# ``audio_too_long`` (vendor documentation, read 2026-10-14).
+FISHAUDIO_STT_MAX_AUDIO_SECONDS: int = 3600
+# The remote engines a meeting tries after the voice_transcription slot's, in this
+# order: an instance holding a key for one of them (for synthesis, for chat) can
+# transcribe with it.
+STT_PROVIDER_FALLBACK_ORDER: tuple[str, ...] = (
+    ELEVENLABS_PROVIDER_NAME,
+    OPENAI_PROVIDER_NAME,
+    FISHAUDIO_PROVIDER_NAME,
+)
 # ElevenLabs Scribe rejects clips shorter than 100 ms; below the threshold the
 # WebSocket handler short-circuits with an empty transcription.
 STT_MIN_AUDIO_DURATION_SECONDS = 0.1
@@ -4775,6 +4907,9 @@ EMAIL_SHARE_RECIPIENT_QUERY_MAX_CHARS: Final = 100
 #: A cold read of a large book takes a few pages; past this the field offers nothing.
 EMAIL_SHARE_DIRECTORY_READ_TIMEOUT_SECONDS: Final = 15
 PLATFORM_SMTP_TIMEOUT_SECONDS: Final = 30
+# Re-deliveries of a stop tolerated while ONE already-started mail write finishes.
+# These are waits on the same task, never retries of the external send.
+SMTP_CANCELLATION_GRACE_ATTEMPTS: Final = 3
 #: Projected directory entries one worker keeps (≈ 400 bytes each).
 EMAIL_SHARE_RECIPIENT_PROJECTION_MEMO_MAX_ENTRIES: Final = 20_000
 # Per-account window on the suggestion route: one request per pause in typing.
@@ -5354,6 +5489,10 @@ COMPACTION_RETRY_BACKOFF_BASE_SECONDS_DEFAULT = 1.0
 COMPACTION_INCLUDE_PREVIOUS_SUMMARIES_DEFAULT = True
 COMPACTION_SSE_STEP_TYPE = "compaction"
 
+# Most identifiers brought back under a summary that dropped them — per list
+# (trusted, third-party), and the truncation notice's own lists (point 10).
+COMPACTION_IDENTIFIERS_REINSERT_MAX_DEFAULT = 30
+
 # === Reasoning streaming (live agent thinking surfaced in the progress UI) ===
 # Sub-type carried in the `execution_step` SSE metadata so the frontend can
 # route reasoning deltas to a dedicated "💭" block, distinct from the generic
@@ -5468,6 +5607,11 @@ BROWSER_AX_TREE_MAX_TOKENS_DEFAULT = 30000
 
 # Redis key prefix for cross-worker session recovery
 REDIS_KEY_BROWSER_SESSION_PREFIX = "browser:session:"
+REDIS_KEY_BROWSER_POOL_REGISTRY = "browser:pool:registry"
+BROWSER_COORDINATION_TIMEOUT_SECONDS = 2.0
+BROWSER_SESSION_MAINTENANCE_INTERVAL_SECONDS = 10.0
+BROWSER_RECOVERY_URL_MAX_CHARS = 8192
+BROWSER_RECOVERY_TITLE_MAX_CHARS = 512
 
 # ARIA roles considered interactive (receive [EN] references)
 BROWSER_INTERACTIVE_ROLES = frozenset(
@@ -7018,6 +7162,10 @@ RADIO_TTS_CONCURRENCY_DEFAULT: int = 3
 #: Attempts per line while a voice failure is transient (the free engine answers
 #: without audio once in 24 syntheses, measured 2026-09-26).
 RADIO_TTS_LINE_ATTEMPTS_DEFAULT: int = 3
+#: The most UTF-8 bytes one dialogue take carries on an engine that voices several
+#: speakers in one request (ADR-345): about a minute and a half of speech, so a
+#: failure costs one take, never a whole debate. 0 voices every line alone.
+RADIO_DIALOGUE_MAX_BYTES_DEFAULT: int = 1500
 #: The longest a voice line waits after a provider's rate limit before trying again
 #: (the provider's own delay when it names one, bounded by this).
 RADIO_TTS_RATE_LIMIT_WAIT_MAX_SECONDS_DEFAULT: int = 30
@@ -7033,8 +7181,9 @@ RADIO_ANALYSIS_MIN_POINTS_DEFAULT: int = 4
 RADIO_ANALYSIS_MAX_POINTS_DEFAULT: int = 6
 #: The longest verbatim quotation a segment may air (fair use).
 RADIO_QUOTE_MAX_CHARS_DEFAULT: int = 120
-#: The model verifier's reach when the listener chose none: news formats.
-RADIO_VERIFICATION_DEFAULT: Final = "news"  # Literal-typed for the settings field
+#: The model verifier's reach when the listener chose none: no model check (owner
+#: decision 2026-10-15) — each check is billed, so the listener opts in.
+RADIO_VERIFICATION_DEFAULT: Final = "off"  # Literal-typed for the settings field
 
 # --- Newsroom -------------------------------------------------------------------
 RADIO_NEWSROOM_INTERVAL_SECONDS_DEFAULT: int = 300

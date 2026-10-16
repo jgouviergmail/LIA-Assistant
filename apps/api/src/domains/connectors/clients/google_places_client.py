@@ -303,20 +303,21 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
                 raise ConnectorAPIError(
                     connector_type="google_places",
                     status_code=response.status_code,
-                    detail=f"Google Places API error: {response.text[:200]}",
+                    detail=f"Google Places API: HTTP {response.status_code}",
                 )
 
             except httpx.RequestError as e:
                 logger.error(
                     "places_api_request_error",
                     user_id=str(self.user_id),
-                    error=str(e),
+                    error_type=type(e).__name__,
                     attempt=attempt + 1,
                 )
+                logger.debug("places_api_request_error_detail", error=str(e))
                 if attempt == max_retries - 1:
                     raise ExternalServiceError(
                         service_name="google_places",
-                        detail=f"Google Places API connection error: {e}",
+                        detail="Google Places API connection failed",
                         error_type="connection_error",
                     ) from e
                 await asyncio.sleep(2**attempt)
@@ -813,13 +814,13 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
             response = await client.get(GOOGLE_GEOCODING_API_URL, headers=headers, params=params)
 
             if response.status_code >= 400:
-                error_detail = response.text
-                # No PII at ERROR: GPS coordinates are logged at DEBUG only.
-                logger.error(
+                log_unreadable_text(
+                    logger,
                     "geocoding_api_error",
+                    response.text,
+                    level="error",
                     user_id=str(self.user_id),
                     status_code=response.status_code,
-                    error=error_detail[:200],
                 )
                 logger.debug(
                     "geocoding_api_error_location",
@@ -830,7 +831,7 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
                 raise ConnectorAPIError(
                     connector_type="google_geocoding",
                     status_code=response.status_code,
-                    detail=f"Google Geocoding API error: {error_detail[:200]}",
+                    detail=f"Google Geocoding API: HTTP {response.status_code}",
                 )
 
             data = response.json()
@@ -839,15 +840,27 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
             track_google_api_call("geocoding", "/geocode/json", cached=False)
 
             if data.get("status") != "OK":
-                api_status = data.get("status", "UNKNOWN_ERROR")
-                error_msg = data.get("error_message", "No error message")
+                api_status = data.get("status")
+                # The documented status vocabulary, never provider-authored
+                # prose used as an error code or a model instruction.
+                # developers.google.com/maps/documentation/geocoding/guides-v3/requests-geocoding#StatusCodes
+                if not isinstance(api_status, str) or api_status not in {
+                    "ZERO_RESULTS",
+                    "OVER_DAILY_LIMIT",
+                    "OVER_QUERY_LIMIT",
+                    "REQUEST_DENIED",
+                    "INVALID_REQUEST",
+                    "UNKNOWN_ERROR",
+                }:
+                    api_status = "UNKNOWN_ERROR"
+                error_msg = f"Google Geocoding API returned {api_status}"
                 # No PII above DEBUG: GPS coordinates are logged at DEBUG only.
                 logger.warning(
                     "geocoding_api_status_error",
                     user_id=str(self.user_id),
                     status=api_status,
-                    error_message=error_msg,
                 )
+                logger.debug("geocoding_api_status_error_detail", detail=data.get("error_message"))
                 logger.debug(
                     "geocoding_api_status_error_location",
                     user_id=str(self.user_id),
@@ -923,8 +936,9 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
             logger.error(
                 "geocoding_api_request_error",
                 user_id=str(self.user_id),
-                error=str(e),
+                error_type=type(e).__name__,
             )
+            logger.debug("geocoding_api_request_error_detail", error=str(e))
             logger.debug(
                 "geocoding_api_request_error_location",
                 user_id=str(self.user_id),
@@ -933,6 +947,6 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
             )
             raise ExternalServiceError(
                 service_name="google_geocoding",
-                detail=f"Google Geocoding API unavailable: {e!s}",
+                detail="Google Geocoding API connection failed",
                 error_type="connection_error",
             ) from e

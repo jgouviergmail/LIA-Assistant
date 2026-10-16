@@ -50,6 +50,7 @@ from src.domains.agents.effects.source import resolve_source
 from src.domains.agents.effects.treatments import record_treatment
 from src.domains.agents.expressivity.activity import observe_activity
 from src.infrastructure.async_utils import write_through_cancellation
+from src.infrastructure.email.smtp_outcome import SMTPPartialAcceptanceError
 from src.infrastructure.observability.metrics_effects import (
     effect_already_performed_total,
     effect_claims_total,
@@ -576,6 +577,31 @@ def _refusal_output(tool_name: str, error_code: str, message: str) -> dict[str, 
     ).to_response()
 
 
+def note_refusal(
+    tool_name: str, error_code: str, *, source: str | None, stand_in: str | None = None
+) -> None:
+    """Count, record and log one refusal — wherever the call was stopped.
+
+    The gate stops most calls; the ReAct loop stops one more kind before the
+    gate is reached (a confirmation nobody can give). Both must read alike to
+    the operator and to an out-of-turn settle, so this is their one door.
+
+    Args:
+        tool_name: The capability that was refused.
+        error_code: The stable code of the refusal.
+        source: Who asked for the turn, for the log line.
+        stand_in: The confirmation-free tool the refusal names, if any.
+    """
+    effect_refusals_total.labels(reason=error_code).inc()
+    # ADR-276: an out-of-turn run settles from a CODE, never from the model's
+    # prose. Recording here rather than at the decision keeps the decision a
+    # pure function; outside such a run this is a no-op.
+    record_refusal(tool_name, error_code)
+    logger.info(
+        "effect_refused", tool_name=tool_name, reason=error_code, source=source, stand_in=stand_in
+    )
+
+
 async def _refuse_or_ask(
     tool_name: str,
     decision: GateDecision,
@@ -596,18 +622,12 @@ async def _refuse_or_ask(
         A confirmation draft when someone is there to answer, else the refusal
         the model reads.
     """
-    effect_refusals_total.labels(reason=str(decision.error_code)).inc()
     if request is not None:
         await _LEDGER.refuse(request, error_code=str(decision.error_code))
-    # ADR-276: an out-of-turn run settles from a CODE, never from the model's
-    # prose. Recording here rather than at the decision keeps the decision a
-    # pure function; outside such a run this is a no-op.
-    record_refusal(tool_name, str(decision.error_code))
     stand_in = _nameable_stand_in(tool_name, decision, request)
-    logger.info(
-        "effect_refused",
-        tool_name=tool_name,
-        reason=decision.error_code,
+    note_refusal(
+        tool_name,
+        str(decision.error_code),
         source=scope.source if scope else None,
         stand_in=stand_in[0] if stand_in else None,
     )
@@ -712,6 +732,14 @@ async def _perform_and_close(
         await _settle(
             lambda: _LEDGER.abandon(ticket.effect_id, claim_token, error_code="cancelled")
         )
+        raise
+    except SMTPPartialAcceptanceError as partial:
+        # Some recipients already accepted the mail. Retain that known
+        # disposition for a replay of the approval, rather than lose it as an
+        # exception with no result. The caller still classifies the exception.
+        outcome = read_outcome(partial.to_failure())
+        effect_outcomes_total.labels(policy=policy, status=outcome.status).inc()
+        await _settle(lambda: _LEDGER.close(ticket.effect_id, claim_token, outcome=outcome))
         raise
     except Exception:
         effect_outcomes_total.labels(policy=policy, status="failed").inc()

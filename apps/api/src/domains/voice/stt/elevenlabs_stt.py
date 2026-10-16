@@ -16,13 +16,19 @@ ElevenLabs bills for.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Final
 
 import httpx
 import structlog
 
 from src.domains.voice.stt.exceptions import STTProviderError
 from src.domains.voice.stt.protocol import STTFileResult, STTResult, TranscriptWord
+from src.domains.voice.vendor_refusal import (
+    ELEVENLABS_CODE_PATHS,
+    payload_shape,
+    refusal_from_body,
+    retry_after_of,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -30,6 +36,19 @@ logger = structlog.get_logger(__name__)
 # ISO-639-1 codes for the 6 LIA UI languages. Anything outside this set is
 # omitted from the request, letting ElevenLabs auto-detect the language.
 _VALID_ISO_639_1: frozenset[str] = frozenset({"en", "fr", "de", "es", "it", "zh"})
+#: Vendor codes naming the configured key as the cause, whatever the status: a
+#: key ID stored in place of a key answered 400 ``api_key_id_used_as_api_key``
+#: (2026-09-02); a key lacking the operation's permission answers 401
+#: ``missing_permissions`` (seen) or 403 ``insufficient_permissions`` (documented).
+_KEY_REFUSALS: Final[frozenset[str]] = frozenset(
+    {
+        "invalid_api_key",
+        "missing_api_key",
+        "api_key_id_used_as_api_key",
+        "missing_permissions",
+        "insufficient_permissions",
+    }
+)
 
 
 class ElevenLabsSttService:
@@ -106,55 +125,20 @@ class ElevenLabsSttService:
                 message=f"ElevenLabs HTTP error: {e}",
             ) from e
 
-        if response.status_code == 429:
-            retry_after_header = response.headers.get("Retry-After")
-            try:
-                retry_after = float(retry_after_header) if retry_after_header else None
-            except ValueError:
-                retry_after = None
-            raise STTProviderError(
-                code="provider_rate_limited",
-                message="ElevenLabs rate limit hit",
-                retry_after_seconds=retry_after,
-            )
-
-        if response.status_code >= 400:
-            # Body kept short on purpose — useful for logs without flooding.
-            body_excerpt = response.text[:512]
-            raise STTProviderError(
-                code="provider_http_error",
-                message=f"ElevenLabs returned HTTP {response.status_code}",
-                details=body_excerpt,
-            )
-
-        try:
-            payload = response.json()
-        except ValueError as e:
-            raise STTProviderError(
-                code="provider_invalid_response",
-                message="ElevenLabs response is not valid JSON",
-            ) from e
-
-        text = payload.get("text")
-        duration = payload.get("audio_duration_secs")
-        if not isinstance(text, str) or not isinstance(duration, (int, float)):
-            raise STTProviderError(
-                code="provider_invalid_response",
-                message="ElevenLabs response missing 'text' or 'audio_duration_secs'",
-                details=payload,
-            )
-
+        self._raise_for_status(response)
+        payload = self._json_payload(response)
+        text, duration = self._text_and_duration(payload)
         resolved_language = payload.get("language_code")
         logger.info(
             "elevenlabs_stt_completed",
             model=self._model,
-            audio_duration_seconds=float(duration),
+            audio_duration_seconds=duration,
             text_length=len(text),
             language=resolved_language,
         )
         return STTResult(
             text=text,
-            audio_duration_seconds=float(duration),
+            audio_duration_seconds=duration,
             language_code=resolved_language if isinstance(resolved_language, str) else None,
         )
 
@@ -253,16 +237,26 @@ class ElevenLabsSttService:
             speaker=str(speaker) if speaker is not None else None,
         )
 
-    def _parse_file_payload(self, payload: dict[str, Any], *, diarize: bool) -> STTFileResult:
-        """Validate the Scribe file payload and shape it as ``STTFileResult``."""
+    @staticmethod
+    def _text_and_duration(payload: dict[str, Any]) -> tuple[str, float]:
+        """The transcription and its billed duration, or ``provider_invalid_response``.
+
+        The answer is the person's words, so a payload LIA cannot read travels
+        by its keys alone (ADR-317).
+        """
         text = payload.get("text")
         duration = payload.get("audio_duration_secs")
         if not isinstance(text, str) or not isinstance(duration, (int, float)):
             raise STTProviderError(
                 code="provider_invalid_response",
                 message="ElevenLabs response missing 'text' or 'audio_duration_secs'",
-                details=payload,
+                details=payload_shape(payload),
             )
+        return text, float(duration)
+
+    def _parse_file_payload(self, payload: dict[str, Any], *, diarize: bool) -> STTFileResult:
+        """Validate the Scribe file payload and shape it as ``STTFileResult``."""
+        text, duration = self._text_and_duration(payload)
         words = [
             self._word_from_payload(word)
             for word in payload.get("words", [])
@@ -272,42 +266,47 @@ class ElevenLabsSttService:
         return STTFileResult(
             text=text,
             words=words,
-            audio_duration_seconds=float(duration),
+            audio_duration_seconds=duration,
             language_code=resolved_language if isinstance(resolved_language, str) else None,
             diarized=diarize and any(w.speaker for w in words),
         )
 
     @staticmethod
     def _raise_for_status(response: httpx.Response) -> None:
-        """Map an HTTP failure to a classified ``STTProviderError``.
+        """Map an HTTP failure to a classified ``STTProviderError`` — by its facts alone.
 
-        A key ID stored in place of a key answers 400/401 with
-        ``api_key_id_used_as_api_key`` / ``invalid_api_key`` (seen 2026-09-02):
-        surfaced as ``invalid_api_key`` so the user is told to fix the admin
-        setting rather than to retry.
+        A refused body may quote what was being transcribed, so the error and
+        its log line carry the status and the vendor's bounded code, never the
+        body (ADR-317). A vendor code naming the key, whatever the status, or a
+        refused authentication (401) naming no other cause is ``invalid_api_key``:
+        the user is told to fix the admin setting rather than to retry. The code
+        decides first — the vendor answers ``quota_exceeded`` with 400 or 401 too.
         """
-        if response.status_code == 429:
-            retry_after_header = response.headers.get("Retry-After")
-            try:
-                retry_after = float(retry_after_header) if retry_after_header else None
-            except ValueError:
-                retry_after = None
+        if response.status_code < 400:
+            return
+        refusal = refusal_from_body(response, *ELEVENLABS_CODE_PATHS)
+        logger.warning(
+            "elevenlabs_stt_http_error",
+            status_code=refusal.status,
+            vendor_code=refusal.vendor_code,
+        )
+        if refusal.status == 429:
             raise STTProviderError(
                 code="provider_rate_limited",
                 message="ElevenLabs rate limit hit",
-                retry_after_seconds=retry_after,
+                retry_after_seconds=retry_after_of(response),
+                details=refusal.details(),
             )
-        if response.status_code >= 400:
-            body_excerpt = response.text[:512]
-            lowered = body_excerpt.lower()
-            if response.status_code in (400, 401, 403) and "api_key" in lowered:
-                raise STTProviderError(
-                    code="invalid_api_key",
-                    message="ElevenLabs rejected the configured API key",
-                    details=body_excerpt,
-                )
+        if refusal.vendor_code in _KEY_REFUSALS or (
+            refusal.status == 401 and refusal.vendor_code is None
+        ):
             raise STTProviderError(
-                code="provider_http_error",
-                message=f"ElevenLabs returned HTTP {response.status_code}",
-                details=body_excerpt,
+                code="invalid_api_key",
+                message="ElevenLabs rejected the configured API key",
+                details=refusal.details(),
             )
+        raise STTProviderError(
+            code="provider_http_error",
+            message=f"ElevenLabs returned HTTP {refusal.status}",
+            details=refusal.details(),
+        )

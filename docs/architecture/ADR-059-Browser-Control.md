@@ -52,7 +52,8 @@ Browser control follows the same connector pattern as Wikipedia:
 - Browser is the most resource-intensive agent (Chromium ~300-600MB RAM per session)
 - Sites with strong anti-bot (DataDome, Cloudflare Turnstile) may still block
 - ReAct loop adds latency (~15-60s per task) and token cost (~$0.01-0.03)
-- Global session coordination via Redis prevents OOM on RPi5
+- Redis coordinates logical user sessions; container resource limits and measured
+  workloads remain necessary for memory planning.
 
 ## Amendment 2026-10-02 — the engine is Debian's chromium package
 
@@ -90,6 +91,51 @@ screenshot. The bundled 153 passed the same probe — it works, it is just not s
   key to the process as an empty string, which would otherwise name a binary "".
 - The sandbox stays off; moving the browser into an isolated container of its own is the
   next step (dependency programme, decision D7).
+
+## Amendment 2026-10-15 — atomic admission and current context ownership
+
+The pool reserves a logical user session before allocating its Playwright
+context. A single bounded Redis hash (`browser:pool:registry`) stores the owner
+UUID, recovery metadata and Redis-time expiry together. Each user's hash field
+expires independently through [Redis hash-field expiration](https://redis.io/docs/latest/commands/hpexpireat/),
+available in the Redis 7.4 provided by the current Compose and installer. A
+no-effect capability/permission probe runs before any write; unsupported expiry
+refuses admission instead of leaving a partly written, non-expiring record.
+Admission and expiry
+pruning are atomic; renewals, updates and release compare that UUID. A previous
+owner cannot overwrite or delete a newer context's URL, and a reused PID does
+not prevent recovery. Expired entries are pruned on every operation so another
+user's renewals do not keep obsolete private metadata indefinitely.
+
+Each pool maintains its own idle and ownership cleanup on every worker, without
+depending on the scheduler leader. A context whose allocation lost ownership
+is refused before it can be lent, with an attempt to close it. Failed or cancelled admissions attempt cleanup
+without replacing their primary error. Shutdown waits for an allocation already
+in progress, drains it and joins the local maintenance task. Recovery URLs and
+titles have explicit bounds; an oversized URL is omitted rather than truncated
+into a different request. The old per-user keys are read only as a transitional
+URL fallback and expire naturally.
+
+Same-user recovery retains the existing logical-session contract. Contexts may
+overlap while ownership transfers or a worker is paused. Redis failure still
+permits a bounded local pool for availability, so this is not a hard global
+physical-memory guarantee. Redis recovery retires unregistered or superseded
+contexts instead of reviving their metadata. All workers must use the same
+coordination protocol and settings; mixed-version rolling operation is not
+qualified here. The current Chromium arguments still disable its own sandbox;
+container isolation has not been demonstrated equivalent to that sandbox.
+
+Real Redis tests use independent pool owners and simulated Playwright contexts
+to reproduce admission races, stale writes, PID reuse, expiry, cancellation,
+shutdown and metadata bounds. They do not by themselves qualify a live Chromium
+process or a remote website. Startup is coalesced across concurrent requests and
+shielded from cancellation of an individual waiter. In-flight session operations
+are excluded from idle retirement, with their activity clock reset on exit.
+Shutdown attempts all resource closures before reporting the first failure.
+
+The unused memory-limit setting, unsampled gauge and process-RSS helper have been
+removed. The dashboard reuses the existing API-worker RSS sampler and labels it
+as such; it excludes Chromium children and does not enforce a Chromium memory cap.
 
 ## References
 

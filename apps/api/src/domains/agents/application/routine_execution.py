@@ -124,6 +124,7 @@ async def _run_reserved(reservation: RoutineExecutionReservation, conversation_i
             action_id=reservation.expected.id,
             user_id=reservation.actor_id,
             execution_guard=partial(authorize_reserved_routine, reservation),
+            execution_token=reservation.token,
         )
     try:
         await cancel_routine_reservation(reservation)

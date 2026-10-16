@@ -282,6 +282,150 @@ describe('acting on a commitment where the reader is looking at it', () => {
     return renderWithProviders(<ForYouCard {...cardProps} section={section(oneLoop)} />);
   }
 
+  it('keeps header refresh on its manual callback when invalidation is supplied', async () => {
+    const onRefresh = vi.fn();
+    const onInvalidate = vi.fn();
+    const { user } = renderWithProviders(
+      <ForYouCard
+        {...cardProps}
+        onRefresh={onRefresh}
+        onInvalidate={onInvalidate}
+        section={section(oneLoop)}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /^dashboard\.briefing\.refresh_section/ }));
+
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+    expect(onInvalidate).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['dashboard.briefing.actions.loop_done', 'done'],
+    ['dashboard.briefing.actions.loop_dismiss', 'dismissed'],
+  ] as const)(
+    'invalidates after a successful %s instead of manually refreshing',
+    async (label, verdict) => {
+      const onRefresh = vi.fn();
+      const onInvalidate = vi.fn();
+      const { user } = renderWithProviders(
+        <ForYouCard
+          {...cardProps}
+          onRefresh={onRefresh}
+          onInvalidate={onInvalidate}
+          section={section(oneLoop)}
+        />
+      );
+
+      await runCardAction(user, label);
+
+      await waitFor(() => expect(onInvalidate).toHaveBeenCalledTimes(1));
+      expect(close).toHaveBeenCalledWith('l1', verdict);
+      expect(onRefresh).not.toHaveBeenCalled();
+      expect(screen.getByRole('region')).toHaveFocus();
+    }
+  );
+
+  it.each(['dashboard.briefing.actions.loop_done', 'dashboard.briefing.actions.loop_dismiss'])(
+    'keeps the loop without invalidating or refreshing after a refused %s',
+    async label => {
+      close.mockResolvedValueOnce(false);
+      const onRefresh = vi.fn();
+      const onInvalidate = vi.fn();
+      const { user } = renderWithProviders(
+        <ForYouCard
+          {...cardProps}
+          onRefresh={onRefresh}
+          onInvalidate={onInvalidate}
+          section={section(oneLoop)}
+        />
+      );
+
+      await runCardAction(user, label);
+
+      await waitFor(() => expect(toast.error).toHaveBeenCalled());
+      expect(screen.getByText('Rendre la perceuse')).toBeInTheDocument();
+      expect(onInvalidate).not.toHaveBeenCalled();
+      expect(onRefresh).not.toHaveBeenCalled();
+    }
+  );
+
+  it('invalidates a successful edit submitted through the existing commitment form', async () => {
+    const onRefresh = vi.fn();
+    const onInvalidate = vi.fn();
+    const { user } = renderWithProviders(
+      <ForYouCard
+        {...cardProps}
+        onRefresh={onRefresh}
+        onInvalidate={onInvalidate}
+        section={section(oneLoop)}
+      />
+    );
+
+    await runCardAction(user, 'dashboard.briefing.actions.loop_edit');
+    const field = screen.getByRole('textbox', { name: 'settings.open_loops.edit_subject_label' });
+    await user.clear(field);
+    await user.type(field, 'Rendre la scie');
+    expect(onInvalidate).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'settings.open_loops.edit_save' }));
+
+    await waitFor(() => expect(onInvalidate).toHaveBeenCalledTimes(1));
+    expect(update).toHaveBeenCalledWith('l1', { subject: 'Rendre la scie' });
+    expect(onRefresh).not.toHaveBeenCalled();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(screen.getByRole('region')).toHaveFocus();
+  });
+
+  it('keeps the original loop without invalidating or refreshing when the edit is refused', async () => {
+    update.mockResolvedValueOnce(false);
+    const onRefresh = vi.fn();
+    const onInvalidate = vi.fn();
+    const { user } = renderWithProviders(
+      <ForYouCard
+        {...cardProps}
+        onRefresh={onRefresh}
+        onInvalidate={onInvalidate}
+        section={section(oneLoop)}
+      />
+    );
+
+    await runCardAction(user, 'dashboard.briefing.actions.loop_edit');
+    const field = screen.getByRole('textbox', { name: 'settings.open_loops.edit_subject_label' });
+    await user.clear(field);
+    await user.type(field, 'Rendre la scie');
+    await user.click(screen.getByRole('button', { name: 'settings.open_loops.edit_save' }));
+
+    await waitFor(() => expect(screen.queryByRole('textbox')).not.toBeInTheDocument());
+    expect(update).toHaveBeenCalledWith('l1', { subject: 'Rendre la scie' });
+    expect(screen.getByText('Rendre la perceuse')).toBeInTheDocument();
+    expect(onInvalidate).not.toHaveBeenCalled();
+    expect(onRefresh).not.toHaveBeenCalled();
+  });
+
+  it('does not mutate or invalidate when the reader cancels the existing edit form', async () => {
+    const onRefresh = vi.fn();
+    const onInvalidate = vi.fn();
+    const { user } = renderWithProviders(
+      <ForYouCard
+        {...cardProps}
+        onRefresh={onRefresh}
+        onInvalidate={onInvalidate}
+        section={section(oneLoop)}
+      />
+    );
+
+    await runCardAction(user, 'dashboard.briefing.actions.loop_edit');
+    const field = screen.getByRole('textbox', { name: 'settings.open_loops.edit_subject_label' });
+    await user.clear(field);
+    await user.type(field, 'Discard this change');
+    await user.click(screen.getByRole('button', { name: 'common.cancel' }));
+
+    expect(update).not.toHaveBeenCalled();
+    expect(screen.getByText('Rendre la perceuse')).toBeInTheDocument();
+    expect(onInvalidate).not.toHaveBeenCalled();
+    expect(onRefresh).not.toHaveBeenCalled();
+  });
+
   it('marks a commitment done without leaving the dashboard', async () => {
     const { user } = renderCard();
 

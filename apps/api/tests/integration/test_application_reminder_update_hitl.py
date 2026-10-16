@@ -24,6 +24,7 @@ from src.domains.reminders.models import Reminder
 from src.domains.reminders.schemas import ReminderCreate, ReminderUpdate
 from src.domains.reminders.service import ReminderService
 from src.domains.users.models import User
+from tests.helpers.draft_refusals import draft_refusal_code
 from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
 
 pytestmark = pytest.mark.integration
@@ -128,7 +129,7 @@ async def test_native_update_requires_confirmation_and_rechecks_after_source_io(
         )
         if intervention != "none":
             assert (
-                result.error
+                draft_refusal_code(result)
                 == {
                     "writer_off": "CAPABILITY_DISABLED",
                     "commit_unknown": "COMPLETION_UNKNOWN",

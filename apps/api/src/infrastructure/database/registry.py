@@ -53,6 +53,7 @@ def import_all_models() -> None:
     import src.domains.personalities.models  # noqa: F401
     import src.domains.plugins.models  # noqa: F401
     import src.domains.product.models  # noqa: F401
+    import src.domains.psyche.efficacy_models  # noqa: F401
     import src.domains.psyche.models  # noqa: F401
     import src.domains.push_channels.models  # noqa: F401
     import src.domains.radio.models  # noqa: F401
@@ -71,6 +72,7 @@ def import_all_models() -> None:
     import src.domains.usage_limits.models  # noqa: F401
     import src.domains.user_mcp.models  # noqa: F401
     import src.domains.users.models  # noqa: F401
+    import src.domains.voice.fishaudio.models  # noqa: F401
     import src.domains.workboard.models  # noqa: F401
 
     _models_imported = True

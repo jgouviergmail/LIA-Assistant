@@ -85,3 +85,14 @@ certification from those tests.
 - [Outcome contract](../../apps/api/src/domains/agents/application/outcomes.py)
 - [Strict claim tests](../../apps/api/tests/unit/domains/agents/application/test_strict_claim_policy.py)
 - [Origin binding tests](../../apps/api/tests/unit/domains/agents/application/test_command_origin_binding.py)
+
+## Amendment 2026-10-14 — a refused command's card says its cause
+
+Point 5's distinction now reaches the confirmation card, which is the whole
+answer on a confirmation. A committed receipt reads POST_COMMIT_FAILURE
+whatever its code; every other code a command can produce is worded in
+[`core/i18n_draft_refusals.py`](../../apps/api/src/core/i18n_draft_refusals.py)
+or declared generic there with its reason, and a census guard refuses a new
+code that is neither. A cancel that could not withdraw a command no longer
+reads « cancelled » (`CANCELLATION_UNAVAILABLE`): the command may already
+run. See [ADR-303](ADR-303-Tool-Failure-Restitution.md), amendment 2026-10-14.

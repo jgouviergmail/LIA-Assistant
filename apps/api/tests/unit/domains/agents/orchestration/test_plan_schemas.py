@@ -7,9 +7,13 @@ Tests for the ExecutionPlan schemas.
 Created: 2025-11-24
 """
 
+import ast
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
+from src.domains.agents.orchestration import parallel_executor
 from src.domains.agents.orchestration.plan_schemas import (
     ExecutionPlan,
     ExecutionStep,
@@ -227,57 +231,33 @@ class TestExecutionStep:
 
         assert step.approvals_required is True
 
-    def test_human_step_creation(self):
-        """Test creating a HUMAN step for HITL approval workflows."""
-        step = ExecutionStep(
-            step_id="confirm_send",
-            step_type=StepType.HUMAN,
-            description="User confirmation required before sending email",
-            depends_on=["step_1"],
+
+class TestEveryStepTypeHasAnExecutor:
+    """A step type the schema accepts is a step type the executor runs.
+
+    REPLAN and HUMAN were accepted by the schema and offered to skill authors,
+    then refused at execution (« Unsupported step type »): a vocabulary member
+    with no executor is a promise nothing keeps (ADR-346 amendment).
+    """
+
+    def test_the_executor_dispatches_every_step_type(self) -> None:
+        source = Path(parallel_executor.__file__).read_text(encoding="utf-8")
+        dispatch = next(
+            node
+            for node in ast.walk(ast.parse(source))
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "_execute_single_step_async"
         )
+        dispatched = {
+            comparator.attr
+            for node in ast.walk(dispatch)
+            if isinstance(node, ast.Compare)
+            for comparator in node.comparators
+            if isinstance(comparator, ast.Attribute)
+            and isinstance(comparator.value, ast.Name)
+            and comparator.value.id == "StepType"
+        }
 
-        assert step.step_id == "confirm_send"
-        assert step.step_type == StepType.HUMAN
-        assert step.description == "User confirmation required before sending email"
-        assert step.depends_on == ["step_1"]
-        # HUMAN steps don't need agent_name or tool_name
-        assert step.agent_name is None
-        assert step.tool_name is None
-
-    def test_human_step_minimal(self):
-        """Test creating a minimal HUMAN step."""
-        step = ExecutionStep(
-            step_id="approval",
-            step_type=StepType.HUMAN,
-        )
-
-        assert step.step_type == StepType.HUMAN
-        assert step.agent_name is None
-        assert step.tool_name is None
-        assert step.condition is None
-
-    def test_human_step_with_timeout(self):
-        """Test HUMAN step with timeout for user response."""
-        step = ExecutionStep(
-            step_id="user_approval",
-            step_type=StepType.HUMAN,
-            description="Awaiting user approval",
-            timeout_seconds=300,  # 5 minute timeout for user to respond
-        )
-
-        assert step.step_type == StepType.HUMAN
-        assert step.timeout_seconds == 300
-
-    def test_replan_step_creation(self):
-        """Test creating a REPLAN step (Phase 2 - currently not fully supported)."""
-        step = ExecutionStep(
-            step_id="replan_step",
-            step_type=StepType.REPLAN,
-            description="Regenerate plan based on new context",
-        )
-
-        assert step.step_type == StepType.REPLAN
-        assert step.description == "Regenerate plan based on new context"
+        assert dispatched == set(StepType.__members__)
 
 
 # ============================================================================

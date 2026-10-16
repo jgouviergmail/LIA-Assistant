@@ -31,6 +31,7 @@ from src.domains.agents.services.hitl.draft_modifier import DraftModificationSer
 from src.domains.agents.tools import application_interest_tools
 from src.domains.users.models import User
 from tests.helpers.application_pending_proposal import pending_proposal
+from tests.helpers.draft_refusals import draft_refusal_code
 from tests.helpers.runtime_context import installed_runtime_context
 
 pytestmark = pytest.mark.integration
@@ -180,7 +181,7 @@ async def test_existing_pending_settings_keep_exact_confirmation_and_current_sou
         )
         if scenario in {"late_disabled", "late_actor_off", "late_expiry", "unknown_commit"}:
             assert (
-                result.error
+                draft_refusal_code(result)
                 == {
                     "late_disabled": "CAPABILITY_DISABLED",
                     "late_actor_off": "FORBIDDEN",
@@ -203,7 +204,7 @@ async def test_existing_pending_settings_keep_exact_confirmation_and_current_sou
             6,
         )
     elif scenario == "timezone":
-        assert result.error == "STALE_STATE"
+        assert draft_refusal_code(result) == "STALE_STATE"
         assert (test_user.interests_notify_start_hour, test_user.interests_notify_end_hour) == (
             8,
             22,
@@ -216,7 +217,7 @@ async def test_existing_pending_settings_keep_exact_confirmation_and_current_sou
     if scenario == "unrelated":
         assert test_user.font_size == 18
     if scenario == "stale":
-        assert result.error == "STALE_STATE"
+        assert draft_refusal_code(result) == "STALE_STATE"
     hints = [queue.get_nowait() for _ in range(queue.qsize())]
     hints = [event for event in hints if event.type == "application_state_changed"]
     assert len(hints) == int(scenario in {"normal", "overnight", "unrelated", "replay"})

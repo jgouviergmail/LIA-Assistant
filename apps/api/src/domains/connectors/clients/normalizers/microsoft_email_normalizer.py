@@ -8,14 +8,15 @@ fabricates no Gmail ``payload`` tree — the vocabulary is the contract, not
 the first provider's wire format.
 """
 
-import re
 from datetime import datetime
+from email.utils import formataddr
 from typing import Any
 
 import structlog
 
 from src.domains.connectors.clients.normalizers.html_text import html_to_text, strip_html_to_line
 from src.domains.connectors.clients.normalizers.reply_trimming import clean_reply_body
+from src.infrastructure.email.recipients import parse_recipients
 
 logger = structlog.get_logger(__name__)
 
@@ -30,58 +31,6 @@ _GRAPH_FOLDER_TO_LABEL: dict[str, str] = {
     "junkemail": "SPAM",
     "archive": "ARCHIVE",
 }
-
-# Gmail-style query operators → Microsoft Graph KQL/OData patterns
-# Supports both unquoted values (from:john) and quoted multi-word values (subject:"meeting notes")
-_GMAIL_OPERATOR_PATTERN = re.compile(
-    r'(from|to|cc|subject|after|before|label|is|has|in):("(?:[^"\\]|\\.)*"|\S+)'
-)
-_GMAIL_NEGATION_PATTERN = re.compile(
-    r'-(?:in|label|is|has|from|to|cc|subject|after|before):("(?:[^"\\]|\\.)*"|\S+)'
-)
-
-# Well-known Microsoft folder display names → folder IDs
-_WELL_KNOWN_FOLDERS: dict[str, str] = {
-    "inbox": "inbox",
-    "sent": "sentitems",
-    "sentitems": "sentitems",
-    "sent messages": "sentitems",
-    "drafts": "drafts",
-    "draft": "drafts",
-    "trash": "deleteditems",
-    "deleted items": "deleteditems",
-    "deleteditems": "deleteditems",
-    "junk": "junkemail",
-    "spam": "junkemail",
-    "junkemail": "junkemail",
-    "archive": "archive",
-}
-
-
-def _normalize_date_to_iso8601(date_str: str) -> str:
-    """Convert various date formats to ISO 8601 for Microsoft Graph OData filters.
-
-    Gmail-style queries use formats like ``2025/12/10``, ``2025-12-10``, or
-    ``2025/1/5``.  Microsoft Graph OData requires ISO 8601 datetime strings
-    (``2025-12-10T00:00:00Z``).
-    """
-    # Strip quotes
-    date_str = date_str.strip("'\"")
-
-    # Try common formats
-    for fmt in ("%Y/%m/%d", "%Y-%m-%d", "%Y/%m/%d %H:%M:%S", "%Y-%m-%dT%H:%M:%SZ"):
-        try:
-            dt = datetime.strptime(date_str, fmt)
-            return dt.strftime("%Y-%m-%dT00:00:00Z")
-        except ValueError:
-            continue
-
-    # Fallback: return as-is with T00:00:00Z suffix if it looks like a date
-    clean = date_str.replace("/", "-")
-    if re.match(r"\d{4}-\d{1,2}-\d{1,2}$", clean):
-        return f"{clean}T00:00:00Z"
-
-    return date_str
 
 
 def _parse_datetime_to_epoch_ms(dt_str: str | None) -> str:
@@ -106,10 +55,32 @@ def _extract_recipients(recipients: list[dict[str, Any]] | None) -> str:
         name = email_addr.get("name", "")
         address = email_addr.get("address", "")
         if name and name != address:
-            addresses.append(f"{name} <{address}>")
+            addresses.append(formataddr((name, address)))
         else:
             addresses.append(address)
     return ", ".join(addresses)
+
+
+def build_graph_recipients(addresses: str) -> list[dict[str, Any]]:
+    """Graph recipients for a field of addresses — the inverse of ``_extract_recipients``.
+
+    The field is read once for every road (``infrastructure/email/recipients``):
+    a display name may hold a comma, ``;`` separates as well as ``,``, and an
+    address that cannot be read refuses the field rather than being sent as is.
+
+    Args:
+        addresses: Addresses separated by ``,`` or ``;``, bare or ``Name <address>``.
+
+    Returns:
+        One ``{"emailAddress": {"address", "name"}}`` per address; none for a blank field.
+
+    Raises:
+        ValueError: An address that cannot be read or is incomplete.
+    """
+    return [
+        {"emailAddress": {"address": address, "name": name}}
+        for name, address in parse_recipients(addresses)
+    ]
 
 
 def _build_snippet(body_content: str, body_type: str, body_preview: Any) -> str:
@@ -144,7 +115,7 @@ def _build_snippet(body_content: str, body_type: str, body_preview: Any) -> str:
     return strip_html_to_line(preview, max_length=_SNIPPET_MAX_LENGTH) if preview else snippet
 
 
-def normalize_graph_message(msg: dict[str, Any]) -> dict[str, Any]:
+def normalize_graph_message(msg: dict[str, Any], *, keep_quoted: bool = False) -> dict[str, Any]:
     """
     Normalize a Microsoft Graph message to the provider-neutral vocabulary.
 
@@ -154,6 +125,9 @@ def normalize_graph_message(msg: dict[str, Any]) -> dict[str, Any]:
 
     Args:
         msg: Microsoft Graph message dict from /me/messages endpoint.
+        keep_quoted: Keep the quoted history in the body — a mailbox draft is
+            the person's own text, and an edit must not lose what it quotes
+            (ADR-344).
 
     Returns:
         Dict in the ``EmailMessage`` vocabulary with the ``_provider`` marker.
@@ -166,7 +140,7 @@ def normalize_graph_message(msg: dict[str, Any]) -> dict[str, Any]:
     from_data = msg.get("from", {}).get("emailAddress", {})
     from_name = from_data.get("name", "")
     from_address = from_data.get("address", "")
-    from_str = f"{from_name} <{from_address}>" if from_name else from_address
+    from_str = formataddr((from_name, from_address)) if from_name else from_address
 
     # Extract recipients
     to_str = _extract_recipients(msg.get("toRecipients"))
@@ -176,13 +150,13 @@ def normalize_graph_message(msg: dict[str, Any]) -> dict[str, Any]:
     # Extract body
     body_data = msg.get("body", {})
     body_content = body_data.get("content", "")
-    body_type = body_data.get("contentType", "html")
+    # Graph answers "html"/"text"; a request may spell them "HTML"/"Text".
+    body_type = str(body_data.get("contentType", "html")).lower()
 
     snippet = _build_snippet(body_content, body_type, msg.get("bodyPreview"))
-    body_text = clean_reply_body(
-        html_to_text(body_content) if body_type == "html" else body_content,
-        subject=msg.get("subject"),
-    )
+    body_text = html_to_text(body_content) if body_type == "html" else body_content
+    if not keep_quoted:
+        body_text = clean_reply_body(body_text, subject=msg.get("subject"))
 
     # Build label IDs (Gmail-compatible)
     label_ids: list[str] = []
@@ -216,6 +190,7 @@ def normalize_graph_message(msg: dict[str, Any]) -> dict[str, Any]:
         "internalDate": _parse_datetime_to_epoch_ms(msg.get("receivedDateTime")),
         "subject": subject,
         "from": from_str,
+        "reply_to": _extract_recipients(msg.get("replyTo")),
         "to": to_str,
         "cc": cc_str,
         "bcc": bcc_str,
@@ -254,103 +229,4 @@ def normalize_graph_folder(folder: dict[str, Any]) -> dict[str, str]:
     return {
         "id": folder_id,
         "name": normalized_name,
-    }
-
-
-def build_search_filter(gmail_query: str) -> dict[str, str | None]:
-    """
-    Translate a Gmail-style query to Microsoft Graph $search, $filter, and folder parameters.
-
-    Microsoft Graph uses KQL (Keyword Query Language) for $search
-    and OData for $filter. Folder-based filtering uses endpoint routing
-    (``/me/mailFolders/{id}/messages``) because ``parentFolderId`` is not
-    a supported ``$filter`` property.
-
-    Important Graph API constraints:
-    - ``$search`` and ``$orderby`` are mutually exclusive.
-    - ``$search`` and ``$filter`` cannot be combined.
-
-    Args:
-        gmail_query: Gmail-style query (e.g., "from:john subject:meeting label:INBOX").
-
-    Returns:
-        Dict with optional keys:
-        - ``search``: KQL search string (quoted).
-        - ``filter``: OData filter expression.
-        - ``folder``: Well-known folder ID for endpoint routing (e.g., "inbox").
-    """
-    # Strip negation operators (Microsoft $search doesn't support NOT well)
-    clean_query = _GMAIL_NEGATION_PATTERN.sub("", gmail_query).strip()
-
-    search_parts: list[str] = []
-    filter_parts: list[str] = []
-    remaining_text: list[str] = []
-    folder: str | None = None
-
-    # Track position for extracting non-operator text
-    last_end = 0
-
-    for match in _GMAIL_OPERATOR_PATTERN.finditer(clean_query):
-        # Capture text before this operator
-        before = clean_query[last_end : match.start()].strip()
-        if before:
-            remaining_text.append(before)
-        last_end = match.end()
-
-        operator = match.group(1).lower()
-        value = match.group(2).strip('"')
-
-        if operator == "from":
-            search_parts.append(f"from:{value}")
-        elif operator == "to":
-            search_parts.append(f"to:{value}")
-        elif operator == "cc":
-            # Declared rather than left to the free-text bucket: KQL happens to
-            # parse `cc:` there too, so the output was right BY ACCIDENT. An
-            # accident is not a contract — and the negation pattern above only
-            # strips the operators it knows.
-            search_parts.append(f"cc:{value}")
-        elif operator == "subject":
-            search_parts.append(f"subject:{value}")
-        elif operator == "after":
-            iso_date = _normalize_date_to_iso8601(value)
-            filter_parts.append(f"receivedDateTime ge {iso_date}")
-        elif operator == "before":
-            iso_date = _normalize_date_to_iso8601(value)
-            filter_parts.append(f"receivedDateTime le {iso_date}")
-        elif operator == "has" and value == "attachment":
-            filter_parts.append("hasAttachments eq true")
-        elif operator == "is" and value == "unread":
-            filter_parts.append("isRead eq false")
-        elif operator == "is" and value == "read":
-            filter_parts.append("isRead eq true")
-        elif operator in ("label", "in"):
-            # Folder-based filtering via endpoint routing, not $filter
-            folder_id = _WELL_KNOWN_FOLDERS.get(value.lower())
-            if folder_id:
-                folder = folder_id
-
-    # Capture remaining text after last operator
-    after_last = clean_query[last_end:].strip()
-    if after_last:
-        remaining_text.append(after_last)
-
-    # Combine search parts with any remaining free text
-    if remaining_text:
-        search_parts.extend(remaining_text)
-
-    search_str = " ".join(search_parts) if search_parts else None
-    filter_str = " and ".join(filter_parts) if filter_parts else None
-
-    # Default to inbox when no folder explicitly requested.
-    # Microsoft Graph /me/messages searches ALL folders (including Junk, Deleted Items,
-    # Sent Items). This aligns with Gmail (excludes sent/draft/trash/spam by default)
-    # and Apple IMAP (defaults to INBOX).
-    if folder is None:
-        folder = "inbox"
-
-    return {
-        "search": f'"{search_str}"' if search_str else None,
-        "filter": filter_str,
-        "folder": folder,
     }

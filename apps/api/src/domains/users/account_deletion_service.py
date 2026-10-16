@@ -199,6 +199,7 @@ def build_purge_statements(user_id: UUID) -> list[tuple[str, Delete]]:
         # memory, and deleting those first would leave the DELETE below with
         # nothing to remove — the CASCADE would already have fired. Purging it
         # first keeps this statement meaningful rather than incidentally empty.
+        by_user("psyche_efficacy_episodes"),
         by_user("provenance_references"),
         by_user("journal_evidence_events"),
         # Group 2 — Main tables (FK directly to users)
@@ -871,7 +872,9 @@ class AccountDeletionService:
     async def _mark_user_deleted(self, user: User, reason: str | None) -> None:
         """Mark user as deleted: scrub sensitive PII, set deleted_at timestamp.
 
-        Preserves email and full_name for billing contact purposes.
+        Also scrubs the settings that serve nothing once the account is gone
+        (``SCRUBBED_PREFERENCE`` in ``user_column_map``). Preserves email and
+        full_name for billing contact purposes.
 
         Args:
             user: User ORM instance (already locked).
@@ -898,6 +901,10 @@ class AccountDeletionService:
         # ADR-292 — what the portrait was compiled from: counts per source,
         # kept only WITH the portrait, so it goes with it.
         user.journal_portrait_sources = None
+        # ADR-345 amendment 2026-10-14 — the voices the person chose for LIA: a
+        # setting that serves nothing once the account is gone (owner decision),
+        # exported while it lives, never kept after.
+        user.lia_voices = None
         user.deleted_at = datetime.now(UTC)
         user.deleted_reason = reason
 

@@ -13,7 +13,6 @@ returns immediately — the rate limiter records the call *before* executing
 the body, so blocked/allowed transitions are still fully exercised.
 """
 
-import json
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -95,11 +94,10 @@ async def test_exceeding_threshold_returns_rate_limit_exceeded(
         # Call N+1: blocked by the limiter before the body runs.
         blocked = await tool_obj.coroutine(prompt="test", runtime=mock_runtime)
 
-        assert isinstance(blocked, str), "rate-limited call must not reach the body"
-        payload = json.loads(blocked)
-        assert payload["error"] == ToolErrorCode.RATE_LIMIT_EXCEEDED.value.lower()
-        assert payload["retry_after_seconds"] > 0
-        assert str(max_calls) in payload["limit"]
+        # The body answers a disabled-feature failure: this code is the limiter's.
+        assert blocked.error_code == ToolErrorCode.RATE_LIMIT_EXCEEDED
+        assert blocked.metadata["retry_after_seconds"] > 0
+        assert blocked.metadata["max_calls"] == max_calls
 
         # Prometheus hit counter incremented exactly once.
         mock_metric.labels.assert_called_once()
@@ -130,10 +128,11 @@ async def test_tools_have_independent_rate_limit_pools(
         blocked = await image_generation_tools.generate_image.coroutine(
             prompt="test", runtime=mock_runtime
         )
-        assert isinstance(blocked, str)
+        assert blocked.error_code == ToolErrorCode.RATE_LIMIT_EXCEEDED
 
         # edit_image still goes through to the tool body.
         result = await image_generation_tools.edit_image.coroutine(
             prompt="test", runtime=mock_runtime
         )
         assert isinstance(result, UnifiedToolOutput)
+        assert result.error_code != ToolErrorCode.RATE_LIMIT_EXCEEDED

@@ -8,15 +8,14 @@ INVALID_INPUT) — no draft, no ``peer_messages`` row — yet the step was logge
 ``StandardToolOutput | UnifiedToolOutput`` branch of ``_execute_tool``
 hardcoded ``{"success": True}`` instead of reading ``result.success``.
 
-The false success also disarmed the ADR-184 honesty layer: a step whose
-outcome dict says ``success is not False`` counts as *executed* in
-``plan_blockers.executed_tool_names``, which silences the validator's
-CONSTRAINT_VIOLATION blocker as stale.
+The false success also hid the failure from the one channel that tells it:
+the runtime failures directive reads ``success is False`` (ADR-303). The step
+RAN, so it is never « blocked » either (RC1.2): its typed failure is what the
+answer reads.
 
 Contract pinned here:
 - ``UnifiedToolOutput.failure`` → executor result ``success=False`` with
-  ``error`` and ``error_code`` propagated (and thus excluded from
-  ``executed_tool_names``).
+  ``error`` and ``error_code`` propagated, read by the failures directive.
 - ``UnifiedToolOutput.data_success`` / ``action_success`` → ``success=True``
   unchanged, registry updates preserved.
 - Legacy ``StandardToolOutput`` (no ``success`` field) → implicit success,
@@ -96,14 +95,15 @@ class TestUnifiedOutputFailurePropagation:
 
         assert result.result["message"] == _FAILURE_MESSAGE
 
-    async def test_failure_step_is_excluded_from_executed_tool_names(self) -> None:
-        """ADR-184: a failed step must not silence the validator's blocker."""
+    async def test_a_failed_step_is_attempted_and_its_failure_is_told(self) -> None:
+        """One fact, one channel (RC1.2): the failures directive, never « blocked »."""
         from src.domains.agents.orchestration.plan_schemas import (
             ExecutionPlan,
             ExecutionStep,
             StepType,
         )
-        from src.domains.agents.services.plan_blockers import executed_tool_names
+        from src.domains.agents.services.plan_blockers import attempted_tool_names
+        from src.domains.diagnostics.failure_context import extract_failures_from_steps
 
         result = await _run_execute_tool(
             UnifiedToolOutput.failure(message=_FAILURE_MESSAGE, error_code="INVALID_INPUT")
@@ -124,9 +124,17 @@ class TestUnifiedOutputFailurePropagation:
             ],
         )
 
-        executed = executed_tool_names(plan, {"step_2": result.result})
+        completed = {"step_2": result.result}
 
-        assert "send_peer_message_tool" not in executed
+        assert "send_peer_message_tool" in attempted_tool_names(plan, completed)
+        failures = extract_failures_from_steps(completed, {"step_2": "send_peer_message_tool"})
+        assert failures == [
+            {
+                "error_code": "INVALID_INPUT",
+                "message": _FAILURE_MESSAGE,
+                "tool": "send_peer_message_tool",
+            }
+        ]
 
 
 @pytest.mark.unit

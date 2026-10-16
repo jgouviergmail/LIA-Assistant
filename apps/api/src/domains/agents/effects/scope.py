@@ -83,6 +83,22 @@ def effect_scope(scope: EffectScope) -> Iterator[EffectScope]:
         _CURRENT_SCOPE.reset(token)
 
 
+def current_turn_source() -> EffectSourceName:
+    """Who asked for the turn in progress, as the registers name it.
+
+    A published scope wins when it names a source — it was decided closer to
+    the call (a sub-agent, a HITL resumption); otherwise the running context
+    decides, exactly as :func:`scope_from_config` does. The context is read
+    through its module there and here, so a test that installs one is honoured.
+
+    Returns:
+        The source name; ``user`` outside any run.
+    """
+    from src.domains.agents.context.runtime_context import runtime_context_if_running
+
+    return resolve_source(runtime_context_if_running(), scope=current_scope())
+
+
 def approved_scope(scope: EffectScope, *, kind: str, ref: str | None = None) -> EffectScope:
     """Derive the same scope carrying an explicit human confirmation.
 

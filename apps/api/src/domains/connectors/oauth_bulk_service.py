@@ -35,7 +35,6 @@ from src.domains.connectors.oauth_identity import (
 )
 from src.domains.connectors.schemas import ConnectorCredentials, ConnectorOAuthInitiate
 from src.domains.connectors.service import ConnectorService
-from src.domains.users.models import User
 from src.infrastructure.cache.redis import SessionService, get_redis_cache, get_redis_session
 
 logger = structlog.get_logger(__name__)
@@ -246,10 +245,6 @@ class BulkOAuthService:
         grant, rows = await self._lock_account_and_connectors(
             user_id, provider, plan, account, client_id, mode
         )
-        connector_service = ConnectorService(self.db)
-        for connector_type in plan.connector_types:
-            await connector_service._check_connector_enabled(connector_type)
-
         activated = tuple(
             ct for ct in plan.connector_types if scopes_cover_connector(ct, actual_scopes)
         )
@@ -351,12 +346,8 @@ class BulkOAuthService:
         client_id: str,
         mode: str,
     ) -> tuple[OAuthGrant | None, list[Connector]]:
-        """Serialize callback against refresh and reject account changes."""
-        user = await self.db.scalar(
-            select(User).where(User.id == user_id, User.is_active.is_(True)).with_for_update()
-        )
-        if user is None:
-            raise ValueError("OAuth account owner is inactive or missing")
+        """Fence activation before grant/connector locks and reject account changes."""
+        await ConnectorService(self.db)._lock_activation(user_id, plan.connector_types)
         # Refresh and deletion lock the grant before its connector rows. Keep
         # the same order here so an in-flight refresh cannot deadlock a callback.
         grant = await self.db.scalar(

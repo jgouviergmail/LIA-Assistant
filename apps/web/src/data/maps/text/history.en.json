@@ -735,8 +735,8 @@
     },
     "128": {
       "title": "The replanner advises, it doesn't act",
-      "summary": "Analyzing a plan's failures stays advisory: it feeds observability and the message displayed, without launching a new plan on its own.",
-      "src": "7f762b31a867"
+      "summary": "Analyzing a plan's failures stays advisory: it feeds observability, without launching a new plan on its own.",
+      "src": "1327c492981f"
     },
     "129": {
       "title": "Indexing that resumes after a crash",
@@ -1812,6 +1812,21 @@
       "title": "The portrait reads the whole material, and its brief is a synthesis",
       "summary": "Nine records about the person — memories, interests, habits, debriefs, open loops, workboard, routines, reminders, kept answers — are read whole, every item citable, under one share of the model's window, and any cut is stated. The portrait is again an analysis of the person on seven facets, never an inventory, and the brief is written as its own sentences; the semantic review, measured rejecting grounded readings, is removed: what refuses invention is structural, every reading cites what grounds it. The budgets are stated targets, never a clamp. A journal change marks the portrait stale, served dated, instead of wiping it; a deleted entry takes the readings it grounded with it. Measured on dev before shipping.",
       "src": "38eaccd2b7d9"
+    },
+    "344": {
+      "title": "A mailbox draft is the person's own",
+      "summary": "LIA saves, edits and trashes Gmail, Outlook and iCloud drafts without asking: a draft stays in the person's mailbox and reaches nobody, and the trash can be undone. Only sending asks for a confirmation, on a card showing the draft as the mailbox holds it; a draft edited in the mailbox meanwhile is not sent, and a change asked on the card is written before it leaves. On the way, the reply card now shows, and sends to, everyone the reply reaches.",
+      "src": "9c6ad22bd65b"
+    },
+    "345": {
+      "title": "Fish Audio joins LIA's voices, and each engine bills only what it says",
+      "summary": "Fish Audio speaks (five models, among them s2.1-pro and drama-3), transcribes meetings and dictation, and its voices are cloned or designed from the administration, under a consent attestation filed in the audit log. Every sentence heard goes through one door that bills it once, in the unit of the engine that actually spoke it; each vendor account has one request allowance, shared by every voice feature; and remote dictation goes to the engine the administrator chose, which the settings name. LIA slips performance cues (a laugh, a whisper, a sigh) into what it writes to be spoken, in the syntax of each engine that performs them, and the radio's voices hold a dialogue in a single take.",
+      "src": "5f1d4e6b93c7"
+    },
+    "346": {
+      "title": "The advisory replanner is retired: a failure is said, never replayed",
+      "summary": "Measured in production, the analyzer that followed every failed plan called failures transient that were not, and the recovery loop it waited for would have replayed what cannot be repaired. It goes: a failure is stated in the answer, a passing outage is retried by the client that met it, and a typed counter shows every failed step, including one that happens before a tool is called.",
+      "src": "185409f983b0"
     }
   }
 }

@@ -24,6 +24,7 @@ from src.domains.agents.tools.application_memory_tools import delete_all_lia_mem
 from src.domains.memories.models import Memory
 from src.domains.memories.repository import MemoryRepository
 from src.domains.users.models import User
+from tests.helpers.draft_refusals import draft_refusal_code
 from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
 
 pytestmark = pytest.mark.integration
@@ -207,7 +208,7 @@ async def test_bulk_erasure_confirms_exact_counts_all_history_and_preserves_fore
         )
         if not success:
             assert (
-                result.error
+                draft_refusal_code(result)
                 == {
                     "corrected": "STALE_STATE",
                     "added": "STALE_STATE",

@@ -11,9 +11,11 @@ Phase: evolution F7 — Browser Control (Playwright)
 from __future__ import annotations
 
 import time
+from collections.abc import Awaitable, Callable
 from contextlib import suppress
+from functools import wraps
 from io import BytesIO
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Concatenate
 
 import structlog
 
@@ -23,6 +25,7 @@ from src.core.constants import (
     BROWSER_SCREENSHOT_THUMBNAIL_WIDTH,
 )
 from src.infrastructure.browser.accessibility import AccessibilityTreeExtractor, AXNode
+from src.infrastructure.browser.errors import BrowserRefusal, BrowserRefusalReason
 from src.infrastructure.browser.models import PageSnapshot
 from src.infrastructure.browser.security import BrowserSecurityPolicy
 from src.infrastructure.observability.log_facts import url_host
@@ -35,6 +38,23 @@ if TYPE_CHECKING:
     from playwright.async_api import BrowserContext, Page
 
 logger = structlog.get_logger(__name__)
+
+
+def _while_active[**P, R](
+    operation: Callable[Concatenate[BrowserSession, P], Awaitable[R]],
+) -> Callable[Concatenate[BrowserSession, P], Awaitable[R]]:
+    """Nested browser calls remain active through success, failure and cancellation."""
+
+    @wraps(operation)
+    async def run(session: BrowserSession, *args: P.args, **kwargs: P.kwargs) -> R:
+        session._active_operations += 1
+        try:
+            return await operation(session, *args, **kwargs)
+        finally:
+            session._active_operations -= 1
+            session.last_activity = time.monotonic()
+
+    return run
 
 
 class BrowserSession:
@@ -62,9 +82,15 @@ class BrowserSession:
         self.created_at = time.monotonic()
         self.last_activity = time.monotonic()
         self.navigation_count = 0
+        self._active_operations = 0
         self._extractor = AccessibilityTreeExtractor()
         self._security = security
         self._popup_handler_registered = False
+
+    @property
+    def is_busy(self) -> bool:
+        """Idle cleanup cannot retire an operation still awaiting Playwright."""
+        return self._active_operations > 0
 
     def _register_popup_handler(self) -> None:
         """Register popup handler AFTER the main page is created.
@@ -88,6 +114,7 @@ class BrowserSession:
             logger.info("browser_popup_closed", url_host=url_host(new_page.url))
             await new_page.close()
 
+    @_while_active
     async def navigate(self, url: str) -> PageSnapshot:
         """Navigate to a URL with SSRF check and request interception.
 
@@ -104,9 +131,9 @@ class BrowserSession:
         self._check_limits()
 
         # SSRF validation
-        is_valid, error = await self._security.validate_navigation_url(url)
+        is_valid, _ = await self._security.validate_navigation_url(url)
         if not is_valid:
-            raise ValueError(f"URL blocked: {error}")
+            raise BrowserRefusal(BrowserRefusalReason.BLOCKED_URL)
 
         # Create or reuse page
         if self.page is None or self.page.is_closed():
@@ -144,6 +171,7 @@ class BrowserSession:
 
         return await self.get_page_content()
 
+    @_while_active
     async def get_page_content(self) -> PageSnapshot:
         """Get visible text content of the current page.
 
@@ -161,7 +189,7 @@ class BrowserSession:
             ValueError: If no page is currently open.
         """
         if self.page is None or self.page.is_closed():
-            raise ValueError("No page is currently open")
+            raise BrowserRefusal(BrowserRefusalReason.NO_PAGE)
 
         self.last_activity = time.monotonic()
 
@@ -190,6 +218,7 @@ class BrowserSession:
             content=visible_text,
         )
 
+    @_while_active
     async def get_snapshot(self) -> PageSnapshot:
         """Get accessibility tree with [EN] refs for interaction.
 
@@ -203,7 +232,7 @@ class BrowserSession:
             ValueError: If no page is currently open.
         """
         if self.page is None or self.page.is_closed():
-            raise ValueError("No page is currently open")
+            raise BrowserRefusal(BrowserRefusalReason.NO_PAGE)
 
         self.last_activity = time.monotonic()
 
@@ -223,6 +252,7 @@ class BrowserSession:
             total_count=total_count,
         )
 
+    @_while_active
     async def click(self, ref: str) -> PageSnapshot:
         """Click an interactive element by its [EN] reference.
 
@@ -236,11 +266,11 @@ class BrowserSession:
             ValueError: If element not found or no page open.
         """
         if self.page is None or self.page.is_closed():
-            raise ValueError("No page is currently open")
+            raise BrowserRefusal(BrowserRefusalReason.NO_PAGE)
 
         locator = await self._extractor.find_element_by_ref(self.page, ref)
         if not locator:
-            raise ValueError(f"Element [{ref}] not found on page")
+            raise BrowserRefusal(BrowserRefusalReason.MISSING_ELEMENT)
 
         timeout_ms = settings.browser_action_timeout_seconds * 1000
         await locator.click(timeout=timeout_ms)
@@ -254,6 +284,7 @@ class BrowserSession:
 
         return await self.get_snapshot()
 
+    @_while_active
     async def fill(self, ref: str, value: str) -> PageSnapshot:
         """Fill a form field by its [EN] reference with a sanitized value.
 
@@ -268,14 +299,14 @@ class BrowserSession:
             ValueError: If element not found or no page open.
         """
         if self.page is None or self.page.is_closed():
-            raise ValueError("No page is currently open")
+            raise BrowserRefusal(BrowserRefusalReason.NO_PAGE)
 
         # Sanitize input
         safe_value = self._security.sanitize_fill_value(value)
 
         locator = await self._extractor.find_element_by_ref(self.page, ref)
         if not locator:
-            raise ValueError(f"Element [{ref}] not found on page")
+            raise BrowserRefusal(BrowserRefusalReason.MISSING_ELEMENT)
 
         timeout_ms = settings.browser_action_timeout_seconds * 1000
         await locator.fill(safe_value, timeout=timeout_ms)
@@ -284,6 +315,7 @@ class BrowserSession:
 
         return await self.get_snapshot()
 
+    @_while_active
     async def press_key(self, key: str) -> PageSnapshot:
         """Press a validated keyboard key.
 
@@ -297,10 +329,10 @@ class BrowserSession:
             ValueError: If key not allowed or no page open.
         """
         if self.page is None or self.page.is_closed():
-            raise ValueError("No page is currently open")
+            raise BrowserRefusal(BrowserRefusalReason.NO_PAGE)
 
         if not self._security.validate_key(key):
-            raise ValueError(f"Key '{key}' not allowed")
+            raise BrowserRefusal(BrowserRefusalReason.BLOCKED_KEY)
 
         await self.page.keyboard.press(key)
         browser_actions_total.labels(action_type="press_key", status="success").inc()
@@ -313,6 +345,7 @@ class BrowserSession:
 
         return await self.get_snapshot()
 
+    @_while_active
     async def screenshot_with_thumbnail(
         self,
     ) -> tuple[bytes | None, bytes | None]:
@@ -356,16 +389,16 @@ class BrowserSession:
 
     async def close(self) -> None:
         """Close the page and browser context, releasing all resources."""
-        # Best-effort cleanup: page may already be closed or disconnected
-        with suppress(Exception):
+        try:
             if self.page and not self.page.is_closed():
                 await self.page.close()
-
-        # Best-effort cleanup: context may already be closed
-        with suppress(Exception):
+        except Exception as exc:
+            # Context.close still owns the page after a page-specific failure.
+            logger.warning("browser_page_close_failed", error_type=type(exc).__name__)
+        try:
             await self.context.close()
-
-        self.page = None
+        finally:
+            self.page = None
         logger.info("browser_session_closed", user_id=self.user_id[:8])
 
     # ========================================================================
@@ -441,7 +474,7 @@ class BrowserSession:
             ValueError: If max navigations exceeded.
         """
         if self.navigation_count >= settings.browser_max_navigations_per_session:
-            raise ValueError("Max navigations per session reached")
+            raise BrowserRefusal(BrowserRefusalReason.NAVIGATION_LIMIT)
 
     def _count_nodes(self, nodes: list[AXNode]) -> int:
         """Count total nodes in tree."""

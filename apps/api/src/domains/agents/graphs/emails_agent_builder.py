@@ -91,6 +91,17 @@ def build_emails_agent() -> Any:
         remove_labels_tool,
         update_label_tool,
     )
+    from src.domains.agents.tools.mailbox_draft_edit_tools import (
+        delete_mailbox_drafts_tool,
+        update_mailbox_draft_tool,
+    )
+    from src.domains.agents.tools.mailbox_draft_send_tools import send_mailbox_draft_tool
+    from src.domains.agents.tools.mailbox_drafts_tools import (
+        create_mailbox_draft_tool,
+        create_mailbox_forward_draft_tool,
+        create_mailbox_reply_draft_tool,
+        list_mailbox_drafts_tool,
+    )
 
     # NOTE: Tools are wrapped by @connector_tool decorator which returns StructuredTool (subclass of BaseTool)
     # MyPy doesn't infer this from the decorator, so we use cast to tell it these are BaseTool instances
@@ -101,6 +112,14 @@ def build_emails_agent() -> Any:
             get_emails_tool,  # Unified: search + details
             send_email_tool,
             send_email_to_me_tool,  # To the user themselves: no draft (ADR-314)
+            # The person's mailbox drafts (ADR-344): saved, edited, trashed unconfirmed
+            list_mailbox_drafts_tool,
+            create_mailbox_draft_tool,
+            create_mailbox_reply_draft_tool,
+            create_mailbox_forward_draft_tool,
+            update_mailbox_draft_tool,
+            delete_mailbox_drafts_tool,
+            send_mailbox_draft_tool,  # the one draft act that asks first
             reply_email_tool,
             forward_email_tool,
             delete_email_tool,

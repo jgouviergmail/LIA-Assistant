@@ -13,6 +13,13 @@
    src/styles/__tests__/tailwind-source-scope.test.ts. */
 @import 'tailwindcss' source(none);
 @source '../**/*.{ts,tsx,js,jsx,mjs,cjs,md,mdx,css}';
+/* No test ships, so no test is a source of the stylesheet. Measured
+   2026-10-14: 1 064 of the 2 504 files scanned were tests, and the 22 rules
+   only they produced were phantoms no production file and no backend card
+   uses — the viewport heights a guard's self-test feeds it, a fixture's
+   `row-1`, a stored theme name read as `.sepia`. */
+@source not '../**/__tests__/**';
+@source not '../**/*.{test,spec}.{ts,tsx,js,jsx,mjs,cjs}';
 @plugin "@tailwindcss/typography";
 
 /* V3 Display Architecture: Modern HTML components */
@@ -537,6 +544,12 @@
     --color-secondary: oklch(23% 0.005 250);
     --color-muted: oklch(23% 0.005 250);
     --color-accent: oklch(23% 0.005 250);
+  }
+
+  /* Home card material: the approved blue-black swatch, scoped to this route.
+     Keep the user's light palette and true-black OLED material unchanged. */
+  html.dark:not([data-oled]) .dashboard-home {
+    --color-card: #0d1a22;
   }
 
   /* ========================================

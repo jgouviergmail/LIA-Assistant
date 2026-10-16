@@ -37,9 +37,12 @@ from src.domains.agents.data_registry.message_widgets import (
     extract_persistable_widgets,
 )
 from src.domains.agents.display.card_actions import with_card_action_metadata
+from src.domains.agents.services.efficacy_evidence import EfficacyCapture
 from src.domains.agents.services.hitl.action_requests import with_available_actions
 from src.domains.agents.services.hitl.interactions.text_tokens import text_tokens
+from src.domains.agents.services.streaming.machine_tags import MachineTagFilter
 from src.domains.agents.services.streaming.trace_capture import TraceCapture
+from src.domains.agents.services.streaming.voice_scope import VoiceScope
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.metrics_agents import (
     sse_streaming_duration_seconds,
@@ -58,11 +61,6 @@ if TYPE_CHECKING:
     from src.domains.agents.utils.hitl_store import HITLStore
     from src.domains.chat.service import TrackingContext
     from src.domains.conversations.service import ConversationService
-
-from src.domains.agents.expressivity.annotation import (
-    TONE_TAG_MARKER,
-    strip_tone_fragments,
-)
 
 logger = get_logger(__name__)
 
@@ -193,33 +191,6 @@ def _serialize_registry_items(registry: dict[str, Any]) -> dict[str, dict[str, A
     return serialized
 
 
-def _strip_inline_tags(content: str) -> str:
-    """Sweep the machine tags the model appends, from ONE streamed token.
-
-    Two of them travel in band today — the psyche self-report and the ADR-253
-    tone register — and both arrive a few characters at a time, so a partial
-    tag would flash on screen if this ran anywhere but here. Full cleanup of
-    the persisted answer happens later, in the response node.
-
-    They are swept together on purpose: the second one was written as a copy of
-    the first, complete with its own guard and its own early return, and that
-    is how a third tag would have been written too.
-
-    Args:
-        content: One streamed token, already coerced to text.
-
-    Returns:
-        The token without any tag fragment; empty when nothing else was in it.
-    """
-    if "psyche_eval" in content:
-        from src.domains.psyche.constants import PSYCHE_EVAL_STREAMING_PATTERN
-
-        content = PSYCHE_EVAL_STREAMING_PATTERN.sub("", content).strip()
-    if TONE_TAG_MARKER in content.lower():
-        content = strip_tone_fragments(content).strip()
-    return content
-
-
 class StreamingService:
     """
     Service for SSE event formatting and streaming.
@@ -281,6 +252,9 @@ class StreamingService:
         self.card_action_metadata: dict[str, object] = {}
         self._response_deltas_streamed = False
         self._response_message_ids: set[str] = set()
+        # The machine tags the response model writes in band never reach the
+        # reader — the chat voice reads this stream as the screen does.
+        self._machine_tags = MachineTagFilter()
         # Store the generated HITL question for archiving by service.py
         # This ensures the question appears in conversation history on reload
         self.hitl_generated_question: str | None = None
@@ -296,11 +270,10 @@ class StreamingService:
         # Debug panel enabled flag (pre-computed by api/service.py based on user role)
         # Controls ALL debug processing: caching, building, and emitting debug_metrics
         self._debug_panel_enabled: bool = debug_panel_enabled
-        # Voice context: Registry data for parallel voice generation
-        # Captured EARLY in _process_values_chunk when current_turn_registry appears
-        # (task_orchestrator just completed). This enables true parallel voice generation
-        # DURING response_node streaming, not after.
-        self.voice_context_registry: dict[str, Any] | None = None
+        # What the spoken comment of a tool turn may speak of: the turn's records are
+        # captured when task_orchestrator completes, then narrowed to what the answer
+        # declares at character 0 — published on its first visible character.
+        self._voice_scope = VoiceScope()
         # Interactive widgets (SKILL_APP/MCP_APP) emitted this turn, in their
         # SSE-serialized form. api/service.py persists them on the assistant
         # message so the widget survives a page reload — the payload otherwise
@@ -323,6 +296,7 @@ class StreamingService:
         # (habits Lot 0): the local state dict there is the PRE-run checkpoint,
         # so this capture is the only current-turn source off the debug path.
         self.primary_domain: str | None = None
+        self.efficacy_capture = EfficacyCapture()
         # Track checkpoint agent_results to detect when task_orchestrator has run
         # CRITICAL: current_turn_registry persists in state from previous turn until
         # task_orchestrator updates it. task_orchestrator ALSO updates agent_results.
@@ -349,6 +323,16 @@ class StreamingService:
         # until the signature changes (router_node has appended a fresh RouterOutput
         # in the current turn).
         self._checkpoint_routing_signature: tuple[Any, ...] | None = None
+
+    @property
+    def voice_context_registry(self) -> dict[str, Any] | None:
+        """The records the spoken comment may speak of (``voice_scope.py``).
+
+        None until the answer begins, so the voice never starts ahead of it, and
+        None when the answer retained nothing or the turn has no records: the
+        voice then reads the answer itself.
+        """
+        return self._voice_scope.registry
 
     async def stream_sse_chunks(
         self,
@@ -426,6 +410,7 @@ class StreamingService:
                         continue
 
                     state = chunk
+                    self.efficacy_capture.update(chunk, run_id=run_id)
 
                     # === HITL DETECTION ===
                     if "__interrupt__" in chunk:
@@ -587,41 +572,13 @@ class StreamingService:
             ):
                 yield _reg_chunk
 
-            # PHASE 5.5: Emit final content replacement if post-processing occurred
-            # When response_node performs post-processing (e.g., photo HTML injection),
-            # it signals via "content_final_replacement" in state. We need to emit a
-            # STREAM_REPLACE chunk so frontend replaces the streamed content with the
-            # complete post-processed version.
-            # ✅ CRITICAL FIX: Check value is truthy, not just key presence
-            # Root cause: Key can exist with None value from previous cleanup
-            # See: ROOT_CAUSE_NONETYPE_LEN_ERROR.md
-            if state and state.get("content_final_replacement"):
-                final_content = state["content_final_replacement"]
-                logger.info(
-                    "emitting_final_content_replacement",
-                    run_id=run_id,
-                    final_content_length=len(final_content),
-                    original_streamed_length=len(response_content),
-                    diff_bytes=len(final_content) - len(response_content),
-                )
-
-                # Emit content_replacement chunk (Phase 5.5: Post-processing streaming)
-                # Frontend will handle this by replacing entire message content
-                replacement_chunk = ChatStreamChunk(
-                    type="content_replacement",
-                    content=final_content,
-                )
-
-                # PHASE 2.5 - P5: Track content replacement chunk
-                event_type = _get_chunk_event_type(replacement_chunk.type)
-                langgraph_streaming_chunks_total.labels(event_type=event_type).inc()
-
-                yield (replacement_chunk, final_content)
-
-                # Update response_content and token_count for metrics/archiving
-                # Setting token_count > 0 prevents fallback generation (line 529)
-                response_content = final_content
-                token_count = len(final_content.split())  # Approximate token count
+            # PHASE 5.5: the answer's last chunks — what the tag filter still held,
+            # then the post-processed replacement (see _finish_response_text).
+            tail, response_content, token_count = self._finish_response_text(
+                state, response_content, token_count, run_id
+            )
+            for tail_chunk in tail:
+                yield tail_chunk
 
             # Debug Panel: emit debug_metrics ONCE at the end (all data available).
             async for _dbg_chunk in self._emit_debug_metrics(state, run_id):
@@ -783,6 +740,48 @@ class StreamingService:
                 error_type=type(e).__name__,
             )
 
+    def _finish_response_text(
+        self, state: dict[Any, Any], response_content: str, token_count: int, run_id: str
+    ) -> tuple[list[tuple[ChatStreamChunk, str]], str, int]:
+        """The answer's last chunks, and the streamed text and token count after them.
+
+        What the tag filter still held streams FIRST: it is the answer's (a « < »
+        that never opened a tag), and after the replacement the API layer would
+        append it to the answer it archives. Then, when the response node rewrote
+        the answer (tags removed, cards injected), the ``content_replacement``
+        chunk carries the final text — its key can hold ``None`` from a previous
+        turn, hence the truthiness test.
+
+        Args:
+            state: The final graph state.
+            response_content: The text streamed so far.
+            token_count: The tokens streamed so far.
+            run_id: The run, for the log.
+
+        Returns:
+            The chunks to emit, then the text and token count they leave — the
+            final answer's when it was replaced, so the fallback never fires.
+        """
+        held = self._machine_tags.flush()
+        tail = [(self.format_token_chunk(held), held)] if held else []
+        response_content += held
+        token_count += len(tail)
+        final_content = state.get("content_final_replacement") if state else None
+        if final_content:
+            logger.info(
+                "emitting_final_content_replacement",
+                run_id=run_id,
+                final_content_length=len(final_content),
+                original_streamed_length=len(response_content),
+                diff_bytes=len(final_content) - len(response_content),
+            )
+            replacement = ChatStreamChunk(type="content_replacement", content=final_content)
+            tail.append((replacement, final_content))
+            response_content, token_count = final_content, len(final_content.split())
+        for sse_chunk, _ in tail:
+            self._track_and_observe(sse_chunk)
+        return tail, response_content, token_count
+
     async def _emit_debug_metrics(
         self, state: dict[Any, Any], run_id: str
     ) -> AsyncGenerator[tuple[ChatStreamChunk, str]]:
@@ -917,8 +916,8 @@ class StreamingService:
         ["values", "messages"] there is no "__end__" chunk, so the final registry is
         emitted here from the accumulated ``state``. Uses current_turn_registry
         (filtered) with a fallback only when no selection exists for DISPLAY, and
-        current_turn_registry ONLY for VOICE. Mutates ``sent_registry_ids`` and
-        ``self.voice_context_registry`` exactly as the inline version did.
+        current_turn_registry ONLY for VOICE. Mutates ``sent_registry_ids``, and
+        settles the voice scope when no records were held before the answer.
         """
         if state:
             # For DISPLAY: Prefer current_turn_registry, fallback to full registry
@@ -943,23 +942,15 @@ class StreamingService:
                     # Serialize items for SSE (DRY: use shared helper)
                     serialized_items = _serialize_registry_items(new_items)
 
-                    # Store registry for voice context (fallback if not captured early)
-                    # CRITICAL: Only use current_turn_registry for voice, NOT fallback registry
-                    # This ensures chat mode (no tools executed) goes to Direct TTS path
-                    # instead of Voice LLM (which would comment on stale registry data)
-                    if not self.voice_context_registry and current_turn_registry:
-                        # Filter serialized items to only include current turn items
+                    # The spoken comment's records when none were held before the
+                    # answer (the scope ignores them once it decided). CRITICAL: only
+                    # current_turn_registry, never the fallback — chat mode (no tools)
+                    # must reach Direct TTS, not a comment on stale registry data.
+                    if current_turn_registry:
                         current_turn_ids = set(current_turn_registry.keys())
-                        voice_items = {
-                            k: v for k, v in serialized_items.items() if k in current_turn_ids
-                        }
-                        if voice_items:
-                            self.voice_context_registry = voice_items
-                            logger.debug(
-                                "voice_context_registry_set_post_streaming",
-                                registry_items_count=len(voice_items),
-                                source="current_turn_only",
-                            )
+                        self._voice_scope.settle(
+                            {k: v for k, v in serialized_items.items() if k in current_turn_ids}
+                        )
 
                     # Capture the frame-rendering widgets for message-level
                     # persistence (same serialized shape the client merges).
@@ -1176,7 +1167,8 @@ class StreamingService:
 
         current_turn_registry is ONLY set by task_orchestrator_node for the
         CURRENT turn. We capture it here to enable parallel voice generation
-        BEFORE response_node finishes streaming.
+        BEFORE response_node finishes streaming. The voice scope holds it until
+        the answer declares which records it retained (``voice_scope.py``).
 
         NOTE: We do NOT emit registry from values chunks (BugFix 2025-11-26).
         The registry in values chunks comes from LangGraph checkpoint (stale).
@@ -1201,36 +1193,36 @@ class StreamingService:
                     len(current_turn_registry) if current_turn_registry else 0
                 ),
                 has_registry=bool(chunk.get("registry")),
-                voice_context_already_set=bool(self.voice_context_registry),
+                voice_context_already_set=self._voice_scope.decided,
                 agent_results_changed=agent_results_changed,
                 current_agent_results_count=current_agent_results_count,
                 chunk_keys=list(chunk.keys())[:10],
             )
 
         # CRITICAL: Only capture when agent_results has CHANGED from checkpoint
-        # This indicates task_orchestrator has run and current_turn_registry is FRESH
-        if current_turn_registry and not self.voice_context_registry and agent_results_changed:
-            self.voice_context_registry = _serialize_registry_items(current_turn_registry)
-            logger.info(
-                "voice_context_registry_captured_early",
-                registry_items_count=len(self.voice_context_registry),
-                registry_ids=list(self.voice_context_registry.keys())[:5],
-                trigger="agent_results_changed",
-                current_agent_results_count=current_agent_results_count,
-            )
-        elif (
-            current_turn_registry and not self.voice_context_registry and not agent_results_changed
-        ):
-            logger.debug(
-                "voice_context_registry_skipped_stale",
-                registry_items_count=len(current_turn_registry),
-                reason="agent_results_unchanged_task_orchestrator_not_run",
-                checkpoint_ids_count=(
-                    len(self._checkpoint_agent_results_ids)
-                    if self._checkpoint_agent_results_ids
-                    else 0
-                ),
-            )
+        # This indicates task_orchestrator has run and current_turn_registry is FRESH.
+        # Refreshed until the answer begins: the initiative node merges records later.
+        if current_turn_registry and not self._voice_scope.decided:
+            if agent_results_changed:
+                if self._voice_scope.capture(_serialize_registry_items(current_turn_registry)):
+                    logger.info(
+                        "voice_context_registry_captured_early",
+                        registry_items_count=len(current_turn_registry),
+                        registry_ids=list(current_turn_registry.keys())[:5],
+                        trigger="agent_results_changed",
+                        current_agent_results_count=current_agent_results_count,
+                    )
+            else:
+                logger.debug(
+                    "voice_context_registry_skipped_stale",
+                    registry_items_count=len(current_turn_registry),
+                    reason="agent_results_unchanged_task_orchestrator_not_run",
+                    checkpoint_ids_count=(
+                        len(self._checkpoint_agent_results_ids)
+                        if self._checkpoint_agent_results_ids
+                        else 0
+                    ),
+                )
 
         # Log skipped registry (checkpoint data - will emit fresh from __end__)
         registry = chunk.get("registry")
@@ -1856,22 +1848,24 @@ class StreamingService:
                     )
                     return sse_chunks  # Complete returned message = duplicate; skip it.
 
-                # Gemini 3.x streams content as list[dict] blocks; normalize to
-                # text so the psyche check below and ChatStreamChunk stay str-safe.
-                content = coerce_content_to_text(message.content)
-
-                content = _strip_inline_tags(content)
-                if not content:
-                    return sse_chunks  # Nothing but tag fragments in this token.
-
-                token_chunk = self.format_token_chunk(content)
                 # Completed draft fast paths may publish the same AIMessage twice.
-                # Identity, never equal text, distinguishes a replay from another answer.
+                # Identity, never equal text, distinguishes a replay from another answer
+                # — decided before the tag filter reads it, so a replay never feeds its state.
                 if not isinstance(message, AIMessageChunk) and message.id:
                     if message.id in self._response_message_ids:
                         return sse_chunks
                     self._response_message_ids.add(message.id)
-                sse_chunks.append((token_chunk, content))
+
+                # Gemini 3.x streams content as list[dict] blocks; normalize to
+                # text so the tag filter and ChatStreamChunk stay str-safe.
+                content = self._machine_tags.feed(coerce_content_to_text(message.content))
+                # The character-0 selection is read before any visible character.
+                self._voice_scope.read(self._machine_tags.take_declarations())
+                if not content:
+                    return sse_chunks  # A tag, or what may still become one: nothing to show yet.
+
+                self._voice_scope.answer_began(content)
+                sse_chunks.append((self.format_token_chunk(content), content))
 
         return sse_chunks
 

@@ -5,7 +5,10 @@ whole session from the click to the farewell and is lowered under the voices, so
 a segment carries no music of its own — it would play twice. A segment opens on
 a short breath (the time the player takes to lower the music before the first
 word), pauses after every line, a little longer where one part gives way to the
-next (intro, body, outro), and ends on a short tail.
+next (intro, body, outro), and ends on a short tail. A line voiced inside a
+dialogue TAKE (several voices in one request, ADR-345) is a window of the take's
+file: two windows that follow each other in one take keep the take's own breath
+between the turns, and no pause is added there.
 
 Two halves, so the first can be tested without ffmpeg (absent on the CI
 runners, measured 2026-09-26): :func:`plan_segment` is PURE — it computes the
@@ -66,12 +69,38 @@ class MixParams:
 
 
 @dataclass(frozen=True, slots=True)
+class LineAudio:
+    """Where one verified line's voice is.
+
+    Attributes:
+        part: The script part the line belongs to.
+        path: The audio file — the line's own, or its take's.
+        start_s: Where the line starts in a take's file; ``None`` when the
+            file is the line's alone.
+        end_s: Where it ends in the take (``None``: at the file's end).
+    """
+
+    part: ScriptPart
+    path: Path
+    start_s: float | None = None
+    end_s: float | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class VoicedLine:
-    """One synthesised line, ready to mix."""
+    """One synthesised line, ready to mix.
+
+    Attributes:
+        part: The script part the line belongs to.
+        path: The audio file.
+        duration_s: How long the line lasts.
+        start_s: Where it starts in a take's file (``None``: a file of its own).
+    """
 
     part: ScriptPart
     path: Path
     duration_s: float
+    start_s: float | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,10 +131,17 @@ def _n(value: float) -> str:
 
 
 def _pause_after(lines: Sequence[VoicedLine], index: int, params: MixParams) -> float:
-    """The silence after line ``index``: the tail, a line gap, or a breath between parts."""
+    """The silence after line ``index``: the tail, a line gap, or a breath between parts.
+
+    Two windows of one take follow each other with nothing added: the take
+    already holds the breath between its turns.
+    """
     if index + 1 == len(lines):
         return params.tail_s
-    if lines[index + 1].part is lines[index].part:
+    line, following = lines[index], lines[index + 1]
+    if line.start_s is not None and following.start_s is not None and following.path == line.path:
+        return 0.0
+    if following.part is line.part:
         return params.line_gap_s
     return params.line_gap_s + params.part_gap_s
 
@@ -147,6 +183,9 @@ def plan_segment(
     )
     args: list[str] = []
     for line in lines:
+        if line.start_s is not None:
+            # A window of a take: decoded from its start, for its duration only.
+            args += ["-ss", _n(line.start_s), "-t", _n(line.duration_s)]
         args += ["-i", str(line.path)]
     args += [
         "-filter_complex",
@@ -188,8 +227,18 @@ async def _durations(paths: Sequence[Path], timeout_s: float) -> list[float]:
     return [task.result() for task in tasks]
 
 
+def _voiced(line: LineAudio, file_s: float) -> VoicedLine:
+    """``line`` with its duration: its file's, or its window's within a take."""
+    if line.start_s is None:
+        return VoicedLine(line.part, line.path, file_s)
+    end = file_s if line.end_s is None else min(line.end_s, file_s)
+    if end <= line.start_s:
+        raise ValueError("a window of a take must hold some audio")
+    return VoicedLine(line.part, line.path, end - line.start_s, line.start_s)
+
+
 async def assemble_segment(
-    lines: Sequence[tuple[ScriptPart, Path]],
+    lines: Sequence[LineAudio],
     out: Path,
     *,
     timeout_s: float,
@@ -198,7 +247,7 @@ async def assemble_segment(
     """Join a segment's voiced lines into ``out`` (atomically).
 
     Args:
-        lines: ``(part, audio file)`` per verified line, in script order.
+        lines: Every verified line's voice, in script order.
         out: The MP3 to produce; written to a sibling temporary file first and
             moved into place only when complete, so a reader never sees half.
         timeout_s: Ceiling for each probe and for the mix.
@@ -208,15 +257,15 @@ async def assemble_segment(
         The measured duration and each line's start in the output.
 
     Raises:
-        AudioAssemblyError: When a probe or the mix fails.
+        AudioAssemblyError: When a probe or the mix fails, or a window holds
+            no audio.
     """
     partial = out.with_name(f"{out.stem}.part.mp3")
     try:
-        durations = await _durations([path for _, path in lines], timeout_s)
-        voiced = [
-            VoicedLine(part, path, duration)
-            for (part, path), duration in zip(lines, durations, strict=True)
-        ]
+        # Each file once, however many windows of a take it holds.
+        files = list(dict.fromkeys(line.path for line in lines))
+        measured_files = dict(zip(files, await _durations(files, timeout_s), strict=True))
+        voiced = [_voiced(line, measured_files[line.path]) for line in lines]
         plan = plan_segment(voiced, partial, params)
         await run_ffmpeg(plan.args, timeout_s=timeout_s)
         os.replace(partial, out)
@@ -236,6 +285,7 @@ __all__ = [
     "AssembledAudio",
     "AssemblyPlan",
     "AudioAssemblyError",
+    "LineAudio",
     "MixParams",
     "VoicedLine",
     "assemble_segment",

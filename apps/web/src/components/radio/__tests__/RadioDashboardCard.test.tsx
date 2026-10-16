@@ -100,3 +100,55 @@ describe('RadioDashboardCard', () => {
     expect(player.start).not.toHaveBeenCalled();
   });
 });
+
+describe('RadioDashboardCard — the existing station command stays in place', () => {
+  it('keeps the focused command in place as playback state changes and exposes its pressed state', async () => {
+    const { user } = renderWithProviders(<RadioDashboardCard lng="en" enabled />);
+    const command = screen.getByRole('button', { name: 'radio.header.start' });
+    await user.tab();
+    expect(command).toHaveFocus();
+    expect(command).toHaveAttribute('aria-pressed', 'false');
+    await user.keyboard('{Enter}');
+    expect(player.start).toHaveBeenCalledTimes(1);
+
+    act(() => useRadioStore.getState().setView({ ...IDLE_RADIO_VIEW, status: 'playing' }));
+
+    expect(screen.getByRole('button', { name: 'radio.header.stop' })).toBe(command);
+    expect(command).toHaveFocus();
+    expect(command).toHaveAttribute('aria-pressed', 'true');
+    await user.keyboard('{Enter}');
+    expect(player.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it('retains focus and refuses repeat commands while the existing station is signing off', async () => {
+    act(() => useRadioStore.getState().setView({ ...IDLE_RADIO_VIEW, status: 'playing' }));
+    const { user } = renderWithProviders(<RadioDashboardCard lng="en" enabled />);
+    const command = screen.getByRole('button', { name: 'radio.header.stop' });
+    await user.tab();
+    act(() => useRadioStore.getState().setView({ ...IDLE_RADIO_VIEW, status: 'ending' }));
+
+    expect(command).toHaveFocus();
+    expect(command).not.toBeDisabled();
+    expect(command).toHaveAttribute('aria-disabled', 'true');
+    expect(command).toHaveAttribute('aria-busy', 'true');
+    await user.keyboard('{Enter} ');
+    await user.click(command);
+    expect(player.stop).not.toHaveBeenCalled();
+    expect(player.start).not.toHaveBeenCalled();
+  });
+
+  it('does not start or stop a session when its station name updates or the card rerenders', async () => {
+    const { rerender } = renderWithProviders(<RadioDashboardCard lng="en" enabled />);
+    await screen.findByRole('heading', { name: 'radio.station_name' });
+    act(() =>
+      useRadioStore
+        .getState()
+        .setView({ ...IDLE_RADIO_VIEW, status: 'playing', stationName: 'Radio Matin' })
+    );
+    rerender(<RadioDashboardCard lng="en" enabled />);
+    expect(screen.getByRole('heading', { name: 'Radio Matin' })).toBeVisible();
+    expect(screen.getByText('radio.page.subtitle')).toBeVisible();
+    expect(player.start).not.toHaveBeenCalled();
+    expect(player.stop).not.toHaveBeenCalled();
+  });
+});

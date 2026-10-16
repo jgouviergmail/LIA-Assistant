@@ -81,6 +81,7 @@ export function queryResult<T>(over: Partial<UseApiQueryResult<T>> = {}): UseApi
     error: null,
     refetch: vi.fn().mockResolvedValue(undefined),
     refetchVerified: vi.fn().mockResolvedValue(true),
+    acceptData: vi.fn().mockReturnValue(true),
     setData: vi.fn(),
     ...over,
   };

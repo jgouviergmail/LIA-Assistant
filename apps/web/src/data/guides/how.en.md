@@ -73,7 +73,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), credentials encrypted with Fernet, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 618 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 342 ADRs, 59,000+ automated backend and frontend tests, native observability, 6-level HITL |
+| Production reliability | 345 ADRs, 59,000+ automated backend and frontend tests, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -94,7 +94,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Tests | 59,000+ automated tests with pytest and Vitest (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 1,082, 48 of them shared through conftest |
 | Documentation documents | 716 |
-| ADRs (Architecture Decision Records) | 342 |
+| ADRs (Architecture Decision Records) | 345 |
 | Prometheus metrics | 618 definitions |
 | Grafana dashboards | 31 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -483,9 +483,11 @@ The contract is deliberately **asymmetric**: everything published must be produc
 
 Coverage is stated rather than assumed: what a tool's shape makes hard to drive is costed and dated in a debt file instead of being left implicit. At runtime the net is `ReferenceResolver`, which raises an explicit error rather than resolving to nothing.
 
-### 6.6. Adaptive Re-Planner (Panic Mode)
+### 6.6. Corrected before it runs, said when it fails (Panic Mode)
 
-When execution fails, a rule-based (no LLM) analyser classifies the failure pattern (empty results, partial failure, timeout, reference error) and selects a recovery strategy: retry same, replan with broader scope, escalate to user, or abort. That decision is **advisory**: it is logged and counted on every failure, which makes the failure modes measurable, without the orchestrator applying it automatically — partial results are surfaced rather than discarded. In **Panic Mode**, the SmartCatalogue expands to include all tools for a single retry — catching the cases where domain filtering is too aggressive.
+A plan is corrected while correcting it is still free: **before** it runs. Beyond the validator's bounded re-plans (6.4), **Panic Mode** catches the cases where domain filtering was too aggressive: when the filtered catalogue leaves the planner no workable plan, planning is retried once over a wider catalogue.
+
+Once a plan has run, nothing is replayed behind the person's back. A transient provider failure is already retried inside the client that met it, with backoff behind a circuit breaker; an inactive connector or a refused account cannot be planned away; an empty result is an answer; and a failed act is never replayed under its key (ADR-263). So every failed step reaches the response **whole**, and the failures directive states it — which tool, why, and the exact count (ADR-303). A counter by typed error code makes the failure modes measurable, including a failure that happens before a tool is even called, such as a reference to an earlier step that could not be resolved. The mode that corrects itself is ReAct, which the person chooses (ADR-310); after execution, the pipeline says what failed and never guesses a recovery (ADR-346).
 
 ---
 
@@ -603,6 +605,8 @@ Phase 8 submitted the **complete plan** to the user **before** any execution: a 
 | `DESTRUCTIVE_CONFIRM` | None today: registered, emitted by no node | — |
 
 **What has nothing to confirm.** An action asks nothing when nothing can divert it. The e-mail to oneself (ADR-314) has no recipient parameter: the address is the one the connected mailbox's provider states, or, without a mailbox, the account's verified address through LIA's relay — so no third-party text can redirect it. The tool declares `reversible` with its written reason, so a routine can send its result where a draft is refused. A typed address that happens to be one's own still goes through the draft: a recipient that sometimes skipped confirmation would be an injection target.
+
+**Mailbox drafts** (ADR-344) follow the same rule: saving a draft, preparing a reply or a forward as a draft, editing it or moving it to the trash reaches nobody — the draft stays in the person's mailbox and the trash can be undone — so nothing is asked. Only sending goes through a card, which shows the draft as the mailbox holds it and carries its fingerprint: a draft edited in the mailbox meanwhile is not sent, and a change asked on the card is written before it leaves.
 
 ### 9.3. Draft critique: one description, one question per draft
 
@@ -902,7 +906,7 @@ Wake word "Dis LIA": the openWakeWord architecture — a shared melspectrogram a
 
 ### 15.2. TTS
 
-**Catalogue-driven** factory (ADR-081): `factory.get_tts_client()` reads the active `voice_tts` override (provider + model + voice + tuning, stored in `llm_config_overrides.voice_tts.provider_config` JSONB) and instantiates the matching client. Three providers shipped: Edge (free, default), OpenAI (`tts-1` / `tts-1-hd`), and ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`). When a paid provider's API key is missing, the factory falls back to Edge transparently (logged warning). Progressive sentence-by-sentence streaming via `ProgressiveSentenceStreamer` (ADR-082) to minimize latency — the first sentence is synthesized while the LLM still generates the rest. A delimiter closes a sentence only at end of input or when followed by a space (ADR-154): on the progressive path the buffer grows token by token, so `"3."` is a perfectly normal transient state — decimals, prices, version numbers and URLs stay in one piece, and both splitters (`_extract_sentences` and the streamer) are pinned by a shared case table plus a test that requires them to agree.
+**Catalogue-driven** factory (ADR-081): `factory.get_tts_client()` reads the active `voice_tts` override (provider + model + voice + tuning, stored in `llm_config_overrides.voice_tts.provider_config` JSONB) and instantiates the matching client. Five providers ship: Edge (free, default), OpenAI (`tts-1` / `tts-1-hd`), ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`), Gemini and Fish Audio (`s2.1-pro`, `s2-pro`, `drama-3`). Every heard sentence goes through one door (`voice/spoken.speak`) and is billed once, in the unit of the engine that spoke — characters, UTF-8 bytes for Fish Audio, reported tokens for Gemini — and every Fish Audio request, like every ElevenLabs synthesis, takes one slot of its vendor account's shared allowance. A person may give LIA two voices of their own among the engine's (`users.lia_voices`, kept per provider: a model change keeps them): the chat reads them at its one voice seam, forgivingly — a voice no longer offered speaks with the administrator's. One cue vocabulary gets a dialect per engine: LIA writes cues only in text meant to be spoken, and text it reads aloud never turns a bracket into a cue (ADR-345). When a paid provider's API key is missing, the factory falls back to Edge transparently (logged warning). Progressive sentence-by-sentence streaming via `ProgressiveSentenceStreamer` (ADR-082) to minimize latency — the first sentence is synthesized while the LLM still generates the rest. A delimiter closes a sentence only at end of input or when followed by a space (ADR-154): on the progressive path the buffer grows token by token, so `"3."` is a perfectly normal transient state — decimals, prices, version numbers and URLs stay in one piece, and both splitters (`_extract_sentences` and the streamer) are pinned by a shared case table plus a test that requires them to agree.
 
 ---
 
@@ -1544,7 +1548,7 @@ One CSS rule governs the design system's spacing: vertical margins on an `inline
 
 ## 24. Architecture Decision Records (ADR)
 
-342 ADRs in MADR format document the major architectural decisions. Some representative examples:
+345 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1817,7 +1821,7 @@ The companion's face does not take its end-of-turn expression from the psyche's 
 
 **The meeting row is the durable job.** Its status carries the whole lifecycle — recording, interrupted, stopped, processing, ready or failed — and every transition is one conditional `UPDATE`. The processing claim takes a lease, heartbeats renew it while publishing the stage the page shows (normalizing, transcribing, synthesizing, indexing), a lost heartbeat aborts every later effect, and reapers re-drive stopped orphans and expired leases within a bounded attempt budget. Refusals that are not pipeline failures — a usage limit, no engine available — release the job without consuming an attempt. And since a bulk update leaves SQLAlchemy's identity map stale, every read that follows one expires the session first — otherwise a stop could still answer `status: recording`.
 
-**Engines form a chain, and the chain is walked twice.** Once before the first second, from the provider-key cache only: the administrator's speech slot, then ElevenLabs Scribe or OpenAI `gpt-4o-transcribe-diarize` — whole file, speakers separated — then the local Whisper engine. The local path never stops at a single thirty-second window, which would silently return only the first thirty seconds of anything longer — a defect a voice command never meets and a meeting always would: long audio is cut by Silero VAD into speech windows of at most twenty seconds, each decoded on its own, with fixed windows when the model is absent — never truncation. The chain is walked again at processing time: a permanent fault of one provider (a refused key, a file it cannot take) hands over to the next engine within the user's preference; only silence, which says something about the audio, or a transient fault, which belongs to the retry budget, stops the walk. Without that second walk, a misconfigured key at the head of the chain would fail every meeting while a valid key waits one step down.
+**Engines form a chain, and the chain is walked twice.** Once before the first second, from the provider-key cache only: the administrator's speech slot, then ElevenLabs Scribe, OpenAI `gpt-4o-transcribe-diarize` or Fish Audio `transcribe-1-pro` — whole file, speakers separated, a recording longer than Fish Audio takes in one request skipped before the upload — then the local Whisper engine. The local path never stops at a single thirty-second window, which would silently return only the first thirty seconds of anything longer — a defect a voice command never meets and a meeting always would: long audio is cut by Silero VAD into speech windows of at most twenty seconds, each decoded on its own, with fixed windows when the model is absent — never truncation. The chain is walked again at processing time: a permanent fault of one provider (a refused key, a file it cannot take) hands over to the next engine within the user's preference; only silence, which says something about the audio, or a transient fault, which belongs to the retry budget, stops the walk. Without that second walk, a misconfigured key at the head of the chain would fail every meeting while a valid key waits one step down.
 
 **The template is the contract, and the model is not trusted to honour it byte for byte.** The user's sections — key, label, instruction, kind — are rendered into one structured-output call; when the transcript overflows the model's window it is condensed part by part first, so a 128k model still produces faithful minutes for a three-hour meeting. The model answers a permissive shape, and a repair step folds it into the strict report: sections it skipped come back empty, sections it invented are dropped, a payload in the wrong shape for its kind is converted, participants are restricted to speaker labels that actually spoke. The generated report is immutable; what the user edits is a copy, « restore » copies back, « rebuild » re-runs the synthesis on the stored transcript with the current template. One serializer produces the Markdown the « Meetings » knowledge space indexes (found by role, one document per meeting rewritten in place and deleted with it), the sectioned content the PDF renderer turns into a file, and the HTML the email carries — so the three can never disagree.
 
@@ -1945,8 +1949,8 @@ The oMLX, llama.cpp and LM Studio studies and the isometric world are qualificat
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 342 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The 59,000+ automated tests, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 345 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The 59,000+ automated tests, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (700+ documents), 342 ADRs, and the changelog (v1.0 to v3.0.1). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (700+ documents), 345 ADRs, and the changelog (v1.0 to v3.0.1). All metrics, versions, and patterns cited are verifiable in the codebase.*

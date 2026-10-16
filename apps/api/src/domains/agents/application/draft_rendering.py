@@ -34,13 +34,15 @@ from src.domains.agents.application.interest_rendering import (
     interest_removal_preview,
     interest_update_preview,
 )
-from src.domains.agents.application.journal_consolidation import canonical_journal_consolidation
 from src.domains.agents.application.journal_consolidation_rendering import (
     journal_consolidation_preview,
 )
+from src.domains.agents.application.journal_consolidation_schemas import (
+    canonical_journal_consolidation,
+)
 from src.domains.agents.application.journal_creation_rendering import journal_creation_preview
-from src.domains.agents.application.journal_feedback import canonical_journal_feedback
 from src.domains.agents.application.journal_feedback_rendering import journal_feedback_preview
+from src.domains.agents.application.journal_feedback_schemas import canonical_journal_feedback
 from src.domains.agents.application.journal_removal import canonical_journal_removal
 from src.domains.agents.application.journal_removal_rendering import journal_removal_preview
 from src.domains.agents.application.journal_update import canonical_journal_update

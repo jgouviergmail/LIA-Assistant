@@ -67,3 +67,17 @@ statically against the audited snapshots (`1c1c5d66`, re-verified on `c5955b73`)
   `COMPOSE_PROFILES=observability`; the release note must call out both migration lines.
 - CI gains hermetic installer gates (unit, Compose matrix, Python 3.10 contract) on every
   branch and a manual-dispatch-only disposable smoke behind a reviewer-protected environment.
+
+## Amendment 2026-10-15 — concurrent provider-key writes
+
+The shared uncommitted provider-key helper now performs one PostgreSQL UPSERT.
+Concurrent first inserts serialize on the provider's unique key instead of
+turning the second write into an integrity failure. `RETURNING` refreshes an
+already-loaded ORM row; the caller still owns audit, commit and cache reload.
+The bootstrap remains one transaction with secrets supplied through stdin.
+
+Administrative key changes additionally lock the provider row before the active
+administrator row, rechecking current authority through commit. Disposable
+PostgreSQL tests cover revocation, first-insert concurrency, read-your-write,
+audit and invalidation. This does not qualify a live provider or change an
+adapter's existing environment fallback policy.

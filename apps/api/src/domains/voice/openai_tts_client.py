@@ -19,16 +19,17 @@ Updated: 2026-01-15 - Use generic TTS config keys
 Updated: 2026-05-07 - Configured via llm_config_overrides.voice_tts (ADR-081)
 """
 
-import base64
 import time
 from typing import Literal
 
+import openai
 import structlog
 from openai import AsyncOpenAI
 
 from src.domains.llm_config.cache import LLMConfigOverrideCache
 from src.domains.voice.exceptions import TTSProviderError
 from src.domains.voice.protocol import RawAudioSpec
+from src.domains.voice.vendor_refusal import Refusal, bounded_code
 from src.infrastructure.observability.metrics_voice import (
     voice_tts_errors_total,
     voice_tts_latency_seconds,
@@ -41,6 +42,35 @@ logger = structlog.get_logger(__name__)
 OpenAITTSModel = Literal["tts-1", "tts-1-hd"]
 OpenAITTSVoice = Literal["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
 OpenAITTSFormat = Literal["mp3", "opus", "aac", "flac", "wav", "pcm"]
+
+
+def _classified(error: Exception) -> tuple[str, str, dict[str, object]]:
+    """A failure's code, metric label and facts, read from its TYPE — never its message.
+
+    The SDK's message is ``Error code: <status> - <body>``, and the body may quote
+    the line refused (ADR-317); read for words, every message holding
+    « generate » was filed as a rate limit, and « Request timed out. » as an HTTP
+    error. A refusal is its status and the vendor's bounded code; a timeout is a
+    connection error the SDK names apart, so it is read first.
+
+    Returns:
+        ``(TTSProviderError code, voice_tts_errors_total error_type, details)``.
+    """
+    if isinstance(error, openai.APITimeoutError):
+        return "provider_timeout", "network_error", {"exception_type": type(error).__name__}
+    if isinstance(error, openai.APIConnectionError):
+        return "provider_network_error", "network_error", {"exception_type": type(error).__name__}
+    if isinstance(error, openai.APIStatusError):
+        facts = Refusal(status=error.status_code, vendor_code=bounded_code(error.code)).details()
+        if isinstance(error, openai.RateLimitError):
+            return "provider_rate_limited", "rate_limit", facts
+        error_type = (
+            "auth_error"
+            if isinstance(error, openai.AuthenticationError | openai.PermissionDeniedError)
+            else "synthesis_error"
+        )
+        return "provider_http_error", error_type, facts
+    return "provider_http_error", "synthesis_error", {"exception_type": type(error).__name__}
 
 
 class OpenAITTSClient:
@@ -198,27 +228,16 @@ class OpenAITTSClient:
             voice_tts_latency_seconds.labels(voice_name=voice).observe(request_duration)
             voice_tts_requests_total.labels(status="error", voice_name=voice).inc()
 
-            # Categorize error type
-            error_str = str(e).lower()
-            if "rate" in error_str or "limit" in error_str:
-                error_type = "rate_limit"
-                code = "provider_rate_limited"
-            elif "auth" in error_str or "key" in error_str:
-                error_type = "auth_error"
-                code = "api_key_missing"
-            elif "connect" in error_str or "timeout" in error_str:
-                error_type = "network_error"
-                code = "provider_network_error"
-            else:
-                error_type = "synthesis_error"
-                code = "provider_http_error"
-
+            code, error_type, details = _classified(e)
             voice_tts_errors_total.labels(error_type=error_type, voice_name=voice).inc()
 
+            # Its facts, never its prose: the SDK's message quotes the body.
             logger.error(
                 "openai_tts_error",
-                error=str(e),
                 error_type=type(e).__name__,
+                error_code=code,
+                status_code=details.get("status_code"),
+                vendor_code=details.get("vendor_code"),
                 text_length=len(text),
                 voice=voice,
                 model=model,
@@ -228,43 +247,9 @@ class OpenAITTSClient:
             # ElevenLabs).
             raise TTSProviderError(
                 code=code,
-                message=f"OpenAI TTS failure: {e}",
-                details={"exception_type": type(e).__name__},
+                message=f"OpenAI TTS failed ({type(e).__name__})",
+                details=details,
             ) from e
-
-    async def synthesize_base64(
-        self,
-        text: str,
-        voice_name: str | None = None,
-        model: str | None = None,
-        speed: float | None = None,
-        response_format: OpenAITTSFormat | None = None,
-        **kwargs: object,
-    ) -> str:
-        """
-        Synthesize text to base64-encoded audio.
-
-        Convenience method that returns base64 string directly.
-
-        Args:
-            text: Text to synthesize.
-            voice_name: OpenAI voice name (required).
-            model: TTS model (overrides instance default).
-            speed: Speaking speed (overrides instance default).
-            response_format: Audio format (overrides instance default).
-            **kwargs: Additional arguments (ignored for compatibility).
-
-        Returns:
-            Base64-encoded audio string.
-        """
-        audio_bytes = await self.synthesize(
-            text=text,
-            voice_name=voice_name,
-            model=model,
-            speed=speed,
-            response_format=response_format,
-        )
-        return base64.b64encode(audio_bytes).decode("utf-8")
 
     async def close(self) -> None:
         """Close resources (cleanup for OpenAI client)."""

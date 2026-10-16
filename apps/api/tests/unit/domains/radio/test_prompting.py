@@ -262,6 +262,28 @@ def test_a_journal_without_an_edition_or_an_edition_without_the_journal_is_refus
         replace(request(RadioFormat.BRIEF, news("n1", "A story.")), edition=JournalEdition.NOON)
 
 
+def test_a_segment_that_names_the_station_is_told_the_name_to_say() -> None:
+    """Measured 2026-10-14 on dev: told « names the station: yes » alone, the name given once
+    in a prefix that went on « … the personal radio station LIA runs », nine openings in
+    ten called a station its listener had named otherwise « LIA »."""
+    station = replace(STATION, station_name="Radio Horizon")
+    opening = replace(request(RadioFormat.OPENING), station_name="Radio Horizon")
+    split = split_at_marker(render_writer_prompt(WRITER, opening, station, quote_max_chars=120))
+    assert split is not None
+    assert "« Radio Horizon »" in split.static
+    context = split.dynamic.split("\nCONTEXT:\n", 1)[1].split("\nALREADY HEARD:\n", 1)[0]
+    assert "- names the station: yes, as « Radio Horizon »\n" in context
+    brief = replace(
+        request(RadioFormat.BRIEF, news("n1", "A story.")),
+        station_name="Radio Horizon",
+        station_id=False,
+    )
+    unnamed = split_at_marker(render_writer_prompt(WRITER, brief, station, quote_max_chars=120))
+    assert unnamed is not None
+    assert "- names the station: no\n" in unnamed.dynamic
+    assert "Radio Horizon" not in unnamed.dynamic
+
+
 def test_only_a_format_the_host_speaks_is_told_the_listeners_name() -> None:
     assert "Alex" in writer(RadioFormat.OPENING)
     assert "Alex" not in writer(RadioFormat.BULLETIN, news("n1", "A story."))

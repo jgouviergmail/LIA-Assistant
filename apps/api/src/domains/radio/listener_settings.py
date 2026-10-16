@@ -3,13 +3,14 @@
 The settings page is offered exactly what a write accepts (ADR-184), and a
 write refuses what a session would drop (ADR-245: the write path rejects, the
 runtime coerces): a timer past the instance's maximum, a voice the radio's
-engine does not offer in the listener's language, a personality that is not
-offered any more. What the page READS obeys the same rule: a stored voice the
-engine no longer offers — its engine was changed, its language too — reads as
-automatic, since sent back it would refuse every save. A site is looked for
-before it is shown, and looked for AGAIN when it is added: the address a page
-previewed a minute ago may lead elsewhere now, and only what the server found
-is stored.
+engine does not offer in the listener's language, a commentator given a voice
+the cast would silence (LIA's, the moderator's, another commentator's), a
+personality that is not offered any more. What the page READS obeys the same
+rule: a stored voice the engine no longer offers — its engine was changed, its
+language too — reads as automatic, since sent back it would refuse every save.
+A site is looked for before it is shown, and looked for AGAIN when it is added:
+the address a page previewed a minute ago may lead elsewhere now, and only what
+the server found is stored.
 """
 
 from __future__ import annotations
@@ -24,8 +25,8 @@ import structlog
 from src.core.config import settings
 from src.core.i18n import normalize_language
 from src.domains.personalities.models import Personality
-from src.domains.radio.adapters import aired_ledger, radio_engine, radio_engine_key
-from src.domains.radio.cast import usable_voices
+from src.domains.radio.adapters import aired_ledger, radio_engine, radio_voices_key
+from src.domains.radio.cast import shared_voice
 from src.domains.radio.constants import SOURCE_DISCOVERY_TIMEOUT_S, SOURCE_LABEL_MAX_CHARS
 from src.domains.radio.editorial import NEWS_MAX_AGE_S
 from src.domains.radio.errors import (
@@ -33,6 +34,7 @@ from src.domains.radio.errors import (
     SOURCE_LIMIT,
     SOURCE_REFUSED,
     TIMER_TOO_LONG,
+    VOICE_SHARED,
     VOICE_UNKNOWN,
     raise_source_not_found,
     refuse,
@@ -61,6 +63,7 @@ from src.domains.radio.setup import VerificationMode
 from src.domains.radio.setup_builder import RadioStartRefused
 from src.domains.radio.sources_view import sources_overview
 from src.domains.radio.wiring import newsroom_client, newsroom_robots
+from src.domains.voice.engine_voices import usable_voices
 from src.domains.voice.voices_catalog import VoiceOption
 from src.infrastructure.database.session import get_db_context
 from src.infrastructure.observability.metrics_radio import radio_source_lookups_total
@@ -114,7 +117,7 @@ async def listener_preferences(user_id: UUID, language: str) -> RadioPreferences
         language reads as automatic (an engine that cannot list its voices
         right now keeps the stored choice: it cannot tell).
     """
-    preferences = await read_preferences(user_id, engine=await radio_engine_key())
+    preferences = await read_preferences(user_id, engine=await radio_voices_key())
     if not preferences.voices:
         return preferences
     offered = {voice.voice_id for voice in await offered_voices(normalize_language(language))}
@@ -144,8 +147,8 @@ async def save_preferences(
         The settings as stored.
 
     Raises:
-        BaseAPIException: ``radio_timer_too_long``, ``radio_voice_unknown`` or
-            ``radio_personality_unknown``.
+        BaseAPIException: ``radio_timer_too_long``, ``radio_voice_unknown``,
+            ``radio_voice_shared`` or ``radio_personality_unknown``.
     """
     timer_max = settings.radio_timer_max_minutes
     if preferences.timer_minutes is not None and preferences.timer_minutes > timer_max:
@@ -156,11 +159,13 @@ async def save_preferences(
         # the cast reads a stored choice forgivingly anyway.
         if offered and not set(preferences.voices.values()) <= offered:
             refuse(VOICE_UNKNOWN)
+        if shared_voice(preferences.voices):
+            refuse(VOICE_SHARED)
     if preferences.personality_id is not None and not await _personality_offered(
         preferences.personality_id
     ):
         refuse(PERSONALITY_UNKNOWN)
-    return await write_preferences(user_id, preferences, engine=await radio_engine_key())
+    return await write_preferences(user_id, preferences, engine=await radio_voices_key())
 
 
 async def look_for_feed(address: str) -> Discovery:
@@ -233,7 +238,7 @@ async def listener_sources(user_id: UUID, *, now: datetime) -> RadioSourcesRespo
         The base sources and their own sites, each with what it published within
         the window a programme airs from and how many of those they never heard.
     """
-    preferences = await read_preferences(user_id, engine=await radio_engine_key())
+    preferences = await read_preferences(user_id, engine=await radio_voices_key())
     heard_keys, heard_stories = await (await aired_ledger(user_id)).heard()
     return sources_overview(
         catalogue=CATALOGUE,

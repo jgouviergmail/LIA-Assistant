@@ -51,6 +51,22 @@ export function DocumentsCard({
   );
 }
 
+function documentTypeKey(mime: string | null): string {
+  if (mime === 'application/pdf') return 'type_pdf';
+  if (mime?.includes('spreadsheet') || mime === 'application/vnd.ms-excel') {
+    return 'type_spreadsheet';
+  }
+  if (
+    mime?.startsWith('text/') ||
+    mime?.includes('wordprocessingml') ||
+    mime === 'application/msword' ||
+    mime === 'application/vnd.google-apps.document'
+  ) {
+    return 'type_text';
+  }
+  return 'type_file';
+}
+
 function DocumentsContent({
   data,
   onOpenChat,
@@ -81,8 +97,7 @@ function DocumentsContent({
             ariaLabel={intent}
             tooltip={doc.name}
             onSelect={() => onOpenChat(intent)}
-            align="center"
-            contentClassName="flex items-baseline justify-between gap-2 text-sm"
+            contentClassName="flex flex-col gap-1.5 leading-snug"
             actions={[
               {
                 icon: Sparkles,
@@ -114,9 +129,15 @@ function DocumentsContent({
                 : []),
             ]}
           >
-            <span className="truncate font-medium text-foreground/90">{doc.name}</span>
-            <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+            <span className="flex items-center gap-1.5 text-xs font-medium text-indigo-700 dark:text-indigo-300 tabular-nums">
+              <FileText className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
               {doc.modified_local}
+            </span>
+            <span className="line-clamp-2 break-words text-sm font-semibold text-foreground/90">
+              {doc.name}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {t(`dashboard.briefing.cards.documents.${documentTypeKey(doc.mime_type)}`)}
             </span>
           </CardItemRow>
         );

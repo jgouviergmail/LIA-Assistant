@@ -7,6 +7,9 @@ vi.mock('@/lib/api-client', async importOriginal => {
   const original = await importOriginal<typeof import('@/lib/api-client')>();
   return { ...original, default: { get } };
 });
+vi.mock('@/lib/logger', () => ({
+  logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+}));
 import { useApplicationAccountQuery } from '../useApplicationAccountQuery';
 
 beforeEach(() => {
@@ -130,5 +133,35 @@ describe('application account queries', () => {
       await result.current.refetch();
     });
     expect(result.current.data?.count).toBe(3);
+  });
+
+  it('does not expose the former account error while the next account is still loading', async () => {
+    get.mockRejectedValueOnce(new Error('private account one failure'));
+    const { result, rerender } = renderHook(() =>
+      useApplicationAccountQuery<{ value: string }>('/briefing/cards', 'test')
+    );
+    await waitFor(() => expect(result.current.error?.message).toBe('private account one failure'));
+    get.mockImplementationOnce(() => new Promise(() => {}));
+    useAuth.mockReturnValue({ user: { id: 'two' } });
+    rerender();
+    expect(result.current.error).toBeNull();
+  });
+
+  it('accepts a current server success without letting an old account callback replace it', async () => {
+    get.mockResolvedValueOnce({ value: 'one' });
+    const { result, rerender } = renderHook(() =>
+      useApplicationAccountQuery<{ value: string }>('/briefing/cards', 'test')
+    );
+    await waitFor(() => expect(result.current.data?.value).toBe('one'));
+    const oldAccept = result.current.acceptData;
+    get.mockImplementationOnce(() => new Promise(() => {}));
+    useAuth.mockReturnValue({ user: { id: 'two' } });
+    rerender();
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(2));
+    act(() => result.current.acceptData({ value: 'two POST' }));
+    act(() => oldAccept({ value: 'one late POST' }));
+    expect(result.current.data?.value).toBe('two POST');
+    expect(result.current.error).toBeNull();
+    expect(result.current.loading).toBe(false);
   });
 });

@@ -262,11 +262,15 @@ et ne lit rien de tout cela.
 
 L'instruction est composée à partir des **mots du propriétaire uniquement** :
 titre, description, et — pour un ticket décomposé — le titre du parent et ceux
-des frères. **Les commentaires n'y entrent jamais** : un pair qui détient un
-ticket peut en écrire un, et un commentaire porté dans un tour sans surveillance
-serait un inconnu dictant ce que LIA fait avec le compte, les outils et le quota
-d'un autre. La règle tient par la FORME : le module ne demande au repository que
-deux choses, et aucune n'est un commentaire.
+des frères. **Les commentaires d'un pair n'y entrent jamais** : un pair qui
+détient un ticket peut en écrire un, et un commentaire porté dans un tour sans
+surveillance serait un inconnu dictant ce que LIA fait avec le compte, les
+outils et le quota d'un autre. **Ceux du propriétaire y entrent** depuis le
+lot 7, les plus récents écrits depuis le dernier run (bornés par
+`workboard_brief_max_notes`) : sa réponse à une confirmation passe par là. La
+règle tient par la FORME : la seule requête de commentaires que pose le module
+(`owner_notes_since`) prend le propriétaire pour auteur et fixe le type `user`,
+si bien que les mots d'un pair ne peuvent pas en revenir, quel que soit l'appel.
 
 **Un run dit qu'il commence APRÈS le bail, jamais à la revendication** : une
 revendication rendue ensuite (quota, conversation occupée) serait un « LIA a

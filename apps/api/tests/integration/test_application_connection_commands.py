@@ -27,6 +27,7 @@ from src.domains.agents.tools.application_connection_tools import (
 from src.domains.agents.tools.react_tool_wrapper import extract_data_for_llm
 from src.domains.connectors.models import Connector, ConnectorStatus, ConnectorType
 from src.domains.users.models import User
+from tests.helpers.draft_refusals import draft_refusal_code
 from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
 
 pytestmark = pytest.mark.integration
@@ -155,12 +156,12 @@ async def test_native_confirmation_respects_current_state_and_reports_postcommit
         await async_session.scalar(select(Connector.id).where(Connector.id == target_id)) is None
     ) is removed
     if intervention == "manual":
-        assert outcome.error == "STALE_STATE"
+        assert draft_refusal_code(outcome) == "STALE_STATE"
     if intervention == "platform_off":
-        assert outcome.error == "CAPABILITY_DISABLED"
+        assert draft_refusal_code(outcome) == "CAPABILITY_DISABLED"
         ledger.claim.assert_not_awaited()
     if intervention == "cache_fault":
-        assert outcome.error == "POST_COMMIT_FAILURE"
+        assert draft_refusal_code(outcome) == "POST_COMMIT_FAILURE"
     hints = [queue.get_nowait() for _ in range(queue.qsize())]
     hints = [event for event in hints if event.type == "application_state_changed"]
     assert len(hints) == int(removed)

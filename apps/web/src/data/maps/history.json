@@ -2542,6 +2542,27 @@
       "theme": "memory",
       "functional": ["f.journals", "f.memory", "f.interests", "f.habits", "f.relations", "f.openloops", "f.workboard", "f.routines", "f.reminders", "f.bookmarks"],
       "technical": ["t.promptsys"]
+    },
+    {
+      "adr": 344,
+      "date": "2026-10-13",
+      "theme": "connectors",
+      "functional": ["f.mail", "f.hitl"],
+      "technical": ["t.connclients", "t.toolsys", "t.hitl"]
+    },
+    {
+      "adr": 345,
+      "date": "2026-10-14",
+      "theme": "voice",
+      "functional": ["f.voice", "f.radio", "f.meetings", "f.costs", "f.llmconfig", "f.admin"],
+      "technical": ["t.voiceinfra", "t.pricing", "t.catalogue", "t.radio"]
+    },
+    {
+      "adr": 346,
+      "date": "2026-10-14",
+      "theme": "orchestration",
+      "functional": ["f.planning"],
+      "technical": ["t.planner", "t.metrics"]
     }
   ]
 }

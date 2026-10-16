@@ -43,7 +43,14 @@ logger = structlog.get_logger(__name__)
 # discriminants, never inferred from a requested call or a model's wording.
 DRAFT_FAMILIES: dict[str, ActivityFamily] = {
     **dict.fromkeys(
-        ("email", "email_reply", "email_forward", "phone_call", "peer_message"),
+        (
+            "email",
+            "email_reply",
+            "email_forward",
+            "mailbox_draft_send",
+            "phone_call",
+            "peer_message",
+        ),
         "communicating",
     ),
     **dict.fromkeys(

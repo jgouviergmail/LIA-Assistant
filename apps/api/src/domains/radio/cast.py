@@ -1,26 +1,33 @@
 """Who speaks: one voice per role, from the voice engine the radio is configured on.
 
-The person may choose a voice per role; the choice is STORED as a voice id and
-read FORGIVINGLY here, because the engine behind the radio's voice slot is an
-administrator's setting that can change after the choice was made: an id the
+The person may choose a voice for every role — the station's team and its
+commentators (2026-10-16: the commentators were the station's alone, so a debate or
+a discussion was heard in voices nobody had chosen). The choice is STORED as a voice
+id and read FORGIVINGLY here, because the engine behind the radio's voice slot is
+an administrator's setting that can change after the choice was made: an id the
 current catalogue does not hold is dropped and the role falls back to a default,
 never to an error (writes are strict, reads are forgiving).
 
-The defaults give every role its own voice when the catalogue allows it and
-alternate genders along the roles, so a two-voice format (the analysis: anchor
-and expert) is heard as a dialogue. The station's COMMENTATORS (a debate's, a
-discussion's) are never the listener's choice: they take the voices nobody else
-speaks with first, then the expert's and the editorialist's (who never speak in
-their programmes), then the moderator's (heard in a discussion, where the moderator
-does not speak), and a commentator left with LIA's voice or another speaker's of the
-same programme stays silent (:meth:`Cast.voiced_roles`) — LIA never argues a view,
-and two opposed views are never heard in one voice. How many DISTINCT
-voices a programme's roles are left with is what the grid reads to allow or
-refuse it — a cast never schedules a conversation it cannot perform.
+Every voice the person chose is placed first, so no default ever takes one of them.
+The defaults give every role of the team its own voice when the catalogue allows it
+and alternate genders along the roles, so a two-voice format (the analysis: anchor
+and expert) is heard as a dialogue. A COMMENTATOR (a debate's, a discussion's) left
+automatic takes the voices nobody else speaks with first, then the expert's and
+the editorialist's (who never speak in their programmes), then the moderator's
+(heard in a discussion, where the moderator does not speak), and a commentator left
+with LIA's voice or another speaker's of the same programme stays silent
+(:meth:`Cast.voiced_roles`) — LIA never argues a view, and two opposed views are
+never heard in one voice. The voices a commentator may not share are DERIVED from
+the programmes (:data:`VOICES_APART`), so what a write refuses (:func:`shared_voice`)
+is exactly what the cast would silence. How many DISTINCT voices a programme's roles
+are left with is what the grid reads to allow or refuse it — a cast never schedules
+a conversation it cannot perform.
 
 An engine whose voices each speak one language (the family says so) is cast
 among the voices of the listener's language; when it has none, among all of
-them, because a voice with an accent beats no programme. A stored choice
+them, because a voice with an accent beats no programme. An engine whose
+voices speak every language offers them all, those native to the listener's
+language first: speaking a language is not speaking it without an accent. A stored choice
 outside the voices usable for the listener's language falls back too: the
 settings only ever offer usable ones, so such a choice means the language
 changed since it was made.
@@ -32,17 +39,53 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from types import MappingProxyType
+from typing import Final
 
-from src.core.i18n_types import canonical_language
-from src.domains.radio.formats import CONFIGURABLE_ROLES, SPEAKER_ROLES, RadioRole
+from src.domains.radio.formats import FORMAT_SPECS, SPEAKER_ROLES, STAFF_ROLES, RadioRole
+from src.domains.voice.engine_voices import usable_voices
 from src.domains.voice.voices_catalog import VoiceOption
 
-#: The order roles are cast in: the host first (the station's voice), then the
-#: news roles in the order a dialogue needs them, then the station's commentators.
-CAST_ORDER: tuple[RadioRole, ...] = (*CONFIGURABLE_ROLES, *SPEAKER_ROLES)
 #: The roles whose voices a commentator may borrow: they never speak in a debate or
 #: a discussion.
 _LENDERS: tuple[RadioRole, ...] = (RadioRole.EXPERT, RadioRole.COLUMNIST)
+
+
+def _voices_apart() -> Mapping[RadioRole, frozenset[RadioRole]]:
+    """For each role, the roles whose voice it may not share.
+
+    A commentator is silenced when its voice is LIA's (the host frames every
+    programme) or another role's of a programme it speaks in
+    (:meth:`Cast.voiced_roles`): the relation is read from the programmes
+    themselves, both ways.
+    """
+    apart: dict[RadioRole, set[RadioRole]] = {role: set() for role in RadioRole}
+    for spec in FORMAT_SPECS.values():
+        for speaker in set(spec.roles) & set(SPEAKER_ROLES):
+            for other in {RadioRole.HOST, *spec.roles} - {speaker}:
+                apart[speaker].add(other)
+                apart[other].add(speaker)
+    return MappingProxyType({role: frozenset(others) for role, others in apart.items()})
+
+
+#: For each role, the roles whose voice it may not share — what the settings publish,
+#: the write refuses (:func:`shared_voice`) and the cast would silence.
+VOICES_APART: Final[Mapping[RadioRole, frozenset[RadioRole]]] = _voices_apart()
+
+
+def shared_voice(voices: Mapping[RadioRole, str]) -> bool:
+    """Whether two roles that may not share a voice were given the same one.
+
+    Args:
+        voices: The voice chosen for each role (a role left out is automatic).
+
+    Returns:
+        Whether one commentator would sound like LIA, the moderator or another
+        commentator — the voice the cast would silence.
+    """
+    return any(
+        voices.get(other) == voice for role, voice in voices.items() for other in VOICES_APART[role]
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,35 +120,6 @@ class Cast:
     def distinct_voices_of(self, roles: Sequence[RadioRole]) -> int:
         """How many different voices a programme's speaking roles are heard with."""
         return len({self.voices[role] for role in self.voiced_roles(roles)})
-
-
-def usable_voices(
-    catalogue: Sequence[VoiceOption], language: str, multilingual: bool
-) -> list[VoiceOption]:
-    """The voices a listener may be cast from — what the settings offer, and accept.
-
-    Args:
-        catalogue: The engine's voices.
-        language: The listener's language.
-        multilingual: Whether every voice of the engine speaks every language.
-
-    Returns:
-        Every voice for a multilingual engine; else those of the listener's
-        language, or all of them when it has none (an accent beats no programme).
-    """
-    if multilingual:
-        return list(catalogue)
-    # Both sides through the one locale door: the catalogue says « zh », the
-    # listener « zh-CN », and only the canonical forms compare. A code the
-    # product does not support names nothing (None) rather than the default
-    # language, so a voice of another language never passes for the listener's.
-    wanted = canonical_language(language)
-    matching = [
-        voice
-        for voice in catalogue
-        if wanted is not None and canonical_language(voice.language) == wanted
-    ]
-    return matching or list(catalogue)
 
 
 def _default_voice(
@@ -164,8 +178,8 @@ def cast_voices(
     Args:
         catalogue: The voices of the engine the radio speaks with, in the
             catalogue's order (the defaults follow it, so they are stable).
-        chosen: The person's stored choice per role (read forgivingly; the
-            commentators are never theirs to choose).
+        chosen: The person's stored choice per role, the commentators' included
+            (read forgivingly: a voice the catalogue does not hold is automatic).
         language: The listener's language (backend-canonical code).
         multilingual: Whether the engine's voices speak every language.
 
@@ -176,30 +190,24 @@ def cast_voices(
     if not usable:
         return None
     by_id = {voice.voice_id: voice for voice in usable}
+    # Every voice the person chose is placed first: no default takes one of them.
+    fixed = {role: by_id[voice] for role, voice in chosen.items() if voice in by_id}
     voices: dict[RadioRole, str] = {}
-    taken: set[str] = set()
+    taken = {voice.voice_id for voice in fixed.values()}
     previous_gender: str | None = None
-    for role in CONFIGURABLE_ROLES:
-        voice = by_id.get(chosen.get(role, "")) or _default_voice(usable, taken, previous_gender)
+    for role in STAFF_ROLES:
+        voice = fixed.get(role) or _default_voice(usable, taken, previous_gender)
         voices[role] = voice.voice_id
         taken.add(voice.voice_id)
         previous_gender = voice.gender
-    speakers: set[str] = set()
+    voices.update({role: fixed[role].voice_id for role in SPEAKER_ROLES if role in fixed})
+    speakers = {voices[role] for role in SPEAKER_ROLES if role in voices}
     for role in SPEAKER_ROLES:
-        voice = _speaker_voice(usable, voices, speakers, previous_gender)
+        voice = fixed.get(role) or _speaker_voice(usable, voices, speakers, previous_gender)
         voices[role] = voice.voice_id
         speakers.add(voice.voice_id)
         previous_gender = voice.gender
     return Cast(voices=voices)
 
 
-def engine_key(provider: str, model: str) -> str:
-    """The voice engine a listener's voices are kept for: the radio voice slot's provider and model.
-
-    A provider switched for another, or a model for another, is another engine; switched
-    back, it finds the voices chosen on it.
-    """
-    return f"{provider}/{model}"
-
-
-__all__ = ["CAST_ORDER", "Cast", "cast_voices", "engine_key", "usable_voices"]
+__all__ = ["VOICES_APART", "Cast", "cast_voices", "shared_voice"]

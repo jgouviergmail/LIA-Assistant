@@ -165,6 +165,16 @@ async def router_node_v3(
         query_chars=len(query),  # counts only: the person's words never reach INFO
     )
 
+    # Fence the generation BEFORE any asynchronous query analysis. A purge
+    # while the model works must never be followed by lazy state recreation.
+    from src.domains.agents.analysis.efficacy_context import EfficacyAnalysis
+    from src.domains.agents.services.efficacy_runtime import (
+        attach_efficacy_analysis,
+        capture_efficacy_context,
+    )
+
+    efficacy_start = await capture_efficacy_context(EfficacyAnalysis(), config)
+
     # Latency lot R2 (2026-07): start the response-context prefetch (memory,
     # RAG, journal, portrait, psyche) at the earliest point of the turn so it
     # overlaps the router's own LLM cascade. The QI-dependent system-RAG
@@ -217,6 +227,13 @@ async def router_node_v3(
         config=config,
         original_query=query,  # Preserve user's original query for debug panel
         english_query_task=english_query_task,
+    )
+
+    from dataclasses import replace
+
+    intelligence = replace(
+        intelligence,
+        efficacy_context=attach_efficacy_analysis(efficacy_start, intelligence.efficacy_analysis),
     )
 
     # Log reasoning trace

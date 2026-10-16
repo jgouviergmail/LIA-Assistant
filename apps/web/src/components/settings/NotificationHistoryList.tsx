@@ -46,6 +46,8 @@ export interface NotificationHistoryRow {
    * as more urgent than a tint even when the two hues are close.
    */
   badge?: { label: string; tone: BadgeTone; icon?: ReactNode } | null;
+  /** A relayed message names its peer beside the direction, never twice. */
+  attribution?: string;
   /**
    * The chips: the sources used, the interest's provider, the person a
    * message was relayed with. `tone` is the chip's classes from
@@ -62,7 +64,13 @@ export interface NotificationHistoryRow {
   contentFallback?: string;
 }
 
+export type NotificationHistoryPresentation = 'cards' | 'timeline';
+
 export interface NotificationHistoryListProps {
+  /** The hub's timeline is opt-in; existing settings keep their card layout. */
+  presentation?: NotificationHistoryPresentation;
+  /** Timeline metadata can precede the message; settings retain their footer. */
+  metadataPosition?: 'header' | 'footer';
   /** Undefined until the first response lands. */
   rows: NotificationHistoryRow[] | undefined;
   /** True only before the first payload — never on a refetch. */
@@ -82,6 +90,8 @@ export function NotificationHistoryList({
   error,
   locale,
   labels,
+  presentation = 'cards',
+  metadataPosition = 'footer',
 }: NotificationHistoryListProps) {
   if (firstLoad) {
     return (
@@ -108,10 +118,20 @@ export function NotificationHistoryList({
   const formatDate = historyDateFormatter(locale);
 
   return (
-    <div className="space-y-2">
-      <ul className="space-y-2" role="list" aria-busy={loading || undefined}>
+    <div className="min-w-0 space-y-2">
+      <ul
+        className={presentation === 'timeline' ? 'min-w-0' : 'space-y-2'}
+        role="list"
+        aria-busy={loading || undefined}
+      >
         {rows.map(row => (
-          <NotificationHistoryItem key={row.id} row={row} formatDate={formatDate} />
+          <NotificationHistoryItem
+            key={row.id}
+            row={row}
+            formatDate={formatDate}
+            presentation={presentation}
+            metadataPosition={metadataPosition}
+          />
         ))}
       </ul>
       <p className="text-xs tabular-nums text-muted-foreground">{labels.count}</p>
@@ -151,66 +171,150 @@ export function historyDateFormatter(locale: string): (iso: string) => string {
 export function NotificationHistoryItem({
   row,
   formatDate,
+  presentation = 'cards',
+  metadataPosition = 'footer',
 }: {
   row: NotificationHistoryRow;
   formatDate: (iso: string) => string;
+  presentation?: NotificationHistoryPresentation;
+  metadataPosition?: 'header' | 'footer';
 }) {
+  const timeline = presentation === 'timeline';
+  const headerMetadata = timeline && metadataPosition === 'header';
+
   return (
-    <li className="space-y-1.5 rounded-lg border border-border/40 bg-card/40 px-3 py-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <time dateTime={row.createdAt} className="text-xs tabular-nums text-muted-foreground">
-          {formatDate(row.createdAt)}
-        </time>
-        {row.badge && (
-          <Badge
-            variant={row.badge.tone}
-            size="sm"
-            icon={row.badge.icon}
-            className="uppercase tracking-wide"
-          >
-            {row.badge.label}
-          </Badge>
-        )}
-        {row.feedback !== undefined && <FeedbackMark verdict={row.feedback} />}
-      </div>
+    <li
+      className={
+        timeline
+          ? 'min-w-0 space-y-3 border-b border-border/50 py-4 last:border-b-0'
+          : 'space-y-1.5 rounded-lg border border-border/40 bg-card/40 px-3 py-2'
+      }
+    >
+      <HistoryHeading
+        row={row}
+        formatDate={formatDate}
+        timeline={timeline}
+        headerMetadata={headerMetadata}
+      />
+
+      {headerMetadata && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <HistoryChips chips={row.chips} timeline={timeline} />
+          {row.feedback !== undefined && (
+            <FeedbackMark verdict={row.feedback} negativeIsDestructive />
+          )}
+        </div>
+      )}
 
       {/* Plain React children: this is LLM output, or words a person wrote,
           and may echo third-party text (an event title, a mail subject). */}
       {row.content ? (
-        <p className="line-clamp-3 whitespace-pre-line text-sm text-foreground/90">{row.content}</p>
+        <p
+          className={cn(
+            'whitespace-pre-line text-sm text-foreground/90',
+            timeline ? 'break-words leading-relaxed' : 'line-clamp-3'
+          )}
+        >
+          {row.content}
+        </p>
       ) : (
         row.contentFallback && (
           // Full `muted-foreground`, never a diluted /80: at this size the
           // faded pair measures under the 4.5:1 AA floor.
-          <p className="text-xs italic text-muted-foreground">{row.contentFallback}</p>
+          <p className="break-words text-xs italic text-muted-foreground">{row.contentFallback}</p>
         )
       )}
 
-      {row.chips.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {row.chips.map(chip => (
-            <span
-              key={chip.key}
-              className={cn(
-                'rounded border px-1.5 py-0.5 text-px-10 font-medium',
-                chip.tone ?? THEME_CHIP_TONE
-              )}
-            >
-              {chip.label}
-            </span>
-          ))}
-        </div>
-      )}
+      {!headerMetadata && <HistoryChips chips={row.chips} timeline={timeline} />}
     </li>
   );
 }
 
+/** The date, badge and optional attribution occupy one shared heading. */
+function HistoryHeading({
+  row,
+  formatDate,
+  timeline,
+  headerMetadata,
+}: {
+  row: NotificationHistoryRow;
+  formatDate: (iso: string) => string;
+  timeline: boolean;
+  headerMetadata: boolean;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <time
+        dateTime={row.createdAt}
+        className={cn(
+          'text-xs tabular-nums text-muted-foreground',
+          timeline && 'break-words',
+          timeline && !headerMetadata && 'w-full'
+        )}
+      >
+        {formatDate(row.createdAt)}
+      </time>
+      {row.badge && (
+        <Badge
+          variant={row.badge.tone}
+          size="sm"
+          icon={row.badge.icon}
+          className={cn(
+            'uppercase tracking-wide',
+            timeline && 'h-auto min-w-0 max-w-full py-1 normal-case leading-relaxed tracking-normal'
+          )}
+        >
+          <span className={timeline ? 'min-w-0 break-words' : undefined}>{row.badge.label}</span>
+        </Badge>
+      )}
+      {row.attribution && <span className="min-w-0 break-words text-sm">{row.attribution}</span>}
+      {!headerMetadata && row.feedback !== undefined && (
+        <FeedbackMark verdict={row.feedback} negativeIsDestructive={timeline} />
+      )}
+    </div>
+  );
+}
+
+/** One vocabulary of source labels, shared by header and footer metadata. */
+function HistoryChips({
+  chips,
+  timeline,
+}: {
+  chips: NotificationHistoryRow['chips'];
+  timeline: boolean;
+}) {
+  if (!chips.length) return null;
+  return (
+    <div className={cn('flex min-w-0 max-w-full flex-wrap gap-1', timeline && 'gap-x-3 gap-y-1')}>
+      {chips.map(chip => (
+        <span
+          key={chip.key}
+          className={cn(
+            'rounded border px-1.5 py-0.5 text-px-10 font-medium',
+            chip.tone ?? THEME_CHIP_TONE,
+            timeline &&
+              'min-w-0 max-w-full break-words rounded-none border-0 bg-transparent px-0 py-0 text-xs font-normal leading-relaxed'
+          )}
+        >
+          {chip.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 /** The verdict already recorded — or the fact that none was. */
-function FeedbackMark({ verdict }: { verdict: string | null }) {
+function FeedbackMark({
+  verdict,
+  negativeIsDestructive = false,
+}: {
+  verdict: string | null;
+  negativeIsDestructive?: boolean;
+}) {
   const { t } = useTranslation();
   if (verdict === 'thumbs_up') {
     return (
-      <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+      <span className="flex items-center gap-1 text-xs text-success">
         <ThumbsUp className="h-3 w-3" aria-hidden="true" />
         {t('heartbeat.history.feedback_thumbs_up')}
       </span>
@@ -218,7 +322,12 @@ function FeedbackMark({ verdict }: { verdict: string | null }) {
   }
   if (verdict === 'thumbs_down') {
     return (
-      <span className="flex items-center gap-1 text-xs text-orange-600 dark:text-orange-400">
+      <span
+        className={cn(
+          'flex items-center gap-1 text-xs',
+          negativeIsDestructive ? 'text-destructive' : 'text-warning'
+        )}
+      >
         <ThumbsDown className="h-3 w-3" aria-hidden="true" />
         {t('heartbeat.history.feedback_thumbs_down')}
       </span>

@@ -49,6 +49,8 @@ from src.infrastructure.mcp.catalogue_fingerprint import (
 from src.infrastructure.mcp.rate_limit import (
     MCPRateLimitError,
     MCPServerCooldown,
+    MCPServerFailures,
+    MCPServerPausedError,
     MCPToolExecutionError,
     quota_error,
 )
@@ -171,12 +173,17 @@ class UserMCPClientPool:
     avoiding stale session issues with the MCP SDK's anyio task groups.
     """
 
-    def __init__(self, cooldowns: MCPServerCooldown | None = None) -> None:
+    def __init__(
+        self,
+        cooldowns: MCPServerCooldown | None = None,
+        failures: MCPServerFailures | None = None,
+    ) -> None:
         self._entries: dict[tuple[UUID, UUID], PoolEntry] = {}
         self._connect_locks: dict[tuple[UUID, UUID], asyncio.Lock] = defaultdict(asyncio.Lock)
         self._rate_locks: dict[tuple[UUID, UUID], asyncio.Lock] = defaultdict(asyncio.Lock)
         self._call_timestamps: dict[tuple[UUID, UUID], deque[float]] = defaultdict(deque)
         self._cooldowns = cooldowns if cooldowns is not None else MCPServerCooldown()
+        self._failures = failures if failures is not None else MCPServerFailures()
 
     @property
     def size(self) -> int:
@@ -197,7 +204,10 @@ class UserMCPClientPool:
         Get existing entry or discover tools from the server.
 
         Uses per-key asyncio.Lock to prevent duplicate discovery when
-        concurrent requests from the same user arrive simultaneously.
+        concurrent requests from the same user arrive simultaneously. A server
+        that failed to connect is paused (point 29): it raises
+        :class:`MCPServerPausedError` until the pause ends, except for the
+        manual test (``force_refresh``), and a success clears the pause.
         """
         key = (user_id, server_id)
         configuration = connection_fingerprint(url, auth, timeout_seconds, extra_headers)
@@ -211,6 +221,8 @@ class UserMCPClientPool:
                 return self._entries[key]
 
             await self._raise_if_cooling(key)
+            if not force_refresh:
+                await self._raise_if_paused(key)
 
             # Check global pool limit
             max_total = settings.mcp_user_pool_max_total
@@ -230,6 +242,16 @@ class UserMCPClientPool:
             except MCPRateLimitError as exc:
                 await self._cooldowns.record(key, exc.retry_after)
                 raise
+            except Exception:
+                pause = await self._failures.record(key)
+                logger.info(
+                    "user_mcp_server_paused_after_failure",
+                    user_id=str(user_id),
+                    server_id=str(server_id),
+                    pause_seconds=pause,
+                )
+                raise
+            await self._failures.clear(key)
             entry = PoolEntry(
                 user_id=user_id,
                 server_id=server_id,
@@ -429,7 +451,12 @@ class UserMCPClientPool:
             )
 
     async def disconnect(self, user_id: UUID, server_id: UUID) -> None:
-        """Remove a server entry and clean up associated resources."""
+        """Remove a server entry and clean up associated resources.
+
+        Editing, toggling or re-authorising a server disconnects it, so its
+        failure pause goes too (point 29): the new configuration deserves a
+        fresh try. A quota cooldown stays — the provider declared it.
+        """
         key = (user_id, server_id)
         entry = self._entries.pop(key, None)
 
@@ -438,6 +465,7 @@ class UserMCPClientPool:
         self._rate_locks.pop(key, None)
         self._call_timestamps.pop(key, None)
         self._cooldowns.forget_local(key)
+        await self._failures.clear(key)
 
         if entry:
             logger.info(
@@ -502,6 +530,11 @@ class UserMCPClientPool:
         remaining = await self._cooldowns.remaining(key)
         if remaining > 0:
             raise MCPRateLimitError(remaining)
+
+    async def _raise_if_paused(self, key: tuple[UUID, UUID]) -> None:
+        remaining = await self._failures.remaining(key)
+        if remaining > 0:
+            raise MCPServerPausedError(remaining)
 
     @staticmethod
     async def _discover_tools(

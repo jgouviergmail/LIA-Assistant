@@ -410,10 +410,6 @@ ALLOWED: dict[tuple[str, str, str], str] = {
         "instance_daily_budget_update_requested",
         "new_value",
     ): _INSTANCE_SETTING,
-    ("domains/telephony/service.py", "telephony_initiate_call_rejected", "vendor_message"): (
-        "the telephony vendor's refusal: an error text, scrubbed by the filter's quotation "
-        "and phone rules like any `error=str(e)`"
-    ),
     (
         "infrastructure/channels/telegram/bot.py",
         "telegram_bot_initialized_webhook",

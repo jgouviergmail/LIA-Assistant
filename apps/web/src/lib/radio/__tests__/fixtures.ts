@@ -53,6 +53,18 @@ export function radioOptions(over: Partial<RadioOptions> = {}): RadioOptions {
       all: ['headlines', 'column', 'journal'],
     },
     roles: ['host', 'anchor', 'expert', 'columnist'],
+    commentator_roles: ['speaker_a', 'speaker_b', 'speaker_c'],
+    // The API's rule (`cast.VOICES_APART`): a commentator never sounds like LIA, the
+    // anchor or another commentator.
+    voices_apart: {
+      host: ['speaker_a', 'speaker_b', 'speaker_c'],
+      anchor: ['speaker_a', 'speaker_b', 'speaker_c'],
+      expert: [],
+      columnist: [],
+      speaker_a: ['host', 'anchor', 'speaker_b', 'speaker_c'],
+      speaker_b: ['host', 'anchor', 'speaker_a', 'speaker_c'],
+      speaker_c: ['host', 'anchor', 'speaker_a', 'speaker_b'],
+    },
     voices: [
       { voice_id: 'fr-A', label: 'Aria', gender: 'female', language: 'fr' },
       { voice_id: 'fr-B', label: 'Bruno', gender: 'male', language: 'fr' },

@@ -13,13 +13,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { renderWithProviders, screen, waitFor, act } from '@/__tests__/test-utils';
 import { publishApplicationResources } from '@/lib/application-resources';
-import { dataQuery, loadingQuery } from '@/__tests__/api-mocks';
+import { dataQuery, loadingQuery, errorQuery } from '@/__tests__/api-mocks';
 import type { PsycheHistoryEntry } from '@/types/psyche';
 
 const { useApiQuery } = vi.hoisted(() => ({ useApiQuery: vi.fn() }));
 vi.mock('@/hooks/useApplicationAccountQuery', () => ({ useApplicationAccountQuery: useApiQuery }));
 
 import { PsycheHistory } from '../PsycheHistory';
+import { toPsycheHistoryData } from '../psyche-history-data';
 
 function entry(over: Partial<PsycheHistoryEntry> = {}): PsycheHistoryEntry {
   return {
@@ -162,5 +163,122 @@ describe('PsycheHistory — chart tabs', () => {
     const { user } = render();
     await user.click(screen.getByRole('button', { name: `psyche.history.chart${tab}` }));
     expect(screen.queryByText(EMPTY)).not.toBeInTheDocument();
+  });
+});
+
+describe('PsycheHistory — accessible controls and failures', () => {
+  it('announces exactly one selected range and chart type', async () => {
+    const { user } = render();
+    expect(screen.getByRole('button', { name: 'psyche.history.tabs.7d' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    await user.click(screen.getByRole('button', { name: 'psyche.history.chartDrives' }));
+    expect(screen.getByRole('button', { name: 'psyche.history.chartDrives' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    expect(screen.getByRole('button', { name: 'psyche.history.chartPad' })).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    );
+  });
+  it('distinguishes a read failure from an empty period and offers retry', async () => {
+    const refetch = vi.fn().mockResolvedValue(undefined);
+    useApiQuery.mockReturnValue(errorQuery<PsycheHistoryEntry[]>('offline', { refetch }));
+    const { user } = render();
+    expect(screen.getByRole('alert')).toHaveTextContent('psyche.history.loadError');
+    expect(screen.queryByText(EMPTY)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'psyche.history.retry' }));
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
+  it('keeps populated charts present while refreshing', () => {
+    useApiQuery.mockReturnValue(dataQuery([entry()], { loading: true }));
+    render();
+    expect(screen.getByRole('region', { name: /psyche.history.chartPad/ })).toHaveAttribute(
+      'aria-busy',
+      'true'
+    );
+  });
+});
+
+describe('PsycheHistory — chart data contract', () => {
+  it('keeps absent metrics absent, sorts immutable data by exact timestamp and excludes reset points', () => {
+    const entries = [
+      entry({ id: 'late', created_at: '2026-07-18T09:00:40Z', trait_snapshot: null }),
+      entry({ id: 'reset', created_at: '2026-07-18T09:00:30Z', snapshot_type: 'reset_soft' }),
+      entry({ id: 'early', created_at: '2026-07-18T09:00:10Z' }),
+      entry({ id: 'invalid', created_at: 'invalid' }),
+    ];
+    Object.freeze(entries);
+    const { points, resets } = toPsycheHistoryData(entries);
+    expect(points).toHaveLength(2);
+    expect(points[0].time).toBe(Date.parse('2026-07-18T09:00:10Z'));
+    expect(points[1].time).toBe(Date.parse('2026-07-18T09:00:40Z'));
+    expect(points[1].depth).toBeNull();
+    expect(points[1].emotionIntensity).toBeNull();
+    expect(resets).toEqual([{ time: Date.parse('2026-07-18T09:00:30Z'), type: 'reset_soft' }]);
+    expect(entries[0].id).toBe('late');
+  });
+  it('preserves all emotion series, relationship and drives as actual percentages', () => {
+    const { points, emotions } = toPsycheHistoryData([
+      entry({
+        trait_snapshot: {
+          active_emotions: { joy: 0.7, serenity: 0.2 },
+          drive_curiosity: 0.66,
+          drive_engagement: 0.75,
+          relationship_depth: 0,
+          relationship_trust: 0.85,
+          relationship_warmth: 0.4,
+          emotion_intensity: 0.7,
+        },
+      }),
+    ]);
+    expect(points[0]).toMatchObject({
+      P: 40,
+      A: 10,
+      D: -20,
+      depth: 0,
+      trust: 85,
+      warmth: 40,
+      curiosity: 66,
+      engagement: 75,
+      emotionIntensity: 70,
+      emo_joy: 70,
+      emo_serenity: 20,
+    });
+    expect(emotions).toEqual(['emo_joy', 'emo_serenity']);
+  });
+});
+
+describe('PsycheHistory — explicit reset refresh', () => {
+  it('refreshes the already open history after a reset, without a read on mount', async () => {
+    const refetch = vi.fn().mockResolvedValue(undefined);
+    useApiQuery.mockReturnValue(dataQuery<PsycheHistoryEntry[]>([], { refetch }));
+    const { rerender } = renderWithProviders(<PsycheHistory lng="fr" isOpen refreshKey={0} />);
+    expect(refetch).not.toHaveBeenCalled();
+    rerender(<PsycheHistory lng="fr" isOpen refreshKey={1} />);
+    await waitFor(() => expect(refetch).toHaveBeenCalledTimes(1));
+    rerender(<PsycheHistory lng="fr" isOpen={false} refreshKey={2} />);
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('PsycheHistory — failed follow-up reads', () => {
+  it('handles rejected retry and reset refresh promises through the query error state', async () => {
+    let reads = 0;
+    const refetch = async () => {
+      reads += 1;
+      throw new Error('offline');
+    };
+    useApiQuery.mockReturnValue(errorQuery<PsycheHistoryEntry[]>('offline', { refetch }));
+    const { user, rerender } = renderWithProviders(
+      <PsycheHistory lng="fr" isOpen refreshKey={0} />
+    );
+    await user.click(screen.getByRole('button', { name: 'psyche.history.retry' }));
+    await waitFor(() => expect(reads).toBe(1));
+    rerender(<PsycheHistory lng="fr" isOpen refreshKey={1} />);
+    await waitFor(() => expect(reads).toBe(2));
+    expect(screen.getByRole('alert')).toHaveTextContent('psyche.history.loadError');
   });
 });

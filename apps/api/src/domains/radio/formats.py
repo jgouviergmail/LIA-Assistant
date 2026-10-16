@@ -133,21 +133,23 @@ class RadioRole(StrEnum):
     EXPERT = "expert"
     #: The editorialist (the column's voice, which it was).
     COLUMNIST = "columnist"
-    #: The station's commentators of a debate or a discussion — voices the station casts
-    #: itself, never presented as real people.
+    #: The commentators of a debate or a discussion — never presented as real people;
+    #: the listener's voices, or ones the station casts (``cast``).
     SPEAKER_A = "speaker_a"
     SPEAKER_B = "speaker_b"
     SPEAKER_C = "speaker_c"
 
 
-#: The roles a listener gives a voice in the settings.
-CONFIGURABLE_ROLES: Final[tuple[RadioRole, ...]] = (
+#: The station's own team: LIA hosting, the news anchor, the expert and the editorialist —
+#: each with the voice the listener chose, else one the station picks, genders alternating.
+STAFF_ROLES: Final[tuple[RadioRole, ...]] = (
     RadioRole.HOST,
     RadioRole.ANCHOR,
     RadioRole.EXPERT,
     RadioRole.COLUMNIST,
 )
-#: The station's commentators, cast by the station with the engine's other voices.
+#: The commentators of a debate or a discussion: the listener's voices too (2026-10-16),
+#: else ones nobody else speaks with — each one a voice of its own (``cast``).
 SPEAKER_ROLES: Final[tuple[RadioRole, ...]] = (
     RadioRole.SPEAKER_A,
     RadioRole.SPEAKER_B,

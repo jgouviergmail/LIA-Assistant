@@ -4,7 +4,7 @@ import path from 'node:path';
 import AxeBuilder from '@axe-core/playwright';
 import { test, expect, waitForHydration } from '../fixtures';
 import { loadedChatRoutes } from '../fixtures/chat';
-import { awaitStyledPage, expectNoOverflow } from './overflow-report';
+import { awaitStyledPage, expectNoOverflow, prepareTheme } from './overflow-report';
 
 interface Reference {
   id: string;
@@ -25,7 +25,7 @@ for (const sample of [
   { width: 1280, language: 'fr', theme: 'light' },
   { width: 390, language: 'en', theme: 'dark' },
   { width: 320, language: 'fr', theme: 'oled' },
-]) {
+] as const) {
   test(`received journey at ${sample.width}px in ${sample.theme}`, async ({
     page,
     authenticate,
@@ -37,7 +37,12 @@ for (const sample of [
     if (!reference) throw new Error('Missing backend route reference');
     await page.setViewportSize({ width: sample.width, height: 1200 });
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await authenticate({ language: sample.language, response_display_mode: 'cards' });
+    await prepareTheme(page, sample.theme);
+    await authenticate({
+      language: sample.language,
+      response_display_mode: 'cards',
+      theme: sample.theme,
+    });
     await mockApi([
       ...loadedChatRoutes(),
       {
@@ -67,10 +72,12 @@ for (const sample of [
     await page.goto(`/${sample.language}/dashboard/chat`);
     await waitForHydration(page);
     await awaitStyledPage(page, 'received route journey');
-    await page.evaluate(theme => {
-      document.documentElement.classList.toggle('dark', theme !== 'light');
-      document.documentElement.toggleAttribute('data-oled', theme === 'oled');
-    }, sample.theme);
+    const html = page.locator('html');
+    const dark = sample.theme !== 'light';
+    await expect(html).toHaveClass(dark ? /\bdark\b/ : /\blight\b/);
+    await expect(html).not.toHaveClass(dark ? /\blight\b/ : /\bdark\b/);
+    await expect(html).toHaveCSS('color-scheme', dark ? 'dark' : 'light');
+    await expect(page.locator('html[data-oled]')).toHaveCount(sample.theme === 'oled' ? 1 : 0);
     const card = page.locator('.lia-card.lia-route');
     await expect(card.locator('.lia-card-image-fallback')).toBeVisible();
     expect(mapRequests).toBe(1);
@@ -85,6 +92,12 @@ for (const sample of [
     await expect(card.getByText('OTHER_RECEIVED_JOURNEY', { exact: true })).toBeVisible();
     await expect(card.getByText('350 m · 4 min', { exact: true })).toBeVisible();
     await expect(page.locator('.lia-action-btn[href*="travelmode=transit"]').first()).toBeVisible();
+    // Reduced motion must remove the reveal, including its initial transparent frame.
+    const readableDetails = card.locator('.lia-route-step[open] > .lia-route-step__detail');
+    expect(await readableDetails.count()).toBeGreaterThan(0);
+    for (const detail of await readableDetails.all()) {
+      await expect(detail).toHaveCSS('animation-name', 'none');
+    }
     await expectNoOverflow(page, `route ${sample.width} ${sample.theme}`);
     const accessibility = await new AxeBuilder({ page })
       .include('.lia-multi-domain')

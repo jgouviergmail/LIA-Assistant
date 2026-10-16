@@ -122,6 +122,37 @@ class TestSetupUserMCPTools:
     @patch("src.domains.user_mcp.repository.UserMCPServerRepository")
     @patch("src.infrastructure.mcp.user_context.get_user_mcp_pool")
     @patch("src.infrastructure.mcp.user_context.build_auth_for_server")
+    async def test_a_paused_server_is_skipped_quietly(
+        self, mock_build_auth, mock_get_pool, mock_repo_cls, mock_settings
+    ) -> None:
+        """Point 29: a paused server is a known state, not a new failure — one
+        info line per turn, never a warning with a traceback."""
+        from src.infrastructure.mcp.rate_limit import MCPServerPausedError
+
+        mock_settings.mcp_user_enabled = True
+        server = MagicMock(id=uuid4(), url="https://down.example.com", timeout_seconds=30)
+        server.name = "Down Server"
+        mock_repo = AsyncMock()
+        mock_repo.get_enabled_active_for_user = AsyncMock(return_value=[server])
+        mock_repo_cls.return_value = mock_repo
+        mock_pool = AsyncMock()
+        mock_pool.get_or_connect = AsyncMock(side_effect=MCPServerPausedError(42))
+        mock_get_pool.return_value = mock_pool
+        mock_build_auth.return_value = MagicMock()
+
+        with patch("src.infrastructure.mcp.user_context.logger") as logger:
+            token = await setup_user_mcp_tools(uuid4())
+
+        assert token is None
+        logger.warning.assert_not_called()
+        (call,) = [c for c in logger.info.call_args_list if c.args[0] == "user_mcp_server_paused"]
+        assert call.kwargs["retry_in_seconds"] == 42
+
+    @pytest.mark.asyncio
+    @patch("src.infrastructure.mcp.user_context.settings")
+    @patch("src.domains.user_mcp.repository.UserMCPServerRepository")
+    @patch("src.infrastructure.mcp.user_context.get_user_mcp_pool")
+    @patch("src.infrastructure.mcp.user_context.build_auth_for_server")
     @patch("src.infrastructure.mcp.user_context._build_user_tool_manifest")
     async def test_sets_context_var(
         self, mock_manifest, mock_build_auth, mock_get_pool, mock_repo_cls, mock_settings

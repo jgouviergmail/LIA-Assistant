@@ -121,8 +121,8 @@ class TestComputeStepTimeoutImage:
     ``quality=high`` could not succeed at any setting — 138.3 s exceeds the
     ceiling itself, which is why raising ``IMAGE_GENERATION_TOOL_TIMEOUT_SECONDS``
     in ``.env`` would not have helped. Production 2026-07-27 05:18: the step was
-    killed at exactly 90 s, no image, and the replanner's ``retry_same`` is not
-    wired, so the failure was final.
+    killed at exactly 90 s, no image, and nothing re-runs a failed step, so the
+    failure was final.
     """
 
     @pytest.mark.parametrize("tool_name", ["generate_image", "edit_image"])

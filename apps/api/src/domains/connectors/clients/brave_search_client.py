@@ -160,7 +160,11 @@ class BraveSearchClient(BaseAPIKeyClient):
         country: str | None = None,
     ) -> dict | None:
         """
-        Search via Brave API (Web or News).
+        Search via Brave API (Web or News), None on any failure.
+
+        The door of the callers that only need « results or nothing » (the
+        interest sweep, the radio, the enrichment); a caller that must say WHY
+        a search failed reads :meth:`search_or_raise`.
 
         Args:
             query: Search query (keywords)
@@ -180,6 +184,51 @@ class BraveSearchClient(BaseAPIKeyClient):
         if endpoint not in ("web", "news"):
             logger.error("brave_search_invalid_endpoint", endpoint=endpoint)
             return None
+        try:
+            return await self.search_or_raise(
+                query, endpoint=endpoint, count=count, freshness=freshness, country=country
+            )
+        except Exception as e:  # noqa: BLE001 — None-on-error contract
+            # Retries/backoff/circuit breaker already handled by _make_request;
+            # callers expect None on failure, never an exception.
+            logger.warning(
+                "brave_search_failed",
+                endpoint=endpoint,
+                query_length=len(query),
+                error_type=type(e).__name__,
+            )
+            logger.debug("brave_search_failure_details", exc_info=e)
+            return None
+
+    async def search_or_raise(
+        self,
+        query: str,
+        endpoint: Literal["web", "news"] = "web",
+        count: int = 5,
+        freshness: str | None = None,
+        country: str | None = None,
+    ) -> dict:
+        """Search via Brave API, raising the typed failure (ADR-108 amendment).
+
+        Args:
+            query: Search query (keywords)
+            endpoint: "web" for general search, "news" for news search
+            count: Number of results (max 20 for web, 50 for news)
+            freshness: Date filter (see :meth:`search`)
+            country: 2-character country code (fr, us, etc.)
+
+        Returns:
+            The API response dict.
+
+        Raises:
+            ValueError: On an endpoint other than ``web`` or ``news``.
+            ConnectorAPIError: When Brave rate-limited the account's key past
+                its retries; the delay rides its ``Retry-After`` header.
+            ExternalServiceError: On a paused service or a refused key.
+            MaxRetriesExceededError: When retries never got an answer.
+        """
+        if endpoint not in ("web", "news"):
+            raise ValueError(f"unknown Brave endpoint: {endpoint}")
 
         # Repair-before-call (ADR-184): Brave 422s on q > 400 chars / 50 words.
         clamped_query = _clamp_query(query)
@@ -210,19 +259,7 @@ class BraveSearchClient(BaseAPIKeyClient):
             user_id=str(self.user_id) if self.user_id else None,
         )
 
-        try:
-            data = await self._make_request("GET", f"{endpoint}/search", params=params)
-        except Exception as e:  # noqa: BLE001 — None-on-error contract
-            # Retries/backoff/circuit breaker already handled by _make_request;
-            # callers expect None on failure, never an exception.
-            logger.warning(
-                "brave_search_failed",
-                endpoint=endpoint,
-                query_length=len(query),
-                error=str(e),
-                error_type=type(e).__name__,
-            )
-            return None
+        data = await self._make_request("GET", f"{endpoint}/search", params=params)
 
         # Count results based on endpoint (response formats differ)
         if endpoint == "web":

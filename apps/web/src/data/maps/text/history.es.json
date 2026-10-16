@@ -735,8 +735,8 @@
     },
     "128": {
       "title": "El replanificador aconseja, no actúa",
-      "summary": "El análisis de los fallos de un plan sigue siendo un consejo: alimenta la observabilidad y el mensaje que se muestra, sin relanzar por sí mismo un nuevo plan.",
-      "src": "7f762b31a867"
+      "summary": "El análisis de los fallos de un plan sigue siendo un consejo: alimenta la observabilidad, sin relanzar por sí mismo un nuevo plan.",
+      "src": "1327c492981f"
     },
     "129": {
       "title": "Indexaciones que se reanudan tras una caída",
@@ -1812,6 +1812,21 @@
       "title": "El retrato lee todo el material, y su resumen es una síntesis",
       "summary": "Nueve registros sobre la persona — recuerdos, intereses, hábitos, resúmenes de relación, hilos abiertos, Workboard, rutinas, recordatorios, respuestas guardadas — se leen enteros, cada elemento citable, bajo una sola parte de la ventana del modelo, y todo recorte se declara. El retrato vuelve a ser un análisis de la persona en siete facetas, nunca un inventario, y el resumen se escribe como frases propias; la revisión semántica, medida rechazando lecturas fundadas, se retira: lo que impide la invención es estructural, cada lectura cita lo que la funda. Los presupuestos son objetivos declarados, nunca un recorte. Un cambio del diario marca el retrato como desactualizado, servido con fecha, en lugar de borrarlo; una entrada eliminada se lleva las lecturas que fundaba. Medido en dev antes de entregar.",
       "src": "38eaccd2b7d9"
+    },
+    "344": {
+      "title": "Un borrador del buzón pertenece a la persona",
+      "summary": "LIA guarda, modifica y mueve a la papelera los borradores de Gmail, Outlook e iCloud sin preguntar: un borrador se queda en el buzón de la persona y no llega a nadie, y la papelera se puede deshacer. Solo el envío pide una confirmación, en una tarjeta que muestra el borrador tal como lo tiene el buzón; un borrador modificado en el buzón mientras tanto no se envía, y un cambio pedido en la tarjeta se escribe antes de salir. De paso, la tarjeta de respuesta muestra por fin a todos aquellos a quienes llega la respuesta, y es a ellos a quienes envía.",
+      "src": "9c6ad22bd65b"
+    },
+    "345": {
+      "title": "Fish Audio se suma a las voces de LIA, y cada motor solo factura lo que dice",
+      "summary": "Fish Audio habla (cinco modelos, entre ellos s2.1-pro y drama-3), transcribe reuniones y dictados, y sus voces se clonan o se diseñan desde la administración, bajo una declaración de consentimiento archivada en el registro de auditoría. Cada frase escuchada pasa por una sola puerta que la factura una vez, en la unidad del motor que realmente la dijo; cada cuenta de proveedor tiene una única reserva de solicitudes, compartida por todas las funciones de voz; y el dictado remoto va al motor que eligió el administrador, que los ajustes nombran. LIA desliza indicaciones de interpretación (una risa, un susurro, un suspiro) en lo que escribe para ser dicho, en la sintaxis de cada motor que las interpreta, y las voces de la radio dialogan en una sola toma.",
+      "src": "5f1d4e6b93c7"
+    },
+    "346": {
+      "title": "El replanificador consultivo se retira: un fallo se dice, nunca se repite",
+      "summary": "Medido en producción, el analizador que seguía a cada plan fallido calificaba de pasajeros fallos que no lo eran, y el bucle de recuperación que esperaba habría repetido lo irreparable. Desaparece: un fallo se dice en la respuesta, una caída pasajera la reintenta el cliente que la sufrió, y un contador tipado muestra cada paso fallido, incluso uno ocurrido antes de llamar a una herramienta.",
+      "src": "185409f983b0"
     }
   }
 }

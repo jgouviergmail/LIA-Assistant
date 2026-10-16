@@ -9,6 +9,11 @@ Provides shared functionality for all API Key-based clients:
 - Key validation and masking for logs
 - Circuit breaker pattern for fault tolerance (Sprint 16.1)
 
+A 429 is the provider ANSWERING about one account's key: it never counts against
+the breaker every account shares, its retries are jittered, and once they are
+spent it is handed back as a typed ``ConnectorAPIError`` carrying the delay
+(ADR-108 amendment 2026-10-13).
+
 Unlike OAuth clients (BaseGoogleClient), API Key clients:
 - Don't require token refresh
 - Have simpler authentication flow
@@ -24,8 +29,11 @@ Sprint 16.2 - Added Redis rate limiting for horizontal scaling consistency.
 """
 
 import asyncio
+import math
+import random
 import time
 from abc import ABC
+from collections.abc import Awaitable, Callable
 from typing import Any
 from uuid import UUID
 
@@ -33,8 +41,13 @@ import httpx
 import structlog
 
 from src.core.config import settings
-from src.core.constants import DEFAULT_RATE_LIMIT_PER_SECOND
+from src.core.constants import (
+    API_KEY_CLIENT_RATE_LIMIT_ATTEMPTS,
+    API_KEY_CLIENT_RETRY_AFTER_MAX_SECONDS,
+    DEFAULT_RATE_LIMIT_PER_SECOND,
+)
 from src.core.exceptions import (
+    ConnectorAPIError,
     ExternalServiceError,
     MaxRetriesExceededError,
     RateLimitError,
@@ -45,6 +58,41 @@ from src.infrastructure.rate_limiting import RedisRateLimiter, get_rate_limiter
 from src.infrastructure.resilience import CircuitBreaker, CircuitBreakerError, get_circuit_breaker
 
 logger = structlog.get_logger(__name__)
+
+#: The verbs ``_make_request`` sends.
+_HTTP_METHODS = frozenset({"GET", "POST", "PUT", "DELETE", "PATCH"})
+
+
+def _retry_after_header(seconds: float | None) -> dict[str, str] | None:
+    """A ``Retry-After`` header for a delay, rounded up to whole seconds.
+
+    Args:
+        seconds: The delay, or None when nobody named one.
+
+    Returns:
+        The header, or None.
+    """
+    return None if seconds is None else {"Retry-After": str(max(1, math.ceil(seconds)))}
+
+
+def _rate_limit_delay(response: httpx.Response, attempt: int) -> float:
+    """The delay a 429 asks for: its ``Retry-After``, else the exponential step.
+
+    RFC 7231 allows ``Retry-After`` to be an HTTP-date; anything that is not
+    delta-seconds falls back to the backoff schedule.
+
+    Args:
+        response: The 429 response.
+        attempt: The attempt that drew it, 0-indexed.
+
+    Returns:
+        The delay in seconds, before any jitter.
+    """
+    header = response.headers.get("Retry-After")
+    try:
+        return float(int(header)) if header is not None else float(2**attempt)
+    except ValueError:
+        return float(2**attempt)
 
 
 class BaseAPIKeyClient(ABC):
@@ -315,6 +363,162 @@ class BaseAPIKeyClient(ABC):
             connector_type=self.connector_type.value,
         )
 
+    async def _check_circuit(self) -> None:
+        """Refuse at once while the breaker of this connector type is open.
+
+        Raises:
+            ExternalServiceError: The circuit is open; its delay rides ``Retry-After``.
+        """
+        if not self._is_circuit_breaker_enabled():
+            return
+        try:
+            await self._get_circuit_breaker().check()
+        except CircuitBreakerError as e:
+            logger.warning(
+                "circuit_breaker_rejected_request",
+                service=e.service,
+                state=e.state.value,
+                connector_type=self.connector_type.value,
+                user_id=str(self.user_id),
+                retry_after=e.retry_after,
+            )
+            raise ExternalServiceError(
+                service_name=self.connector_type.value,
+                detail=(
+                    f"{self.connector_type.value} service temporarily unavailable"
+                    " (circuit open). Please try again later."
+                ),
+                headers=_retry_after_header(e.retry_after),
+                error_type="circuit_open",
+                retry_after=e.retry_after,
+            ) from e
+
+    def _merged_params(self, params: dict[str, Any] | None) -> dict[str, Any] | None:
+        """The call's query parameters, with the key's when the key travels there.
+
+        Args:
+            params: The caller's parameters.
+
+        Returns:
+            The merged parameters, or None when there are none at all.
+        """
+        auth_params = self._build_auth_params()
+        if params:
+            return {**params, **auth_params}
+        return auth_params or None
+
+    async def _breaker_success(self) -> None:
+        """Record an answered call on the breaker — a refusal is an answer too."""
+        if self._is_circuit_breaker_enabled():
+            await self._get_circuit_breaker().record_success()
+
+    async def _breaker_failure(self, error: Exception) -> None:
+        """Record a call the service itself failed on the breaker."""
+        if self._is_circuit_breaker_enabled():
+            await self._get_circuit_breaker().record_failure(RuntimeError(type(error).__name__))
+
+    async def _send_once(
+        self,
+        client: httpx.AsyncClient,
+        verb: str,
+        url: str,
+        params: dict[str, Any] | None,
+        headers: dict[str, str],
+        json_data: dict[str, Any] | None,
+    ) -> httpx.Response:
+        """One HTTP exchange through the client's own verb.
+
+        Args:
+            client: The pooled client.
+            verb: An upper-case member of ``_HTTP_METHODS``.
+            url: The absolute URL.
+            params: Query parameters, authentication included when it travels there.
+            headers: Request headers, authentication included when it travels there.
+            json_data: The JSON body of a POST, PUT or PATCH.
+
+        Returns:
+            The response, whatever its status.
+        """
+        if verb == "GET":
+            return await client.get(url, params=params, headers=headers)
+        if verb == "POST":
+            return await client.post(url, params=params, headers=headers, json=json_data)
+        if verb == "PUT":
+            return await client.put(url, params=params, headers=headers, json=json_data)
+        if verb == "DELETE":
+            return await client.delete(url, params=params, headers=headers)
+        return await client.patch(url, params=params, headers=headers, json=json_data)
+
+    async def _send_through_rate_limits(
+        self, send: Callable[[], Awaitable[httpx.Response]]
+    ) -> httpx.Response:
+        """Send, waiting out the 429s the provider answers on this account's key.
+
+        A 429 is the provider ANSWERING: it limits this account's key and says
+        nothing of the service's health. Counted as a failure it opened the
+        breaker every account shares, which then refused the siblings of the same
+        parallel round as « unavailable » (dev, 2026-10-13). It has a budget of its
+        own (``API_KEY_CLIENT_RATE_LIMIT_ATTEMPTS``), its waits are jittered — never
+        below what was asked, at most a second past it, because the siblings drew
+        their 429 on the same tick — and a delay past
+        ``API_KEY_CLIENT_RETRY_AFTER_MAX_SECONDS`` is handed back, not waited.
+
+        Args:
+            send: One exchange, sent again on every attempt.
+
+        Returns:
+            The first answer that is not a 429.
+
+        Raises:
+            ConnectorAPIError: The 429 handed back, its delay in ``Retry-After``.
+        """
+        attempt = 0
+        while True:
+            response = await send()
+            if response.status_code != 429:
+                return response
+            await self._breaker_success()
+            delay = _rate_limit_delay(response, attempt)
+            attempt += 1
+            if (
+                attempt >= API_KEY_CLIENT_RATE_LIMIT_ATTEMPTS
+                or delay > API_KEY_CLIENT_RETRY_AFTER_MAX_SECONDS
+            ):
+                raise self._rate_limited(delay, attempts=attempt)
+            wait_time = delay + random.uniform(0.0, min(delay, 1.0))  # noqa: S311
+            logger.warning(
+                "api_rate_limited_retrying",
+                user_id=str(self.user_id),
+                connector_type=self.connector_type.value,
+                attempt=attempt,
+                wait_time=round(wait_time, 2),
+            )
+            await asyncio.sleep(wait_time)
+
+    def _rate_limited(self, delay: float, *, attempts: int) -> ConnectorAPIError:
+        """The refusal a spent 429 hands back: typed, with the delay it asked for.
+
+        Args:
+            delay: The provider's ``Retry-After``, else the next backoff step.
+            attempts: The calls made, every one refused.
+
+        Returns:
+            A 429 ``ConnectorAPIError`` carrying the delay in ``Retry-After``.
+        """
+        logger.warning(
+            "api_rate_limited_handed_back",
+            user_id=str(self.user_id),
+            connector_type=self.connector_type.value,
+            attempts=attempts,
+            retry_after_seconds=delay,
+        )
+        return ConnectorAPIError(
+            connector_type=self.connector_type.value,
+            status_code=429,
+            detail=f"{self.connector_type.value} rate-limited this account's key",
+            headers=_retry_after_header(delay),
+        )
+
     def _build_auth_headers(self) -> dict[str, str]:
         """
         Build authentication headers for API requests.
@@ -392,7 +596,8 @@ class BaseAPIKeyClient(ABC):
             endpoint: API endpoint (appended to api_base_url).
             params: Query parameters.
             json_data: JSON body data.
-            max_retries: Maximum number of retry attempts.
+            max_retries: Attempts against 5xx answers, malformed bodies and network
+                errors; the backoff precedes a retry, never follows the last.
 
         Returns:
             Parsed JSON response.
@@ -400,36 +605,20 @@ class BaseAPIKeyClient(ABC):
         Raises:
             ExternalServiceError: If the circuit breaker is open, or on
                 authentication errors (401/403 — invalid or expired API key).
+            ConnectorAPIError: A 429 once its own attempts are spent
+                (``API_KEY_CLIENT_RATE_LIMIT_ATTEMPTS``, apart from ``max_retries``),
+                or whose ``Retry-After`` exceeds
+                ``API_KEY_CLIENT_RETRY_AFTER_MAX_SECONDS``, with the delay in its
+                ``Retry-After`` header.
             httpx.HTTPStatusError: On non-auth 4xx client errors.
             MaxRetriesExceededError: When retries are exhausted
-                (429 rate limiting, 5xx server errors, or network errors).
+                (5xx server errors, malformed bodies, or network errors).
             ValueError: On unsupported HTTP method.
         """
         operation = f"{self.connector_type.value} {method.upper()} {endpoint}"
 
         # Check circuit breaker first (fail fast if service is down)
-        if self._is_circuit_breaker_enabled():
-            cb = self._get_circuit_breaker()
-            try:
-                await cb.check()
-            except CircuitBreakerError as e:
-                logger.warning(
-                    "circuit_breaker_rejected_request",
-                    service=e.service,
-                    state=e.state.value,
-                    connector_type=self.connector_type.value,
-                    user_id=str(self.user_id),
-                    retry_after=e.retry_after,
-                )
-                raise ExternalServiceError(
-                    service_name=self.connector_type.value,
-                    detail=(
-                        f"{self.connector_type.value} service temporarily unavailable"
-                        " (circuit open). Please try again later."
-                    ),
-                    error_type="circuit_open",
-                    retry_after=e.retry_after,
-                ) from e
+        await self._check_circuit()
 
         # Apply rate limiting
         await self._rate_limit()
@@ -437,170 +626,113 @@ class BaseAPIKeyClient(ABC):
         # Build URL and auth
         url = f"{self.api_base_url.rstrip('/')}/{endpoint.lstrip('/')}"
         headers = self._build_auth_headers()
-        auth_params = self._build_auth_params()
-
-        # Merge auth params with provided params
-        if params:
-            params = {**params, **auth_params}
-        else:
-            params = auth_params if auth_params else None
+        params = self._merged_params(params)
 
         client = await self._get_client()
+        verb = method.upper()
+        if verb not in _HTTP_METHODS:
+            raise ValueError(f"Unsupported HTTP method: {method}")
+
+        async def send() -> httpx.Response:
+            return await self._send_once(client, verb, url, params, headers, json_data)
+
         last_error: Exception | None = None
-
         for attempt in range(max_retries):
+            if attempt:
+                # The backoff precedes a retry: nothing is slept after the last one.
+                await asyncio.sleep(2 ** (attempt - 1))
             try:
-                # Make request based on method
-                if method.upper() == "GET":
-                    response = await client.get(url, params=params, headers=headers)
-                elif method.upper() == "POST":
-                    response = await client.post(
-                        url, params=params, headers=headers, json=json_data
-                    )
-                elif method.upper() == "PUT":
-                    response = await client.put(url, params=params, headers=headers, json=json_data)
-                elif method.upper() == "DELETE":
-                    response = await client.delete(url, params=params, headers=headers)
-                elif method.upper() == "PATCH":
-                    response = await client.patch(
-                        url, params=params, headers=headers, json=json_data
-                    )
-                else:
-                    raise ValueError(f"Unsupported HTTP method: {method}")
-
-                # Handle rate limit (429) - record failure for circuit breaker
-                if response.status_code == 429:
-                    last_error = Exception("Rate limited: HTTP 429")
-                    if self._is_circuit_breaker_enabled():
-                        await self._get_circuit_breaker().record_failure(last_error)
-                    # RFC 7231 allows Retry-After to be an HTTP-date; fall back
-                    # to exponential backoff when it is not delta-seconds.
-                    retry_after_header = response.headers.get("Retry-After")
-                    try:
-                        wait_time = (
-                            int(retry_after_header)
-                            if retry_after_header is not None
-                            else 2**attempt
-                        )
-                    except ValueError:
-                        wait_time = 2**attempt
-                    logger.warning(
-                        "api_rate_limited_retrying",
-                        user_id=str(self.user_id),
-                        connector_type=self.connector_type.value,
-                        attempt=attempt + 1,
-                        wait_time=wait_time,
-                    )
-                    await asyncio.sleep(wait_time)
-                    continue
-
-                # Handle server errors (5xx) - retry and record failure for circuit breaker
-                if response.status_code >= 500:
-                    last_error = Exception(f"Server error: HTTP {response.status_code}")
-                    if self._is_circuit_breaker_enabled():
-                        await self._get_circuit_breaker().record_failure(last_error)
-                    wait_time = 2**attempt
-                    logger.warning(
-                        "api_server_error_retrying",
-                        user_id=str(self.user_id),
-                        connector_type=self.connector_type.value,
-                        status_code=response.status_code,
-                        attempt=attempt + 1,
-                        wait_time=wait_time,
-                    )
-                    await asyncio.sleep(wait_time)
-                    continue
-
-                # Handle authentication errors (401, 403) - no retry, record success (valid response)
-                if response.status_code in (401, 403):
-                    # Auth errors are valid API responses, not service failures
-                    if self._is_circuit_breaker_enabled():
-                        await self._get_circuit_breaker().record_success()
-                    logger.error(
-                        "api_authentication_error",
-                        user_id=str(self.user_id),
-                        connector_type=self.connector_type.value,
-                        status_code=response.status_code,
-                        masked_key=self._mask_api_key(self.credentials.api_key),
-                    )
-                    raise ExternalServiceError(
-                        service_name=self.connector_type.value,
-                        detail=f"{self.connector_type.value}: Invalid or expired API key",
-                        error_type="unauthorized",
-                        http_status=response.status_code,
-                    )
-
-                # Handle other client errors (4xx) - no retry, record success (valid response)
-                if response.status_code >= 400:
-                    # Client errors are valid API responses, not service failures
-                    if self._is_circuit_breaker_enabled():
-                        await self._get_circuit_breaker().record_success()
-                    error_detail = response.text[:200] if response.text else "Unknown error"
-                    logger.error(
-                        "api_client_error",
-                        user_id=str(self.user_id),
-                        connector_type=self.connector_type.value,
-                        status_code=response.status_code,
-                        error=error_detail,
-                    )
-                    raise httpx.HTTPStatusError(
-                        f"{operation}: HTTP {response.status_code} - {error_detail}",
-                        request=response.request,
-                        response=response,
-                    )
-
-                # Success - parse BEFORE recording success: a malformed body on
-                # a 200 is a service failure, retried like a transient error.
-                if not response.text:
-                    if self._is_circuit_breaker_enabled():
-                        await self._get_circuit_breaker().record_success()
-                    return {}
-                try:
-                    result: dict[str, Any] = response.json()
-                except ValueError as decode_err:  # json.JSONDecodeError
-                    last_error = decode_err
-                    if self._is_circuit_breaker_enabled():
-                        await self._get_circuit_breaker().record_failure(decode_err)
-                    wait_time = 2**attempt
-                    logger.warning(
-                        "api_response_decode_error_retrying",
-                        user_id=str(self.user_id),
-                        connector_type=self.connector_type.value,
-                        attempt=attempt + 1,
-                        wait_time=wait_time,
-                        error=str(decode_err),
-                    )
-                    await asyncio.sleep(wait_time)
-                    continue
-                if self._is_circuit_breaker_enabled():
-                    await self._get_circuit_breaker().record_success()
-                return result
-
+                response = await self._send_through_rate_limits(send)
             except httpx.RequestError as e:
                 # Network errors should trip the circuit breaker
                 last_error = e
-                if self._is_circuit_breaker_enabled():
-                    await self._get_circuit_breaker().record_failure(e)
-                wait_time = 2**attempt
+                await self._breaker_failure(e)
                 logger.warning(
                     "api_request_error_retrying",
                     user_id=str(self.user_id),
                     connector_type=self.connector_type.value,
-                    error=str(e),
+                    error_type=type(e).__name__,
                     attempt=attempt + 1,
-                    wait_time=wait_time,
+                    max_retries=max_retries,
                 )
-                if attempt == max_retries - 1:
-                    raise MaxRetriesExceededError(
-                        operation=operation,
-                        max_retries=max_retries,
-                        last_error=e,
-                    ) from e
-                await asyncio.sleep(wait_time)
+                logger.debug("api_request_error_detail", error=str(e))
+                continue
 
-        # Max retries exceeded (429 or 5xx responses on every attempt)
+            # Handle server errors (5xx) - retry and record failure for circuit breaker
+            if response.status_code >= 500:
+                last_error = Exception(f"Server error: HTTP {response.status_code}")
+                await self._breaker_failure(last_error)
+                logger.warning(
+                    "api_server_error_retrying",
+                    user_id=str(self.user_id),
+                    connector_type=self.connector_type.value,
+                    status_code=response.status_code,
+                    attempt=attempt + 1,
+                    max_retries=max_retries,
+                )
+                continue
+
+            # Handle authentication errors (401, 403) - no retry, record success (valid response)
+            if response.status_code in (401, 403):
+                # Auth errors are valid API responses, not service failures
+                await self._breaker_success()
+                logger.error(
+                    "api_authentication_error",
+                    user_id=str(self.user_id),
+                    connector_type=self.connector_type.value,
+                    status_code=response.status_code,
+                    masked_key=self._mask_api_key(self.credentials.api_key),
+                )
+                raise ExternalServiceError(
+                    service_name=self.connector_type.value,
+                    detail=f"{self.connector_type.value}: Invalid or expired API key",
+                    error_type="unauthorized",
+                    http_status=response.status_code,
+                )
+
+            # Handle other client errors (4xx) - no retry, record success (valid response)
+            if response.status_code >= 400:
+                # Client errors are valid API responses, not service failures
+                await self._breaker_success()
+                logger.error(
+                    "api_client_error",
+                    user_id=str(self.user_id),
+                    connector_type=self.connector_type.value,
+                    status_code=response.status_code,
+                )
+                logger.debug("api_client_error_detail", text=response.text)
+                raise httpx.HTTPStatusError(
+                    f"{operation}: HTTP {response.status_code}",
+                    request=response.request,
+                    response=response,
+                )
+
+            # Success - parse BEFORE recording success: a malformed body on
+            # a 200 is a service failure, retried like a transient error.
+            if not response.text:
+                await self._breaker_success()
+                return {}
+            try:
+                result: dict[str, Any] = response.json()
+            except ValueError as decode_err:  # json.JSONDecodeError
+                last_error = decode_err
+                await self._breaker_failure(decode_err)
+                logger.warning(
+                    "api_response_decode_error_retrying",
+                    user_id=str(self.user_id),
+                    connector_type=self.connector_type.value,
+                    attempt=attempt + 1,
+                    max_retries=max_retries,
+                    error_type=type(decode_err).__name__,
+                )
+                logger.debug("api_response_decode_error_detail", error=str(decode_err))
+                continue
+            await self._breaker_success()
+            return result
+
+        # Max retries exceeded (5xx, malformed bodies or network errors on every attempt)
         raise MaxRetriesExceededError(
             operation=operation,
             max_retries=max_retries,
             last_error=last_error,
-        )
+        ) from last_error

@@ -49,6 +49,14 @@ vi.mock('@/i18n/client', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 
+// The shared Fish Audio pins are acts of their own (ADR-345 amendment 2026-10-14).
+const apiClientMock = vi.hoisted(() => ({ put: vi.fn(), delete: vi.fn() }));
+vi.mock('@/lib/api-client', () => ({
+  default: apiClientMock,
+  ApiError: class ApiError extends Error {},
+  apiEndpointUrl: (path: string) => path,
+}));
+
 vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
@@ -444,6 +452,75 @@ describe('TTS provider config block', () => {
     });
   });
 
+  it('offers to narrow the voices to the administrator’s language where it narrows them', async () => {
+    apiQueryState.current['/admin/voice/voices'] = {
+      data: {
+        provider: 'fishaudio',
+        source: 'live',
+        voices: [
+          { voice_id: 'e'.repeat(32), label: 'Emma', gender: 'female', language: 'en' },
+          { voice_id: 'f'.repeat(32), label: 'Emilie', gender: 'female', language: 'fr' },
+          { voice_id: 'n'.repeat(32), label: 'Clone', gender: null, language: null },
+        ],
+      },
+      loading: false,
+    };
+    renderSection([ttsConfig('fishaudio', 's2.1-pro')]);
+    await openDialog('Voice TTS');
+
+    expect(
+      screen.getByRole('switch', { name: 'settings.voice_language_filter.only_language' })
+    ).toBeChecked();
+  });
+
+  it('offers no language filter when every voice speaks every language', async () => {
+    apiQueryState.current['/admin/voice/voices'] = {
+      data: {
+        provider: 'openai',
+        source: 'static',
+        voices: [
+          { voice_id: 'alloy', label: 'Alloy', gender: null, language: null },
+          { voice_id: 'nova', label: 'Nova', gender: 'female', language: null },
+        ],
+      },
+      loading: false,
+    };
+    renderSection([ttsConfig('openai', 'tts-1')]);
+    await openDialog('Voice TTS');
+
+    expect(
+      screen.queryByRole('switch', { name: 'settings.voice_language_filter.only_language' })
+    ).toBeNull();
+  });
+
+  it('re-reads the Fish Audio catalogue after an unpin, which never reaches the save', async () => {
+    const refetchVoices = vi.fn(async () => {});
+    apiQueryState.current['/admin/voice/voices'] = {
+      data: { provider: 'fishaudio', source: 'live', voices: [] },
+      loading: false,
+      refetch: refetchVoices,
+    };
+    apiQueryState.current['/admin/voice/fishaudio/library/pins'] = {
+      data: { voice_ids: ['b'.repeat(32)], max_pins: 20 },
+      loading: false,
+      error: null,
+      setData: vi.fn(),
+    };
+    apiClientMock.delete.mockResolvedValue({ voice_ids: [], max_pins: 20 });
+    renderSection([ttsConfig('fishaudio', 's2.1-pro')]);
+    await openDialog('Voice TTS');
+
+    fireEvent.click(screen.getAllByRole('button', { name: /pinnedRemove/ })[0]);
+
+    expect(apiClientMock.delete).toHaveBeenCalledWith(
+      `/admin/voice/fishaudio/library/pins/${'b'.repeat(32)}`
+    );
+    await waitFor(() => expect(refetchVoices).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByText('common.save'));
+    await waitFor(() => expect(updateConfig).toHaveBeenCalledTimes(1));
+    expect(updateConfig).toHaveBeenCalledWith('voice_tts', {});
+  });
+
   it('does not send provider_config when the tuning matches the default blob', async () => {
     renderSection([ttsConfig('edge', 'edge-tts', '{"rate":"+10%"}')]);
     await openDialog('Voice TTS');
@@ -514,6 +591,45 @@ describe('accessible names on dialog controls (audit F012)', () => {
 // "save failed" toast, leaving the admin blind to the actual constraint.
 
 describe('dialog save (structured 422 surfacing)', () => {
+  it('localizes a model inherited from another provider', async () => {
+    const { toast } = await import('sonner');
+    updateConfig.mockRejectedValueOnce(
+      Object.assign(new Error('422'), {
+        data: {
+          detail: {
+            type: 'model_provider_mismatch',
+            msg: 'raw English',
+            ctx: { model: 'edge-tts', provider: 'edge' },
+          },
+        },
+      })
+    );
+    renderSection([typeConfig('router', 'Router')]);
+    await openDialog('Router');
+    fireEvent.click(screen.getByText('common.save'));
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        'settings.admin.llmConfig.config.modelProviderMismatch'
+      )
+    );
+    expect(screen.getByText('common.save')).toBeVisible();
+  });
+  it.each([
+    ['fishaudio_voice_unavailable', 'lia_voice_unknown'],
+    ['lia_voice_catalogue_unavailable', 'lia_voice_catalogue_unavailable'],
+  ])('localizes the voice refusal %s and keeps the form open', async (type, wording) => {
+    const { toast } = await import('sonner');
+    updateConfig.mockRejectedValueOnce(
+      Object.assign(new Error('refused'), { data: { detail: { type, msg: 'raw English' } } })
+    );
+    renderSection([typeConfig('router', 'Router')]);
+    await openDialog('Router');
+    fireEvent.click(screen.getByText('common.save'));
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(`settings.voice_mode.lia_voices.errors.${wording}`)
+    );
+    expect(screen.getByText('common.save')).toBeVisible();
+  });
   it('shows the localized explicit message for thinking_budget_below_floor', async () => {
     const { toast } = await import('sonner');
     updateConfig.mockRejectedValueOnce(

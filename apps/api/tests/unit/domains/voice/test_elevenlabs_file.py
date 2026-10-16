@@ -87,6 +87,58 @@ def test_a_key_id_used_as_a_key_is_a_configuration_fault_not_a_retry() -> None:
     with pytest.raises(STTProviderError) as exc:
         ElevenLabsSttService._raise_for_status(_response(400, body))
     assert exc.value.code == "invalid_api_key"
+    assert exc.value.details == {"status_code": 400, "vendor_code": "api_key_id_used_as_api_key"}
+
+
+@pytest.mark.parametrize(
+    ("status", "body"),
+    [
+        # Authentication refused, naming no other cause.
+        (401, {"detail": "missing_permissions"}),
+        # A key lacking the operation's permission: seen, then documented.
+        (401, {"detail": {"status": "missing_permissions", "message": "No."}}),
+        (403, {"detail": {"code": "insufficient_permissions", "message": "No."}}),
+    ],
+)
+def test_a_refused_key_is_read_from_the_status_and_the_vendor_code(
+    status: int, body: dict[str, object]
+) -> None:
+    with pytest.raises(STTProviderError) as exc:
+        ElevenLabsSttService._raise_for_status(_response(status, body))
+    assert exc.value.code == "invalid_api_key"
+
+
+def test_a_401_naming_another_cause_is_not_a_refused_key() -> None:
+    # The vendor lists ``quota_exceeded`` among its 400/401 answers: the account is
+    # out of quota, and telling the administrator to fix the key would mislead.
+    body = {"detail": {"status": "quota_exceeded", "message": "No quota left."}}
+    with pytest.raises(STTProviderError) as exc:
+        ElevenLabsSttService._raise_for_status(_response(401, body))
+    assert exc.value.code == "provider_http_error"
+    assert exc.value.details == {"status_code": 401, "vendor_code": "quota_exceeded"}
+
+
+#: A refused body quoting the request: these words must never leave the client.
+SENTINEL = "the words of the person, quoted back"
+
+
+@pytest.mark.parametrize(
+    ("status", "body"),
+    [
+        (400, {"detail": {"code": "invalid_file", "message": SENTINEL}}),
+        (422, {"detail": [{"loc": ["body", "file"], "msg": SENTINEL, "input": SENTINEL}]}),
+        (404, {"detail": {"status": "model_not_found", "message": SENTINEL}}),
+        (500, SENTINEL),
+        (503, {"detail": SENTINEL}),
+    ],
+)
+def test_a_refused_body_never_travels(status: int, body: object) -> None:
+    with pytest.raises(STTProviderError) as exc:
+        ElevenLabsSttService._raise_for_status(_response(status, body))
+    assert exc.value.code == "provider_http_error"
+    assert SENTINEL not in str(exc.value) and SENTINEL not in repr(exc.value.details)
+    assert isinstance(exc.value.details, dict)
+    assert exc.value.details["status_code"] == status
 
 
 def test_rate_limit_carries_retry_after() -> None:
@@ -95,6 +147,13 @@ def test_rate_limit_carries_retry_after() -> None:
             _response(429, {"detail": "slow"}, {"Retry-After": "3"})
         )
     assert exc.value.code == "provider_rate_limited" and exc.value.retry_after_seconds == 3.0
+
+
+def test_an_answer_without_its_duration_travels_by_its_shape_alone() -> None:
+    with pytest.raises(STTProviderError) as exc:
+        _service()._parse_file_payload({"text": SENTINEL, "words": []}, diarize=False)
+    assert exc.value.code == "provider_invalid_response"
+    assert exc.value.details == {"keys": ["text", "words"]}
 
 
 async def test_transcribe_file_posts_the_file_once_and_folds_the_answer(

@@ -1006,7 +1006,9 @@
     transition: none;
   }
   .lia-response-wrapper[data-card-version='2'] .lia-collapsible__content,
-  .lia-response-wrapper[data-card-version='2'] .lia-route-step__detail {
+  .lia-response-wrapper[data-card-version='2'] .lia-route-step__detail,
+  .lia-response-wrapper[data-card-version='2'] .lia-collapsible[open] > .lia-collapsible__content,
+  .lia-response-wrapper[data-card-version='2'] .lia-route-step[open] > .lia-route-step__detail {
     animation: none;
   }
 

@@ -362,3 +362,174 @@ Graph et IMAP, de la recherche à la carte),
 `test_get_emails_tool_detail.py` (une seule lecture pour les trois niveaux),
 `test_detail_levels.py`, `tests/unit/connectors/test_google_gmail_client.py::TestSearchHitFormat`,
 `test_provider_parity_contract.py::test_client_sets_every_declared_class_attribute`.
+
+## Amendement 2026-10-13 — une requête que Graph accepte, et l'identifiant IMAP porte son dossier
+
+**Constats.**
+
+1. **Outlook abandonnait la recherche.** La traduction produisait un `$search`
+   (expéditeur, objet, mots) ET un `$filter` (dates, lu/non lu, pièce jointe).
+   Graph refuse de les combiner sur `/messages`, et le client supprimait le
+   `$search` — le critère même qui nomme le message. Mesuré en production
+   (lecture seule, sept jours, le 2026-10-13) : 5 recherches tronquées ainsi
+   sur 626 recherches Outlook réussies. « Les mails non lus de Marie »
+   listaient tous les mails non lus ; la fiche Relations, qui interroge
+   `from:<adresse> after:<date>`, listait tous les mails reçus depuis la date
+   comme échangés avec la personne.
+2. **Un `$filter` accompagné d'un `$orderby` doit être MENÉ par la propriété
+   de tri** (règle documentée, `InefficientFilter` sinon). La production a
+   toléré `isRead eq false` seul (aucune erreur sur 626 recherches) ; la
+   traduction suit désormais le contrat documenté plutôt que cette tolérance.
+3. **Un UID IMAP ne nomme un message que dans UN dossier** (RFC 3501).
+   L'identifiant Apple était l'UID nu, et chaque lecture commençait par
+   l'INBOX : lire, mettre à la corbeille ou télécharger une pièce jointe d'un
+   message listé hors de l'INBOX pouvait atteindre le message de l'INBOX
+   portant le même numéro, et le transfert lisait l'INBOX seule.
+
+**Décision.**
+
+- **Une seule requête, celle que Graph accepte**
+  (`normalizers/graph_mail_query.py`) :
+  - rien à chercher → un `$filter` mené par la date de tri
+    (`receivedDateTime ge 1900-01-01T00:00:00Z` quand aucune date n'est
+    demandée) ;
+  - seule une adresse d'expéditeur exacte à chercher, à côté d'une
+    condition → le même `$filter` (`from/emailAddress/address eq`, forme
+    documentée) : l'expéditeur, les dates et l'état de lecture sont tous
+    appliqués par le serveur ;
+  - sinon → un `$search` portant tout ce que KQL documente
+    (`from`/`to`/`cc`/`subject`, les mots, `hasAttachments:true`).
+- **Ce que la requête ne peut pas porter est vérifié sur chaque message de la
+  page** : à côté d'une recherche, les dates (KQL ne documente aucun
+  intervalle) et l'état de lecture (KQL n'en a pas) ; l'étoile — le drapeau
+  d'Outlook — dans tous les cas, faute de forme documentée.
+- **Une page amincie le DIT.** `set_aside_on_page` (champ partagé
+  `FIELD_SET_ASIDE_ON_PAGE`, écrit par le client, lu par les outils) compte
+  les messages écartés. `get_emails_tool` et `list_mailbox_drafts_tool` le
+  publient au modèle, même sur une page vide, et leurs manifestes l'annoncent :
+  `next_page_token` peut en tenir d'autres. Une continuation relit ses
+  conditions dans la requête qu'on lui redonne, comme Gmail relit son `q`.
+- **Les dates sont celles de la propriété de tri.** La liste des brouillons
+  trie, filtre et affiche la dernière sauvegarde. `before:` exclut le jour
+  nommé, comme Gmail et `BEFORE` d'IMAP. Une date illisible est refusée
+  plutôt que d'élargir la recherche en silence ; une date ISO est lue comme
+  son jour, des secondes Unix comme un instant (forme documentée par Gmail).
+- **L'identifiant d'un message IMAP porte son dossier**
+  (`normalizers/imap_handles.py`) : l'UID, et, hors de l'INBOX, une empreinte
+  du nom du dossier — jamais le nom lui-même, qui est une étiquette de la
+  personne alors qu'un identifiant passe dans les journaux (ADR-317). La
+  lecture sélectionne le dossier dont le nom porte cette empreinte
+  (`apple_imap.select_message_folder`) : lecture, corbeille, pièce jointe et
+  transfert ne devinent plus le dossier. Un UID nu reste l'INBOX, ce que
+  signifiaient les identifiants déjà émis. La poignée d'un brouillon
+  (`mailbox_draft_id`, ADR-344) reste l'UID que connaît le dossier des
+  brouillons, et son cache est oublié sous l'identifiant du message, plus sous
+  celui du message de l'INBOX de même numéro.
+
+**Non mesuré.** Le connecteur Outlook de dev est en erreur depuis le
+2026-08-01 (sa reconnexion appartient au propriétaire) et aucun compte iCloud
+n'est configuré. La traduction suit le contrat documenté de Graph, l'identifiant
+IMAP la RFC 3501, prouvés par des tests contre un faux Graph et un faux serveur
+IMAP à UID par dossier (`tests/unit/domains/connectors/clients/imap_fakes.py`).
+
+**Non traité, dit.** Les opérateurs niés restent retirés de la requête (Graph
+n'a pas de NOT utilisable). Un dossier personnel nommé par `label:` n'est pas
+résolu en identifiant de dossier sur Outlook : la boîte de réception est lue.
+La recherche `in:trash` d'iCloud vise un dossier nommé « Trash » : la corbeille
+réelle est trouvée par son rôle pour l'ACTION, pas encore pour la RECHERCHE.
+Traités le 2026-10-14 (amendement suivant).
+
+**Preuves.** `tests/unit/domains/connectors/clients/normalizers/test_graph_mail_query.py`,
+`test_microsoft_outlook_client.py::TestSearchEmails`,
+`test_email_search_pagination.py::TestGraphPagination::test_a_continuation_checks_its_page_like_the_first`,
+`test_outlook_drafts.py::TestRead`, `test_apple_message_handles.py`,
+`tests/unit/domains/agents/emails/test_get_emails_tool_detail.py::TestAThinPageSaysSo`,
+`test_list_mailbox_drafts_tool.py`.
+
+## Amendement 2026-10-14 — le dossier nommé et la négation tiennent
+
+**Constats.** Les trois restes du 2026-10-13 sont une même famille : une
+recherche lue ailleurs, ou plus largement, que ce que disait la requête.
+
+1. **Outlook lisait la boîte de réception** pour `label:<un dossier de la
+   personne>` : la traduction ne connaissait que les dossiers bien connus.
+2. **iCloud cherchait `in:trash` dans un dossier nommé « Trash »**, alors
+   qu'iCloud garde sa corbeille dans « Deleted Messages ». Un nom qu'iCloud
+   n'avait pas, ou écrit dans une autre casse, échouait en erreur interne, et
+   `label:starred` sélectionnait un dossier « starred ».
+3. **Les opérateurs niés étaient retirés** : « mes mails, pas la newsletter »
+   listait la newsletter.
+
+**Décision.**
+
+- **Un dossier système est trouvé par son RÔLE, un dossier de la personne par
+  son nom, sinon il est refusé** (`clients/mail_folders.py`, une seule
+  résolution pour les deux fournisseurs). Le dossier de la personne est
+  cherché par son chemin, sinon par son propre nom, sans tenir compte de la
+  casse.
+  - Deux dossiers du même nom : refus avec leurs chemins
+    (`DISAMBIGUATION_REQUIRED`).
+  - Un nom que rien ne porte : refus avec les dossiers qui existent
+    (`NOT_FOUND`), en disant si la liste lue était complète.
+  - Jamais la boîte de réception à la place : une recherche lue ailleurs
+    répond à une autre question, et une recherche vide dit « rien » d'un
+    dossier que personne n'a lu.
+  - Le nom reste un attribut de l'exception, jamais son texte : c'est une
+    étiquette de la personne, et le texte d'une exception atteint les journaux
+    (ADR-317).
+- **Outlook parcourt l'arborescence niveau par niveau** (`childFolders`).
+  - Il lit des pages de la taille du fournisseur
+    (`MICROSOFT_MAIL_FOLDERS_PAGE_SIZE`) et suit `@odata.nextLink`.
+  - Il s'arrête à `OUTLOOK_MAIL_FOLDERS_WALK_MAX` dossiers (réglage, 500).
+    C'est une lecture interne : jamais le plafond d'éléments que reçoit
+    l'agent (`API_MAX_ITEMS_PER_REQUEST`), dont l'usage pour une pagination
+    interne a déjà rendu un flux 40 fois plus bavard.
+  - Un dossier bien connu n'appelle aucune liste.
+- **iCloud résout le dossier dans sa session** (`apple_imap.search_folder`).
+  - La corbeille, les envoyés, les brouillons, les indésirables et les
+    archives sont trouvés par leur rôle RFC 6154 (`\Trash`, `\Sent`,
+    `\Drafts`, `\Junk`, `\Archive`), avec les noms connus en repli.
+  - Un dossier système que le serveur n'a pas est refusé
+    (`MailboxFolderUnavailableError`).
+  - `label:starred` est le drapeau, comme sur Graph.
+- **Une négation tient.**
+  - Un état devient sa clause contraire : `-is:unread` lit les messages lus,
+    `-has:attachment` devient `hasAttachments eq false`.
+  - Une date devient l'autre côté de son jour : `-after:X` équivaut à
+    `before:X`.
+  - L'étoile niée est le drapeau absent.
+  - Une personne ou un objet nié est écarté sur la page sur Outlook, car KQL
+    ne documente pas de NOT ; le compte écarté est publié
+    (`set_aside_on_page`). Sur IMAP, il devient `NOT (…)`.
+  - Un dossier nié est exclu en en lisant un autre.
+  - Exclure le dossier même que la requête lit (`-in:inbox`) est refusé avant
+    toute lecture. Gmail l'entend comme « partout sauf là » ; une recherche
+    qui lit UN dossier ne peut pas le servir, et lire ce dossier répondait
+    l'inverse de la question.
+  - Un trait d'union à l'intérieur d'un mot n'est jamais une négation :
+    `reply-to:` est un terme.
+- **Le refus atteint le modèle sous un code typé.** `get_emails_tool` traduit
+  en refus nommés (`MAIL_SEARCH_REFUSALS`, `refusal_for`), jamais en « erreur
+  interne » :
+  - un dossier introuvable ou ambigu ;
+  - un dossier système absent ;
+  - un refus de la requête (`ValueError` : date illisible, ou dossier à la
+    fois lu et exclu).
+
+**Non mesuré.** Comme le 2026-10-13, le connecteur Outlook de dev est en
+erreur et aucun compte iCloud n'est configuré. Les preuves passent par un faux
+Graph (parcours, pagination, borne) et un faux serveur IMAP (rôles, dossiers
+sans drapeau, drapeau `\Flagged`).
+
+**Non traité, dit.**
+- IMAP n'a toujours pas de critère pour `has:attachment`, ni sous sa forme
+  positive ni niée.
+- Gmail répond vide à un libellé inconnu : sa recherche est native et ne
+  refuse rien.
+- `resolve_label_names_in_query`, qui devait résoudre les libellés imbriqués
+  de Gmail, n'a aucun appelant sur les trois clients.
+
+**Preuves.** `tests/unit/domains/connectors/clients/test_mail_folders.py`,
+`normalizers/test_graph_mail_query.py::TestANegation`,
+`normalizers/test_email_normalizer.py::TestANegation`,
+`tests/unit/domains/agents/emails/test_get_emails_tool_detail.py::TestAFolderTheMailboxCannotResolveIsSaid`.

@@ -19,7 +19,6 @@
  * CHECK, and its sentence already says how often that happens.
  */
 
-import { CalendarClock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { formatInstant } from '@/lib/format-instant';
@@ -43,25 +42,25 @@ export function ScheduledActionsList({
   const { t } = useTranslation();
 
   return (
-    <ul className="space-y-2" role="list">
+    <ul className="divide-y divide-border/50" role="list">
       {actions.map(action => (
-        <li
-          key={action.id}
-          className="flex items-start gap-2 rounded-lg border border-border/40 bg-card/40 px-3 py-2"
-        >
-          <CalendarClock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
+        <li key={action.id} className="min-w-0 py-4 first:pt-0 last:pb-0">
           <div className="min-w-0 flex-1">
             <p className="flex flex-wrap items-baseline gap-2">
-              <span className="text-sm font-medium text-foreground/90">{action.title}</span>
+              <span className="min-w-0 break-words text-sm font-medium leading-relaxed text-foreground/90">
+                {action.title}
+              </span>
               {!action.is_enabled && (
                 <span className="rounded-full bg-muted px-2 py-0.5 text-px-10 font-medium uppercase tracking-wide text-muted-foreground">
                   {t('notifications_hub.routine_disabled')}
                 </span>
               )}
             </p>
-            <p className="text-px-11 text-muted-foreground">{action.schedule_display}</p>
+            <p className="mt-1 break-words text-xs leading-relaxed text-muted-foreground">
+              {action.schedule_display}
+            </p>
             {action.is_enabled && action.trigger_kind !== 'condition' && (
-              <p className="text-px-11 tabular-nums text-muted-foreground">
+              <p className="mt-1 text-xs tabular-nums leading-relaxed text-muted-foreground">
                 {action.next_trigger_at
                   ? t('notifications_hub.next_run', {
                       when: formatInstant(action.next_trigger_at, locale),

@@ -80,7 +80,7 @@ describe('GET /api/landing-media', () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
 
-    const res = await getMedia();
+    const res = await getMedia(new Request('https://lia.example.org/api/landing-media'));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ video: null });
     expect(res.headers.get('cache-control')).toContain('max-age=60');
@@ -91,7 +91,7 @@ describe('GET /api/landing-media', () => {
     vi.stubEnv('LANDING_MEDIA_BASE_URL', `${BASE}/`);
     vi.stubGlobal('fetch', fetchByUrl({ [`${BASE}/manifest.json`]: MANIFEST }));
 
-    const res = await getMedia();
+    const res = await getMedia(new Request('https://lia.example.org/api/landing-media'));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({
       video: {
@@ -118,7 +118,9 @@ describe('GET /api/landing-media', () => {
       fetchByUrl({ [`${BASE}/manifest.json`]: { ...MANIFEST, next: [SECOND] } })
     );
 
-    const body = await (await getMedia()).json();
+    const body = await (
+      await getMedia(new Request('https://lia.example.org/api/landing-media'))
+    ).json();
     expect(body.video.poster).toBe(`${BASE}/clip-poster.webp`);
     expect(body.next).toEqual([
       {
@@ -143,7 +145,9 @@ describe('GET /api/landing-media', () => {
         [`${BASE}/manifest.json`]: { ...MANIFEST, presentation: SECOND },
       })
     );
-    const body = await (await getMedia()).json();
+    const body = await (
+      await getMedia(new Request('https://lia.example.org/api/landing-media'))
+    ).json();
     expect(body.next).toEqual([]);
     expect(body.presentation.poster).toBe(`${BASE}/second-poster.webp`);
     expect(body.presentation.durationSeconds).toBe(251.4);
@@ -156,7 +160,9 @@ describe('GET /api/landing-media', () => {
       .mockResolvedValueOnce(jsonResponse({}, 503))
       .mockResolvedValue(jsonResponse({ ...MANIFEST, presentation: SECOND }));
     vi.stubGlobal('fetch', fetchMock);
-    expect(await (await getMedia()).json()).toEqual({ video: null });
+    expect(
+      await (await getMedia(new Request('https://lia.example.org/api/landing-media'))).json()
+    ).toEqual({ video: null });
 
     const refreshed = await getMedia(
       new Request('https://lia.example.org/api/landing-media?refresh=1')
@@ -183,7 +189,10 @@ describe('GET /api/landing-media', () => {
       .mockResolvedValueOnce(jsonResponse(MANIFEST))
       .mockResolvedValue(jsonResponse({ ...MANIFEST, presentation: SECOND }));
     vi.stubGlobal('fetch', fetchMock);
-    expect((await (await getMedia()).json()).presentation).toBeNull();
+    expect(
+      (await (await getMedia(new Request('https://lia.example.org/api/landing-media'))).json())
+        .presentation
+    ).toBeNull();
     for (const query of ['?refresh=2', '?refresh=1&origin=https://other.example', '?nocache=1']) {
       expect(
         (
@@ -207,18 +216,24 @@ describe('GET /api/landing-media', () => {
   it('answers "no video" when the origin fails, when the manifest is invalid, and when the variable is malformed', async () => {
     vi.stubEnv('LANDING_MEDIA_BASE_URL', BASE);
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ error: 'down' }, 503)));
-    expect(await (await getMedia()).json()).toEqual({ video: null });
+    expect(
+      await (await getMedia(new Request('https://lia.example.org/api/landing-media'))).json()
+    ).toEqual({ video: null });
 
     resetLandingMediaCache();
     vi.stubGlobal(
       'fetch',
       fetchByUrl({ [`${BASE}/manifest.json`]: { version: 1, renditions: [] } })
     );
-    expect(await (await getMedia()).json()).toEqual({ video: null });
+    expect(
+      await (await getMedia(new Request('https://lia.example.org/api/landing-media'))).json()
+    ).toEqual({ video: null });
 
     vi.stubEnv('LANDING_MEDIA_BASE_URL', 'not a url');
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    expect(await (await getMedia()).json()).toEqual({ video: null });
+    expect(
+      await (await getMedia(new Request('https://lia.example.org/api/landing-media'))).json()
+    ).toEqual({ video: null });
     expect(errorSpy).toHaveBeenCalled();
     errorSpy.mockRestore();
   });

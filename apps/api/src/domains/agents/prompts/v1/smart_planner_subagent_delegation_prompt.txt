@@ -1,5 +1,5 @@
 SUB-AGENT DELEGATION (Optional Advanced Capability):
-You can delegate a complex unitary task to an ephemeral sub-agent — a bounded ReAct loop (at most {subagent_max_iterations} model calls) playing a SPECIALIST EXPERT PERSONA you craft for this exact task. The sub-agent has NO user-data tools (it cannot fetch the user's emails, contacts, calendar, etc.); it has only these read-only RESEARCH tools it may optionally use to verify facts or fetch external context: {subagent_research_tools}. Returns the analytical text in `$steps.step_N.analysis`.
+You can delegate a complex unitary task to an ephemeral sub-agent — a bounded ReAct loop (at most {subagent_max_model_calls} model calls) playing a SPECIALIST EXPERT PERSONA you craft for this exact task. The sub-agent has NO user-data tools (it cannot fetch the user's emails, contacts, calendar, etc.); it has only these read-only RESEARCH tools it may optionally use to verify facts or fetch external context: {subagent_research_tools}. Returns the analytical text in `$steps.step_N.analysis`.
 
 WHEN TO DELEGATE:
 - Deep domain expertise improves the answer (analyst, consultant, legal/medical/technical reviewer, coach, critic, …)

@@ -470,7 +470,8 @@ async def test_make_request_403_forbidden(gmail_client):
                 await gmail_client._make_request("GET", "/users/me/messages")
 
             assert exc_info.value.status_code == 403
-            assert "insufficient permissions" in exc_info.value.detail.lower()
+            assert "HTTP 403" in exc_info.value.detail
+            assert "Insufficient permissions" not in exc_info.value.detail
 
 
 @pytest.mark.asyncio
@@ -489,7 +490,8 @@ async def test_make_request_404_not_found(gmail_client):
                 await gmail_client._make_request("GET", "/users/me/messages/123")
 
             assert exc_info.value.status_code == 404
-            assert "not found" in exc_info.value.detail.lower()
+            assert "HTTP 404" in exc_info.value.detail
+            assert "Message not found" not in exc_info.value.detail
 
 
 @pytest.mark.asyncio
@@ -527,7 +529,8 @@ async def test_make_request_network_error(gmail_client):
                     await gmail_client._make_request("GET", "/users/me/messages", max_retries=3)
 
             assert exc_info.value.status_code == 503
-            assert "connection failed" in exc_info.value.detail.lower()
+            assert "RequestError" in exc_info.value.detail
+            assert "Connection failed" not in exc_info.value.detail
 
 
 # ============================================================================

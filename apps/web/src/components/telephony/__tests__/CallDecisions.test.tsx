@@ -34,7 +34,7 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
-import { CallDecisions } from '../CallDecisions';
+import { CallDecisions, CallDecisionsActions } from '../CallDecisions';
 
 const FULL: StructuredCallData = {
   agreed: true,
@@ -59,6 +59,35 @@ function render(data: StructuredCallData | null, actionable = true) {
 beforeEach(() => openChat.mockClear());
 
 describe('CallDecisions', () => {
+  it('can place the meeting draft after all call information without repeating facts', async () => {
+    const { user } = renderWithProviders(
+      <CallDecisionsActions
+        data={FULL}
+        calleeDisplay="Le Jardin"
+        objective="Réserver mardi"
+        lng="fr"
+      />
+    );
+
+    expect(screen.queryByText(/decisions\.extra_cost/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /decisions\.plan_meeting/ }));
+    const draftUrl = new URL(openChat.mock.calls[0][0], 'https://lia.example');
+    expect(draftUrl.searchParams.get('draft')).toContain('subject=Réserver mardi');
+    expect(draftUrl.searchParams.has('intent')).toBe(false);
+  });
+
+  it('omits the meeting action when only a cost was reported', () => {
+    const { container } = renderWithProviders(
+      <CallDecisionsActions
+        data={{ additional_costs: '+3 €' }}
+        calleeDisplay="Le Jardin"
+        objective="Réserver mardi"
+        lng="fr"
+      />
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it('renders nothing when the call produced no decision to make', () => {
     const { container } = render({ agreed: true, notes: 'RAS' });
     expect(container).toBeEmptyDOMElement();

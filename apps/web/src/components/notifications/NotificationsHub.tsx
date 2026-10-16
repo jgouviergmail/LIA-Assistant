@@ -1,35 +1,10 @@
 'use client';
 
-/**
- * The notifications hub — one page for everything LIA sends, and everything
- * still to come.
- *
- * Those five things lived in four different settings sections (device
- * notifications, proactivity, interests, channels) plus the chat itself, so
- * "what reached me?" had no single answer. The settings keep their detailed
- * controls — this page reads, it never tunes — and every section links back to
- * the one that owns it.
- *
- * **The five are NOT of the same nature, and the subtitles say so.** Relayed
- * messages, proactive notifications and interest notifications are things that
- * ALREADY reached the reader. Reminders and routines are things that WILL:
- * a reminder is deleted the instant it fires, so there is no history of it to
- * show, and a reader looking for one would find an empty list with no
- * explanation. The line under each title states which of the two it is
- * (owner arbitration 2026-08-03: five flat sections, no visual grouping).
- *
- * Every section is folded on arrival and UNMOUNTED while folded, so no page of
- * rows is ever fetched for a section nobody opened.
- *
- * The badges are the exception, and deliberately so: a badge on a folded block
- * exists to be CHOSEN from, and it said "—" until the section was opened —
- * the one number that decides whether to open a section could only be had by
- * opening it. The five totals therefore come from ONE count read at mount
- * (`useHubCounts`), aggregates over indexed columns rather than rows. The
- * page, with its joins, still waits for the fold.
- */
+/** Independent notification sources, grouped by received versus upcoming.
+ * Pages stay lazy and independently ordered; no global timeline is inferred
+ * from partial pages. Decisions precede both registers. */
 
-import { useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import {
   Bell,
@@ -40,6 +15,8 @@ import {
   MessageSquare,
   Sparkles,
   Star,
+  SlidersHorizontal,
+  type LucideIcon,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -48,11 +25,13 @@ import { InterestNotificationHistory } from '@/components/settings/InterestNotif
 import { HubSection, type HubSectionProps } from '@/components/notifications/HubSection';
 import { NeedsMeList } from '@/components/workboard/NeedsMeList';
 import type { TicketRow } from '@/types/workboard';
-import { OpenOffersList } from '@/components/notifications/OpenOffersList';
+import { OpenOffersList, useOfferDecisions } from '@/components/notifications/OpenOffersList';
 import { PendingRemindersList } from '@/components/notifications/PendingRemindersList';
 import { RelayedMessagesList } from '@/components/notifications/RelayedMessagesList';
 import { ScheduledActionsList } from '@/components/notifications/ScheduledActionsList';
 import { Button } from '@/components/ui/button';
+import { Disclosure } from '@/components/ui/disclosure';
+import { SectionHeader } from '@/components/ui/section-header';
 import { useAppConfig } from '@/hooks/useAppConfig';
 import { useHubCounts, type HubCounts } from '@/hooks/useHubCounts';
 import { usePagedSection, type PagedSection } from '@/hooks/usePagedSection';
@@ -65,23 +44,24 @@ import type { RelayedMessage } from '@/components/notifications/RelayedMessagesL
 import type { ScheduledActionRow } from '@/components/notifications/ScheduledActionsList';
 
 /** Where each section is tuned in detail — the deep links stay unchanged. */
-const ADVANCED: readonly { key: string; token: SettingsSectionToken }[] = [
-  { key: 'peer_messages', token: 'peer-connections' },
-  { key: 'proactive', token: 'heartbeat' },
-  { key: 'interests', token: 'interests' },
-  { key: 'scheduled', token: 'scheduled-actions' },
-  { key: 'device', token: 'notifications' },
+const ADVANCED: readonly { key: string; token: SettingsSectionToken; icon: LucideIcon }[] = [
+  { key: 'peer_messages', token: 'peer-connections', icon: MessageSquare },
+  { key: 'proactive', token: 'heartbeat', icon: Sparkles },
+  { key: 'interests', token: 'interests', icon: Star },
+  { key: 'scheduled', token: 'scheduled-actions', icon: CalendarClock },
+  { key: 'device', token: 'notifications', icon: Bell },
 ];
 
 /**
- * The five queries, and the fold state that gates them.
+ * The section queries, and the fold state that gates them.
  *
  * Extracted from the component so the component reads as what it is — an
  * ORDER of sections — and stays under the shrink-only complexity ratchet.
  */
 function useHubSections() {
   const { config } = useAppConfig();
-  // ONE read for the five badges, so a folded section can be chosen from
+  const heartbeatEnabled = Boolean(config?.features?.heartbeat_enabled);
+  // ONE read for all badges, so a folded section can be chosen from
   // rather than opened to find out whether it holds anything.
   const { counts } = useHubCounts();
 
@@ -102,7 +82,7 @@ function useHubSections() {
     path: '/heartbeat/offers',
     selectItems: payload => payload.notifications,
     selectTotal: payload => payload.total,
-    enabled: isOpen('offers') && Boolean(config?.features?.heartbeat_enabled),
+    enabled: isOpen('offers') && heartbeatEnabled,
   });
 
   const peers = usePagedSection<{ messages: RelayedMessage[]; total: number }, RelayedMessage>({
@@ -120,7 +100,7 @@ function useHubSections() {
     path: '/heartbeat/history',
     selectItems: payload => payload.notifications,
     selectTotal: payload => payload.total,
-    enabled: isOpen('proactive') && Boolean(config?.features?.heartbeat_enabled),
+    enabled: isOpen('proactive') && heartbeatEnabled,
   });
 
   const interests = usePagedSection<
@@ -148,6 +128,7 @@ function useHubSections() {
     ScheduledActionRow
   >({
     path: '/scheduled-actions',
+    pagination: 'client',
     selectItems: payload => payload.scheduled_actions,
     selectTotal: payload => payload.total,
     enabled: isOpen('scheduled'),
@@ -249,157 +230,209 @@ function ProposalsHubSection({
   lng: string;
   locale: string;
 }) {
+  const summaryRef = useRef<HTMLElement>(null);
+  const decisions = useOfferDecisions({
+    lng,
+    onDecided: restoreFocus => {
+      if (restoreFocus) summaryRef.current?.focus();
+      offers.refetch();
+    },
+  });
   if (!enabled) return null;
   return (
-    <HubSection icon={Lightbulb} {...section}>
+    <HubSection icon={Lightbulb} {...section} summaryRef={summaryRef}>
       <OpenOffersList
-        offers={offers.items ?? []}
-        lng={lng}
+        offers={(offers.items ?? []).filter(offer => !decisions.decided.has(offer.id))}
         locale={locale}
-        onDecided={offers.refetch}
+        decisions={decisions}
       />
     </HubSection>
+  );
+}
+
+/** Each register owns a heading and a single quiet surface, not nested cards. */
+function NotificationRegister({
+  id,
+  title,
+  icon,
+  children,
+  className,
+}: {
+  id: string;
+  title: string;
+  icon: LucideIcon;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <section
+      aria-labelledby={id}
+      className={`min-w-0 rounded-2xl border border-border/60 bg-card p-4 sm:p-5 ${className ?? ''}`}
+    >
+      <SectionHeader
+        id={id}
+        title={title}
+        icon={icon}
+        level={2}
+        className="border-b border-border/60 pb-4"
+      />
+      <div className="divide-y divide-border/50">{children}</div>
+    </section>
+  );
+}
+
+/** Delivered histories share presentation while retaining their own query gates. */
+function DeliveredNotifications({
+  sections,
+  locale,
+}: {
+  sections: ReturnType<typeof useHubSections>;
+  locale: string;
+}) {
+  const { t } = useTranslation();
+  const { config, counts, track, peers, proactive, interests } = sections;
+  const shell = <TItem,>(key: string, section: PagedSection<TItem>, countKey: keyof HubCounts) =>
+    sectionShell(key, section, t, track(key), counts?.[countKey]);
+  return (
+    <>
+      {' '}
+      {config?.features?.peers_enabled && (
+        <HubSection icon={MessageSquare} {...shell('peer_messages', peers, 'peer_messages')}>
+          <RelayedMessagesList
+            messages={peers.items ?? []}
+            locale={locale}
+            presentation="timeline"
+          />
+        </HubSection>
+      )}
+      {config?.features?.heartbeat_enabled && (
+        <HubSection icon={Sparkles} {...shell('proactive', proactive, 'proactive')}>
+          <HeartbeatHistory
+            notifications={proactive.items}
+            total={proactive.total}
+            firstLoad={false}
+            loading={proactive.loading}
+            error={null}
+            locale={locale}
+            presentation="timeline"
+          />
+        </HubSection>
+      )}
+      <HubSection icon={Star} {...shell('interests', interests, 'interests')}>
+        <InterestNotificationHistory
+          notifications={interests.items}
+          total={interests.total}
+          firstLoad={false}
+          loading={interests.loading}
+          error={null}
+          locale={locale}
+          presentation="timeline"
+        />
+      </HubSection>
+    </>
   );
 }
 
 export function NotificationsHub({ lng }: { lng: string }) {
   const { t, i18n } = useTranslation();
   const locale = getIntlLocale(i18n.language as Language);
-  const {
-    config,
-    counts,
-    track,
-    offers,
-    peers,
-    proactive,
-    interests,
-    reminders,
-    scheduled,
-    workboard,
-    workboardEnabled,
-  } = useHubSections();
+  const sections = useHubSections();
+  const { config, counts, track, offers, reminders, scheduled, workboard, workboardEnabled } =
+    sections;
   const shell = <TItem,>(key: string, section: PagedSection<TItem>, countKey: keyof HubCounts) =>
     sectionShell(key, section, t, track(key), counts?.[countKey]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="flex items-center gap-2 text-3xl font-bold tracking-tight">
-            <Bell className="h-7 w-7 text-primary" aria-hidden="true" />
-            {t('notifications_hub.title')}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t('notifications_hub.subtitle')}</p>
-        </div>
-        {/* Door to the merged activity timeline (Lot 1-A1). The hub answers
-            "what reached me?"; the timeline answers "what did LIA do?" —
-            siblings, so the door lives at the same altitude as the title.
-            Hub-shortcut altitude (ADR-207): solid themed CTA; a real anchor
-            via asChild keeps middle-click and open-in-new-tab. */}
-        {config?.features?.activity_timeline_enabled && (
-          <Button asChild variant="default" size="sm">
-            <Link href={`/${lng}/dashboard/activity`}>
-              <History className="h-4 w-4" aria-hidden="true" />
-              {t('activity.hub_cta')}
-            </Link>
-          </Button>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        {/* Proposals first: a to-decide set outranks the histories below —
-            the reader can ACT here, everywhere else they can only read. */}
-        <ProposalsHubSection
-          enabled={Boolean(config?.features?.heartbeat_enabled)}
-          section={shell('offers', offers, 'offers')}
-          offers={offers}
-          lng={lng}
-          locale={locale}
-        />
-
-        {config?.features?.peers_enabled && (
-          <HubSection icon={MessageSquare} {...shell('peer_messages', peers, 'peer_messages')}>
-            <RelayedMessagesList messages={peers.items ?? []} locale={locale} />
-          </HubSection>
-        )}
-
-        {config?.features?.heartbeat_enabled && (
-          <HubSection icon={Sparkles} {...shell('proactive', proactive, 'proactive')}>
-            {/* The settings card, reused verbatim: two surfaces answering the
-                same question must not drift into two visual languages. It owns
-                its own count line, so the page below it stays the pager.
-
-                `firstLoad`/`error` are pinned here ON PURPOSE, not forgotten:
-                `HubSection` already renders the spinner and the error for this
-                section (it receives them through `shell`). Passing them twice
-                would draw two spinners and two error messages for one failure. */}
-            <HeartbeatHistory
-              notifications={proactive.items}
-              total={proactive.total}
-              firstLoad={false}
-              loading={proactive.loading}
-              error={null}
-              locale={locale}
-            />
-          </HubSection>
-        )}
-
-        <HubSection icon={Star} {...shell('interests', interests, 'interests')}>
-          <InterestNotificationHistory
-            notifications={interests.items}
-            total={interests.total}
-            firstLoad={false}
-            loading={interests.loading}
-            error={null}
-            locale={locale}
-          />
-        </HubSection>
-
-        <HubSection icon={Bell} {...shell('reminders', reminders, 'reminders')}>
-          <PendingRemindersList reminders={reminders.items ?? []} locale={locale} />
-        </HubSection>
-
-        <HubSection icon={CalendarClock} {...shell('scheduled', scheduled, 'scheduled')}>
-          <ScheduledActionsList actions={scheduled.items ?? []} locale={locale} />
-        </HubSection>
-
-        <WorkboardHubSection
-          enabled={workboardEnabled}
-          section={shell('workboard', workboard, 'workboard')}
-          tickets={workboard.items}
-          lng={lng}
-        />
-      </div>
-
-      <section
-        aria-labelledby="hub-advanced"
-        className="rounded-xl border border-border/40 bg-card p-4"
-      >
-        <h2 id="hub-advanced" className="text-sm font-semibold">
-          {t('notifications_hub.advanced_title')}
-        </h2>
-        <p className="mt-1 text-xs text-muted-foreground">{t('notifications_hub.advanced_hint')}</p>
-        <ul className="mt-2 flex flex-wrap gap-2" role="list">
-          {ADVANCED.map(({ key, token }) => (
-            <li key={key}>
-              {/* `asChild`: a real anchor keeps middle-click, open-in-new-tab
-                  and the "link" role, while the palette, the hover and the AA
-                  contrast come from the design system rather than from classes
-                  written here that nothing checks. SOLID (ADR-207, owner
-                  arbitration 2026-08-05): these shortcuts are the hub's CTAs,
-                  and a CTA takes the filled primary everywhere in the app. */}
-              <Button asChild variant="default" size="sm" className="min-h-11">
-                <Link href={settingsSectionHref(lng, token)}>
-                  {/* Named after the DESTINATION, not after the hub section:
-                    the same words twice on one page, meaning two different
-                    things, is how a reader loses track of where a link goes. */}
-                  {t(`notifications_hub.advanced_links.${key}`)}
+    <div className="min-w-0 space-y-6">
+      <SectionHeader
+        title={t('notifications_hub.title')}
+        icon={Bell}
+        level={1}
+        description={t('notifications_hub.subtitle')}
+        actions={
+          <>
+            {config?.features?.activity_timeline_enabled && (
+              <Button asChild size="sm" className="min-h-11 w-full sm:w-auto">
+                <Link href={`/${lng}/dashboard/activity`}>
+                  <History className="h-4 w-4" aria-hidden="true" />
+                  {t('activity.hub_cta')}
                 </Link>
               </Button>
-            </li>
-          ))}
-        </ul>
-      </section>
+            )}
+            <Disclosure
+              icon={SlidersHorizontal}
+              title={t('notifications_hub.advanced_title')}
+              className="w-full sm:max-w-sm"
+              titleClassName="whitespace-normal"
+            >
+              <p className="mb-3 text-xs leading-relaxed text-muted-foreground">
+                {t('notifications_hub.advanced_hint')}
+              </p>
+              <ul className="space-y-2" role="list">
+                {ADVANCED.map(({ key, token, icon: Icon }) => (
+                  <li key={key}>
+                    <Button
+                      asChild
+                      size="sm"
+                      className="h-auto min-h-11 w-full justify-start whitespace-normal py-2 text-left"
+                    >
+                      <Link href={settingsSectionHref(lng, token)}>
+                        <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        {t(`notifications_hub.advanced_links.${key}`)}
+                      </Link>
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </Disclosure>
+          </>
+        }
+      />
+
+      {config?.features?.heartbeat_enabled && (
+        <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 sm:px-5">
+          <ProposalsHubSection
+            enabled
+            section={shell('offers', offers, 'offers')}
+            offers={offers}
+            lng={lng}
+            locale={locale}
+          />
+        </div>
+      )}
+
+      {/* Future first in linear/mobile reading. Independent registers retain
+          the accepted desktop placement: delivered left, upcoming right. */}
+      <div className="grid min-w-0 items-start gap-5 lg:grid-cols-2">
+        <NotificationRegister
+          id="hub-upcoming"
+          title={t('notifications_hub.groups.upcoming')}
+          icon={CalendarClock}
+          className="lg:col-start-2 lg:row-start-1"
+        >
+          <HubSection icon={Bell} {...shell('reminders', reminders, 'reminders')}>
+            <PendingRemindersList reminders={reminders.items ?? []} locale={locale} />
+          </HubSection>
+          <HubSection icon={CalendarClock} {...shell('scheduled', scheduled, 'scheduled')}>
+            <ScheduledActionsList actions={scheduled.items ?? []} locale={locale} />
+          </HubSection>
+          <WorkboardHubSection
+            enabled={workboardEnabled}
+            section={shell('workboard', workboard, 'workboard')}
+            tickets={workboard.items}
+            lng={lng}
+          />
+        </NotificationRegister>
+
+        <NotificationRegister
+          id="hub-received"
+          title={t('notifications_hub.groups.received')}
+          icon={History}
+          className="lg:col-start-1 lg:row-start-1"
+        >
+          <DeliveredNotifications sections={sections} locale={locale} />
+        </NotificationRegister>
+      </div>
     </div>
   );
 }

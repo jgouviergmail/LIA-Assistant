@@ -1300,39 +1300,6 @@ registry_draft_critique_questions_total = Counter(
 
 
 # ============================================================================
-# ADAPTIVE RE-PLANNER METRICS (INTELLIPLANNER Phase E - 2025-12-03)
-# ============================================================================
-# Metrics for AdaptiveRePlanner — ADVISORY failure-pattern analysis.
-#
-# The replanner computes a recovery decision after each plan execution, but the
-# orchestrator does NOT act on it (RETRY_SAME / REPLAN_* are advisory only —
-# automatic recovery is unwired, see task_orchestrator_node TODO D4). So only
-# what is genuinely observed is exported: the detected trigger and the advisory
-# decision. The former ``adaptive_replanner_attempts_total`` (always attempt 0,
-# no retry ever runs) and ``adaptive_replanner_recovery_success_total`` (counted
-# a "recovery" for every non-abort decision, including plain PROCEED, though
-# nothing was recovered) were factually false and have been removed (audit F017).
-
-adaptive_replanner_triggers_total = Counter(
-    "adaptive_replanner_triggers_total",
-    "Total re-planning triggers detected by type",
-    ["trigger"],
-    # trigger: empty_results, partial_empty, partial_failure, reference_error, dependency_error, timeout, none
-    # Tracks what failure patterns occur most frequently
-    # High empty_results rate may indicate poor search criteria in plans
-)
-
-adaptive_replanner_decisions_total = Counter(
-    "adaptive_replanner_decisions_total",
-    "Total advisory re-planning decisions by type (not acted upon — see TODO D4)",
-    ["decision"],
-    # decision: proceed, retry_same, replan_modified, replan_new, escalate_user, abort
-    # Tracks which advice the replanner produces for detected failures.
-    # High abort rate indicates unrecoverable failure patterns.
-)
-
-
-# ============================================================================
 # ReAct Execution Mode (ADR-070)
 # ============================================================================
 

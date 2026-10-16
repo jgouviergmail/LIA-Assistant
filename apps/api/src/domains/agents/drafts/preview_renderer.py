@@ -857,6 +857,8 @@ _PREVIEW_RENDERERS: dict[DraftType, _PreviewRenderer] = {
     DraftType.EMAIL_REPLY: _render_email_send,
     DraftType.EMAIL_FORWARD: _render_email_forward,
     DraftType.EMAIL_DELETE: _render_email_delete,
+    # A mailbox draft as it stands: the forward's card shows its files (ADR-344).
+    DraftType.MAILBOX_DRAFT_SEND: _render_email_forward,
     DraftType.EVENT: _render_event,
     DraftType.EVENT_UPDATE: _render_event_update,
     DraftType.EVENT_DELETE: _render_event_delete,

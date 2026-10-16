@@ -148,7 +148,7 @@ const responses = new Map<string, unknown>([
       checked_at: '2026-10-05T08:00:00Z',
     } satisfies ConnectorHealthResponse,
   ],
-  ['/api/v1/personalities', { personalities: [], count: 0 } satisfies PersonalityListResponse],
+  ['/api/v1/personalities', { personalities: [], total: 0 } satisfies PersonalityListResponse],
   [
     '/api/v1/personalities/current',
     {

@@ -1621,7 +1621,7 @@ main_graph = StateGraph(MessagesState)
 main_compiled = main_graph.compile(checkpointer=checkpointer)
 
 # Subgraph (agent) without checkpointer
-agent_graph = create_react_agent(...)
+agent_graph = create_agent(...)
 
 # Main graph calls subgraph
 async def agent_node(state: MessagesState) -> dict:

@@ -32,6 +32,7 @@ import structlog
 
 from src.core.config import settings
 from src.core.constants import MEETINGS_LOCAL_BLOCK_SECONDS
+from src.core.remote_stt import request_cap_exceeded
 from src.core.security.utils import decrypt_data
 from src.domains.meetings.engine import ResolvedEngine, resolve_engine
 from src.domains.meetings.models import MeetingSttEnginePreference, MeetingSttProvider
@@ -50,6 +51,9 @@ PERMANENT_STT_CODES: frozenset[str] = frozenset(
         "provider_file_too_large",
         "elevenlabs_api_key_missing",
         "openai_api_key_missing",
+        "fishaudio_api_key_missing",
+        # An account with no credit left stays so for the life of a retry budget.
+        "provider_payment_required",
         "provider_unknown",
     }
 )
@@ -282,6 +286,14 @@ async def _transcribe_remote(
     if not engine.api_key or not engine.model:
         raise TranscriptionError(
             "provider_unknown", "remote engine resolved without key or model", transient=False
+        )
+    cap = request_cap_exceeded(engine.provider.value, duration_seconds)
+    if cap is not None:
+        # The vendor would refuse it after the whole upload: the chain moves on now.
+        raise TranscriptionError(
+            "provider_file_too_large",
+            f"{engine.provider.value} takes at most {cap}s of audio per request",
+            transient=False,
         )
     client = build_file_transcriber(
         engine.provider.value,

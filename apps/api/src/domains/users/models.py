@@ -37,6 +37,7 @@ from src.domains.users.journal_lifecycle_columns import JournalLifecycleColumns
 from src.domains.users.live_preferences_columns import LivePreferencesColumns
 from src.domains.users.phone_identity_columns import PhoneIdentityColumns
 from src.domains.users.turn_preferences_columns import TurnPreferencesColumns
+from src.domains.users.voice_preferences_columns import VoicePreferencesColumns
 from src.infrastructure.database.models import BaseModel, UUIDMixin
 from src.infrastructure.database.session import Base
 
@@ -60,6 +61,7 @@ class User(
     LivePreferencesColumns,
     PhoneIdentityColumns,
     TurnPreferencesColumns,
+    VoicePreferencesColumns,
     BaseModel,
 ):
     """

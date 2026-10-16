@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from src.core.exceptions import ConnectorAPIError
+from src.core.i18n_api_messages import APIMessages
 from src.domains.agents.context.manager import ContextSaveMode
 from src.domains.agents.tools import calendar_tools
 from src.domains.agents.tools.calendar_tools import SearchEventsTool
@@ -52,7 +53,7 @@ async def test_upstream_404_is_not_replaced_by_a_context_save_attribute_error(
     assert isinstance(output, UnifiedToolOutput)
     assert not output.success
     assert output.metadata["error_type"] == "ConnectorAPIError"
-    assert output.metadata["error_message"] == "404: Calendar resource not found."
+    assert output.metadata["error_message"] == APIMessages.internal_error("ConnectorAPIError")
     assert output.context_save_mode == save_mode
     assert not output.registry_updates
 

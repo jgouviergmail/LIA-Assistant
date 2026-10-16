@@ -51,6 +51,7 @@ from src.core.constants import (
 )
 from src.core.i18n import resolve_language
 from src.core.prompt_layout import single_call_messages
+from src.domains.agents.analysis.efficacy_context import EfficacyAnalysis
 from src.domains.agents.analysis.query_intelligence import (
     QueryIntelligence,
     SemanticFallback,
@@ -347,6 +348,7 @@ class QueryAnalysisResult:
     context_reference: ContextReferenceOutput = field(default_factory=ContextReferenceOutput)
     raw_output: dict[str, Any] = field(default_factory=dict)
     requested_outcomes: tuple[GoalRequirement, ...] = ()
+    efficacy_analysis: EfficacyAnalysis = field(default_factory=EfficacyAnalysis)
 
     @property
     def domains(self) -> list[str]:
@@ -612,6 +614,7 @@ async def analyze_query(
             # Context reference (LLM-first, 2026-04)
             context_reference=result.context_reference,
             raw_output=result.model_dump(),
+            efficacy_analysis=result.efficacy_analysis,
             requested_outcomes=anchored_requirements(
                 result.requested_outcomes,
                 query,
@@ -1329,6 +1332,7 @@ class QueryAnalyzerService:
                 # Indexable vs Semantic — probabilistic hint (frozen tuple)
                 semantic_filter_terms=tuple(analysis_result.semantic_filter_terms),
                 has_temporal_reference=analysis_result.has_temporal_reference,
+                efficacy_analysis=analysis_result.efficacy_analysis,
                 requested_outcomes=anchored_requirements(
                     analysis_result.requested_outcomes,
                     actual_original_query,

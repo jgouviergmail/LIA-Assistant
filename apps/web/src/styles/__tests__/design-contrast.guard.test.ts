@@ -33,7 +33,20 @@ import {
   oledPalettes,
 } from './contrast-math';
 
-const palettes = { ...allPalettes(), ...oledPalettes() };
+// The home route overrides only the dark card material. Include that real
+// swatch in the same AA pair matrix so every accent and semantic tone is guarded.
+const homeCardHex = cssSource.match(
+  /html\.dark:not\(\[data-oled\]\) \.dashboard-home\s*\{\s*--color-card:\s*#([0-9a-f]{6});/i
+)?.[1];
+if (!homeCardHex) throw new Error('Missing scoped dark home card material');
+const homeChannel = (offset: number) => parseInt(homeCardHex.slice(offset, offset + 2), 16) / 255;
+const homeCard: Rgb = [homeChannel(0), homeChannel(2), homeChannel(4)];
+const homePalettes: Record<string, Palette> = Object.fromEntries(
+  Object.entries(allPalettes())
+    .filter(([name]) => name.endsWith('-dark'))
+    .map(([name, palette]) => [`home-${name}`, { ...palette, card: homeCard }])
+);
+const palettes: Record<string, Palette> = { ...allPalettes(), ...oledPalettes(), ...homePalettes };
 
 /**
  * Tailwind's cyan ramp, copied verbatim from `tailwindcss/theme.css`.
@@ -462,11 +475,11 @@ describe('design-system contrast guard (WCAG AA, all themes × modes)', () => {
     });
   });
 
-  it('parses all 15 palettes with the full token set', () => {
+  it('parses all 20 palettes with the full token set', () => {
     // 5 accents x {light, dark, oled}. OLED palettes are merged onto their dark
     // base, so they must expose the FULL token set even though the CSS block
     // only overrides six neutrals.
-    expect(Object.keys(palettes)).toHaveLength(15);
+    expect(Object.keys(palettes)).toHaveLength(20);
     for (const [name, palette] of Object.entries(palettes)) {
       for (const t of ['background', 'foreground', 'primary', 'muted-foreground', 'ring']) {
         expect(palette[t], `token --color-${t} missing in ${name}`).toBeDefined();

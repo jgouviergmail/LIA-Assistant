@@ -77,6 +77,7 @@ from src.domains.briefing.schemas import (
     TasksData,
     WeatherData,
     WorkboardData,
+    WorkboardPreviews,
     WorkboardTicketItem,
 )
 from src.domains.connectors.clients.google_drive_client import GoogleDriveClient
@@ -97,6 +98,7 @@ from src.domains.users.user_location_service import (
     UserLocationService,
 )
 from src.domains.workboard.constants import CLOSED_STATUSES
+from src.domains.workboard.models import WorkboardTicket
 from src.domains.workboard.repository import WorkboardRepository
 from src.domains.workboard.summary_queries import read_attention
 from src.infrastructure.database.session import get_db_context
@@ -115,6 +117,11 @@ logger = structlog.get_logger(__name__)
 
 def _classify_http_error(exc: Exception) -> str:
     """Map an HTTP/network exception to a stable error_code."""
+    # The API-key client hands a 429 it could not wait out back typed (ADR-108
+    # amendment 2026-10-13). Only that status is read here: a 401 on Google
+    # Weather is the instance's key, which nobody can reconnect (ADR-307).
+    if isinstance(exc, ConnectorAPIError) and exc.upstream_status_code == 429:
+        return ERROR_CODE_CONNECTOR_RATE_LIMIT
     if isinstance(exc, httpx.HTTPStatusError):
         status = exc.response.status_code
         if status == 401:
@@ -873,9 +880,9 @@ async def fetch_workboard(*, user_id: UUID) -> WorkboardData:
     """What on the person's workboard needs their attention.
 
     Exact aggregates over the whole board (ADR-185) — waiting on them, held by
-    LIA, late, open — plus the first tickets waiting on them, read through the
-    workboard's own statements so the card, the board and the hub agree on
-    every figure. A local read: one session, closed before returning.
+    LIA, held by peers, late, open — plus the first tickets waiting on them.
+    The workboard's own statements keep the card, board and hub in agreement
+    on every figure. A local read: one session, closed before returning.
 
     Raises:
         ConnectorNotConfiguredError: when the instance switched the workboard
@@ -889,22 +896,32 @@ async def fetch_workboard(*, user_id: UUID) -> WorkboardData:
         figures = await read_attention(
             WorkboardRepository(db), user_id, now, limit=settings.briefing_max_workboard_items
         )
-        items = [
-            WorkboardTicketItem(
-                id=str(ticket.id),
-                title=ticket.title,
-                status=ticket.status,
-                due_at=ticket.due_at,
-                overdue=ticket.due_at is not None
-                and ticket.due_at < now
-                and ticket.status not in CLOSED_STATUSES,
-            )
-            for ticket in figures.needs_me_first
-        ]
+        items = [_workboard_item(ticket, now) for ticket in figures.needs_me_first]
+        previews = WorkboardPreviews.model_validate(
+            {
+                key: [_workboard_item(ticket, now) for ticket in tickets]
+                for key, tickets in figures.previews.items()
+            }
+        )
     return WorkboardData(
         needs_me=figures.needs_me,
         held_by_lia=figures.held_by_lia,
+        held_by_peers=figures.held_by_peers,
         overdue=figures.overdue,
         open_total=figures.open_total,
         items=items,
+        previews=previews,
+    )
+
+
+def _workboard_item(ticket: WorkboardTicket, now: datetime) -> WorkboardTicketItem:
+    """The same read-only ticket projection for legacy rows and grouped previews."""
+    return WorkboardTicketItem(
+        id=str(ticket.id),
+        title=ticket.title,
+        status=ticket.status,
+        due_at=ticket.due_at,
+        overdue=ticket.due_at is not None
+        and ticket.due_at < now
+        and ticket.status not in CLOSED_STATUSES,
     )

@@ -38,6 +38,15 @@ are stored in **your** PostgreSQL. Model calls and enabled connectors send the
 data needed for their task to their external provider. An enabled Simli avatar
 receives the audio it animates.
 
+Apple IMAP and outgoing SMTP over TLS validate the server certificate and hostname
+before login. Their trust store is the API container's, not the host's: a private
+certificate authority must be installed in that container's trust store. Do
+not disable certificate checks to work around an untrusted certificate. The
+credentials-free relay of the isolated demonstrator uses its private network.
+Apple IMAP and credential probes use `APPLE_CONNECTION_TIMEOUT`. Every selected
+protocol must pass before activation; a certificate refusal leaves the credentials
+unchanged and reports the trust problem in the account's language.
+
 ### The stack the installer starts
 
 | Container       | Role                                                  | Published to the network?     |
@@ -132,6 +141,7 @@ their keys:
 | ------------------------- | ---------- | ------------------------------------- |
 | Image/vision analysis     | Gemini     | Image understanding is unavailable    |
 | Premium voice output (TTS) | ElevenLabs | ElevenLabs speech is unavailable; Edge TTS remains available |
+| Premium voice output, transcription and voice library | Fish Audio | Fish Audio speech, transcription and the voice library are unavailable; Edge TTS remains available |
 | MCP App interactive widgets | Anthropic | Widgets fall back to plain responses |
 | Native bounded decisions | TypeSafe (JEV) | Each JEV use stays off; LIA keeps its existing decision paths |
 
@@ -270,6 +280,7 @@ your private `.env` (mode `0600`):
 | `AVATAR_ENABLED`        | Your `speaking_avatar` answer; each account still needs its own opt-in and Simli connector |
 | `AVATAR_MINTS_PER_HOUR`, `AVATAR_SESSION_LENGTH_SECONDS`, `AVATAR_IDLE_SECONDS`, `AVATAR_HTTP_TIMEOUT_SECONDS`, `AVATAR_CONNECT_TIMEOUT_SECONDS`, `AVATAR_PRESENCE_TIMEOUT_SECONDS` | Finite defaults aligned with [the API's avatar settings](../../apps/api/src/core/config/avatars.py), including the server-controlled relay's validated-presence bound |
 | `ELEVENLABS_TTS_MAX_CONCURRENCY` | The application default; lower it to your ElevenLabs account allowance before enabling its speech synthesis |
+| `FISHAUDIO_MAX_CONCURRENCY` | The application default; lower it to your Fish Audio account allowance before enabling its speech or transcription |
 
 The two empty `NEXT_PUBLIC_*` values are intentional: the web image is
 host-neutral and same-origin, so the canonical address is resolved at request
@@ -340,7 +351,7 @@ a prebuilt install pulls it by the manifest's digest, a local build builds it
 
 **JEV native decisions** are configured after installation in *Settings › Administration › JEV integrations*. They have no installer question, Compose service or extra boot step: every use starts off, and an administrator first adds the TypeSafe key, an active decision model and its tariff, then enables individual uses and the general switch. LIA validates each bounded answer and falls back to its existing path when it cannot use it; paid attempts and their fallback are both accounted. See [JEV_INTEGRATION.md](../technical/JEV_INTEGRATION.md).
 
-**ElevenLabs speech capacity** is shared across API workers and voice features. The generated environment includes `ELEVENLABS_TTS_MAX_CONCURRENCY`; match that limit to the allowance on your ElevenLabs account before selecting its TTS in Administration. Finished speech segments still play in their intended order even if synthesis completes out of order.
+**ElevenLabs and Fish Audio speech capacity** is shared across API workers and voice features. The generated environment includes `ELEVENLABS_TTS_MAX_CONCURRENCY` and `FISHAUDIO_MAX_CONCURRENCY`; match each limit to the allowance on your provider account before selecting its engine in Administration. Fish Audio counts synthesis, transcription and voice design against one allowance, and so does LIA. Finished speech segments still play in their intended order even if synthesis completes out of order.
 
 The same overlay starts the **sandbox egress proxy** (`egress` service,
 [ADR-298](../architecture/ADR-298-Sandbox-Egress-Toolbox.md)): the only way a

@@ -92,27 +92,18 @@ def _listed_sessions(
 
 class UserSession:
     """
-    Minimal user session data structure (OWASP/GDPR compliant).
+    Opaque BFF session reference and bounded authentication/device metadata.
 
-    Contains ONLY session identifier and user reference - no PII.
-    User data is fetched from database (PostgreSQL) on each request.
+    Redis stores the user reference, TTL preference, creation time, authentication
+    methods and optional step-up time, device families, truncated IP, last-seen
+    time and FCM token reference. The full user profile is read from PostgreSQL
+    during authentication rather than copied into the session. These references
+    and device fields are retained account data, not anonymous data.
 
-    Security & Privacy (2024 Best Practices):
-    - OWASP: "Session IDs must never include sensitive information or PII"
-    - GDPR Article 5: Data Minimization principle
-    - BFF Pattern: Stateful sessions, not stateless JWT
-
-    Storage:
-        Redis key: "session:{session_id}"
-        Redis value: {"user_id": "uuid", "remember_me": bool, "created_at": "iso"}
-
-    Performance:
-        Session check: ~0.1-0.5ms (Redis GET)
-        User fetch: ~0.3-0.5ms (PostgreSQL SELECT with PRIMARY KEY index)
-        Total overhead: ~0.5-1ms per authenticated request
-
-    Trade-off:
-        +0.5-1ms latency << GDPR compliance + 90% Redis memory reduction
+    The Redis key is "session:{session_id}". Expiration and revocation are
+    enforced by SessionStore; the opaque identifier is not a profile payload.
+    This storage shape alone establishes neither regulatory compliance nor a
+    latency or memory-reduction guarantee.
     """
 
     def __init__(

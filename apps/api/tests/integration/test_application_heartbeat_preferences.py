@@ -29,6 +29,7 @@ from src.domains.heartbeat.preference_commands import update_heartbeat_preferenc
 from src.domains.heartbeat.schemas import HeartbeatSettingsUpdate
 from src.domains.users.models import User
 from tests.helpers.application_pending_proposal import pending_proposal
+from tests.helpers.draft_refusals import draft_refusal_code
 from tests.helpers.runtime_context import installed_runtime_context
 
 pytestmark = pytest.mark.integration
@@ -155,7 +156,7 @@ async def test_exact_heartbeat_confirmation_and_newer_ui_changes(
         ["calendar"] if manual_intervention else ["emails"]
     )
     if manual_intervention:
-        assert result.error == "STALE_STATE"
+        assert draft_refusal_code(result) == "STALE_STATE"
     hints = [queue.get_nowait() for _ in range(queue.qsize())]
     hints = [event for event in hints if event.type == "application_state_changed"]
     assert len(hints) == int(not manual_intervention)

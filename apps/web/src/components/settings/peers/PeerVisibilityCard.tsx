@@ -11,7 +11,7 @@
  * the complexity cap).
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { Check, Copy } from 'lucide-react';
 
@@ -43,6 +43,27 @@ export function PeerVisibilityCard({
 }: PeerVisibilityCardProps) {
   const { t } = useTranslation(lng);
   const [nameCopied, setNameCopied] = useState(false);
+  const [copyError, setCopyError] = useState(false);
+  const [copying, setCopying] = useState(false);
+  const copyLock = useRef(false);
+  const copyName = async () => {
+    if (!fullName || copyLock.current) return;
+    copyLock.current = true;
+    setCopying(true);
+    setNameCopied(false);
+    setCopyError(false);
+    try {
+      if (typeof navigator.clipboard?.writeText !== 'function')
+        throw new Error('Clipboard unavailable');
+      await navigator.clipboard.writeText(fullName);
+      setNameCopied(true);
+    } catch {
+      setCopyError(true);
+    } finally {
+      copyLock.current = false;
+      setCopying(false);
+    }
+  };
 
   // The check-mark reverts on a timer; the cleanup keeps a fast unmount (tab
   // away, section collapsed) from firing a setState on a dead component.
@@ -90,16 +111,15 @@ export function PeerVisibilityCard({
         {fullName ? (
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-muted-foreground">{t('settings.peers.my_name.label')}</span>
-            <span className="font-medium">{fullName}</span>
+            <span className="break-all font-medium">{fullName}</span>
             <Button
               type="button"
               variant="ghost"
               size="icon"
               className="h-7 w-7"
-              onClick={() => {
-                void navigator.clipboard.writeText(fullName);
-                setNameCopied(true);
-              }}
+              onClick={() => void copyName()}
+              aria-disabled={copying}
+              aria-busy={copying}
               aria-label={t('settings.peers.my_name.copy')}
             >
               {nameCopied ? (
@@ -116,6 +136,12 @@ export function PeerVisibilityCard({
           <p className="text-muted-foreground">{t('settings.peers.my_name.missing')}</p>
         )}
       </div>
+
+      {copyError && (
+        <p role="alert" className="text-sm text-destructive">
+          {t('common.copyFailed')}
+        </p>
+      )}
 
       {/* ADR-189: a SECOND, independent consent. Being findable and handing
           your address over are different decisions — and this one only ever

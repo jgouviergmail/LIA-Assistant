@@ -52,6 +52,7 @@ from src.domains.agents.python_sandbox.egress.hosts import (
 )
 from src.domains.agents.python_sandbox.egress.registry import LiveRun, RunCredential
 from src.domains.agents.python_sandbox.egress.ruleset import SECRETS_DIRNAME
+from src.domains.agents.python_sandbox.egress.scrub import scrub_secrets
 from src.domains.agents.python_sandbox.egress.service import deployment_publisher
 from src.domains.skills.executor import EgressSpec, ScriptResult, SkillScriptExecutor
 
@@ -231,7 +232,7 @@ async def execute_network_run(
         user_id: The account, for the audit trail.
 
     Returns:
-        The script's result.
+        The script's result, every real key of the run removed from it.
 
     Raises:
         EgressProxyUnavailable: When the proxy could not serve the run — no
@@ -249,7 +250,15 @@ async def execute_network_run(
             egress=plan.spec,
         )
         effect.succeeded = bool(result.success)
-    return result
+    # A service may quote the key it received; what the script printed goes
+    # to the model, so the run's real keys leave it here (point 6).
+    secrets = list(plan.secrets.values())
+    return result.model_copy(
+        update={
+            "output": scrub_secrets(result.output, secrets),
+            "error": None if result.error is None else scrub_secrets(result.error, secrets),
+        }
+    )
 
 
 __all__ = [

@@ -10,8 +10,6 @@ Covers the invariants of :class:`ProgressiveSentenceStreamer`:
 - ``cancel_pending()`` releases tasks and emits the sentinel exactly once
 - ``close_input()`` with no buffered text + zero dispatched sentences
   produces an empty stream and a single sentinel
-- ``on_chars_synthesized`` callback fires per SERVED sentence (never for a refused one) and exceptions
-  raised inside it never break the stream
 - ``first_audio_latency_seconds`` is populated only after a chunk lands
 """
 
@@ -279,104 +277,6 @@ async def test_feed_after_close_input_is_ignored() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Cost tracking callback
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-async def test_on_chars_synthesized_called_once_per_sentence() -> None:
-    """Verify the cost-tracking hook is invoked with each sentence's char count."""
-    counts: list[int] = []
-    streamer = ProgressiveSentenceStreamer(
-        synth=_instant_synth("ok"),
-        max_sentences=5,
-        audio_format="mp3",
-        on_chars_synthesized=counts.append,
-    )
-    streamer.feed("AB. CDEF.")
-    streamer.close_input()
-    await _collect(streamer)
-
-    # "AB." → 3 chars, "CDEF." → 5 chars. Order matches dispatch order.
-    assert counts == [3, 5]
-
-
-@pytest.mark.unit
-async def test_a_refused_sentence_costs_nothing_a_served_one_costs_its_length() -> None:
-    """The characters are counted when the provider RETURNS audio, never at dispatch.
-
-    Measured on Docker dev 2026-09-20: four streams refused on every sentence
-    (``invalid_api_key``, zero chunks) each recorded a TTS cost and stamped
-    the message — absence of delivery was billed. A refused sentence spends
-    nothing; a served one costs exactly its length.
-    """
-    counts: list[int] = []
-
-    async def _synth(sentence: str) -> str:
-        if sentence.startswith("KO"):
-            raise RuntimeError("provider refused")
-        return f"ok-{sentence}"
-
-    streamer = ProgressiveSentenceStreamer(
-        synth=_synth,
-        max_sentences=5,
-        audio_format="mp3",
-        on_chars_synthesized=counts.append,
-    )
-    streamer.feed("KO one. Served two. KO three.")
-    streamer.close_input()
-    chunks = await _collect(streamer)
-
-    assert [c.phrase_text for c in chunks] == ["Served two."]
-    assert counts == [len("Served two.")]
-
-
-@pytest.mark.unit
-async def test_a_stream_refused_on_every_sentence_counts_no_character() -> None:
-    counts: list[int] = []
-
-    async def _refuse(_: str) -> str:
-        raise RuntimeError("invalid_api_key")
-
-    streamer = ProgressiveSentenceStreamer(
-        synth=_refuse,
-        max_sentences=5,
-        audio_format="mp3",
-        on_chars_synthesized=counts.append,
-    )
-    streamer.feed("One. Two. Three.")
-    streamer.close_input()
-    chunks = await _collect(streamer)
-
-    assert chunks == []
-    assert counts == []
-    assert streamer.dispatched_sentences == 3
-
-
-@pytest.mark.unit
-async def test_on_chars_synthesized_exception_is_swallowed() -> None:
-    """A throwing callback must NOT break the synth pipeline (CLAUDE.md
-    rule: cross-cutting hooks are best-effort)."""
-
-    def _bad_callback(_: int) -> None:
-        raise RuntimeError("metric backend down")
-
-    streamer = ProgressiveSentenceStreamer(
-        synth=_instant_synth("ok"),
-        max_sentences=5,
-        audio_format="mp3",
-        on_chars_synthesized=_bad_callback,
-    )
-    streamer.feed("Une phrase.")
-    streamer.close_input()
-    chunks = await _collect(streamer)
-
-    # The chunk still flows through — the pipeline is resilient.
-    assert len(chunks) == 1
-    assert chunks[0].phrase_text == "Une phrase."
-
-
-# ---------------------------------------------------------------------------
 # Latency property
 # ---------------------------------------------------------------------------
 
@@ -443,12 +343,10 @@ async def test_a_sentence_with_nothing_to_say_is_neither_sent_nor_billed() -> No
     and logged as an ERROR — a call for a silence nobody could have heard.
     """
     sent: list[str] = []
-    counts: list[int] = []
     streamer = ProgressiveSentenceStreamer(
         synth=_recording_synth(sent),
         max_sentences=5,
         audio_format="mp3",
-        on_chars_synthesized=counts.append,
     )
     streamer.feed("Bonjour. 🎉🎉 [laughs] ✨. <br/> *** ! Au revoir. 🙂")
     streamer.close_input()
@@ -459,7 +357,6 @@ async def test_a_sentence_with_nothing_to_say_is_neither_sent_nor_billed() -> No
         (0, "Bonjour."),
         (1, "Au revoir."),
     ]
-    assert counts == [len("Bonjour."), len("Au revoir.")]
     assert streamer.dispatched_sentences == 2
 
 

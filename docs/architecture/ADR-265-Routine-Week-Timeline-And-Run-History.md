@@ -149,3 +149,16 @@ while it runs. Today's column is highlighted from the server's reading, from
   rule for `next_occurrences`, kept).
 - **A purge job of its own** — a new interval to jitter and a new lock for a
   DELETE that returns zero rows most minutes.
+
+## Amendment 2026-10-13 — a run whose routine another tick took still writes its row
+
+Since [ADR-276's amendment 2026-10-13 (b)](ADR-276-Workboard.md), a routine's reservation is
+held by its token, and the settle that follows the model writes nothing of the ROUTINE once
+the recovery handed it to another tick: its state is that tick's. The run itself happened, so
+its row is still written, with its own outcome. Every exit of the executor keeps ending with a
+row (`runs.py`), and a condition routine's daily cap, counted from these rows (ADR-322), sees
+the run.
+
+The slot may then carry two rows. The week keeps the LAST started one — the tick that holds
+the routine — since the fold reads the rows oldest first. Guard:
+`test_a_settle_whose_reservation_was_taken_meanwhile_leaves_the_routine_alone`.

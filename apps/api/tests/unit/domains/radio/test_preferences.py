@@ -102,14 +102,15 @@ def test_a_valid_setting_is_kept() -> None:
     assert (preferences.verification, preferences.timer_minutes) == (VerificationMode.ALL, 0)
 
 
-def test_a_commentator_s_voice_is_the_station_s_never_a_setting() -> None:
-    """The station casts its commentators itself (ADR-324 decision 39): a write naming one
-    is refused, and one stored anyhow is read as if it were not there."""
-    with pytest.raises(ValidationError, match="station casts"):
-        RadioPreferences.model_validate({"voices": {"speaker_a": "fr-FR-Voice"}})
+def test_a_commentator_s_voice_is_a_setting_like_the_team_s() -> None:
+    """2026-10-16: the commentators were the station's alone (ADR-324 decision 39), so a
+    debate was heard in voices nobody had chosen; the listener now voices them too."""
+    preferences = RadioPreferences.model_validate({"voices": {"speaker_a": "fr-FR-Voice"}})
+    assert preferences.voices == {RadioRole.SPEAKER_A: "fr-FR-Voice"}
     stored = {"voices": {"host": "fr-FR-Voice", "speaker_b": "fr-FR-Other"}}
-    assert read_radio_preferences(stored).voices == {RadioRole.HOST: "fr-FR-Voice"}
-    assert engine_voices(stored, "edge/standard") == {RadioRole.HOST: "fr-FR-Voice"}
+    expected = {RadioRole.HOST: "fr-FR-Voice", RadioRole.SPEAKER_B: "fr-FR-Other"}
+    assert read_radio_preferences(stored).voices == expected
+    assert engine_voices(stored, "edge") == expected
 
 
 def test_every_base_source_is_heard_by_default() -> None:
@@ -165,55 +166,87 @@ def test_nothing_stored_is_every_default() -> None:
     assert read_radio_preferences(["not", "a", "mapping"]) == RadioPreferences()
 
 
-class TestVoicesKeptPerEngine:
-    """A listener's voices are kept for each voice engine (owner request 2026-09-27): an
-    engine switched back to finds the voices chosen on it, whatever was chosen elsewhere."""
+class TestVoicesKeptPerProvider:
+    """A listener's voices are kept for each voice provider: a provider switched back to finds
+    the voices chosen on it (owner request 2026-09-27), and a model switched for another keeps
+    them (2026-10-16) — every model of a provider offers the same voices."""
 
-    def test_each_engine_reads_its_own_voices(self) -> None:
+    def test_each_provider_reads_its_own_voices(self) -> None:
         stored = {
             VOICES_BY_ENGINE: {
-                "elevenlabs/v3": {"host": "rachel", "anchor": "adam"},
-                "edge/standard": {"host": "denise"},
+                "elevenlabs": {"host": "rachel", "anchor": "adam"},
+                "edge": {"host": "denise"},
             }
         }
-        assert engine_voices(stored, "elevenlabs/v3") == {
+        assert engine_voices(stored, "elevenlabs") == {
             RadioRole.HOST: "rachel",
             RadioRole.ANCHOR: "adam",
         }
-        assert engine_voices(stored, "edge/standard") == {RadioRole.HOST: "denise"}
-        assert engine_voices(stored, "gemini/tts") == {}
+        assert engine_voices(stored, "edge") == {RadioRole.HOST: "denise"}
+        assert engine_voices(stored, "gemini") == {}
 
-    def test_a_row_written_before_offers_its_flat_voices_to_the_engine_now_in_place(
+    def test_the_fullest_entry_an_older_release_kept_per_model_is_read(self) -> None:
+        # Measured on production (2026-10-16): the radio's slot changed model fourteen times in
+        # eighteen days, and each change handed the listener the voices of another entry.
+        stored = {
+            VOICES_BY_ENGINE: {
+                "openai/tts-1": {"host": "alloy", "anchor": "coral"},
+                "openai/tts-1-hd": {"host": "alloy", "anchor": "nova", "expert": "fable"},
+                "elevenlabs/eleven_v4_turbo": {"host": "nyxen"},
+            }
+        }
+        assert engine_voices(stored, "openai") == {
+            RadioRole.HOST: "alloy",
+            RadioRole.ANCHOR: "nova",
+            RadioRole.EXPERT: "fable",
+        }
+        assert engine_voices(stored, "elevenlabs") == {RadioRole.HOST: "nyxen"}
+
+    def test_a_row_written_before_offers_its_flat_voices_to_the_provider_now_in_place(
         self,
     ) -> None:
-        # Kept per engine only from now on: the caller keeps the ones the engine offers.
+        # Kept per engine only since 2026-09-27: the caller keeps the ones the engine offers.
         stored = {"voices": {"host": "denise"}}
-        assert engine_voices(stored, "edge/standard") == {RadioRole.HOST: "denise"}
+        assert engine_voices(stored, "edge") == {RadioRole.HOST: "denise"}
 
-    def test_an_engine_s_own_entry_wins_over_the_flat_voices(self) -> None:
-        stored = {"voices": {"host": "old"}, VOICES_BY_ENGINE: {"edge/standard": {"host": "new"}}}
-        assert engine_voices(stored, "edge/standard") == {RadioRole.HOST: "new"}
+    def test_a_provider_s_own_entry_wins_over_older_ones(self) -> None:
+        stored = {
+            "voices": {"host": "flat"},
+            VOICES_BY_ENGINE: {"edge/standard": {"host": "per-model"}, "edge": {"host": "new"}},
+        }
+        assert engine_voices(stored, "edge") == {RadioRole.HOST: "new"}
 
     def test_what_cannot_be_read_is_left_out_entry_by_entry(self) -> None:
         stored: dict[str, Any] = {
             VOICES_BY_ENGINE: {
-                "edge/standard": {"host": "", "nobody": "x", "anchor": "ok", "expert": 7},
+                "edge": {"host": "", "nobody": "x", "anchor": "ok", "expert": 7},
                 "broken": "not a mapping",
             }
         }
-        assert engine_voices(stored, "edge/standard") == {RadioRole.ANCHOR: "ok"}
+        assert engine_voices(stored, "edge") == {RadioRole.ANCHOR: "ok"}
         assert engine_voices(stored, "broken") == {}
-        assert engine_voices(None, "edge/standard") == {}
+        assert engine_voices(None, "edge") == {}
 
-    def test_a_save_replaces_the_engine_s_voices_and_keeps_every_other_engine_s(self) -> None:
+    def test_a_save_replaces_the_provider_s_voices_and_keeps_every_other_provider_s(
+        self,
+    ) -> None:
         stored = {
             "voices": {"host": "flat"},
-            VOICES_BY_ENGINE: {"a/1": {"host": "va"}, "b/2": {"host": "vb"}},
+            VOICES_BY_ENGINE: {"a": {"host": "va"}, "b/1": {"host": "old"}, "b": {"host": "vb"}},
         }
-        assert with_engine_voices(stored, "b/2", {RadioRole.ANCHOR: "vb2"}) == {
+        # The provider's entries an older release kept per model go with the save.
+        assert with_engine_voices(stored, "b", {RadioRole.ANCHOR: "vb2"}) == {
+            "a": {"host": "va"},
+            "b": {"anchor": "vb2"},
+        }
+        # Every voice back to automatic: the provider keeps nothing, older entries included,
+        # so none of them can come back.
+        assert with_engine_voices(stored, "b", {}) == {"a": {"host": "va"}}
+        assert with_engine_voices(None, "c", {RadioRole.HOST: "vc"}) == {"c": {"host": "vc"}}
+
+    def test_another_provider_s_older_entries_wait_for_that_provider_s_save(self) -> None:
+        stored = {VOICES_BY_ENGINE: {"a/1": {"host": "va"}, "b/2": {"host": "vb"}}}
+        assert with_engine_voices(stored, "b", {RadioRole.HOST: "vb2"}) == {
             "a/1": {"host": "va"},
-            "b/2": {"anchor": "vb2"},
+            "b": {"host": "vb2"},
         }
-        # Every voice back to automatic: the engine keeps nothing.
-        assert with_engine_voices(stored, "a/1", {}) == {"b/2": {"host": "vb"}}
-        assert with_engine_voices(None, "c/3", {RadioRole.HOST: "vc"}) == {"c/3": {"host": "vc"}}

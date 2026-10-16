@@ -155,6 +155,7 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         display_name="Email",
         description=(
             "Read, search, send, reply and forward emails in user's inbox. "
+            "Prepare, list, edit, delete and send the user's own mailbox drafts. "
             "Manage labels and folders. NOT for looking up contact info (use contact)."
         ),
         agent_names=["email_agent"],

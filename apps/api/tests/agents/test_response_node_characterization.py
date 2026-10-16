@@ -16,6 +16,7 @@ embedding model, background fire-and-forget scheduling) are patched to run the
 node end-to-end deterministically, mirroring ``test_response_node.py``.
 """
 
+import html
 from collections.abc import Coroutine
 from contextlib import ExitStack
 from typing import Any
@@ -27,6 +28,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 
 from src.core.i18n import language_scope
 from src.core.i18n_api_messages import APIMessages
+from src.core.i18n_draft_refusals import get_draft_refusal_message
 from src.domains.agents.constants import (
     STATE_KEY_AGENT_RESULTS,
     STATE_KEY_MESSAGES,
@@ -335,6 +337,47 @@ async def test_char_draft_cancel_fast_path_message():
 
 
 @pytest.mark.asyncio
+async def test_char_a_cancel_that_could_not_withdraw_is_never_told_cancelled():
+    """A cancel the dispatcher could not carry out reads its card, not « cancelled ».
+
+    The application command was no longer pending (ADR-339): it may be running
+    or done, and « cancelled » would invite the person to believe it stopped.
+    """
+    state = MessagesState(
+        messages=[HumanMessage(content="annule")],
+        agent_results={},
+        metadata={"user_id": "u"},
+    )
+    state[STATE_KEY_DRAFT_ACTION_RESULT] = {
+        "action": DraftAction.CANCEL.value,
+        "draft_id": "d1",
+        "draft_type": "application_action",
+    }
+    sentence = get_draft_refusal_message("CANCELLATION_UNAVAILABLE", "fr")
+    refused_cancel = {
+        "status": "error",
+        "draft_id": "d1",
+        "draft_type": "application_action",
+        "action": DraftAction.CANCEL.value,
+        "data": {"success": False, "error_code": "CANCELLATION_UNAVAILABLE"},
+        "message": sentence,
+    }
+
+    with ExitStack() as stack:
+        mocks = _patch_collaborators(stack)
+        stack.enter_context(
+            patch(f"{_RESP}._execute_draft_if_confirmed", AsyncMock(return_value=refused_cancel))
+        )
+        stack.enter_context(language_scope("fr"))
+        result = await response_node(state, _base_config())
+
+    mocks["chain"].ainvoke.assert_not_called()
+    answer = result[STATE_KEY_MESSAGES][0].content
+    assert answer != APIMessages.draft_cancelled("fr")
+    assert sentence in html.unescape(answer)
+
+
+@pytest.mark.asyncio
 async def test_char_llm_timeout_returns_error_only_contract():
     """LLM timeout returns ONLY a messages key with the localized fallback."""
     state = MessagesState(
@@ -383,7 +426,7 @@ async def test_char_skill_react_fast_path_uses_runner_answer():
     the final answer, the main synthesis LLM is skipped, and a synthetic
     ``activate_skill_tool`` call is attached so the frontend shows the badge.
     """
-    from types import SimpleNamespace
+    from src.domains.agents.tools.react_runner import ReactSubAgentResult
 
     state = MessagesState(
         messages=[HumanMessage(content="Lance mon skill")],
@@ -399,9 +442,10 @@ async def test_char_skill_react_fast_path_uses_runner_answer():
         "references": [],
         "source_path": "/skills/my_skill/SKILL.md",
     }
-    fake_run_result = SimpleNamespace(
+    fake_run_result = ReactSubAgentResult(
         iteration_count=1,
         final_message="Réponse du skill",
+        messages=[],
         duration_ms=42,
         accumulated_registry={},
     )
