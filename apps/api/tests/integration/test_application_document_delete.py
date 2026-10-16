@@ -18,6 +18,7 @@ from src.domains.agents.application.document_delete import (
 from src.domains.agents.application.document_delete_schemas import DocumentDeleteInput
 from src.domains.rag_spaces.models import RAGChunk, RAGDocument, RAGDriveSource, RAGSpace
 from src.domains.users.preference_cas import PreferenceWriteReceipt
+from tests.support.file_clock import rewrite_later
 
 pytestmark = pytest.mark.integration
 
@@ -107,7 +108,7 @@ async def test_selected_document_delete_is_exact_and_rejects_changed_source(
         chunks[0].content = "Changed since consent"
         await async_session.commit()
     elif obstacle == "file_changed":
-        selected_path.write_bytes(b"more")
+        rewrite_later(selected_path, b"more")
     elif obstacle in {"lost_ack", "cancelled_ack"}:
         original = async_session.commit
 

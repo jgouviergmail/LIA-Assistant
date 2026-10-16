@@ -29,6 +29,7 @@ from src.infrastructure.application_sessions import bind_browser_session
 from src.infrastructure.cache.redis import get_redis_session
 from src.infrastructure.cache.session_store import SessionStore
 from tests.helpers.runtime_context import installed_runtime_context
+from tests.support.file_clock import rewrite_later
 
 pytestmark = pytest.mark.integration
 
@@ -77,7 +78,7 @@ async def test_download_editor_replaces_snapshot_and_rejects_client_proofs(
         await save_command(async_session, original, "download-edit", origin=origin)
         await async_session.commit()
         # A same-sized replacement must change the newly approved archive identity.
-        archive.write_bytes(b"DATA")
+        rewrite_later(archive, b"DATA")
         edit_origin = (
             bind_browser_session(test_user.id, second.session_id)
             if intervention == "other_origin"

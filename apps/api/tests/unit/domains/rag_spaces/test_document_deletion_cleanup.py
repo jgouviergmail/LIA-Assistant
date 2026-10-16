@@ -8,6 +8,7 @@ import pytest
 from src.core.config import settings
 from src.domains.rag_spaces.document_deletion_cleanup import cleanup_deleted_document_file
 from src.infrastructure.file_transfer import LocalFileRead
+from tests.support.file_clock import rewrite_later
 
 pytestmark = pytest.mark.unit
 
@@ -30,7 +31,7 @@ async def test_cleanup_removes_only_the_observed_owned_file(monkeypatch, tmp_pat
     if obstacle == "missing":
         path.unlink()
     elif obstacle == "changed":
-        path.write_bytes(b"new!")
+        rewrite_later(path, b"new!")
     elif obstacle == "unobserved":
         digest = None
     elif obstacle == "escape":

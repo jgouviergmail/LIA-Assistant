@@ -2681,7 +2681,7 @@ avertissement. Un test qu'on rejoue n'est plus un oracle : il transforme un
 défaut de production reproductible une fois sur deux en un signal muet.
 
 **Ce qu'il faut faire** : traiter l'instabilité comme le symptôme qu'elle est.
-Les cinq causes rencontrées ici, par fréquence décroissante :
+Les six causes rencontrées ici, par fréquence décroissante :
 
 | Cause | Signature | Où c'est déjà documenté |
 |---|---|---|
@@ -2690,6 +2690,7 @@ Les cinq causes rencontrées ici, par fréquence décroissante :
 | Override de connexion posé pour tout le PROCESSUS | échecs par **lot** sous `--dist loadscope`, verts en isolation | fixture `psycopg_url_from_settings` (`tests/conftest.py`), dont le docstring décrit le cas mesuré |
 | Horloge ou fuseau réels | échoue à certaines heures seulement | `datetime.now(UTC)` + horloge injectée |
 | Le temps pris pour un oracle | échoue seulement sur un hôte chargé (la suite parallèle elle-même), vert seul | ordonner par événements (`asyncio.Event`), jamais par `sleep` ; mesurer une croissance au CPU du **thread** (`tests/support/thread_clock.py`), en paires alternées dont la médiane décide ; dimensionner un garde-fou de blocage comme tel, jamais comme un budget de vitesse |
+| Le pas d'horloge du système de fichiers | un cas « fichier modifié » voit le fichier intact, surtout sous Windows, vert sous Linux | une modification « postérieure à l'observation » s'écrit avec `rewrite_later` (`tests/support/file_clock.py`) : les nouveaux octets, puis une date de modification au-delà de tout tick |
 
 Le temps mural compte comme du travail l'attente d'un processeur : mesuré le
 2026-10-16 avec tous les cœurs saturés, un filtre linéaire lu ×8,6 et ×10,2
@@ -2699,6 +2700,19 @@ Windows, `time.thread_time()` lit `GetThreadTimes()`, qui avance par ticks de
 compteur de cycles du thread (`QueryThreadCycleTime`), précis, et
 `time.thread_time()` ailleurs. Pour reproduire, saturer tous les cœurs (un
 processus occupé par cœur logique) pendant que le test tourne.
+
+Les vérifications de fichiers stockés (`LocalFileRead.identity_digest`)
+reconnaissent un fichier à son identité `stat` : périphérique, inode, taille,
+dates de modification et de changement. Un système de fichiers horodate une
+écriture au tick de son horloge, pas à l'instant : réécrit avec la même taille
+dans le même tick, le fichier reste le même pour son identité. Mesuré le
+2026-10-16 sous Windows, un fichier de 4 octets réécrit juste après son
+observation gardait son identité 3 fois sur 4, et les cas `changed` écrits
+ainsi échouaient 133 fois sur 500 (nettoyage après suppression) et 232 sur 500
+(préparation d'un déplacement) ; Linux horodate plus finement dès qu'une date a
+été lue, d'où une CI verte. `rewrite_later` modélise une écriture **ultérieure**,
+comme la suite de tests de git (`test-tool chmtime`) pour la même course : 0
+échec sur 500 pour chacun des deux cas.
 
 Le réflexe de diagnostic, dans cet ordre — chaque étape retire une variable :
 

@@ -31,6 +31,7 @@ from src.infrastructure.application_sessions import bind_browser_session
 from src.infrastructure.cache.redis import get_redis_session
 from src.infrastructure.cache.session_store import SessionStore
 from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
+from tests.support.file_clock import rewrite_later
 
 pytestmark = pytest.mark.integration
 
@@ -133,7 +134,7 @@ async def test_download_uses_original_exact_hitl_and_never_claims_a_saved_file(
         elif intervention == "source_off":
             monkeypatch.setattr(settings, "account_export_enabled", False)
         elif intervention == "archive_changed":
-            archive.write_bytes(b"DATA")
+            rewrite_later(archive, b"DATA")
         selected_origin = (
             bind_browser_session(actor_id, other.session_id)
             if intervention == "other_origin"

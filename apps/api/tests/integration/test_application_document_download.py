@@ -14,6 +14,7 @@ from src.infrastructure.application_sessions import bind_browser_session
 from src.infrastructure.cache.redis import get_redis_session
 from src.infrastructure.cache.session_store import SessionStore
 from tests.helpers.runtime_context import installed_runtime_context
+from tests.support.file_clock import rewrite_later
 
 pytestmark = pytest.mark.integration
 
@@ -57,7 +58,7 @@ async def test_document_proposal_keeps_file_private_and_source_reader_checks_sam
     assert "archive_digest" not in str(draft.before) and "file_digest" not in str(draft.after)
     selected = draft.intent["document_to_download"]
     if changed:
-        path.write_bytes(b"DATA")
+        rewrite_later(path, b"DATA")
         with pytest.raises(ResourceConflictError):
             await open_owned_document_download(async_session, actor, selected)
         return

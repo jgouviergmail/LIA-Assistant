@@ -11,6 +11,7 @@ import pytest
 from src.core.config import settings
 from src.domains.rag_spaces import document_move_files
 from src.infrastructure.file_transfer import LocalFileRead
+from tests.support.file_clock import rewrite_later
 
 pytestmark = pytest.mark.unit
 
@@ -45,7 +46,7 @@ async def test_document_move_staging_keeps_original_and_exact_destination(
     if obstacle == "missing_appeared":
         original.write_bytes(b"more")
     if obstacle == "changed":
-        original.write_bytes(b"more")
+        rewrite_later(original, b"more")
     if obstacle == "collision":
         destination.parent.mkdir(parents=True)
         destination.write_bytes(b"kept")

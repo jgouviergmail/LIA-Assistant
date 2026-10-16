@@ -23,6 +23,7 @@ from src.infrastructure.application_sessions import bind_browser_session
 from src.infrastructure.cache.redis import get_redis_session
 from src.infrastructure.cache.session_store import SessionStore
 from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
+from tests.support.file_clock import rewrite_later
 
 pytestmark = pytest.mark.integration
 
@@ -134,7 +135,7 @@ async def test_original_confirmed_document_transfer_is_single_use_and_never_clai
                         draft.model_dump(mode="json"), {"intent": changed_request}
                     )
                 return
-            path.write_bytes(b"DATA")
+            rewrite_later(path, b"DATA")
             original_draft = draft
             draft = ApplicationActionDraftContent.model_validate(
                 await rebuild_application_draft(
@@ -168,7 +169,7 @@ async def test_original_confirmed_document_transfer_is_single_use_and_never_clai
         elif scenario == "source_off":
             monkeypatch.setattr(settings, "rag_spaces_enabled", False)
         elif scenario == "file_changed":
-            path.write_bytes(b"DATA")
+            rewrite_later(path, b"DATA")
         selected_origin = (
             bind_browser_session(owner, other.session_id) if scenario == "other_session" else origin
         )

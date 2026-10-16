@@ -296,6 +296,12 @@ its exchanges in one take.
   turned red on a clean tree, one file taking 49.6 s under coverage. They now
   read it once, at collection, through one scanner
   (`src/__tests__/source-scan.ts`) that refuses to run inside a test.
+- 🧪 **The stored-file tests no longer pass a changed file off as intact on
+  Windows:** nine cases rewrote a file with the same size right after observing
+  it, and a stat identity cannot see a same-size write inside one tick of the
+  filesystem's clock — the deletion cleanup's case failed 133 times in 500, the
+  move staging's 232. They now write a LATER change, new bytes stamped past any
+  tick (`tests/support/file_clock.py`): 0 failures in 500 each.
 - 📻 **The radio says the name you gave your station** ([ADR-324](docs/architecture/ADR-324-A-Personal-Radio-A-Grid-Decides-Models-Only-Write.md),
   amendment 2026-10-14): the host used to welcome you to « LIA » whatever the
   station was called — measured on dev, nine openings in ten — because the
