@@ -15,7 +15,6 @@ register="warm" … » on ElevenLabs (2026-10-09) and Fish Audio (2026-10-14) al
 
 from __future__ import annotations
 
-import time
 import uuid
 from collections.abc import AsyncGenerator, Callable
 from typing import Any
@@ -27,6 +26,7 @@ from src.domains.agents.api.schemas import ChatStreamChunk
 from src.domains.agents.services.streaming.machine_tags import MachineTagFilter
 from src.domains.agents.services.streaming.service import StreamingService
 from src.domains.voice.sentence_streamer import ProgressiveSentenceStreamer
+from tests.support.thread_clock import thread_time
 
 pytestmark = pytest.mark.unit
 
@@ -315,15 +315,19 @@ class TestTheSelectionIsHandedOverWhole:
 
 #: Characters at the small size; the large size is four times as many.
 SMALL = 6_000
-#: Below this many seconds at the large size, the ratio is noise and passes.
+#: Below this many seconds of CPU at the large size, the ratio is noise and passes.
 FLOOR_SECONDS = 0.02
+#: The small size is read as at least this, the flatteners' floor: a quadratic filter
+#: starting from it still takes ×16 of it, twice what the criterion admits.
+SMALL_FLOOR_SECONDS = FLOOR_SECONDS / 4
 #: The same criterion as the flatteners' guard (ADR-326): ×4 the text, at most ×8 the time.
 MAX_GROWTH = 8.0
-#: Runs per size; the fastest is kept. Measured 2026-10-14: the per-character cost is
-#: flat (1 to 7 µs from 4 000 to 64 000 characters), while the thread CPU clock of a
-#: Windows host ticks every 15.6 ms — too coarse for one run — and anything else the
-#: host does only ever ADDS time, so the minimum is the run that measured the filter.
-RUNS = 3
+#: Paired samples, the sizes alternating so a change of load meets both; the median
+#: pair decides. Each reads the THREAD's CPU (``tests.support.thread_clock``): the wall
+#: clock counts the time the thread waited for a processor as work. Measured 2026-10-16
+#: with every core saturated: the fastest of three wall runs read a linear witness at
+#: ×8.6 and ×10.2 in 2 runs of 10, its cycle counter at ×3.88 to ×4.12 throughout.
+SAMPLES = 3
 
 #: Each witness keeps the filter in one of its states for the whole text.
 HOSTILE: dict[str, Callable[[int], str]] = {
@@ -336,29 +340,58 @@ HOSTILE: dict[str, Callable[[int], str]] = {
 }
 
 
-def _seconds_fed_one_character_at_a_time(text: str) -> float:
-    started = time.perf_counter()
+def _fed_one_character_at_a_time(text: str) -> None:
     tags = MachineTagFilter()
     for character in text:
         tags.feed(character)
     tags.flush()
-    return time.perf_counter() - started
 
 
-def _seconds_fed_whole(text: str) -> float:
-    started = time.perf_counter()
+def _fed_whole(text: str) -> None:
     tags = MachineTagFilter()
     tags.feed(text)
     tags.flush()
-    return time.perf_counter() - started
 
 
 #: The two worst deliveries: one character per token, and the whole answer in one
 #: (a provider that does not stream hands the complete message over at once).
-DELIVERIES: dict[str, Callable[[str], float]] = {
-    "one character per token": _seconds_fed_one_character_at_a_time,
-    "the whole answer in one token": _seconds_fed_whole,
+DELIVERIES: dict[str, Callable[[str], None]] = {
+    "one character per token": _fed_one_character_at_a_time,
+    "the whole answer in one token": _fed_whole,
 }
+
+
+def _cpu_seconds(run: Callable[[str], None], text: str) -> float:
+    started = thread_time()
+    run(text)
+    return thread_time() - started
+
+
+def _growth(run: Callable[[str], None], small_text: str, large_text: str) -> float | None:
+    """The criterion's one measure, shared with the guard that proves it can fail.
+
+    The median of SAMPLES paired growths, as the flatteners' guard measures it.
+    Measured one size after the other, a change of load lands on one size alone:
+    with every core saturated, the minima of a quadratic filter's sizes taken in
+    turn read ×5.4 at worst, under the ×8 the criterion must refuse (2026-10-16).
+
+    Args:
+        run: Runs the filter over one text.
+        small_text: The small size.
+        large_text: Four times the small size.
+
+    Returns:
+        The growth of the thread's CPU, or None when the large size costs under
+        ``FLOOR_SECONDS`` — a ratio of noise, which the criterion does not judge.
+    """
+    samples = []
+    for _ in range(SAMPLES):
+        samples.append((_cpu_seconds(run, small_text), _cpu_seconds(run, large_text)))
+    samples.sort(key=lambda pair: pair[1] / max(pair[0], SMALL_FLOOR_SECONDS))
+    small, large = samples[SAMPLES // 2]
+    if large < FLOOR_SECONDS:
+        return None
+    return large / max(small, SMALL_FLOOR_SECONDS)
 
 
 class TestLinearByConstruction:
@@ -367,35 +400,28 @@ class TestLinearByConstruction:
     @pytest.mark.parametrize("delivery", list(DELIVERIES), ids=list(DELIVERIES))
     @pytest.mark.parametrize("witness", list(HOSTILE), ids=list(HOSTILE))
     def test_the_filter_grows_linearly(self, witness: str, delivery: str) -> None:
-        seconds = DELIVERIES[delivery]
-        small_text, large_text = HOSTILE[witness](SMALL), HOSTILE[witness](4 * SMALL)
-        small, large = float("inf"), float("inf")
-        for _ in range(RUNS):  # interleaved: a slow phase of the host hits both sizes
-            small = min(small, seconds(small_text))
-            large = min(large, seconds(large_text))
-        if large < FLOOR_SECONDS:
+        growth = _growth(DELIVERIES[delivery], HOSTILE[witness](SMALL), HOSTILE[witness](4 * SMALL))
+        if growth is None:
             return
-        growth = large / max(small, FLOOR_SECONDS / 4)
         assert growth <= MAX_GROWTH, f"{witness}: ×{growth:.1f} for ×4 the text — super-linear"
 
     def test_the_criterion_refuses_a_filter_that_rescans_the_answer(self) -> None:
         """A guard that could not fail proves nothing: the naive repair — keep the
         whole answer and run the final cleanup's pattern over it at every token —
-        is quadratic, and the criterion above refuses it."""
+        is quadratic, and the criterion above refuses it, measured the same way."""
         import re
 
         pattern = re.compile(r"<lia_tone[^>]*/?>?", re.IGNORECASE)
 
-        def rescanning(text: str) -> float:
-            started = time.perf_counter()
+        def rescanning(text: str) -> None:
             seen = ""
             for character in text:
                 seen += character
                 pattern.sub("", seen)
-            return time.perf_counter() - started
 
         # Half the sizes: quadratic work at ×4 is already ×16, twice what is admitted.
         small_text, large_text = "<lia_ton " * (SMALL // 18), "<lia_ton " * (4 * SMALL // 18)
-        small = min(rescanning(small_text) for _ in range(RUNS))
-        large = min(rescanning(large_text) for _ in range(RUNS))
-        assert large > MAX_GROWTH * max(small, FLOOR_SECONDS / 4)
+        growth = _growth(rescanning, small_text, large_text)
+        # Above the floor too: a criterion whose sizes sink under it passes vacuously.
+        assert growth is not None, "the quadratic filter ran under the floor: sizes too small"
+        assert growth > MAX_GROWTH, f"×{growth:.1f} for a quadratic filter: the criterion is blind"
