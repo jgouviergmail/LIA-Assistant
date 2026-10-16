@@ -224,8 +224,10 @@ async def test_a_current_account_catalogue_can_still_authorize_a_personal_choice
 
     catalogue.assert_awaited_once()
     async with world.maker() as db:
+        # Kept under the PROVIDER (`engine_voices.choice_key`), no longer under
+        # provider/model: switching the slot's model keeps the person's voices.
         assert await db.scalar(select(User.lia_voices).where(User.id == world.person)) == {
-            "fishaudio/s2.1-pro": {"male": VOICE}
+            "fishaudio": {"male": VOICE}
         }
 
 

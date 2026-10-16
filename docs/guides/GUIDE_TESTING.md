@@ -55,6 +55,7 @@ Ce guide fournit une approche complète et pratique pour **écrire, exécuter et
 - **Python 3.14** : tests backend
 - **Pytest 9.0+** : framework de tests
 - **Docker** : testcontainers pour PostgreSQL/Redis
+- **ffmpeg** sur le PATH : la suite d'intégration fusionne de vrais fichiers audio (lecture vocale en un seul MP3), avec le binaire que les images API embarquent ; la CI l'installe dans le job d'intégration
 - **Connaissances** : async/await, fixtures, mocking
 
 ---

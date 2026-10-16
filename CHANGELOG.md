@@ -309,6 +309,10 @@ its exchanges in one take.
   routes went to Google with destination `$item` and answered « no route ». The
   substitution now works on the parameters themselves: an object or a list
   arrives whole, a value inside a text reads as text, nothing is re-parsed.
+- 🧪 **The integration suite is green again in CI:** the voice readout test
+  merges real audio through ffmpeg, which the integration job now installs (the
+  API images already ship it), and the Fish Audio key fence expects a person's
+  voices under the provider, where they have been kept since the radio voices fix.
 - 📻 **The radio says the name you gave your station** ([ADR-324](docs/architecture/ADR-324-A-Personal-Radio-A-Grid-Decides-Models-Only-Write.md),
   amendment 2026-10-14): the host used to welcome you to « LIA » whatever the
   station was called — measured on dev, nine openings in ten — because the

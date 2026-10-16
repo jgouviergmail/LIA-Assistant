@@ -345,6 +345,13 @@ jobs:
           version: 3.x
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
+      # The voice readout test merges real WAV sentences into one MP3 through
+      # ffmpeg, the binary the production image ships; the runner image has none.
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends ffmpeg
+
       # Two collections: tests/integration/, then the integration-marked tests
       # that physically live under tests/unit or tests/agents (F006) — this
       # services-equipped job is their only home. The task also runs the AC-001
