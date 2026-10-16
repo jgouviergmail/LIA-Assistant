@@ -221,6 +221,14 @@ class FakeStreamingService:
         # the query-intelligence delta lands) — same attribute-for-attribute
         # rationale as persistable_widgets above.
         self.primary_domain: str | None = None
+        # Production contract (psyche efficacy evidence): the archive path reads
+        # the turn's envelope from this attribute and the feedback collector its
+        # context — same rationale as trace_capture above. The real, dependency-free
+        # EfficacyCapture keeps the fake honest: with no server-stamped query
+        # intelligence in a script, it holds no context and an empty envelope.
+        from src.domains.agents.services.efficacy_evidence import EfficacyCapture
+
+        self.efficacy_capture = EfficacyCapture()
         FakeStreamingService.instances.append(self)
 
     async def stream_sse_chunks(self, graph_stream, conversation_id, run_id):
