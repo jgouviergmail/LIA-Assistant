@@ -9,6 +9,7 @@
 import { test as base, expect } from '@playwright/test';
 import { installApiCatchAll, registerRoutes, stopApiRequests, type MockRoute } from './api-mock';
 import { createApiNetworkGuard, type ApiNetworkGuard } from './api-network-guard';
+import { minimizeCompanionOnPhones } from './companion';
 import { installOfflineFonts } from './offline-fonts';
 import { dashboardShellMocks } from './dashboard-shell';
 import { makeTestUser, type TestUser } from './test-user';
@@ -19,7 +20,11 @@ interface Fixtures {
   _apiIsolation: void;
   /** Register specific API mocks (win over the catch-all). */
   mockApi: (routes: MockRoute[]) => Promise<void>;
-  /** Seed a session cookie and mock /auth/me so the app renders as signed-in. */
+  /**
+   * Seed a session cookie and mock /auth/me so the app renders as signed-in;
+   * on a phone, the companion starts minimized aside unless the spec stored its
+   * own preference (`minimizeCompanionOnPhones`).
+   */
   authenticate: (overrides?: Partial<TestUser>) => Promise<TestUser>;
 }
 
@@ -84,6 +89,7 @@ export const test = base.extend<Fixtures>({
       // still guards everything not listed here or by the spec.
       await registerRoutes(page, dashboardShellMocks);
       await registerRoutes(page, [{ url: '**/api/v1/auth/me', json: user }]);
+      await minimizeCompanionOnPhones(page);
       return user;
     });
   },

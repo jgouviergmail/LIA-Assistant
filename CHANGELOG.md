@@ -62,11 +62,12 @@ Pillow 13.0.0, which closes twenty-one advisories published the day before.
   companion keeps its spot across scrolling while the search restores the
   settings rail, and the avoidance hook's tests keep the wide-screen default
   only.
-- 🧪 The phone journeys that are not about the companion — card details, MCP
-  data, weather cards, image sharing, the board, the sandbox panel, the
-  Microsoft bulk connection — start with it minimized, as a person would,
-  through one shared fixture (`minimizeCompanion`) that the meetings and
-  notifications fixtures now reuse.
+- 🧪 Every authenticated end-to-end journey on a phone starts with the
+  companion minimized and its dot moved aside, unless the spec stored a
+  companion preference of its own (every companion spec does) — what a person
+  reading and tapping would have done; at its default corner it covered a
+  control in ten journeys. One helper file (`e2e/fixtures/companion.ts`) holds
+  it, and the meetings and notifications fixtures reuse its `minimizeCompanion`.
 - 🧪 The notifications layout checks read every box they compare in one frame
   and wait for the layout to settle: two separate reads could straddle a
   reflow, and the spec had gone flaky at 320, 390 and 1440 px for that alone.

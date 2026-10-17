@@ -20,6 +20,7 @@ import {
   MATERIAL_SYMBOLS_STYLESHEET_URL,
   MATERIAL_SYMBOLS_FONT_URL,
 } from '../fixtures/offline-fonts';
+import { showCompanion } from '../fixtures/companion';
 import { scanPage } from '../a11y/scan';
 import { expectNoOverflow, prepareTheme } from './overflow-report';
 
@@ -579,6 +580,8 @@ test('disclosure, selection and title navigation keep separate keyboard owners',
 }) => {
   await page.setViewportSize({ width: 390, height: 1000 });
   await prepareTheme(page, 'light');
+  // The face stays on screen here: the rows' keyboard must never reach it.
+  await showCompanion(page);
   const user = await authenticate({
     language: 'fr',
     timezone: MEETING_ACCOUNT_ZONE,

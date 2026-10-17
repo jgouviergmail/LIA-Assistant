@@ -22,7 +22,6 @@
  * hydration probe names a node the page ACTUALLY renders.
  */
 import { test, expect, waitForHydration, type MockRoute } from '../fixtures';
-import { minimizeCompanion } from '../fixtures/companion';
 
 const TICKET_ID = '8f0e1d2c-1111-4000-8000-000000000001';
 
@@ -409,7 +408,6 @@ test.describe('the workboard', () => {
     const moves: unknown[] = [];
     await mockApi(boardRoutes(moves));
     await page.setViewportSize({ width: 390, height: 844 });
-    await minimizeCompanion(page);
 
     await page.goto('/fr/dashboard/workboard');
     await waitForHydration(page, CARD);

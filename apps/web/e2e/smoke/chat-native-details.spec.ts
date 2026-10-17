@@ -4,7 +4,6 @@ import path from 'node:path';
 import AxeBuilder from '@axe-core/playwright';
 import { test, expect, waitForHydration } from '../fixtures';
 import { loadedChatRoutes } from '../fixtures/chat';
-import { minimizeCompanion } from '../fixtures/companion';
 import { awaitStyledPage, expectNoOverflow } from './overflow-report';
 
 interface Reference {
@@ -40,7 +39,6 @@ for (const sample of samples) {
     if (!reference) throw new Error('Missing native details reference');
     const auditedViewport = { width: sample.width, height: 1400 };
     await page.setViewportSize(auditedViewport);
-    await minimizeCompanion(page);
     await authenticate({ language: sample.language, response_display_mode: 'html_cards' });
     await mockApi([
       ...loadedChatRoutes(),
