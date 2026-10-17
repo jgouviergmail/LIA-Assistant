@@ -4,7 +4,7 @@
  * maximum holds, and a site is checked before it is added — the real radio
  * hooks, against a fake API.
  */
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   answerConfirmDialog,
@@ -48,6 +48,14 @@ vi.mock('@/lib/api-client', async () => {
 
 const toast = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }));
 vi.mock('sonner', () => ({ toast }));
+const sample = vi.hoisted(() => ({
+  play: vi.fn(async () => undefined),
+  replay: vi.fn(async () => undefined),
+  stop: vi.fn(),
+  status: 'idle' as 'idle' | 'loading' | 'playing' | 'error' | 'blocked',
+  canReplay: false,
+}));
+vi.mock('@/hooks/useTtsVoiceSample', () => ({ useTtsVoiceSample: () => sample }));
 
 vi.mock('@/lib/logger', () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
@@ -68,6 +76,10 @@ vi.mock('@/hooks/usePersonality', () => ({
 }));
 
 afterEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  sample.status = 'idle';
+  sample.canReplay = false;
+});
 
 /** The radio's day, well under its bound. */
 const BUDGET: RadioBudget = { limit_eur: 2, spent_eur: 0.1, window_hours: 24, lifts_at: null };
@@ -119,6 +131,69 @@ function serve(
 }
 
 describe('RadioSettings', () => {
+  it('keeps the only sample command beside the last selected role, including the first card on mobile', async () => {
+    serve(radioOptions(), radioPreferences());
+    const { user } = renderWithProviders(<RadioSettings lng="fr" />);
+    await openSection(user, 'voices');
+    const host = screen.getByRole('group', { name: 'radio.roles.host' });
+    const expert = screen.getByRole('group', { name: 'radio.roles.expert' });
+    expect(within(host).queryByText('settings.voice_sample.hint')).toBeNull();
+    expect(screen.getAllByText('settings.voice_sample.hint')).toHaveLength(1);
+
+    sample.canReplay = true;
+    sample.status = 'playing';
+    await user.click(within(host).getByRole('combobox'));
+    await user.click(screen.getByRole('option', { name: 'Aria' }));
+    expect(within(host).getByRole('button', { name: 'settings.voice_sample.stop' })).toBeVisible();
+    expect(within(host).getByRole('status')).toHaveTextContent('settings.voice_sample.playing');
+    expect(within(expert).queryByRole('button', { name: 'settings.voice_sample.stop' })).toBeNull();
+
+    await user.click(within(expert).getByRole('combobox'));
+    await user.click(screen.getByRole('option', { name: 'Bruno' }));
+    expect(
+      within(expert).getByRole('button', { name: 'settings.voice_sample.stop' })
+    ).toBeVisible();
+    expect(within(expert).getByRole('status')).toHaveTextContent('settings.voice_sample.playing');
+    expect(within(host).queryByRole('button', { name: 'settings.voice_sample.stop' })).toBeNull();
+    expect(screen.getAllByRole('button', { name: 'settings.voice_sample.stop' })).toHaveLength(1);
+  });
+
+  it('previews the newly selected role using the complete draft, including automatic voices', async () => {
+    serve(radioOptions(), radioPreferences({ voices: { host: 'fr-A', anchor: 'fr-B' } }));
+    const { user } = renderWithProviders(<RadioSettings lng="fr" />);
+    await openSection(user, 'voices');
+    expect(sample.play).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('combobox', { name: 'radio.roles.expert' }));
+    await user.click(screen.getByRole('option', { name: 'Bruno' }));
+    expect(sample.play).toHaveBeenLastCalledWith({
+      endpoint: '/radio/voices/sample',
+      payload: { role: 'expert', voices: { host: 'fr-A', anchor: 'fr-B', expert: 'fr-B' } },
+    });
+    await waitFor(() => expect(mockApi.put).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole('combobox', { name: 'radio.roles.expert' })).toHaveFocus();
+    await user.click(screen.getByRole('combobox', { name: 'radio.roles.expert' }));
+    await user.click(screen.getByRole('option', { name: 'radio.settings.voices.automatic' }));
+    expect(sample.play).toHaveBeenLastCalledWith({
+      endpoint: '/radio/voices/sample',
+      payload: { role: 'expert', voices: { host: 'fr-A', anchor: 'fr-B' } },
+    });
+    await openSection(user, 'voices');
+    expect(sample.stop).toHaveBeenCalled();
+  });
+
+  it('shows an audio error locally and can replay without saving the radio preferences', async () => {
+    serve(radioOptions(), radioPreferences());
+    sample.status = 'error';
+    sample.canReplay = true;
+    const { user } = renderWithProviders(<RadioSettings lng="fr" />);
+    await openSection(user, 'voices');
+    expect(await screen.findByRole('alert')).toHaveTextContent('settings.voice_sample.failed');
+    await user.click(screen.getByRole('button', { name: 'settings.voice_sample.listen' }));
+    expect(sample.replay).toHaveBeenCalledOnce();
+    expect(mockApi.put).not.toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
   it('starts with descriptive settings sections closed and spending visible', async () => {
     serve(radioOptions(), radioPreferences());
     const { user } = renderWithProviders(<RadioSettings lng="en" />);

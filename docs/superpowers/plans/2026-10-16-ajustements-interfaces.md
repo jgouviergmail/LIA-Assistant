@@ -6,7 +6,7 @@
 
 Autorisation reçue le 16 octobre 2026 : exécuter la demande initiale et les suggestions acceptées, dont protection mobile, persistance fiable, contexte de navigation, états erreur/vide, densité, commandes en attente et vocabulaire. La dissociation Effacer / Désactiver la mémoire de position reste différée. Le développement ne comprend ni publication Git ni déploiement.
 
-**Architecture:** Réutiliser Card, Disclosure, SettingsSection, SectionHeader, NotificationHistoryItem et les helpers de preview existants. Les seuls nouveaux propriétaires identifiés sont la sauvegarde d'avatar liée au compte et, si nécessaire, une description réutilisable pour MCP/RAG. Aucune migration ou nouvelle dépendance prévue.
+**Architecture:** Réutiliser Card, Disclosure, SettingsSection, SectionHeader, NotificationHistoryItem et les helpers de preview existants. Les nouveaux propriétaires comprennent la sauvegarde d'avatar liée au compte, une description réutilisable pour MCP/RAG et, pour la demande complémentaire d'écoute des voix, un lecteur d'échantillons et deux portes API réutilisant le moteur TTS et sa facturation. Aucune migration ou nouvelle dépendance n'a été ajoutée.
 
 **Tech Stack:** Next.js, React, TypeScript, Tailwind, react-i18next, Vitest, Playwright ; API existante pour les préférences et aperçus.
 
@@ -16,15 +16,17 @@ Autorisation reçue le 16 octobre 2026 : exécuter la demande initiale et les su
 
 Les ajustements R00–R30 et les axes complémentaires acceptés sont implémentés. La revue indépendante a notamment fait renforcer la réconciliation des sauvegardes d'avatar, le statut de géolocalisation, l'emprise des commandes de BIP et les reprises après erreur. Une seconde lecture n'a relevé aucun défaut restant sur ces points.
 
-La suite frontend complète avec couverture a réussi après les derniers correctifs : 1 061 fichiers, 13 076 tests, tous les seuils globaux et ciblés conservés. Couverture : statements 87,75 %, branches 81,93 %, fonctions 85,56 %, lignes 89,28 %. ESLint, TypeScript sans compilation incrémentale, parité des six langues, contrôles globaux d'accessibilité/hooks/complexité et audit documentaire passent ; les violations historiques admises par les ratchets ne sont pas augmentées. Les dernières consignes sur les replis Psyché et le badge des Journaux sont également vérifiées par les 131 tests de la famille Psyché et les 27 tests Journaux.
+La dernière passe frontend complète, après les échantillons de voix et leur ajustement mobile, réussit les 1 062 fichiers et les 13 125 tests, sans échec ni test ignoré. Les quatre écarts de version d'une passe antérieure, pendant une préparation concurrente du dépôt, ne sont plus présents. Les renommages complémentaires ont également leur preuve ciblée de sept suites, soit 648 tests réussis, en conservant la recherche naturelle d'export.
 
-La qualification navigateur dans Docker utilise les API simulées et le garde réseau existant. Les parcours mobiles à 360 pixels, le texte doublé, le retour au rail et la sauvegarde automatique sont validés. Les oracles Psyché suivent la dernière consigne : rubrique du point ouverte à l'entrée, lectures initiales simulées et fermetures ultérieures conservées. Les 627 cas uniques de l'inventaire Chromium ont tous réussi, sans cas ignoré ni non exécuté. Ce bilan consolide les lots et les rejeux des cas affectés après correction ; il ne décrit pas un unique lancement intégral sans reprise.
+La couverture complète actuelle est de 87,77 % pour les statements, 81,94 % pour les branches, 85,61 % pour les fonctions et 89,30 % pour les lignes ; tous les seuils globaux et ciblés sont respectés. La commande finale utilise huit workers et neutralise les deux variables publiques comme le Taskfile, sans modifier les tests, leurs délais ou les seuils. ESLint, TypeScript sans compilation incrémentale, parité des six langues, contrôles globaux d'accessibilité/hooks/complexité et audit documentaire passent ; les violations historiques admises par les ratchets ne sont pas augmentées. Les consignes sur les replis Psyché et le badge des Journaux sont également vérifiées par les 131 tests de la famille Psyché et les 27 tests Journaux.
 
-Captures de la version locale : [mobile, recherche dégagée](../../assets/ui-analysis-2026-10-16/settings-mobile-360-after.png) et [texte doublé](../../assets/ui-analysis-2026-10-16/settings-mobile-360-text-200-after.png). La [capture initiale](../../assets/ui-analysis-2026-10-16/settings-mobile-360.jpg) reste le relevé avant correction.
+La qualification navigateur dans Docker utilise les API simulées et le garde réseau existant. Les parcours mobiles à 360 pixels, le texte doublé, le retour au rail et la sauvegarde automatique sont validés. Les oracles Psyché suivent la dernière consigne : rubrique du point ouverte à l'entrée, lectures initiales simulées et fermetures ultérieures conservées. Les 627 cas uniques de l'inventaire Chromium ont tous réussi, sans cas ignoré ni non exécuté. Ce bilan consolide les lots et les rejeux des cas affectés après correction ; il ne décrit pas un unique lancement intégral sans reprise. Après les renommages de libellés, trois noms accessibles littéraux des tests ont été adaptés et les types, le format et les dix-huit correspondances de titres ont été vérifiés ; les 627 parcours n'ont pas été relancés pour ces seules chaînes.
 
-La [capture française finale de Psyché](../../assets/ui-analysis-2026-10-16/psyche-final-fr-1440.png) montre le panneau principal et les trois premières rubriques fermées, avec les observations suivantes ouvertes. Les vues mobiles à texte doublé montrent les [traits de personnalité](../../assets/ui-analysis-2026-10-16/psyche-traits-text-200-fr-360.png) et les [statistiques de relation](../../assets/ui-analysis-2026-10-16/psyche-text-200-fr-360.png), sans couper leurs libellés. Les données de ces preuves sont fictives.
+Captures de la version locale : mobile, recherche dégagée (capture conservée hors dépôt) et texte doublé (capture conservée hors dépôt). La capture initiale (capture conservée hors dépôt) reste le relevé avant correction.
 
-Dans les [Journaux à texte doublé](../../assets/ui-analysis-2026-10-16/journals-text-200-fr-360.png), le badge conversation garde son icône et son texte ensemble ; les catégories laissent leurs mots entiers et leurs compteurs visibles. Les [Mémoires dans les mêmes conditions](../../assets/ui-analysis-2026-10-16/memories-categories-text-200-fr-360.png) servent de référence et n'ont pas nécessité de correction supplémentaire.
+La capture française finale de Psyché (capture conservée hors dépôt) montre le panneau principal et les trois premières rubriques fermées, avec les observations suivantes ouvertes. Les vues mobiles à texte doublé montrent les traits de personnalité (capture conservée hors dépôt) et les statistiques de relation (capture conservée hors dépôt), sans couper leurs libellés. Les données de ces preuves sont fictives.
+
+Dans les Journaux à texte doublé (capture conservée hors dépôt), le badge conversation garde son icône et son texte ensemble ; les catégories laissent leurs mots entiers et leurs compteurs visibles. Les Mémoires dans les mêmes conditions (capture conservée hors dépôt) servent de référence et n'ont pas nécessité de correction supplémentaire.
 
 Le contrôle élargi a exposé une frontière serveur/client des styles de bouton : les variantes sont désormais dans un module pur partagé, tandis que le bouton interactif conserve ses protections d'attente. La reprise d'avatar garde aussi son bouton et son focus pendant la requête, puis rend le focus à un contrôle du formulaire si nécessaire. Le refus de rafraîchissement de compte n'efface plus les préférences langue/fuseau confirmées.
 
@@ -79,10 +81,112 @@ Demande complémentaire reçue pendant la validation : appliquer les noms suivan
 
 Les dix-huit clés de titre existantes alimentent déjà le menu, la recherche et le titre des sections. Les jetons de liens profonds et les contrats restent stables. Les six langues reprennent les nouveaux noms ; les termes techniques, les historiques de versions et les noms d'applications tierces conservent leur sens.
 
-- [ ] Mettre à jour les dix-huit titres et les références courantes dans la FAQ, avec parité des six langues.
-- [ ] Actualiser les instructions de navigation dans la documentation et dans `docs/knowledge`, source du corpus RAG FAQ.
-- [ ] Requalifier les tests existants de recherche, de réglages et de FAQ ; adapter les trois noms accessibles littéraux des parcours navigateur concernés.
-- [ ] Réindexer une fois le corpus FAQ local avec `task db:seed:system-rag`, puis vérifier le hash et les éléments indexés. La FAQ web et l'index RAG ont des sources distinctes ; la seule modification des textes web ne réindexe pas les documents.
+- [x] Mettre à jour les dix-huit titres et les références courantes dans la FAQ, avec parité des six langues.
+- [x] Actualiser les instructions de navigation dans la documentation et dans `docs/knowledge`, source du corpus RAG FAQ.
+- [x] Requalifier les tests existants de recherche, de réglages et de FAQ ; adapter les trois noms accessibles littéraux des parcours navigateur concernés.
+- [x] Réindexer une fois le corpus FAQ local avec `task db:seed:system-rag`, puis vérifier le hash et les éléments indexés. La FAQ web et l'index RAG ont des sources distinctes ; la seule modification des textes web ne réindexe pas les documents.
+
+Résultat : 37 références corrigées dans 21 documents courants, dont 12 articles du corpus FAQ. L'unique commande de réindexation locale a réussi : 41 fichiers, 532 fragments attendus, stockés et distincts, un document agrégé. Le hash de la source montée et celui de la base concordent (`be699574…1c52de5b`) et le corpus n'est plus périmé. Six appels d'embedding ont été observés ; aucune recherche sémantique supplémentaire n'a servi à la validation. Le cache tarifaire du processus de seed n'étant pas initialisé, son coût affiché à zéro ne constitue pas une preuve de gratuité. L'avertissement de découverte Ollama n'a pas affecté l'indexation avec le fournisseur configuré.
+
+Des changements Git et de préparation de version ont eu lieu en parallèle dans le dépôt ; ils ont été conservés. Aucune commande de commit, push ou déploiement n'a été exécutée dans cette tâche.
+
+### Clarification des modes d'affichage
+
+Retour complémentaire : Cartes et HTML + cartes étaient difficiles à distinguer. L'ancien aperçu Cartes omettait la réponse en texte ; le mode combiné se limitait à ajouter une introduction aux mêmes fiches. Le fonctionnement réel conserve une réponse textuelle dans les deux modes, avec une mise en page enrichie pour HTML + cartes.
+
+Chaque option affiche maintenant une explication courte, également liée à son nom accessible. L'aperçu Cartes présente un paragraphe classique ; HTML + cartes présente une synthèse avec titre, texte et encadré À retenir. Les deux réutilisent les mêmes fiches météo et rendez-vous, avec les mêmes informations fictives. La disponibilité des fiches reste conditionnelle aux résultats ; l'exemple ne promet pas davantage de fiches dans le mode combiné.
+
+Les quatre noms de mode, les valeurs API, la sauvegarde, les gardes de compte et la conservation du focus restent identiques. Les textes sont localisés dans les six langues. Les 19 tests du composant passent, y compris les assertions de descriptions accessibles et de distinction entre les deux aperçus.
+
+ESLint et les contrôles d'accessibilité, de hooks et de complexité passent, ainsi que la parité des traductions et l'audit documentaire. Le premier contrôle TypeScript a croisé une installation de dépendances effectuée en parallèle ; son rejeu non incrémental avec les dépendances actuelles passe.
+
+Les trois parcours Chromium ciblés passent, sans nouvelle tentative ni test ignoré : ordinateur clair à 1 440 px, mobile clair à 320 px avec échec puis reprise de sauvegarde, mobile OLED à 390 px avec texte à 20 px. Ils vérifient les quatre modes, leurs aperçus, les mêmes deux fiches dans les modes concernés, l'absence de débordement, le clavier, le focus et l'accessibilité. Les captures finales ont également été examinées : Cartes sur ordinateur (capture conservée hors dépôt), HTML + cartes sur ordinateur (capture conservée hors dépôt), Cartes sur mobile (capture conservée hors dépôt), HTML + cartes sur mobile (capture conservée hors dépôt).
+
+Le premier démarrage du serveur de preuve isolé était retenu par le canal de débogage React de Next ; rétablir son option locale `experimental.reactDebugChannel: false`, déjà utilisée lors de la campagne précédente, permet le chargement et les trois parcours. Cette adaptation concerne uniquement le serveur temporaire, sans assouplir les gardes réseau ni modifier la configuration de l'application. Le navigateur utilise les dépendances de l'image de développement existante ; le contrôle TypeScript utilise les dépendances hôte mises à jour en parallèle. Ces trois parcours qualifient les nouveaux aperçus, pas la mise à jour de Next effectuée par l'autre tâche.
+
+### Écoute des voix au moment du choix
+
+Dans Mode vocal et Radio → Voix, une sélection lance maintenant un échantillon
+de la voix concernée. La phrase française est « Bonjour, ceci est un échantillon
+de ma voix ! » ; le serveur possède ses traductions dans les six langues. Le
+retour au défaut de LIA utilise la voix configurée pour le genre concerné ; le
+mode Automatique de Radio résout le rôle avec la répartition complète en cours
+de sélection. Les deux écoutes utilisent leur moteur TTS réel, la facturation
+et les limites de consommation existantes, sans commentaire généré par un LLM
+ni ajout d'un message à la conversation.
+
+Un seul extrait joue dans chaque bloc. Une nouvelle sélection annule l'ancienne
+demande et arrête son média ; les réponses tardives restent silencieuses. Le
+départ de l'écran, un changement de compte ou la fermeture du bloc Voix de Radio
+libèrent la lecture. Une commande compacte permet d'arrêter l'extrait ou de le
+relancer après une erreur, indépendamment de la sauvegarde du choix. La commande
+apparaît sous le dernier rôle choisi dans Radio, pour rester près du sélecteur
+sur mobile. Le même élément audio est amorcé dans le geste de sélection pour la compatibilité
+mobile. Une radio en lecture est mise en pause, sans reprise automatique ;
+une réunion enregistrée ou une session Live garde la priorité sur l'échantillon.
+
+Les deux portes serveur sont `POST /voice/lia-voices/sample` et
+`POST /radio/voices/sample`. Elles authentifient la personne, appliquent leur
+capacité et une limitation commune de fréquence, puis vérifient le catalogue
+et la répartition demandés. Aucun texte libre ni clé de fournisseur ne vient
+du navigateur. Le budget de Radio prend également en compte ses écoutes.
+Les références détaillées sont [Mode vocal](../../technical/VOICE_MODE.md#voix-de-lia)
+et [Radio](../../technical/RADIO.md#routes).
+
+La qualification ciblée compte 344 tests backend réussis (service, routes,
+distribution des rôles, quotas, budget, facturation, formats audio et contrats
+existants) et 71 tests frontend réussis, puis 26 tests Radio après déplacement
+de la commande près du sélecteur. Black, Ruff et MyPy sur les fichiers backend
+concernés passent, sans nouveau cycle de domaine. ESLint, les trois ratchets et
+la parité des six langues passent aussi. Le contrôle des types a croisé une
+régénération externe des fichiers `.next-e2e/types` ; son rejeu non incrémental
+après cette régénération passe.
+
+Les quatre parcours Chromium et les quatre parcours WebKit passent sur les
+dépendances de développement actuelles, sans nouvelle tentative ni test ignoré.
+Ils utilisent de vrais éléments audio et des WAV locaux décodés dont le temps
+de lecture progresse : les deux genres et le défaut de LIA, les sept rôles et
+l'automatique Radio, les réponses inversées, les annulations, les erreurs API
+et média, la reprise et le clavier sont vérifiés. La commande Radio reste unique
+dans le groupe du rôle courant, près de son sélecteur. Les captures finales
+ont été examinées : Mode vocal (capture conservée hors dépôt),
+Radio — LIA (capture conservée hors dépôt) et
+Radio — dernier point de vue (capture conservée hors dépôt).
+
+Le premier oracle du nouveau scénario WebKit confondait les préconnexions de
+polices refusées avec des requêtes sorties. Le test reprend désormais le contrat
+déjà utilisé par le parcours des comptes rendus : seuls les deux refus CONNECT
+exacts des polices sont attendus, et toute requête HTTP(S) externe est contrôlée,
+avec seulement les deux URL de fontes servies localement par les fixtures.
+Aucun garde réseau, layout ou fixture globale n'a été modifié. Aucun fournisseur
+vocal réel ni backend réel n'a été contacté pendant cette qualification.
+
+Les serveurs, dépendances et caches de preuve privés ont été retirés après
+conservation des journaux et captures. Le développement partagé a changé puis
+a été arrêté par une opération extérieure pendant la validation ; il n'a pas
+été modifié ni relancé par cette tâche.
+
+### Remise en service du front Docker de développement
+
+Le signalement suivant « Vous êtes hors ligne » a révélé un conteneur arrêté
+avec `MODULE_NOT_FOUND` : le volume des dépendances pointait vers le nouveau
+Next.js, alors que l'image contenait encore l'ancienne version. Le front a été
+reconstruit et relancé seul, sans réinitialiser les volumes ou les données du
+navigateur. Le script de démarrage contrôle désormais la résolution et la version
+de Next.js avant de se fier au marqueur d'installation. Une réparation utilise
+le lockfile figé ; son échec bloque le lancement avec une commande de
+reconstruction explicite.
+
+Le rejeu Docker isolé passe d'un scénario réussi sur six avant correction à six
+sur six après correction : volume sain, première installation, lien cassé malgré
+le marqueur, version incorrecte, installation refusée et réparation inefficace.
+La version du manifeste et celle réellement exécutée concordent ; le script
+intégré au conteneur est identique au fichier corrigé. Après la première
+compilation, les réglages répondent en HTTPS avec le statut 200 et les nouveaux
+fragments ne référencent plus l'ancienne version. Le bouton Réessayer recharge
+normalement la page depuis le réseau ; aucun changement du service worker n'a
+été nécessaire. Le contrôle dans le navigateur confirme l'affichage des réglages
+Mode vocal après chargement, avec leurs sélecteurs et commandes visibles.
 
 ### Défaut graphique découvert pendant la qualification
 

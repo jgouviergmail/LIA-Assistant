@@ -97,7 +97,7 @@ budget. `system_indexer_failed` names the status.
    ```
    POST /api/v1/rag-spaces/admin/system-spaces/lia-faq/reindex
    ```
-   It is also the "Reindex" button of Settings → Admin → RAG Spaces. A **409**
+   It is also the "Reindex" button of Settings → Administration → System RAG admin. A **409**
    means another worker holds the claim: retry once it commits, the indexation
    did not run. Restarting the API works too — the indexation runs on every boot
    and is idempotent.

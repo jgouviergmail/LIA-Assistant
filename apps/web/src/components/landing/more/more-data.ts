@@ -1,5 +1,5 @@
 /**
- * Single source of truth for the "/more" small-attentions page: 97 cards in
+ * Single source of truth for the "/more" small-attentions page: 98 cards in
  * 6 moment sections, each card carrying one lucide icon and the list of
  * translated micro-labels its animated scene needs.
  *
@@ -103,6 +103,7 @@ import {
   Pin,
   CalendarClock,
   FileText,
+  Headphones,
   Languages,
   ListX,
   MousePointerClick,
@@ -223,6 +224,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'phone_channel',
       'wake_phrase',
       'voices_in_language',
+      'voice_sample',
       'live_band',
       'live_standby',
       'radio_companion',
@@ -273,6 +275,7 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   back_where_you_were: Undo2,
   day_timeline: CalendarClock,
   voices_in_language: Languages,
+  voice_sample: Headphones,
   document_first_page: FileText,
   companion_makes_room: Eye,
   button_stays_itself: MousePointerClick,
@@ -378,6 +381,7 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   back_where_you_were: ['query', 'filter', 'back'],
   day_timeline: ['morning', 'afternoon', 'live'],
   voices_in_language: ['only_mine', 'female', 'male'],
+  voice_sample: ['warm', 'bright', 'calm', 'playing', 'replay'],
   document_first_page: ['pdf', 'excerpt'],
   companion_makes_room: ['search'],
   button_stays_itself: ['save', 'saved'],

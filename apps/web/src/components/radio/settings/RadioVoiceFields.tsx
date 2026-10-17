@@ -18,7 +18,7 @@ import {
   Radio,
   type LucideIcon,
 } from 'lucide-react';
-import { useId, useState } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 
 import { Disclosure } from '@/components/ui/disclosure';
 import { Input } from '@/components/ui/input';
@@ -31,7 +31,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { VoiceLanguageFilter } from '@/components/voice/VoiceLanguageFilter';
+import { VoiceSamplePlayback } from '@/components/voice/VoiceSamplePlayback';
 import { usePersonality } from '@/hooks/usePersonality';
+import { useTtsVoiceSample } from '@/hooks/useTtsVoiceSample';
 import { useVoiceLanguageFilter } from '@/hooks/useVoiceLanguageFilter';
 import { useTranslation } from '@/i18n/client';
 import { voicesTakenFrom, withStationName, withVoice } from '@/lib/radio/preferences';
@@ -113,6 +115,8 @@ function VoiceSelect({
   taken,
   describedBy,
   onChange,
+  onSample,
+  playback,
 }: {
   lng: RadioFieldsProps['lng'];
   role: RadioSpeakingRole;
@@ -122,20 +126,29 @@ function VoiceSelect({
   taken: ReadonlySet<string>;
   describedBy?: string;
   onChange: (next: RadioPreferences) => void;
+  onSample: (role: RadioSpeakingRole, next: RadioPreferences) => void;
+  playback?: ReactNode;
 }) {
   const { t } = useTranslation(lng);
   const id = `radio-voice-${role}`;
   return (
-    <div className="space-y-3 rounded-lg border bg-card p-4">
-      <Label htmlFor={id} className="flex items-center gap-2">
+    <div
+      role="group"
+      aria-labelledby={`${id}-label`}
+      className="space-y-3 rounded-lg border bg-card p-4"
+    >
+      <Label id={`${id}-label`} htmlFor={id} className="flex items-center gap-2">
         <Icon className="size-4 shrink-0 text-primary" aria-hidden="true" />
         {t(`radio.roles.${role}`)}
       </Label>
       <Select
         value={preferences.voices[role] ?? AUTOMATIC_VOICE}
-        onValueChange={value =>
-          onChange(withVoice(preferences, role, value === AUTOMATIC_VOICE ? null : value))
-        }
+        onValueChange={value => {
+          const next = withVoice(preferences, role, value === AUTOMATIC_VOICE ? null : value);
+          if (next === preferences) return;
+          onSample(role, next);
+          onChange(next);
+        }}
       >
         <SelectTrigger id={id} className="w-full bg-background" aria-describedby={describedBy}>
           <SelectValue />
@@ -153,6 +166,7 @@ function VoiceSelect({
           ))}
         </SelectContent>
       </Select>
+      {playback}
     </div>
   );
 }
@@ -161,6 +175,8 @@ export function RadioVoiceFields({ lng, options, preferences, onChange }: RadioF
   const { t } = useTranslation(lng);
   const commentatorsHintId = useId();
   const { personalities } = usePersonality();
+  const sample = useTtsVoiceSample();
+  const [lastSelectedRole, setLastSelectedRole] = useState<RadioSpeakingRole | null>(null);
   // The listener's language narrows what each role's list SHOWS; a voice a role
   // holds always stays, and « automatic » is never filtered.
   const language = useVoiceLanguageFilter(options.voices, lng, Object.values(preferences.voices));
@@ -182,6 +198,16 @@ export function RadioVoiceFields({ lng, options, preferences, onChange }: RadioF
           : undefined
       }
       onChange={onChange}
+      onSample={(selectedRole, next) => {
+        setLastSelectedRole(selectedRole);
+        void sample.play({
+          endpoint: '/radio/voices/sample',
+          payload: { role: selectedRole, voices: { ...next.voices } },
+        });
+      }}
+      playback={
+        lastSelectedRole === role ? <VoiceSamplePlayback lng={lng} sample={sample} /> : undefined
+      }
     />
   );
   return (
@@ -190,8 +216,12 @@ export function RadioVoiceFields({ lng, options, preferences, onChange }: RadioF
       icon={Mic}
       title={t('radio.settings.voices.title')}
       description={t('radio.settings.voices.description')}
+      onOpenChange={open => {
+        if (!open) sample.stop();
+      }}
     >
       <div className="space-y-4">
+        {lastSelectedRole === null && <VoiceSamplePlayback lng={lng} sample={sample} />}
         <StationNameField
           lng={lng}
           options={options}

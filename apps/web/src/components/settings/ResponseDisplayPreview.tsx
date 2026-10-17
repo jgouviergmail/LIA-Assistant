@@ -1,6 +1,15 @@
 'use client';
 
-import { CalendarDays, Clock3, MapPin, MessageCircle, Sparkles, Sun } from 'lucide-react';
+import {
+  CalendarDays,
+  Clock3,
+  LayoutGrid,
+  Lightbulb,
+  MapPin,
+  MessageCircle,
+  Sparkles,
+  Sun,
+} from 'lucide-react';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import type { ReactNode } from 'react';
@@ -8,6 +17,15 @@ import type { ResponseDisplayMode } from '@/types/settings';
 
 type PreviewCopy = {
   introduction: string;
+  classicTitle: string;
+  classicAnswer: string;
+  richLabel: string;
+  richTitle: string;
+  richSummary: string;
+  highlightTitle: string;
+  highlightText: string;
+  cardsTitle: string;
+  cardsHint: string;
   weather: { title: string; location: string; condition: string };
   meeting: { title: string; name: string; time: string; location: string };
 };
@@ -57,10 +75,39 @@ function MeetingPreviewCard({ copy }: { copy: PreviewCopy['meeting'] }) {
 
 function CardsPreview({ copy }: { copy: PreviewCopy }) {
   return (
-    <div className="grid min-w-0 gap-3">
-      <WeatherPreviewCard copy={copy.weather} />
-      <MeetingPreviewCard copy={copy.meeting} />
-    </div>
+    <section className="min-w-0 space-y-3" aria-label={copy.cardsTitle}>
+      <div className="space-y-1">
+        <h4 className="flex min-w-0 items-start gap-2 text-xs font-semibold text-foreground">
+          <LayoutGrid className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden="true" />
+          <span className="min-w-0">{copy.cardsTitle}</span>
+        </h4>
+        <p className="text-xs leading-relaxed text-muted-foreground">{copy.cardsHint}</p>
+      </div>
+      <div className="grid min-w-0 gap-3">
+        <WeatherPreviewCard copy={copy.weather} />
+        <MeetingPreviewCard copy={copy.meeting} />
+      </div>
+    </section>
+  );
+}
+
+function RichSummaryPreview({ copy }: { copy: PreviewCopy }) {
+  return (
+    <section aria-label={copy.richTitle} className="space-y-3 text-sm leading-relaxed">
+      <p className="text-xs font-semibold text-muted-foreground">{copy.richLabel}</p>
+      <h4 className="flex min-w-0 items-start gap-2 text-lg font-semibold tracking-tight text-foreground">
+        <Sparkles className="mt-1 size-5 shrink-0 text-primary" aria-hidden="true" />
+        <span className="min-w-0">{copy.richTitle}</span>
+      </h4>
+      <p>{copy.richSummary}</p>
+      <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
+        <h5 className="flex min-w-0 items-start gap-2 font-semibold text-foreground">
+          <Lightbulb className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
+          <span className="min-w-0">{copy.highlightTitle}</span>
+        </h5>
+        <p className="mt-1">{copy.highlightText}</p>
+      </div>
+    </section>
   );
 }
 
@@ -136,6 +183,22 @@ export function ResponseDisplayPreview({
   const prefix = 'settings.preferences.display_mode.preview';
   const copy: PreviewCopy = {
     introduction: t(`${prefix}.introduction`),
+    classicTitle: t(`${prefix}.classic_title`),
+    classicAnswer: t(`${prefix}.classic_answer`, {
+      temperature: EXAMPLE_TEMPERATURE,
+      location: t(`${prefix}.weather.location`),
+      condition: t(`${prefix}.weather.condition`),
+      meeting: t(`${prefix}.meeting.name`),
+      time: t(`${prefix}.meeting.time`),
+      meetingLocation: t(`${prefix}.meeting.location`),
+    }),
+    richLabel: t(`${prefix}.rich_label`),
+    richTitle: t(`${prefix}.rich_title`),
+    richSummary: t(`${prefix}.rich_summary`),
+    highlightTitle: t(`${prefix}.highlight_title`),
+    highlightText: t(`${prefix}.highlight_text`),
+    cardsTitle: t(`${prefix}.cards_title`),
+    cardsHint: t(`${prefix}.cards_hint`),
     weather: {
       title: t(`${prefix}.weather.title`),
       location: t(`${prefix}.weather.location`),
@@ -149,11 +212,19 @@ export function ResponseDisplayPreview({
     },
   };
   const presentations = {
-    cards: <CardsPreview copy={copy} />,
+    cards: (
+      <div className="space-y-5">
+        <div className="space-y-2 text-sm leading-relaxed">
+          <p className="text-xs font-semibold text-muted-foreground">{copy.classicTitle}</p>
+          <p>{copy.classicAnswer}</p>
+        </div>
+        <CardsPreview copy={copy} />
+      </div>
+    ),
     html: <HtmlPreview copy={copy} />,
     html_cards: (
       <div className="space-y-4">
-        <p className="text-sm leading-relaxed">{copy.introduction}</p>
+        <RichSummaryPreview copy={copy} />
         <CardsPreview copy={copy} />
       </div>
     ),

@@ -107,6 +107,7 @@ async function assertMode(page: Page, mode: DisplayMode): Promise<void> {
     )
   ).toHaveCount(0);
   const example = preview(page);
+  await expect(example).not.toContainText(/\{\{[^}]+\}\}/);
   for (const key of ['weather.location', 'meeting.name', 'meeting.time', 'meeting.location']) {
     await expect(
       example.getByText(copy(`${PREFIX}.preview.${key}`), { exact: true })
@@ -117,6 +118,43 @@ async function assertMode(page: Page, mode: DisplayMode): Promise<void> {
   await expect(example.getByRole('article')).toHaveCount(
     mode === 'cards' || mode === 'html_cards' ? 2 : 0
   );
+  if (mode === 'cards' || mode === 'html_cards') {
+    const cards = example.getByRole('region', {
+      name: copy(`${PREFIX}.preview.cards_title`),
+      exact: true,
+    });
+    await expect(cards.getByRole('article')).toHaveCount(2);
+    await expect(cards).toContainText(copy(`${PREFIX}.preview.cards_hint`));
+    for (const key of ['weather.location', 'meeting.name', 'meeting.time', 'meeting.location']) {
+      await expect(
+        cards.getByText(copy(`${PREFIX}.preview.${key}`), { exact: true })
+      ).toBeVisible();
+    }
+  }
+  const rich = example.getByRole('region', {
+    name: copy(`${PREFIX}.preview.rich_title`),
+    exact: true,
+  });
+  const classicTitle = example.getByText(copy(`${PREFIX}.preview.classic_title`), { exact: true });
+  if (mode === 'cards') {
+    await expect(classicTitle).toBeVisible();
+    const paragraph = classicTitle.locator('..').locator('p').last();
+    await expect(paragraph).toContainText('20 °C');
+    for (const key of ['weather.location', 'meeting.name', 'meeting.time', 'meeting.location']) {
+      await expect(paragraph).toContainText(copy(`${PREFIX}.preview.${key}`));
+    }
+    await expect(rich).toHaveCount(0);
+  } else if (mode === 'html_cards') {
+    await expect(classicTitle).toHaveCount(0);
+    await expect(rich.getByRole('heading', { level: 4 })).toHaveText(
+      copy(`${PREFIX}.preview.rich_title`)
+    );
+    await expect(rich).toContainText(copy(`${PREFIX}.preview.rich_summary`));
+    await expect(rich.getByRole('heading', { level: 5 })).toHaveText(
+      copy(`${PREFIX}.preview.highlight_title`)
+    );
+    await expect(rich).toContainText(copy(`${PREFIX}.preview.highlight_text`));
+  }
   await expect(settings(page).getByText(/HTML enrichi/)).toHaveCount(0);
 }
 
@@ -369,6 +407,7 @@ test('390px OLED and 20px text: every mode remains readable without selection ch
     await option(page, next).click();
     await assertMode(page, next);
     await layout(page, false);
+    if (next === 'cards') await capture(page, info, 'display-cards-mobile-oled-large-text');
   }
   await option(page, 'html_cards').click();
   await assertMode(page, 'html_cards');

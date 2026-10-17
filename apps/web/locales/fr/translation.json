@@ -1661,6 +1661,17 @@
         }
       }
     },
+    "voice_sample": {
+      "hint": "Un échantillon est lu lorsque tu choisis une voix.",
+      "loading": "Préparation de l’échantillon…",
+      "playing": "Lecture de l’échantillon",
+      "failed": "Impossible de lire l’échantillon. Tu peux réessayer.",
+      "listen": "Écouter l’échantillon",
+      "stop": "Arrêter l’échantillon",
+      "blocked": "Un enregistrement ou une session vocale est en cours. Réessaie après sa fin.",
+      "radio_wait": "La radio démarre ou s’arrête. Réessaie dans un instant.",
+      "radio_paused": "Radio mise en pause pour écouter l’échantillon."
+    },
     "image_generation": {
       "title": "Génération d'images",
       "description": "Configurer la génération d'images par intelligence artificielle",
@@ -1811,23 +1822,27 @@
         "modes": {
           "cards": {
             "label": "Cartes",
-            "description": "Fiches visuelles structurées pour les données (contacts, événements, emails, météo, etc.)",
-            "selected": "Mode Cartes activé"
+            "description": "Une réponse en texte classique, accompagnée des fiches des résultats retenus.",
+            "selected": "Mode Cartes activé",
+            "summary": "Texte classique + fiches"
           },
           "html": {
             "label": "HTML",
-            "description": "Réponses mises en page : titres, encadrés, badges, sections dépliables, tableaux, colonnes, chiffres clés et code coloré",
-            "selected": "Mode HTML activé"
+            "description": "Une réponse mise en page avec des titres, encadrés, listes ou chiffres clés.",
+            "selected": "Mode HTML activé",
+            "summary": "Réponse mise en page"
           },
           "html_cards": {
             "label": "HTML + cartes",
-            "description": "Réponse mise en page en HTML, accompagnée des cartes des éléments retenus",
-            "selected": "Mode HTML + cartes activé"
+            "description": "Une synthèse mise en page, suivie des fiches détaillées des résultats retenus.",
+            "selected": "Mode HTML + cartes activé",
+            "summary": "Synthèse visuelle + fiches"
           },
           "markdown": {
             "label": "Markdown",
-            "description": "Texte brut avec formatage Markdown standard",
-            "selected": "Mode Markdown activé"
+            "description": "Du texte avec des titres, listes et tableaux au format Markdown.",
+            "selected": "Mode Markdown activé",
+            "summary": "Texte mis en forme"
           }
         },
         "preview": {
@@ -1846,7 +1861,16 @@
             "time": "Demain · 10:00–11:00",
             "location": "En visioconférence"
           },
-          "applies": "Ton choix s’applique aux nouvelles réponses de LIA."
+          "applies": "Ton choix s’applique aux nouvelles réponses de LIA.",
+          "classic_title": "Réponse classique",
+          "classic_answer": "{{location}} : {{temperature}}, {{condition}}. Ton prochain rendez-vous est « {{meeting}} » : {{time}}, {{meetingLocation}}.",
+          "rich_label": "Réponse enrichie",
+          "rich_title": "Ta journée en un coup d’œil",
+          "rich_summary": "Un ciel dégagé et un rendez-vous à distance.",
+          "highlight_title": "À retenir",
+          "highlight_text": "La réunion se tient en visioconférence.",
+          "cards_title": "Fiches des résultats",
+          "cards_hint": "Des fiches peuvent compléter la réponse selon les résultats disponibles."
         }
       }
     },
@@ -6237,7 +6261,7 @@
           "items": {
             "i1": "<b>📮 Tes brouillons de boîte mail, depuis la conversation</b> — Sur Gmail, Outlook ou iCloud, LIA enregistre un brouillon, prépare une réponse ou un transfert, liste, modifie et met à la corbeille sans rien te demander. Seul l’envoi demande une confirmation, sur une carte qui montre le brouillon tel que ta boîte le garde.",
             "i2": "<b>🐟 Fish Audio, cinquième moteur de voix</b> — Synthèse vocale, transcription du mode vocal et des réunions ; l’administrateur clone ou conçoit des voix dans une bibliothèque, après une attestation de consentement.",
-            "i3": "<b>🗣️ Tu choisis les voix de LIA</b> — Une voix masculine et une voix féminine parmi celles du moteur qui parle, gardées quand l’administrateur change de modèle ; chaque liste de voix peut se limiter à ta langue et aux voix multilingues.",
+            "i3": "<b>🗣️ Tu choisis les voix de LIA</b> — Une voix masculine et une voix féminine parmi celles du moteur qui parle, gardées quand l’administrateur change de modèle ; chaque liste de voix peut se limiter à ta langue et aux voix multilingues ; chaque voix choisie, pour LIA comme pour la radio, joue aussitôt un court échantillon.",
             "i4": "<b>🎭 Des voix qui jouent</b> — Soupirs, rires ou chuchotements là où le moteur sait les interpréter ; la radio joue ses débats en une prise, et tu donnes une voix à chacun de ses commentateurs.",
             "i5": "<b>🧭 Une expérience apprise sur des preuves</b> — Par domaine, LIA garde ce que ses réponses ont vraiment établi et l’utilité que tu leur as donnée (👍/👎), séparément. Là où les preuves manquent, elle vérifie, pose une question ou nomme sa limite. À voir dans « Psyché de LIA ».",
             "i6": "<b>🏠 Un accueil qui s’ouvre sur ta journée</b> — La date en titre, le visage vivant de LIA, un agenda en frise, une météo illustrée, les tickets tenus avec tes connexions et ta consommation en un seul tableau.",
@@ -9177,7 +9201,7 @@
           },
           "q8": {
             "question": "Comment changer la voix de LIA (masculine/féminine) ?",
-            "answer": "Choisis le <strong>genre de voix</strong> qui te convient :<br><br><strong>🎙️ Voix disponibles :</strong><br>• <strong>Féminine</strong> : voix neurale douce et naturelle<br>• <strong>Masculine</strong> : voix neurale grave et posée<br><br><strong>Pour changer :</strong><br>1. Va sur l'<strong>écran d'accueil</strong><br>2. Sur la carte de bienvenue, clique sur le <strong>petit portrait</strong> de l'autre genre<br>3. L'avatar de LIA change aussitôt<br>4. La voix bascule automatiquement entre féminine et masculine<br><br><strong>🌍 Langue :</strong><br>La voix est celle qui est configurée, quelle que soit la langue de la réponse : une voix multilingue lit toutes les langues, une voix d'une seule langue lit les autres avec son accent. L'option <strong>« Seulement les voix de ma langue, et les multilingues »</strong>, activée d'emblée, limite chaque liste de voix — celles de LIA, de la radio et des créneaux de l'administrateur — sans jamais cacher une voix déjà choisie.<br><br><strong>🎚️ Tes propres voix :</strong><br>Dans <strong>Réglages → Mode vocal → Voix de LIA</strong>, choisis la voix masculine et la voix féminine avec lesquelles LIA parle dans le chat, parmi les voix du moteur configuré par ton administrateur — chaque liste s'ouvre sur la voix de l'administrateur. Ton choix est gardé quand l'administrateur change de modèle chez le même fournisseur. La radio, les sessions Live et les appels téléphoniques gardent leurs propres voix.<br><br><strong>⚙️ Qualité :</strong><br>LIA utilise des voix neurales de haute qualité (Microsoft Edge TTS, OpenAI, ElevenLabs, Google Gemini ou Fish Audio, selon la configuration de l'administrateur) pour un rendu naturel et expressif ; certains moteurs jouent aussi quelques soupirs ou rires."
+            "answer": "Choisis le <strong>genre de voix</strong> qui te convient :<br><br><strong>🎙️ Voix disponibles :</strong><br>• <strong>Féminine</strong> : voix neurale douce et naturelle<br>• <strong>Masculine</strong> : voix neurale grave et posée<br><br><strong>Pour changer :</strong><br>1. Va sur l'<strong>écran d'accueil</strong><br>2. Sur la carte de bienvenue, clique sur le <strong>petit portrait</strong> de l'autre genre<br>3. L'avatar de LIA change aussitôt<br>4. La voix bascule automatiquement entre féminine et masculine<br><br><strong>🌍 Langue :</strong><br>La voix est celle qui est configurée, quelle que soit la langue de la réponse : une voix multilingue lit toutes les langues, une voix d'une seule langue lit les autres avec son accent. L'option <strong>« Seulement les voix de ma langue, et les multilingues »</strong>, activée d'emblée, limite chaque liste de voix — celles de LIA, de la radio et des créneaux de l'administrateur — sans jamais cacher une voix déjà choisie.<br><br><strong>🎚️ Tes propres voix :</strong><br>Dans <strong>Réglages → Mode vocal → Voix de LIA</strong>, choisis la voix masculine et la voix féminine avec lesquelles LIA parle dans le chat, parmi les voix du moteur configuré par ton administrateur — chaque liste s'ouvre sur la voix de l'administrateur. Ton choix est gardé quand l'administrateur change de modèle chez le même fournisseur. La radio, les sessions Live et les appels téléphoniques gardent leurs propres voix. Choisir une voix en joue aussitôt un court échantillon, que tu peux arrêter ou relancer ; l'écoute est comptée dans ta consommation comme toute lecture.<br><br><strong>⚙️ Qualité :</strong><br>LIA utilise des voix neurales de haute qualité (Microsoft Edge TTS, OpenAI, ElevenLabs, Google Gemini ou Fish Audio, selon la configuration de l'administrateur) pour un rendu naturel et expressif ; certains moteurs jouent aussi quelques soupirs ou rires."
           },
           "q9": {
             "question": "Comment fonctionne la mémoire long terme ?",
@@ -9273,7 +9297,7 @@
           },
           "q32": {
             "question": "Comment fonctionne la radio personnelle ?",
-            "answer": "Lance la Radio depuis l’en-tête, le tableau de bord ou sa page si ton instance la propose. Choisis sujets, sources, voix et niveau de vérification. Elle parle de ta journée et de nouvelles citées pendant ton écoute, affiche sources et dépenses et s’arrête au minuteur ; ni replay ni édition programmée.<br><br><strong>Les voix :</strong> tu choisis celles de LIA, de l’animateur et de chacun des trois commentateurs des débats et discussions — automatiques par défaut. Un commentateur ne partage jamais sa voix avec LIA, l’animateur ou un autre commentateur. Tes choix sont gardés quand l’administrateur change de modèle chez le même fournisseur.<br><br><strong>La vérification</strong> par un second modèle est désactivée par défaut, parce que chaque contrôle est facturé et peut retarder l’écoute ; « Vérifier l’actualité » ou « Tout vérifier » restent à un choix.<br><br>Publicités, parrainages, promotions et incitations à acheter sont filtrés. Factures, réservations et informations éditoriales, scientifiques ou économiques restent admissibles. L’avatar parlant Simli n’accompagne pas la Radio."
+            "answer": "Lance la Radio depuis l’en-tête, le tableau de bord ou sa page si ton instance la propose. Choisis sujets, sources, voix et niveau de vérification. Elle parle de ta journée et de nouvelles citées pendant ton écoute, affiche sources et dépenses et s’arrête au minuteur ; ni replay ni édition programmée.<br><br><strong>Les voix :</strong> tu choisis celles de LIA, de l’animateur et de chacun des trois commentateurs des débats et discussions — automatiques par défaut. Un commentateur ne partage jamais sa voix avec LIA, l’animateur ou un autre commentateur. Tes choix sont gardés quand l’administrateur change de modèle chez le même fournisseur. Chaque choix de voix joue un court échantillon ; une radio en cours se met en pause pour te laisser l’entendre.<br><br><strong>La vérification</strong> par un second modèle est désactivée par défaut, parce que chaque contrôle est facturé et peut retarder l’écoute ; « Vérifier l’actualité » ou « Tout vérifier » restent à un choix.<br><br>Publicités, parrainages, promotions et incitations à acheter sont filtrés. Factures, réservations et informations éditoriales, scientifiques ou économiques restent admissibles. L’avatar parlant Simli n’accompagne pas la Radio."
           },
           "q33": {
             "question": "Un administrateur peut-il activer les décisions JEV ?",
@@ -11074,6 +11098,10 @@
       "card_compose": {
         "title": "Répondre depuis la carte",
         "desc": "Les boutons Répondre et Transférer d’un e-mail, ou l’ajustement d’un rappel, préparent la demande dans ta zone de saisie avec une pastille qui rappelle de quoi il s’agit. Rien ne part sans toi, et LIA revérifie que le compte et le message d’origine sont bien les tiens."
+      },
+      "voice_sample": {
+        "title": "Écouter avant de choisir",
+        "desc": "Choisir une voix, pour LIA ou pour la radio, en joue aussitôt un court échantillon dans ta langue. Un bouton l’arrête ou le relance, et une radio en cours se met en pause pour te laisser l’entendre."
       }
     },
     "scenes": {
@@ -11368,6 +11396,13 @@
         "reply": "Répondre",
         "context": "l’e-mail d’origine",
         "draft": "prête — à toi d’envoyer"
+      },
+      "voice_sample": {
+        "warm": "Voix chaleureuse",
+        "bright": "Voix claire",
+        "calm": "Voix posée",
+        "playing": "Échantillon en cours",
+        "replay": "Réécouter"
       }
     },
     "craft": {
@@ -12868,15 +12903,36 @@
         "dossier": "Préparer une décision avec mails, documents et réunion",
         "approval": "Relire et valider une action dans le chat",
         "knowledge": "Organiser des connaissances avec documents et sources synchronisées",
-        "skill": "Utiliser une mini-app dans la conversation",
+        "skill": "Budget week-end · un exemple de skill personnalisée avec réglages du voyage et répartition des dépenses.",
         "memory": "Consulter et corriger la mémoire",
         "administration": "Régler les plafonds de l’instance et de ses comptes",
         "grafana_overview": "Grafana : ressources de l’instance et des conteneurs",
         "grafana_costs": "Grafana : tokens, coûts et cache",
         "grafana_activity": "Grafana : activité, origine des requêtes et outils utilisés",
         "relations": "Relations · retrouve les échanges, les faits utiles et les engagements ouverts avant de reprendre contact.",
-        "meetings": "Réunions · relis les décisions et les actions attribuées, puis corrige ou exporte le compte rendu.",
-        "radio": "Radio personnelle · retrouve le programme, sa transcription et les sources consultables."
+        "meetings": "Compte rendu détaillé · retrouve les participants, la synthèse, les décisions et les actions attribuées.",
+        "radio": "Radio personnelle · retrouve le programme, sa transcription et les sources consultables.",
+        "psyche": "Psyche Engine · consulte les traits de personnalité, l’état émotionnel et la réactivité.",
+        "psyche_evolution": "Évolution émotionnelle · suis les changements d’état et les événements associés.",
+        "memory_library": "Bibliothèque de souvenirs · parcours, recherche et gère les faits et préférences mémorisés.",
+        "portrait": "Portrait personnel · consulte le contexte que LIA a construit à ton sujet.",
+        "routine_studio": "Studio de routines · prépare un parcours récurrent avec ses consignes et son calendrier.",
+        "routine_week": "Calendrier des routines · retrouve les parcours de la semaine et leurs prochaines exécutions.",
+        "workboard": "Tableau de travail · organise tes projets et suis leur progression par étape.",
+        "workboard_dossier": "Dossier de projet · rassemble les tâches, le contexte et les suivis.",
+        "knowledge_library": "Bibliothèque de connaissances · retrouve tes espaces et leurs documents indexés.",
+        "meeting_transcript": "Transcription de réunion · consulte les échanges à côté du compte rendu.",
+        "meeting_templates": "Modèles de réunion · choisis la structure du compte rendu issu d’un enregistrement.",
+        "connections": "Connexions · gère les services liés et les accès qu’ils fournissent.",
+        "skills_library": "Bibliothèque de skills · parcours les compétences disponibles et gère leur activation.",
+        "model_routing": "Routage des modèles · choisis les fournisseurs et modèles pour chaque opération.",
+        "consumption": "Consommation · consulte les usages, les coûts et les opérations correspondantes.",
+        "journal": "Journal personnel · retrouve les réflexions et le contexte conservés au fil du temps.",
+        "places": "Google Places · consulte une fiche de lieu complète, ses horaires et ses informations pratiques.",
+        "maps": "Google Maps · consulte une position avec sa carte, ses coordonnées et son adresse.",
+        "routes": "Itinéraires · consulte un trajet à pied avec sa carte, sa distance et sa durée.",
+        "avatar_picker": "Galerie d’avatars · découvre les styles de compagnons et choisis l’apparence de LIA.",
+        "meetings_list": "Liste des réunions · retrouve les enregistrements et comptes rendus selon leur état de traitement."
       }
     },
     "presentation": {

@@ -27,7 +27,9 @@ import {
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { VoiceLanguageFilter } from '@/components/voice/VoiceLanguageFilter';
+import { VoiceSamplePlayback } from '@/components/voice/VoiceSamplePlayback';
 import { useLiaVoices } from '@/hooks/useLiaVoices';
+import { useTtsVoiceSample } from '@/hooks/useTtsVoiceSample';
 import { useVoiceLanguageFilter } from '@/hooks/useVoiceLanguageFilter';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
@@ -115,6 +117,7 @@ function LiaVoicesBlock({
 }) {
   const { t } = useTranslation(lng);
   const titleId = useId();
+  const sample = useTtsVoiceSample();
   // The latest choice asked for while a save is in flight; null once settled.
   const requested = useRef<LiaVoiceChoice | null>(null);
   const language = useVoiceLanguageFilter(lia.voices, lng, [lia.male, lia.female]);
@@ -122,6 +125,10 @@ function LiaVoicesBlock({
     const base = requested.current ?? { male: lia.male, female: lia.female };
     const next = { ...base, [gender]: value === DEFAULT_VOICE ? null : value };
     requested.current = next;
+    void sample.play({
+      endpoint: '/voice/lia-voices/sample',
+      payload: { gender, voice_id: next[gender] },
+    });
     void save(next)
       .then(() => toast.success(t(`${KEY}.saved`)))
       .catch(error => {
@@ -159,6 +166,7 @@ function LiaVoicesBlock({
           />
         ))}
       </div>
+      <VoiceSamplePlayback lng={lng} sample={sample} />
     </div>
   );
 }

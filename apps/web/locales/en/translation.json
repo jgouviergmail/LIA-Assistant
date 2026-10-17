@@ -1650,6 +1650,17 @@
         }
       }
     },
+    "voice_sample": {
+      "hint": "A sample plays when you choose a voice.",
+      "loading": "Preparing the sample…",
+      "playing": "Playing the sample",
+      "failed": "The sample could not be played. You can try again.",
+      "listen": "Play the sample",
+      "stop": "Stop the sample",
+      "blocked": "A recording or voice session is in progress. Try again after it ends.",
+      "radio_wait": "The radio is starting or stopping. Try again in a moment.",
+      "radio_paused": "Radio paused to play the sample."
+    },
     "image_generation": {
       "title": "Image generation",
       "description": "Configure AI-powered image generation settings",
@@ -1800,23 +1811,27 @@
         "modes": {
           "cards": {
             "label": "Cards",
-            "description": "Structured visual cards for data (contacts, events, emails, weather, etc.)",
-            "selected": "Cards mode enabled"
+            "description": "A standard text answer accompanied by data cards for the selected results.",
+            "selected": "Cards mode enabled",
+            "summary": "Standard text + data cards"
           },
           "html": {
             "label": "HTML",
-            "description": "Laid-out answers: headings, callouts, badges, collapsible sections, tables, columns, key figures and highlighted code",
-            "selected": "HTML mode enabled"
+            "description": "An answer laid out with headings, callouts, lists or key figures.",
+            "selected": "HTML mode enabled",
+            "summary": "Visually structured answer"
           },
           "html_cards": {
             "label": "HTML + cards",
-            "description": "Richly formatted answers with cards for the selected results",
-            "selected": "HTML + cards mode enabled"
+            "description": "A visually structured summary followed by detailed data cards for the selected results.",
+            "selected": "HTML + cards mode enabled",
+            "summary": "Visual summary + data cards"
           },
           "markdown": {
             "label": "Markdown",
-            "description": "Plain text with standard Markdown formatting",
-            "selected": "Markdown mode enabled"
+            "description": "Text with standard Markdown headings, lists and tables.",
+            "selected": "Markdown mode enabled",
+            "summary": "Formatted text"
           }
         },
         "preview": {
@@ -1835,7 +1850,16 @@
             "time": "Tomorrow · 10:00–11:00",
             "location": "Video call"
           },
-          "applies": "Your choice applies to new replies from LIA."
+          "applies": "Your choice applies to new replies from LIA.",
+          "classic_title": "Standard answer",
+          "classic_answer": "{{location}}: {{temperature}}, {{condition}}. Your next meeting is “{{meeting}}”: {{time}}, {{meetingLocation}}.",
+          "rich_label": "Rich answer",
+          "rich_title": "Your day at a glance",
+          "rich_summary": "Clear skies and a remote meeting.",
+          "highlight_title": "Key point",
+          "highlight_text": "The meeting takes place by video call.",
+          "cards_title": "Result cards",
+          "cards_hint": "Data cards may accompany the answer, depending on the available results."
         }
       }
     },
@@ -6226,7 +6250,7 @@
           "items": {
             "i1": "<b>📮 Your mailbox drafts, from the conversation</b> — On Gmail, Outlook or iCloud, LIA saves a draft, prepares a reply or a forward, lists, edits and trashes drafts without asking. Only sending asks for a confirmation, on a card showing the draft as your mailbox holds it.",
             "i2": "<b>🐟 Fish Audio, a fifth voice engine</b> — Speech synthesis, transcription for voice mode and meetings; administrators clone or design voices in a library, after a consent attestation.",
-            "i3": "<b>🗣️ You choose LIA's voices</b> — A male and a female voice among those of the engine that speaks, kept when the administrator changes the model; every voice list can be narrowed to your language and the multilingual voices.",
+            "i3": "<b>🗣️ You choose LIA's voices</b> — A male and a female voice among those of the engine that speaks, kept when the administrator changes the model; every voice list can be narrowed to your language and the multilingual voices; every voice you pick, for LIA or for the radio, plays a short sample right away.",
             "i4": "<b>🎭 Voices that perform</b> — Sighs, laughs or whispers where the engine can perform them; the radio plays its debates in one take, and you give each of its commentators a voice.",
             "i5": "<b>🧭 An experience learned from evidence</b> — Per domain, LIA keeps what its answers truly established and the usefulness you gave them (👍/👎), separately. Where evidence is thin, it checks, asks one question or names its limit. See it in “LIA’s psyche”.",
             "i6": "<b>🏠 A home page that opens on your day</b> — The date as the title, LIA's living face, a timeline agenda, an illustrated weather, the tickets held with your connections and your consumption in a single table.",
@@ -9166,7 +9190,7 @@
           },
           "q8": {
             "question": "How do I change LIA's voice (male/female)?",
-            "answer": "Choose the <strong>voice gender</strong> that suits you:<br><br><strong>🎙️ Available voices:</strong><br>• <strong>Female</strong>: soft and natural neural voice<br>• <strong>Male</strong>: deep and calm neural voice<br><br><strong>To change:</strong><br>1. Go to the <strong>home screen</strong><br>2. On the welcome card, click the <strong>small portrait</strong> of the other gender<br>3. LIA switches to that avatar right away<br>4. The voice automatically switches between female and male<br><br><strong>🌍 Language:</strong><br>The voice is the one configured, whatever the language of the answer: a multilingual voice reads every language, a voice of one language reads the others with its accent. The <strong>“Only voices in my language, and multilingual ones”</strong> option, on from the start, narrows every voice list — for LIA, the radio and the administrator slots — and never hides a voice already chosen.<br><br><strong>🎚️ Your own voices:</strong><br>In <strong>Settings → Voice mode → LIA's voice</strong>, choose the male and the female voice LIA speaks with in the chat, among the voices of the engine your administrator configured — each list opens on the administrator's voice. Your choice is kept when the administrator switches to another model from the same provider. The radio, live sessions and phone calls keep their own voices.<br><br><strong>⚙️ Quality:</strong><br>LIA uses high-quality neural voices (Microsoft Edge TTS, OpenAI, ElevenLabs, Google Gemini or Fish Audio, as configured by the administrator) for a natural and expressive rendering; some engines also perform a few sighs or laughs."
+            "answer": "Choose the <strong>voice gender</strong> that suits you:<br><br><strong>🎙️ Available voices:</strong><br>• <strong>Female</strong>: soft and natural neural voice<br>• <strong>Male</strong>: deep and calm neural voice<br><br><strong>To change:</strong><br>1. Go to the <strong>home screen</strong><br>2. On the welcome card, click the <strong>small portrait</strong> of the other gender<br>3. LIA switches to that avatar right away<br>4. The voice automatically switches between female and male<br><br><strong>🌍 Language:</strong><br>The voice is the one configured, whatever the language of the answer: a multilingual voice reads every language, a voice of one language reads the others with its accent. The <strong>“Only voices in my language, and multilingual ones”</strong> option, on from the start, narrows every voice list — for LIA, the radio and the administrator slots — and never hides a voice already chosen.<br><br><strong>🎚️ Your own voices:</strong><br>In <strong>Settings → Voice mode → LIA's voice</strong>, choose the male and the female voice LIA speaks with in the chat, among the voices of the engine your administrator configured — each list opens on the administrator's voice. Your choice is kept when the administrator switches to another model from the same provider. The radio, live sessions and phone calls keep their own voices. Picking a voice plays a short sample of it right away, which you can stop or play again; listening counts in your usage like any reading.<br><br><strong>⚙️ Quality:</strong><br>LIA uses high-quality neural voices (Microsoft Edge TTS, OpenAI, ElevenLabs, Google Gemini or Fish Audio, as configured by the administrator) for a natural and expressive rendering; some engines also perform a few sighs or laughs."
           },
           "q9": {
             "question": "How does long-term memory work?",
@@ -9262,7 +9286,7 @@
           },
           "q32": {
             "question": "How does the personal radio work?",
-            "answer": "Start Radio from the header, dashboard or Radio page if your instance offers it. Choose topics, sources, voices and a verification level. It speaks about your day and cited news only while you listen, shows sources and spending, and ends at your timer; there is no replay or scheduled edition.<br><br><strong>The voices:</strong> you choose the voice of LIA, of the host and of each of the three commentators in debates and discussions — automatic by default. A commentator never shares its voice with LIA, the host or another commentator. Your choices are kept when the administrator switches to another model from the same provider.<br><br><strong>Verification</strong> by a second model is off by default, because every check is billed and can delay listening; “Check the news” or “Check every programme” stay one choice away.<br><br>Advertising, sponsorships, deals and purchase pitches are filtered. Genuine invoices, reservations and editorial, scientific or economic reporting remain eligible. A speaking Simli avatar does not accompany Radio."
+            "answer": "Start Radio from the header, dashboard or Radio page if your instance offers it. Choose topics, sources, voices and a verification level. It speaks about your day and cited news only while you listen, shows sources and spending, and ends at your timer; there is no replay or scheduled edition.<br><br><strong>The voices:</strong> you choose the voice of LIA, of the host and of each of the three commentators in debates and discussions — automatic by default. A commentator never shares its voice with LIA, the host or another commentator. Your choices are kept when the administrator switches to another model from the same provider. Each voice you choose plays a short sample; a radio that is playing pauses so you can hear it.<br><br><strong>Verification</strong> by a second model is off by default, because every check is billed and can delay listening; “Check the news” or “Check every programme” stay one choice away.<br><br>Advertising, sponsorships, deals and purchase pitches are filtered. Genuine invoices, reservations and editorial, scientific or economic reporting remain eligible. A speaking Simli avatar does not accompany Radio."
           },
           "q33": {
             "question": "Can an administrator enable JEV decisions?",
@@ -11063,6 +11087,10 @@
       "card_compose": {
         "title": "Reply from the card",
         "desc": "An e-mail's Reply and Forward buttons, or adjusting a reminder, prepare the request in your message box with a chip reminding you what it is about. Nothing goes out without you, and LIA checks again that the account and the original message are yours."
+      },
+      "voice_sample": {
+        "title": "Hear it before you keep it",
+        "desc": "Choosing a voice, for LIA or for the radio, plays a short sample of it right away, in your language. One button stops it or plays it again, and a radio that is playing pauses so you can hear it."
       }
     },
     "scenes": {
@@ -11357,6 +11385,13 @@
         "reply": "Reply",
         "context": "the original e-mail",
         "draft": "ready — yours to send"
+      },
+      "voice_sample": {
+        "warm": "Warm voice",
+        "bright": "Bright voice",
+        "calm": "Calm voice",
+        "playing": "Sample playing",
+        "replay": "Play again"
       }
     },
     "craft": {
@@ -12936,15 +12971,36 @@
         "dossier": "Prepare a decision with mail, documents and meeting notes",
         "approval": "Review and approve an action in chat",
         "knowledge": "Organize knowledge with documents and synchronized sources",
-        "skill": "Use a mini-app in the conversation",
+        "skill": "Weekend Budget Studio · a custom skill example with editable trip controls and spending breakdown.",
         "memory": "Inspect and edit memory",
         "administration": "Set instance and account limits",
         "grafana_overview": "Grafana: instance and container resources",
         "grafana_costs": "Grafana: tokens, costs and cache",
         "grafana_activity": "Grafana: activity, request origins and tools used",
         "relations": "Relations · review conversations, useful facts and open commitments before getting back in touch.",
-        "meetings": "Meetings · review decisions and assigned action items, then edit or export the report.",
-        "radio": "Personal Radio · see the programme, its transcript and the sources you can inspect."
+        "meetings": "Detailed meeting report · inspect participants, summary, decisions and assigned actions.",
+        "radio": "Personal Radio · see the programme, its transcript and the sources you can inspect.",
+        "psyche": "Psyche Engine · inspect personality traits, emotional state and responsiveness.",
+        "psyche_evolution": "Emotional evolution · follow changes in state and the events behind them.",
+        "memory_library": "Memory library · browse, search and manage remembered facts and preferences.",
+        "portrait": "Personal portrait · review the context LIA has built about you.",
+        "routine_studio": "Routine studio · prepare a recurring workflow with its instructions and schedule.",
+        "routine_week": "Routine calendar · see the week’s scheduled workflows and upcoming runs.",
+        "workboard": "Workboard · organize projects and follow work across stages.",
+        "workboard_dossier": "Project dossier · keep tasks, context and follow-ups together.",
+        "knowledge_library": "Knowledge library · find your spaces and their indexed documents.",
+        "meeting_transcript": "Meeting transcript · inspect the conversation alongside its report.",
+        "meeting_templates": "Meeting templates · choose how a recording becomes a structured report.",
+        "connections": "Connections · manage linked services and the access they provide.",
+        "skills_library": "Skills library · browse available skills and manage their activation.",
+        "model_routing": "Model routing · select providers and models for each operation.",
+        "consumption": "Consumption · inspect usage, costs and the operations behind them.",
+        "journal": "Personal journal · revisit the reflections and context kept over time.",
+        "avatar_picker": "Avatar picker · preview companion styles and choose LIA’s appearance.",
+        "places": "Google Places · inspect a complete place card with opening hours and practical details.",
+        "maps": "Google Maps · inspect a location with its map, coordinates and address.",
+        "routes": "Routes · read a walking itinerary with its map, distance and travel time.",
+        "meetings_list": "Meetings list · browse recordings and reports with their processing states."
       }
     },
     "presentation": {

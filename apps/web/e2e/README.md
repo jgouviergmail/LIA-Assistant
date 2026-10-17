@@ -248,14 +248,30 @@ MSYS_NO_PATHCONV=1 docker run --rm --network container:lia-web-dev \
 
 ## Public screenshots
 
-The README and landing share the images described in
-`public/screenshots/manifest.json`. The capture program renders the current Docker
-UI with handwritten examples in `capture/public-screenshot-data.ts`: no login,
-account, production API, provider call or credential file is read. API requests are
+The README and landing share three application capture campaigns:
+`public/screenshots/manifest.json` (dashboard and general views),
+`public/screenshots/proof/manifest.json` (twelve advanced workflows), and
+`public/screenshots/proof/extended-manifest.json` (eighteen additional feature views).
+The gallery presents 31 application views. The capture programs render the current Docker
+UI with handwritten examples in the `capture/*screenshot-data.ts` and
+`capture/landing-proof-data.ts` modules: no login,
+account, production API or credential file is read. No inference or provider call
+runs during browser capture. The real Google Maps backgrounds and walking-route
+data were prepared once outside the browser in three bounded requests; their
+public source, hashes and attribution are in `fixtures/maps/provenance.json`.
+API requests are
 fulfilled locally; unknown API and external requests fail the campaign. Public
-Google font downloads are the only external requests permitted. Voice WebSockets
-are simulated locally and service-worker registration is disabled. The interactive
-game uses the actual system skill's HTML generator and keeps its opaque sandbox.
+font requests are fulfilled with the vendored E2E font. Voice WebSockets
+are simulated locally and service-worker registration is disabled.
+The Weekend Budget Studio is a fictional custom skill example produced by
+executing `capture/render_trip_budget.py` and displayed in the native sandboxed
+`SkillAppWidget` iframe. Its controls calculate locally; example prices are not
+booking quotes.
+
+`capture/render_native_cards.py` generates `fixtures/native-cards.json` through
+the backend's production `HtmlRenderer.render("events")` and `render_multi` for
+documents, emails and appointments. The capture fixtures reuse the emitted HTML
+unchanged, so appointment and source cards show the exact backend rendering.
 
 From PowerShell at the repository root, with Docker dev running:
 
@@ -265,17 +281,29 @@ From PowerShell at the repository root, with Docker dev running:
 ./scripts/capture_public_screenshots.ps1 -Publish
 ```
 
-The script builds a separate production bundle in Docker, uses a disposable
+The script builds a separate production bundle (`.next-public-screenshots`) in Docker, uses a disposable
 official Playwright container, and leaves the dev server running. `-WebContainer`
 and `-Port` select the local runtime; `-SkipBuild` reuses an already current bundle.
 Browser requests use a fake session cookie, a fixed demonstration clock, English
 labels and the light theme. No account configuration is changed.
+The floating BIP uses the maximum `xl` preset. Motion is enabled so real pointer
+movements can direct its gaze towards the content before capture; native mobile
+avoidance can compact it where no unobstructed placement exists.
 
 The capture fails on browser errors, unexpected requests, untranslated fixture
 labels, visible failure states, credential-like strings or non-demo email domains.
 Visual review remains required for layout, chronology and cropped content.
-Publication validates the report and PNG hashes, synchronizes README, landing,
-legacy `v2` images and both dashboard formats, then generates the manifest. Its
+After inspecting every final PNG, create a `visual-review.json` in each campaign
+directory (the output root, `proof/` and `extended/`) with
+`reviewedAt`, `method` and an `images` array. Every image entry contains its
+`file`, exact `sha256` from `capture-report.json`, `approved: true` and `avatarPainted: true` after checking the robot in the PNG. Approval
+records are tied to those pixels: regenerate them after any retake. The public
+campaign's mobile preview and public FAQ retain their native layout rather than
+claiming a floating robot where the product compacts or omits it.
+Publication validates all three reports and PNG hashes, synchronizes README, landing,
+legacy `v2` images and both dashboard formats, aligns PWA preview dimensions,
+then generates the three application manifests. Grafana captures and their
+manifest are preserved. Each manifest's
 content revision invalidates landing image caches when images change without an
 application version bump. Rebuild the frontend after publication to include that
 revision in the deployed bundle.

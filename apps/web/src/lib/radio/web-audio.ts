@@ -11,57 +11,9 @@
  */
 import { MusicBed, type MusicChannel } from './music-bed';
 import { MUSIC_LIBRARY } from './music-library';
+import { unlockMedia } from '@/lib/audio/unlock-media';
 
-/** Silent stereo priming (0.1 s, 8 kHz, PCM8), matching the music tracks' channels. */
-function silentWav(): string {
-  const channels = 2;
-  const samples = 800 * channels;
-  const bytes = new Uint8Array(44 + samples);
-  const view = new DataView(bytes.buffer);
-  const ascii = (offset: number, text: string): void => {
-    for (let index = 0; index < text.length; index += 1) {
-      bytes[offset + index] = text.charCodeAt(index);
-    }
-  };
-  ascii(0, 'RIFF');
-  view.setUint32(4, 36 + samples, true);
-  ascii(8, 'WAVEfmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, channels, true);
-  view.setUint32(24, 8000, true);
-  view.setUint32(28, 8000 * channels, true);
-  view.setUint16(32, channels, true);
-  view.setUint16(34, 8, true);
-  ascii(36, 'data');
-  view.setUint32(40, samples, true);
-  bytes.fill(128, 44);
-  let binary = '';
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return `data:audio/wav;base64,${btoa(binary)}`;
-}
-
-let silence: string | null = null;
-
-/** The few members of a media element the unlock needs. */
-export interface UnlockableMedia {
-  src: string;
-  play(): Promise<void>;
-  pause(): void;
-}
-
-/** Play `element` once inside the click, so the browser lets it play later. */
-export function unlockMedia(element: UnlockableMedia): void {
-  const quiet = (silence ??= silentWav());
-  element.src = quiet;
-  void element
-    .play()
-    .then(() => {
-      // A segment may already have replaced the silence: never pause it.
-      if (element.src === quiet) element.pause();
-    })
-    .catch(() => undefined);
-}
+export { unlockMedia, type UnlockableMedia } from '@/lib/audio/unlock-media';
 
 function ramp(context: AudioContext, param: AudioParam, level: number, seconds: number): void {
   const now = context.currentTime;

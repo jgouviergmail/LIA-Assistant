@@ -1,0 +1,1009 @@
+{
+  "revision": "42749832136450f1",
+  "capturedAt": "2026-10-16T23:03:20.075Z",
+  "fixtureTime": "2026-10-12T07:30:00Z",
+  "locale": "en",
+  "theme": "light",
+  "viewport": {
+    "width": 1440,
+    "height": 1100
+  },
+  "avatar": {
+    "style": "bip",
+    "variant": "male",
+    "size": "xl",
+    "reducedMotion": false,
+    "direction": "Real pointer movement, alternating centre-directed and near-forward views; no rig channel was injected."
+  },
+  "data": "Real application routes and controls with handwritten fictional demonstration data. No real account, backend, model, connector, billable call or external action was exercised.",
+  "sourceCommit": "04137b040016b060e491c29f840efdb3c50dcfdb",
+  "sourceIncludesLocalChanges": true,
+  "browser": {
+    "engine": "Chromium headless shell",
+    "directory": "chromium_headless_shell-1243",
+    "backgroundNetworkingDisabled": true
+  },
+  "transportGuard": {
+    "blockedRequests": []
+  },
+  "retainedCapture": {
+    "previousReportCapturedAt": "2026-10-16T23:00:16.756Z",
+    "sourceCommit": "04137b040016b060e491c29f840efdb3c50dcfdb",
+    "images": [
+      {
+        "file": "psyche.png",
+        "sha256": "17d5fabe14f61d7f4d25aaf7b84202a0b7db1300c820708c9bfbfcf89f306533",
+        "width": 1440,
+        "height": 1100,
+        "capturedAt": "2026-10-16T22:36:48.555Z"
+      },
+      {
+        "file": "psyche-evolution.png",
+        "sha256": "fdd6838f910aaac2a8deaba9ead0392c524be8a7c7cced9f268497cf1bd47d77",
+        "width": 1440,
+        "height": 820,
+        "capturedAt": "2026-10-16T22:36:48.555Z"
+      },
+      {
+        "file": "memory-library.png",
+        "sha256": "7ff59464e68ec190393e8f2bd1bcdf4759fe4c10c44ef709cfb05060bb1a0df7",
+        "width": 1440,
+        "height": 1100,
+        "capturedAt": "2026-10-16T22:36:48.555Z"
+      },
+      {
+        "file": "portrait.png",
+        "sha256": "51884b490ccf9f34f76c9ec12393163fff4edbef80e343418f67336a826b8516",
+        "width": 1440,
+        "height": 1100,
+        "capturedAt": "2026-10-16T22:36:48.555Z"
+      },
+      {
+        "file": "routine-studio.png",
+        "sha256": "712354031d717570e35b7cc2eb964608bd65882fd580ff94403af1758ff6b7de",
+        "width": 1440,
+        "height": 1440,
+        "capturedAt": "2026-10-16T22:36:48.555Z"
+      },
+      {
+        "file": "routine-week.png",
+        "sha256": "c870c350c5982f3821d81efebdad8638a0c8193397a7b1c96910f5e22cf317ce",
+        "width": 1440,
+        "height": 1100,
+        "capturedAt": "2026-10-16T22:36:48.555Z"
+      },
+      {
+        "file": "workboard.png",
+        "sha256": "a6c81d2421cb4e88fb27f2cd73b93169f531774f3f233582cfb664d98b33ef2d",
+        "width": 1440,
+        "height": 900,
+        "capturedAt": "2026-10-16T22:36:48.555Z"
+      },
+      {
+        "file": "workboard-dossier.png",
+        "sha256": "e40f1671e94f12415e8b330dbf196b42eb8b5dbcd56938acb07b9581a039e1ce",
+        "width": 1440,
+        "height": 1100,
+        "capturedAt": "2026-10-16T22:36:48.555Z"
+      },
+      {
+        "file": "knowledge-library.png",
+        "sha256": "da931e3f71d6741f85a5facc9c21fd424c35974117a6df0d3214c06b5501a80a",
+        "width": 1440,
+        "height": 820,
+        "capturedAt": "2026-10-16T22:36:48.555Z"
+      },
+      {
+        "file": "meeting-transcript.png",
+        "sha256": "3e462d326a4ba83788b22f3ac04381590164a10178d56a1163e8f9714e087ef2",
+        "width": 1440,
+        "height": 1100,
+        "capturedAt": "2026-10-16T22:36:48.555Z"
+      },
+      {
+        "file": "meeting-templates.png",
+        "sha256": "931b2c3aaa1cffa6ccdffdb887b5e281401831b7d50513be3977e51fbb9cab6b",
+        "width": 1440,
+        "height": 1100,
+        "capturedAt": "2026-10-16T22:36:48.555Z"
+      },
+      {
+        "file": "connections.png",
+        "sha256": "d8312421bd316fef8c329fad6980d062a11015fcebbcca82fcf5165b46bf972b",
+        "width": 1440,
+        "height": 1100,
+        "capturedAt": "2026-10-16T22:36:48.555Z"
+      },
+      {
+        "file": "skills-library.png",
+        "sha256": "d7abda308b2f0f8399a13976fd6d1b75242910ce1fa1148580f2c55124ccf31e",
+        "width": 1440,
+        "height": 1100,
+        "capturedAt": "2026-10-16T22:36:48.555Z"
+      },
+      {
+        "file": "model-routing.png",
+        "sha256": "3c84e2293878d650a25ce9112d00c52957df8a99213db2b493ef51f5a4cc9241",
+        "width": 1440,
+        "height": 1100,
+        "capturedAt": "2026-10-16T22:36:48.555Z"
+      },
+      {
+        "file": "consumption.png",
+        "sha256": "6ed0e97dc20d7e3f2111702d762383145c0ab17ac037819a29c7a2756ac9d2b2",
+        "width": 1440,
+        "height": 1100,
+        "capturedAt": "2026-10-16T22:36:48.555Z"
+      },
+      {
+        "file": "journal.png",
+        "sha256": "f12a2c3274889829cf07ba77f7e2e6d4c630af12d578471692369183c95a5901",
+        "width": 1440,
+        "height": 1100,
+        "capturedAt": "2026-10-16T22:36:48.555Z"
+      }
+    ]
+  },
+  "visualReview": {
+    "reviewedAt": "2026-10-16T23:04:32.8968566Z",
+    "reviewer": "/root/capture_scenario_audit",
+    "method": "Direct visual inspection of the two final compact native PNGs; sixteen prior pixel approvals retained only after exact SHA-256 verification.",
+    "fixtureTime": "2026-10-12T07:30:00Z",
+    "retainedPriorApprovals": 16,
+    "images": [
+      {
+        "file": "psyche.png",
+        "sha256": "17d5fabe14f61d7f4d25aaf7b84202a0b7db1300c820708c9bfbfcf89f306533",
+        "approved": true,
+        "note": "Inspected final pixels: English light UI, populated intended content, complete male BIP XL body inside viewport, native expression and real-pointer gaze; no blocking text occlusion or broken state.",
+        "avatarPainted": true
+      },
+      {
+        "file": "psyche-evolution.png",
+        "sha256": "fdd6838f910aaac2a8deaba9ead0392c524be8a7c7cced9f268497cf1bd47d77",
+        "approved": true,
+        "note": "Inspected final pixels: English light UI, populated intended content, complete male BIP XL body inside viewport, native expression and real-pointer gaze; no blocking text occlusion or broken state.",
+        "avatarPainted": true
+      },
+      {
+        "file": "memory-library.png",
+        "sha256": "7ff59464e68ec190393e8f2bd1bcdf4759fe4c10c44ef709cfb05060bb1a0df7",
+        "approved": true,
+        "note": "Inspected final pixels: English light UI, populated intended content, complete male BIP XL body inside viewport, native expression and real-pointer gaze; no blocking text occlusion or broken state.",
+        "avatarPainted": true
+      },
+      {
+        "file": "portrait.png",
+        "sha256": "51884b490ccf9f34f76c9ec12393163fff4edbef80e343418f67336a826b8516",
+        "approved": true,
+        "note": "Inspected final pixels: English light UI, populated intended content, complete male BIP XL body inside viewport, native expression and real-pointer gaze; no blocking text occlusion or broken state.",
+        "avatarPainted": true
+      },
+      {
+        "file": "routine-studio.png",
+        "sha256": "712354031d717570e35b7cc2eb964608bd65882fd580ff94403af1758ff6b7de",
+        "approved": true,
+        "note": "Inspected final pixels: English light UI, populated intended content, complete male BIP XL body inside viewport, native expression and real-pointer gaze; no blocking text occlusion or broken state.",
+        "avatarPainted": true
+      },
+      {
+        "file": "routine-week.png",
+        "sha256": "c870c350c5982f3821d81efebdad8638a0c8193397a7b1c96910f5e22cf317ce",
+        "approved": true,
+        "note": "Inspected final pixels: English light UI, populated intended content, complete male BIP XL body inside viewport, native expression and real-pointer gaze; no blocking text occlusion or broken state.",
+        "avatarPainted": true
+      },
+      {
+        "file": "workboard.png",
+        "sha256": "a6c81d2421cb4e88fb27f2cd73b93169f531774f3f233582cfb664d98b33ef2d",
+        "approved": true,
+        "note": "Inspected final pixels: English light UI, populated intended content, complete male BIP XL body inside viewport, native expression and real-pointer gaze; no blocking text occlusion or broken state.",
+        "avatarPainted": true
+      },
+      {
+        "file": "workboard-dossier.png",
+        "sha256": "e40f1671e94f12415e8b330dbf196b42eb8b5dbcd56938acb07b9581a039e1ce",
+        "approved": true,
+        "note": "Inspected final pixels: English light UI, populated intended content, complete male BIP XL body inside viewport, native expression and real-pointer gaze; no blocking text occlusion or broken state.",
+        "avatarPainted": true
+      },
+      {
+        "file": "knowledge-library.png",
+        "sha256": "da931e3f71d6741f85a5facc9c21fd424c35974117a6df0d3214c06b5501a80a",
+        "approved": true,
+        "note": "Inspected final pixels: English light UI, populated intended content, complete male BIP XL body inside viewport, native expression and real-pointer gaze; no blocking text occlusion or broken state.",
+        "avatarPainted": true
+      },
+      {
+        "file": "meeting-transcript.png",
+        "sha256": "3e462d326a4ba83788b22f3ac04381590164a10178d56a1163e8f9714e087ef2",
+        "approved": true,
+        "note": "Inspected final pixels: English light UI, populated intended content, complete male BIP XL body inside viewport, native expression and real-pointer gaze; no blocking text occlusion or broken state.",
+        "avatarPainted": true
+      },
+      {
+        "file": "meeting-templates.png",
+        "sha256": "931b2c3aaa1cffa6ccdffdb887b5e281401831b7d50513be3977e51fbb9cab6b",
+        "approved": true,
+        "note": "Inspected final pixels: English light UI, populated intended content, complete male BIP XL body inside viewport, native expression and real-pointer gaze; no blocking text occlusion or broken state.",
+        "avatarPainted": true
+      },
+      {
+        "file": "connections.png",
+        "sha256": "d8312421bd316fef8c329fad6980d062a11015fcebbcca82fcf5165b46bf972b",
+        "approved": true,
+        "note": "Inspected final pixels: English light UI, populated intended content, complete male BIP XL body inside viewport, native expression and real-pointer gaze; no blocking text occlusion or broken state.",
+        "avatarPainted": true
+      },
+      {
+        "file": "skills-library.png",
+        "sha256": "d7abda308b2f0f8399a13976fd6d1b75242910ce1fa1148580f2c55124ccf31e",
+        "approved": true,
+        "note": "Inspected final pixels: English light UI, populated intended content, complete male BIP XL body inside viewport, native expression and real-pointer gaze; no blocking text occlusion or broken state.",
+        "avatarPainted": true
+      },
+      {
+        "file": "model-routing.png",
+        "sha256": "3c84e2293878d650a25ce9112d00c52957df8a99213db2b493ef51f5a4cc9241",
+        "approved": true,
+        "note": "Inspected final pixels: English light UI, populated intended content, complete male BIP XL body inside viewport, native expression and real-pointer gaze; no blocking text occlusion or broken state.",
+        "avatarPainted": true
+      },
+      {
+        "file": "consumption.png",
+        "sha256": "6ed0e97dc20d7e3f2111702d762383145c0ab17ac037819a29c7a2756ac9d2b2",
+        "approved": true,
+        "note": "Inspected final pixels: English light UI, populated intended content, complete male BIP XL body inside viewport, native expression and real-pointer gaze; no blocking text occlusion or broken state.",
+        "avatarPainted": true
+      },
+      {
+        "file": "journal.png",
+        "sha256": "f12a2c3274889829cf07ba77f7e2e6d4c630af12d578471692369183c95a5901",
+        "approved": true,
+        "note": "Inspected final pixels: English light UI, populated intended content, complete male BIP XL body inside viewport, native expression and real-pointer gaze; no blocking text occlusion or broken state.",
+        "avatarPainted": true
+      },
+      {
+        "file": "avatar-picker.png",
+        "sha256": "c6b66484e9ba0680eba9cd7b3f44f411951ed3cb438b1344175676e20d39e0ab",
+        "approved": true,
+        "avatarPainted": true,
+        "note": "Inspected final 1440x1300 pixels: current BIP selected and labelled, ten complete real preview cards visible, no empty avatar box, complete floating male BIP XL looking toward content."
+      },
+      {
+        "file": "meetings-list.png",
+        "sha256": "7324db3d9abcdb3ecd8b62545617df22e36cfb1a13cebfce6084d85033c154cf",
+        "approved": true,
+        "avatarPainted": true,
+        "note": "Inspected final 1440x1300 pixels: toolbar and three complete native meeting rows visible, two ready/indexed and one writing minutes; durations, participants/actions and formats readable; floating male BIP XL painted and unclipped."
+      }
+    ]
+  },
+  "images": [
+    {
+      "file": "psyche.png",
+      "sha256": "17d5fabe14f61d7f4d25aaf7b84202a0b7db1300c820708c9bfbfcf89f306533",
+      "width": 1440,
+      "height": 1100
+    },
+    {
+      "file": "psyche-evolution.png",
+      "sha256": "fdd6838f910aaac2a8deaba9ead0392c524be8a7c7cced9f268497cf1bd47d77",
+      "width": 1440,
+      "height": 820
+    },
+    {
+      "file": "memory-library.png",
+      "sha256": "7ff59464e68ec190393e8f2bd1bcdf4759fe4c10c44ef709cfb05060bb1a0df7",
+      "width": 1440,
+      "height": 1100
+    },
+    {
+      "file": "portrait.png",
+      "sha256": "51884b490ccf9f34f76c9ec12393163fff4edbef80e343418f67336a826b8516",
+      "width": 1440,
+      "height": 1100
+    },
+    {
+      "file": "routine-studio.png",
+      "sha256": "712354031d717570e35b7cc2eb964608bd65882fd580ff94403af1758ff6b7de",
+      "width": 1440,
+      "height": 1440
+    },
+    {
+      "file": "routine-week.png",
+      "sha256": "c870c350c5982f3821d81efebdad8638a0c8193397a7b1c96910f5e22cf317ce",
+      "width": 1440,
+      "height": 1100
+    },
+    {
+      "file": "workboard.png",
+      "sha256": "a6c81d2421cb4e88fb27f2cd73b93169f531774f3f233582cfb664d98b33ef2d",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "workboard-dossier.png",
+      "sha256": "e40f1671e94f12415e8b330dbf196b42eb8b5dbcd56938acb07b9581a039e1ce",
+      "width": 1440,
+      "height": 1100
+    },
+    {
+      "file": "knowledge-library.png",
+      "sha256": "da931e3f71d6741f85a5facc9c21fd424c35974117a6df0d3214c06b5501a80a",
+      "width": 1440,
+      "height": 820
+    },
+    {
+      "file": "meeting-transcript.png",
+      "sha256": "3e462d326a4ba83788b22f3ac04381590164a10178d56a1163e8f9714e087ef2",
+      "width": 1440,
+      "height": 1100
+    },
+    {
+      "file": "meeting-templates.png",
+      "sha256": "931b2c3aaa1cffa6ccdffdb887b5e281401831b7d50513be3977e51fbb9cab6b",
+      "width": 1440,
+      "height": 1100
+    },
+    {
+      "file": "connections.png",
+      "sha256": "d8312421bd316fef8c329fad6980d062a11015fcebbcca82fcf5165b46bf972b",
+      "width": 1440,
+      "height": 1100
+    },
+    {
+      "file": "skills-library.png",
+      "sha256": "d7abda308b2f0f8399a13976fd6d1b75242910ce1fa1148580f2c55124ccf31e",
+      "width": 1440,
+      "height": 1100
+    },
+    {
+      "file": "model-routing.png",
+      "sha256": "3c84e2293878d650a25ce9112d00c52957df8a99213db2b493ef51f5a4cc9241",
+      "width": 1440,
+      "height": 1100
+    },
+    {
+      "file": "consumption.png",
+      "sha256": "6ed0e97dc20d7e3f2111702d762383145c0ab17ac037819a29c7a2756ac9d2b2",
+      "width": 1440,
+      "height": 1100
+    },
+    {
+      "file": "journal.png",
+      "sha256": "f12a2c3274889829cf07ba77f7e2e6d4c630af12d578471692369183c95a5901",
+      "width": 1440,
+      "height": 1100
+    },
+    {
+      "file": "avatar-picker.png",
+      "sha256": "c6b66484e9ba0680eba9cd7b3f44f411951ed3cb438b1344175676e20d39e0ab",
+      "width": 1440,
+      "height": 1300
+    },
+    {
+      "file": "meetings-list.png",
+      "sha256": "7324db3d9abcdb3ecd8b62545617df22e36cfb1a13cebfce6084d85033c154cf",
+      "width": 1440,
+      "height": 1300
+    }
+  ],
+  "scenes": [
+    {
+      "name": "psyche",
+      "route": "/en/dashboard/settings?section=psyche",
+      "exercised": [
+        "real Psyche section, existing summary, mood orbits and PAD instrument",
+        "fictional non-empty emotions and relationship state"
+      ],
+      "illustrated": [
+        "All account, activity and content values are fictional examples; no model, connector or backend operation ran."
+      ],
+      "emails": [],
+      "avatarDomBoundsInViewport": 1,
+      "avatar": {
+        "size": "xl",
+        "fontSize": "64px",
+        "gazeX": 0.83,
+        "gazeY": -0.745,
+        "asset": "url('/avatars/bip/v1/male/body.webp')",
+        "visible": true,
+        "bounds": {
+          "x": 22.907556533813477,
+          "y": 858.6221923828125,
+          "width": 168.45196533203125,
+          "height": 168.451904296875,
+          "right": 191.35952186584473,
+          "bottom": 1027.0740966796875
+        },
+        "requestedGaze": "toward-screen-centre",
+        "pointer": {
+          "x": 720,
+          "y": 506
+        }
+      }
+    },
+    {
+      "name": "psyche-evolution",
+      "route": "/en/dashboard/settings?section=psyche",
+      "exercised": [
+        "real 7-day evolution controls and populated native SVG history chart; all four chart tabs exercised",
+        "24 timestamped snapshots across six days"
+      ],
+      "illustrated": [
+        "All account, activity and content values are fictional examples; no model, connector or backend operation ran."
+      ],
+      "emails": [],
+      "avatarDomBoundsInViewport": 1,
+      "avatar": {
+        "size": "xl",
+        "fontSize": "64px",
+        "gazeX": 0.846,
+        "gazeY": -0.623,
+        "asset": "url('/avatars/bip/v1/male/body.webp')",
+        "visible": true,
+        "bounds": {
+          "x": 19.238616943359375,
+          "y": 573.84814453125,
+          "width": 176.2789764404297,
+          "height": 176.27899169921875,
+          "right": 195.51759338378906,
+          "bottom": 750.1271362304688
+        },
+        "requestedGaze": "toward-screen-centre",
+        "pointer": {
+          "x": 720,
+          "y": 377.2
+        }
+      }
+    },
+    {
+      "name": "memory-library",
+      "route": "/en/dashboard/settings?section=memories",
+      "exercised": [
+        "real category disclosures, pinned standing instructions and remembered preferences",
+        "edit, pin and delete affordances; no memory saved"
+      ],
+      "illustrated": [
+        "All account, activity and content values are fictional examples; no model, connector or backend operation ran."
+      ],
+      "emails": [],
+      "avatarDomBoundsInViewport": 1,
+      "avatar": {
+        "size": "xl",
+        "fontSize": "64px",
+        "gazeX": 0.854,
+        "gazeY": -0.76,
+        "asset": "url('/avatars/bip/v1/male/body.webp')",
+        "visible": true,
+        "bounds": {
+          "x": 23.83361053466797,
+          "y": 859.7696533203125,
+          "width": 166.723388671875,
+          "height": 166.723388671875,
+          "right": 190.55699920654297,
+          "bottom": 1026.4930419921875
+        },
+        "requestedGaze": "toward-screen-centre",
+        "pointer": {
+          "x": 720,
+          "y": 506
+        }
+      }
+    },
+    {
+      "name": "portrait",
+      "route": "/en/dashboard/settings?section=journals",
+      "exercised": [
+        "real compiled-portrait card, full/brief controls and provenance counts",
+        "correction and consolidation affordances; no model invoked"
+      ],
+      "illustrated": [
+        "All account, activity and content values are fictional examples; no model, connector or backend operation ran."
+      ],
+      "emails": [],
+      "avatarDomBoundsInViewport": 1,
+      "avatar": {
+        "size": "xl",
+        "fontSize": "64px",
+        "gazeX": -0.023,
+        "gazeY": -0.224,
+        "asset": "url('/avatars/bip/v1/male/body.webp')",
+        "visible": true,
+        "bounds": {
+          "x": 24.08319091796875,
+          "y": 859.4332275390625,
+          "width": 166.2242431640625,
+          "height": 166.2242431640625,
+          "right": 190.30743408203125,
+          "bottom": 1025.657470703125
+        },
+        "requestedGaze": "forward",
+        "pointer": {
+          "x": 107.19530868530273,
+          "y": 790.4085693359375
+        }
+      }
+    },
+    {
+      "name": "routine-studio",
+      "route": "/en/dashboard/settings?section=scheduled-actions",
+      "exercised": [
+        "real routine editor with mail condition, source cadence and approval choice",
+        "fields edited locally; routine not saved"
+      ],
+      "illustrated": [
+        "All account, activity and content values are fictional examples; no model, connector or backend operation ran."
+      ],
+      "emails": [],
+      "avatarDomBoundsInViewport": 1,
+      "avatar": {
+        "size": "xl",
+        "fontSize": "64px",
+        "gazeX": 0.015,
+        "gazeY": -0.192,
+        "asset": "url('/avatars/bip/v1/male/body.webp')",
+        "visible": true,
+        "bounds": {
+          "x": 19.087932586669922,
+          "y": 1103.7923583984375,
+          "width": 175.8733367919922,
+          "height": 175.873291015625,
+          "right": 194.9612693786621,
+          "bottom": 1279.6656494140625
+        },
+        "requestedGaze": "forward",
+        "pointer": {
+          "x": 107.19530868530273,
+          "y": 1040.4659423828125
+        }
+      }
+    },
+    {
+      "name": "routine-week",
+      "route": "/en/dashboard/settings?section=scheduled-actions",
+      "exercised": [
+        "real weekly schedule with populated weekday chips, run outcomes and condition-routine list"
+      ],
+      "illustrated": [
+        "All account, activity and content values are fictional examples; no model, connector or backend operation ran."
+      ],
+      "emails": [],
+      "avatarDomBoundsInViewport": 1,
+      "avatar": {
+        "size": "xl",
+        "fontSize": "64px",
+        "gazeX": 0.827,
+        "gazeY": -0.742,
+        "asset": "url('/avatars/bip/v1/male/body.webp')",
+        "visible": true,
+        "bounds": {
+          "x": 23.500823974609375,
+          "y": 858.6181640625,
+          "width": 167.38897705078125,
+          "height": 167.388916015625,
+          "right": 190.88980102539062,
+          "bottom": 1026.007080078125
+        },
+        "requestedGaze": "toward-screen-centre",
+        "pointer": {
+          "x": 720,
+          "y": 506
+        }
+      }
+    },
+    {
+      "name": "workboard",
+      "route": "/en/dashboard/workboard",
+      "exercised": [
+        "real six visible workboard columns with priorities, owners, deadlines and execution states"
+      ],
+      "illustrated": [
+        "All account, activity and content values are fictional examples; no model, connector or backend operation ran."
+      ],
+      "emails": [],
+      "avatarDomBoundsInViewport": 1,
+      "avatar": {
+        "size": "xl",
+        "fontSize": "64px",
+        "gazeX": -0.861,
+        "gazeY": -0.672,
+        "asset": "url('/avatars/bip/v1/male/body.webp')",
+        "visible": true,
+        "bounds": {
+          "x": 1250.9405517578125,
+          "y": 661.3352661132812,
+          "width": 163.7283935546875,
+          "height": 163.72833251953125,
+          "right": 1414.6689453125,
+          "bottom": 825.0635986328125
+        },
+        "requestedGaze": "toward-screen-centre",
+        "pointer": {
+          "x": 720,
+          "y": 414
+        }
+      }
+    },
+    {
+      "name": "workboard-dossier",
+      "route": "/en/dashboard/workboard/00000000-0000-4000-8000-000000000e01",
+      "exercised": [
+        "real ticket detail, three explicit steps, handover controls and spend metadata",
+        "no ticket state or comment submitted"
+      ],
+      "illustrated": [
+        "All account, activity and content values are fictional examples; no model, connector or backend operation ran."
+      ],
+      "emails": [],
+      "avatarDomBoundsInViewport": 1,
+      "avatar": {
+        "size": "xl",
+        "fontSize": "64px",
+        "gazeX": -0.839,
+        "gazeY": -0.582,
+        "asset": "url('/avatars/bip/v1/male/body.webp')",
+        "visible": true,
+        "bounds": {
+          "x": 1244.8897705078125,
+          "y": 767.6712036132812,
+          "width": 165.392333984375,
+          "height": 165.39227294921875,
+          "right": 1410.2821044921875,
+          "bottom": 933.0634765625
+        },
+        "requestedGaze": "toward-screen-centre",
+        "pointer": {
+          "x": 720,
+          "y": 506
+        }
+      }
+    },
+    {
+      "name": "knowledge-library",
+      "route": "/en/dashboard/spaces",
+      "exercised": [
+        "real knowledge-space library, active selection and indexed-document counts",
+        "six fictional spaces; no upload or indexing"
+      ],
+      "illustrated": [
+        "All account, activity and content values are fictional examples; no model, connector or backend operation ran."
+      ],
+      "emails": [],
+      "avatarDomBoundsInViewport": 1,
+      "avatar": {
+        "size": "xl",
+        "fontSize": "64px",
+        "gazeX": -0.847,
+        "gazeY": -0.639,
+        "asset": "url('/avatars/bip/v1/male/body.webp')",
+        "visible": true,
+        "bounds": {
+          "x": 1250.1917724609375,
+          "y": 580.3604736328125,
+          "width": 165.225830078125,
+          "height": 165.225830078125,
+          "right": 1415.4176025390625,
+          "bottom": 745.5863037109375
+        },
+        "requestedGaze": "toward-screen-centre",
+        "pointer": {
+          "x": 720,
+          "y": 377.2
+        }
+      }
+    },
+    {
+      "name": "meeting-transcript",
+      "route": "/en/dashboard/meetings/00000000-0000-4000-8000-000000000ad2",
+      "exercised": [
+        "real transcript toggle and diarized lines with timestamps",
+        "transcript data is fictional; no audio recorded or transcribed"
+      ],
+      "illustrated": [
+        "All account, activity and content values are fictional examples; no model, connector or backend operation ran."
+      ],
+      "emails": [],
+      "avatarDomBoundsInViewport": 1,
+      "avatar": {
+        "size": "xl",
+        "fontSize": "64px",
+        "gazeX": -0.861,
+        "gazeY": -0.744,
+        "asset": "url('/avatars/bip/v1/male/body.webp')",
+        "visible": true,
+        "bounds": {
+          "x": 1250.9405517578125,
+          "y": 861.3352661132812,
+          "width": 163.7283935546875,
+          "height": 163.72833251953125,
+          "right": 1414.6689453125,
+          "bottom": 1025.0635986328125
+        },
+        "requestedGaze": "toward-screen-centre",
+        "pointer": {
+          "x": 720,
+          "y": 506
+        }
+      }
+    },
+    {
+      "name": "meeting-templates",
+      "route": "/en/dashboard/meetings/templates",
+      "exercised": [
+        "real template library with custom and built-in formats, categories and section counts",
+        "no template generated or duplicated"
+      ],
+      "illustrated": [
+        "All account, activity and content values are fictional examples; no model, connector or backend operation ran."
+      ],
+      "emails": [],
+      "avatarDomBoundsInViewport": 1,
+      "avatar": {
+        "size": "xl",
+        "fontSize": "64px",
+        "gazeX": -0.018,
+        "gazeY": -0.239,
+        "asset": "url('/avatars/bip/v1/male/body.webp')",
+        "visible": true,
+        "bounds": {
+          "x": 1250.69091796875,
+          "y": 860.9036254882812,
+          "width": 164.2275390625,
+          "height": 164.22760009765625,
+          "right": 1414.91845703125,
+          "bottom": 1025.1312255859375
+        },
+        "requestedGaze": "forward",
+        "pointer": {
+          "x": 1332.8046875,
+          "y": 782.8211669921875
+        }
+      }
+    },
+    {
+      "name": "connections",
+      "route": "/en/dashboard/settings?section=connectors",
+      "exercised": [
+        "real connected-service group with five Google services and account ownership",
+        "fictional OAuth rows; no consent or provider access"
+      ],
+      "illustrated": [
+        "All account, activity and content values are fictional examples; no model, connector or backend operation ran."
+      ],
+      "emails": [],
+      "avatarDomBoundsInViewport": 1,
+      "avatar": {
+        "size": "xl",
+        "fontSize": "64px",
+        "gazeX": 0.001,
+        "gazeY": -0.251,
+        "asset": "url('/avatars/bip/v1/male/body.webp')",
+        "visible": true,
+        "bounds": {
+          "x": 24.831954956054688,
+          "y": 860.72802734375,
+          "width": 164.72671508789062,
+          "height": 164.726806640625,
+          "right": 189.5586700439453,
+          "bottom": 1025.454833984375
+        },
+        "requestedGaze": "forward",
+        "pointer": {
+          "x": 107.1953125,
+          "y": 779.7211303710938
+        }
+      }
+    },
+    {
+      "name": "skills-library",
+      "route": "/en/dashboard/settings?section=skills",
+      "exercised": [
+        "real installed-skill gallery, per-skill switches and scripts/dialogue badges",
+        "six actual system skills and two fictional user-authored examples; no skill or script invoked"
+      ],
+      "illustrated": [
+        "All account, activity and content values are fictional examples; no model, connector or backend operation ran."
+      ],
+      "emails": [],
+      "avatarDomBoundsInViewport": 1,
+      "avatar": {
+        "size": "xl",
+        "fontSize": "64px",
+        "gazeX": -0.85,
+        "gazeY": -0.749,
+        "asset": "url('/avatars/bip/v1/male/body.webp')",
+        "visible": true,
+        "bounds": {
+          "x": 1250.4412841796875,
+          "y": 860.72802734375,
+          "width": 164.726806640625,
+          "height": 164.726806640625,
+          "right": 1415.1680908203125,
+          "bottom": 1025.454833984375
+        },
+        "requestedGaze": "toward-screen-centre",
+        "pointer": {
+          "x": 720,
+          "y": 506
+        }
+      }
+    },
+    {
+      "name": "model-routing",
+      "route": "/en/dashboard/settings?section=admin-llm-config",
+      "exercised": [
+        "real per-agent configuration rows and provider routing, stored reasoning intent and slot context",
+        "fictional configuration, not the instance’s deployed model selection"
+      ],
+      "illustrated": [
+        "All account, activity and content values are fictional examples; no model, connector or backend operation ran."
+      ],
+      "emails": [],
+      "avatarDomBoundsInViewport": 1,
+      "avatar": {
+        "size": "xl",
+        "fontSize": "64px",
+        "gazeX": -0.855,
+        "gazeY": -0.747,
+        "asset": "url('/avatars/bip/v1/male/body.webp')",
+        "visible": true,
+        "bounds": {
+          "x": 1250.69091796875,
+          "y": 861.0956420898438,
+          "width": 164.2275390625,
+          "height": 164.22760009765625,
+          "right": 1414.91845703125,
+          "bottom": 1025.3232421875
+        },
+        "requestedGaze": "toward-screen-centre",
+        "pointer": {
+          "x": 720,
+          "y": 506
+        }
+      }
+    },
+    {
+      "name": "consumption",
+      "route": "/en/dashboard",
+      "exercised": [
+        "real consumption table with period/lifetime tokens, cache, API requests and EUR costs",
+        "fictional measured amounts, no billing claim about real usage"
+      ],
+      "illustrated": [
+        "All account, activity and content values are fictional examples; no model, connector or backend operation ran."
+      ],
+      "emails": [
+        "studio@example.test",
+        "team@example.test"
+      ],
+      "avatarDomBoundsInViewport": 1,
+      "avatar": {
+        "size": "xl",
+        "fontSize": "64px",
+        "gazeX": -0.857,
+        "gazeY": 0.541,
+        "asset": "url('/avatars/bip/v1/male/body.webp')",
+        "visible": true,
+        "bounds": {
+          "x": 1250.8572998046875,
+          "y": 153.64601135253906,
+          "width": 163.894775390625,
+          "height": 163.89476013183594,
+          "right": 1414.7520751953125,
+          "bottom": 317.540771484375
+        },
+        "requestedGaze": "toward-screen-centre",
+        "pointer": {
+          "x": 720,
+          "y": 506
+        }
+      }
+    },
+    {
+      "name": "journal",
+      "route": "/en/dashboard/settings?section=journals",
+      "exercised": [
+        "real journal groups and existing entries, abstraction levels and evidence metadata",
+        "visible observations tied to the same Atlas project"
+      ],
+      "illustrated": [
+        "All account, activity and content values are fictional examples; no model, connector or backend operation ran."
+      ],
+      "emails": [],
+      "avatarDomBoundsInViewport": 1,
+      "avatar": {
+        "size": "xl",
+        "fontSize": "64px",
+        "gazeX": 0.857,
+        "gazeY": -0.759,
+        "asset": "url('/avatars/bip/v1/male/body.webp')",
+        "visible": true,
+        "bounds": {
+          "x": 19.25786590576172,
+          "y": 854.2249145507812,
+          "width": 175.87490844726562,
+          "height": 175.87493896484375,
+          "right": 195.13277435302734,
+          "bottom": 1030.099853515625
+        },
+        "requestedGaze": "toward-screen-centre",
+        "pointer": {
+          "x": 720,
+          "y": 506
+        }
+      }
+    },
+    {
+      "name": "avatar-picker",
+      "route": "/en/dashboard/settings?section=eyes-style",
+      "exercised": [
+        "real avatar-style catalogue with fifteen available styles and at least eight complete native preview cards in view",
+        "selected BIP choice, feminine and masculine hybrid variants, current-style panel and maximum XL floating male BIP",
+        "appearance read from isolated device-local preferences; no account setting or provider operation changed"
+      ],
+      "illustrated": [
+        "All account, activity and content values are fictional examples; no model, connector or backend operation ran."
+      ],
+      "emails": [],
+      "avatarDomBoundsInViewport": 1,
+      "avatar": {
+        "size": "xl",
+        "fontSize": "64px",
+        "gazeX": 0.83,
+        "gazeY": -0.791,
+        "asset": "url('/avatars/bip/v1/male/body.webp')",
+        "visible": true,
+        "bounds": {
+          "x": 24.596454620361328,
+          "y": 1060.2403564453125,
+          "width": 165.20347595214844,
+          "height": 165.2034912109375,
+          "right": 189.79993057250977,
+          "bottom": 1225.44384765625
+        },
+        "requestedGaze": "toward-screen-centre",
+        "pointer": {
+          "x": 720,
+          "y": 598
+        }
+      }
+    },
+    {
+      "name": "meetings-list",
+      "route": "/en/dashboard/meetings",
+      "exercised": [
+        "real chronological meeting list with three complete recordings across two days, native time groups, durations, participant and action counts",
+        "ready indexed minutes and one synthesizing job, using current MeetingSummary and MeetingListResponse contracts",
+        "record, template and row-selection controls displayed; no recording, synthesis, deletion or provider operation performed"
+      ],
+      "illustrated": [
+        "All account, activity and content values are fictional examples; no model, connector or backend operation ran."
+      ],
+      "emails": [],
+      "avatarDomBoundsInViewport": 1,
+      "avatar": {
+        "size": "xl",
+        "fontSize": "64px",
+        "gazeX": -0.849,
+        "gazeY": -0.8,
+        "asset": "url('/avatars/bip/v1/male/body.webp')",
+        "visible": true,
+        "bounds": {
+          "x": 1250.358154296875,
+          "y": 1060.584228515625,
+          "width": 164.89306640625,
+          "height": 164.89306640625,
+          "right": 1415.251220703125,
+          "bottom": 1225.477294921875
+        },
+        "requestedGaze": "toward-screen-centre",
+        "pointer": {
+          "x": 720,
+          "y": 598
+        }
+      }
+    }
+  ]
+}

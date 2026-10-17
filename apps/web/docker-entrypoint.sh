@@ -13,12 +13,34 @@ if [ -d "/monorepo/apps/web/node_modules" ]; then
   chown -R node:node /monorepo/apps/web/node_modules
 fi
 
-# Install/update dependencies if node_modules volume is empty or outdated
-# This ensures dependencies are always available even when using Docker volumes
-if [ ! -f "/monorepo/apps/web/node_modules/.pnpm-workspace-state-v1.json" ]; then
-  echo "Installing dependencies in volume (first run or volume was cleared)..."
-  # CI=true prevents TTY prompts, --no-frozen-lockfile allows lockfile updates
-  CI=true su-exec node pnpm install --filter @lia-assistant/web... --no-frozen-lockfile
+# The app volume survives image rebuilds, but its pnpm links target the image's
+# root node_modules. A marker alone cannot prove those links are still valid.
+dependencies_ready() {
+  su-exec node node -e '
+    const app = "/monorepo/apps/web";
+    const expected = require(app + "/package.json").dependencies.next;
+    const installed = require(app + "/node_modules/next/package.json").version;
+    require.resolve(app + "/node_modules/next/dist/bin/next");
+    if (installed !== expected) process.exit(1);
+  ' >/dev/null 2>&1
+}
+
+dependency_error() {
+  echo "Development dependencies do not match the app. Rebuild the web image:" >&2
+  echo "docker compose -f docker-compose.dev.yml up -d --build --no-deps web" >&2
+  exit 1
+}
+
+if [ ! -f "/monorepo/apps/web/node_modules/.pnpm-workspace-state-v1.json" ] || ! dependencies_ready; then
+  echo "Installing development dependencies from the image lockfile..."
+  # Keep installation deterministic. A host manifest newer than this image
+  # requires rebuilding, rather than silently rewriting the image lockfile.
+  if ! CI=true su-exec node pnpm install --filter @lia-assistant/web... --frozen-lockfile; then
+    dependency_error
+  fi
+  if ! dependencies_ready; then
+    dependency_error
+  fi
 fi
 
 # Switch to node user and execute command

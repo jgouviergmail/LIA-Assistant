@@ -322,7 +322,7 @@ Choose the **voice gender** that suits you:
 The voice is the configured one, whatever the language of the answer: a multilingual voice reads every language, a single-language voice reads the others with its accent. The **« Only voices in my language, and multilingual ones »** switch, on by default, narrows every voice list — LIA's, the radio's and the administrator's slots — without ever hiding a voice already chosen.
 
 **🎚️ Your own voices:**
-In **Settings → Voice mode → LIA's voice**, choose the male and the female voice LIA speaks with in the chat, among the voices of the engine your administrator configured — each list opens on the administrator's voice. Your choice is kept when the administrator changes the model of the same provider. The radio, Live sessions and phone calls keep their own voices.
+In **Settings → Voice mode → LIA's voice**, choose the male and the female voice LIA speaks with in the chat, among the voices of the engine your administrator configured — each list opens on the administrator's voice. Your choice is kept when the administrator changes the model of the same provider. The radio, Live sessions and phone calls keep their own voices. Picking a voice plays a short sample of it right away, which you can stop or play again; listening counts in your usage like any reading.
 
 **⚙️ Quality:**
 LIA uses high-quality neural voices. Five providers are available, configured by the administrator: Microsoft Edge TTS (free), OpenAI TTS (`tts-1` / `tts-1-hd`), ElevenLabs (`eleven_multilingual_v2` / `eleven_turbo_v2_5` / `eleven_flash_v2_5`), Google Gemini and Fish Audio. Each provider gets its own per-voice tuning (speed, stability, audio format) for a natural and expressive rendering, and on the engines that perform expressive cues LIA's spoken comments can carry a short sigh, a laugh or a whisper.
@@ -691,7 +691,11 @@ The history shows, for each announcement, its audience, the exact number of peop
 
 ## How does the personal radio work?
 
-Start Radio from the header, dashboard or Radio page if your instance offers it. Choose topics, sources, voices and an optional verification level. It speaks about your day and cited news only while you listen, shows sources and spending, and ends at your timer; there is no replay or scheduled edition.
+Start Radio from the header, dashboard or Radio page if your instance offers it. Choose topics, sources, voices and a verification level. It speaks about your day and cited news only while you listen, shows sources and spending, and ends at your timer; there is no replay or scheduled edition.
+
+**The voices:** you choose the voice of LIA, of the host and of each of the three commentators in debates and discussions — automatic by default. A commentator never shares its voice with LIA, the host or another commentator. Your choices are kept when the administrator switches to another model from the same provider. Each voice you choose plays a short sample; a radio that is playing pauses so you can hear it.
+
+**Verification** by a second model is off by default, because every check is billed and can delay listening; “Check the news” or “Check every programme” stay one choice away.
 
 Advertising, sponsorships, deals and purchase pitches are filtered. Genuine invoices, reservations and editorial, scientific or economic reporting remain eligible. A speaking Simli avatar does not accompany Radio.
 

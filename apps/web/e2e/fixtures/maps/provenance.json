@@ -1,0 +1,54 @@
+{
+  "preparedAt": "2026-10-16T22:23:31.777938+00:00",
+  "source": "Google Maps Static API and Google Routes API, using public Lyon landmarks.",
+  "requests": [
+    {
+      "service": "Google Routes",
+      "endpoint": "computeRoutes",
+      "status": 200
+    },
+    {
+      "service": "Google Maps Static",
+      "endpoint": "staticmap",
+      "status": 200
+    },
+    {
+      "service": "Google Maps Static",
+      "endpoint": "staticmap",
+      "status": 200
+    }
+  ],
+  "automaticRetries": 0,
+  "accountDataAccessed": false,
+  "origin": {
+    "label": "Place Bellecour, Lyon",
+    "latitude": 45.7578,
+    "longitude": 4.832
+  },
+  "destination": {
+    "label": "Lyon Part-Dieu station",
+    "latitude": 45.7606,
+    "longitude": 4.8596
+  },
+  "route": {
+    "mode": "WALK",
+    "distanceMeters": 2685,
+    "duration": "2279s"
+  },
+  "images": [
+    {
+      "file": "lyon-location.png",
+      "sha256": "0a402173fb22577dda0f4f46244844dd305978ac9b85fa61f7f0e3dff63943a5",
+      "width": 1280,
+      "height": 600
+    },
+    {
+      "file": "lyon-route.png",
+      "sha256": "5dd1459cbb19232606e3434ac67588720363840ea2f04cb2b0be6180b23981bf",
+      "width": 1280,
+      "height": 600
+    }
+  ],
+  "attribution": "Native Google logo and map-data attribution retained in both unmodified PNGs.",
+  "capturePolicy": "Prepare these public geographical assets once; browser capture fulfils the app's media proxy locally and makes no Google request."
+}

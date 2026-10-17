@@ -23,9 +23,12 @@ from pydantic import BaseModel, ConfigDict, Field
 from src.core.constants import VOICE_ID_MAX_CHARS
 from src.core.i18n import normalize_language
 from src.core.session_dependencies import get_current_active_session_for_stream
+from src.domains.feature_switches.guard import capability_dependencies
 from src.domains.feature_switches.registry import PlatformCapability, is_capability_enabled
 from src.domains.users.models import User
 from src.domains.voice.lia_voices import Gender, LiaVoices, lia_voices, save_lia_voices
+from src.domains.voice.sample_schemas import LiaVoiceSampleRequest, VoiceSampleResponse
+from src.domains.voice.samples import rate_limit_voice_sample, sample_lia_voice
 from src.domains.voice.schemas import VoiceOptionPayload, voice_option_payloads
 
 router = APIRouter(prefix="/voice/lia-voices", tags=["Voice"])
@@ -101,6 +104,25 @@ async def put_lia_voices(person: Person, body: LiaVoicesRequest) -> LiaVoicesRes
     """Keep the person's voices for the engine that speaks (422 for a voice it does not offer)."""
     view = await save_lia_voices(person.id, normalize_language(person.language), body.choice())
     return await _response(view)
+
+
+@router.post(
+    "/sample",
+    response_model=VoiceSampleResponse,
+    dependencies=[
+        *capability_dependencies(PlatformCapability.TTS),
+        Depends(rate_limit_voice_sample),
+    ],
+    summary="Hear the selected chat voice with one fixed sentence",
+)
+async def post_lia_voice_sample(person: Person, body: LiaVoiceSampleRequest) -> VoiceSampleResponse:
+    """Hear the selection without modifying the person's saved preferences."""
+    return await sample_lia_voice(
+        user_id=person.id,
+        language=normalize_language(person.language),
+        gender=body.gender,
+        voice_id=body.voice_id,
+    )
 
 
 __all__ = ["router"]

@@ -5,7 +5,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { act, renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
+import { act, renderWithProviders, screen, waitFor, within } from '@/__tests__/test-utils';
 import { makeUser } from '@/__tests__/factories';
 import type { User } from '@/lib/auth';
 
@@ -40,6 +40,9 @@ describe('CardsDisplaySettings', () => {
       expect(screen.getByRole('button', { name: MODE(m) })).toHaveAttribute(
         'aria-pressed',
         String(m === 'cards')
+      );
+      expect(screen.getByRole('button', { name: MODE(m) })).toHaveAccessibleDescription(
+        `settings.preferences.display_mode.modes.${m}.summary`
       );
     }
   });
@@ -111,6 +114,47 @@ describe('CardsDisplaySettings', () => {
 });
 
 describe('CardsDisplaySettings — preview and account lifetime', () => {
+  it('distinguishes the answer format while keeping exactly the same result cards', () => {
+    const auth = authed();
+    useAuth.mockReturnValue(auth);
+    const { rerender } = renderWithProviders(<CardsDisplaySettings lng="en" />);
+    const preview = screen.getByRole('region', {
+      name: 'settings.preferences.display_mode.preview.title',
+    });
+    expect(
+      within(preview).getByText('settings.preferences.display_mode.preview.classic_answer')
+    ).toBeVisible();
+    expect(
+      within(preview).getByText('settings.preferences.display_mode.preview.cards_title')
+    ).toBeVisible();
+    const cards = within(preview)
+      .getAllByRole('article')
+      .map(card => card.textContent);
+    expect(cards).toHaveLength(2);
+    useAuth.mockReturnValue({
+      ...auth,
+      user: { ...auth.user, response_display_mode: 'html_cards' },
+    });
+    rerender(<CardsDisplaySettings lng="en" />);
+    expect(
+      within(preview).queryByText('settings.preferences.display_mode.preview.classic_answer')
+    ).not.toBeInTheDocument();
+    const synthesis = within(preview).getByRole('region', {
+      name: 'settings.preferences.display_mode.preview.rich_title',
+    });
+    expect(
+      within(synthesis).getByText('settings.preferences.display_mode.preview.rich_summary')
+    ).toBeVisible();
+    expect(
+      within(synthesis).getByText('settings.preferences.display_mode.preview.highlight_text')
+    ).toBeVisible();
+    expect(
+      within(preview)
+        .getAllByRole('article')
+        .map(card => card.textContent)
+    ).toEqual(cards);
+    expect(patch).not.toHaveBeenCalled();
+  });
   it('shows an explicitly illustrative preview without another data request', () => {
     useAuth.mockReturnValue(authed());
     renderWithProviders(<CardsDisplaySettings lng="en" />);

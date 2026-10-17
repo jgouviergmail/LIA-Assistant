@@ -3,8 +3,8 @@
 param(
     [string]$WebContainer = 'lia-web-dev',
     [ValidateRange(1024, 65535)][int]$Port = 3130,
-    [ValidateSet('.next-e2e', '.next-e2e-simli-fix')]
-    [string]$DistDirectory = '.next-e2e',
+    [ValidatePattern('^\.next-[a-zA-Z0-9-]+$')]
+    [string]$DistDirectory = '.next-public-screenshots',
     [switch]$Publish,
     [switch]$SkipBuild
 )
@@ -14,6 +14,13 @@ $output = Join-Path $repo 'output/playwright/public-screenshots'
 $browser = 'lia-public-screenshots-' + [guid]::NewGuid().ToString('N').Substring(0, 8)
 $dist = $DistDirectory
 $serverPid = $null
+$sourceCommit = (& git -C $repo rev-parse HEAD).Trim()
+$sourceChanges = [bool](& git -C $repo status --porcelain)
+$campaigns = @(
+    @{ Runner = 'run-public-screenshots.mjs'; Output = '/capture/output' },
+    @{ Runner = 'run-landing-proof.mjs'; Output = '/capture/output/proof' },
+    @{ Runner = 'run-extended-screenshots.mjs'; Output = '/capture/output/extended' }
+)
 
 function Invoke-Docker {
     param([string[]]$DockerArgs)
@@ -44,15 +51,18 @@ try {
     }
     Invoke-Docker -DockerArgs @('run', '--rm', '-d', '--name', $browser,
         '--network', "container:$WebContainer", '-v', "${repo}:/repo", '-w', '/capture',
+        '-e', "LANDING_PROOF_SOURCE_COMMIT=$sourceCommit", '-e', "LANDING_PROOF_LOCAL_CHANGES=$($sourceChanges.ToString().ToLowerInvariant())",
         'mcr.microsoft.com/playwright:v1.63.0-noble', 'sleep', 'infinity')
     # Install in the disposable container; leave the repository's node_modules alone.
     Invoke-Docker -DockerArgs @('exec', $browser, 'sh', '-c',
-        'cp /repo/apps/web/e2e/package*.json /capture/; cp -r /repo/apps/web/e2e/capture /repo/apps/web/e2e/fixtures /capture/; npm ci --no-audit --no-fund')
+        'cp /repo/apps/web/e2e/package*.json /capture/; cp -r /repo/apps/web/e2e/capture /repo/apps/web/e2e/fixtures /repo/apps/web/e2e/scripts /capture/; npm ci --no-audit --no-fund')
     if (-not $Publish) {
         Invoke-Docker -DockerArgs @('exec', $browser, 'node', '-e',
             "(async()=>{for(let i=0;i<50;i++){try{await fetch('http://127.0.0.1:$Port/en');return}catch{await new Promise(r=>setTimeout(r,200))}}process.exit(1)})()")
-        Invoke-Docker -DockerArgs @('exec', $browser, 'node', '/capture/capture/run-public-screenshots.mjs',
-            'capture', '/repo', '/capture/output', "http://127.0.0.1:$Port")
+        foreach ($campaign in $campaigns) {
+            Invoke-Docker -DockerArgs @('exec', $browser, 'node', "/capture/capture/$($campaign.Runner)",
+                'capture', '/repo', $campaign.Output, "http://127.0.0.1:$Port")
+        }
         New-Item -ItemType Directory -Force -Path $output | Out-Null
         Invoke-Docker -DockerArgs @('cp', "${browser}:/capture/output/.", $output)
         Write-Host "Review all PNGs in $output. Then run this script with -Publish."
@@ -61,8 +71,15 @@ try {
             throw 'Capture and visually review the images before publishing them.'
         }
         Invoke-Docker -DockerArgs @('cp', $output, "${browser}:/capture/output")
-        Invoke-Docker -DockerArgs @('exec', $browser, 'node', '/capture/capture/run-public-screenshots.mjs',
-            'publish', '/repo', '/capture/output')
+        # Check all campaigns before replacing the first public asset.
+        foreach ($campaign in $campaigns) {
+            Invoke-Docker -DockerArgs @('exec', $browser, 'node', "/capture/capture/$($campaign.Runner)",
+                'validate', '/repo', $campaign.Output)
+        }
+        foreach ($campaign in $campaigns) {
+            Invoke-Docker -DockerArgs @('exec', $browser, 'node', "/capture/capture/$($campaign.Runner)",
+                'publish', '/repo', $campaign.Output)
+        }
     }
 } finally {
     if ($serverPid -match '^\d+$') {

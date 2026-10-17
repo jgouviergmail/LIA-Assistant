@@ -641,6 +641,24 @@ out) and refused on write (`radio_voice_shared`), and one stored anyhow stays si
 (`Cast.voiced_roles`); a programme the cast cannot give its distinct voices is not planned
 (`voices_by_format`).
 
+Selecting a voice in Radio settings automatically plays a short sample in the
+listener's language. The request carries the selected role and the full voice
+distribution as currently selected, so returning to Automatic resolves against
+the same draft rather than older saved preferences. The server uses the radio
+engine and its normal cast rules, validates the voices, and returns the audio,
+its MIME type and the resolved voice id. The sample uses a fixed server-owned
+sentence, the normal TTS accounting and the listener's radio budget. It does
+not start a radio session or change the selected preferences.
+
+The shared settings sample player replaces a previous sample on selection and
+stops on navigation, account change or closing the Voices block. A compact
+control can stop or replay it after an error. A playing radio is paused for the
+sample and remains paused until the listener resumes it. A meeting recording or
+Live session keeps priority: the sample is unavailable while either is active.
+On mobile as on desktop, the single control appears directly below the last
+role whose voice was selected, so stopping the sample never requires scrolling
+past the other roles.
+
 **The budget** (`RadioBudgetFields`, `GET /radio/budget`): what the listener's
 radio spent over the rolling window against its bound, and, at the bound, when it
 lifts — nothing when the instance sets no bound.
@@ -657,6 +675,7 @@ session (ADR-304).
 | `POST /sessions/{id}/playhead`, `POST /sessions/{id}/stop`                                                                      | — (404 when not the caller's)                                                                                                                                             |
 | `GET /sessions/{id}/segments/{seq}/audio`                                                                                       | — (`Cache-Control: no-store`)                                                                                                                                             |
 | `GET /options`, `GET /preferences`, `GET /budget`                                                                               | —                                                                                                                                                                         |
+| `POST /voices/sample` | Authenticated, rate-limited voice sample; rejects an unavailable engine, invalid cast or exhausted usage/radio budget before synthesis |
 | `GET /articles/{id}`                                                                                                            | — (404 when the story is not the caller's to read: the catalogue's, or one of their own sites')                                                                           |
 | `PUT /preferences`                                                                                                              | `radio_timer_too_long` (+ `max_minutes`), `radio_voice_unknown`, `radio_voice_shared`, `radio_personality_unknown`; 422 for an unticked address that is not a base source |
 | `GET /sources` (every source and what it holds), `PATCH /sources/{id}` (rename, pause), `DELETE /sources/{id}`, `DELETE /heard` | — (404 when the site is not the caller's)                                                                                                                                 |

@@ -156,6 +156,18 @@ Le `type-check` est **non incrémental** délibérément : `tsconfig.json` pose
 `"incremental": true` et `*.tsbuildinfo` est git-ignoré, donc un run local sur
 cache pourrait passer là où le runner, à froid, échoue.
 
+Le volume Docker des dépendances du front conserve des liens pnpm vers les
+paquets de l'image. Après une mise à jour des dépendances, reconstruire le
+service pour garder ces deux parties cohérentes :
+
+```bash
+docker compose -f docker-compose.dev.yml up -d --build --no-deps web
+```
+
+Le démarrage vérifie aussi que Next.js est accessible et correspond au manifeste.
+Si nécessaire, il tente une réparation depuis le lockfile figé de l'image ; si
+elle échoue, il affiche la commande de reconstruction au lieu de lancer le front.
+
 ### Configuration IDE
 
 #### VS Code settings.json

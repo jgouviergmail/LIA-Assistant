@@ -119,7 +119,7 @@ export function MyShortcutsSettings({ lng }: BaseSettingsProps) {
             cap it says why the other boxes are not takeable. */}
         <p id="shortcuts-limit" className="text-sm">
           {atCap && (
-            <span className="text-muted-foreground">
+            <span className="text-destructive">
               {t('settings.my_shortcuts.limit_reached')}
             </span>
           )}

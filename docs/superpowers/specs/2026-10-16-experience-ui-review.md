@@ -46,7 +46,7 @@ P1 signifie « à traiter tôt pour la confiance, l'accès ou la continuité de 
 
 **Observation réelle.** Sur le hub des réglages à 360 × 800, le compagnon sélectionné recouvre une partie du champ de recherche. Le champ mesure environ 313 × 36 ; son intersection avec la boîte du compagnon mesure environ 162 × 36. Le point central de cette intersection est reçu par le groupe du compagnon, et non par le champ. Le débordement horizontal de page est absent : vérifier seulement le scrollWidth n'aurait pas trouvé ce problème.
 
-[Capture de l'observation mobile](../../assets/ui-analysis-2026-10-16/settings-mobile-360.jpg).
+Capture de l'observation mobile (capture conservée hors dépôt).
 
 Ce résultat concerne la taille, la position et le personnage du compte consulté, après passage desktop → mobile. Il ne prouve pas que toutes les configurations se recouvrent. Le compagnon concerné est EyesWidget/SpiritCompanion ; ce n'est pas la fenêtre vidéo AvatarWindow.
 

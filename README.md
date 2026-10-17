@@ -147,63 +147,191 @@ The video is a product demonstration, not a recorded provider session.
 
 ## Screenshots
 
-The application views below show the real interface in English with fictional demonstration data. They illustrate workflows and controls; no model, connected account or external action was exercised in these captures. The Radio player used a local silent audio fixture.
+Explore the real application interface in English and light mode, filled with fictional demonstration data. The geographic maps and walking route use [real Google Maps imagery and geographic data](apps/web/e2e/fixtures/maps/provenance.json), prepared separately and served locally with attribution. The browser captures exercise the actual pages, controls and widgets without model inference, provider calls, connected accounts or external actions. Radio uses a local silent audio fixture. The interactive budget is a custom skill example produced by an executed [Python fixture generator](apps/web/e2e/capture/render_trip_budget.py); its estimates are illustrative and no booking is made.
+
+Open any image at full resolution. The [home capture manifest](apps/web/public/screenshots/manifest.json), [workflow manifest](apps/web/public/screenshots/proof/manifest.json) and [extended application manifest](apps/web/public/screenshots/proof/extended-manifest.json) record the images and their provenance. Reproduce the campaigns with the [public capture workflow](apps/web/e2e/README.md#public-screenshots), [workflow runner](apps/web/e2e/capture/run-landing-proof.mjs) and [extended capture runner](apps/web/e2e/capture/run-extended-screenshots.mjs).
 
 <p align="center">
-  <a href="docs/assets/screenshot-homepage.png"><img src="docs/assets/screenshot-homepage.png" alt="Personal home dashboard — Daily summary, calendar, unread mail, tasks and reminders" width="1000" /></a>
-  <br /><em>Your personal hub — daily summary, calendar, emails, tasks and reminders in one place, with activity and usage at a glance.</em>
-</p>
-
-This home dashboard capture is retained from the earlier public screenshot campaign, documented in the [capture workflow](apps/web/e2e/README.md#public-screenshots).
-
-Open any image for its full resolution. For the workflow captures below, the [application manifest](apps/web/public/screenshots/proof/manifest.json) records the capture provenance, native BIP masculine selection and interactions; the [capture runner](apps/web/e2e/capture/run-landing-proof.mjs) reproduces this campaign.
-
-<p align="center">
-  <a href="apps/web/public/screenshots/proof/dossier.png"><img src="apps/web/public/screenshots/proof/dossier.png" alt="Chat — Project sources, conflicting dates and next steps" width="1000" /></a>
-  <br /><em>Prepare a conversation with the relevant sources and open questions in view.</em>
+  <a href="docs/assets/screenshot-homepage.png"><img src="docs/assets/screenshot-homepage.png" alt="Personal home dashboard — daily briefing, agenda, mail, tasks and reminders" width="1000" /></a>
+  <br /><em>Your personal hub — the day’s priorities, appointments and useful context in one place.</em>
 </p>
 
 <p align="center">
-  <a href="apps/web/public/screenshots/proof/relations.png"><img src="apps/web/public/screenshots/proof/relations.png" alt="Relations — Debrief, open commitments and recent emails" width="1000" /></a>
-  <br /><em>Relations — pick up the conversation with recent exchanges and open commitments beside you.</em>
+  <a href="apps/web/public/screenshots/proof/dossier.png"><img src="apps/web/public/screenshots/proof/dossier.png" alt="Chat — project sources, conflicting dates and practical next steps" width="1000" /></a>
+  <br /><em>Prepare a decision with the relevant documents, emails and meeting notes in view.</em>
 </p>
 
 <p align="center">
-  <a href="apps/web/public/screenshots/proof/radio.png"><img src="apps/web/public/screenshots/proof/radio.png" alt="Personal Radio — Player, programme, transcript and source articles" width="1000" /></a>
-  <br /><em>Personal Radio — your day and selected news, with the programme and sources in the actual player.</em>
+  <a href="apps/web/public/screenshots/proof/relations.png"><img src="apps/web/public/screenshots/proof/relations.png" alt="Relations — person overview, debrief, open commitments and recent exchanges" width="1000" /></a>
+  <br /><em>Pick up a conversation with useful context and commitments beside you.</em>
+</p>
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/radio.png"><img src="apps/web/public/screenshots/proof/radio.png" alt="Personal Radio — programme, transcript, upcoming segments and source articles" width="1000" /></a>
+  <br /><em>Follow a personal programme with its transcript and inspectable sources.</em>
 </p>
 
 <details>
-<summary><strong>Meetings, knowledge, memory and actions you can review</strong></summary>
+<summary><strong>Places, maps and routes in rich conversations</strong></summary>
 
 <p align="center">
-  <a href="apps/web/public/screenshots/proof/meetings.png"><img src="apps/web/public/screenshots/proof/meetings.png" alt="Meetings — Decisions, action items and editing and export controls" width="1000" /></a>
-  <br /><em>Meetings — review decisions and assigned action items, then edit or export the report.</em>
+  <a href="apps/web/public/screenshots/proof/places.png"><img src="apps/web/public/screenshots/proof/places.png" alt="Google Places — complete place card with opening hours and practical details" width="1000" /></a>
+  <br /><em>Inspect a complete place card with opening hours, rating, price range, address and accessibility details.</em>
 </p>
 
 <p align="center">
-  <a href="apps/web/public/screenshots/proof/approval.png"><img src="apps/web/public/screenshots/proof/approval.png" alt="Approval — A prepared message and confirm, modify and cancel controls" width="1000" /></a>
-  <br /><em>Review a prepared message through the application’s approval controls.</em>
+  <a href="apps/web/public/screenshots/proof/maps.png"><img src="apps/web/public/screenshots/proof/maps.png" alt="Google Maps — location card with geographic map, coordinates and address" width="1000" /></a>
+  <br /><em>Inspect a location with its geographic map, coordinates and address in the conversation.</em>
 </p>
 
 <p align="center">
-  <a href="apps/web/public/screenshots/proof/knowledge.png"><img src="apps/web/public/screenshots/proof/knowledge.png" alt="Knowledge spaces — Documents, Drive folders and Gmail label sources" width="1000" /></a>
-  <br /><em>Knowledge spaces — documents and connected sources you can manage.</em>
+  <a href="apps/web/public/screenshots/proof/routes.png"><img src="apps/web/public/screenshots/proof/routes.png" alt="Walking route — geographic map, distance and travel time" width="1000" /></a>
+  <br /><em>Read a walking itinerary with its map, distance and travel time in view.</em>
+</p>
+
+</details>
+
+<details>
+<summary><strong>Memory, avatars, personal portrait and emotional context</strong></summary>
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/memory-library.png"><img src="apps/web/public/screenshots/proof/memory-library.png" alt="Memory library — remembered facts, preferences, categories and management controls" width="1000" /></a>
+  <br /><em>Find what LIA remembers and manage the facts and preferences you keep.</em>
 </p>
 
 <p align="center">
-  <a href="apps/web/public/screenshots/proof/memory.png"><img src="apps/web/public/screenshots/proof/memory.png" alt="Memory — Editing a stored preference" width="1000" /></a>
-  <br /><em>Review and correct what LIA remembers.</em>
+  <a href="apps/web/public/screenshots/proof/memory.png"><img src="apps/web/public/screenshots/proof/memory.png" alt="Memory — editing a stored preference" width="1000" /></a>
+  <br /><em>Correct a remembered preference through the actual edit form.</em>
 </p>
 
 <p align="center">
-  <a href="apps/web/public/screenshots/proof/skill.png"><img src="apps/web/public/screenshots/proof/skill.png" alt="Chat — Interactive unit converter showing 2.5 metres as 250 centimetres" width="1000" /></a>
-  <br /><em>A useful mini-app inside the conversation — the actual unit-converter widget.</em>
+  <a href="apps/web/public/screenshots/proof/portrait.png"><img src="apps/web/public/screenshots/proof/portrait.png" alt="Personal portrait — accumulated context and profile sections" width="1000" /></a>
+  <br /><em>Review the portrait that brings your personal context together.</em>
 </p>
 
 <p align="center">
-  <a href="apps/web/public/screenshots/proof/administration.png"><img src="apps/web/public/screenshots/proof/administration.png" alt="Administration — Account budgets and instance spending ceiling" width="1000" /></a>
-  <br /><em>Administration — account budgets and the instance ceiling, with visible usage gauges.</em>
+  <a href="apps/web/public/screenshots/proof/avatar-picker.png"><img src="apps/web/public/screenshots/proof/avatar-picker.png" alt="Avatar picker — companion previews and appearance selection gallery" width="1000" /></a>
+  <br /><em>Preview the companion styles and choose LIA’s appearance in the actual avatar gallery.</em>
+</p>
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/psyche.png"><img src="apps/web/public/screenshots/proof/psyche.png" alt="Psyche Engine — personality traits, emotional state and responsiveness" width="1000" /></a>
+  <br /><em>Inspect the personality and emotional settings that shape LIA’s responses.</em>
+</p>
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/psyche-evolution.png"><img src="apps/web/public/screenshots/proof/psyche-evolution.png" alt="Emotional evolution — state timeline and associated events" width="1000" /></a>
+  <br /><em>Follow emotional state changes and the events associated with them.</em>
+</p>
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/journal.png"><img src="apps/web/public/screenshots/proof/journal.png" alt="Personal journal — saved reflections and their context" width="1000" /></a>
+  <br /><em>Revisit the reflections and context kept in your personal journal.</em>
+</p>
+
+</details>
+
+<details>
+<summary><strong>Routines, schedules and project work</strong></summary>
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/routine-studio.png"><img src="apps/web/public/screenshots/proof/routine-studio.png" alt="Routine studio — workflow instructions, recurrence and execution settings" width="1000" /></a>
+  <br /><em>Prepare a recurring workflow with its instructions, timing and execution settings.</em>
+</p>
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/routine-week.png"><img src="apps/web/public/screenshots/proof/routine-week.png" alt="Routine calendar — scheduled workflows across the week" width="1000" /></a>
+  <br /><em>See the week’s routines and their upcoming runs together.</em>
+</p>
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/workboard.png"><img src="apps/web/public/screenshots/proof/workboard.png" alt="Workboard — projects and work organized by stage" width="1000" /></a>
+  <br /><em>Follow projects and tasks across their working stages.</em>
+</p>
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/workboard-dossier.png"><img src="apps/web/public/screenshots/proof/workboard-dossier.png" alt="Project dossier — tasks, working context and follow-ups" width="1000" /></a>
+  <br /><em>Keep a project’s tasks, context and next steps together.</em>
+</p>
+
+</details>
+
+<details>
+<summary><strong>Knowledge spaces, meetings and reusable reports</strong></summary>
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/knowledge-library.png"><img src="apps/web/public/screenshots/proof/knowledge-library.png" alt="Knowledge library — spaces and indexed document collections" width="1000" /></a>
+  <br /><em>Find the knowledge spaces that hold your documents and reference material.</em>
+</p>
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/knowledge.png"><img src="apps/web/public/screenshots/proof/knowledge.png" alt="Knowledge space — documents, Drive folders and mail sources" width="1000" /></a>
+  <br /><em>Inspect indexed documents and manage the sources attached to a space.</em>
+</p>
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/meetings-list.png"><img src="apps/web/public/screenshots/proof/meetings-list.png" alt="Meetings list — recordings and reports with their processing states" width="1000" /></a>
+  <br /><em>Find your meetings and follow the processing state of each recording or report.</em>
+</p>
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/meetings.png"><img src="apps/web/public/screenshots/proof/meetings.png" alt="Detailed meeting report — participants, summary, decisions and assigned action items" width="1000" /></a>
+  <br /><em>Inspect the detailed meeting report: participants, summary, decisions and assigned actions, with editing and export controls.</em>
+</p>
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/meeting-transcript.png"><img src="apps/web/public/screenshots/proof/meeting-transcript.png" alt="Meeting transcript — recorded conversation and report controls" width="1000" /></a>
+  <br /><em>Read the conversation behind the meeting report.</em>
+</p>
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/meeting-templates.png"><img src="apps/web/public/screenshots/proof/meeting-templates.png" alt="Meeting templates — available report structures and formats" width="1000" /></a>
+  <br /><em>Choose the structure used to turn a recording into a useful report.</em>
+</p>
+
+</details>
+
+<details>
+<summary><strong>Actions to approve, connected services and interactive skills</strong></summary>
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/approval.png"><img src="apps/web/public/screenshots/proof/approval.png" alt="Approval — prepared message and confirm, modify and cancel controls" width="1000" /></a>
+  <br /><em>Review a prepared action through the application’s approval controls.</em>
+</p>
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/connections.png"><img src="apps/web/public/screenshots/proof/connections.png" alt="Connections — linked services and access management" width="1000" /></a>
+  <br /><em>Manage connected services and inspect the access available to LIA.</em>
+</p>
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/skills-library.png"><img src="apps/web/public/screenshots/proof/skills-library.png" alt="Skills library — available skills and activation controls" width="1000" /></a>
+  <br /><em>Browse the skills you can use and manage their activation.</em>
+</p>
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/skill.png"><img src="apps/web/public/screenshots/proof/skill.png" alt="Weekend Budget Studio — interactive custom skill with a category breakdown and editable trip controls" width="1000" /></a>
+  <br /><em>A custom skill example inside the conversation — adjust travellers, nights and budget to explore an illustrative spending breakdown.</em>
+</p>
+
+</details>
+
+<details>
+<summary><strong>Models, consumption and account budgets</strong></summary>
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/model-routing.png"><img src="apps/web/public/screenshots/proof/model-routing.png" alt="Model routing — provider and model selection for each operation" width="1000" /></a>
+  <br /><em>Choose the providers and models used by each operation.</em>
+</p>
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/consumption.png"><img src="apps/web/public/screenshots/proof/consumption.png" alt="Consumption — usage figures, costs and operation details" width="1000" /></a>
+  <br /><em>Inspect usage and costs with the operations that produced them.</em>
+</p>
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/administration.png"><img src="apps/web/public/screenshots/proof/administration.png" alt="Administration — account quotas and instance spending ceiling" width="1000" /></a>
+  <br /><em>Set account limits and the instance ceiling with visible usage gauges.</em>
 </p>
 
 </details>

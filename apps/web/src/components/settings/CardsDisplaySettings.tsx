@@ -70,7 +70,7 @@ function DisplaySettingsContent({
     >
       <div className="space-y-5">
         <div className="grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(11rem,0.7fr)_minmax(0,2fr)]">
-          <fieldset className="min-w-0 space-y-2">
+          <fieldset className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-1">
             <legend className="sr-only">
               {t('settings.preferences.display_mode.description')}
             </legend>
@@ -83,6 +83,7 @@ function DisplaySettingsContent({
                 aria-disabled={pendingMode !== null || !user}
                 aria-busy={pendingMode === value || undefined}
                 aria-labelledby={`${id}-${value}`}
+                aria-describedby={`${id}-${value}-summary`}
                 className={cn(
                   'flex min-h-14 w-full min-w-0 items-center gap-3 rounded-xl border p-3 text-left text-sm font-medium transition-colors',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
@@ -99,8 +100,16 @@ function DisplaySettingsContent({
                     <Icon className="size-4" aria-hidden="true" />
                   )}
                 </span>
-                <span id={`${id}-${value}`} className="min-w-0 break-words leading-relaxed">
-                  {t(`settings.preferences.display_mode.modes.${value}.label`)}
+                <span className="min-w-0 space-y-1 break-words leading-relaxed">
+                  <span id={`${id}-${value}`} className="block">
+                    {t(`settings.preferences.display_mode.modes.${value}.label`)}
+                  </span>
+                  <span
+                    id={`${id}-${value}-summary`}
+                    className="block text-xs font-normal text-muted-foreground"
+                  >
+                    {t(`settings.preferences.display_mode.modes.${value}.summary`)}
+                  </span>
                 </span>
               </button>
             ))}

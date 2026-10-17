@@ -96,7 +96,7 @@
   "screenshots": [
     {
       "src": "/screenshots/dashboard-wide.png",
-      "sizes": "1280x800",
+      "sizes": "1600x1100",
       "type": "image/png",
       "form_factor": "wide"
     },

@@ -79,6 +79,11 @@ NOT_A_TURN: Final[dict[str, str]] = {
         "lookup with no model in it, whose euros are traced under a run of their "
         "own like every other family the ledger holds."
     ),
+    "domains/voice/samples.py": (
+        "Plays a fixed sample sentence in a voice the person is choosing: a "
+        "speech synthesis of words the server owns, with no model deciding "
+        "anything, billed under a run of its own."
+    ),
     "domains/voice/text_readout.py": (
         "Reads aloud a text the person chose to hear: a speech synthesis of words "
         "already written, with no model deciding anything, billed under a run of "

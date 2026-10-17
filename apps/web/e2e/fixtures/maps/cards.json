@@ -1,0 +1,207 @@
+{
+  "language": "en",
+  "timezone": "Europe/Paris",
+  "data": {
+    "places": [
+      {
+        "name": "Café des Rives · demo",
+        "address": "8 rue de la Barre, 69002 Lyon",
+        "types": [
+          "cafe"
+        ],
+        "primary_type": "Coffee & light breakfast",
+        "rating": 4.7,
+        "userRatingCount": 128,
+        "price_range": {
+          "start": "8",
+          "end": "16",
+          "currency": "EUR"
+        },
+        "distance": "450 m from Bellecour",
+        "place_timezone": "Europe/Paris",
+        "description": "A calm morning stop near the river. Fictional venue, rating and opening hours for this demonstration.",
+        "currentOpeningHours": {
+          "openNow": true,
+          "nextCloseTime": "2026-10-12T16:00:00Z",
+          "weekdayDescriptions": [
+            "Monday–Friday: 08:00–18:00",
+            "Saturday–Sunday: 09:00–17:00"
+          ]
+        },
+        "accessibilityOptions": {
+          "wheelchairAccessibleEntrance": true,
+          "wheelchairAccessibleSeating": true
+        },
+        "paymentOptions": {
+          "acceptsCreditCards": true,
+          "acceptsNfc": true
+        }
+      }
+    ],
+    "maps": {
+      "formatted_address": "Place Bellecour, 69002 Lyon, France",
+      "locality": "Lyon",
+      "country": "France",
+      "postal_code": "69002",
+      "latitude": 45.7578,
+      "longitude": 4.832,
+      "static_map_url": "/api/v1/connectors/google-location/static-map?lat=45.7578&lng=4.8320&zoom=14&width=640&height=300"
+    },
+    "routes": {
+      "origin": "Place Bellecour, Lyon",
+      "destination": "Lyon Part-Dieu station",
+      "travel_mode": "WALK",
+      "distance_meters": 2685,
+      "distance_km": 2.685,
+      "duration_minutes": 38,
+      "duration_formatted": "38 min",
+      "duration_seconds": 2279,
+      "static_map_url": "/api/v1/connectors/google-routes/static-map?polyline=u%60hvGsxn%5C~%40%60%40aAiH%5BoA%3FU_%40QXkBrAiHLk%40LUKW%5CuBj%40cDTe%40VuAD_%40%5CeB%40k%40Tc%40%5C%7BAIKCMY%5D%7B%40W%7D%40MAAMCWBaBMC_BUoG%5DuMUiG%5ByMq%40yUyBRCg%40EqBa%40gJa%40wHGq%40e%40a%40WqFoB%5EsBNEAF%5DBCCm%40E_C%40oABCJBdBH%3FYOE%3F%7D%40&origin=45.7578,4.8320&dest=45.7606,4.8596&width=640&height=300",
+      "steps": [
+        {
+          "instruction": "Head south",
+          "maneuver": "DEPART",
+          "distance_meters": 38,
+          "duration_seconds": 29,
+          "travel_mode": "WALK"
+        },
+        {
+          "instruction": "Turn left toward Pl. Bellecour",
+          "maneuver": "TURN_LEFT",
+          "distance_meters": 164,
+          "duration_seconds": 132,
+          "travel_mode": "WALK"
+        },
+        {
+          "instruction": "Turn left onto Pl. Bellecour",
+          "maneuver": "TURN_LEFT",
+          "distance_meters": 12,
+          "duration_seconds": 10,
+          "travel_mode": "WALK"
+        },
+        {
+          "instruction": "Turn right onto Rue de la Barre",
+          "maneuver": "TURN_RIGHT",
+          "distance_meters": 174,
+          "duration_seconds": 160,
+          "travel_mode": "WALK"
+        },
+        {
+          "instruction": "Continue onto Pont de la Guillotière",
+          "maneuver": "NAME_CHANGE",
+          "distance_meters": 332,
+          "duration_seconds": 290,
+          "travel_mode": "WALK"
+        },
+        {
+          "instruction": "Turn left toward Quai Victor Augagneur",
+          "maneuver": "TURN_LEFT",
+          "distance_meters": 105,
+          "duration_seconds": 82,
+          "travel_mode": "WALK"
+        },
+        {
+          "instruction": "Turn right toward Quai Victor Augagneur",
+          "maneuver": "TURN_RIGHT",
+          "distance_meters": 5,
+          "duration_seconds": 4,
+          "travel_mode": "WALK"
+        },
+        {
+          "instruction": "Turn left onto Quai Victor Augagneur",
+          "maneuver": "TURN_LEFT",
+          "distance_meters": 73,
+          "duration_seconds": 58,
+          "travel_mode": "WALK"
+        },
+        {
+          "instruction": "Turn right onto Rue Chaponnay",
+          "maneuver": "TURN_RIGHT",
+          "distance_meters": 895,
+          "duration_seconds": 760,
+          "travel_mode": "WALK"
+        },
+        {
+          "instruction": "Turn left toward Rue Mazenod",
+          "maneuver": "TURN_LEFT",
+          "distance_meters": 68,
+          "duration_seconds": 55,
+          "travel_mode": "WALK"
+        },
+        {
+          "instruction": "Turn right onto Rue Mazenod",
+          "maneuver": "TURN_RIGHT",
+          "distance_meters": 8,
+          "duration_seconds": 7,
+          "travel_mode": "WALK"
+        },
+        {
+          "instruction": "Continue onto Rue Dr Bouchut",
+          "maneuver": "NAME_CHANGE",
+          "distance_meters": 455,
+          "duration_seconds": 385,
+          "travel_mode": "WALK"
+        },
+        {
+          "instruction": "Turn left onto Bd Marius Vivier Merle",
+          "maneuver": "TURN_LEFT",
+          "distance_meters": 131,
+          "duration_seconds": 101,
+          "travel_mode": "WALK"
+        },
+        {
+          "instruction": "Turn right onto Rue Servient\nParts of this road are closed 8:00 AM – 5:00 PM",
+          "maneuver": "TURN_RIGHT",
+          "distance_meters": 10,
+          "duration_seconds": 10,
+          "travel_mode": "WALK"
+        },
+        {
+          "instruction": "Turn left onto Bd Marius Vivier Merle",
+          "maneuver": "TURN_LEFT",
+          "distance_meters": 23,
+          "duration_seconds": 35,
+          "travel_mode": "WALK"
+        },
+        {
+          "instruction": "Continue onto Pl. Charles Béraudier",
+          "maneuver": "NAME_CHANGE",
+          "distance_meters": 92,
+          "duration_seconds": 77,
+          "travel_mode": "WALK"
+        },
+        {
+          "instruction": "Slight right to stay on Pl. Charles Béraudier",
+          "maneuver": "TURN_SLIGHT_RIGHT",
+          "distance_meters": 101,
+          "duration_seconds": 85,
+          "travel_mode": "WALK"
+        }
+      ]
+    }
+  },
+  "html": {
+    "places": "<hr class=\"lia-response-separator\"><div class=\"lia-response-wrapper\" data-card-version=\"2\"><div class=\"lia-card lia-place lia-place--open \"><div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--green\"><span class=\"material-symbols-outlined\">coffee</span></div><div class=\"lia-card-top__info\"><a class=\"lia-card-top__title\" href=\"https://www.google.com/maps/search/?api=1&amp;query=Caf%C3%A9%20des%20Rives%20%C2%B7%20demo%2C%208%20rue%20de%20la%20Barre%2C%2069002%20Lyon\" target=\"_blank\">Café des Rives · demo</a></div></div><div class=\"lia-chip-row\"><span class=\"lia-chip lia-chip--indigo\">Coffee &amp; light breakfast</span><span class=\"lia-chip\"><span class=\"material-symbols-outlined\">payments</span>8–16 €</span><span class=\"lia-chip\"><span class=\"material-symbols-outlined\">directions</span>450 m from Bellecour</span><span class=\"lia-chip lia-chip--stars\"><span class=\"material-symbols-outlined\" aria-hidden=\"true\">star</span><span class=\"material-symbols-outlined\" aria-hidden=\"true\">star</span><span class=\"material-symbols-outlined\" aria-hidden=\"true\">star</span><span class=\"material-symbols-outlined\" aria-hidden=\"true\">star</span><span class=\"material-symbols-outlined lia-chip__star-empty\" aria-hidden=\"true\">star</span> 4.7/5 (128)</span></div><div class=\"lia-chip-row\"><span class=\"lia-chip lia-chip--green\"><span class=\"material-symbols-outlined\">check_circle</span>Open</span><span class=\"lia-chip\"><span class=\"material-symbols-outlined\">schedule</span>Closes at Monday, October 12, 2026 at 6:00 PM · Europe/Paris</span></div><div style=\"margin-top:var(--lia-space-lg)\"><div class=\"lia-d-row\"><span class=\"material-symbols-outlined\" style=\"font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 20;color:#ef4444\">location_on</span><a href=\"https://www.google.com/maps/dir/?api=1&amp;destination=8%20rue%20de%20la%20Barre%2C%2069002%20Lyon\" target=\"_blank\">8 rue de la Barre, 69002 Lyon</a></div></div><p class=\"lia-place__summary\" style=\"font-size:var(--lia-text-sm);color:var(--lia-text-secondary);margin-top:var(--lia-space-xs);font-style:italic\">A calm morning stop near the river. Fictional venue, rating and opening hours for this demonstration.</p><div class=\"lia-collapsible-wrapper\"><details class=\"lia-collapsible\"><summary class=\"lia-collapsible__trigger\"><span>Opening hours</span><span class=\"lia-collapsible__icon\"><span class=\"lia-icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">expand_more</span></span></span></summary><div class=\"lia-collapsible__content\"><p class=\"lia-place-hours__timezone\">Place-local hours · Europe/Paris</p><div class=\"lia-kv-rows\"><div class=\"lia-kv-row\"><span class=\"lia-kv-row__key\">Monday–Friday</span><span class=\"lia-kv-row__value\">08:00–18:00</span></div><div class=\"lia-kv-row\"><span class=\"lia-kv-row__key\">Saturday–Sunday</span><span class=\"lia-kv-row__value\">09:00–17:00</span></div></div></div></details></div><div class=\"lia-collapsible-wrapper\"><details class=\"lia-collapsible\"><summary class=\"lia-collapsible__trigger\"><span>Accessibility</span><span class=\"lia-collapsible__icon\"><span class=\"lia-icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">expand_more</span></span></span></summary><div class=\"lia-collapsible__content\"><dl class=\"lia-availability-list\"><div class=\"lia-availability-row\"><dt>♿ Wheelchair accessible entrance</dt><dd><span data-availability=\"true\" class=\"lia-availability\"><span class=\"material-symbols-outlined\" aria-hidden=\"true\">check_circle</span>Yes</span></dd></div><div class=\"lia-availability-row\"><dt>♿ Wheelchair accessible seating</dt><dd><span data-availability=\"true\" class=\"lia-availability\"><span class=\"material-symbols-outlined\" aria-hidden=\"true\">check_circle</span>Yes</span></dd></div></dl></div></details></div><div class=\"lia-collapsible-wrapper\"><details class=\"lia-collapsible\"><summary class=\"lia-collapsible__trigger\"><span>Payment</span><span class=\"lia-collapsible__icon\"><span class=\"lia-icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">expand_more</span></span></span></summary><div class=\"lia-collapsible__content\"><dl class=\"lia-availability-list\"><div class=\"lia-availability-row\"><dt>💳 Credit cards accepted</dt><dd><span data-availability=\"true\" class=\"lia-availability\"><span class=\"material-symbols-outlined\" aria-hidden=\"true\">check_circle</span>Yes</span></dd></div><div class=\"lia-availability-row\"><dt>📱 Contactless payment</dt><dd><span data-availability=\"true\" class=\"lia-availability\"><span class=\"material-symbols-outlined\" aria-hidden=\"true\">check_circle</span>Yes</span></dd></div></dl></div></details></div><div class=\"lia-place-source\"><span class=\"lia-google-attribution\" translate=\"no\">Google Maps</span></div></div><div class=\"lia-suggested-actions\"><a href=\"https://www.google.com/maps/dir/?api=1&amp;destination=8%20rue%20de%20la%20Barre%2C%2069002%20Lyon\" class=\"lia-action-btn lia-action-btn--places\" target=\"_blank\" rel=\"noopener\"><span class=\"lia-action-btn__icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">directions</span></span>Directions</a></div></div><hr class=\"lia-response-separator\">",
+    "maps": "<hr class=\"lia-response-separator\"><div class=\"lia-response-wrapper\" data-card-version=\"2\"><div class=\"lia-card lia-place \"><a href=\"https://www.google.com/maps/@45.7578,4.832,15z\" target=\"_blank\" rel=\"noopener\" class=\"lia-route__map-link\"><img src=\"/api/v1/connectors/google-location/static-map?lat=45.7578&amp;lng=4.8320&amp;zoom=14&amp;width=640&amp;height=300&amp;width=800&amp;height=400\" alt=\"Open in Maps\" class=\"lia-route__map-image\" loading=\"lazy\" /></a><div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--blue\"><span class=\"material-symbols-outlined\">location_on</span></div><div class=\"lia-card-top__info\"><a class=\"lia-card-top__title\" href=\"https://www.google.com/maps/@45.7578,4.832,15z\" target=\"_blank\">Lyon</a></div></div><div class=\"lia-chip-row\"><span class=\"lia-chip lia-chip--blue\"><span class=\"material-symbols-outlined\">location_on</span>Lyon</span><span class=\"lia-chip\"><span class=\"material-symbols-outlined\">public</span>France</span><span class=\"lia-chip\"><span class=\"material-symbols-outlined\">pin_drop</span>69002</span></div><div style=\"margin-top:var(--lia-space-lg)\"><div class=\"lia-d-row\"><span class=\"material-symbols-outlined\" style=\"font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 20;color:#ef4444\">location_on</span><a href=\"https://www.google.com/maps/@45.7578,4.832,15z\" target=\"_blank\">Place Bellecour, 69002 Lyon, France</a></div></div><div class=\"lia-d-row\"><span class=\"material-symbols-outlined\">explore</span>45.757800, 4.832000</div></div><div class=\"lia-suggested-actions\"><a href=\"https://www.google.com/maps/@45.7578,4.832,15z\" class=\"lia-action-btn lia-action-btn--locations\" target=\"_blank\" rel=\"noopener\"><span class=\"lia-action-btn__icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">map</span></span>Directions</a></div></div><hr class=\"lia-response-separator\">",
+    "routes": "<hr class=\"lia-response-separator\"><div class=\"lia-response-wrapper\" data-card-version=\"2\"><div class=\"lia-card lia-route \"><a href=\"https://www.google.com/maps/dir/?api=1&amp;destination=Lyon%20Part-Dieu%20station&amp;travelmode=walking&amp;origin=Place%20Bellecour%2C%20Lyon\" target=\"_blank\" rel=\"noopener\" class=\"lia-route__map-link\"><img src=\"/api/v1/connectors/google-routes/static-map?polyline=u%60hvGsxn%5C~%40%60%40aAiH%5BoA%3FU_%40QXkBrAiHLk%40LUKW%5CuBj%40cDTe%40VuAD_%40%5CeB%40k%40Tc%40%5C%7BAIKCMY%5D%7B%40W%7D%40MAAMCWBaBMC_BUoG%5DuMUiG%5ByMq%40yUyBRCg%40EqBa%40gJa%40wHGq%40e%40a%40WqFoB%5EsBNEAF%5DBCCm%40E_C%40oABCJBdBH%3FYOE%3F%7D%40&amp;origin=45.7578,4.8320&amp;dest=45.7606,4.8596&amp;width=640&amp;height=300&amp;width=800&amp;height=400\" alt=\"Open in Maps\" class=\"lia-route__map-image\" loading=\"lazy\" /></a><div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--green\"><span class=\"material-symbols-outlined\">directions_walk</span></div><div class=\"lia-card-top__info\"><span class=\"lia-card-top__title\">→ Lyon Part-Dieu station</span></div></div><dl class=\"lia-route-summary\"><div><dt>Duration</dt><dd>38 min</dd></div><div><dt>Distance</dt><dd>2.685 km</dd></div></dl><div class=\"lia-route__endpoints\"><div class=\"lia-route__endpoint\"><span class=\"lia-route__endpoint-icon\"><span class=\"lia-icon lia-icon--sm lia-icon--route\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">flag</span></span></span><div class=\"lia-route__endpoint-content\"><span class=\"lia-route__endpoint-label\">From</span><span class=\"lia-route__endpoint-value\">Place Bellecour, Lyon</span></div></div><div class=\"lia-route__endpoint\"><span class=\"lia-route__endpoint-icon\"><span class=\"lia-icon lia-icon--sm lia-icon--route\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">sports_score</span></span></span><div class=\"lia-route__endpoint-content\"><span class=\"lia-route__endpoint-label\">To</span><span class=\"lia-route__endpoint-value\">Lyon Part-Dieu station</span></div></div></div><div class=\"lia-collapsible-wrapper\"><details class=\"lia-collapsible\"><summary class=\"lia-collapsible__trigger\"><span>Steps (17)</span><span class=\"lia-collapsible__icon\"><span class=\"lia-icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">expand_more</span></span></span></summary><div class=\"lia-collapsible__content\"><ol class=\"lia-route__steps\"><li class=\"lia-route__step lia-route__step--walk\"><span class=\"lia-route__step-number\" aria-hidden=\"true\">1</span><details class=\"lia-route-step\"><summary><span class=\"lia-icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">directions_walk</span></span><span class=\"lia-route__step-instruction\">Head south</span></summary><div class=\"lia-route-step__detail\"><p class=\"lia-route__step-distance\">38 m · 29 s</p></div></details></li><li class=\"lia-route__step lia-route__step--walk\"><span class=\"lia-route__step-number\" aria-hidden=\"true\">2</span><details class=\"lia-route-step\"><summary><span class=\"lia-icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">directions_walk</span></span><span class=\"lia-route__step-instruction\">Turn left toward Pl. Bellecour</span></summary><div class=\"lia-route-step__detail\"><p class=\"lia-route__step-distance\">164 m · 2 min 12 s</p></div></details></li><li class=\"lia-route__step lia-route__step--walk\"><span class=\"lia-route__step-number\" aria-hidden=\"true\">3</span><details class=\"lia-route-step\"><summary><span class=\"lia-icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">directions_walk</span></span><span class=\"lia-route__step-instruction\">Turn left onto Pl. Bellecour</span></summary><div class=\"lia-route-step__detail\"><p class=\"lia-route__step-distance\">12 m · 10 s</p></div></details></li><li class=\"lia-route__step lia-route__step--walk\"><span class=\"lia-route__step-number\" aria-hidden=\"true\">4</span><details class=\"lia-route-step\"><summary><span class=\"lia-icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">directions_walk</span></span><span class=\"lia-route__step-instruction\">Turn right onto Rue de la Barre</span></summary><div class=\"lia-route-step__detail\"><p class=\"lia-route__step-distance\">174 m · 2 min 40 s</p></div></details></li><li class=\"lia-route__step lia-route__step--walk\"><span class=\"lia-route__step-number\" aria-hidden=\"true\">5</span><details class=\"lia-route-step\"><summary><span class=\"lia-icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">directions_walk</span></span><span class=\"lia-route__step-instruction\">Continue onto Pont de la Guillotière</span></summary><div class=\"lia-route-step__detail\"><p class=\"lia-route__step-distance\">332 m · 4 min 50 s</p></div></details></li><li class=\"lia-route__step lia-route__step--walk\"><span class=\"lia-route__step-number\" aria-hidden=\"true\">6</span><details class=\"lia-route-step\"><summary><span class=\"lia-icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">directions_walk</span></span><span class=\"lia-route__step-instruction\">Turn left toward Quai Victor Augagneur</span></summary><div class=\"lia-route-step__detail\"><p class=\"lia-route__step-distance\">105 m · 1 min 22 s</p></div></details></li><li class=\"lia-route__step lia-route__step--walk\"><span class=\"lia-route__step-number\" aria-hidden=\"true\">7</span><details class=\"lia-route-step\"><summary><span class=\"lia-icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">directions_walk</span></span><span class=\"lia-route__step-instruction\">Turn right toward Quai Victor Augagneur</span></summary><div class=\"lia-route-step__detail\"><p class=\"lia-route__step-distance\">5 m · 4 s</p></div></details></li><li class=\"lia-route__step lia-route__step--walk\"><span class=\"lia-route__step-number\" aria-hidden=\"true\">8</span><details class=\"lia-route-step\"><summary><span class=\"lia-icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">directions_walk</span></span><span class=\"lia-route__step-instruction\">Turn left onto Quai Victor Augagneur</span></summary><div class=\"lia-route-step__detail\"><p class=\"lia-route__step-distance\">73 m · 58 s</p></div></details></li><li class=\"lia-route__step lia-route__step--walk\"><span class=\"lia-route__step-number\" aria-hidden=\"true\">9</span><details class=\"lia-route-step\"><summary><span class=\"lia-icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">directions_walk</span></span><span class=\"lia-route__step-instruction\">Turn right onto Rue Chaponnay</span></summary><div class=\"lia-route-step__detail\"><p class=\"lia-route__step-distance\">895 m · 12 min 40 s</p></div></details></li><li class=\"lia-route__step lia-route__step--walk\"><span class=\"lia-route__step-number\" aria-hidden=\"true\">10</span><details class=\"lia-route-step\"><summary><span class=\"lia-icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">directions_walk</span></span><span class=\"lia-route__step-instruction\">Turn left toward Rue Mazenod</span></summary><div class=\"lia-route-step__detail\"><p class=\"lia-route__step-distance\">68 m · 55 s</p></div></details></li><li class=\"lia-route__step lia-route__step--walk\"><span class=\"lia-route__step-number\" aria-hidden=\"true\">11</span><details class=\"lia-route-step\"><summary><span class=\"lia-icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">directions_walk</span></span><span class=\"lia-route__step-instruction\">Turn right onto Rue Mazenod</span></summary><div class=\"lia-route-step__detail\"><p class=\"lia-route__step-distance\">8 m · 7 s</p></div></details></li><li class=\"lia-route__step lia-route__step--walk\"><span class=\"lia-route__step-number\" aria-hidden=\"true\">12</span><details class=\"lia-route-step\"><summary><span class=\"lia-icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">directions_walk</span></span><span class=\"lia-route__step-instruction\">Continue onto Rue Dr Bouchut</span></summary><div class=\"lia-route-step__detail\"><p class=\"lia-route__step-distance\">455 m · 6 min 25 s</p></div></details></li><li class=\"lia-route__step lia-route__step--walk\"><span class=\"lia-route__step-number\" aria-hidden=\"true\">13</span><details class=\"lia-route-step\"><summary><span class=\"lia-icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">directions_walk</span></span><span class=\"lia-route__step-instruction\">Turn left onto Bd Marius Vivier Merle</span></summary><div class=\"lia-route-step__detail\"><p class=\"lia-route__step-distance\">131 m · 1 min 41 s</p></div></details></li><li class=\"lia-route__step lia-route__step--walk\"><span class=\"lia-route__step-number\" aria-hidden=\"true\">14</span><details class=\"lia-route-step\"><summary><span class=\"lia-icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">directions_walk</span></span><span class=\"lia-route__step-instruction\">Turn right onto Rue Servient\nParts of this road are closed 8:00 AM – 5:00 PM</span></summary><div class=\"lia-route-step__detail\"><p class=\"lia-route__step-distance\">10 m · 10 s</p></div></details></li><li class=\"lia-route__step lia-route__step--walk\"><span class=\"lia-route__step-number\" aria-hidden=\"true\">15</span><details class=\"lia-route-step\"><summary><span class=\"lia-icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">directions_walk</span></span><span class=\"lia-route__step-instruction\">Turn left onto Bd Marius Vivier Merle</span></summary><div class=\"lia-route-step__detail\"><p class=\"lia-route__step-distance\">23 m · 35 s</p></div></details></li><li class=\"lia-route__step lia-route__step--walk\"><span class=\"lia-route__step-number\" aria-hidden=\"true\">16</span><details class=\"lia-route-step\"><summary><span class=\"lia-icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">directions_walk</span></span><span class=\"lia-route__step-instruction\">Continue onto Pl. Charles Béraudier</span></summary><div class=\"lia-route-step__detail\"><p class=\"lia-route__step-distance\">92 m · 1 min 17 s</p></div></details></li><li class=\"lia-route__step lia-route__step--walk\"><span class=\"lia-route__step-number\" aria-hidden=\"true\">17</span><details class=\"lia-route-step\"><summary><span class=\"lia-icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">directions_walk</span></span><span class=\"lia-route__step-instruction\">Slight right to stay on Pl. Charles Béraudier</span></summary><div class=\"lia-route-step__detail\"><p class=\"lia-route__step-distance\">101 m · 1 min 25 s</p></div></details></li></ol></div></details></div></div><div class=\"lia-suggested-actions\"><a href=\"https://www.google.com/maps/dir/?api=1&amp;destination=Lyon%20Part-Dieu%20station&amp;travelmode=walking&amp;origin=Place%20Bellecour%2C%20Lyon\" class=\"lia-action-btn lia-action-btn--route\" target=\"_blank\" rel=\"noopener\"><span class=\"lia-action-btn__icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">map</span></span>Open in Maps</a></div></div><hr class=\"lia-response-separator\">"
+  },
+  "renderers": [
+    {
+      "source": "apps/api/src/domains/agents/display/components/place_card.py",
+      "sha256": "a7582dc09147456e986ae11eb5b4b6d6a7efeb1cb49e77ebb350930cf3dd70c5"
+    },
+    {
+      "source": "apps/api/src/domains/agents/display/components/location_card.py",
+      "sha256": "939b721789d1611c116f87bdb73e0c71a1850ac82fd34a9838c4b631a6606dbc"
+    },
+    {
+      "source": "apps/api/src/domains/agents/display/components/route_card.py",
+      "sha256": "6e5d8934f509edee25f3fee274d775d57b13326121b045c045f97b4e4477c1c3"
+    },
+    {
+      "source": "apps/api/src/domains/agents/display/components/route_journey.py",
+      "sha256": "e2ad2b5d070fea4d320aab0e5ba26bfe7f1d76c8c3975b622bddbfadabe422de"
+    }
+  ],
+  "policy": "Production pure Python card renderers, handwritten fictional venue fixtures and previously recorded real public geographical fixtures. Network socket connect forbidden during rendering. No account or backend server was used."
+}

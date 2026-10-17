@@ -20,6 +20,8 @@ import {
   Sparkles,
   LifeBuoy,
   Phone,
+  Play,
+  Square,
   AudioLines,
   Mic,
   Moon,
@@ -956,6 +958,88 @@ function VoicesInLanguageScene({ active, labels }: SceneProps) {
   );
 }
 
+type SamplePhase = 'list' | 'pick' | 'playing' | 'rest';
+const SAMPLE_STEPS: readonly TimelineStep<SamplePhase>[] = [
+  { at: 0, state: 'list' },
+  { at: 900, state: 'pick' },
+  { at: 1400, state: 'playing' },
+  { at: 3600, state: 'rest' },
+];
+
+/** The voices of the picker; the middle one is chosen, then heard. */
+const SAMPLE_VOICES = ['warm', 'bright', 'calm'] as const;
+const SAMPLE_CHOSEN = 'bright';
+/** Bar heights of the sample being played, a still waveform once it ends. */
+const SAMPLE_BARS = [
+  'h-1.5 [animation-delay:0ms]',
+  'h-3 [animation-delay:90ms]',
+  'h-2 [animation-delay:180ms]',
+  'h-3.5 [animation-delay:270ms]',
+  'h-2.5 [animation-delay:360ms]',
+  'h-1.5 [animation-delay:450ms]',
+  'h-3 [animation-delay:540ms]',
+] as const;
+
+/**
+ * Hear it before you keep it: choosing a voice plays a short sample of it at
+ * once, with one control to stop it or play it again.
+ */
+function VoiceSampleScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(SAMPLE_STEPS, { active });
+  const chosen = phase !== 'list';
+  const playing = phase === 'playing';
+  return (
+    <div className={cn(STAGE, 'justify-center')}>
+      <div className="w-full max-w-[210px] space-y-1">
+        {SAMPLE_VOICES.map(voice => (
+          <div
+            key={voice}
+            className={cn(
+              'flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 transition-all duration-300',
+              chosen && voice === SAMPLE_CHOSEN && 'ring-2 ring-primary/50'
+            )}
+          >
+            <Volume2
+              className={cn(
+                'h-2.5 w-2.5 shrink-0',
+                chosen && voice === SAMPLE_CHOSEN ? 'text-primary' : 'text-muted-foreground'
+              )}
+            />
+            <span className="truncate text-px-9 text-foreground/80">{labels[voice]}</span>
+          </div>
+        ))}
+        <div
+          className={cn(
+            'flex items-center gap-1.5 overflow-hidden rounded-md bg-primary/10 px-2 transition-all duration-500',
+            chosen ? 'max-h-7 py-1 opacity-100' : 'max-h-0 py-0 opacity-0'
+          )}
+        >
+          {playing ? (
+            <Square className="h-2.5 w-2.5 shrink-0 fill-primary text-primary" />
+          ) : (
+            <Play className="h-2.5 w-2.5 shrink-0 text-primary" />
+          )}
+          <span className="flex h-3.5 items-end gap-px" aria-hidden="true">
+            {SAMPLE_BARS.map((bar, index) => (
+              <span
+                key={index}
+                className={cn(
+                  'w-0.5 rounded-full bg-primary/70 transition-all duration-300',
+                  playing ? bar : 'h-1',
+                  playing && active && 'motion-safe:animate-pulse'
+                )}
+              />
+            ))}
+          </span>
+          <span className="truncate text-px-8 text-muted-foreground">
+            {labels[playing ? 'playing' : 'replay']}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 type DocPhase = 'icons' | 'near' | 'pages' | 'rest';
 const DOC_STEPS: readonly TimelineStep<DocPhase>[] = [
   { at: 0, state: 'icons' },
@@ -1033,5 +1117,6 @@ export const DAILY_SCENES: Readonly<Record<string, SceneComponent>> = {
   server_escape_hatch: ServerEscapeHatchScene,
   day_timeline: DayTimelineScene,
   voices_in_language: VoicesInLanguageScene,
+  voice_sample: VoiceSampleScene,
   document_first_page: DocumentFirstPageScene,
 };

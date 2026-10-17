@@ -1,24 +1,23 @@
 {
-  "revision": "635f17217f5f26ed",
-  "capturedAt": "2026-10-10T03:05:12.416Z",
-  "fixtureTime": "2026-10-10T07:30:00Z",
+  "revision": "ba487d47f4830831",
+  "capturedAt": "2026-10-16T23:02:56.488Z",
+  "fixtureTime": "2026-10-12T07:30:00Z",
   "locale": "en",
   "theme": "light",
   "viewport": {
-    "width": 1440,
-    "height": 960
+    "width": 1600,
+    "height": 1100
   },
   "avatar": {
     "style": "bip",
+    "size": "xl",
     "variant": "male",
     "bodyAsset": "/avatars/bip/v1/male/body.webp",
-    "reducedMotion": true,
-    "preferences": "Isolated browser localStorage and lia_gender cookie; native reduced-motion media preference verified; real rendered character, variant, hybrid renderer and body asset checked before every capture.",
-    "paintedBodyGuaranteedEveryScene": false,
-    "visualQualification": "The isolated browser preference and real rendered DOM select BIP male on all nine routes. DOM bounds do not certify a painted body in the PNG. A painted body was not established by every reviewer for Relations, Meetings and Radio; no alternative LIA avatar was identified, and no product/CSS or avatar position was altered to force one."
+    "reducedMotion": false,
+    "preferences": "Real maximum XL preference through isolated browser localStorage and male cookie. Real mouse moves toward the screen centre renew native cursor gaze. Character, size, hybrid renderer and body asset checked before every capture; each PNG still requires pixel review."
   },
-  "data": "Real frontend routes, handwritten fictional demonstration data. No account, backend, model or external action was exercised. Radio playback used only a local silent WAV; no generated voice was heard.",
-  "sourceCommit": "39152fad2f26d23ecd21121a43c3eac1056edd70",
+  "data": "Real frontend routes, handwritten fictional personal and venue data, and separately recorded real public geographical assets. Native domain cards are exact production backend renderer output from synthetic payloads; response prose uses the prompt HTML vocabulary. No account, backend server, model or external action was exercised during browser capture. Radio playback used only a local silent WAV; no generated voice was heard.",
+  "sourceCommit": "04137b040016b060e491c29f840efdb3c50dcfdb",
   "sourceIncludesLocalChanges": true,
   "browser": {
     "engine": "Chromium headless shell",
@@ -28,91 +27,612 @@
   "transportGuard": {
     "blockedRequests": []
   },
-  "converter": {
-    "source": "data/skills/system/unit-converter/scripts/render_converter.py",
-    "sourceSha256": "9c29a72c38cc8406fcf76cbee83e85c9c846245abb8540a271a834f833363936",
-    "emittedAspectRatio": 0.85,
-    "emittedHtmlSha256": "f9e6f9ef04edec88871e7c5755578342e1513a96208d5f53f6a272c1e8687ec1"
+  "skill": {
+    "source": "apps/web/e2e/capture/render_trip_budget.py",
+    "sourceSha256": "d031d6e48e2bf67d6f28b1062ddd4f11065cc58800dccb0792252f21ba83fa9b",
+    "emittedAspectRatio": 1.65,
+    "emittedHtmlSha256": "d58381173da1aca04ed21960ecb8045a1c7961945ede2e75adef95fc0ac9c292",
+    "systemSkill": false
+  },
+  "geography": {
+    "provenance": {
+      "preparedAt": "2026-10-16T22:23:31.777938+00:00",
+      "source": "Google Maps Static API and Google Routes API, using public Lyon landmarks.",
+      "requests": [
+        {
+          "service": "Google Routes",
+          "endpoint": "computeRoutes",
+          "status": 200
+        },
+        {
+          "service": "Google Maps Static",
+          "endpoint": "staticmap",
+          "status": 200
+        },
+        {
+          "service": "Google Maps Static",
+          "endpoint": "staticmap",
+          "status": 200
+        }
+      ],
+      "automaticRetries": 0,
+      "accountDataAccessed": false,
+      "origin": {
+        "label": "Place Bellecour, Lyon",
+        "latitude": 45.7578,
+        "longitude": 4.832
+      },
+      "destination": {
+        "label": "Lyon Part-Dieu station",
+        "latitude": 45.7606,
+        "longitude": 4.8596
+      },
+      "route": {
+        "mode": "WALK",
+        "distanceMeters": 2685,
+        "duration": "2279s"
+      },
+      "images": [
+        {
+          "file": "lyon-location.png",
+          "sha256": "0a402173fb22577dda0f4f46244844dd305978ac9b85fa61f7f0e3dff63943a5",
+          "width": 1280,
+          "height": 600
+        },
+        {
+          "file": "lyon-route.png",
+          "sha256": "5dd1459cbb19232606e3434ac67588720363840ea2f04cb2b0be6180b23981bf",
+          "width": 1280,
+          "height": 600
+        }
+      ],
+      "attribution": "Native Google logo and map-data attribution retained in both unmodified PNGs.",
+      "capturePolicy": "Prepare these public geographical assets once; browser capture fulfils the app's media proxy locally and makes no Google request."
+    },
+    "cardsSource": "apps/web/e2e/fixtures/maps/cards.json",
+    "cardsSha256": "a197971522228f87d5a24a18ba1b07f7a679b31f98fcc3f6c223f8681e1e6583",
+    "renderers": [
+      {
+        "source": "apps/api/src/domains/agents/display/components/place_card.py",
+        "sha256": "a7582dc09147456e986ae11eb5b4b6d6a7efeb1cb49e77ebb350930cf3dd70c5"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/location_card.py",
+        "sha256": "939b721789d1611c116f87bdb73e0c71a1850ac82fd34a9838c4b631a6606dbc"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/route_card.py",
+        "sha256": "6e5d8934f509edee25f3fee274d775d57b13326121b045c045f97b4e4477c1c3"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/route_journey.py",
+        "sha256": "e2ad2b5d070fea4d320aab0e5ba26bfe7f1d76c8c3975b622bddbfadabe422de"
+      }
+    ]
+  },
+  "nativeCards": {
+    "source": "apps/web/e2e/fixtures/native-cards.json",
+    "sourceSha256": "b7f113e85b84e82838b3d269bb5f879b0290119c68f97311dfe2b611268687e2",
+    "generator": "apps/web/e2e/capture/render_native_cards.py",
+    "generatorSha256": "c7b5efbd38fc8725929c8c0bb066a40a50f339b22cf4abf1966282b01260518d",
+    "policy": "Production HtmlRenderer.render(events) and HtmlRenderer.render_multi(files/emails), without editing their HTML. Fictional complete provider-shaped inputs. The capture clock is fixed; inherited environment removed; empty cwd; socket connections forbidden. No account, provider call, backend server, credential file or .env read.",
+    "renderers": [
+      {
+        "source": "apps/api/src/domains/agents/display/__init__.py",
+        "sha256": "6640798a52072f1bff0d2a117f4de075a1c826b8bc7a5ba0964cc148f150a6d4"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/binding_filter.py",
+        "sha256": "55a466cbf7b29e3f78a1380b8775cb6963dcfc4dfe15f9ccd437574c228de292"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/card_actions.py",
+        "sha256": "ca46f563d4d641a05ec91130488483db4f59e50ec4957485a373c34bd5abddb8"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/card_collection.py",
+        "sha256": "9863870c07f7fa8b8f4c75cd77a503d80ba31fb7171245d2cea0e584f3be5470"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/collection_preview.py",
+        "sha256": "537ccebdf7d6cb475066aadda82e96efc01be79bd7c3a21b669a0a5d20c00b14"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/component_registry.py",
+        "sha256": "cb110521e2fbc4d00a46bcb56b4a7fc771e6cee1f3d0b72e0bbc4f480632d110"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/__init__.py",
+        "sha256": "c1ef96c45926a5537ca882170fcc82d5cfb4b14973be4cf3d2692bdb5be436a1"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/article_card.py",
+        "sha256": "219abf7e1594a92618858a29563fbc8a4e1cfa271cba152d351851a1cdf3f772"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/article_details.py",
+        "sha256": "5ecfc010d49f30f3d9db15fd481d4cd9843f5067a08ac3dcf2d869f7443b757a"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/base.py",
+        "sha256": "bf100582ad095f843373a663e7f3a0b6a5766acaf80763632ac95321db5c9982"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/calendar_card.py",
+        "sha256": "b5952484463f3a5a24060edc5b4427f88710785eb8fd8ced2f2d0e50520014c6"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/calendar_details.py",
+        "sha256": "57619df4e465016aaf7270a5f41bce12483edc950850292d2f43ad99e6ad293b"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/calendar_facts.py",
+        "sha256": "636fc029938ddc7b9dded61556d5c973ba580e63de133f9ad95888c00ccb158c"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/card_chips.py",
+        "sha256": "eba9601d08c3274468d2d37c6d6c2ca596f0733ecd0d5219f33abd2db88e2bf9"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/card_content.py",
+        "sha256": "592dbd9f40b5e307fb0ad2d12d5d025d2a150e0ac242cd29748af47f7cf3fec4"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/conference_details.py",
+        "sha256": "323e2ff800decc250fb9f494752faeba32d0f77daec2e35c61ac5ecf90dcd761"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/contact_card.py",
+        "sha256": "b2ce68e2a198eb3d7de92e5f4d7b00e64060e751ee3d3f705f4589ea4423a7d4"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/contact_details.py",
+        "sha256": "ec33fb8966da3a2b16e455d641357d2bef9df56392c602383dde466e2ab1c2eb"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/contact_facts.py",
+        "sha256": "9c5cf07b9286ff0c9c68eb4f79f01f048be92b2ce7d5e048cbdb4533b0a73105"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/email_body.py",
+        "sha256": "af63c3c278e29f79977c1c7679de8ee7f21d2c29aa75514d71ea642a789f3106"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/email_card.py",
+        "sha256": "6d192e940481dd219b61101f86bd1b3c0b18df83630cbb89d9278e0efe462cab"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/environment_row.py",
+        "sha256": "d712ac9796c1f0aa9fd41d94a223cd7b6654a16c7cd342af9eb0fec736f96a66"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/event_card.py",
+        "sha256": "de979ffe7d658b7838bcd5d7138096063020b79d25e78d503607580a371e168a"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/file_details.py",
+        "sha256": "dc520830a872b327daa050b591c5fbd2815baab1307ef5187310dfaab2d68152"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/file_item.py",
+        "sha256": "444bd8f074c2c40fb9ea3e34c30076d2510133697cb44de64f566bc16cd37ca8"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/folded_synthesis.py",
+        "sha256": "2183e32587c6ba9840a6bd952a2537f4808993aea945a5873d0da8f6ffaff4b2"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/html_flatten.py",
+        "sha256": "8dd79ba2b65d006b6f7a0d5accabdc8c7769e05a939247d4d0a404192fb2df05"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/light_details.py",
+        "sha256": "dfe6bc4fd3fe610966260a0916385d355d4762f321d5a1f820cf85d422d56443"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/location_card.py",
+        "sha256": "939b721789d1611c116f87bdb73e0c71a1850ac82fd34a9838c4b631a6606dbc"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/map_hero.py",
+        "sha256": "4831106a4876fc994dbbc9ba4811754be9d207dcd067030a7855f8acde17de6e"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/mcp_app_sentinel.py",
+        "sha256": "fa220c5aeb9345cff7b2cd4c818045d07669729c4b88511530c7d682ed3d61eb"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/mcp_details.py",
+        "sha256": "83f379fb0a41299415cd2d69b07f50dffa04ca30d2491eac63526ebd9df70217"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/mcp_result_card.py",
+        "sha256": "0e74cecdee485962cbbca1b0149e963b009fd39e25c4fd6eede4da9d23f9b771"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/place_card.py",
+        "sha256": "a7582dc09147456e986ae11eb5b4b6d6a7efeb1cb49e77ebb350930cf3dd70c5"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/place_dates.py",
+        "sha256": "fc71b7ab8ace84c0eec313ef644eb1acd56332fc256ba21849e9f19538b55b03"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/place_details.py",
+        "sha256": "ad15ddd144b20d4bd730fdb8f705819edeb7e054f99a1738278bfc3161f8e6b2"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/place_hours.py",
+        "sha256": "ed82b1daaad6d66674c7a7f6d1fb639f28af189d2fccdd8c98202afd27231dc2"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/place_photo.py",
+        "sha256": "f897d7861908522dc0630ce535d73277d7207c9dc7ed0eba7a7600b1a8557c3e"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/place_reviews.py",
+        "sha256": "1bd411c4e675c9bbd95253f3c83d68226cbfe0d682f2f96ff79c63974d1e0bf9"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/reminder_card.py",
+        "sha256": "b247fd6c142a3942da2e3494cafad410c41cead6c21ef9c73c329726825b5163"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/research_content.py",
+        "sha256": "e7bed194fd6d406dcd994ca03cfcc0d5bd4e6f1b4dc6bd9df8f9ac85033f8097"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/route_card.py",
+        "sha256": "6e5d8934f509edee25f3fee274d775d57b13326121b045c045f97b4e4477c1c3"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/route_journey.py",
+        "sha256": "e2ad2b5d070fea4d320aab0e5ba26bfe7f1d76c8c3975b622bddbfadabe422de"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/route_map.py",
+        "sha256": "7157f4fdb2927aef7613c5491e27ba54f3c8dbe2eea57d590c6a328d36827c06"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/search_result_card.py",
+        "sha256": "d6801198285f2bd917ddb006bd5540d7dd7866c041fbdf62d21338cb62b2a7af"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/skill_app_sentinel.py",
+        "sha256": "c3c28dbf3c35d01a57cf31852fc38d9d751f05b78b121637cb778dbbf76fb7c9"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/snapshot_cards.py",
+        "sha256": "c6d2db5cca0c0f2f072d6c13dcbdebff61b074ba3b5fae77f92d37eb168c96b9"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/source_attribution.py",
+        "sha256": "8c3e02963981fe970d5699df6382c65e5bb89511acf225fe37af66e574f542fb"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/source_details.py",
+        "sha256": "fe0ba6e6d3e8e050752545ac48697930bb79593ee9f10e07fca461e5f03bbefd"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/source_recurrence.py",
+        "sha256": "fd2ff0ffdf22752670ef2297d2105c7f297f5e5ac795baa7ee292d4717b87627"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/task_details.py",
+        "sha256": "d2c50d43a284859802b4d5d7a2b734281895b8493eb7a7c89d2c8c7c95b874bd"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/task_item.py",
+        "sha256": "671b12aec102592212ca4f1c25b10301a811d9560efc57be9f0f80a0028c9111"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/ticket_details.py",
+        "sha256": "d3ca6dfecf30261c78822fcdbcb8c0db3f8ae84453817a9eabe8ca45a573af12"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/ticket_fields.py",
+        "sha256": "d243ac0633882769a526464319b53ac0a12657d0da61e905aac02f8ab3bb53e7"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/weather_card.py",
+        "sha256": "17d30a48c5efc4ce5b45e4aa6bb84195354816ddcf64097f0c10fda4f2b5e273"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/weather_collection.py",
+        "sha256": "1d094babf427402a026950602f774147aefdfe641df5a55c8f0b5af0af3eeb0b"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/weather_details.py",
+        "sha256": "445f16c036539a7dfa8e67876860413f60c9bfb3217432d5ddf5fa44dbabffee"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/weather_series.py",
+        "sha256": "0c58995702aa8ccd35b2a87a4193bb52bdb10a2e0faa69c2f170702c36e3bd9a"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/web_search_card.py",
+        "sha256": "c1c2c29ed3e702a081c24f4000951c97e80814e1cc8f384aa1f2bca16db5d0cf"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/config.py",
+        "sha256": "b19052254757b4233b770a95fa6ea56719e31c8a54eb8a4c8f5dbbaf778eaa84"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/document_preview.py",
+        "sha256": "4fd294d743a322a74171881d71950b15840543b03eb5a8be5d9a2becdc5004e3"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/escaping.py",
+        "sha256": "5c414cc1231d6a98d8ad7464434a29c7205c831eb2dcd0b618be102c70d548d5"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/filter_evidence.py",
+        "sha256": "b5b0bc678f68f0d46768c7225e115f9a8858230a112d0a29ffbcada12bfb4dcc"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/html_renderer.py",
+        "sha256": "3375e2f4865fe90e7367ebe36ed55a320cdc1bcfb43d0bdc93c1b4ef71a70c08"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/icons.py",
+        "sha256": "a2b4419bebe2b10d0ca93f2b40a80b185f837a99b54ef5dfd4f8843e82b9e545"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/jev_collection_time.py",
+        "sha256": "3986b13f6852f9f319c8f831627daa9f33fb5d909df80ef841a0471f1dc9843f"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/jev_qualification.py",
+        "sha256": "6252d4f1f2a6cb833c2ec8925f26586e2518dfef867122a6091c9c75bb3e0fd5"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/jev_snapshot.py",
+        "sha256": "f39b0db56fe1f2902c4c8e5fcb4ef1779b1c06233ac6732c3a74a6db2075f075"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/llm_serializer.py",
+        "sha256": "e372684038ca3bf0a96d6b828ccc2a6ee604b19aebe423870128d8df4d31ebff"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/mailbox_draft.py",
+        "sha256": "693c1a43cca52f1fa1a8ef6aa15309f88658fda06e49546b597aceac4ff149a0"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/model_history.py",
+        "sha256": "6e556b33f4b72bf9f24a994a7ab9a738fef5aa735f587a16962c0f2cf7cc804a"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/plain_text.py",
+        "sha256": "60b5bb18f850a1968cdf8f09114560791b440c79093a9dcecf709f54300afccf"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/sentinel_filter.py",
+        "sha256": "dbadf9d3b2fe830229f0a06027e515ce7d3313105d9204b808967096a8da196e"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/ticket_labels.py",
+        "sha256": "213e32fe51feb78cc53f689a22fdea8a2c923e0e83769354bb2bd4982d2054d4"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/ticket_run_labels.py",
+        "sha256": "86395d10e303dcd65b948475bfa3f2df1d7ab03ebdb872dfc49c472875d4f1bd"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/urls.py",
+        "sha256": "3d79b84590644e5d6acebea52c84399db7707cad49545d2fceeb5a47b610bc03"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/values.py",
+        "sha256": "6cfb7f83f92dac4edcac947b19da91cd9936fae98dc1a76902fd037b65dfff17"
+      }
+    ]
+  },
+  "visualReview": {
+    "reviewedAt": "2026-10-16T23:04:01.402Z",
+    "reviewer": "Codex visual inspection",
+    "method": "Opened every final PNG and inspected the pixels. Verified native domain cards against production HtmlRenderer output and exact renderer/source hashes, actual English/light UI, populated information, male BIP body paint at the real XL preference, complete Google logo/copyright, compact folded route details, and native disclosure states. Every approval binds to the exact SHA-256 bytes; DOM visibility alone was not treated as proof of painted pixels.",
+    "images": [
+      {
+        "file": "dossier.png",
+        "sha256": "b2f43281bc1e55f825fe0b35be07409fe5e6af63d8552cdb24703c09a8c74c82",
+        "approved": true,
+        "avatarPainted": true,
+        "notes": "Compact synthesis and both complete native production FileItem/EmailCard outputs, including source metadata, native details disclosures and actions. Real native scroll keeps the cards above the composer. Male BIP XL painted."
+      },
+      {
+        "file": "approval.png",
+        "sha256": "4923efc20dadc162e08bb99171e7ba4d9557ca7af6aaf224ad88895b53e3fe0d",
+        "approved": true,
+        "avatarPainted": true,
+        "notes": "Response prose and the actual React pending-draft card with confirm/modify/cancel controls. No handwritten domain card markup. Male BIP XL and native question expression painted."
+      },
+      {
+        "file": "knowledge.png",
+        "sha256": "ccd850ba796a55a0eb487b9e152948070b0e0abad750aefcbb6f4bf180f179a1",
+        "approved": true,
+        "avatarPainted": true,
+        "notes": "Four populated indexed-document rows and both linked source sections visible. Male BIP XL painted."
+      },
+      {
+        "file": "skill.png",
+        "sha256": "b5da49e4815d13bd054f7b76d9651c4104fd50a4822a90fb7ba2c05c4b44e839",
+        "approved": true,
+        "avatarPainted": true,
+        "notes": "Actual Python-generated Weekend Budget Studio frame, all five cost categories and two trip days. Native slider changed budget to EUR900; total584 and margin316 are visible. Male BIP XL painted."
+      },
+      {
+        "file": "memory.png",
+        "sha256": "327bbb6adba4320a22d2205cabaa6688e46eed53fe130132ab0967803c012eba",
+        "approved": true,
+        "avatarPainted": true,
+        "notes": "Complete actual memory editor with content, nuance, trigger, weight, importance and controls. Male BIP XL visibly painted beneath the authentic modal backdrop."
+      },
+      {
+        "file": "administration.png",
+        "sha256": "597c6e8b67e234ca5c66c0015e7fd4c0c8f1f4999a46f438afa5d8f8047d3fd4",
+        "approved": true,
+        "avatarPainted": true,
+        "notes": "Instance ceiling plus all three populated demo user rows visible. Male BIP XL painted."
+      },
+      {
+        "file": "relations.png",
+        "sha256": "858aab85d4f4a745cffefb31ff7bcc06c4d87d34f2e939b8ee215299623bbad1",
+        "approved": true,
+        "avatarPainted": true,
+        "notes": "Complete debrief, both commitments and both exchanged emails visible through native scrolling. Male BIP XL painted."
+      },
+      {
+        "file": "meetings.png",
+        "sha256": "5d2129a61ea927f099c3a3cd39eef95f71059e9be460918f7d09f127c913075a",
+        "approved": true,
+        "avatarPainted": true,
+        "notes": "Actual React MeetingDetail page with participants, summary, decisions, owner/due actions and transcript/export controls. No handwritten appointment-card markup. Male BIP XL painted."
+      },
+      {
+        "file": "radio.png",
+        "sha256": "19adfa141897aff48fd269aaf0ded066b9c9b947628122e123a8f7963c65f90b",
+        "approved": true,
+        "avatarPainted": true,
+        "notes": "Native paused player, populated opening transcript, source and article visible. Only a local silent WAV was decoded. Male BIP XL painted."
+      },
+      {
+        "file": "places.png",
+        "sha256": "98663abe581a65f2307e46fe12aeb1d60ac72635f3fa1346e075732d1c0a69f4",
+        "approved": true,
+        "avatarPainted": true,
+        "notes": "Exactly one complete production PlaceCard with rating, price, address, current opening status and all populated hours/accessibility/payment disclosures expanded. Male BIP XL painted."
+      },
+      {
+        "file": "maps.png",
+        "sha256": "8fe9cf3c4add901bb98c677c71fa954c805c140797cb933cd706831738628662",
+        "approved": true,
+        "avatarPainted": true,
+        "notes": "Actual LocationCard with the complete unmodified recorded Google map, meeting marker, address and coordinates. Complete Google logo and Map data attribution visible; BIP XL stays away from attribution."
+      },
+      {
+        "file": "routes.png",
+        "sha256": "0faed007bc02ded2fc3ede29d88c8ea6ac4369addac5c204ccb19ada1643df1a",
+        "approved": true,
+        "avatarPainted": true,
+        "notes": "Compact actual RouteCard with complete unmodified Google map, attribution, received2.685km/38min route, both endpoints and Open in Maps action. All17 received steps remain in the fixture, natively folded in the image. Male BIP XL painted."
+      }
+    ]
   },
   "images": [
     {
       "file": "dossier.png",
-      "sha256": "4301d3f11c9bc255a573586a647eb8047a2236aee960fcd91a31ed236bbaf8c5",
-      "width": 1440,
-      "height": 960
+      "sha256": "b2f43281bc1e55f825fe0b35be07409fe5e6af63d8552cdb24703c09a8c74c82",
+      "width": 1600,
+      "height": 1400
     },
     {
       "file": "approval.png",
-      "sha256": "2cb5ac5765fbf67f09d0f1cdd20e4c45682595dc579c13269b0ad7f545e8806e",
-      "width": 1440,
-      "height": 960
+      "sha256": "4923efc20dadc162e08bb99171e7ba4d9557ca7af6aaf224ad88895b53e3fe0d",
+      "width": 1600,
+      "height": 1100
     },
     {
       "file": "knowledge.png",
-      "sha256": "ba737cd2908186cea1d93aafe14955b4949bd08d5870e9d999da30a4ca91728b",
-      "width": 1440,
-      "height": 960
+      "sha256": "ccd850ba796a55a0eb487b9e152948070b0e0abad750aefcbb6f4bf180f179a1",
+      "width": 1600,
+      "height": 1100
     },
     {
       "file": "skill.png",
-      "sha256": "1ff9def9afe91fcf806401781383106f75e81aac895aaebf7192c174dca6575f",
-      "width": 1440,
-      "height": 960
+      "sha256": "b5da49e4815d13bd054f7b76d9651c4104fd50a4822a90fb7ba2c05c4b44e839",
+      "width": 1600,
+      "height": 1100
     },
     {
       "file": "memory.png",
-      "sha256": "082c8a7c91686b4a019ebb8b2a425df072d1b7e2076a249b16357ee0de6ba028",
-      "width": 1440,
-      "height": 960
+      "sha256": "327bbb6adba4320a22d2205cabaa6688e46eed53fe130132ab0967803c012eba",
+      "width": 1600,
+      "height": 1100
     },
     {
       "file": "administration.png",
-      "sha256": "0337f04b6bfd66ff8890122b0af8575fdd25a4ed8aa7538d6b195068698fdc25",
-      "width": 1440,
-      "height": 960
+      "sha256": "597c6e8b67e234ca5c66c0015e7fd4c0c8f1f4999a46f438afa5d8f8047d3fd4",
+      "width": 1600,
+      "height": 1100
     },
     {
       "file": "relations.png",
-      "sha256": "c9ef2516e4c7fd38c98820748f0189937e88f1c616a7ce36834007b354510e02",
-      "width": 1440,
-      "height": 960
+      "sha256": "858aab85d4f4a745cffefb31ff7bcc06c4d87d34f2e939b8ee215299623bbad1",
+      "width": 1600,
+      "height": 1100
     },
     {
       "file": "meetings.png",
-      "sha256": "b7dda7d9bea12410490767147a3777f9d8c634227e3adfa29837a5a4c2ffd5a4",
-      "width": 1440,
-      "height": 960
+      "sha256": "5d2129a61ea927f099c3a3cd39eef95f71059e9be460918f7d09f127c913075a",
+      "width": 1600,
+      "height": 1100
     },
     {
       "file": "radio.png",
-      "sha256": "bcb23eb881be754f33e7f00c68f30fcd7ae48c2ee81d08b9c9577a7960250814",
-      "width": 1440,
-      "height": 960
+      "sha256": "19adfa141897aff48fd269aaf0ded066b9c9b947628122e123a8f7963c65f90b",
+      "width": 1600,
+      "height": 1100
+    },
+    {
+      "file": "places.png",
+      "sha256": "98663abe581a65f2307e46fe12aeb1d60ac72635f3fa1346e075732d1c0a69f4",
+      "width": 1600,
+      "height": 1400
+    },
+    {
+      "file": "maps.png",
+      "sha256": "8fe9cf3c4add901bb98c677c71fa954c805c140797cb933cd706831738628662",
+      "width": 1100,
+      "height": 1100
+    },
+    {
+      "file": "routes.png",
+      "sha256": "0faed007bc02ded2fc3ede29d88c8ea6ac4369addac5c204ccb19ada1643df1a",
+      "width": 1100,
+      "height": 1300
     }
   ],
   "scenes": [
     {
       "name": "dossier",
       "route": "/en/dashboard/chat",
-      "exercised": ["real chat route, rich HTML renderer and active-space indicator"],
+      "viewport": {
+        "width": 1600,
+        "height": 1400
+      },
+      "exercised": [
+        "real chat route, native HtmlRenderer.render_multi output for one FileItem and one EmailCard; compact synthesis and active-space indicator"
+      ],
       "illustrated": [
-        "cross-source analysis, source contents and suggested next steps; no inference performed"
+        "fictional cross-source comparison and complete source payloads; calendar is synthesis context, its native EventCards are illustrated in the public agenda campaign; no inference, document fetch, email lookup or calendar query performed"
       ],
       "avatarDomBoundsInViewport": 2
     },
     {
       "name": "approval",
       "route": "/en/dashboard/chat",
+      "viewport": {
+        "width": 1600,
+        "height": 1100
+      },
       "exercised": [
         "pending interrupt rehydration and real HITL draft preview, confirm/edit/cancel controls"
       ],
-      "illustrated": ["draft contents; no decision submitted, no email sent"],
+      "illustrated": [
+        "draft contents; no decision submitted, no email sent"
+      ],
       "avatarDomBoundsInViewport": 2
     },
     {
       "name": "knowledge",
       "route": "/en/dashboard/spaces/00000000-0000-4000-8000-000000000ad1",
-      "exercised": ["real space detail, source lists and indexed-document rows"],
+      "viewport": {
+        "width": 1600,
+        "height": 1100
+      },
+      "exercised": [
+        "real space detail, source lists and indexed-document rows"
+      ],
       "illustrated": [
         "document contents, completed synchronization and embedding costs; no indexing performed"
       ],
@@ -121,29 +641,55 @@
     {
       "name": "skill",
       "route": "/en/dashboard/chat",
+      "viewport": {
+        "width": 1600,
+        "height": 1100
+      },
       "exercised": [
-        "real SkillAppWidget iframe; existing unit-converter script and its emitted title/HTML/aspect ratio; 2.5m to 250cm conversion; chat scrolled to the request"
+        "real user-skill SkillAppWidget iframe; locally executed Python generator and its emitted title/HTML/aspect ratio; seven native range-key increments from €760 to €900; €584 total and €316 remaining; chat scrolled to the request"
       ],
-      "illustrated": ["assistant introduction; no skill invocation or provider call"],
+      "illustrated": [
+        "assistant introduction and estimated travel costs are fictional; no installed system skill, booking lookup, model or provider call"
+      ],
       "avatarDomBoundsInViewport": 2
     },
     {
       "name": "memory",
       "route": "/en/dashboard/settings?section=memories",
-      "exercised": ["real memory list, opening its edit dialog and editing the content field"],
-      "illustrated": ["existing remembered preferences and metadata; changes not saved"],
+      "viewport": {
+        "width": 1600,
+        "height": 1100
+      },
+      "exercised": [
+        "real memory list, opening its edit dialog and editing the content field"
+      ],
+      "illustrated": [
+        "existing remembered preferences and metadata; changes not saved"
+      ],
       "avatarDomBoundsInViewport": 1
     },
     {
       "name": "administration",
       "route": "/en/dashboard/settings?section=admin-usage-limits",
-      "exercised": ["real administration section, instance ceiling and three users’ quota gauges"],
-      "illustrated": ["all usage, account and budget values are fictional; no quota saved"],
+      "viewport": {
+        "width": 1600,
+        "height": 1100
+      },
+      "exercised": [
+        "real administration section, instance ceiling and three users’ quota gauges"
+      ],
+      "illustrated": [
+        "all usage, account and budget values are fictional; no quota saved"
+      ],
       "avatarDomBoundsInViewport": 1
     },
     {
       "name": "relations",
       "route": "/en/dashboard/relations",
+      "viewport": {
+        "width": 1600,
+        "height": 1100
+      },
       "exercised": [
         "real Relations overview and person detail; opening commitments and exchanged-email sections; real debrief, scope and contact/peer affordances"
       ],
@@ -155,6 +701,10 @@
     {
       "name": "meetings",
       "route": "/en/dashboard/meetings/00000000-0000-4000-8000-000000000ad2",
+      "viewport": {
+        "width": 1600,
+        "height": 1100
+      },
       "exercised": [
         "real ready-meeting route, participants, structured decisions/actions, edit/export/reformat affordances"
       ],
@@ -166,6 +716,10 @@
     {
       "name": "radio",
       "route": "/en/dashboard/radio",
+      "viewport": {
+        "width": 1600,
+        "height": 1100
+      },
       "exercised": [
         "real radio start and pause controls, programme player, transcript, per-line sources, next programme and cited-article list; only a local silent WAV was decoded"
       ],
@@ -173,6 +727,51 @@
         "programme, sources, articles and cost estimates are fictional; no news verification, voice generation, personal-data fetch or provider access"
       ],
       "avatarDomBoundsInViewport": 1
+    },
+    {
+      "name": "places",
+      "route": "/en/dashboard/chat",
+      "viewport": {
+        "width": 1600,
+        "height": 1400
+      },
+      "exercised": [
+        "real chat HTML-and-cards renderer; one complete PlaceCard output with type, rating, price, address, opening status; native opening-hours disclosure expanded, plus populated accessibility and payment sections"
+      ],
+      "illustrated": [
+        "one fictional venue name, rating, schedule and services; no second hidden venue, Google Places query, call or booking"
+      ],
+      "avatarDomBoundsInViewport": 2
+    },
+    {
+      "name": "maps",
+      "route": "/en/dashboard/chat",
+      "viewport": {
+        "width": 1100,
+        "height": 1100
+      },
+      "exercised": [
+        "real LocationCard output in the chat; native Google static-map proxy fulfilled from the recorded, unmodified local Google PNG; address, city, country and coordinates"
+      ],
+      "illustrated": [
+        "public landmark rather than current device location; no account GPS, geocoding or Google request during browser capture"
+      ],
+      "avatarDomBoundsInViewport": 2
+    },
+    {
+      "name": "routes",
+      "route": "/en/dashboard/chat",
+      "viewport": {
+        "width": 1100,
+        "height": 1300
+      },
+      "exercised": [
+        "real RouteCard output, local unmodified Google map, received 2.685 km / 38 min walking route, endpoints and native Open in Maps action; 17 received steps remain natively folded for a compact readable preview"
+      ],
+      "illustrated": [
+        "public Bellecour-to-Part-Dieu geographical fixture recorded separately; complete steps remain in the fixture; no live navigation, current travel condition claim or Google request during browser capture"
+      ],
+      "avatarDomBoundsInViewport": 2
     }
   ]
 }

@@ -28,6 +28,8 @@ voice with LIA, the anchor or another commentator: the settings grey those
 voices out. Your choices are kept when the administrator changes the model of
 the same provider, and on the engines that voice several speakers a debate is
 played in one take.
+Each voice you choose plays a short sample; a radio that is playing pauses so
+you can hear it.
 
 When a session starts and you have your own Brave or Perplexity key, up to
 five of your strongest interests are searched with it, and every story found

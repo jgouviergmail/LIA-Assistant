@@ -1,0 +1,153 @@
+{
+  "routes": [
+    {
+      "legs": [
+        {
+          "steps": [
+            {
+              "distanceMeters": 38,
+              "staticDuration": "29s",
+              "navigationInstruction": {
+                "maneuver": "DEPART",
+                "instructions": "Head south"
+              }
+            },
+            {
+              "distanceMeters": 164,
+              "staticDuration": "132s",
+              "navigationInstruction": {
+                "maneuver": "TURN_LEFT",
+                "instructions": "Turn left toward Pl. Bellecour"
+              }
+            },
+            {
+              "distanceMeters": 12,
+              "staticDuration": "10s",
+              "navigationInstruction": {
+                "maneuver": "TURN_LEFT",
+                "instructions": "Turn left onto Pl. Bellecour"
+              }
+            },
+            {
+              "distanceMeters": 174,
+              "staticDuration": "160s",
+              "navigationInstruction": {
+                "maneuver": "TURN_RIGHT",
+                "instructions": "Turn right onto Rue de la Barre"
+              }
+            },
+            {
+              "distanceMeters": 332,
+              "staticDuration": "290s",
+              "navigationInstruction": {
+                "maneuver": "NAME_CHANGE",
+                "instructions": "Continue onto Pont de la Guilloti\u00e8re"
+              }
+            },
+            {
+              "distanceMeters": 105,
+              "staticDuration": "82s",
+              "navigationInstruction": {
+                "maneuver": "TURN_LEFT",
+                "instructions": "Turn left toward Quai Victor Augagneur"
+              }
+            },
+            {
+              "distanceMeters": 5,
+              "staticDuration": "4s",
+              "navigationInstruction": {
+                "maneuver": "TURN_RIGHT",
+                "instructions": "Turn right toward Quai Victor Augagneur"
+              }
+            },
+            {
+              "distanceMeters": 73,
+              "staticDuration": "58s",
+              "navigationInstruction": {
+                "maneuver": "TURN_LEFT",
+                "instructions": "Turn left onto Quai Victor Augagneur"
+              }
+            },
+            {
+              "distanceMeters": 895,
+              "staticDuration": "760s",
+              "navigationInstruction": {
+                "maneuver": "TURN_RIGHT",
+                "instructions": "Turn right onto Rue Chaponnay"
+              }
+            },
+            {
+              "distanceMeters": 68,
+              "staticDuration": "55s",
+              "navigationInstruction": {
+                "maneuver": "TURN_LEFT",
+                "instructions": "Turn left toward Rue Mazenod"
+              }
+            },
+            {
+              "distanceMeters": 8,
+              "staticDuration": "7s",
+              "navigationInstruction": {
+                "maneuver": "TURN_RIGHT",
+                "instructions": "Turn right onto Rue Mazenod"
+              }
+            },
+            {
+              "distanceMeters": 455,
+              "staticDuration": "385s",
+              "navigationInstruction": {
+                "maneuver": "NAME_CHANGE",
+                "instructions": "Continue onto Rue Dr Bouchut"
+              }
+            },
+            {
+              "distanceMeters": 131,
+              "staticDuration": "101s",
+              "navigationInstruction": {
+                "maneuver": "TURN_LEFT",
+                "instructions": "Turn left onto Bd Marius Vivier Merle"
+              }
+            },
+            {
+              "distanceMeters": 10,
+              "staticDuration": "10s",
+              "navigationInstruction": {
+                "maneuver": "TURN_RIGHT",
+                "instructions": "Turn right onto Rue Servient\nParts of this road are closed 8:00\u202fAM\u2009\u2013\u20095:00\u202fPM"
+              }
+            },
+            {
+              "distanceMeters": 23,
+              "staticDuration": "35s",
+              "navigationInstruction": {
+                "maneuver": "TURN_LEFT",
+                "instructions": "Turn left onto Bd Marius Vivier Merle"
+              }
+            },
+            {
+              "distanceMeters": 92,
+              "staticDuration": "77s",
+              "navigationInstruction": {
+                "maneuver": "NAME_CHANGE",
+                "instructions": "Continue onto Pl. Charles B\u00e9raudier"
+              }
+            },
+            {
+              "distanceMeters": 101,
+              "staticDuration": "85s",
+              "navigationInstruction": {
+                "maneuver": "TURN_SLIGHT_RIGHT",
+                "instructions": "Slight right to stay on Pl. Charles B\u00e9raudier"
+              }
+            }
+          ]
+        }
+      ],
+      "distanceMeters": 2685,
+      "duration": "2279s",
+      "polyline": {
+        "encodedPolyline": "u`hvGsxn\\~@`@aAiH[oA?U_@QXkBrAiHLk@LUKW\\uBj@cDTe@VuAD_@\\eB@k@Tc@\\{AIKCMY]{@W}@MAAMCWBaBMC_BUoG]uMUiG[yMq@yUyBRCg@EqBa@gJa@wHGq@e@a@WqFoB^sBNEAF]BCCm@E_C@oABCJBdBH?YOE?}@"
+      }
+    }
+  ]
+}

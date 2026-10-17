@@ -11,10 +11,11 @@ interface CaptureInput {
   baseUrl: string;
   outputDir: string;
   time: string;
-  routes: { url: string; json: unknown; status?: number }[];
+  routes: { url: string | { regex: string }; json: unknown; status?: number }[];
   debug: typeof debugHistory;
-  game: string;
-  gameMessages: ReturnType<typeof messages>;
+  skillMessages: ReturnType<typeof messages>;
+  fontCss: string;
+  fontPath: string;
 }
 
 async function capture(page: Page, input: CaptureInput) {
@@ -23,27 +24,46 @@ async function capture(page: Page, input: CaptureInput) {
   const origin = new URL(input.baseUrl).origin;
   page.on('pageerror', error => errors.push(error.stack ?? error.message));
   page.on('console', message => {
-    if (message.type() === 'error') errors.push(message.text());
+    if (message.type() === 'error') errors.push(`${message.text()} (${message.location().url})`);
   });
-  await page.setViewportSize({ width: 1440, height: 1100 });
+  page.on('response', response => {
+    if (response.status() >= 400)
+      errors.push(`HTTP ${response.status()} ${new URL(response.url()).pathname}`);
+  });
+  await page.setViewportSize({ width: 1600, height: 1100 });
+  await page.emulateMedia({ reducedMotion: 'no-preference', colorScheme: 'light' });
   await page.route('**/*', async route => {
     const request = route.request();
     const url = new URL(request.url());
-    // The app's public Material Symbols font has no account data or credentials.
-    if (['https://fonts.googleapis.com', 'https://fonts.gstatic.com'].includes(url.origin)) {
-      await route.continue();
-      return;
-    }
     if (url.origin !== origin || url.pathname.startsWith('/api/')) {
       unexpected.push(`${request.method()} ${url.origin === origin ? url.pathname : url.origin}`);
       await route.abort();
     } else await route.continue();
   });
   for (const fixture of input.routes) {
-    await page.route(fixture.url, route =>
-      route.fulfill({ status: fixture.status ?? 200, json: fixture.json })
+    const url = typeof fixture.url === 'string' ? fixture.url : new RegExp(fixture.url.regex);
+    await page.route(url, route =>
+      route.fulfill(
+        fixture.status === 204
+          ? { status: 204, body: '' }
+          : { status: fixture.status ?? 200, json: fixture.json }
+      )
     );
   }
+  await page.route('https://fonts.googleapis.com/**', route =>
+    route.fulfill({
+      contentType: 'text/css',
+      body: input.fontCss,
+      headers: { 'Access-Control-Allow-Origin': '*' },
+    })
+  );
+  await page.route('https://fonts.gstatic.com/lia-e2e/MaterialSymbolsOutlined.woff2', route =>
+    route.fulfill({
+      contentType: 'font/woff2',
+      path: input.fontPath,
+      headers: { 'Access-Control-Allow-Origin': '*' },
+    })
+  );
   await page.route('**/api/v1/notifications/stream', () => undefined);
   await page.routeWebSocket('**/*', socket => socket.close());
   await page.routeWebSocket('**/api/v1/voice/ws/audio?ticket=*', socket => {
@@ -58,6 +78,7 @@ async function capture(page: Page, input: CaptureInput) {
       domain: new URL(input.baseUrl).hostname,
       path: '/',
     },
+    { name: 'lia_gender', value: 'male', domain: new URL(input.baseUrl).hostname, path: '/' },
   ]);
   await page.addInitScript(
     ({ debug, time }) => {
@@ -83,7 +104,13 @@ async function capture(page: Page, input: CaptureInput) {
       localStorage.setItem(
         'lia_eyes_widget_prefs',
         JSON.stringify({
-          state: { visible: true, style: 'smiley', size: 'sm', position: null },
+          state: {
+            visible: true,
+            style: 'bip',
+            size: 'xl',
+            position: { xPct: 1.2, yPct: 73 },
+            landingPosition: { xPct: 1.2, yPct: 73 },
+          },
           version: 0,
         })
       );
@@ -98,6 +125,11 @@ async function capture(page: Page, input: CaptureInput) {
     const assistant = await page.getByText(answer, { exact: true }).boundingBox();
     if (!user || !assistant || user.y + user.height > assistant.y)
       throw new Error('The user message must precede the assistant reply.');
+  };
+  const showChatStart = async () => {
+    await page.mouse.move(220, 450);
+    await page.mouse.wheel(0, -4000);
+    await page.waitForTimeout(500);
   };
   const ready = async (path: string, text: string) => {
     await page.goto(`${input.baseUrl}${path}`, { waitUntil: 'domcontentloaded' });
@@ -119,7 +151,7 @@ async function capture(page: Page, input: CaptureInput) {
       if (height > 16000) throw new Error(`Unexpected document height in ${name}`);
       await page.setViewportSize({ width: viewport.width, height });
     }
-    await page.mouse.move(0, 0);
+    await page.mouse.move(10, 90);
     await page.waitForTimeout(400);
     // Data readiness does not imply that Next's optimized images have decoded.
     // In particular, a fresh production build may still be resizing the hero.
@@ -168,7 +200,30 @@ async function capture(page: Page, input: CaptureInput) {
     if (unexpected.length || errors.length)
       throw new Error(JSON.stringify({ name, unexpected, errors }));
     const path = `${input.outputDir}/${name}.png`;
-    await page.screenshot({ path, fullPage, animations: 'disabled', caret: 'hide' });
+    const frame = page.viewportSize();
+    if (frame) {
+      const centre = [
+        'homepage',
+        'dashboard-wide',
+        'chat',
+        'chat-debug-panel',
+        'settings-features-memory',
+        'settings-features-psyche',
+      ].includes(name);
+      await page.mouse.move(
+        frame.width * (centre ? 0.5 : 0.65),
+        frame.height * (centre ? 0.5 : 0.3),
+        { steps: 12 }
+      );
+      await page.waitForTimeout(160);
+    }
+    const widget = page.locator('.lia-eyes-widget .lia-eyes--xl');
+    if (
+      !['faq', 'dashboard-narrow'].includes(name) &&
+      !(await widget.filter({ visible: true }).count())
+    )
+      throw new Error(`Maximum-size robot missing in ${name}`);
+    await page.screenshot({ path, fullPage, animations: 'allow', caret: 'hide' });
     report.push({ name, path, emails });
     if (fullPage && viewport) await page.setViewportSize(viewport);
   };
@@ -177,14 +232,18 @@ async function capture(page: Page, input: CaptureInput) {
   await save('homepage', true);
   await save('dashboard-wide');
   await page.setViewportSize({ width: 390, height: 844 });
-  await save('dashboard-narrow', true);
-  await page.setViewportSize({ width: 1440, height: 1100 });
+  await save('dashboard-narrow');
+  await page.setViewportSize({ width: 1600, height: 1100 });
 
+  await page.setViewportSize({ width: 1600, height: 1400 });
   await ready('/en/dashboard/chat', 'Design review');
+  if ((await page.locator('.lia-card.lia-event').count()) !== 2)
+    throw new Error('Daily agenda must use two authentic EventCard renderings');
   await assertMessageOrder(
     'Help me prepare my day and show my next two appointments.',
     'You have a clear plan for today: a design review this morning, then a short project check-in after lunch.'
   );
+  await showChatStart();
   await save('chat');
   await page.route('**/api/v1/system-settings/debug-panel-status', route =>
     route.fulfill({ json: { enabled: true, user_access_available: true } })
@@ -196,6 +255,7 @@ async function capture(page: Page, input: CaptureInput) {
   );
   const separator = page.getByRole('separator', { name: 'Resize the debug panel' });
   await separator.waitFor({ state: 'visible' });
+  await showChatStart();
   await save('chat-debug-panel');
 
   await page.route('**/api/v1/system-settings/debug-panel-status', route =>
@@ -203,33 +263,72 @@ async function capture(page: Page, input: CaptureInput) {
   );
 
   await page.route('**/api/v1/conversations/me/messages*', route =>
-    route.fulfill({ json: input.gameMessages })
+    route.fulfill({ json: input.skillMessages })
   );
-  await ready('/en/dashboard/chat', 'Tic-Tac-Toe');
-  const game = page.frameLocator('iframe.lia-skill-app-widget__iframe');
-  await game.getByRole('button').first().waitFor({ state: 'visible' });
+  await page.setViewportSize({ width: 1600, height: 1200 });
+  await ready('/en/dashboard/chat', 'Shape your weekend, right here');
+  const skill = page.frameLocator('iframe.lia-skill-app-widget__iframe');
+  await skill.getByText('A weekend in Lyon', { exact: true }).waitFor({ state: 'visible' });
   await assertMessageOrder(
-    'Let’s play a game of Tic-Tac-Toe.',
-    'Here is an interactive game. Click a cell to play.'
+    'Create a visual budget studio for a weekend in Lyon: two travellers, two nights, and a budget I can adjust.',
+    'Shape your weekend, right here'
   );
+  const budget = skill.locator('#budget');
+  if ((await budget.inputValue()) !== '760') throw new Error('Unexpected initial skill budget');
+  for (let index = 0; index < 7; index++) await budget.press('ArrowRight');
+  await skill.locator('#margin').getByText('€316', { exact: true }).waitFor({ state: 'visible' });
+  await showChatStart();
   await save('chat-interactive-skills');
 
   await ready('/en/dashboard/settings', 'Settings');
   await save('settings-preferences');
+  await page.route('**/api/v1/personalities', route =>
+    route.fulfill({
+      json: {
+        personalities: [
+          {
+            id: 'demo-style-balanced',
+            code: 'default',
+            emoji: '⚖️',
+            is_default: true,
+            title: 'Balanced',
+            description: 'Clear answers, a warm tone and practical next steps.',
+          },
+          {
+            id: 'demo-style-teacher',
+            code: 'teacher',
+            emoji: '🧐',
+            is_default: false,
+            title: 'Patient teacher',
+            description: 'Explain unfamiliar ideas step by step, with examples.',
+          },
+          {
+            id: 'demo-style-creative',
+            code: 'creative',
+            emoji: '✨',
+            is_default: false,
+            title: 'Creative partner',
+            description: 'Explore alternatives, connect ideas and test fresh directions.',
+          },
+          {
+            id: 'demo-style-direct',
+            code: 'direct',
+            emoji: '🤝',
+            is_default: false,
+            title: 'Straight to the point',
+            description: 'Keep it concise, concrete and focused on the decision.',
+          },
+        ],
+        count: 4,
+      },
+    })
+  );
+  await ready('/en/dashboard/settings?section=personality', 'Balanced');
   const rail = page.getByRole('navigation', { name: 'Settings sections' });
-  await rail.getByRole('button', { name: 'LIA Style', exact: true }).scrollIntoViewIfNeeded();
-  await page
-    .getByRole('heading', { name: 'Identity & Memory', exact: true })
-    .evaluate(element => element.scrollIntoView({ block: 'start' }));
-  await page.evaluate(() => window.scrollBy(0, -88));
+  await page.locator('#settings-section-personality').waitFor({ state: 'visible' });
   await save('settings-features');
-  await rail
-    .getByRole('button', { name: 'User Administration', exact: true })
-    .scrollIntoViewIfNeeded();
-  await page
-    .getByRole('heading', { name: 'Users & Access', exact: true })
-    .evaluate(element => element.scrollIntoView({ block: 'start' }));
-  await page.evaluate(() => window.scrollBy(0, -88));
+  await rail.getByRole('button', { name: 'User Administration', exact: true }).click();
+  await page.locator('#settings-section-admin-users').waitFor({ state: 'visible' });
   await save('settings-administration');
 
   await ready('/en/dashboard/settings?section=memories', 'Long-term Memory');
@@ -241,12 +340,8 @@ async function capture(page: Page, input: CaptureInput) {
   await page.getByText('I prefer concise answers', { exact: false }).waitFor({ state: 'visible' });
   await save('settings-features-memory');
 
-  await ready('/en/dashboard/settings?section=psyche', 'Psyche Engine');
-  await rail.getByRole('button', { name: 'Psyche Engine', exact: true }).scrollIntoViewIfNeeded();
-  await page
-    .getByRole('button', { name: /Psyche State/ })
-    .first()
-    .click();
+  await ready('/en/dashboard/settings?section=psyche', 'LIA’s psyche');
+  await rail.getByRole('button', { name: 'LIA’s psyche', exact: true }).scrollIntoViewIfNeeded();
   await page.getByText('LIA is calm, curious', { exact: false }).waitFor({ state: 'visible' });
   await save('settings-features-psyche');
 
@@ -267,31 +362,44 @@ async function capture(page: Page, input: CaptureInput) {
   return { fixtureTime: input.time, captures: report, unexpected, errors };
 }
 
-export function createCaptureCode(baseUrl: string, outputDir: string, game: string): string {
-  const routes = publicScreenshotRoutes().flatMap(route =>
-    typeof route.url === 'string' && route.json !== undefined
-      ? [{ url: route.url, json: route.json, status: route.status }]
+export function createCaptureCode(
+  baseUrl: string,
+  outputDir: string,
+  skillFrame: { title: string; html: string; aspect_ratio: number },
+  eventCards: string,
+  fontCss: string,
+  fontPath: string
+): string {
+  const routes = publicScreenshotRoutes(eventCards).flatMap(route =>
+    route.json !== undefined
+      ? [
+          {
+            url: typeof route.url === 'string' ? route.url : { regex: route.url.source },
+            json: route.json,
+            status: route.status,
+          },
+        ]
       : []
   );
-  const gameMessages = messages(
-    '<p>Here is an interactive game. Click a cell to play.</p><div class="lia-skill-app" data-registry-id="demo-tic-tac-toe"></div>',
+  const skillMessages = messages(
+    '<h2>Shape your weekend, right here</h2><p>A small Python skill prepares this interactive budget studio. Adjust the trip and watch the categories, total and remaining budget change together. These are example estimates; no booking prices were checked.</p><div class="lia-skill-app" data-registry-id="demo-weekend-budget"></div>',
     {
       widgets: {
-        'demo-tic-tac-toe': {
-          id: 'demo-tic-tac-toe',
+        'demo-weekend-budget': {
+          id: 'demo-weekend-budget',
           type: 'SKILL_APP',
           payload: {
-            skill_name: 'tic-tac-toe',
-            title: 'Tic-Tac-Toe',
-            html_content: game,
-            aspect_ratio: 0.75,
-            is_system_skill: true,
+            skill_name: 'weekend-budget-studio',
+            title: skillFrame.title,
+            html_content: skillFrame.html,
+            aspect_ratio: skillFrame.aspect_ratio,
+            is_system_skill: false,
           },
           meta: { source: 'skill', timestamp: CAPTURE_TIME },
         },
       },
     },
-    'Let’s play a game of Tic-Tac-Toe.'
+    'Create a visual budget studio for a weekend in Lyon: two travellers, two nights, and a budget I can adjust.'
   );
-  return `async (page) => (${capture.toString()})(page, ${JSON.stringify({ baseUrl, outputDir, time: CAPTURE_TIME, routes, debug: debugHistory, game, gameMessages })})`;
+  return `async (page) => (${capture.toString()})(page, ${JSON.stringify({ baseUrl, outputDir, time: CAPTURE_TIME, routes, debug: debugHistory, skillMessages, fontCss, fontPath })})`;
 }

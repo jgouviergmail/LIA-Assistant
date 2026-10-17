@@ -949,7 +949,7 @@ HEARTBEAT_WEATHER_WIND_THRESHOLD=14.0
 HEARTBEAT_INACTIVE_SKIP_DAYS=7
 ```
 
-The per-user daily cap (1-8/day) is a **user setting** (Settings > Proactive Notifications), not an env var. See [HEARTBEAT_AUTONOME.md](./technical/HEARTBEAT_AUTONOME.md).
+The per-user daily cap (1-8/day) is a **user setting** (Settings > Notifications), not an env var. See [HEARTBEAT_AUTONOME.md](./technical/HEARTBEAT_AUTONOME.md).
 
 ### Journals & Psyche
 

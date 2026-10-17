@@ -18,6 +18,14 @@ vi.mock('@/lib/api-client', () => ({
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'proof-reader' } }) }));
 const { toast } = vi.hoisted(() => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('sonner', () => ({ toast }));
+const sample = vi.hoisted(() => ({
+  play: vi.fn(async () => undefined),
+  replay: vi.fn(async () => undefined),
+  stop: vi.fn(),
+  status: 'idle' as 'idle' | 'loading' | 'playing' | 'error' | 'blocked',
+  canReplay: false,
+}));
+vi.mock('@/hooks/useTtsVoiceSample', () => ({ useTtsVoiceSample: () => sample }));
 const { i18n } = vi.hoisted(() => ({
   i18n: {
     t: (key: string, options?: Record<string, unknown>) =>
@@ -59,6 +67,8 @@ function femaleList() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  sample.status = 'idle';
+  sample.canReplay = false;
   api.get.mockResolvedValue(lia());
   api.put.mockImplementation(async (_url: string, choice: Record<string, string | null>) =>
     lia({ male: choice.male, female: choice.female })
@@ -66,6 +76,44 @@ beforeEach(() => {
 });
 
 describe('LiaVoicesFields', () => {
+  it('plays only an explicit choice, with its gender, without delaying or replacing its save', async () => {
+    const { user } = renderWithProviders(<LiaVoicesFields lng="fr" />);
+    await screen.findByRole('combobox', { name: /lia_voices\.male/ });
+    expect(sample.play).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'settings.voice_sample.listen' })).toBeNull();
+
+    await user.click(maleList());
+    await user.click(screen.getByRole('option', { name: 'Rémy' }));
+    expect(sample.play).toHaveBeenCalledWith({
+      endpoint: '/voice/lia-voices/sample',
+      payload: { gender: 'male', voice_id: 'r' },
+    });
+    await waitFor(() =>
+      expect(api.put).toHaveBeenCalledWith('/voice/lia-voices', { male: 'r', female: 'd' })
+    );
+    expect(maleList()).toHaveFocus();
+
+    await user.click(femaleList());
+    await user.click(
+      screen.getByRole('option', { name: 'settings.voice_mode.lia_voices.default|Denise' })
+    );
+    expect(sample.play).toHaveBeenLastCalledWith({
+      endpoint: '/voice/lia-voices/sample',
+      payload: { gender: 'female', voice_id: null },
+    });
+  });
+
+  it('keeps listening errors beside the controls, and replay never saves the voices again', async () => {
+    sample.status = 'error';
+    sample.canReplay = true;
+    const { user } = renderWithProviders(<LiaVoicesFields lng="fr" />);
+    expect(await screen.findByRole('alert')).toHaveTextContent('settings.voice_sample.failed');
+    await user.click(screen.getByRole('button', { name: 'settings.voice_sample.listen' }));
+    expect(sample.replay).toHaveBeenCalledOnce();
+    expect(api.put).not.toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
   it('opens each list on the administrator’s voice, named, and shows the choice held', async () => {
     renderWithProviders(<LiaVoicesFields lng="fr" />);
 

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { LandingCarousel, type CarouselSlide } from './LandingCarousel';
 import homeProof from '../../../public/screenshots/manifest.json';
 import applicationProof from '../../../public/screenshots/proof/manifest.json';
+import extendedProof from '../../../public/screenshots/proof/extended-manifest.json';
 import monitoringProof from '../../../public/screenshots/proof/grafana-manifest.json';
 
 /**
@@ -13,22 +14,56 @@ import monitoringProof from '../../../public/screenshots/proof/grafana-manifest.
  */
 
 const APPLICATION_VIEWS = [
-  { key: 'dashboard', file: 'homepage' },
-  { key: 'dossier', file: 'dossier' },
-  { key: 'relations', file: 'relations' },
-  { key: 'radio', file: 'radio' },
-  { key: 'meetings', file: 'meetings' },
-  { key: 'approval', file: 'approval' },
-  { key: 'knowledge', file: 'knowledge' },
-  { key: 'memory', file: 'memory' },
-  { key: 'skill', file: 'skill' },
-  { key: 'administration', file: 'administration' },
+  { key: 'dashboard', file: 'dashboard-wide', campaign: 'home' },
+  { key: 'dossier', file: 'dossier', campaign: 'application' },
+  { key: 'places', file: 'places', campaign: 'application' },
+  { key: 'maps', file: 'maps', campaign: 'application' },
+  { key: 'routes', file: 'routes', campaign: 'application' },
+  { key: 'relations', file: 'relations', campaign: 'application' },
+  { key: 'radio', file: 'radio', campaign: 'application' },
+  { key: 'meetings', file: 'meetings', campaign: 'application' },
+  { key: 'meetings_list', file: 'meetings-list', campaign: 'extended' },
+  { key: 'approval', file: 'approval', campaign: 'application' },
+  { key: 'knowledge', file: 'knowledge', campaign: 'application' },
+  { key: 'memory', file: 'memory', campaign: 'application' },
+  { key: 'skill', file: 'skill', campaign: 'application' },
+  { key: 'administration', file: 'administration', campaign: 'application' },
+  { key: 'psyche', file: 'psyche', campaign: 'extended' },
+  { key: 'psyche_evolution', file: 'psyche-evolution', campaign: 'extended' },
+  { key: 'memory_library', file: 'memory-library', campaign: 'extended' },
+  { key: 'portrait', file: 'portrait', campaign: 'extended' },
+  { key: 'avatar_picker', file: 'avatar-picker', campaign: 'extended' },
+  { key: 'routine_studio', file: 'routine-studio', campaign: 'extended' },
+  { key: 'routine_week', file: 'routine-week', campaign: 'extended' },
+  { key: 'workboard', file: 'workboard', campaign: 'extended' },
+  { key: 'workboard_dossier', file: 'workboard-dossier', campaign: 'extended' },
+  { key: 'knowledge_library', file: 'knowledge-library', campaign: 'extended' },
+  { key: 'meeting_transcript', file: 'meeting-transcript', campaign: 'extended' },
+  { key: 'meeting_templates', file: 'meeting-templates', campaign: 'extended' },
+  { key: 'connections', file: 'connections', campaign: 'extended' },
+  { key: 'skills_library', file: 'skills-library', campaign: 'extended' },
+  { key: 'model_routing', file: 'model-routing', campaign: 'extended' },
+  { key: 'consumption', file: 'consumption', campaign: 'extended' },
+  { key: 'journal', file: 'journal', campaign: 'extended' },
 ] as const;
 const MONITORING_VIEWS = [
-  { key: 'grafana_overview', file: 'grafana-overview' },
-  { key: 'grafana_costs', file: 'grafana-costs' },
-  { key: 'grafana_activity', file: 'grafana-activity' },
+  { key: 'grafana_overview', file: 'grafana-overview', campaign: 'monitoring' },
+  { key: 'grafana_costs', file: 'grafana-costs', campaign: 'monitoring' },
+  { key: 'grafana_activity', file: 'grafana-activity', campaign: 'monitoring' },
 ] as const;
+
+interface CaptureManifest {
+  revision: string;
+  images: { file: string; width: number; height: number }[];
+}
+
+// Every view keeps the revision and native dimensions of its capture campaign.
+const CAPTURE_CAMPAIGNS: Record<string, { manifest: CaptureManifest; directory: string }> = {
+  home: { manifest: homeProof, directory: '/screenshots' },
+  application: { manifest: applicationProof, directory: '/screenshots/proof' },
+  extended: { manifest: extendedProof, directory: '/screenshots/proof' },
+  monitoring: { manifest: monitoringProof, directory: '/screenshots/proof' },
+};
 
 type ApplicationView = (typeof APPLICATION_VIEWS)[number]['key'];
 
@@ -41,28 +76,23 @@ export function ScreenshotsSection({
   view?: ApplicationView;
 }) {
   const { t } = useTranslation();
-  const revision = monitoring ? monitoringProof.revision : applicationProof.revision;
 
   const views = monitoring
     ? MONITORING_VIEWS
     : view
       ? APPLICATION_VIEWS.filter(item => item.key === view)
       : APPLICATION_VIEWS;
-  const slides: CarouselSlide[] = views.map(({ key, file }) => {
+  const slides: CarouselSlide[] = views.map(({ key, file, campaign }) => {
     const label = t(`landing.screenshots.proof.${key}`);
-    // The retained home capture belongs to the earlier campaign. Preserve its
-    // own revision and full-page ratio rather than attributing it to the new one.
-    if (key === 'dashboard') {
-      const capture = homeProof.images.find(image => image.file === `${file}.png`)!;
-      return {
-        key,
-        src: `/screenshots/${file}.png?v=${homeProof.revision}`,
-        label,
-        caption: label,
-        aspectRatio: capture.width / capture.height,
-      };
-    }
-    return { key, src: `/screenshots/proof/${file}.png?v=${revision}`, label, caption: label };
+    const { manifest, directory } = CAPTURE_CAMPAIGNS[campaign];
+    const capture = manifest.images.find(image => image.file === `${file}.png`);
+    return {
+      key,
+      src: `${directory}/${file}.png?v=${manifest.revision}`,
+      label,
+      caption: label,
+      aspectRatio: capture ? capture.width / capture.height : undefined,
+    };
   });
 
   return (

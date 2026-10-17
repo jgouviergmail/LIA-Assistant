@@ -341,6 +341,11 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         # write is checked against the catalogue the instance already offers.
         "GET /api/v1/voice/lia-voices",
         "PUT /api/v1/voice/lia-voices",
+        # The sample of a voice the visitor is choosing (2026-10-17): without it
+        # every selection above would end on a playback error. A fixed sentence
+        # the server owns, rate-limited per account, under the visitor's own
+        # usage ceiling and billed like any reading.
+        "POST /api/v1/voice/lia-voices/sample",
         # Three families were listed as `/x/*`, which never matched the bare
         # `/x`: the Relations overview, the learned-habits panel (and its
         # « forget everything »), the health samples list (and its per-kind

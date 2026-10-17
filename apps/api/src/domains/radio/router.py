@@ -20,6 +20,7 @@ from fastapi import APIRouter, Depends, status
 from fastapi.responses import FileResponse
 
 from src.core.config import settings
+from src.core.i18n import normalize_language
 from src.core.session_dependencies import get_current_active_session_for_stream
 from src.domains.auth.dependencies import create_user_rate_limiter
 from src.domains.feature_switches.guard import capability_dependencies
@@ -61,8 +62,11 @@ from src.domains.radio.schemas import (
     RadioStartRequest,
 )
 from src.domains.radio.setup_builder import RadioStartRefused
+from src.domains.radio.voice_samples import RadioVoiceSampleRequest, sample_radio_voice
 from src.domains.radio.wiring import radio_service
 from src.domains.users.models import User
+from src.domains.voice.sample_schemas import VoiceSampleResponse
+from src.domains.voice.samples import rate_limit_voice_sample
 from src.infrastructure.observability.metrics_radio import radio_session_starts_total
 
 router = APIRouter(
@@ -173,6 +177,25 @@ async def get_options(
 ) -> RadioOptionsResponse:
     """The options for this listener (voices of their language)."""
     return await radio_options(user.language)
+
+
+@router.post(
+    "/voices/sample",
+    response_model=VoiceSampleResponse,
+    dependencies=[Depends(rate_limit_voice_sample)],
+    summary="Hear a role's selected or automatic voice in the current draft cast",
+)
+async def post_radio_voice_sample(
+    request: RadioVoiceSampleRequest,
+    user: User = Depends(get_current_active_session_for_stream),
+) -> VoiceSampleResponse:
+    """Speak the fixed sample sentence without starting a session or saving the draft."""
+    return await sample_radio_voice(
+        user_id=user.id,
+        language=normalize_language(user.language),
+        role=request.role,
+        voices=request.voices,
+    )
 
 
 @router.get(

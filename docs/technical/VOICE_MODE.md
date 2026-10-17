@@ -721,9 +721,19 @@ personne d'abord (un moteur à une langue par voix, Edge, n'offre que
 celles-là), sous l'interrupteur « seulement les voix en <langue>, et les
 multilingues » que partagent tous les sélecteurs de voix.
 
+Choisir une voix lance automatiquement un court échantillon ; en français :
+« Bonjour, ceci est un échantillon de ma voix ! ». Revenir à « Par défaut »
+fait entendre la voix du genre concerné réellement configurée sur l'instance.
+L'écoute est indépendante de l'enregistrement du choix. Une commande permet
+de l'arrêter ou de la relancer après une erreur ; une nouvelle sélection,
+un changement de compte ou le départ de l'écran arrête l'ancienne écoute.
+Le navigateur amorce son élément audio dans le geste de sélection, avant la
+requête, pour préserver l'activation audio sur mobile.
+
 | Quoi | Où |
 |---|---|
 | Lecture et écriture | `GET`/`PUT /voice/lia-voices` (`domains/voice/lia_voices_router.py`), sur une session à elle (ADR-304) : le catalogue d'un moteur en direct peut interroger le fournisseur |
+| Échantillon | `POST /voice/lia-voices/sample` reçoit le genre et l'identifiant de voix, ou `null` pour la valeur par défaut. Le serveur choisit la phrase fixe dans la langue de la personne, vérifie la voix et utilise le moteur TTS effectif. L'audio, son type MIME et l'identifiant effectivement entendu sont renvoyés au navigateur ; aucune clé ni texte libre ne vient du client. Les limites de consommation et la facturation TTS habituelles s'appliquent |
 | Règle | `domains/voice/lia_voices.py` : écrite strictement (une voix que le moteur n'offre pas → 422 `lia_voice_unknown` ; un catalogue indisponible refuse une sélection avec 503 `lia_voice_catalogue_unavailable`, le retour aux valeurs par défaut reste disponible), lue avec indulgence (une voix qui n'est plus proposée laisse parler celle de l'administrateur ; un catalogue illisible garde le choix) |
 | Stockage | `users.lia_voices` (migrations `4c2e8a6f1d3b`, then `1ed6c591761a` for the column comment), kept per voice PROVIDER since the ADR-345 amendment of 2026-10-16 — `{provider: {male, female}}` (`engine_voices.choice_key`): every model of a provider offers the same voices, so a model change of the `voice_tts` slot keeps the choice and a provider switched back to finds its voices; an entry an older release kept per `provider/model` is still read (`engine_voices.stored_choice`) and replaced at the next save ; une instruction atomique par enregistrement, si bien que deux moteurs enregistrés en même temps ne se perdent pas ; un `None` y devient NULL SQL (`none_as_null`), jamais le `null` JSON sur lequel la fusion fabriquerait un tableau |
 | Autorisation et ordre | L'écriture atomique exige encore un compte actif et non supprimé au moment du `UPDATE`, sinon 403. Le navigateur enregistre les choix successifs dans leur ordre pour le compte courant ; un changement de compte abandonne les requêtes encore en file et ignore les anciennes réponses |

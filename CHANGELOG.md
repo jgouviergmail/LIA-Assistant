@@ -85,6 +85,14 @@ never shown as an empty list.
   administrator's voice slots, the radio's roles, LIA's voices — offers « only
   voices in my language, and multilingual ones », on by default, never hiding a
   voice already chosen.
+- 🔊 **Hear a voice before you keep it:** choosing a voice for LIA or for one of
+  the radio's roles plays a short sample of it at once, in your language, with
+  one control to stop it or play it again; a newer choice cancels the previous
+  sample, a radio that is playing pauses, and a meeting recording or a Live
+  session keeps priority. Two doors serve it (`POST /voice/lia-voices/sample`,
+  `POST /radio/voices/sample`): authenticated, capability-gated and rate-limited,
+  they take no free text from the browser and bill the sample like any reading —
+  the radio's budget counts it too.
 - 📊 **Every failed step of a pipeline plan is counted under its typed code**
   ([ADR-346](docs/architecture/ADR-346-Advisory-Replanner-Retired-A-Pipeline-Failure-Is-Said-Never-Replayed.md)):
   `pipeline_step_failures_total{error_code}`, dashboard 07 « Pipeline Step
@@ -145,7 +153,9 @@ never shown as an empty list.
   relationship, the drives, the new experience panel and an evolution chart on
   a true time axis — every instrument a labelled meter.
 - 👁️ **A preview before you choose a display mode:** Settings › Display mode
-  draws a sample answer in each format.
+  draws a sample answer in each format, and each mode says in one line what
+  sets it apart — « Cards » keeps a classic paragraph beside the cards, « HTML +
+  cards » composes a synthesis with a title and a takeaway around the same cards.
 - 📄 **Generated documents show their first page:** in the gallery, a PDF shows
   its real first page and a text or Office file an excerpt labelled as such,
   loaded only when the card nears the screen.
@@ -289,6 +299,11 @@ never shown as an empty list.
 
 ### Fixed
 
+- 🐳 **The development web container starts after a Next.js upgrade:** its
+  entrypoint now checks that Next.js resolves at the version the manifest names
+  before trusting its install marker, repairs from the frozen lockfile, and stops
+  with the rebuild command when the repair fails — a stale image had served
+  « You are offline » on a `MODULE_NOT_FOUND`.
 - 🏷️ **The FAQ version history wears its emoji again:** the eleven releases from
   v2.1.0 to v3.1.0 had lost the emoji that opens every title, in all six
   languages; a test now holds every title since v1.20.12 to it.

@@ -6,25 +6,22 @@ import type { RadioArticle, RadioSessionState } from '../../src/lib/radio/types'
 import { appConfig } from '../fixtures/dashboard-shell';
 import { messages, publicScreenshotRoutes } from './public-screenshot-data';
 
-export const PROOF_TIME = '2026-10-10T07:30:00Z';
+export const PROOF_TIME = '2026-10-12T07:30:00Z';
 export const SPACE_ID = '00000000-0000-4000-8000-000000000ad1';
 export const MEETING_ID = '00000000-0000-4000-8000-000000000ad2';
 export const RADIO_ID = '00000000-0000-4000-8000-000000000ad3';
 export const PROOF_NAMES = [
-  'dossier', 'approval', 'knowledge', 'skill', 'memory', 'administration', 'relations', 'meetings', 'radio',
+  'dossier', 'approval', 'knowledge', 'skill', 'memory', 'administration', 'relations', 'meetings', 'radio', 'places', 'maps', 'routes',
 ] as const;
 export type ProofName = (typeof PROOF_NAMES)[number];
 
-/** Same HTML vocabulary as showroom/response-html.ts, through MarkdownContent. */
-export const MULTI_SOURCE_RESPONSE = `<div class="lia-response">
+/** Response prose uses the prompt vocabulary; every domain card is backend output. */
+export const multiSourceResponse = (nativeCards: string) => `<div class="lia-response">
 <h2>Your launch review, ready to discuss</h2>
-<p>The project brief, the latest supplier email and the meeting notes agree on the scope. One delivery date still needs clarification.</p>
-<div class="lia-callout lia-callout-warning"><p class="lia-callout__title">A date to resolve before the meeting</p><p>The brief says 19 October; the supplier email proposes 22 October. Ask which date can be committed to before sharing the plan.</p></div>
-<dl class="lia-kv"><dt>Project brief</dt><dd><strong>Launch plan.pdf · target 19 October</strong></dd><dt>Supplier email</dt><dd><strong>supplier@example.test · proposed 22 October</strong></dd><dt>Meeting notes</dt><dd><strong>Review · decision still open</strong></dd></dl>
-<h3>Three practical next steps</h3><ol class="lia-steps"><li>Clarify the delivery date with the supplier.</li><li>Keep the unresolved date visible in Monday's review.</li><li>Prepare a message for your approval before sending it.</li></ol>
-<div class="lia-callout lia-callout-info"><p class="lia-callout__title">Sources used in this example</p><p>Launch plan.pdf (Project Atlas space), supplier email and Review minutes. Demonstration data; no message has been sent.</p></div></div>`;
+<p>The brief targets <strong>19 October</strong>; the supplier proposes <strong>22 October</strong>. Friday’s minutes keep that decision open. Clarify the date before the 10:00 review, then prepare a short recap for approval.</p>
+<p>The document and supplier email are below. All personal content is demonstration data; no message has been sent.</p></div>${nativeCards}`;
 
-export const APPROVAL_RESPONSE = `<div class="lia-response"><h2>A message ready for your review</h2><p>The supplier's proposed date differs from your project brief. Here is a short message asking for a clear commitment.</p><dl class="lia-kv"><dt>Recipient</dt><dd><strong>supplier@example.test</strong></dd><dt>Subject</dt><dd><strong>Confirm the Atlas delivery date</strong></dd></dl><p>You can confirm, ask for a change, or cancel below. This is a demonstration draft; nothing has been sent.</p></div>`;
+export const APPROVAL_RESPONSE = `<div class="lia-response"><h2>A message ready for your review</h2><p>The supplier's proposed date differs from your project brief. Here is a short message asking for a clear commitment.</p><p>The draft is addressed to <strong>supplier@example.test</strong>, with the subject <strong>Confirm the Atlas delivery date</strong>.</p><p>You can confirm, ask for a change, or cancel below. This is a demonstration draft; nothing has been sent.</p></div>`;
 
 export const PENDING_APPROVAL = {
   message_id: 'landing-proof-approval',
@@ -70,13 +67,24 @@ export function proofUsers(): AdminUserUsageLimitResponse[] {
 
 export function proofMessages(content: string, question: string, metadata: unknown = null) {
   const result = messages(content, metadata, question);
-  return { ...result, messages: result.messages.map(message => ({ ...message, created_at: message.role === 'user' ? '2026-10-10T07:29:00Z' : PROOF_TIME, cost_eur: message.role === 'assistant' ? 0.0018 : undefined })) };
+  return { ...result, messages: result.messages.map(message => ({ ...message, created_at: message.role === 'user' ? '2026-10-12T07:29:00Z' : PROOF_TIME, cost_eur: message.role === 'assistant' ? 0.0018 : undefined })) };
 }
 
 export function skillMessages(frame: { html: string; title: string; aspect_ratio: number }) {
-  return proofMessages('<div class="lia-response"><h2>Convert measurements here in the conversation</h2><p>This example uses LIA’s existing unit-converter skill. Choose a value and units below; the result updates instantly.</p></div><div class="lia-skill-app" data-registry-id="proof-unit-converter"></div>', 'Give me a converter for the measurements in my project brief.', {
-    widgets: { 'proof-unit-converter': { id: 'proof-unit-converter', type: 'SKILL_APP', payload: { skill_name: 'unit-converter', title: frame.title, html_content: frame.html, aspect_ratio: frame.aspect_ratio, is_system_skill: true }, meta: { source: 'skill', timestamp: PROOF_TIME } } },
+  return proofMessages('<div class="lia-response"><h2>Shape your weekend, right here</h2><p>A small Python skill prepares this interactive budget studio. Adjust the trip and watch the categories, total and remaining budget change together. These are example estimates; no booking prices were checked.</p></div><div class="lia-skill-app" data-registry-id="proof-weekend-budget"></div>', 'Create a visual budget studio for a weekend in Lyon: two travellers, two nights, and a budget I can adjust.', {
+    widgets: { 'proof-weekend-budget': { id: 'proof-weekend-budget', type: 'SKILL_APP', payload: { skill_name: 'weekend-budget-studio', title: frame.title, html_content: frame.html, aspect_ratio: frame.aspect_ratio, is_system_skill: false }, meta: { source: 'skill', timestamp: PROOF_TIME } } },
   });
+}
+
+export interface GeographicCardHtml { places: string; maps: string; routes: string }
+
+/** Exact output of the real pure backend card renderers, prepared offline. */
+export function geographicMessages(cards: GeographicCardHtml) {
+  return {
+    places: proofMessages('<div class="lia-response"><h2>A place to consider, with the useful details</h2><p>The location, price range and opening hours are together in one card. This venue name, rating and schedule are fictional demonstration data.</p></div>' + cards.places, 'Find a place near Bellecour for a coffee before the meeting. Include its rating, prices, address, opening hours and access.'),
+    maps: proofMessages('<div class="lia-response"><h2>Your meeting point, with the map beside it</h2><p>Place Bellecour is the public meeting point in this example. This Google map shows the real streets and landmark; it does not use your current location.</p></div>' + cards.maps, 'Show Place Bellecour in Lyon on a map, with the address and coordinates so we can agree on a meeting point.'),
+    routes: proofMessages('<div class="lia-response"><h2>A walk from Bellecour to Part-Dieu</h2><p>The recorded Google walking route is 2.685 km and about 38 minutes. Open the steps to read the received directions. This is a route preview, not live navigation.</p></div>' + cards.routes, 'How can we walk from Place Bellecour to Lyon Part-Dieu station? Show the map, distance, duration and walking directions.'),
+  };
 }
 
 /** The runner checks these against types extracted from the actual Relations hook. */
@@ -88,8 +96,8 @@ export const PROOF_RELATIONS = {
 export const PROOF_RELATION = {
   display_name: 'Morgan Demo', identity_confidence: 'exact',
   open_loops: [
-    { id: 'proof-loop-date', subject: 'Confirm the supplier delivery date', direction: 'user_owes', due_hint: 'Before Monday’s review', days_open: 2 },
-    { id: 'proof-loop-checklist', subject: 'Morgan will send the launch checklist', direction: 'they_owe', due_hint: '12 October', days_open: 1 },
+    { id: 'proof-loop-date', subject: 'Confirm the supplier delivery date', direction: 'user_owes', due_hint: 'Before the 10:00 review today', days_open: 3 },
+    { id: 'proof-loop-checklist', subject: 'Morgan will send the launch checklist', direction: 'waiting_on_other', due_hint: '12 October · 09:45', days_open: 3 },
   ], open_loops_total: 2,
   recent_calls: [{ id: 'proof-call', objective: 'Align on the Atlas launch', outcome: 'objective_met', summary: 'Scope agreed. Supplier date still needs confirmation.', created_at: '2026-10-09T15:00:00Z' }], recent_calls_total: 1,
   memories: [{ id: 'proof-relation-memory', content: 'Morgan prefers a short written recap before project reviews.' }], memories_total: 1,
@@ -100,7 +108,7 @@ export const PROOF_RELATION = {
 
 const contextSection = { status: 'ok' as const, from_cache: true, generated_at: PROOF_TIME, contact: null, emails: [], events: [] };
 export const PROOF_RELATION_CONTEXT = {
-  contact: { ...contextSection, contact: { display_name: 'Morgan Demo', nickname: null, organization: 'Demo Studio', occupation: 'Project coordinator', birthday: null, biography: null, emails: [{ value: 'morgan@example.test', label: 'work' }], phones: [], addresses: [], relations: [], links: [], important_dates: [], messaging: [] } },
+  contact: { ...contextSection, contact: { display_name: 'Morgan Demo', nickname: null, organization: 'Demo Studio', occupation: 'Project coordinator', birthday: null, biography: 'Coordinates the Atlas launch and keeps the shared checklist up to date.', emails: [{ value: 'morgan@example.test', label: 'work' }], phones: [], addresses: [], relations: [], links: [], important_dates: [], messaging: [] } },
   emails: { ...contextSection, emails: [
     { id: 'proof-email-date', direction: 'received', subject: 'Atlas · Supplier proposes 22 October', occurred_at: '2026-10-09T13:30:00Z', excerpt: 'Can we clarify the difference with the project brief before Monday?' },
     { id: 'proof-email-review', direction: 'sent', subject: 'Monday’s review · agenda and next steps', occurred_at: '2026-10-09T14:00:00Z', excerpt: 'Let’s keep the delivery date open until the supplier confirms.' },
@@ -110,7 +118,7 @@ export const PROOF_RELATION_CONTEXT = {
 };
 
 export const PROOF_RELATION_DEBRIEF = {
-  status: 'ready', person: 'Morgan Demo', body: { headline: 'Monday’s review has one unresolved point: the supplier date.', where_we_stand: 'The scope is agreed. Morgan is preparing the checklist; you still owe a date confirmation.', open_points: [], suggested_next_step: 'Clarify the date, then send Morgan a short recap before the review.', notable_facts: [] }, generated_at: PROOF_TIME, generated_for: '2026-10-10', sections_used: ['contact', 'open_commitments', 'emails', 'events'], unavailable: [], can_rebuild: true, usage: null,
+  status: 'ready', person: 'Morgan Demo', body: { headline: 'Monday’s review has one unresolved point: the supplier date.', where_we_stand: 'The scope is agreed. Morgan is preparing the checklist; you still owe a date confirmation.', open_points: ['The brief targets 19 October; the supplier proposes 22 October.'], suggested_next_step: 'Clarify the date, then send Morgan a short recap before the 10:00 review.', notable_facts: ['Morgan prefers a short written recap before project reviews.'] }, generated_at: PROOF_TIME, generated_for: '2026-10-12', sections_used: ['contact', 'open_loops', 'memories', 'emails', 'events'], unavailable: [], can_rebuild: true, usage: null,
 };
 
 export const PROOF_MEETING: MeetingDetail = {
@@ -127,13 +135,13 @@ export const PROOF_RADIO: RadioSessionState = {
     { seq: 1, format: 'opening', mood: 'calm', title: 'Your morning, with the sources beside you', duration_s: 120, transcript: [
       { role: 'host', text: 'Good morning, Alex. This is a demonstration programme: your day, your commitments and the news you follow, in one place.', offset_s: 0, sources: [] },
       { role: 'host', text: 'Your Atlas review is on Monday at 10:00. One delivery date remains open; keep that question at the top of the agenda.', offset_s: 20, sources: [{ label: 'Your calendar · Atlas review', url: null, published_at: null, article_id: null }, { label: 'Your commitments · delivery confirmation', url: null, published_at: null, article_id: null }] },
-      { role: 'anchor', text: 'From the outlets you follow: a demonstration story about repairing everyday devices. Its source is available below; no real-world news claim is made here.', offset_s: 45, sources: [{ label: 'Demo Daily · Repairing everyday devices', url: 'https://example.test/news/repair', published_at: '2026-10-10T06:00:00Z', article_id: 'proof-radio-article' }] },
+      { role: 'anchor', text: 'From the outlets you follow: a demonstration story about repairing everyday devices. Its source is available below; no real-world news claim is made here.', offset_s: 45, sources: [{ label: 'Demo Daily · Repairing everyday devices', url: 'https://example.test/news/repair', published_at: '2026-10-12T06:00:00Z', article_id: 'proof-radio-article' }] },
     ] },
     { seq: 2, format: 'journal', mood: 'calm', title: 'The people and follow-ups worth remembering', duration_s: 120, transcript: [{ role: 'host', text: 'Next, a short personal journal about this week’s project follow-ups.', offset_s: 0, sources: [] }] },
-  ], cost_eur: 0.032, stop_at: '2026-10-10T08:00:00Z', startup_estimate_s: 0, end_reason: null, mood: 'calm', station_name: 'Alex’s demo radio', cost_estimate_eur: 0.24, cost_estimate_s: 1800, segment_gap_s: 0, flash: null,
+  ], cost_eur: 0.032, stop_at: '2026-10-12T08:00:00Z', startup_estimate_s: 0, end_reason: null, mood: 'calm', station_name: 'Alex’s demo radio', cost_estimate_eur: 0.24, cost_estimate_s: 1800, segment_gap_s: 0, flash: null,
 };
 
-export const PROOF_RADIO_ARTICLE: RadioArticle = { id: 'proof-radio-article', outlet: 'Demo Daily', url: 'https://example.test/news/repair', published_at: '2026-10-10T06:00:00Z', title: 'Repairing everyday devices · demonstration article', text: 'This fictional article illustrates how the real radio page presents a cited story alongside the programme. Its contents are demonstration data, not current news.', complete: true, cut: false, translated: false, source_language: 'en', translation_failed: false, budget_reached: false, cost_eur: 0 };
+export const PROOF_RADIO_ARTICLE: RadioArticle = { id: 'proof-radio-article', outlet: 'Demo Daily', url: 'https://example.test/news/repair', published_at: '2026-10-12T06:00:00Z', title: 'Repairing everyday devices · demonstration article', text: 'This fictional article illustrates how the real radio page presents a cited story alongside the programme. Its contents are demonstration data, not current news.', complete: true, cut: false, translated: false, source_language: 'en', translation_failed: false, budget_reached: false, cost_eur: 0 };
 
 export interface LandingProofRoute {
   url: string | { regex: string };

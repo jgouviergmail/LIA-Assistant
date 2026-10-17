@@ -3,23 +3,22 @@ import { dashboardShellMocks, briefingWindowsMock } from '../fixtures/dashboard-
 import { loadedChatRoutes } from '../fixtures/chat';
 import { makeTestUser } from '../fixtures/test-user';
 import type { MockRoute } from '../fixtures/api-mock';
+import type { CardSection, CardsBundle, SectionData } from '../../src/types/briefing';
+import type { PsycheHistoryEntry, PsycheState } from '../../src/types/psyche';
+import { psycheEfficacyProfile } from '../fixtures/psyche-efficacy';
 
-export const CAPTURE_TIME = '2026-10-05T07:30:00Z';
+export const CAPTURE_TIME = '2026-10-12T07:30:00Z';
 const query = 'Help me prepare my day and show my next two appointments.';
-const section = (data: unknown) => ({
+const section = <T extends SectionData>(data: T): CardSection<T> => ({
   status: 'ok',
   data,
   generated_at: CAPTURE_TIME,
   error_code: null,
   error_message: null,
+  from_cache: true,
+  stale_generated_at: null,
+  last_attempt_at: null,
 });
-const hidden = {
-  status: 'hidden',
-  data: null,
-  generated_at: CAPTURE_TIME,
-  error_code: null,
-  error_message: null,
-};
 
 const appointments = [
   {
@@ -30,7 +29,7 @@ const appointments = [
   },
   { title: 'Project check-in', start_local: '14:30', end_local: '15:00', location: 'Video call' },
 ];
-const cards = {
+const cards: CardsBundle = {
   weather: section({
     location_city: 'Lyon',
     temperature_c: 21,
@@ -47,7 +46,7 @@ const cards = {
     air_quality: null,
     pollen: [],
     daily_forecast: [0, 1, 2, 3, 4].map(day => ({
-      date_iso: `2026-10-${String(5 + day).padStart(2, '0')}`,
+      date_iso: `2026-10-${String(12 + day).padStart(2, '0')}`,
       temp_min_c: 13 + day,
       temp_max_c: 22 + day,
       condition_code: day < 2 ? 'clear' : 'partly_cloudy',
@@ -74,8 +73,8 @@ const cards = {
   }),
   birthdays: section({
     items: [
-      { contact_name: 'Alex Demo', date_iso: '1991-10-05', days_until: 0, age_at_next: 35 },
-      { contact_name: 'Morgan Demo', date_iso: '1996-10-08', days_until: 3, age_at_next: 30 },
+      { contact_name: 'Sam Demo', date_iso: '1991-10-12', days_until: 0, age_at_next: 35 },
+      { contact_name: 'Morgan Demo', date_iso: '1996-10-15', days_until: 3, age_at_next: 30 },
     ],
   }),
   reminders: section({
@@ -88,33 +87,132 @@ const cards = {
       },
     ],
   }),
-  health: hidden,
-  for_you: hidden,
+  health: section({
+    items: [
+      {
+        kind: 'steps',
+        value_today: 3840,
+        value_avg_window: 7240,
+        unit: 'steps',
+        window_days: 14,
+        days_with_data: 14,
+      },
+      {
+        kind: 'heart_rate',
+        value_today: 67,
+        value_avg_window: 65,
+        unit: 'bpm',
+        window_days: 14,
+        days_with_data: 14,
+      },
+    ],
+  }),
+  for_you: section({
+    open_loops: [
+      {
+        id: 'demo-loop-date',
+        subject: 'Confirm the Atlas delivery date',
+        counterparty: 'Morgan Demo',
+        direction: 'user_owes',
+        due_hint: '2026-10-12T08:00:00Z',
+        days_open: 3,
+      },
+      {
+        id: 'demo-loop-checklist',
+        subject: 'Updated launch checklist',
+        counterparty: 'Morgan Demo',
+        direction: 'waiting_on_other',
+        due_hint: '2026-10-12T08:00:00Z',
+        days_open: 1,
+      },
+    ],
+    recent_automations: [
+      {
+        id: 'demo-morning-review',
+        title: 'Morning project briefing',
+        executed_at: '2026-10-12T06:00:00Z',
+        next_trigger_at: null,
+        next_trigger_local: null,
+      },
+    ],
+    next_automation: {
+      id: 'demo-evening-recap',
+      title: 'Summarize today’s decisions',
+      executed_at: null,
+      next_trigger_at: '2026-10-12T16:00:00Z',
+      next_trigger_local: '18:00',
+    },
+  }),
   tasks: section({
     overdue_count: 0,
     items: [
       {
         title: 'Review the presentation',
-        due_date_iso: '2026-10-05',
+        due_date_iso: '2026-10-12',
         days_until_due: 0,
         overdue: false,
       },
       {
         title: 'Prepare next week’s ideas',
-        due_date_iso: '2026-10-06',
+        due_date_iso: '2026-10-13',
         days_until_due: 1,
         overdue: false,
       },
     ],
   }),
-  documents: hidden,
-  workboard: hidden,
+  documents: section({
+    items: [
+      {
+        name: 'Atlas · Launch plan.pdf',
+        modified_local: '08:50',
+        web_view_link: null,
+        mime_type: 'application/pdf',
+      },
+      {
+        name: 'Supplier delivery comparison.xlsx',
+        modified_local: '08:15',
+        web_view_link: null,
+        mime_type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      },
+      {
+        name: 'Friday review · decisions.md',
+        modified_local: 'Friday',
+        web_view_link: null,
+        mime_type: 'text/markdown',
+      },
+    ],
+  }),
+  workboard: section({
+    needs_me: 2,
+    held_by_lia: 1,
+    held_by_peers: 1,
+    overdue: 0,
+    open_total: 4,
+    items: [
+      {
+        id: 'demo-ticket-date',
+        title: 'Approve the supplier date clarification',
+        status: 'confirming',
+        due_at: '2026-10-12T08:00:00Z',
+        overdue: false,
+      },
+      {
+        id: 'demo-ticket-recap',
+        title: 'Review the Atlas launch recap',
+        status: 'validating',
+        due_at: '2026-10-12T14:00:00Z',
+        overdue: false,
+      },
+    ],
+  }),
 };
 
-export const chatContent = `<p>You have a clear plan for today: a design review this morning, then a short project check-in after lunch.</p>
-<div class="lia-card lia-calendar"><div class="lia-card__header"><strong>Design review</strong></div><div class="lia-card__content"><p>Monday, October 5 · 10:00–11:00</p><p>📍 Demo Studio — meeting room A</p><details><summary>See more</summary><p>Review the new concept, collect feedback and agree on next steps.</p></details></div></div>
-<div class="lia-card lia-calendar"><div class="lia-card__header"><strong>Project check-in</strong></div><div class="lia-card__content"><p>Monday, October 5 · 14:30–15:00</p><p>📍 Video call</p><details><summary>See more</summary><p>A brief progress update with the demonstration team.</p></details></div></div>
+/** Event cards are injected verbatim from the real backend renderer fixture. */
+export function dailyAgendaContent(eventCards: string) {
+  return `<p>You have a clear plan for today: a design review this morning, then a short project check-in after lunch.</p>
+${eventCards}
 <h3>A little preparation goes a long way</h3><ul><li>Read the design notes before 10:00.</li><li>Keep a short break between meetings.</li><li>Bring your notebook and two questions for the team.</li></ul>`;
+}
 
 export function messages(content: string, metadata: unknown = null, userQuery = query) {
   return {
@@ -123,7 +221,7 @@ export function messages(content: string, metadata: unknown = null, userQuery = 
         id: 'demo-message-user',
         role: 'user',
         content: userQuery,
-        created_at: '2026-10-05T07:29:00Z',
+        created_at: '2026-10-12T07:29:00Z',
       },
       {
         id: 'demo-message-assistant',
@@ -160,7 +258,7 @@ const memoryItems = [
   emotional_weight: 3,
   usage_nuance: 'Demonstration example',
   importance: 0.7,
-  pinned: index === 0,
+  pinned: category === 'procedural' || index === 0,
   usage_count: 4,
   created_at: CAPTURE_TIME,
   updated_at: CAPTURE_TIME,
@@ -270,10 +368,77 @@ export const debugHistory = [
   },
 ];
 
-export function publicScreenshotRoutes(): MockRoute[] {
+function psycheHistory(): PsycheHistoryEntry[] {
+  return Array.from({ length: 25 }, (_, index) => ({
+    id: `demo-psyche-history-${index}`,
+    snapshot_type: 'post_response',
+    mood_pleasure: 0.42 + 0.08 * Math.sin(index / 4),
+    mood_arousal: 0.24 + 0.06 * Math.cos(index / 3),
+    mood_dominance: 0.31 + 0.03 * Math.sin(index / 5),
+    dominant_emotion: index % 3 ? 'curiosity' : 'joy',
+    relationship_stage: 'AFFECTIVE',
+    trait_snapshot: {
+      active_emotions: { curiosity: 0.6 + 0.04 * Math.sin(index / 3), joy: 0.4 },
+      emotion_intensity: 0.6,
+      relationship_depth: 0.56 - index * 0.002,
+      relationship_warmth: 0.72 - index * 0.003,
+      relationship_trust: 0.81 - index * 0.002,
+      drive_curiosity: 0.69 + 0.06 * Math.cos(index / 4),
+      drive_engagement: 0.74 + 0.03 * Math.sin(index / 3),
+    },
+    created_at: new Date(Date.parse(CAPTURE_TIME) - index * 3600000).toISOString(),
+  }));
+}
+
+export function publicScreenshotRoutes(eventCards = ''): MockRoute[] {
   return [
     ...dashboardShellMocks,
     ...loadedChatRoutes(),
+    {
+      url: /\/api\/v1\/psyche\/state(?:\?initialize=false)?$/,
+      json: {
+        id: '00000000-0000-4000-8000-0000000000ps',
+        user_id: '00000000-0000-4000-8000-000000000001',
+        trait_openness: 0.73,
+        trait_conscientiousness: 0.66,
+        trait_extraversion: 0.48,
+        trait_agreeableness: 0.81,
+        trait_neuroticism: 0.24,
+        mood_pleasure: 0.46,
+        mood_arousal: 0.19,
+        mood_dominance: 0.32,
+        mood_label: 'serene',
+        mood_color: '#38bdf8',
+        active_emotions: [
+          { name: 'curiosity', intensity: 0.64, triggered_at: CAPTURE_TIME },
+          { name: 'joy', intensity: 0.41, triggered_at: CAPTURE_TIME },
+        ],
+        relationship_stage: 'AFFECTIVE',
+        relationship_depth: 0.56,
+        relationship_warmth_active: 0.72,
+        relationship_trust: 0.81,
+        relationship_interaction_count: 127,
+        drive_curiosity: 0.69,
+        drive_engagement: 0.74,
+        self_efficacy: {},
+        efficacy_profile: {
+          ...psycheEfficacyProfile(),
+          domains: psycheEfficacyProfile().domains.map((domain, index) => ({
+            ...domain,
+            status: 'observed',
+            results: { success: 12 + index, failure: 1, partial: 2, unknown: 1 },
+            feedback: { helpful: 9 + index, unhelpful: 1 },
+            result_count: 13 + index,
+            feedback_count: 10 + index,
+            result_score: (13 + index) / (15 + index),
+            feedback_score: (10 + index) / (12 + index),
+            last_observed_at: CAPTURE_TIME,
+          })),
+        },
+        created_at: '2026-08-01T08:00:00Z',
+        updated_at: CAPTURE_TIME,
+      } satisfies PsycheState,
+    },
     {
       url: '**/api/v1/capabilities',
       json: {
@@ -330,7 +495,66 @@ export function publicScreenshotRoutes(): MockRoute[] {
         onboarding_checklist: { celebrated_at: CAPTURE_TIME },
       },
     },
-    { url: '**/api/v1/conversations/me/messages*', json: messages(chatContent) },
+    { url: '**/api/v1/conversations/me/messages*', json: messages(dailyAgendaContent(eventCards)) },
+    {
+      url: '**/api/v1/users/admin/search*',
+      json: {
+        users: ['Alex Demo', 'Morgan Demo', 'Sam Demo'].map((full_name, index) => ({
+          ...makeTestUser({
+            full_name,
+            email: `${['alex', 'morgan', 'sam'][index]}@example.test`,
+            is_superuser: index === 0,
+          }),
+          id: `demo-admin-user-${index}`,
+          created_at: '2026-09-01T00:00:00Z',
+          personality_id: null,
+          psyche_enabled: true,
+          psyche_display_avatar: true,
+          habits_enabled: true,
+          journals_enabled: true,
+          journal_consolidation_enabled: true,
+          journal_consolidation_with_history: true,
+          phone_rich_context_enabled: true,
+          heartbeat_enabled: true,
+          interests_enabled: true,
+          relation_debrief_enabled: true,
+          image_generation_enabled: true,
+          image_generation_prompt_enhancement: true,
+          discovery_enabled: true,
+          peer_email_visible: true,
+          use_last_known_location: true,
+          login_notifications_enabled: true,
+          health_metrics_agents_enabled: true,
+          last_login: CAPTURE_TIME,
+          last_message_at: CAPTURE_TIME,
+          total_messages: 420 - index * 80,
+          total_tokens: 620000 - index * 80000,
+          tokens_in: 420000 - index * 50000,
+          tokens_out: 80000 - index * 10000,
+          tokens_cache: 120000 - index * 20000,
+          total_cost_eur: 2.84 - index * 0.5,
+          total_google_api_requests: 64 - index * 10,
+          cycle_messages: 48 - index * 10,
+          cycle_tokens: 62000 - index * 10000,
+          cycle_google_api_requests: 8,
+          cycle_cost_eur: 0.28 - index * 0.05,
+          active_connectors_count: 5,
+          memories_count: 24 - index * 4,
+          interests_count: 4,
+          skills_count: 6,
+          mcp_servers_count: 2,
+          scheduled_actions_count: 3,
+          rag_spaces_count: 4,
+          is_usage_blocked: false,
+          deleted_at: null,
+          is_deleted: false,
+        })),
+        total: 3,
+        page: 1,
+        page_size: 20,
+        total_pages: 1,
+      },
+    },
     {
       url: '**/api/v1/conversations/me/totals',
       json: {
@@ -361,7 +585,7 @@ export function publicScreenshotRoutes(): MockRoute[] {
     },
     {
       url: '**/api/v1/briefing/preferences',
-      json: { hidden: ['health', 'for_you', 'documents', 'workboard'], order: Object.keys(cards) },
+      json: { hidden: [], order: Object.keys(cards) },
     },
     {
       url: '**/api/v1/briefing/companion-context',
@@ -377,12 +601,14 @@ export function publicScreenshotRoutes(): MockRoute[] {
         total_cached_tokens: 120000,
         total_cost_eur: 2.84,
         total_google_api_requests: 64,
+        total_google_api_cost_eur: 0.024,
         cycle_messages: 48,
         cycle_prompt_tokens: 42000,
         cycle_completion_tokens: 8000,
         cycle_cached_tokens: 12000,
         cycle_cost_eur: 0.28,
         cycle_google_api_requests: 8,
+        cycle_google_api_cost_eur: 0.003,
         current_cycle_start: '2026-10-01T00:00:00Z',
       },
     },
@@ -413,8 +639,8 @@ export function publicScreenshotRoutes(): MockRoute[] {
       json: {
         psyche_enabled: true,
         psyche_display_avatar: true,
-        psyche_sensitivity: 0.6,
-        psyche_stability: 0.7,
+        psyche_sensitivity: 60,
+        psyche_stability: 70,
       },
     },
     {
@@ -424,7 +650,7 @@ export function publicScreenshotRoutes(): MockRoute[] {
           'LIA is calm, curious and ready to help. Our demonstration conversations have built a comfortable rhythm: concise answers, practical suggestions and room for a little humour.',
       },
     },
-    { url: '**/api/v1/psyche/history*', json: { snapshots: [], hours: 24 } },
+    { url: '**/api/v1/psyche/history*', json: psycheHistory() },
     { url: /\/api\/v1\/connectors(?:\?fresh=true)?$/, json: { connectors: [] } },
     {
       url: '**/api/v1/journals/portrait',
