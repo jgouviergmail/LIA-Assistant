@@ -115,6 +115,49 @@ async function box(locator: Locator) {
   return measured!;
 }
 
+interface Rect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * Every box read in ONE frame. Separate `boundingBox()` calls can straddle a
+ * reflow — a family opening above, the scrollbar appearing — and compare two
+ * layouts that were never on screen together: this spec went flaky at 320, 390
+ * and 1440 px on that alone (CI, 2026-10-13 to 2026-10-17).
+ */
+async function framedBoxes(page: Page, locators: readonly Locator[]): Promise<Rect[]> {
+  const handles = await Promise.all(locators.map(locator => locator.elementHandle()));
+  return page.evaluate(
+    elements =>
+      elements.map(element => {
+        const rect = (element as Element).getBoundingClientRect();
+        return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+      }),
+    handles
+  );
+}
+
+/**
+ * The stated order holds once the layout has settled. A real inversion stays
+ * red after the poll's timeout; a reading taken mid-reflow is simply read again.
+ */
+async function expectLayout(
+  page: Page,
+  locators: readonly Locator[],
+  holds: (boxes: Rect[]) => boolean,
+  message: string
+): Promise<void> {
+  await expect.poll(async () => holds(await framedBoxes(page, locators)), { message }).toBe(true);
+}
+
+/** `lower` starts below the bottom edge of `upper` (one pixel of rounding allowed). */
+function below(upper: Rect, lower: Rect): boolean {
+  return lower.y >= upper.y + upper.height - 1;
+}
+
 async function pagerIsBelowRows(section: Locator): Promise<void> {
   const pager = section.getByRole('navigation', {
     name: copy('common.pagination.label'),
@@ -157,16 +200,13 @@ async function metadataIsReadable(page: Page, messages: Locator): Promise<void> 
     const body = row.getByText(message.content ?? copy('notifications_hub.message_no_content'), {
       exact: true,
     });
-    const [badgeBox, contactBox, bodyBox] = await Promise.all([
-      box(direction),
-      box(attribution),
-      box(body),
-    ]);
-    expect(contactBox.y).toBeGreaterThanOrEqual(badgeBox.y - 2);
-    expect(
-      bodyBox.y,
+    await expectLayout(
+      page,
+      [direction, attribution, body],
+      ([badgeBox, contactBox, bodyBox]) =>
+        contactBox.y >= badgeBox.y - 2 && below(contactBox, bodyBox),
       'contact attribution belongs beside the badge and before the message'
-    ).toBeGreaterThanOrEqual(contactBox.y + contactBox.height - 1);
+    );
     await expect(row.locator('svg')).toHaveCount(0);
   }
 
@@ -200,21 +240,19 @@ async function metadataIsReadable(page: Page, messages: Locator): Promise<void> 
     expect(feedbackColors.actual, 'feedback uses the accessible semantic verdict colour').toBe(
       feedbackColors.expected
     );
-    const [dateBox, badgeBox, feedbackBox, bodyBox] = await Promise.all([
-      box(date),
-      box(badge),
-      box(feedback),
-      box(body),
-    ]);
-    expect(
-      Math.abs(dateBox.y + dateBox.height / 2 - badgeBox.y - badgeBox.height / 2),
+    await expectLayout(
+      page,
+      [date, badge],
+      ([dateBox, badgeBox]) =>
+        Math.abs(dateBox.y + dateBox.height / 2 - badgeBox.y - badgeBox.height / 2) <= 2,
       'date and priority share the first metadata line'
-    ).toBeLessThanOrEqual(2);
-    expect(feedbackBox.y, 'feedback follows the date and priority').toBeGreaterThanOrEqual(
-      dateBox.y + dateBox.height - 1
     );
-    expect(bodyBox.y, 'feedback belongs before the message').toBeGreaterThanOrEqual(
-      feedbackBox.y + feedbackBox.height - 1
+    await expectLayout(
+      page,
+      [date, feedback, body],
+      ([dateBox, feedbackBox, bodyBox]) =>
+        below(dateBox, feedbackBox) && below(feedbackBox, bodyBox),
+      'feedback follows the date and priority, and belongs before the message'
     );
     for (const source of item.sources_used) {
       const unknown = source === NOTIFICATION_UNKNOWN_SOURCE;
@@ -227,10 +265,11 @@ async function metadataIsReadable(page: Page, messages: Locator): Promise<void> 
       } else {
         await expect(row.getByText(source, { exact: true })).toHaveCount(0);
       }
-      const sourceBox = await box(row.getByText(label, { exact: true }));
-      expect(sourceBox.y).toBeGreaterThanOrEqual(dateBox.y + dateBox.height - 1);
-      expect(bodyBox.y, 'the notification type belongs before the message').toBeGreaterThanOrEqual(
-        sourceBox.y + sourceBox.height - 1
+      await expectLayout(
+        page,
+        [date, row.getByText(label, { exact: true }), body],
+        ([dateBox, sourceBox, bodyBox]) => below(dateBox, sourceBox) && below(sourceBox, bodyBox),
+        'the notification type follows the date and belongs before the message'
       );
     }
   }
@@ -238,18 +277,16 @@ async function metadataIsReadable(page: Page, messages: Locator): Promise<void> 
   const interests = await openFamily(page, 'interests');
   const interest = notificationInterests[0];
   const interestRow = interests.getByRole('listitem').first();
-  const [topicBox, sourceBox, contentBox] = await Promise.all([
-    box(interestRow.getByText(interest.topic!, { exact: true })),
-    box(
-      interestRow.getByText(copy(`interests.history.source_${interest.source}`), { exact: true })
-    ),
-    box(interestRow.getByText(interest.content!, { exact: true })),
-  ]);
-  expect(sourceBox.y, 'the interest source follows its badge').toBeGreaterThanOrEqual(
-    topicBox.y + topicBox.height - 1
-  );
-  expect(contentBox.y, 'the source remains above the interest content').toBeGreaterThanOrEqual(
-    sourceBox.y + sourceBox.height - 1
+  await expectLayout(
+    page,
+    [
+      interestRow.getByText(interest.topic!, { exact: true }),
+      interestRow.getByText(copy(`interests.history.source_${interest.source}`), { exact: true }),
+      interestRow.getByText(interest.content!, { exact: true }),
+    ],
+    ([topicBox, sourceBox, contentBox]) =>
+      below(topicBox, sourceBox) && below(sourceBox, contentBox),
+    'the interest source follows its badge and stays above the interest content'
   );
 
   const workboard = await openFamily(page, 'workboard');
@@ -259,9 +296,11 @@ async function metadataIsReadable(page: Page, messages: Locator): Promise<void> 
     'Confirmer la proposition et les responsabilités avec les partenaires internationaux',
     { exact: true }
   );
-  const [statusBox, titleBox] = await Promise.all([box(status), box(title)]);
-  expect(titleBox.y, 'ticket status precedes its title').toBeGreaterThanOrEqual(
-    statusBox.y + statusBox.height - 1
+  await expectLayout(
+    page,
+    [status, title],
+    ([statusBox, titleBox]) => below(statusBox, titleBox),
+    'ticket status precedes its title'
   );
   await expect(workboard.getByRole('listitem').locator('svg')).toHaveCount(0);
 }

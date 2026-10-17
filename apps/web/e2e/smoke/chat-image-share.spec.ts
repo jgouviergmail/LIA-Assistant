@@ -16,6 +16,7 @@
  */
 import { test, expect, waitForHydration, type MockRoute } from '../fixtures';
 import { scanPage } from '../a11y/scan';
+import { minimizeCompanion } from '../fixtures/companion';
 
 const PNG_1X1 = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
@@ -203,6 +204,7 @@ test.describe('sharing a generated image with a connection', () => {
 
   test('at 320 px the dialog stays on the screen', async ({ page, authenticate, mockApi }) => {
     await page.setViewportSize({ width: 320, height: 640 });
+    await minimizeCompanion(page);
     await authenticate();
     await mockApi(chatRoutes([message({})], [], []));
 

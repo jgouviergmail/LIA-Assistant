@@ -110,8 +110,9 @@ settings rail).
 
 The consequence is accepted and measured, not discovered: at its default
 corner on a phone, the face — or, minimized, its restore dot — can sit on a
-control. The end-to-end suite met it eight times on 2026-10-17 (card actions,
-the composer, a settings row, the selected card's remove button). The journeys
+control. The end-to-end suite met it in ten journeys on 2026-10-17 (card
+actions, the composer, image sharing, a board card, a settings row, the
+selected card's remove button). The journeys
 that are not about the companion therefore start the way a person would, with
 the companion minimized and, where the dot itself is in the way, dragged aside
 (`apps/web/e2e/fixtures/companion.ts`).

@@ -63,9 +63,13 @@ Pillow 13.0.0, which closes twenty-one advisories published the day before.
   settings rail, and the avoidance hook's tests keep the wide-screen default
   only.
 - 🧪 The phone journeys that are not about the companion — card details, MCP
-  data, weather cards, the sandbox panel, the Microsoft bulk connection — start
-  with it minimized, as a person would, through one shared fixture
-  (`minimizeCompanion`) that the meetings and notifications fixtures now reuse.
+  data, weather cards, image sharing, the board, the sandbox panel, the
+  Microsoft bulk connection — start with it minimized, as a person would,
+  through one shared fixture (`minimizeCompanion`) that the meetings and
+  notifications fixtures now reuse.
+- 🧪 The notifications layout checks read every box they compare in one frame
+  and wait for the layout to settle: two separate reads could straddle a
+  reflow, and the spec had gone flaky at 320, 390 and 1440 px for that alone.
 - 🧰 `task test:e2e` blanks the telemetry and showroom build flags a developer
   `.env` sets, as CI does: baked on, telemetry posted `/product/events` from
   every page past the network guard and failed four settings journeys locally.
