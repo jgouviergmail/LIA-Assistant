@@ -6,7 +6,7 @@
 
 **Versione**: 5.3
 **Data**: 2026-10-17
-**Applicazione**: LIA v3.1.0
+**Applicazione**: LIA v3.1.1
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -934,7 +934,7 @@ L’API controlla la connessione Simli con un ticket monouso: inoltra la segnala
 
 La radio ha due livelli: una redazione comune raccoglie feed pubblici; l'antenna personale sceglie il programma con un palinsesto deterministico e le fonti consentite. I modelli scrivono e leggono segmenti limitati; la verifica controlla fonti, cifre e ruoli prima della messa in onda. Il lettore mostra fonti e spesa dell'account. L'antenna produce solo durante una sessione attiva, con timer e controllo dell'istanza, senza repliche.
 
-Il filtro editoriale rimuove pubblicità, sponsorizzazioni, sconti e inviti all’acquisto, conservando notizie utili, fatture, prenotazioni e appuntamenti. Il mix rispetta il formato di sintesi: PCM grezzo o u-law riceve un contenitore WAV con codifica e frequenza dichiarate; l’audio già codificato passa invariato prima dell’assemblaggio locale con FFmpeg.
+Il filtro editoriale rimuove pubblicità, sponsorizzazioni, sconti e inviti all’acquisto, conservando notizie utili, fatture, prenotazioni e appuntamenti. Il mix rispetta il formato di sintesi: PCM grezzo o u-law riceve un contenitore WAV con codifica e frequenza dichiarate; l’audio già codificato passa invariato prima dell’assemblaggio locale con FFmpeg. Nel browser, la musica strumentale della stazione suona di continuo e si abbassa sotto ogni voce più in fretta del silenzio con cui si apre un segmento, così nessuna prima parola viene coperta, poi risale lentamente.
 
 ---
 
@@ -1996,4 +1996,4 @@ I 347 ADRs documentano non solo le decisioni prese, ma anche le alternative scar
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (700+ documenti), dei 347 ADRs e del changelog (da v1.0 a v3.1.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (700+ documenti), dei 347 ADRs e del changelog (da v1.0 a v3.1.1). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

@@ -4266,6 +4266,8 @@ graph TD
 
 **Décision** : deux yeux cartoon pleins, flottants sur la page chat (déplaçables, redimensionnables S/M/L, masquables → point de restauration), 100 % frontend. Toute l'expressivité dérive de signaux EXISTANTS (FSM du chat + `streaming.phase`, `execution_step` reasoning/outil, HITL, FSM vocale, notifications, psyché) via un moteur pur à table de priorités (20 expressions, RNG et horloges injectés — testé par matrice exhaustive). Réaction par tour : le self-report psyché du `done` (`active_emotions`) d'abord, heuristique de contenu neutre en langue (ponctuation/émoji/structure uniquement, zh pleine chasse inclus) en secours de la course fire-and-forget. Rendu 100 % CSS (`clip-path: polygon()` pour les paupières — indépendant du fond, squash & stretch, désynchronisation G/D 40-80 ms), tout timer coupé si onglet caché, widget réduit ou `prefers-reduced-motion`. Préférences en localStorage (hors registre SEC-035 : préférence d'affichage pure, décision documentée). La météo v1 est ÉCARTÉE (seule source = `/briefing/cards` qui déclenche les 9 fetchers) — un « peek » Redis read-only est la voie v2 documentée.
 
+**Amendement 2026-10-17** : sur téléphone (moins de 1024 px), seule la personne place le compagnon — glisser, flèches, ou réduire en point de restauration. L'évitement des commandes et des titres et le repli automatique en point introduits en v3.1.0 sont retirés : il sautait à chaque défilement et restait réduit hors du chat. Sur grand écran, seule la place PAR DÉFAUT (jamais choisie) s'écarte encore d'une commande ; une place choisie n'est jamais recalculée.
+
 ---
 
 ### ADR-241 : migration Python 3.14 / Debian trixie — contrat runtime mono-version

@@ -4,6 +4,7 @@ import path from 'node:path';
 import AxeBuilder from '@axe-core/playwright';
 import { test, expect, waitForHydration } from '../fixtures';
 import { loadedChatRoutes } from '../fixtures/chat';
+import { minimizeCompanion } from '../fixtures/companion';
 import { awaitStyledPage, expectNoOverflow } from './overflow-report';
 
 interface Reference {
@@ -39,6 +40,9 @@ for (const sample of [
       const bodies: unknown[] = [];
       await page.setViewportSize({ width: sample.width, height: 1200 });
       await page.emulateMedia({ reducedMotion: 'reduce' });
+      // On a phone the restore dot's default corner sits on the selected card's
+      // remove button: the person drags it to the left edge first.
+      await minimizeCompanion(page, sample.width < 1024 ? { xPct: 3, yPct: 45 } : undefined);
       await authenticate({ language: sample.language, response_display_mode: 'cards' });
       await mockApi([
         ...loadedChatRoutes(),

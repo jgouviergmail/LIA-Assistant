@@ -25,6 +25,7 @@ import {
   AudioLines,
   Mic,
   Moon,
+  Music,
   Radio,
   CalendarDays,
   Loader2,
@@ -837,6 +838,75 @@ function RadioCompanionScene({ active, labels }: SceneProps) {
   );
 }
 
+type DuckPhase = 'music' | 'voice' | 'back';
+const DUCK_STEPS: readonly TimelineStep<DuckPhase>[] = [
+  { at: 0, state: 'music' },
+  { at: 1100, state: 'voice' },
+  { at: 3000, state: 'back' },
+];
+
+/** The voice's level bars while it speaks. */
+const DUCK_VOICE_BARS = ['h-3', 'h-5', 'h-2', 'h-4', 'h-3.5', 'h-5', 'h-2.5'] as const;
+/** The music's bars at full level, in px (the row is 24 px tall). */
+const DUCK_MUSIC_BARS = [15, 21, 12, 24, 18, 13, 22, 16] as const;
+/** The share of its height a music bar keeps under a voice. */
+const DUCKED_SHARE = 0.3;
+
+/**
+ * The music makes way: the station's music dips quickly before a voice speaks,
+ * so no first word is covered, and comes back up slowly once it has finished.
+ */
+function MusicMakesWayScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(DUCK_STEPS, { active });
+  const speaking = phase === 'voice';
+  return (
+    <div className={cn(STAGE, 'justify-center gap-2')}>
+      <div className="flex w-full max-w-[200px] items-center gap-3">
+        <Mic
+          className={cn(
+            'h-3.5 w-3.5 shrink-0 transition-colors duration-300',
+            speaking ? 'text-primary' : 'text-muted-foreground'
+          )}
+        />
+        <span className="flex h-6 flex-1 items-end justify-between" aria-hidden="true">
+          {DUCK_VOICE_BARS.map((bar, index) => (
+            <span
+              key={index}
+              className={cn(
+                'w-1.5 rounded-full bg-primary/70 transition-all duration-300 motion-reduce:transition-none',
+                speaking ? bar : 'h-0.5 opacity-30',
+                speaking && active && 'motion-safe:animate-pulse'
+              )}
+            />
+          ))}
+        </span>
+        <span className="w-14 shrink-0 truncate text-px-9 text-muted-foreground">
+          {labels.voice}
+        </span>
+      </div>
+      <div className="flex w-full max-w-[200px] items-center gap-3">
+        <Music className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        <span className="flex h-6 flex-1 items-end justify-between" aria-hidden="true">
+          {DUCK_MUSIC_BARS.map((height, index) => (
+            <span
+              key={index}
+              className={cn(
+                'w-1.5 rounded-full bg-muted-foreground/50 transition-all ease-out motion-reduce:transition-none',
+                // Down fast before the first word, back up slowly after the last.
+                speaking ? 'duration-300' : 'duration-1000'
+              )}
+              style={{ height: `${speaking ? Math.round(height * DUCKED_SHARE) : height}px` }}
+            />
+          ))}
+        </span>
+        <span className="w-14 shrink-0 truncate text-px-9 text-muted-foreground">
+          {labels.music}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 type DayPhase = 'day' | 'morning' | 'afternoon' | 'live';
 const DAY_STEPS: readonly TimelineStep<DayPhase>[] = [
   { at: 0, state: 'day' },
@@ -1114,6 +1184,7 @@ export const DAILY_SCENES: Readonly<Record<string, SceneComponent>> = {
   live_band: LiveBandScene,
   live_standby: LiveStandbyScene,
   radio_companion: RadioCompanionScene,
+  music_makes_way: MusicMakesWayScene,
   server_escape_hatch: ServerEscapeHatchScene,
   day_timeline: DayTimelineScene,
   voices_in_language: VoicesInLanguageScene,

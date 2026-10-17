@@ -185,7 +185,7 @@ imap-tools>=1.7.0  # IMAP email client (synchronous, wrapped via asyncio.to_thre
 vobject>=0.9.8  # vCard/vCalendar parser (iCloud uses vCard 3.0)
 
 # Attachments — File Uploads & Vision Analysis (evolution F4)
-Pillow>=11.0.0  # Image validation, HEIC→JPEG conversion
+Pillow>=13.0.0  # Image validation, HEIC→JPEG conversion. >=13.0.0 is a SECURITY floor: GHSA-v9pv-5gc8-w2m6 (critical, multi-frame loaders reusing stale native storage) and twenty more advisories fixed in 13.0.0 (JPEG/TIFF overflows, decompression-bomb bypasses)
 pillow-heif>=1.7.0  # HEIC/HEIF decoding for Pillow (iPhone photos: uploads, mail attachments, image edits)
 filetype>=1.2.0  # MIME detection by magic bytes (pure Python, ARM64 native)
 PyMuPDF>=1.25.0  # PDF text extraction (lightweight, ARM64 compatible)

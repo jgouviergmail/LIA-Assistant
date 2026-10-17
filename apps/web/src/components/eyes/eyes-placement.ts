@@ -6,7 +6,6 @@ interface Size {
 }
 interface Viewport extends Size {
   minimumTop: number;
-  minimumLeft?: number;
 }
 interface Obstacle {
   left: number;
@@ -44,7 +43,7 @@ export function unobstructedPlacement(
   viewport: Viewport,
   obstacles: readonly Obstacle[]
 ): AnchorPosition | null {
-  const minLeft = MARGIN + (viewport.minimumLeft ?? 0);
+  const minLeft = MARGIN;
   const maxLeft = viewport.width - size.width - MARGIN;
   const maxTop = viewport.height - size.height - MARGIN;
   const minTop = Math.max(MARGIN, viewport.minimumTop);

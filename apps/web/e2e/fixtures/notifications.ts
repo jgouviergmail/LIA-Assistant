@@ -4,6 +4,7 @@ import type { HeartbeatNotification } from '../../src/hooks/useHeartbeatHistory'
 import type { HubCounts } from '../../src/hooks/useHubCounts';
 import type { TicketRow } from '../../src/types/workboard';
 import { idleNotificationStream, waitForMockGate, type MockRoute } from './api-mock';
+import { minimizeCompanion } from './companion';
 import { appConfig } from './dashboard-shell';
 import type { TestUser } from './test-user';
 
@@ -394,10 +395,5 @@ export function notificationsRoutes(
 }
 
 export async function prepareNotificationReadingView(page: Page): Promise<void> {
-  await page.addInitScript(() => {
-    localStorage.setItem(
-      'lia_eyes_widget_prefs',
-      JSON.stringify({ state: { visible: false }, version: 0 })
-    );
-  });
+  await minimizeCompanion(page);
 }

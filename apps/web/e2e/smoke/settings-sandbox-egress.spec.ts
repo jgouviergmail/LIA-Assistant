@@ -14,6 +14,7 @@
  * - the whole section fits a 320 px phone without a horizontal scroll.
  */
 import { test, expect, type MockRoute } from '../fixtures';
+import { minimizeCompanion } from '../fixtures/companion';
 import { awaitStyledPage, expectNoOverflow } from './overflow-report';
 
 const GRANT_WITH_DATA = '00000000-0000-4000-8000-0000000000e1';
@@ -178,6 +179,7 @@ test.describe('sandbox network settings panel', () => {
     await authenticate({ language: 'en' });
     await mockApi(ROUTES);
     await page.setViewportSize({ width: 320, height: 800 });
+    await minimizeCompanion(page);
     await page.goto('/en/dashboard/settings?section=sandbox-egress');
     await awaitStyledPage(page, '/dashboard/settings?section=sandbox-egress @320px');
 

@@ -17,8 +17,11 @@ import type { MusicMood } from './types';
 export const MUSIC_CROSSFADE_S = 4;
 /** How long the first track takes to come up at the start. */
 export const MUSIC_FADE_IN_S = 1.5;
-/** The music's level under a voice (about −12 dB). */
-export const MUSIC_DUCKED_LEVEL = 0.25;
+/**
+ * The music's level under a voice (about −16.5 dB). It was 0.25 (−12 dB) until
+ * 2026-10-17: the owner heard the music too present under the speech.
+ */
+export const MUSIC_DUCKED_LEVEL = 0.15;
 /**
  * How fast the music goes down when a voice starts — shorter than the silence a
  * segment opens with (`MixParams.lead_in_s`, 0.5 s), so no first word is covered.

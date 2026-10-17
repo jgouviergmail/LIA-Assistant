@@ -6,7 +6,7 @@
 
 **Version** : 5.3
 **Date** : 2026-10-17
-**Application** : LIA v3.1.0
+**Application** : LIA v3.1.1
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -934,7 +934,7 @@ L’API contrôle la connexion Simli avec un ticket à usage unique : elle relai
 
 La radio a deux étages : une rédaction commune collecte des flux publics ; l'antenne personnelle choisit son programme avec une grille déterministe et les sources permises par l'auditeur. Les modèles rédigent et vocalisent des séquences bornées ; la vérification contrôle sources, chiffres et rôles avant diffusion. Le lecteur montre sources et dépense du compte. L'antenne ne produit que pendant une session active, sous minuteur et contrôle de capacité de l'instance, sans réécoute.
 
-Le filtre éditorial retire publicités, parrainages, réductions et invitations à acheter, tout en conservant informations utiles, factures, réservations et rendez-vous. Le mixage respecte le format de synthèse : le PCM brut ou l’u-law reçoit un conteneur WAV portant son encodage et sa fréquence déclarés ; l’audio déjà encodé passe inchangé avant l’assemblage local par FFmpeg.
+Le filtre éditorial retire publicités, parrainages, réductions et invitations à acheter, tout en conservant informations utiles, factures, réservations et rendez-vous. Le mixage respecte le format de synthèse : le PCM brut ou l’u-law reçoit un conteneur WAV portant son encodage et sa fréquence déclarés ; l’audio déjà encodé passe inchangé avant l’assemblage local par FFmpeg. Dans le navigateur, la musique instrumentale de la station joue en continu et s’abaisse sous chaque voix plus vite que le silence qui ouvre un segment, pour ne couvrir aucun premier mot, puis remonte lentement.
 
 ---
 
@@ -1999,4 +1999,4 @@ Les 347 ADRs documentent non seulement les décisions prises mais aussi les alte
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (700+ documents), des 347 ADRs, et du changelog (v1.0 à v3.1.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (700+ documents), des 347 ADRs, et du changelog (v1.0 à v3.1.1). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

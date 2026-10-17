@@ -4,7 +4,7 @@
 
 **Version**: 6.3
 **Date**: 2026-10-17
-**Application**: LIA v3.1.0
+**Application**: LIA v3.1.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -451,7 +451,7 @@ And between two answers, that face does not switch off. The brows sit on the eye
 
 The companion also follows the work that actually happened, not the work merely prepared. Its head, eyes, brows and mouth move together; the account's local time and weather already cached for the briefing can gently colour its resting scene. No new model or weather request is made for that effect, and reduced-motion settings keep the context in a still pose.
 
-And this presence follows you: outside the chat, a floating companion keeps LIA at your side across the whole dashboard — at rest, at work, or carrying a notification.
+And this presence follows you: outside the chat, a floating companion keeps LIA at your side across the whole dashboard — at rest, at work, or carrying a notification. It stays where you put it: you drag it or fold it away, and on a phone nothing else moves it.
 
 The Psyche Engine also learns where LIA is reliable — and it learns it from evidence, never from the grade it would give itself. Per domain, it keeps apart what its answers truly established and the usefulness you gave them; where evidence is thin, LIA checks a point, asks one question or names its limit, never sounding surer than it is. It is not a performance score displayed to impress: it is a caution that sets itself by the facts.
 

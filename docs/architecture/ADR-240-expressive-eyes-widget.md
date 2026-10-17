@@ -86,6 +86,36 @@ forces the capsules (`styleId` on the widget, an owner choice) because a
 visitor has no preference yet and the page has a face to present, while the
 chat keeps the user's own style untouched.
 
+### 6. On a phone, only the person places the companion (amended 2026-10-17)
+
+v3.1.0 gave the widget a placement of its own on small screens: below 1024 px
+it re-solved its spot against every control and heading of the page on each
+scroll, resize or DOM change, and folded into a dot when no free spot was left
+— and outside the chat it stayed folded. Used on a phone, it jumped on every
+scroll and stayed a dot on every page but the chat, the home page included.
+The owner's decision: **on a phone nothing but the person moves or folds the
+companion** — a drag, the arrow keys, or the minimize button and its restore
+dot. Below 1024 px there is no avoidance and no compact mode; if the face
+covers something, the person moves it.
+
+What remains is the wide-screen rule that predates the change: only the
+DEFAULT spot (no position ever stored, no dock anchor measured) shifts off a
+control, and with no free spot left it stays put and lets clicks through. A
+position the person chose is never re-solved, on any screen. The widget tests
+pin it on a phone (a saved spot and the default corner unchanged under a
+heading, a control, a scroll and a resize, the face whole), and so does the
+mobile settings smoke (`apps/web/e2e/smoke/settings-interface-polish.spec.ts`:
+the companion keeps its spot across scrolling while the search restores the
+settings rail).
+
+The consequence is accepted and measured, not discovered: at its default
+corner on a phone, the face — or, minimized, its restore dot — can sit on a
+control. The end-to-end suite met it eight times on 2026-10-17 (card actions,
+the composer, a settings row, the selected card's remove button). The journeys
+that are not about the companion therefore start the way a person would, with
+the companion minimized and, where the dot itself is in the way, dragged aside
+(`apps/web/e2e/fixtures/companion.ts`).
+
 ## Consequences
 
 - The chat page passes three props (`chatStatus` — newly exposed by

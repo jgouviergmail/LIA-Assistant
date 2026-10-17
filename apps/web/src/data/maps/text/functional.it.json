@@ -319,9 +319,9 @@
     },
     "f.radio": {
       "name": "Radio personale",
-      "role": "Una stazione a richiesta nella tua lingua: la giornata e notizie con fonti, scritte, verificate e lette mentre ascolti. Il filtro editoriale rimuove inviti all’acquisto e conserva informazioni utili.",
+      "role": "Una stazione a richiesta nella tua lingua: la giornata e notizie con fonti, scritte, verificate e lette mentre ascolti, su una musica che si abbassa sotto ogni voce. Il filtro editoriale rimuove inviti all’acquisto e conserva informazioni utili.",
       "goal": "Ascoltare la propria giornata e il mondo senza leggere, sapendo quanto costa.",
-      "src": "25415e642ab3"
+      "src": "2e3736e65a0d"
     },
     "f.security": {
       "name": "Account e sicurezza",

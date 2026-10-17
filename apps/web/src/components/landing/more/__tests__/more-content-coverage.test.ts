@@ -61,7 +61,7 @@ describe('more-data structural contract', () => {
     expect(MORE_SECTIONS).toHaveLength(6);
     expect(MORE_CARD_KEYS).toHaveLength(98);
     expect(new Set(MORE_CARD_KEYS).size).toBe(98);
-    expect(MORE_SECTIONS.map(s => s.cards.length)).toEqual([5, 20, 12, 17, 19, 25]);
+    expect(MORE_SECTIONS.map(s => s.cards.length)).toEqual([5, 20, 12, 17, 20, 24]);
   });
 
   it('presents the exchange-rhythm preference among the everyday attentions', () => {

@@ -29,7 +29,7 @@ PyMuPDF
 python-docx
 markdownify
 segno  # the system qr-code skill
-Pillow  # skills that write images
+Pillow>=13.0.0  # skills that write images; SECURITY floor, see requirements.txt (GHSA-v9pv-5gc8-w2m6)
 python-pptx  # skills that write slides
 # Text and formats
 pyyaml

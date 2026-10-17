@@ -4,7 +4,7 @@
 
 **Version** : 6.3
 **Date** : 2026-10-17
-**Application** : LIA v3.1.0
+**Application** : LIA v3.1.1
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -451,7 +451,7 @@ Et entre deux réponses, ce visage ne s'éteint pas. Les sourcils sont posés su
 
 Le compagnon suit aussi le travail réellement effectué, pas celui qui n'est encore que préparé. Sa tête, ses yeux, ses sourcils et sa bouche bougent ensemble ; l'heure locale du compte et la météo déjà en cache pour le briefing peuvent teinter discrètement sa présence au repos. Aucun nouvel appel au modèle ni à la météo n'est nécessaire, et la réduction des mouvements conserve le contexte dans une pose immobile.
 
-Et cette présence te suit : hors du chat, un compagnon flottant garde LIA à tes côtés sur tout le tableau de bord — au repos, au travail, ou porteur d'une notification.
+Et cette présence te suit : hors du chat, un compagnon flottant garde LIA à tes côtés sur tout le tableau de bord — au repos, au travail, ou porteur d'une notification. Il reste là où tu le poses : tu le déplaces ou tu le réduis, et sur téléphone rien d'autre ne le bouge.
 
 Le Psyche Engine apprend aussi où LIA est fiable — et il l'apprend sur des preuves, jamais sur la note qu'elle se donnerait. Par domaine, il garde séparément ce que ses réponses ont vraiment établi et l'utilité que tu leur as donnée ; là où les preuves manquent, LIA vérifie un point, pose une question ou nomme sa limite, sans jamais se montrer plus sûre qu'elle ne l'est. Ce n'est pas un score de performance affiché pour impressionner : c'est une prudence qui se règle sur les faits.
 

@@ -6,7 +6,7 @@
 
 **Version**: 5.3
 **Date**: 2026-10-17
-**Application**: LIA v3.1.0
+**Application**: LIA v3.1.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -934,7 +934,7 @@ The API controls the Simli connection through a single-use ticket: it relays sig
 
 The radio has two layers: an instance newsroom collects public feeds, while a personal antenna chooses a programme from a deterministic grid and the listener's permitted sources. Models write and speak bounded segments; verification checks their citations, numbers and roles before they air. The player shows sources and account spend. The antenna produces only during an active session, with a timer and an instance capability switch; it keeps no replay.
 
-The editorial filter removes advertising, sponsorships, discounts and purchase pitches while retaining useful news, invoices, reservations and appointments. Mixing respects the synthesis format: raw PCM or u-law receives a WAV container carrying its declared encoding and sample rate; already encoded audio passes through unchanged before local FFmpeg assembly.
+The editorial filter removes advertising, sponsorships, discounts and purchase pitches while retaining useful news, invoices, reservations and appointments. Mixing respects the synthesis format: raw PCM or u-law receives a WAV container carrying its declared encoding and sample rate; already encoded audio passes through unchanged before local FFmpeg assembly. In the browser, the station's own instrumental music plays throughout and dips under every voice faster than the silence a segment opens with, so no first word is covered, then comes back up slowly.
 
 ---
 
@@ -1986,4 +1986,4 @@ The 347 ADRs document not only the decisions made but also the rejected alternat
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (700+ documents), 347 ADRs, and the changelog (v1.0 to v3.1.0). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (700+ documents), 347 ADRs, and the changelog (v1.0 to v3.1.1). All metrics, versions, and patterns cited are verifiable in the codebase.*

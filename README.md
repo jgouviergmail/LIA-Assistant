@@ -44,7 +44,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 3.1.0</strong> — <strong>Your mailbox drafts, a fifth voice, and an experience learned from evidence.</strong> LIA keeps, edits and trashes your Gmail, Outlook and iCloud drafts and sends one only after a confirmation; Fish Audio joins as a fifth voice engine with a voice library, and everyone chooses LIA's voices in their own language; the psyche learns, domain by domain, from what answers verifiably achieved and what you found useful; the home page, the settings and the lists are redrawn for reading — 17 October 2026.
+  <strong>Version 3.1.1</strong> — <strong>LIA's eyes stay where you put them.</strong> On a phone the companion no longer steps aside or folds into a dot on its own, the radio's music sits lower under every voice, and the image library moves to Pillow 13.0.0 to close twenty-one advisories — 17 October 2026.
 </p>
 
 ---
@@ -400,7 +400,7 @@ Every capability below is documented in an architecture decision record (ADR) or
 
 #### A personal radio, on demand
 
-- A deterministic programme grid blends the listener's day with news from identified sources.
+- A deterministic programme grid blends the listener's day with news from identified sources, over the station's own instrumental music, lowered under every voice.
 - Models write and voice the segments, while verification decides what may air. The listener chooses subjects, sources, voices and verification, sees sources and live cost, and ends the session with a timer. Production runs only while someone listens.
 - An administrator controls the capability and the guided self-host installer asks before enabling it ([ADR-324](docs/architecture/ADR-324-A-Personal-Radio-A-Grid-Decides-Models-Only-Write.md), [RADIO](docs/technical/RADIO.md)).
 - The radio settings group programme, sources, verification, voices and spending so a listener can see what will be used before starting.
@@ -417,6 +417,7 @@ for projection and performance limits.
 
 - Psyche temperament, actual tool execution and the delivered answer's tone share one animation rig, including the shaded Smiley. Eyes lead a head with depth and weight.
 - Continuous mouth/brow contours, quiet thought and varied resting scenes keep transitions natural. Speech follows actual audio, and a prepared draft never earns an accomplished-action gesture. Fresh cached weather and the account clock add discreet ambience without a provider or LLM call.
+- You place the companion — a drag, the arrow keys, or a fold into its restore dot — and on a phone nothing else moves it.
 - Reduced motion keeps static contextual poses ([ADR-240](docs/architecture/ADR-240-expressive-eyes-widget.md), [ADR-252](docs/architecture/ADR-252-Expressive-Eyes-Animation-Rig.md), [ADR-253](docs/architecture/ADR-253-Per-Turn-Expressivity-Annotation.md), [ADR-264](docs/architecture/ADR-264-Living-Brows-And-Mouth.md), [ADR-294](docs/architecture/ADR-294-A-Face-That-Never-Plays-The-Same-Twice.md)).
 
 #### A psyche of its own
@@ -748,9 +749,9 @@ The result is measured, not proclaimed:
 |                           |                                         |                                         |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------- |
 | **55** functional domains | **960,000+** source lines (excl. tests) | **63,000+** inventoried automated tests | **347** ADRs                                                            |
-| **281** versions shipped  | **6 languages**, parity enforced in CI  | **620** Prometheus metrics              | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **282** versions shipped  | **6 languages**, parity enforced in CI  | **620** Prometheus metrics              | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
-Source-line figure: 960,002 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-10-16). Test inventory combines backend collection and the frontend suite; release qualification executes the repository's required gates. The published technical audit does not score security.
+Source-line figure: 960,748 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-10-17). Test inventory combines backend collection and the frontend suite; release qualification executes the repository's required gates. The published technical audit does not score security.
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -1002,12 +1003,12 @@ task test:frontend                 # vitest
 task test:e2e                      # Playwright + axe journeys (hermetic, mocked API)
 ```
 
-| Metric                  | Value                                                                                                                                       |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| Backend tests           | 40,039 collected over `tests/`, across 2,315 files (`pytest --collect-only -q --no-cov`, 2026-10-06)                                        |
-| Frontend tests (vitest) | 11,066 collected across 892 files (`vitest list --json`, 2026-10-06), plus hermetic Playwright journeys with axe, dark-mode and zoom checks |
-| Coverage floor          | 78% enforced in CI on the backend — a shrink-only ratchet, never lowered; frontend thresholds per glob                                      |
-| Technical audit         | **8.3/10** across 24 normalized areas — [full public report & protocol](docs/audit/README.md)                                               |
+| Metric                  | Value                                                                                                                                                |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Backend tests           | 50,011 collected over `tests/`, across 3,275 files (`pytest --collect-only -q --no-cov`, 2026-10-17)                                                 |
+| Frontend tests (vitest) | 13,128 passing across 1,062 files (`task test:frontend:coverage`, 2026-10-17), plus hermetic Playwright journeys with axe, dark-mode and zoom checks |
+| Coverage floor          | 78% enforced in CI on the backend — a shrink-only ratchet, never lowered; frontend thresholds per glob                                               |
+| Technical audit         | **8.3/10** across 24 normalized areas — [full public report & protocol](docs/audit/README.md)                                                        |
 
 Tests are risk-driven and behavioural: a module never disables itself on a missing provider key, a test double that receives a coroutine owns it, and an unawaited coroutine or a post-summary warning is a failure ([GUIDE_TESTING](docs/guides/GUIDE_TESTING.md)).
 

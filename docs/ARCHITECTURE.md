@@ -155,7 +155,10 @@ Avatar, compagnon animé et raccourcis partagent une géométrie flottante dans
 Les mesures sont mises en cache puis renouvelées sur événement de viewport ou
 redimensionnement. Le clavier, le zoom et la rotation corrigent la position
 affichée sans réécrire la préférence de la personne ; seuls ses déplacements
-explicites la changent. Ce contrat s’applique au navigateur comme à la PWA.
+explicites la changent. Sur téléphone, rien d’autre ne place le compagnon : ni
+évitement des commandes, ni réduction automatique en point — la personne le
+déplace ou le réduit elle-même ([ADR-240](architecture/ADR-240-expressive-eyes-widget.md),
+amendement 2026-10-17). Ce contrat s’applique au navigateur comme à la PWA.
 
 ### 3. Separation of Concerns
 

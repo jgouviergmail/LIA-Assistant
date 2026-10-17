@@ -4,7 +4,7 @@
 
 **Versione**: 6.3
 **Data**: 2026-10-17
-**Applicazione**: LIA v3.1.0
+**Applicazione**: LIA v3.1.1
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -451,7 +451,7 @@ E tra due risposte, quel volto non si spegne. Le sopracciglia sono posate sull'o
 
 Il compagno segue anche il lavoro realmente svolto, non un'azione soltanto preparata. Testa, occhi, sopracciglia e bocca si muovono insieme; l'ora locale dell'account e il meteo già in cache per il riepilogo possono colorare discretamente i momenti di riposo. Non servono nuove chiamate al modello o al meteo, e con movimento ridotto il contesto resta in una posa immobile.
 
-E questa presenza ti segue: fuori dalla chat, un compagno fluttuante tiene LIA al tuo fianco in tutta la dashboard — a riposo, al lavoro o con una notifica.
+E questa presenza ti segue: fuori dalla chat, un compagno fluttuante tiene LIA al tuo fianco in tutta la dashboard — a riposo, al lavoro o con una notifica. Resta dove lo metti: sei tu a spostarlo o a ridurlo, e sul telefono nient'altro lo muove.
 
 Il Psyche Engine impara anche dove LIA è affidabile — e lo impara dalle prove, mai dal voto che si darebbe da sola. Per ogni ambito, conserva separatamente ciò che le sue risposte hanno davvero stabilito e l'utilità che hai dato loro; dove le prove mancano, LIA verifica un punto, fa una domanda o dichiara il suo limite, senza mai mostrarsi più sicura di quanto sia. Non è un punteggio di prestazione esibito per impressionare: è una prudenza che si regola sui fatti.
 

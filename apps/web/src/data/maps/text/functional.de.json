@@ -319,9 +319,9 @@
     },
     "f.radio": {
       "name": "Persönliches Radio",
-      "role": "Ein Sender auf Abruf in deiner Sprache: dein Tag und belegte Nachrichten, während des Hörens geschrieben, geprüft und gesprochen. Der redaktionelle Filter entfernt Kaufaufforderungen und bewahrt nützliche Informationen.",
+      "role": "Ein Sender auf Abruf in deiner Sprache: dein Tag und belegte Nachrichten, während des Hörens geschrieben, geprüft und gesprochen, über Musik, die unter jeder Stimme zurücktritt. Der redaktionelle Filter entfernt Kaufaufforderungen und bewahrt nützliche Informationen.",
       "goal": "Den eigenen Tag und die Welt hören, ohne zu lesen, und wissen, was es kostet.",
-      "src": "25415e642ab3"
+      "src": "2e3736e65a0d"
     },
     "f.security": {
       "name": "Konten und Sicherheit",

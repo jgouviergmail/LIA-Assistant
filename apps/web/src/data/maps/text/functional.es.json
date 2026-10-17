@@ -319,9 +319,9 @@
     },
     "f.radio": {
       "name": "Radio personal",
-      "role": "Una emisora a demanda en tu idioma: tu día y noticias con fuentes, escritas, verificadas y leídas mientras escuchas. El filtro editorial elimina invitaciones a comprar y conserva información útil.",
+      "role": "Una emisora a demanda en tu idioma: tu día y noticias con fuentes, escritas, verificadas y leídas mientras escuchas, sobre una música que se atenúa bajo cada voz. El filtro editorial elimina invitaciones a comprar y conserva información útil.",
       "goal": "Escuchar tu día y el mundo sin leer, sabiendo lo que cuesta.",
-      "src": "25415e642ab3"
+      "src": "2e3736e65a0d"
     },
     "f.security": {
       "name": "Cuentas y seguridad",

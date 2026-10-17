@@ -1,5 +1,6 @@
 /** One browser action starts one provider authorization for selected services. */
 import { test, expect, type MockRoute } from '../fixtures';
+import { minimizeCompanion } from '../fixtures/companion';
 import { awaitStyledPage, expectNoOverflow } from './overflow-report';
 
 // `bulk_reconnect_provider` is the server's verdict (oauth_bulk): the page
@@ -134,6 +135,7 @@ test('Tout connecter Microsoft adds absent services to the selected account on m
     contentType: 'text/html', body: '<!doctype html><title>Microsoft consent fixture</title>',
   }));
   await page.setViewportSize({ width: 390, height: 800 });
+  await minimizeCompanion(page);
   await page.goto('/fr/dashboard/settings?section=connectors');
   await awaitStyledPage(page, 'Microsoft connect all at 390px');
   await page.getByRole('button', { name: /Services Microsoft/ }).last().click();

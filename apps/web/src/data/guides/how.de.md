@@ -6,7 +6,7 @@
 
 **Version**: 5.3
 **Datum**: 2026-10-17
-**Application**: LIA v3.1.0
+**Application**: LIA v3.1.1
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -934,7 +934,7 @@ Die API kontrolliert die Simli-Verbindung mit einem einmaligen Ticket: Sie leite
 
 Das Radio hat zwei Ebenen: Eine gemeinsame Redaktion sammelt öffentliche Feeds; die persönliche Antenne wählt das Programm aus einem festen Raster und den erlaubten Quellen. Modelle schreiben und sprechen begrenzte Abschnitte; eine Prüfung kontrolliert Quellen, Zahlen und Rollen vor der Ausstrahlung. Der Player zeigt Quellen und Kontokosten. Die Antenne produziert nur bei aktiver Sitzung, unter Timer und dem Kapazitätsschalter der Instanz, ohne Wiederholung.
 
-Der redaktionelle Filter entfernt Werbung, Sponsoring, Rabatte und Kaufaufforderungen und bewahrt nützliche Nachrichten, Rechnungen, Reservierungen und Termine. Der Mix respektiert das Syntheseformat: Rohes PCM oder u-law erhält einen WAV-Container mit der deklarierten Kodierung und Abtastrate; bereits kodiertes Audio bleibt vor der lokalen FFmpeg-Zusammenstellung unverändert.
+Der redaktionelle Filter entfernt Werbung, Sponsoring, Rabatte und Kaufaufforderungen und bewahrt nützliche Nachrichten, Rechnungen, Reservierungen und Termine. Der Mix respektiert das Syntheseformat: Rohes PCM oder u-law erhält einen WAV-Container mit der deklarierten Kodierung und Abtastrate; bereits kodiertes Audio bleibt vor der lokalen FFmpeg-Zusammenstellung unverändert. Im Browser läuft die Instrumentalmusik des Senders durchgehend; unter jeder Stimme senkt sie sich schneller, als die Stille am Anfang eines Segments dauert, damit kein erstes Wort verdeckt wird, und steigt danach langsam wieder an.
 
 ---
 
@@ -1992,4 +1992,4 @@ Die 347 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auc
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (700+ Dokumente), der 347 ADRs und des Changelogs (v1.0 bis v3.1.0). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (700+ Dokumente), der 347 ADRs und des Changelogs (v1.0 bis v3.1.1). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

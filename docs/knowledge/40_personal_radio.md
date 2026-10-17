@@ -4,8 +4,10 @@
 An on-demand spoken programme about your day and the world. The station uses
 your account language, the parts of your day you allow it to consult, public
 outlets curated by the instance and the sites you add. A fixed grid chooses
-what comes next; models write the words and voices speak them. Each news item
-shows its source, so you can distinguish a report from the station's commentary.
+what comes next; models write the words and voices speak them, over the
+station's own instrumental music, which steps well back under every voice. Each
+news item shows its source, so you can distinguish a report from the station's
+commentary.
 
 ## How do I start and stop it?
 Use the player in the header, the dashboard card or **Radio** page. You start a

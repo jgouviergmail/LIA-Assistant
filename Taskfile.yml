@@ -774,6 +774,12 @@ tasks:
       # this host only, for a month (measured 2026-10-04). Blank, as in CI: Next
       # then sets `production` itself, and the standalone server.js does too.
       NODE_ENV: ""
+      # The build-time flags a developer `.env` sets for the dev stack, blank as in
+      # CI, which has no `.env`: with telemetry baked on, every page posted
+      # `/product/events` past the network guard and four settings journeys went
+      # red (measured 2026-10-17); the guided showroom variant has its own task.
+      NEXT_PUBLIC_PRODUCT_TELEMETRY: ""
+      NEXT_PUBLIC_PUBLIC_SHOWROOM_VARIANT: ""
       E2E_ALL_BROWSERS: "{{.E2E_ALL_BROWSERS}}"
     cmds:
       - npm run test:transport

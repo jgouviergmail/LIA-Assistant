@@ -4,7 +4,7 @@
 
 **Version**: 6.3
 **Datum**: 2026-10-17
-**Anwendung**: LIA v3.1.0
+**Anwendung**: LIA v3.1.1
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -451,7 +451,7 @@ Und zwischen zwei Antworten schaltet dieses Gesicht nicht ab. Die Brauen sitzen 
 
 Der Begleiter folgt auch der tatsächlich geleisteten Arbeit, nicht einer bloß vorbereiteten Aktion. Kopf, Augen, Brauen und Mund bewegen sich gemeinsam; Ortszeit des Kontos und bereits für das Briefing gespeichertes Wetter können seine ruhige Szene dezent prägen. Dafür braucht es weder einen neuen Modell- noch einen Wetteraufruf, und bei reduzierter Bewegung bleibt der Kontext in einer stillen Pose.
 
-Und diese Präsenz folgt dir: Außerhalb des Chats hält ein schwebender Begleiter LIA im gesamten Dashboard an deiner Seite — ruhend, arbeitend oder mit einer Benachrichtigung.
+Und diese Präsenz folgt dir: Außerhalb des Chats hält ein schwebender Begleiter LIA im gesamten Dashboard an deiner Seite — ruhend, arbeitend oder mit einer Benachrichtigung. Er bleibt, wo du ihn hinsetzt: Du verschiebst oder verkleinerst ihn, und auf dem Handy bewegt ihn sonst nichts.
 
 Die Psyche Engine lernt auch, wo LIA verlässlich ist — und sie lernt es aus Belegen, nie aus der Note, die sie sich selbst geben würde. Pro Bereich hält sie getrennt fest, was ihre Antworten wirklich festgestellt haben und welchen Nutzen du ihnen beigemessen hast; wo Belege fehlen, prüft LIA einen Punkt nach, stellt eine Frage oder benennt ihre Grenze, ohne je sicherer zu wirken, als sie ist. Das ist keine Leistungsbewertung, die zum Beeindrucken angezeigt wird: Es ist eine Vorsicht, die sich nach den Fakten richtet.
 

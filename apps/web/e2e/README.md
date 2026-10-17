@@ -152,6 +152,7 @@ design, copy them in):
 
 ```bash
 docker exec -u node -e NODE_ENV=production -e NEXT_DIST_DIR=.next-e2e -e NEXT_PUBLIC_API_URL= \
+  -e NEXT_PUBLIC_PRODUCT_TELEMETRY= -e NEXT_PUBLIC_PUBLIC_SHOWROOM_VARIANT= \
   lia-web-dev sh -c "cd /monorepo/apps/web && pnpm build"
 docker exec -u node lia-web-dev sh -c "cd /monorepo/apps/web \
   && rm -rf .next-e2e/standalone/apps/web/.next-e2e/static .next-e2e/standalone/apps/web/public \
@@ -175,6 +176,12 @@ refused — the recurring IPv6-first trap on this codebase).
 `NEXT_PUBLIC_*` value is baked into the bundle, and the dev container exports
 an absolute API host — measured 2026-09-20, ten chunks carried it, so browser
 traffic would leave the origin the suite intercepts on.
+
+`NEXT_PUBLIC_PRODUCT_TELEMETRY=` and `NEXT_PUBLIC_PUBLIC_SHOWROOM_VARIANT=` (blank)
+at build time too, as `task test:e2e` sets them (both read blank as absent): the dev container exports the dev stack's values, and a bundle built
+with telemetry on posts `/product/events` from every page — measured 2026-10-17,
+four settings journeys failed on their network guard for a reason that was not
+in the code. The guided showroom is built by its own tasks.
 
 `LANDING_MEDIA_BASE_URL=` (blank) on the SERVER, as `task test:e2e` sets it:
 the server reads it at request time, and a dev container may export the

@@ -153,9 +153,7 @@ describe('EyesWidget — chrome & preferences', () => {
     window.dispatchEvent(new Event('resize'));
     await act(() => vi.advanceTimersByTimeAsync(200));
     expect(group).toHaveStyle({ pointerEvents: 'none' });
-    // A wide screen keeps the face whole: only a small screen folds it.
-    expect(group).toHaveAttribute('data-compact', 'false');
-    expect(eyesRoot().parentElement).toBeVisible();
+    expect(eyesRoot()).toBeVisible();
     expect(group).toHaveFocus();
     expect(group.tabIndex).toBe(0);
     fireEvent.keyDown(group, { key: 'ArrowRight' });
@@ -164,30 +162,53 @@ describe('EyesWidget — chrome & preferences', () => {
     input.remove();
   });
 
-  it('keeps an outside-chat mobile presence compact and clear of headings without changing the saved position', async () => {
-    const media = window.matchMedia('');
-    vi.spyOn(window, 'matchMedia').mockImplementation(query => ({
-      ...media,
-      media: query,
-      matches: query === '(max-width: 1023px)',
-    }));
-    const saved = { xPct: 10, yPct: 20 };
-    useEyesWidgetStore.getState().setPosition(saved);
-    renderWidget({ dockToChat: false });
-    const group = screen.getByRole('group', { name: 'eyes.widget_label' });
-    vi.spyOn(group, 'getBoundingClientRect').mockReturnValue(new DOMRect(100, 150, 200, 180));
-    const heading = document.createElement('h1');
-    heading.textContent = 'Settings';
-    heading.getBoundingClientRect = () => new DOMRect(0, 100, innerWidth, 100);
-    document.body.append(heading);
-    window.dispatchEvent(new Event('resize'));
-    await act(() => vi.advanceTimersByTimeAsync(200));
-    expect(group).toHaveAttribute('data-compact', 'true');
-    expect(eyesRoot().parentElement).not.toBeVisible();
-    const top = Number.parseFloat(group.style.top);
-    expect(top >= 208 || top + Number.parseFloat(group.style.height) <= 92).toBe(true);
-    expect(useEyesWidgetStore.getState().position).toEqual(saved);
-    heading.remove();
+  describe('on a phone the person alone places the companion (owner, 2026-10-17)', () => {
+    function onPhone(): void {
+      const media = window.matchMedia('');
+      vi.spyOn(window, 'matchMedia').mockImplementation(query => ({
+        ...media,
+        media: query,
+        matches: query === '(max-width: 1023px)',
+      }));
+    }
+
+    /** A control and a heading under the companion, then a scroll and a resize. */
+    async function coverAndScroll(group: HTMLElement): Promise<void> {
+      vi.spyOn(group, 'getBoundingClientRect').mockReturnValue(new DOMRect(100, 150, 200, 180));
+      const heading = document.createElement('h1');
+      heading.getBoundingClientRect = () => new DOMRect(0, 100, innerWidth, 100);
+      const control = document.createElement('button');
+      control.getBoundingClientRect = () => new DOMRect(0, 200, innerWidth, 60);
+      document.body.append(heading, control);
+      window.dispatchEvent(new Event('scroll'));
+      window.dispatchEvent(new Event('resize'));
+      await act(() => vi.advanceTimersByTimeAsync(400));
+    }
+
+    it('keeps the whole face on its saved spot outside the chat, whatever scrolls under it', async () => {
+      onPhone();
+      const saved = { xPct: 10, yPct: 20 };
+      useEyesWidgetStore.getState().setPosition(saved);
+      renderWidget({ dockToChat: false });
+      const group = screen.getByRole('group', { name: 'eyes.widget_label' });
+      await coverAndScroll(group);
+      expect(group.style.left).toBe(`${(saved.xPct / 100) * innerWidth}px`);
+      expect(group.style.top).toBe(`${(saved.yPct / 100) * innerHeight}px`);
+      expect(group.style.pointerEvents).toBe('');
+      expect(eyesRoot()).toBeVisible();
+      expect(useEyesWidgetStore.getState().position).toEqual(saved);
+    });
+
+    it('keeps its default corner when the person never moved it', async () => {
+      onPhone();
+      renderWidget({ dockToChat: false });
+      const group = screen.getByRole('group', { name: 'eyes.widget_label' });
+      await coverAndScroll(group);
+      expect(group.style.left).toBe('');
+      expect(group.style.top).toBe('');
+      expect(group).toHaveClass('bottom-32', 'right-6');
+      expect(eyesRoot()).toBeVisible();
+    });
   });
 
   it('renders a focusable group with a translated name and the two eyes', () => {

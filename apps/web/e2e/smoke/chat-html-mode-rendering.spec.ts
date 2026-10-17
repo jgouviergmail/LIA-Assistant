@@ -13,6 +13,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { test, expect, waitForHydration, type MockRoute } from '../fixtures';
+import { minimizeCompanion } from '../fixtures/companion';
 import { awaitStyledPage, expectNoOverflow } from './overflow-report';
 
 const NL = String.fromCharCode(10);
@@ -198,6 +199,7 @@ for (const width of [1280, 390]) {
     mockApi,
   }) => {
     await page.setViewportSize({ width, height: 900 });
+    await minimizeCompanion(page);
     await authenticate({ response_display_mode: 'cards' });
     const cards = ['current', 'forecast', 'hourly'].map(
       kind =>

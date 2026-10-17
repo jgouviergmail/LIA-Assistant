@@ -6,7 +6,7 @@
 
 **Versión**: 5.3
 **Fecha**: 2026-10-17
-**Aplicación**: LIA v3.1.0
+**Aplicación**: LIA v3.1.1
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -934,7 +934,7 @@ La API controla la conexión Simli con un ticket de un solo uso: retransmite la 
 
 La radio tiene dos capas: una redacción común recoge fuentes públicas y una antena personal elige el programa con una parrilla determinista y las fuentes permitidas. Los modelos escriben y locutan segmentos limitados; la verificación comprueba fuentes, cifras y papeles antes de emitir. El reproductor muestra fuentes y gasto de la cuenta. La antena solo produce durante una sesión activa, con temporizador y control de capacidad de la instancia, sin repetición.
 
-El filtro editorial elimina publicidad, patrocinios, descuentos e invitaciones a comprar, conservando noticias útiles, facturas, reservas y citas. La mezcla respeta el formato de síntesis: el PCM bruto o u-law recibe un contenedor WAV con su codificación y frecuencia declaradas; el audio ya codificado pasa intacto antes del ensamblado local con FFmpeg.
+El filtro editorial elimina publicidad, patrocinios, descuentos e invitaciones a comprar, conservando noticias útiles, facturas, reservas y citas. La mezcla respeta el formato de síntesis: el PCM bruto o u-law recibe un contenedor WAV con su codificación y frecuencia declaradas; el audio ya codificado pasa intacto antes del ensamblado local con FFmpeg. En el navegador, la música instrumental de la emisora suena todo el tiempo y se atenúa bajo cada voz más rápido que el silencio con el que se abre un segmento, para no tapar ninguna primera palabra, y luego vuelve a subir despacio.
 
 ---
 
@@ -1992,4 +1992,4 @@ Los 347 ADRs documentan no solo las decisiones tomadas sino también las alterna
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (700+ documentos), de los 347 ADRs y del changelog (v1.0 a v3.1.0). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (700+ documentos), de los 347 ADRs y del changelog (v1.0 a v3.1.1). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

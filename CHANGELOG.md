@@ -5,6 +5,80 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.1] - 2026-10-17
+
+**On a phone, LIA's companion stays where you put it.**
+The eyes no longer step away from buttons and headings or fold into a dot on
+their own on a small screen: you drag them, or minimize them to their restore
+dot, and they stay there whatever the page does underneath. On the radio, the
+station's music sits lower under every voice. The image library moves to
+Pillow 13.0.0, which closes twenty-one advisories published the day before.
+
+### Added
+
+- 🎵 **« The music makes way »**, a small-attentions card with its own animated
+  scene: a voice row and a music row, the music dipping fast before the first
+  word and rising slowly after the last.
+
+### Changed
+
+- 📱 **On a phone, you alone place the companion** ([ADR-240](docs/architecture/ADR-240-expressive-eyes-widget.md) amendment):
+  below 1024 px the widget runs no avoidance and has no compact mode. The
+  v3.1.0 placement re-solved its spot against every control and heading on
+  each scroll, so it jumped while you scrolled, and it stayed a dot on every
+  page but the chat. A drag, the arrow keys or the minimize button are now the
+  only things that move or fold it; on a wide screen only the default spot —
+  never one you chose — still steps off a control. The placement helper drops
+  the panned-viewport offset that only the phone path read.
+- 📻 **The radio's music steps back under the voices** ([ADR-324](docs/architecture/ADR-324-A-Personal-Radio-A-Grid-Decides-Models-Only-Write.md)):
+  the music bed goes down to about −16.5 dB under every programme (−12 dB
+  before), still in 0.35 s before the first word and back up in 1.2 s after
+  the last.
+
+### Removed
+
+- 🧹 The « The companion makes room » card and its animated scene leave the
+  small-attentions page, which keeps its 98 cards in six moments.
+
+### Security
+
+- 🔒 **Pillow 13.0.0** (security floor `Pillow>=13.0.0` in the API and sandbox
+  manifests): twenty-one advisories from Pillow's own repository, one critical
+  (GHSA-v9pv-5gc8-w2m6, multi-frame loaders reusing stale native storage) and
+  nine high (JPEG and TIFF heap overflows, decompression-bomb bypasses). LIA
+  decodes images a stranger can send — uploads, mail attachments, image edits —
+  so the floor moves the runtime, dev and sandbox locks together; no API the
+  code uses was removed, and `pillow-heif` and `python-pptx` accept the new
+  line. The wake-word GPU toolbox alone keeps 12.3.0, because `gradio` (required
+  by VoxCPM) caps Pillow below 13: it decodes no image and never reaches
+  production, and each advisory is accepted there with that reason until
+  `gradio` lifts its cap.
+
+### Tests
+
+- 🧪 The widget tests pin a phone where nothing moves the companion: a saved
+  spot and the default corner stay unchanged, face whole, under a heading, a
+  control, a scroll and a resize. The mobile settings smoke checks that the
+  companion keeps its spot across scrolling while the search restores the
+  settings rail, and the avoidance hook's tests keep the wide-screen default
+  only.
+- 🧪 The phone journeys that are not about the companion — card details, MCP
+  data, weather cards, the sandbox panel, the Microsoft bulk connection — start
+  with it minimized, as a person would, through one shared fixture
+  (`minimizeCompanion`) that the meetings and notifications fixtures now reuse.
+- 🧰 `task test:e2e` blanks the telemetry and showroom build flags a developer
+  `.env` sets, as CI does: baked on, telemetry posted `/product/events` from
+  every page past the network guard and failed four settings journeys locally.
+
+### Documentation
+
+- 📚 ADR-240 records the 2026-10-17 decision, mirrored in the ADR index and in
+  `docs/ARCHITECTURE.md`; ADR-324 states the new music level. The FAQ answer on
+  LIA's eyes, the « How LIA works » radio card and the landing's radio card, the
+  how and why guides, three blog articles (voice mode, security architecture,
+  psyche engine), the help corpus and the functional map's radio brick say the
+  same in the six languages.
+
 ## [3.1.0] - 2026-10-17
 
 **Your mailbox drafts, managed from the conversation.**

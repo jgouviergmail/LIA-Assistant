@@ -319,9 +319,9 @@
     },
     "f.radio": {
       "name": "Personal radio",
-      "role": "An on-demand station in your language: your day and sourced news, written, checked and voiced while you listen. Editorial filtering removes purchase pitches while keeping useful information.",
+      "role": "An on-demand station in your language: your day and sourced news, written, checked and voiced while you listen, over music that steps back under every voice. Editorial filtering removes purchase pitches while keeping useful information.",
       "goal": "Hear your day and the world without reading, knowing what it costs.",
-      "src": "25415e642ab3"
+      "src": "2e3736e65a0d"
     },
     "f.security": {
       "name": "Accounts and security",

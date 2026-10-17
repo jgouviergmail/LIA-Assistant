@@ -511,7 +511,8 @@ aired`), and only those are remembered — an analysis that aired counts as its 
     hashes together, so a reinstall needs nothing regenerated). In the browser
     (`music-bed.ts`): two decks crossfaded over 4 s when a track nears its end or the
     mood changes, a shuffled bag per mood (every track before any repeats, never the
-    same twice in a row), one master level lowered by about 12 dB under every segment
+    same twice in a row), one master level lowered by about 16.5 dB under every segment
+    (12 dB until 2026-10-17, when the owner heard the music too present under the speech)
     in 0.35 s — under the half second of silence a segment now opens with — and raised
     in 1.2 s after it; routed through Web Audio (`web-audio.ts`) from this origin's
     files; the permission to play taken inside the click for voice and music alike, the

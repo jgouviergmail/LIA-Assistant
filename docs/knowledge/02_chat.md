@@ -459,7 +459,7 @@ Yes, since v1.46.0 and only in ReAct mode (⚡). When a step needs a service no 
 
 This is LIA’s visual companion: it follows real thinking, search, speech and response states. Expressions accompany tone without proving an action completed. Choose its design under Personalisation › Avatar style, with previews that animate on hover or focus.
 
-Move the companion, change its size or hide it; controls appear on hover, focus or touch. Style, size and positions are saved in this browser. The landing uses its own BIP presentation, independently of your application choice. The system’s reduced-motion preference retains a quiet pose.
+Move the companion, change its size or hide it; controls appear on hover, focus or touch. On a phone it stays where you put it: nothing moves or folds it but you. Style, size and positions are saved in this browser. The landing uses its own BIP presentation, independently of your application choice. The system’s reduced-motion preference retains a quiet pose.
 
 ## Do new messages appear by themselves?
 Yes. When a message lands in your conversation from elsewhere — another tab or device, Telegram, a voice session, a routine, a reminder — the chat adds it without reloading the page: what is already on screen stays as it is, your selection and open panels included. If you are reading higher up, you are not moved; the round button at the bottom counts what arrived. Nothing changes while an answer is being written: the new messages join once it is done. And if the connection dropped (network, a laptop asleep), the chat catches up when it comes back or when you return to the tab.

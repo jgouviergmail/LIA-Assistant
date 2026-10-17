@@ -253,7 +253,7 @@ test('the initially open psyche point reads once per opening', async ({
   expect(summaries, 'one read belongs to each opening of the point').toBe(2);
 });
 
-test('mobile search remains reachable with a custom BIP position and restores the settings rail', async ({
+test('mobile search restores the settings rail while the companion stays where it was put', async ({
   page,
   authenticate,
   mockApi,
@@ -263,7 +263,7 @@ test('mobile search remains reachable with a custom BIP position and restores th
     localStorage.setItem(
       'lia_eyes_widget_prefs',
       JSON.stringify({
-        state: { visible: true, size: 'xl', style: 'billes', position: { xPct: 5, yPct: 16 } },
+        state: { visible: true, size: 'xl', style: 'billes', position: { xPct: 5, yPct: 55 } },
         version: 0,
       })
     )
@@ -274,23 +274,16 @@ test('mobile search remains reachable with a custom BIP position and restores th
   const search = page.getByRole('combobox', { name: label('settings.search.label') });
   await expect(page.locator('.lia-eyes-widget')).toBeVisible({ timeout: 60_000 });
   await expect(search).toBeVisible({ timeout: 60_000 });
-  await expect(page.locator('.lia-eyes-widget')).toHaveAttribute('data-compact', 'true');
-  await expect
-    .poll(() =>
-      page.evaluate(() => {
-        const widget = document.querySelector('.lia-eyes-widget')?.getBoundingClientRect();
-        const title = document.querySelector('main h1')?.getBoundingClientRect();
-        return (
-          !!widget &&
-          !!title &&
-          (widget.right <= title.left ||
-            widget.left >= title.right ||
-            widget.bottom <= title.top ||
-            widget.top >= title.bottom)
-        );
-      })
-    )
-    .toBe(true);
+  // On a phone nothing but the person moves the companion (owner, 2026-10-17):
+  // whatever the page does under it, it keeps the spot it was given, face whole.
+  const companion = page.locator('.lia-eyes-widget');
+  const companionSpot = () =>
+    companion.evaluate(element => {
+      const { left, top } = element.getBoundingClientRect();
+      return { left: Math.round(left), top: Math.round(top) };
+    });
+  const spot = await companionSpot();
+  expect(spot.top).toBeGreaterThan(400);
 
   await expect
     .poll(() =>
@@ -350,23 +343,9 @@ test('mobile search remains reachable with a custom BIP position and restores th
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true
   );
-  await expect(page.locator('.lia-eyes-widget')).toHaveAttribute('data-compact', 'true');
-  await expect
-    .poll(() =>
-      page.evaluate(() => {
-        const widget = document.querySelector('.lia-eyes-widget')?.getBoundingClientRect();
-        const title = document.querySelector('main h1')?.getBoundingClientRect();
-        return (
-          !!widget &&
-          !!title &&
-          (widget.right <= title.left ||
-            widget.left >= title.right ||
-            widget.bottom <= title.top ||
-            widget.top >= title.bottom)
-        );
-      })
-    )
-    .toBe(true);
+  await page.mouse.wheel(0, 600);
+  await expect.poll(companionSpot).toEqual(spot);
+  await expect(companion.locator('.lia-eyes')).toBeVisible();
 
   await page.screenshot({
     path: testInfo.outputPath('mobile-search-bip-black-text-200-percent.png'),

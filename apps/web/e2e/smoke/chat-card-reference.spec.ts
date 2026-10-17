@@ -4,6 +4,7 @@ import path from 'node:path';
 import AxeBuilder from '@axe-core/playwright';
 import { test, expect, waitForHydration } from '../fixtures';
 import { loadedChatRoutes } from '../fixtures/chat';
+import { minimizeCompanion } from '../fixtures/companion';
 import { prepareTheme, awaitStyledPage, expectNoOverflow } from './overflow-report';
 
 interface Reference {
@@ -42,6 +43,7 @@ for (const sample of samples) {
     if (!reference) throw new Error('Missing native Microsoft reference');
     await page.setViewportSize({ width: sample.width, height: 1400 });
     await prepareTheme(page, sample.theme);
+    await minimizeCompanion(page);
     await authenticate({
       language: sample.language,
       theme: sample.theme as 'light' | 'dark' | 'oled',

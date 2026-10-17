@@ -7,6 +7,7 @@ import type {
   MeetingTemplateListResponse,
 } from '../../src/types/meetings';
 import { idleNotificationStream, type MockRoute } from './api-mock';
+import { minimizeCompanion } from './companion';
 import { appConfig } from './dashboard-shell';
 import type { TestUser } from './test-user';
 
@@ -174,12 +175,7 @@ export function observeMeetingRequests(page: Page): MeetingApiRequest[] {
 
 /** Actual device preference: a collapsed companion leaves its native restore control. */
 export async function prepareMeetingReadingView(page: Page): Promise<void> {
-  await page.addInitScript(() => {
-    localStorage.setItem(
-      'lia_eyes_widget_prefs',
-      JSON.stringify({ state: { visible: false }, version: 0 })
-    );
-  });
+  await minimizeCompanion(page);
 }
 export interface MeetingPageRead {
   limit: number;
